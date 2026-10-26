@@ -1,1 +1,24 @@
-{"compilerOptions":{"forceConsistentCasingInFileNames":true,"jsx":"react-jsx","module":"ESNext","moduleResolution":"bundler","skipLibCheck":true,"strict":true,"target":"ES2022","types":["node","astro/client"]},"exclude":["node_modules","dist",".astro"],"include":["src/**/*","tests/**/*"]}
+{
+  "compilerOptions": {
+    "forceConsistentCasingInFileNames": true,
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "ES2022",
+    "types": [
+      "node",
+      "astro/client"
+    ]
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    ".astro",
+    "usage"
+  ],
+  "include": [
+    "src/**/*"
+  ]
+}

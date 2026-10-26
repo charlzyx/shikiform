@@ -1,3 +1,5 @@
+> **历史文档（2026-10-27 API 设计轮起）：** 下文评审的实现已从 main 删除，仅作参考。当前状态见 README.md。
+
 # ShikiForm — 全面 Review（对照 PLAN.md 丰富版）
 
 > Review 时间：2026-10-27，基于 `~/workspace/shiki/` 现状，逐条对照 PLAN.md 丰富版。

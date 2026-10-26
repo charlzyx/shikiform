@@ -1,0 +1,25 @@
+---
+title: "12 · 超大表格"
+description: "2000 行价格批量调整：虚拟化、字段级订阅、commit=blur（打字不进全局 reaction）、按 reco"
+---
+import { Code } from '@astrojs/starlight/components';
+import OpenPoints from '../../../components/OpenPoints.astro';
+import code from '../../../../usage/12-large-table.tsx?raw';
+
+:::caution[伪代码]
+API 设计轮：下面的代码是“理想 API”下的业务写法，**没有实现、不能运行**。源文件：`usage/12-large-table.tsx`。
+:::
+
+2000 行价格批量调整：虚拟化、字段级订阅、commit="blur"（打字不进全局 reaction）、按 record 缓存的 Computed、batch 一次事务批量写、渲染计数验收。
+
+**演示的特性：** 性能 · commit · batch
+
+## 本用例的 ❓ 待定点
+
+<OpenPoints code={code} />
+
+汇总与建议见 [待拍板](/decisions/)。
+
+## 用法代码
+
+<Code code={code} lang="tsx" title="usage/12-large-table.tsx" />

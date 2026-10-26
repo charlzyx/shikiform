@@ -1,0 +1,25 @@
+---
+title: "06 · Computed"
+description: "报价单：行小计（record 作用域缓存）、合计 / 税 / 应付、预览地址；Computed 只读、不提交、reset"
+---
+import { Code } from '@astrojs/starlight/components';
+import OpenPoints from '../../../components/OpenPoints.astro';
+import code from '../../../../usage/06-computed.tsx?raw';
+
+:::caution[伪代码]
+API 设计轮：下面的代码是“理想 API”下的业务写法，**没有实现、不能运行**。源文件：`usage/06-computed.tsx`。
+:::
+
+报价单：行小计（record 作用域缓存）、合计 / 税 / 应付、预览地址；Computed 只读、不提交、reset 时重算，也可被 effect 读取。
+
+**演示的特性：** Computed · 多对一 · 声明位置
+
+## 本用例的 ❓ 待定点
+
+<OpenPoints code={code} />
+
+汇总与建议见 [待拍板](/decisions/)。
+
+## 用法代码
+
+<Code code={code} lang="tsx" title="usage/06-computed.tsx" />

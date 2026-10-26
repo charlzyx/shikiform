@@ -1,5 +1,10 @@
 # ShikiForm
 
+> **当前 `main` = API 设计轮（usage-only）。** 旧实现（`src/core`、`src/react`、`src/pro`、`src/ui`、demo 组件、测试）已全部删除。
+> 现在仓库里只有：`usage/*.tsx`（理想 API 下的业务伪代码，**没有实现、不能运行**）、`usage/API.md`（由用例反推的 API 草案）、
+> `usage/DECISIONS.md`（待拍板问题）、设计笔记（PLAN / STATE / LAYOUT / QUALITY），以及展示这些内容的 Starlight 文档站。
+> 文档站（https://shikiform.pages.dev）每个用例页直接引用 `usage/` 源文件。API 定下来之后再写实现。
+
 Deployed to Cloudflare Pages (https://shikiform.pages.dev) on every push to `main`.
 
 Formly 级抽象、React 不可变风格、JSX-first 的表单库（大胆重构版，不保留 zustform 旧 API）。
@@ -17,9 +22,8 @@ Formly 级抽象、React 不可变风格、JSX-first 的表单库（大胆重构
 ```bash
 cd ~/workspace/shiki
 npm install
-npm run dev      # Astro Starlight 文档站，首页就是 SKU 编辑器
-npm test         # Vitest：SKU 任意顺序 / 反向选择 / 非法清除 / 最终 SKU
-npm run check    # tsc --noEmit
+npm run dev      # Astro Starlight 文档站：本轮说明 / API 草案 / 待拍板 / 用例
+npm run check    # tsc --noEmit（只检查 src/，usage/ 是伪代码，已排除）
 npm run build    # 静态构建，输出 dist/
 npm run preview  # 本地预览 dist/
 ```
@@ -53,8 +57,7 @@ Chao 自己在 Cloudflare 后台连仓库，Muse 不持有 Cloudflare 账号或 
 
 ### 验证部署成功
 
-- 首页 SKU 编辑器能点：选颜色过滤价格/配置，点价格过滤配置/颜色，反向也一样
-- `/guides/field-tree/`、`/guides/linkage/`、`/guides/tables/`、`/guides/deploy/` 都能打开
+- 首页（本轮说明）、`/api/`、`/decisions/`、`/usage/01-basic-form/` … `/usage/15-linkage-graph/` 都能打开
 - 静态资源路径是根路径（如 `/_astro/...`），不是 `/shiki/_astro/...`
 
 ### 排障
@@ -65,7 +68,6 @@ Chao 自己在 Cloudflare 后台连仓库，Muse 不持有 Cloudflare 账号或 
 
 ## 还剩什么（未做，不夸大）
 
-- 本轮新增（见下“测试结果”）：校验与枚举基础层 `src/core/enum.ts` / `src/core/validation.ts`、高级层 `src/pro/`（ProEnumPretty、CascaderPlus，不进核心）、行展开二级表 `src/core/nestedTable.ts` + 文档页 `/guides/nested-table/`、SKU 合并编辑完整版、超大表格虚拟化 `/guides/performance/` + 性能对比测试、Computed 依赖缓存做实（依赖不变不调用 compute）。
-- 性能对照测试（PLAN.md 第 10 节）：窗口行数、字段选择器不变、Computed 缓存跳过、朴素 vs Shiki 模型计数已用测试断言；真实浏览器帧率/耗时未在文档里宣称，需在本机 Performance 面板实测。
-- 增量 reaction 跳过：目前每 setValue 仍跑全部 reaction（只提交有效写入、只渲染一次），按依赖交集只跑相关 reaction 尚未实现，不要说成已实现。
-- 推送到 GitHub、CF 后台连仓库、自定义域名：按上节步骤由 Chao 操作，Muse 本轮没有推代码、没有接 CF、没有要 token。
+- 本轮只有 API 设计：没有任何库实现，没有测试（旧的 49 个单测随实现一起删除）。
+- 下一步：Chao 在「待拍板」页定 Q1–Q10 → 按定稿改 usage → 再按 LAYOUT.md 分层写实现，测试从 usage 场景反推。
+- 旧实现的 Review 记录见 REVIEW.md（历史文档，描述的是已删除的代码）。

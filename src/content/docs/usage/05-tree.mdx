@@ -1,0 +1,25 @@
+---
+title: "05 · 树"
+description: "菜单编辑器：节点模板递归，节点即 record；缩进 / 反缩进 / 移到某节点下；禁止移入自身后代（内建）+ 业务守卫"
+---
+import { Code } from '@astrojs/starlight/components';
+import OpenPoints from '../../../components/OpenPoints.astro';
+import code from '../../../../usage/05-tree.tsx?raw';
+
+:::caution[伪代码]
+API 设计轮：下面的代码是“理想 API”下的业务写法，**没有实现、不能运行**。源文件：`usage/05-tree.tsx`。
+:::
+
+菜单编辑器：节点模板递归，节点即 record；缩进 / 反缩进 / 移到某节点下；禁止移入自身后代（内建）+ 业务守卫（层级、只能进分组）。
+
+**演示的特性：** TreeField · useNode · 跨层移动
+
+## 本用例的 ❓ 待定点
+
+<OpenPoints code={code} />
+
+汇总与建议见 [待拍板](/decisions/)。
+
+## 用法代码
+
+<Code code={code} lang="tsx" title="usage/05-tree.tsx" />
