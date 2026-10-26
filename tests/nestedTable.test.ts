@@ -48,6 +48,22 @@ describe('row edit draft: save commits, cancel rolls back, validation on commit 
     draft = cancelRowEdit(draft, row.id);
     expect(draft[row.id]).toBeUndefined();
   });
+  it('draft cross-field rule reads the draft row as record, not an empty object', async () => {
+    const errors = await validateDraftRow(
+      { start: '2026-10-20', end: '2026-10-10' },
+      {
+        end: [
+          {
+            validator: (value, ctx) =>
+              (value as string) > (ctx.record.start as string) ? null : '结束必须晚于开始',
+          },
+        ],
+      },
+      {},
+      'rows.0',
+    );
+    expect(errors).toEqual({ end: ['结束必须晚于开始'] });
+  });
   it('draft validation runs on commit: negative price is rejected, typing is not validated here', async () => {
     const errors = await validateDraftRow(
       { sku: 'X', price: -5, stock: 3 },

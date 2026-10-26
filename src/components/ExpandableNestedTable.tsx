@@ -39,6 +39,9 @@ export default function ExpandableNestedTable() {
   const saveChild = async (sup: Supplier, productId: string) => {
     const draft = drafts[productId];
     if (!draft) return;
+    const supIndex = suppliers.findIndex((s) => s.id === sup.id);
+    const prodIndex = sup.products.findIndex((p) => p.id === productId);
+    if (supIndex < 0 || prodIndex < 0) return;
     const errs = await validateDraftRow(
       draft,
       {
@@ -47,7 +50,7 @@ export default function ExpandableNestedTable() {
         stock: [{ min: 0, message: '库存不能小于 0' }],
       },
       {},
-      `suppliers.${sup.id}.products.${productId}`,
+      `suppliers.${supIndex}.products.${prodIndex}`,
     );
     if (Object.keys(errs).length > 0) {
       setErrors((e) => ({ ...e, [productId]: errs }));

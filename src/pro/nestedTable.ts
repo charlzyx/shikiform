@@ -13,6 +13,7 @@
 //   rowspan = group size (a Computed), the merged cell edits the group key
 //   once, and each group expands to its own editable child table.
 import { validateField, type Rule } from '../core/validation';
+import { setByPathDraft } from '../core/types';
 
 export interface ChildRow {
   id: string;
@@ -124,25 +125,26 @@ export function cancelRowEdit(draft: RowDraft, rowId: string): RowDraft {
 }
 
 /** Validate a draft row on commit only. Returns per-field errors; empty = ok.
- *  `values` is the whole form, so cross-field rules can read record/root. */
+ *  `rowPath` must be an index path (e.g. `suppliers.0.products.1`), never
+ *  an id path: the draft row is placed at that path in a copy of `values`,
+ *  so a rule reading `ctx.record` sees the draft row itself, and `ctx.root`
+ *  sees the whole form with the draft row in place. */
 export async function validateDraftRow(
   draftRow: Record<string, unknown>,
   rulesByField: Record<string, Rule[]>,
   values: Record<string, unknown>,
   rowPath: string,
 ): Promise<Record<string, string[]>> {
+  const valuesWithRow: Record<string, unknown> = { ...values };
+  setByPathDraft(valuesWithRow, rowPath, draftRow);
   const out: Record<string, string[]> = {};
   for (const [field, rules] of Object.entries(rulesByField)) {
     const errors = await validateField(
       draftRow[field],
       rules.filter((r) => !r.trigger || r.trigger === 'onSubmit'),
-      { ...values, __draftRow: draftRow },
+      valuesWithRow,
       `${rowPath}.${field}`,
     );
-    // validateField's record scope uses the row path, so a rule reading
-    // ctx.record sees the parent object of the field — for a child row that
-    // is the child row itself when rowPath points at it.
-    void rowPath;
     if (errors.length > 0) out[field] = errors;
   }
   return out;

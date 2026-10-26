@@ -7,7 +7,6 @@ import type { ReactNode } from 'react';
 import { useStore } from 'zustand';
 import type { ShikiStoreState } from '../core/store';
 import { selectComputed, selectFieldState, selectFieldValue } from '../core/store';
-import { assertNotMovingIntoDescendant } from '../core/types';
 import {
   createFormValidator,
   type FormValidator,
@@ -202,18 +201,20 @@ export function ArrayField(props: {
   const list = Array.isArray(items) ? items : [];
   return (
     <div data-address={path}>
-      {list.map((_, index) => {
+      {list.map((item, index) => {
         const itemPrefix = `${path}.${index}`;
+        const key =
+          item !== null && typeof item === 'object' && typeof (item as { id?: unknown }).id === 'string'
+            ? (item as { id: string }).id
+            : String(index);
         return (
-          <div key={`${path}-${index}`}>
+          <div key={`${path}-${key}`}>
             <FormContext.Provider
               value={{ store, prefix: itemPrefix, validationRegistry, validator }}
             >
               {props.children({
                 index,
                 remove: () => {
-                  const cur = (store.getState().values[path.split('.')[0]] as unknown) as unknown;
-                  void cur;
                   const arr = [...list];
                   arr.splice(index, 1);
                   store.getState().setValue(path, arr);
@@ -233,15 +234,3 @@ export function ArrayField(props: {
   );
 }
 
-/** TreeField: nodes are Fields. move() refuses moving into a descendant. */
-export function useTreeMove(path: string) {
-  const { store } = useFormContext();
-  return (fromIndex: number, toParentIndex: number | null) => {
-    if (toParentIndex !== null) {
-      assertNotMovingIntoDescendant(`${path}.${fromIndex}`, `${path}.${toParentIndex}`);
-    }
-    const list = (store.getState().values as Record<string, unknown>)[path];
-    void list;
-    void fromIndex;
-  };
-}

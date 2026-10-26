@@ -34,6 +34,8 @@ export default function SkuFullEditor() {
   const saveChild = async (skuId: string) => {
     const draft = drafts[skuId];
     if (!draft) return;
+    const index = skus.findIndex((s) => s.id === skuId);
+    if (index < 0) return;
     const errs = await validateDraftRow(
       draft,
       {
@@ -41,7 +43,7 @@ export default function SkuFullEditor() {
         stock: [{ min: 0, message: '库存不能小于 0' }],
       },
       {},
-      `sku.${skuId}`,
+      `skus.${index}`,
     );
     if (Object.keys(errs).length > 0) {
       setErrors((e) => ({ ...e, [skuId]: errs }));

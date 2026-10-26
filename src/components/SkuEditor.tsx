@@ -1,7 +1,7 @@
 // SKU Editor — Starlight homepage demo AND test case.
 // JSX-first, no ternary visibility logic in JSX, no per-combination if/else.
 // Available options, final SKU, price range are all Computed from SKU_TABLE.
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { createSkuStore } from '../examples/sku';
 import { ALL_COLORS, ALL_CONFIGS, ALL_PRICES, type Sku } from '../examples/sku';
 import { ComputedField, Field, ShikiForm } from '../react/form';
@@ -48,9 +48,9 @@ function Dimension(props: {
 export default function SkuEditor() {
   // One store per editor instance. useMemo is a React 18 hook.
   const store = useMemo(() => createSkuStore(), []);
+  const [submitted, setSubmitted] = useState<Record<string, unknown> | null>(null);
   const submit = () => {
-    // eslint-disable-next-line no-alert
-    alert(JSON.stringify(store.getState().getSubmitValues(), null, 2));
+    setSubmitted(store.getState().getSubmitValues() as Record<string, unknown>);
   };
   return (
     <ShikiForm store={store}>
@@ -91,11 +91,17 @@ export default function SkuEditor() {
                       <button
                         type="button"
                         className="shiki-btn"
-                        onClick={() => store.getState().reset()}
+                        onClick={() => {
+                          store.getState().reset();
+                          setSubmitted(null);
+                        }}
                       >
                         重置
                       </button>
                     </div>
+                    {submitted ? (
+                      <pre className="shiki-code">{JSON.stringify(submitted, null, 2)}</pre>
+                    ) : null}
                   </div>
                 );
               }}

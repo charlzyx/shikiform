@@ -155,17 +155,15 @@ export default function TreeDemo() {
       setMessage('已是顶级节点，无法移出');
       return;
     }
-    const parentPath = parts.slice(0, -1).join('.');
     const grandPath = parts.length > 2 ? parts.slice(0, -2).join('.') : null;
     const parentIdx = parts[parts.length - 2];
     const { tree: without, removed } = removeByPath(tree, f.path);
     if (!removed) return;
     setTree(insertByParentPath(without, grandPath, removed, parentIdx + 1));
     setMessage('');
-    void parentPath;
   };
 
-  const illegalMove = () => {
+  const moveInto = () => {
     const src = flatById.get(sourceId);
     const tgt = flatById.get(targetId);
     if (!src || !tgt) return;
@@ -178,7 +176,11 @@ export default function TreeDemo() {
       setMessage('不能移入自身后代');
       return;
     }
-    setMessage('该移动合法（演示仅校验非法情形，未执行跨层移动）');
+    const { tree: without, removed } = removeByPath(tree, src.path);
+    if (!removed) return;
+    setTree(insertByParentPath(without, tgt.path, removed, 999));
+    setExpanded((prev) => new Set(prev).add(targetId));
+    setMessage('已移入目标节点下（成为其最后一个子节点）');
   };
 
   const visibleFlat = useMemo(() => {
@@ -212,18 +214,18 @@ export default function TreeDemo() {
       </div>
       {message ? <div data-testid="tree-message" className="shiki-error">{message}</div> : <div data-testid="tree-message" className="shiki-muted">（操作提示会出现在这里）</div>}
       <div style={{ marginTop: 16 }}>
-        <div className="shiki-label">非法移动校验：把某个节点移入自身后代会被拒绝</div>
+        <div className="shiki-label">移入目标下：把某个节点移入自身后代会被拒绝，合法移动真的执行</div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <select data-testid="tree-illegal-source" className="shiki-input" style={{ width: 'auto' }} value={sourceId} onChange={(e) => setSourceId(e.target.value)}>
+          <select data-testid="tree-move-source" className="shiki-input" style={{ width: 'auto' }} value={sourceId} onChange={(e) => setSourceId(e.target.value)}>
             {flat.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
           </select>
           <span>→ 移入</span>
-          <select data-testid="tree-illegal-target" className="shiki-input" style={{ width: 'auto' }} value={targetId} onChange={(e) => setTargetId(e.target.value)}>
+          <select data-testid="tree-move-target" className="shiki-input" style={{ width: 'auto' }} value={targetId} onChange={(e) => setTargetId(e.target.value)}>
             {flat.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
           </select>
-          <button data-testid="tree-illegal-move" className="shiki-btn" type="button" onClick={illegalMove}>尝试移动</button>
+          <button data-testid="tree-move-into" className="shiki-btn" type="button" onClick={moveInto}>移入目标下</button>
         </div>
-        <p className="shiki-muted">试试：源选“研发部”、目标选“前端组”——前端组是研发部的后代，点“尝试移动”会提示“不能移入自身后代”，树不变。</p>
+        <p className="shiki-muted">试试：源选“研发部”、目标选“前端组”——前端组是研发部的后代，点“移入目标下”会提示“不能移入自身后代”，树不变；选合法目标则真的移过去。</p>
       </div>
       <pre data-testid="tree-output" className="shiki-code">{JSON.stringify(tree, null, 2)}</pre>
     </Card>
