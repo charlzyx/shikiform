@@ -3,6 +3,35 @@
 > 写 usage 时真正卡住或犹豫的地方。每条给 2–3 个选项 + 我的建议。排序 = 我认为的重要程度。
 > 后面的 `[NN]` 指 usage 文件编号，可以去对应页面看上下文。
 
+## 已拍板（2026-10-27）
+
+### D1. 删除 VoidField / Transient / Computed 三个“类型”
+
+字段类型只按**数据结构**分：`Field / ObjectField / ArrayField / TreeField`。另外三个只是属性组合：
+
+| 原来 | 现在 | 用例 |
+|---|---|---|
+| `VoidField`（布局） | 普通 JSX / 布局组件，不进 path、默认没有 address；需要被 effect 控制时才起名（`<Region ui="aside">`、`<Grid ui="filter">` → `@aside`）| [01][04][05][06][09][13][14] |
+| `Transient` | `<Field name="confirm" submit={false}>`；无 UI 的状态（分页、选择、展开、编辑模式、草稿）用同一个开关 `useForm({ fields: { page: { submit: false } } })` | [01][08][09][10][11] |
+| `Computed` | effects 里 `e.computed` / `row.computed` 声明；JSX 里就是普通只读 `<Field name>`，没有 `<Computed>` | [06][07][10][12][15] |
+
+“值来源（输入 / 计算）”与“是否提交（submit）”**互相独立**：计算字段默认 `submit: false`，`e.computed('payable', fn, { submit: true })` 可提交 [06]。原 Q3（Computed 在哪声明）随之定为 A。
+副作用：以前“effect 写 `query('actions').pattern`”禁用按钮区的写法没了——按钮组件用 hook 读状态（`useFormState` / 读一个计算字段）[06][15]。
+
+### D2. 树节点有 `pos`（二维坐标）
+
+数组行只有 `index`；树节点多一个 `pos` = 索引路径，如 `[0, 2, 1]`：`pos.length` = depth，`pos.at(-1)` = 兄弟中的 index，path 由 pos 推出 `menus.0.children.2.children.1`（`childrenKey` 可配）。移动全用 pos：`move(fromPos, toPos)`、`indent / outdent / moveUp / moveDown`；禁止移入自身后代 = `toPos` 以 `fromPos` 为前缀；按 depth 做联动 / 分层校验；`query(treePath, { pos })` 按坐标查。详见 API §2.1、用例 [05]。
+
+## Q0. pos 的表示与身份（新，D2 的细节）[05]
+
+| 问题 | 选项 | 建议 |
+|---|---|---|
+| 类型 | A. `number[]`；B. 字符串 `'0-2-1'` | **A**（`type Pos = readonly number[]`），前缀 / 父级 / depth 都是数组运算；另给 `posKey(pos)` 得 `'0-2-1'`，只做 Map key / 序列化 |
+| `toPos` 语义 | A. 移动完成后的最终坐标；B. 移除前的插入点（同父下移差 1） | **A**，读起来就是“移完它在哪”，偏移由引擎处理 |
+| 拖拽中 pos 稳定吗 | A. 拖拽期间数据不动，hover 只算预览 toPos，drop 一次 `move` 事务；B. 实时移动 | **A**：拖拽中 pos 稳定，move 后受影响节点的 pos / path 全部更新 |
+| key / 身份 | A. React key、展开、选择、草稿按 `rowKey`（稳定 id）；B. 按 pos | **A**：pos 是派生值、移动就变，按 pos 挂 UI 状态会“串到别的节点”。值和错误仍按 path（由 pos 推出），符合 QUALITY“path 不用 id” |
+| 按 pos 查询写法 | A. `query('menus', { pos })`；B. 直接写推出来的 path；C. 新语法 `menus[0/2/1]` | **A + B**，不发明 C |
+
 ## Q1. effect 写法：怎么写“目标状态”
 
 | 选项 | 例 | 优点 | 缺点 |
@@ -21,16 +50,16 @@
 
 **建议：两个都留**，并在文档里定规矩：`react` 里只写 state（不写 value），写 value 一律用 `watch`。开发模式下 react 写 value 给警告。
 
-## Q3. Computed 在哪声明 [06]
+## Q3. ~~Computed 在哪声明~~ → 已定 A（见 D1）[06]
 
 | 选项 | 例 |
 |---|---|
-| A. effects 里（当前） | `e.computed('total', fn)` / `row.computed('subtotal', fn)`；JSX `<Computed name>` 只展示 |
+| A. effects 里（✅ 已定） | `e.computed('total', fn)` / `row.computed('subtotal', fn)`；JSX 里是普通只读 `<Field name>` |
 | B. JSX 里 | `<Computed name="total" value={({root}) => …} />` |
 | C. useForm 配置 | `computed: { total: fn, 'items.*.subtotal': fn }` |
 
 B 的问题：没渲染（折叠、Tab 未挂载、虚拟化滚出）就没有值，而 Computed 经常被别的 effect / 提交读到。C 需要再发明 `*` 通配（PLAN 只要正则）。
-**建议 A**。类型上需要 `defineEffects<V, C>` 第二个泛型声明 Computed 形状，或改 builder 链式写法推导——这点还没想好。
+仍未定的只有类型：需要 `defineEffects<V, C>` 第二个泛型声明计算字段形状，或改 builder 链式写法推导——这点还没想好。
 
 ## Q4. UI 编号：`#n` 还是具名 `@name` [09][14]
 
@@ -70,8 +99,8 @@ B 的问题：没渲染（折叠、Tab 未挂载、虚拟化滚出）就没有�
 
 | 选项 | 说明 |
 |---|---|
-| A. 草稿层（当前） | 编辑中改动只进行草稿，不触发全局 reaction；行内 Computed / 校验在草稿上算；save 一次事务提交 |
-| B. 直接改 + 快照 | 简单，但编辑中就触发全局联动、其他行 Computed、合计 |
+| A. 草稿层（当前） | 编辑中改动只进行草稿，不触发全局 reaction；行内计算值 / 校验在草稿上算；save 一次事务提交 |
+| B. 直接改 + 快照 | 简单，但编辑中就触发全局联动、其他行计算值、合计 |
 
 **建议 A**，和大表 `commit="blur"` 是同一机制（“本地草稿 → commit”），一个实现两处复用。
 
@@ -98,6 +127,9 @@ B 的问题：没渲染（折叠、Tab 未挂载、虚拟化滚出）就没有�
 - 数组每行某字段的正则太长 `/^rows\.\d+\.markup$/`：建议加一个只限这种情况的辅助 `query.each('rows', 'markup')`，不引入 glob [12]。
 - 表头排序（只改视图）vs 上移下移（改数据）：API 上分成 `sortable` 和 `row.moveUp()`，文档写清 [12]。
 - `useFormContext`（不订阅）vs `useFormState`（订阅）容易混，考虑改名 `useFormInstance` / `useWatch` [12]。
-- 纯展示组件（按钮组）用 hook 读状态自己 `hidden`：建议允许；“显隐必须进 effect”只约束 Field 树节点 [10]。
-- moveInto 目标：接受索引 path 或 `{ key }`，内部换算成索引 path（QUALITY：path 不用 id）[05]。
+- 纯展示组件（按钮组）用 hook 读状态自己 `hidden`：D1 之后布局不是字段，这成了唯一写法；“显隐必须进 effect”只约束 Field [06][10][15]。
+- 新：无 UI 字段的 `submit={false}` 写在哪——`useForm({ fields })`（当前）/ 不渲染的占位 `<Field hidden>` / `e.field()`；建议 `useForm({ fields })` [09]。
+- 新：具名布局 `<Region ui>` 要不要有——A 有（通用包裹 + Pro 布局收 `ui`）；B 只有 Pro 布局能起名；建议 A，Region 只有 visible / pattern [14]。区域名建议全局唯一。
+- 新：ArrayTable 展开状态不绑定字段时内部自管——建议允许，绑定 `expandedKeys` 是可选受控模式 [10]。
+- 树移动目标：统一用 pos（D2）；`moveTargets()` 给 UI 列候选，内部按 rowKey 找节点、按 pos 移动 [05]。
 - shadcn 组件 `onValueChange` / `onCheckedChange` 必须 connect 一次：省不掉，但只在应用 `_ui.tsx` 写一次 [_ui]。

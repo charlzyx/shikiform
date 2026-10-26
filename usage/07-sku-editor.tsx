@@ -1,9 +1,9 @@
 // 07 SKU 选择器（首屏）：多对多联动 = 数据，不是 if/else
 // 覆盖：每个维度是 Field，它的可选范围（enum）由一张 SKU 表算出来；任意顺序选；
-//      选完后不合法的旧选择在【一个】集中 effect 里清掉；最终 SKU / 价格 / 库存是 Computed。
+//      选完后不合法的旧选择在【一个】集中 effect 里清掉；最终 SKU / 价格 / 库存由 e.computed 算出（只读、不提交）。
 //      维度从 3 个变 5 个，下面的代码一行不改。
 // ⚠️ 假代码：只看 API 是否顺手，不能运行。
-import { useForm, Form, Field, Computed, defineEffects, Submit } from 'shikiform';
+import { useForm, Form, Field, defineEffects, Submit } from 'shikiform';
 import { comboOptions, comboMatch } from 'shikiform'; // core 里的通用“组合联动”工具，没有任何 SKU 业务
 import { FormItem, Radio, Money } from './_ui';
 import { Button } from '@/components/ui/button';
@@ -51,7 +51,7 @@ const skuEffects = defineEffects<Selection>((e) => {
     }
   });
 
-  // (3) 多对一：最终结果全是 Computed
+  // (3) 多对一：最终结果全是 e.computed
   e.computed('matched', ({ root }) => SKUS.filter((r) => DIMS.every((d) => !root[d] || r[d] === root[d])));
   e.computed('sku', ({ root }) => (root.matched.length === 1 ? root.matched[0] : null));
   e.computed('priceText', ({ root }) => {
@@ -72,7 +72,7 @@ export function SkuPicker() {
   const form = useForm<Selection>({ initialValues: { qty: 1 }, effects: [skuEffects] });
 
   return (
-    <Form form={form} onSubmit={(v) => cart.add({ skuId: form.getComputed('sku')!.skuId, qty: v.qty })}>
+    <Form form={form} onSubmit={(v) => cart.add({ skuId: form.getValue('sku')!.skuId, qty: v.qty })}>
       {/* 三个维度长得一模一样：enum 全由 effect 给，JSX 没有任何逻辑 */}
       <Field name="color" decorator={<FormItem label="颜色" />} rules={[{ required: true }]}>
         <Radio />
@@ -84,8 +84,9 @@ export function SkuPicker() {
         <Radio />
       </Field>
 
-      <Computed name="priceText" decorator={<FormItem label="价格" />} />
-      <Computed name="stock" decorator={<FormItem label="库存" />} />
+      {/* priceText / stock 的值来自 e.computed → 只读普通 Field，无子组件时用默认 TextPretty */}
+      <Field name="priceText" decorator={<FormItem label="价格" />} />
+      <Field name="stock" decorator={<FormItem label="库存" />} />
       <Field name="qty" decorator={<FormItem label="数量" />}>
         <Radio /* 实际是 Stepper，省略 */ />
       </Field>

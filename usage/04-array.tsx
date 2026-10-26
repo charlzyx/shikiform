@@ -2,7 +2,7 @@
 // 覆盖：ArrayField 增 / 删 / 上下移 / 复制；模板里的 rules 与联动按 record 作用域对每一行生效；
 //      数组级校验（名称唯一、至少一个启用）；稳定 rowKey（排序不 remount、不丢焦点）。
 // ⚠️ 假代码：只看 API 是否顺手，不能运行。
-import { useForm, Form, Field, ArrayField, VoidField, Enum, defineEffects, useRow, useArray, Submit } from 'shikiform';
+import { useForm, Form, Field, ArrayField, Enum, defineEffects, useRow, useArray, Submit } from 'shikiform';
 import { FormItem, Input, Select, Switch, NumberInput } from './_ui';
 import { Button } from '@/components/ui/button';
 import { nanoid } from 'nanoid';
@@ -75,7 +75,7 @@ export function RoutingForm({ initial }: { initial: RoutingConfig }) {
         decorator={<FormItem label="路由" />}
       >
         {/* 子节点是“行模板”：每行渲染一次，name 都是相对当前行 record 的 */}
-        <VoidField name="row" className="grid grid-cols-[1fr_140px_1fr_80px_80px_auto] gap-2 items-start">
+        <div className="grid grid-cols-[1fr_140px_1fr_80px_80px_auto] gap-2 items-start">
           <Field
             name="name"
             decorator={<FormItem />}
@@ -100,7 +100,7 @@ export function RoutingForm({ initial }: { initial: RoutingConfig }) {
             <Switch />
           </Field>
           <RowActions />
-        </VoidField>
+        </div>
       </ArrayField>
 
       <AddRouteButton />

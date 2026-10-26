@@ -1,10 +1,10 @@
 // 10 行展开二级表格 + 编辑：订单 → 订单行（Array<Object<Array<Object>>>）
-// 覆盖：一级表每行可展开，展开区里是二级表（该订单的 items）；展开状态是 Transient（每行独立）；
+// 覆盖：一级表每行可展开，展开区里是二级表（该订单的 items）；展开状态是 submit=false 的普通字段 expandedKeys（按 rowKey 记，每行独立）；
 //      表格级“查看 / 编辑”模式：pattern 切换，查看态自动用 Pretty（不写三元）；
 //      行级草稿：编辑中的改动先进草稿，保存才提交（一次事务），取消回滚；
 //      二级表的 record / array 全是相对的，没有 orders.3.items.2.price 这种绝对路径。
 // ⚠️ 假代码：只看 API 是否顺手，不能运行。
-import { useForm, Form, Field, Transient, Computed, Enum, defineEffects, useRow, useFieldValue } from 'shikiform';
+import { useForm, Form, Field, Enum, defineEffects, useRow, useFieldValue } from 'shikiform';
 import { ArrayTable, ProEnumPretty } from 'shikiform/pro';
 import { CellItem, Input, NumberInput, Select, Switch, Money, TextPretty } from './_ui';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,7 @@ const OrderStatusEnum = Enum.from([
 
 interface Item { id: string; sku: string; qty: number; price: number }
 interface Order { id: string; no: string; customer: string; status: string; items: Item[] }
-interface Values { orders: Order[]; editMode: boolean }
+interface Values { orders: Order[]; editMode: boolean; expandedKeys: string[] }
 
 const orderEffects = defineEffects<Values>((e) => {
   // 表格级模式：一处切换，整棵 orders 子树的 pattern 跟着变（pattern 向下级联）
@@ -46,23 +46,29 @@ const orderEffects = defineEffects<Values>((e) => {
 });
 
 export function OrderTable({ initial }: { initial: Order[] }) {
-  const form = useForm<Values>({ initialValues: { orders: initial, editMode: false }, effects: [orderEffects] });
+  const form = useForm<Values>({
+    initialValues: { orders: initial, editMode: false, expandedKeys: [] },
+    effects: [orderEffects],
+    // UI 状态和“确认密码”是同一个开关：submit=false（2026-10-27 起没有 Transient 类型）
+    fields: { expandedKeys: { submit: false } },
+  });
 
   return (
     <Form form={form}>
-      <Transient name="editMode" decorator={<label className="flex gap-2">编辑模式</label>}>
+      <Field name="editMode" submit={false} decorator={<label className="flex gap-2">编辑模式</label>}>
         <Switch />
-      </Transient>
+      </Field>
 
       <ArrayTable
         name="orders"
         rowKey="id"
-        // 展开状态：每行一个 Transient（内部挂在 UI 树上，不在数据里）；也可以绑定到表单字段做受控
-        expandable={{ render: <OrderItems /> }}
+        // 展开状态绑定到字段 expandedKeys（submit=false），按 rowKey 记：排序 / 翻页后不串行
+        // ❓ 不绑定时 ArrayTable 内部自管展开状态（不进表单）——要不要允许？建议允许，绑定是可选的受控模式。
+        expandable={{ render: <OrderItems />, expandedKeys: 'expandedKeys' }}
         // 行级草稿：编辑中的改动只进草稿层，不触发全局 reaction；save 时整行校验 + 一次事务提交
         // ❓ 草稿方案二选一：
-        //    A（当前）draft="row"：改动写在草稿层，取消直接丢弃；Computed / effect 在草稿内另算一份（行内预览要对）
-        //    B：直接改正式值 + 编辑开始时快照，取消时回滚；简单，但编辑中就会触发全局联动和其他行的 Computed
+        //    A（当前）draft="row"：改动写在草稿层（草稿也是 submit=false 的状态），取消直接丢弃；计算值 / effect 在草稿内另算一份（行内预览要对）
+        //    B：直接改正式值 + 编辑开始时快照，取消时回滚；简单，但编辑中就会触发全局联动和其他行的计算值
         draft="row"
       >
         <ArrayTable.Column title="订单号" width={160}>
@@ -82,9 +88,10 @@ export function OrderTable({ initial }: { initial: Order[] }) {
                   建议都支持：connect(Select, { pretty: ProEnumPretty }) 作默认，Field 的 pretty prop 覆盖。 */}
         </ArrayTable.Column>
         <ArrayTable.Column title="金额" width={120}>
-          <Computed name="amount" decorator={<CellItem />}>
+          {/* amount 由 order.computed 声明 → 只读普通 Field */}
+          <Field name="amount" decorator={<CellItem />}>
             <Money />
-          </Computed>
+          </Field>
         </ArrayTable.Column>
         <ArrayTable.Column title="" width={160}>
           <RowEditActions />
@@ -120,9 +127,9 @@ function OrderItems() {
         </Field>
       </ArrayTable.Column>
       <ArrayTable.Column title="小计" width={120}>
-        <Computed name="lineTotal" decorator={<CellItem />}>
+        <Field name="lineTotal" decorator={<CellItem />}>
           <Money />
-        </Computed>
+        </Field>
       </ArrayTable.Column>
       <ArrayTable.Addition>+ 添加一行</ArrayTable.Addition>
     </ArrayTable>
@@ -145,5 +152,5 @@ function RowEditActions() {
   );
 }
 // 别扭点：上面用了 hidden={!editMode} 控制显隐——这其实就是 JSX 里的显隐逻辑（虽然不是三元）。
-// 更“正确”的写法是给这个列一个 VoidField 并在 effect 里写 visible，但为一组按钮绕一圈很重。
-// ❓ 是否允许“纯展示组件”用 hook 读状态自己决定显隐？建议允许，规则只约束 Field 的显隐必须进 effect。
+// 2026-10-27 起布局不是字段，按钮组本来就不能被 effect 写 visible —— 所以这里用 hook 读状态是唯一写法，也合理。
+// 规则因此收窄为：Field 的显隐必须进 effect；纯展示 / 布局组件用 hook 读状态自己决定。

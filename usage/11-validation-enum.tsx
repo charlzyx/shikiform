@@ -4,7 +4,7 @@
 //      warning（不阻塞提交）；同一个 Enum 复用在 Select / Radio / 表格列筛选 / ProEnumPretty；
 //      懒树枚举 + CascaderPlus；外部 resolver（Zod）可选。
 // ⚠️ 假代码：只看 API 是否顺手，不能运行。
-import { useForm, Form, Field, ObjectField, Transient, Enum, defineEffects, defineRules, Submit } from 'shikiform';
+import { useForm, Form, Field, ObjectField, Enum, defineEffects, defineRules, Submit } from 'shikiform';
 import { ProEnumPretty, CascaderPlus, ProTable } from 'shikiform/pro';
 import { zodResolver } from 'shikiform/zod';
 import { z } from 'zod';
@@ -136,10 +136,10 @@ export function EventCreateForm() {
         </Field>
       </ObjectField>
 
-      {/* Transient + 校验：同意协议是必选但不提交 */}
-      <Transient name="agree" decorator={<FormItem />} rules={[{ isTrue: true, message: '请先同意活动规范' }]} trigger="onChange">
+      {/* submit={false} + 校验：同意协议是必选但不提交 */}
+      <Field name="agree" submit={false} decorator={<FormItem />} rules={[{ isTrue: true, message: '请先同意活动规范' }]} trigger="onChange">
         <input type="checkbox" />
-      </Transient>
+      </Field>
 
       <Submit asChild>
         {/* 提交：先等 pending 的异步校验出结果，不只看同步结果 */}

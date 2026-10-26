@@ -1,9 +1,9 @@
 // 12 超大表格：2000 行价格批量调整
-// 覆盖：行虚拟化（只挂可视区）；字段级订阅（改一格只重渲染该格 + 真正依赖它的 Computed）；
+// 覆盖：行虚拟化（只挂可视区）；字段级订阅（改一格只重渲染该格 + 真正依赖它的计算值）；
 //      commit="blur"：打字只改本地草稿，不进全局 reaction，blur / 回车才提交一次；
-//      按 record 缓存 Computed；rowKey 稳定，排序不 remount 不丢焦点；渲染计数用于验收。
+//      按 record 缓存计算值；rowKey 稳定，排序不 remount 不丢焦点；渲染计数用于验收。
 // ⚠️ 假代码：只看 API 是否顺手，不能运行。
-import { useForm, Form, Field, Computed, defineEffects, useFormState, useFormContext } from 'shikiform';
+import { useForm, Form, Field, defineEffects, useFormState, useFormContext } from 'shikiform';
 import { ArrayTable, RenderCounter } from 'shikiform/pro';
 import { CellItem, NumberInput, Input, Money } from './_ui';
 import { Button } from '@/components/ui/button';
@@ -56,9 +56,10 @@ export function BulkPriceEditor({ rows }: { rows: PriceRow[] }) {
           </Field>
         </ArrayTable.Column>
         <ArrayTable.Column title="建议价" width={120}>
-          <Computed name="suggested" decorator={<CellItem />}>
+          {/* suggested 在 effects 里是 computed → 这里就是一个只读的普通 Field */}
+          <Field name="suggested" decorator={<CellItem />}>
             <Money />
-          </Computed>
+          </Field>
         </ArrayTable.Column>
         <ArrayTable.Column title="售价" width={140}>
           {/* 单元格校验时机：默认就是 commit 时（blur / Enter），打字不校验 */}
@@ -82,7 +83,7 @@ export function BulkPriceEditor({ rows }: { rows: PriceRow[] }) {
 
 function Toolbar() {
   // useFormState 带 selector：只订阅 belowCostCount，不订阅 2000 行
-  const below = useFormState((f) => f.getComputed('belowCostCount'));
+  const below = useFormState((f) => f.getValue('belowCostCount'));
   // useFormContext() 只拿实例、不订阅；useFormState(selector) 才订阅
   // ❓ 两个 hook 名字容易混：考虑改名 useFormInstance() / useWatch(selector)
   const form = useFormContext<Values>();

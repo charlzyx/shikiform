@@ -1,10 +1,10 @@
 // 09 查询表单 + 表格：调用日志
 // 覆盖：Grid 自动排列（不手写 span）+ 折叠（值保留）；查询内部联动（provider → model）；
-//      Computed 做 transform（空值省略 / 日期拆分）；分页（新查询回第 1 页）；
+//      e.computed 做 transform（空值省略 / 日期拆分）；分页（新查询回第 1 页）；
 //      列筛选和查询表单是【同一个数据字段的两个 UI】（status#1 / status#2）；
-//      批量选择是 Transient（不提交，新查询清空）；工具栏是 VoidField。
+//      分页 / 选择 / 折叠 / 列设置是 submit=false 的普通字段（不提交，新查询清空选择）；工具栏是普通布局 JSX。
 // ⚠️ 假代码：只看 API 是否顺手，不能运行。
-import { useForm, useFieldValue, Form, Field, Transient, VoidField, Enum, defineEffects } from 'shikiform';
+import { useForm, useFieldValue, Form, Field, Enum, defineEffects } from 'shikiform';
 import { QueryForm, ProTable, useQueryTable, ProEnumPretty } from 'shikiform/pro';
 import { CellItem, FormItem, Input, Select, DateRange, Checkbox } from './_ui';
 import { Button } from '@/components/ui/button';
@@ -29,7 +29,7 @@ interface LogQuery {
   createdAt?: [Date, Date];
   minLatency?: number;
   userId?: string;
-  // —— 以下是 Transient：UI 状态 ——
+  // —— 以下是 UI 状态：普通字段，submit=false ——
   page: number;
   pageSize: number;
   selectedIds: string[];
@@ -43,7 +43,7 @@ const queryEffects = defineEffects<LogQuery>((e) => {
     query('model').enum = ModelEnum.with({ provider: root.provider });
   });
 
-  // transform 是 Computed：空值省略、日期拆分、多选原样
+  // transform 是计算值：空值省略、日期拆分、多选原样
   e.computed('params', ({ root }) =>
     omitEmpty({
       q: root.keyword?.trim(),
@@ -78,30 +78,36 @@ export function CallLogPage() {
   const form = useForm<LogQuery>({
     initialValues: { page: 1, pageSize: 20, selectedIds: [], collapsed: true, hiddenColumns: [] },
     effects: [queryEffects],
+    // 没有自己 UI 的字段，在这里声明字段属性（和 <Field submit={false}> 是同一个开关）
+    // ❓ 无 UI 字段的 submit={false} 写在哪：
+    //    A（当前）useForm({ fields: { page: { submit: false } } })
+    //    B JSX 里 <Field name="page" submit={false} hidden />（不渲染的占位 Field）
+    //    C effects 里 e.field('page', { submit: false })
+    //    建议 A：声明式、和 initialValues 放一起；有 UI 的字段直接在 JSX 上写 submit={false}。
+    fields: {
+      page: { submit: false },
+      pageSize: { submit: false },
+      selectedIds: { submit: false },
+      collapsed: { submit: false },
+      hiddenColumns: { submit: false },
+    },
   });
 
   // 表格数据不是表单数据：useQueryTable 负责请求 / loading / 分页 / 竞态
   const table = useQueryTable({
     form,
-    params: 'params', // 读哪个 Computed 当查询参数
+    params: 'params', // 读哪个计算字段当查询参数
     request: ({ params, page, pageSize, signal }) => api.logs.list({ ...params, page, pageSize }, { signal }),
-    // page / pageSize / selection 绑定到表单里的 Transient，翻页不丢查询条件
+    // page / pageSize / selection 绑定到表单里的 submit=false 字段，翻页不丢查询条件
     pagination: { page: 'page', pageSize: 'pageSize' },
   });
 
   return (
     <Form form={form} onSubmit={() => table.search()} onReset={() => table.search()}>
-      {/* Transient 声明：没有 UI 也要声明，才能参与 submit 过滤 / reset */}
-      <Transient name="page" />
-      <Transient name="pageSize" />
-      <Transient name="selectedIds" />
-      <Transient name="hiddenColumns" />
-      <Transient name="collapsed" />
-
       {/*
-        QueryForm = VoidField + Grid：按容器宽度自动排列，minColumnWidth 决定列数；
+        QueryForm = 布局组件（Grid + 折叠 + 按钮），不是字段、不产生 path / address：按容器宽度自动排列，minColumnWidth 决定列数；
         折叠时只显示前 visibleCount 个，操作按钮自动占最后一行剩余格子；
-        折叠状态绑定 Transient "collapsed"（折叠 = visible=false，值保留）
+        折叠状态绑定字段 "collapsed"（submit=false）（折叠 = 被折叠字段 visible=false，值保留）
       */}
       <QueryForm grid={{ minColumnWidth: 260, maxColumns: 4, gap: 16 }} visibleCount={3} collapsed="collapsed">
         <Field name="keyword" decorator={<FormItem label="关键词" inline />}>
@@ -130,14 +136,14 @@ export function CallLogPage() {
         {/* 查询 / 重置 / 展开 按钮：QueryForm 自带；查询表单校验错误只阻塞查询，不影响下方表格展示 */}
       </QueryForm>
 
-      {/* 工具栏：VoidField，不进数据 */}
-      <VoidField name="toolbar" className="flex justify-between">
+      {/* 工具栏：普通 JSX 布局，不进数据 */}
+      <div className="flex justify-between">
         <BatchBar />
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => table.reload()}>刷新</Button>
           <ProTable.ColumnSetting table={table} hidden="hiddenColumns" />
         </div>
-      </VoidField>
+      </div>
 
       <ProTable table={table} rowKey="id" selection="selectedIds">
         <ProTable.Column title="请求 ID" dataIndex="id" width={180} />

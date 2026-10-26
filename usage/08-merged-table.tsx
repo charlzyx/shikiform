@@ -1,9 +1,9 @@
 // 08 合并表格编辑：供应商 → 产品（数据保持嵌套，不拍平）
-// 覆盖：表格只是嵌套数据的视图；“供应商”列是父 record 上的字段，只注册一次，rowspan 是 Computed；
+// 覆盖：表格只是嵌套数据的视图；“供应商”列是父 record 上的字段，只注册一次，rowspan 是计算值；
 //      编辑合并格 = 编辑父对象一次；子行增删 / 过滤后 rowspan 自动重算；按组排序不拆组；
 //      父字段错误显示在合并格、子行错误显示在行里。
 // ⚠️ 假代码：只看 API 是否顺手，不能运行。
-import { useForm, Form, Field, Transient, defineEffects, useRow, Submit } from 'shikiform';
+import { useForm, Form, Field, defineEffects, useRow, Submit } from 'shikiform';
 import { MergedTable } from 'shikiform/pro';
 import { CellItem, Input, NumberInput, Switch, Select, TextPretty } from './_ui';
 import { Button } from '@/components/ui/button';
@@ -24,7 +24,7 @@ interface Supplier {
 }
 interface Values {
   suppliers: Supplier[];
-  onlyActive: boolean; // Transient：表头过滤开关
+  onlyActive: boolean; // UI 状态：表头过滤开关，submit={false}
 }
 
 const supplierEffects = defineEffects<Values>((e) => {
@@ -35,9 +35,9 @@ const supplierEffects = defineEffects<Values>((e) => {
         query('.').visible = !root.onlyActive || record.active;
       });
     });
-    // rowspan = 可见子行数，Computed，按 supplier record 缓存
+    // rowspan = 可见子行数，计算值，按 supplier record 缓存
     // ❓ 应该由 MergedTable 内部自动算（读子行 visible），用户不用写这行？我倾向：内部自动算，
-    //    但这里写出来是为了说明“rowspan 就是 Computed”，要能被覆盖。
+    //    但这里写出来是为了说明“rowspan 就是计算值”，要能被覆盖。
     s.computed('rowSpan', ({ record, query }) => record.products.filter((_, i) => query(`./products.${i}`).visible).length);
   });
 });
@@ -47,13 +47,13 @@ export function SupplierProductTable({ initial }: { initial: Supplier[] }) {
 
   return (
     <Form form={form} onSubmit={(v) => api.suppliers.saveAll(v.suppliers)}>
-      <Transient name="onlyActive" decorator={<label className="flex gap-2">只看在售</label>}>
+      <Field name="onlyActive" submit={false} decorator={<label className="flex gap-2">只看在售</label>}>
         <Switch />
-      </Transient>
+      </Field>
 
       {/*
         MergedTable：外层数组 = 分组（suppliers），内层数组 = 行（products）
-        <MergedTable.Group> 里的列绑定到供应商 record，渲染成合并格（rowSpan 读 Computed）
+        <MergedTable.Group> 里的列绑定到供应商 record，渲染成合并格（rowSpan 读计算值）
         <MergedTable.Column> 里的列绑定到产品 record
       */}
       <MergedTable name="suppliers" rowKey="id" rows="products" rowRowKey="id" rowSpan="rowSpan">

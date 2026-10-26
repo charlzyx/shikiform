@@ -14,7 +14,7 @@ description: 先写用例、再写实现。本站展示的是理想 API 下的�
 
 ## 怎么看（建议顺序）
 
-1. **[待拍板](/decisions/)**：先看 Q1–Q10，这是需要你定的。
+1. **[待拍板](/decisions/)**：顶部是 2026-10-27 已拍板的 D1（删 Void / Transient / Computed 类型）、D2（树节点 pos），然后是 Q0 pos 细节与 Q1–Q10。
 2. **[07 SKU 选择器](/usage/07-sku-editor/)**、**[09 查询表单 + 表格](/usage/09-query-table/)**、**[10 行展开二级表格](/usage/10-expandable-nested-table/)**：最能检验 API 的三个场景。
 3. 其余用例按需翻；**[API 草案](/api/)** 当索引查。
 
@@ -22,17 +22,19 @@ description: 先写用例、再写实现。本站展示的是理想 API 下的�
 
 | 特性 | 用例 |
 |---|---|
-| Field 树类型（Field / Object / Array / Tree / Void / Transient / Computed） | [01](/usage/01-basic-form/) [03](/usage/03-nested-object/) [04](/usage/04-array/) [05](/usage/05-tree/) [06](/usage/06-computed/) |
+| 字段类型只按数据结构分（Field / ObjectField / ArrayField / TreeField；2026-10-27） | [01](/usage/01-basic-form/) [03](/usage/03-nested-object/) [04](/usage/04-array/) [05](/usage/05-tree/) |
+| 布局是普通组件（无 path，起名 `ui` 才有 address） | [01](/usage/01-basic-form/) [09](/usage/09-query-table/) [14](/usage/14-address-vs-path/) |
+| 树节点坐标 pos（depth / index / path / move / 前缀判断） | [05](/usage/05-tree/) |
 | address vs path、一个字段多个 UI、`#n` / `@name` | [14](/usage/14-address-vs-path/) [09](/usage/09-query-table/) |
 | record / array 作用域、模板复制 | [03](/usage/03-nested-object/) [04](/usage/04-array/) [08](/usage/08-merged-table/) [10](/usage/10-expandable-nested-table/) |
 | 集中 effect、一对多 / 多对一 / 多对多、依赖图、环检测 | [02](/usage/02-provider-config/) [07](/usage/07-sku-editor/) [15](/usage/15-linkage-graph/) |
-| Computed | [06](/usage/06-computed/) [07](/usage/07-sku-editor/) [08](/usage/08-merged-table/) |
+| 计算值（effects 里 `e.computed`，JSX 里是只读 Field） | [06](/usage/06-computed/) [07](/usage/07-sku-editor/) [08](/usage/08-merged-table/) |
 | query：`./` `../` 绝对 path、正则 | [02](/usage/02-provider-config/) [12](/usage/12-large-table/) [13](/usage/13-cross-module/) |
 | Decorator vs Component、connect | [00](/usage/00-ui-adapter/) [14](/usage/14-address-vs-path/) |
 | pattern / Pretty | [10](/usage/10-expandable-nested-table/) [13](/usage/13-cross-module/) |
 | Enum（静态 / 异步 / 懒树 / 复用） | [02](/usage/02-provider-config/) [09](/usage/09-query-table/) [11](/usage/11-validation-enum/) |
 | 校验（同步 / 异步 / 跨字段 / 时机 / warning） | [01](/usage/01-basic-form/) [11](/usage/11-validation-enum/) |
-| Transient（确认密码、展开、选择、分页、模式） | [01](/usage/01-basic-form/) [09](/usage/09-query-table/) [10](/usage/10-expandable-nested-table/) |
+| `submit={false}`（确认密码、展开、选择、分页、模式；与值来源独立） | [01](/usage/01-basic-form/) [09](/usage/09-query-table/) [10](/usage/10-expandable-nested-table/) |
 | 表格：合并 / 查询 / 展开 / 大表 | [08](/usage/08-merged-table/) [09](/usage/09-query-table/) [10](/usage/10-expandable-nested-table/) [12](/usage/12-large-table/) |
 | 跨模块、数据根 | [13](/usage/13-cross-module/) |
 

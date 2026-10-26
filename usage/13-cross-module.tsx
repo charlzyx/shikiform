@@ -3,7 +3,7 @@
 //      跨模块：沿【数据根】走（useFormContext / ctx.root / 绝对 path），不沿 UI 父链；
 //      正则 query 一次命中多个模块的同名字段；模块可以在别的表单里原样复用（挂到不同 path 下）。
 // ⚠️ 假代码：只看 API 是否顺手，不能运行。
-import { useForm, Form, Field, ObjectField, ArrayField, VoidField, defineEffects, useFormContext, useFormState, Submit } from 'shikiform';
+import { useForm, Form, Field, ObjectField, ArrayField, defineEffects, useFormContext, useFormState, Submit } from 'shikiform';
 import { FormItem, Input, Select, Switch, NumberInput } from './_ui';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -51,7 +51,7 @@ export const toolsEffects = defineEffects<{ items: Tool[] }>((e) => {
 export function ToolsModuleFields() {
   return (
     <ArrayField name="items" rowKey="name">
-      <VoidField name="row" className="flex gap-2">
+      <div className="flex gap-2">
         <Field name="name" pattern="readPretty" decorator={<FormItem />} />
         <Field name="enabled" decorator={<FormItem />}>
           <Switch />
@@ -59,7 +59,7 @@ export function ToolsModuleFields() {
         <Field name="timeoutMs" decorator={<FormItem label="超时" />} rules={[{ min: 100 }]}>
           <NumberInput />
         </Field>
-      </VoidField>
+      </div>
     </ArrayField>
   );
 }

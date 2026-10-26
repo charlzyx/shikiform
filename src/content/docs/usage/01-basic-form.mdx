@@ -1,6 +1,6 @@
 ---
 title: "01 · 基础表单"
-description: "新建员工表单：Field / Transient / VoidField，Decorator（FormItem）与 Co"
+description: "新建员工表单：Field / submit={false} / 普通布局，Decorator（FormItem）与 Co"
 ---
 import { Code } from '@astrojs/starlight/components';
 import OpenPoints from '../../../components/OpenPoints.astro';
@@ -10,9 +10,9 @@ import code from '../../../../usage/01-basic-form.tsx?raw';
 API 设计轮：下面的代码是“理想 API”下的业务写法，**没有实现、不能运行**。源文件：`usage/01-basic-form.tsx`。
 :::
 
-新建员工表单：Field / Transient / VoidField，Decorator（FormItem）与 Component（Input）分离，rules 写在 JSX，submit / reset（声明式按钮和命令式两种）。
+新建员工表单：Field、`submit={false}`（确认密码不提交）、普通 JSX 布局，Decorator（FormItem）与 Component（Input）分离，rules 写在 JSX，submit / reset（声明式按钮和命令式两种）。
 
-**演示的特性：** Field 树类型 · Decorator vs Component · 校验声明 · Transient
+**演示的特性：** Field 树类型 · Decorator vs Component · 校验声明 · submit={false}
 
 ## 本用例的 ❓ 待定点
 

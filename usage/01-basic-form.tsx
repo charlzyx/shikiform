@@ -1,7 +1,7 @@
 // 01 基础表单：新建员工
-// 覆盖：Field + Decorator(FormItem) + Component 分离、rules 写在 JSX、submit / reset、Transient（确认密码不提交）
+// 覆盖：Field + Decorator(FormItem) + Component 分离、rules 写在 JSX、submit / reset、submit={false}（确认密码不提交）
 // ⚠️ 假代码：只看 API 是否顺手，不能运行。
-import { useForm, Form, Field, Transient, VoidField, Submit, Reset } from 'shikiform';
+import { useForm, Form, Field, Submit, Reset } from 'shikiform';
 import { FormItem, Input, Select, Switch, Textarea } from './_ui';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/sonner';
@@ -26,7 +26,7 @@ export function EmployeeCreatePage() {
       form={form}
       // 校验失败不会调用 onSubmit；返回 Promise 时 form.submitting = true
       onSubmit={async (values) => {
-        // values 里没有 confirmPassword（Transient 不提交）
+        // values 里没有 confirmPassword（submit={false}）
         await api.employees.create(values);
         toast.success('已创建');
         form.reset();
@@ -54,9 +54,10 @@ export function EmployeeCreatePage() {
         <Input type="password" />
       </Field>
 
-      {/* Transient：有输入、参与校验，但提交时被过滤 */}
-      <Transient
+      {/* submit={false}：普通 Field，有输入、参与校验，只是提交时被过滤（2026-10-27 起不再有 Transient 类型） */}
+      <Field
         name="confirmPassword"
+        submit={false}
         decorator={<FormItem label="确认密码" />}
         // 跨字段：ctx.record 是当前对象（这里是根），不用写绝对路径
         validator={(value, ctx) => (value === ctx.record.password ? null : '两次密码不一致')}
@@ -64,7 +65,7 @@ export function EmployeeCreatePage() {
         //    我的倾向：validator 里读到的字段自动成为依赖，已 touched 的才重校验。
       >
         <Input type="password" />
-      </Transient>
+      </Field>
 
       <Field name="department" decorator={<FormItem label="部门" />} enum={DEPARTMENTS} rules={[{ required: true }]}>
         <Select placeholder="请选择" />
@@ -78,8 +79,8 @@ export function EmployeeCreatePage() {
         <Textarea rows={4} />
       </Field>
 
-      {/* VoidField：纯布局，无数据 path */}
-      <VoidField name="actions" className="flex gap-2">
+      {/* 纯布局：普通 JSX，不产生 path，也不产生 address */}
+      <div className="flex gap-2">
         {/* Submit / Reset 只是读 form 状态的按钮：submitting 时 loading，校验中禁用 */}
         <Submit asChild>
           <Button>创建</Button>
@@ -87,7 +88,7 @@ export function EmployeeCreatePage() {
         <Reset asChild>
           <Button variant="outline">重置</Button>
         </Reset>
-      </VoidField>
+      </div>
     </Form>
   );
 }
@@ -120,7 +121,7 @@ export function ImperativeButtons({ form }: { form: ReturnType<typeof useEmploye
       >
         保存
       </Button>
-      {/* reset：值回 initialValues，errors / touched 清空，Computed 重算 */}
+      {/* reset：值回 initialValues，errors / touched 清空，计算值重算 */}
       <Button variant="ghost" onClick={() => form.reset()}>
         清空
       </Button>

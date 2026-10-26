@@ -10,9 +10,9 @@ import code from '../../../../usage/14-address-vs-path.tsx?raw';
 API 设计轮：下面的代码是“理想 API”下的业务写法，**没有实现、不能运行**。源文件：`usage/14-address-vs-path.tsx`。
 :::
 
-同一个数据字段在编辑区和侧边摘要各有一个 UI：值 / 错误共享，visible / pattern / decorator 各自独立；VoidField / Grid 只产生 address；#n 与具名 @name。
+同一个数据字段在编辑区和侧边摘要各有一个 UI：值 / 错误共享，visible / pattern / decorator 各自独立；没有 VoidField：Card / Grid 是普通布局，不产生 path 也不产生 address，需要被 effect 控制时才起名（`Region ui="aside"` → `@aside`）；#n 与具名 @name。
 
-**演示的特性：** 三棵树 · 一个字段多个 UI · VoidField
+**演示的特性：** 三棵树 · 一个字段多个 UI · 具名布局 Region
 
 ## 本用例的 ❓ 待定点
 

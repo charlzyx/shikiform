@@ -1,6 +1,6 @@
 ---
 title: "10 · 行展开二级表格"
-description: "订单 → 订单行（Array<Object<Array<Object>>>）：展开是 Transient；表格级查看 /"
+description: "订单 → 订单行（Array<Object<Array<Object>>>）：展开状态是 submit=false 字段；表格级查看 /"
 ---
 import { Code } from '@astrojs/starlight/components';
 import OpenPoints from '../../../components/OpenPoints.astro';
@@ -10,7 +10,7 @@ import code from '../../../../usage/10-expandable-nested-table.tsx?raw';
 API 设计轮：下面的代码是“理想 API”下的业务写法，**没有实现、不能运行**。源文件：`usage/10-expandable-nested-table.tsx`。
 :::
 
-订单 → 订单行（`Array<Object<Array<Object>>>`）：展开是 Transient；表格级查看 / 编辑 pattern 切换，查看态自动 Pretty；行级草稿 save / cancel。
+订单 → 订单行（`Array<Object<Array<Object>>>`）：展开状态是 `submit=false` 的 expandedKeys（按 rowKey）；表格级查看 / 编辑 pattern 切换，查看态自动 Pretty；行级草稿 save / cancel。
 
 **演示的特性：** ArrayTable · pattern / Pretty · 行草稿
 

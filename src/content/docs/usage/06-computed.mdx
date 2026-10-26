@@ -1,6 +1,6 @@
 ---
-title: "06 · Computed"
-description: "报价单：行小计（record 作用域缓存）、合计 / 税 / 应付、预览地址；Computed 只读、不提交、reset"
+title: "06 · 计算值"
+description: "报价单：行小计（record 作用域缓存）、合计 / 税 / 应付、预览地址；计算字段只读、默认不提交、reset"
 ---
 import { Code } from '@astrojs/starlight/components';
 import OpenPoints from '../../../components/OpenPoints.astro';
@@ -10,9 +10,9 @@ import code from '../../../../usage/06-computed.tsx?raw';
 API 设计轮：下面的代码是“理想 API”下的业务写法，**没有实现、不能运行**。源文件：`usage/06-computed.tsx`。
 :::
 
-报价单：行小计（record 作用域缓存）、合计 / 税 / 应付、预览地址；Computed 只读、不提交、reset 时重算，也可被 effect 读取。
+报价单：行小计（record 作用域缓存）、合计 / 税 / 应付、预览地址。2026-10-27 起 Computed 不是类型：计算值在 effects 里 `e.computed` 声明，JSX 里就是只读的普通 Field；值来源与 `submit` 独立（应付金额 `{ submit: true }` 随表单提交）。
 
-**演示的特性：** Computed · 多对一 · 声明位置
+**演示的特性：** e.computed · 多对一 · 值来源与 submit 独立
 
 ## 本用例的 ❓ 待定点
 
