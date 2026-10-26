@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createSkuStore } from '../src/core/skuStore';
-import { availableAll, finalSku, SKU_TABLE } from '../src/core/sku';
+import { createSkuStore } from '../src/examples/sku';
+import { availableAll, finalSku, SKU_TABLE } from '../src/examples/sku';
 
 function fresh() {
   const store = createSkuStore();

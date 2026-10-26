@@ -231,3 +231,80 @@ export function groupErrorsByParent(
 /** Table-cell commit rule (PLAN 2.8): a cell validates only on commit
  *  (blur / Enter / row save), never while typing. */
 export const CELL_COMMIT_TRIGGER: ValidateTrigger = 'onSubmit';
+
+/**
+ * Form-level validator (LAYOUT §2): declaration is dispersed in JSX
+ * (each Field carries its own rules), execution is centralized here,
+ * state is centralized in the field-state tree via the target callbacks.
+ * This file stays pure: it never imports the store or React. The React
+ * layer supplies getValues / setFieldErrors / setFieldValidating.
+ *
+ * Async handling, per field *instance* (path): one runner per path, so
+ * Array/Tree copies each get their own debounce timer and stale sequence,
+ * and deleting a copy drops its runner with it (caller drops the validator
+ * or the path is simply never validated again). A stale result never
+ * overwrites a newer one and never clears its validating flag.
+ */
+export interface ValidationTarget {
+  getValues: () => Record<string, unknown>;
+  setFieldErrors: (path: string, errors: string[]) => void;
+  setFieldValidating?: (path: string, validating: boolean) => void;
+  setFieldTouched?: (path: string, touched: boolean) => void;
+}
+
+export function createFormValidator(
+  target: ValidationTarget,
+  opts: { debounceMs?: number } = {},
+) {
+  const runners = new Map<string, ReturnType<typeof createAsyncValidatorRunner>>();
+
+  function runnerFor(path: string, debounceMs?: number) {
+    const key = `${path}::${debounceMs ?? opts.debounceMs ?? 0}`;
+    let runner = runners.get(key);
+    if (!runner) {
+      runner = createAsyncValidatorRunner({ debounceMs: debounceMs ?? opts.debounceMs ?? 0 });
+      runners.set(key, runner);
+    }
+    return runner;
+  }
+
+  async function validatePath(
+    path: string,
+    rules: Rule[],
+    trigger: ValidateTrigger,
+    debounceMs?: number,
+  ): Promise<string[]> {
+    const active = rulesForTrigger(rules, trigger);
+    if (active.length === 0) return [];
+    const values = target.getValues();
+    target.setFieldValidating?.(path, true);
+    const result = await runnerFor(path, debounceMs).run(
+      getByPath(values, path),
+      active,
+      values,
+      path,
+    );
+    if (result.stale) return [];
+    target.setFieldErrors(path, result.errors);
+    target.setFieldValidating?.(path, false);
+    return result.errors;
+  }
+
+  async function validateAll(
+    rulesByPath: FieldRuleMap,
+    trigger: ValidateTrigger = 'onSubmit',
+    hiddenPaths: Set<string> = new Set(),
+  ): Promise<Record<string, string[]>> {
+    const out: Record<string, string[]> = {};
+    for (const [path, rules] of Object.entries(rulesByPath)) {
+      if (hiddenPaths.has(path)) continue;
+      const errors = await validatePath(path, rules, trigger);
+      if (errors.length > 0) out[path] = errors;
+    }
+    return out;
+  }
+
+  return { validatePath, validateAll };
+}
+
+export type FormValidator = ReturnType<typeof createFormValidator>;

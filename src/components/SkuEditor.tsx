@@ -2,8 +2,8 @@
 // JSX-first, no ternary visibility logic in JSX, no per-combination if/else.
 // Available options, final SKU, price range are all Computed from SKU_TABLE.
 import { useMemo } from 'react';
-import { createSkuStore } from '../core/skuStore';
-import { ALL_COLORS, ALL_CONFIGS, ALL_PRICES, type Sku } from '../core/sku';
+import { createSkuStore } from '../examples/sku';
+import { ALL_COLORS, ALL_CONFIGS, ALL_PRICES, type Sku } from '../examples/sku';
 import { ComputedField, Field, ShikiForm } from '../react/form';
 import { Card, Chip } from '../ui/index';
 import '../styles/shiki.css';

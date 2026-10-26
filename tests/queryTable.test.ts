@@ -1,15 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import {
-  applyQuery,
-  availableModels,
   buttonSpan,
-  createQueryStore,
   gridColumns,
-  makeQueryRows,
   mergeParams,
   paginate,
   transformQuery,
-} from '../src/core/queryTable';
+} from '../src/pro/query';
+import {
+  applyQuery,
+  availableModels,
+  createQueryStore,
+  makeQueryRows,
+} from '../src/examples/queryRows';
 
 describe('query grid layout', () => {
   it('columns follow container width breakpoints', () => {

@@ -27,6 +27,10 @@ export interface FieldState {
   visible: boolean;
   disabled: boolean;
   errors: string[];
+  /** Async validation in flight for this field instance (LAYOUT §2). */
+  validating?: boolean;
+  /** Field has been blurred at least once (LAYOUT §2). */
+  touched?: boolean;
 }
 
 export type Reaction = (ctx: ReactionCtx) => void;

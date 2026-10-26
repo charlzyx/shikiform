@@ -6,14 +6,14 @@ import {
   commitDraftRow,
   expandAll,
   groupByMergedKey,
-  makeSuppliers,
   mergedRowspan,
   renameMergedGroup,
   startRowEdit,
   toggleExpanded,
   updateDraftCell,
   validateDraftRow,
-} from '../src/core/nestedTable';
+} from '../src/pro/nestedTable';
+import { makeSuppliers } from '../src/examples/suppliers';
 
 describe('expand state is transient', () => {
   it('toggle / expandAll / collapseAll never touch data', () => {

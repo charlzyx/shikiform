@@ -15,8 +15,8 @@ import {
   updateDraftCell,
   validateDraftRow,
   type RowDraft,
-} from '../core/nestedTable';
-import { SKU_TABLE, type Sku } from '../core/sku';
+} from '../pro/nestedTable';
+import { SKU_TABLE, type Sku } from '../examples/sku';
 import { Card } from '../ui/index';
 import '../styles/shiki.css';
 

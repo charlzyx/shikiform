@@ -2,18 +2,20 @@
 // ProTable / QueryFilter pattern only (no Antd code). React 18 hooks only.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  applyQuery,
-  availableModels,
   buttonSpan,
-  createQueryStore,
   gridColumns,
-  makeQueryRows,
   mergeParams,
   paginate,
   transformQuery,
   type QueryParams,
+} from '../pro/query';
+import {
+  applyQuery,
+  availableModels,
+  createQueryStore,
+  makeQueryRows,
   type QueryRow,
-} from '../core/queryTable';
+} from '../examples/queryRows';
 import { Field, ShikiForm, useShikiField } from '../react/form';
 import { Card } from '../ui/index';
 import '../styles/shiki.css';

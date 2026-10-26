@@ -6,7 +6,7 @@
 // - Rows are keyed by stable id, never by index, so sorting does not remount.
 // React 18 hooks only: useState, useMemo, useCallback, useRef, useEffect.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { windowForRows } from '../core/virtualize';
+import { windowForRows } from '../pro/virtualize';
 import { Card } from '../ui/index';
 import '../styles/shiki.css';
 

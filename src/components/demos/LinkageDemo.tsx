@@ -1,11 +1,11 @@
 // LinkageDemo: 同一页三组联动。
 // 一对多：provider.type 一变 → apiKey 显隐 + baseUrl 必填 + 模型列表变（集中写在一处）。
 // 多对一：姓名 + 邮箱 + 同意协议三个输入共同决定提交按钮是否禁用。
-// 多对多：复用 src/core/sku.ts 的 SKU 表做迷你版——颜色→配置过滤，反向亦然，
+// 多对多：复用 src/examples/sku.ts 的 SKU 表做迷你版——颜色→配置过滤，反向亦然，
 //   已不合法的当前选择在同一处清掉（不散落 per-field effect）。
 // React 18 hooks only: useState / useMemo.
 import { useMemo, useState } from 'react';
-import { ALL_CONFIGS, ALL_COLORS, SKU_TABLE, availableAll, priceRange } from '../../core/sku';
+import { ALL_CONFIGS, ALL_COLORS, SKU_TABLE, availableAll, priceRange } from '../../examples/sku';
 import { Card } from '../../ui/index';
 import '../../styles/shiki.css';
 

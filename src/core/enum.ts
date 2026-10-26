@@ -1,6 +1,6 @@
 // Enum base layer (PLAN 2.8, core only — no pro code, no Formily code).
 // One definition drives Select, Radio, query-form dropdown, table column
-// filter, SKU dimension and TreeSelect: change the definition once and
+// filter, linkage dimension and TreeSelect: change the definition once and
 // every consumer sees it, because they all read from the same EnumDef.
 //
 // Shapes:
@@ -166,7 +166,7 @@ export function validateEnumValues(values: unknown[], options: EnumOption[]): st
   return errors;
 }
 
-/** SKU-style check: is `value` still in the currently available options?
+/** Linkage-style check: is `value` still in the currently available options?
  *  Used by the centralized reaction: clear OR report, in one place. */
 export function isValueAvailable(value: unknown, available: Array<string | number>): boolean {
   return available.includes(value as string | number);

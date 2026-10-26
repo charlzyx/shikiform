@@ -1,10 +1,8 @@
 export * from './types';
 export * from './store';
-export * from './sku';
-export * from './skuStore';
+export * from './linkage';
 export * from './enum';
 export * from './validation';
-export * from './nestedTable';
-export * from './virtualize';
-// NOTE: src/pro is deliberately NOT exported here. Pro is an opt-in layer;
-// importing core must never pull pro code in.
+// NOTE: src/pro and src/examples are deliberately NOT exported here.
+// Importing core must never pull pro components or demo business data in.
+// Pro is an opt-in layer (src/pro/index.ts); demo data lives in src/examples/.

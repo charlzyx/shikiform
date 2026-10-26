@@ -6,9 +6,10 @@ import {
   shikiRenderCount,
   windowForGroups,
   windowForRows,
-} from '../src/core/virtualize';
-import { availableAll, SKU_TABLE } from '../src/core/sku';
-import { gridColumns, makeQueryRows, paginate } from '../src/core/queryTable';
+} from '../src/pro/virtualize';
+import { availableAll, SKU_TABLE } from '../src/examples/sku';
+import { makeQueryRows } from '../src/examples/queryRows';
+import { gridColumns, paginate } from '../src/pro/query';
 
 describe('virtualization: only the visible window renders', () => {
   it('2000 rows, 600px viewport, 40px rows: renders ~25 rows, not 2000', () => {

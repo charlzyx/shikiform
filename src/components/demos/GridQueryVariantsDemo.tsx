@@ -1,10 +1,10 @@
 // GridQueryVariantsDemo: 同一查询表单三种 Grid 变体。
 // 2 列 / 3 列 / 4 列上下展示；查询 / 重置按钮自动占剩余格子，
-// 列数与按钮 span 全部复用 src/core/queryTable.ts 的 gridColumns / buttonSpan，
+// 列数与按钮 span 全部复用 src/pro/query.ts 的 gridColumns / buttonSpan，
 // 而不是每个变体手写 span。字段数可调，span 会跟着重算。
 // React 18 hooks only: useState / useMemo.
 import { useMemo, useState } from 'react';
-import { buttonSpan, gridColumns } from '../../core/queryTable';
+import { buttonSpan, gridColumns } from '../../pro/query';
 import { Card } from '../../ui/index';
 import '../../styles/shiki.css';
 

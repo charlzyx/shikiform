@@ -7,14 +7,13 @@ import { useMemo, useState } from 'react';
 import {
   cancelRowEdit,
   commitDraftRow,
-  makeSuppliers,
   startRowEdit,
   toggleExpanded,
   updateDraftCell,
   validateDraftRow,
   type RowDraft,
-  type Supplier,
-} from '../core/nestedTable';
+} from '../pro/nestedTable';
+import { makeSuppliers, type Supplier } from '../examples/suppliers';
 import { Card } from '../ui/index';
 import { ProEnumPretty } from '../pro/enumPretty';
 import '../styles/shiki.css';
