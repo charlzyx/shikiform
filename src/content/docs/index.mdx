@@ -1,0 +1,29 @@
+---
+title: ShikiForm — SKU 编辑器
+description: 首屏 Demo：SKU 多对多联动，任意顺序选择，可选范围和最终价格都是 Computed。
+---
+
+import SkuEditor from '../../components/SkuEditor';
+
+# ShikiForm
+
+Formly 级抽象、React 不可变风格、JSX-first。没有 Schema，JSX 里没有三元显隐，联动全部进集中 effect。
+
+## 首屏 Demo：SKU 编辑器
+
+下面这个就是测试用例本身。点一点：选颜色会过滤价格和配置，点价格会过滤配置和颜色，反过来也一样。不合法的旧选择会被自动清除，最终 SKU、价格、库存是 Computed，不是手写 if/else。
+
+<SkuEditor client:load />
+
+### 它是怎么算的
+
+- 数据是一张 SKU 表（颜色 × 配置 × 价格 × 库存），不是一堆 if/else。
+- 每个维度的可选范围是一个 Computed：从 SKU 表里过滤出“和其他维度当前选择都匹配”的行，取该维度的 distinct 值。
+- 集中 effect 只做一件事：保留用户刚改的字段，清除其他已不合法的字段。
+- 最终 SKU、价格区间、库存都是 Computed；提交值里只有颜色、价格、配置，Computed 不提交。
+
+### 再看文档
+
+- [统一 Field 树](/guides/field-tree/)：Field / Object / Array / Tree / Void / Transient / Computed
+- [联动与 Computed](/guides/linkage/)：集中 effect、record / array 作用域、依赖图
+- [合并表格与大表格](/guides/tables/)：嵌套合并表格、超大表格性能方向

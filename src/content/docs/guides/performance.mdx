@@ -1,0 +1,26 @@
+---
+title: 超大表格性能与对比测试
+description: 虚拟化窗口、字段级订阅、Computed 按依赖缓存、编辑 transient；对比模型是朴素全量重渲染 vs Shiki，数字来自测试，不是宣称。
+---
+
+import LargeTable from '../../../components/LargeTable';
+
+# 超大表格性能
+
+<LargeTable client:load />
+
+## 对比模型（PLAN 10，测试可验证的部分）
+
+| 场景 | 朴素全量重渲染 | Shiki |
+|---|---|---|
+| 2000 行 × 8 列，改 1 格 | 16000 个格子重渲染 | 改动的格子 + 直接依赖（模型里是 3） |
+| 2000 行首屏挂载 | 2000 行全挂 DOM | 只挂可视窗口，约 25 行（600px 视口、40px 行高、overscan 5） |
+| 打字 | 每敲一字触发全局联动 | 本地 transient 草稿，blur / 回车才提交一次 |
+| Computed 重算 | 全量重算 | 依赖不变不调用 compute（见 `tests/performance.test.ts`：无关值变化时 compute 调用次数不变） |
+| 排序 | index 当 key，全量 remount、丢焦点 | 稳定 id 当 key，只换顺序 |
+
+## 诚实说明
+
+- 上表里的“16000 vs 3”是模型计数，不是浏览器实测帧率；窗口行数、Computed 缓存跳过、字段选择器不变是测试断言过的（`tests/performance.test.ts`、`tests/sku.test.ts`）。
+- 真实浏览器耗时受机器、浏览器、数据量影响很大，文档里不写没跑过的“快 N 倍”。想看实测：在本机跑 `npm run dev` 打开本页，滚动、编辑、排序，用浏览器 Performance 面板量一次，就是你的机器上的数字。
+- 合并/展开组窗口：`windowForGroups` 保证一个合并组或展开组不被窗口边界切散，第一组完整渲染，即使它的顶部已滚出视野。

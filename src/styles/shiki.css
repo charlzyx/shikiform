@@ -1,0 +1,20 @@
+/* shadcn-style, hand-written, no Antd. Plain CSS so the docs site does
+   not need a Tailwind build step for the demo itself. */
+.shiki-label { font-size: 13px; font-weight: 600; margin: 12px 0 6px; color: #111827; }
+.shiki-error { color: #dc2626; font-size: 12px; margin-top: 4px; }
+.shiki-card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+.shiki-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.shiki-chip { border: 1px solid #d1d5db; background: #fff; border-radius: 999px; padding: 7px 14px; cursor: pointer; font-size: 14px; }
+.shiki-chip:hover:not(:disabled) { border-color: #111827; }
+.shiki-chip[data-selected="true"] { background: #111827; color: #fff; border-color: #111827; }
+.shiki-chip:disabled { opacity: .35; cursor: not-allowed; text-decoration: line-through; }
+.shiki-muted { color: #6b7280; font-size: 13px; }
+.shiki-price { font-size: 28px; font-weight: 800; }
+.shiki-grid { display: grid; gap: 16px; }
+.shiki-btn { border: 1px solid #d1d5db; background: #fff; border-radius: 8px; padding: 8px 14px; cursor: pointer; }
+.shiki-btn:hover { background: #f9fafb; }
+.shiki-code { background: #f3f4f6; border-radius: 8px; padding: 12px; font-family: ui-monospace, monospace; font-size: 13px; overflow: auto; }
+.shiki-input { border: 1px solid #d1d5db; border-radius: 8px; padding: 7px 10px; font-size: 14px; width: 100%; box-sizing: border-box; background: #fff; }
+.shiki-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.shiki-table th, .shiki-table td { border-bottom: 1px solid #e5e7eb; padding: 8px 10px; text-align: left; white-space: nowrap; }
+.shiki-table th { background: #f9fafb; font-weight: 600; }

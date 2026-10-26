@@ -1,0 +1,34 @@
+---
+title: 校验与枚举 · 基础 vs 高级
+description: 基础层在 core（Enum 静态/异步/缓存/防抖/懒树 + 校验同步/异步/跨字段/时机），高级层在 pro（ProEnumPretty、CascaderPlus），pro 不进核心。
+---
+
+import { ProEnumPretty } from '../../../pro/enumPretty';
+import CascaderDemo from '../../../components/CascaderDemo';
+
+# 校验与枚举：基础 vs 高级分层
+
+这是 pro.formily 抽象的 Shiki 重写，不搬 Formily 代码：核心保持小，pro 层可以越做越厚。
+
+## 基础层（core）
+
+- **Enum**（`src/core/enum.ts`）：`Enum.from(静态列表)` 或 `Enum.from(async loader)`。异步带缓存（按 params 序列化 key）、并发去重、防抖（防抖窗口内只跑最后一次参数）、过期作废（旧请求回来不污染缓存）。懒树用 `createLazyTree` + `mergeTreeChildren`，按父级路径拼回树。
+- **枚举校验**：值必须在选项里、且未被禁用；空值交给 `required`，枚举校验本身不强制必填。SKU 可选范围也是一种枚举：选了已不合法的值，在集中 effect 里清除或校验报错，二选一且在同一处定。
+- **校验**（`src/core/validation.ts`）：required、min/max、长度、pattern、自定义函数；异步规则带防抖与过期作废；跨字段校验拿 `record`（最近父对象）和 `root`（全表单），不用绝对路径；时机分 onChange / onBlur / onSubmit 三档，默认规则在 onBlur 和 onSubmit 跑，不在 onChange 跑；表格单元格默认只在提交（blur / 回车 / 行保存）时校验。
+- **外部校验器口子**：`validateForm` 接受可选 `resolver`（如 caller 自己写的 Zod 适配），核心不依赖 Zod；隐藏路径跳过校验（值保留，见显隐语义）。
+
+## 高级层（pro，不进核心）
+
+下面是只读 Pretty：编辑态是 Select，查看态自动换成彩色 Tag，不用手写三元。
+
+<ProEnumPretty client:load value="active" options={[{label: '进行中', value: 'active'}, {label: '已禁用', value: 'disabled'}, {label: '待处理', value: 'pending'}]} />
+
+<ProEnumPretty client:load value="pending" options={[{label: '进行中', value: 'active'}, {label: '已禁用', value: 'disabled'}, {label: '待处理', value: 'pending'}]} />
+
+CascaderPlus（懒树级联，列式 select，展开下一级时才加载子级）：
+
+<CascaderDemo client:load />
+
+## 验收
+
+同一个 Enum 定义，能同时用在 Select、查询表单下拉、表格列筛选、SKU 维度、TreeSelect 上；同一个校验规则，能同时用在普通表单、表格单元格、查询表单上，时机和错误位置都对。测试见 `tests/enum.test.ts`、`tests/validation.test.ts`。

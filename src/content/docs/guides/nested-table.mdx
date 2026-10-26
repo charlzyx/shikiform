@@ -1,0 +1,32 @@
+---
+title: 行展开二级表格 + SKU 合并编辑完整版
+description: Array<Object<Array<Object>>>：展开是 transient，子表编辑走草稿、保存才校验提交；合并+展开+编辑合起来就是 SKU 编辑器完整形态。
+---
+
+import ExpandableNestedTable from '../../../components/ExpandableNestedTable';
+import SkuFullEditor from '../../../components/SkuFullEditor';
+
+# 行展开二级表格
+
+抽象语义就是 `Array<Object>` 里再套一层 `Array<Object>`，再往下套规则一样，不特殊处理二级。
+
+<ExpandableNestedTable client:load />
+
+## 这一页的规则
+
+- **展开是 transient**：每行独立展开/收起，收起不清空子表编辑，展开不重建子表数据。
+- **record 是相对的**：展开行的 record 是该供应商行，二级表的 array 是该行里的子数组，子表字段的 record 是子行对象。联动、校验、枚举都按相对作用域走。
+- **编辑走草稿**：子行点编辑先进入 transient 草稿，打字不进全局 reaction、不校验；点保存才提交并校验（负价格会被拦在该行），点取消回滚到原值。
+
+# SKU 编辑器完整版：合并 + 展开 + 编辑
+
+和首页 SKU 联动 Demo 共用同一张 SKU 表，不另造数据。颜色列是合并格，rowspan = 组大小（Computed）；改合并格一次改整组；展开组内是可编辑子表。
+
+<SkuFullEditor client:load />
+
+## 为什么这三者合起来就是 SKU
+
+- 合并表：父字段只注册一次，rowspan 是 Computed。
+- 展开表：子表是父行里的数组，展开状态 transient。
+- 编辑表：行保存/取消、草稿、提交时校验。
+- SKU 把三者交在一起：合并格可编辑、展开行里还有子规格表、子表里还能再编辑。跑通 SKU 完整版，就等于跑通了这套。

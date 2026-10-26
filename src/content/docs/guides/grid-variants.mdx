@@ -1,0 +1,19 @@
+---
+title: Grid 查询变体
+description: 同一查询表单 2 / 3 / 4 列三种变体，按钮自动占剩余格子，列数与按钮 span 复用 gridColumns / buttonSpan。
+---
+
+import GridQueryVariantsDemo from '../../../components/demos/GridQueryVariantsDemo';
+
+# Grid 查询变体
+
+Formly 式 Grid：字段不用每个手写 span，Grid 按列数排，最后一行查询 / 重置按钮自动占剩余格子；字段增减、显隐后宽度自动重算。Grid 本身是 VoidField 布局，不进数据。
+
+<GridQueryVariantsDemo client:load />
+
+## 点什么、会发生什么
+
+- **看三个变体**：同一个查询表单，2 列、3 列、4 列上下排开，按钮所在的那一行宽度各不相同——按钮占的格子数是算出来的，不是手写的。
+- **改“查询字段数”**（4 / 5 / 6 / 7）：三个变体上方的“按钮 span”数字一起重算，按钮格子跟着变宽或变窄。例如 5 个字段、4 列时 span = 3；5 个字段、2 列时 span = 1。
+- **改“容器宽度”**：下方显示 `gridColumns(宽度)` 的结果——小于 600 是 1 列、小于 900 是 2 列、小于 1200 是 3 列，否则 4 列。这就是 QueryTable 里按容器宽度断点的同一套算法。
+- **看下方 JSON**：当前字段数、宽度、算出的列数、三个变体的 span 一次性汇总，方便对照。
