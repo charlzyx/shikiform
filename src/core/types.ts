@@ -426,6 +426,7 @@ export interface FormInstance<T> {
   /** Path-keyed errors, including descendants when you filter by prefix. */
   readonly errors: FieldError[]
 
+  /** Read one typed path. Object/array results are live references; use the write APIs instead of mutating them in place. */
   getValue<P extends FieldPath<T>>(path: P): PathValue<T, P>
   setValue<P extends FieldPath<T>>(path: P, value: PathValue<T, P>): void
   /** One draft, one reaction pass, one notification. */
@@ -433,6 +434,8 @@ export interface FormInstance<T> {
   /**
    * Wait for in-flight async rules, validate, drop `virtual` and `display: 'none'` values.
    * `hidden` values are kept. Computed fields are omitted unless `virtual` was set false.
+   * Values changed during validation, or a newer validation pass: returns `ok: false`
+   * with a root retry message and does not call `onValid`. Submit again once settled.
    */
   submit(onValid?: (values: T) => void | Promise<void>): Promise<{ ok: true; values: T } | { ok: false; errors: FieldError[] }>
   /** Restore initial values. Pass a path to restore one subtree. Computed values are written again. */

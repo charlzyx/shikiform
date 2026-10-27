@@ -68,6 +68,8 @@ interface FieldModel {
   virtualExplicit: boolean
   computed: boolean
   rules: Rule[]
+  /** Exact configuration, kept separately from a disappearing template instance. */
+  declaration?: FieldSpec
   /** Rules from `fields` or `registerField`. Kept when JSX unmounts. */
   declaredRules?: Rule[]
   /** `required` from `fields` or `registerField`. */
@@ -85,7 +87,7 @@ interface FieldModel {
   dirty: boolean
   validating: boolean
   schemaErrors: string[]
-  /** Set when an item template owns this path. Exact `fields` / `registerField` declarations are not dropped with the row. */
+  /** Set when an item template owns validation at this path. Exact validation declarations are not dropped with the row. */
   templateApplied: boolean
   abort?: AbortController
   asyncDebounceMs?: number
@@ -182,6 +184,7 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
   private schemaByPath = new Map<string, string[]>()
   /** Bumped at the start of each {@link FormEngine.validate}. Only the latest pass may commit. */
   private validateGen = 0
+  private pendingSubmits = 0
   private inflight = new Set<Promise<unknown>>()
   private validateTimers = new Map<string, ReturnType<typeof setTimeout>>()
   private pendingDepNotify = new Set<string>()
@@ -200,6 +203,8 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
   private enumAbort = new Map<string, AbortController>()
   /** Item templates (`rows.*.name`). Expanded onto every current index. */
   private itemTemplates: { pattern: string; spec: FieldSpec }[] = []
+  /** Flags-only declarations whose wildcard row is currently absent. No live validation state. */
+  private dormantDeclarations = new Map<string, FieldSpec>()
 
   constructor(options: FormOptions<T> = {}) {
     this.options = options
@@ -250,7 +255,7 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     return true
   }
 
-  /** Read one path. A key that is not on `T` does not typecheck. */
+  /** Read one typed path. Object/array results are live references; use the write APIs instead of mutating them in place. */
   getValue<P extends FieldPath<T>>(path: P): PathValue<T, P> {
     return getAt(this.values, String(path)) as PathValue<T, P>
   }
@@ -279,21 +284,32 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
   /**
    * Bump `submitCount`, wait for in-flight async rules, validate, then call `onValid` with {@link FormEngine.getSubmitValues}.
    * `virtual` and display `none` are omitted. `hidden` is kept. Computed fields are omitted unless `virtual` was set false.
+   * If values change or another validation supersedes this pass, return `ok: false` with a root retry message.
+   * No `onValid` call is made for that attempt; submit again after the edit/validation has settled.
    */
   async submit(onValid?: (values: T) => void | Promise<void>) {
     this.submitCount += 1
+    this.pendingSubmits += 1
     this.submitting = true
     this.bumpMeta()
     this.emit()
     try {
       await this.waitAsync()
+      // Supported writes replace the values object. Capture before validate's
+      // synchronous notifications, which may themselves start a newer pass.
+      const valuesVersion = this.values
+      const expectedGen = this.validateGen + 1
       const errors = await this.validate()
+      if (valuesVersion !== this.values || expectedGen !== this.validateGen) {
+        return { ok: false as const, errors: [{ path: '', messages: ['表单或校验已更新，请重新提交'] }] }
+      }
       if (errors.length) return { ok: false as const, errors }
       const values = this.getSubmitValues()
       if (onValid) await onValid(values)
       return { ok: true as const, values }
     } finally {
-      this.submitting = false
+      this.pendingSubmits -= 1
+      this.submitting = this.pendingSubmits > 0
       this.bumpMeta()
       this.emit()
     }
@@ -809,6 +825,11 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
       return
     }
     const field = this.ensure(path)
+    // Undefined options are no-ops here, just as in applyFieldFlags below.
+    field.declaration = {
+      ...field.declaration,
+      ...Object.fromEntries(Object.entries(spec).filter(([, value]) => value !== undefined)),
+    }
     this.applyFieldFlags(field, spec, 'explicit')
     const rules = rulesFromSpec(spec, field.declaredRules ?? field.rules)
     if (rules) {
@@ -854,7 +875,8 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
 
   /**
    * Drop JSX `rules` / `required` for `path`.
-   * Restores a declaration or item template, recomputes errors from what remains, and drops a validator that has not resolved.
+   * Restores a declaration or item template, recomputes built-in errors immediately, and drops an unresolved validator.
+   * Custom validators and schemas run once through the queued validation pass.
    * Leaves `$rules` and `$required` from a reaction in place.
    */
   releaseJsxField(path: string): void {
@@ -1217,7 +1239,7 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     }
   }
 
-  /** Recompute rule messages from the field's current rules. Does not start a new async task. */
+  /** Recompute built-in messages only. Custom callbacks run in the managed validation pass, never in this preview. */
   private syncRuleMessages(path: string): void {
     const field = this.fields.get(path)
     if (!field) return
@@ -1242,7 +1264,7 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     }
     const { messages } = runRules(
       value,
-      field.rules.filter((rule) => !rule.schema),
+      field.rules.filter((rule) => !rule.schema).map((rule) => ({ ...rule, validator: undefined })),
       ctx,
       field.required,
     )
@@ -1564,7 +1586,7 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
 
   /**
    * Copy item templates onto indexes that exist right now, and drop template instances that no longer do.
-   * Exact declarations, JSX rules, and `$rules` stay.
+   * Exact rules/required keep their models. Flags-only declarations survive separately from removed template state.
    */
   private applyItemTemplates(): void {
     if (!this.itemTemplates.length) return
@@ -1580,7 +1602,11 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
       if (!this.itemTemplates.some((tpl) => templateMatches(tpl.pattern, path))) continue
       stale.push(path)
     }
-    for (const path of stale) this.dropField(path)
+    for (const path of stale) {
+      const declaration = this.fields.get(path)?.declaration
+      if (declaration) this.dormantDeclarations.set(path, declaration)
+      this.dropField(path)
+    }
     for (const tpl of this.itemTemplates) {
       for (const path of expandTemplate(tpl.pattern, this.values)) this.applyTemplateSpec(path, tpl.spec)
     }
@@ -1652,6 +1678,11 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
         enumSeq: 0,
       }
       this.fields.set(path, field)
+      const declaration = this.dormantDeclarations.get(path)
+      if (declaration) {
+        this.dormantDeclarations.delete(path)
+        this.registerField(path, declaration)
+      }
     }
     return field
   }
