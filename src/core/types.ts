@@ -222,6 +222,7 @@ export interface EffectsAPI<T> {
    * The function is synchronous; an async function is a dev error.
    * The same `$` state written by two reactions is a dev error.
    * A reaction that reads nothing runs once.
+   * Later batches skip it unless a dirty key intersects the reads from its last run.
    */
   reaction: ReactionFn<T>
   /**
@@ -242,13 +243,19 @@ export interface ReactionFn<T> {
   /**
    * Derive `$` state. Reads are dependencies. Writes are not, so do not read a `$` state you just wrote.
    * Synchronous only. The same `$` state written by two reactions is a dev error.
-   * A reaction that reads nothing runs once.
+   * A reaction that reads nothing runs once, then stays idle.
+   * After a batch, it runs again only when a dirty key (`path:value`, `path:display`, `:meta`, …)
+   * intersects those reads. A write inside the reaction dirties its keys, so downstream reactions
+   * run in the same flush until the graph settles. A cycle still throws {@link ShikiCycleError}.
+   * An equal write does not dirty a key and does not wake anyone.
    * `$rules` and `$required` written here validate even when the JSX `<Field>` is not mounted.
    */
   (effect: (d: Draft<T>) => void): void
   /**
    * One reaction instance per direct child of the selected array.
-   * Editing a row re-runs that index only, including rows that are not mounted.
+   * Each instance records its own reads. A cell edit re-runs that row only, including rows that are not mounted.
+   * A row that did not read the dirty key stays idle, even if it sits in the same array.
+   * A structural edit (insert, remove, move) re-runs the indexes whose occupant changed.
    * `$rules` / `$required` set here apply to every index, including virtualized rows.
    * This does not walk nested arrays or trees; use {@link ReactionFn.walk} for trees.
    *
@@ -266,6 +273,7 @@ export interface ReactionFn<T> {
   ): void
   /**
    * One reaction instance per tree node. `pos` is the index path after the walk (`[0, 2, 1]`).
+   * Same skipping as {@link ReactionFn.each}: only a node whose reads intersect the dirty keys runs again.
    * Kept separate from `each` so array reactions stay one level deep.
    * `opts.childrenKey` defaults to `'children'`.
    */
@@ -280,6 +288,7 @@ export interface WatchFn<T> {
   /**
    * Run `effect` when the `$` state read by `source` changes.
    * Does not run on the first pass. Reads inside `effect` are not dependencies.
+   * Later flushes re-fire only when one of those source keys is dirty, not when an unrelated field changes.
    * `watch` does not mark a field computed. Use it for actions, not derivations.
    * `watch((d) => [d.a.$value, d.b.$value], …)` is a multi-source watch.
    */
@@ -287,6 +296,7 @@ export interface WatchFn<T> {
   /**
    * Edge-triggered row action. The callback's `$` reads are the source.
    * Scouted once per row (writes discarded) and applied only after those reads change.
+   * An edit re-fires the rows whose source keys are dirty, not the rest of the array.
    * One level of the array, same as {@link ReactionFn.each}.
    */
   each<A>(

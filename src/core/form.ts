@@ -1664,6 +1664,7 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     }
   }
 
+  /** Queue reactions and watches whose recorded reads intersect this batch's dirty keys. */
   private enqueueFromDirty(): void {
     for (const dep of this.dirtyDeps) {
       this.depVersion.set(dep, (this.depVersion.get(dep) ?? 0) + 1)
@@ -1736,7 +1737,9 @@ function uiDep(path: string, name: string): string {
  * Build an effect module. The factory runs once per form, against that form's draft.
  *
  * `reaction` derives `$` state. Reads are dependencies. Writes are not.
+ * A flush re-runs a reaction only when a dirty key intersects those reads. Writes wake downstream reactions in that same flush.
  * `reaction.each` is one instance per array row. `reaction.walk` is one instance per tree node (`pos`).
+ * Only the row or node whose own reads are dirty runs again.
  * `watch` runs after its source changes, not on the first pass. `watch.each` is the row-scoped watch.
  * `$rules` and `$required` written here validate even when the JSX field is unmounted.
  * Two reactions writing the same `$` state throw {@link ShikiConflictError}.
