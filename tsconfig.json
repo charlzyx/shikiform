@@ -1,23 +1,30 @@
 {
   "compilerOptions": {
+    "baseUrl": ".",
     "forceConsistentCasingInFileNames": true,
     "jsx": "react-jsx",
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "noEmit": true,
+    "paths": {
+      "shikiform/antd": ["src/antd/index.ts"],
+      "shikiform/core": ["src/core/index.ts"],
+      "shikiform/pro": ["src/pro/index.ts"],
+      "shikiform": ["src/index.ts"]
+    },
     "skipLibCheck": true,
     "strict": true,
     "target": "ES2022",
-    "noEmit": true,
     "types": ["node"]
   },
-  "exclude": ["node_modules", "dist", "usage"],
+  "exclude": ["node_modules", "dist", "lib", ".astro", "archive", "docs"],
   "include": [
-    "src/runtime/**/*",
-    "src/remarkInclude.ts",
-    "src/raw.d.ts",
+    "src/**/*",
+    "tests/**/*",
+    "playground/**/*",
+    "e2e/**/*",
     "rspress.config.ts",
     "vitest.config.ts",
-    "docs/_components/**/*",
-    "docs/tutorial/_files/**/*"
+    "playwright.config.ts"
   ]
 }

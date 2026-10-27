@@ -1,0 +1,40 @@
+import { expect, test } from '@playwright/test'
+
+test('standard schema: field rules, cross-field path, hidden vs none', async ({ page }) => {
+  await page.goto('/play/schema')
+  await page.getByTestId('email').fill('not-an-email')
+  await page.getByTestId('email').blur()
+  await expect(page.getByText('邮箱格式不对')).toBeVisible()
+
+  await page.getByTestId('email').fill('ada@example.com')
+  await page.getByTestId('password').fill('secret')
+  await page.getByTestId('confirm').fill('other')
+  await page.getByTestId('nick').fill('ada')
+  await page.getByTestId('ghost').fill('ghost')
+  await page.getByTestId('city').fill('杭州')
+  await page.getByTestId('item-name').fill('螺栓')
+  await page.getByTestId('schema-submit').click()
+  await expect(page.getByTestId('errors')).toContainText('confirm:两次密码不一致')
+
+  await page.getByTestId('confirm').fill('secret')
+  await page.getByTestId('item-name').fill('')
+  await page.getByTestId('schema-submit').click()
+  await expect(page.getByTestId('errors')).toContainText('items.0.name:名称必填')
+
+  await page.getByTestId('item-name').fill('螺栓')
+  await page.getByTestId('nick').fill('')
+  await page.getByTestId('hide-nick').click()
+  await expect(page.getByTestId('nick')).toHaveCount(0)
+  await page.getByTestId('schema-submit').click()
+  await expect(page.getByTestId('errors')).toContainText('nick:昵称必填')
+
+  await page.getByTestId('show-nick').click()
+  await page.getByTestId('nick').fill('ada')
+  await page.getByTestId('ghost').fill('')
+  await page.getByTestId('drop-ghost').click()
+  await expect(page.getByTestId('ghost')).toHaveCount(0)
+  await page.getByTestId('schema-submit').click()
+  await expect(page.getByTestId('errors')).not.toContainText('ghost')
+  await expect(page.getByTestId('result')).toContainText('杭州')
+  await expect(page.getByTestId('result')).not.toContainText('ghost')
+})

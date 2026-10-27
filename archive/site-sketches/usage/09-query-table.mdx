@@ -1,0 +1,13 @@
+---
+title: "09 · 查询表单 + 表格"
+description: "调用日志：Grid 自动排列 + 折叠；provider → model 联动；transform 是计算值"
+---
+
+调用日志：Grid 自动排列 + 折叠；provider → model 联动；transform 是计算值；watch 回第 1 页；列筛选与查询表单是同一个 status 字段的两个 UI（列筛选起名 `ui="filter"`，UI Brand）；结果表列一律 `<Field name>` + readPretty；服务端分页 page 是普通提交字段，选择 / 折叠是 `virtual`；末尾有纯前端分页变体（page 设成 `virtual`）；QueryForm 与工具栏是普通布局组件。
+
+**演示的特性：** QueryForm · ProTable · 一个字段两个 UI · UI Brand · virtual
+
+## 用法代码
+
+```tsx title="usage/09-query-table.tsx" file="<root>/usage/09-query-table.tsx"
+```

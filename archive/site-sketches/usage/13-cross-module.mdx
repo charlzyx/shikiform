@@ -1,0 +1,13 @@
+---
+title: "13 · 跨模块联动"
+description: "Agent 配置页拆成模型 / 工具 / 限额三个模块：模块规则是收 handle 的函数，跨模块由宿主显式传 handle"
+---
+
+Agent 配置页拆成模型 / 工具 / 限额三个模块：模块规则是收 handle 的函数，跨模块由宿主显式传 handle（校验里用 ctx.get 绝对 path），多个模块的同名字段列出精确 handle；Tab 未挂载导致规则丢失的坑。
+
+**演示的特性：** 模块化 · 模块规则函数 · 精确 handle
+
+## 用法代码
+
+```tsx title="usage/13-cross-module.tsx" file="<root>/usage/13-cross-module.tsx"
+```

@@ -1,4 +1,7 @@
 node_modules/
 dist/
+lib/
 .astro/
 .rspress/
+test-results/
+playwright-report/

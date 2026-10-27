@@ -1,0 +1,25 @@
+---
+title: "10 · 行展开二级表格"
+description: "订单 → 订单行（Array<Object<Array<Object>>>）：展开状态是 virtual 字段；表格级查看 /"
+---
+import { Code } from '@astrojs/starlight/components';
+import OpenPoints from '../../../components/OpenPoints.astro';
+import code from '../../../../usage/10-expandable-nested-table.tsx?raw';
+
+:::caution[伪代码]
+API 设计轮：下面的代码是“理想 API”下的业务写法，**没有实现、不能运行**。源文件：`usage/10-expandable-nested-table.tsx`。
+:::
+
+订单 → 订单行（`Array<Object<Array<Object>>>`）：展开状态是 `virtual` 的 expandedKeys（按 rowKey）；表格级查看 / 编辑 `$pattern` 切换（向下继承，已发货订单显式 readPretty 覆盖），查看态自动 Pretty；行级草稿延后（v1 不做）。
+
+**演示的特性：** ArrayTable · pattern 继承 / Pretty
+
+## 本用例的 ❓ 待定点
+
+<OpenPoints code={code} />
+
+汇总与建议见 [待拍板](/decisions/)。
+
+## 用法代码
+
+<Code code={code} lang="tsx" title="usage/10-expandable-nested-table.tsx" />

@@ -33,13 +33,17 @@ export default defineConfig({
   ],
   root: 'docs',
   route: { cleanUrls: true },
-  // Playgrounds import the package name. Alias it at the repo so preview
-  // virtual files (under node_modules/.rspress) and live-demo's import() thunks
-  // resolve the local teaching runtime, including ./ui and ./zod.
+  // Tutorials import the package name. The published exports and tsconfig
+  // paths point `shikiform` at the real library (`src/index.ts` / `lib/`).
+  // Docs must keep the teaching runtime, so these aliases win (`prefer-alias`).
+  // `$` is an exact match: `shikiform/antd` still follows the library paths.
   builderConfig: {
     resolve: {
+      aliasStrategy: 'prefer-alias',
       alias: {
-        shikiform: path.join(root, 'src/runtime'),
+        'shikiform/ui': path.join(root, 'src/runtime/ui.tsx'),
+        'shikiform/zod': path.join(root, 'src/runtime/zod.ts'),
+        shikiform$: path.join(root, 'src/runtime/index.ts'),
       },
     },
   },

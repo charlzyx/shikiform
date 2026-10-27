@@ -1,6 +1,6 @@
 # ShikiForm API 草案（由 usage/*.tsx 反推）
 
-> **状态：只有设计，没有实现。** 本页所有 API 都是 usage 伪代码用到的“理想 API”，`shikiform` 包目前不存在任何实现。
+> **已归档。** 这是设计阶段的草案，公开站点不再收录。实现在 `src/`，类型和 TSDoc 是当前 API。下文里“没有实现”是当时的记录，不要当成现状。
 > 两个入口：`shikiform`（core + react）、`shikiform/pro`（高级封装）。另有可选 `shikiform/zod`。
 > 每条后面的 `[01]` 表示在哪个 usage 文件里出现。
 >
