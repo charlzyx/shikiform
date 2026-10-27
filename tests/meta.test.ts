@@ -75,4 +75,22 @@ describe('field and form meta', () => {
     expect(calls).toEqual(['ok'])
     expect(form.errors).toEqual([])
   })
+
+  it('notifies root $errors when a top-level field fails', async () => {
+    const form = createForm<{ code: string }>({ initialValues: { code: '' } })
+    form.registerField('code', { required: true })
+    const hits: string[] = []
+    form.subscribeDep(':errors', () => hits.push('root'))
+    await form.validate()
+    expect(form.trackSelector((d) => d.$errors).value).toContain('必填')
+    expect(hits).toContain('root')
+  })
+
+  it('passes the draft into a selector', () => {
+    const form = createForm<{ email: string }>({ initialValues: { email: 'ada@example.com' } })
+    const selected = form.trackSelector((d) => ({ email: d.email.$value, can: d.$canSubmit }))
+    expect(selected.value).toEqual({ email: 'ada@example.com', can: true })
+    expect(selected.deps).toContain('email:value')
+    expect(selected.deps).toContain(':meta')
+  })
 })

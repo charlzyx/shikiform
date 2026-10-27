@@ -137,6 +137,7 @@ export function SchemaPage() {
       <form.Submit
         data-testid="schema-submit"
         htmlType="button"
+        disabled={false}
         onClick={async (event) => {
           event.preventDefault()
           const submitted = await form.submit()

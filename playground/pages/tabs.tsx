@@ -1,4 +1,4 @@
-import { defineEffects, Field, Form, useForm, useWatch } from 'shikiform'
+import { defineEffects, Field, Form, useForm, useWatch, type Draft } from 'shikiform'
 
 interface Values {
   tab: 'base' | 'extra'
@@ -67,6 +67,8 @@ function TabBody() {
 }
 
 function ErrorLine() {
-  const errors = useWatch<Values, string[]>((d) => d.$errors)
-  return <pre data-testid="tabs-errors">{errors.join(',')}</pre>
+  const errors = useWatch((d: Draft<Values>) =>
+    (['name', 'code', 'ghost'] as const).filter((path) => d[path].$errors.length).join(','),
+  )
+  return <pre data-testid="tabs-errors">{errors}</pre>
 }

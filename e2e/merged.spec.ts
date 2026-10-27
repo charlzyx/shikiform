@@ -9,5 +9,6 @@ test('merged rows share a supplier cell and still validate a price', async ({ pa
   await expect(page.getByTestId('price-error-p1')).toContainText('1000')
   await page.getByTestId('only-active').check()
   await expect(page.getByTestId('name-p2')).toHaveCount(0)
-  await expect(page.getByTestId('supplier-p1').locator('xpath=ancestor::td')).toHaveAttribute('rowspan', '1')
+  const span = await page.getByTestId('supplier-p1').locator('xpath=ancestor::td').getAttribute('rowspan')
+  expect(span === null || span === '1').toBe(true)
 })

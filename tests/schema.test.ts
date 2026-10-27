@@ -137,6 +137,27 @@ describe('standard schema', () => {
     expect(form.getSubmitValues()).not.toHaveProperty('nodes')
   })
 
+  it('refreshes one form-schema field without dropping the others', async () => {
+    const schema = z
+      .object({
+        password: z.string(),
+        confirm: z.string(),
+        nick: z.string().min(1, '昵称必填'),
+      })
+      .superRefine((value, ctx) => {
+        if (value.password !== value.confirm) ctx.addIssue({ code: 'custom', path: ['confirm'], message: '两次密码不一致' })
+      })
+    const form = createForm({
+      initialValues: { password: 'a', confirm: 'b', nick: '' },
+      validate: schema,
+    })
+    await form.validate()
+    form.setValue('confirm', 'a')
+    await form.validate('confirm')
+    expect(form.errors.find((error) => error.path === 'confirm')).toBeUndefined()
+    expect(form.errors.find((error) => error.path === 'nick')?.messages.join(' ')).toContain('昵称必填')
+  })
+
   it('skips a field schema when display is none and still checks hidden', async () => {
     const form = createForm({ initialValues: { ghost: '', nick: '' } })
     form.registerField('ghost', { rules: z.string().min(1, '幽灵必填') })

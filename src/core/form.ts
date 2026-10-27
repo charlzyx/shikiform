@@ -299,12 +299,10 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
         if (result.stale) preserve.add(target)
         else collected.push(...result.issues)
       }
-      if (!path) {
-        const validate = this.options.validate
-        if (isStandardSchema(validate)) collected.push(...(await collectSchemaIssues(validate, this.values)))
-        else if (typeof validate === 'function') collected.push(...recordToIssues(await validate(this.values)))
-        if (this.options.resolver) collected.push(...recordToIssues(await this.options.resolver(this.values)))
-      }
+      const validate = this.options.validate
+      if (isStandardSchema(validate)) collected.push(...(await collectSchemaIssues(validate, this.values)))
+      else if (typeof validate === 'function') collected.push(...recordToIssues(await validate(this.values)))
+      if (this.options.resolver) collected.push(...recordToIssues(await this.options.resolver(this.values)))
       this.commitSchemaIssues(path, collected, preserve)
       await this.waitAsync()
       return this.errors.filter((e) => !path || e.path === path || e.path.startsWith(path + '.'))
@@ -445,7 +443,7 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
   }
 
   trackSelector<S>(selector: (d: Draft<T>) => S): { value: S; deps: string[] } {
-    const tracked = this.trackOnly(selector as () => S)
+    const tracked = this.trackOnly(() => selector(this.draft))
     return { value: tracked.value, deps: [...tracked.deps] }
   }
 
@@ -1229,13 +1227,14 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
   }
 
   /** Include the root (`:errors`) so `d.$errors` updates when any field does. */
+  /** Field errors plus the root `:errors` dep, so `d.$errors` updates for a top-level field too. */
   private markErrorDeps(path: string): void {
     let cursor: string | null = path
-    while (cursor !== null) {
+    while (cursor) {
       this.dirtyDeps.add(`${cursor}:errors`)
-      if (!cursor) break
       cursor = parentPath(cursor)
     }
+    this.dirtyDeps.add(':errors')
   }
 
   private bumpMeta(): void {

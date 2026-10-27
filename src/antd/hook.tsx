@@ -84,7 +84,7 @@ function FieldCheckbox(props: ComponentProps<typeof Checkbox>) {
 function Submit(props: ButtonProps) {
   const meta = useWatch((d: Draft<any>) => ({ can: d.$canSubmit === true, submitting: d.$submitting === true }))
   return (
-    <Button htmlType="submit" type="primary" {...props} disabled={!meta.can || props.disabled} loading={meta.submitting || props.loading}>
+    <Button htmlType="submit" type="primary" {...props} disabled={props.disabled ?? !meta.can} loading={meta.submitting || props.loading}>
       {props.children ?? '提交'}
     </Button>
   )
