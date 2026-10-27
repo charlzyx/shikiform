@@ -33,12 +33,12 @@ interface MenuNode {
 
 const MAX_DEPTH = 3;
 
-const menuEffects = defineEffects<{ menus: MenuNode[] }>(({ autorun, query }) => {
-  // 对 TreeField，autorun.each 走到每一层每个节点；node 是当前节点的 handle（相对性 = 回调参数，不写相对路径字符串）
+const menuEffects = defineEffects<{ menus: MenuNode[] }>(({ reaction, query }) => {
+  // 对 TreeField，reaction.each 走到每一层每个节点；node 是当前节点的 handle（相对性 = 回调参数，不写相对路径字符串）
   //   node.$pos  : [0, 2, 1]        （树节点才有；数组行只有 index）
   //   node.$pos.length = depth 3，node.$pos.at(-1) = 兄弟中的 index 1
   //   node.$path : 'menus.0.children.2.children.1'
-  autorun.each(
+  reaction.each(
     (d) => d.menus,
     (node) => {
       const depth = node.$pos.length;
@@ -58,7 +58,7 @@ const menuEffects = defineEffects<{ menus: MenuNode[] }>(({ autorun, query }) =>
   // ❓ node.path 这里是业务子字段（菜单路由），node.$path 是数据路径——$ 规则正好避免了撞名。
 
   // 定位某个节点：先按条件找到 pos，再由 pos 推出精确 path（例：首页菜单永远不可隐藏）
-  autorun((d) => {
+  reaction((d) => {
     const pos = findPos(d.menus.$value, (n) => n.id === 'home'); // → [0, 0] 或 undefined
     if (pos) query(pathOf('menus', pos)).hidden.$disabled = true; // pathOf → 'menus.0.children.0'
   });

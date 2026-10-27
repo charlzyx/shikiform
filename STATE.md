@@ -63,7 +63,7 @@ UI 树 UITree（按 address，一对多对应字段）
 - **字段状态树**：按 path 唯一，跨 UI 共享。value、errors、touched、validating、required、校验、枚举，都在这里。改一个 UI 的输入，另一个 UI 的显示、错误、校验结果自动同步，因为它们读的是同一个字段状态。
 - **UI 树**：按 address 唯一，每个 UI 实例一份。visible（这个 UI 里显不显）、pattern（这个 UI 里是可编辑还是 Pretty）、decoratorProps（这个 UI 的 label、布局）、componentProps（这个 UI 的占位、大小）、展开 / 选择 / 编辑草稿等 transient，都在这里。
 - **Grid / 工具栏 / Card 等布局**（2026-10-27：不再有 VoidField 类型）：普通组件，没有数据树节点、没有字段状态；只有起了名（`ui`）才成为 UI 树节点（effect 里 `d.ui('aside')`，2026-10-27）。
-- **virtual / 计算字段**（2026-10-27：不再有 Transient / Computed 类型；原 `submit={false}` 改名 `virtual`）：都是普通字段状态，只是“不进提交数据”或“`$value` 由 autorun 写”，两个属性独立，见 PLAN 2.2。
+- **virtual / 计算字段**（2026-10-27：不再有 Transient / Computed 类型；原 `submit={false}` 改名 `virtual`）：都是普通字段状态，只是“不进提交数据”或“`$value` 由 reaction 写”，两个属性独立，见 PLAN 2.2。
 
 这样就解释了“一个数据字段对应两个 UI”：不是 UI 树描述跟数据树不一样就难，而是之前把两棵树压成一棵树才难。分开后，查询一个数据字段，返回的是字段状态 + 它的 UI 实例列表（见第 5 节）。
 
@@ -113,7 +113,7 @@ Formly 的 Decorator + Component 分离要保留，但要讲清楚分工，否�
 
 ## 5. Query：相对路径 + 正则，尽量按正则标准，语法不要复杂
 
-> **2026-10-27 更新（effects 语法定稿，见 usage/DECISIONS.md D3–D8、/usage/16-effects-reference/）**：effects 只有 `autorun(d => …)` / `autorun.each(d => d.items, (row, d) => …)` / `watch(d => d.params, d => …)` 三种写法，基于类 Immer 的 draft 路径代理，字段状态 `$` 前缀（`$value / $visible / $pattern …`）；没有 `./` `../` 字符串、没有正则 query、没有 `#n`；定位只用精确 path，唯一过滤是 UI Brand（`ui="summary"` → `d.x.ui('summary')`），具名区域 `d.ui('aside')`；`scope` 删除；不提交的开关叫 `virtual`。下面本节的旧写法仅作历史记录。
+> **2026-10-27 更新（effects 语法定稿，见 usage/DECISIONS.md D3–D8、/usage/16-effects-reference/）**：effects 只有 `reaction(d => …)` / `reaction.each(d => d.items, (row, d) => …)` / `watch(d => d.params, d => …)` 三种写法，基于类 Immer 的 draft 路径代理，字段状态 `$` 前缀（`$value / $visible / $pattern …`）；没有 `./` `../` 字符串、没有正则 query、没有 `#n`；定位只用精确 path，唯一过滤是 UI Brand（`ui="summary"` → `d.x.ui('summary')`），具名区域 `d.ui('aside')`；`scope` 删除；不提交的开关叫 `virtual`。下面本节的旧写法仅作历史记录。
 
 
 Formly 的 `field.query()` + 链式 `.take()` / `.get()` 太麻烦，Shiki 只留三种写法，全部以数据字段为准：

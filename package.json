@@ -3,6 +3,7 @@
     "@live-demo/rspress": "^3.0.2",
     "@rspress/core": "^2.0.23",
     "@rspress/plugin-preview": "^2.0.23",
+    "antd": "^5.29.3",
     "immer": "^11.2.9",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
@@ -27,6 +28,7 @@
   },
   "name": "shikiform",
   "peerDependencies": {
+    "antd": "^5",
     "react": "^18 || ^19",
     "react-dom": "^18 || ^19"
   },

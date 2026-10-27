@@ -1,104 +1,101 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
+import { Button, Checkbox as AntCheckbox, Input as AntInput, InputNumber as AntInputNumber, Radio as AntRadio, Select as AntSelect, Switch as AntSwitch, Table } from 'antd';
 import { connect, useDecorator } from './react';
 
-export const Input = connect(
-  function Input(props: {
-    id?: string;
-    value?: string;
-    onChange?: (event: { target: { value: string } }) => void;
-    onBlur?: () => void;
-    disabled?: boolean;
-    readOnly?: boolean;
-    placeholder?: string;
-    type?: string;
-  }) {
-    return (
-      <input
-        className="shiki-input"
-        id={props.id}
-        type={props.type ?? 'text'}
-        value={props.value ?? ''}
-        placeholder={props.placeholder}
-        disabled={props.disabled}
-        readOnly={props.readOnly}
-        onChange={props.onChange}
-        onBlur={props.onBlur}
-      />
-    );
-  },
-  { onChange: (event: { target: { value: string } }) => event.target.value },
-);
+import 'antd/dist/reset.css';
 
-export function NumberInput(props: {
+const fullWidth: CSSProperties = { width: '100%' };
+
+type ControlProps = {
   id?: string;
-  value?: number;
-  onChange?: (value: number | undefined) => void;
+  value?: unknown;
+  onChange?: (value: unknown) => void;
   onBlur?: () => void;
   disabled?: boolean;
   readOnly?: boolean;
   placeholder?: string;
-}) {
-  return (
-    <input
-      className="shiki-input"
-      id={props.id}
-      type="number"
-      value={props.value ?? ''}
-      placeholder={props.placeholder}
-      disabled={props.disabled}
-      readOnly={props.readOnly}
-      onChange={(event) => props.onChange?.(event.target.value === '' ? undefined : Number(event.target.value))}
-      onBlur={props.onBlur}
-    />
-  );
-}
-
-export function Select(props: {
-  id?: string;
-  value?: string;
-  onChange?: (value: string) => void;
-  onBlur?: () => void;
-  disabled?: boolean;
   options?: { label: string; value: string; disabled?: boolean }[];
-  placeholder?: string;
-}) {
-  return (
-    <select
-      className="shiki-input"
-      id={props.id}
-      value={props.value ?? ''}
-      disabled={props.disabled}
-      onChange={(event) => props.onChange?.(event.target.value)}
-      onBlur={props.onBlur}
-    >
-      <option value="">{props.placeholder ?? '请选择'}</option>
-      {props.options?.map((option) => (
-        <option key={option.value} value={option.value} disabled={option.disabled}>
-          {option.label}
-        </option>
-      ))}
-    </select>
-  );
+  status?: 'error' | 'warning';
+  type?: string;
+  style?: CSSProperties;
+  children?: ReactNode;
+};
+
+const ConnectedInput = connect(AntInput, {
+  onChange: (event: { target: { value: string } }) => event.target.value,
+});
+
+export function Input(props: ControlProps) {
+  const { options: _options, value, style, ...rest } = props;
+  return <ConnectedInput {...rest} value={value ?? ''} style={{ ...fullWidth, ...style }} />;
 }
 
-export function Switch(props: {
-  id?: string;
-  value?: boolean;
-  onChange?: (value: boolean) => void;
-  onBlur?: () => void;
-  disabled?: boolean;
-}) {
+const ConnectedNumber = connect(AntInputNumber, {
+  onChange: (value: number | string | null) => {
+    if (value == null || value === '') return undefined;
+    const next = typeof value === 'number' ? value : Number(value);
+    return Number.isNaN(next) ? undefined : next;
+  },
+});
+
+export function NumberInput(props: ControlProps) {
+  const { options: _options, style, ...rest } = props;
+  return <ConnectedNumber {...rest} style={{ ...fullWidth, ...style }} />;
+}
+
+export const InputNumber = NumberInput;
+
+export function Select(props: ControlProps) {
+  const value = props.value == null || props.value === '' ? undefined : String(props.value);
   return (
-    <input
+    <AntSelect
       id={props.id}
-      type="checkbox"
-      checked={!!props.value}
+      value={value}
+      placeholder={props.placeholder ?? '请选择'}
       disabled={props.disabled}
-      onChange={(event) => props.onChange?.(event.target.checked)}
+      options={props.options}
+      status={props.status}
+      style={{ ...fullWidth, ...props.style }}
+      onChange={(next) => props.onChange?.(next ?? '')}
       onBlur={props.onBlur}
     />
   );
 }
+
+const ConnectedSwitch = connect(AntSwitch, {
+  value: 'checked',
+  onChange: (checked: boolean) => checked,
+});
+
+export function Switch(props: ControlProps) {
+  const { options: _options, ...rest } = props;
+  return <ConnectedSwitch {...rest} />;
+}
+
+const ConnectedCheckbox = connect(AntCheckbox, {
+  value: 'checked',
+  onChange: (event: { target: { checked: boolean } }) => event.target.checked,
+});
+
+const CheckboxGroup = connect(AntCheckbox.Group, {
+  onChange: (values: unknown) => values,
+});
+
+export const Checkbox = Object.assign(ConnectedCheckbox, { Group: CheckboxGroup });
+
+const RadioGroup = connect(AntRadio.Group, {
+  onChange: (event: { target: { value: unknown } }) => event.target.value,
+});
+
+export const Radio = Object.assign(
+  function Radio(props: ControlProps) {
+    const { options: _options, value, onChange, ...rest } = props;
+    return <AntRadio {...rest} checked={!!value} onChange={(event) => onChange?.(event.target.checked)} />;
+  },
+  { Group: RadioGroup, Button: AntRadio.Button },
+);
+
+export { Button, Table };
 
 export function FormItem(props: { label?: ReactNode; help?: ReactNode; inline?: boolean; children?: ReactNode }) {
   const field = useDecorator(props);

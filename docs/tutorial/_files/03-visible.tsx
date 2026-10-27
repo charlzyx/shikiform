@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { Form, Field, Submit, defineEffects, useForm } from 'shikiform';
 import { FormItem, Input, Switch } from 'shikiform/ui';
 
-const effects = defineEffects<{ contact: boolean; email: string }>(({ autorun }) => {
-  autorun((d) => {
+const effects = defineEffects<{ contact: boolean; email: string }>(({ reaction }) => {
+  reaction((d) => {
     void d.contact.$value;
   });
 });

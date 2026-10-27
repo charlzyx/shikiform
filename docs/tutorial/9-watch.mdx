@@ -1,5 +1,5 @@
 ---
-title: 7. watch 做动作
+title: 9. watch 做动作
 description: 省变化时清空市。这个动作用 watch，初始化时不跑。
 pageType: doc-wide
 outline: false
@@ -14,11 +14,11 @@ import { StepNav, TutorialPlay } from '../_components/TutorialStep';
 <div className="tutorial-step">
 <div className="tutorial-copy">
 
-`autorun` 用来保持一份派生状态，初始化就会跑。`watch` 用来做动作，初始化不跑，源变化之后才跑。
+`reaction` 用来保持一份派生状态，初始化就会跑。`watch` 用来做动作，初始化不跑，源变化之后才跑。
 
-起始代码在 `autorun` 里写了 `d.city.$value = undefined`。`autorun` 初始化就会跑，所以一进来市是空的，杭州没有留下来。清空是切省之后才该发生的动作。
+起始代码在 `reaction` 里写了 `d.city.$value = undefined`。`reaction` 初始化就会跑，所以一进来市是空的，杭州没有留下来。清空是切省之后才该发生的动作。
 
-**这一步：** `autorun` 只留 `d.city.$disabled = !d.province.$value`。清空市改成：
+**这一步：** `reaction` 只留 `d.city.$disabled = !d.province.$value`。清空市改成：
 
 ```ts
 watch(
@@ -31,7 +31,7 @@ watch(
 
 从 `watch` 的参数里取出 `watch`。一进来市仍是杭州，下拉可以改。切换省之后，市被清空。
 
-<StepNav prev={{ href: '/tutorial/6-autorun', title: 'autorun 写计算值' }} next={{ href: '/tutorial/8-array', title: '数组和 autorun.each' }} />
+<StepNav prev={{ href: '/tutorial/8-reaction', title: 'reaction 写计算值' }} next={{ href: '/tutorial/10-array', title: '数组和 reaction.each' }} />
 
 </div>
 

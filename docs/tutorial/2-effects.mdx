@@ -1,0 +1,57 @@
+---
+title: 2. 联动
+description: reaction、reaction.each、watch，以及 $ 状态、pattern、virtual、显隐。
+---
+
+import { StepNav } from '../_components/TutorialStep';
+
+# 联动
+
+`defineEffects` 收到 `{ reaction, watch, query }`。
+
+```ts
+const effects = defineEffects(({ reaction, watch }) => {
+  reaction((d) => {
+    d.email.$visible = d.contact.$value;
+  });
+  reaction.each(
+    (d) => d.items,
+    (row) => {
+      const total = (row.price.$value || 0) * (row.qty.$value || 0);
+      row.total.$value = total;
+    },
+  );
+  watch(
+    (d) => d.province,
+    (d) => {
+      d.city.$value = undefined;
+    },
+  );
+});
+```
+
+`reaction` 保持派生状态，初始化就会跑。读到的 `$` 状态是依赖，同一轮里的写入不是依赖。同一轮里先算到局部变量，再写回去。
+
+`reaction.each` 给数组的每一行、树的每个节点一个实例。选择器必须返回字段 handle，例如 `(d) => d.items`。
+
+`watch` 做动作。初始化不跑，源变化之后才跑。从 `watch` 的源里返回 handle，会带上那一段子树。
+
+字段状态都带 `$`：`$value`、`$visible`、`$required`、`$pattern`、`$disabled`、`$errors`、`$rules`、`$enum`、`$path`。不带 `$` 的名字是子字段，所以数据里可以有一个叫 `value` 的字段。不写 `./` 或 `../`。相对位置就是函数参数：根上的 `d`，行上的 `row`，模块函数收到的 handle。
+
+`pattern` 有四种：`editable`、`disabled`、`readOnly`、`readPretty`。写在父级上，子级跟着走。子级自己写了，用子级的。`$disabled` 是把 pattern 设成 `disabled` 的短写法。
+
+`$visible` 为 false 时，字段留在树上，不画出来，跳过校验，值还在，提交结果里仍有它。
+
+`virtual` 的字段不进提交结果。`reaction` 写过 `$value` 的字段默认 `virtual`。要交上去，写 `virtual={false}`。
+
+定位只用精确 path。同一个字段有多份界面时，用 `ui` 区分：JSX 写 `ui="summary"`，联动里写 `d.discount.ui('summary')`。
+
+表格的每一列都是 `Field`，`name` 相对当前行。只读就是 `readPretty`。
+
+模块之间传 handle，不传路径字符串。`addressRules(d.registeredAddress)` 这种函数可以在另一张表单里换一个 handle 再用。
+
+行上的编辑直接改正式值。
+
+`when` 是保留字，不对外。
+
+<StepNav prev={{ href: '/tutorial/1-fields', title: '字段' }} next={{ href: '/tutorial/3-start', title: '最小表单' }} />

@@ -33,8 +33,8 @@ describe('teaching runtime', () => {
   });
 
   it('hides with $visible, keeps the value, and skips validation', async () => {
-    const effects = defineEffects<{ show: boolean; email: string }>(({ autorun }) => {
-      autorun((d) => {
+    const effects = defineEffects<{ show: boolean; email: string }>(({ reaction }) => {
+      reaction((d) => {
         d.email.$visible = !!d.show.$value;
       });
     });
@@ -58,8 +58,8 @@ describe('teaching runtime', () => {
     form.mountField('address', () => ({ pattern: 'readPretty' }));
     form.mountField('address.city', () => ({}));
     expect(form.getFieldSnap('address.city').pattern).toBe('readPretty');
-    const effects = defineEffects(({ autorun }) => {
-      autorun((d) => {
+    const effects = defineEffects(({ reaction }) => {
+      reaction((d) => {
         d.address.city.$pattern = 'editable';
       });
     });
@@ -72,9 +72,9 @@ describe('teaching runtime', () => {
     expect(next.getFieldSnap('address.city').pattern).toBe('editable');
   });
 
-  it('writes computed $value from autorun and omits it on submit', async () => {
-    const effects = defineEffects(({ autorun }) => {
-      autorun((d) => {
+  it('writes computed $value from reaction and omits it on submit', async () => {
+    const effects = defineEffects(({ reaction }) => {
+      reaction((d) => {
         d.amount.$value = (d.price.$value || 0) * (d.qty.$value || 0);
       });
     });
@@ -94,8 +94,8 @@ describe('teaching runtime', () => {
   });
 
   it('keeps a computed field when virtual is explicitly false', async () => {
-    const effects = defineEffects(({ autorun }) => {
-      autorun((d) => {
+    const effects = defineEffects(({ reaction }) => {
+      reaction((d) => {
         d.payable.$value = d.price.$value || 0;
       });
     });
@@ -112,8 +112,8 @@ describe('teaching runtime', () => {
   });
 
   it('does not run watch on init, then clears the child when the source changes', () => {
-    const effects = defineEffects(({ autorun, watch }) => {
-      autorun((d) => {
+    const effects = defineEffects(({ reaction, watch }) => {
+      reaction((d) => {
         d.city.$disabled = !d.province.$value;
       });
       watch(
@@ -135,8 +135,8 @@ describe('teaching runtime', () => {
   });
 
   it('computes each array row and strips computed cells', async () => {
-    const effects = defineEffects(({ autorun }) => {
-      autorun.each(
+    const effects = defineEffects(({ reaction }) => {
+      reaction.each(
         (d) => d.items,
         (row) => {
           row.total.$value = (row.price.$value || 0) * (row.qty.$value || 0);
@@ -171,8 +171,8 @@ describe('teaching runtime', () => {
   });
 
   it('validates declared $rules when the field is unmounted, and JSX rules only while mounted', async () => {
-    const effects = defineEffects(({ autorun }) => {
-      autorun((d) => {
+    const effects = defineEffects(({ reaction }) => {
+      reaction((d) => {
         d.code.$rules = [{ required: true, message: '邀请码必填' }];
       });
     });
@@ -191,12 +191,12 @@ describe('teaching runtime', () => {
     expect(errors.map((error) => error.path)).toEqual(['code']);
   });
 
-  it('throws when autorun does not converge', () => {
-    const effects = defineEffects(({ autorun }) => {
-      autorun((d) => {
+  it('throws when reaction does not converge', () => {
+    const effects = defineEffects(({ reaction }) => {
+      reaction((d) => {
         d.a.$value = (d.b.$value || 0) + 1;
       });
-      autorun((d) => {
+      reaction((d) => {
         d.b.$value = (d.a.$value || 0) + 1;
       });
     });

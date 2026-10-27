@@ -4,9 +4,9 @@
 > 两个入口：`shikiform`（core + react）、`shikiform/pro`（高级封装）。另有可选 `shikiform/zod`。
 > 每条后面的 `[01]` 表示在哪个 usage 文件里出现。
 >
-> **2026-10-27 已拍板**：① 字段类型只按数据结构分（Field / ObjectField / ArrayField / TreeField），删除 VoidField / Transient / Computed 三个“类型”——它们是属性组合（布局 = 普通组件；不提交 = `virtual`（原 `virtual`，2026-10-27 改名）；计算 = 只读 Field，`$value` 在 autorun 里写）。② 树节点多一个 `pos`（索引路径二维坐标），见 §2.1。
+> **2026-10-27 已拍板**：① 字段类型只按数据结构分（Field / ObjectField / ArrayField / TreeField），删除 VoidField / Transient / Computed 三个“类型”——它们是属性组合（布局 = 普通组件；不提交 = `virtual`（原 `virtual`，2026-10-27 改名）；计算 = 只读 Field，`$value` 在 reaction 里写）。② 树节点多一个 `pos`（索引路径二维坐标），见 §2.1。
 >
-> **2026-10-27 再拍板（Q1 / Q2 / Q4 / Q6 / Q7 / Q9）**：③ effects = draft 路径代理 + 只有 `autorun` / `watch` 两个入口，字段状态 `$` 前缀，没有 `./` `../` 相对路径字符串（§3）。④ 定位只用精确 path，唯一过滤是 UI Brand（`ui="summary"` → `d.x.ui('summary')`），`#n` 删除（§4）。⑤ pattern 跟 Formily：`editable / disabled / readOnly / readPretty`，向下继承，子级显式设置覆盖（§2）。⑥ 所有表格列都是 `<Field name>`（相对行），只读表 = `$pattern 'readPretty'`，没有 `dataIndex`（§8）。⑦ `scope` 删除，`each` 只剩 `autorun.each` / `watch.each`。完整例子：[16 effects 参考](/usage/16-effects-reference/)。
+> **2026-10-27 再拍板（Q1 / Q2 / Q4 / Q6 / Q7 / Q9）**：③ effects = draft 路径代理 + 只有 `reaction` / `watch` 两个入口，字段状态 `$` 前缀，没有 `./` `../` 相对路径字符串（§3）。④ 定位只用精确 path，唯一过滤是 UI Brand（`ui="summary"` → `d.x.ui('summary')`），`#n` 删除（§4）。⑤ pattern 跟 Formily：`editable / disabled / readOnly / readPretty`，向下继承，子级显式设置覆盖（§2）。⑥ 所有表格列都是 `<Field name>`（相对行），只读表 = `$pattern 'readPretty'`，没有 `dataIndex`（§8）。⑦ `scope` 删除，`each` 只剩 `reaction.each` / `watch.each`。完整例子：[16 effects 参考](/usage/16-effects-reference/)。
 
 ## 1. 表单实例
 
@@ -15,14 +15,14 @@
 | `useForm<V>(options)` | 组件内创建表单实例（随组件生命周期）[01] |
 | `createForm<V>(options)` | 组件外创建（模块级 / 测试用），与 useForm 同参 [01 ❓] |
 | `options.initialValues` | 初始值；reset 回到它 |
-| `options.effects` | `Effects[]`，由 `defineEffects(({ autorun, watch, query }) => …)` 定义，可组合 [02][13][16] |
+| `options.effects` | `Effects[]`，由 `defineEffects(({ reaction, watch, query }) => …)` 定义，可组合 [02][13][16] |
 | `options.validate` | 表单级 / 双向约束：`(values) => { [path]: message }`（原 `e.validate`）[11 ❓] |
 | `options.validateTrigger` | 默认校验时机，默认 `['onBlur','onSubmit']` [01][11] |
 | `options.commit` | `'change' \| 'blur'`：输入何时写入 store；大表用 `'blur'` [12] |
 | `options.enumPolicy` | 枚举范围变化后旧值不合法时：`'error' \| 'clear' \| 'none'`，全表单一种 [02][11] |
 | `options.resolver` | 可选外部校验（Zod 等），结果并入字段错误树 [11] |
 | `options.fields` | 没有自己 `<Field>` 的字段的属性声明，如 `{ selectedIds: { virtual: true } }`（选择 / 展开 / 前端分页的 page）[09][10][14][16] |
-| `options.devtools` | 打印每个事务跑了哪些 autorun / watch、读写了哪些 state [15] |
+| `options.devtools` | 打印每个事务跑了哪些 reaction / watch、读写了哪些 state [15] |
 
 **实例方法 / 属性**
 
@@ -36,7 +36,7 @@
 | `form.getSubmitValues()` | 提交形状（不含 virtual 字段；计算值默认 virtual）|
 | `form.getValue(path)` | 读任意字段值（含计算值）[07][12] |
 | `form.query(path, { ui? })` | 字符串低层写法，见 §4 |
-| `form.batch(d => …)` | 拿到和 effect 同一种 draft；多次写合并成一个事务、一轮 autorun、一次渲染 [12 ❓] |
+| `form.batch(d => …)` | 拿到和 effect 同一种 draft；多次写合并成一个事务、一轮 reaction、一次渲染 [12 ❓] |
 | `form.submitting / validating / dirty` | 表单级状态 |
 
 ## 2. 组件（JSX 树）
@@ -44,8 +44,8 @@
 字段类型**只按数据结构分**四种。所有字段共享：`name`、`decorator`、`pattern`、`rules` / `validator` / `warning` / `trigger`、`ui`（具名 UI）、`virtual`（默认 `false`；计算字段默认 `true`）。
 
 两个**独立**属性：
-- **值来源**：输入（默认）或计算：字段在值类型里声明，`$value` 在 `autorun` 里写 → 推断为计算字段（自动只读、不脏检查、不校验、reset 重算）。JSX 里就是普通 `<Field name>`，没有 `<Computed>` [06][16 ❓]。
-- **是否提交 = `virtual`**（2026-10-27 定；原名 `virtual`，因和表单的 submit 撞名改名）：`<Field name="selectedKeys" virtual />` 有值、完整参与 `autorun` / `watch`（可以是依赖，也可以是计算目标），只是不进提交值（确认密码、协议勾选、选择、展开、编辑模式）。它是**这张表单里**对某个字段的开关，不是字段种类：同一个 `page`，服务端分页时是普通提交字段（查询条件），纯前端分页时 `virtual` [09]。计算字段默认 `virtual`，需要提交时写 `<Field name="payable" virtual={false}>` [06]。
+- **值来源**：输入（默认）或计算：字段在值类型里声明，`$value` 在 `reaction` 里写 → 推断为计算字段（自动只读、不脏检查、不校验、reset 重算）。JSX 里就是普通 `<Field name>`，没有 `<Computed>` [06][16 ❓]。
+- **是否提交 = `virtual`**（2026-10-27 定；原名 `virtual`，因和表单的 submit 撞名改名）：`<Field name="selectedKeys" virtual />` 有值、完整参与 `reaction` / `watch`（可以是依赖，也可以是计算目标），只是不进提交值（确认密码、协议勾选、选择、展开、编辑模式）。它是**这张表单里**对某个字段的开关，不是字段种类：同一个 `page`，服务端分页时是普通提交字段（查询条件），纯前端分页时 `virtual` [09]。计算字段默认 `virtual`，需要提交时写 `<Field name="payable" virtual={false}>` [06]。
 - **布局 / 具名区域没有值**：`<Region ui>`、Pro 布局的 `ui` 不能当依赖（没有 `$value` 可读），只能当 `$visible / $pattern` 的写入目标 [14]。
 - **pattern**（Q6，跟 Formily）：`editable / disabled / readOnly / readPretty`。可设在表单、ObjectField、ArrayField、Region 或单个字段上，向下继承；子级显式设置覆盖继承值；写 `undefined` 恢复继承（❓）。`$disabled` 是 `$pattern === 'disabled'` 的布尔快捷写法 [10][16]。
 
@@ -72,7 +72,7 @@
 | `path` | 由 pos 推出，children 键由 `childrenKey` 配置 | `menus.0.children.2.children.1` |
 | `posKey(pos)` | 字符串形式，只用于 Map key / 序列化 | `'0-2-1'` |
 
-- **effect 里**：`autorun.each(d => d.menus, node => …)` 走到每一层每个节点；node handle 带 `node.$pos` / `node.$path`（只读），深度 = `node.$pos.length` [05 ❓]。`validator(v, ctx)` 的 ctx 多出 `pos / depth / parentPos / path`；`ctx.parent` = 父节点；`ctx.array` = 兄弟节点数组。
+- **effect 里**：`reaction.each(d => d.menus, node => …)` 走到每一层每个节点；node handle 带 `node.$pos` / `node.$path`（只读），深度 = `node.$pos.length` [05 ❓]。`validator(v, ctx)` 的 ctx 多出 `pos / depth / parentPos / path`；`ctx.parent` = 父节点；`ctx.array` = 兄弟节点数组。
 - **节点操作**（`useNode()`）：`pos / depth / index / path`、`moveUp / moveDown`（同父内 ±1）、`indent`（成为前一个兄弟的最后一个子）、`outdent`（成为父节点的下一个兄弟）、`moveTo(toPos)`、`moveTargets(filter)`、`addChild / remove`、`canMoveUp / canMoveDown / canIndent / canOutdent` [05]。
 - **树操作**（`useTree(path)`）：`move(fromPos, toPos)`、`get(pos)`、`insert(pos, node)`、`remove(pos)`、`pathOf(pos)`、`posOf(path)`、`walk((node, pos) => …)`、`count`、`maxDepth` [05]。`toPos` = 移动完成后的最终坐标（提议）。
 - **禁止移入自身后代**：内建，`isPosPrefix(fromPos, toPos)` 为真即拒绝；其他约束写 `canMove({ from, to, node, toParent })`，返回拒绝原因字符串 [05]。
@@ -88,9 +88,9 @@
 ## 3. 集中 effect（2026-10-27 定，Q1 / Q2 / Q9）
 
 ```ts
-const effects = defineEffects<V>(({ autorun, watch, query }) => {
-  autorun((d) => { … })                           // 自动收集：读到的 $状态 就是依赖，赋值不是依赖
-  autorun.each((d) => d.items, (row, d) => { … }) // 每行（树：每个节点）一个实例
+const effects = defineEffects<V>(({ reaction, watch, query }) => {
+  reaction((d) => { … })                           // 自动收集：读到的 $状态 就是依赖，赋值不是依赖
+  reaction.each((d) => d.items, (row, d) => { … }) // 每行（树：每个节点）一个实例
   watch((d) => d.params, (d) => { … })            // 显式源：源变化时跑“动作”（回第 1 页、清下级值）
   // watch.each(...)                               // 需要时再加（签名未定 ❓）
 })
@@ -102,7 +102,7 @@ const effects = defineEffects<V>(({ autorun, watch, query }) => {
 
 | 状态 | 说明 |
 |---|---|
-| `$value` | 值（计算字段在 autorun 里写它） |
+| `$value` | 值（计算字段在 reaction 里写它） |
 | `$visible` / `$required` | 显隐、必填 |
 | `$pattern` / `$disabled` | `editable / disabled / readOnly / readPretty`；`$disabled` 是布尔快捷写法 |
 | `$enum` | 数组或 `SomeEnum.with(params)` |
@@ -113,19 +113,19 @@ const effects = defineEffects<V>(({ autorun, watch, query }) => {
 **`ui(name)`**：`d.discount.ui('summary')` 取 UI Brand handle（只有 UI 状态：`$visible / $pattern`、decorator / component 的 props）；`d.ui('aside')` 取具名布局区域（§4）。
 
 **规则**
-- `autorun` 必须同步；写 async 是开发期错误——异步请求放 Enum loader 或 `watch` 里。
-- 每次运行 = 一次 Immer produce / 一个事务；按拓扑跑、每个 autorun 一轮最多一次；写入值不变不触发；依赖按状态粒度（`$value / $visible / $pattern / $errors / $enum …`）。
-- 一个都没读到的 autorun 只跑一次（静态设置）。
-- 环：10 轮不收敛抛 `ShikiCycleError`，带上环路（哪个 autorun / watch 读了什么、写了什么）[15]。
+- `reaction` 必须同步；写 async 是开发期错误——异步请求放 Enum loader 或 `watch` 里。
+- 每次运行 = 一次 Immer produce / 一个事务；按拓扑跑、每个 reaction 一轮最多一次；写入值不变不触发；依赖按状态粒度（`$value / $visible / $pattern / $errors / $enum …`）。
+- 一个都没读到的 reaction 只跑一次（静态设置）。
+- 环：10 轮不收敛抛 `ShikiCycleError`，带上环路（哪个 reaction / watch 读了什么、写了什么）[15]。
 - 同一个 run 里先写后读：用局部变量，不读回刚写的值 [06][16 ❓]。
 - `when` 是保留字，不对外暴露。
-- 已删除：`react`、`derive`、`watchEffect`、`computed`、`validate`（移到 `useForm({ validate })`）、`scope`、`each`（只剩 `autorun.each`）、链式 setter、依赖数组、`on(...)`、箭头函数赋值写法。
+- 已删除：`react`、`derive`、`watchEffect`、`computed`、`validate`（移到 `useForm({ validate })`）、`scope`、`each`（只剩 `reaction.each`）、链式 setter、依赖数组、`on(...)`、箭头函数赋值写法。
 
 **模块复用**：普通函数，参数是模块根的 handle：
 
 ```ts
 export function addressRules(a: Draft<Address>) { a.zip.$required = a.region.$value?.length === 3 }
-autorun((d) => addressRules(d.registeredAddress))
+reaction((d) => addressRules(d.registeredAddress))
 ```
 跨模块要的 handle 由宿主显式传入 [03][13 ❓]。
 
@@ -183,11 +183,11 @@ core 另带通用组合工具 `comboOptions(table, selection, dim)` / `comboMatc
 
 - 声明在 JSX：`rules`（`required / min / max / minLength / maxLength / pattern / format / isTrue / validator`）、`validator(value, ctx)`、`warning(value, ctx)`、`trigger`。
 - `ctx`：`record / root / parent / array / index / get(path) / signal`；树节点另有 `pos / depth / parentPos`。
-- 可复用：`defineRules({...})` [11]；动态规则：autorun 里 `d.qty.$rules = [...]` [07]。
+- 可复用：`defineRules({...})` [11]；动态规则：reaction 里 `d.qty.$rules = [...]` [07]。
 - 表单级 / 双向约束：`useForm({ validate: (v) => ({ [path]: message }) })` [11 ❓]。
 - 时机：默认 onBlur + onSubmit；表格单元格默认 commit 时；异步规则默认不在 onChange 跑。
 - 状态写回字段状态树，Decorator 统一展示；隐藏字段跳过校验、值保留。
-- 未挂载字段（如非激活 Tab）：Q5 提议“字段按声明存在，autorun 写的 `$rules` 不论挂载都校验；JSX `rules` 只在挂载时生效”——未定 [13]。
+- 未挂载字段（如非激活 Tab）：Q5 提议“字段按声明存在，reaction 写的 `$rules` 不论挂载都校验；JSX `rules` 只在挂载时生效”——未定 [13]。
 
 ## 8. Pro（`shikiform/pro`）
 

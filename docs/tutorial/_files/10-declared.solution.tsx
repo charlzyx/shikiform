@@ -1,8 +1,8 @@
 import { Field, Form, Submit, defineEffects, useFieldValue, useForm, useFormState } from 'shikiform';
 import { FormItem, Input, Switch } from 'shikiform/ui';
 
-const effects = defineEffects<{ more: boolean; nickname: string; code: string }>(({ autorun }) => {
-  autorun((d) => {
+const effects = defineEffects<{ more: boolean; nickname: string; code: string }>(({ reaction }) => {
+  reaction((d) => {
     d.code.$rules = [{ required: true, message: '邀请码必填' }];
   });
 });
@@ -34,7 +34,7 @@ function More() {
         </Field>
       ) : null}
       {more ? (
-        <Field name="code" decorator={<FormItem label="邀请码" help="规则在 autorun 里，卸掉输入框也会校验" />}>
+        <Field name="code" decorator={<FormItem label="邀请码" help="规则在 reaction 里，卸掉输入框也会校验" />}>
           <Input />
         </Field>
       ) : null}

@@ -1,3 +1,4 @@
+import { Button } from 'antd';
 import {
   cloneElement,
   createContext,
@@ -6,6 +7,7 @@ import {
   useLayoutEffect,
   useRef,
   useSyncExternalStore,
+  type ComponentType,
   type ReactElement,
   type ReactNode,
 } from 'react';
@@ -289,9 +291,9 @@ export function ArrayField({
           );
         })}
       </ArrayContext.Provider>
-      <button type="button" className="shiki-btn" onClick={() => form.push(path, createRow ? createRow() : {})}>
+      <Button htmlType="button" onClick={() => form.push(path, createRow ? createRow() : {})}>
         添加一行
-      </button>
+      </Button>
     </div>
   );
   if (decorator && isValidElement(decorator)) return cloneElement(decorator, {}, body);
@@ -321,9 +323,9 @@ function clickable(children: ReactNode, onClick: () => void, disabled?: boolean)
     });
   }
   return (
-    <button type="button" className="shiki-btn" disabled={disabled} onClick={onClick}>
+    <Button htmlType="button" disabled={disabled} onClick={onClick}>
       {children}
-    </button>
+    </Button>
   );
 }
 
@@ -336,9 +338,9 @@ export function Submit({ asChild, children }: { asChild?: boolean; children?: Re
   );
   if (asChild) return clickable(children, () => void form.submit(), submitting);
   return (
-    <button type="submit" className="shiki-btn shiki-btn-primary" disabled={submitting}>
+    <Button type="primary" htmlType="submit" disabled={submitting}>
       {children ?? '提交'}
-    </button>
+    </Button>
   );
 }
 
@@ -347,14 +349,14 @@ export function Reset({ asChild, children }: { asChild?: boolean; children?: Rea
   const onClick = () => form.reset();
   if (asChild) return clickable(children, onClick);
   return (
-    <button type="button" className="shiki-btn" onClick={onClick}>
+    <Button htmlType="button" onClick={onClick}>
       {children ?? '重置'}
-    </button>
+    </Button>
   );
 }
 
 export function connect<P extends Record<string, any>>(
-  Comp: (props: any) => ReactElement | null,
+  Comp: ComponentType<any>,
   mapping: { value?: string; onChange?: string | ((...args: any[]) => unknown); mapProps?: (props: P) => Record<string, unknown> },
 ) {
   return function Connected(props: P) {

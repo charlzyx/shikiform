@@ -1,6 +1,6 @@
 // 09 查询表单 + 表格：调用日志
 // 覆盖：Grid 自动排列（不手写 span）+ 折叠（值保留）；查询内部联动（provider → model）；
-//      transform 是计算字段（params 的 $value 在 autorun 里写：空值省略 / 日期拆分）；分页（watch：新查询回第 1 页）；
+//      transform 是计算字段（params 的 $value 在 reaction 里写：空值省略 / 日期拆分）；分页（watch：新查询回第 1 页）；
 //      列筛选和查询表单是【同一个数据字段的两个 UI】：列筛选那个起名 ui="filter"（UI Brand），effect 里 d.status.ui('filter')；
 //      结果表也是表单数据（rows），列里一律 <Field name>（相对行），只读 = $pattern 'readPretty'（2026-10-27 Q7）；
 //      服务端分页：page / pageSize 是普通提交字段；选择 / 折叠 / 列设置 virtual（按场景的开关，不是字段种类）；
@@ -46,14 +46,14 @@ interface LogQuery {
   hiddenColumns: string[];
 }
 
-const queryEffects = defineEffects<LogQuery>(({ autorun, watch }) => {
+const queryEffects = defineEffects<LogQuery>(({ reaction, watch }) => {
   // 查询内部联动：provider → model 的可选范围
-  autorun((d) => {
+  reaction((d) => {
     d.model.$enum = ModelEnum.with({ provider: d.provider.$value });
   });
 
   // transform 是计算字段：空值省略、日期拆分、多选原样
-  autorun((d) => {
+  reaction((d) => {
     const range = d.createdAt.$value;
     d.params.$value = omitEmpty({
       q: d.keyword.$value?.trim(),
@@ -80,12 +80,12 @@ const queryEffects = defineEffects<LogQuery>(({ autorun, watch }) => {
   );
 
   // 结果表只读：读的东西为空 → 只跑一次（静态设置）；运行时想切成可编辑，改成读某个开关即可
-  autorun((d) => {
+  reaction((d) => {
     d.rows.$pattern = 'readPretty';
   });
 
   // 只控制某一个 UI（UI Brand）：列被隐藏（列设置里关掉“状态”）时，列头筛选那个 UI 一起隐藏，查询表单里那个不动
-  autorun((d) => {
+  reaction((d) => {
     d.status.ui('filter').$visible = !d.hiddenColumns.$value.includes('status');
   });
 });
@@ -97,7 +97,7 @@ export function CallLogPage() {
     // 没有自己 <Field> 的状态，在这里声明字段属性（和 <Field virtual> 是同一个开关）
     // 服务端分页：page / pageSize 是普通字段（查询条件），随请求提交；它们的 UI 是 ProTable 自带的 Pagination
     // virtual 是“这张表单里”对某个字段的开关，不是字段种类（2026-10-27 定，原名 virtual，因和表单 submit 撞名改名）：
-    //   virtual 字段有值，完整参与 autorun / watch（可以是依赖，也可以是计算目标），只是不进提交值。
+    //   virtual 字段有值，完整参与 reaction / watch（可以是依赖，也可以是计算目标），只是不进提交值。
     //   selectedIds（UI 是表格勾选列）通常 virtual；同一个 page 只在纯前端分页时才 virtual（见下面 LocalLogTable）。
     fields: {
       params: { virtual: true },

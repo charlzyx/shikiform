@@ -3,3 +3,15 @@
 /tutorial/ /tutorial 301
 /usage/:name/ /usage/:name 301
 /tutorial/:name/ /tutorial/:name 301
+/tutorial/1-start /tutorial/3-start 301
+/tutorial/2-blur /tutorial/4-blur 301
+/tutorial/3-visible /tutorial/5-visible 301
+/tutorial/4-pattern /tutorial/6-pattern 301
+/tutorial/5-virtual /tutorial/7-virtual 301
+/tutorial/6-autorun /tutorial/8-reaction 301
+/tutorial/6-reaction /tutorial/8-reaction 301
+/tutorial/7-watch /tutorial/9-watch 301
+/tutorial/8-array /tutorial/10-array 301
+/tutorial/9-validation /tutorial/11-validation 301
+/tutorial/10-declared /tutorial/12-declared 301
+/tutorial/11-done /tutorial/13-done 301

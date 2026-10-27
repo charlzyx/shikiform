@@ -1,13 +1,13 @@
 ---
 title: 开始
-description: 一步一个概念。左边是说明，右边可以改代码并立刻看到结果。
+description: 先看字段和联动，再一步一步改能跑的例子。
 ---
 
 # 教程
 
-教程按 Vue.js 官方教程的方式来：每一步只讲一个概念。右边可以直接改代码，预览会跟着变。点 **看答案** 换成参考写法，点 **重置** 回到这一步开始时的代码。
+教程分成三层。先认识字段有哪几种，再认识联动怎么写，然后每一步只改一个能跑的例子。右边可以直接改代码，预览会跟着变。点 **看答案** 换成参考写法，点 **重置** 回到这一步开始时的代码。
 
-用例页仍然是理想 API 下的伪代码，不能运行。能跑的是文档站里的教学运行时，只覆盖教程用到的、已经拍板的那一段：`Form` / `Field` / `ArrayField`、`autorun` / `watch`、`$visible`、`pattern`、`virtual`、规则和 `shikiform/zod`。树、异步 Enum、`shikiform/pro` 的表格不在这里。
+`FormItem` 和 `Input` 来自 `shikiform/ui`。这一层把 antd 的输入组件接成受控显示，值和校验仍由 `useForm` / `Field` 保存。应用自己的组件用 `connect` 接一次，见 [用例 00](/usage/00-ui-adapter)。
 
 ## 先看一个能跑的表单
 
@@ -28,32 +28,23 @@ export default function Welcome() {
 }
 ```
 
-`FormItem` 和 `Input` 来自 `shikiform/ui`。这是文档站的适配层，方便教程 import，不是产品要发布的入口。业务项目里仍按 [用例 00](/usage/00-ui-adapter) 自己写 `connect`。
+## 目录
 
-## 步骤
+1. [字段](/tutorial/1-fields)
+2. [联动](/tutorial/2-effects)
+3. [最小表单](/tutorial/3-start)
+4. [失焦再校验](/tutorial/4-blur)
+5. [显隐只看 $visible](/tutorial/5-visible)
+6. [pattern](/tutorial/6-pattern)
+7. [virtual 不提交](/tutorial/7-virtual)
+8. [reaction 写计算值](/tutorial/8-reaction)
+9. [watch 做动作](/tutorial/9-watch)
+10. [数组和 reaction.each](/tutorial/10-array)
+11. [规则和 Zod](/tutorial/11-validation)
+12. [没挂载的字段](/tutorial/12-declared)
+13. [接下来](/tutorial/13-done)
 
-1. [最小表单](/tutorial/1-start)
-2. [失焦再校验](/tutorial/2-blur)
-3. [显隐只看 $visible](/tutorial/3-visible)
-4. [pattern](/tutorial/4-pattern)
-5. [virtual 不提交](/tutorial/5-virtual)
-6. [autorun 写计算值](/tutorial/6-autorun)
-7. [watch 做动作](/tutorial/7-watch)
-8. [数组和 autorun.each](/tutorial/8-array)
-9. [规则和 Zod](/tutorial/9-validation)
-10. [没挂载的字段](/tutorial/10-declared)
-11. [接下来看用例](/tutorial/11-done)
-
-## 案例补全清单
-
-对照 Formily / pro.formily / ProComponents / SKU 表格编辑还要补哪些可点 demo，写在 [案例补全清单](/coverage-checklist)。那是 backlog。表里的 ⚠️ / ❌ / ⏸️ 按清单保留，不把当前这 11 步教程算成已覆盖。
-
-| 优先级 | 现状 |
-|---|---|
-| P0 噩梦用例 | P0-1 ⚠️ · P0-2 ❌ · P0-3 ⚠️ · P0-4 ⚠️ · P0-5 ⚠️ |
-| P1 常见模式 | ⚠️ 或 ❌。没有独立可点的 Provider / 联动图谱 / effects 参考页 |
-| P2 Pro 封装 | ❌ / ⚠️ / ⏸️。ShadowForm、跨页多选明确延后 |
-| P3 性能与质量门 | ⚠️ 或 ❌。帧率数字仍是「待实测」 |
+对照 Formily / Pro / SKU 还要补哪些 demo，见 [案例补全清单](/coverage-checklist)。
 
 <div className="tutorial-register">
 

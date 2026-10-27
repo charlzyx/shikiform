@@ -8,8 +8,8 @@ function createRow() {
   return { id: `row-${seq}`, name: '', price: 0, qty: 1, total: 0 };
 }
 
-const effects = defineEffects(({ autorun }) => {
-  autorun.each(
+const effects = defineEffects(({ reaction }) => {
+  reaction.each(
     (d) => d.items,
     (row) => {
       const total = (row.price.$value || 0) * (row.qty.$value || 0);

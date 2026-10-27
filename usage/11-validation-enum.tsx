@@ -50,15 +50,15 @@ interface EventForm {
   agree: boolean;
 }
 
-const eventEffects = defineEffects<EventForm>(({ autorun }) => {
+const eventEffects = defineEffects<EventForm>(({ reaction }) => {
   // 枚举参数联动：city 变 → venue 的 enum 参数变
-  autorun((d) => {
+  reaction((d) => {
     d.venue.$enum = VenueEnum.with({ city: d.city.$value?.at(-1) });
   });
 });
 
 // 双向约束：不拆成两个字段互相校验（会循环），表单级一次算两个字段。
-// effects 只有 autorun / watch 两个入口，所以表单级校验放在 useForm 的 validate 里（见下）：
+// effects 只有 reaction / watch 两个入口，所以表单级校验放在 useForm 的 validate 里（见下）：
 // 返回 { path: message }（精确 path），引擎写到对应字段的 $errors 上（来源标记为 'form'，下次重算时只清自己写的）
 function validateEvent(v: EventForm) {
   const errors: Record<string, string> = {};
@@ -71,7 +71,7 @@ function validateEvent(v: EventForm) {
   }
   return errors;
 }
-// ❓ 表单级校验（原 e.validate）放哪：useForm({ validate })（当前）还是 autorun 里直接写 d.vipSeats.$errors？
+// ❓ 表单级校验（原 e.validate）放哪：useForm({ validate })（当前）还是 reaction 里直接写 d.vipSeats.$errors？
 //    后者要先定 $errors 能不能写、和 rules 产生的错误怎么合并。什么时候跑：建议它读到的任一字段触发校验时 + submit。
 
 export function EventCreateForm() {

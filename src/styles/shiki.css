@@ -1,5 +1,4 @@
-/* shadcn-style, hand-written, no Antd. Plain CSS so the docs site does
-   not need a Tailwind build step for the demo itself. */
+/* Tutorial layout. Field controls come from antd; this file only places the lesson. */
 .shiki-label { font-size: 13px; font-weight: 600; margin: 12px 0 6px; color: #111827; }
 .shiki-error { color: #dc2626; font-size: 12px; margin-top: 4px; }
 .shiki-card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
@@ -36,6 +35,9 @@
 .shiki-btn-primary { background: #111827; color: #fff; border-color: #111827; }
 .shiki-btn-primary:hover { background: #1f2937; }
 .shiki-field { display: block; margin: 0 0 12px; }
+.shiki-field .ant-input,
+.shiki-field .ant-input-number,
+.shiki-field .ant-select { width: 100%; }
 .shiki-field-inline { display: flex; align-items: center; gap: 8px; }
 .shiki-field-inline .shiki-label { margin: 0; }
 .shiki-req { color: #dc2626; }

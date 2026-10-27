@@ -1,5 +1,5 @@
 ---
-title: 4. pattern
+title: 6. pattern
 description: editable、disabled、readOnly、readPretty。
 pageType: doc-wide
 outline: false
@@ -20,11 +20,11 @@ import { StepNav, TutorialPlay } from '../_components/TutorialStep';
 
 起始代码读了模式下拉，没有把它写到姓名上，所以姓名一直能改。
 
-**这一步：** 在 `autorun` 里，当 `mode` 有值时执行 `d.name.$pattern = mode`。
+**这一步：** 在 `reaction` 里，当 `mode` 有值时执行 `d.name.$pattern = mode`。
 
 可编辑能打字。禁用不能改。只读能选中文字，不能改。阅读态变成纯文本（下拉的 label 也会显示出来）。
 
-<StepNav prev={{ href: '/tutorial/3-visible', title: '显隐只看 $visible' }} next={{ href: '/tutorial/5-virtual', title: 'virtual 不提交' }} />
+<StepNav prev={{ href: '/tutorial/5-visible', title: '显隐只看 $visible' }} next={{ href: '/tutorial/7-virtual', title: 'virtual 不提交' }} />
 
 </div>
 

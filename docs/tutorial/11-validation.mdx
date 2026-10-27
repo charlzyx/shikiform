@@ -1,5 +1,5 @@
 ---
-title: 9. 规则和 Zod
+title: 11. 规则和 Zod
 description: 字段 rules 管姓名，zodResolver 管邮箱和年龄。
 pageType: doc-wide
 outline: false
@@ -14,7 +14,7 @@ import { StepNav, TutorialPlay } from '../_components/TutorialStep';
 <div className="tutorial-step">
 <div className="tutorial-copy">
 
-字段自己的规则写在 `rules`。整张表的结构用 Zod。`zodResolver` 从 `shikiform/zod` 来，和 [用例 11](/usage/11-validation-enum) 的 import 一样：把 `safeParse` 的问题收成 `{ [path]: message }`，交给 `useForm` 的 `resolver`。
+字段自己的规则写在 `rules`。整张表的结构用 Zod。`zodResolver` 从 `shikiform/zod` 来，把 `safeParse` 的问题收成路径到文案的映射，交给 `useForm` 的 `resolver`。
 
 起始代码已经写了 schema，调用了 `zodResolver`，但没有传进 `useForm`。姓名也没有规则。
 
@@ -22,7 +22,7 @@ import { StepNav, TutorialPlay } from '../_components/TutorialStep';
 
 姓名一个字：失焦看到「至少 2 个字」。邮箱格式不对、年龄小于 18：看到 Zod 的文案。都合法之后，提交 JSON 里有三项。
 
-<StepNav prev={{ href: '/tutorial/8-array', title: '数组和 autorun.each' }} next={{ href: '/tutorial/10-declared', title: '没挂载的字段' }} />
+<StepNav prev={{ href: '/tutorial/10-array', title: '数组和 reaction.each' }} next={{ href: '/tutorial/12-declared', title: '没挂载的字段' }} />
 
 </div>
 

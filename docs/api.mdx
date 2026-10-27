@@ -1,10 +1,91 @@
 ---
-title: API 草案
-description: 由 usage 用例反推的完整公开 API（设计稿，未实现）。
+title: API
+description: useForm、Field、defineEffects，以及 shikiform/ui。
 ---
 
-:::caution[未实现]
-本页源文件是 `usage/API.md`。所有 API 都只是设计。教程里能跑的只是其中一小段。文中编号对应「用例」侧栏；待拍板问题见 [待拍板](/decisions)。
-:::
+# API
 
-<IncludeMarkdown file="../usage/API.md" />
+从 `shikiform` 引入表单。从 `shikiform/ui` 引入 antd 输入组件。从 `shikiform/zod` 引入 `zodResolver`。
+
+```ts
+import { defineEffects, useForm, Form, Field, ObjectField, ArrayField, Region, Submit, Reset, connect } from 'shikiform';
+import { FormItem, Input, InputNumber, Select, Checkbox, Radio, Switch, Button, Table } from 'shikiform/ui';
+import { zodResolver } from 'shikiform/zod';
+```
+
+`shikiform/ui` 只做显示。不要用 antd 的 `Form`、`Form.Item`、`Form.useForm`。标签、必填和错误由 `FormItem` 通过 `useDecorator` 读取。
+
+## 表单
+
+| API | 作用 |
+|---|---|
+| `useForm(options)` | 在组件里创建表单 |
+| `createForm(options)` | 在组件外创建，参数与 `useForm` 相同 |
+| `options.initialValues` | 初始值。`reset` 回到这里 |
+| `options.effects` | `defineEffects` 返回的函数列表 |
+| `options.validateTrigger` | 默认 `['onBlur', 'onSubmit']` |
+| `options.fields` | 没有自己的 `Field` 时声明属性，例如 `{ code: {} }` |
+| `options.resolver` | 外部校验，返回 `{ [path]: message }` |
+| `options.validate` | 表单级校验，返回形状与 `resolver` 相同 |
+| `options.pattern` | 整张表单的默认 pattern |
+| `form.submit()` | 校验后提交。隐藏字段和 `virtual` 字段按各自规则处理 |
+| `form.reset(path?)` | 值回到初始，并重新跑 `reaction` |
+| `form.getSubmitValues()` | 提交结果。去掉 `virtual`，计算字段默认去掉 |
+| `form.setValue(path, value)` | 写入。计算字段，以及 `disabled` / `readOnly` / `readPretty`，不会被这次写入改掉 |
+| `defineEffects(({ reaction, watch, query }) => { ... })` | 注册联动。参数就是这三个 |
+
+## 字段
+
+四种，按数据形状：`Field`、`ObjectField`、`ArrayField`、`TreeField`。
+
+| 组件 | 作用 |
+|---|---|
+| `Field` | 一个值。子组件收到 `value`、`onChange`、`onBlur`、`disabled`、`readOnly`、`options`、`status`、`id` |
+| `ObjectField` | 对象。里面的 `name` 相对这个对象 |
+| `ArrayField` | 数组。`rowKey` 稳定行，`createRow` 提供新行。里面的 `name` 相对当前行 |
+| `TreeField` | 树。节点带 `pos`（索引路径）。写法见 [用例 05](/usage/05-tree) |
+| `Region` | 布局区域，`ui` 是名字。联动里写 `d.ui('aside').$visible` |
+| `Submit` / `Reset` | 提交和重置。`asChild` 时套在你自己的按钮上 |
+
+`Field` 上常用的属性：`name`、`decorator`、`rules`、`validator`、`virtual`、`pattern`、`enum`、`trigger`、`ui`。
+
+`$visible` 为 false：组件不画出来，校验跳过，值保留，提交结果里仍有这个键。
+
+`virtual`：校验和联动都参加，`getSubmitValues` 把它拿掉。
+
+`reaction` 写了 `$value` 的字段是计算字段：阅读态，默认 `virtual`。要提交就写 `virtual={false}`。
+
+`pattern` 从父级继承。子级自己写了 `$pattern`，用子级的。
+
+JSX 上的 `rules` 只在 `Field` 挂载时生效。`reaction` 写入的 `$rules`，以及 `options.fields` 里声明的规则，不依赖输入框是否还在树上。行为以库为准。
+
+## 联动
+
+| API | 作用 |
+|---|---|
+| `reaction(d => { ... })` | 保持派生状态。初始化就跑。读 `$` 状态会变成依赖，同一轮的写入不是依赖 |
+| `reaction.each(d => d.items, (row, d) => { ... })` | 每一行（树上是每个节点）一个实例。选择器必须返回 handle |
+| `watch(d => d.province, d => { ... })` | 做动作。初始化不跑 |
+| `query(path, { ui? })` | 用字符串拿 handle。多份 UI 时带上 `ui` |
+
+状态一律 `$` 前缀：`$value`、`$visible`、`$required`、`$pattern`、`$disabled`、`$rules`、`$errors`、`$enum`、`$path`。10 轮不收敛时抛 `ShikiCycleError`。
+
+## UI
+
+`connect(Component, mapping)` 把组件的值和变更收成 `value` / `onChange`。
+
+| 导出 | 对应的 antd 组件 |
+|---|---|
+| `Input` | `Input` |
+| `InputNumber`（同 `NumberInput`） | `InputNumber` |
+| `Select` | `Select`。空值显示占位「请选择」 |
+| `Checkbox` | `Checkbox`。`Checkbox.Group` 的值是数组 |
+| `Radio` | `Radio`。`Radio.Group` 的 `onChange` 收到选中值 |
+| `Switch` | `Switch`。字段值写入 `checked` |
+| `Button` | `Button` |
+| `Table` | `Table` |
+| `FormItem` | ShikiForm 的 decorator，读 label、required、errors、help |
+
+## Zod
+
+`zodResolver(schema)` 调用 `safeParse`，把 issues 收成 `{ [path]: message }`，传给 `useForm` 的 `resolver`。

@@ -8,8 +8,8 @@ const MODES = [
   { label: '阅读态', value: 'readPretty' },
 ];
 
-const effects = defineEffects<{ mode: string; name: string }>(({ autorun }) => {
-  autorun((d) => {
+const effects = defineEffects<{ mode: string; name: string }>(({ reaction }) => {
+  reaction((d) => {
     void d.mode.$value;
   });
 });

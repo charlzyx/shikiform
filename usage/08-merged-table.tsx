@@ -28,9 +28,9 @@ interface Values {
   onlyActive: boolean; // UI 状态：表头过滤开关，virtual
 }
 
-const supplierEffects = defineEffects<Values>(({ autorun }) => {
+const supplierEffects = defineEffects<Values>(({ reaction }) => {
   // 每个供应商一个实例：s 是供应商 handle，d 是根
-  autorun.each(
+  reaction.each(
     (d) => d.suppliers,
     (s, d) => {
       const onlyActive = d.onlyActive.$value;
@@ -47,7 +47,7 @@ const supplierEffects = defineEffects<Values>(({ autorun }) => {
   );
   // ❓ rowSpan 应该由 MergedTable 内部自动算（读子行 $visible），用户不用写这行？我倾向：内部自动算，
   //    但这里写出来是为了说明“rowspan 就是计算值”，要能被覆盖。
-  // ❓ 嵌套数组的 each：要不要允许 autorun.each 嵌套（供应商 each 里再 each 产品），
+  // ❓ 嵌套数组的 each：要不要允许 reaction.each 嵌套（供应商 each 里再 each 产品），
   //    还是像这里一样在外层实例里 forEach？forEach 的代价是任一产品变都重跑整个供应商实例。
 });
 

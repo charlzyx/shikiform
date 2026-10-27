@@ -1,46 +1,32 @@
 ---
-title: ShikiForm · API-first 用例轮
-description: 先写用例、再写实现。教程可以动手改；用例页仍是理想 API 下的业务伪代码。
+title: ShikiForm
+description: Formly 级抽象、React 不可变风格、JSX-first。
 ---
 
-# 这一轮：先写用例，再写实现
+# ShikiForm
 
-旧实现已经全部删除。这一轮只做一件事：**站在应用开发者的角度，用“理想中的 ShikiForm API”把真实业务场景写出来**，看 API 是否顺手、哪里别扭，定下来之后再写实现。
+ShikiForm 按数据形状管理字段，用 `reaction` / `watch` 写联动。值和校验留在表单里。输入框只负责显示。
 
-想先摸手感，从 **[教程](/tutorial)** 开始。教程每一步只讲一个概念，右边可以改代码、立刻看结果。用例和 API 草案负责深度，教程不替代它们。
+## 从这里开始
 
-- 用例页仍是**伪代码**：它们会引用 `shikiform/pro`、业务自己的 UI 和接口。文档站里的教学运行时只覆盖教程用到的那部分已拍板 API，跑不了这些用例。
-- 每个用例页 = 一个真实场景的完整 `.tsx`（源文件在仓库 `usage/` 目录，页面直接引用源文件，只有一份）。
-- 代码里所有 `// ❓` 都是我拿不准的 API 点，会在每页顶部汇总；跨用例的汇总、选项和建议在 **[待拍板](/decisions)**。
-- 这些用例隐含的完整公开 API 整理在 **[API 草案](/api)**。
+1. **[教程](/tutorial)**：先看字段和联动，再改能跑的例子。
+2. **[用例](/usage/01-basic-form)**：员工表单、数组、树、表格、SKU 这些场景的完整写法。
+3. **[API](/api)**：`useForm`、`Field`、`defineEffects`，以及 `shikiform/ui`。
+4. **[约定](/decisions)**：已经定下的行为，以及仍待拍板的几项。
+5. **[案例补全清单](/coverage-checklist)**：对照 Formily / Pro / SKU 还要补的 demo。
 
-## 怎么看（建议顺序）
+## 字段和联动
 
-1. **[教程](/tutorial)**：最小可运行路径。提交、失焦校验、`$visible`、pattern、`virtual`、`autorun` / `watch`、数组、Zod。
-2. **[待拍板](/decisions)**：顶部是 2026-10-27 已拍板的 D1（删 Void / Transient / Computed 类型）、D2（树节点 pos）、D3–D8（effects 语法、UI Brand、pattern、表格列、删 scope、`virtual`），然后是仍开放的 Q0 / Q5 / Q10 与新的待拍板。
-3. **[16 effects 参考](/usage/16-effects-reference)**：一页看完 `autorun` / `autorun.each` / `watch` + draft 代理的全部写法。
-4. **[07 SKU 选择器](/usage/07-sku-editor)**、**[09 查询表单 + 表格](/usage/09-query-table)**、**[10 行展开二级表格](/usage/10-expandable-nested-table)**：最能检验 API 的三个场景。
-5. 其余用例按需翻；**[API 草案](/api)** 当索引查。
-6. **[案例补全清单](/coverage-checklist)**：对照 Formily / Pro / SKU 的 backlog。状态按清单，不是已经做完的 demo。
-
-## 用例与特性对照
-
-| 特性 | 用例 |
+| 能力 | 在哪看 |
 |---|---|
-| 字段类型只按数据结构分（Field / ObjectField / ArrayField / TreeField；2026-10-27） | [01](/usage/01-basic-form) [03](/usage/03-nested-object) [04](/usage/04-array) [05](/usage/05-tree) |
-| 布局是普通组件（无 path、无值；起名 `ui` 后 `d.ui('aside')` 可控） | [01](/usage/01-basic-form) [09](/usage/09-query-table) [14](/usage/14-address-vs-path) |
-| 树节点坐标 pos（depth / index / path / move / 前缀判断） | [05](/usage/05-tree) |
-| 一个字段多个 UI、UI Brand（`ui="summary"` → `d.x.ui('summary')`） | [14](/usage/14-address-vs-path) [09](/usage/09-query-table) |
-| 对象 / 数组 / 行模板、`autorun.each` 每行一个实例 | [03](/usage/03-nested-object) [04](/usage/04-array) [08](/usage/08-merged-table) [10](/usage/10-expandable-nested-table) |
-| 集中 effect（`autorun` / `watch` + draft 代理、`$` 状态）、一对多 / 多对一 / 多对多、依赖图、环检测 | [16](/usage/16-effects-reference) [02](/usage/02-provider-config) [07](/usage/07-sku-editor) [15](/usage/15-linkage-graph) |
-| 计算值（autorun 写 `$value`，JSX 里是只读 Field） | [06](/usage/06-computed) [07](/usage/07-sku-editor) [08](/usage/08-merged-table) |
-| 定位只用精确 path（`d.items[i]`、`findPos` → `pathOf`），模块规则是收 handle 的函数 | [05](/usage/05-tree) [12](/usage/12-large-table) [13](/usage/13-cross-module) [16](/usage/16-effects-reference) |
-| Decorator vs Component、connect | [00](/usage/00-ui-adapter) [14](/usage/14-address-vs-path) |
-| pattern（editable / disabled / readOnly / readPretty，继承 + 显式覆盖）/ Pretty | [10](/usage/10-expandable-nested-table) [13](/usage/13-cross-module) |
-| Enum（静态 / 异步 / 懒树 / 复用） | [02](/usage/02-provider-config) [09](/usage/09-query-table) [11](/usage/11-validation-enum) |
-| 校验（同步 / 异步 / 跨字段 / 时机 / warning） | [01](/usage/01-basic-form) [11](/usage/11-validation-enum) |
-| `virtual`（原 `submit={false}`：确认密码、展开、选择、前端分页、模式；与值来源独立） | [01](/usage/01-basic-form) [09](/usage/09-query-table) [10](/usage/10-expandable-nested-table) |
-| 表格：合并 / 查询 / 展开 / 大表（列一律 `<Field name>`） | [08](/usage/08-merged-table) [09](/usage/09-query-table) [10](/usage/10-expandable-nested-table) [12](/usage/12-large-table) |
-| 跨模块、数据根 | [13](/usage/13-cross-module) |
-
-设计依据仍是仓库里的 `PLAN.md` / `STATE.md` / `LAYOUT.md` / `QUALITY.md`（已定的方向本轮没有改）。
+| 字段只按数据形状分：`Field` / `ObjectField` / `ArrayField` / `TreeField` | [教程 · 字段](/tutorial/1-fields) [01](/usage/01-basic-form) [03](/usage/03-nested-object) [04](/usage/04-array) [05](/usage/05-tree) |
+| 布局是普通组件；需要被联动控制时用 `Region` | [01](/usage/01-basic-form) [14](/usage/14-address-vs-path) |
+| 树节点坐标 `pos` | [05](/usage/05-tree) |
+| 同一个字段多份 UI：`ui="summary"` → `d.x.ui('summary')` | [14](/usage/14-address-vs-path) [09](/usage/09-query-table) |
+| 数组行模板、`reaction.each` | [教程 · 数组](/tutorial/10-array) [04](/usage/04-array) [08](/usage/08-merged-table) |
+| `reaction` / `reaction.each` / `watch`，状态用 `$` 前缀 | [教程 · 联动](/tutorial/2-effects) [16](/usage/16-effects-reference) |
+| 计算值：`reaction` 写 `$value`，阅读态，默认不提交 | [教程 · reaction](/tutorial/8-reaction) [06](/usage/06-computed) |
+| 精确 path；模块规则是接收 handle 的函数 | [13](/usage/13-cross-module) [16](/usage/16-effects-reference) |
+| `pattern`：`editable` / `disabled` / `readOnly` / `readPretty` | [教程 · pattern](/tutorial/6-pattern) [10](/usage/10-expandable-nested-table) |
+| `virtual`：参与校验和联动，不进提交结果 | [教程 · virtual](/tutorial/7-virtual) [01](/usage/01-basic-form) |
+| 表格列是 Field 的 name | [08](/usage/08-merged-table) [09](/usage/09-query-table) [10](/usage/10-expandable-nested-table) [12](/usage/12-large-table) |

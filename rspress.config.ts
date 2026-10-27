@@ -9,7 +9,7 @@ const root = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   base: '/',
-  description: 'Formly 级抽象、React 不可变风格、JSX-first。教程可以动手改，用例页仍是 API 草案。',
+  description: 'Formly 级抽象、React 不可变风格、JSX-first。',
   globalStyles: path.join(root, 'src/styles/shiki.css'),
   lang: 'zh-CN',
   // Rspress chrome strings are keyed by `zh`. Copy them onto zh-CN so 上一页 / 搜索 stay Chinese.

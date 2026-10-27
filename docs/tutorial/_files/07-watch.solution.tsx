@@ -10,8 +10,8 @@ const CITIES = [
   { label: '广州', value: '广州' },
 ];
 
-const effects = defineEffects<{ province: string; city?: string }>(({ autorun, watch }) => {
-  autorun((d) => {
+const effects = defineEffects<{ province: string; city?: string }>(({ reaction, watch }) => {
+  reaction((d) => {
     d.city.$disabled = !d.province.$value;
   });
   watch(

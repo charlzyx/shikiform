@@ -1,20 +1,16 @@
 # ShikiForm
 
-> **当前主线仍是 API 设计轮。** `usage/*.tsx` 是理想 API 下的业务伪代码，**没有完整实现、不能运行**。
-> `usage/API.md` 是由用例反推的 API 草案，`usage/DECISIONS.md` 是待拍板问题。设计笔记仍是 PLAN / STATE / LAYOUT / QUALITY。
->
-> 文档站（https://shikiform.pages.dev）用 [Rspress](https://rspress.rs/) 展示这些内容，并加了一篇可以动手改的教程。
-> 教程跑的是 `src/runtime` 里的**教学运行时**：只覆盖教程用到的、已经拍板的那一段 API。它不是产品实现，用例页也跑不了。
+文档站（https://shikiform.pages.dev）用 [Rspress](https://rspress.rs/)。教程可以在浏览器里改。`src/runtime` 是教程用的运行时，覆盖教程里写到的字段、`reaction` / `reaction.each` / `watch`、校验和 `shikiform/ui`。
 
 Deployed to Cloudflare Pages (https://shikiform.pages.dev) on every push to `main`.
 
-Formly 级抽象、React 不可变风格、JSX-first 的表单库（大胆重构版，不保留 zustform 旧 API）。完整规划见 [PLAN.md](PLAN.md)。2026-10-27 已拍板的字段模型以 `usage/API.md` 为准：Field / ObjectField / ArrayField / TreeField，`virtual`，`pattern`，effects 是 `autorun` / `watch`。
+Formly 级抽象、React 不可变风格、JSX-first。字段按数据形状分：Field / ObjectField / ArrayField / TreeField。`shikiform/ui` 用 antd 做受控显示，值和校验留在 ShikiForm。effects 是 `reaction` / `reaction.each` / `watch`。
 
 ## 本地开发
 
 ```bash
 npm install
-npm run dev      # Rspress 文档站：教程 / API 草案 / 待拍板 / 用例
+npm run dev      # Rspress 文档站：教程 / API / 约定 / 用例
 npm test         # 教学运行时的 vitest
 npm run check    # tsc --noEmit（usage/ 伪代码已排除）
 npm run build    # 静态构建，输出 dist/
@@ -53,7 +49,7 @@ Chao 自己在 Cloudflare 后台连仓库。
 
 ### 验证部署成功
 
-- 首页、`/tutorial`、`/tutorial/1-start`、`/api`、`/decisions`、`/usage/01-basic-form` … `/usage/16-effects-reference` 都能打开
+- 首页、`/tutorial`、`/tutorial/1-fields`、`/tutorial/3-start`、`/api`、`/decisions`、`/usage/01-basic-form` … `/usage/16-effects-reference` 都能打开
 - 旧地址 `/api/`、`/usage/01-basic-form/` 会跳到没有尾斜杠的地址
 - 静态资源路径是根路径，不是 `/shiki/...`
 
@@ -63,9 +59,8 @@ Chao 自己在 Cloudflare 后台连仓库。
 - 构建报 Node 版本过低：在 CF 的 Environment variables 里加 `NODE_VERSION=22` 再部署。
 - 页面 404 但构建成功：确认 Build output directory 是 `dist`，不是 Rspress 默认的 `doc_build`，也不是 `storybook-static`。
 
-## 还剩什么（未做，不夸大）
+## 范围
 
-- 没有完整库实现。`src/runtime` 只为教程服务，单测覆盖教程用到的行为。
-- 用例页仍然不能运行。
-- 下一步：Chao 在「待拍板」页定仍开放的问题（含 Q5）→ 按定稿改 usage → 再按 LAYOUT.md 分层写实现。
-- 旧实现的 Review 记录见 REVIEW.md（历史文档，描述的是已删除的代码）。
+- `src/runtime` 服务教程，单测覆盖教程用到的行为。
+- 用例页是场景写法。树、异步 Enum、`shikiform/pro` 表格不在这个运行时里。
+- 仍开放的问题列在文档的「约定」页。

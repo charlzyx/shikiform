@@ -1,7 +1,7 @@
 // 07 SKU 选择器（首屏）：多对多联动 = 数据，不是 if/else
 // 覆盖：每个维度是 Field，它的可选范围（enum）由一张 SKU 表算出来；任意顺序选；
 //      选完后不合法的旧选择由 watch 清掉（每个维度一个 watch，谁触发谁就是“刚改的”）；
-//      最终 SKU / 价格 / 库存是计算字段（$value 在 autorun 里写，只读、不提交）。
+//      最终 SKU / 价格 / 库存是计算字段（$value 在 reaction 里写，只读、不提交）。
 //      维度从 3 个变 5 个，下面的代码一行不改。
 // ⚠️ 假代码：只看 API 是否顺手，不能运行。
 import { useForm, Form, Field, defineEffects, Submit } from 'shikiform';
@@ -30,16 +30,16 @@ const DIMS = ['color', 'storage', 'edition'] as const;
 type Dim = (typeof DIMS)[number];
 type Selection = Partial<Record<Dim, string>> & {
   qty: number;
-  // —— 计算字段（autorun 写 $value，默认不提交）——
+  // —— 计算字段（reaction 写 $value，默认不提交）——
   sku?: SkuRow | null;
   priceText?: string;
   stock?: number | null;
 };
 
-const skuEffects = defineEffects<Selection>(({ autorun, watch }) => {
+const skuEffects = defineEffects<Selection>(({ reaction, watch }) => {
   // (1) 可选范围：多对多。color 的 $enum 读 storage + edition，storage 的 $enum 读 color + edition……
   //     依赖图自动收集，按拓扑一次事务算完，没有 per-field 级联。
-  autorun((d) => {
+  reaction((d) => {
     const sel = Object.fromEntries(DIMS.map((dim) => [dim, d[dim].$value]));
     for (const dim of DIMS) {
       // comboOptions：在“其他维度当前选择都匹配”的行里取 dim 的 distinct 值；
@@ -70,7 +70,7 @@ const skuEffects = defineEffects<Selection>(({ autorun, watch }) => {
   //    当前写法是循环注册，每个源一个 watch，不需要额外的 changed 参数。
 
   // (3) 多对一：最终结果全是计算字段（matched 只是局部变量，不是字段）
-  autorun((d) => {
+  reaction((d) => {
     const matched = SKUS.filter((r) => DIMS.every((k) => !d[k].$value || r[k] === d[k].$value));
     const sku = matched.length === 1 ? matched[0] : null;
     const ps = matched.map((r) => r.price);
@@ -102,7 +102,7 @@ export function SkuPicker() {
         <Radio />
       </Field>
 
-      {/* priceText / stock 是计算字段（autorun 写 $value）→ 只读普通 Field，无子组件时用默认 TextPretty */}
+      {/* priceText / stock 是计算字段（reaction 写 $value）→ 只读普通 Field，无子组件时用默认 TextPretty */}
       <Field name="priceText" decorator={<FormItem label="价格" />} />
       <Field name="stock" decorator={<FormItem label="库存" />} />
       <Field name="qty" decorator={<FormItem label="数量" />}>

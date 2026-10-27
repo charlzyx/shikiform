@@ -1,4 +1,4 @@
-// 16 effects 参考：autorun / autorun.each / watch + draft 路径代理（2026-10-27 定稿的写法）
+// 16 effects 参考：reaction / reaction.each / watch + draft 路径代理（2026-10-27 定稿的写法）
 // 一页看完整套联动语法；其他用例都按这一页写。
 //
 // 规则速记：
@@ -8,10 +8,10 @@
 //   3. 字段状态一律 $ 前缀（$value / $visible / $required / $disabled / $pattern / $enum / $rules / $errors …），
 //      不带 $ 的属性都是子字段 —— 数据里叫 value / visible 的字段也不会撞名。
 //   4. 只有两个入口：
-//        autorun(d => …)                     自动收集：读 $xxx 就是依赖，赋值不是依赖；必须同步；
+//        reaction(d => …)                     自动收集：读 $xxx 就是依赖，赋值不是依赖；必须同步；
 //                                             每次运行 = 一次 Immer produce / 一个事务；成环报错并给出环路。
-//                                             派生状态和计算值都用它（计算值 = 只读 Field，$value 在 autorun 里写）。
-//        autorun.each(d => d.items, (row, d) => …)   每行（树：每个节点）一个实例。
+//                                             派生状态和计算值都用它（计算值 = 只读 Field，$value 在 reaction 里写）。
+//        reaction.each(d => d.items, (row, d) => …)   每行（树：每个节点）一个实例。
 //        watch(d => d.params, d => …)        显式源：只在源变化时跑；写“动作”（回第 1 页、清掉下级值）。
 //      when 是保留字，不对外暴露。
 //   5. 定位数据永远用精确 path；行 / 树节点先找 index / pos（findIndex、findPos → pathOf），不按条件过滤。
@@ -40,9 +40,9 @@ const CityEnum = Enum.from(async ({ province }: { province?: string }) => api.re
   cacheKey: ({ province }) => province ?? '',
 });
 
-const orderEffects = defineEffects<Order>(({ autorun, watch }) => {
+const orderEffects = defineEffects<Order>(({ reaction, watch }) => {
   // —— 一对多：type → apiKey / baseUrl 显隐 ——
-  autorun((d) => {
+  reaction((d) => {
     const t = d.type.$value; // 读 = 依赖：只在 type 变时重跑
     d.apiKey.$visible = t !== 'ollama'; // 写 ≠ 依赖
     d.apiKey.$required = t !== 'ollama';
@@ -50,14 +50,14 @@ const orderEffects = defineEffects<Order>(({ autorun, watch }) => {
   });
 
   // —— ObjectField：相对性就是 JS 变量 ——
-  autorun((d) => {
+  reaction((d) => {
     const a = d.address; // 存一个 handle 是安全的，它只是路径 'address'
     a.city.$disabled = !a.province.$value;
     a.city.$enum = CityEnum.with({ province: a.province.$value });
   });
 
   // —— 每行：计算值 + 行内联动（row 就是“当前行”，不写相对路径字符串） ——
-  autorun.each(
+  reaction.each(
     (d) => d.items,
     (row) => {
       const total = row.price.$value * row.qty.$value;
@@ -67,13 +67,13 @@ const orderEffects = defineEffects<Order>(({ autorun, watch }) => {
   );
 
   // —— 定位某一行：先 findIndex，再按精确 path 取 handle（不按条件过滤） ——
-  autorun((d) => {
+  reaction((d) => {
     const i = d.items.$value.findIndex((it) => it.id === 'shipping-fee');
     if (i >= 0) d.items[i].qty.$disabled = true; // 运费行数量不可改
   });
 
   // —— UI Brand：discount 渲染了两次，只控制“摘要”那一个 UI ——
-  autorun((d) => {
+  reaction((d) => {
     d.discount.ui('summary').$visible = d.discount.$value > 0;
     d.ui('aside').$visible = d.items.$value.length > 0; // 具名布局区域
   });
@@ -101,7 +101,7 @@ export function OrderForm() {
     initialValues: { type: 'openai', address: { street: '' }, items: [], discount: 0, params: {}, page: 1 },
     effects: [orderEffects],
     fields: { params: { virtual: true } }, // page 要提交；params 只是中间值
-    // virtual 的字段照样参与 autorun / watch（params 在上面既是 watch 的源，也是计算目标）
+    // virtual 的字段照样参与 reaction / watch（params 在上面既是 watch 的源，也是计算目标）
   });
 
   return (
@@ -133,7 +133,7 @@ export function OrderForm() {
           <Field name="name" decorator={<CellItem />}><Input /></Field>
           <Field name="price" decorator={<CellItem />}><NumberInput /></Field>
           <Field name="qty" decorator={<CellItem />}><NumberInput /></Field>
-          {/* total 的 $value 由 autorun 写 → 只读 Field */}
+          {/* total 的 $value 由 reaction 写 → 只读 Field */}
           <Field name="total" decorator={<CellItem />}><Money /></Field>
           <Field name="gift" decorator={<CellItem />}><Checkbox /></Field>
         </div>

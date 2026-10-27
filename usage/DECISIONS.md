@@ -13,7 +13,7 @@
 |---|---|---|
 | `VoidField`（布局） | 普通 JSX / 布局组件，不进 path、默认没有 address；需要被 effect 控制时才起名（`<Region ui="aside">`、`<Grid ui="filter">` → `d.ui('aside')`）| [01][04][05][06][09][13][14] |
 | `Transient` | `<Field name="confirm" virtual>`；没有自己 `<Field>` 的状态（选择、展开、编辑模式）用同一个开关 `useForm({ fields: { selectedIds: { virtual: true } } })`（见 D8） | [01][08][09][10][11] |
-| `Computed` | 只读 Field：字段在值类型里声明，`$value` 在 `autorun` 里写（D3）；JSX 里就是普通 `<Field name>`，没有 `<Computed>` | [06][07][10][12][15][16] |
+| `Computed` | 只读 Field：字段在值类型里声明，`$value` 在 `reaction` 里写（D3）；JSX 里就是普通 `<Field name>`，没有 `<Computed>` | [06][07][10][12][15][16] |
 
 “值来源（输入 / 计算）”与“是否提交（virtual，见 D8）”**互相独立**：计算字段默认 `virtual`，`<Field name="payable" virtual={false}>` 可提交 [06]。原 Q3（Computed 在哪声明）随之定为 A。
 副作用：以前“effect 写按钮区的 pattern”禁用按钮区的写法没了——按钮组件用 hook 读状态（`useFormState` / 读一个计算字段）[06][15]。
@@ -26,18 +26,18 @@
 
 完整参考写法见 [16 effects 参考](/usage/16-effects-reference/)。
 
-### D3. effects = draft 路径代理 + `autorun` / `watch`（原 Q1 / Q2）
+### D3. effects = draft 路径代理 + `reaction` / `watch`（原 Q1 / Q2）
 
 - **没有 `./` `../` 路径字符串**。相对性 = JS 作用域：根 draft `d`、行回调的 `row`、模块函数的参数。
 - **类 Immer 的 draft 路径代理**：`d.apiKey`、`d.address.city`、`d.items[0].price` 只拼路径，解构 / 存变量 / 传参都安全。
 - **`$` 保留前缀**：字段状态一律 `$` 前缀（`$value / $visible / $required / $disabled / $pattern / $enum / $rules / $errors …`）；不带 `$` 的属性都是子字段，所以数据字段叫 `value` / `visible` 也不撞名。
 - **只有两个入口**：
-  - `autorun(d => …)`：自动收集（读是依赖，写不是）；必须同步（async 是开发期错误，异步放 Enum loader 或 `watch`）；每次运行一次 Immer produce / 一个事务；成环报错并给出环路；派生状态和计算值都用它；一个都没读到的只跑一次。
-  - `autorun.each(d => d.items, (row, d) => …)`：每行 / 每个树节点一个实例。
+  - `reaction(d => …)`：自动收集（读是依赖，写不是）；必须同步（async 是开发期错误，异步放 Enum loader 或 `watch`）；每次运行一次 Immer produce / 一个事务；成环报错并给出环路；派生状态和计算值都用它；一个都没读到的只跑一次。
+  - `reaction.each(d => d.items, (row, d) => …)`：每行 / 每个树节点一个实例。
   - `watch(d => d.params, d => { d.page.$value = 1 })`：显式源，写“动作”。
 - **`when` 是保留字**，不对外暴露。
 - 删除：`react`、`derive`、`watchEffect`、`e.computed`、链式 setter、依赖数组、`on(...)`、箭头函数赋值写法。
-- 计算字段 = 只读 Field，字段在值类型里声明，`$value` 在 autorun 里写（D1 的 Computed 随之改写）。
+- 计算字段 = 只读 Field，字段在值类型里声明，`$value` 在 reaction 里写（D1 的 Computed 随之改写）。
 
 ### D4. 定位只用精确 path；唯一过滤是 UI Brand（原 Q4）
 
@@ -57,13 +57,13 @@
 - 可编辑表、只读结果表一种写法：列里 `<Field name>`，name 相对行。
 - 只读结果表 = 同样的列 + `$pattern = 'readPretty'`（运行时可切）。删除 `dataIndex` / `render` 列 [09][11]。
 
-### D7. 删除 `scope`；`each` 只剩 `autorun.each`（原 Q9）
+### D7. 删除 `scope`；`each` 只剩 `reaction.each`（原 Q9）
 
-模块复用 = 普通函数参数是 handle（`addressRules(d.registeredAddress)`）[03][13]；逐行 = `autorun.each`，需要时加 `watch.each`。
+模块复用 = 普通函数参数是 handle（`addressRules(d.registeredAddress)`）[03][13]；逐行 = `reaction.each`，需要时加 `watch.each`。
 
 ### D8. “不提交”的开关叫 `virtual`（原 `submit={false}`）
 
-- `<Field name="selectedKeys" virtual />` / `useForm({ fields: { selectedKeys: { virtual: true } } })`：有值，完整参与 autorun / watch（可以是依赖，也可以是计算目标），只是不进提交值。改名原因：`submit` 和表单的 submit 撞名。
+- `<Field name="selectedKeys" virtual />` / `useForm({ fields: { selectedKeys: { virtual: true } } })`：有值，完整参与 reaction / watch（可以是依赖，也可以是计算目标），只是不进提交值。改名原因：`submit` 和表单的 submit 撞名。
 - 它是**这张表单里**的开关，不是字段种类：同一个 `page`，服务端分页时是普通提交字段（查询条件）；纯前端分页时 `virtual` [09]。`selectedKeys` / `expandedKeys` 通常 `virtual`。
 - 计算字段默认 `virtual`；要提交写 `<Field name="payable" virtual={false}>` [06]。
 - 布局 / 具名区域没有值：不能当依赖，只能当 `$visible / $pattern` 的写入目标。
@@ -84,11 +84,11 @@
 
 ## ~~Q1. effect 写法~~ → 已定（D3）
 
-## ~~Q2. react 与 watch~~ → 已定（D3）：`autorun` + `watch`
+## ~~Q2. react 与 watch~~ → 已定（D3）：`reaction` + `watch`
 
 ## ~~Q3. Computed 在哪声明~~ → 已定（D1 + D3）[06]
 
-计算字段在值类型里声明，`$value` 在 autorun 里写；原来担心的“第二个泛型声明计算字段形状”随之消失（形状就在 V 里）。
+计算字段在值类型里声明，`$value` 在 reaction 里写；原来担心的“第二个泛型声明计算字段形状”随之消失（形状就在 V 里）。
 
 ## ~~Q4. `#n` 还是 `@name`~~ → 已定（D4）：只有 UI Brand，`#n` 删除
 
@@ -96,7 +96,7 @@
 
 非激活 Tab、折叠区（若不渲染）、虚拟化滚出的行，Field 没挂载 → JSX 规则不存在 → 提交漏校验。
 
-**提议（等确认，未定）**：字段按**声明**（表单值类型）存在，不按挂载存在；autorun 里写的 `d.x.$rules = [...]` 不论挂没挂载都校验；JSX 的 `rules` prop 是便捷写法，只在挂载时生效。[13] 暂时保留 `forceMount`。
+**提议（等确认，未定）**：字段按**声明**（表单值类型）存在，不按挂载存在；reaction 里写的 `d.x.$rules = [...]` 不论挂没挂载都校验；JSX 的 `rules` prop 是便捷写法，只在挂载时生效。[13] 暂时保留 `forceMount`。
 待确认的细节：行模板规则是否在模板级注册一次、对所有行生效（虚拟化表格）；`$visible=false` 的字段跳过校验不变。
 
 ## ~~Q6. pattern / Pretty 怎么切~~ → 已定（D5）
@@ -117,7 +117,7 @@ D3 之后模块规则是普通函数 `toolRules(t: Draft<Tool>, inputs)`。跨�
 - `createForm` vs `useForm`：建议都给，useForm 是主推 [01]。
 - `enum` prop 接受普通数组：建议接受 [01]。
 - `enumPolicy: 'clear'`：SKU 需要“保留刚改的那个”，自动清做不到，只能 effect 里显式清 → 建议 enumPolicy 只留 `'error' | 'none'`，清值永远显式写 [07]。
-- 动态规则（autorun 写 `$rules`）vs validator 读 ctx：都能表达，建议优先 validator 读 ctx（规则留在 JSX），effect 写 rules 只用于“规则集整体切换” [07]。
+- 动态规则（reaction 写 `$rules`）vs validator 读 ctx：都能表达，建议优先 validator 读 ctx（规则留在 JSX），effect 写 rules 只用于“规则集整体切换” [07]。
 - ~~正则 query 广播 / `query.each('rows', 'markup')`~~：D4 后没有正则 query，批量写 = `form.batch(d => d.rows.$value.forEach((_, i) => …))` [12]，作废。
 - 表头排序（只改视图）vs 上移下移（改数据）：API 上分成 `sortable` 和 `row.moveUp()`，文档写清 [12]。
 - `useFormContext`（不订阅）vs `useFormState`（订阅）容易混，考虑改名 `useFormInstance` / `useWatch` [12]。
@@ -132,13 +132,13 @@ D3 之后模块规则是普通函数 `toolRules(t: Draft<Tool>, inputs)`。跨�
 
 - **同一个 run 里先写后读**：`row.total.$value = x` 后再读 `row.total.$value`，算不算依赖？算 = 自依赖成环；不算 = 要区分“本 run 写过的 state”。usage 里先用局部变量规避 [06][16]。
 - **`ui` 不带 `$`**：`d.ui('aside')` / `d.discount.ui('summary')` 和名为 `ui` 的子字段撞名。改成 `$ui(...)`？[16]
-- **深依赖粒度**：autorun 里读 `d.items.$value`（整个数组）是不是对每个子字段都建依赖？大表上要不要提示改用 `autorun.each` [06][12]。
-- **计算字段推断**：“autorun 写了 `$value` → 推断为只读计算字段”，还是要显式声明（类型标记 / `<Field readOnly>`）[06]。
+- **深依赖粒度**：reaction 里读 `d.items.$value`（整个数组）是不是对每个子字段都建依赖？大表上要不要提示改用 `reaction.each` [06][12]。
+- **计算字段推断**：“reaction 写了 `$value` → 推断为只读计算字段”，还是要显式声明（类型标记 / `<Field readOnly>`）[06]。
 - **`$pattern = undefined` 恢复继承**，还是另给 `'inherit'` [10]。
 - **树 helper 形状**：`findPos(value, pred)` / `pathOf('menus', pos)` 独立函数，还是 `d.menus.$find(pred)` 返回节点 handle；`node.$depth` 要不要给 [05]。
 - **hooks 收 draft 选择器吗**：`useArray(\`${supplier.path}.products\`)` 写字符串，还是 `useArray(d => d.suppliers[i].products)` [08]。
 - **`form.batch(d => …)`** 复用 effect 的 draft 是否接受 [12]。
-- **表单级校验（原 `e.validate`）**：`useForm({ validate })`（当前），还是 autorun 里写 `$errors`（要先定 `$errors` 可不可写、和 rules 错误怎么合并）[11]。
+- **表单级校验（原 `e.validate`）**：`useForm({ validate })`（当前），还是 reaction 里写 `$errors`（要先定 `$errors` 可不可写、和 rules 错误怎么合并）[11]。
 - **整棵子树错误数**：要不要只读的 `d.$errors` / `d.x.$errors` 聚合子树 [15]。
 - **filter 插槽的 name 按根解析**：同一个 Column 里单元格 `<Field name="status">` 相对行、filter 里的却是根上的查询条件 [09][11]。
 - **watch 多源**：SKU 里用 `for` 循环建多个 watch；要不要 `watch([d => d.a, d => d.b], …)` [07]。

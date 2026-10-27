@@ -1,6 +1,6 @@
 // Teaching runtime for the docs tutorial.
 // Implements the decided subset of usage/API.md (2026-10-27): Field / Object /
-// Array, draft handles, autorun / autorun.each / watch, $ state, virtual,
+// Array, draft handles, reaction / reaction.each / watch, $ state, virtual,
 // pattern inheritance, JSX rules vs declared $rules. Not the production engine:
 // no tree pos, Enum loaders, pro tables, or devtools.
 
@@ -63,7 +63,7 @@ export interface FormOptions<V = any> {
 export type EffectDef<V = any> = (api: EffectApi<V>) => void;
 
 export interface EffectApi<V = any> {
-  autorun: ((fn: (d: any) => void) => void) & {
+  reaction: ((fn: (d: any) => void) => void) & {
     each: (selector: (d: any) => unknown, row: (row: any, d: any) => void) => void;
   };
   watch: (source: (d: any) => unknown, effect: (d: any) => void) => void;
@@ -120,7 +120,7 @@ interface RunCtx {
   overlay: Map<string, unknown>;
 }
 
-interface Autorun {
+interface Reaction {
   id: number;
   fn: (d: any) => void;
   deps: Set<string>;
@@ -261,7 +261,7 @@ export function createForm<V>(options: FormOptions<V>): FormApi<V> {
   let currentCtx: RunCtx | null = null;
   const handlers: { onSubmit?: (values: any) => unknown; onSubmitFailed?: (errors: FieldError[]) => void } = {};
 
-  const autoruns: Autorun[] = [];
+  const reactions: Reaction[] = [];
   const eaches: EachRun[] = [];
   const watches: WatchRun[] = [];
   let seq = 0;
@@ -395,7 +395,7 @@ export function createForm<V>(options: FormOptions<V>): FormApi<V> {
     }
   }
 
-  function applyWrites(writes: Write[], source: 'autorun' | 'watch') {
+  function applyWrites(writes: Write[], source: 'reaction' | 'watch') {
     const dirty = new Set<string>();
     let values = state.values;
     let valuesChanged = false;
@@ -405,7 +405,7 @@ export function createForm<V>(options: FormOptions<V>): FormApi<V> {
         if (Object.is(prev, write.value)) continue;
         values = produce(values, (draft: any) => setMutable(draft, write.path, write.value));
         valuesChanged = true;
-        if (source === 'autorun') state.computed[write.path] = true;
+        if (source === 'reaction') state.computed[write.path] = true;
         markValueDirty(dirty, write.path, prev, write.value);
       } else if (write.kind === 'visible') {
         state.visible[write.path] = write.value;
@@ -614,16 +614,16 @@ export function createForm<V>(options: FormOptions<V>): FormApi<V> {
       if (!force && pending.size === 0) return;
       const next = new Set<string>();
       let ran = false;
-      for (const au of autoruns) {
+      for (const au of reactions) {
         if (!force && au.ran && (au.deps.size === 0 || !intersects(au.deps, pending))) continue;
         const ctx = newCtx();
         runWith(au.fn, ctx);
         au.deps = ctx.reads;
         au.ran = true;
         ran = true;
-        const dirty = applyWrites(ctx.writes, 'autorun');
+        const dirty = applyWrites(ctx.writes, 'reaction');
         for (const dep of dirty) next.add(dep);
-        trace.push(`autorun#${au.id} ${au.label} -> ${ctx.writes.map((w) => w.kind).join(',') || 'no-write'}`);
+        trace.push(`reaction#${au.id} ${au.label} -> ${ctx.writes.map((w) => w.kind).join(',') || 'no-write'}`);
       }
       for (const each of eaches) {
         const listPath = pathFromSelector(each.selector);
@@ -657,7 +657,7 @@ export function createForm<V>(options: FormOptions<V>): FormApi<V> {
         each.ran = true;
         if (eachRan) {
           ran = true;
-          const dirty = applyWrites(writes, 'autorun');
+          const dirty = applyWrites(writes, 'reaction');
           for (const dep of dirty) next.add(dep);
           trace.push(`each#${each.id} rows=${len}`);
         }
@@ -695,21 +695,21 @@ export function createForm<V>(options: FormOptions<V>): FormApi<V> {
     } finally {
       currentCtx = prev;
     }
-    if (!isHandle(returned)) throw new Error('autorun.each 的第一个函数必须返回字段 handle，例如 (d) => d.items');
+    if (!isHandle(returned)) throw new Error('reaction.each 的第一个函数必须返回字段 handle，例如 (d) => d.items');
     return returned.path;
   }
 
-  const autorun = ((fn: (d: any) => void) => {
-    autoruns.push({ id: ++seq, fn, deps: new Set(), ran: false, label: labelOf(fn) });
-  }) as EffectApi['autorun'];
-  autorun.each = (selector, row) => {
+  const reaction = ((fn: (d: any) => void) => {
+    reactions.push({ id: ++seq, fn, deps: new Set(), ran: false, label: labelOf(fn) });
+  }) as EffectApi['reaction'];
+  reaction.each = (selector, row) => {
     eaches.push({ id: ++seq, selector, row, deps: new Set(), instances: new Map(), ran: false, label: labelOf(row) });
   };
   const watch: EffectApi['watch'] = (source, effect) => {
     watches.push({ source, effect, deps: new Set(), ready: false, label: labelOf(effect) });
   };
 
-  for (const effect of options.effects ?? []) effect({ autorun, watch, query });
+  for (const effect of options.effects ?? []) effect({ reaction, watch, query });
   flush(new Set(), true);
 
   function ctxFor(path: string): ValidatorCtx {
@@ -912,7 +912,7 @@ export function createForm<V>(options: FormOptions<V>): FormApi<V> {
         state.uiVisible = {};
         state.regionVisible = {};
         for (const each of eaches) each.instances.clear();
-        for (const au of autoruns) au.ran = false;
+        for (const au of reactions) au.ran = false;
         for (const watch of watches) watch.ready = false;
         applyDecls();
         flush(new Set(), true);

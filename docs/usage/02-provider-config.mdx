@@ -3,22 +3,9 @@ title: "02 · Provider 配置（一对多）"
 description: "provider.type 一个源，驱动 apiKey 显隐、baseUrl 必填、model 异步枚举、authMod"
 ---
 
-import { OpenPoints } from '../_components/OpenPoints';
-import code from '../../usage/02-provider-config.tsx?raw';
-
-:::caution[伪代码]
-API 设计轮：下面的代码是“理想 API”下的业务写法，**没有实现、不能运行**。源文件：`usage/02-provider-config.tsx`。
-:::
-
 provider.type 一个源，驱动 apiKey 显隐、baseUrl 必填、model 异步枚举、authMode 只读——全部在一个集中 effect 里；JSX 没有三元。
 
-**演示的特性：** 一对多 · 集中 effect · autorun vs watch · 异步 Enum
-
-## 本用例的 ❓ 待定点
-
-<OpenPoints code={code} />
-
-汇总与建议见 [待拍板](/decisions)。
+**演示的特性：** 一对多 · 集中 effect · reaction vs watch · 异步 Enum
 
 ## 用法代码
 

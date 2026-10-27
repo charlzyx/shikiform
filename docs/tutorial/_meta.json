@@ -1,14 +1,16 @@
 [
   "index",
-  "1-start",
-  "2-blur",
-  "3-visible",
-  "4-pattern",
-  "5-virtual",
-  "6-autorun",
-  "7-watch",
-  "8-array",
-  "9-validation",
-  "10-declared",
-  "11-done"
+  "1-fields",
+  "2-effects",
+  "3-start",
+  "4-blur",
+  "5-visible",
+  "6-pattern",
+  "7-virtual",
+  "8-reaction",
+  "9-watch",
+  "10-array",
+  "11-validation",
+  "12-declared",
+  "13-done"
 ]

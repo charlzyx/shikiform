@@ -3,22 +3,9 @@ title: "13 · 跨模块联动"
 description: "Agent 配置页拆成模型 / 工具 / 限额三个模块：模块规则是收 handle 的函数，跨模块由宿主显式传 handle"
 ---
 
-import { OpenPoints } from '../_components/OpenPoints';
-import code from '../../usage/13-cross-module.tsx?raw';
-
-:::caution[伪代码]
-API 设计轮：下面的代码是“理想 API”下的业务写法，**没有实现、不能运行**。源文件：`usage/13-cross-module.tsx`。
-:::
-
 Agent 配置页拆成模型 / 工具 / 限额三个模块：模块规则是收 handle 的函数，跨模块由宿主显式传 handle（校验里用 ctx.get 绝对 path），多个模块的同名字段列出精确 handle；Tab 未挂载导致规则丢失的坑。
 
 **演示的特性：** 模块化 · 模块规则函数 · 精确 handle
-
-## 本用例的 ❓ 待定点
-
-<OpenPoints code={code} />
-
-汇总与建议见 [待拍板](/decisions)。
 
 ## 用法代码
 
