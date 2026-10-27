@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 test('sku combos generate rows and keep an edited price', async ({ page }) => {
-  await page.goto('/sku')
+  await page.goto('/play/sku')
   await expect(page.getByTestId('combo-white-128')).toBeDisabled()
   await expect(page.getByTestId('combo-black-256')).toBeDisabled()
   await page.getByTestId('combo-black-128').check()

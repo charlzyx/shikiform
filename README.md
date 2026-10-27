@@ -15,15 +15,18 @@ Peer dependency is `react` ^18 or ^19. The code uses React 18 hooks only. The do
 
 ```bash
 npm install
-npm test            # vitest: reaction, display, move, tree, standard schema, meta
-npm run check       # tsc --noEmit
-npm run build       # Astro Starlight → dist/
+npm test            # vitest: reaction, display, move, tree, standard schema, meta, declared fields
+npm run check       # tsc --noEmit (source). Path aliases point at src/
+npm run build:lib   # tsup → lib/*.js + lib/*.d.ts for the four package entries
+npm run build       # Astro docs, then the playground into dist/play/
 npm run dev         # docs site
-npm run dev:e2e     # Vite playground at http://127.0.0.1:5173
-npm run test:e2e    # Playwright. Install the browser once: npx playwright install chromium
+npm run dev:e2e     # Vite playground at http://127.0.0.1:5173/play/
+npm run test:e2e    # build, then Playwright against the preview. Install the browser once: npx playwright install chromium
 ```
 
-`test:e2e` starts the playground. Routes: `/query`, `/query-native`, `/schema`, `/sku`, `/merged`, `/nested`, `/tabs`, `/large`, `/virtual`, `/headless`.
+`npm run build` is what Cloudflare Pages runs. `dist/` has the docs and the playground (`/play/query`, `/play/tabs`, …). `build:lib` is separate and is not published (`private: true`).
+
+Dev and `npm run check` resolve `shikiform` to `src/` through TypeScript paths and the Vite alias. Package `exports` point at `lib/` for a consumer that loads the built files.
 
 Standard Schema v1 (Zod, Valibot, ArkType) is a field rule (`rules={z.string().email()}`), mixable with built-in rules, and a form validator (`useForm({ validate: schema })`). Issue paths map onto field `$errors`, including array indexes and tree positions. `hidden` validates. `none` skips.
 
@@ -61,6 +64,7 @@ Chao 自己在 Cloudflare 后台连仓库，Muse 不持有 Cloudflare 账号或 
 ### 验证部署成功
 
 - 首页、`/start/`、`/guides/fields/`、`/guides/effects/`、`/guides/validation/`、`/guides/query/`、`/guides/hooks/`、`/demos/` 都能打开
+- `/play/query`、`/play/tabs` 等示例能打开（和文档在同一次 `npm run build` 里）
 - 静态资源路径是根路径（如 `/_astro/...`），不是 `/shiki/_astro/...`
 
 ### 排障

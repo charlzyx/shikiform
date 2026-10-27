@@ -1,27 +1,27 @@
 ---
 title: 示例
-description: 本地 playground 里可以点的查询表、校验、SKU 和表格。
+description: 文档站里可以点的查询表、校验、SKU 和表格。
 ---
 
-文档站构建不包含 playground。playground 是单独的 Vite 应用：
+示例和文档一起构建，部署后从本站打开，不需要再起一个本地 Vite。
+
+| 路径 | 内容 |
+|---|---|
+| [`/play/query`](/play/query) | Ant Design 查询表：搜索、重置、分页、折叠、选择在翻页后还在 |
+| [`/play/query-native`](/play/query-native) | 同一套 `useQueryTable`，只有原生输入 |
+| [`/play/schema`](/play/schema) | 字段上的 Zod 邮箱规则，整表 Valibot 密码校验，数组 path，`hidden` 与 `none` |
+| [`/play/sku`](/play/sku) | 选规格生成 SKU 行，价格和库存联动 |
+| [`/play/merged`](/play/merged) | 供应商列 rowspan，价格校验 |
+| [`/play/nested`](/play/nested) | 嵌套订单，收起后值还在，抽屉里的字段留在表单里 |
+| [`/play/tabs`](/play/tabs) | 未挂载的页签字段仍然校验，`none` 不校验 |
+| [`/play/large`](/play/large) | 200 和 1000 个字段。改一个格子只重渲染那一行 |
+| [`/play/virtual`](/play/virtual) | `ArrayTable` 的 `virtualScroll` |
+| [`/play/headless`](/play/headless) | 原生输入，拖拽数组和树，未移动的行不重渲染 |
+
+本地开发 playground：
 
 ```bash
 npm run dev:e2e
 ```
 
-打开 http://127.0.0.1:5173 。
-
-| 路径 | 内容 |
-|---|---|
-| `/query` | Ant Design 查询表：搜索、重置、分页、折叠、选择在翻页后还在 |
-| `/query-native` | 同一套 `useQueryTable`，只有原生输入 |
-| `/schema` | 字段上的 Zod 邮箱规则，整表 Valibot 密码校验，数组 path，`hidden` 与 `none` |
-| `/sku` | 选规格生成 SKU 行，价格和库存联动 |
-| `/merged` | 供应商列 rowspan，价格校验 |
-| `/nested` | 嵌套订单，收起后值还在，抽屉里的字段留在表单里 |
-| `/tabs` | 隐藏的页签仍然校验，`none` 不校验 |
-| `/large` | 200 和 1000 个字段。改一个格子只重渲染那一行 |
-| `/virtual` | `ArrayTable` 的 `virtualScroll` |
-| `/headless` | 原生输入，拖拽数组和树，未移动的行不重渲染 |
-
-`npm run test:e2e` 会先起这个 playground，再跑 Playwright。浏览器装一次：`npx playwright install chromium`。
+打开 http://127.0.0.1:5173/play/ 。`npm run test:e2e` 会先构建文档和 playground，再用 Playwright 打开预览里的 `/play/…`。浏览器装一次：`npx playwright install chromium`。

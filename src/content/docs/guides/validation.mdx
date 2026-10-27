@@ -62,8 +62,12 @@ const form = useForm({
 
 再校验某一个字段时，会重跑整表 schema，但只刷新这个字段（以及它下面）的 schema 错误，其它字段上已有的 schema 错误留着。
 
-## 显隐
+## 显隐和未挂载的字段
 
 `hidden` 照常校验，值也会提交。`none` 丢掉这条 issue，值也不提交。祖先是 `none` 时，子孙的 issue 一并丢掉。
+
+字段按声明参加提交校验，不按 JSX 是否挂载。`useForm({ fields: { code: { required: true } } })`、`registerField`，以及 reaction 里的 `$rules`，在页签没渲染、区域折起来、行滚出虚拟列表时仍然生效。`rows.*.name` 是行模板，套到每一个下标上。
+
+`<Field rules={…}>` 只在这个组件挂着的时候生效。卸载时清掉的是这份 JSX 规则。声明、模板和 `$rules` 还在。
 
 异步的 `validator` 和异步 schema 可以用 `asyncDebounceMs`。新的一次编辑会 abort 上一次的 `AbortSignal`，过期结果不会写回。

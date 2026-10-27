@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 test('native drag moves an array row and a tree node without rerendering the rest', async ({ page }) => {
-  await page.goto('/headless')
+  await page.goto('/play/headless')
   const row0 = () => page.getByTestId('row-0').getAttribute('data-renders')
   const row3 = () => page.getByTestId('row-3').getAttribute('data-renders')
   const before0 = await row0()

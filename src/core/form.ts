@@ -66,6 +66,16 @@ interface FieldModel {
   virtualExplicit: boolean
   computed: boolean
   rules: Rule[]
+  /** Rules from `fields` or `registerField`. Kept when JSX unmounts. */
+  declaredRules?: Rule[]
+  /** `required` from `fields` or `registerField`. */
+  declaredRequired?: boolean
+  /** True while a JSX `<Field>` for this path is mounted. */
+  jsxActive: boolean
+  /** Rules from JSX `rules`. Cleared on unmount. Absent when JSX did not pass rules. */
+  jsxRules?: Rule[]
+  /** `required` from JSX. Cleared on unmount. */
+  jsxRequired?: boolean
   rulesFromEffect: boolean
   errors: string[]
   warnings: string[]
@@ -169,6 +179,8 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
   private identN = 0
   private enumTimers = new Map<string, ReturnType<typeof setTimeout>>()
   private enumAbort = new Map<string, AbortController>()
+  /** Item templates (`rows.*.name`). Expanded onto every current index. */
+  private itemTemplates: { pattern: string; spec: FieldSpec }[] = []
 
   constructor(options: FormOptions<T> = {}) {
     this.options = options
@@ -183,6 +195,9 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
       if (spec) this.registerField(path, spec)
     }
     for (const effect of options.effects ?? []) effect.install(this)
+    this.flush()
+    this.applyItemTemplates()
+    this.enqueueFromDirty()
     this.flush()
   }
 
@@ -287,6 +302,7 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
   }
 
   async validate(path?: string): Promise<FieldError[]> {
+    this.applyItemTemplates()
     this.validating = true
     this.bumpMeta()
     this.emit()
@@ -694,33 +710,100 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
 
   // —— react / test registration ——
 
+  /**
+   * Declare a field. It joins submit validation even when no `<Field>` is mounted.
+   * A path with a `.*` segment (`rows.*.name`) is an item template for every current index,
+   * including virtualized rows. `$rules` wins over this declaration. JSX `rules` do not erase it on unmount.
+   */
   registerField(
     path: string,
     spec: FieldSpec & { trigger?: ValidateTrigger[]; validator?: Rule['validator']; warning?: Rule['validator']; rules?: RulesInput } = {},
   ): void {
+    if (isTemplatePath(path)) {
+      const index = this.itemTemplates.findIndex((tpl) => tpl.pattern === path)
+      const entry = { pattern: path, spec }
+      if (index >= 0) this.itemTemplates[index] = entry
+      else this.itemTemplates.push(entry)
+      this.applyItemTemplates()
+      return
+    }
     const field = this.ensure(path)
-    if (spec.virtual !== undefined) {
-      field.virtual = spec.virtual
-      field.virtualExplicit = true
+    this.applyFieldFlags(field, spec, 'explicit')
+    const rules = rulesFromSpec(spec, field.declaredRules ?? field.rules)
+    if (rules) {
+      field.declaredRules = rules.slice()
+      if (!field.rulesFromEffect && field.jsxRules === undefined && !deepEqual(field.rules, rules)) {
+        field.rules = rules.slice()
+        this.bumpPath(path)
+      }
     }
-    if (spec.trigger) field.triggers = spec.trigger
-    if (spec.asyncDebounceMs !== undefined) field.asyncDebounceMs = spec.asyncDebounceMs
-    if (!field.rulesFromEffect && (spec.rules !== undefined || spec.validator || spec.warning)) {
-      const rules = spec.rules !== undefined ? normalizeRules(spec.rules) : field.rules.filter((rule) => !rule.validator)
-      if (spec.validator) rules.push({ validator: spec.validator })
-      if (spec.warning) rules.push({ validator: spec.warning })
-      field.rules = rules
+    if (spec.required !== undefined) {
+      field.declaredRequired = spec.required
+      if (!field.requiredFromEffect && field.jsxRequired === undefined && field.required !== spec.required) {
+        field.required = spec.required
+        this.bumpPath(path)
+      }
     }
-    if (spec.pattern !== undefined && !field.patternFromEffect) {
-      field.pattern = spec.pattern
-      field.hasPattern = true
+  }
+
+  /**
+   * Apply JSX `rules` and `required` while `<Field>` is mounted.
+   * Does not replace `$rules`. Pair with {@link releaseJsxField} on unmount so a declaration or item template is restored.
+   */
+  mountJsxField(path: string, spec: FieldSpec = {}): void {
+    const field = this.ensure(path)
+    field.jsxActive = true
+    this.applyFieldFlags(field, spec, 'explicit')
+    const rules = rulesFromSpec(spec, field.rules)
+    if (rules && !field.rulesFromEffect) {
+      field.jsxRules = rules.slice()
+      if (!deepEqual(field.rules, rules)) {
+        field.rules = rules.slice()
+        this.bumpPath(path)
+      }
     }
-    if (spec.display !== undefined && !field.displayFromEffect) {
-      field.display = spec.display
-      field.hasDisplay = true
+    if (spec.required !== undefined && !field.requiredFromEffect) {
+      field.jsxRequired = spec.required
+      if (field.required !== spec.required) {
+        field.required = spec.required
+        this.bumpPath(path)
+      }
     }
-    if (spec.required !== undefined && !field.requiredFromEffect) field.required = spec.required
-    if (spec.enum && !field.enumFromEffect) field.enumOptions = asOptions(spec.enum) ?? []
+  }
+
+  /**
+   * Drop JSX `rules` / `required` for `path`.
+   * Restores a declaration or item template. Leaves `$rules` and `$required` from a reaction in place.
+   */
+  releaseJsxField(path: string): void {
+    const field = this.fields.get(path)
+    if (!field) return
+    const restoreRules = field.jsxRules !== undefined
+    const restoreRequired = field.jsxRequired !== undefined
+    field.jsxActive = false
+    field.jsxRules = undefined
+    field.jsxRequired = undefined
+    if (restoreRules && !field.rulesFromEffect) {
+      const template = this.templateSpec(path)
+      const next =
+        field.declaredRules !== undefined
+          ? field.declaredRules.slice()
+          : template?.rules !== undefined
+            ? normalizeRules(template.rules)
+            : []
+      if (!deepEqual(field.rules, next)) {
+        field.rules = next
+        this.bumpPath(path)
+      }
+    }
+    if (restoreRequired && !field.requiredFromEffect) {
+      const template = this.templateSpec(path)
+      const next = field.declaredRequired !== undefined ? field.declaredRequired : (template?.required ?? false)
+      if (field.required !== next) {
+        field.required = next
+        this.bumpPath(path)
+      }
+    }
   }
 
   registerArray(path: string, rowKey?: string): void {
@@ -833,6 +916,7 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     if (Array.isArray(old) || Array.isArray(value)) {
       this.dirtyRows.set(path, 'all')
       this.markStructure(path)
+      this.applyItemTemplates()
     }
     if (value != null && typeof value === 'object') this.dirtyUnder(path)
     return true
@@ -1290,6 +1374,73 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     }
   }
 
+  private applyFieldFlags(
+    field: FieldModel,
+    spec: FieldSpec & { trigger?: ValidateTrigger[] },
+    mode: 'explicit' | 'template',
+  ): void {
+    if (spec.virtual !== undefined && (mode === 'explicit' || !field.virtualExplicit)) {
+      field.virtual = spec.virtual
+      if (mode === 'explicit') field.virtualExplicit = true
+    }
+    if (mode === 'explicit') {
+      if (spec.trigger) field.triggers = spec.trigger
+      if (spec.asyncDebounceMs !== undefined) field.asyncDebounceMs = spec.asyncDebounceMs
+      if (spec.enum && !field.enumFromEffect) field.enumOptions = asOptions(spec.enum) ?? []
+    }
+    if (spec.pattern !== undefined && !field.patternFromEffect && (mode === 'explicit' || !field.hasPattern)) {
+      field.pattern = spec.pattern
+      field.hasPattern = true
+    }
+    if (spec.display !== undefined && !field.displayFromEffect && (mode === 'explicit' || !field.hasDisplay)) {
+      field.display = spec.display
+      field.hasDisplay = true
+    }
+  }
+
+  /** Copy item templates onto indexes that exist right now. Declarations, JSX rules, and `$rules` stay. */
+  private applyItemTemplates(): void {
+    if (!this.itemTemplates.length) return
+    for (const tpl of this.itemTemplates) {
+      for (const path of expandTemplate(tpl.pattern, this.values)) this.applyTemplateSpec(path, tpl.spec)
+    }
+  }
+
+  private applyTemplateSpec(path: string, spec: FieldSpec): void {
+    const field = this.ensure(path)
+    this.applyFieldFlags(field, spec, 'template')
+    if (spec.rules !== undefined && !field.rulesFromEffect && field.declaredRules === undefined && field.jsxRules === undefined) {
+      const rules = normalizeRules(spec.rules)
+      if (!deepEqual(field.rules, rules)) {
+        field.rules = rules
+        this.bumpPath(path)
+      }
+    }
+    if (
+      spec.required !== undefined &&
+      !field.requiredFromEffect &&
+      field.declaredRequired === undefined &&
+      field.jsxRequired === undefined &&
+      field.required !== spec.required
+    ) {
+      field.required = spec.required
+      this.bumpPath(path)
+    }
+  }
+
+  private templateSpec(path: string): FieldSpec | undefined {
+    let best: FieldSpec | undefined
+    let score = -1
+    for (const tpl of this.itemTemplates) {
+      if (!templateMatches(tpl.pattern, path)) continue
+      if (tpl.pattern.length > score) {
+        best = tpl.spec
+        score = tpl.pattern.length
+      }
+    }
+    return best
+  }
+
   private ensure(path: string): FieldModel {
     let field = this.fields.get(path)
     if (!field) {
@@ -1305,6 +1456,7 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
         virtualExplicit: false,
         computed: false,
         rules: [],
+        jsxActive: false,
         rulesFromEffect: false,
         errors: [],
         schemaErrors: [],
@@ -1391,6 +1543,7 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     this.values = setAt(this.values, path, next)
     this.dirtyRows.set(path, dirty)
     this.markStructure(path)
+    this.applyItemTemplates()
     this.enqueueFromDirty()
     this.flush()
   }
@@ -1702,6 +1855,58 @@ function installWatchEach(runtime: EffectsRuntime<any>, select: (d: Draft<any>) 
 
 export function createForm<T>(options: FormOptions<T> = {}): FormEngine<T> {
   return new FormEngine(options)
+}
+
+function rulesFromSpec(
+  spec: { rules?: RulesInput; validator?: Rule['validator']; warning?: Rule['validator'] },
+  existing: Rule[],
+): Rule[] | undefined {
+  if (spec.rules === undefined && !spec.validator && !spec.warning) return undefined
+  const rules = spec.rules !== undefined ? normalizeRules(spec.rules) : existing.filter((rule) => !rule.validator)
+  if (spec.validator) rules.push({ validator: spec.validator })
+  if (spec.warning) rules.push({ validator: spec.warning })
+  return rules
+}
+
+function isTemplatePath(path: string): boolean {
+  return path.split('.').some((segment) => segment === '*')
+}
+
+function templateMatches(pattern: string, path: string): boolean {
+  const expected = pattern.split('.')
+  const actual = path.split('.')
+  if (expected.length !== actual.length) return false
+  for (let i = 0; i < expected.length; i++) {
+    if (expected[i] === '*') {
+      if (!/^\d+$/.test(actual[i] ?? '')) return false
+    } else if (expected[i] !== actual[i]) return false
+  }
+  return true
+}
+
+/** Expand `rows.*.name` against the current values. Missing arrays produce no paths. */
+function expandTemplate(pattern: string, root: unknown): string[] {
+  const parts = pattern.split('.')
+  const out: string[] = []
+  const walk = (node: unknown, index: number, acc: string[]) => {
+    if (index === parts.length) {
+      out.push(acc.join('.'))
+      return
+    }
+    const segment = parts[index]!
+    if (segment === '*') {
+      if (!Array.isArray(node)) return
+      for (let i = 0; i < node.length; i++) walk(node[i], index + 1, [...acc, String(i)])
+      return
+    }
+    const next =
+      node != null && (typeof node === 'object' || typeof node === 'function')
+        ? (node as Record<string, unknown>)[segment]
+        : undefined
+    walk(next, index + 1, [...acc, segment])
+  }
+  walk(root, 0, [])
+  return out
 }
 
 function shownErrors(field: FieldModel): string[] {

@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react'
+import { useEffect, useMemo, type ReactNode } from 'react'
 import type { FormEngine } from '../core/form'
 import { joinPath } from '../core/path'
 import type { Display, Draft, Pattern } from '../core/types'
@@ -11,7 +11,8 @@ import { useWatch } from './use-watch'
 
 /**
  * Provide `form` and submit on Enter / the submit button.
- * `<Field>` returns null for display `hidden` and `none` after subscribing, so the model stays registered.
+ * `<Field>` returns null for display `hidden` and `none` after subscribing, so a mounted model stays registered.
+ * A field declared on the form, or given `$rules` / `registerField`, still validates when this component is not rendered.
  */
 export function Form<T>({
   form,
@@ -39,6 +40,8 @@ export function Form<T>({
 /**
  * One field. `rules` may be a built-in rule, a Standard Schema, or a mix:
  * `rules={z.string().email()}` or `rules={[z.string().min(2), { maxLength: 20 }]}`.
+ * Those JSX rules apply only while this component is mounted. Unmount clears them and leaves
+ * rules that came from `useForm({ fields })`, `registerField`, an item template, or `$rules`.
  * `<Field>` is a thin wrapper around {@link useField}.
  */
 export function Field({
@@ -61,7 +64,10 @@ export function Field({
   const form = useFormContext()
   const scope = useScope()
   const path = joinPath(scope.path, name)
-  form.registerField(path, { rules, virtual, required, display, pattern })
+  form.mountJsxField(path, { rules, virtual, required, display, pattern })
+  useEffect(() => {
+    return () => form.releaseJsxField(path)
+  }, [form, path])
   const field = useField(name)
   if (field.display !== 'visible') return null
   return children ? <>{children(field)}</> : null

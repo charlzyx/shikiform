@@ -23,17 +23,26 @@ const routes: Record<string, () => ReactElement> = {
   '/headless': HeadlessPage,
 }
 
+function playPath(): string {
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '')
+  let path = window.location.pathname
+  if (base && (path === base || path.startsWith(`${base}/`))) path = path.slice(base.length) || '/'
+  if (path.length > 1 && path.endsWith('/')) path = path.slice(0, -1)
+  return path || '/'
+}
+
 export function App() {
-  const path = window.location.pathname.replace(/\/$/, '') || '/'
+  const path = playPath()
   const Page = routes[path]
   if (!Page) {
+    const base = import.meta.env.BASE_URL.replace(/\/$/, '')
     return (
       <main>
         <h1>ShikiForm</h1>
         <ul>
           {Object.keys(routes).map((href) => (
             <li key={href}>
-              <a href={href}>{href}</a>
+              <a href={`${base}${href}`}>{href}</a>
             </li>
           ))}
         </ul>

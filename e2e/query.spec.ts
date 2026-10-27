@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 test('query table searches, resets, pages, and keeps selection', async ({ page }) => {
-  await page.goto('/query')
+  await page.goto('/play/query')
   await expect(page.getByText('alpha-1')).toBeVisible()
   await page.getByTestId('keyword').fill('alpha')
   await page.getByTestId('query-submit').click()

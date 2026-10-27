@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 test('one cell edit rerenders that field, not the sibling row', async ({ page }) => {
-  await page.goto('/large')
+  await page.goto('/play/large')
   for (const tier of ['200', '1000']) {
     const root = page.locator(`[data-tier="${tier}"]`)
     const mounted = await root.locator('[data-index]').count()

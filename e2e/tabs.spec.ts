@@ -1,14 +1,22 @@
 import { expect, test } from '@playwright/test'
 
-test('a hidden tab still validates and display none does not', async ({ page }) => {
-  await page.goto('/tabs')
+test('an unmounted declared field still fails submit and display none does not', async ({ page }) => {
+  await page.goto('/play/tabs')
+  await expect(page.getByTestId('code')).toHaveCount(0)
   await expect(page.getByTestId('ghost')).toHaveCount(0)
+  await expect(page.getByTestId('note')).toHaveCount(0)
   await page.getByTestId('name').fill('ada')
   await page.getByTestId('tabs-submit').click()
   await expect(page.getByTestId('tabs-errors')).toContainText('code')
   await expect(page.getByTestId('tabs-errors')).not.toContainText('ghost')
+  await expect(page.getByTestId('tabs-errors')).not.toContainText('note')
   await page.getByTestId('tab-extra').click()
+  await expect(page.getByTestId('name')).toHaveCount(0)
   await page.getByTestId('code').fill('c1')
+  await page.getByTestId('tabs-submit').click()
+  await expect(page.getByTestId('tabs-errors')).toContainText('note')
+  await expect(page.getByTestId('tabs-errors')).not.toContainText('code')
+  await page.getByTestId('note').fill('n')
   await page.getByTestId('tabs-submit').click()
   await expect(page.getByTestId('tabs-result')).toHaveText('ok')
 })

@@ -5,6 +5,7 @@ interface Values {
   name: string
   code: string
   ghost: string
+  note: string
 }
 
 const effects = defineEffects<Values>(({ reaction }) => {
@@ -18,12 +19,14 @@ const effects = defineEffects<Values>(({ reaction }) => {
 
 export function TabsPage() {
   const form = useForm<Values>({
-    initialValues: { tab: 'base', name: '', code: '', ghost: '' },
+    initialValues: { tab: 'base', name: '', code: '', ghost: '', note: '' },
+    fields: {
+      name: { required: true },
+      code: { required: true },
+      ghost: { required: true },
+    },
     effects: [effects],
   })
-  form.registerField('name', { required: true })
-  form.registerField('code', { required: true })
-  form.registerField('ghost', { required: true })
   return (
     <Form
       form={form}
@@ -39,25 +42,42 @@ export function TabsPage() {
       <button type="button" data-testid="tab-extra" onClick={() => form.setValue('tab', 'extra')}>
         附加
       </button>
-      <Field name="name">
-        {(field) => (
-          <input data-testid="name" value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value)} />
-        )}
-      </Field>
-      <Field name="code">
-        {(field) => (
-          <input data-testid="code" value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value)} />
-        )}
-      </Field>
-      <Field name="ghost">
-        {(field) => <input data-testid="ghost" value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value)} />}
-      </Field>
+      <ActiveFields />
       <button type="submit" data-testid="tabs-submit">
         提交
       </button>
       <ErrorLine />
       <div id="tabs-result" data-testid="tabs-result" />
     </Form>
+  )
+}
+
+function ActiveFields() {
+  const tab = useWatch<Values, string>((d) => d.tab.$value ?? 'base')
+  return (
+    <>
+      {tab === 'base' ? (
+        <Field name="name">
+          {(field) => (
+            <input data-testid="name" value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value)} />
+          )}
+        </Field>
+      ) : null}
+      {tab === 'extra' ? (
+        <Field name="code">
+          {(field) => (
+            <input data-testid="code" value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value)} />
+          )}
+        </Field>
+      ) : null}
+      {tab === 'extra' ? (
+        <Field name="note" required>
+          {(field) => (
+            <input data-testid="note" value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value)} />
+          )}
+        </Field>
+      ) : null}
+    </>
   )
 }
 
@@ -68,7 +88,7 @@ function TabBody() {
 
 function ErrorLine() {
   const errors = useWatch((d: Draft<Values>) =>
-    (['name', 'code', 'ghost'] as const).filter((path) => d[path].$errors.length).join(','),
+    (['name', 'code', 'ghost', 'note'] as const).filter((path) => d[path].$errors.length).join(','),
   )
   return <pre data-testid="tabs-errors">{errors}</pre>
 }

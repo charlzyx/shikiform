@@ -58,6 +58,24 @@ type StrictFieldPath<T, D extends number = 8> = [D] extends [0]
         }[keyof T & string]
       : never
 
+/**
+ * Like {@link FieldPath}, but an array index may be `*`.
+ * `rows.*.name` is the item template for every row, including rows whose `<Field>` is not mounted.
+ */
+export type TemplatePath<T> = IsAny<T> extends true ? string : StrictTemplatePath<NonNullable<T>>
+
+type IndexSegment = `${number}` | '*'
+
+type StrictTemplatePath<T, D extends number = 8> = [D] extends [0]
+  ? never
+  : [T] extends [readonly (infer E)[]]
+    ? IndexSegment | JoinPath<IndexSegment, StrictTemplatePath<NonNullable<E>, PrevDepth[D]>>
+    : [T] extends [object]
+      ? {
+          [K in keyof T & string]: K | JoinPath<K, StrictTemplatePath<NonNullable<T[K]>, PrevDepth[D]>>
+        }[keyof T & string]
+      : never
+
 /** Paths whose value is an array. */
 export type ArrayPath<T> = IsAny<T> extends true
   ? string
@@ -112,10 +130,14 @@ export interface FormOptions<T> {
   /** Installed in order. Each factory receives `reaction` and `watch`. */
   effects?: EffectDef<T>[]
   /**
-   * Models for fields that have no `<Field>`.
+   * Field models that exist even when no `<Field>` is mounted.
+   * An inactive tab, a collapsed region, or a virtualized row still validates if it is listed here.
+   * A key such as `rows.*.name` is an item template: the spec is applied to every current index.
+   * An exact path, `registerField`, and `$rules` / `$required` win over the template.
+   * JSX `rules` and `required` apply only while that `<Field>` is mounted and do not erase this spec on unmount.
    * `selectedKeys` and client-paging `page` are usually `{ virtual: true }`.
    */
-  fields?: { [K in FieldPath<T>]?: FieldSpec }
+  fields?: { [K in FieldPath<T> | TemplatePath<T>]?: FieldSpec }
   /**
    * Cross-field check. A Standard Schema's issue `path` is written onto that field's `$errors`
    * (`['items', 0, 'name']` → `items.0.name`, `['nodes', 0, 'children', 1, 'name']` → `nodes.0.children.1.name`).
@@ -243,7 +265,10 @@ export interface DraftState<T> {
   $pattern: Pattern | undefined
   /** Static options, or `SomeEnum.with(params)`. */
   $enum: EnumOption[] | readonly string[] | EnumBinding | undefined
-  /** Replaces JSX rules for this field. */
+  /**
+   * Rules written by a reaction. They stay when a JSX `<Field rules>` unmounts.
+   * A reaction wins over JSX `rules`, `registerField`, and an item template.
+   */
   $rules: Rule[]
   /** Own messages plus descendant messages. Read-only. */
   readonly $errors: string[]

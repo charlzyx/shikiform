@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 test('virtualScroll mounts a window and reveals a later row', async ({ page }) => {
-  await page.goto('/virtual')
+  await page.goto('/play/virtual')
   const count = await page.locator('[data-virtual-index]').count()
   expect(count).toBeGreaterThan(0)
   expect(count).toBeLessThan(15)

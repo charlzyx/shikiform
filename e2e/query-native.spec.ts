@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 test('native useQueryTable keeps filters and selection across pages', async ({ page }) => {
-  await page.goto('/query-native')
+  await page.goto('/play/query-native')
   await expect(page.getByTestId('log-1')).toBeVisible()
   await page.getByTestId('keyword').fill('alpha')
   await page.getByTestId('query-submit').click()

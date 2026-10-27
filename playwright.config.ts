@@ -4,10 +4,10 @@ export default defineConfig({
   testDir: 'e2e',
   timeout: 30_000,
   expect: { timeout: 8_000 },
-  use: { baseURL: 'http://127.0.0.1:5173' },
+  use: { baseURL: 'http://127.0.0.1:4321' },
   webServer: {
-    command: 'npm run dev:e2e',
-    url: 'http://127.0.0.1:5173',
+    command: 'npm run preview -- --host 127.0.0.1 --port 4321',
+    url: 'http://127.0.0.1:4321/play/query',
     reuseExistingServer: true,
     timeout: 60_000,
   },

@@ -17,6 +17,8 @@ description: Field、显隐、pattern，以及不进提交值的 virtual。
 
 `$visible = false` 等于 `hidden`，不是 `none`。祖先是 `none` 时，子孙也是 `none`。
 
+不在当前页的字段可以设成 `hidden`。规则若来自 `useForm({ fields })`、`registerField` 或 `$rules`，对应的 `<Field>` 不渲染也会校验。只写在 JSX `rules` 上的规则，卸掉组件后不再校验，也不会清掉前面那三种。数组行用 `rows.*.name` 这种模板，或者 `reaction.each` 写 `$rules`，每一行都算，包括虚拟列表里没挂上的行。
+
 ```tsx
 form.batch((d) => {
   d.nick.$display = 'hidden'

@@ -21,4 +21,4 @@ export {
   useTreeMove,
   useWatch,
 } from './react'
-export type { AppFormApi, Draft, FieldBinding, FormOptions, GroupApi } from './react'
+export type { AppFormApi, Draft, FieldBinding, FormOptions, GroupApi, TemplatePath } from './react'

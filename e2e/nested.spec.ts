@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 test('nested orders keep values when collapsed and a drawer field stays mounted', async ({ page }) => {
-  await page.goto('/nested')
+  await page.goto('/play/nested')
   await page.getByTestId('qty-0').fill('4')
   await page.getByTestId('toggle-orders').click()
   await expect(page.getByTestId('orders-collapsed')).toBeVisible()

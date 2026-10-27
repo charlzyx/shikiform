@@ -35,6 +35,7 @@ export type {
   FieldError,
   FieldPath,
   FieldSpec,
+  TemplatePath,
   FormInstance,
   FormOptions,
   MoveResult,
