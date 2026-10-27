@@ -97,7 +97,7 @@ export function runRules(
     messages.push(rules.find((r) => r.required)?.message ?? '必填')
   }
   for (const rule of rules) {
-    if (rule.required) continue
+    // `required` is reported above. Other constraints on the same rule still run.
     if (rule.isTrue && value !== true) messages.push(rule.message ?? '必须勾选')
     if (!isEmpty(value) && rule.format === 'email' && (typeof value !== 'string' || !EMAIL.test(value))) {
       messages.push(rule.message ?? '邮箱格式不对')

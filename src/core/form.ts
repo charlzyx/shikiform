@@ -85,6 +85,8 @@ interface FieldModel {
   dirty: boolean
   validating: boolean
   schemaErrors: string[]
+  /** Set when an item template owns this path. Exact `fields` / `registerField` declarations are not dropped with the row. */
+  templateApplied: boolean
   abort?: AbortController
   asyncDebounceMs?: number
   enumOptions?: EnumOption[]
@@ -178,6 +180,8 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
   private metaVersion = 0
   private pendingMeta = false
   private schemaByPath = new Map<string, string[]>()
+  /** Bumped at the start of each {@link FormEngine.validate}. Only the latest pass may commit. */
+  private validateGen = 0
   private inflight = new Set<Promise<unknown>>()
   private validateTimers = new Map<string, ReturnType<typeof setTimeout>>()
   private pendingDepNotify = new Set<string>()
@@ -317,6 +321,7 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
         if (key === path || key.startsWith(String(path) + '.')) this.schemaByPath.delete(key)
       }
     }
+    this.applyItemTemplates()
     this.bumpMeta()
     for (const rec of this.eachRecs.values()) rec.first = true
     for (const id of this.runners.keys()) {
@@ -331,32 +336,53 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
    * Declared fields, `registerField`, `$rules`, and item templates are included even if no `<Field>` is mounted.
    * JSX rules count only while mounted. Display `none` skips the field. `hidden` does not.
    * The form-level schema always runs. A scoped call replaces schema issues under `path` only.
+   * A newer `validate` supersedes an in-flight form schema or resolver; the older pass does not write errors.
    */
   async validate(path?: string): Promise<FieldError[]> {
     this.applyItemTemplates()
+    const gen = ++this.validateGen
     this.validating = true
     this.bumpMeta()
     this.emit()
+    const scoped = () => this.errors.filter((e) => !path || e.path === path || e.path.startsWith(path + '.'))
     try {
       const targets = [...this.fields.keys()].filter((p) => !path || p === path || p.startsWith(path + '.'))
       const collected: SchemaIssue[] = []
       const preserve = new Set<string>()
       for (const target of targets) {
+        if (gen !== this.validateGen) return scoped()
         const result = await this.validateOne(target)
+        if (gen !== this.validateGen) return scoped()
         if (result.stale) preserve.add(target)
         else collected.push(...result.issues)
       }
       const validate = this.options.validate
-      if (isStandardSchema(validate)) collected.push(...(await collectSchemaIssues(validate, this.values)))
-      else if (typeof validate === 'function') collected.push(...recordToIssues(await validate(this.values)))
-      if (this.options.resolver) collected.push(...recordToIssues(await this.options.resolver(this.values)))
+      const values = this.values
+      if (isStandardSchema(validate)) {
+        const issues = await collectSchemaIssues(validate, values)
+        if (gen !== this.validateGen) return scoped()
+        collected.push(...issues)
+      } else if (typeof validate === 'function') {
+        const extra = await validate(values)
+        if (gen !== this.validateGen) return scoped()
+        collected.push(...recordToIssues(extra))
+      }
+      if (this.options.resolver) {
+        const extra = await this.options.resolver(values)
+        if (gen !== this.validateGen) return scoped()
+        collected.push(...recordToIssues(extra))
+      }
+      if (gen !== this.validateGen) return scoped()
       this.commitSchemaIssues(path, collected, preserve)
       await this.waitAsync()
-      return this.errors.filter((e) => !path || e.path === path || e.path.startsWith(path + '.'))
+      if (gen !== this.validateGen) return scoped()
+      return scoped()
     } finally {
-      this.validating = false
-      this.bumpMeta()
-      this.emit()
+      if (gen === this.validateGen) {
+        this.validating = false
+        this.bumpMeta()
+        this.emit()
+      }
     }
   }
 
@@ -828,7 +854,8 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
 
   /**
    * Drop JSX `rules` / `required` for `path`.
-   * Restores a declaration or item template. Leaves `$rules` and `$required` from a reaction in place.
+   * Restores a declaration or item template, recomputes errors from what remains, and drops a validator that has not resolved.
+   * Leaves `$rules` and `$required` from a reaction in place.
    */
   releaseJsxField(path: string): void {
     const field = this.fields.get(path)
@@ -859,6 +886,15 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
         this.bumpPath(path)
       }
     }
+    const owned = (restoreRules && !field.rulesFromEffect) || (restoreRequired && !field.requiredFromEffect)
+    if (!owned) return
+    this.discardInflight(field)
+    this.syncRuleMessages(path)
+    queueMicrotask(() => {
+      const current = this.fields.get(path)
+      if (!current || current.jsxActive) return
+      void this.validate(path)
+    })
   }
 
   /** Remember which key identifies a row so field models follow that id across moves. */
@@ -1170,6 +1206,65 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     return this.fields.get(path)?.triggers ?? this.options.validateTrigger ?? ['onBlur', 'onSubmit']
   }
 
+  /** Ignore an in-flight field validator. A late `apply` sees the bumped sequence and does not write. */
+  private discardInflight(field: FieldModel): void {
+    field.abort?.abort()
+    field.abort = undefined
+    field.asyncSeq += 1
+    if (field.validating) {
+      field.validating = false
+      this.bumpMeta()
+    }
+  }
+
+  /** Recompute rule messages from the field's current rules. Does not start a new async task. */
+  private syncRuleMessages(path: string): void {
+    const field = this.fields.get(path)
+    if (!field) return
+    if (this.effectiveDisplay(path) === 'none' || field.computed) {
+      this.setErrors(path, [])
+      return
+    }
+    const value = getAt(this.values, path)
+    const scope = scopeOf(path)
+    const pos = this.readPos(path)
+    const ctx: ValidateCtx = {
+      path,
+      value,
+      record: scope.recordPath ? getAt(this.values, scope.recordPath) : this.values,
+      root: this.values,
+      parent: scope.parentPath ? getAt(this.values, scope.parentPath) : this.values,
+      array: scope.arrayPath ? (getAt(this.values, scope.arrayPath) as any[]) : undefined,
+      index: scope.index,
+      get: (p) => getAt(this.values, p),
+      pos,
+      depth: pos?.length,
+    }
+    const { messages } = runRules(
+      value,
+      field.rules.filter((rule) => !rule.schema),
+      ctx,
+      field.required,
+    )
+    this.setErrors(path, messages)
+  }
+
+  /** Remove a template instance, including a validator that has not resolved yet. */
+  private dropField(path: string): void {
+    const field = this.fields.get(path)
+    if (!field) return
+    this.discardInflight(field)
+    const timer = this.validateTimers.get(path)
+    if (timer) {
+      clearTimeout(timer)
+      this.validateTimers.delete(path)
+    }
+    this.schemaByPath.delete(path)
+    this.fields.delete(path)
+    this.bumpPath(path)
+    this.bumpMeta()
+  }
+
   private async validateOne(path: string): Promise<{ stale: boolean; issues: SchemaIssue[] }> {
     const field = this.fields.get(path)
     if (!field) return { stale: false, issues: [] }
@@ -1467,9 +1562,25 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     }
   }
 
-  /** Copy item templates onto indexes that exist right now. Declarations, JSX rules, and `$rules` stay. */
+  /**
+   * Copy item templates onto indexes that exist right now, and drop template instances that no longer do.
+   * Exact declarations, JSX rules, and `$rules` stay.
+   */
   private applyItemTemplates(): void {
     if (!this.itemTemplates.length) return
+    const live = new Set<string>()
+    for (const tpl of this.itemTemplates) {
+      for (const path of expandTemplate(tpl.pattern, this.values)) live.add(path)
+    }
+    const stale: string[] = []
+    for (const [path, field] of this.fields) {
+      if (!field.templateApplied) continue
+      if (field.declaredRules !== undefined || field.declaredRequired !== undefined) continue
+      if (live.has(path)) continue
+      if (!this.itemTemplates.some((tpl) => templateMatches(tpl.pattern, path))) continue
+      stale.push(path)
+    }
+    for (const path of stale) this.dropField(path)
     for (const tpl of this.itemTemplates) {
       for (const path of expandTemplate(tpl.pattern, this.values)) this.applyTemplateSpec(path, tpl.spec)
     }
@@ -1477,6 +1588,7 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
 
   private applyTemplateSpec(path: string, spec: FieldSpec): void {
     const field = this.ensure(path)
+    if (field.declaredRules === undefined && field.declaredRequired === undefined) field.templateApplied = true
     this.applyFieldFlags(field, spec, 'template')
     if (spec.rules !== undefined && !field.rulesFromEffect && field.declaredRules === undefined && field.jsxRules === undefined) {
       const rules = normalizeRules(spec.rules)
@@ -1535,6 +1647,7 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
         validating: false,
         enumLoading: false,
         enumFromEffect: false,
+        templateApplied: false,
         asyncSeq: 0,
         enumSeq: 0,
       }
