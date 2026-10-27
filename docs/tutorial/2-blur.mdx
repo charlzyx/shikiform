@@ -1,0 +1,31 @@
+---
+title: 2. 失焦再校验
+description: validateTrigger 加上 onBlur，离开输入框就看到错误。
+pageType: doc-wide
+outline: false
+---
+
+import starter from './_files/02-blur.tsx?raw';
+import solution from './_files/02-blur.solution.tsx?raw';
+import { StepNav, TutorialPlay } from '../_components/TutorialStep';
+
+# 失焦再校验
+
+<div className="tutorial-step">
+<div className="tutorial-copy">
+
+规则写在 `Field` 的 `rules` 上：必填，以及 `format: 'email'`。
+
+现在 `validateTrigger` 只有 `onSubmit`。打字、离开输入框，都没有提示，要点提交才出现错误。
+
+**这一步：** 把 `validateTrigger` 改成 `['onBlur', 'onSubmit']`。
+
+离开邮箱框就看到「必填」或「邮箱格式不对」。输入过程中不校验（没有 `onChange`）。空着点提交，下面不会出现 JSON。
+
+<StepNav prev={{ href: '/tutorial/1-start', title: '最小表单' }} next={{ href: '/tutorial/3-visible', title: '显隐只看 $visible' }} />
+
+</div>
+
+<TutorialPlay starter={starter} solution={solution} />
+
+</div>

@@ -1,0 +1,29 @@
+---
+title: 1. 最小表单
+description: useForm、Form、Field、Submit。提交后看到 JSON。
+pageType: doc-wide
+outline: false
+---
+
+import starter from './_files/01-start.tsx?raw';
+import solution from './_files/01-start.solution.tsx?raw';
+import { StepNav, TutorialPlay } from '../_components/TutorialStep';
+
+# 最小表单
+
+<div className="tutorial-step">
+<div className="tutorial-copy">
+
+一个表单由四块拼起来：`useForm` 保存值，`Form` 包住它，`Field` 的 `name` 是路径，`Submit` 提交。
+
+`decorator` 是 `FormItem`，负责标签。里面的 `Input` 负责输入。校验文案也出现在 `FormItem` 上，下一步再用。
+
+**这一步：** 加上邮箱字段。`initialValues` 里写上 `email`，JSX 里再放一个 `Field`。提交之后，下面的 JSON 里同时有 `name` 和 `email`。
+
+<StepNav next={{ href: '/tutorial/2-blur', title: '失焦再校验' }} />
+
+</div>
+
+<TutorialPlay starter={starter} solution={solution} />
+
+</div>

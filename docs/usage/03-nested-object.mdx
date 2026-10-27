@@ -1,0 +1,26 @@
+---
+title: "03 · 嵌套对象"
+description: "企业资料：同一个“地址”子表单组件挂两次（注册地址 / 办公地址），模块规则是收 handle 的普通函数，写一次作"
+---
+
+import { OpenPoints } from '../_components/OpenPoints';
+import code from '../../usage/03-nested-object.tsx?raw';
+
+:::caution[伪代码]
+API 设计轮：下面的代码是“理想 API”下的业务写法，**没有实现、不能运行**。源文件：`usage/03-nested-object.tsx`。
+:::
+
+企业资料：同一个“地址”子表单组件挂两次（注册地址 / 办公地址），模块规则是收 handle 的普通函数，写一次作用两处；ObjectField 整块显隐、值保留。
+
+**演示的特性：** ObjectField · 相对名 · 模块规则函数 · 隐藏语义
+
+## 本用例的 ❓ 待定点
+
+<OpenPoints code={code} />
+
+汇总与建议见 [待拍板](/decisions)。
+
+## 用法代码
+
+```tsx title="usage/03-nested-object.tsx" file="<root>/usage/03-nested-object.tsx"
+```

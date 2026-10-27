@@ -1,0 +1,17 @@
+[
+  "index",
+  {
+    "type": "dir",
+    "name": "tutorial",
+    "label": "教程",
+    "collapsed": false
+  },
+  "api",
+  "decisions",
+  {
+    "type": "dir",
+    "name": "usage",
+    "label": "用例（伪代码）",
+    "collapsed": false
+  }
+]

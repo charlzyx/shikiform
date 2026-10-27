@@ -1,0 +1,41 @@
+---
+title: 8. 数组和 autorun.each
+description: 行模板、添加、删除，每一行自己算小计。
+pageType: doc-wide
+outline: false
+---
+
+import starter from './_files/08-array.tsx?raw';
+import solution from './_files/08-array.solution.tsx?raw';
+import { StepNav, TutorialPlay } from '../_components/TutorialStep';
+
+# 数组和 autorun.each
+
+<div className="tutorial-step">
+<div className="tutorial-copy">
+
+`ArrayField` 按行渲染里面的 `Field`。`rowKey` 用每行的 `id`。底部有「添加一行」，`createRow` 负责新行的初始值。`useRow().remove` 删当前行。
+
+每一行的小计和上一步的金额一样，是计算值。数组用 `autorun.each`：每一行一个实例。
+
+**这一步：** 加上 effects，选择器返回数组的 handle：
+
+```ts
+autorun.each(
+  (d) => d.items,
+  (row) => {
+    const total = (row.price.$value || 0) * (row.qty.$value || 0);
+    row.total.$value = total;
+  },
+);
+```
+
+改某一行的单价或数量，只有这一行的小计变。小计是阅读态。提交时每一行没有 `total`。
+
+<StepNav prev={{ href: '/tutorial/7-watch', title: 'watch 做动作' }} next={{ href: '/tutorial/9-validation', title: '规则和 Zod' }} />
+
+</div>
+
+<TutorialPlay starter={starter} solution={solution} />
+
+</div>

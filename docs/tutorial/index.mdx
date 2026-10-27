@@ -1,0 +1,65 @@
+---
+title: 开始
+description: 一步一个概念。左边是说明，右边可以改代码并立刻看到结果。
+---
+
+# 教程
+
+教程按 Vue.js 官方教程的方式来：每一步只讲一个概念。右边可以直接改代码，预览会跟着变。点 **看答案** 换成参考写法，点 **重置** 回到这一步开始时的代码。
+
+用例页仍然是理想 API 下的伪代码，不能运行。能跑的是文档站里的教学运行时，只覆盖教程用到的、已经拍板的那一段：`Form` / `Field` / `ArrayField`、`autorun` / `watch`、`$visible`、`pattern`、`virtual`、规则和 `shikiform/zod`。树、异步 Enum、`shikiform/pro` 的表格不在这里。
+
+## 先看一个能跑的表单
+
+```tsx preview
+import { Form, Field, Submit, useForm } from 'shikiform';
+import { FormItem, Input } from 'shikiform/ui';
+
+export default function Welcome() {
+  const form = useForm({ initialValues: { name: 'Ada' } });
+  return (
+    <Form form={form} onSubmit={() => undefined}>
+      <Field name="name" decorator={<FormItem label="姓名" />}>
+        <Input />
+      </Field>
+      <Submit>提交</Submit>
+    </Form>
+  );
+}
+```
+
+`FormItem` 和 `Input` 来自 `shikiform/ui`。这是文档站的适配层，方便教程 import，不是产品要发布的入口。业务项目里仍按 [用例 00](/usage/00-ui-adapter) 自己写 `connect`。
+
+## 步骤
+
+1. [最小表单](/tutorial/1-start)
+2. [失焦再校验](/tutorial/2-blur)
+3. [显隐只看 $visible](/tutorial/3-visible)
+4. [pattern](/tutorial/4-pattern)
+5. [virtual 不提交](/tutorial/5-virtual)
+6. [autorun 写计算值](/tutorial/6-autorun)
+7. [watch 做动作](/tutorial/7-watch)
+8. [数组和 autorun.each](/tutorial/8-array)
+9. [规则和 Zod](/tutorial/9-validation)
+10. [没挂载的字段](/tutorial/10-declared)
+11. [接下来看用例](/tutorial/11-done)
+
+<div className="tutorial-register">
+
+```tsx live
+import { useForm } from 'shikiform';
+import { FormItem } from 'shikiform/ui';
+import { zodResolver } from 'shikiform/zod';
+import { z } from 'zod';
+
+void useForm;
+void FormItem;
+void zodResolver;
+void z;
+
+export default function Register() {
+  return null;
+}
+```
+
+</div>

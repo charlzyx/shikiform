@@ -1,0 +1,33 @@
+---
+title: 3. 显隐只看 $visible
+description: 一个开关决定邮箱出不出现。藏起来仍保留值，并跳过校验。
+pageType: doc-wide
+outline: false
+---
+
+import starter from './_files/03-visible.tsx?raw';
+import solution from './_files/03-visible.solution.tsx?raw';
+import { StepNav, TutorialPlay } from '../_components/TutorialStep';
+
+# 显隐只看 $visible
+
+<div className="tutorial-step">
+<div className="tutorial-copy">
+
+显隐只写 `$visible`。字段还在树上，只是不画出来：值留着，校验跳过，提交 JSON 里仍有这个键。
+
+把 `Field` 从 JSX 里拿掉是另一件事，第 10 步再讲。
+
+起始代码的 `autorun` 读了 `contact`，没有写邮箱的显隐，所以邮箱一直在。
+
+**这一步：** 在 `autorun` 里写上 `d.email.$visible = d.contact.$value`。
+
+关掉「需要联系」：邮箱消失。打开、把邮箱清空再失焦：出现「必填」。再关掉：错误消失，提交成功，JSON 里仍有 `email`。
+
+<StepNav prev={{ href: '/tutorial/2-blur', title: '失焦再校验' }} next={{ href: '/tutorial/4-pattern', title: 'pattern' }} />
+
+</div>
+
+<TutorialPlay starter={starter} solution={solution} />
+
+</div>

@@ -1,19 +1,29 @@
 {
   "dependencies": {
-    "@astrojs/react": "^7.1.1",
-    "@astrojs/starlight": "^0.42.7",
-    "astro": "^7.4.2",
+    "@live-demo/rspress": "^3.0.2",
+    "@rspress/core": "^2.0.23",
+    "@rspress/plugin-preview": "^2.0.23",
     "immer": "^11.2.9",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "zustand": "^5.0.16"
+    "zod": "^4.1.12"
   },
-  "description": "ShikiForm — Formly-level abstraction, React immutable style, JSX-first. Current round: API-first usage cases (pseudocode), no implementation.",
+  "description": "ShikiForm — Formly-level abstraction, React immutable style, JSX-first. Docs site (Rspress) plus a teaching runtime for the tutorial.",
   "devDependencies": {
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.2.0",
+    "remark-gfm": "^4.0.1",
+    "remark-parse": "^11.0.0",
     "typescript": "^5.9.3",
+    "unified": "^11.0.5",
+    "unist-util-visit": "^5.2.0",
     "vitest": "^5.0.5"
+  },
+  "exports": {
+    ".": "./src/runtime/index.ts",
+    "./ui": "./src/runtime/ui.tsx",
+    "./zod": "./src/runtime/zod.ts"
   },
   "name": "shikiform",
   "peerDependencies": {
@@ -22,11 +32,12 @@
   },
   "private": true,
   "scripts": {
-    "build": "astro build",
-    "build:cf-pages": "astro build",
+    "build": "rspress build",
+    "build:cf-pages": "rspress build",
     "check": "tsc --noEmit",
-    "dev": "astro dev",
-    "preview": "astro preview"
+    "dev": "rspress dev",
+    "preview": "rspress preview",
+    "test": "vitest run"
   },
   "type": "module",
   "version": "0.1.0"

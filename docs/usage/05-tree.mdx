@@ -1,0 +1,26 @@
+---
+title: "05 · 树"
+description: "菜单编辑器：树节点坐标 pos（如 [0,2,1]）、depth、按 pos 移动 / 定位（findPos → pathOf）、禁止移入自身后代（pos 前缀判断）"
+---
+
+import { OpenPoints } from '../_components/OpenPoints';
+import code from '../../usage/05-tree.tsx?raw';
+
+:::caution[伪代码]
+API 设计轮：下面的代码是“理想 API”下的业务写法，**没有实现、不能运行**。源文件：`usage/05-tree.tsx`。
+:::
+
+菜单编辑器：节点模板递归，节点即 record。**2026-10-27：树节点比数组行多一个 `pos`**——索引路径二维坐标，如 `[0,2,1]`：`pos.length` = 层级 depth，最后一位 = 兄弟中的 index，数据 path 由它推出（`menus.0.children.2.children.1`）。移动全部用 pos（`move(fromPos, toPos)`、缩进 / 反缩进 / 上下移），禁止移入自身后代 = 目标 pos 以源 pos 为前缀；按 depth 做联动和分层校验；按 pos 查询。
+
+**演示的特性：** TreeField · pos / depth · useNode / useTree · 跨层移动 · 分层校验
+
+## 本用例的 ❓ 待定点
+
+<OpenPoints code={code} />
+
+汇总与建议见 [待拍板](/decisions)。
+
+## 用法代码
+
+```tsx title="usage/05-tree.tsx" file="<root>/usage/05-tree.tsx"
+```
