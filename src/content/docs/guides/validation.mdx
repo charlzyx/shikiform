@@ -1,0 +1,73 @@
+---
+title: 校验
+description: 内置规则和任意 Standard Schema v1，字段级或整表。
+---
+
+规则可以是内置对象，也可以是任意 [Standard Schema](https://standardschema.dev) v1（Zod、Valibot、ArkType）。不需要适配器。
+
+## 字段
+
+空 path 的 issue 落在这个字段上。相对 path 会接到字段 path 后面：`address` 上的 `city` 是 `address.city`，`items` 上的 `0.name` 是 `items.0.name`。
+
+```tsx
+import { z } from 'zod'
+import { Field } from 'shikiform'
+
+<Field name="email" rules={[z.string().email('邮箱格式不对'), { minLength: 3, message: '太短' }]}>
+  {(field) => (
+    <input
+      value={field.value ?? ''}
+      onChange={(event) => field.onChange(event.target.value)}
+      onBlur={field.onBlur}
+    />
+  )}
+</Field>
+```
+
+内置规则还有 `required`、`min` / `max`、`minLength` / `maxLength`、`pattern`、`format: 'email' | 'url'`、`isTrue` 和 `validator`。
+
+## 整表
+
+`useForm({ validate: schema })` 对整份值跑一个 schema。issue 的 `path` 写回对应字段的 `$errors`，包括数组下标和树的索引路径：
+
+- `['items', 0, 'name']` → `items.0.name`
+- `['nodes', 0, 'children', 1, 'name']` → `nodes.0.children.1.name`
+- `{ key: 0 }` 这种 path 段同样会拼进去
+
+```tsx
+import * as v from 'valibot'
+import { useForm } from 'shikiform'
+
+const schema = v.pipe(
+  v.object({
+    password: v.string(),
+    confirm: v.string(),
+    items: v.array(v.object({ name: v.pipe(v.string(), v.minLength(1, '名称必填')) })),
+  }),
+  v.forward(
+    v.partialCheck(
+      [['password'], ['confirm']],
+      (input) => input.password === input.confirm,
+      '两次密码不一致',
+    ),
+    ['confirm'],
+  ),
+)
+
+const form = useForm({
+  initialValues: { password: '', confirm: '', items: [{ name: '' }] },
+  validate: schema,
+})
+```
+
+再校验某一个字段时，会重跑整表 schema，但只刷新这个字段（以及它下面）的 schema 错误，其它字段上已有的 schema 错误留着。
+
+## 显隐和未挂载的字段
+
+`hidden` 照常校验，值也会提交。`none` 丢掉这条 issue，值也不提交。祖先是 `none` 时，子孙的 issue 一并丢掉。
+
+字段按声明参加提交校验，不按 JSX 是否挂载。`useForm({ fields: { code: { required: true } } })`、`registerField`，以及 reaction 里的 `$rules`，在页签没渲染、区域折起来、行滚出虚拟列表时仍然生效。`rows.*.name` 是行模板，套到每一个下标上。
+
+`<Field rules={…}>` 只在这个组件挂着的时候生效。卸载时清掉的是这份 JSX 规则。声明、模板和 `$rules` 还在。
+
+异步的 `validator` 和异步 schema 可以用 `asyncDebounceMs`。新的一次编辑会 abort 上一次的 `AbortSignal`，过期结果不会写回。

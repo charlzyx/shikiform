@@ -1,0 +1,53 @@
+---
+title: 联动
+description: reaction 派生状态，watch 在源变化后做动作。
+---
+
+效果在 `defineEffects` 里写，传给 `useForm({ effects })`。同一个 draft 上只有两个动词。
+
+| 动词 | 何时用 |
+|---|---|
+| `reaction` | 派生下一状态：显隐、枚举、pattern、计算出来的 `$value`。读过的 `$` 状态变了才重跑。写不是依赖。 |
+| `watch` | 源变了之后做一件事，例如把页码打回 1、清掉非法的子字段。第一次不跑。 |
+
+```tsx
+import { defineEffects, useForm } from 'shikiform'
+
+interface Values {
+  price: number
+  qty: number
+  line: number
+  city: string
+  district: string
+  rows: { price: number; qty: number; line: number }[]
+}
+
+const effects = defineEffects<Values>(({ reaction, watch }) => {
+  reaction((d) => {
+    d.line.$value = (d.price.$value || 0) * (d.qty.$value || 0)
+  })
+  reaction.each(
+    (d) => d.rows,
+    (row) => {
+      row.line.$value = (row.price.$value || 0) * (row.qty.$value || 0)
+    },
+  )
+  watch(
+    (d) => d.city.$value,
+    (d) => {
+      d.district.$value = ''
+    },
+  )
+})
+
+const form = useForm<Values>({
+  initialValues: { price: 0, qty: 0, line: 0, city: '', district: '', rows: [] },
+  effects: [effects],
+})
+```
+
+`reaction.each` 每个数组下标一个实例。改一行只重跑那一行。`reaction.walk` 是树：每个节点一个实例，回调收到 `pos: number[]`。
+
+读自己刚写的状态会形成环。把新值留在局部变量里。两个 reaction 写同一个状态，开发环境会报 `ShikiConflictError`。
+
+`form.batch(d => { ... })` 把多次写入收成一轮。组件里用 `useWatch(d => d.line.$value)` 或 `<Watch select={d => d.$canSubmit}>` 订阅同样的 draft 读取。

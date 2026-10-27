@@ -1,0 +1,56 @@
+---
+title: 查询表
+description: useQueryTable 把筛选、分页和选择接在同一张表单上。
+---
+
+`useQueryTable` 从 `shikiform/pro` 引入，不依赖 Ant Design。`shikiform/antd` 的 `ProQueryTable` 是它的薄包装。
+
+筛选字段是普通字段。服务端分页时 `page` / `pageSize` 会提交。`selectedKeys` 是 `virtual`：翻页保留，新的一次搜索会清空并回到第 1 页。`reset` 恢复初始值并重新请求。`refresh` 保持当前页和选择。
+
+```tsx
+import { Field, Form } from 'shikiform'
+import { useQueryTable } from 'shikiform/pro'
+
+interface Filters {
+  keyword: string
+  page: number
+  pageSize: number
+  selectedKeys: string[]
+}
+
+interface Row {
+  id: string
+  keyword: string
+}
+
+const rows: Row[] = []
+
+export function Logs() {
+  const table = useQueryTable<Filters, { keyword: string }, Row>({
+    initialValues: { keyword: '', page: 1, pageSize: 5, selectedKeys: [] },
+    defaultPageSize: 5,
+    params: (values) => ({ keyword: values.keyword }),
+    request: async ({ params, page, pageSize }) => {
+      const matched = rows.filter((row) => !params.keyword || row.keyword.includes(params.keyword))
+      const start = (page - 1) * pageSize
+      return { data: matched.slice(start, start + pageSize), total: matched.length }
+    },
+  })
+  return (
+    <Form form={table.form} onSubmit={() => table.submit()}>
+      <Field name="keyword">
+        {(field) => (
+          <input value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value)} />
+        )}
+      </Field>
+      <button type="submit">查询</button>
+      <button type="button" onClick={() => table.reset()}>重置</button>
+      <p>{table.loading ? '加载中' : `${table.total} 条`}</p>
+    </Form>
+  )
+}
+```
+
+`mode: 'client'` 时 `page` 是 `virtual`，翻页只切已缓存的列表，不再请求。可选的 `useQuery` 参数形状对齐 TanStack Query（`placeholderData` 用来留下上一页）。这个包不 import `@tanstack/react-query`。
+
+本地可点的查询表在 [示例](/demos/) 的 `/query` 和 `/query-native`。

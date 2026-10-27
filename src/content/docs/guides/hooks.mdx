@@ -1,0 +1,42 @@
+---
+title: 无头 Hook
+description: 不装 UI 库也能订阅字段、移动数组和树。
+---
+
+`shikiform` 的 React 层不引用 UI 库。`<Field>` 是 `useField` 的薄包装。核心在没有 React 时也能用：`d.x.$required = true` 会按 path 建出字段，然后可以直接 `validate`。
+
+| Hook | 作用 |
+|---|---|
+| `useForm` | 创建并持有引擎 |
+| `useField(name)` | 只订阅这一条 path。行内部的 `useField('price')` 是这一行的 price |
+| `useArrayField(name)` | `keys`、`push`、`insert`、`remove`、`move`、`swap`、`replace`。有 id 时用 id 做 key |
+| `useArrayMove(name)` | 拖拽。`move(from, to)` 带着行 id、字段状态和这一行的 reaction 一起走。调用方自己不订阅结构 |
+| `useTreeField` / `useTreeMove` | `pos: number[]`，包括跨父节点移动 |
+| `useWatch(d => …)` | 和 `<Watch select>` 一样，只订阅 selector 里读到的 `$` 状态 |
+
+```tsx
+import { ArrayField, useField } from 'shikiform'
+
+interface Row {
+  price: number
+}
+
+function Price() {
+  const field = useField<Row>('price')
+  return (
+    <input
+      value={field.value ?? ''}
+      onChange={(event) => field.onChange(Number(event.target.value))}
+      onBlur={field.onBlur}
+    />
+  )
+}
+
+<ArrayField name="items">{(row) => <div key={row.key}><Price /></div>}</ArrayField>
+```
+
+`useForm<Values>()` 之后，`form.getValue('nope')` 是类型错误。`useArrayMove` 和 `useTreeMove` 不订阅结构，所以一次拖拽只让换了位置的行重渲染。
+
+可复用的一块 UI 用 `withFieldGroup`。地址块内部写 `name="city"`，挂到 `name="address"` 上时读的是 `address.city`。
+
+无头拖拽和原生输入的查询表在 [示例](/demos/) 的 `/headless` 和 `/query-native`。

@@ -1,0 +1,45 @@
+---
+title: 字段
+description: Field、显隐、pattern，以及不进提交值的 virtual。
+---
+
+字段按数据结构分：`Field`、`ObjectField`、`ArrayField`、`TreeField`。布局是普通 JSX，不占 path。
+
+## 显隐
+
+`display` 有三种。校验跟它走，不跟 React 是否挂载走。
+
+| 值 | 界面 | 值 | 校验和提交 |
+|---|---|---|---|
+| `visible` | 显示 | 保留 | 校验，提交 |
+| `hidden` | 不显示 | 保留 | 仍然校验，仍然提交 |
+| `none` | 不显示 | 丢掉 | 跳过校验，不进提交值 |
+
+`$visible = false` 等于 `hidden`，不是 `none`。祖先是 `none` 时，子孙也是 `none`。
+
+不在当前页的字段可以设成 `hidden`。规则若来自 `useForm({ fields })`、`registerField` 或 `$rules`，对应的 `<Field>` 不渲染也会校验。只写在 JSX `rules` 上的规则，卸掉组件后不再校验，也不会清掉前面那三种。数组行用 `rows.*.name` 这种模板，或者 `reaction.each` 写 `$rules`，每一行都算，包括虚拟列表里没挂上的行。
+
+```tsx
+form.batch((d) => {
+  d.nick.$display = 'hidden'
+  d.ghost.$display = 'none'
+})
+```
+
+页签把不在当前页的字段设成 `hidden`，不要把字段模型卸掉。
+
+## pattern
+
+`editable`、`disabled`、`readOnly`、`readPretty`。自己写了就用自己的，否则继承祖先。把 `$pattern` 设成 `undefined` 会重新继承。`$disabled = true` 写成 `disabled`。
+
+计算字段（`reaction` 写了 `$value`）默认是 `readPretty`，并且默认 `virtual`。需要把计算结果提交出去时，在字段上写 `virtual={false}`。
+
+## virtual
+
+`virtual` 的字段有值，也能被 `reaction` 读写，只是 `getSubmitValues()` 会把它拿掉。确认密码、勾选行、前端分页的 `page` 通常是 `virtual`。服务端分页的 `page` 是普通字段，要提交。
+
+行上的编辑不必再开一张表单。同一张表单里放一个 `virtual` 对象（例如 `editor`），表格只监听一次点击，从 `data-index`、`data-row-id`、`data-action` 读出点的是哪一行、哪种操作。编辑和详情各挂一个抽屉，不要在每一行里各挂一个。按 id 把数据填进这个对象，确定再写回那一行，取消只关掉。提交结果里没有这个对象。见 [`/play/row-edit`](/play/row-edit)。
+
+## 数组和树
+
+数组列写在行作用域里，`name` 相对当前行。树节点的坐标是 `pos: number[]`，path 仍是索引路径（`nodes.0.children.1.name`），不是节点 id。移动后的 `toPos` 是移动完成之后的坐标。不能把节点移进自己或自己的子孙。
