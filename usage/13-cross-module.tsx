@@ -1,7 +1,7 @@
 // 13 跨模块联动：Agent 工具配置页（大表单拆成多个模块文件，各自维护）
 // 覆盖：每个模块 = 一个 ObjectField 子树 + 自己的规则函数 + 自己的组件；
 //      模块规则是普通函数，参数是模块根的 handle（Draft<模块类型>）——“相对”靠 JS 作用域，不靠相对路径字符串；
-//      宿主在自己的 autorun 里把 d.model / d.tools 传进去，同一个模块在别的表单里传别的 handle 即可复用；
+//      宿主在自己的 reaction 里把 d.model / d.tools 传进去，同一个模块在别的表单里传别的 handle 即可复用；
 //      跨模块：宿主把需要的别的 handle 显式传给模块，模块不读整表单根；
 //      多个模块的同名字段：列出精确 handle（没有正则 query）。
 // ⚠️ 假代码：只看 API 是否顺手，不能运行。
@@ -82,16 +82,16 @@ export function LimitsModuleFields() {
 // ---------------- 宿主页面：组装模块 ----------------
 interface AgentConfig { model: ModelModule; tools: { items: Tool[] }; limits: Limits }
 
-const hostEffects = defineEffects<AgentConfig>(({ autorun }) => {
+const hostEffects = defineEffects<AgentConfig>(({ reaction }) => {
   // 把模块规则挂到具体 handle 上；同一个模块在别的页面可以传 d.fallback.model 等别的 handle
-  autorun((d) => modelRules(d.model));
-  autorun.each(
+  reaction((d) => modelRules(d.model));
+  reaction.each(
     (d) => d.tools.items,
     (t, d) => toolRules(t, { stream: d.model.stream }),
   );
 
   // 两个模块里都有 maxTokens：列出精确 handle，一次设置
-  autorun((d) => {
+  reaction((d) => {
     const locked = d.model.provider.$value === 'ollama';
     for (const h of [d.model.maxTokens, d.limits.maxTokens]) h.$pattern = locked ? 'readPretty' : 'editable';
   });
@@ -110,7 +110,7 @@ export function AgentConfigPage({ initial }: { initial: AgentConfig }) {
         </TabsList>
         {/* ❓ 非激活 Tab 的内容不挂载 → 它的 Field 没挂载 → JSX 里的 rules 不生效，提交时不校验。
                 提议（Q5，未定，等确认）：字段按声明（表单类型）存在，不按挂载存在；
-                autorun 里写的 d.model.model.$rules = [...] 不论挂没挂载都校验；JSX 的 rules prop 只是便捷写法，只在挂载时生效。
+                reaction 里写的 d.model.model.$rules = [...] 不论挂没挂载都校验；JSX 的 rules prop 只是便捷写法，只在挂载时生效。
                 这里先保留 forceMount（全部挂载，CSS 隐藏）。 */}
         <TabsContent value="model" forceMount>
           <ObjectField name="model">

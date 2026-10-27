@@ -1,32 +1,35 @@
 # ShikiForm
 
-> **当前 `main` = API 设计轮（usage-only）。** 旧实现（`src/core`、`src/react`、`src/pro`、`src/ui`、demo 组件、测试）已全部删除。
-> 现在仓库里只有：`usage/*.tsx`（理想 API 下的业务伪代码，**没有实现、不能运行**）、`usage/API.md`（由用例反推的 API 草案）、
-> `usage/DECISIONS.md`（待拍板问题）、设计笔记（PLAN / STATE / LAYOUT / QUALITY），以及展示这些内容的 Starlight 文档站。
-> 文档站（https://shikiform.pages.dev）每个用例页直接引用 `usage/` 源文件。API 定下来之后再写实现。
+JSX describes structure. Draft + `$` describes state. `reaction` / `watch` describe linkage. Formily `display` owns visibility and validation.
 
-Deployed to Cloudflare Pages (https://shikiform.pages.dev) on every push to `main`.
+Packages, all in this repo:
 
-Formly 级抽象、React 不可变风格、JSX-first 的表单库（大胆重构版，不保留 zustform 旧 API）。
+- `shikiform` — core plus headless React (`useForm`, `useField`, `useArrayField`, `useArrayMove`, `useTreeField`, `useTreeMove`, `useWatch`, `createFormHook`, `withForm`, `withFieldGroup`, `<Watch>`)
+- `shikiform/core` — the form engine, no React
+- `shikiform/pro` — headless `useQueryTable` (no Ant Design)
+- `shikiform/antd` — Ant Design inputs, `ProQueryTable`, `ArrayTable`, `MergedTable`
 
-- 统一 Field 树：Field / Object / Array / Tree / Void / Transient / Computed（不叫 Virtual）
-- 集中 effect + record / array 作用域 + 依赖图：联动只写一处，JSX 里没有三元显隐
-- 首屏 Demo 就是测试用例：SKU 编辑器（颜色 / 价格 / 配置多对多联动）
-- UI：shadcn 风格手写轻量组件，不依赖 Antd（Antd Form 的 Demo 形态只作模式参考）
-- 兼容性：peer `react ^18 || ^19`，代码只用 React 18 已有的 Hook，绝对不用 React 19 新 Hook（`use()`、`useActionState`、`useFormStatus`、`useOptimistic` 等）
+Peer dependency is `react` ^18 or ^19. The code uses React 18 hooks only. `usage/*.tsx` stays pseudocode and is excluded from `tsc`. The short design note is [ARCH.md](ARCH.md).
 
-完整规划见 [PLAN.md](PLAN.md)。
-
-## 本地开发
+## Scripts
 
 ```bash
-cd ~/workspace/shiki
 npm install
-npm run dev      # Astro Starlight 文档站：本轮说明 / API 草案 / 待拍板 / 用例
-npm run check    # tsc --noEmit（只检查 src/，usage/ 是伪代码，已排除）
-npm run build    # 静态构建，输出 dist/
-npm run preview  # 本地预览 dist/
+npm test            # vitest: reaction, display, move, tree, standard schema, meta
+npm run check       # tsc --noEmit
+npm run build       # Astro Starlight → dist/
+npm run dev         # docs site
+npm run dev:e2e     # Vite playground at http://127.0.0.1:5173
+npm run test:e2e    # Playwright. Install the browser once: npx playwright install chromium
 ```
+
+`test:e2e` starts the playground. Routes: `/query`, `/query-native`, `/schema`, `/sku`, `/merged`, `/nested`, `/tabs`, `/large`, `/virtual`, `/headless`.
+
+Standard Schema v1 (Zod, Valibot, ArkType) is a field rule (`rules={z.string().email()}`), mixable with built-in rules, and a form validator (`useForm({ validate: schema })`). Issue paths map onto field `$errors`, including array indexes and tree positions. `hidden` validates. `none` skips.
+
+## Not in this cut
+
+Server rendering, devtools, and `transform` / `mergeForm`. `useQueryTable` can take a TanStack Query compatible `useQuery` function; the package does not depend on `@tanstack/react-query`.
 
 ## 部署：Cloudflare Pages（GitHub 联动，唯一路线）
 
@@ -57,7 +60,7 @@ Chao 自己在 Cloudflare 后台连仓库，Muse 不持有 Cloudflare 账号或 
 
 ### 验证部署成功
 
-- 首页（本轮说明）、`/api/`、`/decisions/`、`/usage/01-basic-form/` … `/usage/15-linkage-graph/` 都能打开
+- 首页、`/architecture/`、`/api/`、`/decisions/`、`/usage/01-basic-form/` … `/usage/16-effects-reference/` 都能打开
 - 静态资源路径是根路径（如 `/_astro/...`），不是 `/shiki/_astro/...`
 
 ### 排障
@@ -66,8 +69,4 @@ Chao 自己在 Cloudflare 后台连仓库，Muse 不持有 Cloudflare 账号或 
 - 构建报 Node 版本过低：Astro 7 需要较新的 Node，在 CF 的 Environment variables 里加 `NODE_VERSION=22` 再部署。
 - 构建产物不对：确认 Build output directory 是 `dist`，不是 `storybook-static`、`build` 等。
 
-## 还剩什么（未做，不夸大）
-
-- 本轮只有 API 设计：没有任何库实现，没有测试（旧的 49 个单测随实现一起删除）。
-- 下一步：Chao 在「待拍板」页定 Q1–Q10 → 按定稿改 usage → 再按 LAYOUT.md 分层写实现，测试从 usage 场景反推。
-- 旧实现的 Review 记录见 REVIEW.md（历史文档，描述的是已删除的代码）。
+REVIEW.md is the record of the deleted pre-rewrite code.

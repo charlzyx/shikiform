@@ -23,13 +23,13 @@ interface Item { id: string; sku: string; qty: number; price: number; lineTotal?
 interface Order { id: string; no: string; customer: string; status: string; items: Item[]; amount?: number /* 计算字段 */ }
 interface Values { orders: Order[]; editMode: boolean; expandedKeys: string[] }
 
-const orderEffects = defineEffects<Values>(({ autorun }) => {
+const orderEffects = defineEffects<Values>(({ reaction }) => {
   // 表格级模式：一处切换，整棵 orders 子树继承这个 $pattern
-  autorun((d) => {
+  reaction((d) => {
     d.orders.$pattern = d.editMode.$value ? 'editable' : 'readPretty';
   });
 
-  autorun.each(
+  reaction.each(
     (d) => d.orders,
     (order) => {
       // 已发货 / 已取消的订单即使在编辑模式也只读：子级显式设置覆盖继承值（Q6 已定）
@@ -87,7 +87,7 @@ export function OrderTable({ initial }: { initial: Order[] }) {
           {/* readPretty 时用 Field 的 pretty 组件展示（没给 pretty 时用默认 TextPretty） */}
         </ArrayTable.Column>
         <ArrayTable.Column title="金额" width={120}>
-          {/* amount 是计算字段（autorun 写 $value）→ 只读普通 Field */}
+          {/* amount 是计算字段（reaction 写 $value）→ 只读普通 Field */}
           <Field name="amount" decorator={<CellItem />}>
             <Money />
           </Field>

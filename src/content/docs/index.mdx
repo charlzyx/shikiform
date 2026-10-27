@@ -1,13 +1,13 @@
 ---
-title: ShikiForm · API-first 用例轮
-description: 先写用例、再写实现。本站展示的是理想 API 下的业务伪代码，没有实现。
+title: ShikiForm
+description: JSX structure, draft state, reaction / watch. Usage pages are the API sketches; the library lives in src/.
 ---
 
-# 这一轮：先写用例，再写实现
+# ShikiForm
 
-旧实现已经全部删除。这一轮只做一件事：**站在应用开发者的角度，用“理想中的 ShikiForm API”把真实业务场景写出来**，看 API 是否顺手、哪里别扭，定下来之后再写实现。
+The library is `src/core`, `src/react`, `src/pro`, and `src/antd`. Architecture is [Architecture](/architecture/). These usage pages are still the API sketches (`usage/*.tsx` is pseudocode and is not typechecked).
 
-- 所有代码都是**伪代码**：`shikiform` / `shikiform/pro` 目前没有任何实现，代码不能运行，也不保证通过类型检查。
+- 用例代码是**伪代码**：页面引用 `usage/`，不从实现包编译。
 - 每个用例页 = 一个真实场景的完整 `.tsx`（源文件在仓库 `usage/` 目录，页面直接引用源文件，只有一份）。
 - 代码里所有 `// ❓` 都是我拿不准的 API 点，会在每页顶部汇总；跨用例的汇总、选项和建议在 **[待拍板](/decisions/)**。
 - 这些用例隐含的完整公开 API 整理在 **[API 草案](/api/)**。
@@ -15,7 +15,7 @@ description: 先写用例、再写实现。本站展示的是理想 API 下的�
 ## 怎么看（建议顺序）
 
 1. **[待拍板](/decisions/)**：顶部是 2026-10-27 已拍板的 D1（删 Void / Transient / Computed 类型）、D2（树节点 pos）、D3–D8（effects 语法、UI Brand、pattern、表格列、删 scope、`virtual`），然后是仍开放的 Q0 / Q5 / Q10 与新的待拍板。
-2. **[16 effects 参考](/usage/16-effects-reference/)**：一页看完 `autorun` / `autorun.each` / `watch` + draft 代理的全部写法。
+2. **[16 effects 参考](/usage/16-effects-reference/)**：一页看完 `reaction` / `reaction.each` / `watch` + draft 代理的全部写法。
 3. **[07 SKU 选择器](/usage/07-sku-editor/)**、**[09 查询表单 + 表格](/usage/09-query-table/)**、**[10 行展开二级表格](/usage/10-expandable-nested-table/)**：最能检验 API 的三个场景。
 4. 其余用例按需翻；**[API 草案](/api/)** 当索引查。
 
@@ -27,9 +27,9 @@ description: 先写用例、再写实现。本站展示的是理想 API 下的�
 | 布局是普通组件（无 path、无值；起名 `ui` 后 `d.ui('aside')` 可控） | [01](/usage/01-basic-form/) [09](/usage/09-query-table/) [14](/usage/14-address-vs-path/) |
 | 树节点坐标 pos（depth / index / path / move / 前缀判断） | [05](/usage/05-tree/) |
 | 一个字段多个 UI、UI Brand（`ui="summary"` → `d.x.ui('summary')`） | [14](/usage/14-address-vs-path/) [09](/usage/09-query-table/) |
-| 对象 / 数组 / 行模板、`autorun.each` 每行一个实例 | [03](/usage/03-nested-object/) [04](/usage/04-array/) [08](/usage/08-merged-table/) [10](/usage/10-expandable-nested-table/) |
-| 集中 effect（`autorun` / `watch` + draft 代理、`$` 状态）、一对多 / 多对一 / 多对多、依赖图、环检测 | [16](/usage/16-effects-reference/) [02](/usage/02-provider-config/) [07](/usage/07-sku-editor/) [15](/usage/15-linkage-graph/) |
-| 计算值（autorun 写 `$value`，JSX 里是只读 Field） | [06](/usage/06-computed/) [07](/usage/07-sku-editor/) [08](/usage/08-merged-table/) |
+| 对象 / 数组 / 行模板、`reaction.each` 每行一个实例 | [03](/usage/03-nested-object/) [04](/usage/04-array/) [08](/usage/08-merged-table/) [10](/usage/10-expandable-nested-table/) |
+| 集中 effect（`reaction` / `watch` + draft 代理、`$` 状态）、一对多 / 多对一 / 多对多、依赖图、环检测 | [16](/usage/16-effects-reference/) [02](/usage/02-provider-config/) [07](/usage/07-sku-editor/) [15](/usage/15-linkage-graph/) |
+| 计算值（reaction 写 `$value`，JSX 里是只读 Field） | [06](/usage/06-computed/) [07](/usage/07-sku-editor/) [08](/usage/08-merged-table/) |
 | 定位只用精确 path（`d.items[i]`、`findPos` → `pathOf`），模块规则是收 handle 的函数 | [05](/usage/05-tree/) [12](/usage/12-large-table/) [13](/usage/13-cross-module/) [16](/usage/16-effects-reference/) |
 | Decorator vs Component、connect | [00](/usage/00-ui-adapter/) [14](/usage/14-address-vs-path/) |
 | pattern（editable / disabled / readOnly / readPretty，继承 + 显式覆盖）/ Pretty | [10](/usage/10-expandable-nested-table/) [13](/usage/13-cross-module/) |

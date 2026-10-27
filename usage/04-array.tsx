@@ -28,9 +28,9 @@ const TypeEnum = Enum.from([
   { label: 'Ollama', value: 'ollama' },
 ]);
 
-const routingEffects = defineEffects<RoutingConfig>(({ autorun }) => {
+const routingEffects = defineEffects<RoutingConfig>(({ reaction }) => {
   // 模板联动：写一次，每一行（含新增、复制、移动后的行）各自一个实例；row 就是“当前行”，不写相对路径字符串
-  autorun.each(
+  reaction.each(
     (d) => d.routes,
     (row, d) => {
       const t = row.type.$value;
@@ -44,7 +44,7 @@ const routingEffects = defineEffects<RoutingConfig>(({ autorun }) => {
     },
   );
   // ❓ 一个 each 实例同时读本行和根（d.strategy）：strategy 一变，所有行实例都重跑——符合预期，但 2000 行时要不要拆成
-  //    单独的 autorun 去写每一行（那就要在 autorun 里 forEach 所有行，等于一次写 N 个目标）？
+  //    单独的 reaction 去写每一行（那就要在 reaction 里 forEach 所有行，等于一次写 N 个目标）？
 });
 
 export function RoutingForm({ initial }: { initial: RoutingConfig }) {

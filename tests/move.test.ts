@@ -1,0 +1,95 @@
+import { describe, expect, it } from 'vitest'
+import { createForm, defineEffects } from '../src/core'
+
+interface Item {
+  id: string
+  name: string
+  note?: string
+}
+
+function runsFor(stats: Record<string, number>, suffix: string) {
+  const key = Object.keys(stats).find((item) => item.endsWith(suffix))
+  return key ? stats[key] : 0
+}
+
+describe('array move', () => {
+  it('moves values and field errors with the row id', async () => {
+    const form = createForm<{ rows: Item[] }>({
+      initialValues: {
+        rows: [
+          { id: 'a', name: 'A' },
+          { id: 'b', name: '' },
+          { id: 'c', name: 'C' },
+          { id: 'd', name: 'D' },
+        ],
+      },
+    })
+    form.registerField('rows.1.name', { required: true })
+    const errors = await form.validate('rows.1.name')
+    expect(errors.some((error) => error.path === 'rows.1.name')).toBe(true)
+    form.moveArray('rows', 1, 3)
+    expect(form.getValue('rows').map((row) => row.id)).toEqual(['a', 'c', 'd', 'b'])
+    expect(form.errors.some((error) => error.path === 'rows.3.name')).toBe(true)
+    expect(form.errors.some((error) => error.path === 'rows.1.name')).toBe(false)
+  })
+
+  it('swaps two rows and keeps each row error', async () => {
+    const form = createForm<{ rows: Item[] }>({
+      initialValues: {
+        rows: [
+          { id: 'a', name: '' },
+          { id: 'b', name: 'B' },
+          { id: 'c', name: 'C' },
+        ],
+      },
+    })
+    form.registerField('rows.0.name', { required: true })
+    await form.validate('rows.0.name')
+    form.swapArray('rows', 0, 2)
+    expect(form.getValue('rows').map((row) => row.id)).toEqual(['c', 'b', 'a'])
+    expect(form.errors.some((error) => error.path === 'rows.2.name')).toBe(true)
+  })
+
+  it('re-runs reactions only for indexes whose occupant changed', () => {
+    const form = createForm<{ rows: Item[] }>({
+      initialValues: {
+        rows: [
+          { id: 'a', name: 'A' },
+          { id: 'b', name: 'B' },
+          { id: 'c', name: 'C' },
+          { id: 'd', name: 'D' },
+        ],
+      },
+      effects: [
+        defineEffects<{ rows: Item[] }>(({ reaction }) => {
+          reaction.each(
+            (d) => d.rows,
+            (row) => {
+              row.note.$value = row.name.$value
+            },
+          )
+        }),
+      ],
+    })
+    const before = form.getDebugStats().runs
+    form.moveArray('rows', 1, 2)
+    const after = form.getDebugStats().runs
+    expect(form.getValue('rows').map((row) => row.id)).toEqual(['a', 'c', 'b', 'd'])
+    expect(runsFor(after, '#0')).toBe(runsFor(before, '#0'))
+    expect(runsFor(after, '#3')).toBe(runsFor(before, '#3'))
+    expect(runsFor(after, '#1')).toBeGreaterThan(runsFor(before, '#1'))
+    expect(runsFor(after, '#2')).toBeGreaterThan(runsFor(before, '#2'))
+  })
+
+  it('replaces a row and drops the previous field model', async () => {
+    const form = createForm<{ rows: Item[] }>({
+      initialValues: { rows: [{ id: 'a', name: '' }] },
+    })
+    form.registerField('rows.0.name', { required: true })
+    await form.validate('rows.0.name')
+    expect(form.errors).toHaveLength(1)
+    form.replaceArray('rows', 0, { id: 'z', name: 'Z' })
+    expect(form.getValue('rows.0.id')).toBe('z')
+    expect(form.errors).toEqual([])
+  })
+})

@@ -35,7 +35,7 @@ Agent 时代没人关注底层表单，恰恰是机会：Agent 的工具参数�
 > **2026-10-27 变更**：字段类型只按数据结构分，即上面四种。原 `VoidField` / `Transient` / `Computed` 不再是类型，而是属性组合：
 > - 布局（原 VoidField）：普通布局组件，无值、无 path，默认也无 address；需要被 effect 控制时才起名（`ui`）。Grid、查询表单布局、表格工具栏都是这类。
 > - 不提交（原 Transient）：`<Field virtual>`（2026-10-27 由 `submit={false}` 改名），如确认密码；行展开、行选择、编辑模式、折叠、草稿等 UI 状态用同一个开关。
-> - 计算（原 Computed）：字段在值类型里声明，`$value` 在 `autorun` 里写（2026-10-27），JSX 里是只读普通 Field。只读、不脏检查、不校验、重置时重算，如总价、预览地址、SKU 最终价格 / 库存、rowspan、查询参数。
+> - 计算（原 Computed）：字段在值类型里声明，`$value` 在 `reaction` 里写（2026-10-27），JSX 里是只读普通 Field。只读、不脏检查、不校验、重置时重算，如总价、预览地址、SKU 最终价格 / 库存、rowspan、查询参数。
 > - 值来源（输入 / 计算）与是否提交（virtual）互相独立：计算字段默认 virtual，可声明 `virtual={false}` 提交。
 
 ### 2.3 address vs path
@@ -55,7 +55,7 @@ Agent 时代没人关注底层表单，恰恰是机会：Agent 的工具参数�
 
 ### 2.5 联动：只写一个集中 effect
 
-> **2026-10-27 更新（effects 语法定稿，见 usage/DECISIONS.md D3–D8、/usage/16-effects-reference/）**：effects 只有 `autorun(d => …)` / `autorun.each(d => d.items, (row, d) => …)` / `watch(d => d.params, d => …)` 三种写法，基于类 Immer 的 draft 路径代理，字段状态 `$` 前缀（`$value / $visible / $pattern …`）；没有 `./` `../` 字符串、没有正则 query、没有 `#n`；定位只用精确 path，唯一过滤是 UI Brand（`ui="summary"` → `d.x.ui('summary')`），具名区域 `d.ui('aside')`；`scope` 删除；不提交的开关叫 `virtual`。下面本节的旧写法仅作历史记录。
+> **2026-10-27 更新（effects 语法定稿，见 usage/DECISIONS.md D3–D8、/usage/16-effects-reference/）**：effects 只有 `reaction(d => …)` / `reaction.each(d => d.items, (row, d) => …)` / `watch(d => d.params, d => …)` 三种写法，基于类 Immer 的 draft 路径代理，字段状态 `$` 前缀（`$value / $visible / $pattern …`）；没有 `./` `../` 字符串、没有正则 query、没有 `#n`；定位只用精确 path，唯一过滤是 UI Brand（`ui="summary"` → `d.x.ui('summary')`），具名区域 `d.ui('aside')`；`scope` 删除；不提交的开关叫 `virtual`。下面本节的旧写法仅作历史记录。
 
 - 所有 if/else、显隐、禁用、校验联动都集中写，不在 JSX 里散落 `useEffect`。
 - 写法像 proxy，只写数据，例如：`form.provider.apiKey.state.visible = form.provider.type.value === 'openai'`

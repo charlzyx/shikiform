@@ -49,15 +49,15 @@ export function addressRules(a: Draft<Address>) {
   a.zip.$required = a.region.$value?.length === 3;
 }
 // ❓ 模块复用的形式：普通函数（当前）vs 让 defineEffects<Address> 能“挂”到某个 handle 上（原 e.scope）。
-//    普通函数不需要新 API，但每个挂载点要自己写一个 autorun。
+//    普通函数不需要新 API，但每个挂载点要自己写一个 reaction。
 
-const companyEffects = defineEffects<Company>(({ autorun }) => {
-  // 两个挂载点各一个 autorun：互不影响，各自只在自己的 region 变时重跑
-  autorun((d) => addressRules(d.registeredAddress));
-  autorun((d) => addressRules(d.officeAddress));
+const companyEffects = defineEffects<Company>(({ reaction }) => {
+  // 两个挂载点各一个 reaction：互不影响，各自只在自己的 region 变时重跑
+  reaction((d) => addressRules(d.registeredAddress));
+  reaction((d) => addressRules(d.officeAddress));
 
   // “同注册地址”：办公地址整块隐藏，值保留（visible=false 的默认语义：不渲染、保留值、跳过校验）
-  autorun((d) => {
+  reaction((d) => {
     d.officeAddress.$visible = !d.officeSameAsRegistered.$value;
   });
 });

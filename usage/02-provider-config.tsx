@@ -37,10 +37,10 @@ const ModelEnum = Enum.from(
   { cacheKey: ({ type, baseUrl }) => `${type}|${baseUrl ?? ''}`, debounce: 300 },
 );
 
-// 集中 effect：一处读源，一处写多个目标（2026-10-27 定：draft 路径代理 + autorun / watch）
-const providerEffects = defineEffects<ProviderConfig>(({ autorun, watch }) => {
+// 集中 effect：一处读源，一处写多个目标（2026-10-27 定：draft 路径代理 + reaction / watch）
+const providerEffects = defineEffects<ProviderConfig>(({ reaction, watch }) => {
   // 相对性 = JS 变量：p 就是 'provider' 这个 handle，不写相对路径字符串
-  autorun((d) => {
+  reaction((d) => {
     const p = d.provider;
     const t = p.type.$value; // 读了 type.$value → 只在 type 变化时重跑；下面的赋值都不是依赖
     p.apiKey.$visible = t !== 'ollama';
@@ -53,9 +53,9 @@ const providerEffects = defineEffects<ProviderConfig>(({ autorun, watch }) => {
     // 只读展示：ollama 不需要鉴权
     p.authMode.$pattern = t === 'ollama' ? 'readPretty' : 'editable';
   });
-  // ❓ 这一个 autorun 写了 7 个目标，任何一个目标被别处的 autorun 也写会冲突——冲突时报错还是后写赢？
+  // ❓ 这一个 reaction 写了 7 个目标，任何一个目标被别处的 reaction 也写会冲突——冲突时报错还是后写赢？
 
-  // “type 变化时做一次动作”是命令式的：用 watch（显式源），不用 autorun（自动收集）
+  // “type 变化时做一次动作”是命令式的：用 watch（显式源），不用 reaction（自动收集）
   // 回调里读 type.$value 不会成为依赖：watch 只认第一个参数给出的源
   watch(
     (d) => d.provider.type,
@@ -66,7 +66,7 @@ const providerEffects = defineEffects<ProviderConfig>(({ autorun, watch }) => {
   );
 
   // 全局一对多：直接从根 d 读
-  autorun((d) => {
+  reaction((d) => {
     // o 系列模型不支持 temperature
     d.temperature.$disabled = /^o\d/.test(d.provider.model.$value ?? '');
   });

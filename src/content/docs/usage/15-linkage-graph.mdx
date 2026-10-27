@@ -1,6 +1,6 @@
 ---
 title: "15 · 联动依赖图"
-description: "运费表单：一对多 + 多对一（计算值）+ 多对多链路；autorun 按 `$` 状态粒度收集依赖（读 `$errors` 也算）；"
+description: "运费表单：一对多 + 多对一（计算值）+ 多对多链路；reaction 按 `$` 状态粒度收集依赖（读 `$errors` 也算）；"
 ---
 import { Code } from '@astrojs/starlight/components';
 import OpenPoints from '../../../components/OpenPoints.astro';
@@ -10,7 +10,7 @@ import code from '../../../../usage/15-linkage-graph.tsx?raw';
 API 设计轮：下面的代码是“理想 API”下的业务写法，**没有实现、不能运行**。源文件：`usage/15-linkage-graph.tsx`。
 :::
 
-运费表单：一对多 + 多对一（计算值）+ 多对多链路；autorun 按 `$` 状态粒度收集依赖（读 `$errors` 也算）；一次事务、拓扑顺序；环检测报错样例。
+运费表单：一对多 + 多对一（计算值）+ 多对多链路；reaction 按 `$` 状态粒度收集依赖（读 `$errors` 也算）；一次事务、拓扑顺序；环检测报错样例。
 
 **演示的特性：** 依赖图 · 事务 · 环检测
 

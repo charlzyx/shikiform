@@ -1,0 +1,401 @@
+import type { EnumBinding, EnumOption, EnumSource } from './enum'
+import type { StandardSchemaV1 } from './schema'
+import type { Rule, RulesInput, ValidateCtx } from './validate'
+import type { Pos } from './tree'
+
+export type { StandardSchemaV1, RulesInput }
+
+export type { EnumOption, EnumBinding, EnumSource, Rule, ValidateCtx, Pos }
+
+/**
+ * Formily display.
+ * - `visible` — show the field, validate it, include it in submit.
+ * - `hidden` — no UI, keep the value, still validate, still submit. Use this for inactive tabs.
+ * - `none` — no UI, drop the value from submit, skip validation.
+ *
+ * Display is inherited from ancestors: an ancestor `none` forces `none`, otherwise an ancestor
+ * `hidden` forces `hidden`. Validation follows this effective display, not React mount.
+ */
+export type Display = 'visible' | 'hidden' | 'none'
+
+/**
+ * Formily pattern. A child with an explicit pattern wins. `$pattern = undefined` clears the
+ * explicit value and restores inheritance.
+ * - `editable` — normal input
+ * - `disabled` — input disabled (`$disabled === true`)
+ * - `readOnly` — input not editable, value still submitted
+ * - `readPretty` — render the value, not the input. Computed fields default to this.
+ */
+export type Pattern = 'editable' | 'disabled' | 'readOnly' | 'readPretty'
+
+/** When an input writes into the store. `blur` keeps keystrokes local until blur or Enter. */
+export type CommitMode = 'change' | 'blur'
+
+export type ValidateTrigger = 'onChange' | 'onBlur' | 'onSubmit'
+
+export type EnumPolicy = 'error' | 'clear' | 'none'
+
+type IsAny<T> = 0 extends 1 & T ? true : false
+
+/**
+ * Every readable/writable path of `T`, including array indexes (`items.0.price`).
+ * A key that is not on `T` is not a member, so it fails to compile.
+ * Recursion stops at 8 segments so a tree type that mentions itself still has a finite path union.
+ */
+export type FieldPath<T> = IsAny<T> extends true ? string : StrictFieldPath<NonNullable<T>>
+
+type PrevDepth = [never, 0, 1, 2, 3, 4, 5, 6, 7]
+
+type JoinPath<K extends string, R> = [R] extends [never] ? never : R extends string ? `${K}.${R}` : never
+
+type StrictFieldPath<T, D extends number = 8> = [D] extends [0]
+  ? never
+  : [T] extends [readonly (infer E)[]]
+    ? `${number}` | JoinPath<`${number}`, StrictFieldPath<NonNullable<E>, PrevDepth[D]>>
+    : [T] extends [object]
+      ? {
+          [K in keyof T & string]: K | JoinPath<K, StrictFieldPath<NonNullable<T[K]>, PrevDepth[D]>>
+        }[keyof T & string]
+      : never
+
+/** Paths whose value is an array. */
+export type ArrayPath<T> = IsAny<T> extends true
+  ? string
+  : FieldPath<T> extends infer P
+    ? P extends string
+      ? PathValue<T, P> extends readonly unknown[]
+        ? P
+        : never
+      : never
+    : never
+
+/** Value type at `P`. */
+export type PathValue<T, P extends string> = IsAny<T> extends true
+  ? any
+  : P extends `${infer H}.${infer R}`
+    ? PathValue<IndexValue<T, H>, R>
+    : IndexValue<T, P>
+
+type IndexValue<T, K extends string> = T extends readonly (infer E)[]
+  ? K extends `${number}`
+    ? E
+    : never
+  : K extends keyof T
+    ? T[K]
+    : never
+
+export interface FieldSpec {
+  /** Omit this field (and, when it is an object, its values) from submit. It still participates in effects. */
+  virtual?: boolean
+  /** Initial explicit pattern. `$pattern = undefined` in a reaction clears it again. */
+  pattern?: Pattern
+  /** Initial display. Prefer reactions for linkage. */
+  display?: Display
+  /**
+   * Built-in rules, a Standard Schema (`z.string().email()`, Valibot, ArkType), or a mix.
+   * Field schemas validate this field's value. Issue paths are relative to the field.
+   */
+  rules?: RulesInput
+  enum?: EnumOption[] | readonly string[]
+  required?: boolean
+  /**
+   * Wait this long after the latest edit before running async validators and async schemas.
+   * A newer edit cancels the previous wait and discards a result that resolves late.
+   * Falls back to {@link FormOptions.asyncDebounceMs}.
+   */
+  asyncDebounceMs?: number
+}
+
+export interface FormOptions<T> {
+  /** Reset target. Cloned on create. */
+  initialValues?: T
+  /** Installed in order. Each factory receives `reaction` and `watch`. */
+  effects?: EffectDef<T>[]
+  /**
+   * Models for fields that have no `<Field>`.
+   * `selectedKeys` and client-paging `page` are usually `{ virtual: true }`.
+   */
+  fields?: { [K in FieldPath<T>]?: FieldSpec }
+  /**
+   * Cross-field check. A Standard Schema's issue `path` is written onto that field's `$errors`
+   * (`['items', 0, 'name']` → `items.0.name`, `['nodes', 0, 'children', 1, 'name']` → `nodes.0.children.1.name`).
+   * Display `none` drops the issue (the field is not validated and does not block submit).
+   * Display `hidden` keeps the issue. A function return is the same path → message map.
+   */
+  validate?:
+    | StandardSchemaV1<T>
+    | ((values: T) => Partial<Record<string, string>> | void | Promise<Partial<Record<string, string>> | void>)
+  /** Default triggers. Field `trigger` overrides this. Default `['onBlur', 'onSubmit']`. */
+  validateTrigger?: ValidateTrigger[]
+  /**
+   * Debounce async field validators and async Standard Schemas. `0` runs them immediately.
+   * Stale runs are cancelled with `AbortSignal` and ignored when they resolve.
+   */
+  asyncDebounceMs?: number
+  /** Default commit mode. Default `'change'`. Large tables usually want `'blur'`. */
+  commit?: CommitMode
+  /**
+   * What to do when the current value is no longer in `$enum`.
+   * Default `'none'` (leave the value; clear it yourself in a `watch` if you need to keep the last edit).
+   */
+  enumPolicy?: EnumPolicy
+  /** Optional external schema. Its path→message map is merged with field rules. */
+  resolver?: (values: T) => Partial<Record<string, string>> | Promise<Partial<Record<string, string>>>
+  /** Log each pass when true. */
+  devtools?: boolean
+  /** Tree roots that effects address before React mounts. */
+  trees?: Record<string, { childrenKey?: string; rowKey?: string }>
+}
+
+export interface EffectDef<T> {
+  install(form: EffectsRuntime<T>): void
+}
+
+/**
+ * What `defineEffects` passes to the factory.
+ * `reaction` derives. `watch` reacts to a source. Both see the same draft.
+ */
+export interface EffectsAPI<T> {
+  /**
+   * Derive state. Reads of `$` state are dependencies. Writes are not.
+   * The function is synchronous; an async function is a dev error.
+   * The same `$` state written by two reactions is a dev error.
+   * A reaction that reads nothing runs once.
+   */
+  reaction: ReactionFn<T>
+  /**
+   * Run `effect` when the `$` state read by `source` changes.
+   * The effect does not run on the first pass. Reads inside the effect are not dependencies.
+   * `watch(d => [d.a.$value, d.b.$value], …)` is a multi-source watch.
+   */
+  watch: WatchFn<T>
+  /** Low-level handle for an exact path. Prefer `d.a.b` inside a reaction. */
+  query(path: string, opts?: { ui?: string }): any
+}
+
+export interface ReactionFn<T> {
+  (effect: (d: Draft<T>) => void): void
+  /**
+   * One reaction instance per direct child of the selected array.
+   * Editing a row re-runs that index only.
+   * This does not walk nested arrays or trees; use {@link ReactionFn.walk} for trees.
+   */
+  each<A>(
+    select: (d: Draft<T>) => Draft<A>,
+    effect: (row: A extends readonly (infer E)[] ? Draft<E> : Draft<A>, d: Draft<T>, index: number) => void,
+  ): void
+  /**
+   * One reaction instance per tree node. `pos` is the index path (`[0, 2, 1]`).
+   * Kept separate from `each` so array reactions stay one level deep.
+   */
+  walk<A>(
+    select: (d: Draft<T>) => Draft<A>,
+    effect: (node: Draft<any>, d: Draft<T>, pos: Pos) => void,
+    opts?: { childrenKey?: string },
+  ): void
+}
+
+export interface WatchFn<T> {
+  (source: (d: Draft<T>) => unknown, effect: (d: Draft<T>) => void): void
+  /**
+   * Edge-triggered row action. The callback's `$` reads are the source.
+   * It is scouted once per row (writes discarded) and applied only after those reads change.
+   */
+  each<A>(
+    select: (d: Draft<T>) => Draft<A>,
+    effect: (row: A extends readonly (infer E)[] ? Draft<E> : Draft<A>, d: Draft<T>, index: number) => void,
+  ): void
+}
+
+/**
+ * Immer-style handle. Property access builds a path; it does not allocate the data.
+ * `$` members are field state. Every other property is a child field, so a value
+ * literally named `value` is `d.value.$value`, not `d.$value`.
+ *
+ * Do not read a `$` state you just wrote in the same pass. Keep the new value in a local.
+ * Reading `array.$value` depends on the whole array. Prefer `reaction.each` for per-row work.
+ */
+export type Draft<T> = IsAny<T> extends true ? any : DraftState<T> & DraftNav<T>
+
+export interface UiDraft {
+  /** `false` hides this UI only. The field model is unchanged, so other UIs and validation stay. */
+  $visible: boolean
+  $display: Display
+  /** `undefined` restores the field pattern. */
+  $pattern: Pattern | undefined
+}
+
+export interface DraftState<T> {
+  /** Current value. Reading tracks a dependency. Writing marks the field computed. */
+  $value: T
+  /**
+   * Convenience for display. `false` sets `hidden` (keep, validate, submit), not `none`.
+   * Reading is true only when the effective display is `visible`.
+   */
+  $visible: boolean
+  /** `visible` | `hidden` | `none`. See {@link Display}. */
+  $display: Display
+  /** When true, empty values fail validation even without a `required` rule. */
+  $required: boolean
+  /** `true` sets pattern `disabled`. `false` sets pattern `editable`. */
+  $disabled: boolean
+  /** Explicit pattern. Assign `undefined` to inherit again. */
+  $pattern: Pattern | undefined
+  /** Static options, or `SomeEnum.with(params)`. */
+  $enum: EnumOption[] | readonly string[] | EnumBinding | undefined
+  /** Replaces JSX rules for this field. */
+  $rules: Rule[]
+  /** Own messages plus descendant messages. Read-only. */
+  readonly $errors: string[]
+  readonly $warnings: string[]
+  /** True while an async rule or async schema for this field is in flight. */
+  readonly $validating: boolean
+  /** True after blur (or a touch from the binding). Reset clears it. */
+  readonly $touched: boolean
+  /** True after a user edit. A reaction writing `$value` does not set it. Reset clears it. */
+  readonly $dirty: boolean
+  /**
+   * Form-level, read it on the root draft: `d.$canSubmit`.
+   * False while submitting or validating, or while any visible/hidden field has `$errors`.
+   * Display `none` does not count.
+   */
+  readonly $canSubmit: boolean
+  /** Form-level. True for the duration of `submit()`, including the async validation it waits for. */
+  readonly $submitting: boolean
+  /** Form-level. Incremented once per `submit()` call, including calls that fail validation. */
+  readonly $submitCount: number
+  /** Exact data path of this handle. */
+  readonly $path: string
+  /** Tree coordinate. `undefined` on ordinary array rows. Depth is `pos.length` (no `$depth`). */
+  readonly $pos: Pos | undefined
+  /**
+   * UI instance named in JSX with `ui="…"`.
+   * `$ui` is the spelling because a child field may be named `ui`.
+   * The same name mounted twice on one path is a dev error.
+   */
+  $ui(name: string): UiDraft
+  /** First node matching `pred`, or `undefined`. Depends on this subtree's value. */
+  $find(pred: (node: any, pos: Pos) => boolean): Draft<any> | undefined
+  /** Handle at `pos` under this tree or array root. */
+  $pathOf(pos: Pos): string
+}
+
+export type DraftNav<T> = T extends readonly (infer E)[]
+  ? { [index: number]: Draft<E> }
+  : T extends object
+    ? { [K in keyof T]-?: Draft<NonNullable<T[K]>> }
+    : Record<string, never>
+
+export interface FieldError {
+  path: string
+  messages: string[]
+}
+
+export interface MoveResult {
+  ok: boolean
+  reason?: string
+}
+
+/**
+ * Core form. No React.
+ * Field models are created lazily on `$` access, `registerField`, or `fields` in options.
+ */
+export interface FormInstance<T> {
+  readonly values: T
+  /** Alias of {@link FormInstance.isSubmitting}. */
+  readonly submitting: boolean
+  readonly validating: boolean
+  /** True after a user edit that is not itself a computed write. */
+  readonly dirty: boolean
+  /** How many times {@link FormInstance.submit} has been called. */
+  readonly submitCount: number
+  /** True while {@link FormInstance.submit} is running. */
+  readonly isSubmitting: boolean
+  /**
+   * False while a submit or validation is running, or while any field that is not display `none` has errors.
+   * Empty required fields do not block until a validation trigger has run.
+   */
+  readonly canSubmit: boolean
+  /** Path-keyed errors, including descendants when you filter by prefix. */
+  readonly errors: FieldError[]
+
+  getValue<P extends FieldPath<T>>(path: P): PathValue<T, P>
+  setValue<P extends FieldPath<T>>(path: P, value: PathValue<T, P>): void
+  /** One draft, one reaction pass, one notification. */
+  batch(fn: (d: Draft<T>) => void): void
+  /**
+   * Wait for in-flight async rules, validate, drop `virtual` and `display: 'none'` values.
+   * `hidden` values are kept. Computed fields are omitted unless `virtual` was set false.
+   */
+  submit(onValid?: (values: T) => void | Promise<void>): Promise<{ ok: true; values: T } | { ok: false; errors: FieldError[] }>
+  /** Restore initial values. Pass a path to restore one subtree. Computed values are written again. */
+  reset(path?: FieldPath<T>): void
+  /** Validate one path (and nothing else) or the whole form. */
+  validate(path?: string): Promise<FieldError[]>
+  getSubmitValues(): T
+  query(path: string, opts?: { ui?: string }): any
+
+  /** Move an array row. `to` is the final index. Field models follow the row id. */
+  moveArray(path: string, from: number, to: number): void
+  /** Exchange two indexes. Field models follow the row ids. */
+  swapArray(path: string, indexA: number, indexB: number): void
+  /** Replace the row at `index`. The previous row's field model is dropped. */
+  replaceArray(path: string, index: number, row: unknown): void
+  insertArray(path: string, index: number, row: unknown): void
+  removeArray(path: string, index: number): void
+  pushArray(path: string, row: unknown): void
+
+  /**
+   * Move a tree node to its final `pos`.
+   * Refuses a move into the node's own descendant. Field models follow `rowKey`.
+   */
+  moveTree(path: string, from: Pos, to: Pos): MoveResult
+
+  /** Diagnostic counters: reaction id → run count. */
+  getDebugStats(): { runs: Record<string, number> }
+
+  subscribePath(path: string, listener: () => void): () => void
+  subscribeStructure(path: string, listener: () => void): () => void
+  /** Notified when `canSubmit`, `isSubmitting`, `submitCount`, `dirty`, or `validating` change. */
+  subscribeMeta(listener: () => void): () => void
+  getMetaVersion(): number
+  subscribeDebug(listener: () => void): () => void
+  getPathVersion(path: string): number
+  getStructureVersion(path: string): number
+  getDebugVersion(): number
+  /** Run `selector` and return the `$` keys it read, without subscribing. */
+  trackSelector<S>(selector: (d: Draft<T>) => S): { value: S; deps: string[] }
+  subscribeDep(dep: string, listener: () => void): () => void
+  getDepVersion(dep: string): number
+}
+
+/** Implemented by the form engine and passed to effect factories. */
+export interface EffectsRuntime<T> {
+  draft: Draft<T>
+  trackOnly<S>(fn: () => S): { value: S; deps: Set<string> }
+  registerReaction(id: string, run: () => void, deps: Set<string>): void
+  registerWatch(id: string, run: () => void, deps: Set<string>): void
+  queue(id: string): void
+  nextId(prefix: string): string
+  handle(path: string): Draft<any>
+  readPath(handle: unknown): string | undefined
+  childrenKey(path: string): string
+  noteTree(path: string, childrenKey: string): void
+  dirtyRowSet(path: string): Set<number> | 'all' | undefined
+  takeDirtyRows(path: string): Set<number> | 'all' | undefined
+  runWith<S>(opts: { id: string; deps: boolean; writes: boolean; pos?: Pos; nodePath?: string }, fn: () => S): {
+    value: S
+    deps: Set<string>
+    writes: WriteOp[]
+  }
+  applyWrites(id: string, writes: WriteOp[]): void
+  setDeps(id: string, deps: Set<string>): void
+  dropDeps(id: string): void
+  getValue(path: string): unknown
+  devtools: boolean
+}
+
+export interface WriteOp {
+  key: string
+  apply(): boolean
+}

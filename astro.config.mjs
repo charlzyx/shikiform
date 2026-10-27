@@ -22,6 +22,7 @@ export default defineConfig({
       social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/charlzyx' }],
       sidebar: [
         { label: '首页 · 本轮说明', link: '/' },
+        { label: 'Architecture', link: '/architecture/' },
         { label: 'API 草案', link: '/api/' },
         { label: '待拍板', link: '/decisions/' },
         {

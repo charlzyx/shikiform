@@ -14,8 +14,8 @@ import { Card } from '@/components/ui/card';
 
 interface Profile { user: { nickname: string; email: string; plan: 'free' | 'pro' }; compact: boolean }
 
-const effects = defineEffects<Profile>(({ autorun }) => {
-  autorun((d) => {
+const effects = defineEffects<Profile>(({ reaction }) => {
+  reaction((d) => {
     const u = d.user;
     // 字段级（不带 .ui）：写的是字段状态，所有 UI 一起生效
     u.email.$required = u.plan.$value === 'pro';

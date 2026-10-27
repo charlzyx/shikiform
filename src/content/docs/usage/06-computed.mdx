@@ -1,6 +1,6 @@
 ---
 title: "06 · 计算值"
-description: "报价单：行小计（autorun.each 每行一个实例）、合计 / 税 / 应付、预览地址；计算字段只读、默认不提交、reset"
+description: "报价单：行小计（reaction.each 每行一个实例）、合计 / 税 / 应付、预览地址；计算字段只读、默认不提交、reset"
 ---
 import { Code } from '@astrojs/starlight/components';
 import OpenPoints from '../../../components/OpenPoints.astro';
@@ -10,9 +10,9 @@ import code from '../../../../usage/06-computed.tsx?raw';
 API 设计轮：下面的代码是“理想 API”下的业务写法，**没有实现、不能运行**。源文件：`usage/06-computed.tsx`。
 :::
 
-报价单：行小计（autorun.each 每行一个实例）、合计 / 税 / 应付、预览地址。2026-10-27 起 Computed 不是类型：计算字段在值类型里声明、`$value` 在 autorun 里写，JSX 里就是只读的普通 Field；值来源与 `virtual` 独立（计算字段默认 virtual，应付金额 `virtual={false}` 随表单提交）。
+报价单：行小计（reaction.each 每行一个实例）、合计 / 税 / 应付、预览地址。2026-10-27 起 Computed 不是类型：计算字段在值类型里声明、`$value` 在 reaction 里写，JSX 里就是只读的普通 Field；值来源与 `virtual` 独立（计算字段默认 virtual，应付金额 `virtual={false}` 随表单提交）。
 
-**演示的特性：** autorun 写计算字段 · 多对一 · 值来源与 virtual 独立
+**演示的特性：** reaction 写计算字段 · 多对一 · 值来源与 virtual 独立
 
 ## 本用例的 ❓ 待定点
 

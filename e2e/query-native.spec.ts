@@ -1,0 +1,22 @@
+import { expect, test } from '@playwright/test'
+
+test('native useQueryTable keeps filters and selection across pages', async ({ page }) => {
+  await page.goto('/query-native')
+  await expect(page.getByTestId('log-1')).toBeVisible()
+  await page.getByTestId('keyword').fill('alpha')
+  await page.getByTestId('query-submit').click()
+  await expect(page.getByTestId('log-1')).toBeVisible()
+  await expect(page.getByTestId('log-2')).toHaveCount(0)
+  await page.getByLabel('select-1').check()
+  await expect(page.getByTestId('selection-count')).toHaveText('1')
+  await page.getByTestId('page-2').click()
+  await expect(page.getByTestId('page')).toHaveText('2')
+  await expect(page.getByTestId('log-11')).toBeVisible()
+  await expect(page.getByTestId('selection-count')).toHaveText('1')
+  await page.getByTestId('query-submit').click()
+  await expect(page.getByTestId('selection-count')).toHaveText('0')
+  await expect(page.getByTestId('page')).toHaveText('1')
+  await page.getByTestId('query-reset').click()
+  await expect(page.getByTestId('keyword')).toHaveValue('')
+  await expect(page.getByTestId('log-2')).toBeVisible()
+})

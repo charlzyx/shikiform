@@ -7,6 +7,13 @@
     "skipLibCheck": true,
     "strict": true,
     "target": "ES2022",
+    "baseUrl": ".",
+    "paths": {
+      "shikiform/antd": ["src/antd/index.ts"],
+      "shikiform/core": ["src/core/index.ts"],
+      "shikiform/pro": ["src/pro/index.ts"],
+      "shikiform": ["src/index.ts"]
+    },
     "types": [
       "node",
       "astro/client"
@@ -19,6 +26,11 @@
     "usage"
   ],
   "include": [
-    "src/**/*"
+    "src/**/*",
+    "tests/**/*",
+    "playground/**/*",
+    "e2e/**/*",
+    "vitest.config.ts",
+    "playwright.config.ts"
   ]
 }
