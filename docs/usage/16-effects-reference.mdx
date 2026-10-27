@@ -1,0 +1,13 @@
+---
+title: "16 · effects 参考写法"
+description: "联动写法：draft 路径代理 + reaction / reaction.each / watch、$ 状态、UI Brand"
+---
+
+一页看完 effects 写法（其他用例都按这一页写）：type → apiKey / baseUrl 显隐；address（ObjectField）的 city 禁用 + 异步枚举；items 每行小计 + 赠品禁用；按 findIndex 定位某一行；discount 的摘要 UI（UI Brand `ui="summary"`）与具名区域 `d.ui('aside')`；`watch` params → 回第 1 页、province → 清空 city。
+
+**演示的特性：** reaction · reaction.each · watch · draft 代理 · `$` 状态 · 精确 path · UI Brand
+
+## 用法代码
+
+```tsx title="usage/16-effects-reference.tsx" file="<root>/archive/usage/16-effects-reference.tsx"
+```

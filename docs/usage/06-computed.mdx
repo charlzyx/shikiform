@@ -1,0 +1,13 @@
+---
+title: "06 · 计算值"
+description: "报价单：行小计（reaction.each 每行一个实例）、合计 / 税 / 应付、预览地址；计算字段只读、默认不提交、reset"
+---
+
+报价单：行小计（reaction.each 每行一个实例）、合计 / 税 / 应付、预览地址。Computed 不是类型：计算字段在值类型里声明、`$value` 在 reaction 里写，JSX 里就是只读的普通 Field；值来源与 `virtual` 独立（计算字段默认 virtual，应付金额 `virtual={false}` 随表单提交）。
+
+**演示的特性：** reaction 写计算字段 · 多对一 · 值来源与 virtual 独立
+
+## 用法代码
+
+```tsx title="usage/06-computed.tsx" file="<root>/archive/usage/06-computed.tsx"
+```

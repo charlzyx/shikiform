@@ -1,0 +1,35 @@
+---
+title: ShikiForm
+description: 用字段描述数据，用 reaction 描述联动。
+---
+
+# ShikiForm
+
+用字段描述数据，用 `reaction` 描述联动。输入框只负责显示。
+
+```tsx preview
+import { Form, Field, Submit, useForm } from 'shikiform';
+import { FormItem, Input } from 'shikiform/ui';
+
+export default function Welcome() {
+  const form = useForm({ initialValues: { name: 'Ada' } });
+  return (
+    <Form form={form} onSubmit={() => undefined}>
+      <Field name="name" decorator={<FormItem label="姓名" />}>
+        <Input />
+      </Field>
+      <Submit>提交</Submit>
+    </Form>
+  );
+}
+```
+
+改一改姓名，点提交。值在 ShikiForm 里，输入框是 antd 的 `Input`。
+
+## 往下看
+
+- [教程](/tutorial)：从一份最小表单开始。
+- [指南](/guide)：教程之后的加深，[大纲](/OUTLINE) 也在这里。
+- [API](/api)
+- [用例](/usage/01-basic-form)：查询表、合并表、SKU 这些场景。还要补的 demo 见 [案例补全清单](/coverage-checklist)。
+- [约定](/decisions)：已经定下的行为，以及仍待拍板的几项。

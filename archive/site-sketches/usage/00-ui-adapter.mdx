@@ -1,23 +1,13 @@
 ---
 title: "00 · 应用的 UI 适配层"
-description: "shadcn 组件如何通过 connect / useDecorator 接入 ShikiForm（伪代码）"
+description: "shadcn 组件如何通过 connect / useDecorator 接入 ShikiForm"
 ---
-import { Code } from '@astrojs/starlight/components';
-import OpenPoints from '../../../components/OpenPoints.astro';
-import code from '../../../../usage/_ui.tsx?raw';
-
-:::caution[伪代码]
-API 设计轮：没有实现、不能运行。源文件：`usage/_ui.tsx`。
-:::
 
 ShikiForm 核心是 headless 的。应用在自己的仓库里写一次适配层：`connect` 把 shadcn 组件的 `onValueChange` / `onCheckedChange` 等映射成统一的 `value / onChange`；`useDecorator` 让 `FormItem` 读 label、required、errors、validating。其他所有用例都从这里 import `Input / Select / FormItem / CellItem`。
 
 **演示的特性：** Decorator vs Component 分工 · connect 适配
 
-## 本用例的 ❓ 待定点
-
-<OpenPoints code={code} />
-
 ## 用法代码
 
-<Code code={code} lang="tsx" title="usage/_ui.tsx" />
+```tsx title="usage/_ui.tsx" file="<root>/usage/_ui.tsx"
+```

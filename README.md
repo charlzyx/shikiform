@@ -1,76 +1,66 @@
 # ShikiForm
 
-JSX describes structure. Draft + `$` describes state. `reaction` / `watch` describe linkage. Formily `display` owns visibility and validation.
+JSX 描述结构，draft 和 `$` 描述状态，`reaction` / `reaction.each` / `watch` 描述联动。文档站（https://shikiform.pages.dev）用 [Rspress](https://rspress.rs/)。教程在浏览器里改代码。
 
-Packages, all in this repo:
+仓库里有两套代码，互不替换：
 
-- `shikiform` — core plus headless React (`useForm`, `useField`, `useArrayField`, `useArrayMove`, `useTreeField`, `useTreeMove`, `useWatch`, `createFormHook`, `withForm`, `withFieldGroup`, `<Watch>`)
-- `shikiform/core` — the form engine, no React
-- `shikiform/pro` — headless `useQueryTable` (no Ant Design)
-- `shikiform/antd` — Ant Design inputs, `ProQueryTable`, `ArrayTable`, `MergedTable`
+- **库**：`src/core`、`src/react`、`src/pro`、`src/antd`。包入口在构建后的 `lib/`。
+- **教程运行时**：`src/runtime`。Rspress 把 `shikiform` 指到这里，所以教程里的 `shikiform`、`shikiform/ui`、`shikiform/zod` 跑的是教学子集，不是上面的库。`shikiform/ui` 用 antd 做受控控件，值和校验留在 ShikiForm，不用 antd Form。
 
-Peer dependency is `react` ^18 or ^19. The code uses React 18 hooks only. The docs site is the product docs (home, getting started, a few guides, playground links). Design notes and the old usage sketches live in [archive/](archive/README.md) and are not published.
+## 包
 
-## Scripts
+- `shikiform` — core 加 headless React（`useForm`、`useField`、`useArrayField`、`useArrayMove`、`useTreeField`、`useTreeMove`、`useWatch`、`createFormHook`、`<Watch>`）
+- `shikiform/core` — 表单引擎，没有 React
+- `shikiform/pro` — headless `useQueryTable`（不依赖 antd）
+- `shikiform/antd` — antd 输入、`ProQueryTable`、`ArrayTable`、`MergedTable`
+
+`react` / `react-dom` 的 peer 是 `^18 || ^19`。`antd` 的 peer 是 `^5`。包是 `private`，`exports` 指向 `lib/`。开发时 TypeScript paths 和 Vite alias 把 `shikiform` 指到 `src/`。教程构建另有一份 alias，指到 `src/runtime`。
+
+## 本地开发
 
 ```bash
 npm install
-npm test            # vitest: reaction, display, move, tree, standard schema, meta, declared fields
-npm run check       # tsc --noEmit (source). Path aliases point at src/
-npm run build:lib   # tsup → lib/*.js + lib/*.d.ts for the four package entries
-npm run build       # Astro docs, then the playground into dist/play/
-npm run dev         # docs site
-npm run dev:e2e     # Vite playground at http://127.0.0.1:5173/play/
-npm run test:e2e    # build, then Playwright against the preview. Install the browser once: npx playwright install chromium
+npm run dev         # Rspress 文档站
+npm test            # 教学运行时 + 库的 vitest
+npm run check       # tsc --noEmit（docs/ 与 archive/ 不参与；教程由 Rspress 别名解析）
+npm run build       # rspress build，输出 dist/。Cloudflare Pages 跑的就是这条
+npm run preview     # 本地预览 dist/
+npm run build:lib   # tsup → lib/，不随文档一起发布
+npm run build:play  # Vite playground → dist/play/
+npm run dev:e2e     # playground，http://127.0.0.1:5173/play/
+npm run test:e2e    # 文档构建 + playground 构建，再跑 Playwright
 ```
 
-`npm run build` is what Cloudflare Pages runs. `dist/` has the docs and the playground (`/play/query`, `/play/tabs`, …). `build:lib` is separate and is not published (`private: true`).
+教程在 `/tutorial`。每一步左边是说明，右边可以改代码。不需要 WebContainers，也不需要 COOP/COEP。
 
-Dev and `npm run check` resolve `shikiform` to `src/` through TypeScript paths and the Vite alias. Package `exports` point at `lib/` for a consumer that loads the built files.
+## 部署：Cloudflare Pages（GitHub 联动）
 
-Standard Schema v1 (Zod, Valibot, ArkType) is a field rule (`rules={z.string().email()}`), mixable with built-in rules, and a form validator (`useForm({ validate: schema })`). Issue paths map onto field `$errors`, including array indexes and tree positions. `hidden` validates. `none` skips.
+构建按这条路线配好，可直接被 CF Pages 的 GitHub 联动部署：
 
-## Not in this cut
+- 静态输出：`rspress.config.ts` 把 `outDir` 写成 `dist/`。
+- base 路径：`base: '/'`。
+- 路由是 clean URLs（`/usage/01-basic-form`，没有尾斜杠）。`docs/public/_redirects` 把旧的尾斜杠地址和旧教程地址 301 到新地址。
+- 构建命令：`npm run build`（`npm run build:cf-pages` 等价，都是 `rspress build`）
+- 输出目录：`dist`
+- Framework preset：`None`。不要留着 Astro。
+- Node 版本过低时加环境变量 `NODE_VERSION=22`。
 
-Server rendering, devtools, and `transform` / `mergeForm`. `useQueryTable` can take a TanStack Query compatible `useQuery` function; the package does not depend on `@tanstack/react-query`.
-
-## 部署：Cloudflare Pages（GitHub 联动，唯一路线）
-
-**不要等 Cloudflare 账号、不要 token、不要 API 直连部署。**
-Chao 自己在 Cloudflare 后台连仓库，Muse 不持有 Cloudflare 账号或 token，也不替你创建仓库、推代码或接 CF。
-
-构建已按这条路线配好，可直接被 CF Pages 的 GitHub 联动部署：
-
-- 静态输出：Astro Starlight 默认静态构建，输出目录就是 `dist/`
-- base 路径：`astro.config.mjs` 里写死为 `'/'`，**没有写死成 GitHub Pages 子路径（如 `/shiki/`）**。CF Pages 在项目根域名下提供服务，base 必须是根路径。
-- 构建命令与输出目录（在 CF 后台填这两个值即可）：
-  - Build command：`npm run build`（`npm run build:cf-pages` 完全等价）
-  - Build output directory：`dist`
-
-### Chao 在 CF 后台的操作步骤
-
-1. 先把本目录作为仓库根推到 GitHub（即仓库根目录下就是 `package.json`、`astro.config.mjs`；如果把 `shiki/` 作为子目录推，CF 里 Root directory 就要填那个子目录，见下）。
-2. 打开 Cloudflare Dashboard → Workers & Pages → Create → Pages → Connect to Git，选择该仓库。
-3. 在“Build settings”里填：
-   - Production branch：你推送的主分支（通常是 `main`）
-   - Framework preset：选 `Astro`（若预设自动填的不对，按下面手动改）
-   - Build command：`npm run build`
-   - Build output directory：`dist`
-   - Root directory：留空（仓库根就是本项目时）；若仓库根不是本项目，填本项目相对仓库根的路径
-4. Environment variables：可不填。`SITE_URL` 可选，第一次部署拿到 `https://<项目名>.pages.dev` 后，如需规范 sitemap 再填入并重新部署一次；不填也不影响站点运行。
-5. 点 Save and Deploy。CF 会在云端跑构建并给出 `*.pages.dev` 地址。之后每次推到生产分支，CF 自动重新部署，不需要 token、不需要 Muse 再操作。
-6. 自定义域名（如需）：在该 Pages 项目的 Custom domains 里添加，按 CF 提示做 DNS 即可。
+Playground 在另一次 `npm run build:play` 里进 `dist/play/`，不包含在文档的 `npm run build` 里。
 
 ### 验证部署成功
 
-- 首页、`/start/`、`/guides/fields/`、`/guides/effects/`、`/guides/validation/`、`/guides/query/`、`/guides/hooks/`、`/demos/` 都能打开
-- `/play/query`、`/play/tabs` 等示例能打开（和文档在同一次 `npm run build` 里）
-- 静态资源路径是根路径（如 `/_astro/...`），不是 `/shiki/_astro/...`
+- 首页、`/tutorial`、`/tutorial/1-start`、`/guide`、`/OUTLINE`、`/api`、`/decisions`、`/usage/01-basic-form` … `/usage/16-effects-reference` 都能打开
+- 旧地址 `/api/`、`/usage/01-basic-form/` 会跳到没有尾斜杠的地址
+- 静态资源路径是根路径，不是 `/shiki/...`
 
 ### 排障
 
-- 资源 404 且路径带 `/shiki/` 前缀：说明 base 被改成了子路径，改回 `astro.config.mjs` 里的 `base: '/'` 再推一次。
-- 构建报 Node 版本过低：Astro 7 需要较新的 Node，在 CF 的 Environment variables 里加 `NODE_VERSION=22` 再部署。
-- 构建产物不对：确认 Build output directory 是 `dist`，不是 `storybook-static`、`build` 等。
+- 资源 404 且路径带 `/shiki/` 前缀：把 `rspress.config.ts` 里的 `base` 改回 `'/'` 再推一次。
+- 构建报 Node 版本过低：在 CF 的 Environment variables 里加 `NODE_VERSION=22`。
+- 页面 404 但构建成功：确认 Build output directory 是 `dist`，不是 `doc_build`。
 
-设计过程（PLAN / STATE / LAYOUT / QUALITY / 待拍板 / 用例伪代码）在 [archive/](archive/README.md)，不进文档站。
+## 范围
+
+- `src/runtime` 服务教程。单测覆盖教程用到的行为。联动函数叫 `reaction`、`reaction.each`、`watch`。
+- 库的行为以 `src/core`、`src/react`、`src/pro`、`src/antd` 为准。库的 Field 是 render prop，和教程运行时不是同一套 API。
+- 设计笔记、用例伪代码、旧 Starlight 草稿，以及库的 start/guides/demos 原稿，在 [archive/](archive/README.md)，不进文档站。

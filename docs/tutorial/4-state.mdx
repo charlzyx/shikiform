@@ -1,0 +1,35 @@
+---
+title: 4. $ 状态
+description: 用 $visible 控制邮箱出不出现。
+pageType: doc-wide
+outline: false
+---
+
+import starter from './_files/03-visible.tsx?raw';
+import solution from './_files/03-visible.solution.tsx?raw';
+import { StepNav, TutorialPlay } from '../_components/TutorialStep';
+
+# $ 状态
+
+<div className="tutorial-step">
+<div className="tutorial-copy">
+
+右边有一个「需要联系」开关，下面一直有邮箱。打开、关掉，邮箱都不动。
+
+字段上的状态都带 `$`。`$value` 是当前值，`$visible` 决定画不画出来，`$disabled` 是不能改。不带 `$` 的名字是子字段。
+
+起始代码的 `reaction` 读了开关，没有写邮箱的显隐。
+
+**这一步：** 在 `reaction` 里写上 `d.email.$visible = d.contact.$value`。
+
+关掉开关，邮箱消失。值还留着，校验会跳过，提交 JSON 里仍有 `email`。打开、把邮箱清空再失焦，会出现「必填」。再关掉，错误消失。
+
+`$disabled` 也是同一种写法。改省的时候会用它把市关掉。
+
+<StepNav prev={{ href: '/tutorial/3-path', title: 'path 和提交' }} next={{ href: '/tutorial/5-pattern', title: 'pattern' }} />
+
+</div>
+
+<TutorialPlay starter={starter} solution={solution} />
+
+</div>

@@ -1,0 +1,13 @@
+---
+title: "10 · 行展开二级表格"
+description: "订单展开到订单行：展开状态是 virtual 字段；表格级查看与编辑 pattern"
+---
+
+订单 → 订单行（`Array<Object<Array<Object>>>`）：展开状态是 `virtual` 的 expandedKeys（按 rowKey）；表格级查看 / 编辑 `$pattern` 切换（向下继承，已发货订单显式 readPretty 覆盖），查看态自动 Pretty；行级草稿延后（v1 不做）。
+
+**演示的特性：** ArrayTable · pattern 继承 / Pretty
+
+## 用法代码
+
+```tsx title="usage/10-expandable-nested-table.tsx" file="<root>/archive/usage/10-expandable-nested-table.tsx"
+```

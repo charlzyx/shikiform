@@ -1,5 +1,4 @@
-/* shadcn-style, hand-written, no Antd. Plain CSS so the docs site does
-   not need a Tailwind build step for the demo itself. */
+/* Tutorial layout. Field controls come from antd; this file only places the lesson. */
 .shiki-label { font-size: 13px; font-weight: 600; margin: 12px 0 6px; color: #111827; }
 .shiki-error { color: #dc2626; font-size: 12px; margin-top: 4px; }
 .shiki-card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
@@ -18,3 +17,54 @@
 .shiki-table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .shiki-table th, .shiki-table td { border-bottom: 1px solid #e5e7eb; padding: 8px 10px; text-align: left; white-space: nowrap; }
 .shiki-table th { background: #f9fafb; font-weight: 600; }
+
+:root { --rp-content-max-width: 1280px; }
+
+.tutorial-step {
+  display: grid;
+  grid-template-columns: minmax(240px, 300px) minmax(640px, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.tutorial-copy { min-width: 0; }
+.tutorial-copy p, .tutorial-copy li { font-size: 15px; }
+.tutorial-play { min-width: 0; position: sticky; top: calc(var(--rp-nav-height, 72px) + 12px); }
+.tutorial-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 8px; }
+.tutorial-nav { display: flex; justify-content: space-between; gap: 12px; margin-top: 20px; }
+.tutorial-register { display: none; }
+.shiki-btn-primary { background: #111827; color: #fff; border-color: #111827; }
+.shiki-btn-primary:hover { background: #1f2937; }
+.shiki-field { display: block; margin: 0 0 12px; }
+.shiki-field .ant-input,
+.shiki-field .ant-input-number,
+.shiki-field .ant-select { width: 100%; }
+.shiki-field-inline { display: flex; align-items: center; gap: 8px; }
+.shiki-field-inline .shiki-label { margin: 0; }
+.shiki-req { color: #dc2626; }
+.shiki-pretty { font-size: 14px; line-height: 36px; }
+.shiki-array { display: flex; flex-direction: column; gap: 8px; }
+.shiki-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.7fr) minmax(0, 0.7fr) minmax(0, 0.7fr) auto;
+  gap: 8px;
+  align-items: end;
+}
+
+@media (max-width: 960px) {
+  .tutorial-step { grid-template-columns: 1fr; }
+  .tutorial-play { position: static; }
+  .shiki-row { grid-template-columns: 1fr 1fr; }
+}
+
+html.dark .shiki-label { color: #e5e7eb; }
+html.dark .shiki-input,
+html.dark .shiki-btn,
+html.dark .shiki-chip,
+html.dark .shiki-card { background: #111827; color: #e5e7eb; border-color: #374151; }
+html.dark .shiki-btn:hover { background: #1f2937; }
+html.dark .shiki-btn-primary { background: #f9fafb; color: #111827; border-color: #f9fafb; }
+html.dark .shiki-btn-primary:hover { background: #e5e7eb; }
+html.dark .shiki-code { background: #1f2937; color: #e5e7eb; }
+html.dark .shiki-muted { color: #9ca3af; }
+html.dark .shiki-table th { background: #1f2937; }
+html.dark .shiki-table th, html.dark .shiki-table td { border-color: #374151; color: #e5e7eb; }
