@@ -1,5 +1,5 @@
 // 01 基础表单：新建员工
-// 覆盖：Field + Decorator(FormItem) + Component 分离、rules 写在 JSX、submit / reset、submit={false}（确认密码不提交）
+// 覆盖：Field + Decorator(FormItem) + Component 分离、rules 写在 JSX、submit / reset、virtual（确认密码不提交）
 // ⚠️ 假代码：只看 API 是否顺手，不能运行。
 import { useForm, Form, Field, Submit, Reset } from 'shikiform';
 import { FormItem, Input, Select, Switch, Textarea } from './_ui';
@@ -26,7 +26,7 @@ export function EmployeeCreatePage() {
       form={form}
       // 校验失败不会调用 onSubmit；返回 Promise 时 form.submitting = true
       onSubmit={async (values) => {
-        // values 里没有 confirmPassword（submit={false}）
+        // values 里没有 confirmPassword（virtual）
         await api.employees.create(values);
         toast.success('已创建');
         form.reset();
@@ -54,10 +54,10 @@ export function EmployeeCreatePage() {
         <Input type="password" />
       </Field>
 
-      {/* submit={false}：普通 Field，有输入、参与校验，只是提交时被过滤（2026-10-27 起不再有 Transient 类型） */}
+      {/* virtual：普通 Field，有输入、参与校验，只是提交时被过滤（2026-10-27 起不再有 Transient 类型） */}
       <Field
         name="confirmPassword"
-        submit={false}
+        virtual
         decorator={<FormItem label="确认密码" />}
         // 跨字段：ctx.record 是当前对象（这里是根），不用写绝对路径
         validator={(value, ctx) => (value === ctx.record.password ? null : '两次密码不一致')}

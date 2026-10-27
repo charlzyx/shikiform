@@ -37,40 +37,38 @@ const ModelEnum = Enum.from(
   { cacheKey: ({ type, baseUrl }) => `${type}|${baseUrl ?? ''}`, debounce: 300 },
 );
 
-// 集中 effect：一处读源，一处写多个目标
-// ❓ 写法 A（当前）：handle 赋值  query('x').visible = ...
-//    写法 B：链式 setter         field('x').visible(...)
-//    写法 C：typed proxy         $.provider.apiKey.$visible = ...
-const providerEffects = defineEffects<ProviderConfig>((e) => {
-  // e.scope：进入 provider 这个 record，内部 query 一律相对 record
-  e.scope('provider', (p) => {
-    // p.record 是响应式读：读了 type，就只在 type 变化时重跑
-    // ❓ 这一个 react 里写了 5 个目标，任何一个目标被别处写也会冲突——冲突时报错还是后写赢？
-    p.react(({ record, query }) => {
-      const t = record.type;
-      query('./apiKey').visible = t !== 'ollama';
-      query('./apiKey').required = t !== 'ollama' && t !== 'custom';
-      query('./baseUrl').visible = t === 'azure' || t === 'ollama' || t === 'custom';
-      query('./baseUrl').required = t === 'azure' || t === 'custom';
-      query('./deployment').visible = t === 'azure';
-      // 枚举参数：只给参数，加载 / 缓存 / 竞态由 Enum 管
-      query('./model').enum = ModelEnum.with({ type: t, baseUrl: record.baseUrl });
-      // 只读展示：ollama 不需要鉴权
-      query('./authMode').pattern = t === 'ollama' ? 'readPretty' : 'editable';
-    });
-
-    // “当 type 变化时做一次动作”是命令式的，不是派生：用 watch（显式依赖），不用 react（自动收集）
-    // ❓ react（自动依赖、派生状态）+ watch（显式依赖、副作用）两个原语，会不会让人分不清？
-    p.watch(['./type'], ({ record, query }) => {
-      query('./model').value = undefined; // 换供应商，旧模型一律清掉
-      query('./authMode').value = record.type === 'ollama' ? 'none' : 'bearer';
-    });
+// 集中 effect：一处读源，一处写多个目标（2026-10-27 定：draft 路径代理 + autorun / watch）
+const providerEffects = defineEffects<ProviderConfig>(({ autorun, watch }) => {
+  // 相对性 = JS 变量：p 就是 'provider' 这个 handle，不写相对路径字符串
+  autorun((d) => {
+    const p = d.provider;
+    const t = p.type.$value; // 读了 type.$value → 只在 type 变化时重跑；下面的赋值都不是依赖
+    p.apiKey.$visible = t !== 'ollama';
+    p.apiKey.$required = t !== 'ollama' && t !== 'custom';
+    p.baseUrl.$visible = t === 'azure' || t === 'ollama' || t === 'custom';
+    p.baseUrl.$required = t === 'azure' || t === 'custom';
+    p.deployment.$visible = t === 'azure';
+    // 枚举参数：只给参数，加载 / 缓存 / 竞态由 Enum 管（读了 baseUrl.$value，所以 baseUrl 变也重跑）
+    p.model.$enum = ModelEnum.with({ type: t, baseUrl: p.baseUrl.$value });
+    // 只读展示：ollama 不需要鉴权
+    p.authMode.$pattern = t === 'ollama' ? 'readPretty' : 'editable';
   });
+  // ❓ 这一个 autorun 写了 7 个目标，任何一个目标被别处的 autorun 也写会冲突——冲突时报错还是后写赢？
 
-  // 全局一对多：root 作用域
-  e.react(({ root, query }) => {
+  // “type 变化时做一次动作”是命令式的：用 watch（显式源），不用 autorun（自动收集）
+  // 回调里读 type.$value 不会成为依赖：watch 只认第一个参数给出的源
+  watch(
+    (d) => d.provider.type,
+    (d) => {
+      d.provider.model.$value = undefined; // 换供应商，旧模型一律清掉
+      d.provider.authMode.$value = d.provider.type.$value === 'ollama' ? 'none' : 'bearer';
+    },
+  );
+
+  // 全局一对多：直接从根 d 读
+  autorun((d) => {
     // o 系列模型不支持 temperature
-    query('temperature').pattern = /^o\d/.test(root.provider.model ?? '') ? 'disabled' : 'editable';
+    d.temperature.$disabled = /^o\d/.test(d.provider.model.$value ?? '');
   });
 });
 

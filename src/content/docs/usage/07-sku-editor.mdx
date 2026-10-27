@@ -10,7 +10,7 @@ import code from '../../../../usage/07-sku-editor.tsx?raw';
 API 设计轮：下面的代码是“理想 API”下的业务写法，**没有实现、不能运行**。源文件：`usage/07-sku-editor.tsx`。
 :::
 
-首屏用例：每个维度的可选范围由一张 SKU 表算出；任意顺序选择；不合法的旧选择在唯一一个 watch 里清掉；最终 SKU / 价格 / 库存由 e.computed 算出（只读 Field）。维度增加代码不增长。
+首屏用例：每个维度的可选范围由一张 SKU 表算出；任意顺序选择；不合法的旧选择在唯一一个 watch 里清掉；最终 SKU / 价格 / 库存由 autorun 写进只读 Field。维度增加代码不增长。
 
 **演示的特性：** 多对多 · 枚举即联动 · enumPolicy
 

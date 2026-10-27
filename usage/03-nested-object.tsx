@@ -1,8 +1,8 @@
 // 03 嵌套对象：企业资料
 // 覆盖：ObjectField 相对名、同一个子表单组件复用两次（注册地址 / 办公地址）、
-//      record 作用域的 effect 写一次作用到两个实例、“同注册地址”开关。
+//      模块 effect 写一次作用到两个实例（模块 effect = 接收 handle 的普通函数，相对性就是 JS 参数）、“同注册地址”开关。
 // ⚠️ 假代码：只看 API 是否顺手，不能运行。
-import { useForm, Form, Field, ObjectField, Enum, defineEffects, Submit } from 'shikiform';
+import { useForm, Form, Field, ObjectField, Enum, defineEffects, Submit, type Draft } from 'shikiform';
 import { CascaderPlus } from 'shikiform/pro';
 import { FormItem, Input, Switch } from './_ui';
 import { Button } from '@/components/ui/button';
@@ -42,21 +42,23 @@ function AddressFields() {
   );
 }
 
-// 地址模块自己的 effect：写一次，挂到两个 record 上
-// ❓ e.scope 接受数组 / 正则，让一个模块 effect 作用于多个同构对象——还是要求每处显式 e.scope 一次？
-const addressEffects = defineEffects<Address>((e) => {
-  e.react(({ record, query }) => {
-    // 直辖市没有区一级时，邮编非必填（假业务规则，演示 record 作用域）
-    query('./zip').required = record.region?.length === 3;
-  });
-});
+// 地址模块自己的联动：一个普通函数，参数是“某个地址对象”的 handle，不知道自己被挂在哪
+// （2026-10-27：没有相对路径字符串；相对性就是 JS 参数 a）
+export function addressRules(a: Draft<Address>) {
+  // 直辖市没有区一级时，邮编非必填（假业务规则，演示“相对当前对象”）
+  a.zip.$required = a.region.$value?.length === 3;
+}
+// ❓ 模块复用的形式：普通函数（当前）vs 让 defineEffects<Address> 能“挂”到某个 handle 上（原 e.scope）。
+//    普通函数不需要新 API，但每个挂载点要自己写一个 autorun。
 
-const companyEffects = defineEffects<Company>((e) => {
-  e.scope(['registeredAddress', 'officeAddress'], addressEffects);
+const companyEffects = defineEffects<Company>(({ autorun }) => {
+  // 两个挂载点各一个 autorun：互不影响，各自只在自己的 region 变时重跑
+  autorun((d) => addressRules(d.registeredAddress));
+  autorun((d) => addressRules(d.officeAddress));
 
   // “同注册地址”：办公地址整块隐藏，值保留（visible=false 的默认语义：不渲染、保留值、跳过校验）
-  e.react(({ root, query }) => {
-    query('officeAddress').visible = !root.officeSameAsRegistered;
+  autorun((d) => {
+    d.officeAddress.$visible = !d.officeSameAsRegistered.$value;
   });
 });
 

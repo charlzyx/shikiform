@@ -121,3 +121,7 @@ export function TextPretty(props: { value?: unknown }) {
 export function Money(props: { value?: number }) {
   return <span className="tabular-nums">{props.value == null ? '—' : `¥${props.value.toFixed(2)}`}</span>;
 }
+
+export function DateTimePretty(props: { value?: string | Date }) {
+  return <span className="tabular-nums">{props.value == null ? '—' : new Date(props.value).toLocaleString()}</span>;
+}

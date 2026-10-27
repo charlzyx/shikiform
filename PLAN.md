@@ -34,12 +34,12 @@ Agent 时代没人关注底层表单，恰恰是机会：Agent 的工具参数�
 
 > **2026-10-27 变更**：字段类型只按数据结构分，即上面四种。原 `VoidField` / `Transient` / `Computed` 不再是类型，而是属性组合：
 > - 布局（原 VoidField）：普通布局组件，无值、无 path，默认也无 address；需要被 effect 控制时才起名（`ui`）。Grid、查询表单布局、表格工具栏都是这类。
-> - 不提交（原 Transient）：`<Field submit={false}>`，如确认密码；行展开、行选择、编辑模式、折叠、草稿等 UI 状态用同一个开关。
-> - 计算（原 Computed）：在 effects 里 `e.computed` 声明，JSX 里是只读普通 Field。只读、不脏检查、不校验、重置时重算，如总价、预览地址、SKU 最终价格 / 库存、rowspan、查询参数。
-> - 值来源（输入 / 计算）与是否提交（submit）互相独立：计算字段默认不提交，可声明 `submit: true`。
+> - 不提交（原 Transient）：`<Field virtual>`（2026-10-27 由 `submit={false}` 改名），如确认密码；行展开、行选择、编辑模式、折叠、草稿等 UI 状态用同一个开关。
+> - 计算（原 Computed）：字段在值类型里声明，`$value` 在 `autorun` 里写（2026-10-27），JSX 里是只读普通 Field。只读、不脏检查、不校验、重置时重算，如总价、预览地址、SKU 最终价格 / 库存、rowspan、查询参数。
+> - 值来源（输入 / 计算）与是否提交（virtual）互相独立：计算字段默认 virtual，可声明 `virtual={false}` 提交。
 
 ### 2.3 address vs path
-- address：UI 实例地址（`path#n` / `path@ui`，具名布局 `@ui`）；普通布局不进 address（2026-10-27）
+- UI 实例：只有起了名（UI Brand `ui="summary"` → `d.x.ui('summary')`，具名布局 `d.ui('aside')`）才能被 effect 单独定位；`#n` 删除；普通布局不进 path（2026-10-27）
 - path：数据路径，布局永远不进 path
 - 字段注册一次，地址稳定，排序不靠 index 当 React key，靠字段地址 / 稳定 id，避免排序 remount 丢焦点。
 
@@ -54,6 +54,9 @@ Agent 时代没人关注底层表单，恰恰是机会：Agent 的工具参数�
 - 嵌套展开表格同理：展开行的 record 是该行对象，二级表格的 array 是该行里的子数组，子表字段的 record 是子行对象，层层都是相对的。
 
 ### 2.5 联动：只写一个集中 effect
+
+> **2026-10-27 更新（effects 语法定稿，见 usage/DECISIONS.md D3–D8、/usage/16-effects-reference/）**：effects 只有 `autorun(d => …)` / `autorun.each(d => d.items, (row, d) => …)` / `watch(d => d.params, d => …)` 三种写法，基于类 Immer 的 draft 路径代理，字段状态 `$` 前缀（`$value / $visible / $pattern …`）；没有 `./` `../` 字符串、没有正则 query、没有 `#n`；定位只用精确 path，唯一过滤是 UI Brand（`ui="summary"` → `d.x.ui('summary')`），具名区域 `d.ui('aside')`；`scope` 删除；不提交的开关叫 `virtual`。下面本节的旧写法仅作历史记录。
+
 - 所有 if/else、显隐、禁用、校验联动都集中写，不在 JSX 里散落 `useEffect`。
 - 写法像 proxy，只写数据，例如：`form.provider.apiKey.state.visible = form.provider.type.value === 'openai'`
 - 引擎是 store 内的 reaction，不是 React 的 `useEffect`：
@@ -70,7 +73,7 @@ Agent 时代没人关注底层表单，恰恰是机会：Agent 的工具参数�
 - 作用域区分全局一对多（root 作用域，全局设置影响所有 provider）和局部一对多（record 作用域，一个 provider 影响它自己的模型）。
 
 ### 2.7 显隐默认语义（先按这个做，跑起来再调）
-- `visible = false`：不渲染，值保留，校验跳过，提交时保留（除非字段 submit=false，或是默认不提交的计算字段）。
+- `visible = false`：不渲染，值保留，校验跳过，提交时保留（除非字段 virtual，或是默认不提交的计算字段）。
 - 父级隐藏级联到子级；子级单独隐藏不影响父级。
 - 查询表单折叠、行展开、表格编辑模式切换，都复用这个语义：折叠不是清空，展开不是重建。
 
@@ -78,8 +81,8 @@ Agent 时代没人关注底层表单，恰恰是机会：Agent 的工具参数�
 - 以数据字段为准，三棵树分开：数据树（path，值）、字段状态树（path，value/errors/touched/validating/required/pattern/枚举/校验，跨 UI 共享）、UI 树（address，每个 UI 实例一份 visible/pattern/decorator/component/展开/选择/草稿）。
 - Decorator 保留：外层消化 label、required 星号、errors/warnings/feedbacks、help、布局、visible、pattern 展示侧；不消化 value、dataSource、validator。Component 消化 value/onChange/dataSource/disabled。同一数据字段在不同 UI 用不同 Decorator，数据只定义一次。
 - 响应式覆盖全部状态：value、visible、pattern、errors、validating、dataSource、可选范围、touched、required、UI transient，依赖按 state 字段粒度记，不是只记 value。
-- Query 只留三种，语法不复杂：相对路径 `../`（父 record）、`./`（当前）、绝对点路径、正则（尽量按正则标准，支持 `+`、`*`、`.`）。正则匹配数据 path，不是 UI address。没有 Formly 的 `.take()` 链和 `$` DSL。
-- 一个数据字段查出两个 UI：按 UI 树出现顺序编号 1、2、3、4，`query('path#2')` 取第 2 个 UI；正常联动走数据（两 UI 同步），只有单独控制某 UI 的 visible/pattern 时才用编号；编号只用于 UI 层，不用于数据读写。
+- （2026-10-27 已被取代：只用精确 path + UI Brand，见 §2.5 顶部说明）~~Query 只留三种，语法不复杂：相对路径 `../`（父 record）、`./`（当前）、绝对点路径、正则（尽量按正则标准，支持 `+`、`*`、`.`）。正则匹配数据 path，不是 UI address。没有 Formly 的 `.take()` 链和 `$` DSL。~~
+- （2026-10-27 已被取代：`#n` 删除，改用 UI Brand）~~一个数据字段查出两个 UI：按 UI 树出现顺序编号 1、2、3、4，`query('path#2')` 取第 2 个 UI；正常联动走数据（两 UI 同步），只有单独控制某 UI 的 visible/pattern 时才用编号；编号只用于 UI 层，不用于数据读写。~~
 - 跨模块联动：parent 是数据根（useFormContext），不是 UI 父链；模块内部用相对 record，跨模块用数据 path / 相对路径 / 正则。Filter、JSON Schema、校验、effect 都可分模块；JSON Schema 只描述数据树，不描述 UI 树。
 - 详见 STATE.md，本版之后先定 STATE，再补核心，再补 Demo/e2e，不 rush。
 

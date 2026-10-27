@@ -62,8 +62,8 @@ UI 树 UITree（按 address，一对多对应字段）
 - **数据树**：只管值和提交形状，顺序是数据对象的键顺序。
 - **字段状态树**：按 path 唯一，跨 UI 共享。value、errors、touched、validating、required、校验、枚举，都在这里。改一个 UI 的输入，另一个 UI 的显示、错误、校验结果自动同步，因为它们读的是同一个字段状态。
 - **UI 树**：按 address 唯一，每个 UI 实例一份。visible（这个 UI 里显不显）、pattern（这个 UI 里是可编辑还是 Pretty）、decoratorProps（这个 UI 的 label、布局）、componentProps（这个 UI 的占位、大小）、展开 / 选择 / 编辑草稿等 transient，都在这里。
-- **Grid / 工具栏 / Card 等布局**（2026-10-27：不再有 VoidField 类型）：普通组件，没有数据树节点、没有字段状态；只有起了名（`ui`）才成为 UI 树节点（`@name`）。
-- **submit=false / 计算字段**（2026-10-27：不再有 Transient / Computed 类型）：都是普通字段状态，只是“不进提交数据”或“值来自 e.computed”，两个属性独立，见 PLAN 2.2。
+- **Grid / 工具栏 / Card 等布局**（2026-10-27：不再有 VoidField 类型）：普通组件，没有数据树节点、没有字段状态；只有起了名（`ui`）才成为 UI 树节点（effect 里 `d.ui('aside')`，2026-10-27）。
+- **virtual / 计算字段**（2026-10-27：不再有 Transient / Computed 类型；原 `submit={false}` 改名 `virtual`）：都是普通字段状态，只是“不进提交数据”或“`$value` 由 autorun 写”，两个属性独立，见 PLAN 2.2。
 
 这样就解释了“一个数据字段对应两个 UI”：不是 UI 树描述跟数据树不一样就难，而是之前把两棵树压成一棵树才难。分开后，查询一个数据字段，返回的是字段状态 + 它的 UI 实例列表（见第 5 节）。
 
@@ -112,6 +112,9 @@ Formly 的 Decorator + Component 分离要保留，但要讲清楚分工，否�
 - 打字不进全局 reaction：编辑格先走本地 transient，blur / 回车才提交一次（大表格、表格编辑同理）
 
 ## 5. Query：相对路径 + 正则，尽量按正则标准，语法不要复杂
+
+> **2026-10-27 更新（effects 语法定稿，见 usage/DECISIONS.md D3–D8、/usage/16-effects-reference/）**：effects 只有 `autorun(d => …)` / `autorun.each(d => d.items, (row, d) => …)` / `watch(d => d.params, d => …)` 三种写法，基于类 Immer 的 draft 路径代理，字段状态 `$` 前缀（`$value / $visible / $pattern …`）；没有 `./` `../` 字符串、没有正则 query、没有 `#n`；定位只用精确 path，唯一过滤是 UI Brand（`ui="summary"` → `d.x.ui('summary')`），具名区域 `d.ui('aside')`；`scope` 删除；不提交的开关叫 `virtual`。下面本节的旧写法仅作历史记录。
+
 
 Formly 的 `field.query()` + 链式 `.take()` / `.get()` 太麻烦，Shiki 只留三种写法，全部以数据字段为准：
 
@@ -170,7 +173,7 @@ query('provider.apiKey#2').visible = false  // 只隐藏第 2 个 UI，不影响
 | 普通字段 | 1 个 path | 1 个字段状态 | 1 个 UI | 正常一对一 |
 | 一个数据两个 UI | 1 个 path | 1 个字段状态 | 2 个 UI（#1、#2） | `query(path).uis` |
 | 只有 UI 无数据 | 无 | 无 | 0 个（具名布局为 1 个） | 布局组件，path=null |
-| 只有数据无 UI | 1 个 path | 1 个字段状态 | 0 个 UI（隐藏 / 无 UI 状态） | 隐藏字段、计算字段、submit=false 的 UI 状态 |
+| 只有数据无 UI | 1 个 path | 1 个字段状态 | 0 个 UI（隐藏 / 无 UI 状态） | 隐藏字段、计算字段、virtual 的 UI 状态 |
 | 合并格 | 1 个父数据 | 1 个字段状态 | 1 个 UI 跨多行（rowspan=Computed） | 不复制数据行 |
 | 展开二级表 | 父 Array + 子 Array | 父行字段 + 子行字段 | 父表 UI + 展开子表 UI | 子表 record = 父行对象 |
 | 查询表单 + 列筛选同字段 | 1 个 path（如 status） | 1 个字段状态 | 2 个 UI（查询下拉 + 列头下拉） | 改任一 UI，另一 UI 的值同步，查询参数只算一次 |

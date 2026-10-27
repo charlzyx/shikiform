@@ -1,9 +1,11 @@
 // 13 跨模块联动：Agent 工具配置页（大表单拆成多个模块文件，各自维护）
-// 覆盖：每个模块 = 一个 ObjectField 子树 + 自己的 effects + 自己的组件；模块内只用相对 record；
-//      跨模块：沿【数据根】走（useFormContext / ctx.root / 绝对 path），不沿 UI 父链；
-//      正则 query 一次命中多个模块的同名字段；模块可以在别的表单里原样复用（挂到不同 path 下）。
+// 覆盖：每个模块 = 一个 ObjectField 子树 + 自己的规则函数 + 自己的组件；
+//      模块规则是普通函数，参数是模块根的 handle（Draft<模块类型>）——“相对”靠 JS 作用域，不靠相对路径字符串；
+//      宿主在自己的 autorun 里把 d.model / d.tools 传进去，同一个模块在别的表单里传别的 handle 即可复用；
+//      跨模块：宿主把需要的别的 handle 显式传给模块，模块不读整表单根；
+//      多个模块的同名字段：列出精确 handle（没有正则 query）。
 // ⚠️ 假代码：只看 API 是否顺手，不能运行。
-import { useForm, Form, Field, ObjectField, ArrayField, defineEffects, useFormContext, useFormState, Submit } from 'shikiform';
+import { useForm, Form, Field, ObjectField, ArrayField, defineEffects, useFormContext, useFormState, Submit, type Draft } from 'shikiform';
 import { FormItem, Input, Select, Switch, NumberInput } from './_ui';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -11,11 +13,9 @@ import { api } from '@/api';
 
 // ---------------- 模块 A：模型（modules/model.tsx） ----------------
 interface ModelModule { provider: string; model: string; maxTokens: number; stream: boolean }
-export const modelEffects = defineEffects<ModelModule>((e) => {
-  e.react(({ record, query }) => {
-    query('./stream').pattern = record.provider === 'ollama' ? 'disabled' : 'editable';
-  });
-});
+export function modelRules(m: Draft<ModelModule>) {
+  m.stream.$pattern = m.provider.$value === 'ollama' ? 'disabled' : 'editable';
+}
 export function ModelModuleFields() {
   return (
     <>
@@ -37,17 +37,12 @@ export function ModelModuleFields() {
 
 // ---------------- 模块 B：工具（modules/tools.tsx） ----------------
 interface Tool { name: string; enabled: boolean; timeoutMs: number }
-export const toolsEffects = defineEffects<{ items: Tool[] }>((e) => {
-  e.each('items', (t) => {
-    t.react(({ record, query, root }) => {
-      // 跨模块读：root 是【数据根】，不是“上一层 UI”；模块不知道自己被挂在 tabs / 卡片 / 弹窗里
-      // ❓ 模块内的 root 是整个表单的根（当前），还是“模块根”？跨模块就必须是整表单根；
-      //    但这样模块就耦合了宿主的数据形状（root.model.provider）。备选：模块声明 inputs，由宿主注入。
-      query('./timeoutMs').visible = record.enabled;
-      query('./timeoutMs').required = record.enabled && root.model.stream === false;
-    });
-  });
-});
+// 每行一个工具：参数是这一行的 handle；跨模块要的东西由宿主作为 inputs 显式传进来
+export function toolRules(t: Draft<Tool>, inputs: { stream: Draft<boolean> }) {
+  t.timeoutMs.$visible = t.enabled.$value;
+  t.timeoutMs.$required = t.enabled.$value && inputs.stream.$value === false;
+}
+// ❓ 跨模块输入：宿主显式传 handle（当前，模块不耦合宿主数据形状）；还是允许模块函数拿第二个参数 d（整表单根）？
 export function ToolsModuleFields() {
   return (
     <ArrayField name="items" rowKey="name">
@@ -87,15 +82,18 @@ export function LimitsModuleFields() {
 // ---------------- 宿主页面：组装模块 ----------------
 interface AgentConfig { model: ModelModule; tools: { items: Tool[] }; limits: Limits }
 
-const hostEffects = defineEffects<AgentConfig>((e) => {
-  // 把模块 effect 挂到具体 path 上；同一个模块在别的页面可以挂到 'fallback.model' 等别的 path
-  e.scope('model', modelEffects);
-  e.scope('tools', toolsEffects);
+const hostEffects = defineEffects<AgentConfig>(({ autorun }) => {
+  // 把模块规则挂到具体 handle 上；同一个模块在别的页面可以传 d.fallback.model 等别的 handle
+  autorun((d) => modelRules(d.model));
+  autorun.each(
+    (d) => d.tools.items,
+    (t, d) => toolRules(t, { stream: d.model.stream }),
+  );
 
-  // 正则：两个模块里都有 maxTokens（model.maxTokens、limits.maxTokens），一次命中
-  e.react(({ root, query }) => {
-    const locked = root.model.provider === 'ollama';
-    query(/\.maxTokens$/).forEach((h) => (h.pattern = locked ? 'readPretty' : 'editable'));
+  // 两个模块里都有 maxTokens：列出精确 handle，一次设置
+  autorun((d) => {
+    const locked = d.model.provider.$value === 'ollama';
+    for (const h of [d.model.maxTokens, d.limits.maxTokens]) h.$pattern = locked ? 'readPretty' : 'editable';
   });
 });
 
@@ -106,16 +104,14 @@ export function AgentConfigPage({ initial }: { initial: AgentConfig }) {
       {/* UI 结构（Tabs）和数据结构无关：Tabs 不产生 path，ObjectField 才产生 */}
       <Tabs defaultValue="model">
         <TabsList>
-          <TabsTrigger value="model">模型<TabErrorDot pattern={/^model\./} /></TabsTrigger>
-          <TabsTrigger value="tools">工具<TabErrorDot pattern={/^tools\./} /></TabsTrigger>
-          <TabsTrigger value="limits">限额<TabErrorDot pattern={/^limits\./} /></TabsTrigger>
+          <TabsTrigger value="model">模型<TabErrorDot prefix="model" /></TabsTrigger>
+          <TabsTrigger value="tools">工具<TabErrorDot prefix="tools" /></TabsTrigger>
+          <TabsTrigger value="limits">限额<TabErrorDot prefix="limits" /></TabsTrigger>
         </TabsList>
-        {/* ❓ 非激活 Tab 的内容不挂载 → 它的 Field 没注册 → JSX 里的 rules 不存在，提交时不校验！
-                这是“规则写在 JSX”最大的坑。选项：
-                A：Tabs 用 forceMount（全部挂载，CSS 隐藏）——简单，但大表单首屏重
-                B：Field 注册与挂载分离：<Form> 首次渲染做一次“注册遍历”
-                C：规则也可写进 effects（e.rules('model.model', [...])），JSX 规则只是语法糖
-                建议 A 作默认 + C 兜底。 */}
+        {/* ❓ 非激活 Tab 的内容不挂载 → 它的 Field 没挂载 → JSX 里的 rules 不生效，提交时不校验。
+                提议（Q5，未定，等确认）：字段按声明（表单类型）存在，不按挂载存在；
+                autorun 里写的 d.model.model.$rules = [...] 不论挂没挂载都校验；JSX 的 rules prop 只是便捷写法，只在挂载时生效。
+                这里先保留 forceMount（全部挂载，CSS 隐藏）。 */}
         <TabsContent value="model" forceMount>
           <ObjectField name="model">
             <ModelModuleFields />
@@ -140,9 +136,9 @@ export function AgentConfigPage({ initial }: { initial: AgentConfig }) {
   );
 }
 
-// 正则 + 字段状态：某个模块下有没有错误
-function TabErrorDot({ pattern }: { pattern: RegExp }) {
-  const n = useFormState((f) => f.query(pattern).filter((h) => h.errors.length > 0).length);
+// 某个模块下有没有错误：form.errors 是 { path, messages }[]，按精确 path 前缀判断（不是正则 query）
+function TabErrorDot({ prefix }: { prefix: string }) {
+  const n = useFormState((f) => f.errors.filter((e) => e.path === prefix || e.path.startsWith(prefix + '.')).length);
   return <span className="ml-1 text-destructive" hidden={n === 0}>•</span>;
 }
 

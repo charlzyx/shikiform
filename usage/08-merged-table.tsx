@@ -3,7 +3,7 @@
 //      编辑合并格 = 编辑父对象一次；子行增删 / 过滤后 rowspan 自动重算；按组排序不拆组；
 //      父字段错误显示在合并格、子行错误显示在行里。
 // ⚠️ 假代码：只看 API 是否顺手，不能运行。
-import { useForm, Form, Field, defineEffects, useRow, Submit } from 'shikiform';
+import { useForm, Form, Field, defineEffects, useRow, useArray, Submit } from 'shikiform';
 import { MergedTable } from 'shikiform/pro';
 import { CellItem, Input, NumberInput, Switch, Select, TextPretty } from './_ui';
 import { Button } from '@/components/ui/button';
@@ -21,25 +21,34 @@ interface Supplier {
   name: string;
   level: 'A' | 'B' | 'C';
   products: Product[];
+  rowSpan?: number; // 计算字段：可见子行数
 }
 interface Values {
   suppliers: Supplier[];
-  onlyActive: boolean; // UI 状态：表头过滤开关，submit={false}
+  onlyActive: boolean; // UI 状态：表头过滤开关，virtual
 }
 
-const supplierEffects = defineEffects<Values>((e) => {
-  e.each('suppliers', (s) => {
-    // 子行可见性：过滤开关 → 每个产品行的 visible（行也是 Field，ObjectField 的 visible 就是行显隐）
-    s.each('products', (p) => {
-      p.react(({ record, root, query }) => {
-        query('.').visible = !root.onlyActive || record.active;
+const supplierEffects = defineEffects<Values>(({ autorun }) => {
+  // 每个供应商一个实例：s 是供应商 handle，d 是根
+  autorun.each(
+    (d) => d.suppliers,
+    (s, d) => {
+      const onlyActive = d.onlyActive.$value;
+      let visible = 0;
+      // 子行：按 index 拿精确 handle（s.products[i]），行也是 Field，$visible 就是行显隐
+      s.products.$value.forEach((p, i) => {
+        const show = !onlyActive || p.active;
+        s.products[i].$visible = show;
+        if (show) visible++;
       });
-    });
-    // rowspan = 可见子行数，计算值，按 supplier record 缓存
-    // ❓ 应该由 MergedTable 内部自动算（读子行 visible），用户不用写这行？我倾向：内部自动算，
-    //    但这里写出来是为了说明“rowspan 就是计算值”，要能被覆盖。
-    s.computed('rowSpan', ({ record, query }) => record.products.filter((_, i) => query(`./products.${i}`).visible).length);
-  });
+      // rowspan = 可见子行数，计算字段，按供应商实例缓存（用局部变量，不读回刚写的 $visible）
+      s.rowSpan.$value = visible;
+    },
+  );
+  // ❓ rowSpan 应该由 MergedTable 内部自动算（读子行 $visible），用户不用写这行？我倾向：内部自动算，
+  //    但这里写出来是为了说明“rowspan 就是计算值”，要能被覆盖。
+  // ❓ 嵌套数组的 each：要不要允许 autorun.each 嵌套（供应商 each 里再 each 产品），
+  //    还是像这里一样在外层实例里 forEach？forEach 的代价是任一产品变都重跑整个供应商实例。
 });
 
 export function SupplierProductTable({ initial }: { initial: Supplier[] }) {
@@ -47,7 +56,7 @@ export function SupplierProductTable({ initial }: { initial: Supplier[] }) {
 
   return (
     <Form form={form} onSubmit={(v) => api.suppliers.saveAll(v.suppliers)}>
-      <Field name="onlyActive" submit={false} decorator={<label className="flex gap-2">只看在售</label>}>
+      <Field name="onlyActive" virtual decorator={<label className="flex gap-2">只看在售</label>}>
         <Switch />
       </Field>
 
@@ -102,9 +111,7 @@ export function SupplierProductTable({ initial }: { initial: Supplier[] }) {
         </MergedTable.Column>
       </MergedTable>
 
-      <Button variant="outline" onClick={() => form.query('suppliers').push({ id: nanoid(), name: '', level: 'B', products: [] })}>
-        + 供应商
-      </Button>
+      <AddSupplierButton />
       <Submit asChild>
         <Button>保存</Button>
       </Submit>
@@ -116,15 +123,27 @@ export function SupplierProductTable({ initial }: { initial: Supplier[] }) {
 // ❓ 同一个 useRow() 在不同列返回不同层级的行，会不会让人困惑？备选：useRow('suppliers') 显式指定层级。
 function GroupActions() {
   const supplier = useRow<Supplier>();
+  // 组件里的 path 字符串一律是精确数据路径：supplier.path = 'suppliers.3'
+  const products = useArray<Product>(`${supplier.path}.products`);
   return (
     <div className="flex flex-col gap-1">
       <Button size="sm" variant="ghost" onClick={() => supplier.moveUp()}>组上移</Button>
-      <Button size="sm" variant="ghost" onClick={() => supplier.query('./products').push({ id: nanoid(), name: '', price: 0, active: true })}>
+      <Button size="sm" variant="ghost" onClick={() => products.push({ id: nanoid(), name: '', price: 0, active: true })}>
         + 产品
       </Button>
     </div>
   );
 }
+function AddSupplierButton() {
+  const suppliers = useArray<Supplier>('suppliers');
+  return (
+    <Button variant="outline" onClick={() => suppliers.push({ id: nanoid(), name: '', level: 'B', products: [] })}>
+      + 供应商
+    </Button>
+  );
+}
+// ❓ 组件里拿子数组只能拼路径字符串（`${supplier.path}.products`）。要不要让 hooks 也收 draft 选择器，
+//    如 useArray(d => d.suppliers[supplier.index].products)，和 effect 一个写法？
 function RowActions() {
   const product = useRow<Product>();
   return (

@@ -50,32 +50,35 @@ interface EventForm {
   agree: boolean;
 }
 
-const eventEffects = defineEffects<EventForm>((e) => {
+const eventEffects = defineEffects<EventForm>(({ autorun }) => {
   // 枚举参数联动：city 变 → venue 的 enum 参数变
-  e.react(({ root, query }) => {
-    query('venue').enum = VenueEnum.with({ city: root.city?.at(-1) });
+  autorun((d) => {
+    d.venue.$enum = VenueEnum.with({ city: d.city.$value?.at(-1) });
   });
-
-  // 双向约束：不拆成两个字段互相校验（会循环），表单级一次算两个字段
-  // 返回 { path: message }，引擎写到对应字段的 errors 上（来源标记为 'form'，下次重算时只清自己写的）
-  e.validate(({ root }) => {
-    const errors: Record<string, string> = {};
-    if (root.vipSeats > root.capacity) {
-      errors.vipSeats = 'VIP 席位不能超过总容量';
-      errors.capacity = '总容量小于 VIP 席位';
-    }
-    if (root.period && root.signupDeadline && root.signupDeadline > root.period[0]) {
-      errors.signupDeadline = '报名截止必须早于活动开始';
-    }
-    return errors;
-  });
-  // ❓ e.validate 什么时候跑？建议：它读到的任一字段触发校验时（按那个字段的 trigger）+ submit。
 });
+
+// 双向约束：不拆成两个字段互相校验（会循环），表单级一次算两个字段。
+// effects 只有 autorun / watch 两个入口，所以表单级校验放在 useForm 的 validate 里（见下）：
+// 返回 { path: message }（精确 path），引擎写到对应字段的 $errors 上（来源标记为 'form'，下次重算时只清自己写的）
+function validateEvent(v: EventForm) {
+  const errors: Record<string, string> = {};
+  if (v.vipSeats > v.capacity) {
+    errors.vipSeats = 'VIP 席位不能超过总容量';
+    errors.capacity = '总容量小于 VIP 席位';
+  }
+  if (v.period && v.signupDeadline && v.signupDeadline > v.period[0]) {
+    errors.signupDeadline = '报名截止必须早于活动开始';
+  }
+  return errors;
+}
+// ❓ 表单级校验（原 e.validate）放哪：useForm({ validate })（当前）还是 autorun 里直接写 d.vipSeats.$errors？
+//    后者要先定 $errors 能不能写、和 rules 产生的错误怎么合并。什么时候跑：建议它读到的任一字段触发校验时 + submit。
 
 export function EventCreateForm() {
   const form = useForm<EventForm>({
     initialValues: { title: '', level: 'normal', city: [], capacity: 100, vipSeats: 0, organizer: { name: '', phone: '' }, agree: false },
     effects: [eventEffects],
+    validate: validateEvent,
     validateTrigger: ['onBlur', 'onSubmit'], // 全局默认
     enumPolicy: 'error', // 枚举范围变化后旧值不合法 → 报错（本表单选“报错”，不自动清）
     // 可选：外部 schema 追加校验（结果合并进同一个字段错误树）
@@ -136,8 +139,8 @@ export function EventCreateForm() {
         </Field>
       </ObjectField>
 
-      {/* submit={false} + 校验：同意协议是必选但不提交 */}
-      <Field name="agree" submit={false} decorator={<FormItem />} rules={[{ isTrue: true, message: '请先同意活动规范' }]} trigger="onChange">
+      {/* virtual + 校验：同意协议是必选但不提交 */}
+      <Field name="agree" virtual decorator={<FormItem />} rules={[{ isTrue: true, message: '请先同意活动规范' }]} trigger="onChange">
         <input type="checkbox" />
       </Field>
 
@@ -149,22 +152,24 @@ export function EventCreateForm() {
   );
 }
 
-// ============ 同一个 LevelEnum 在列表页：列展示 Pretty + 列筛选 Select ============
+// ============ 同一个 LevelEnum 在列表页：单元格 Pretty + 列筛选 Select ============
+// 2026-10-27 Q7：表格列一律放 <Field name>（相对行），只读表就是 $pattern = 'readPretty'，没有 dataIndex 写法
 export function EventListColumns() {
   return (
-    <>
-      <ProTable.Column title="等级" dataIndex="level" render={(v) => <ProEnumPretty enum={LevelEnum} value={v} />} />
-      <ProTable.Column
-        title="等级"
-        dataIndex="level"
-        filter={
-          <Field name="level" decorator={<CellItem />} enum={LevelEnum} commit="immediate">
-            <Select multiple />
-          </Field>
-        }
-      />
-    </>
+    <ProTable.Column
+      title="等级"
+      // 列头筛选：查询条件 level（根上的字段），commit="immediate"
+      filter={
+        <Field name="level" ui="filter" decorator={<CellItem />} enum={LevelEnum} commit="immediate">
+          <Select multiple />
+        </Field>
+      }
+    >
+      {/* 单元格：行里的 level；readPretty 时 ProEnumPretty 自动拿到这个 Field 的 enum */}
+      <Field name="level" decorator={<CellItem />} enum={LevelEnum} pretty={<ProEnumPretty />}>
+        <Select />
+      </Field>
+    </ProTable.Column>
   );
 }
-// ❓ ProEnumPretty 在 Field 里用（pretty={<ProEnumPretty/>}）时自动拿到 field 的 enum；在表格 render 里用时要显式传 enum。
-//    两种入口是否需要统一成一个？建议保留：Field 内自动、Field 外显式。
+// ProEnumPretty 在 Field 里（pretty={<ProEnumPretty/>}）自动拿 field 的 enum；表格单元格现在也是 Field，所以不再需要显式传 enum 的入口。

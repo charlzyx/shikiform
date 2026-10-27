@@ -1,6 +1,6 @@
 ---
 title: "12 · 超大表格"
-description: "2000 行价格批量调整：虚拟化、字段级订阅、commit=blur（打字不进全局 reaction）、按 reco"
+description: "2000 行价格批量调整：虚拟化、字段级订阅、commit=blur（打字不触发全局 autorun）、autorun.each"
 ---
 import { Code } from '@astrojs/starlight/components';
 import OpenPoints from '../../../components/OpenPoints.astro';
@@ -10,7 +10,7 @@ import code from '../../../../usage/12-large-table.tsx?raw';
 API 设计轮：下面的代码是“理想 API”下的业务写法，**没有实现、不能运行**。源文件：`usage/12-large-table.tsx`。
 :::
 
-2000 行价格批量调整：虚拟化、字段级订阅、commit="blur"（打字不进全局 reaction）、按 record 缓存的计算值、batch 一次事务批量写、渲染计数验收。
+2000 行价格批量调整：虚拟化、字段级订阅、commit="blur"（打字不触发全局 autorun）、`autorun.each` 每行计算值、`form.batch(d => …)` 一次事务批量写、渲染计数验收。
 
 **演示的特性：** 性能 · commit · batch
 

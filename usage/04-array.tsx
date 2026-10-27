@@ -1,5 +1,5 @@
 // 04 数组：多 Provider 路由（主备 + 权重）
-// 覆盖：ArrayField 增 / 删 / 上下移 / 复制；模板里的 rules 与联动按 record 作用域对每一行生效；
+// 覆盖：ArrayField 增 / 删 / 上下移 / 复制；模板里的 rules 与联动对每一行生效；
 //      数组级校验（名称唯一、至少一个启用）；稳定 rowKey（排序不 remount、不丢焦点）。
 // ⚠️ 假代码：只看 API 是否顺手，不能运行。
 import { useForm, Form, Field, ArrayField, Enum, defineEffects, useRow, useArray, Submit } from 'shikiform';
@@ -28,23 +28,23 @@ const TypeEnum = Enum.from([
   { label: 'Ollama', value: 'ollama' },
 ]);
 
-const routingEffects = defineEffects<RoutingConfig>((e) => {
-  // 模板联动：写一次，每一行（含新增、复制、移动后的行）各自一份实例
-  e.each('routes', (row) => {
-    row.react(({ record, query }) => {
-      query('./apiKey').visible = record.type !== 'ollama';
-      query('./apiKey').required = record.type !== 'ollama';
-      query('./baseUrl').required = record.type === 'ollama';
-      // 未启用的行整行只读
-      query('.').pattern = record.enabled ? 'editable' : 'readPretty';
-    });
-  });
-
-  // 全局 → 所有行：故障转移模式下不需要权重
-  e.react(({ root, query }) => {
-    // ❓ 正则 query 返回多个 handle；对数组整体赋值要 forEach，还是允许 query(...).visible = x 广播？
-    query(/^routes\.\d+\.weight$/).forEach((h) => (h.visible = root.strategy === 'weighted'));
-  });
+const routingEffects = defineEffects<RoutingConfig>(({ autorun }) => {
+  // 模板联动：写一次，每一行（含新增、复制、移动后的行）各自一个实例；row 就是“当前行”，不写相对路径字符串
+  autorun.each(
+    (d) => d.routes,
+    (row, d) => {
+      const t = row.type.$value;
+      row.apiKey.$visible = t !== 'ollama';
+      row.apiKey.$required = t !== 'ollama';
+      row.baseUrl.$required = t === 'ollama';
+      // 未启用的行整行只读：行 handle 本身也有 $pattern，向下级联
+      row.$pattern = row.enabled.$value ? 'editable' : 'readPretty';
+      // 全局 → 每一行：故障转移模式下不需要权重（读根 d，不用正则一次命中所有行）
+      row.weight.$visible = d.strategy.$value === 'weighted';
+    },
+  );
+  // ❓ 一个 each 实例同时读本行和根（d.strategy）：strategy 一变，所有行实例都重跑——符合预期，但 2000 行时要不要拆成
+  //    单独的 autorun 去写每一行（那就要在 autorun 里 forEach 所有行，等于一次写 N 个目标）？
 });
 
 export function RoutingForm({ initial }: { initial: RoutingConfig }) {
@@ -124,7 +124,7 @@ function RowActions() {
   );
 }
 
-// ArrayField 外部也能操作：useArray(path) 或 form.query('routes').push(...)
+// ArrayField 外部也能操作：useArray(path)（path 是精确数据路径）
 function AddRouteButton() {
   const routes = useArray<Route>('routes');
   return (

@@ -1,6 +1,6 @@
 // 12 超大表格：2000 行价格批量调整
 // 覆盖：行虚拟化（只挂可视区）；字段级订阅（改一格只重渲染该格 + 真正依赖它的计算值）；
-//      commit="blur"：打字只改本地草稿，不进全局 reaction，blur / 回车才提交一次；
+//      commit="blur"：打字只改本地草稿，不触发全局 autorun，blur / 回车才提交一次；
 //      按 record 缓存计算值；rowKey 稳定，排序不 remount 不丢焦点；渲染计数用于验收。
 // ⚠️ 假代码：只看 API 是否顺手，不能运行。
 import { useForm, Form, Field, defineEffects, useFormState, useFormContext } from 'shikiform';
@@ -9,17 +9,25 @@ import { CellItem, NumberInput, Input, Money } from './_ui';
 import { Button } from '@/components/ui/button';
 import { api } from '@/api';
 
-interface PriceRow { id: string; sku: string; cost: number; markup: number; price: number }
-interface Values { rows: PriceRow[]; globalMarkup: number }
+interface PriceRow {
+  id: string; sku: string; cost: number; markup: number; price: number;
+  suggested?: number; belowCost?: boolean; // 计算字段
+}
+interface Values { rows: PriceRow[]; globalMarkup: number; belowCostCount?: number /* 计算字段 */ }
 
-const priceEffects = defineEffects<Values>((e) => {
-  e.each('rows', (row) => {
-    // 按 record 缓存：只有这一行的 cost / markup 变了才重算
-    row.computed('suggested', ({ record }) => Math.ceil(record.cost * (1 + record.markup)));
-    row.computed('belowCost', ({ record }) => record.price < record.cost);
+const priceEffects = defineEffects<Values>(({ autorun }) => {
+  // 每行一个实例：只有这一行的 cost / markup / price 变了才重跑
+  autorun.each(
+    (d) => d.rows,
+    (row) => {
+      row.suggested.$value = Math.ceil(row.cost.$value * (1 + row.markup.$value));
+      row.belowCost.$value = row.price.$value < row.cost.$value;
+    },
+  );
+  // 全表聚合：任意一行 price 提交后重算一次（不是每次按键，见 commit: 'blur'）
+  autorun((d) => {
+    d.belowCostCount.$value = d.rows.$value.filter((r) => r.belowCost).length;
   });
-  // 全表聚合：任意一行 price 提交后重算一次（不是每次按键）
-  e.computed('belowCostCount', ({ root }) => root.rows.filter((r) => r.belowCost).length);
 });
 
 export function BulkPriceEditor({ rows }: { rows: PriceRow[] }) {
@@ -56,7 +64,7 @@ export function BulkPriceEditor({ rows }: { rows: PriceRow[] }) {
           </Field>
         </ArrayTable.Column>
         <ArrayTable.Column title="建议价" width={120}>
-          {/* suggested 在 effects 里是 computed → 这里就是一个只读的普通 Field */}
+          {/* suggested 是计算字段（autorun 写 $value）→ 这里就是一个只读的普通 Field */}
           <Field name="suggested" decorator={<CellItem />}>
             <Money />
           </Field>
@@ -90,12 +98,12 @@ function Toolbar() {
   return (
     <div className="flex gap-2 items-center">
       <span>{below} 行低于成本</span>
-      {/* 批量写：form.batch 一次事务，2000 个 setValue 只触发一轮 reaction、一次渲染 */}
+      {/* 批量写：form.batch(d => …) 拿到和 effect 同一种 draft，一次事务，2000 个写入只触发一轮 autorun、一次渲染 */}
       <Button
         onClick={() =>
-          form.batch(() => {
-            form.query(/^rows\.\d+$/).forEach((row) => {
-              row.query('./price').value = row.query('./suggested').value;
+          form.batch((d) => {
+            d.rows.$value.forEach((r, i) => {
+              d.rows[i].price.$value = r.suggested; // 按 index 取精确 handle，不用正则匹配 path
             });
           })
         }
@@ -105,11 +113,11 @@ function Toolbar() {
       <Field name="globalMarkup" decorator={<CellItem />}>
         <Input />
       </Field>
-      <Button onClick={() => form.batch(() => form.query(/^rows\.\d+\.markup$/).forEach((h) => (h.value = form.values.globalMarkup)))}>
+      <Button onClick={() => form.batch((d) => d.rows.$value.forEach((_, i) => (d.rows[i].markup.$value = d.globalMarkup.$value)))}>
         统一加价率
       </Button>
     </div>
   );
 }
-// ❓ 正则 query 在 2000 行上每次都全量匹配 path 字符串：要不要给“数组每行的某字段”一个专门写法，如 query('rows[*].markup')？
-//    PLAN 说只要正则不要 glob；但 /^rows\.\d+\.markup$/ 写起来真的长。
+// ❓ form.batch(d => …) 复用 effect 的 draft（当前）：组件里的命令式写和 effect 一个写法。是否接受？
+//    （2026-10-27 起定位数据只用精确 path，正则 query / 'rows[*].markup' 这类写法都不再需要。）

@@ -5,9 +5,10 @@
 //        数组行只有 index，没有 pos。
 //      数据 path 由 pos 推出：[0,2,1] → 'menus.0.children.2.children.1'（children 键可配）；
 //      移动全部用 pos 表达：move(fromPos, toPos)、indent / outdent、moveUp / moveDown；
-//      “禁止移入自身后代” = toPos 以 fromPos 为前缀；按 depth 做联动和分层校验；按 pos 查询。
+//      “禁止移入自身后代” = toPos 以 fromPos 为前缀；按 depth 做联动和分层校验；
+//      定位某个节点：先 findPos 找到 pos，再 pathOf(pos) 得到精确 path（pos 不是查询过滤条件）。
 // ⚠️ 假代码：只看 API 是否顺手，不能运行。
-import { useForm, Form, Field, TreeField, defineEffects, useNode, useTree, Submit } from 'shikiform';
+import { useForm, Form, Field, TreeField, defineEffects, findPos, pathOf, useNode, useTree, Submit } from 'shikiform';
 import { FormItem, Input, Select, Switch } from './_ui';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -32,39 +33,37 @@ interface MenuNode {
 
 const MAX_DEPTH = 3;
 
-const menuEffects = defineEffects<{ menus: MenuNode[] }>((e) => {
-  // 对 TreeField，each 走到每一层每个节点；ctx 比数组多 pos / depth / parent
-  //   ctx.pos     : [0, 2, 1]
-  //   ctx.depth   : 3            （= pos.length）
-  //   ctx.index   : 1            （= pos.at(-1)，在兄弟中的位置；数组行也有，语义相同）
-  //   ctx.array   : 兄弟节点数组  （= 父节点的 children；根层 = menus）
-  //   ctx.parent  : 父节点 record（根层为 undefined）
-  //   ctx.parentPos: [0, 2]
-  //   ctx.path    : 'menus.0.children.2.children.1'
-  e.each('menus', (node) => {
-    node.react(({ record, depth, query }) => {
-      query('./icon').visible = depth === 1; // 按层级联动：只有顶层菜单有图标
-      query('./path').visible = record.kind === 'page';
-      query('./path').required = record.kind === 'page';
-      query('./url').visible = record.kind === 'link';
-      query('./url').required = record.kind === 'link';
+const menuEffects = defineEffects<{ menus: MenuNode[] }>(({ autorun, query }) => {
+  // 对 TreeField，autorun.each 走到每一层每个节点；node 是当前节点的 handle（相对性 = 回调参数，不写相对路径字符串）
+  //   node.$pos  : [0, 2, 1]        （树节点才有；数组行只有 index）
+  //   node.$pos.length = depth 3，node.$pos.at(-1) = 兄弟中的 index 1
+  //   node.$path : 'menus.0.children.2.children.1'
+  autorun.each(
+    (d) => d.menus,
+    (node) => {
+      const depth = node.$pos.length;
+      const kind = node.kind.$value;
+      node.icon.$visible = depth === 1; // 按层级联动：只有顶层菜单有图标
+      node.path.$visible = kind === 'page';
+      node.path.$required = kind === 'page';
+      node.url.$visible = kind === 'link';
+      node.url.$required = kind === 'link';
       // 不同层级可选的 kind 不同：第 1 层只能是分组，最深层不能是分组
-      query('./kind').enum = KIND_OPTIONS.filter((o) =>
+      node.kind.$enum = KIND_OPTIONS.filter((o) =>
         depth === 1 ? o.value === 'group' : depth === MAX_DEPTH ? o.value !== 'group' : true,
       );
-    });
-  });
+    },
+  );
+  // ❓ 节点 handle 上的坐标叫 node.$pos（$ 前缀，因为不带 $ 的都是子字段）；depth 要不要再给一个 node.$depth？
+  // ❓ node.path 这里是业务子字段（菜单路由），node.$path 是数据路径——$ 规则正好避免了撞名。
 
-  // 按 pos 查询：绝对坐标定位某个节点（例：首页菜单 [0, 0] 永远不可隐藏）
-  e.react(({ query }) => {
-    const home = query('menus', { pos: [0, 0] });
-    if (home) home.query('./hidden').pattern = 'disabled';
-    // ❓ 按 pos 查询的写法：
-    //    A（当前）query('menus', { pos: [0, 0] }) 返回节点 handle，再相对 query
-    //    B 路径里直接写：query('menus.0.children.0.hidden')——就是 pos 推出来的 path，不需要新语法，但要手写 children
-    //    C 新语法：query('menus[0/0].hidden')
-    //    建议 A + B；不发明 C。
+  // 定位某个节点：先按条件找到 pos，再由 pos 推出精确 path（例：首页菜单永远不可隐藏）
+  autorun((d) => {
+    const pos = findPos(d.menus.$value, (n) => n.id === 'home'); // → [0, 0] 或 undefined
+    if (pos) query(pathOf('menus', pos)).hidden.$disabled = true; // pathOf → 'menus.0.children.0'
   });
+  // ❓ 树定位 helper 的形态：findPos(value, pred) + pathOf(rootPath, pos) + query(path)（当前），
+  //    还是给树 handle 一个 d.menus.$at(pos)？两者都不是“按 pos 过滤”，只是坐标 → path。
 });
 
 const KIND_OPTIONS = [

@@ -1,6 +1,6 @@
 ---
 title: "04 · 数组"
-description: "多 Provider 路由：增 / 删 / 上下移 / 复制；行模板里的规则和联动按每行 record 生效；数组级与跨"
+description: "多 Provider 路由：增 / 删 / 上下移 / 复制；行模板里的规则和 `autorun.each` 联动对每行生效；数组级与跨"
 ---
 import { Code } from '@astrojs/starlight/components';
 import OpenPoints from '../../../components/OpenPoints.astro';
@@ -10,9 +10,9 @@ import code from '../../../../usage/04-array.tsx?raw';
 API 设计轮：下面的代码是“理想 API”下的业务写法，**没有实现、不能运行**。源文件：`usage/04-array.tsx`。
 :::
 
-多 Provider 路由：增 / 删 / 上下移 / 复制；行模板里的规则和联动按每行 record 生效；数组级与跨行校验（ctx.array）；稳定 rowKey。
+多 Provider 路由：增 / 删 / 上下移 / 复制；行模板里的规则和 `autorun.each` 联动对每行生效；数组级与跨行校验（ctx.array）；稳定 rowKey。
 
-**演示的特性：** ArrayField · 行作用域 · useRow / useArray · 正则 query
+**演示的特性：** ArrayField · autorun.each · useRow / useArray
 
 ## 本用例的 ❓ 待定点
 

@@ -1,12 +1,14 @@
 // 09 查询表单 + 表格：调用日志
 // 覆盖：Grid 自动排列（不手写 span）+ 折叠（值保留）；查询内部联动（provider → model）；
-//      e.computed 做 transform（空值省略 / 日期拆分）；分页（新查询回第 1 页）；
-//      列筛选和查询表单是【同一个数据字段的两个 UI】（status#1 / status#2）；
-//      分页 / 选择 / 折叠 / 列设置是 submit=false 的普通字段（不提交，新查询清空选择）；工具栏是普通布局 JSX。
+//      transform 是计算字段（params 的 $value 在 autorun 里写：空值省略 / 日期拆分）；分页（watch：新查询回第 1 页）；
+//      列筛选和查询表单是【同一个数据字段的两个 UI】：列筛选那个起名 ui="filter"（UI Brand），effect 里 d.status.ui('filter')；
+//      结果表也是表单数据（rows），列里一律 <Field name>（相对行），只读 = $pattern 'readPretty'（2026-10-27 Q7）；
+//      服务端分页：page / pageSize 是普通提交字段；选择 / 折叠 / 列设置 virtual（按场景的开关，不是字段种类）；
+//      末尾有一个纯前端分页的变体：同一个 page 在那张表单里设成 virtual；工具栏是普通布局 JSX。
 // ⚠️ 假代码：只看 API 是否顺手，不能运行。
 import { useForm, useFieldValue, Form, Field, Enum, defineEffects } from 'shikiform';
 import { QueryForm, ProTable, useQueryTable, ProEnumPretty } from 'shikiform/pro';
-import { CellItem, FormItem, Input, Select, DateRange, Checkbox } from './_ui';
+import { CellItem, FormItem, Input, Select, DateRange, Checkbox, DateTimePretty } from './_ui';
 import { Button } from '@/components/ui/button';
 import { api } from '@/api';
 
@@ -21,6 +23,8 @@ const ModelEnum = Enum.from(async ({ provider }: { provider?: string }) => api.m
   cacheKey: ({ provider }) => provider ?? '*',
 });
 
+interface LogRow { id: string; model: string; status: string; latency: number; createdAt: string }
+
 interface LogQuery {
   keyword?: string;
   status?: string[];
@@ -29,77 +33,89 @@ interface LogQuery {
   createdAt?: [Date, Date];
   minLatency?: number;
   userId?: string;
-  // —— 以下是 UI 状态：普通字段，submit=false ——
+  // —— 计算字段：查询参数（transform 结果）——
+  params?: Record<string, unknown>;
+  // —— 结果行：表单数据，只读展示 ——
+  rows: LogRow[];
+  // —— 分页：要提交；UI 是 ProTable 自带的 Pagination ——
   page: number;
   pageSize: number;
+  // —— 以下是 UI 状态：普通字段，virtual ——
   selectedIds: string[];
   collapsed: boolean;
   hiddenColumns: string[];
 }
 
-const queryEffects = defineEffects<LogQuery>((e) => {
+const queryEffects = defineEffects<LogQuery>(({ autorun, watch }) => {
   // 查询内部联动：provider → model 的可选范围
-  e.react(({ root, query }) => {
-    query('model').enum = ModelEnum.with({ provider: root.provider });
+  autorun((d) => {
+    d.model.$enum = ModelEnum.with({ provider: d.provider.$value });
   });
 
-  // transform 是计算值：空值省略、日期拆分、多选原样
-  e.computed('params', ({ root }) =>
-    omitEmpty({
-      q: root.keyword?.trim(),
-      status: root.status,
-      provider: root.provider,
-      model: root.model,
-      start: root.createdAt?.[0]?.toISOString(),
-      end: root.createdAt?.[1]?.toISOString(),
-      minLatency: root.minLatency,
-      userId: root.userId,
-    }),
-  );
+  // transform 是计算字段：空值省略、日期拆分、多选原样
+  autorun((d) => {
+    const range = d.createdAt.$value;
+    d.params.$value = omitEmpty({
+      q: d.keyword.$value?.trim(),
+      status: d.status.$value,
+      provider: d.provider.$value,
+      model: d.model.$value,
+      start: range?.[0]?.toISOString(),
+      end: range?.[1]?.toISOString(),
+      minLatency: d.minLatency.$value,
+      userId: d.userId.$value,
+    });
+  });
 
   // 查询条件变了（不论来自查询表单还是列筛选）：回第 1 页、清空选择
   // ❓ 但查询表单是“点查询按钮才生效”，列筛选是“改了立刻生效”——同一个 status 字段两种生效时机。
   //    这里的方案：params 是“草稿参数”，useQueryTable 维护“已提交参数”；
   //    列筛选 UI 上声明 commit="immediate"，查询表单 UI 上 commit 跟随查询按钮。见下面 JSX。
-  e.watch(['params'], ({ query }) => {
-    query('page').value = 1;
-    query('selectedIds').value = [];
+  watch(
+    (d) => d.params,
+    (d) => {
+      d.page.$value = 1;
+      d.selectedIds.$value = [];
+    },
+  );
+
+  // 结果表只读：读的东西为空 → 只跑一次（静态设置）；运行时想切成可编辑，改成读某个开关即可
+  autorun((d) => {
+    d.rows.$pattern = 'readPretty';
   });
 
-  // 只控制某一个 UI：列被隐藏（列设置里关掉“状态”）时，列头筛选那个 UI 一起隐藏，查询表单里那个不动
-  e.react(({ root, query }) => {
-    query('status#2').visible = !root.hiddenColumns?.includes('status');
-    // ❓ #2 依赖“UI 出现顺序”，查询表单折叠 / 字段增删都可能让编号变。
-    //    建议同时支持具名 UI：<Field name="status" ui="filter" />，query('status@filter')，#n 作为兜底。
+  // 只控制某一个 UI（UI Brand）：列被隐藏（列设置里关掉“状态”）时，列头筛选那个 UI 一起隐藏，查询表单里那个不动
+  autorun((d) => {
+    d.status.ui('filter').$visible = !d.hiddenColumns.$value.includes('status');
   });
 });
 
 export function CallLogPage() {
   const form = useForm<LogQuery>({
-    initialValues: { page: 1, pageSize: 20, selectedIds: [], collapsed: true, hiddenColumns: [] },
+    initialValues: { rows: [], page: 1, pageSize: 20, selectedIds: [], collapsed: true, hiddenColumns: [] },
     effects: [queryEffects],
-    // 没有自己 UI 的字段，在这里声明字段属性（和 <Field submit={false}> 是同一个开关）
-    // ❓ 无 UI 字段的 submit={false} 写在哪：
-    //    A（当前）useForm({ fields: { page: { submit: false } } })
-    //    B JSX 里 <Field name="page" submit={false} hidden />（不渲染的占位 Field）
-    //    C effects 里 e.field('page', { submit: false })
-    //    建议 A：声明式、和 initialValues 放一起；有 UI 的字段直接在 JSX 上写 submit={false}。
+    // 没有自己 <Field> 的状态，在这里声明字段属性（和 <Field virtual> 是同一个开关）
+    // 服务端分页：page / pageSize 是普通字段（查询条件），随请求提交；它们的 UI 是 ProTable 自带的 Pagination
+    // virtual 是“这张表单里”对某个字段的开关，不是字段种类（2026-10-27 定，原名 virtual，因和表单 submit 撞名改名）：
+    //   virtual 字段有值，完整参与 autorun / watch（可以是依赖，也可以是计算目标），只是不进提交值。
+    //   selectedIds（UI 是表格勾选列）通常 virtual；同一个 page 只在纯前端分页时才 virtual（见下面 LocalLogTable）。
     fields: {
-      page: { submit: false },
-      pageSize: { submit: false },
-      selectedIds: { submit: false },
-      collapsed: { submit: false },
-      hiddenColumns: { submit: false },
+      params: { virtual: true },
+      rows: { virtual: true },
+      selectedIds: { virtual: true },
+      collapsed: { virtual: true },
+      hiddenColumns: { virtual: true },
     },
   });
 
   // 表格数据不是表单数据：useQueryTable 负责请求 / loading / 分页 / 竞态
   const table = useQueryTable({
     form,
-    params: 'params', // 读哪个计算字段当查询参数
+    params: 'params', // 读哪个计算字段当查询参数（精确 path）
+    rows: 'rows', // 结果写回哪个字段（表格列用 <Field name> 相对行读它）
     request: ({ params, page, pageSize, signal }) => api.logs.list({ ...params, page, pageSize }, { signal }),
-    // page / pageSize / selection 绑定到表单里的 submit=false 字段，翻页不丢查询条件
-    pagination: { page: 'page', pageSize: 'pageSize' },
+    // 服务端分页：page / pageSize 绑定到表单字段（普通提交字段），翻页不丢查询条件
+    pagination: { mode: 'server', page: 'page', pageSize: 'pageSize' },
   });
 
   return (
@@ -107,13 +123,13 @@ export function CallLogPage() {
       {/*
         QueryForm = 布局组件（Grid + 折叠 + 按钮），不是字段、不产生 path / address：按容器宽度自动排列，minColumnWidth 决定列数；
         折叠时只显示前 visibleCount 个，操作按钮自动占最后一行剩余格子；
-        折叠状态绑定字段 "collapsed"（submit=false）（折叠 = 被折叠字段 visible=false，值保留）
+        折叠状态绑定字段 "collapsed"（virtual）（折叠 = 被折叠字段 visible=false，值保留）
       */}
       <QueryForm grid={{ minColumnWidth: 260, maxColumns: 4, gap: 16 }} visibleCount={3} collapsed="collapsed">
         <Field name="keyword" decorator={<FormItem label="关键词" inline />}>
           <Input placeholder="请求 id / prompt" />
         </Field>
-        {/* status#1：查询表单里的多选下拉 */}
+        {/* 查询表单里的 status：主 UI，不起名 */}
         <Field name="status" decorator={<FormItem label="状态" inline />} enum={StatusEnum}>
           <Select multiple />
         </Field>
@@ -145,27 +161,79 @@ export function CallLogPage() {
         </div>
       </div>
 
-      <ProTable table={table} rowKey="id" selection="selectedIds">
-        <ProTable.Column title="请求 ID" dataIndex="id" width={180} />
-        <ProTable.Column title="模型" dataIndex="model" />
+      {/* 结果表：name="rows"，列里全是 <Field name>（相对行），和可编辑表同一种写法；只读来自 d.rows.$pattern */}
+      <ProTable table={table} name="rows" rowKey="id" selection="selectedIds">
+        <ProTable.Column title="请求 ID" width={180}>
+          <Field name="id" decorator={<CellItem />} />
+        </ProTable.Column>
+        <ProTable.Column title="模型">
+          <Field name="model" decorator={<CellItem />} />
+        </ProTable.Column>
         <ProTable.Column
           title="状态"
-          dataIndex="status"
-          // 展示：直接复用同一个 Enum，渲染成彩色 Tag
-          render={(v) => <ProEnumPretty enum={StatusEnum} value={v} />}
-          // 列头筛选：这里放的是一个 Field —— 和上面查询表单是同一个数据字段 "status"，即 status#2
+          // 列头筛选：这里放的是查询条件 status（根上的字段），和上面查询表单是同一个数据字段，UI Brand = filter
           // 改它 → status 值变 → params 变 → 回第 1 页 → commit="immediate" 立即查询
           filter={
             <Field name="status" ui="filter" decorator={<CellItem />} enum={StatusEnum} commit="immediate">
               <Checkbox.Group />
             </Field>
           }
-        />
-        <ProTable.Column title="耗时" dataIndex="latency" sorter />
-        <ProTable.Column title="时间" dataIndex="createdAt" valueType="dateTime" />
+        >
+          {/* 单元格：行里的 status，readPretty 时用同一个 Enum 渲染成彩色 Tag */}
+          <Field name="status" decorator={<CellItem />} enum={StatusEnum} pretty={<ProEnumPretty />} />
+        </ProTable.Column>
+        <ProTable.Column title="耗时" sortKey="latency">
+          <Field name="latency" decorator={<CellItem />} />
+        </ProTable.Column>
+        <ProTable.Column title="时间">
+          <Field name="createdAt" decorator={<CellItem />} pretty={<DateTimePretty />} />
+        </ProTable.Column>
       </ProTable>
-      {/* ❓ 表格行数据（结果）不是表单数据，所以 Column 用 dataIndex；而筛选是表单数据，所以用 Field。
-              同一个组件里出现 dataIndex 和 Field 两种绑定方式，是否可以接受？ */}
+      {/* ❓ 同一个 Column 里：单元格 <Field name="status"> 相对行（rows.N.status），filter 里的 <Field name="status"> 却是根上的查询条件。
+              filter 插槽里的 name 按根解析，是否可以接受？还是要求 filter 显式写成另一个字段名（如 statusFilter）？ */}
+    </Form>
+  );
+}
+
+// ---------------- 变体：纯前端分页（一次拉全量，本地翻页） ----------------
+// 同一个 page 字段，这个场景里不是查询条件：不提交，但仍然可响应、可联动 → 这张表单里把它设成 virtual
+interface LocalLogs { keyword?: string; rows: LogRow[]; page: number; pageSize: number; selectedIds: string[] }
+
+const localEffects = defineEffects<LocalLogs>(({ watch }) => {
+  // 联动照常：关键词变了回第 1 页（page 是 virtual 也一样能读写）
+  watch(
+    (d) => d.keyword,
+    (d) => {
+      d.page.$value = 1;
+    },
+  );
+});
+
+export function LocalLogTable({ all }: { all: LogRow[] }) {
+  const form = useForm<LocalLogs>({
+    initialValues: { rows: all, page: 1, pageSize: 20, selectedIds: [] },
+    effects: [localEffects],
+    fields: {
+      rows: { virtual: true },
+      page: { virtual: true }, // 前端分页：page 不提交
+      pageSize: { virtual: true },
+      selectedIds: { virtual: true },
+    },
+  });
+  return (
+    <Form form={form}>
+      <Field name="keyword" decorator={<FormItem label="关键词" inline />}>
+        <Input />
+      </Field>
+      {/* pagination="client"：ProTable 自己按 page / pageSize 切片 rows，Pagination UI 绑同一个 page 字段 */}
+      <ProTable name="rows" rowKey="id" selection="selectedIds" pagination={{ mode: 'client', page: 'page', pageSize: 'pageSize' }}>
+        <ProTable.Column title="请求 ID">
+          <Field name="id" decorator={<CellItem />} pattern="readPretty" />
+        </ProTable.Column>
+        <ProTable.Column title="模型">
+          <Field name="model" decorator={<CellItem />} pattern="readPretty" />
+        </ProTable.Column>
+      </ProTable>
     </Form>
   );
 }
