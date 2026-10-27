@@ -38,6 +38,8 @@ form.batch((d) => {
 
 `virtual` 的字段有值，也能被 `reaction` 读写，只是 `getSubmitValues()` 会把它拿掉。确认密码、勾选行、前端分页的 `page` 通常是 `virtual`。服务端分页的 `page` 是普通字段，要提交。
 
+行上的编辑不必再开一张表单。同一张表单里放一个 `virtual` 对象（例如 `editor`），表格只监听一次点击，从 `data-index`、`data-row-id`、`data-action` 读出点的是哪一行、哪种操作。编辑和详情各挂一个抽屉，不要在每一行里各挂一个。按 id 把数据填进这个对象，确定再写回那一行，取消只关掉。提交结果里没有这个对象。见 [`/play/row-edit`](/play/row-edit)。
+
 ## 数组和树
 
 数组列写在行作用域里，`name` 相对当前行。树节点的坐标是 `pos: number[]`，path 仍是索引路径（`nodes.0.children.1.name`），不是节点 id。移动后的 `toPos` 是移动完成之后的坐标。不能把节点移进自己或自己的子孙。

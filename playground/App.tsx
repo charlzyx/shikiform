@@ -4,6 +4,7 @@ import { LargePage } from './pages/large'
 import { MergedPage } from './pages/merged'
 import { NestedPage } from './pages/nested'
 import { QueryPage } from './pages/query'
+import { RowEditPage } from './pages/row-edit'
 import { QueryNativePage } from './pages/query-native'
 import { SchemaPage } from './pages/schema'
 import { SkuPage } from './pages/sku'
@@ -21,6 +22,7 @@ const routes: Record<string, () => ReactElement> = {
   '/large': LargePage,
   '/virtual': VirtualPage,
   '/headless': HeadlessPage,
+  '/row-edit': RowEditPage,
 }
 
 function playPath(): string {

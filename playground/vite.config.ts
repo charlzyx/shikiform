@@ -3,7 +3,7 @@ import { cpSync, mkdirSync } from 'node:fs'
 import path from 'node:path'
 import { defineConfig, type Plugin } from 'vite'
 
-const routes = ['query', 'query-native', 'schema', 'sku', 'merged', 'nested', 'tabs', 'large', 'virtual', 'headless']
+const routes = ['query', 'query-native', 'schema', 'sku', 'merged', 'nested', 'tabs', 'large', 'virtual', 'headless', 'row-edit']
 
 /** Static hosts have no SPA fallback. Copy the shell to each demo path so `/play/tabs` serves the app. */
 function copyPlayRoutes(): Plugin {

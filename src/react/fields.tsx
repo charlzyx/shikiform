@@ -82,10 +82,16 @@ export function Field<TScope = any, N extends FieldPath<TScope> = FieldPath<TSco
   return children ? <>{children(field)}</> : null
 }
 
-/** Scope child names under an object path. Does not subscribe to child values. */
-export function ObjectField({ name, children }: { name: string; children?: ReactNode }) {
+/**
+ * Scope child names under an object path. Does not subscribe to child values.
+ * `virtual` omits this object from submit (`getSubmitValues`).
+ * Also list it in `useForm({ fields })` so the omission holds before this component mounts.
+ */
+export function ObjectField({ name, virtual, children }: { name: string; virtual?: boolean; children?: ReactNode }) {
+  const form = useFormContext()
   const scope = useScope()
   const path = joinPath(scope.path, name)
+  if (virtual !== undefined) form.registerField(path, { virtual })
   const next = useMemo(() => ({ path, index: -1 }), [path])
   return <ScopeContext.Provider value={next}>{children}</ScopeContext.Provider>
 }
