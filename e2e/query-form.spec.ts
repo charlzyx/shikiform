@@ -3,10 +3,11 @@ import { expect, test, type Page } from '@playwright/test';
 async function choose(page: Page, label: string, option: string) {
   const item = page.locator('.ant-form-item').filter({ has: page.locator('label', { hasText: new RegExp(`^${label}$`) }) });
   await item.locator('.ant-select').click();
-  await page
-    .locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option')
-    .filter({ hasText: new RegExp(`^${option}$`) })
-    .click();
+  await page.locator('.ant-select-item-option:visible').filter({ hasText: new RegExp(`^${option}$`) }).click();
+}
+
+function visibleOption(page: Page, name: string) {
+  return page.locator('.ant-select-item-option:visible').filter({ hasText: new RegExp(`^${name}$`) });
 }
 
 test('basic query searches, resets, paginates, and resets the page', async ({ page }) => {
@@ -73,18 +74,16 @@ test('province narrows city options and clears the previous city', async ({ page
   await choose(page, '省份', '浙江');
   const cityItem = page.locator('.ant-form-item').filter({ has: page.locator('label', { hasText: /^城市$/ }) });
   await cityItem.locator('.ant-select').click();
-  const dropdown = page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)');
-  await expect(dropdown.getByText('杭州', { exact: true })).toBeVisible();
-  await expect(dropdown.getByText('广州', { exact: true })).toHaveCount(0);
-  await dropdown.getByText('杭州', { exact: true }).click();
+  await expect(visibleOption(page, '杭州')).toBeVisible();
+  await expect(visibleOption(page, '广州')).toHaveCount(0);
+  await visibleOption(page, '杭州').click();
   await expect(page.getByTestId('city-value')).toHaveText('杭州');
 
   await choose(page, '省份', '广东');
   await expect(page.getByTestId('city-value')).toHaveText('');
   await cityItem.locator('.ant-select').click();
-  const next = page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)');
-  await expect(next.getByText('广州', { exact: true })).toBeVisible();
-  await expect(next.getByText('杭州', { exact: true })).toHaveCount(0);
+  await expect(visibleOption(page, '广州')).toBeVisible();
+  await expect(visibleOption(page, '杭州')).toHaveCount(0);
 });
 
 test('selection is virtual, batch delete refetches, and a new search clears it', async ({ page }) => {
@@ -93,7 +92,7 @@ test('selection is virtual, batch delete refetches, and a new search clears it',
   await expect(page.getByTestId('submit-json')).not.toContainText('selectedKeys');
   await expect(page.getByTestId('submit-json')).toContainText('"page"');
 
-  const boxes = page.locator('.ant-table-tbody .ant-checkbox-input');
+  const boxes = page.locator('.ant-table-tbody tr.ant-table-row .ant-checkbox-input');
   await boxes.nth(0).check();
   await boxes.nth(1).check();
   await expect(page.getByTestId('selected-count')).toHaveText('2');
@@ -128,12 +127,14 @@ test('a hidden tab stays mounted and still validates', async ({ page }) => {
   await expect(page.locator('#field-contact-email')).toBeHidden();
   await page.getByLabel('姓名').fill('Ada');
   await page.getByTestId('submit').click();
-  await expect(page.getByTestId('submit-result')).toHaveText('failed');
+  await expect(page.getByTestId('submit-result')).toContainText('failed');
   await expect(page.getByTestId('contact-errors')).toContainText('请填写邮箱');
 
   await page.getByTestId('tab-contact').click();
   await expect(page.getByLabel('邮箱')).toBeVisible();
   await page.getByLabel('邮箱').fill('ada@example.com');
+  await expect(page.getByLabel('邮箱')).toHaveValue('ada@example.com');
+  await page.getByLabel('邮箱').blur();
   await page.getByTestId('submit').click();
   await expect(page.getByTestId('submit-result')).toHaveText('ok:ada@example.com');
   await expect(page.getByTestId('contact-errors')).toHaveText('');

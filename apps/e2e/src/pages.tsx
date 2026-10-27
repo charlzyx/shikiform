@@ -109,16 +109,9 @@ const nameColumn: DataTableColumn = {
 };
 
 const statusColumn: DataTableColumn = {
-  title: (
-    <div>
-      <div>状态</div>
-      <Field name="status" ui="filter" enum={STATUS_OPTIONS} decorator={<AntdFormItem label="列筛选" />}>
-        <CommitSelect />
-      </Field>
-    </div>
-  ),
+  title: '状态',
   key: 'status',
-  width: 200,
+  width: 160,
   render: () => (
     <Field name="status" enum={STATUS_OPTIONS}>
       <AntdSelect />
@@ -239,6 +232,9 @@ export function BasicDemo() {
         </>
       }
     >
+      <Field name="status" ui="filter" enum={STATUS_OPTIONS} decorator={<AntdFormItem label="列筛选" />}>
+        <CommitSelect />
+      </Field>
       <ServerQuery count={25} columns={[nameColumn, statusColumn]} />
     </QueryShell>
   );
@@ -422,7 +418,10 @@ export function TabsDemo() {
   return (
     <Form
       form={form}
-      onSubmit={(values) => setResult(`ok:${(values as { contact: { email: string } }).contact.email}`)}
+      onSubmit={(values) => {
+        const email = (values as { contact?: { email?: string } }).contact?.email ?? '';
+        setResult(`ok:${email}`);
+      }}
       onSubmitFailed={() => setResult('failed')}
     >
       <p>

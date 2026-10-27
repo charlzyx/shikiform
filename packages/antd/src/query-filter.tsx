@@ -1,5 +1,18 @@
 import { Button, Space } from 'antd';
-import { Children, isValidElement, useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
+import { Children, Fragment, isValidElement, useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
+
+function flattenElements(children: ReactNode): ReactElement<{ name?: string; gridSpan?: number }>[] {
+  const out: ReactElement<{ name?: string; gridSpan?: number }>[] = [];
+  Children.forEach(children, (child) => {
+    if (!isValidElement(child)) return;
+    if (child.type === Fragment) {
+      out.push(...flattenElements((child.props as { children?: ReactNode }).children));
+      return;
+    }
+    out.push(child as ReactElement<{ name?: string; gridSpan?: number }>);
+  });
+  return out;
+}
 
 /** Responsive column count for a query filter. Width breakpoints follow the QueryFilter pattern. */
 export function columnsForWidth(width: number, maxColumns = 4): number {
@@ -50,7 +63,7 @@ export function QueryFilter({
   }, []);
 
   const cols = columnsForWidth(width, maxColumns);
-  const items = Children.toArray(children).filter(isValidElement) as ReactElement<{ name?: string; gridSpan?: number }>[];
+  const items = flattenElements(children);
   const capacity = Math.max(cols * visibleRows - 1, 1);
   const hasExtra = items.length > capacity;
   const visible = isCollapsed ? items.slice(0, capacity) : items;
