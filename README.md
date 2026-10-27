@@ -49,7 +49,7 @@ Chao 自己在 Cloudflare 后台连仓库。
 
 ### 验证部署成功
 
-- 首页、`/tutorial`、`/tutorial/1-fields`、`/tutorial/3-start`、`/api`、`/decisions`、`/usage/01-basic-form` … `/usage/16-effects-reference` 都能打开
+- 首页、`/tutorial`、`/tutorial/1-start`、`/guide`、`/OUTLINE`、`/api`、`/decisions`、`/usage/01-basic-form` … `/usage/16-effects-reference` 都能打开
 - 旧地址 `/api/`、`/usage/01-basic-form/` 会跳到没有尾斜杠的地址
 - 静态资源路径是根路径，不是 `/shiki/...`
 

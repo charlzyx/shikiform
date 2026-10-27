@@ -6,13 +6,19 @@
     "label": "教程",
     "collapsed": false
   },
-  "coverage-checklist",
+  {
+    "type": "dir",
+    "name": "guide",
+    "label": "指南",
+    "collapsed": false
+  },
   "api",
-  "decisions",
   {
     "type": "dir",
     "name": "usage",
     "label": "用例",
     "collapsed": false
-  }
+  },
+  "decisions",
+  "coverage-checklist"
 ]

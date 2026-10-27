@@ -1,50 +1,28 @@
 ---
 title: 开始
-description: 先看字段和联动，再一步一步改能跑的例子。
+description: 左边是说明，右边可以改代码。
 ---
 
 # 教程
 
-教程分成三层。先认识字段有哪几种，再认识联动怎么写，然后每一步只改一个能跑的例子。右边可以直接改代码，预览会跟着变。点 **看答案** 换成参考写法，点 **重置** 回到这一步开始时的代码。
+每一步先看右边的例子，再读左边的概念。点 **看答案** 换成参考写法，点 **重置** 回到这一步开始时的代码。
 
-`FormItem` 和 `Input` 来自 `shikiform/ui`。这一层把 antd 的输入组件接成受控显示，值和校验仍由 `useForm` / `Field` 保存。应用自己的组件用 `connect` 接一次，见 [用例 00](/usage/00-ui-adapter)。
-
-## 先看一个能跑的表单
-
-```tsx preview
-import { Form, Field, Submit, useForm } from 'shikiform';
-import { FormItem, Input } from 'shikiform/ui';
-
-export default function Welcome() {
-  const form = useForm({ initialValues: { name: 'Ada' } });
-  return (
-    <Form form={form} onSubmit={() => undefined}>
-      <Field name="name" decorator={<FormItem label="姓名" />}>
-        <Input />
-      </Field>
-      <Submit>提交</Submit>
-    </Form>
-  );
-}
-```
+`Input` 这些组件来自 `shikiform/ui`，里面是 antd。值和校验在 `useForm` / `Field` 里。
 
 ## 目录
 
-1. [字段](/tutorial/1-fields)
-2. [联动](/tutorial/2-effects)
-3. [最小表单](/tutorial/3-start)
-4. [失焦再校验](/tutorial/4-blur)
-5. [显隐只看 $visible](/tutorial/5-visible)
-6. [pattern](/tutorial/6-pattern)
-7. [virtual 不提交](/tutorial/7-virtual)
-8. [reaction 写计算值](/tutorial/8-reaction)
-9. [watch 做动作](/tutorial/9-watch)
-10. [数组和 reaction.each](/tutorial/10-array)
-11. [规则和 Zod](/tutorial/11-validation)
-12. [没挂载的字段](/tutorial/12-declared)
-13. [接下来](/tutorial/13-done)
+1. [最小表单](/tutorial/1-start)
+2. [四种字段](/tutorial/2-fields)
+3. [path 和提交](/tutorial/3-path)
+4. [$ 状态](/tutorial/4-state)
+5. [pattern](/tutorial/5-pattern)
+6. [reaction](/tutorial/6-reaction)
+7. [reaction.each](/tutorial/7-array)
+8. [watch](/tutorial/8-watch)
+9. [规则和提交](/tutorial/9-rules)
+10. [接下来](/tutorial/10-next)
 
-对照 Formily / Pro / SKU 还要补哪些 demo，见 [案例补全清单](/coverage-checklist)。
+整站怎么排，见 [大纲](/OUTLINE)。
 
 <div className="tutorial-register">
 

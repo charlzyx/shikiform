@@ -1,32 +1,35 @@
 ---
 title: ShikiForm
-description: Formly 级抽象、React 不可变风格、JSX-first。
+description: 用字段描述数据，用 reaction 描述联动。
 ---
 
 # ShikiForm
 
-ShikiForm 按数据形状管理字段，用 `reaction` / `watch` 写联动。值和校验留在表单里。输入框只负责显示。
+用字段描述数据，用 `reaction` 描述联动。输入框只负责显示。
 
-## 从这里开始
+```tsx preview
+import { Form, Field, Submit, useForm } from 'shikiform';
+import { FormItem, Input } from 'shikiform/ui';
 
-1. **[教程](/tutorial)**：先看字段和联动，再改能跑的例子。
-2. **[用例](/usage/01-basic-form)**：员工表单、数组、树、表格、SKU 这些场景的完整写法。
-3. **[API](/api)**：`useForm`、`Field`、`defineEffects`，以及 `shikiform/ui`。
-4. **[约定](/decisions)**：已经定下的行为，以及仍待拍板的几项。
-5. **[案例补全清单](/coverage-checklist)**：对照 Formily / Pro / SKU 还要补的 demo。
+export default function Welcome() {
+  const form = useForm({ initialValues: { name: 'Ada' } });
+  return (
+    <Form form={form} onSubmit={() => undefined}>
+      <Field name="name" decorator={<FormItem label="姓名" />}>
+        <Input />
+      </Field>
+      <Submit>提交</Submit>
+    </Form>
+  );
+}
+```
 
-## 字段和联动
+改一改姓名，点提交。值在 ShikiForm 里，输入框是 antd 的 `Input`。
 
-| 能力 | 在哪看 |
-|---|---|
-| 字段只按数据形状分：`Field` / `ObjectField` / `ArrayField` / `TreeField` | [教程 · 字段](/tutorial/1-fields) [01](/usage/01-basic-form) [03](/usage/03-nested-object) [04](/usage/04-array) [05](/usage/05-tree) |
-| 布局是普通组件；需要被联动控制时用 `Region` | [01](/usage/01-basic-form) [14](/usage/14-address-vs-path) |
-| 树节点坐标 `pos` | [05](/usage/05-tree) |
-| 同一个字段多份 UI：`ui="summary"` → `d.x.ui('summary')` | [14](/usage/14-address-vs-path) [09](/usage/09-query-table) |
-| 数组行模板、`reaction.each` | [教程 · 数组](/tutorial/10-array) [04](/usage/04-array) [08](/usage/08-merged-table) |
-| `reaction` / `reaction.each` / `watch`，状态用 `$` 前缀 | [教程 · 联动](/tutorial/2-effects) [16](/usage/16-effects-reference) |
-| 计算值：`reaction` 写 `$value`，阅读态，默认不提交 | [教程 · reaction](/tutorial/8-reaction) [06](/usage/06-computed) |
-| 精确 path；模块规则是接收 handle 的函数 | [13](/usage/13-cross-module) [16](/usage/16-effects-reference) |
-| `pattern`：`editable` / `disabled` / `readOnly` / `readPretty` | [教程 · pattern](/tutorial/6-pattern) [10](/usage/10-expandable-nested-table) |
-| `virtual`：参与校验和联动，不进提交结果 | [教程 · virtual](/tutorial/7-virtual) [01](/usage/01-basic-form) |
-| 表格列是 Field 的 name | [08](/usage/08-merged-table) [09](/usage/09-query-table) [10](/usage/10-expandable-nested-table) [12](/usage/12-large-table) |
+## 往下看
+
+- [教程](/tutorial)：从一份最小表单开始。
+- [指南](/guide)：教程之后的加深，[大纲](/OUTLINE) 也在这里。
+- [API](/api)
+- [用例](/usage/01-basic-form)：查询表、合并表、SKU 这些场景。还要补的 demo 见 [案例补全清单](/coverage-checklist)。
+- [约定](/decisions)：已经定下的行为，以及仍待拍板的几项。

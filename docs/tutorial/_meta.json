@@ -1,16 +1,13 @@
 [
   "index",
-  "1-fields",
-  "2-effects",
-  "3-start",
-  "4-blur",
-  "5-visible",
-  "6-pattern",
-  "7-virtual",
-  "8-reaction",
-  "9-watch",
-  "10-array",
-  "11-validation",
-  "12-declared",
-  "13-done"
+  "1-start",
+  "2-fields",
+  "3-path",
+  "4-state",
+  "5-pattern",
+  "6-reaction",
+  "7-array",
+  "8-watch",
+  "9-rules",
+  "10-next"
 ]

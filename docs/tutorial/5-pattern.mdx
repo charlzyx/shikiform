@@ -1,0 +1,31 @@
+---
+title: 5. pattern
+description: 同一个字段在四种 pattern 之间切换。
+pageType: doc-wide
+outline: false
+---
+
+import starter from './_files/04-pattern.tsx?raw';
+import solution from './_files/04-pattern.solution.tsx?raw';
+import { StepNav, TutorialPlay } from '../_components/TutorialStep';
+
+# pattern
+
+<div className="tutorial-step">
+<div className="tutorial-copy">
+
+右边有一个模式下拉，还有姓名。现在换模式，姓名一直能改。
+
+`pattern` 有四种：`editable`、`disabled`、`readOnly`、`readPretty`。写在父级上，子级跟着走。子级自己写了 `$pattern`，就用自己的。这一步只改姓名。
+
+**这一步：** 在 `reaction` 里，当 `mode` 有值时执行 `d.name.$pattern = mode`。
+
+可编辑能打字。禁用不能改。只读能选中文字，不能改。阅读态变成纯文本。
+
+<StepNav prev={{ href: '/tutorial/4-state', title: '$ 状态' }} next={{ href: '/tutorial/6-reaction', title: 'reaction' }} />
+
+</div>
+
+<TutorialPlay starter={starter} solution={solution} />
+
+</div>
