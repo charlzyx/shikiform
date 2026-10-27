@@ -23,7 +23,7 @@
     "node_modules",
     "dist",
     ".astro",
-    "usage"
+    "archive"
   ],
   "include": [
     "src/**/*",

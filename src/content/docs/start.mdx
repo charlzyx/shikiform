@@ -1,0 +1,78 @@
+---
+title: 快速开始
+description: 装上依赖，写一个会校验的表单。
+---
+
+库在本仓库里，包名是 `shikiform`（`private`，尚未发布到 npm）。应用通过仓库的 `exports` 引用它。
+
+```bash
+npm install
+npm run dev          # 文档站
+npm run dev:e2e      # playground，http://127.0.0.1:5173
+```
+
+## 一个字段
+
+`useForm` 持有引擎。`<Form>` 把引擎放进上下文。`<Field>` 只订阅自己的 path。
+
+```tsx
+import { Field, Form, useForm } from 'shikiform'
+
+interface Values {
+  email: string
+  name: string
+}
+
+export function Profile() {
+  const form = useForm<Values>({
+    initialValues: { email: '', name: '' },
+  })
+  return (
+    <Form form={form} onSubmit={(values) => console.log(values)}>
+      <Field name="email" rules={{ format: 'email', message: '邮箱格式不对' }}>
+        {(field) => (
+          <label>
+            <input
+              value={field.value ?? ''}
+              onChange={(event) => field.onChange(event.target.value)}
+              onBlur={field.onBlur}
+            />
+            <span>{field.errors[0]}</span>
+          </label>
+        )}
+      </Field>
+      <Field name="name" rules={{ required: true, message: '请填写姓名' }}>
+        {(field) => (
+          <input
+            value={field.value ?? ''}
+            onChange={(event) => field.onChange(event.target.value)}
+            onBlur={field.onBlur}
+          />
+        )}
+      </Field>
+      <button type="submit">提交</button>
+    </Form>
+  )
+}
+```
+
+`name` 不在 `Values` 里时，类型检查会报错。默认在失焦和提交时校验。
+
+## Ant Design
+
+`shikiform/antd` 用 `createFormHook` 把输入绑好。`name` 同样对照值类型检查。
+
+```tsx
+import { useAntdForm } from 'shikiform/antd'
+
+const form = useAntdForm<Values>({ initialValues: { email: '', name: '' } })
+
+<form.AppForm>
+  <form.AppField name="email">{(field) => <field.Input placeholder="邮箱" />}</form.AppField>
+  <form.Submit>提交</form.Submit>
+</form.AppForm>
+```
+
+`form.Submit` 订阅 `$canSubmit`。字段还有错误时按钮是禁用的；需要失败后仍能点击提交时传 `disabled={false}`。
+
+下一步：[字段](/guides/fields/) 的显隐和 `virtual`，[校验](/guides/validation/) 里的 Standard Schema，或打开 [示例](/demos/)。

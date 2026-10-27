@@ -9,7 +9,7 @@ Packages, all in this repo:
 - `shikiform/pro` — headless `useQueryTable` (no Ant Design)
 - `shikiform/antd` — Ant Design inputs, `ProQueryTable`, `ArrayTable`, `MergedTable`
 
-Peer dependency is `react` ^18 or ^19. The code uses React 18 hooks only. `usage/*.tsx` stays pseudocode and is excluded from `tsc`. The short design note is [ARCH.md](ARCH.md).
+Peer dependency is `react` ^18 or ^19. The code uses React 18 hooks only. The docs site is the product docs (home, getting started, a few guides, playground links). Design notes and the old usage sketches live in [archive/](archive/README.md) and are not published.
 
 ## Scripts
 
@@ -60,7 +60,7 @@ Chao 自己在 Cloudflare 后台连仓库，Muse 不持有 Cloudflare 账号或 
 
 ### 验证部署成功
 
-- 首页、`/architecture/`、`/api/`、`/decisions/`、`/usage/01-basic-form/` … `/usage/16-effects-reference/` 都能打开
+- 首页、`/start/`、`/guides/fields/`、`/guides/effects/`、`/guides/validation/`、`/guides/query/`、`/guides/hooks/`、`/demos/` 都能打开
 - 静态资源路径是根路径（如 `/_astro/...`），不是 `/shiki/_astro/...`
 
 ### 排障
@@ -69,4 +69,4 @@ Chao 自己在 Cloudflare 后台连仓库，Muse 不持有 Cloudflare 账号或 
 - 构建报 Node 版本过低：Astro 7 需要较新的 Node，在 CF 的 Environment variables 里加 `NODE_VERSION=22` 再部署。
 - 构建产物不对：确认 Build output directory 是 `dist`，不是 `storybook-static`、`build` 等。
 
-REVIEW.md is the record of the deleted pre-rewrite code.
+设计过程（PLAN / STATE / LAYOUT / QUALITY / 待拍板 / 用例伪代码）在 [archive/](archive/README.md)，不进文档站。
