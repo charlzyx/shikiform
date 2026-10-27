@@ -8,26 +8,31 @@
     "react-dom": "^19.3.1",
     "zustand": "^5.0.16"
   },
-  "description": "ShikiForm — Formly-level abstraction, React immutable style, JSX-first. Current round: API-first usage cases (pseudocode), no implementation.",
+  "description": "ShikiForm — Formly-level abstraction, React immutable style, JSX-first. usage/ is the API spec; packages/ is the engine.",
   "devDependencies": {
+    "@playwright/test": "^1.56.1",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "typescript": "^5.9.3",
     "vitest": "^5.0.5"
   },
   "name": "shikiform",
-  "peerDependencies": {
-    "react": "^18 || ^19",
-    "react-dom": "^18 || ^19"
-  },
   "private": true,
   "scripts": {
-    "build": "astro build",
-    "build:cf-pages": "astro build",
-    "check": "tsc --noEmit",
+    "build": "npm run build:packages && astro build",
+    "build:cf-pages": "npm run build",
+    "build:packages": "npm run build -w @shikiform/core && npm run build -w @shikiform/react && npm run build -w @shikiform/antd",
+    "check": "tsc --noEmit && tsc -p packages/core/tsconfig.check.json && tsc -p packages/react --noEmit && tsc -p packages/antd --noEmit && tsc -p apps/e2e --noEmit",
     "dev": "astro dev",
-    "preview": "astro preview"
+    "dev:e2e": "npm run dev -w @shikiform/e2e",
+    "preview": "astro preview",
+    "test": "vitest run",
+    "test:e2e": "playwright test"
   },
   "type": "module",
-  "version": "0.1.0"
+  "version": "0.1.0",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ]
 }

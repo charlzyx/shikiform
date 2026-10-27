@@ -1,9 +1,7 @@
 # ShikiForm
 
-> **当前 `main` = API 设计轮（usage-only）。** 旧实现（`src/core`、`src/react`、`src/pro`、`src/ui`、demo 组件、测试）已全部删除。
-> 现在仓库里只有：`usage/*.tsx`（理想 API 下的业务伪代码，**没有实现、不能运行**）、`usage/API.md`（由用例反推的 API 草案）、
-> `usage/DECISIONS.md`（待拍板问题）、设计笔记（PLAN / STATE / LAYOUT / QUALITY），以及展示这些内容的 Starlight 文档站。
-> 文档站（https://shikiform.pages.dev）每个用例页直接引用 `usage/` 源文件。API 定下来之后再写实现。
+> **`usage/` 仍是 API 规格（伪代码，不参与 `tsc`）。** 引擎在 `packages/core` ← `packages/react` ← `packages/antd`。
+> 文档站继续展示 `usage/` 源文件。查询表单的浏览器用例在 `apps/e2e`，覆盖 Formily QueryList、ProFormily 查询表、Ant Design ProComponents（QueryFilter + ProTable）那一组交互，组件只用 Ant Design，不搬运它们的源码。
 
 Deployed to Cloudflare Pages (https://shikiform.pages.dev) on every push to `main`.
 
@@ -20,13 +18,20 @@ Formly 级抽象、React 不可变风格、JSX-first 的表单库（大胆重构
 ## 本地开发
 
 ```bash
-cd ~/workspace/shiki
 npm install
-npm run dev      # Astro Starlight 文档站：本轮说明 / API 草案 / 待拍板 / 用例
-npm run check    # tsc --noEmit（只检查 src/，usage/ 是伪代码，已排除）
-npm run build    # 静态构建，输出 dist/
+npm run dev      # Astro Starlight 文档站
+npm test         # packages/core 单元测试（reaction / display / tree / enum）
+npm run check    # 文档站 + packages + e2e 的 tsc
+npm run build    # 先编 packages，再 astro build，站点输出 dist/
 npm run preview  # 本地预览 dist/
+
+# 查询表单浏览器用例（Playwright）。首次需要安装浏览器：
+npx playwright install chromium
+npm run dev:e2e  # 另开一个终端时手动看 http://127.0.0.1:5173/?demo=basic
+npm run test:e2e # 会自己拉起 e2e dev server
 ```
+
+`/?demo=` 取 `basic`、`collapse`、`linkage`、`selection`、`pattern`、`tabs`、`nested`、`virtual`。
 
 ## 部署：Cloudflare Pages（GitHub 联动，唯一路线）
 
@@ -68,6 +73,6 @@ Chao 自己在 Cloudflare 后台连仓库，Muse 不持有 Cloudflare 账号或 
 
 ## 还剩什么（未做，不夸大）
 
-- 本轮只有 API 设计：没有任何库实现，没有测试（旧的 49 个单测随实现一起删除）。
-- 下一步：Chao 在「待拍板」页定 Q1–Q10 → 按定稿改 usage → 再按 LAYOUT.md 分层写实现，测试从 usage 场景反推。
+- `usage/` 页面仍是规格，不是跑起来的业务 demo。SKU、合并表、2000 行性能这些还没有页面实测，文档里的性能数字仍是模型计数。
+- UI 目前只有 Ant Design 适配。shadcn 适配按决定后做。
 - 旧实现的 Review 记录见 REVIEW.md（历史文档，描述的是已删除的代码）。

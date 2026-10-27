@@ -1,0 +1,24 @@
+{
+  "name": "@shikiform/antd",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Ant Design adapter and query-form controls for ShikiForm.",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts"
+    }
+  },
+  "dependencies": {
+    "@shikiform/react": "*"
+  },
+  "peerDependencies": {
+    "antd": "^5.22.0",
+    "react": "^18 || ^19",
+    "react-dom": "^18 || ^19"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  }
+}
