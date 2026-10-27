@@ -110,5 +110,24 @@ export function createAntdFormHook() {
   })
 }
 
+/** Ant Design hook bundle: {@link useAntdForm}, {@link withAntdForm}, {@link withAntdFieldGroup}, and the inputs. */
 export const antdForm = createAntdFormHook()
-export const { useAppForm: useAntdForm, withForm: withAntdForm, withFieldGroup: withAntdFieldGroup } = antdForm
+
+/**
+ * `useForm` plus `AppField` / `AppForm` / `Submit` bound to Ant Design inputs.
+ * `T` is inferred from `initialValues`. `AppField name` is checked against that type.
+ * `field.value` inside the render prop is the value at `name`.
+ */
+export const useAntdForm = antdForm.useAppForm
+
+/**
+ * Reusable Ant Design form fragment.
+ * Extra props are the second type argument: `withAntdForm<Values, { title: string }>(...)`.
+ */
+export const withAntdForm = antdForm.withForm
+
+/**
+ * Typed block of Ant Design fields under a parent `name`.
+ * `withAntdFieldGroup<Address, { title: string }>(...)` checks inner `name`s against `Address` and requires `title`.
+ */
+export const withAntdFieldGroup = antdForm.withFieldGroup

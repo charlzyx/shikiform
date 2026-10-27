@@ -5,9 +5,18 @@ import { useFormContext } from './context'
 
 /**
  * Subscribe to the `$` reads inside `select`.
+ * Annotate the draft. The return type is the selector's return, not `any`:
+ *
+ * ```tsx
+ * const name = useWatch((d: Draft<Values>) => d.name.$value)
+ * const can = useWatch((d: Draft<Values>) => d.$canSubmit === true)
+ * ```
+ *
+ * Passing only the form type (`useWatch<Values>(...)`) does not infer the selected value.
+ * TypeScript stops inferring once any type argument is written, so annotate `d` instead.
  * `select={(d) => d.email.$errors}` re-renders when that field's errors change.
- * `select={(d) => d.$canSubmit}` re-renders when submit / validation / errors change, not on unrelated keystrokes.
- * Return data (not a new function). The snapshot is cached with {@link deepEqual}.
+ * `select={(d) => d.$canSubmit}` re-renders when submit, validation, or errors change, not on unrelated keystrokes.
+ * Return data, not a new function. The snapshot is cached with {@link deepEqual}.
  */
 export function useWatch<T, S>(select: (d: Draft<T>) => S): S {
   const form = useFormContext<T>()

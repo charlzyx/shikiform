@@ -20,8 +20,11 @@ export interface FieldBinding<TValue> {
   required: boolean
   disabled: boolean
   readOnly: boolean
+  /** True after blur. `reset` clears it. */
   touched: boolean
+  /** True after a user edit. A reaction writing `$value` does not set it. */
   dirty: boolean
+  /** True while an async rule or schema for this field is in flight. */
   validating: boolean
   options: EnumOption[]
   loading: boolean
@@ -31,11 +34,15 @@ export interface FieldBinding<TValue> {
 /**
  * Subscribe to one field.
  * Inside a row whose scope is `items.0`, `useField('price')` is `items.0.price`.
- * Pass the value type to check the name: `useField<Row>('price')` errors on a key `Row` does not have.
+ *
+ * A dynamic `string` name returns `FieldBinding<any>` so a column renderer can share one component.
+ * `useField<Row>('price')` rejects a key `Row` does not have. That value is the union of `Row`'s fields.
+ * `useField<Row, 'price'>('price')` types `field.value` as that property.
  */
-export function useField<TScope = any, N extends FieldPath<TScope> = FieldPath<TScope>>(
-  name: N,
-): FieldBinding<PathValue<TScope, N & string>> {
+export function useField(name: string): FieldBinding<any>
+export function useField<TScope>(name: FieldPath<TScope>): FieldBinding<PathValue<TScope, FieldPath<TScope> & string>>
+export function useField<TScope, N extends FieldPath<TScope>>(name: N): FieldBinding<PathValue<TScope, N & string>>
+export function useField(name: string): FieldBinding<any> {
   const form = useFormContext()
   const scope = useScope()
   const path = joinPath(scope.path, String(name))
@@ -46,5 +53,5 @@ export function useField<TScope = any, N extends FieldPath<TScope> = FieldPath<T
   )
   void version
   form.registerField(path, {})
-  return form.binding(path) as FieldBinding<PathValue<TScope, N & string>>
+  return form.binding(path) as FieldBinding<any>
 }

@@ -1,3 +1,9 @@
+/**
+ * Headless ShikiForm: the form engine plus React fields and hooks.
+ * `shikiform/core` is the engine alone. `shikiform/pro` is `useQueryTable`. `shikiform/antd` is Ant Design.
+ *
+ * @packageDocumentation
+ */
 export {
   ArrayField,
   Field,
@@ -21,4 +27,4 @@ export {
   useTreeMove,
   useWatch,
 } from './react'
-export type { AppFormApi, Draft, FieldBinding, FormOptions, GroupApi, TemplatePath } from './react'
+export type { AppFormApi, ArrayItemOf, Draft, FieldBinding, FormOptions, GroupApi, TemplatePath } from './react'

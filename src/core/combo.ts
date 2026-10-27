@@ -4,6 +4,7 @@
  */
 export type ComboRow = Record<string, unknown>
 
+/** One choice for a dimension. `disabled` is set when every matching row is unavailable. */
 export interface ComboOption<V = unknown> {
   label: string
   value: V

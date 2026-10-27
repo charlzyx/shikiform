@@ -1,3 +1,9 @@
+/**
+ * Form engine without React: values, draft effects, validation, and tree/array moves.
+ * React hooks are the `shikiform` entry. Ant Design is `shikiform/antd`.
+ *
+ * @packageDocumentation
+ */
 export { createForm, defineEffects, FormEngine } from './form'
 export { comboMatch, comboOptions } from './combo'
 export { EnumSource, EnumSource as Enum, asOptions, isEnumBinding } from './enum'
@@ -26,6 +32,7 @@ export type { Pos, TreeMoveResult } from './tree'
 export { normalizeRules, runRules } from './validate'
 export type { Rule, RulesInput, ValidateCtx } from './validate'
 export type {
+  ArrayItemOf,
   ArrayPath,
   CommitMode,
   Display,

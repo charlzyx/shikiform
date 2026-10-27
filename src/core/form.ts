@@ -31,6 +31,8 @@ import type {
   EffectsAPI,
   EffectsRuntime,
   FieldError,
+  ArrayItemOf,
+  ArrayPath,
   FieldPath,
   FieldSpec,
   PathValue,
@@ -123,18 +125,31 @@ interface UiState {
 const REACTION_PREFIX = /^(reaction|each|walk):/
 
 /**
- * Form engine. Field models are created on `$` access, `registerField`, or `fields`.
- * No React and no UI.
+ * Form engine. No React and no UI.
+ *
+ * Field models exist by declaration: `fields`, `registerField`, `$rules` / `$required`, and `rows.*.name`
+ * templates all join submit validation when the JSX `<Field>` is not mounted.
+ * JSX `rules` and `required` apply only while that component is mounted and do not erase the sources above.
+ * `hidden` still validates and submits. `none` drops the value and skips validation. An ancestor `none` covers descendants.
  */
 export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsRuntime<T> {
+  /** Current values. Write them with `setValue`, `batch`, or the array and tree methods. */
   values: T
+  /** Snapshot `reset` restores. Cloned when the form is created. */
   readonly initial: T
+  /** True while {@link FormEngine.submit} is running. Same value as {@link FormEngine.isSubmitting}. */
   submitting = false
+  /** True while a validate pass is running, including the async rules it waits for. */
   validating = false
+  /** True after a user edit. A reaction writing `$value` does not set this. `reset` clears it. */
   dirty = false
+  /** Incremented once per {@link FormEngine.submit}, including calls that fail validation. */
   submitCount = 0
+  /** When true, each reaction pass is traced. */
   devtools: boolean
+  /** Root draft. Prefer {@link FormEngine.batch} so writes flush once. */
   readonly draft: Draft<T>
+  /** Options passed to {@link createForm}. */
   readonly options: FormOptions<T>
 
   private fields = new Map<string, FieldModel>()
@@ -201,6 +216,7 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     this.flush()
   }
 
+  /** Messages for every field whose effective display is not `none`. */
   get errors(): FieldError[] {
     const out: FieldError[] = []
     for (const [path, field] of this.fields) {
@@ -211,6 +227,7 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     return out
   }
 
+  /** True for the duration of {@link FormEngine.submit}, including the validation it waits for. */
   get isSubmitting(): boolean {
     return this.submitting
   }
@@ -229,14 +246,17 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     return true
   }
 
+  /** Read one path. A key that is not on `T` does not typecheck. */
   getValue<P extends FieldPath<T>>(path: P): PathValue<T, P> {
     return getAt(this.values, String(path)) as PathValue<T, P>
   }
 
+  /** Write one path from outside a reaction. Marks the field dirty and runs `onChange` validation when configured. */
   setValue<P extends FieldPath<T>>(path: P, value: PathValue<T, P>): void {
     this.commitExternal(String(path), value)
   }
 
+  /** One draft, one reaction pass, one notification. */
   batch(fn: (d: Draft<T>) => void): void {
     this.batchDepth++
     try {
@@ -252,6 +272,10 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     }
   }
 
+  /**
+   * Bump `submitCount`, wait for in-flight async rules, validate, then call `onValid` with {@link FormEngine.getSubmitValues}.
+   * `virtual` and display `none` are omitted. `hidden` is kept. Computed fields are omitted unless `virtual` was set false.
+   */
   async submit(onValid?: (values: T) => void | Promise<void>) {
     this.submitCount += 1
     this.submitting = true
@@ -271,6 +295,7 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     }
   }
 
+  /** Restore initial values. Pass a path to restore one subtree. Reactions run again. Touched, dirty, and errors clear. */
   reset(path?: FieldPath<T>): void {
     if (path) this.values = setAt(this.values, String(path), clone(getAt(this.initial, String(path))))
     else this.values = clone(this.initial)
@@ -301,6 +326,12 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     this.flush()
   }
 
+  /**
+   * Validate `path` and its descendants, or the whole form.
+   * Declared fields, `registerField`, `$rules`, and item templates are included even if no `<Field>` is mounted.
+   * JSX rules count only while mounted. Display `none` skips the field. `hidden` does not.
+   * The form-level schema always runs. A scoped call replaces schema issues under `path` only.
+   */
   async validate(path?: string): Promise<FieldError[]> {
     this.applyItemTemplates()
     this.validating = true
@@ -329,6 +360,7 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     }
   }
 
+  /** Values with `virtual` and display `none` removed. `hidden` is kept. The static type is still `T`. */
   getSubmitValues(): T {
     let out = clone(this.values)
     const omit = [...this.fields.entries()]
@@ -339,16 +371,19 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     return out
   }
 
+  /** Untyped handle for an exact path, or for `opts.ui`. Prefer {@link FormEngine.getValue} and {@link FormEngine.batch}. */
   query(path: string, opts?: { ui?: string }): any {
     if (opts?.ui) return createUiHandle(this, path, opts.ui)
     return this.handle(path)
   }
 
-  moveArray(path: string, from: number, to: number): void {
+  /** Move an array row. `to` is the final index. Field models follow the row id. */
+  moveArray<P extends ArrayPath<T>>(path: P, from: number, to: number): void {
     this.spliceArray(path, from, 1, to, 'move')
   }
 
-  swapArray(path: string, indexA: number, indexB: number): void {
+  /** Exchange two indexes. Field models follow the row ids. */
+  swapArray<P extends ArrayPath<T>>(path: P, indexA: number, indexB: number): void {
     const before = this.arrayOf(path)
     if (indexA === indexB || indexA < 0 || indexB < 0 || indexA >= before.length || indexB >= before.length) return
     const next = before.slice()
@@ -358,7 +393,8 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     this.commitArray(path, before, next, new Set([indexA, indexB]))
   }
 
-  replaceArray(path: string, index: number, row: unknown): void {
+  /** Replace the row at `index`. The previous row's field model is dropped. */
+  replaceArray<P extends ArrayPath<T>>(path: P, index: number, row: ArrayItemOf<T, P & string>): void {
     const before = this.arrayOf(path)
     if (index < 0 || index >= before.length) return
     const next = before.slice()
@@ -366,7 +402,8 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     this.commitArray(path, before, next, new Set([index]))
   }
 
-  insertArray(path: string, index: number, row: unknown): void {
+  /** Insert `row` at `index`. Later field models follow row id. Item templates apply to the new index. */
+  insertArray<P extends ArrayPath<T>>(path: P, index: number, row: ArrayItemOf<T, P & string>): void {
     const before = this.arrayOf(path)
     const at = Math.min(Math.max(index, 0), before.length)
     const next = before.slice()
@@ -374,7 +411,8 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     this.commitArray(path, before, next, new Set(Array.from({ length: next.length - at }, (_, i) => at + i)))
   }
 
-  removeArray(path: string, index: number): void {
+  /** Remove the row at `index`. Its field model is dropped. */
+  removeArray<P extends ArrayPath<T>>(path: P, index: number): void {
     const before = this.arrayOf(path)
     if (index < 0 || index >= before.length) return
     const next = before.slice()
@@ -384,11 +422,16 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     this.commitArray(path, before, next, dirty)
   }
 
-  pushArray(path: string, row: unknown): void {
+  /** Append `row`. Item templates (`rows.*.name`) apply to the new index. */
+  pushArray<P extends ArrayPath<T>>(path: P, row: ArrayItemOf<T, P & string>): void {
     const before = this.arrayOf(path)
     this.commitArray(path, before, [...before, row], new Set([before.length]))
   }
 
+  /**
+   * Move a tree node to its final `pos`.
+   * Refuses a move into the node's own descendant. Field models follow `rowKey`.
+   */
   moveTree(path: string, from: Pos, to: Pos): MoveResult {
     const cfg = this.treeCfg(path)
     const before = this.arrayOf(path)
@@ -412,52 +455,64 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     return { ok: true }
   }
 
+  /** Diagnostic counters: reaction id → run count. */
   getDebugStats(): { runs: Record<string, number> } {
     return { runs: Object.fromEntries(this.runs) }
   }
 
+  /** Re-render when this path's value or field state changes. Returns the unsubscribe. */
   subscribePath(path: string, listener: () => void): () => void {
     return addListener(this.pathListeners, path, listener)
   }
 
+  /** Re-render when this array or tree changes length or order. Cell edits do not notify. */
   subscribeStructure(path: string, listener: () => void): () => void {
     return addListener(this.structListeners, path, listener)
   }
 
+  /** Notified when `canSubmit`, `isSubmitting`, `submitCount`, `dirty`, or `validating` change. */
   subscribeMeta(listener: () => void): () => void {
     this.metaListeners.add(listener)
     return () => this.metaListeners.delete(listener)
   }
 
+  /** Snapshot for {@link FormEngine.subscribeMeta}. */
   getMetaVersion(): number {
     return this.metaVersion
   }
 
+  /** Notified after every flush. Used when a selector read nothing. */
   subscribeDebug(listener: () => void): () => void {
     this.debugListeners.add(listener)
     return () => this.debugListeners.delete(listener)
   }
 
+  /** Notified when one tracked `$` key changes. `dep` is the key `trackSelector` returned. */
   subscribeDep(dep: string, listener: () => void): () => void {
     return addListener(this.depListeners, dep, listener)
   }
 
+  /** Snapshot for {@link FormEngine.subscribePath}. */
   getPathVersion(path: string): number {
     return this.pathVersion.get(path) ?? 0
   }
 
+  /** Snapshot for {@link FormEngine.subscribeStructure}. */
   getStructureVersion(path: string): number {
     return this.structVersion.get(path) ?? 0
   }
 
+  /** Snapshot for {@link FormEngine.subscribeDebug}. */
   getDebugVersion(): number {
     return this.debugVersion
   }
 
+  /** Snapshot for {@link FormEngine.subscribeDep}. */
   getDepVersion(dep: string): number {
     return this.depVersion.get(dep) ?? 0
   }
 
+  /** Run `selector` and return the `$` keys it read, without subscribing. */
   trackSelector<S>(selector: (d: Draft<T>) => S): { value: S; deps: string[] } {
     const tracked = this.trackOnly(() => selector(this.draft))
     return { value: tracked.value, deps: [...tracked.deps] }
@@ -806,10 +861,15 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     }
   }
 
+  /** Remember which key identifies a row so field models follow that id across moves. */
   registerArray(path: string, rowKey?: string): void {
     this.arrays.set(path, { rowKey })
   }
 
+  /**
+   * Register a tree root so effects can address it before React mounts.
+   * `childrenKey` defaults to `'children'`. `rowKey` defaults to `'id'`.
+   */
   registerTree(
     path: string,
     spec: { childrenKey?: string; rowKey?: string; canMove?: (args: any) => string | null | undefined } = {},
@@ -822,6 +882,7 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     })
   }
 
+  /** Mount a named UI instance. The same name twice on one path throws {@link ShikiUiError} in dev. */
   claimUi(path: string, name: string): void {
     const key = uiKey(path, name)
     if (this.uiMounts.has(key) && process.env.NODE_ENV !== 'production') {
@@ -830,10 +891,15 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     this.uiMounts.add(key)
   }
 
+  /** Unmount a named UI instance. The field model is unchanged. */
   releaseUi(path: string, name: string): void {
     this.uiMounts.delete(uiKey(path, name))
   }
 
+  /**
+   * Input props for `path`: value, errors, display, pattern, touched, dirty, validating.
+   * `errors` is empty when the effective display is `none`.
+   */
   binding(path: string) {
     const field = this.fields.get(path)
     const pattern = this.effectivePattern(path)
@@ -859,6 +925,7 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     }
   }
 
+  /** False when the field display is not `visible`, or when the named UI / region is hidden. */
   uiVisible(path: string, name: string | undefined, region: string | undefined): boolean {
     if (this.effectiveDisplay(path) !== 'visible') return false
     if (region && this.uiHidden('', region)) return false
@@ -866,6 +933,7 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     return true
   }
 
+  /** Mark the field touched. Validates when the trigger list includes `onBlur`. */
   blur(path: string): void {
     const field = this.ensure(path)
     field.touched = true
@@ -875,6 +943,7 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     else this.emit()
   }
 
+  /** Row keys for rendering. Uses `rowKey` or `id` when present, otherwise a stable object identity. */
   structureKeys(path: string, rowKey?: string): { key: string; index: number }[] {
     return this.arrayOf(path).map((row, index) => ({ key: this.rowIdent(row, index, rowKey ?? this.arrays.get(path)?.rowKey), index }))
   }
@@ -1663,7 +1732,28 @@ function uiDep(path: string, name: string): string {
   return `@ui:${path}#${name}`
 }
 
-/** Build an effect module. The factory runs once per form, against that form's draft. */
+/**
+ * Build an effect module. The factory runs once per form, against that form's draft.
+ *
+ * `reaction` derives `$` state. Reads are dependencies. Writes are not.
+ * `reaction.each` is one instance per array row. `reaction.walk` is one instance per tree node (`pos`).
+ * `watch` runs after its source changes, not on the first pass. `watch.each` is the row-scoped watch.
+ * `$rules` and `$required` written here validate even when the JSX field is unmounted.
+ * Two reactions writing the same `$` state throw {@link ShikiConflictError}.
+ *
+ * @example
+ * defineEffects<{ tab: string; code: string; rows: { name: string }[] }>(({ reaction }) => {
+ *   reaction((d) => {
+ *     d.code.$display = d.tab.$value === 'extra' ? 'visible' : 'hidden'
+ *   })
+ *   reaction.each(
+ *     (d) => d.rows,
+ *     (row) => {
+ *       row.name.$required = true
+ *     },
+ *   )
+ * })
+ */
 export function defineEffects<T>(factory: (api: EffectsAPI<T>) => void): EffectDef<T> {
   return {
     install(form) {
@@ -1853,6 +1943,19 @@ function installWatchEach(runtime: EffectsRuntime<any>, select: (d: Draft<any>) 
   runtime.queue(id)
 }
 
+/**
+ * Create a form engine. No React.
+ *
+ * `T` is inferred from `initialValues`. `getValue`, `setValue`, and `batch` then use that type.
+ * `fields` declares models that validate even when no `<Field>` is mounted.
+ * A key such as `rows.*.name` is an item template copied onto every current index.
+ *
+ * @example
+ * const form = createForm({
+ *   initialValues: { code: '', rows: [{ name: '' }] },
+ *   fields: { code: { required: true }, 'rows.*.name': { required: true } },
+ * })
+ */
 export function createForm<T>(options: FormOptions<T> = {}): FormEngine<T> {
   return new FormEngine(options)
 }

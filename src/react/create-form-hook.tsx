@@ -96,6 +96,8 @@ export function createFormHook<
   /**
    * Reusable form fragment. `form` must be an `useAppForm()` instance of the same value type.
    * The fragment renders inside that form's providers.
+   * Extra props are the second type argument: `withForm<Values, { title: string }>({ render: ({ form, title }) => ... })`.
+   * The default `{}` keeps `name` and other omitted props from collapsing to `never`.
    */
   function withForm<T, P extends object = {}>(config: {
     render: (props: { form: AppFormApi<T, TFields, TForms> } & P) => ReactNode
@@ -112,6 +114,8 @@ export function createFormHook<
   /**
    * Typed field group. Names inside the group are relative to `name`, or to the surrounding `<AppField>` scope.
    * `<AddressFields name="address" />` makes `name="city"` read `address.city`.
+   * Extra props are the second type argument, not inferred from the render destructure:
+   * `withFieldGroup<Address, { title: string }>({ render: ({ group, title }) => ... })`.
    */
   function withFieldGroup<TGroup, P extends object = {}>(config: {
     render: (props: { group: GroupApi<TGroup, TFields> } & P) => ReactNode

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import type { FormEngine } from '../core/form'
-import type { EffectDef, FieldPath, FormOptions } from '../core/types'
+import type { EffectDef, FieldPath, FormOptions, PathValue } from '../core/types'
 import { useForm } from '../react/use-form'
 
 /**
@@ -15,6 +15,7 @@ export interface QueryRequestArgs<TParams> {
   signal: AbortSignal
 }
 
+/** `data` is the rows for this response. `total` is the unpaged count in server mode. */
 export interface QueryRequestResult<TRow> {
   data: TRow[]
   total: number
@@ -33,6 +34,7 @@ export interface QueryHookArgs<TRow> {
   placeholderData: <T>(previous: T | undefined) => T | undefined
 }
 
+/** Result shape a compatible `useQuery` hook should return to {@link useQueryTable}. */
 export interface QueryHookResult<TRow> {
   data: QueryRequestResult<TRow> | undefined
   isFetching: boolean
@@ -101,7 +103,21 @@ export interface QueryTableApi<TValues, TParams, TRow> {
 /**
  * Headless query form + table, in the shape of ProTable / ahooks `useAntdTable`, built on ShikiForm.
  * No UI dependency. `ProQueryTable` in `shikiform/antd` is a thin wrapper over this hook.
+ *
+ * `TValues` is inferred from `initialValues` or `form`. `TRow` is inferred from `request`'s `data`.
+ * `params: 'filters'` types the request payload as that field's value.
+ * `params: (values) => ...` types it as the function's return. Omit `params` to send the whole form value.
+ * `page` is virtual in `client` mode and submitted in `server` mode. `selectedKeys` is always virtual.
  */
+export function useQueryTable<TValues, TRow, const P extends FieldPath<TValues>>(
+  options: UseQueryTableOptions<TValues, PathValue<TValues, P & string>, TRow> & { params: P },
+): QueryTableApi<TValues, PathValue<TValues, P & string>, TRow>
+export function useQueryTable<TValues, TParams, TRow>(
+  options: UseQueryTableOptions<TValues, TParams, TRow> & { params: (values: TValues) => TParams },
+): QueryTableApi<TValues, TParams, TRow>
+export function useQueryTable<TValues, TRow = unknown>(
+  options: Omit<UseQueryTableOptions<TValues, TValues, TRow>, 'params'> & { params?: undefined },
+): QueryTableApi<TValues, TValues, TRow>
 export function useQueryTable<TValues, TParams = TValues, TRow = unknown>(
   options: UseQueryTableOptions<TValues, TParams, TRow>,
 ): QueryTableApi<TValues, TParams, TRow> {

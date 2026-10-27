@@ -7,6 +7,7 @@ export interface EnumOption {
   children?: EnumOption[]
 }
 
+/** Passed to an async enum loader. Abort when a newer `with()` supersedes this load. */
 export interface EnumLoadContext {
   signal: AbortSignal
 }
@@ -16,6 +17,7 @@ export interface EnumConfig<P> {
   cacheKey?: (params: P) => string
   /** Wait this long after the latest `with()` before calling the loader. */
   debounce?: number
+  /** Drop a cache entry older than this many milliseconds. Omit to keep it for the form's lifetime. */
   staleTime?: number
 }
 
@@ -33,6 +35,7 @@ export class EnumSource<P = unknown> {
     private readonly config: EnumConfig<P> = {},
   ) {}
 
+  /** `Enum.from(list)` or `Enum.from(async (params, ctx) => list, config)`. */
   static from<P>(
     source: readonly EnumOption[] | ((params: P, ctx: EnumLoadContext) => Promise<readonly EnumOption[]> | readonly EnumOption[]),
     config?: EnumConfig<P>,
@@ -45,14 +48,17 @@ export class EnumSource<P = unknown> {
     return { kind: 'enum', source: this, params }
   }
 
+  /** Cache key for `params`. Uses `cacheKey` when set, otherwise `JSON.stringify`. */
   key(params: P): string {
     return this.config.cacheKey ? this.config.cacheKey(params) : JSON.stringify(params ?? null)
   }
 
+  /** Debounce before {@link EnumSource.load}, in milliseconds. `0` loads immediately. */
   get debounce(): number {
     return this.config.debounce ?? 0
   }
 
+  /** Cached options, or `undefined` when missing or past `staleTime`. */
   cached(params: P): EnumOption[] | undefined {
     const hit = this.cache.get(this.key(params))
     if (!hit) return undefined
@@ -60,6 +66,7 @@ export class EnumSource<P = unknown> {
     return hit.options
   }
 
+  /** Load options. Concurrent calls for the same key share one request. */
   async load(params: P, signal: AbortSignal): Promise<EnumOption[]> {
     if (typeof this.source !== 'function') return this.source.slice()
     const key = this.key(params)
@@ -83,12 +90,14 @@ export class EnumSource<P = unknown> {
   }
 }
 
+/** What `$enum = source.with(params)` stores. Not a list of options — the engine loads those. */
 export interface EnumBinding<P = unknown> {
   kind: 'enum'
   source: EnumSource<P>
   params: P
 }
 
+/** True when `value` is what `$enum = source.with(params)` stores. */
 export function isEnumBinding(value: unknown): value is EnumBinding {
   return !!value && typeof value === 'object' && (value as EnumBinding).kind === 'enum'
 }

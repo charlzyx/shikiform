@@ -3,10 +3,12 @@ import { getAt } from './path'
 /** Index path of a tree node. Depth is `pos.length`. The last entry is the sibling index. */
 export type Pos = readonly number[]
 
+/** Stable string for a `pos`, used as a React key when a node has no id. `posKey([0, 2])` is `'0.2'`. */
 export function posKey(pos: Pos): string {
   return pos.join('.')
 }
 
+/** True when both index paths are the same length and the same indexes. */
 export function samePos(a: Pos, b: Pos): boolean {
   return a.length === b.length && a.every((n, i) => n === b[i])
 }
@@ -48,6 +50,10 @@ export function posOf(root: string, path: string, childrenKey = 'children'): Pos
   return pos
 }
 
+/**
+ * First `pos` whose node matches `pred`, walking depth-first.
+ * `childrenKey` defaults to `'children'`. Returns `undefined` when nothing matches.
+ */
 export function findPos(
   nodes: unknown,
   pred: (node: any, pos: Pos) => boolean,
@@ -66,6 +72,7 @@ export function findPos(
   return undefined
 }
 
+/** Node at `pos`, or `undefined` when the path walks off the tree. The node is untyped. */
 export function getNode(nodes: unknown, pos: Pos, childrenKey = 'children'): any {
   let list = nodes as any[]
   let node: any
@@ -77,6 +84,7 @@ export function getNode(nodes: unknown, pos: Pos, childrenKey = 'children'): any
   return node
 }
 
+/** Result of {@link moveNode}. `tree` is a new array when `ok`. The input is not mutated. */
 export interface TreeMoveResult {
   ok: boolean
   /** Next tree when `ok`. The input tree is not mutated. */
@@ -172,6 +180,11 @@ export function locateIds(
   return out
 }
 
+/**
+ * Every node as `{ id, pos, path }`.
+ * `id` is `rowKey` when the node has one, otherwise {@link posKey}.
+ * `path` is the index path from {@link pathOf}.
+ */
 export function listPositions(
   nodes: unknown,
   root: string,

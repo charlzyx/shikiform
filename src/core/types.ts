@@ -31,8 +31,19 @@ export type Pattern = 'editable' | 'disabled' | 'readOnly' | 'readPretty'
 /** When an input writes into the store. `blur` keeps keystrokes local until blur or Enter. */
 export type CommitMode = 'change' | 'blur'
 
+/**
+ * When a field validates.
+ * The field's own `trigger` wins over {@link FormOptions.validateTrigger}.
+ * The default is `['onBlur', 'onSubmit']`. `onChange` also runs for async rules, subject to `asyncDebounceMs`.
+ */
 export type ValidateTrigger = 'onChange' | 'onBlur' | 'onSubmit'
 
+/**
+ * What to do when the current value is no longer in `$enum`.
+ * - `none` — leave the value (default). Clear it in a `watch` if you need to.
+ * - `clear` — drop the value.
+ * - `error` — fail validation with a message.
+ */
 export type EnumPolicy = 'error' | 'clear' | 'none'
 
 type IsAny<T> = 0 extends 1 & T ? true : false
@@ -94,6 +105,9 @@ export type PathValue<T, P extends string> = IsAny<T> extends true
     ? PathValue<IndexValue<T, H>, R>
     : IndexValue<T, P>
 
+/** One element of the array at `P`. `never` when that path is not an array. */
+export type ArrayItemOf<T, P extends string> = PathValue<T, P> extends readonly (infer E)[] ? E : never
+
 type IndexValue<T, K extends string> = T extends readonly (infer E)[]
   ? K extends `${number}`
     ? E
@@ -103,18 +117,39 @@ type IndexValue<T, K extends string> = T extends readonly (infer E)[]
     : never
 
 export interface FieldSpec {
-  /** Omit this field (and, when it is an object, its values) from submit. It still participates in effects. */
+  /**
+   * Omit this field from {@link FormInstance.getSubmitValues}. Effects can still read and write it.
+   * A computed field (a reaction wrote `$value`) becomes virtual unless this is `false`.
+   * Client-paging `page` and `selectedKeys` are virtual. The value stays on the form either way.
+   */
   virtual?: boolean
-  /** Initial explicit pattern. `$pattern = undefined` in a reaction clears it again. */
+  /**
+   * Initial explicit pattern. A child with its own pattern wins over an ancestor.
+   * `$pattern = undefined` clears the explicit value and inherits again.
+   */
   pattern?: Pattern
-  /** Initial display. Prefer reactions for linkage. */
+  /**
+   * Initial display. Prefer a reaction for linkage.
+   * `hidden` still validates and submits. `none` drops the value and skips validation.
+   * An ancestor `none` forces `none` on descendants. Otherwise an ancestor `hidden` forces `hidden`.
+   */
   display?: Display
   /**
    * Built-in rules, a Standard Schema (`z.string().email()`, Valibot, ArkType), or a mix.
-   * Field schemas validate this field's value. Issue paths are relative to the field.
+   * A field schema validates this field's value. An issue path is relative to the field
+   * (`city` on `address` lands on `address.city`).
+   * On `fields` / `registerField` these rules stay when `<Field>` unmounts.
+   * JSX `rules` are mount-scoped and do not erase a declaration, an item template, or `$rules`.
    */
   rules?: RulesInput
+  /** Static options. A reaction assigns `$enum` (including `EnumSource.with(params)`) and that wins. */
   enum?: EnumOption[] | readonly string[]
+  /**
+   * Empty values fail validation even without a `required` rule.
+   * On `fields` / `registerField` this flag stays after `<Field>` unmounts.
+   * JSX `required` lasts only while that `<Field>` is mounted.
+   * A reaction `$required` wins over both and is not cleared on unmount.
+   */
   required?: boolean
   /**
    * Wait this long after the latest edit before running async validators and async schemas.
@@ -169,6 +204,10 @@ export interface FormOptions<T> {
   trees?: Record<string, { childrenKey?: string; rowKey?: string }>
 }
 
+/**
+ * One effect module, usually the return value of {@link defineEffects}.
+ * Modules run in array order when the form is created. Each factory closes over `reaction` and `watch`.
+ */
 export interface EffectDef<T> {
   install(form: EffectsRuntime<T>): void
 }
@@ -191,37 +230,64 @@ export interface EffectsAPI<T> {
    * `watch(d => [d.a.$value, d.b.$value], …)` is a multi-source watch.
    */
   watch: WatchFn<T>
-  /** Low-level handle for an exact path. Prefer `d.a.b` inside a reaction. */
+  /**
+   * Low-level handle for an exact path. Prefer `d.a.b` inside a reaction.
+   * `opts.ui` addresses a named UI instance (`$ui`), not a child field.
+   * The return is untyped. App code should use the draft instead.
+   */
   query(path: string, opts?: { ui?: string }): any
 }
 
 export interface ReactionFn<T> {
+  /**
+   * Derive `$` state. Reads are dependencies. Writes are not, so do not read a `$` state you just wrote.
+   * Synchronous only. The same `$` state written by two reactions is a dev error.
+   * A reaction that reads nothing runs once.
+   * `$rules` and `$required` written here validate even when the JSX `<Field>` is not mounted.
+   */
   (effect: (d: Draft<T>) => void): void
   /**
    * One reaction instance per direct child of the selected array.
-   * Editing a row re-runs that index only.
+   * Editing a row re-runs that index only, including rows that are not mounted.
+   * `$rules` / `$required` set here apply to every index, including virtualized rows.
    * This does not walk nested arrays or trees; use {@link ReactionFn.walk} for trees.
+   *
+   * @example
+   * reaction.each(
+   *   (d) => d.rows,
+   *   (row) => {
+   *     row.name.$required = true
+   *   },
+   * )
    */
   each<A>(
     select: (d: Draft<T>) => Draft<A>,
     effect: (row: A extends readonly (infer E)[] ? Draft<E> : Draft<A>, d: Draft<T>, index: number) => void,
   ): void
   /**
-   * One reaction instance per tree node. `pos` is the index path (`[0, 2, 1]`).
+   * One reaction instance per tree node. `pos` is the index path after the walk (`[0, 2, 1]`).
    * Kept separate from `each` so array reactions stay one level deep.
+   * `opts.childrenKey` defaults to `'children'`.
    */
   walk<A>(
     select: (d: Draft<T>) => Draft<A>,
-    effect: (node: Draft<any>, d: Draft<T>, pos: Pos) => void,
+    effect: (node: A extends readonly (infer E)[] ? Draft<E> : Draft<A>, d: Draft<T>, pos: Pos) => void,
     opts?: { childrenKey?: string },
   ): void
 }
 
 export interface WatchFn<T> {
+  /**
+   * Run `effect` when the `$` state read by `source` changes.
+   * Does not run on the first pass. Reads inside `effect` are not dependencies.
+   * `watch` does not mark a field computed. Use it for actions, not derivations.
+   * `watch((d) => [d.a.$value, d.b.$value], …)` is a multi-source watch.
+   */
   (source: (d: Draft<T>) => unknown, effect: (d: Draft<T>) => void): void
   /**
    * Edge-triggered row action. The callback's `$` reads are the source.
-   * It is scouted once per row (writes discarded) and applied only after those reads change.
+   * Scouted once per row (writes discarded) and applied only after those reads change.
+   * One level of the array, same as {@link ReactionFn.each}.
    */
   each<A>(
     select: (d: Draft<T>) => Draft<A>,
@@ -299,7 +365,10 @@ export interface DraftState<T> {
    * The same name mounted twice on one path is a dev error.
    */
   $ui(name: string): UiDraft
-  /** First node matching `pred`, or `undefined`. Depends on this subtree's value. */
+  /**
+   * First node matching `pred`, or `undefined`. Depends on this subtree's value.
+   * The node is untyped: a tree mixes the value at this path with nested `children`.
+   */
   $find(pred: (node: any, pos: Pos) => boolean): Draft<any> | undefined
   /** Handle at `pos` under this tree or array root. */
   $pathOf(pos: Pos): string
@@ -311,11 +380,13 @@ export type DraftNav<T> = T extends readonly (infer E)[]
     ? { [K in keyof T]-?: Draft<NonNullable<T[K]>> }
     : Record<string, never>
 
+/** One field's messages. `path` is the exact index path (`items.0.name`). */
 export interface FieldError {
   path: string
   messages: string[]
 }
 
+/** Result of a tree move. `reason` is set when the move is refused. */
 export interface MoveResult {
   ok: boolean
   reason?: string
@@ -329,6 +400,7 @@ export interface FormInstance<T> {
   readonly values: T
   /** Alias of {@link FormInstance.isSubmitting}. */
   readonly submitting: boolean
+  /** True while a validate pass is running, including the async rules it waits for. */
   readonly validating: boolean
   /** True after a user edit that is not itself a computed write. */
   readonly dirty: boolean
@@ -355,20 +427,37 @@ export interface FormInstance<T> {
   submit(onValid?: (values: T) => void | Promise<void>): Promise<{ ok: true; values: T } | { ok: false; errors: FieldError[] }>
   /** Restore initial values. Pass a path to restore one subtree. Computed values are written again. */
   reset(path?: FieldPath<T>): void
-  /** Validate one path (and nothing else) or the whole form. */
+  /**
+   * Validate `path` and its descendants, or the whole form when `path` is omitted.
+   * Fields from `fields`, `registerField`, `$rules`, and `rows.*.name` templates are included
+   * even when no `<Field>` is mounted. JSX `rules` / `required` count only while mounted.
+   * Display `none` skips the field, and an ancestor `none` covers descendants. `hidden` still validates.
+   * A form-level Standard Schema always runs. A scoped call refreshes schema issues under `path` only.
+   */
   validate(path?: string): Promise<FieldError[]>
+  /**
+   * Clone of the values with `virtual` fields and display `none` removed.
+   * `hidden` values are kept. The static return type is still `T` because display is decided at runtime.
+   */
   getSubmitValues(): T
+  /**
+   * Escape hatch for an exact path. Prefer `getValue` / `batch`.
+   * `opts.ui` is a named UI instance. The return is untyped.
+   */
   query(path: string, opts?: { ui?: string }): any
 
   /** Move an array row. `to` is the final index. Field models follow the row id. */
-  moveArray(path: string, from: number, to: number): void
+  moveArray<P extends ArrayPath<T>>(path: P, from: number, to: number): void
   /** Exchange two indexes. Field models follow the row ids. */
-  swapArray(path: string, indexA: number, indexB: number): void
+  swapArray<P extends ArrayPath<T>>(path: P, indexA: number, indexB: number): void
   /** Replace the row at `index`. The previous row's field model is dropped. */
-  replaceArray(path: string, index: number, row: unknown): void
-  insertArray(path: string, index: number, row: unknown): void
-  removeArray(path: string, index: number): void
-  pushArray(path: string, row: unknown): void
+  replaceArray<P extends ArrayPath<T>>(path: P, index: number, row: ArrayItemOf<T, P & string>): void
+  /** Insert `row` at `index`. Later rows shift. Their field models follow row id. */
+  insertArray<P extends ArrayPath<T>>(path: P, index: number, row: ArrayItemOf<T, P & string>): void
+  /** Remove the row at `index`. Its field model is dropped. Later models follow row id. */
+  removeArray<P extends ArrayPath<T>>(path: P, index: number): void
+  /** Append `row`. An item template (`rows.*.name`) is applied to the new index. */
+  pushArray<P extends ArrayPath<T>>(path: P, row: ArrayItemOf<T, P & string>): void
 
   /**
    * Move a tree node to its final `pos`.

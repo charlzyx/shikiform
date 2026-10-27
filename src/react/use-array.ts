@@ -1,17 +1,40 @@
 import { useCallback, useRef, useSyncExternalStore, type DragEvent } from 'react'
 import { joinPath } from '../core/path'
+import type { ArrayItemOf, ArrayPath } from '../core/types'
 import { useFormContext, useScope } from './context'
 
+/** One rendered row. `key` is the row id, or a stable identity when the row has none. */
 export interface ArrayKey {
   key: string
   index: number
 }
 
+type ArrayHandle<TRow> = {
+  path: string
+  keys: ArrayKey[]
+  push: (row: TRow) => void
+  insert: (index: number, row: TRow) => void
+  remove: (index: number) => void
+  /** `to` is the final index. */
+  move: (from: number, to: number) => void
+  swap: (indexA: number, indexB: number) => void
+  replace: (index: number, row: TRow) => void
+}
+
 /**
  * Array handle. Subscribes to row structure (length and ids), not to cell values.
  * `keys` use the row id when the row has one, otherwise a stable object identity.
+ * `to` on `move` is the final index.
+ * `useArrayField<Values, 'rows'>('rows')` checks the name and types `push` / `replace` as one row.
+ * `useArrayField<Values>('rows')` only checks the name. A bare `useArrayField('rows')` accepts any row.
  */
-export function useArrayField(name: string, rowKey?: string) {
+export function useArrayField(name: string, rowKey?: string): ArrayHandle<unknown>
+export function useArrayField<TScope>(name: ArrayPath<TScope>, rowKey?: string): ArrayHandle<unknown>
+export function useArrayField<TScope, N extends ArrayPath<TScope>>(
+  name: N,
+  rowKey?: string,
+): ArrayHandle<ArrayItemOf<TScope, N & string>>
+export function useArrayField(name: string, rowKey?: string): ArrayHandle<unknown> {
   const form = useFormContext()
   const scope = useScope()
   const path = joinPath(scope.path, name)

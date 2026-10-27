@@ -20,14 +20,23 @@ export interface ValidateCtx {
 export type RuleMessage = string | null | undefined | Promise<string | null | undefined>
 
 export interface Rule {
+  /** Empty values fail. The default message is `必填` unless `message` is set. */
   required?: boolean
+  /** Inclusive lower bound for a number. */
   min?: number
+  /** Inclusive upper bound for a number. */
   max?: number
+  /** Minimum string length. An empty string fails this check. */
   minLength?: number
+  /** Maximum string length. */
   maxLength?: number
+  /** Tested against strings. */
   pattern?: RegExp
+  /** Built-in string format. */
   format?: 'email' | 'url'
+  /** Value must be `true` (a checkbox). */
   isTrue?: boolean
+  /** Overrides the default message for this rule. */
   message?: string
   /**
    * Standard Schema validated against this field's value.
@@ -35,6 +44,10 @@ export interface Rule {
    * (`city` on an address field lands on `address.city`).
    */
   schema?: StandardSchemaV1
+  /**
+   * Custom check. Return a message, nothing, or a promise of those.
+   * A newer edit aborts the previous `AbortSignal` and drops a late result when `asyncDebounceMs` is set.
+   */
   validator?: (value: unknown, ctx: ValidateCtx) => RuleMessage
 }
 

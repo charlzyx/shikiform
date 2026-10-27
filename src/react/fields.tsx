@@ -1,7 +1,7 @@
 import { useEffect, useMemo, type ReactNode } from 'react'
 import type { FormEngine } from '../core/form'
 import { joinPath } from '../core/path'
-import type { Display, Draft, Pattern } from '../core/types'
+import type { Display, Draft, FieldPath, PathValue, Pattern } from '../core/types'
 import type { RulesInput } from '../core/validate'
 import { FormContext, ScopeContext, useFormContext, useScope } from './context'
 import { useArrayField } from './use-array'
@@ -40,11 +40,14 @@ export function Form<T>({
 /**
  * One field. `rules` may be a built-in rule, a Standard Schema, or a mix:
  * `rules={z.string().email()}` or `rules={[z.string().min(2), { maxLength: 20 }]}`.
- * Those JSX rules apply only while this component is mounted. Unmount clears them and leaves
- * rules that came from `useForm({ fields })`, `registerField`, an item template, or `$rules`.
+ *
+ * JSX `rules` and `required` apply only while this component is mounted.
+ * Unmount clears them and leaves rules from `useForm({ fields })`, `registerField`, an item template (`rows.*.name`), or `$rules`.
+ * `virtual` omits the value from submit. `display="hidden"` still validates. `display="none"` skips validation.
+ * `<Field<Row> name="price">` checks the name. `<Field<Row, 'price'> name="price">` types the value.
  * `<Field>` is a thin wrapper around {@link useField}.
  */
-export function Field({
+export function Field<TScope = any, N extends FieldPath<TScope> = FieldPath<TScope>>({
   name,
   rules,
   virtual,
@@ -53,22 +56,28 @@ export function Field({
   pattern,
   children,
 }: {
-  name: string
+  /** Name relative to the current `<ObjectField>` / `<ArrayField>` / `<TreeField>` scope. */
+  name: N
+  /** Mount-scoped rules. Cleared on unmount. Does not erase a declaration, a template, or `$rules`. */
   rules?: RulesInput
+  /** Omit this value from submit. Effects can still read it. */
   virtual?: boolean
+  /** Mount-scoped required flag. Cleared on unmount. A declared or `$required` flag stays. */
   required?: boolean
+  /** Initial display when no reaction has written `$display`. */
   display?: Display
+  /** Initial pattern when no reaction has written `$pattern`. `$pattern = undefined` inherits again. */
   pattern?: Pattern
-  children?: (field: FieldBinding<any>) => ReactNode
+  children?: (field: FieldBinding<PathValue<TScope, N & string>>) => ReactNode
 }) {
   const form = useFormContext()
   const scope = useScope()
-  const path = joinPath(scope.path, name)
+  const path = joinPath(scope.path, String(name))
   form.mountJsxField(path, { rules, virtual, required, display, pattern })
   useEffect(() => {
     return () => form.releaseJsxField(path)
   }, [form, path])
-  const field = useField(name)
+  const field = useField<TScope, N>(name)
   if (field.display !== 'visible') return null
   return children ? <>{children(field)}</> : null
 }
@@ -130,8 +139,10 @@ export function TreeField({
 
 /**
  * Render `children` with the current selector value.
+ * Annotate the draft so the selected value is inferred: `select={(d: Draft<Values>) => d.email.$value}`.
+ * A single type argument (`Watch<Values>`) does not infer the selected value.
  * `select={(d) => d.$canSubmit}` subscribes a submit button without subscribing to every keystroke.
- * Same draft selectors as {@link useWatch}.
+ * Same selectors as {@link useWatch}.
  */
 export function Watch<T, S>({ select, children }: { select: (d: Draft<T>) => S; children: (value: S) => ReactNode }) {
   const value = useWatch<T, S>(select)
