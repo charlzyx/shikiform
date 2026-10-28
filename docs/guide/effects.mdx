@@ -1,0 +1,79 @@
+---
+title: 联动
+description: reaction 保持派生，watch 做动作，reaction.each 管每一行。
+---
+
+import { StepNav } from '../_components/TutorialStep';
+
+# 联动
+
+数量一改，金额跟着变。页面刚打开，金额已经是乘积。省从浙江改成江苏，市会被清掉。第一次进来，杭州还在。
+
+```tsx preview
+import { useState } from 'react';
+import { Form, Field, Submit, defineEffects, useForm } from 'shikiform';
+import { FormItem, Input, NumberInput } from 'shikiform/ui';
+
+const effects = defineEffects<{
+  price: number;
+  qty: number;
+  amount?: number;
+  province?: string;
+  city?: string;
+}>(({ reaction, watch }) => {
+  reaction((d) => {
+    const amount = (d.price.$value || 0) * (d.qty.$value || 0);
+    d.amount.$value = amount;
+    d.city.$disabled = !d.province.$value;
+  });
+  watch(
+    (d) => d.province,
+    (d) => {
+      d.city.$value = undefined;
+    },
+  );
+});
+
+export default function App() {
+  const [payload, setPayload] = useState('');
+  const form = useForm({
+    initialValues: { price: 10, qty: 2, amount: 0, province: '浙江', city: '杭州' },
+    effects: [effects],
+  });
+  return (
+    <Form form={form} onSubmit={(values) => setPayload(JSON.stringify(values, null, 2))}>
+      <Field name="price" decorator={<FormItem label="单价" />}>
+        <NumberInput />
+      </Field>
+      <Field name="qty" decorator={<FormItem label="数量" />}>
+        <NumberInput />
+      </Field>
+      <Field name="amount" decorator={<FormItem label="金额" />}>
+        <NumberInput />
+      </Field>
+      <Field name="province" decorator={<FormItem label="省" />}>
+        <Input />
+      </Field>
+      <Field name="city" decorator={<FormItem label="市" />}>
+        <Input />
+      </Field>
+      <Submit>提交</Submit>
+      {payload ? <pre className="shiki-code">{payload}</pre> : null}
+    </Form>
+  );
+}
+```
+
+`reaction` 用来保持一份结果。它一开始就跑。读到的 `$` 状态是依赖。同一轮里写下去的不是依赖，所以乘法先放进局部变量，再写 `$value`。
+
+`reaction` 写过 `$value` 的字段是计算值：阅读态，默认不进提交结果。提交 JSON 里没有 `amount`。
+
+`watch` 用来做动作。它第一次不跑，源变了才跑。清空市放在这里。如果写进 `reaction`，一打开杭州就没了。
+
+每一行各自的结果用 `reaction.each`。选择器返回数组 handle，例如 `(d) => d.items`。某一格改了，只重算那一行。树用 `reaction.walk`，节点带 `pos`。
+
+两个 `reaction` 不要写同一个 `$` 状态。刚写完的 `$value` 不要在同一个函数里再读。
+
+三个维度的可选范围、冲突清理、价格和库存，在 [SKU 选择器](/play/sku-picker)。对照写法在 [用例 16](/usage/16-effects-reference)。
+
+<StepNav prev={{ href: '/guide', title: '指南' }} next={{ href: '/guide/pattern', title: 'pattern' }} />

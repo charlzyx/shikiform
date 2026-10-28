@@ -1,0 +1,69 @@
+---
+title: pattern
+description: 四种状态从父级往下传，子级写了就用子级的。
+---
+
+import { StepNav } from '../_components/TutorialStep';
+
+# pattern
+
+下面有一个模式下拉。资料整段跟着变。备注始终能改。
+
+```tsx preview
+import { Form, Field, ObjectField, defineEffects, useForm } from 'shikiform';
+import { FormItem, Input, Select } from 'shikiform/ui';
+
+const MODES = [
+  { label: '可编辑', value: 'editable' },
+  { label: '禁用', value: 'disabled' },
+  { label: '只读', value: 'readOnly' },
+  { label: '阅读态', value: 'readPretty' },
+];
+
+const effects = defineEffects<{ mode: string; profile: { name: string; note: string } }>(({ reaction }) => {
+  reaction((d) => {
+    const mode = d.mode.$value;
+    if (mode) d.profile.$pattern = mode;
+    d.profile.note.$pattern = 'editable';
+  });
+});
+
+export default function App() {
+  const form = useForm({
+    initialValues: { mode: 'editable', profile: { name: 'Ada', note: '始终可改' } },
+    effects: [effects],
+  });
+  return (
+    <Form form={form}>
+      <Field name="mode" decorator={<FormItem label="资料的 pattern" />} enum={MODES}>
+        <Select />
+      </Field>
+      <ObjectField name="profile">
+        <Field name="name" decorator={<FormItem label="姓名" />}>
+          <Input />
+        </Field>
+        <Field name="note" decorator={<FormItem label="备注" />}>
+          <Input />
+        </Field>
+      </ObjectField>
+    </Form>
+  );
+}
+```
+
+`pattern` 有四种。
+
+| 值 | 输入框 |
+|---|---|
+| `editable` | 能改 |
+| `disabled` | 不能改。`$disabled = true` 就是这一种 |
+| `readOnly` | 能选中文字，不能改，值仍会提交 |
+| `readPretty` | 显示文字，不显示输入框 |
+
+写在父级上，子级跟着走。子级自己写了 `$pattern`，用子级的。`$pattern = undefined` 表示取消自己的设置，重新跟着父级。
+
+计算字段没有自己的 pattern 时，默认是 `readPretty`。
+
+订单表用同一套：编辑开关写在 `orders` 上，已发货的那一行再写成 `readPretty`。见 [订单行](/play/orders)。
+
+<StepNav prev={{ href: '/guide/effects', title: '联动' }} next={{ href: '/guide/display', title: '显隐' }} />

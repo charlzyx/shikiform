@@ -1,0 +1,45 @@
+import { expect, test } from '@playwright/test'
+
+test('sku picker fills in any order, reverses, clears conflicts, and grays out stock 0', async ({ page }) => {
+  await page.goto('/play/sku-picker')
+  await expect(page.getByTestId('price-text')).toHaveText('¥999 ~ ¥1999')
+  await expect(page.getByTestId('sku-id')).toHaveText('—')
+  await expect(page.getByTestId('qty')).toBeDisabled()
+
+  await page.getByTestId('opt-storage-128G').locator('input').check()
+  await page.getByTestId('opt-color-黑色').locator('input').check()
+  await page.getByTestId('opt-edition-标准版').locator('input').check()
+  await expect(page.getByTestId('sku-id')).toHaveText('B-128-STD')
+  await expect(page.getByTestId('price-text')).toHaveText('¥999')
+  await expect(page.getByTestId('stock')).toHaveText('12')
+
+  await page.getByTestId('opt-color-红色').locator('input').check()
+  await expect(page.getByTestId('opt-storage-128G')).toHaveCount(0)
+  await expect(page.getByTestId('opt-edition-标准版')).toHaveCount(0)
+  await expect(page.getByTestId('dim-storage').locator('input:checked')).toHaveCount(0)
+  await expect(page.getByTestId('dim-edition').locator('input:checked')).toHaveCount(0)
+  await expect(page.getByTestId('sku-id')).toHaveText('R-512-MAX')
+  await expect(page.getByTestId('price-text')).toHaveText('¥1999')
+
+  await page.goto('/play/sku-picker')
+  await page.getByTestId('opt-edition-Pro').locator('input').check()
+  await page.getByTestId('opt-storage-256G').locator('input').check()
+  await page.getByTestId('opt-color-白色').locator('input').check()
+  await expect(page.getByTestId('sku-id')).toHaveText('W-256-PRO')
+  await expect(page.getByTestId('price-text')).toHaveText('¥1499')
+  await expect(page.getByTestId('stock')).toHaveText('8')
+
+  await page.goto('/play/sku-picker')
+  await page.getByTestId('opt-color-白色').locator('input').check()
+  await expect(page.getByTestId('opt-edition-标准版').locator('input')).toBeDisabled()
+  await expect(page.getByTestId('opt-storage-128G').locator('input')).toBeDisabled()
+  await expect(page.getByTestId('opt-edition-Pro').locator('input')).toBeEnabled()
+
+  await page.getByTestId('opt-color-黑色').locator('input').check()
+  await page.getByTestId('opt-storage-256G').locator('input').check()
+  await page.getByTestId('opt-edition-Pro').locator('input').check()
+  await expect(page.getByTestId('qty')).toBeEnabled()
+  await page.getByTestId('qty').fill('9')
+  await page.getByTestId('qty').blur()
+  await expect(page.getByTestId('qty-error')).toContainText('库存仅剩 3')
+})

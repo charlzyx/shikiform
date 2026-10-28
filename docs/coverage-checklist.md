@@ -11,7 +11,7 @@ description: 对照 Formily / pro.formily / ProComponents / SKU 表格编辑的�
 
 图例：✅ 已有可点 demo+测试 · ⚠️ 有简化版/部分 · ❌ 缺 · ⏸️ v1 明确不做
 
-本页是 backlog。下面表格的现状按清单原文保留，不因当前教程能跑若干基础步骤就改成已覆盖。`archive/`、`playground/`、`e2e/` 是对照引用；这个分支上能打开的是 `docs/` 教程和 `usage/` 伪代码。缺的能力保持「能力未齐 / 文档先占位」，不改教学运行时去假装 SKU Full 已完成。
+本页是 backlog。只改已经能点、并且测试覆盖的行。没做的保持原状。教学运行时和库的显隐不一致时，以库为准，写在 [显隐](/guide/display)。
 
 ---
 
@@ -19,11 +19,11 @@ description: 对照 Formily / pro.formily / ProComponents / SKU 表格编辑的�
 
 | ID | 案例 | 对标 | 规格来源 | 现状 | Rspress 要补 | 验收要点 |
 |---|---|---|---|---|---|---|
-| P0-1 | SKU 多维选择器（任意顺序 / 反向 / 非法清 / 缺货置灰 / 价库存） | Formily 多对多联动；pro.formily combo | usage/07 | ⚠️ playground/sku 是「勾选组合→生成行」简化版，不是 07 的维度 Radio+comboOptions | 完整 SkuPicker：三维 Radio + reaction enum + watch 清冲突 + 计算价/库存 + qty 上限 | e2e：任意顺序选满得唯一 SKU；反向选；冲突维被清；stock=0 置灰；价区间/唯一价 |
-| P0-2 | SKU 表格编辑（合并单元格改整组） | Formily ArrayTable + rowspan；「嵌套+合并+编辑」交集 | PLAN §3.1/3.2/3.4；usage 暗示与 07 共用 SKUS | ❌ 无 SkuFullEditor；merged play 不是 SKU 矩阵 | SkuFullEditor：颜色列 rowspan、改合并格改整组、组内价/库存可编、与 P0-1 共用 SKUS | 单测：任意顺序/非法清/最终价库存；e2e：改合并色→组内同步；增维后旧价保留策略有文档 |
-| P0-3 | 供应商→产品合并表编辑 | Pro 可编辑嵌套表 | usage/08 | ⚠️ e2e/merged + play/merged 偏浅 | MergedTable：Group 列绑父、Column 绑子、rowSpan 计算、只看在售过滤、组上移/+产品、父错误在合并格 | 编辑供应商名一次整组更新；过滤后 rowspan 重算；跨层校验（C 级单价≤1000） |
-| P0-4 | QueryFilter + Table 全套 | ProComponents ProTable/QueryFilter；pro.formily QueryForm/Table | usage/09；PLAN §3.3 | ⚠️ query play/e2e 有筛/页/列筛/多选，缺 Grid 变体与 provider→model | 一页演示：Grid 自动宽、折叠保留值、transform、分页回第1页、列筛汇合、批量、provider→model | e2e 覆盖折叠不清空、列筛触发刷新回页1、新查询清空选择 |
-| P0-5 | 行展开二级表 + 行内编辑 | Pro EditableProTable / 嵌套 | usage/10；row-edit | ⚠️ nested / row-edit 有；草稿层 ⏸️（DECISIONS Q8） | 展开不丢子表编辑；查看/编辑态切换；行保存/取消（v1=直接改正式值，文档写明不做 Shadow 草稿） | e2e：展开编辑→收起再开仍在；取消回滚（若做了快照）或文档标明直接写 |
+| P0-1 | SKU 多维选择器（任意顺序 / 反向 / 非法清 / 缺货置灰 / 价库存） | Formily 多对多联动；pro.formily combo | usage/07 | ✅ `/play/sku-picker`：三维 Radio、`reaction` 写 `$enum`、每个维度一个 `watch` 清冲突、价/库存计算、数量上限。单测 `tests/sku-picker.test.ts`，e2e `e2e/sku-picker.spec.ts`。旧的 `/play/sku` 仍是勾选组合生成行 | 已补 | 任意顺序、反向、冲突维被清、stock=0 置灰、价区间/唯一价、数量超过库存 |
+| P0-2 | SKU 表格编辑（合并单元格改整组） | Formily ArrayTable + rowspan；「嵌套+合并+编辑」交集 | PLAN §3.1/3.2/3.4；usage 暗示与 07 共用 SKUS | ✅ `/play/sku-editor` 与 P0-1 共用 `playground/skus.ts`。颜色列 rowspan，改合并色写入整组，价/库存按行。增维是多一列渠道，按 `skuId` 留在原行，不重建矩阵。单测覆盖涂色留价；e2e 覆盖组内同步和加列后价格还在 | 已补。没有「按新维度组合键迁移价格」的第二套算法 | 改合并色→组内同步；加列后旧价还在，策略写在页面上 |
+| P0-3 | 供应商→产品合并表编辑 | Pro 可编辑嵌套表 | usage/08 | ✅ `/play/merged`：数据保持 `suppliers[].products[]`。合并列绑父（名称、等级、组上移、加产品），子列绑产品。只看在售后 rowspan 重算。父重名显示在合并格。C 级单价 ≤ 1000 用 `ctx.parent.level`。没有 `MergedTable.Group` / `Column` 插槽，列在页面里写 | 行为已补；插槽组件未做 | 编辑供应商名一次整组更新；过滤后 rowspan 重算；跨层校验 |
+| P0-4 | QueryFilter + Table 全套 | ProComponents ProTable/QueryFilter；pro.formily QueryForm/Table | usage/09；PLAN §3.3 | ✅ `/play/query`：Grid 自动宽、折叠留值、`params` 省略空值并 trim、列筛选与查询表单共用 `status` 且立即查询回第 1 页并清空选择、批量标记、provider→model。React `Field` 还没有 `ui` 属性，列筛选不是 `d.status.$ui('filter')` | 行为已补；UI Brand 单独显隐未做 | e2e：折叠不清空、列筛回第 1 页并清空选择、新查询清空选择 |
+| P0-5 | 行展开二级表 + 行内编辑 | Pro EditableProTable / 嵌套 | usage/10；row-edit | ✅ `/play/orders`：`expandedKeys` 为 virtual。展开里改数量，收起再开仍在。编辑开关切换 `orders` 的 pattern，已发货行显式 `readPretty`。直接写正式值。页面写明不做 Shadow 草稿，没有取消回滚。旧的 `/play/nested`、`/play/row-edit` 仍在 | 已补 v1。Shadow 草稿仍 ⏸️ | e2e：展开编辑→收起再开仍在；文档标明直接写 |
 
 ---
 
@@ -38,13 +38,13 @@ description: 对照 Formily / pro.formily / ProComponents / SKU 表格编辑的�
 | P1-5 | Tree 排序移动（按钮版） | Formily 树 | usage/05；DECISIONS D2 | ⚠️ tree 单测有；无拖拽 ⏸️ | 按钮 indent/outdent/up/down；禁止移入后代 |
 | P1-6 | Computed / 派生只读 | Formily reactions 计算 | usage/06 | ⚠️ 随 SKU/query | 独立页：合计、virtual 默认可改提交 |
 | P1-7 | 联动图谱（1:N / N:1 / N:N） | Formily reactions | usage/15 | ❌ 无独立页 | 三例并排 + 环检测报错展示 |
-| P1-8 | effects 语法参考 | Formily effects | usage/16 | ❌ 仅归档假代码 | Rspress API/指南：reaction / reaction.each / watch + 反模式 |
-| P1-9 | pattern 四态 | Formily pattern | DECISIONS D5 | ⚠️ 单测 display | 可切换 editable/disabled/readOnly/readPretty 的同一字段 |
-| P1-10 | 校验与枚举（同步/异步/跨字段/枚举合法） | Formily + pro.formily Enum | usage/11；QUALITY §4 | ⚠️ 仍有「本地 state 旧 demo」风险 | 规则进 JSX/effect；async 过期作废；枚举外值报错；禁止 alert |
-| P1-11 | 显隐语义 | Formily display | PLAN §2.7 | ⚠️ 部分 | visible=false 保留值、跳过校验、父藏子藏 |
+| P1-8 | effects 语法参考 | Formily effects | usage/16 | ✅ [联动](/guide/effects)：`reaction` / `reaction.each` / `watch`，以及不要读刚写的值、不要两个 reaction 写同一状态。用例 16 仍是草稿 | 指南已补 |
+| P1-9 | pattern 四态 | Formily pattern | DECISIONS D5 | ✅ [pattern](/guide/pattern) 可切换四态，备注强制 `editable` 盖过父级 | 已补 |
+| P1-10 | 校验与枚举（同步/异步/跨字段/枚举合法） | Formily + pro.formily Enum | usage/11；QUALITY §4 | ⚠️ 仍有「本地 state 旧 demo」风险。指南 [校验](/guide/validation) 写了触发时机、卸载和跨层 `ctx.parent`，没有单独的枚举合法页 | 规则进 JSX/effect；async 过期作废；枚举外值报错；禁止 alert |
+| P1-11 | 显隐语义 | Formily display | PLAN §2.7 | ✅ [显隐](/guide/display) + `/play/display`。`$visible = false` 是 `hidden`：保留值、仍然校验、仍然提交。`none` 才跳过校验并不提交。父级覆盖子级。清单旧文「跳过校验」与库不一致，以库为准 | 已按库的行为补 |
 | P1-12 | address vs path / UI Brand | Formily address | usage/14 | ❌ | 同 path 双 UI、`ui="summary"` 单独控显隐 |
 | P1-13 | 跨模块规则 | Formily 模块化 | usage/13 | ❌ | 显式传 handle，不耦合宿主 root |
-| P1-14 | tabs / forceMount 与未挂载校验 | Formily 隐藏字段 | DECISIONS Q5 | ⚠️ tabs e2e | 文档写清声明字段 vs 挂载；forceMount 示例 |
+| P1-14 | tabs / forceMount 与未挂载校验 | Formily 隐藏字段 | DECISIONS Q5 | ⚠️ [没挂载的字段](/guide/unmounted) 和 [校验](/guide/validation) 写了 JSX `rules` 与 `$rules`。库没有 `forceMount` 这个 prop。`hidden` 仍校验，见 P1-11 | 文档写清声明字段 vs 挂载；forceMount 示例 |
 
 ---
 
@@ -85,10 +85,10 @@ description: 对照 Formily / pro.formily / ProComponents / SKU 表格编辑的�
 | 04 array | 弱 | → P1-4 |
 | 05 tree | 单测 | → P1-5 |
 | 06 computed | 弱 | → P1-6 |
-| 07 sku picker | sku 简化 | → P0-1 |
-| 08 merged | merged 浅 | → P0-3 |
-| 09 query | query 部分 | → P0-4, P2-1 |
-| 10 expandable | nested/row-edit | → P0-5 |
+| 07 sku picker | `/play/sku-picker` + `/play/sku-editor`；旧 `/play/sku` 仍是勾选生成行 | → P0-1、P0-2 |
+| 08 merged | `/play/merged` 嵌套供应商→产品 | → P0-3 |
+| 09 query | `/play/query` 含 transform、列筛、折叠留值、批量 | → P0-4；Grid 多断点对比仍是 P2-1 |
+| 10 expandable | `/play/orders` 直接写正式值；nested/row-edit 仍在 | → P0-5 |
 | 11 validation-enum | 风险旧 demo | → P1-10 |
 | 12 large | large/virtual | → P3-1 |
 | 13 cross-module | 无 | → P1-13 |
@@ -103,4 +103,6 @@ description: 对照 Formily / pro.formily / ProComponents / SKU 表格编辑的�
 - [x] 本文件入库
 - [x] Rspress 能打开该清单页
 - [x] 侧边栏或教程索引可见
-- [ ] 不必实现全部 P0；若只做一个，优先 **P0-1 SkuPicker 对齐 usage/07**（与「首屏 SKU」叙事一致）。本轮未做：P0-1 仍是 ⚠️，没有 SkuPicker 页，也没有改运行时去补 SKU Full。
+- [x] 指南加了联动、pattern、显隐、path 和提交、校验、可点的例子。没挂载的字段还在。
+- [x] P0-1 `/play/sku-picker`，P0-2 `/play/sku-editor`，P0-3 `/play/merged`，P0-4 `/play/query`，P0-5 `/play/orders`。显隐示例在 `/play/display`。
+- [x] 上表只改了这些已经能点、并且有测试的行。`MergedTable.Group` 插槽、`Field` 的 `ui`、Shadow 草稿没有标成完成。

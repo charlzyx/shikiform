@@ -1,12 +1,16 @@
 import type { ReactElement } from 'react'
+import { DisplayPage } from './pages/display'
 import { HeadlessPage } from './pages/headless'
 import { LargePage } from './pages/large'
 import { MergedPage } from './pages/merged'
 import { NestedPage } from './pages/nested'
+import { OrdersPage } from './pages/orders'
 import { QueryPage } from './pages/query'
 import { RowEditPage } from './pages/row-edit'
 import { QueryNativePage } from './pages/query-native'
 import { SchemaPage } from './pages/schema'
+import { SkuEditorPage } from './pages/sku-editor'
+import { SkuPickerPage } from './pages/sku-picker'
 import { SkuPage } from './pages/sku'
 import { TabsPage } from './pages/tabs'
 import { VirtualPage } from './pages/virtual'
@@ -16,6 +20,10 @@ const routes: Record<string, () => ReactElement> = {
   '/query-native': QueryNativePage,
   '/schema': SchemaPage,
   '/sku': SkuPage,
+  '/sku-picker': SkuPickerPage,
+  '/sku-editor': SkuEditorPage,
+  '/orders': OrdersPage,
+  '/display': DisplayPage,
   '/merged': MergedPage,
   '/nested': NestedPage,
   '/tabs': TabsPage,

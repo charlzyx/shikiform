@@ -1,0 +1,38 @@
+---
+title: 显隐
+description: hidden 仍校验、仍提交。none 跳过校验，也不提交。
+---
+
+import { StepNav } from '../_components/TutorialStep';
+
+# 显隐
+
+邮箱可以显示、藏起来，或者从提交结果里拿掉。父级怎么设，子级跟着走。
+
+库里的字段有三种 display。
+
+| 值 | 输入框 | 值 | 校验 | 提交 |
+|---|---|---|---|---|
+| `visible` | 显示 | 保留 | 查 | 带上 |
+| `hidden` | 不显示 | 保留 | 仍查 | 带上 |
+| `none` | 不显示 | 不提交 | 跳过 | 拿掉 |
+
+`$visible = false` 就是 `hidden`，不是 `none`。值还在，规则还查，提交结果里还有这个字段。
+
+想跳过校验，并且不要出现在提交结果里，写 `$display = 'none'`。
+
+父级是 `none`，子级也是 `none`。否则父级是 `hidden`，子级也是 `hidden`。
+
+教程里的「需要联系」开关跑在教学例子上：关掉之后，邮箱不校验。库里的 `hidden` 仍然校验。上面这张表以库为准。可以在 [显隐示例](/play/display) 里点：清空邮箱再隐藏，提交会看到「邮箱必填」；改成不提交，这次就通过，结果里没有邮箱。
+
+```tsx
+reaction((d) => {
+  d.box.$display = d.mode.$value; // 'visible' | 'hidden' | 'none'
+});
+```
+
+`hidden` 适合暂时不画出来、但仍然要交的字段，例如没打开的标签页。`none` 适合这个值根本不该出现在提交结果里。
+
+输入框组件卸掉，是另一件事，看 [没挂载的字段](/guide/unmounted)。
+
+<StepNav prev={{ href: '/guide/pattern', title: 'pattern' }} next={{ href: '/guide/path', title: 'path 和提交' }} />
