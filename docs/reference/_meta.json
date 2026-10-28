@@ -1,1 +1,1 @@
-["react-hooks", "form-hook", "antd", "query-hooks"]
+["react-hooks", "form-hook", "antd", "antd-adapter", "query-hooks"]

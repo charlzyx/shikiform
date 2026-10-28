@@ -72,6 +72,7 @@
   },
   "peerDependencies": {
     "antd": "^5",
+    "dayjs": "^1",
     "react": "^18 || ^19",
     "react-dom": "^18 || ^19"
   }

@@ -16,6 +16,6 @@ export default defineConfig({
   // Inlining each entry duplicates FormContext when root hooks meet antd UI.
   splitting: true,
   treeshake: true,
-  external: ['react', 'react-dom', 'antd', '@tanstack/react-virtual'],
+  external: ['react', 'react-dom', 'antd', 'dayjs', '@tanstack/react-virtual'],
   target: 'es2022',
 })

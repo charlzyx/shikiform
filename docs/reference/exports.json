@@ -26,6 +26,19 @@
     "MergedTable": "reference/antd.mdx",
     "groupRowSpan": "reference/antd.mdx",
     "ProQueryTable": "reference/antd.mdx",
-    "QueryForm": "reference/antd.mdx"
+    "QueryForm": "reference/antd.mdx",
+    "connect": "reference/antd-adapter.mdx",
+    "mapProps": "reference/antd-adapter.mdx",
+    "mapReadPretty": "reference/antd-adapter.mdx",
+    "mapFieldProps": "reference/antd-adapter.mdx",
+    "FormItem": "reference/antd-adapter.mdx",
+    "PreviewText": "reference/antd-adapter.mdx",
+    "Input": "reference/antd-adapter.mdx",
+    "InputNumber": "reference/antd-adapter.mdx",
+    "Select": "reference/antd-adapter.mdx",
+    "Switch": "reference/antd-adapter.mdx",
+    "Checkbox": "reference/antd-adapter.mdx",
+    "Radio": "reference/antd-adapter.mdx",
+    "DatePicker": "reference/antd-adapter.mdx"
   }
 }
