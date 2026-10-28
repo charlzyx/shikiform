@@ -5,3 +5,6 @@ lib/
 .rspress/
 test-results/
 playwright-report/
+site/generated/
+site/.vitepress/cache/
+site/.vitepress/*.timestamp-*.mjs

@@ -1,19 +1,10 @@
 ---
 title: 可点的例子
-description: SKU、合并表、查询表、订单行，打开就能点。
+description: 完整示例已集中到复杂示例索引。
 ---
 
 # 可点的例子
 
-教程右边是一小步。下面这些是完整场景。
+完整示例已集中到 [复杂示例](/examples)，按数组/树、SKU 联动、查询与校验、行编辑和虚拟列表组织，并说明每个页面能操作什么、还不代表什么。
 
-| 页面 | 在看什么 |
-|---|---|
-| [SKU 选择器](/play/sku-picker) | 三个维度任意顺序选。刚改的维度留下，和它冲突的被清掉。缺货置灰。价格是区间或唯一价，数量不超过库存。 |
-| [SKU 表格](/play/sku-editor) | 和选择器同一份 SKU。改合并的颜色，整组一起变。再加一列时，价格留在原来的 `skuId` 上。 |
-| [供应商和产品](/play/merged) | 数据保持嵌套。合并列改供应商，子列改产品。只看在售之后 rowspan 重算。C 级单价不能超过 1000。 |
-| [查询表](/play/query) | 格子按宽度排。折叠之后值还在。空条件不进参数。列筛选和查询表单共用状态，一改就从第 1 页重新查，并清空选择。 |
-| [订单行](/play/orders) | 展开编辑子表，收起再打开，数字还在。直接写正式值，没有草稿，没有取消回滚。已发货的行保持阅读态。 |
-| [显隐](/play/display) | `hidden` 仍校验、仍提交。`none` 跳过校验，结果里没有这个字段。 |
-
-这些页面随 `npm run build` 和文档一起构建，地址是 `/play/...`，刷新也能打开。这里与教程运行同一个正式库（`src/core`、`src/react`、`src/pro`、`src/antd`）。可直接改输入观察行为；源码在 `playground/pages/`，这些完整场景暂不支持页内改代码。对照的用例草稿在 [07](/usage/07-sku-editor)、[08](/usage/08-merged-table)、[09](/usage/09-query-table)、[10](/usage/10-expandable-nested-table)。还缺什么，看 [案例补全清单](/coverage-checklist)。
+原有六个入口仍可直接打开：[SKU 选择器](/play/sku-picker)、[SKU 表格](/play/sku-editor)、[供应商和产品](/play/merged)、[查询表](/play/query)、[订单行](/play/orders)、[显隐](/play/display)。

@@ -66,7 +66,7 @@ createForm<T>(options?: FormOptions<T>): FormEngine<T>
 | `enumPolicy` | `'none'`，保留枚举外值 | `'clear'` 清掉；`'error'` 校验报错。需要保留最后一次编辑时用 watch 清冲突 |
 | `trees` | 可选树根配置 | `childrenKey` / `rowKey` 用于 React 挂载前的树联动 |
 
-`commit: 'blur'` 虽在类型中存在，当前绑定仍会在 `onChange` 写入；不要把它当作已可用的性能承诺，见 [清单 P3-3](/coverage-checklist)。
+`commit: 'blur'` 虽在类型中存在，当前绑定仍会在 `onChange` 写入；不要把它当作已可用的延迟提交或性能能力。输入、联动与提交的实际数据流见 [设计架构](/architecture#一次输入如何流动)。
 
 ### 读写和提交
 
