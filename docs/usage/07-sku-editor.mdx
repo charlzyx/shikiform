@@ -3,6 +3,11 @@ title: "07 · SKU 选择器（多对多）"
 description: "首屏用例：每个维度的可选范围由一张 SKU 表算出；任意顺序选择；不合法的旧选择在唯一一个 watch 里清掉；最终 S"
 ---
 
+:::warning 历史设计草稿，不是可复制的正式 API
+本页来自 `archive/usage`，保留的是设计讨论和目标写法，可能包含未导出的组件或不同语义。请从 [教程](/tutorial) 复制已校验源码，从 [API](/api) 查询公开导出；可操作的真实场景在 [可点的例子](/guide/demos)。未实现项见 [清单](/coverage-checklist)。
+:::
+
+
 可运行的页面是 [SKU 选择器](/play/sku-picker)，表格编辑是 [SKU 表格](/play/sku-editor)。下面仍是用例草稿。
 
 首屏用例：每个维度的可选范围由一张 SKU 表算出；任意顺序选择；不合法的旧选择在唯一一个 watch 里清掉；最终 SKU / 价格 / 库存由 reaction 写进只读 Field。维度增加代码不增长。

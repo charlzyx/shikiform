@@ -9,34 +9,21 @@ description: 已经定下的字段和联动行为，以及仍待拍板的问题�
 
 | | 行为 |
 |---|---|
-| D1 | 字段类型只有 `Field`、`ObjectField`、`ArrayField`、`TreeField`。布局是普通组件或 `Region`。不提交用 `virtual`。计算值是普通 `Field`：`$value` 由 `reaction` 写入，阅读态，默认 `virtual`。 |
+| D1 | 字段类型只有 `Field`、`ObjectField`、`ArrayField`、`TreeField`。布局是普通 React 组件。不提交用 `virtual`。计算值是普通 `Field`：`$value` 由 `reaction` 写入，阅读态，默认 `virtual`。 |
 | D2 | 树节点有 `pos`，是索引路径。 |
 | D3 | effects 是 draft 路径代理，加上 `reaction`、`reaction.each`、`watch`。字段状态用 `$` 前缀。没有 `./`、`../`。`when` 不对外。 |
-| D4 | 只用精确 path。同一个字段多份 UI 时，用 `d.x.ui('summary')`。 |
+| D4 | 只用精确 path。core 的命名 UI 句柄是 `d.x.$ui('summary')`；当前 React Field 尚未接通 `ui` 属性，不能当作完整 UI Brand 能力。 |
 | D5 | `pattern` 取 `editable`、`disabled`、`readOnly`、`readPretty`。父级向下传，子级写了自己的值就用自己的。 |
-| D6 | 表格列是 `Field` 的 `name`。只读是 `readPretty`。 |
-| D7 | 没有 `scope`。逐行用 `reaction.each`。模块复用是接收 handle 的函数。 |
+| D6 | 表格列绑定数据路径；`readPretty` 显示文本，`readOnly` 保留不可编辑的输入框。 |
+| D7 | effects 不使用额外的相对路径 scope DSL。逐行用 `reaction.each`；React 相对路径由结构字段提供。 |
 | D8 | `virtual` 表示不进提交值。计算字段默认 `virtual`，要提交就写 `virtual={false}`。行编辑直接改正式值。 |
 
-## 仍待拍板
+## 当前边界与待设计项
 
-- **Q0** `pos` 的表示和身份细节。
-- **Q5** 未挂载字段的规则以什么为准。当前库里，`reaction` 写的 `$rules` 一直校验，JSX 的 `rules` 只在 `Field` 挂载时生效。
-- **Q10** 跨模块时，规则函数只收宿主传入的 handle，还是再拿整张表单的根。
-- `createForm` 和 `useForm` 是否都作为公开入口。
-- `enum` 是否接受普通数组。
-- `enumPolicy` 的取值。
-- 动态 `$rules` 和在 `validator` 里读 `ctx`，优先用哪一种。
-- 同一轮里先写后读，算不算依赖。
-- `ui()` 和名为 `ui` 的子字段会不会撞名。
-- 读整个数组时，依赖细到哪一层。
-- 计算字段继续由写入推断，还是要显式声明。
-- `$pattern = undefined` 是否恢复继承。
-- `findPos` / `pathOf` 是独立函数，还是 handle 上的方法。
-- hooks 是否接受 draft 选择器。
-- `form.batch` 是否沿用 effect 的 draft。
-- 表单级校验放在 `useForm({ validate })`，还是在 `reaction` 里写 `$errors`。
-- 要不要只读的子树错误数。
-- 列筛选里的 `name` 是否按根解析。
-- `watch` 的多源，以及 `watch.each` 的签名。
-- 同一字段的两份 UI 用了相同的 brand 时怎么处理。
+- `createForm` / `useForm` 已是公开入口；`enumPolicy` 已有 `none` / `clear` / `error`。当前签名见 [API](/api)，不再把已实现接口写成待定方案。
+- JSX 规则只在字段挂载时生效；声明、模板和 reaction 规则不依赖挂载。`hidden` 仍校验和提交，`none` 才跳过。见 [没挂载的字段](/guide/unmounted)。
+- `Field` 当前是 render-prop API。`component/decorator` 写法、JSON renderer 和完整 UI Brand 适配仍待设计，不是本教程可复制的接口。
+- 跨模块规则怎样暴露 handle、重复 UI brand 的 React 生命周期、查看态 UI 适配仍需收敛成公开规范。
+- `commit: 'blur'` 的类型/行为缺口和性能证据没有在教程迁移中补齐；ShadowForm 等明确延后特性也不在本轮。见 [案例补全清单](/coverage-checklist)。
+
+旧的 `usage` 页面保留设计草稿的历史写法；不要把归档伪代码当成当前导出。入门和运行契约以 [教程](/tutorial)、[指南](/guide) 与 [API](/api) 为准。

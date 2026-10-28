@@ -3,6 +3,11 @@ title: "09 · 查询表单 + 表格"
 description: "调用日志：Grid 自动排列 + 折叠；provider → model 联动；transform 是计算值"
 ---
 
+:::warning 历史设计草稿，不是可复制的正式 API
+本页来自 `archive/usage`，保留的是设计讨论和目标写法，可能包含未导出的组件或不同语义。请从 [教程](/tutorial) 复制已校验源码，从 [API](/api) 查询公开导出；可操作的真实场景在 [可点的例子](/guide/demos)。未实现项见 [清单](/coverage-checklist)。
+:::
+
+
 可运行的页面是 [查询表](/play/query)。下面仍是用例草稿。列筛选和查询表单共用 `status`。React 的 `Field` 还没有 `ui` 属性，所以还不是 `d.status.$ui('filter')`。
 
 调用日志：Grid 自动排列 + 折叠；provider → model 联动；transform 是计算值；watch 回第 1 页；列筛选与查询表单是同一个 status 字段的两个 UI（列筛选起名 `ui="filter"`，UI Brand）；结果表列一律 `<Field name>` + readPretty；服务端分页 page 是普通提交字段，选择 / 折叠是 `virtual`；末尾有纯前端分页变体（page 设成 `virtual`）；QueryForm 与工具栏是普通布局组件。

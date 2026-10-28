@@ -37,20 +37,8 @@ export default defineConfig({
   ],
   root: 'docs',
   route: { cleanUrls: true },
-  // Tutorials import the package name. The published exports and tsconfig
-  // paths point `shikiform` at the real library (`src/index.ts` / `lib/`).
-  // Docs must keep the teaching runtime, so these aliases win (`prefer-alias`).
-  // `$` is an exact match: `shikiform/antd` still follows the library paths.
-  builderConfig: {
-    resolve: {
-      aliasStrategy: 'prefer-alias',
-      alias: {
-        'shikiform/ui': path.join(root, 'src/runtime/ui.tsx'),
-        'shikiform/zod': path.join(root, 'src/runtime/zod.ts'),
-        shikiform$: path.join(root, 'src/runtime/index.ts'),
-      },
-    },
-  },
+  // Examples import the package's public entry points. No teaching-runtime alias.
+  // `npm run build` first checks an isolated packed consumer via check:docs.
   themeConfig: {
     darkMode: true,
     socialLinks: [{ icon: 'github', mode: 'link', content: 'https://github.com/charlzyx/shikiform' }],

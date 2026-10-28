@@ -7,7 +7,7 @@ outline: false
 
 import starter from './_files/01-start.tsx?raw';
 import solution from './_files/01-start.solution.tsx?raw';
-import { StepNav, TutorialPlay } from '../_components/TutorialStep';
+import { TutorialPlay } from '../_components/TutorialStep';
 
 # 最小表单
 
@@ -16,13 +16,12 @@ import { StepNav, TutorialPlay } from '../_components/TutorialStep';
 
 右边有一个姓名框。填上字，点提交，下面会出现 JSON。
 
-这四块就够了：`useForm` 记住值，`Form` 包住它，`Field` 的 `name` 是路径，`Submit` 提交。`Input` 是 antd 的输入框，只负责显示。改字的时候，值写回 ShikiForm，不进 antd 的 `Form`。
+这几块就够了：`useForm` 创建正式库的表单，`Form` 处理提交，`Field` 的 `name` 是路径。`Input` 是 antd 的输入框，只负责显示。改字的时候，值写回 ShikiForm，不进 antd 的表单状态。
 
-标签是 `FormItem`。它读的是 ShikiForm 里的标题和错误，不是 antd 的 `Form.Item`。
+例子用本地 `TextField` 和 `SubmitButton` 缩短绑定代码。点右侧 **fields.tsx** 可以看到全部实现：`TextField` 把正式 `Field` 的 `value/onChange/onBlur/errors` 接给 antd；`Form.Item` 只显示标签和错误，没有 `name`，不管理值。复制时把 **App.tsx 和 fields.tsx** 一起带走，它们不是额外的包导出。
 
-**这一步：** 加上邮箱。`initialValues` 里写上 `email`，再放一个 `Field`。提交之后，JSON 里同时有 `name` 和 `email`。
+**这一步：** 加上邮箱。`initialValues` 里写上 `email`，再放一个 `TextField`。提交之后，JSON 里同时有 `name` 和 `email`。
 
-<StepNav next={{ href: '/tutorial/2-fields', title: '四种字段' }} />
 
 </div>
 

@@ -3,16 +3,17 @@ title: pattern
 description: 四种状态从父级往下传，子级写了就用子级的。
 ---
 
-import { StepNav } from '../_components/TutorialStep';
-
 # pattern
 
 下面有一个模式下拉。资料整段跟着变。备注始终能改。
 
 ```tsx preview
+import { Input, Select } from 'antd';
 import { Form, Field, ObjectField, defineEffects, useForm } from 'shikiform';
-import { FormItem, Input, Select } from 'shikiform/ui';
+import type { Pattern } from 'shikiform/core';
 
+type Profile = { name: string; note: string };
+type Values = { mode: Pattern; profile: Profile };
 const MODES = [
   { label: '可编辑', value: 'editable' },
   { label: '禁用', value: 'disabled' },
@@ -20,31 +21,39 @@ const MODES = [
   { label: '阅读态', value: 'readPretty' },
 ];
 
-const effects = defineEffects<{ mode: string; profile: { name: string; note: string } }>(({ reaction }) => {
+const effects = defineEffects<Values>(({ reaction }) => {
   reaction((d) => {
-    const mode = d.mode.$value;
-    if (mode) d.profile.$pattern = mode;
+    d.profile.$pattern = d.mode.$value;
     d.profile.note.$pattern = 'editable';
   });
 });
 
+function ProfileInput({ name, label }: { name: keyof Profile; label: string }) {
+  return (
+    <Field<Profile, typeof name> name={name}>
+      {(field) => <label htmlFor={field.id}>{label}：{field.pattern === 'readPretty' ? <span>{field.value}</span> : (
+        <Input id={field.id} value={field.value} disabled={field.disabled} readOnly={field.readOnly}
+          onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} />
+      )}</label>}
+    </Field>
+  );
+}
+
 export default function App() {
-  const form = useForm({
+  const form = useForm<Values>({
     initialValues: { mode: 'editable', profile: { name: 'Ada', note: '始终可改' } },
     effects: [effects],
   });
   return (
     <Form form={form}>
-      <Field name="mode" decorator={<FormItem label="资料的 pattern" />} enum={MODES}>
-        <Select />
+      <Field<Values, 'mode'> name="mode">
+        {(field) => <label htmlFor={field.id}>资料的 pattern
+          <Select<Pattern> id={field.id} value={field.value} options={MODES} onChange={field.onChange} onBlur={field.onBlur} style={{ width: 140 }} />
+        </label>}
       </Field>
       <ObjectField name="profile">
-        <Field name="name" decorator={<FormItem label="姓名" />}>
-          <Input />
-        </Field>
-        <Field name="note" decorator={<FormItem label="备注" />}>
-          <Input />
-        </Field>
+        <ProfileInput name="name" label="姓名" />
+        <ProfileInput name="note" label="备注" />
       </ObjectField>
     </Form>
   );
@@ -65,5 +74,3 @@ export default function App() {
 计算字段没有自己的 pattern 时，默认是 `readPretty`。
 
 订单表用同一套：编辑开关写在 `orders` 上，已发货的那一行再写成 `readPretty`。见 [订单行](/play/orders)。
-
-<StepNav prev={{ href: '/guide/effects', title: '联动' }} next={{ href: '/guide/display', title: '显隐' }} />

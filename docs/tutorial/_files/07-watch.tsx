@@ -1,5 +1,5 @@
-import { Form, Field, defineEffects, useForm } from 'shikiform';
-import { FormItem, Select } from 'shikiform/ui';
+import { Form, defineEffects, useForm } from 'shikiform';
+import { SelectField } from './fields';
 
 const PROVINCES = [
   { label: '浙江', value: '浙江' },
@@ -10,26 +10,22 @@ const CITIES = [
   { label: '广州', value: '广州' },
 ];
 
-const effects = defineEffects<{ province: string; city?: string }>(({ reaction }) => {
+export const effects = defineEffects<{ province: string; city: string }>(({ reaction }) => {
   reaction((d) => {
     d.city.$disabled = !d.province.$value;
-    d.city.$value = undefined;
+    d.city.$value = '';
   });
 });
 
 export default function App() {
-  const form = useForm({
+  const form = useForm<{ province: string; city: string }>({
     initialValues: { province: '浙江', city: '杭州' },
     effects: [effects],
   });
   return (
     <Form form={form}>
-      <Field name="province" decorator={<FormItem label="省" />} enum={PROVINCES}>
-        <Select />
-      </Field>
-      <Field name="city" decorator={<FormItem label="市" />} enum={CITIES}>
-        <Select />
-      </Field>
+      <SelectField name="province" options={PROVINCES} label="省" />
+      <SelectField name="city" options={CITIES} label="市" />
     </Form>
   );
 }

@@ -30,7 +30,6 @@
 .tutorial-copy p, .tutorial-copy li { font-size: 15px; }
 .tutorial-play { min-width: 0; position: sticky; top: calc(var(--rp-nav-height, 72px) + 12px); }
 .tutorial-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 8px; }
-.tutorial-nav { display: flex; justify-content: space-between; gap: 12px; margin-top: 20px; }
 .tutorial-register { display: none; }
 .shiki-btn-primary { background: #111827; color: #fff; border-color: #111827; }
 .shiki-btn-primary:hover { background: #1f2937; }

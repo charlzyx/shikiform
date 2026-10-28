@@ -1,21 +1,17 @@
 import { useState } from 'react';
-import { Form, Field, ObjectField, Submit, useForm } from 'shikiform';
-import { FormItem, Input } from 'shikiform/ui';
+import { Form, ObjectField, useForm } from 'shikiform';
+import { TextField, SubmitButton } from './fields';
 
 export default function App() {
   const [payload, setPayload] = useState('');
   const form = useForm({ initialValues: { name: 'Ada', address: { city: '杭州' } } });
   return (
     <Form form={form} onSubmit={(values) => setPayload(JSON.stringify(values, null, 2))}>
-      <Field name="name" decorator={<FormItem label="姓名" />}>
-        <Input />
-      </Field>
+      <TextField name="name" label="姓名" />
       <ObjectField name="address">
-        <Field name="city" decorator={<FormItem label="城市" />}>
-          <Input />
-        </Field>
+        <TextField name="city" label="城市" />
       </ObjectField>
-      <Submit>提交</Submit>
+      <SubmitButton>提交</SubmitButton>
       {payload ? <pre className="shiki-code">{payload}</pre> : null}
     </Form>
   );

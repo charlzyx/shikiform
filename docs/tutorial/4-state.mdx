@@ -7,7 +7,7 @@ outline: false
 
 import starter from './_files/03-visible.tsx?raw';
 import solution from './_files/03-visible.solution.tsx?raw';
-import { StepNav, TutorialPlay } from '../_components/TutorialStep';
+import { TutorialPlay } from '../_components/TutorialStep';
 
 # $ 状态
 
@@ -22,11 +22,12 @@ import { StepNav, TutorialPlay } from '../_components/TutorialStep';
 
 **这一步：** 在 `reaction` 里写上 `d.email.$visible = d.contact.$value`。
 
-关掉开关，邮箱消失。值还留着，校验会跳过，提交 JSON 里仍有 `email`。打开、把邮箱清空再失焦，会出现「必填」。再关掉，错误消失。
+关掉开关，邮箱消失，但值、规则和错误都还在。`$visible = false` 对应 `hidden`：仍校验，合法时提交 JSON 里仍有 `email`。打开、清空邮箱再失焦，会出现「必填」；再关掉并提交，表单仍被这条错误挡住。下面的表单错误列表让你看见这个隐藏错误。
+
+如果业务上连这个字段也不需要，改用 `d.email.$display = d.contact.$value ? 'visible' : 'none'`：`none` 才跳过校验并从提交结果移除。详见 [显隐](/guide/display)。
 
 `$disabled` 也是同一种写法。改省的时候会用它把市关掉。
 
-<StepNav prev={{ href: '/tutorial/3-path', title: 'path 和提交' }} next={{ href: '/tutorial/5-pattern', title: 'pattern' }} />
 
 </div>
 

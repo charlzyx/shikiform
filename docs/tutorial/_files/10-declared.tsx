@@ -1,48 +1,32 @@
-import { Field, Form, Submit, useFieldValue, useForm, useFormState } from 'shikiform';
-import { FormItem, Input, Switch } from 'shikiform/ui';
+import { Form, useForm, useWatch, type Draft } from 'shikiform';
+import { TextField, SwitchField, SubmitButton, FormErrors } from './fields';
 
-function Errors() {
-  const errors = useFormState((snap) => snap.errors);
-  if (!errors.length) return null;
-  return (
-    <ul>
-      {errors.map((error) => (
-        <li key={error.path}>
-          {error.path}：{error.messages.join('，')}
-        </li>
-      ))}
-    </ul>
-  );
-}
+type Values = { more: boolean; nickname: string; code: string };
 
 function More() {
-  const more = useFieldValue('more');
+  const more = useWatch((d: Draft<Values>) => d.more.$value);
   return (
     <>
-      <Field name="more" decorator={<FormItem label="填写更多" inline />}>
-        <Switch />
-      </Field>
+      <SwitchField name="more" label="填写更多" />
       {more ? (
-        <Field name="nickname" decorator={<FormItem label="昵称" />} rules={[{ required: true, message: '昵称必填' }]}>
-          <Input />
-        </Field>
+        <TextField name="nickname" label="昵称" rules={[{ required: true, message: '昵称必填' }]} />
       ) : null}
       {more ? (
-        <Field name="code" decorator={<FormItem label="邀请码" />} rules={[{ required: true, message: '邀请码必填' }]}>
-          <Input />
-        </Field>
+        <TextField name="code" label="邀请码" rules={[{ required: true, message: '邀请码必填' }]} />
       ) : null}
     </>
   );
 }
 
 export default function App() {
-  const form = useForm({ initialValues: { more: false, nickname: '', code: '' } });
+  const form = useForm<Values>({
+    initialValues: { more: false, nickname: '', code: '' },
+  });
   return (
-    <Form form={form} onSubmit={() => undefined}>
+    <Form form={form}>
       <More />
-      <Submit>提交</Submit>
-      <Errors />
+      <SubmitButton>提交</SubmitButton>
+      <FormErrors />
     </Form>
   );
 }

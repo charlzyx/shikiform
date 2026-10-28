@@ -3,13 +3,11 @@ title: 校验
 description: 离开输入框和提交时查。规则写在哪，卸掉之后还在不在，以库为准。
 ---
 
-import { StepNav } from '../_components/TutorialStep';
-
 # 校验
 
 姓名留空，离开输入框，会出现提示。邀请码的输入框可以不在页面上，提交时仍然会查。这两件事不是同一种规则。
 
-默认在离开输入框（`onBlur`）和提交（`onSubmit`）时校验。字段自己的 `trigger` 可以盖过表单上的 `validateTrigger`。
+默认在离开输入框（`onBlur`）和提交（`onSubmit`）时校验。表单用 `validateTrigger` 配置；当前 React `Field` 不接收 `trigger` 属性。需要逐字段触发配置时，使用引擎的 `registerField(path, { trigger: [...] })`。
 
 规则从哪里来，决定卸掉输入框之后还查不查。
 
@@ -32,5 +30,3 @@ display 再决定查不查得到：
 跨层规则用 `validator` 的 `ctx`。`ctx.parent` 是上一层记录（跳过数组）。C 级供应商的单价不能超过 1000，写在产品价格上，读的是供应商的 `level`。见 [供应商和产品](/play/merged)。
 
 提交会先等进行中的异步规则。校验过程中值又变了，或者又开始了新的一轮校验，这次提交不写入，提示再交一次。
-
-<StepNav prev={{ href: '/guide/path', title: 'path 和提交' }} next={{ href: '/guide/unmounted', title: '没挂载的字段' }} />

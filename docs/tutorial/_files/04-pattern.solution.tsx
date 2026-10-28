@@ -1,5 +1,6 @@
-import { Form, Field, defineEffects, useForm } from 'shikiform';
-import { FormItem, Input, Select } from 'shikiform/ui';
+import { Form, defineEffects, useForm } from 'shikiform';
+import type { Pattern } from 'shikiform/core';
+import { SelectField, TextField } from './fields';
 
 const MODES = [
   { label: '可编辑', value: 'editable' },
@@ -8,7 +9,7 @@ const MODES = [
   { label: '阅读态', value: 'readPretty' },
 ];
 
-const effects = defineEffects<{ mode: string; name: string }>(({ reaction }) => {
+export const effects = defineEffects<{ mode: Pattern; name: string }>(({ reaction }) => {
   reaction((d) => {
     const mode = d.mode.$value;
     if (mode) d.name.$pattern = mode;
@@ -16,15 +17,11 @@ const effects = defineEffects<{ mode: string; name: string }>(({ reaction }) => 
 });
 
 export default function App() {
-  const form = useForm({ initialValues: { mode: 'editable', name: 'Ada' }, effects: [effects] });
+  const form = useForm<{ mode: Pattern; name: string }>({ initialValues: { mode: 'editable', name: 'Ada' }, effects: [effects] });
   return (
     <Form form={form}>
-      <Field name="mode" decorator={<FormItem label="姓名的 pattern" />} enum={MODES}>
-        <Select />
-      </Field>
-      <Field name="name" decorator={<FormItem label="姓名" />}>
-        <Input />
-      </Field>
+      <SelectField name="mode" options={MODES} label="姓名的 pattern" />
+      <TextField name="name" label="姓名" />
     </Form>
   );
 }

@@ -11,6 +11,18 @@ test('the deployment build contains the docs and every playground route, without
   }
 })
 
+test('tutorial pages keep only framework previous/next navigation and retain the exercise', () => {
+  const html = readFileSync(path.resolve('dist/tutorial/2-fields.html'), 'utf8')
+  expect(html).not.toContain('tutorial-nav')
+  expect(html).not.toContain('上一步 ·')
+  expect(html).not.toContain('下一步 ·')
+  expect(html).toContain('rp-prev-next-page__prev')
+  expect(html).toContain('rp-prev-next-page__next')
+  expect(html).toContain('/tutorial/1-start')
+  expect(html).toContain('/tutorial/3-path')
+  expect(html).toContain('这一步')
+})
+
 for (const [label, route, heading] of [
   ['SKU 选择器', 'sku-picker', 'SKU 选择器'],
   ['SKU 表格', 'sku-editor', 'SKU 表格'],

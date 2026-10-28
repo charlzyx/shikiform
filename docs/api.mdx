@@ -1,91 +1,142 @@
 ---
 title: API
-description: useForm、Field、defineEffects，以及 shikiform/ui。
+description: 正式包入口、Field 绑定、联动与提交校验。
 ---
 
 # API
 
-从 `shikiform` 引入表单。从 `shikiform/ui` 引入 antd 输入组件。从 `shikiform/zod` 引入 `zodResolver`。
+这里描述正式包，不描述教程专用的第二套 API。教程和完整示例都使用同一个 `FormEngine`。
 
-```ts
-import { defineEffects, useForm, Form, Field, ObjectField, ArrayField, Region, Submit, Reset, connect } from 'shikiform';
-import { FormItem, Input, InputNumber, Select, Checkbox, Radio, Switch, Button, Table } from 'shikiform/ui';
-import { zodResolver } from 'shikiform/zod';
+## 模块入口
+
+| 入口 | 主要导出 | 用在 |
+|---|---|---|
+| `shikiform` | `useForm`、`Form`、`Field`、`ObjectField`、`ArrayField`、`TreeField`、`useField`、`useWatch`、`Watch`、`defineEffects` | React 结构和绑定 |
+| `shikiform/core` | `createForm`、`defineEffects`、`EnumSource`、`comboMatch`、`comboOptions`；`FormOptions`、`RulesInput`、`Pattern` 等类型 | 无 React 的表单、校验和联动 |
+| `shikiform/pro` | `useQueryTable`、`useBuiltinQuery` | 无 UI 的查询表逻辑 |
+| `shikiform/antd` | `useAntdForm`、`createAntdFormHook`、`withAntdForm`、`withAntdFieldGroup`、`ProQueryTable`、`QueryForm`、`ArrayTable`、`MergedTable` | Ant Design 适配 |
+
+```tsx
+import { Field, Form, useForm } from 'shikiform';
+import type { Pattern, RulesInput } from 'shikiform/core';
+import { Input, Button } from 'antd';
+import { z } from 'zod';
 ```
 
-`shikiform/ui` 只做显示。不要用 antd 的 `Form`、`Form.Item`、`Form.useForm`。标签、必填和错误由 `FormItem` 通过 `useDecorator` 读取。
+**没有 `shikiform/ui` 或 `shikiform/zod` 入口。** `Input` 从 `antd` 导入。Zod 已支持 Standard Schema，直接使用，不需要 `zodResolver`。
 
-## 表单
+教程中的 `TextField`、`NumberField`、`SelectField`、`SwitchField`、`SubmitButton` 和 `FormErrors` 从同页的 **fields.tsx** 导入。这是可复制的本地适配代码，不是包导出。`Region`、`connect`、独立的 `Submit/Reset`、`useRow`、`useDecorator` 也不是当前正式包的顶层导出。
 
-| API | 作用 |
+## 创建表单
+
+```ts
+useForm<T>(options?: FormOptions<T>): FormEngine<T>
+createForm<T>(options?: FormOptions<T>): FormEngine<T>
+```
+
+`useForm` 在 React 组件中保留一个实例；`createForm` 在组件外创建实例。选项在创建时读取，不是每次渲染重新初始化。已有表单用 `reset` 或写入 API 修改。
+
+| 选项 | 默认 / 作用 | 边界 |
+|---|---|---|
+| `initialValues` | 创建时克隆的初始值；`reset` 的目标 | 完整写出示例数据形状，便于类型推断 |
+| `effects` | 不设置则无联动；按数组顺序安装 `defineEffects` 模块 | reaction 同步执行；不要传 async reaction |
+| `fields` | 声明路径与 `FieldSpec`，如 `{ code: { required: true } }` | 不依赖 JSX 挂载；`items.*.name` 是现存数组行的模板 |
+| `validateTrigger` | `['onBlur', 'onSubmit']` | 支持 `onChange`；控件必须调用绑定的 `onBlur` |
+| `validate` | 整表 Standard Schema，或返回 path→message 的同步/异步函数 | 错误落到对应路径；`hidden` 保留错误，`none` 排除错误 |
+| `resolver` | 可选的外部 path→message 函数 | 返回 `Partial<Record<string, string>>` 或它的 Promise；不是必需的 Zod 适配层 |
+| `asyncDebounceMs` | `0`，不等待 | 字段规则可覆盖；旧异步结果由引擎作废 |
+| `enumPolicy` | `'none'`，保留枚举外值 | `'clear'` 清掉；`'error'` 校验报错。需要保留最后一次编辑时用 watch 清冲突 |
+| `trees` | 可选树根配置 | `childrenKey` / `rowKey` 用于 React 挂载前的树联动 |
+
+`commit: 'blur'` 虽在类型中存在，当前绑定仍会在 `onChange` 写入；不要把它当作已可用的性能承诺，见 [清单 P3-3](/coverage-checklist)。
+
+### 读写和提交
+
+| 方法 | 参数与返回 | 行为 |
+|---|---|---|
+| `getValue(path)` | 有类型的路径 → 该路径值 | 对象/数组是现有引用；不要原地修改 |
+| `setValue(path, value)` | 路径、新值 → `void` | 通过引擎写入、通知和联动；不会因为 UI 的 disabled/readOnly 自动拒绝程序写入 |
+| `batch(d => { ... })` | 一个 draft 回调 → `void` | 多次写入合并为一轮联动和通知 |
+| `reset(path?)` | 不传路径恢复全表；传路径恢复子树 → `void` | 回到初始值，重新计算派生结果 |
+| `validate(path?)` | 不传路径校验全表；传路径包含其后代 → `Promise<FieldError[]>` | 整表 schema 仍会执行；局部调用只刷新范围内的 schema 错误 |
+| `getSubmitValues()` | 无参数 → `T` | 克隆值并去掉 `virtual`、`none` 和默认虚拟的计算字段；运行时可能少于 `T` 的键 |
+| `submit(onValid?)` | 可选同步/异步成功回调 → `Promise<{ ok: true, values: T } \| { ok: false, errors: FieldError[] }>` | 等待异步规则后校验；通过才调用回调 |
+
+`FieldError` 是 `{ path: string; messages: string[] }`。`form.errors` 是聚合错误，`form.submitting` / `form.validating` 是当前进行状态。React 中使用 `useWatch` 订阅需要的状态，而不是仅在渲染时读实例属性。
+
+提交等待期间发生编辑或被新校验取代，会返回 `ok: false` 和根路径的重试提示，不调用 `onValid`。用户操作稳定后再提交，不自动无限重试。详见 [校验](/guide/validation)。
+
+## React 字段
+
+```tsx
+<Field<Values, 'email'> name="email" rules={[{ required: true }]}>
+  {(field) => (
+    <Input value={field.value} onChange={(event) => field.onChange(event.target.value)}
+      onBlur={field.onBlur} disabled={field.disabled} readOnly={field.readOnly} />
+  )}
+</Field>
+```
+
+`Field` 的 children 是 **render prop**，不是自动克隆并注入属性的输入组件。常用 JSX 属性是 `name`、`rules`、`required`、`virtual`、`display`、`pattern`。自定义校验放在 `rules: [{ validator }]` 中；`decorator`、`component`、`enum`、`trigger`、`ui` 不是当前 `Field` 的 JSX 属性。
+
+| 绑定属性 | 类型 / 作用 |
 |---|---|
-| `useForm(options)` | 在组件里创建表单 |
-| `createForm(options)` | 在组件外创建，参数与 `useForm` 相同 |
-| `options.initialValues` | 初始值。`reset` 回到这里 |
-| `options.effects` | `defineEffects` 返回的函数列表 |
-| `options.validateTrigger` | 默认 `['onBlur', 'onSubmit']` |
-| `options.fields` | 没有自己的 `Field` 时声明属性，例如 `{ code: {} }` |
-| `options.resolver` | 外部校验，返回 `{ [path]: message }` |
-| `options.validate` | 表单级校验，返回形状与 `resolver` 相同 |
-| `options.pattern` | 整张表单的默认 pattern |
-| `form.submit()` | 校验后提交。隐藏字段和 `virtual` 字段按各自规则处理 |
-| `form.reset(path?)` | 值回到初始，并重新跑 `reaction` |
-| `form.getSubmitValues()` | 提交结果。去掉 `virtual`，计算字段默认去掉 |
-| `form.setValue(path, value)` | 写入。计算字段，以及 `disabled` / `readOnly` / `readPretty`，不会被这次写入改掉 |
-| `defineEffects(({ reaction, watch, query }) => { ... })` | 注册联动。参数就是这三个 |
+| `value`、`onChange(value)`、`onBlur()` | 当前值、写回、失焦通知；事件对象需由适配层取值 |
+| `id`、`path` | 控件关联 label 的 ID；当前精确数据路径 |
+| `errors`、`warnings` | `string[]`；适配层决定如何显示 |
+| `required`、`disabled`、`readOnly` | 布尔状态；传给合适的控件属性 |
+| `pattern`、`display` | 四种 pattern、三种 display；`readPretty` 的文本由适配层渲染 |
+| `options`、`loading` | 当前枚举选项、枚举加载状态 |
+| `touched`、`dirty`、`validating` | 失焦、编辑、异步校验状态 |
 
-## 字段
+`useField(name)` 提供相同绑定和路径订阅，方便自定义控件；它不替代 JSX `Field` 的规则挂载/卸载管理。教程适配直接复用 `Field`，不重写规则生命周期。
 
-四种，按数据形状：`Field`、`ObjectField`、`ArrayField`、`TreeField`。
+### 结构和订阅
 
-| 组件 | 作用 |
-|---|---|
-| `Field` | 一个值。子组件收到 `value`、`onChange`、`onBlur`、`disabled`、`readOnly`、`options`、`status`、`id` |
-| `ObjectField` | 对象。里面的 `name` 相对这个对象 |
-| `ArrayField` | 数组。`rowKey` 稳定行，`createRow` 提供新行。里面的 `name` 相对当前行 |
-| `TreeField` | 树。节点带 `pos`（索引路径）。写法见 [用例 05](/usage/05-tree) |
-| `Region` | 布局区域，`ui` 是名字。联动里写 `d.ui('aside').$visible` |
-| `Submit` / `Reset` | 提交和重置。`asChild` 时套在你自己的按钮上 |
+| API | 参数 / 返回 | 边界 |
+|---|---|---|
+| `Form` | `form`、`onSubmit(values)`、children | 提供上下文和原生 form；普通 `<button type="submit">` 或 antd `Button htmlType="submit"` 可提交 |
+| `ObjectField` | `name`、可选 `virtual`、children | 为子字段建立相对路径，不新增对象状态引擎 |
+| `ArrayField` | `name`、可选 `rowKey`、`children({ index, key })` | 每行提供相对路径；没有 `createRow` 属性，增删由调用方执行 |
+| `useArrayField(name, rowKey?)` | `{ path, keys, push, insert, remove, move, swap, replace }` | 在 Form 下使用；移动目标是最终下标，稳定 ID 不是路径 |
+| `TreeField` | `name`、可选 `childrenKey` / `rowKey`、`children(tree)` | 渲染节点由调用方负责，不自带树 UI；`useTreeField` 返回相同树操作 |
+| `useWatch(select)` | 读取 `$` 状态的 selector → 当前结果 | 注解 `select` 的 `Draft<Values>` 以保留类型；只订阅读到的依赖 |
+| `Watch` | `select`、`children(value)` | `useWatch` 的渲染形式 |
 
-`Field` 上常用的属性：`name`、`decorator`、`rules`、`validator`、`virtual`、`pattern`、`enum`、`trigger`、`ui`。
-
-`$visible` 为 false：组件不画出来，校验跳过，值保留，提交结果里仍有这个键。
-
-`virtual`：校验和联动都参加，`getSubmitValues` 把它拿掉。
-
-`reaction` 写了 `$value` 的字段是计算字段：阅读态，默认 `virtual`。要提交就写 `virtual={false}`。
-
-`pattern` 从父级继承。子级自己写了 `$pattern`，用子级的。
-
-JSX 上的 `rules` 只在 `Field` 挂载时生效。`reaction` 写入的 `$rules`，以及 `options.fields` 里声明的规则，不依赖输入框是否还在树上。行为以库为准。
+例如订阅省份：`useWatch((d: Draft<Values>) => d.province.$value)`；订阅提交状态：`useWatch((d: Draft<Values>) => d.$submitting)`。对应渐进例子见 [数组](/tutorial/7-array) 和 [状态](/tutorial/4-state)。
 
 ## 联动
 
-| API | 作用 |
-|---|---|
-| `reaction(d => { ... })` | 保持派生状态。初始化就跑。读 `$` 状态会变成依赖，同一轮的写入不是依赖 |
-| `reaction.each(d => d.items, (row, d) => { ... })` | 每一行（树上是每个节点）一个实例。选择器必须返回 handle |
-| `watch(d => d.province, d => { ... })` | 做动作。初始化不跑 |
-| `query(path, { ui? })` | 用字符串拿 handle。多份 UI 时带上 `ui` |
+```ts
+const effects = defineEffects<Values>(({ reaction, watch, query }) => {
+  reaction((d) => { d.total.$value = d.price.$value * d.qty.$value; });
+  watch((d) => d.province.$value, (d) => { d.city.$value = ''; });
+});
+// useForm<Values>({ initialValues, effects: [effects] })
+```
 
-状态一律 `$` 前缀：`$value`、`$visible`、`$required`、`$pattern`、`$disabled`、`$rules`、`$errors`、`$enum`、`$path`。10 轮不收敛时抛 `ShikiCycleError`。
+| API | 触发 / 参数 | 返回与边界 |
+|---|---|---|
+| `reaction(d => { ... })` | 初始化运行；之后由读到的 `$` 状态变化触发 | 注册返回 `void`；同步计算。不要在同轮读刚写的值，不要两处写同一状态 |
+| `reaction.each(d => d.items, (row, d, index) => { ... })` | 为数组每个直接子项注册一个实例；选择器返回 handle | 不递归树或嵌套数组，结构变化后调整实例 |
+| `reaction.walk(d => d.nodes, (node, d, pos) => { ... }, options?)` | 为树节点注册实例；`childrenKey` 默认 `'children'` | `pos` 是索引数组，不是稳定 ID |
+| `watch(source, effect)` | 首次不执行动作；显式 source 读到的状态变化后执行 | source 推荐读 `$value`；多源可返回数组，effect 中的读取不变成依赖 |
+| `query(path, { ui? }?)` | 精确字符串路径 → 未定型 handle | 应用优先用有类型的 `d.a.b`；core UI 句柄不代表 React Field 已支持 `ui` 属性 |
 
-## UI
+状态使用 `$`：`$value`、`$visible`、`$display`、`$required`、`$pattern`、`$rules`、`$errors`、`$enum` 等。`$pattern = undefined` 恢复继承。计算值默认 `readPretty` 且 `virtual`；需要提交时显式 `virtual: false`。设计解释与可运行例子见 [联动](/guide/effects)。
 
-`connect(Component, mapping)` 把组件的值和变更收成 `value` / `onChange`。
+## 校验与显隐
 
-| 导出 | 对应的 antd 组件 |
-|---|---|
-| `Input` | `Input` |
-| `InputNumber`（同 `NumberInput`） | `InputNumber` |
-| `Select` | `Select`。空值显示占位「请选择」 |
-| `Checkbox` | `Checkbox`。`Checkbox.Group` 的值是数组 |
-| `Radio` | `Radio`。`Radio.Group` 的 `onChange` 收到选中值 |
-| `Switch` | `Switch`。字段值写入 `checked` |
-| `Button` | `Button` |
-| `Table` | `Table` |
-| `FormItem` | ShikiForm 的 decorator，读 label、required、errors、help |
+- `rules` 接受一个内置规则、一个 Standard Schema 或它们的数组。自定义 `validator(value, ctx)` 返回错误字符串、`null` / `undefined` 或对应 Promise。
+- `ctx.record` 是最近对象，`ctx.parent` 跳过外层数组到上一层记录，`ctx.root` 是根值；还有 `path`、`index`、`get(path)`、异步 `signal` 等上下文。
+- 整表 Zod：`useForm({ initialValues, validate: z.object({ email: z.string().email() }) })`。字段 Zod：`<Field name="email" rules={z.string().email()}>...</Field>`。
+- `hidden`（包括 `$visible = false`）只隐藏 UI，仍校验、仍提交；`none` 才跳过校验并去掉提交值。父级状态覆盖子级。
+- JSX 的 `rules/required` 在卸载时释放；`fields`、`registerField`、模板和 reaction 的规则继续生效。`virtual` 只改变提交，不意味着跳过校验。
 
-## Zod
+不要把 UI 隐藏当成卸载，也不要把 `virtual` 当成第五种字段。完整对照见 [显隐](/guide/display)、[没挂载的字段](/guide/unmounted)、[path 和提交](/guide/path)。
 
-`zodResolver(schema)` 调用 `safeParse`，把 issues 收成 `{ [path]: message }`，传给 `useForm` 的 `resolver`。
+## 查询和 Ant Design
+
+查询 hook 的参数、请求结果与行操作以 `shikiform/pro` 导出的类型为准。先看 [查询表](/play/query)；`shikiform/antd` 的表格只渲染 hook/表单模型，不管理第二份业务值。
+
+`useAntdForm` / `createAntdFormHook` 提供可复用的预绑定组件组合；教程先用公开 `Field` 展示绑定细节，再按项目需要封装。完整 pro/antd 参数参考仍待逐项补齐，不能把本页索引当作所有接口已覆盖，见 [案例补全清单](/coverage-checklist)。

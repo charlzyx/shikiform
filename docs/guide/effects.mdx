@@ -3,62 +3,66 @@ title: 联动
 description: reaction 保持派生，watch 做动作，reaction.each 管每一行。
 ---
 
-import { StepNav } from '../_components/TutorialStep';
-
 # 联动
 
 数量一改，金额跟着变。页面刚打开，金额已经是乘积。省从浙江改成江苏，市会被清掉。第一次进来，杭州还在。
 
 ```tsx preview
 import { useState } from 'react';
-import { Form, Field, Submit, defineEffects, useForm } from 'shikiform';
-import { FormItem, Input, NumberInput } from 'shikiform/ui';
+import { Button, Input, InputNumber } from 'antd';
+import { Form, Field, defineEffects, useForm } from 'shikiform';
 
-const effects = defineEffects<{
-  price: number;
-  qty: number;
-  amount?: number;
-  province?: string;
-  city?: string;
-}>(({ reaction, watch }) => {
+type Values = { price: number; qty: number; amount: number; province: string; city: string };
+
+const effects = defineEffects<Values>(({ reaction, watch }) => {
   reaction((d) => {
-    const amount = (d.price.$value || 0) * (d.qty.$value || 0);
+    const amount = d.price.$value * d.qty.$value;
     d.amount.$value = amount;
     d.city.$disabled = !d.province.$value;
   });
   watch(
-    (d) => d.province,
-    (d) => {
-      d.city.$value = undefined;
-    },
+    (d) => d.province.$value,
+    (d) => { d.city.$value = ''; },
   );
 });
 
+// This local component only connects antd to the public Field binding.
+function NumberField({ name, label }: { name: 'price' | 'qty' | 'amount'; label: string }) {
+  return (
+    <Field<Values, typeof name> name={name}>
+      {(field) => (
+        <label htmlFor={field.id}>
+          {label}：{field.pattern === 'readPretty' ? <span>{field.value}</span> : (
+            <InputNumber id={field.id} value={field.value} disabled={field.disabled} readOnly={field.readOnly}
+              onChange={(value) => field.onChange(value ?? 0)} onBlur={field.onBlur} />
+          )}
+        </label>
+      )}
+    </Field>
+  );
+}
+
 export default function App() {
   const [payload, setPayload] = useState('');
-  const form = useForm({
+  const form = useForm<Values>({
     initialValues: { price: 10, qty: 2, amount: 0, province: '浙江', city: '杭州' },
     effects: [effects],
   });
   return (
     <Form form={form} onSubmit={(values) => setPayload(JSON.stringify(values, null, 2))}>
-      <Field name="price" decorator={<FormItem label="单价" />}>
-        <NumberInput />
+      <NumberField name="price" label="单价" />
+      <NumberField name="qty" label="数量" />
+      <NumberField name="amount" label="金额" />
+      <Field<Values, 'province'> name="province">
+        {(field) => <label htmlFor={field.id}>省<Input id={field.id} value={field.value ?? ''}
+          onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} /></label>}
       </Field>
-      <Field name="qty" decorator={<FormItem label="数量" />}>
-        <NumberInput />
+      <Field<Values, 'city'> name="city">
+        {(field) => <label htmlFor={field.id}>市<Input id={field.id} value={field.value ?? ''} disabled={field.disabled}
+          onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} /></label>}
       </Field>
-      <Field name="amount" decorator={<FormItem label="金额" />}>
-        <NumberInput />
-      </Field>
-      <Field name="province" decorator={<FormItem label="省" />}>
-        <Input />
-      </Field>
-      <Field name="city" decorator={<FormItem label="市" />}>
-        <Input />
-      </Field>
-      <Submit>提交</Submit>
-      {payload ? <pre className="shiki-code">{payload}</pre> : null}
+      <Button htmlType="submit">提交</Button>
+      <pre aria-live="polite">{payload}</pre>
     </Form>
   );
 }
@@ -75,5 +79,3 @@ export default function App() {
 两个 `reaction` 不要写同一个 `$` 状态。刚写完的 `$value` 不要在同一个函数里再读。
 
 三个维度的可选范围、冲突清理、价格和库存，在 [SKU 选择器](/play/sku-picker)。对照写法在 [用例 16](/usage/16-effects-reference)。
-
-<StepNav prev={{ href: '/guide', title: '指南' }} next={{ href: '/guide/pattern', title: 'pattern' }} />

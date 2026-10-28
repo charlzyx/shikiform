@@ -7,7 +7,9 @@ description: 左边是说明，右边可以改代码。
 
 每一步先看右边的例子，再读左边的概念。点 **看答案** 换成参考写法，点 **重置** 回到这一步开始时的代码。
 
-`Input` 这些组件来自 `shikiform/ui`，里面是 antd。值和校验在 `useForm` / `Field` 里。
+教程运行的就是正式库。`useForm` / `Field` 从 `shikiform` 导入，输入控件从 `antd` 导入，Zod 从 `zod` 导入。没有另一份教学 store。
+
+右侧有 **App.tsx** 和 **fields.tsx** 两个文件。前者讲这一节，后者是可查看、修改和复制的控件绑定；它只使用正式 `Field` 和 hooks，不保存另一份表单值。复制示例时请带上两个文件。
 
 ## 目录
 
@@ -24,17 +26,17 @@ description: 左边是说明，右边可以改代码。
 
 整站怎么排，见 [大纲](/OUTLINE)。
 
+{/* Register public dependencies for the lazy editor; this is not another form implementation. */}
 <div className="tutorial-register">
 
 ```tsx live
 import { useForm } from 'shikiform';
-import { FormItem } from 'shikiform/ui';
-import { zodResolver } from 'shikiform/zod';
+import { Input, Button } from 'antd';
 import { z } from 'zod';
 
 void useForm;
-void FormItem;
-void zodResolver;
+void Input;
+void Button;
 void z;
 
 export default function Register() {

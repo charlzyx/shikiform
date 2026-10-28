@@ -7,7 +7,7 @@ outline: false
 
 import starter from './_files/03-path.tsx?raw';
 import solution from './_files/03-path.solution.tsx?raw';
-import { StepNav, TutorialPlay } from '../_components/TutorialStep';
+import { TutorialPlay } from '../_components/TutorialStep';
 
 # path 和提交
 
@@ -16,17 +16,16 @@ import { StepNav, TutorialPlay } from '../_components/TutorialStep';
 
 右边有昵称、密码和确认密码。先把密码和确认密码都写成 `secret123`，点提交。
 
-JSON 里昵称不叫 `name`，而叫 `profile.name`。写在 `ObjectField` 里面的 `name`，会接到外面的名字后面。你在 JSX 里写的是相对名，引擎拼出来的是 path。
+JSON 里昵称在 `profile` 对象的 `name` 属性中；它的字段 path 是 `profile.name`。写在 `ObjectField` 里面的 `name`，会接到外面的名字后面。你在 JSX 里写的是相对名，引擎拼出来的是 path。
 
 确认密码也出现在 JSON 里。它只是用来比对，不该被提交。这种字段加 `virtual`：校验还在，`getSubmitValues` 会把它拿掉。`virtual` 不是一种新字段。
 
 密码已经要求必填，并且至少 8 位。
 
-**这一步：** 给 `confirmPassword` 加上 `virtual`，并写 `validator`。值不等于 `ctx.record.password` 时，返回 `两次密码不一致`。
+**这一步：** 给 `confirmPassword` 加上 `virtual`，并在 `rules` 中写 `{ validator: ... }`。值不等于 `ctx.record.password` 时，返回 `两次密码不一致`。
 
 两次输入一致再提交。JSON 里有 `profile` 和 `password`，没有 `confirmPassword`。
 
-<StepNav prev={{ href: '/tutorial/2-fields', title: '四种字段' }} next={{ href: '/tutorial/4-state', title: '$ 状态' }} />
 
 </div>
 
