@@ -102,20 +102,32 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
   get submitting(): boolean {
     return this.store.submitting
   }
+  set submitting(next: boolean) {
+    this.store.submitting = next
+  }
 
   /** True while a validate pass is running, including the async rules it waits for. */
   get validating(): boolean {
     return this.store.validating
+  }
+  set validating(next: boolean) {
+    this.store.validating = next
   }
 
   /** True after a user edit. A reaction writing `$value` does not set this. `reset` clears it. */
   get dirty(): boolean {
     return this.store.dirty
   }
+  set dirty(next: boolean) {
+    this.store.dirty = next
+  }
 
   /** Incremented once per {@link FormEngine.submit}, including calls that fail validation. */
   get submitCount(): number {
     return this.store.submitCount
+  }
+  set submitCount(next: number) {
+    this.store.submitCount = next
   }
 
   /** When true, each reaction pass is traced. */
