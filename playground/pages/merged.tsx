@@ -1,19 +1,6 @@
 import { MergedTable } from 'shikiform/antd'
 import { Field, Form, useForm, useFormContext, useWatch, type Draft } from 'shikiform'
-
-interface Product {
-  id: string
-  name: string
-  price: number
-  active: boolean
-}
-
-interface Supplier {
-  id: string
-  name: string
-  level: 'A' | 'B' | 'C'
-  products: Product[]
-}
+import { newProduct, newSupplier, supplierRows, type Supplier } from '../merged-model'
 
 interface Values {
   onlyActive: boolean
@@ -38,14 +25,6 @@ const INITIAL: Supplier[] = [
   },
 ]
 
-interface FlatRow {
-  id: string
-  supplierIndex: number
-  productIndex: number
-  supplierId: string
-  lead: boolean
-}
-
 export function MergedPage() {
   const form = useForm<Values>({
     initialValues: { onlyActive: false, suppliers: INITIAL },
@@ -62,15 +41,7 @@ function MergedBody() {
   const form = useFormContext<Values>()
   const onlyActive = useWatch((d: Draft<Values>) => d.onlyActive.$value) === true
   const suppliers = useWatch((d: Draft<Values>) => d.suppliers.$value) ?? []
-  const rows: FlatRow[] = []
-  suppliers.forEach((supplier, supplierIndex) => {
-    let lead = true
-    supplier.products.forEach((product, productIndex) => {
-      if (onlyActive && !product.active) return
-      rows.push({ id: product.id, supplierIndex, productIndex, supplierId: supplier.id, lead })
-      lead = false
-    })
-  })
+  const rows = supplierRows(suppliers, onlyActive)
   return (
     <main>
       <h1>供应商和产品</h1>
@@ -87,6 +58,7 @@ function MergedBody() {
           </label>
         )}
       </Field>
+      <p>空供应商和没有在售产品的组仍保留供应商编辑入口；占位行不创建产品。</p>
       <pre data-testid="names">{suppliers.map((supplier) => supplier.name).join(',')}</pre>
       <MergedTable
         rows={rows}
@@ -97,12 +69,16 @@ function MergedBody() {
             key: 'supplier',
             merge: true,
             render: (row) =>
-              row.lead ? <SupplierCell supplierIndex={row.supplierIndex} productId={row.id} /> : null,
+              row.lead ? <SupplierCell supplierIndex={row.supplierIndex} rowId={row.id} /> : null,
           },
           {
             title: '产品',
             key: 'name',
-            render: (row) => (
+            render: (row) => row.productIndex === null ? (
+              <span data-testid={`empty-supplier-${row.supplierId}`}>
+                {suppliers[row.supplierIndex]!.products.length ? '没有在售产品' : '暂无产品'}
+              </span>
+            ) : (
               <Field name={`suppliers.${row.supplierIndex}.products.${row.productIndex}.name`}>
                 {(field) => <span data-testid={`name-${row.id}`}>{field.value}</span>}
               </Field>
@@ -111,7 +87,7 @@ function MergedBody() {
           {
             title: '价格',
             key: 'price',
-            render: (row) => (
+            render: (row) => row.productIndex === null ? null : (
               <Field
                 name={`suppliers.${row.supplierIndex}.products.${row.productIndex}.price`}
                 rules={[
@@ -138,7 +114,7 @@ function MergedBody() {
           {
             title: '在售',
             key: 'active',
-            render: (row) => (
+            render: (row) => row.productIndex === null ? null : (
               <Field name={`suppliers.${row.supplierIndex}.products.${row.productIndex}.active`}>
                 {(field) => (
                   <input
@@ -156,9 +132,7 @@ function MergedBody() {
       <button
         type="button"
         data-testid="add-supplier"
-        onClick={() =>
-          form.pushArray('suppliers', { id: `s${suppliers.length + 1}`, name: '', level: 'B', products: [] })
-        }
+        onClick={() => form.pushArray('suppliers', newSupplier())}
       >
         加供应商
       </button>
@@ -166,13 +140,13 @@ function MergedBody() {
   )
 }
 
-function SupplierCell({ supplierIndex, productId }: { supplierIndex: number; productId: string }) {
+function SupplierCell({ supplierIndex, rowId }: { supplierIndex: number; rowId: string }) {
   const form = useFormContext<Values>()
   const suppliers = useWatch((d: Draft<Values>) => d.suppliers.$value) ?? []
   const supplier = suppliers[supplierIndex]
   if (!supplier) return null
   return (
-    <div>
+    <div data-testid={`supplier-cell-${supplier.id}`}>
       <Field
         name={`suppliers.${supplierIndex}.name`}
         rules={[
@@ -190,7 +164,8 @@ function SupplierCell({ supplierIndex, productId }: { supplierIndex: number; pro
         {(field) => (
           <span>
             <input
-              data-testid={`supplier-${productId}`}
+              data-testid={`supplier-${rowId}`}
+              aria-label="供应商名称"
               value={field.value ?? ''}
               onChange={(event) => field.onChange(event.target.value)}
               onBlur={field.onBlur}
@@ -224,12 +199,7 @@ function SupplierCell({ supplierIndex, productId }: { supplierIndex: number; pro
         type="button"
         data-testid={`add-product-${supplier.id}`}
         onClick={() =>
-          form.pushArray(`suppliers.${supplierIndex}.products` as 'suppliers.0.products', {
-            id: 'p-new',
-            name: '新产品',
-            price: 1,
-            active: true,
-          })
+          form.pushArray(`suppliers.${supplierIndex}.products` as 'suppliers.0.products', newProduct())
         }
       >
         加产品

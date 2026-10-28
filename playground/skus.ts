@@ -56,17 +56,32 @@ export function formatPrice(prices: readonly number[]): string {
 }
 
 /**
- * Dimension radios: `$enum` from the other selections, `watch` clears a conflict with the dimension just edited.
+ * Dimension radios keep every value reachable. Availability previews the same conflict clearing that `watch` applies.
  * Price, stock, and the matched skuId are computed. Quantity is disabled until one SKU remains, and its max follows stock.
  */
 const TABLE = SKUS as unknown as readonly Record<string, unknown>[]
+type DimensionValues = Partial<Record<Dim, string>>
+
+/** Keep the edited dimension; clear other selections that cannot coexist with it. */
+function selectionAfterEdit(selection: DimensionValues, changed: Dim, value: string | undefined): DimensionValues {
+  const next = { ...selection, [changed]: value }
+  for (const dim of DIMS) {
+    if (dim === changed) continue
+    if (next[dim] && !comboMatch(TABLE, { [changed]: value, [dim]: next[dim] })) next[dim] = undefined
+  }
+  return next
+}
 
 export const skuPickerEffects = defineEffects<SkuSelection>(({ reaction, watch }) => {
   reaction((d) => {
     const sel = Object.fromEntries(DIMS.map((dim) => [dim, d[dim].$value]))
     for (const dim of DIMS) {
-      d[dim].$enum = comboOptions(TABLE, sel, dim, {
-        disabledWhen: (rows) => rows.every((row) => row.stock === 0),
+      d[dim].$enum = comboOptions(TABLE, {}, dim).map((option) => {
+        const next = selectionAfterEdit(sel, dim, String(option.value))
+        return {
+          ...option,
+          disabled: !SKUS.some((row) => row.stock > 0 && DIMS.every((key) => !next[key] || row[key] === next[key])),
+        }
       })
     }
   })
@@ -75,11 +90,11 @@ export const skuPickerEffects = defineEffects<SkuSelection>(({ reaction, watch }
     watch(
       (d) => d[changed].$value,
       (d) => {
-        const keep = d[changed].$value
+        const sel = Object.fromEntries(DIMS.map((dim) => [dim, d[dim].$value]))
+        const next = selectionAfterEdit(sel, changed, d[changed].$value)
         for (const dim of DIMS) {
           if (dim === changed) continue
-          const value = d[dim].$value
-          if (value && !comboMatch(TABLE, { [changed]: keep, [dim]: value })) d[dim].$value = undefined as never
+          if (next[dim] !== sel[dim]) d[dim].$value = next[dim] as never
         }
       },
     )

@@ -9,6 +9,7 @@ export function SkuPickerPage() {
   return (
     <Form form={form}>
       <h1>SKU 选择器</h1>
+      <p>可以随时切换任一维度；与新选择冲突的维度会清空，缺货组合仍不可选。</p>
       {DIMS.map((dim) => (
         <DimRadios key={dim} dim={dim} />
       ))}

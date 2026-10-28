@@ -4,6 +4,7 @@ import { liveDemoPluginRspress } from '@live-demo/rspress';
 import { defineConfig } from '@rspress/core';
 import { pluginPreview } from '@rspress/plugin-preview';
 import { remarkInclude } from './src/remarkInclude';
+import { PLAY_ROUTES } from './playground/routes';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 
@@ -23,6 +24,9 @@ export default defineConfig({
   },
   markdown: {
     remarkPlugins: [remarkInclude],
+    // These exact routes are emitted by the Vite step in `npm run build`.
+    // Keep dead-link checking on for every other URL, including misspelled demos.
+    link: { checkDeadLinks: { excludes: PLAY_ROUTES.map((route) => `/play/${route}`) } },
   },
   outDir: 'dist',
   plugins: [

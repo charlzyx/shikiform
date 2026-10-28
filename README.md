@@ -23,10 +23,10 @@ npm install
 npm run dev         # Rspress 文档站
 npm test            # 教学运行时 + 库的 vitest
 npm run check       # tsc --noEmit（docs/ 与 archive/ 不参与；教程由 Rspress 别名解析）
-npm run build       # rspress build，输出 dist/。Cloudflare Pages 跑的就是这条
+npm run build       # 文档 + playground，输出 dist/。Cloudflare Pages 跑的就是这条
 npm run preview     # 本地预览 dist/
 npm run build:lib   # tsup → lib/，不随文档一起发布
-npm run build:play  # Vite playground → dist/play/
+npm run build:play  # 单独重建 Vite playground → dist/play/
 npm run dev:e2e     # playground，http://127.0.0.1:5173/play/
 npm run test:e2e    # 文档构建 + playground 构建，再跑 Playwright
 ```
@@ -40,16 +40,17 @@ npm run test:e2e    # 文档构建 + playground 构建，再跑 Playwright
 - 静态输出：`rspress.config.ts` 把 `outDir` 写成 `dist/`。
 - base 路径：`base: '/'`。
 - 路由是 clean URLs（`/usage/01-basic-form`，没有尾斜杠）。`docs/public/_redirects` 把旧的尾斜杠地址和旧教程地址 301 到新地址。
-- 构建命令：`npm run build`（`npm run build:cf-pages` 等价，都是 `rspress build`）
+- 构建命令：`npm run build`（`npm run build:cf-pages` 等价；先构建 Rspress，再构建 playground）
 - 输出目录：`dist`
 - Framework preset：`None`。不要留着 Astro。
 - Node 版本过低时加环境变量 `NODE_VERSION=22`。
 
-Playground 在另一次 `npm run build:play` 里进 `dist/play/`，不包含在文档的 `npm run build` 里。
+Playground 随 `npm run build` 一起进入 `dist/play/`。每个 `/play/...` 路由都有静态入口；从 [可点的例子](https://shikiform.pages.dev/guide/demos) 进入，不依赖开发服务器的 SPA fallback。只改 playground 时可单独运行 `npm run build:play`，它不会清掉 `dist/` 下的文档。
 
 ### 验证部署成功
 
 - 首页、`/tutorial`、`/tutorial/1-start`、`/guide`、`/OUTLINE`、`/api`、`/decisions`、`/usage/01-basic-form` … `/usage/16-effects-reference` 都能打开
+- `/guide/demos` 能进入 `/play/sku-picker`、`/play/sku-editor`、`/play/merged`、`/play/query`、`/play/orders`，刷新后仍是相应示例
 - 旧地址 `/api/`、`/usage/01-basic-form/` 会跳到没有尾斜杠的地址
 - 静态资源路径是根路径，不是 `/shiki/...`
 
