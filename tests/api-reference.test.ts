@@ -1,0 +1,56 @@
+import { spawnSync } from 'node:child_process'
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { afterEach, describe, expect, it } from 'vitest'
+
+const directories: string[] = []
+const script = path.resolve('scripts/check-api-reference.mjs')
+function fixture() {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'shikiform-reference-'))
+  directories.push(dir)
+  cpSync('docs/reference', path.join(dir, 'reference'), { recursive: true })
+  return dir
+}
+function check(dir: string) {
+  return spawnSync(process.execPath, [script, '--docs-dir', dir], { encoding: 'utf8' })
+}
+afterEach(() => {
+  for (const dir of directories.splice(0)) rmSync(dir, { recursive: true, force: true })
+})
+
+describe('public Hook and adapter reference coverage', () => {
+  it('maps every real public Hook/factory and pro/antd export to a named signature section', () => {
+    const result = check(path.resolve('docs'))
+    expect(result.status, result.stderr).toBe(0)
+    expect(result.stdout).toContain('23 public')
+  })
+  it('fails when an existing Hook disappears from the reference map', () => {
+    const dir = fixture()
+    const file = path.join(dir, 'reference/exports.json')
+    const manifest = JSON.parse(readFileSync(file, 'utf8'))
+    delete manifest.shikiform.useField
+    writeFileSync(file, JSON.stringify(manifest))
+    const result = check(dir)
+    expect(result.status).not.toBe(0)
+    expect(result.stderr).toContain('Missing reference for shikiform:useField')
+  })
+  it('rejects an invented useArray export', () => {
+    const dir = fixture()
+    const file = path.join(dir, 'reference/exports.json')
+    const manifest = JSON.parse(readFileSync(file, 'utf8'))
+    manifest.shikiform.useArray = 'reference/react-hooks.mdx'
+    writeFileSync(file, JSON.stringify(manifest))
+    const result = check(dir)
+    expect(result.status).not.toBe(0)
+    expect(result.stderr).toContain('Not a public export in this scope: shikiform:useArray')
+  })
+  it('does not count a landing-page link as a detailed API section', () => {
+    const dir = fixture()
+    const file = path.join(dir, 'reference/react-hooks.mdx')
+    writeFileSync(file, readFileSync(file, 'utf8').replace(/^## useField$/m, '## A broken heading'))
+    const result = check(dir)
+    expect(result.status).not.toBe(0)
+    expect(result.stderr).toContain('Missing named section reference/react-hooks.mdx#useField')
+  })
+})

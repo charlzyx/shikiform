@@ -64,7 +64,7 @@ mkdirSync(work, { recursive: true })
 const consumer = path.join(work, 'consumer')
 const modules = path.join(consumer, 'node_modules')
 mkdirSync(modules, { recursive: true })
-const summary = { sources: manifest, packageResolution: {}, typecheck: 'not-run', build: 'not-run', ssr: 'not-run', ssrResults: [] }
+const summary = { sources: manifest, packageResolution: {}, dependencyIsolation: 'not-run', packageContexts: 'not-run', typecheck: 'not-run', build: 'not-run', ssr: 'not-run', ssrResults: [] }
 const env = { ...process.env, npm_config_cache: path.join(work, 'npm-cache') }
 
 function run(command, parameters, cwd, log) {
@@ -96,6 +96,25 @@ try {
       if (!actual.startsWith(`${packageDir}${path.sep}`)) throw new Error(`Export escapes the package: ${key}`)
     }
   }
+  // Traverse emitted JS, including shared chunks: core/headless must not pull UI.
+  for (const entry of ['.', './core', './pro']) {
+    const visited = new Set()
+    const visitModule = (file) => {
+      const actual = realpathSync(file)
+      if (!actual.startsWith(`${packageDir}${path.sep}`)) throw new Error(`Chunk escapes package: ${file}`)
+      if (visited.has(actual)) return
+      visited.add(actual)
+      const code = readFileSync(actual, 'utf8')
+      for (const match of code.matchAll(/(?:from\s*|import\s*)['"]([^'"]+)['"]/g)) {
+        const dependency = match[1]
+        if (dependency === 'antd' || dependency.startsWith('antd/')) throw new Error(`${entry} unexpectedly imports ${dependency}`)
+        if (entry === './core' && /^(react|react-dom)(\/|$)/.test(dependency)) throw new Error(`Core unexpectedly imports ${dependency}`)
+        if (dependency.startsWith('.')) visitModule(path.resolve(path.dirname(actual), dependency))
+      }
+    }
+    visitModule(path.resolve(packageDir, pkg.exports[entry].import))
+  }
+  summary.dependencyIsolation = 'passed'
   // Third-party packages are reused offline. ShikiForm itself is a real tarball
   // extraction: no link to the checkout, no workspace package, and no TS paths.
   for (const entry of readdirSync(path.join(root, 'node_modules'))) {
@@ -108,6 +127,7 @@ try {
     mkdirSync(path.dirname(target), { recursive: true })
     writeFileSync(target, source.code)
   }
+  writeFileSync(path.join(consumer, 'package-context.tsx'), readFileSync(path.join(root, 'scripts/fixtures/package-context.tsx'), 'utf8'))
   writeFileSync(path.join(consumer, 'public-entrypoints.ts'), [
     "import * as form from 'shikiform'", "import * as core from 'shikiform/core'",
     "import * as pro from 'shikiform/pro'", "import * as antd from 'shikiform/antd'",
@@ -125,6 +145,7 @@ try {
   // This is an additional Node execution check, not browser interaction or
   // hydration evidence. The same packed library and exact source copies run.
   writeFileSync(path.join(consumer, 'ssr-entry.tsx'), [...entries,
+    "import { verifyPackageContexts } from './package-context'",
     "import { createElement, type ComponentType } from 'react'",
     "import { renderToString } from 'react-dom/server'",
     'const examples: Array<{ source: string; exports: object; helper: boolean }> = [',
@@ -143,7 +164,7 @@ try {
     '    throw new Error(`${source}: ${error instanceof Error ? error.message : error}`)',
     '  }',
     '})',
-    "process.stdout.write(`${JSON.stringify(results)}\\n`)",
+    "process.stdout.write(`${JSON.stringify({ results, packageContexts: verifyPackageContexts() })}\\n`)",
   ].join('\n'))
   writeFileSync(path.join(consumer, 'index.html'), '<!doctype html><html><head><meta charset="utf-8"></head><body><div id="root"></div><script type="module" src="/entry.tsx"></script></body></html>')
   writeFileSync(path.join(consumer, 'vite.config.mjs'), "export default { esbuild: { jsx: 'automatic' }, build: { outDir: 'dist', emptyOutDir: true } }\n")
@@ -162,10 +183,13 @@ try {
   summary.build = 'passed'
   summary.ssr = 'running'
   run(process.execPath, [path.join(root, 'node_modules', 'vite', 'bin', 'vite.js'), 'build', '--config', path.join(consumer, 'vite.config.mjs'), '--ssr', 'ssr-entry.tsx', '--outDir', 'ssr-dist'], consumer, 'ssr-build.log')
-  summary.ssrResults = JSON.parse(run(process.execPath, [path.join(consumer, 'ssr-dist', 'ssr-entry.js')], consumer, 'ssr-render.log'))
+  const rendered = JSON.parse(run(process.execPath, [path.join(consumer, 'ssr-dist', 'ssr-entry.js')], consumer, 'ssr-render.log'))
+  summary.ssrResults = rendered.results
+  summary.packageContexts = rendered.packageContexts
   if (!summary.ssrResults.some((result) => result.status === 'rendered')) throw new Error('No example components were rendered')
   summary.ssr = 'passed'
   console.log(`Packed-package docs typecheck, production bundle, and ${summary.ssrResults.filter((result) => result.status === 'rendered').length} SSR renders passed (no paths / aliases; not a browser test)`)
+  console.log(`Packed cross-entry context contracts passed: ${summary.packageContexts.length}; core/headless dependency isolation passed`)
 } catch (error) {
   if (summary.typecheck === 'running') summary.typecheck = 'failed'
   if (summary.build === 'running') summary.build = 'failed'

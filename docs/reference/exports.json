@@ -1,0 +1,31 @@
+{
+  "shikiform": {
+    "useForm": "reference/react-hooks.mdx",
+    "useFormContext": "reference/react-hooks.mdx",
+    "useField": "reference/react-hooks.mdx",
+    "useWatch": "reference/react-hooks.mdx",
+    "useArrayField": "reference/react-hooks.mdx",
+    "useArrayMove": "reference/react-hooks.mdx",
+    "useTreeField": "reference/react-hooks.mdx",
+    "useTreeMove": "reference/react-hooks.mdx",
+    "createFormHook": "reference/form-hook.mdx",
+    "createFormHookContexts": "reference/form-hook.mdx"
+  },
+  "shikiform/pro": {
+    "useQueryTable": "reference/query-hooks.mdx",
+    "useBuiltinQuery": "reference/query-hooks.mdx"
+  },
+  "shikiform/antd": {
+    "antdForm": "reference/antd.mdx",
+    "useAntdForm": "reference/antd.mdx",
+    "useAntdField": "reference/antd.mdx",
+    "createAntdFormHook": "reference/antd.mdx",
+    "withAntdForm": "reference/antd.mdx",
+    "withAntdFieldGroup": "reference/antd.mdx",
+    "ArrayTable": "reference/antd.mdx",
+    "MergedTable": "reference/antd.mdx",
+    "groupRowSpan": "reference/antd.mdx",
+    "ProQueryTable": "reference/antd.mdx",
+    "QueryForm": "reference/antd.mdx"
+  }
+}

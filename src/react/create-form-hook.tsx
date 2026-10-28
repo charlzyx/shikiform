@@ -3,7 +3,8 @@ import type { FormEngine } from '../core/form'
 import { joinPath } from '../core/path'
 import type { FieldPath, FormOptions, PathValue } from '../core/types'
 import { FormContext, ScopeContext, useScope } from './context'
-import { useField, type FieldBinding } from './use-field'
+import type { FieldBinding } from './use-field'
+import { Field } from './fields'
 import { useForm } from './use-form'
 
 /**
@@ -55,14 +56,17 @@ export function createFormHook<
   formContext: Context<FormEngine<any> | null>
 }) {
   function AppField({ name, children }: { name: string; children: (field: FieldBinding<any> & TFields) => ReactNode }) {
-    const field = useField(name)
     const scope = useScope()
     const path = joinPath(scope.path, name)
     const next = useMemo(() => ({ path, index: -1 }), [path])
     return (
-      <options.fieldContext.Provider value={field}>
-        <ScopeContext.Provider value={next}>{children({ ...field, ...options.fieldComponents })}</ScopeContext.Provider>
-      </options.fieldContext.Provider>
+      <Field name={name}>
+        {(field) => (
+          <options.fieldContext.Provider value={field}>
+            <ScopeContext.Provider value={next}>{children({ ...field, ...options.fieldComponents })}</ScopeContext.Provider>
+          </options.fieldContext.Provider>
+        )}
+      </Field>
     )
   }
 

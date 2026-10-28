@@ -1,0 +1,346 @@
+---
+title: React Hooks
+description: useForm、useField、useWatch、数组与树 Hooks 的签名、返回值、订阅和完整示例。
+---
+
+# React Hooks
+
+这些 Hooks 都从 **`shikiform`** 导入。它们连接同一个 `FormEngine`，不依赖 antd，也不是另一份表单状态。
+
+先用普通 `Form` + `useField`（或 `<Field>` render prop）理解绑定和订阅；只有需要复用一整套 UI 组件时，再选择工厂预绑定。工厂不是 UI 核心，也不是使用这些 Hooks 的前提。
+
+| 要做什么 | Hook | 是否订阅 |
+|---|---|---|
+| 创建并保留表单 | [`useForm`](#useform) | 不自动订阅值 |
+| 取得上层表单 | [`useFormContext`](#useformcontext) | 不自动订阅值 |
+| 绑定一个输入 | [`useField`](#usefield) | 该路径的值和字段状态 |
+| 读取选中的值或状态 | [`useWatch`](#usewatch) | selector 实际读取的 `$` 依赖 |
+| 数组行增删和排序 | [`useArrayField`](#usearrayfield) | 数组结构，不是每个单元格 |
+| 数组拖动事件 | [`useArrayMove`](#usearraymove) | 不订阅 |
+| 树结构和节点移动 | [`useTreeField`](#usetreefield) | 树结构 |
+| 树拖动事件 | [`useTreeMove`](#usetreemove) | 不订阅 |
+
+除 `useForm` 外，本页 Hooks 都必须在 `<Form form={form}>` 或工厂返回的 `<form.AppForm>` 后代中调用。**在一个组件中先调用 `useField`、再从它返回 `<Form>` 不算在 Provider 内**；把读字段的组件放到 Form 里面。
+
+名字也有区别：这里没有独立导出 `useArray`、`useTree` 或 `useRow`。ShikiForm 的 `useField(name)` 返回输入绑定；`useArrayField(name)` 返回行操作。不要将其他表单库的“读取当前字段模型”签名直接套过来。预绑定组件读取当前字段的方式见 [工厂上下文](/reference/form-hook#createformhookcontexts)。
+
+## useForm
+
+```ts
+useForm<T>(options?: FormOptions<T>): FormEngine<T>
+```
+
+| 参数 / 返回 | 含义与默认 |
+|---|---|
+| `options` | 省略等同 `{}`；仅第一次渲染读取 |
+| `options.initialValues` | 省略时以空对象开始；建议完整写出值形状，让 `T` 可推断 |
+| 返回值 | 稳定的 `FormEngine<T>` 实例，提供 `getValue`、`setValue`、`reset`、`validate`、`submit` 等方法 |
+
+`useForm` 本身不要求父级 Provider。后续渲染传入新 `initialValues` 不会重建实例；回填数据用写入 API，恢复初值用 `reset`。渲染需要实时值时用 `useField` / `useWatch`，不要期待读取 `form.values` 就自动重渲染。
+
+完整选项、校验默认触发器和提交返回值见 [创建表单](/api#创建表单)。非 React 环境用 `createForm`。
+
+[实现：use-form.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/use-form.ts)
+
+## useFormContext
+
+```ts
+useFormContext<T = any>(): FormEngine<T>
+```
+
+无参数。返回最近 `<Form>` / `<AppForm>` 提供的同一个引擎；缺少 Provider 时抛错，不会偷偷创建表单。
+
+`T` 是调用者对已有实例的类型说明，不做运行时转换。它不订阅字段值或 `submitting`，适合按钮事件里调用 `reset`、`submit`。要显示实时提交状态，配合 `useWatch`。
+
+这是顶层公开 Hook；`useScope` 只是内部实现，不是 `shikiform` 顶层导出。[工厂返回的 `useFormContext`](/reference/form-hook#createformhookcontexts) 则读取工厂专属上下文，两者不要混用。
+
+[实现：context.tsx](https://github.com/charlzyx/shikiform/blob/main/src/react/context.tsx)
+
+## useField
+
+```ts
+useField(name: string): FieldBinding<any>
+useField<TScope>(
+  name: FieldPath<TScope>
+): FieldBinding<PathValue<TScope, FieldPath<TScope> & string>>
+useField<TScope, N extends FieldPath<TScope>>(
+  name: N
+): FieldBinding<PathValue<TScope, N & string>>
+```
+
+`name` 必填，是当前对象 / 行作用域下的**相对路径**。例如在 `items.0` 的 `RowScope` 下，`useField('price')` 绑定 `items.0.price`。在行里再写 `items.0.price` 会重复前缀；稳定行 ID 也不是路径。
+
+| 写法 | 类型效果 |
+|---|---|
+| `useField('price')` | 动态路径可用，值是 `any` |
+| `useField<Row>('price')` | 检查路径存在，但值类型是各可选路径值的联合 |
+| `useField<Row, 'price'>('price')` | 检查路径，值精确为 `Row['price']` |
+
+`FieldBinding` 从 `shikiform` 导入；签名中的 `FieldPath` / `PathValue` 类型从 `shikiform/core` 导入。
+
+### 返回的 FieldBinding
+
+| 属性 | 类型与用途 |
+|---|---|
+| `path` / `id` | `string`；完整数据路径 / label 关联 ID |
+| `value` | 当前路径值，类型由上述泛型决定 |
+| `onChange(value)` | `(value: TValue) => void`；写入值，不接收 DOM event |
+| `onBlur()` | `() => void`；标记 touched，并按配置触发校验 |
+| `errors` / `warnings` | `string[]`；交给 UI 展示 |
+| `display` | `'visible' \| 'hidden' \| 'none'` |
+| `pattern` | `'editable' \| 'disabled' \| 'readOnly' \| 'readPretty'` |
+| `required` / `disabled` / `readOnly` | `boolean`；有效字段状态 |
+| `touched` / `dirty` / `validating` | `boolean`；失焦、编辑、异步校验状态 |
+| `options` / `loading` | 枚举选项数组 / 枚举加载状态 |
+
+`useField` 订阅该路径并注册基础字段模型，但**不会替你渲染、隐藏输入或管理 JSX 规则的挂载/卸载**。自定义 UI 要处理 `display` / `pattern`；需要 JSX `rules`、`required` 生命周期时优先复用 `<Field>`。`hidden` 仍校验/提交，`none` 才跳过，见 [显隐](/guide/display) 和 [未挂载规则](/guide/unmounted)。
+
+[实现：use-field.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/use-field.ts)
+
+## useWatch
+
+```ts
+useWatch<T, S>(select: (draft: Draft<T>) => S): S
+```
+
+| 参数 / 返回 | 契约 |
+|---|---|
+| `select` | 必填同步 selector；读取 `$value`、`$errors`、`$submitting` 等状态并返回数据，不在里面写值或执行副作用 |
+| 返回值 | selector 的结果 `S`；没有额外包装对象 |
+| 依赖 | 自动跟踪本轮读到的 `$` 状态；分支变化后调整订阅 |
+
+推荐 `useWatch((d: Draft<Values>) => d.name.$value)`：`S` 会推断为 `string`。只写 `useWatch<Values>(...)` 不会继续推断第二个泛型；要么注解参数，要么写全两个泛型。
+
+返回对象/数组可用，快照通过 `Object.is` / 深比较复用；不要返回每次新建的函数。没有读到任何 `$` 依赖时会退回整表通知，因此它不适合作为“零订阅”的替代品。
+
+`useWatch` 是 React 中的读取/渲染；effects 里的 `watch(source, effect)` 是值变化后的动作，两者不是同一 API。参见 [联动](/guide/effects)。
+
+[实现：use-watch.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/use-watch.ts)
+
+### 完整例子：一个绑定、一个 selector、一个操作按钮
+
+```tsx preview
+import { Form, useField, useForm, useFormContext, useWatch, type Draft } from 'shikiform';
+
+type Values = { name: string };
+
+function NameInput() {
+  const field = useField<Values, 'name'>('name');
+  if (field.display !== 'visible') return null;
+  if (field.pattern === 'readPretty') return <p>姓名：{field.value}</p>;
+  return (
+    <label htmlFor={field.id}>
+      姓名
+      <input id={field.id} value={field.value} disabled={field.disabled} readOnly={field.readOnly}
+        onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} />
+      <span role="status">{field.errors.join('；')}</span>
+    </label>
+  );
+}
+
+function Greeting() {
+  const name = useWatch((d: Draft<Values>) => d.name.$value);
+  return <p>你好，{name || '还没有填写姓名'}</p>;
+}
+
+function ResetName() {
+  const form = useFormContext<Values>();
+  return <button type="button" onClick={() => form.reset('name')}>恢复初值</button>;
+}
+
+export default function HookExample() {
+  const form = useForm({ initialValues: { name: 'Ada' }, fields: { name: { required: true } } });
+  return <Form form={form}><NameInput /><Greeting /><ResetName /></Form>;
+}
+```
+
+## useArrayField
+
+```ts
+useArrayField(name: string, rowKey?: string): ArrayHandle<unknown>
+useArrayField<TScope>(name: ArrayPath<TScope>, rowKey?: string): ArrayHandle<unknown>
+useArrayField<TScope, N extends ArrayPath<TScope>>(
+  name: N, rowKey?: string
+): ArrayHandle<ArrayItemOf<TScope, N & string>>
+```
+
+这里的 `ArrayHandle` 是返回形状的名字，**不是可从包导入的类型**；调用方通常直接用返回值推断。`ArrayPath` 从 `shikiform/core` 导入，`ArrayItemOf` 也可从 `shikiform` 导入。
+
+| 参数 | 作用 / 默认 |
+|---|---|
+| `name` | 必填，相对当前 scope 的数组路径 |
+| `rowKey` | 可选行标识属性名；省略时使用行的 `id`，没有 ID 的对象行使用对象身份。业务数据建议明确提供唯一稳定 ID |
+
+返回 `{ path, keys, push, insert, remove, move, swap, replace }`：
+
+| 成员 | 签名 / 含义 |
+|---|---|
+| `path` | `string`，完整数组路径 |
+| `keys` | `{ key: string; index: number }[]`；`key` 给 React，`index` 用于路径 |
+| `push(row)` | 追加一行 → `void` |
+| `insert(index, row)` | 在指定下标插入 → `void` |
+| `remove(index)` | 删除一行 → `void` |
+| `move(from, to)` | 移动到**最终下标** `to` → `void` |
+| `swap(a, b)` | 交换两个下标 → `void` |
+| `replace(index, row)` | 替换一行 → `void` |
+
+写全 `useArrayField<Values, 'items'>('items')` 才能同时检查数组路径和行值类型；只写一个泛型时行操作参数为 `unknown`。
+
+它只订阅结构（长度/顺序/行身份），不会因为单元格编辑就更新整个列表。单元格另用 `useField`，汇总另用 `useWatch`。不要原地修改返回的数组或 `getValue` 引用来代替操作方法。嵌套行需用 `RowScope` 提供路径；`<ArrayField>` 已替你做这层重复渲染。
+
+[实现：use-array.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/use-array.ts) · [数组教程](/tutorial/7-array)
+
+## useArrayMove
+
+```ts
+useArrayMove(name: string): {
+  move(from: number, to: number): void
+  swap(indexA: number, indexB: number): void
+  bind(index: number): {
+    draggable: true
+    onDragStart(event: React.DragEvent): void
+    onDragOver(event: React.DragEvent): void
+    onDrop(event: React.DragEvent): void
+  }
+}
+```
+
+`name` 必填，相对当前 scope。没有第二个 options 参数，也没有隐藏的默认拖拽库。`bind(index)` 给出原生 HTML5 拖动事件，展开到行容器即可；把手、键盘操作和触屏交互由应用决定。
+
+它不订阅结构；移动后的列表重渲染依赖 `useArrayField` / `ArrayField`。`move` 和数组 handle 一样使用最终下标，不能传行 ID。事件对象没有 `dataTransfer` 时会使用同一 Hook 实例保存的拖动起点。
+
+[实现：use-array.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/use-array.ts)
+
+### 完整例子：键不变，路径随顺序变化
+
+```tsx preview
+import { Form, RowScope, useArrayField, useArrayMove, useField, useForm } from 'shikiform';
+
+type Item = { id: string; label: string };
+type Values = { items: Item[] };
+
+function ItemInput() {
+  const field = useField<Item, 'label'>('label');
+  return <input aria-label="项目名称" value={field.value}
+    onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} />;
+}
+
+function Items() {
+  const array = useArrayField<Values, 'items'>('items', 'id');
+  const drag = useArrayMove('items');
+  return (
+    <section>
+      {array.keys.map((row) => (
+        <RowScope key={row.key} path={`${array.path}.${row.index}`} index={row.index}>
+          <div {...drag.bind(row.index)}>
+            <ItemInput />
+            <button type="button" disabled={row.index === 0}
+              onClick={() => array.move(row.index, row.index - 1)}>上移</button>
+            <button type="button" onClick={() => array.remove(row.index)}>删除</button>
+          </div>
+        </RowScope>
+      ))}
+      <button type="button" onClick={() => array.push({ id: crypto.randomUUID(), label: '' })}>新增</button>
+    </section>
+  );
+}
+
+export default function ArrayHookExample() {
+  const form = useForm<Values>({ initialValues: { items: [
+    { id: 'a', label: '苹果' }, { id: 'b', label: '梨' },
+  ] } });
+  return <Form form={form}><Items /></Form>;
+}
+```
+
+## useTreeField
+
+```ts
+useTreeField(name: string, options?: {
+  childrenKey?: string
+  rowKey?: string
+}): {
+  path: string
+  value: any[]
+  move(from: Pos, to: Pos): MoveResult
+}
+```
+
+`Pos` 是 `readonly number[]`，`MoveResult` 是 `{ ok: boolean; reason?: string }`，两者可从 `shikiform/core` 导入。当前 Hook 没有节点泛型；返回的 `value` 不是自动获得业务节点类型的数组。
+
+| 参数 / 返回 | 含义 / 默认 |
+|---|---|
+| `name` | 必填，相对当前 scope 的树根数组路径 |
+| `options.childrenKey` | 优先使用传入值；否则继承已有树配置，再默认 `'children'` |
+| `options.rowKey` | 优先使用传入值；否则继承已有树配置，再默认 `'id'` |
+| `path` | 完整树根路径 |
+| `value` | 当前根节点数组；当前值不是数组时返回 `[]`。不要原地修改 |
+| `move(from, to)` | 使用移动后的最终索引坐标；拒绝移到自己的后代，失败看 `reason` |
+
+它只订阅树结构，不订阅每个节点的文字/勾选状态。节点编辑单独用 `useField`，读取选定值用 `useWatch`。要让 React 挂载前的树联动也认识自定义 `childrenKey`，在 `useForm({ trees: { ... } })` 里声明配置。
+
+`[0, 2]` 表示第一个根节点的第三个孩子，不是节点 ID。稳定 ID 用于移动时保持字段状态；不要用当前坐标代替业务 ID。
+
+[实现：use-tree.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/use-tree.ts) · [结构与路径](/guide/path)
+
+## useTreeMove
+
+```ts
+useTreeMove(name: string): {
+  move(from: Pos, to: Pos): MoveResult
+  bind(pos: Pos): {
+    draggable: true
+    onDragStart(event: React.DragEvent): void
+    onDragOver(event: React.DragEvent): void
+    onDrop(event: React.DragEvent): void
+  }
+}
+```
+
+`name` 必填，相对当前 scope；树配置来自引擎已有注册。通常和同路径 `useTreeField` 一起使用。
+
+不订阅；`bind(pos)` 返回原生拖动处理器，drop 会阻止冒泡，使用本 Hook 记录的源坐标。这不是跨表单拖放协议。程序调用 `move` 可检查 `ok/reason`；`bind` 的 drop 本身不会替你显示失败提示。
+
+[实现：use-tree.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/use-tree.ts)
+
+### 完整例子：同层拖动和显式移动结果
+
+```tsx preview
+import { useState } from 'react';
+import { Form, useForm, useTreeField, useTreeMove } from 'shikiform';
+
+type Node = { id: string; title: string; children: Node[] };
+type Values = { nodes: Node[] };
+
+function Nodes() {
+  const tree = useTreeField('nodes');
+  const drag = useTreeMove('nodes');
+  const [message, setMessage] = useState('拖动节点，或用按钮移动第一个根节点。');
+  // 当前 useTreeField 没有节点泛型；这里的类型来自本例已知的初始数据。
+  const nodes = tree.value as Node[];
+  const renderNodes = (rows: Node[], parent: number[] = []) => (
+    <ul>{rows.map((node, index) => {
+      const pos = [...parent, index];
+      return <li key={node.id}><span {...drag.bind(pos)}>{node.title}</span>
+        {node.children.length > 0 ? renderNodes(node.children, pos) : null}</li>;
+    })}</ul>
+  );
+  return <section>{renderNodes(nodes)}
+    <button type="button" disabled={nodes.length < 2} onClick={() => {
+      const result = tree.move([0], [nodes.length - 1]);
+      setMessage(result.ok ? '已移动' : result.reason ?? '没有移动');
+    }}>第一个根节点移到最后</button>
+    <p role="status">{message}</p>
+  </section>;
+}
+
+export default function TreeHookExample() {
+  const form = useForm<Values>({ initialValues: { nodes: [
+    { id: 'a', title: '内容', children: [{ id: 'a1', title: '文章', children: [] }] },
+    { id: 'b', title: '设置', children: [] },
+  ] } });
+  return <Form form={form}><Nodes /></Form>;
+}
+```
+
+需要 JSX 结构组件时看 [Field、ArrayField、TreeField](/api#react-字段)；需要将这些绑定封装成项目自己的输入组件时看 [createFormHook](/reference/form-hook)。
