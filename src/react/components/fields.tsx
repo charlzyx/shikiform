@@ -9,6 +9,8 @@ import { useField, type FieldBinding } from '../hooks/use-field'
 import { useTreeField } from '../hooks/use-tree'
 import { useWatch } from '../hooks/use-watch'
 
+const ROOT_SCOPE = { path: '', index: -1 }
+
 /**
  * Provide `form` and submit on Enter / the submit button.
  * `<Field>` returns null for display `hidden` and `none` after subscribing, so a mounted model stays registered.
@@ -25,14 +27,19 @@ export function Form<T>({
 }) {
   return (
     <FormContext.Provider value={form}>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault()
-          void form.submit(onSubmit)
-        }}
-      >
-        {children}
-      </form>
+      {/* A nested form (a shadow form in a row's modal) starts at its own root, not at the row's scope. */}
+      <ScopeContext.Provider value={ROOT_SCOPE}>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault()
+            // React bubbles synthetic events through portals: keep a nested form's submit from reaching the host form.
+            event.stopPropagation()
+            void form.submit(onSubmit)
+          }}
+        >
+          {children}
+        </form>
+      </ScopeContext.Provider>
     </FormContext.Provider>
   )
 }

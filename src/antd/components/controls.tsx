@@ -8,8 +8,10 @@ import {
   Switch as AntSwitch,
 } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
+import type { ComponentProps, ComponentType } from 'react'
 import { connect, mapProps, mapReadPretty } from '../adapter/connect'
 import { PreviewText } from '../adapter/preview'
+import { ChoicePreview, stripPrettyType, type EnumPrettyProps } from './enum-pretty'
 
 /*
  * Ant Design controls wired through `connect`. Each one is only a mapping; the field logic is `useField`.
@@ -20,7 +22,12 @@ function PasswordPreview({ value }: { value?: unknown }) {
   return <span data-read-pretty>{value == null || value === '' ? '' : '******'}</span>
 }
 
-const choice = mapProps({ options: 'options', loading: 'loading', readOnly: 'disabled' })
+const choice = mapProps({ options: 'options', loading: 'loading', readOnly: 'disabled' }, stripPrettyType)
+const pretty = mapReadPretty(ChoicePreview)
+/** A choice control also takes `prettyType` for its `readPretty` view. */
+function withPretty<C extends ComponentType<any>>(component: C): ComponentType<ComponentProps<C> & EnumPrettyProps> {
+  return component as ComponentType<ComponentProps<C> & EnumPrettyProps>
+}
 
 /** Text input. `readPretty` shows the text. `Input.TextArea` and `Input.Password` are connected too. */
 export const Input = Object.assign(connect(AntInput, mapReadPretty(PreviewText)), {
@@ -31,20 +38,23 @@ export const Input = Object.assign(connect(AntInput, mapReadPretty(PreviewText))
 /** Number input. Clearing writes `null` (the raw Ant Design value). `readPretty` shows the number. */
 export const InputNumber = connect(AntInputNumber, mapReadPretty(PreviewText))
 
-/** Select. `options` default to the field enum (`$enum`, `fields.x.enum`); `loading` follows an async enum. `readPretty` shows labels. */
-export const Select = connect(AntSelect, choice, mapReadPretty(PreviewText))
+/**
+ * Select. `options` default to the field enum (`$enum`, `fields.x.enum`); `loading` follows an async enum.
+ * `readPretty` shows labels, or badges / tags with `prettyType`.
+ */
+export const Select = connect(withPretty(AntSelect), choice, pretty)
 
 /** Boolean switch: field value ↔ `checked`. `readOnly` / `readPretty` render it disabled. */
 export const Switch = connect(AntSwitch, mapProps({ value: 'checked', readOnly: 'disabled', status: false }))
 
 /** Single checkbox: field value ↔ `checked`. `Checkbox.Group` binds an array with enum `options`. */
 export const Checkbox = Object.assign(connect(AntCheckbox, mapProps({ value: 'checked', readOnly: 'disabled', status: false })), {
-  Group: connect(AntCheckbox.Group, mapProps({ options: 'options', readOnly: 'disabled', status: false, id: false }), mapReadPretty(PreviewText)),
+  Group: connect(withPretty(AntCheckbox.Group), mapProps({ options: 'options', readOnly: 'disabled', status: false, id: false }, stripPrettyType), pretty),
 })
 
-/** `Radio.Group` with enum `options`. `readPretty` shows the selected label. */
+/** `Radio.Group` with enum `options`. `readPretty` shows the selected label (badge / tag with `prettyType`). */
 export const Radio = {
-  Group: connect(AntRadio.Group, mapProps({ options: 'options', readOnly: 'disabled', status: false, id: false }), mapReadPretty(PreviewText)),
+  Group: connect(withPretty(AntRadio.Group), mapProps({ options: 'options', readOnly: 'disabled', status: false, id: false }, stripPrettyType), pretty),
 }
 
 function toDayjs(value: unknown, format: unknown): Dayjs | null {
