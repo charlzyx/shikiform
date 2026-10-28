@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type ReactNode } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import type { FormEngine } from '../../core/engine/form-engine'
 import { joinPath } from '../../core/shared/path'
 import type { Display, Draft, FieldPath, PathValue, Pattern } from '../../core/types'
@@ -8,7 +8,6 @@ import { useArrayField } from '../hooks/use-array'
 import { useField, type FieldBinding } from '../hooks/use-field'
 import { useTreeField } from '../hooks/use-tree'
 import { useWatch } from '../hooks/use-watch'
-import { applyJsxField } from '../hooks/field-lifecycle'
 
 /**
  * Provide `form` and submit on Enter / the submit button.
@@ -46,7 +45,8 @@ export function Form<T>({
  * Unmount clears them and leaves rules from `useForm({ fields })`, `registerField`, an item template (`rows.*.name`), or `$rules`.
  * `virtual` omits the value from submit. `display="hidden"` still validates. `display="none"` skips validation.
  * `<Field<Row> name="price">` checks the name. `<Field<Row, 'price'> name="price">` types the value.
- * `<Field>` is a thin wrapper around {@link useField}.
+ * `<Field>` is a thin wrapper around {@link useField}: `useField(name, { rules, required, virtual, display, pattern })`
+ * plus `display !== 'visible'` → `null`.
  */
 export function Field<TScope = any, N extends FieldPath<TScope> = FieldPath<TScope>>({
   name,
@@ -71,20 +71,8 @@ export function Field<TScope = any, N extends FieldPath<TScope> = FieldPath<TSco
   pattern?: Pattern
   children?: (field: FieldBinding<PathValue<TScope, N & string>>) => ReactNode
 }) {
-  const form = useFormContext()
-  const scope = useScope()
-  const path = joinPath(scope.path, String(name))
-  const spec = { rules, virtual, required, display, pattern }
-  const ownsValidation = rules !== undefined || required !== undefined
-  const latestSpec = useRef(spec)
-  latestSpec.current = spec
-  applyJsxField(form, path, spec)
-  useEffect(() => {
-    // Re-apply on effect setup as well, including React's setup/cleanup/setup probe.
-    // Pure binding consumers get no cleanup and cannot release another Field's lease.
-    return applyJsxField(form, path, latestSpec.current)
-  }, [form, path, ownsValidation])
-  const field = useField<TScope, N>(name)
+  // Sugar over the hook: everything <Field> does is reachable through useField(name, options).
+  const field = useField<TScope, N>(name, { rules, virtual, required, display, pattern })
   if (field.display !== 'visible') return null
   return children ? <>{children(field)}</> : null
 }

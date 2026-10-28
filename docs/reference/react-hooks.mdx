@@ -59,14 +59,26 @@ useFormContext<T = any>(): FormEngine<T>
 ## useField
 
 ```ts
-useField(name: string): FieldBinding<any>
+useField(name: string, options?: UseFieldOptions): FieldBinding<any>
 useField<TScope>(
-  name: FieldPath<TScope>
+  name: FieldPath<TScope>,
+  options?: UseFieldOptions
 ): FieldBinding<PathValue<TScope, FieldPath<TScope> & string>>
 useField<TScope, N extends FieldPath<TScope>>(
-  name: N
+  name: N,
+  options?: UseFieldOptions
 ): FieldBinding<PathValue<TScope, N & string>>
+
+interface UseFieldOptions {
+  rules?: RulesInput
+  required?: boolean
+  virtual?: boolean
+  display?: Display
+  pattern?: Pattern
+}
 ```
+
+`options` 与 `<Field>` 同名属性语义相同：`rules` / `required` 是挂载期 lease（调用组件卸载时释放），`virtual` / `display` / `pattern` 是持久字段标记。`<Field>` 就是 `useField(name, options)` 加上「非 visible 返回 null」。
 
 `name` 必填，是当前对象 / 行作用域下的**相对路径**。例如在 `items.0` 的 `RowScope` 下，`useField('price')` 绑定 `items.0.price`。在行里再写 `items.0.price` 会重复前缀；稳定行 ID 也不是路径。
 
@@ -93,7 +105,7 @@ useField<TScope, N extends FieldPath<TScope>>(
 | `touched` / `dirty` / `validating` | `boolean`；失焦、编辑、异步校验状态 |
 | `options` / `loading` | 枚举选项数组 / 枚举加载状态 |
 
-`useField` 订阅该路径并注册基础字段模型，但**不会替你渲染、隐藏输入或管理 JSX 规则的挂载/卸载**。自定义 UI 要处理 `display` / `pattern`；需要 JSX `rules`、`required` 生命周期时优先复用 `<Field>`。`hidden` 仍校验/提交，`none` 才跳过，见 [显隐](/guide/display) 和 [未挂载规则](/guide/unmounted)。
+`useField` 订阅该路径并注册基础字段模型，但**不会替你渲染或隐藏输入**。自定义 UI 要处理 `display` / `pattern`；需要 JSX `rules`、`required` 生命周期时传 `options`（或用 `<Field>`）。`hidden` 仍校验/提交，`none` 才跳过，见 [显隐](/guide/display) 和 [未挂载规则](/guide/unmounted)。
 
 [实现：use-field.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-field.ts)
 

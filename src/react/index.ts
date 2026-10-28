@@ -6,7 +6,7 @@ export { ArrayField, Field, Form, ObjectField, RowScope, TreeField, Watch } from
 export { useArrayField, useArrayMove } from './hooks/use-array'
 export type { ArrayKey } from './hooks/use-array'
 export { useField } from './hooks/use-field'
-export type { FieldBinding } from './hooks/use-field'
+export type { FieldBinding, UseFieldOptions } from './hooks/use-field'
 export { useForm } from './hooks/use-form'
 export { useTreeField, useTreeMove } from './hooks/use-tree'
 export { useWatch } from './hooks/use-watch'
