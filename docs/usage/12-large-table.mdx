@@ -3,6 +3,11 @@ title: "12 · 超大表格"
 description: "2000 行价格批量调整：虚拟化、字段级订阅、commit=blur（打字不触发全局 reaction）、reaction.each"
 ---
 
+:::warning 历史设计草稿，不是可复制的正式 API
+本页来自 `archive/usage`，保留的是设计讨论和目标写法，可能包含未导出的组件或不同语义。请从 [教程](/tutorial) 复制已校验源码，从 [API](/api) 查询公开导出；可操作的真实场景在 [可点的例子](/guide/demos)。未实现项见 [清单](/coverage-checklist)。
+:::
+
+
 2000 行价格批量调整：虚拟化、字段级订阅、commit="blur"（打字不触发全局 reaction）、`reaction.each` 每行计算值、`form.batch(d => …)` 一次事务批量写、渲染计数验收。
 
 **演示的特性：** 性能 · commit · batch

@@ -4,6 +4,7 @@ import { liveDemoPluginRspress } from '@live-demo/rspress';
 import { defineConfig } from '@rspress/core';
 import { pluginPreview } from '@rspress/plugin-preview';
 import { remarkInclude } from './src/remarkInclude';
+import { PLAY_ROUTES } from './playground/routes';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 
@@ -23,6 +24,9 @@ export default defineConfig({
   },
   markdown: {
     remarkPlugins: [remarkInclude],
+    // These exact routes are emitted by the Vite step in `npm run build`.
+    // Keep dead-link checking on for every other URL, including misspelled demos.
+    link: { checkDeadLinks: { excludes: PLAY_ROUTES.map((route) => `/play/${route}`) } },
   },
   outDir: 'dist',
   plugins: [
@@ -33,20 +37,8 @@ export default defineConfig({
   ],
   root: 'docs',
   route: { cleanUrls: true },
-  // Tutorials import the package name. The published exports and tsconfig
-  // paths point `shikiform` at the real library (`src/index.ts` / `lib/`).
-  // Docs must keep the teaching runtime, so these aliases win (`prefer-alias`).
-  // `$` is an exact match: `shikiform/antd` still follows the library paths.
-  builderConfig: {
-    resolve: {
-      aliasStrategy: 'prefer-alias',
-      alias: {
-        'shikiform/ui': path.join(root, 'src/runtime/ui.tsx'),
-        'shikiform/zod': path.join(root, 'src/runtime/zod.ts'),
-        shikiform$: path.join(root, 'src/runtime/index.ts'),
-      },
-    },
-  },
+  // Examples import the package's public entry points. No teaching-runtime alias.
+  // `npm run build` first checks an isolated packed consumer via check:docs.
   themeConfig: {
     darkMode: true,
     socialLinks: [{ icon: 'github', mode: 'link', content: 'https://github.com/charlzyx/shikiform' }],

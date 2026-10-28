@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Form, Field, ObjectField, Submit, useForm } from 'shikiform';
-import { FormItem, Input } from 'shikiform/ui';
+import { Form, ObjectField, useForm } from 'shikiform';
+import { TextField, SubmitButton } from './fields';
 
 export default function App() {
   const [payload, setPayload] = useState('');
@@ -8,17 +8,11 @@ export default function App() {
   return (
     <Form form={form} onSubmit={(values) => setPayload(JSON.stringify(values, null, 2))}>
       <ObjectField name="profile">
-        <Field name="name" decorator={<FormItem label="昵称" />}>
-          <Input />
-        </Field>
+        <TextField name="name" label="昵称" />
       </ObjectField>
-      <Field name="password" decorator={<FormItem label="密码" />} rules={[{ required: true, message: '必填' }, { minLength: 8, message: '至少 8 位' }]}>
-        <Input type="password" />
-      </Field>
-      <Field name="confirmPassword" decorator={<FormItem label="确认密码" />}>
-        <Input type="password" />
-      </Field>
-      <Submit>提交</Submit>
+      <TextField name="password" rules={[{ required: true, message: '必填' }, { minLength: 8, message: '至少 8 位' }]} label="密码" type="password" />
+      <TextField name="confirmPassword" label="确认密码" type="password" />
+      <SubmitButton>提交</SubmitButton>
       {payload ? <pre className="shiki-code">{payload}</pre> : null}
     </Form>
   );

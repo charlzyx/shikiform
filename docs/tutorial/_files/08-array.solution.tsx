@@ -1,14 +1,15 @@
 import { useState } from 'react';
-import { ArrayField, Field, Form, Submit, defineEffects, useForm, useRow } from 'shikiform';
-import { FormItem, Input, NumberInput } from 'shikiform/ui';
+import { ArrayField, Form, defineEffects, useForm } from 'shikiform';
+import { TextField, NumberField, SubmitButton } from './fields';
 
-let seq = 1;
-function createRow() {
-  seq += 1;
-  return { id: `row-${seq}`, name: '', price: 0, qty: 1, total: 0 };
+type Row = { id: string; name: string; price: number; qty: number; total: number };
+type Values = { items: Row[] };
+
+function createRow(): Row {
+  return { id: crypto.randomUUID(), name: '', price: 0, qty: 1, total: 0 };
 }
 
-const effects = defineEffects(({ reaction }) => {
+export const effects = defineEffects<Values>(({ reaction }) => {
   reaction.each(
     (d) => d.items,
     (row) => {
@@ -18,39 +19,32 @@ const effects = defineEffects(({ reaction }) => {
   );
 });
 
-function Remove() {
-  const row = useRow();
-  return (
-    <button type="button" className="shiki-btn" onClick={row.remove}>
-      删除
-    </button>
-  );
-}
-
 export default function App() {
   const [payload, setPayload] = useState('');
-  const form = useForm({
+  const form = useForm<Values>({
     initialValues: { items: [{ id: 'row-1', name: '贴纸', price: 2, qty: 4, total: 0 }] },
     effects: [effects],
   });
   return (
     <Form form={form} onSubmit={(values) => setPayload(JSON.stringify(values, null, 2))}>
-      <ArrayField name="items" rowKey="id" createRow={createRow}>
-        <Field name="name" decorator={<FormItem label="名称" />}>
-          <Input />
-        </Field>
-        <Field name="price" decorator={<FormItem label="单价" />}>
-          <NumberInput />
-        </Field>
-        <Field name="qty" decorator={<FormItem label="数量" />}>
-          <NumberInput />
-        </Field>
-        <Field name="total" decorator={<FormItem label="小计" />}>
-          <NumberInput />
-        </Field>
-        <Remove />
+      <ArrayField name="items" rowKey="id">
+        {({ index }) => (
+          <fieldset>
+            <legend>第 {index + 1} 行</legend>
+            <TextField name="name" label="名称" />
+            <NumberField name="price" label="单价" />
+            <NumberField name="qty" label="数量" />
+            <NumberField name="total" label="小计" />
+            <button type="button" className="shiki-btn" onClick={() => form.removeArray('items', index)}>
+              删除
+            </button>
+          </fieldset>
+        )}
       </ArrayField>
-      <Submit>提交</Submit>
+      <button type="button" className="shiki-btn" onClick={() => form.pushArray('items', createRow())}>
+        添加一行
+      </button>
+      <SubmitButton>提交</SubmitButton>
       {payload ? <pre className="shiki-code">{payload}</pre> : null}
     </Form>
   );

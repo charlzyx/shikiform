@@ -1,25 +1,10 @@
 import '@live-demo/rspress/web/index.css';
 import { LiveDemoLazy } from '@live-demo/rspress/web/lazy';
 import { useDark } from '@rspress/core/runtime';
-import { Link } from '@rspress/core/theme';
 import { useState } from 'react';
+import fields from '../tutorial/_files/fields.tsx?raw';
 
-const EXTERNAL = ['shikiform', 'shikiform/ui', 'shikiform/zod', 'zod'];
-
-export function StepNav({
-  prev,
-  next,
-}: {
-  prev?: { href: string; title: string };
-  next?: { href: string; title: string };
-}) {
-  return (
-    <div className="tutorial-nav">
-      {prev ? <Link href={prev.href}>上一步 · {prev.title}</Link> : <span />}
-      {next ? <Link href={next.href}>下一步 · {next.title}</Link> : <span />}
-    </div>
-  );
-}
+const EXTERNAL = ['shikiform', 'antd', 'zod'];
 
 export function TutorialPlay({ starter, solution }: { starter: string; solution: string }) {
   const isDark = useDark();
@@ -27,7 +12,9 @@ export function TutorialPlay({ starter, solution }: { starter: string; solution:
   const [nonce, setNonce] = useState(0);
   const code = answer ? solution : starter;
   const pluginProps = {
-    files: JSON.stringify({ 'App.tsx': code }),
+    // Both files are visible and editable. Copy them together into an application.
+    // fields.tsx only adapts the public Field binding; it has no form state of its own.
+    files: JSON.stringify({ 'App.tsx': code, 'fields.tsx': fields }),
     entryFileName: JSON.stringify('App.tsx'),
     externalImports: JSON.stringify(EXTERNAL),
     options: JSON.stringify({ fileTabs: { hideSingleTab: true } }),
@@ -50,6 +37,7 @@ export function TutorialPlay({ starter, solution }: { starter: string; solution:
         </button>
         <span className="shiki-muted">{answer ? '正在看参考写法' : '这是起始代码，可以直接改'}</span>
       </div>
+      <p className="shiki-muted">App.tsx 是本节示例；fields.tsx 是可复制的 UI 适配层。两个文件都能查看、修改，请一起复制。</p>
       <LiveDemoLazy key={`${answer ? 'answer' : 'starter'}-${nonce}`} isDark={isDark} pluginProps={pluginProps} />
     </div>
   );

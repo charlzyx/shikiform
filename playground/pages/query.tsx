@@ -1,8 +1,16 @@
 import { useState } from 'react'
 import { ProQueryTable, QueryForm } from 'shikiform/antd'
-import { defineEffects, Field } from 'shikiform'
+import { defineEffects, Field, useFormContext, useWatch, type Draft } from 'shikiform'
 import { useQueryTable } from 'shikiform/pro'
-import { LOGS, type LogRow } from '../data'
+import { LOGS } from '../data'
+
+interface QueryParams {
+  keyword?: string
+  status?: string
+  provider?: string
+  model?: string
+  userId?: string
+}
 
 interface QueryValues {
   keyword: string
@@ -10,6 +18,7 @@ interface QueryValues {
   provider: string
   model: string
   userId: string
+  params: QueryParams
   page: number
   pageSize: number
   selectedKeys: string[]
@@ -38,26 +47,45 @@ const effects = defineEffects<QueryValues>(({ reaction, watch }) => {
       if (provider === 'anthropic' && model === 'gpt') d.model.$value = ''
     },
   )
+  reaction((d) => {
+    const next: QueryParams = {}
+    const keyword = (d.keyword.$value ?? '').trim()
+    if (keyword) next.keyword = keyword
+    if (d.status.$value) next.status = d.status.$value
+    if (d.provider.$value) next.provider = d.provider.$value
+    if (d.model.$value) next.model = d.model.$value
+    const userId = (d.userId.$value ?? '').trim()
+    if (userId) next.userId = userId
+    d.params.$value = next
+  })
 })
 
 export function QueryPage() {
   const [collapsed, setCollapsed] = useState(true)
-  const table = useQueryTable<QueryValues, Pick<QueryValues, 'keyword' | 'status' | 'provider' | 'model'>, LogRow>({
-    initialValues: { keyword: '', status: '', provider: '', model: '', userId: '', page: 1, pageSize: 5, selectedKeys: [] },
+  const [batch, setBatch] = useState('')
+  const table = useQueryTable({
+    initialValues: {
+      keyword: '',
+      status: '',
+      provider: '',
+      model: '',
+      userId: '',
+      params: {},
+      page: 1,
+      pageSize: 5,
+      selectedKeys: [],
+    },
     effects: [effects],
+    fields: { params: { virtual: true } },
     defaultPageSize: 5,
-    params: (values) => ({
-      keyword: values.keyword,
-      status: values.status,
-      provider: values.provider,
-      model: values.model,
-    }),
+    params: 'params',
     request: async ({ params, page, pageSize }) => {
       const filtered = LOGS.filter((row) => {
         if (params.keyword && !row.keyword.includes(params.keyword) && !row.id.includes(params.keyword)) return false
         if (params.status && row.status !== params.status) return false
         if (params.provider && row.provider !== params.provider) return false
         if (params.model && row.model !== params.model) return false
+        if (params.userId && row.id !== params.userId) return false
         return true
       })
       const start = (page - 1) * pageSize
@@ -69,9 +97,21 @@ export function QueryPage() {
       table={table}
       rowKey="id"
       toolbar={
-        <button type="button" data-testid="collapse" onClick={() => setCollapsed((value) => !value)}>
-          {collapsed ? '展开' : '收起'}
-        </button>
+        <>
+          <button type="button" data-testid="collapse" onClick={() => setCollapsed((value) => !value)}>
+            {collapsed ? '展开' : '收起'}
+          </button>
+          <button
+            type="button"
+            data-testid="batch-mark"
+            disabled={table.selectedKeys.length === 0}
+            onClick={() => setBatch(table.selectedKeys.join(','))}
+          >
+            批量标记
+          </button>
+          <span data-testid="batch-result">{batch}</span>
+          <ParamsPreview />
+        </>
       }
       search={
         <QueryForm collapsed={collapsed} collapseAfter={3}>
@@ -136,8 +176,38 @@ export function QueryPage() {
         { title: '关键字', dataIndex: 'keyword' },
         { title: '供应商', dataIndex: 'provider' },
         { title: '模型', dataIndex: 'model' },
-        { title: '状态', dataIndex: 'status' },
+        {
+          title: <StatusColumnFilter onSearch={() => table.submit()} />,
+          dataIndex: 'status',
+        },
       ]}
     />
+  )
+}
+
+function ParamsPreview() {
+  const params = useWatch((d: Draft<QueryValues>) => d.params.$value)
+  return <pre data-testid="params">{JSON.stringify(params ?? {})}</pre>
+}
+
+function StatusColumnFilter({ onSearch }: { onSearch: () => void }) {
+  const form = useFormContext<QueryValues>()
+  const status = useWatch((d: Draft<QueryValues>) => d.status.$value ?? '')
+  return (
+    <label>
+      状态
+      <select
+        data-testid="col-status"
+        value={status}
+        onChange={(event) => {
+          form.setValue('status', event.target.value)
+          onSearch()
+        }}
+      >
+        <option value="">全部</option>
+        <option value="ok">成功</option>
+        <option value="error">失败</option>
+      </select>
+    </label>
   )
 }

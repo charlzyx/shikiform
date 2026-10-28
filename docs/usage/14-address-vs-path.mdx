@@ -3,6 +3,11 @@ title: "14 · path vs UI Brand"
 description: "同一个数据字段在编辑区和侧边摘要各有一个 UI：值 / 错误共享，visible / pattern / decorat"
 ---
 
+:::warning 历史设计草稿，不是可复制的正式 API
+本页来自 `archive/usage`，保留的是设计讨论和目标写法，可能包含未导出的组件或不同语义。请从 [教程](/tutorial) 复制已校验源码，从 [API](/api) 查询公开导出；可操作的真实场景在 [可点的例子](/guide/demos)。未实现项见 [清单](/coverage-checklist)。
+:::
+
+
 同一个数据字段在编辑区和侧边摘要各有一个 UI：值 / 错误共享，visible / pattern / decorator 各自独立；没有 VoidField：Card / Grid 是普通布局，不产生 path 也不产生 address，需要被 effect 控制时才起名（`Region ui="aside"` → `d.ui('aside')`）；单独控制某个 UI = UI Brand（`ui="summary"` → `d.user.plan.ui('summary')`），#n 已删除。
 
 **演示的特性：** 三棵树 · 一个字段多个 UI · 具名布局 Region

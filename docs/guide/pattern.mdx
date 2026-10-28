@@ -1,0 +1,76 @@
+---
+title: pattern
+description: 四种状态从父级往下传，子级写了就用子级的。
+---
+
+# pattern
+
+下面有一个模式下拉。资料整段跟着变。备注始终能改。
+
+```tsx preview
+import { Input, Select } from 'antd';
+import { Form, Field, ObjectField, defineEffects, useForm } from 'shikiform';
+import type { Pattern } from 'shikiform/core';
+
+type Profile = { name: string; note: string };
+type Values = { mode: Pattern; profile: Profile };
+const MODES = [
+  { label: '可编辑', value: 'editable' },
+  { label: '禁用', value: 'disabled' },
+  { label: '只读', value: 'readOnly' },
+  { label: '阅读态', value: 'readPretty' },
+];
+
+const effects = defineEffects<Values>(({ reaction }) => {
+  reaction((d) => {
+    d.profile.$pattern = d.mode.$value;
+    d.profile.note.$pattern = 'editable';
+  });
+});
+
+function ProfileInput({ name, label }: { name: keyof Profile; label: string }) {
+  return (
+    <Field<Profile, typeof name> name={name}>
+      {(field) => <label htmlFor={field.id}>{label}：{field.pattern === 'readPretty' ? <span>{field.value}</span> : (
+        <Input id={field.id} value={field.value} disabled={field.disabled} readOnly={field.readOnly}
+          onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} />
+      )}</label>}
+    </Field>
+  );
+}
+
+export default function App() {
+  const form = useForm<Values>({
+    initialValues: { mode: 'editable', profile: { name: 'Ada', note: '始终可改' } },
+    effects: [effects],
+  });
+  return (
+    <Form form={form}>
+      <Field<Values, 'mode'> name="mode">
+        {(field) => <label htmlFor={field.id}>资料的 pattern
+          <Select<Pattern> id={field.id} value={field.value} options={MODES} onChange={field.onChange} onBlur={field.onBlur} style={{ width: 140 }} />
+        </label>}
+      </Field>
+      <ObjectField name="profile">
+        <ProfileInput name="name" label="姓名" />
+        <ProfileInput name="note" label="备注" />
+      </ObjectField>
+    </Form>
+  );
+}
+```
+
+`pattern` 有四种。
+
+| 值 | 输入框 |
+|---|---|
+| `editable` | 能改 |
+| `disabled` | 不能改。`$disabled = true` 就是这一种 |
+| `readOnly` | 能选中文字，不能改，值仍会提交 |
+| `readPretty` | 显示文字，不显示输入框 |
+
+写在父级上，子级跟着走。子级自己写了 `$pattern`，用子级的。`$pattern = undefined` 表示取消自己的设置，重新跟着父级。
+
+计算字段没有自己的 pattern 时，默认是 `readPretty`。
+
+订单表用同一套：编辑开关写在 `orders` 上，已发货的那一行再写成 `readPretty`。见 [订单行](/play/orders)。

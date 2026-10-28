@@ -1,7 +1,5 @@
 /api/ /api 301
 /decisions/ /decisions 301
-/tutorial/ /tutorial 301
-/guide/ /guide 301
 /usage/:name/ /usage/:name 301
 /tutorial/:name/ /tutorial/:name 301
 /guide/:name/ /guide/:name 301

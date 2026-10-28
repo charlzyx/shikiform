@@ -8,17 +8,25 @@ description: 用字段描述数据，用 reaction 描述联动。
 用字段描述数据，用 `reaction` 描述联动。输入框只负责显示。
 
 ```tsx preview
-import { Form, Field, Submit, useForm } from 'shikiform';
-import { FormItem, Input } from 'shikiform/ui';
+import { useState } from 'react';
+import { Button, Input } from 'antd';
+import { Form, Field, useForm } from 'shikiform';
 
 export default function Welcome() {
+  const [payload, setPayload] = useState('');
   const form = useForm({ initialValues: { name: 'Ada' } });
   return (
-    <Form form={form} onSubmit={() => undefined}>
-      <Field name="name" decorator={<FormItem label="姓名" />}>
-        <Input />
+    <Form form={form} onSubmit={(values) => setPayload(JSON.stringify(values))}>
+      <Field<{ name: string }, 'name'> name="name">
+        {(field) => (
+          <label htmlFor={field.id}>
+            姓名
+            <Input id={field.id} value={field.value} onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} />
+          </label>
+        )}
       </Field>
-      <Submit>提交</Submit>
+      <Button htmlType="submit">提交</Button>
+      <pre aria-live="polite">{payload}</pre>
     </Form>
   );
 }

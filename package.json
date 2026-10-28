@@ -30,16 +30,17 @@
     }
   },
   "scripts": {
-    "build": "rspress build",
-    "build:cf-pages": "rspress build",
+    "build": "npm run check:docs && rspress build && npm run build:play",
+    "build:cf-pages": "npm run build",
     "build:lib": "tsup && tsc -p tsconfig.emit.json --noEmit",
     "build:play": "vite build --config playground/vite.config.ts",
     "check": "tsc --noEmit",
-    "dev": "rspress dev",
+    "check:docs": "npm run build:lib && node scripts/check-docs-package.mjs",
+    "dev": "npm run build:lib && rspress dev",
     "dev:e2e": "vite --config playground/vite.config.ts",
     "preview": "rspress preview",
     "test": "vitest run",
-    "test:e2e": "npm run build && npm run build:play && playwright test"
+    "test:e2e": "npm run build && playwright test"
   },
   "dependencies": {
     "@live-demo/rspress": "^3.0.2",

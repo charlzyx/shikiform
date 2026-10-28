@@ -3,6 +3,11 @@ title: "00 · 应用的 UI 适配层"
 description: "shadcn 组件如何通过 connect / useDecorator 接入 ShikiForm"
 ---
 
+:::warning 历史设计草稿，不是可复制的正式 API
+本页来自 `archive/usage`，保留的是设计讨论和目标写法，可能包含未导出的组件或不同语义。请从 [教程](/tutorial) 复制已校验源码，从 [API](/api) 查询公开导出；可操作的真实场景在 [可点的例子](/guide/demos)。未实现项见 [清单](/coverage-checklist)。
+:::
+
+
 ShikiForm 核心是 headless 的。应用在自己的仓库里写一次适配层：`connect` 把 shadcn 组件的 `onValueChange` / `onCheckedChange` 等映射成统一的 `value / onChange`；`useDecorator` 让 `FormItem` 读 label、required、errors、validating。其他所有用例都从这里 import `Input / Select / FormItem / CellItem`。
 
 **演示的特性：** Decorator vs Component 分工 · connect 适配

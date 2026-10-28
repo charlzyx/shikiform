@@ -2,8 +2,7 @@ import react from '@vitejs/plugin-react'
 import { cpSync, mkdirSync } from 'node:fs'
 import path from 'node:path'
 import { defineConfig, type Plugin } from 'vite'
-
-const routes = ['query', 'query-native', 'schema', 'sku', 'merged', 'nested', 'tabs', 'large', 'virtual', 'headless', 'row-edit']
+import { PLAY_ROUTES } from './routes'
 
 /** Static hosts have no SPA fallback. Copy the shell to each demo path so `/play/tabs` serves the app. */
 function copyPlayRoutes(): Plugin {
@@ -12,7 +11,7 @@ function copyPlayRoutes(): Plugin {
     apply: 'build',
     closeBundle() {
       const index = path.resolve(__dirname, '../dist/play/index.html')
-      for (const route of routes) {
+      for (const route of PLAY_ROUTES) {
         const dest = path.resolve(__dirname, '../dist/play', route, 'index.html')
         mkdirSync(path.dirname(dest), { recursive: true })
         cpSync(index, dest)

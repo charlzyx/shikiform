@@ -3,6 +3,11 @@ title: "05 · 树"
 description: "菜单编辑器：树节点坐标 pos（如 [0,2,1]）、depth、按 pos 移动 / 定位（findPos → pathOf）、禁止移入自身后代（pos 前缀判断）"
 ---
 
+:::warning 历史设计草稿，不是可复制的正式 API
+本页来自 `archive/usage`，保留的是设计讨论和目标写法，可能包含未导出的组件或不同语义。请从 [教程](/tutorial) 复制已校验源码，从 [API](/api) 查询公开导出；可操作的真实场景在 [可点的例子](/guide/demos)。未实现项见 [清单](/coverage-checklist)。
+:::
+
+
 菜单编辑器：节点模板递归，节点即 record。**树节点比数组行多一个 `pos`**——索引路径二维坐标，如 `[0,2,1]`：`pos.length` = 层级 depth，最后一位 = 兄弟中的 index，数据 path 由它推出（`menus.0.children.2.children.1`）。移动全部用 pos（`move(fromPos, toPos)`、缩进 / 反缩进 / 上下移），禁止移入自身后代 = 目标 pos 以源 pos 为前缀；按 depth 做联动和分层校验；按 pos 查询。
 
 **演示的特性：** TreeField · pos / depth · useNode / useTree · 跨层移动 · 分层校验
