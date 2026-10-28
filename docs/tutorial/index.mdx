@@ -1,0 +1,45 @@
+---
+title: 开始
+description: 左边是说明，右边可以改代码。
+---
+
+# 教程
+
+每一步先看右边的例子，再读左边的概念。点 **看答案** 换成参考写法，点 **重置** 回到这一步开始时的代码。
+
+`Input` 这些组件来自 `shikiform/ui`，里面是 antd。值和校验在 `useForm` / `Field` 里。
+
+## 目录
+
+1. [最小表单](/tutorial/1-start)
+2. [四种字段](/tutorial/2-fields)
+3. [path 和提交](/tutorial/3-path)
+4. [$ 状态](/tutorial/4-state)
+5. [pattern](/tutorial/5-pattern)
+6. [reaction](/tutorial/6-reaction)
+7. [reaction.each](/tutorial/7-array)
+8. [watch](/tutorial/8-watch)
+9. [规则和提交](/tutorial/9-rules)
+10. [接下来](/tutorial/10-next)
+
+整站怎么排，见 [大纲](/OUTLINE)。
+
+<div className="tutorial-register">
+
+```tsx live
+import { useForm } from 'shikiform';
+import { FormItem } from 'shikiform/ui';
+import { zodResolver } from 'shikiform/zod';
+import { z } from 'zod';
+
+void useForm;
+void FormItem;
+void zodResolver;
+void z;
+
+export default function Register() {
+  return null;
+}
+```
+
+</div>

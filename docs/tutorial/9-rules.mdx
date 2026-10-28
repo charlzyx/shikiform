@@ -1,0 +1,35 @@
+---
+title: 9. 规则和提交
+description: 姓名用 rules，邮箱和年龄用 Zod。离开输入框就校验。
+pageType: doc-wide
+outline: false
+---
+
+import starter from './_files/09-validation.tsx?raw';
+import solution from './_files/09-validation.solution.tsx?raw';
+import { StepNav, TutorialPlay } from '../_components/TutorialStep';
+
+# 规则和提交
+
+<div className="tutorial-step">
+<div className="tutorial-copy">
+
+右边有姓名、邮箱和年龄。现在留空，离开输入框，没有提示。
+
+字段自己的规则写在 `rules` 上。整张表的形状可以用 Zod。`zodResolver` 从 `shikiform/zod` 来，把检查结果交给 `useForm` 的 `resolver`。离开输入框会校验，是因为 `validateTrigger` 里有 `onBlur`；提交时会再查一遍。
+
+起始代码写了 schema，也调用了 `zodResolver`，但没有传进 `useForm`。姓名也没有规则。
+
+**这一步：** `useForm` 加上 `resolver: zodResolver(schema)`。姓名的 `rules` 写成必填，以及 `minLength: 2`、文案「至少 2 个字」。
+
+姓名一个字：失焦看到「至少 2 个字」。邮箱格式不对、年龄小于 18：看到 Zod 的文案。都合法之后，提交 JSON 里有三项。
+
+输入框卸掉之后还校不校验，以库的行为为准。
+
+<StepNav prev={{ href: '/tutorial/8-watch', title: 'watch' }} next={{ href: '/tutorial/10-next', title: '接下来' }} />
+
+</div>
+
+<TutorialPlay starter={starter} solution={solution} />
+
+</div>

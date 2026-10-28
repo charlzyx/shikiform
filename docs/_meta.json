@@ -1,0 +1,24 @@
+[
+  "index",
+  {
+    "type": "dir",
+    "name": "tutorial",
+    "label": "教程",
+    "collapsed": false
+  },
+  {
+    "type": "dir",
+    "name": "guide",
+    "label": "指南",
+    "collapsed": false
+  },
+  "api",
+  {
+    "type": "dir",
+    "name": "usage",
+    "label": "用例",
+    "collapsed": false
+  },
+  "decisions",
+  "coverage-checklist"
+]
