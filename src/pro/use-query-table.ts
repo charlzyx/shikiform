@@ -76,6 +76,11 @@ export interface UseQueryTableOptions<TValues, TParams, TRow> {
    */
   useQuery?: (args: QueryHookArgs<TRow>) => QueryHookResult<TRow>
   defaultPageSize?: number
+  /**
+   * Array field that receives each response's rows (`data`), so the page can be edited in place
+   * (`QueryList` / `ProArrayTable` in `shikiform/antd`). Written like a reaction: it does not mark the form dirty.
+   */
+  rows?: FieldPath<TValues>
 }
 
 export interface QueryTableApi<TValues, TParams, TRow> {
@@ -199,6 +204,16 @@ export function useQueryTable<TValues, TParams = TValues, TRow = unknown>(
   }, [mode])
 
   const full = queried.data?.data ?? []
+  const rowsPath = options.rows ? String(options.rows) : ''
+  useEffect(() => {
+    if (!rowsPath || !queried.data) return
+    const pageRows = mode === 'client'
+      ? queried.data.data.slice(Math.max(0, pageRef.current - 1) * sizeRef.current, Math.max(0, pageRef.current - 1) * sizeRef.current + sizeRef.current)
+      : queried.data.data
+    form.batch(() => {
+      form.query(rowsPath).$value = structuredClone(pageRows)
+    })
+  }, [rowsPath, queried.data, mode === 'client' ? `${page}:${pageSize}` : ''])
   const data = mode === 'client' ? full.slice(Math.max(0, page - 1) * pageSize, Math.max(0, page - 1) * pageSize + pageSize) : full
   const total = mode === 'client' ? full.length : (queried.data?.total ?? 0)
 

@@ -3,7 +3,10 @@
  * - adapter: `connect` / `mapProps` / `mapReadPretty` / `mapFieldProps` and the `FormItem` decorator (over `useField`);
  * - components: `Input`, `InputNumber`, `Select`, `Switch`, `Checkbox`, `Radio`, `DatePicker` wired through `connect`;
  * - form hook: `useAntdForm` / `AppField` with pre-bound inputs (over `createFormHook`);
- * - tables: `ArrayTable`, `MergedTable`, `ProQueryTable` / `QueryForm` (over `useArrayField` / `useQueryTable`).
+ * - tables: `ArrayTable`, `MergedTable`, `ProQueryTable` / `QueryForm` (over `useArrayField` / `useQueryTable`),
+ *   `ProArrayTable` (over `useArrayTable` / `useColumnSettings`), `QueryList` (over `useQueryTable`);
+ * - shadow forms: `ShadowForm`, `ShadowModal`, `ShadowDrawer`, `ShadowPopconfirm`, `useShadow` (over `useShadowForm`);
+ * - pro inputs: `EnumPretty`, `Suggestion` (over `useSuggestion`), `CascaderPlus` (over `useLazyCascader`).
  *
  * @packageDocumentation
  */
@@ -18,3 +21,15 @@ export { createAntdFormHook, antdForm, useAntdField, useAntdForm, withAntdFieldG
 export { ArrayTable } from './tables/array-table'
 export { MergedTable, groupRowSpan } from './tables/merged-table'
 export { ProQueryTable, QueryForm } from './tables/query-table'
+export { ProArrayTable } from './tables/pro-array-table'
+export type { ProArrayTableCell, ProArrayTableColumn, ProArrayTableProps } from './tables/pro-array-table'
+export { QueryList } from './tables/query-list'
+export type { QueryListProps } from './tables/query-list'
+export { ShadowDrawer, ShadowForm, ShadowModal, ShadowPopconfirm, useShadow } from './shadow/shadow'
+export type { ShadowOwnProps } from './shadow/shadow'
+export { EnumPretty, EnumPrettyView } from './components/enum-pretty'
+export type { EnumPrettyProps, EnumPrettyViewProps, EnumShowType } from './components/enum-pretty'
+export { Suggestion, SuggestionSelect } from './components/suggestion'
+export type { SuggestionSelectProps } from './components/suggestion'
+export { CascaderPlus, CascaderPlusView } from './components/cascader-plus'
+export type { CascaderPlusViewProps } from './components/cascader-plus'
