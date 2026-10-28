@@ -21,6 +21,8 @@ export interface WriterDeps {
   validator: Validator
   declarations: Declarations
   options: FormOptions<any>
+  /** Injected by the engine (structure layer): keep id-less array rows' identity across a cell edit. */
+  carryRowIdentity?: (path: string, before: unknown, after: unknown) => void
 }
 
 /**
@@ -91,7 +93,9 @@ export class StateWriter {
     const { store, notifier, scheduler, declarations } = this.deps
     const old = getAt(store.values, path)
     if (deepEqual(old, value)) return false
+    const before = store.values
     store.values = setAt(store.values, path, value)
+    this.deps.carryRowIdentity?.(path, before, store.values)
     if (fromReaction) {
       const field = store.ensure(path)
       field.computed = true

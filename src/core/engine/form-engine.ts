@@ -68,7 +68,10 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     validator.prepare = () => declarations.applyItemTemplates()
     this.arrays = new ArrayOps(store, scheduler, declarations)
     this.ui = new UiRegistry(store, notifier, scheduler)
-    this.writer = new StateWriter({ store, notifier, scheduler, validator, declarations, options })
+    this.writer = new StateWriter({
+      store, notifier, scheduler, validator, declarations, options,
+      carryRowIdentity: (path, before, after) => this.arrays.carryIdentity(path, before, after),
+    })
     this.draft = createHandle(this, '') as Draft<T>
     for (const [path, spec] of Object.entries(options.trees ?? {})) {
       this.registerTree(path, spec)

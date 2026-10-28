@@ -1,6 +1,6 @@
 import type { Declarations } from '../declarations/declarations'
 import type { Scheduler } from '../effects/scheduler'
-import { joinPath, setAt } from '../shared/path'
+import { getAt, joinPath, parentPath, setAt } from '../shared/path'
 import type { FieldStore } from '../state/field-store'
 import { reindexById } from './migrate'
 import { readRowId } from '../shared/tree-ops'
@@ -23,6 +23,24 @@ export class ArrayOps {
 
   register(path: string, rowKey?: string): void {
     this.arrays.set(path, { rowKey })
+  }
+
+  /**
+   * A value write rebuilt the objects on its path (immutable `setAt`). Rows of registered arrays above the
+   * written path are new objects with the same occupant: hand their identity to the new object, so an
+   * id-less row keeps its render key (and its selection / expansion) after a cell edit.
+   */
+  carryIdentity(writtenPath: string, before: unknown, after: unknown): void {
+    for (const path of this.arrays.keys()) {
+      if (!writtenPath.startsWith(path + '.')) continue
+      const index = Number(writtenPath.slice(path.length + 1).split('.')[0])
+      if (!Number.isInteger(index)) continue
+      const oldRow = getAt(before, joinPath(path, String(index)))
+      const newRow = getAt(after, joinPath(path, String(index)))
+      if (oldRow === newRow || !oldRow || !newRow || typeof oldRow !== 'object' || typeof newRow !== 'object') continue
+      const id = this.ident.get(oldRow)
+      if (id && !this.ident.has(newRow)) this.ident.set(newRow, id)
+    }
   }
 
   /** Row keys for rendering. Uses `rowKey` or `id` when present, otherwise a stable object identity. */
@@ -112,6 +130,9 @@ export class ArrayOps {
     store.values = setAt(store.values, path, next)
     scheduler.dirtyRows.set(path, dirty)
     scheduler.markStructure(path)
+    // The array value itself changed: wake readers of `$value` on it and its ancestors (useWatch, reactions).
+    // Row-level deps stay on dirtyRows, so `each` instances whose occupant did not change still skip.
+    for (let cursor: string | null = path; cursor; cursor = parentPath(cursor)) scheduler.markDirty(`${cursor}:value`)
     this.declarations.applyItemTemplates()
     scheduler.enqueueFromDirty()
     scheduler.flush()
