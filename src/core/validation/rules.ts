@@ -1,4 +1,4 @@
-import type { EnumOption } from './enum'
+import type { EnumOption } from '../enum/enum-source'
 import { isStandardSchema, schemaIssuePath, type SchemaIssue, type StandardSchemaV1 } from './schema'
 
 /** Cross-field context. `record` is the nearest object. `parent` skips the enclosing array. */

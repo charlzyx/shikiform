@@ -40,7 +40,7 @@ useForm<T>(options?: FormOptions<T>): FormEngine<T>
 
 完整选项、校验默认触发器和提交返回值见 [创建表单](/api#创建表单)。非 React 环境用 `createForm`。
 
-[实现：use-form.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/use-form.ts)
+[实现：use-form.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-form.ts)
 
 ## useFormContext
 
@@ -95,7 +95,7 @@ useField<TScope, N extends FieldPath<TScope>>(
 
 `useField` 订阅该路径并注册基础字段模型，但**不会替你渲染、隐藏输入或管理 JSX 规则的挂载/卸载**。自定义 UI 要处理 `display` / `pattern`；需要 JSX `rules`、`required` 生命周期时优先复用 `<Field>`。`hidden` 仍校验/提交，`none` 才跳过，见 [显隐](/guide/display) 和 [未挂载规则](/guide/unmounted)。
 
-[实现：use-field.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/use-field.ts)
+[实现：use-field.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-field.ts)
 
 ## useWatch
 
@@ -115,7 +115,7 @@ useWatch<T, S>(select: (draft: Draft<T>) => S): S
 
 `useWatch` 是 React 中的读取/渲染；effects 里的 `watch(source, effect)` 是值变化后的动作，两者不是同一 API。参见 [联动](/guide/effects)。
 
-[实现：use-watch.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/use-watch.ts)
+[实现：use-watch.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-watch.ts)
 
 ### 完整例子：一个绑定、一个 selector、一个操作按钮
 
@@ -188,7 +188,7 @@ useArrayField<TScope, N extends ArrayPath<TScope>>(
 
 它只订阅结构（长度/顺序/行身份），不会因为单元格编辑就更新整个列表。单元格另用 `useField`，汇总另用 `useWatch`。不要原地修改返回的数组或 `getValue` 引用来代替操作方法。嵌套行需用 `RowScope` 提供路径；`<ArrayField>` 已替你做这层重复渲染。
 
-[实现：use-array.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/use-array.ts) · [数组教程](/tutorial/7-array)
+[实现：use-array.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-array.ts) · [数组教程](/tutorial/7-array)
 
 ## useArrayMove
 
@@ -209,7 +209,7 @@ useArrayMove(name: string): {
 
 它不订阅结构；移动后的列表重渲染依赖 `useArrayField` / `ArrayField`。`move` 和数组 handle 一样使用最终下标，不能传行 ID。事件对象没有 `dataTransfer` 时会使用同一 Hook 实例保存的拖动起点。
 
-[实现：use-array.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/use-array.ts)
+[实现：use-array.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-array.ts)
 
 ### 完整例子：键不变，路径随顺序变化
 
@@ -281,7 +281,7 @@ useTreeField(name: string, options?: {
 
 `[0, 2]` 表示第一个根节点的第三个孩子，不是节点 ID。稳定 ID 用于移动时保持字段状态；不要用当前坐标代替业务 ID。
 
-[实现：use-tree.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/use-tree.ts) · [结构与路径](/guide/path)
+[实现：use-tree.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-tree.ts) · [结构与路径](/guide/path)
 
 ## useTreeMove
 
@@ -301,7 +301,7 @@ useTreeMove(name: string): {
 
 不订阅；`bind(pos)` 返回原生拖动处理器，drop 会阻止冒泡，使用本 Hook 记录的源坐标。这不是跨表单拖放协议。程序调用 `move` 可检查 `ok/reason`；`bind` 的 drop 本身不会替你显示失败提示。
 
-[实现：use-tree.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/use-tree.ts)
+[实现：use-tree.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-tree.ts)
 
 ### 完整例子：同层拖动和显式移动结果
 

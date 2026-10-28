@@ -1,8 +1,8 @@
 import { useCallback, useRef, useSyncExternalStore, type DragEvent } from 'react'
-import { joinPath } from '../core/path'
-import type { MoveResult } from '../core/types'
-import type { Pos } from '../core/tree'
-import { useFormContext, useScope } from './context'
+import { joinPath } from '../../core/shared/path'
+import type { MoveResult } from '../../core/types'
+import type { Pos } from '../../core/structure/tree-ops'
+import { useFormContext, useScope } from '../context'
 
 /**
  * Tree handle. `move(from, to)` uses final `pos` coordinates and refuses a move into a descendant.

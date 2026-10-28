@@ -4,17 +4,18 @@
  *
  * @packageDocumentation
  */
-export { createForm, defineEffects, FormEngine } from './form'
-export { comboMatch, comboOptions } from './combo'
-export { EnumSource, EnumSource as Enum, asOptions, isEnumBinding } from './enum'
+export { createForm, FormEngine } from './engine/form-engine'
+export { defineEffects } from './effects/define-effects'
+export { comboMatch, comboOptions } from './enum/combo'
+export { EnumSource, EnumSource as Enum, asOptions, isEnumBinding } from './enum/enum-source'
 export { ShikiConflictError, ShikiCycleError, ShikiUiError } from './errors'
 export {
   collectSchemaIssues,
   groupSchemaIssues,
   isStandardSchema,
   schemaIssuePath,
-} from './schema'
-export type { SchemaIssue, StandardSchemaV1 } from './schema'
+} from './validation/schema'
+export type { SchemaIssue, StandardSchemaV1 } from './validation/schema'
 export {
   findPos,
   getNode,
@@ -27,10 +28,10 @@ export {
   posKey,
   posOf,
   samePos,
-} from './tree'
-export type { Pos, TreeMoveResult } from './tree'
-export { normalizeRules, runRules } from './validate'
-export type { Rule, RulesInput, ValidateCtx } from './validate'
+} from './structure/tree-ops'
+export type { Pos, TreeMoveResult } from './structure/tree-ops'
+export { normalizeRules, runRules } from './validation/rules'
+export type { Rule, RulesInput, ValidateCtx } from './validation/rules'
 export type {
   ArrayItemOf,
   ArrayPath,

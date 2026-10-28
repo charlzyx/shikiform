@@ -1,8 +1,8 @@
 import { useSyncExternalStore } from 'react'
-import type { EnumOption } from '../core/enum'
-import { joinPath } from '../core/path'
-import type { Display, FieldPath, PathValue, Pattern } from '../core/types'
-import { useFormContext, useScope } from './context'
+import type { EnumOption } from '../../core/enum/enum-source'
+import { joinPath } from '../../core/shared/path'
+import type { Display, FieldPath, PathValue, Pattern } from '../../core/types'
+import { useFormContext, useScope } from '../context'
 
 /**
  * What `useField` and `<Field>` hand to an input.

@@ -8,14 +8,14 @@ const harness = vi.hoisted(() => ({
   field: null as any,
   components: {} as Record<string, (props: any) => ReactElement<any>>,
 }))
-vi.mock('../src/react/create-form-hook', () => ({
+vi.mock('../src/react/factory/create-form-hook', () => ({
   createFormHookContexts: () => ({ fieldContext: null, formContext: null, useFieldContext: () => harness.field }),
   createFormHook: (options: any) => {
     harness.components = options.fieldComponents
     return { useAppForm: () => {}, withForm: () => {}, withFieldGroup: () => {} }
   },
 }))
-import '../src/antd/hook'
+import '../src/antd/form-hook/form-hook'
 
 function setup(value: unknown, pattern: 'editable' | 'disabled' | 'readOnly' | 'readPretty' = 'editable') {
   const form = createForm({ initialValues: { value }, fields: { value: { pattern } } })

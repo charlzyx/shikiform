@@ -1,6 +1,6 @@
 import { useRef } from 'react'
-import { createForm, type FormEngine } from '../core/form'
-import type { FormOptions } from '../core/types'
+import { createForm, type FormEngine } from '../../core/engine/form-engine'
+import type { FormOptions } from '../../core/types'
 
 /**
  * Create a form and keep the same instance for the lifetime of the component.

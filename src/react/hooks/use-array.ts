@@ -1,7 +1,7 @@
 import { useCallback, useRef, useSyncExternalStore, type DragEvent } from 'react'
-import { joinPath } from '../core/path'
-import type { ArrayItemOf, ArrayPath } from '../core/types'
-import { useFormContext, useScope } from './context'
+import { joinPath } from '../../core/shared/path'
+import type { ArrayItemOf, ArrayPath } from '../../core/types'
+import { useFormContext, useScope } from '../context'
 
 /** One rendered row. `key` is the row id, or a stable identity when the row has none. */
 export interface ArrayKey {

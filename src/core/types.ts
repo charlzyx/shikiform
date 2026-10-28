@@ -1,7 +1,7 @@
-import type { EnumBinding, EnumOption, EnumSource } from './enum'
-import type { StandardSchemaV1 } from './schema'
-import type { Rule, RulesInput, ValidateCtx } from './validate'
-import type { Pos } from './tree'
+import type { EnumBinding, EnumOption, EnumSource } from './enum/enum-source'
+import type { StandardSchemaV1 } from './validation/schema'
+import type { Rule, RulesInput, ValidateCtx } from './validation/rules'
+import type { Pos } from './structure/tree-ops'
 
 export type { StandardSchemaV1, RulesInput }
 

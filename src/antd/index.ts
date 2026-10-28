@@ -4,7 +4,7 @@
  *
  * @packageDocumentation
  */
-export { ArrayTable } from './array-table'
-export { createAntdFormHook, antdForm, useAntdField, useAntdForm, withAntdFieldGroup, withAntdForm } from './hook'
-export { MergedTable, groupRowSpan } from './merged-table'
-export { ProQueryTable, QueryForm } from './query-table'
+export { ArrayTable } from './tables/array-table'
+export { createAntdFormHook, antdForm, useAntdField, useAntdForm, withAntdFieldGroup, withAntdForm } from './form-hook/form-hook'
+export { MergedTable, groupRowSpan } from './tables/merged-table'
+export { ProQueryTable, QueryForm } from './tables/query-table'

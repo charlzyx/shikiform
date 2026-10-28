@@ -1,8 +1,8 @@
 import { Button, Checkbox, Form, Input, InputNumber, Select, Switch, type ButtonProps, type InputNumberProps, type InputProps, type SelectProps } from 'antd'
 import type { ComponentProps, FocusEventHandler } from 'react'
-import type { Draft } from '../core/types'
-import { createFormHook, createFormHookContexts } from '../react/create-form-hook'
-import { useWatch } from '../react/use-watch'
+import type { Draft } from '../../core/types'
+import { createFormHook, createFormHookContexts } from '../../react/factory/create-form-hook'
+import { useWatch } from '../../react/hooks/use-watch'
 
 const contexts = createFormHookContexts()
 
