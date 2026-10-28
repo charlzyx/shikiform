@@ -22,6 +22,7 @@ npm install
 npm run dev         # Rspress 文档站
 npm test            # 正式库 + 同源教程的 vitest
 npm run check       # 库、playground、测试的 tsc --noEmit（教程另有 check:docs）
+npm run check:api   # 真实 Hook/工厂与 pro/antd 导出对应的参考章节覆盖
 npm run check:docs  # npm pack 隔离消费者：同份教程/执行 MDX 的类型、bundle、SSR
 npm run build       # 文档 + playground，输出 dist/。Cloudflare Pages 跑的就是这条
 npm run preview     # 本地预览 dist/
@@ -48,6 +49,10 @@ npm run test:e2e    # 文档构建 + playground 构建，再跑 Playwright
 Playground 随 `npm run build` 一起进入 `dist/play/`。每个 `/play/...` 路由都有静态入口；从 [可点的例子](https://shikiform.pages.dev/guide/demos) 进入，不依赖开发服务器的 SPA fallback。只改 playground 时可单独运行 `npm run build:play`，它不会清掉 `dist/` 下的文档。
 
 默认构建先运行 `check:docs`：从本次 `npm pack` 解包创建消费者，复制原样教程与可执行 MDX，严格类型检查、生产打包，并以该包执行 SSR。这个检查不访问注册表安装依赖，不代表浏览器交互/水合通过；真实浏览器仍由 `test:e2e` 覆盖。
+
+`check:docs` 同时运行 `check:api`：从实际 TypeScript 公开入口解析 React Hooks/工厂，以及全部 pro/antd 运行时导出，核对 `docs/reference/exports.json`、命名章节和签名代码。它防止已有 Hook 再次只剩空索引或假导出，不自动证明每句话的语义；文案仍需与源码复核，页面里的 `tsx preview` 示例进入同一 pack 消费者门。
+
+ESM 入口共享内部 chunks，避免 `shikiform` 与 `shikiform/antd` 各自创建一份 React context。pack 门还验证跨入口 Provider/Hook/行 scope 和 core 类身份，并递归检查打包后的 core 不引入 React、headless 入口不引入 antd；`lib` 中的共享 chunks 必须随包一起交付，不能只复制四个入口文件。这些执行检查仍是 SSR，不是浏览器挂载/事件测试。
 
 ### 验证部署成功
 

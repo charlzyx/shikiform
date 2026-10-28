@@ -1,5 +1,5 @@
 import { Button, Checkbox, Form, Input, InputNumber, Select, Switch, type ButtonProps, type InputNumberProps, type InputProps, type SelectProps } from 'antd'
-import type { ComponentProps } from 'react'
+import type { ComponentProps, FocusEventHandler } from 'react'
 import type { Draft } from '../core/types'
 import { createFormHook, createFormHookContexts } from '../react/create-form-hook'
 import { useWatch } from '../react/use-watch'
@@ -19,8 +19,11 @@ function FieldInput(props: InputProps) {
         id={field.id}
         value={field.value ?? ''}
         disabled={field.disabled || props.disabled}
-        readOnly={field.readOnly}
-        onChange={(event) => field.onChange(event.target.value)}
+        readOnly={field.readOnly || props.readOnly}
+        onChange={(event) => {
+          field.onChange(event.target.value)
+          props.onChange?.(event)
+        }}
         onBlur={(event) => {
           field.onBlur()
           props.onBlur?.(event)
@@ -41,9 +44,15 @@ function FieldSelect(props: SelectProps) {
         id={field.id}
         options={options}
         value={field.value as never}
-        disabled={field.disabled || props.disabled}
-        onChange={(value) => field.onChange(value)}
-        onBlur={field.onBlur}
+        disabled={field.disabled || field.readOnly || props.disabled}
+        onChange={(value, option) => {
+          field.onChange(value)
+          props.onChange?.(value, option)
+        }}
+        onBlur={(event) => {
+          field.onBlur()
+          props.onBlur?.(event)
+        }}
       />
     </Form.Item>
   )
@@ -59,23 +68,60 @@ function FieldNumber(props: InputNumberProps) {
         id={field.id}
         value={field.value}
         disabled={field.disabled || props.disabled}
-        readOnly={field.readOnly}
-        onChange={(value) => field.onChange(typeof value === 'number' ? value : Number(value ?? 0))}
-        onBlur={field.onBlur}
+        readOnly={field.readOnly || props.readOnly}
+        onChange={(value) => {
+          field.onChange(typeof value === 'number' ? value : Number(value ?? 0))
+          props.onChange?.(value)
+        }}
+        onBlur={(event) => {
+          field.onBlur()
+          props.onBlur?.(event)
+        }}
       />
     </Form.Item>
   )
 }
 
-function FieldSwitch(props: ComponentProps<typeof Switch>) {
+function FieldSwitch({ onBlur, ...props }: ComponentProps<typeof Switch> & { onBlur?: FocusEventHandler<HTMLButtonElement> }) {
   const field = contexts.useFieldContext<boolean>()
-  return <Switch {...props} checked={!!field.value} disabled={field.disabled || props.disabled} onChange={(checked) => field.onChange(checked)} />
+  // Public SwitchProps omit onBlur, but AntD forwards it to rc-switch's button.
+  // Keep the real button currentTarget rather than adding a different wrapper.
+  const blurProps = { onBlur: ((event) => {
+    field.onBlur()
+    onBlur?.(event)
+  }) satisfies FocusEventHandler<HTMLButtonElement> }
+  return (
+      <Switch
+        {...props}
+        {...blurProps}
+        id={field.id}
+        checked={!!field.value}
+        disabled={field.disabled || field.readOnly || field.pattern === 'readPretty' || props.disabled}
+        onChange={(checked, event) => {
+          field.onChange(checked)
+          props.onChange?.(checked, event)
+        }}
+      />
+  )
 }
 
 function FieldCheckbox(props: ComponentProps<typeof Checkbox>) {
   const field = contexts.useFieldContext<boolean>()
   return (
-    <Checkbox {...props} checked={!!field.value} disabled={field.disabled || props.disabled} onChange={(event) => field.onChange(event.target.checked)}>
+    <Checkbox
+      {...props}
+      id={field.id}
+      checked={!!field.value}
+      disabled={field.disabled || field.readOnly || field.pattern === 'readPretty' || props.disabled}
+      onChange={(event) => {
+        field.onChange(event.target.checked)
+        props.onChange?.(event)
+      }}
+      onBlur={(event) => {
+        field.onBlur()
+        props.onBlur?.(event)
+      }}
+    >
       {props.children}
     </Checkbox>
   )

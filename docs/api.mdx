@@ -7,6 +7,24 @@ description: 正式包入口、Field 绑定、联动与提交校验。
 
 这里描述正式包，不描述教程专用的第二套 API。教程和完整示例都使用同一个 `FormEngine`。
 
+## 按名字查 API
+
+本页是入口和常用语义；每个 Hook 的真实签名、参数默认、返回值、订阅边界及完整例子在下面的参考页。**业务状态先使用通用 React Hooks；antd 是可选的 UI 适配，不是另一份状态引擎。**
+
+| 要查什么 | 详细参考 |
+|---|---|
+| `useForm`、`useFormContext` | [创建/取得表单](/reference/react-hooks#useform) |
+| `useField(name)`、`useWatch(select)` | [字段绑定](/reference/react-hooks#usefield)、[依赖订阅](/reference/react-hooks#usewatch) |
+| `useArrayField`、`useArrayMove` | [数组结构/增删/拖动](/reference/react-hooks#usearrayfield) |
+| `useTreeField`、`useTreeMove` | [树结构/移动](/reference/react-hooks#usetreefield) |
+| `createFormHookContexts`、`createFormHook` | [通用 React 预绑定工厂](/reference/form-hook) |
+| `useAppForm`、`AppField`、`AppForm`、`withForm`、`withFieldGroup` | [工厂与实例返回成员](/reference/form-hook#useappform)，不是独立包导出 |
+| `useAntdForm`、`useAntdField`、`createAntdFormHook`、`antdForm` | [antd 预绑定与当前字段上下文](/reference/antd) |
+| `withAntdForm`、`withAntdFieldGroup`、antd 表格/布局组件 | [antd 参考](/reference/antd#withantdform) |
+| `useQueryTable`、`useBuiltinQuery` | [查询 Hook 参数、返回和查询生命周期](/reference/query-hooks) |
+
+想知道控件怎样封装，从 [把 antd 接到通用字段绑定](/guide/antd-binding) 开始：先手动接线，再复用现成预绑定，最后写自己的输入组件。没有 `useArray` / `useTree` 这样的公开缩写，也不要把其他库的无参 `useField()` 签名套到这里。
+
 ## 模块入口
 
 | 入口 | 主要导出 | 用在 |
@@ -14,7 +32,7 @@ description: 正式包入口、Field 绑定、联动与提交校验。
 | `shikiform` | `useForm`、`Form`、`Field`、`ObjectField`、`ArrayField`、`TreeField`、`useField`、`useWatch`、`Watch`、`defineEffects` | React 结构和绑定 |
 | `shikiform/core` | `createForm`、`defineEffects`、`EnumSource`、`comboMatch`、`comboOptions`；`FormOptions`、`RulesInput`、`Pattern` 等类型 | 无 React 的表单、校验和联动 |
 | `shikiform/pro` | `useQueryTable`、`useBuiltinQuery` | 无 UI 的查询表逻辑 |
-| `shikiform/antd` | `useAntdForm`、`createAntdFormHook`、`withAntdForm`、`withAntdFieldGroup`、`ProQueryTable`、`QueryForm`、`ArrayTable`、`MergedTable` | Ant Design 适配 |
+| `shikiform/antd` | `useAntdForm`、`useAntdField`、`createAntdFormHook`、`antdForm`、`withAntdForm`、`withAntdFieldGroup`、`ProQueryTable`、`QueryForm`、`ArrayTable`、`MergedTable`、`groupRowSpan` | Ant Design 适配 |
 
 ```tsx
 import { Field, Form, useForm } from 'shikiform';
@@ -137,6 +155,6 @@ const effects = defineEffects<Values>(({ reaction, watch, query }) => {
 
 ## 查询和 Ant Design
 
-查询 hook 的参数、请求结果与行操作以 `shikiform/pro` 导出的类型为准。先看 [查询表](/play/query)；`shikiform/antd` 的表格只渲染 hook/表单模型，不管理第二份业务值。
+查询 hook 的参数、请求结果与行操作见 [查询 Hooks](/reference/query-hooks) 和 [查询表](/play/query)；`shikiform/antd` 的表格只渲染 hook/表单模型，不管理第二份业务值。
 
-`useAntdForm` / `createAntdFormHook` 提供可复用的预绑定组件组合；教程先用公开 `Field` 展示绑定细节，再按项目需要封装。完整 pro/antd 参数参考仍待逐项补齐，不能把本页索引当作所有接口已覆盖，见 [案例补全清单](/coverage-checklist)。
+`useAntdForm` / `createAntdFormHook` 提供可复用的预绑定组件组合；`useAntdField()` 是匹配 AppField context 的无参读取别名，不是 AntD 专属状态引擎。签名与适配边界见 [antd 参考](/reference/antd)，从零接线见 [antd 指南](/guide/antd-binding)。教程仍先用公开 `Field` 展示绑定细节，再按项目需要封装。

@@ -1,0 +1,222 @@
+---
+title: 组件 Hook 工厂
+description: createFormHookContexts、createFormHook、useAppForm、AppField、AppForm 与 typed 字段组。
+---
+
+# 组件 Hook 工厂
+
+`useField(name)` 适合手写绑定；每个输入都重复 `value/onChange/onBlur` 时，可以用 `createFormHook` **预绑定一组组件**。它不会创建第二个 store，也不要求新的字段描述语言。
+
+**普通 `Form` + `useField` / `<Field>` 是起点，工厂是可选的通用 React 复用层，不是 UI 核心。** 只有几种输入时可以直接写薄适配，不必为了使用 ShikiForm 先定义工厂。
+
+从 `shikiform` 导入 `createFormHook` / `createFormHookContexts`。`useAppForm`、`withForm`、`withFieldGroup` 是工厂的返回值；`AppField` / `AppForm` 是表单实例上的组件，**不是单独的包导出**。
+
+| 层 | 负责什么 |
+|---|---|
+| FormEngine | 值、字段状态、校验与 effects |
+| Field / AppField | 当前字段的订阅、显示和挂载生命周期 |
+| 工厂 context | 把当前 FieldBinding / FormEngine 交给预绑定组件 |
+| 自定义输入组件 | 把绑定转成 UI props，展示标签、错误和只读文本 |
+
+先看 [基础 Hooks](/reference/react-hooks)，已有 antd 预绑定可用时看 [API 模块入口](/api#模块入口)，不必重新发明一套表单引擎。
+
+## createFormHookContexts
+
+```ts
+createFormHookContexts(): {
+  fieldContext: React.Context<FieldBinding<any> | null>
+  formContext: React.Context<FormEngine<any> | null>
+  useFieldContext<TValue = any>(): FieldBinding<TValue>
+  useFormContext<T = any>(): FormEngine<T>
+}
+```
+
+无参数。为一套组件创建一对独立 React context 和读取它们的 Hooks；初始值均为 `null`。
+
+- `useFieldContext<TValue>()` **没有 name 参数**，读取当前 `<form.AppField>` 的绑定；没有对应 Provider 时抛错。
+- 工厂返回的 `useFormContext<T>()` 读取该工厂的表单 context，来自 `<form.AppForm>` 或 `withForm`；缺失时抛错。
+- `TValue` / `T` 是已有数据的类型说明，不做运行时转换。这两个 context Hook 本身不添加字段/状态订阅；输入所在的 AppField 负责字段订阅，表单状态展示仍用 `useWatch`。
+- 普通 `import { useFormContext } from 'shikiform'` 读取的是通用 Form context，不是这个工厂专属 context。
+
+**在模块顶层创建一次**，不要每次渲染都创建 context。自定义组件与工厂必须使用同一对 context；从另一套工厂拿来的 Hook 不能读这里的字段。
+
+## createFormHook
+
+```ts
+createFormHook<
+  TFields extends Record<string, React.ComponentType<any>>,
+  TForms extends Record<string, React.ComponentType<any>> = Record<string, never>
+>(options: {
+  fieldComponents: TFields
+  formComponents?: TForms
+  fieldContext: React.Context<FieldBinding<any> | null>
+  formContext: React.Context<FormEngine<any> | null>
+}): { useAppForm, withForm, withFieldGroup }
+```
+
+| 选项 | 必填 / 默认 | 用法 |
+|---|---|---|
+| `fieldComponents` | 必填 | 如 `{ TextInput }`；成为 render prop 中的 `field.TextInput` |
+| `formComponents` | 可选，未传则无额外组件 | 如 `{ Save }`；成为表单实例的 `form.Save` |
+| `fieldContext` | 必填 | 传入 `createFormHookContexts()` 创建的 context |
+| `formContext` | 必填 | 传入同一套 contexts 的 form context |
+
+组件类型通常由对象字面量推断，不用手写 `TFields` / `TForms`。自定义组件名称不要覆盖 `value`、`onChange`、`AppField`、`submit` 等绑定/引擎成员；组件会按名字合并到返回对象，而不是放进独立命名空间。
+
+这个工厂只连接组件，不帮任意 UI 库猜事件格式。例如原生输入要取 `event.target.value`，Checkbox 要取 `event.target.checked`。数据仍写到 `FieldBinding.onChange`；`Form.Item` 等外壳只负责显示，不要给第二套表单控件再注册同一路径。
+
+## useAppForm
+
+```ts
+useAppForm<T>(options?: FormOptions<T>): AppFormApi<T, TFields, TForms>
+```
+
+`options` 和 `useForm` 一致，省略为 `{}`，只在首次渲染读取。返回的是同一个引擎加上绑定组件：
+
+```ts
+type AppFormApi<T, TFields, TForms> = FormEngine<T> & {
+  AppField: /* 当前表单值类型约束的组件 */
+  AppForm: /* 提供上下文与原生 form 的组件 */
+} & TForms
+```
+
+上面是结构说明；完整类型 `AppFormApi` 可从 `shikiform` 导入，通常直接由 `useAppForm({ initialValues })` 推断。
+
+它并不让 `form.getValue()` 变成 React 订阅；渲染中的响应式读取仍用 `useField` / `useWatch`。选项和所有引擎方法见 [创建表单](/api#创建表单)。
+
+## AppField
+
+```ts
+form.AppField<N extends FieldPath<T>>(props: {
+  name: N
+  children: (field: FieldBinding<PathValue<T, N & string>> & TFields) => React.ReactNode
+}): React.ReactNode
+```
+
+| 属性 | 作用 |
+|---|---|
+| `name` | 必填；检查当前表单或字段组的路径，运行时仍相对当前 scope |
+| `children` | 必填 render prop；拿到当前绑定及 `fieldComponents` 中的组件 |
+
+```tsx
+<form.AppField name="email">
+  {(field) => <field.TextInput label="邮箱" />}
+</form.AppField>
+```
+
+`field.TextInput` 在字段 context 中读取当前绑定，不再传 `name`。同一个 AppField 内再创建字段组时，子名字相对这个字段路径。
+
+AppField 复用普通 Field 的订阅与显示路径：`hidden` / `none` 不渲染子 UI，但二者的校验和提交含义不同。因为它没有 JSX `rules` / `required` 声明，所以只消费绑定，不取得或释放别人的校验 lease。参见 [显隐](/guide/display)。
+
+普通 `Field` 只有在实际传入 `rules` 或 `required` 时才拥有 JSX 校验声明；`rules={[]}`、`required={false}` 也算显式声明。纯绑定消费者可以与已有规则的 Field 同路径挂载，但当前核心仍只保存一份 JSX 规则，不支持多个同路径 Field 各自持有不同的 JSX 校验配置；不要把这次纯消费者修正当成多 owner 规则合并。
+
+**当前公开 props 只有 `name` 和 `children`**。不要向 AppField 传普通 Field 的 `rules`、`required`、`display`，更不要传尚未支持的 `component` / `decorator`。这里需要的规则/显示写在 `useAppForm({ fields, effects })`；它们属于模型声明，UI 卸载不会把声明删除。要使用 JSX 挂载期规则，直接用公开 `<Field rules={...}>`。
+
+## AppForm
+
+```ts
+form.AppForm(props: { children?: React.ReactNode }): React.ReactNode
+```
+
+提供通用 Form context、工厂 form context 和一个原生 `<form>`。submit 时阻止默认页面跳转，调用 `form.submit()` 校验/提交，不创建 antd 的 Form store。
+
+当前没有 `onSubmit`、`onFinish`、`initialValues` 或任意 DOM props 的透传；不要给 `<form.AppForm>` 写这些属性。业务保存用 `form.submit(onValid)` 或检查其返回结果，见下方完整例子。它没有自动请求后端的行为。
+
+需要原生提交事件直接执行成功回调时，可在 `withForm` 片段里使用通用 `<Form form={form} onSubmit={...}>`；不要把两个原生 form 嵌套。通用 Form 和 AppForm 的公开属性不是同一组。
+
+## withForm
+
+```ts
+withForm<T, P extends object = {}>(config: {
+  render: (props: { form: AppFormApi<T, TFields, TForms> } & P) => React.ReactNode
+}): (props: { form: AppFormApi<T, TFields, TForms> } & P) => React.ReactNode
+```
+
+`config.render` 必填。创建一个复用片段；使用时必须传同一工厂产生的 `form`，以及业务 props `P`。`P` 默认 `{}`；需要额外 props 时显式写第二个泛型，如 `withForm<Values, { title: string }>`。
+
+片段提供通用/工厂 Form context，但**不创建引擎、不额外渲染 `<form>`、不重置当前 scope**。所以它可以放在已有 AppForm 中，不会自动形成嵌套表单。用例：多个页面共享一段有明确值类型的字段 UI。
+
+## withFieldGroup
+
+```ts
+withFieldGroup<TGroup, P extends object = {}>(config: {
+  render: (props: { group: GroupApi<TGroup, TFields> } & P) => React.ReactNode
+}): (props: P & { name?: string }) => React.ReactNode
+```
+
+| 参数 / 返回 | 行为 |
+|---|---|
+| `TGroup` | 字段组自己的数据形状，不是整表类型 |
+| `P` | 业务 props，默认 `{}`；需要额外属性时显式写第二个泛型 |
+| `config.render` | 必填；`group` 只有组类型约束的 `AppField` |
+| 返回组件的 `name` | 可选；传入则拼到当前 scope，省略/空字符串则沿用当前 scope |
+
+例如地址组内部写 `name="city"`，外部 `<AddressFields name="address" />` 后实际绑定 `address.city`。外部 `name` 当前类型是 `string`，不会由父表单类型自动验证；组内部的字段名才按 `TGroup` 检查。
+
+字段组不创建 Form Provider，也不存一份地址值；仍需在已有 Form / AppForm / withForm 下。它不是数组遍历或 UI-only 的虚拟字段。规则可按真实路径声明在表单上，复用校验逻辑用 effects 模块。
+
+## 完整例子：把输入、保存按钮和地址片段封装一次
+
+本例只有一份 `Profile` 数据。`TextInput` 负责 UI 接线，`AddressFields` 负责相对路径，`Save` 显式传成功回调。点击“保存”才更新下方 JSON；AppForm 的原生 Enter 提交本身只调用 `form.submit()`，不等同这个保存回调。
+
+```tsx preview
+import { useState } from 'react';
+import { createFormHook, createFormHookContexts, useWatch, type Draft } from 'shikiform';
+
+type Address = { city: string };
+type Profile = { name: string; address: Address };
+const contexts = createFormHookContexts();
+
+function TextInput({ label }: { label: string }) {
+  const field = contexts.useFieldContext<string>();
+  if (field.pattern === 'readPretty') return <p>{label}：{field.value}</p>;
+  return <label htmlFor={field.id}>{label}
+    <input id={field.id} value={field.value ?? ''} disabled={field.disabled} readOnly={field.readOnly}
+      onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} />
+    <span role="status">{field.errors.join('；')}</span>
+  </label>;
+}
+
+function Save({ onSaved }: { onSaved: (values: Profile) => void }) {
+  const form = contexts.useFormContext<Profile>();
+  const submitting = useWatch((d: Draft<Profile>) => d.$submitting === true);
+  return <button type="button" disabled={submitting} onClick={() => void form.submit(onSaved)}>保存</button>;
+}
+
+const { useAppForm, withForm, withFieldGroup } = createFormHook({
+  fieldContext: contexts.fieldContext,
+  formContext: contexts.formContext,
+  fieldComponents: { TextInput },
+  formComponents: { Save },
+});
+
+const AddressFields = withFieldGroup<Address, { title: string }>({
+  render: ({ group, title }) => <fieldset><legend>{title}</legend>
+    <group.AppField name="city">{(field) => <field.TextInput label="城市" />}</group.AppField>
+  </fieldset>,
+});
+
+const ProfileFields = withForm<Profile>({
+  render: ({ form }) => <>
+    <form.AppField name="name">{(field) => <field.TextInput label="姓名" />}</form.AppField>
+    <AddressFields name="address" title="收货地址" />
+  </>,
+});
+
+export default function FormHookExample() {
+  const form = useAppForm<Profile>({
+    initialValues: { name: 'Ada', address: { city: '杭州' } },
+    fields: { name: { required: true }, 'address.city': { required: true } },
+  });
+  const [saved, setSaved] = useState('尚未保存');
+  return <form.AppForm>
+    <ProfileFields form={form} />
+    <form.Save onSaved={(values) => setSaved(JSON.stringify(values, null, 2))} />
+    <pre>{saved}</pre>
+  </form.AppForm>;
+}
+```
+
+这就是预绑定的边界：工厂处理上下文与类型，输入组件处理 UI props，引擎处理值和规则。没有 `cloneElement` 猜测子组件属性，也没有第二套 `Form.Item name` 注册。
+
+[实现：create-form-hook.tsx](https://github.com/charlzyx/shikiform/blob/main/src/react/create-form-hook.tsx) · [字段生命周期](/guide/unmounted) · [API 总览](/api)

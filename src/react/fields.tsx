@@ -1,4 +1,4 @@
-import { useEffect, useMemo, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, type ReactNode } from 'react'
 import type { FormEngine } from '../core/form'
 import { joinPath } from '../core/path'
 import type { Display, Draft, FieldPath, PathValue, Pattern } from '../core/types'
@@ -8,6 +8,7 @@ import { useArrayField } from './use-array'
 import { useField, type FieldBinding } from './use-field'
 import { useTreeField } from './use-tree'
 import { useWatch } from './use-watch'
+import { applyJsxField } from './field-lifecycle'
 
 /**
  * Provide `form` and submit on Enter / the submit button.
@@ -73,10 +74,16 @@ export function Field<TScope = any, N extends FieldPath<TScope> = FieldPath<TSco
   const form = useFormContext()
   const scope = useScope()
   const path = joinPath(scope.path, String(name))
-  form.mountJsxField(path, { rules, virtual, required, display, pattern })
+  const spec = { rules, virtual, required, display, pattern }
+  const ownsValidation = rules !== undefined || required !== undefined
+  const latestSpec = useRef(spec)
+  latestSpec.current = spec
+  applyJsxField(form, path, spec)
   useEffect(() => {
-    return () => form.releaseJsxField(path)
-  }, [form, path])
+    // Re-apply on effect setup as well, including React's setup/cleanup/setup probe.
+    // Pure binding consumers get no cleanup and cannot release another Field's lease.
+    return applyJsxField(form, path, latestSpec.current)
+  }, [form, path, ownsValidation])
   const field = useField<TScope, N>(name)
   if (field.display !== 'visible') return null
   return children ? <>{children(field)}</> : null

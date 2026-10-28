@@ -1,0 +1,146 @@
+---
+title: 把字段接到 Ant Design
+description: 从 Field 的受控接线，到 useAntdForm 和 useAntdField；不再维护第二个表单 store。
+---
+
+# 把字段接到 Ant Design
+
+先分清三层：**core 的 FormEngine 管值、规则和状态；React 层提供通用 Hooks/context；antd 层只接控件、布局、错误反馈和事件。** 不把同一份值再交给 `antd Form` 的 `name`、`rules` 和 `initialValues` 管理。
+
+先学 `useForm` / `useField` 等 [通用 Hooks](/reference/react-hooks) 和 `Field`，它们不依赖组件库。你可以自己写几行接线，也可以使用保留的 `useAntdForm` / `useAntdField` 预绑定便利入口。两条路都使用正式的 `FormEngine`，不是两种表单系统。
+
+## 第一步：看清受控接线
+
+这个示例故意不隐藏适配代码。清空邮箱、移开焦点，再输入内容提交：错误来自 ShikiForm，成功值显示在下面。
+
+```tsx preview
+import { useState } from 'react';
+import { Button, Form as AntdForm, Input } from 'antd';
+import { Field, Form, useForm } from 'shikiform';
+
+type Values = { email: string };
+
+export default function App() {
+  const form = useForm<Values>({ initialValues: { email: 'ada@example.com' } });
+  const [result, setResult] = useState('尚未提交');
+  return (
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
+      <Field<Values, 'email'> name="email" required>
+        {(field) => (
+          <AntdForm.Item label="邮箱" htmlFor={field.id} required={field.required}
+            help={field.errors[0]}
+            validateStatus={field.errors.length ? 'error' : field.validating ? 'validating' : undefined}>
+            {field.pattern === 'readPretty' ? <span>{field.value}</span> : (
+              <Input id={field.id} value={field.value} disabled={field.disabled} readOnly={field.readOnly}
+                onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} />
+            )}
+          </AntdForm.Item>
+        )}
+      </Field>
+      <Button htmlType="submit" type="primary">提交邮箱</Button>
+      <pre aria-live="polite">{result}</pre>
+    </Form>
+  );
+}
+```
+
+沿着一次输入看数据流：
+
+1. `Field` 注册挂载期 required，订阅该路径，提供 `FieldBinding`。
+2. `Input.value` 来自 binding；antd 事件通过 `event.target.value` 转成业务值，再交给 `field.onChange`。
+3. `onBlur` 必须接回 `field.onBlur`，否则默认失焦校验不会收到通知。
+4. `Form.Item` 只显示 `field.errors`，没有 `name`，也没有自己的 `rules`。
+5. 正式 `Form` 调用 `form.submit(onValid)`；校验通过才更新提交结果。
+
+`Field` 隐藏逻辑在控件外层处理；`hidden` 不画控件但仍校验，`none` 才排除校验和提交。这里不重复实现显隐引擎。完整语义见 [显隐](/guide/display) 和 [校验](/guide/validation)。
+
+## 第二步：使用预绑定控件
+
+项目里重复的 value / onChange / onBlur 可以由 `shikiform/antd` 处理。`useAntdForm` 返回普通表单实例，再附上 `AppForm`、`AppField`、`Submit`；输入组件从 AppField 的 render prop 取。
+
+```tsx preview
+import { useState } from 'react';
+import { useAntdForm } from 'shikiform/antd';
+
+type Values = { email: string; notify: boolean };
+
+export default function App() {
+  const form = useAntdForm<Values>({
+    initialValues: { email: 'ada@example.com', notify: true },
+    fields: { email: { required: true } },
+  });
+  const [result, setResult] = useState('尚未保存');
+  return (
+    <form.AppForm>
+      <form.AppField name="email">
+        {(field) => <field.Input aria-label="邮箱" placeholder="邮箱" />}
+      </form.AppField>
+      <form.AppField name="notify">
+        {(field) => <field.Checkbox>接收通知</field.Checkbox>}
+      </form.AppField>
+      <form.Submit htmlType="button"
+        onClick={() => void form.submit((values) => setResult(JSON.stringify(values)))}>
+        校验并保存
+      </form.Submit>
+      <pre aria-live="polite">{result}</pre>
+    </form.AppForm>
+  );
+}
+```
+
+本例的规则写在 `fields`，所以对应输入组件卸载后规则仍然在。`AppField` 当前只接收 `name` / `children`，不要把 `required` 或 `rules` 当作它的 JSX 属性。
+
+这里用 `htmlType="button"` 显式调用 `form.submit(onValid)`，使业务回调明确可见。当前 `AppForm` 只接收 children：直接 Enter / 默认 `<form.Submit />` 会校验，但没有隐含的业务回调。若希望通过原生 form submit 直接接收成功值，使用第一步的正式 `<Form onSubmit={...}>` 接线，或显式处理业务提交；不要编造 `<AppForm onSubmit>`。
+
+内置 Input、Select、InputNumber 各自包了一个无 name 的 antd Form.Item，Switch/Checkbox 没有自动错误外壳。Switch 的适配类型补齐了真实 button 的 `onBlur`，不新增包装节点。它们不是 antd `Form.useForm()` 的封装，也不偷偷维护第二份 `values`。需要统一 label、help、复杂展示或自定义值转换，可以走下一步。
+
+## 第三步：封装项目自己的控件
+
+`useAntdField<TValue>()` 读取当前 `AppField` 的 binding，**不传字段名**。下面的用户名组件自带 label 与错误展示，仍使用正式字段的值和状态。
+
+```tsx preview
+import { Form as AntdForm, Input } from 'antd';
+import { useAntdField, useAntdForm } from 'shikiform/antd';
+
+function HandleInput() {
+  const field = useAntdField<string>();
+  return (
+    <AntdForm.Item label="用户名" htmlFor={field.id} required={field.required}
+      help={field.errors[0]} validateStatus={field.errors.length ? 'error' : undefined}>
+      {field.pattern === 'readPretty' ? <span>@{field.value}</span> : (
+        <Input id={field.id} addonBefore="@" value={field.value ?? ''}
+          disabled={field.disabled} readOnly={field.readOnly}
+          onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} />
+      )}
+    </AntdForm.Item>
+  );
+}
+
+export default function App() {
+  const form = useAntdForm({
+    initialValues: { handle: 'ada' },
+    fields: { handle: { required: true } },
+  });
+  return (
+    <form.AppForm>
+      <form.AppField name="handle">{() => <HandleInput />}</form.AppField>
+    </form.AppForm>
+  );
+}
+```
+
+这个组件不需要知道自己在 `user.handle` 还是数组的某一行；路径由外层 AppField/scope 提供。放到 AppField 外面调用 `useAntdField` 会抛错，不会自动创建字段。要按名字主动订阅，用 [useField(name)](/reference/react-hooks#usefield)。
+
+## 换一种控件，要重新确认什么？
+
+| 控件 | 显示值 | 写回值 | 别漏掉 |
+|---|---|---|---|
+| Input | `value` | `event.target.value` | blur、只读、错误 |
+| Select | `value` | 回调的 value | options、只读时禁用交互；不要把整个 option 当值 |
+| InputNumber | `value` | 数字或清空结果 | 明确空值策略；正式预绑定组件清空转 `0`，教程自定义 NumberField 清空转 `undefined` |
+| Switch | `checked` | 回调第一个 checked | 只读/展示态、失焦通知；不是 `event.target.value` |
+| Checkbox | `checked` | `event.target.checked` | children 是文字；不是文本输入框的 value |
+
+内置适配器先执行字段通知，再以原始参数执行用户事件回调，各一次；用户 `onChange` 用来记录日志或做 UI 反馈，不要再对同一字段调用一次 `field.onChange`。文本/数字的只读使用 readOnly，Select 用 disabled；Switch/Checkbox 的 readOnly/readPretty 都保留 checked 外观但禁用交互。它也不能替代跨字段联动：跨字段规则放进 [effects](/guide/effects)。
+
+如果想把项目组件绑定成 `field.MyInput`，不是给现有 Field 增加一个未实现的 `component` 属性，而是使用正式 [createFormHook](/reference/form-hook#createformhook)。复用一段地址字段看 [withAntdFieldGroup](/reference/antd#withantdfieldgroup)，查询表和数组表看 [AntD 参考](/reference/antd)。

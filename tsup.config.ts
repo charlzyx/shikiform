@@ -12,7 +12,9 @@ export default defineConfig({
   clean: true,
   outDir: 'lib',
   sourcemap: true,
-  splitting: false,
+  // Public entry points must share React providers and core class identity.
+  // Inlining each entry duplicates FormContext when root hooks meet antd UI.
+  splitting: true,
   treeshake: true,
   external: ['react', 'react-dom', 'antd', '@tanstack/react-virtual'],
   target: 'es2022',
