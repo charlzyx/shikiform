@@ -3,7 +3,7 @@ import type { Scheduler } from '../effects/scheduler'
 import { joinPath, setAt } from '../shared/path'
 import type { FieldStore } from '../state/field-store'
 import { reindexById } from './migrate'
-import { readRowId } from './tree-ops'
+import { readRowId } from '../shared/tree-ops'
 
 /**
  * Array row operations. Every op computes the next array, migrates field models by row id,

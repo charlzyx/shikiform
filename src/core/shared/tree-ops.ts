@@ -1,4 +1,4 @@
-import { getAt } from '../shared/path'
+import { getAt } from './path'
 
 /** Index path of a tree node. Depth is `pos.length`. The last entry is the sibling index. */
 export type Pos = readonly number[]

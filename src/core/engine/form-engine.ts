@@ -9,7 +9,7 @@ import { shownErrors } from '../state/field-model'
 import { FieldStore } from '../state/field-store'
 import { Notifier } from '../state/notifier'
 import { ArrayOps } from '../structure/arrays'
-import { findPos, pathOf, type Pos } from '../structure/tree-ops'
+import { findPos, pathOf, type Pos } from '../shared/tree-ops'
 import { TreeOps, type TreeConfig } from '../structure/trees'
 import type {
   ArrayItemOf,
@@ -199,8 +199,8 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
    * If values change or another validation supersedes this pass, return `ok: false` with a root retry message.
    * No `onValid` call is made for that attempt; submit again after the edit/validation has settled.
    */
-  // Open issue #6 lives here and in Validator.validate: an edit while waiting on async rules.
   async submit(onValid?: (values: T) => void | Promise<void>) {
+    // Open issue #6 lives here and in Validator.validate: an edit while waiting on async rules.
     const { store, scheduler, notifier, validator } = this
     store.submitCount += 1
     this.pendingSubmits += 1

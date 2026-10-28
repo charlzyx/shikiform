@@ -1,5 +1,5 @@
 import type { DraftHost } from './host'
-import type { Pos } from '../structure/tree-ops'
+import type { Pos } from '../shared/tree-ops'
 
 export const PATH = Symbol('shikiform.path')
 

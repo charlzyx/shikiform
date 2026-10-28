@@ -1,6 +1,6 @@
 import { createUiHandle } from '../draft/handle'
 import type { DraftHost } from '../draft/host'
-import { listPositions, posKey } from '../structure/tree-ops'
+import { listPositions, posKey } from '../shared/tree-ops'
 import type { Draft, EffectDef, EffectsAPI, EffectsRuntime } from '../types'
 import type { EachRec } from './scheduler'
 

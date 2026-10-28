@@ -28,8 +28,8 @@ export {
   posKey,
   posOf,
   samePos,
-} from './structure/tree-ops'
-export type { Pos, TreeMoveResult } from './structure/tree-ops'
+} from './shared/tree-ops'
+export type { Pos, TreeMoveResult } from './shared/tree-ops'
 export { normalizeRules, runRules } from './validation/rules'
 export type { Rule, RulesInput, ValidateCtx } from './validation/rules'
 export type {

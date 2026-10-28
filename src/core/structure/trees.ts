@@ -3,7 +3,7 @@ import { setAt } from '../shared/path'
 import type { FieldStore } from '../state/field-store'
 import type { MoveResult } from '../types'
 import { reindexById } from './migrate'
-import { listPositions, locateIds, moveNode, posKey, posOf, type Pos } from './tree-ops'
+import { listPositions, locateIds, moveNode, posKey, posOf, type Pos } from '../shared/tree-ops'
 
 export interface TreeConfig {
   childrenKey: string

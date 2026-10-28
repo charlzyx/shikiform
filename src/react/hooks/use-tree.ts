@@ -1,7 +1,7 @@
 import { useCallback, useRef, useSyncExternalStore, type DragEvent } from 'react'
 import { joinPath } from '../../core/shared/path'
 import type { MoveResult } from '../../core/types'
-import type { Pos } from '../../core/structure/tree-ops'
+import type { Pos } from '../../core/shared/tree-ops'
 import { useFormContext, useScope } from '../context'
 
 /**

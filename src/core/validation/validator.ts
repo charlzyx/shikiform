@@ -4,7 +4,7 @@ import { getAt, parentPath } from '../shared/path'
 import { shownErrors, type FieldModel } from '../state/field-model'
 import type { FieldStore } from '../state/field-store'
 import type { Notifier } from '../state/notifier'
-import { scopeOf, type Pos } from '../structure/tree-ops'
+import { scopeOf, type Pos } from '../shared/tree-ops'
 import type { FieldError, FormOptions, ValidateTrigger } from '../types'
 import { fieldSchemaIssues, optionIncludes, runRules, type ValidateCtx } from './rules'
 import { collectSchemaIssues, groupSchemaIssues, isStandardSchema, schemaIssuePath, type SchemaIssue } from './schema'
@@ -106,6 +106,7 @@ export class Validator {
     }
   }
 
+  // Open issue #1 (row-draft cross-field validation reads the committed row) maps here: ctx is built from store.values.
   private buildCtx(path: string, value: unknown, pos: Pos | undefined, signal?: AbortSignal): ValidateCtx {
     const values = this.store.values
     const scope = scopeOf(path)
@@ -211,7 +212,10 @@ export class Validator {
     return task
   }
 
-  /** Debounce async rules. Sync-only fields validate on the next turn of `validate`. */
+  /**
+   * Debounce async rules. Sync-only fields validate on the next turn of `validate`.
+   * Open issue #2 (debounced async reject leaves callers pending) maps here + validateOne's try/catch.
+   */
   scheduleValidate(path: string): void {
     const field = this.store.ensure(path)
     const ms = field.asyncDebounceMs ?? this.deps.options.asyncDebounceMs ?? 0

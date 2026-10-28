@@ -1,7 +1,7 @@
 import { ShikiConflictError, ShikiCycleError } from '../errors'
 import { parentPath } from '../shared/path'
 import type { Notifier } from '../state/notifier'
-import type { Pos } from '../structure/tree-ops'
+import type { Pos } from '../shared/tree-ops'
 import type { Draft, WriteOp } from '../types'
 
 /** One running reaction / watch / selector. Reads become deps, writes are buffered. */
