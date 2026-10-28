@@ -1,0 +1,135 @@
+---
+title: Pro 组件参考
+description: ProArrayTable、QueryList、ShadowModal / ShadowDrawer / ShadowPopconfirm / ShadowForm、EnumPretty、Suggestion、CascaderPlus。
+---
+
+# Pro 组件参考
+
+从 `shikiform/antd` 导入。每个组件都是 [Pro Hooks](/reference/pro-hooks) 之上的薄封装，组件能做的 Hook 都能做。可点的例子见 [可点的例子](/guide/demos)。
+
+## ProArrayTable
+
+```tsx
+<ProArrayTable<Row>
+  name="list" rowKey="id" pagination={{ pageSize: 10 }} rowSelection resizeable
+  columns={[
+    { key: 'sort', width: 50, render: () => <ProArrayTable.SortHandle /> },
+    { key: 'a1', title: 'A1', render: () => <FormItem name="a1"><Input /></FormItem> },
+    { key: 'act', title: '操作', render: () => <ProArrayTable.Remove confirm /> },
+  ]}
+  expandable={{ rowExpandable: (r) => !!r.children, render: () => <ProArrayTable name="children" pattern="readPretty" columns={…} /> }}
+  toolbar={<MyToolbar />} extra={<ProArrayTable.Addition />} footer={<MyFooter />}
+  onRemove={(index, record) => api.remove(record.id)}
+/>
+```
+
+Pro.formily `ProArrayTable`：数组字段上的 antd 表格，建立在 `useArrayTable` + `useColumnSettings` 上。列是普通的 render 函数，渲染在行作用域里（`<FormItem name="a1">` 就是 `list.N.a1`），所以展开行里可以再放一张子表。自带分页、选择条（选中 N 项 / 清空 / 全选 / 反选）、列配置和密度、表头拖拽改列宽、拖拽排序、异步删除。行操作：`SortHandle`、`Index`、`Remove`、`MoveUp`、`MoveDown`、`Copy`、`Addition`、`ProAddition`（影子表单添加，弹窗或抽屉）；上下文：`ProArrayTable.useTable()`、`ProArrayTable.useRow()`。
+
+## QueryList
+
+```tsx
+const table = useQueryTable({ initialValues: { query: {}, list: [] }, params: 'query', rows: 'list', request })
+<QueryList table={table} list="list" columns={columns} collapseAfter={3}>
+  <FormItem name="query.domain" label="域名"><Input /></FormItem>
+  …
+</QueryList>
+```
+
+Pro.formily `QueryList` + `QueryForm` + `QueryTable`：可折叠的查询栅格（展开 / 收起、重置、查询）加一张受控服务端分页的 `ProArrayTable`，表头带刷新。状态全部在 `useQueryTable`；它的 `rows` 选项把每页结果写进 `list` 数组字段，单元格可以直接编辑。选择存在 Hook 里，翻页保留、新查询清空。
+
+## ShadowModal
+
+```tsx
+<ShadowModal<Info> title="编辑" record={() => form.getValue('info')} onOk={(values) => form.setValue('info', values)} trigger={<Button>编辑</Button>}>
+  <FormItem name="domain" label="域名" required><Input /></FormItem>
+</ShadowModal>
+```
+
+在 antd `Modal` 里编辑影子草稿（Pro.formily `ShadowModal`）。点 `trigger` 用 `record` 打开（值或加载函数）；确定先校验，再调 `onOk`，成功后关闭；取消什么都不写。传 `shadow`（来自 `useShadowForm` / `useArrayShadow`）时用外部草稿，否则组件自己持有一个。草稿字段从草稿的根开始解析，不继承所在行的作用域。
+
+## ShadowDrawer
+
+```tsx
+<ShadowDrawer shadow={editor} title="编辑" okText="保存">
+  <FormItem name="domain" label="域名"><Input /></FormItem>
+</ShadowDrawer>
+```
+
+与 `ShadowModal` 相同，换成 antd `Drawer`，底部是取消 / 确定。`ProArrayTable.ProAddition` 的 `popType="drawer"` 就是它。适合字段较多、需要更大编辑区域的行编辑。
+
+## ShadowPopconfirm
+
+```tsx
+<ShadowPopconfirm record={() => ({ name: form.getValue('name') })} onOk={(v) => form.setValue('name', v.name)} trigger={<Button>改名</Button>}>
+  <FormItem name="name"><Input /></FormItem>
+</ShadowPopconfirm>
+```
+
+把少量字段放进 antd `Popconfirm` 的气泡里编辑（Pro.formily `ShadowPopconfirm`）。打开气泡时用 `record` 初始化草稿，确认校验后调用 `onOk`，取消或点外面关闭都会丢弃草稿。
+
+## ShadowForm
+
+```tsx
+<ShadowForm<Info> record={info} onOk={save}>
+  {(shadow) => <>…fields… <Button onClick={() => shadow.confirm()}>提交</Button></>}
+</ShadowForm>
+```
+
+内联的影子表单（Pro.formily 把 `ShadowForm` 用作 decorator / component 的两种写法）：挂载即用 `record` 打开，子节点渲染在草稿上。草稿通过 render prop 交给容器，或在任意子组件里用 `useShadow()` 取得，所以提交按钮可以放在任何位置。不渲染 `<form>` 元素，可以放在宿主 `<Form>` 里。
+
+## useShadow
+
+```ts
+useShadow<TValues, TContext>(): ShadowFormApi<TValues, TContext>
+```
+
+读取外层 `ShadowForm` / `ShadowModal` / `ShadowDrawer` / `ShadowPopconfirm` 正在渲染的草稿：`form`、`visible`、`submitting`、`confirm()`、`cancel()`。不在这些组件里调用会抛错，提示需要的外层组件。
+
+## EnumPretty
+
+```tsx
+<FormItem name="status" label="状态"><EnumPretty showType="badge" /></FormItem>
+<FormItem name="tags"><EnumPretty showType="tag" strict colorful={false} empty="无" /></FormItem>
+```
+
+只读的枚举显示（Pro.formily `ProEnumPretty`）：读字段值和字段枚举（`fields.x.enum`、`$enum`、`EnumSource`），按 `showType` 画成文字、徽标或标签；颜色来自选项的 `color`（可用 `success` / `processing` / `error` / `warning` 等语义名）或调色板。`Select`、`Radio.Group`、`Checkbox.Group` 的阅读态同样接受 `prettyType="badge" | "tag"`。
+
+## EnumPrettyView
+
+```tsx
+<EnumPrettyView value={['a', 'o']} options={[{ label: '啊', value: 'a' }, { label: '哦', value: 'o', color: 'success' }]} showType="tag" />
+```
+
+`EnumPretty` 的纯视图版本，不绑定字段：直接传 `value` 和 `options`。适合表格单元格、详情页等不在表单里的地方，参数与 `EnumPretty` 相同（`showType`、`strict`、`colorful`、`empty`）。
+
+## Suggestion
+
+```tsx
+<FormItem name="keyword" label="淘宝搜索"><Suggestion fetch={search} debounce={200} multiple labelInValue /></FormItem>
+```
+
+字段绑定的远程联想下拉（Pro.formily `Suggestion`），建立在 `useSuggestion` 上。值有四种形状：`string`、`{ label, value }`（`labelInValue`）、`string[]`（`multiple`）、`{ label, value }[]`（两者都开）。阅读态显示标签。
+
+## SuggestionSelect
+
+```tsx
+<SuggestionSelect value={value} onChange={setValue} fetch={search} multiple />
+```
+
+`Suggestion` 的非字段版本：普通的受控 `value` / `onChange` 组件，其余属性透传给 antd `Select`。防抖、中止旧请求、记住已选标签的行为与 `Suggestion` 完全一样，可以在表单外单独使用。
+
+## CascaderPlus
+
+```tsx
+<FormItem name="area" label="地区"><CascaderPlus loadData={(path) => api.children(path)} labelInValue /></FormItem>
+```
+
+字段绑定的懒加载级联（Pro.formily `CascaderPlus`），建立在 `useLazyCascader` 上：一个 `loadData(path)` 服务所有层级，已有值打开时逐级加载以反显标签；`all` 表示整棵树一次返回；支持 `multiple` 和 `labelInValue`（每一级 `{ label, value }`）。默认 `changeOnSelect`。
+
+## CascaderPlusView
+
+```tsx
+<CascaderPlusView value={['110000', '11000000', '110105']} onChange={setValue} loadData={loadArea} multiple={false} />
+```
+
+`CascaderPlus` 的非字段版本：受控 `value` / `onChange`，其余属性透传 antd `Cascader`。`/play/cascader-plus` 的三个例子（全量 / 懒加载切换、反显、labelInValue 反显）都直接用它。

@@ -109,6 +109,19 @@ describe('ProArrayTable', () => {
     expect(screen.getByText('c.0.1').closest('[data-read-pretty]')).toBeTruthy()
   })
 
+  it('drag sort: handle starts the drag, dropping on a row moves it there', () => {
+    const { form } = mount(rows(4), {
+      columns: [
+        { key: 'sort', render: () => <ProArrayTable.SortHandle /> },
+        { key: 'a1', title: 'A1', render: () => <FormItem name="a1"><Input /></FormItem> },
+      ],
+    })
+    fireEvent.dragStart(screen.getAllByTestId('sort-handle')[0]!)
+    fireEvent.dragOver(screen.getByTestId('row-2'))
+    fireEvent.drop(screen.getByTestId('row-2'))
+    expect(form.getValue('list').map((row) => row.a1)).toEqual(['1.1', '2.1', '0.1', '3.1'])
+  })
+
   it('column settings hide and reorder columns', async () => {
     mount(rows(2))
     expect(screen.getAllByRole('columnheader').map((th) => th.textContent)).toContain('A1')

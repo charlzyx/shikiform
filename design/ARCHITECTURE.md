@@ -13,6 +13,7 @@
    - `connect(Control, mapProps(...), mapReadPretty(...))` 每次渲染只做一件事：`mapFieldProps(useField(name), props)`。`mapFieldProps` 本身是导出的纯函数，Hook 用户可直接 `<AntInput {...mapFieldProps(field, props)} />`。
    - `FormItem` 读取同一个 `FieldBinding`（可用 `field={useField(...)}` 显式传入），只负责 label / 必填星号 / 状态 / help 的渲染。
    - 表格（`ArrayTable`、`ProQueryTable`）分别建立在 `useArrayField`、`useQueryTable`（`shikiform/pro`）之上。
+   - Pro 组件（复刻 Pro.formily）同样是 Hook 之上的薄封装，见 §10：`ProArrayTable` = `useArrayTable` + `useColumnSettings`；`QueryList` = `useQueryTable({ rows })` + `ProArrayTable`；`ShadowModal` / `ShadowDrawer` / `ShadowPopconfirm` / `ShadowForm` = `useShadowForm`（行编辑用 `useArrayShadow`）；`Suggestion` = `useSuggestion`；`CascaderPlus` = `useLazyCascader`；`EnumPretty` = `enumItems`。
 4. **公开导出向后兼容。** 本次重构只新增导出（`UseFieldOptions` 类型、antd 适配层），没有删除或改名任何公开导出。
 
 ## 2. 目录与依赖方向
@@ -38,12 +39,23 @@ src/
     hooks/                 use-form、use-field、use-array、use-tree、use-watch、field-lifecycle（JSX lease）
     components/            fields.tsx（Form/Field/ObjectField/ArrayField/RowScope/TreeField/Watch）、virtual-rows.tsx
     factory/               create-form-hook.tsx（createFormHook / createFormHookContexts）
-  pro/                     use-query-table.ts（无 UI）
+  pro/                     无 UI 的高级 Hook（依赖 react / core）
+    use-query-table.ts       查询表（请求、分页、选择；`rows` 把每页写进数组字段）
+    use-array-table.ts       数组表格状态：分页切片 / 受控服务端页、选择、展开、行操作
+    use-column-settings.ts   列显隐、排序、列宽、密度
+    use-shadow-form.ts       影子表单：每次 open 新建引擎，confirm 校验后交给 onOk
+    use-array-shadow.ts      一份影子草稿服务整张表的行编辑 / 追加
+    use-suggestion.ts        远程联想：防抖、中止、最后一次请求胜出
+    use-lazy-cascader.ts     懒加载级联：按路径加载、反显时逐级加载祖先
+    enum-pretty.ts           enumItems / ENUM_COLORS（纯函数）
   antd/                    Ant Design（依赖 react / pro）
     adapter/               connect.tsx、form-item.tsx、preview.tsx、field-context.ts
-    components/            controls.tsx（Input、InputNumber、Select、Switch、Checkbox、Radio、DatePicker）
+    components/            controls.tsx（Input、InputNumber、Select、Switch、Checkbox、Radio、DatePicker）、
+                           enum-pretty.tsx（EnumPretty / EnumPrettyView；选择类控件阅读态 prettyType）、
+                           suggestion.tsx（Suggestion）、cascader-plus.tsx（CascaderPlus）
     form-hook/             form-hook.tsx（useAntdForm / AppField 预绑定控件）
-    tables/                array-table.tsx、merged-table.tsx、query-table.tsx
+    shadow/                shadow.tsx（ShadowModal / ShadowDrawer / ShadowPopconfirm / ShadowForm / useShadow）
+    tables/                array-table.tsx、merged-table.tsx、query-table.tsx、pro-array-table.tsx、query-list.tsx
 ```
 
 依赖只能向下：
@@ -65,6 +77,7 @@ core 内部（有状态部分，编号小者在下）：
 | `FieldStore.onCreate` | 复活休眠声明（`Declarations`） | `Declarations` 构造时 |
 | `Validator.prepare` | 校验前展开条目模板 | `FormEngine` 构造时 |
 | `Validator` 的 `readPos` | 树节点 pos（`TreeOps.readPos`） | `FormEngine` 构造时 |
+| `StateWriter.carryRowIdentity` | 单元格写入后，把旧行对象的身份交给重建的行（`ArrayOps.carryIdentity`） | `FormEngine` 构造时 |
 
 ## 3. 字段模型与状态（`core/state`）
 
@@ -91,7 +104,8 @@ core 内部（有状态部分，编号小者在下）：
 
 ## 6. 结构操作（`core/structure`）
 
-- **`ArrayOps`**：`push/insert/remove/move/swap/replace` 都走同一 `commit`：计算新数组 → 按行 id（`rowKey`/`id`，否则对象身份 WeakMap）用 `reindexById` 迁移字段模型（错误、touched、规则跟着行走）→ 记录 `dirtyRows` → bump structure → 重新展开条目模板 → flush。
+- **`ArrayOps`**：`push/insert/remove/move/swap/replace` 都走同一 `commit`：计算新数组 → 按行 id（`rowKey`/`id`，否则对象身份 WeakMap）用 `reindexById` 迁移字段模型（错误、touched、规则跟着行走）→ 记录 `dirtyRows` → bump structure，并把数组及祖先的 `:value` 标脏（读 `d.rows.$value` 的 reaction / useWatch 会重跑；行级 `each` 仍只看 `dirtyRows`）→ 重新展开条目模板 → flush。
+- **无 id 行的身份**：单元格写入经 `setAt` 重建了行对象；`carryIdentity` 把旧对象在 WeakMap 里的身份交给新对象，所以渲染 key、选择、展开在编辑后不变。
 - **`TreeOps`**：注册树根（`childrenKey`、`rowKey`、`canMove`）、`readPos`（优先当前 `walk` 实例的 pos）、`move(from, to)`（拒绝移入自身后代，按节点 id 迁移模型，记录 `dirtyPos`）。
 - **`migrate.ts`**：`reindexById` —— 以最深的所属行为准，删除消失行下的模型，重键移动行下的模型。
 - **`shared/tree-ops.ts`**：无状态的 pos / path 算法（`posOf`、`pathOf`、`moveNode`、`listPositions`、`scopeOf`…）。
@@ -136,3 +150,19 @@ const Rate = connect(AntRate, mapProps({ status: false }))
 | P3-3 | `commit: 'blur'` 已声明但未实现 | `core/engine/writes.ts` 的 `commitExternal`。 |
 
 本次重构未修复以上任何问题；代码中在对应位置留有 `Open issue #n` 注释。
+
+## 10. Pro 层（复刻 Pro.formily）
+
+| Pro.formily | ShikiForm Hook（`shikiform/pro`） | antd 组件（`shikiform/antd`） | Demo |
+|---|---|---|---|
+| ProArrayTable（分页、选择、展开、列配置、列宽、拖拽、异步删除、Addition） | `useArrayTable`、`useColumnSettings` | `ProArrayTable`（+ `SortHandle`/`Index`/`Remove`/`MoveUp`/`MoveDown`/`Copy`/`Addition`/`ProAddition`，`useTable`/`useRow`） | `/play/pro-array-table` |
+| DelegateAction + ShadowModal + ProAddition | `useArrayShadow` | `ShadowModal` / `ShadowDrawer` + `ProArrayTable.ProAddition` | `/play/pro-array-table-shadow`、`/play/query-list-add` |
+| ShadowForm / ShadowModal / ShadowPopconfirm | `useShadowForm` | `ShadowForm`、`ShadowModal`、`ShadowDrawer`、`ShadowPopconfirm`、`useShadow` | `/play/shadow-form` |
+| ProEnum / ProEnumPretty | `EnumSource`（core）、`enumItems` | `EnumPretty`、选择类控件 `prettyType` | `/play/pro-enum` |
+| Suggestion | `useSuggestion` | `Suggestion` / `SuggestionSelect` | `/play/suggestion` |
+| CascaderPlus | `useLazyCascader` | `CascaderPlus` / `CascaderPlusView` | `/play/cascader-plus` |
+| QueryList / QueryForm / QueryTable | `useQueryTable({ rows })` | `QueryList`（+ 已有 `QueryForm`） | `/play/query-list` |
+
+- **影子表单不写宿主。** `useShadowForm` 每次 `open` 新建引擎（`initialValues` = 打开的记录），`confirm` 校验通过后只调用 `onOk`；写回由调用方（或 `useArrayShadow` 的默认写回）决定。草稿字段经 `ShadowBody` 提供 `FormContext` 并把 `ScopeContext` 重置为根，不渲染 `<form>`，可以嵌在宿主 `<Form>` 里或从行内打开。
+- **`<Form>` 同样把作用域重置为根，并阻止 submit 事件冒泡到宿主表单**（React 合成事件会穿过 portal）。
+- **表格状态不进表单值。** 分页、选择、展开、列配置是 React 状态（`useArrayTable` 可受控传入 `selectedKeys`）；查询表的选择仍是 `useQueryTable` 的 virtual 字段，`QueryList` 把它作为受控选择传给 `ProArrayTable`。
