@@ -46,3 +46,17 @@ for (const [label, route, heading] of [
     expect(errors).toEqual([])
   })
 }
+
+// Cloudflare serves directory index pages with a trailing slash. An opposite
+// _redirects rule makes direct navigation bounce forever between both forms.
+test('directory landing pages do not redirect against Pages canonical URLs', () => {
+  const redirects = readFileSync(path.resolve('dist/_redirects'), 'utf8')
+    .split('\n')
+    .map((line) => line.trim().split(/\s+/))
+  for (const section of ['tutorial', 'guide']) {
+    expect(existsSync(path.resolve('dist', section, 'index.html'))).toBe(true)
+    expect(redirects.some(([from, to, status]) =>
+      from === `/${section}/` && to === `/${section}` && /^3\d\d$/.test(status ?? '302'),
+    )).toBe(false)
+  }
+})
