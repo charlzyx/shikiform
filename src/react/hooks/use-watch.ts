@@ -1,7 +1,7 @@
 import { useRef, useSyncExternalStore } from 'react'
-import { deepEqual } from '../core/equal'
-import type { Draft } from '../core/types'
-import { useFormContext } from './context'
+import { deepEqual } from '../../core/shared/equal'
+import type { Draft } from '../../core/types'
+import { useFormContext } from '../context'
 
 /**
  * Subscribe to the `$` reads inside `select`.

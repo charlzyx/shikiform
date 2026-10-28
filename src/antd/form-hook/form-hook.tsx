@@ -1,10 +1,9 @@
 import { Button, Checkbox, Form, Input, InputNumber, Select, Switch, type ButtonProps, type InputNumberProps, type InputProps, type SelectProps } from 'antd'
 import type { ComponentProps, FocusEventHandler } from 'react'
-import type { Draft } from '../core/types'
-import { createFormHook, createFormHookContexts } from '../react/create-form-hook'
-import { useWatch } from '../react/use-watch'
-
-const contexts = createFormHookContexts()
+import type { Draft } from '../../core/types'
+import { createFormHook } from '../../react/factory/create-form-hook'
+import { useWatch } from '../../react/hooks/use-watch'
+import { antdContexts as contexts } from '../adapter/field-context'
 
 /** Read the field `AppField` is rendering. Use this inside a custom pre-bound input. */
 export const useAntdField = contexts.useFieldContext

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
-import { useArrayField } from '../react/use-array'
-import { RowScope } from '../react/fields'
-import { VirtualRows } from '../react/virtual-rows'
+import { useArrayField } from '../../react/hooks/use-array'
+import { RowScope } from '../../react/components/fields'
+import { VirtualRows } from '../../react/components/virtual-rows'
 
 /**
  * Array of fields. `virtualScroll` windows the rows with TanStack Virtual (`useVirtualizer`).

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import type { FormEngine } from '../core/form'
+import type { FormEngine } from '../core/engine/form-engine'
 import type { EffectDef, FieldPath, FormOptions, PathValue } from '../core/types'
-import { useForm } from '../react/use-form'
+import { useForm } from '../react/hooks/use-form'
 
 /**
  * Arguments passed to {@link UseQueryTableOptions.request}.

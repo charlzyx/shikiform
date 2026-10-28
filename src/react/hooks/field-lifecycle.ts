@@ -1,5 +1,5 @@
-import type { FormEngine } from '../core/form'
-import type { FieldSpec } from '../core/types'
+import type { FormEngine } from '../../core/engine/form-engine'
+import type { FieldSpec } from '../../core/types'
 
 /** React's JSX validation lease. Pure binding consumers must not release another component's rules. */
 export function applyJsxField(

@@ -1,11 +1,11 @@
 import { createContext, useContext, useMemo, type ComponentType, type Context, type ReactNode } from 'react'
-import type { FormEngine } from '../core/form'
-import { joinPath } from '../core/path'
-import type { FieldPath, FormOptions, PathValue } from '../core/types'
-import { FormContext, ScopeContext, useScope } from './context'
-import type { FieldBinding } from './use-field'
-import { Field } from './fields'
-import { useForm } from './use-form'
+import type { FormEngine } from '../../core/engine/form-engine'
+import { joinPath } from '../../core/shared/path'
+import type { FieldPath, FormOptions, PathValue } from '../../core/types'
+import { FormContext, ScopeContext, useScope } from '../context'
+import type { FieldBinding } from '../hooks/use-field'
+import { Field } from '../components/fields'
+import { useForm } from '../hooks/use-form'
 
 /**
  * Contexts for {@link createFormHook}.

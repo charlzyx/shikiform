@@ -1,7 +1,7 @@
 import { Button, Space, Table, type TableProps } from 'antd'
 import { Children, type ReactNode } from 'react'
-import type { QueryTableApi } from '../pro/use-query-table'
-import { Form } from '../react/fields'
+import type { QueryTableApi } from '../../pro/use-query-table'
+import { Form } from '../../react/components/fields'
 
 /**
  * Ant Design table + search bar over {@link useQueryTable}.

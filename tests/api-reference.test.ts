@@ -19,11 +19,12 @@ afterEach(() => {
   for (const dir of directories.splice(0)) rmSync(dir, { recursive: true, force: true })
 })
 
-describe('public Hook and adapter reference coverage', () => {
+// Each case spawns a full TypeScript program (~3s alone); under a loaded parallel run it can pass 5s.
+describe('public Hook and adapter reference coverage', { timeout: 30_000 }, () => {
   it('maps every real public Hook/factory and pro/antd export to a named signature section', () => {
     const result = check(path.resolve('docs'))
     expect(result.status, result.stderr).toBe(0)
-    expect(result.stdout).toContain('23 public')
+    expect(result.stdout).toContain('36 public')
   })
   it('fails when an existing Hook disappears from the reference map', () => {
     const dir = fixture()
