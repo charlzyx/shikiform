@@ -1,0 +1,107 @@
+import { Button, ConfigProvider } from 'antd'
+import zhCN from 'antd/locale/zh_CN'
+import { Form, useForm, useWatch, type Draft } from 'shikiform'
+import { FormItem, Input, ProArrayTable, ShadowModal } from 'shikiform/antd'
+import { useArrayShadow } from 'shikiform/pro'
+
+/** Pro.formily `ProArrayTableWithShadow.tsx` demo: row editing and additions through shadow forms. */
+interface Row {
+  id: number | string
+  domain: string
+  desc: string
+}
+interface Values {
+  list: Row[]
+}
+
+/** The draft's fields, shared by the edit modal and both additions (the demo's repeated `schema`). */
+function RowFields({ prefix }: { prefix: string }) {
+  return (
+    <>
+      <FormItem name="id" label="ID" required>
+        <Input data-testid={`${prefix}-id`} />
+      </FormItem>
+      <FormItem name="domain" label="域名" required>
+        <Input data-testid={`${prefix}-domain`} />
+      </FormItem>
+      <FormItem name="desc" label="描述">
+        <Input.TextArea rows={4} data-testid={`${prefix}-desc`} />
+      </FormItem>
+    </>
+  )
+}
+
+export function ProArrayTableShadowPage() {
+  const form = useForm<Values>({
+    initialValues: {
+      list: [
+        { id: 1, domain: 'www.baidu.com', desc: 'ping' },
+        { id: 2, domain: 'www.google.com', desc: 'not found' },
+      ],
+    },
+  })
+  return (
+    <ConfigProvider locale={zhCN}>
+      <main style={{ padding: 16 }}>
+        <h1>ProArrayTable + ShadowForm</h1>
+        <p>
+          每行「编辑」打开同一个影子表单（Pro.formily DelegateAction + ShadowModal），initLoader 先映射记录；确定后写回这一行，取消不动原数据。
+          两个「添加」共存：一个弹窗、一个抽屉，确定后追加并自动翻到新行所在页。
+        </p>
+        <Form form={form}>
+          <ShadowTable />
+        </Form>
+      </main>
+    </ConfigProvider>
+  )
+}
+
+function ShadowTable() {
+  const editor = useArrayShadow<Row>('list')
+  const list = useWatch((d: Draft<Values>) => d.list.$value) ?? []
+  return (
+    <>
+      <ProArrayTable<Row>
+        name="list"
+        pagination={{ pageSize: 5 }}
+        columns={[
+          { key: 'id', title: 'ID', width: 80, align: 'center', render: () => <FormItem name="id" pattern="readPretty" style={{ margin: 0 }}><Input /></FormItem> },
+          { key: 'domain', title: 'DOMAIN', width: 220, align: 'center', render: ({ index }) => <FormItem name="domain" pattern="readPretty" style={{ margin: 0 }}><Input data-testid={`domain-${index}`} /></FormItem> },
+          {
+            key: 'edit',
+            title: '编辑',
+            align: 'center',
+            render: ({ index }) => (
+              <Button
+                type="link"
+                data-testid={`edit-${index}`}
+                onClick={() =>
+                  void editor.edit(index, (record) => {
+                    // Pro.formily initLoader: map (or fetch) the record before it enters the draft.
+                    return { ...record, desc: record.desc ?? '' }
+                  })
+                }
+              >
+                编辑
+              </Button>
+            ),
+          },
+        ]}
+        extra={
+          <>
+            <ProArrayTable.ProAddition<Row> title="添加条目" initialValues={{ id: '', domain: '', desc: '' }}>
+              <RowFields prefix="add" />
+            </ProArrayTable.ProAddition>
+            <ProArrayTable.ProAddition<Row> title="演示多个添加共存" popType="drawer" initialValues={{ id: '', domain: '', desc: '' }}>
+              <RowFields prefix="add2" />
+            </ProArrayTable.ProAddition>
+          </>
+        }
+      />
+      <ShadowModal shadow={editor} title="编辑">
+        <RowFields prefix="edit" />
+      </ShadowModal>
+      <pre data-testid="list">{JSON.stringify(list.map((row) => `${row.id}:${row.domain}`))}</pre>
+    </>
+  )
+}

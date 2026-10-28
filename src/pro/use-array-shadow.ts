@@ -1,12 +1,18 @@
-import { useCallback } from 'react'
+import { useCallback, useContext } from 'react'
+import type { FormEngine } from '../core/engine/form-engine'
 import { joinPath } from '../core/shared/path'
-import { useFormContext, useScope } from '../react/context'
+import { FormContext, useScope } from '../react/context'
 import { useShadowForm, type ShadowFormApi, type UseShadowFormOptions } from './use-shadow-form'
 
 /** What an array shadow was opened for. */
 export type ArrayShadowContext = { mode: 'edit'; index: number; key: string } | { mode: 'add' }
 
 export interface UseArrayShadowOptions<TRow> extends Omit<UseShadowFormOptions<TRow, ArrayShadowContext>, 'onOk'> {
+  /**
+   * The host form, for a caller outside `<Form>` (e.g. next to a `QueryList`, which renders its own).
+   * `name` is then an absolute path. Default: the surrounding form, `name` relative to the current scope.
+   */
+  form?: FormEngine<any>
   /** Row id property, as on the array. Used to find the edited row again if it moved while the draft was open. */
   rowKey?: string
   /**
@@ -33,10 +39,12 @@ export interface ArrayShadowApi<TRow> extends ShadowFormApi<TRow, ArrayShadowCon
  * Cancel leaves the array untouched.
  */
 export function useArrayShadow<TRow = Record<string, any>>(name: string, options: UseArrayShadowOptions<TRow> = {}): ArrayShadowApi<TRow> {
-  const form = useFormContext()
+  const context = useContext(FormContext)
   const scope = useScope()
-  const path = joinPath(scope.path, name)
-  const { onOk, merge, append, rowKey, ...shadowOptions } = options
+  const form = options.form ?? context
+  if (!form) throw new Error('useArrayShadow needs a surrounding <Form> or a `form` option')
+  const path = options.form ? name : joinPath(scope.path, name)
+  const { onOk, merge, append, rowKey, form: _form, ...shadowOptions } = options
   const shadow = useShadowForm<TRow, ArrayShadowContext>({
     ...shadowOptions,
     onOk: async (values, context) => {
