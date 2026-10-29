@@ -24,7 +24,7 @@ describe('public Hook and adapter reference coverage', { timeout: 30_000 }, () =
   it('maps every real public Hook/factory and pro/antd export to a named signature section', () => {
     const result = check(path.resolve('docs'))
     expect(result.status, result.stderr).toBe(0)
-    expect(result.stdout).toContain('61 public')
+    expect(result.stdout).toContain('65 public')
   })
   it('fails when an existing Hook disappears from the reference map', () => {
     const dir = fixture()

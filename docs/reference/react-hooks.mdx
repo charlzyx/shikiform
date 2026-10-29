@@ -17,12 +17,15 @@ description: useForm、useField、useWatch、数组与树 Hooks 的签名、返�
 | 读取选中的值或状态 | [`useWatch`](#usewatch) | selector 实际读取的 `$` 依赖 |
 | 数组行增删和排序 | [`useArrayField`](#usearrayfield) | 数组结构，不是每个单元格 |
 | 数组拖动事件 | [`useArrayMove`](#usearraymove) | 不订阅 |
+| 行内取最近的数组 / 行号 / 行值（无需 name） | [`useArray`](#usearray)、[`useIndex`](#useindex)、[`useRecord`](#userecord) | 数组结构 / 不订阅 / 这一行的值 |
+| 当前字段（装饰器、控件） | [`useCurrentField`](#usecurrentfield) | 不订阅（随外层 Field 渲染） |
 | 树结构和节点移动 | [`useTreeField`](#usetreefield) | 树结构 |
 | 树拖动事件 | [`useTreeMove`](#usetreemove) | 不订阅 |
+| 当前树节点（无需 name） | [`useTreeNode`](#usetreenode) | 这个节点的值 |
 
 除 `useForm` 外，本页 Hooks 都必须在 `<Form form={form}>` 或工厂返回的 `<form.AppForm>` 后代中调用。**在一个组件中先调用 `useField`、再从它返回 `<Form>` 不算在 Provider 内**；把读字段的组件放到 Form 里面。
 
-名字也有区别：这里没有独立导出 `useArray`、`useTree` 或 `useRow`。ShikiForm 的 `useField(name)` 返回输入绑定；`useArrayField(name)` 返回行操作。不要将其他表单库的“读取当前字段模型”签名直接套过来。预绑定组件读取当前字段的方式见 [工厂上下文](/reference/form-hook#createformhookcontexts)。
+名字也有区别：`useField(name)` / `useArrayField(name)` 需要名字，返回输入绑定 / 行操作；对应 Formily `ArrayBase.useArray / useIndex / useRecord` 的无名上下文 Hook 是 [`useArray()`](#usearray)、[`useIndex()`](#useindex)、[`useRecord()`](#userecord)，当前字段是 [`useCurrentField()`](#usecurrentfield)。预绑定组件读取当前字段的方式见 [工厂上下文](/reference/form-hook#createformhookcontexts)。
 
 ## useForm
 
@@ -234,6 +237,54 @@ useArrayField<TScope, N extends ArrayPath<TScope>>(
 
 [实现：use-array.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-array.ts) · [数组教程](/tutorial/7-array)
 
+## useArray
+
+```ts
+useArray<TRow = unknown>(): ArrayHandle<TRow>
+// ArrayHandle = useArrayField 的返回值：{ path, keys, push, insert, remove, move, swap, replace }
+```
+
+最近一层数组（Formily `ArrayBase.useArray`），无需 name：在 `<ArrayField>`、antd `ArrayTable`、`ProArrayTable` 的行、工具栏或展开行里，返回与 `useArrayField` 对同一数组相同的句柄（订阅数组结构）。嵌套数组取最近的一层。不在数组内时抛错。自定义数组组件用 `<ArrayScope path rowKey>` 提供它。
+
+```tsx
+function RemoveButton() {
+  const array = useArray()
+  const index = useIndex()
+  return <button type="button" onClick={() => array.remove(index)}>删除</button>
+}
+<ArrayField name="list" rowKey="id">{() => <><Field name="name" component={[Input]} /><RemoveButton /></>}</ArrayField>
+```
+
+## useIndex
+
+```ts
+useIndex(): number
+```
+
+当前行在数组中的下标（Formily `ArrayBase.useIndex`），来自外层 `RowScope`（`<ArrayField>`、`ArrayTable`、`ProArrayTable` 的每一行都会提供）。行移动后随新位置更新。不在行内时抛错。
+
+```tsx
+function RowNo() {
+  return <span>第 {useIndex() + 1} 行</span>
+}
+```
+
+## useRecord
+
+```ts
+useRecord<TRow = any>(): TRow
+```
+
+当前行的值（Formily `ArrayBase.useRecord`），**响应式**：这一行任一单元格变化都会重渲染，行移动后跟着行走；其他行的编辑不会唤醒它。不在行（或树节点）内时抛错。只读：要改值用 `useField` / 字段写入，不要修改返回的对象。
+
+```tsx
+function RowTitle() {
+  const row = useRecord<{ name: string; qty: number }>()
+  return <b>{row.name} × {row.qty}</b>
+}
+```
+
+
 ## useArrayMove
 
 ```ts
@@ -388,3 +439,19 @@ export default function TreeHookExample() {
 ```
 
 需要 JSX 结构组件时看 [Field、ArrayField、TreeField](/api#react-字段)；需要将这些绑定封装成项目自己的输入组件时看 [createFormHook](/reference/form-hook)。
+
+## useTreeNode
+
+```ts
+useTreeNode<TNode = any>(): { path: string; pos: Pos; index: number; record: TNode }
+```
+
+当前树节点：`path`、`pos`（树坐标）、`index`（`pos` 的最后一段）和响应式 `record`。树节点由调用方渲染，用 `<RowScope path={…} pos={pos}>` 包住每个节点即可提供；不在节点内时抛错。
+
+```tsx
+function NodeLabel() {
+  const node = useTreeNode<{ label: string }>()
+  return <span>{node.pos.join('.')} {node.record.label}</span>
+}
+<RowScope path={pathOf('nodes', pos)} pos={pos}><NodeLabel /></RowScope>
+```

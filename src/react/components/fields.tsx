@@ -3,7 +3,8 @@ import type { FormEngine } from '../../core/engine/form-engine'
 import { joinPath } from '../../core/shared/path'
 import type { Display, Draft, FieldPath, PathValue, Pattern } from '../../core/types'
 import type { RulesInput } from '../../core/validation/rules'
-import { FormContext, ScopeContext, useFormContext, useScope } from '../context'
+import type { Pos } from '../../core/shared/tree-ops'
+import { ArrayContext, FormContext, ScopeContext, useFormContext, useScope } from '../context'
 import { useArrayField } from '../hooks/use-array'
 import { FieldContext } from '../field-context'
 import { useField, type FieldBinding, type FieldSlot } from '../hooks/use-field'
@@ -145,19 +146,49 @@ export function ArrayField({
 }) {
   const array = useArrayField(name, rowKey)
   return (
-    <>
+    <ArrayScope path={array.path} rowKey={rowKey}>
       {array.keys.map((row) => (
-        <RowScope key={row.key} path={`${array.path}.${row.index}`} index={row.index}>
+        <RowScope key={row.key} path={`${array.path}.${row.index}`} index={row.index} itemKey={row.key}>
           {children(row)}
         </RowScope>
       ))}
-    </>
+    </ArrayScope>
   )
 }
 
-/** Stable scope value so a row that did not move does not wake its consumers. */
-export function RowScope({ path, index, children }: { path: string; index: number; children?: ReactNode }) {
-  const value = useMemo(() => ({ path, index }), [path, index])
+/**
+ * Mark the nearest array for {@link useArray} (`path` is absolute). `<ArrayField>`, `ArrayTable` and `ProArrayTable`
+ * render it; use it in a custom array component built on `useArrayField`.
+ */
+export function ArrayScope({ path, rowKey, children }: { path: string; rowKey?: string; children?: ReactNode }) {
+  const value = useMemo(() => ({ path, rowKey }), [path, rowKey])
+  return <ArrayContext.Provider value={value}>{children}</ArrayContext.Provider>
+}
+
+/**
+ * Scope for one row (or tree node): relative names resolve under `path`, and {@link useIndex} / {@link useRecord}
+ * (/ {@link useTreeNode} with `pos`) read it. Stable value, so a row that did not move does not wake its consumers.
+ * For a tree node pass `pos` (and `index` = its last segment, or omit `index`).
+ */
+export function RowScope({
+  path,
+  index,
+  itemKey,
+  pos,
+  children,
+}: {
+  path: string
+  index?: number
+  /** Row id (structure key). */
+  itemKey?: string
+  /** Tree coordinate of this node. */
+  pos?: Pos
+  children?: ReactNode
+}) {
+  const at = index ?? (pos ? (pos[pos.length - 1] ?? -1) : -1)
+  const posKey = pos?.join('.')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const value = useMemo(() => ({ path, index: at, itemKey, pos }), [path, at, itemKey, posKey])
   return <ScopeContext.Provider value={value}>{children}</ScopeContext.Provider>
 }
 

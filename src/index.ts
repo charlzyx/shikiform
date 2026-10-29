@@ -6,6 +6,7 @@
  */
 export {
   ArrayField,
+  ArrayScope,
   Field,
   FieldContext,
   Form,
@@ -19,18 +20,23 @@ export {
   createFormHook,
   createFormHookContexts,
   defineEffects,
+  useArray,
   useArrayField,
   useArrayMove,
   useCurrentField,
   useField,
   useForm,
   useFormContext,
+  useIndex,
+  useRecord,
   useTreeField,
+  useTreeNode,
   useTreeMove,
   useWatch,
 } from './react'
 export type {
   AppFormApi,
+  ArrayHandle,
   ArrayItemOf,
   Draft,
   RowContext,

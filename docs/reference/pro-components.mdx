@@ -24,7 +24,7 @@ description: ProArrayTable、QueryList、ShadowModal / ShadowDrawer / ShadowPopc
 />
 ```
 
-Pro.formily `ProArrayTable`：数组字段上的 antd 表格，建立在 `useArrayTable` + `useColumnSettings` 上。列是普通的 render 函数，渲染在行作用域里（`<Field name="a1">` 就是 `list.N.a1`；单元格可用不同的装饰器，或不要装饰器），所以展开行里可以再放一张子表。自带分页、选择条（选中 N 项 / 清空 / 全选 / 反选）、列配置和密度、表头拖拽改列宽、拖拽排序、异步删除。行操作：`SortHandle`、`Index`、`Remove`、`MoveUp`、`MoveDown`、`Copy`、`Addition`、`ProAddition`（影子表单添加，弹窗或抽屉）；上下文：`ProArrayTable.useTable()`、`ProArrayTable.useRow()`。
+Pro.formily `ProArrayTable`：数组字段上的 antd 表格，建立在 `useArrayTable` + `useColumnSettings` 上。列是普通的 render 函数，渲染在行作用域里（`<Field name="a1">` 就是 `list.N.a1`；单元格可用不同的装饰器，或不要装饰器），所以展开行里可以再放一张子表。自带分页、选择条（选中 N 项 / 清空 / 全选 / 反选）、列配置和密度、表头拖拽改列宽、拖拽排序、异步删除。行操作：`SortHandle`、`Index`、`Remove`、`MoveUp`、`MoveDown`、`Copy`、`Addition`、`ProAddition`（影子表单添加，弹窗或抽屉）；上下文：`ProArrayTable.useTable()`（表格状态 + 列配置）、`ProArrayTable.useRow()`（`{ key, index, position, record }`，建立在无头的 [`useIndex`](/reference/react-hooks#useindex) / [`useRecord`](/reference/react-hooks#userecord) 之上，`record` 是响应式的）。单元格里同样可以直接用 [`useArray()`](/reference/react-hooks#usearray) / `useIndex()` / `useRecord()`。
 
 ## QueryList
 
