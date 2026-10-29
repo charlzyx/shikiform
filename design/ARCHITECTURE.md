@@ -1,6 +1,6 @@
 # ShikiForm 架构
 
-> 本文描述 `src/` 的模块划分与依赖方向，是代码的设计说明，不是用户文档。语义约定仍以 `docs/decisions.mdx`、`archive/ARCH.md` 为准；本文只说明这些语义落在哪个模块。
+> 本文描述 `src/` 的模块划分与依赖方向，是代码的设计说明，不是用户文档。原语义约定已归档到 [archive/published-drafts-2026-10-28/decisions.mdx](../archive/published-drafts-2026-10-28/decisions.mdx) 与 [archive/ARCH.md](../archive/ARCH.md)；本文只说明这些语义落在哪个模块，当前公开契约见 `docs/reference/`。
 
 ## 1. API 原则：Hooks 优先，组件是糖
 

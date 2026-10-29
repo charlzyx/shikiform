@@ -1,17 +1,13 @@
 [
   "index",
+  "architecture",
   {
     "type": "dir",
     "name": "tutorial",
-    "label": "教程",
+    "label": "最小上手",
     "collapsed": false
   },
-  {
-    "type": "dir",
-    "name": "guide",
-    "label": "指南",
-    "collapsed": false
-  },
+  "examples",
   "api",
   {
     "type": "dir",
@@ -21,10 +17,8 @@
   },
   {
     "type": "dir",
-    "name": "usage",
-    "label": "用例",
+    "name": "guide",
+    "label": "深入指南",
     "collapsed": false
-  },
-  "decisions",
-  "coverage-checklist"
+  }
 ]

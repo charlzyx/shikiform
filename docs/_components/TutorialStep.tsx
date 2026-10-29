@@ -1,13 +1,13 @@
 import '@live-demo/rspress/web/index.css';
 import { LiveDemoLazy } from '@live-demo/rspress/web/lazy';
-import { useDark } from '@rspress/core/runtime';
+import { useSiteDark } from '../../site/bridge/theme';
 import { useState } from 'react';
 import fields from '../tutorial/_files/fields.tsx?raw';
 
 const EXTERNAL = ['shikiform', 'antd', 'zod'];
 
 export function TutorialPlay({ starter, solution }: { starter: string; solution: string }) {
-  const isDark = useDark();
+  const isDark = useSiteDark();
   const [answer, setAnswer] = useState(false);
   const [nonce, setNonce] = useState(0);
   const code = answer ? solution : starter;

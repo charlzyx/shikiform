@@ -1,7 +1,9 @@
 import path from 'node:path';
+import { liveDemoExternals } from './site/bridge/live-demo-externals';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  plugins: [liveDemoExternals()],
   resolve: {
     alias: [
       { find: /^shikiform\/antd$/, replacement: path.resolve('src/antd/index.ts') },
@@ -12,6 +14,7 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
+    server: { deps: { inline: ['@live-demo/rspress'] } },
     include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
   },
 });

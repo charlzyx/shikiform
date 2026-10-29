@@ -7,15 +7,16 @@ description: 教程里会的东西，以及更完整的用例。
 
 你已经会写一份表单：字段、嵌套 path、`$` 状态、`pattern`、`reaction`、`reaction.each` 和 `watch`。
 
-## API
+## 理解设计，再查 API
 
-正式包的四个入口、组件、effects 和校验边界列在 [API](/api)。教程的 `fields.tsx` 是可复制的本地适配，不是额外的 `shikiform/ui` 包。已定行为和仍待拍板的问题在 [约定](/decisions)。
+[设计架构](/architecture) 把核心引擎、React 绑定和可选 UI 适配连起来。正式包的四个入口、Hooks、组件、effects 和校验边界列在 [API](/api)。教程的 `fields.tsx` 是可复制的本地适配，不是额外的 `shikiform/ui` 包。
 
-## 更完整的例子
+## 把概念放进业务里
 
-- [07 · SKU 选择器](/usage/07-sku-editor)
-- [08 · 合并表](/usage/08-merged-table)
-- [09 · 查询表](/usage/09-query-table)
-- [16 · effects 参考](/usage/16-effects-reference)
+- [SKU 选择器](/play/sku-picker)：可选范围、最新选择、价格与库存怎样联动。
+- [供应商和产品](/play/merged)：数据保持嵌套，合并显示不改变字段路径。
+- [查询表](/play/query)：条件、筛选、分页与勾选共用状态。
+- [订单行](/play/orders)：逐行计算、父级状态与展开/收起。
+- [抽屉行编辑](/play/row-edit)：什么时候直接写值，什么时候先装载到临时 editor 再确认。
 
-还要补哪些能点的 demo，见 [案例补全清单](/coverage-checklist)。教程之后的加深在 [指南](/guide)：[联动](/guide/effects)、[pattern](/guide/pattern)、[显隐](/guide/display)、[校验](/guide/validation)。能点的完整例子在 [可点的例子](/guide/demos)。
+全部 15 个页面和各自边界见 [复杂示例](/examples)。继续深挖概念时，看 [联动](/guide/effects)、[pattern](/guide/pattern)、[显隐](/guide/display) 和 [校验](/guide/validation)；封装控件前先看 [antd 接线指南](/guide/antd-binding)。

@@ -9,19 +9,22 @@ description: 正式包入口、Field 绑定、联动与提交校验。
 
 ## 按名字查 API
 
-本页是入口和常用语义；每个 Hook 的真实签名、参数默认、返回值、订阅边界及完整例子在下面的参考页。**业务状态先使用通用 React Hooks；antd 是可选的 UI 适配，不是另一份状态引擎。**
+本页是入口和常用语义；每个 Hook 的真实签名、参数默认、返回值、订阅边界及完整例子在下面七个参考页。**业务状态先使用通用 React / Pro Hooks；antd 是可选的 UI 适配，不是另一份状态引擎。**
 
 | 要查什么 | 详细参考 |
 |---|---|
 | `useForm`、`useFormContext` | [创建/取得表单](/reference/react-hooks#useform) |
-| `useField(name)`、`useWatch(select)` | [字段绑定](/reference/react-hooks#usefield)、[依赖订阅](/reference/react-hooks#usewatch) |
+| `useField(name, options?)`、`useWatch(select)` | [字段绑定与挂载期配置](/reference/react-hooks#usefield)、[依赖订阅](/reference/react-hooks#usewatch) |
 | `useArrayField`、`useArrayMove` | [数组结构/增删/拖动](/reference/react-hooks#usearrayfield) |
 | `useTreeField`、`useTreeMove` | [树结构/移动](/reference/react-hooks#usetreefield) |
 | `createFormHookContexts`、`createFormHook` | [通用 React 预绑定工厂](/reference/form-hook) |
 | `useAppForm`、`AppField`、`AppForm`、`withForm`、`withFieldGroup` | [工厂与实例返回成员](/reference/form-hook#useappform)，不是独立包导出 |
 | `useAntdForm`、`useAntdField`、`createAntdFormHook`、`antdForm` | [antd 预绑定与当前字段上下文](/reference/antd) |
 | `withAntdForm`、`withAntdFieldGroup`、antd 表格/布局组件 | [antd 参考](/reference/antd#withantdform) |
+| `connect`、`mapProps`、`mapReadPretty`、`mapFieldProps`、`FormItem` 与已绑定控件 | [Ant Design 适配层](/reference/antd-adapter) |
 | `useQueryTable`、`useBuiltinQuery` | [查询 Hook 参数、返回和查询生命周期](/reference/query-hooks) |
+| `useArrayTable`、`useColumnSettings`、`useShadowForm`、`useArrayShadow`、`useSuggestion`、`useLazyCascader`、`enumItems`、`ENUM_COLORS` | [Pro Hooks](/reference/pro-hooks) |
+| `ProArrayTable`、`QueryList`、`ShadowForm` / 弹窗容器、`useShadow`、`EnumPretty`、`Suggestion`、`CascaderPlus` 及非字段视图 | [Pro 组件](/reference/pro-components) |
 
 想知道控件怎样封装，从 [把 antd 接到通用字段绑定](/guide/antd-binding) 开始：先手动接线，再复用现成预绑定，最后写自己的输入组件。没有 `useArray` / `useTree` 这样的公开缩写，也不要把其他库的无参 `useField()` 签名套到这里。
 
@@ -31,8 +34,8 @@ description: 正式包入口、Field 绑定、联动与提交校验。
 |---|---|---|
 | `shikiform` | `useForm`、`Form`、`Field`、`ObjectField`、`ArrayField`、`TreeField`、`useField`、`useWatch`、`Watch`、`defineEffects` | React 结构和绑定 |
 | `shikiform/core` | `createForm`、`defineEffects`、`EnumSource`、`comboMatch`、`comboOptions`；`FormOptions`、`RulesInput`、`Pattern` 等类型 | 无 React 的表单、校验和联动 |
-| `shikiform/pro` | `useQueryTable`、`useBuiltinQuery` | 无 UI 的查询表逻辑 |
-| `shikiform/antd` | `useAntdForm`、`useAntdField`、`createAntdFormHook`、`antdForm`、`withAntdForm`、`withAntdFieldGroup`、`ProQueryTable`、`QueryForm`、`ArrayTable`、`MergedTable`、`groupRowSpan` | Ant Design 适配 |
+| `shikiform/pro` | `useQueryTable`、`useBuiltinQuery`、`useArrayTable`、`useColumnSettings`、`useShadowForm`、`useArrayShadow`、`useSuggestion`、`useLazyCascader`、`enumItems`、`ENUM_COLORS` | 无 UI 的查询、表格、草稿与高级输入逻辑 |
+| `shikiform/antd` | `connect`、`FormItem`、已绑定的 `Input` / `Select` 等控件；`useAntdForm` 等预绑定工厂；`ProArrayTable`、`QueryList`、`ShadowForm` 等容器，以及原有 `ProQueryTable` / `ArrayTable` / `MergedTable` | Ant Design 适配；完整导出见上面的 antd 与 Pro 参考 |
 
 ```tsx
 import { Field, Form, useForm } from 'shikiform';
@@ -41,9 +44,9 @@ import { Input, Button } from 'antd';
 import { z } from 'zod';
 ```
 
-**没有 `shikiform/ui` 或 `shikiform/zod` 入口。** `Input` 从 `antd` 导入。Zod 已支持 Standard Schema，直接使用，不需要 `zodResolver`。
+**没有 `shikiform/ui` 或 `shikiform/zod` 入口。** 上例的 `Input` 从 `antd` 导入，需要手动绑定；正式 `shikiform/antd` 也导出已通过 `connect` 绑定的 `Input` 等控件，二者不要混淆。Zod 已支持 Standard Schema，直接使用，不需要 `zodResolver`。
 
-教程中的 `TextField`、`NumberField`、`SelectField`、`SwitchField`、`SubmitButton` 和 `FormErrors` 从同页的 **fields.tsx** 导入。这是可复制的本地适配代码，不是包导出。`Region`、`connect`、独立的 `Submit/Reset`、`useRow`、`useDecorator` 也不是当前正式包的顶层导出。
+教程中的 `TextField`、`NumberField`、`SelectField`、`SwitchField`、`SubmitButton` 和 `FormErrors` 从同页的 **fields.tsx** 导入。这是可复制的本地适配代码，不是包导出。`connect` 从 `shikiform/antd` 导入；行上下文是 `ProArrayTable.useRow()`，不是独立 `useRow` 导出。`Region`、独立的 `Submit/Reset`、`useDecorator` 不是当前公开导出。
 
 ## 创建表单
 
@@ -66,7 +69,7 @@ createForm<T>(options?: FormOptions<T>): FormEngine<T>
 | `enumPolicy` | `'none'`，保留枚举外值 | `'clear'` 清掉；`'error'` 校验报错。需要保留最后一次编辑时用 watch 清冲突 |
 | `trees` | 可选树根配置 | `childrenKey` / `rowKey` 用于 React 挂载前的树联动 |
 
-`commit: 'blur'` 虽在类型中存在，当前绑定仍会在 `onChange` 写入；不要把它当作已可用的性能承诺，见 [清单 P3-3](/coverage-checklist)。
+`commit: 'blur'` 虽在类型中存在，当前绑定仍会在 `onChange` 写入；不要把它当作已可用的延迟提交或性能能力。输入、联动与提交的实际数据流见 [设计架构](/architecture#一次输入如何流动)。
 
 ### 读写和提交
 
@@ -107,7 +110,9 @@ createForm<T>(options?: FormOptions<T>): FormEngine<T>
 | `options`、`loading` | 当前枚举选项、枚举加载状态 |
 | `touched`、`dirty`、`validating` | 失焦、编辑、异步校验状态 |
 
-`useField(name)` 提供相同绑定和路径订阅，方便自定义控件；它不替代 JSX `Field` 的规则挂载/卸载管理。教程适配直接复用 `Field`，不重写规则生命周期。
+`useField(name, options?)` 提供相同绑定、路径订阅和字段配置；`options` 接受 `rules`、`required`、`virtual`、`display`、`pattern`。`Field` 是这个 Hook 的薄封装，再根据 `display` 决定是否渲染 children；纯 Hook 用户需自行处理显示。
+
+`rules` / `required` 在调用组件挂载期间有效，卸载时释放；`virtual` / `display` / `pattern` 是持久字段标记。不传规则选项的 `useField(name)` 是纯绑定消费者，不会释放其他组件的规则。教程适配仍直接复用 `Field`，不重写生命周期。完整签名与规则来源见 [useField](/reference/react-hooks#usefield)。
 
 ### 结构和订阅
 
@@ -149,7 +154,7 @@ const effects = defineEffects<Values>(({ reaction, watch, query }) => {
 - `ctx.record` 是最近对象，`ctx.parent` 跳过外层数组到上一层记录，`ctx.root` 是根值；还有 `path`、`index`、`get(path)`、异步 `signal` 等上下文。
 - 整表 Zod：`useForm({ initialValues, validate: z.object({ email: z.string().email() }) })`。字段 Zod：`<Field name="email" rules={z.string().email()}>...</Field>`。
 - `hidden`（包括 `$visible = false`）只隐藏 UI，仍校验、仍提交；`none` 才跳过校验并去掉提交值。父级状态覆盖子级。
-- JSX 的 `rules/required` 在卸载时释放；`fields`、`registerField`、模板和 reaction 的规则继续生效。`virtual` 只改变提交，不意味着跳过校验。
+- `useField` options / JSX 的 `rules/required` 在卸载时释放；`fields`、`registerField`、模板和 reaction 的规则继续生效。`virtual` 只改变提交，不意味着跳过校验。
 
 不要把 UI 隐藏当成卸载，也不要把 `virtual` 当成第五种字段。完整对照见 [显隐](/guide/display)、[没挂载的字段](/guide/unmounted)、[path 和提交](/guide/path)。
 
@@ -157,4 +162,8 @@ const effects = defineEffects<Values>(({ reaction, watch, query }) => {
 
 查询 hook 的参数、请求结果与行操作见 [查询 Hooks](/reference/query-hooks) 和 [查询表](/play/query)；`shikiform/antd` 的表格只渲染 hook/表单模型，不管理第二份业务值。
 
+`connect`、`mapProps`、`mapReadPretty` 与 `FormItem` 是正式的 Formily 风格适配入口：控件映射 `FieldBinding`，装饰器显示标签、必填和校验反馈；Hook 用户可直接用纯函数 `mapFieldProps`。见 [Ant Design 适配层](/reference/antd-adapter)。
+
 `useAntdForm` / `createAntdFormHook` 提供可复用的预绑定组件组合；`useAntdField()` 是匹配 AppField context 的无参读取别名，不是 AntD 专属状态引擎。签名与适配边界见 [antd 参考](/reference/antd)，从零接线见 [antd 指南](/guide/antd-binding)。教程仍先用公开 `Field` 展示绑定细节，再按项目需要封装。
+
+`useShadowForm` 的草稿是独立引擎，确认后把校验值交给 `onOk`；`useArrayShadow` 加上行编辑/追加的默认写回。`ProArrayTable`、`QueryList`、影子容器与高级输入的组合见 [Pro Hooks](/reference/pro-hooks)、[Pro 组件](/reference/pro-components) 和 [复杂示例](/examples)，不把本地示例的写回当作后端持久化。

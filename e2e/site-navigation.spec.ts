@@ -16,8 +16,8 @@ test('tutorial pages keep only framework previous/next navigation and retain the
   expect(html).not.toContain('tutorial-nav')
   expect(html).not.toContain('上一步 ·')
   expect(html).not.toContain('下一步 ·')
-  expect(html).toContain('rp-prev-next-page__prev')
-  expect(html).toContain('rp-prev-next-page__next')
+  expect(html).toContain('pager-link prev')
+  expect(html).toContain('pager-link next')
   expect(html).toContain('/tutorial/1-start')
   expect(html).toContain('/tutorial/3-path')
   expect(html).toContain('这一步')
@@ -59,4 +59,18 @@ test('directory landing pages do not redirect against Pages canonical URLs', () 
       from === `/${section}/` && to === `/${section}` && /^3\d\d$/.test(status ?? '302'),
     )).toBe(false)
   }
+})
+
+
+test('native VitePress client routing discovers MDX outline and search results', async ({ page }) => {
+  await page.goto('/architecture')
+  await page.getByRole('link', { name: 'API', exact: true }).first().click()
+  await page.getByRole('link', { name: '字段绑定', exact: true }).click()
+  const outline = page.locator('.VPDocAsideOutline')
+  await expect(outline.getByRole('link', { name: 'useField', exact: true })).toBeVisible()
+  await outline.getByRole('link', { name: 'useField', exact: true }).click()
+  await expect(page).toHaveURL(/#usefield$/)
+  await page.getByRole('button', { name: '搜索文档' }).click()
+  await page.getByRole('searchbox').fill('useArrayField')
+  await expect(page.locator('.VPLocalSearchBox').getByText('useArrayField', { exact: true }).first()).toBeVisible()
 })

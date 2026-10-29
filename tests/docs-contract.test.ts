@@ -26,7 +26,7 @@ afterEach(() => {
 describe('packed docs contract inputs', () => {
   it('has no teaching store or special package alias left behind', () => {
     expect(existsSync('src/runtime')).toBe(false)
-    expect(readFileSync('rspress.config.ts', 'utf8')).not.toContain('src/runtime')
+    expect(readFileSync('site/config.ts', 'utf8')).not.toContain('src/runtime')
     const component = readFileSync('docs/_components/TutorialStep.tsx', 'utf8')
     expect(component).toContain("'fields.tsx': fields")
     expect(component).not.toContain('shikiform/ui')

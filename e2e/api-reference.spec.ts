@@ -1,26 +1,22 @@
-import { readFileSync, readdirSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { expect, test } from '@playwright/test'
 
 test('deployment includes named Hook references and the same executable adapter examples', () => {
   const manifest = JSON.parse(readFileSync('docs/reference/exports.json', 'utf8')) as Record<string, Record<string, string>>
   const landing = readFileSync('dist/api.html', 'utf8')
-  const searchFiles = readdirSync('dist/static').filter((file) => /^search_index\..*\.json$/.test(file))
-  expect(searchFiles.length).toBeGreaterThan(0)
-  const search = searchFiles.flatMap((file) => JSON.parse(readFileSync(path.join('dist/static', file), 'utf8'))) as Array<{
-    routePath: string; toc: Array<{ id: string; text: string }>
-  }>
+  // Also executes real native MiniSearch queries against the emitted index.
+  execFileSync(process.execPath, ['scripts/check-site.mjs'], { stdio: 'pipe' })
   for (const [module, symbols] of Object.entries(manifest)) {
     for (const [name, source] of Object.entries(symbols)) {
       const html = readFileSync(path.join('dist', source.replace(/\.mdx$/, '.html')), 'utf8')
       expect(html, `${module}:${name}`).toContain(`id="${name.toLowerCase()}"`)
       expect(landing, `navigation: ${source}`).toContain(`href="/${source.replace(/\.mdx$/, '')}"`)
-      const indexed = search.find((entry) => entry.routePath === `/${source.replace(/\.mdx$/, '')}`)
-      expect(indexed?.toc, `search: ${module}:${name}`).toContainEqual(expect.objectContaining({ id: name.toLowerCase(), text: name }))
+
     }
   }
   expect(landing).toContain('href="/guide/antd-binding"')
-  expect(search.some((entry) => entry.routePath === '/guide/antd-binding')).toBe(true)
   const guide = readFileSync('dist/guide/antd-binding.html', 'utf8')
   expect(guide).toContain('提交邮箱')
   expect(guide).toContain('校验并保存')
