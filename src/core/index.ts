@@ -9,7 +9,7 @@ export { defineEffects } from './effects/define-effects'
 export { comboMatch, comboOptions } from './enum/combo'
 export { EnumSource, EnumSource as Enum, asOptions, isEnumBinding } from './enum/enum-source'
 export type { EnumBinding, EnumConfig, EnumLoadContext, EnumOption } from './enum/enum-source'
-export { ShikiConflictError, ShikiCycleError, ShikiUiError } from './errors'
+export { ShikiConflictError, ShikiCycleError, ShikiUiError, ShikiUsageError } from './errors'
 export {
   collectSchemaIssues,
   groupSchemaIssues,
@@ -39,6 +39,8 @@ export type {
   CommitMode,
   Display,
   Draft,
+  RowContext,
+  RowDraft,
   EffectDef,
   EnumPolicy,
   FieldError,

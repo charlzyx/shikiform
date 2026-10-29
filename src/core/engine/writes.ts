@@ -1,6 +1,7 @@
 import type { Declarations } from '../declarations/declarations'
 import { isReactionId, type Scheduler } from '../effects/scheduler'
 import { asOptions, isEnumBinding, type EnumOption } from '../enum/enum-source'
+import { unwrapReadonly } from '../draft/readonly'
 import { deepEqual } from '../shared/equal'
 import { getAt, parentPath, setAt } from '../shared/path'
 import type { FieldStore } from '../state/field-store'
@@ -50,6 +51,8 @@ export class StateWriter {
   /** Draft write entry point (`DraftHost.writeState`). */
   writeState(path: string, key: string, value: unknown): void {
     const scheduler = this.deps.scheduler
+    // Development: `$value` reads in a reaction are read-only views; store plain data.
+    if (process.env.NODE_ENV !== 'production') value = unwrapReadonly(value)
     const op = this.makeOp(path, key, value)
     const tracker = scheduler.current()
     if (tracker) {
@@ -75,6 +78,7 @@ export class StateWriter {
   // Open issue P3-3 (`commit: 'blur'`) lives here: user edits always commit on change.
   commitExternal(path: string, value: unknown): void {
     const { store, notifier, scheduler, validator } = this.deps
+    if (process.env.NODE_ENV !== 'production') value = unwrapReadonly(value)
     if (!this.commitValue(path, value, false)) return
     const field = store.ensure(path)
     if (!field.dirty) {

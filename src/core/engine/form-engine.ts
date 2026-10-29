@@ -1,6 +1,7 @@
 import { Declarations, type RegisterSpec } from '../declarations/declarations'
 import { createHandle, createUiHandle, handlePath } from '../draft/handle'
 import type { DraftHost } from '../draft/host'
+import { readonlyValue } from '../draft/readonly'
 import type { EachRec } from '../effects/scheduler'
 import { Scheduler } from '../effects/scheduler'
 import { clone } from '../shared/equal'
@@ -513,9 +514,12 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     if (key === '$pathOf') {
       return (pos: Pos) => pathOf(path, pos, this.childrenKey(trees.root(path) ?? path))
     }
+    if (process.env.NODE_ENV !== 'production') scheduler.assertNotWritten(path, key)
     if (key === '$value') {
       scheduler.track(path, 'value')
-      return getAt(store.values, path) as never
+      const value = getAt(store.values, path)
+      // Development: a reaction / watch gets a read-only view so `d.x.$value.y = 1` / `.push()` throw with the fix.
+      return (process.env.NODE_ENV !== 'production' && scheduler.current()?.recordWrites ? readonlyValue(value, path) : value) as never
     }
     const uiKey = uiKeyOf(key)
     if (uiKey) return this.fieldUi.read(path, uiKey)
@@ -577,6 +581,10 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
 
   writeState(path: string, key: string, value: unknown): void {
     this.writer.writeState(path, key, value)
+  }
+
+  peekValue(path: string): unknown {
+    return getAt(this.store.values, path)
   }
 
   readUi(path: string, name: string, key: string): unknown {

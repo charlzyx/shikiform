@@ -24,7 +24,7 @@ describe('public Hook and adapter reference coverage', { timeout: 30_000 }, () =
   it('maps every real public Hook/factory and pro/antd export to a named signature section', () => {
     const result = check(path.resolve('docs'))
     expect(result.status, result.stderr).toBe(0)
-    expect(result.stdout).toContain('61 public')
+    expect(result.stdout).toContain('65 public')
   })
   it('fails when an existing Hook disappears from the reference map', () => {
     const dir = fixture()
@@ -36,15 +36,15 @@ describe('public Hook and adapter reference coverage', { timeout: 30_000 }, () =
     expect(result.status).not.toBe(0)
     expect(result.stderr).toContain('Missing reference for shikiform:useField')
   })
-  it('rejects an invented useArray export', () => {
+  it('rejects an invented useRow export', () => {
     const dir = fixture()
     const file = path.join(dir, 'reference/exports.json')
     const manifest = JSON.parse(readFileSync(file, 'utf8'))
-    manifest.shikiform.useArray = 'reference/react-hooks.mdx'
+    manifest.shikiform.useRow = 'reference/react-hooks.mdx'
     writeFileSync(file, JSON.stringify(manifest))
     const result = check(dir)
     expect(result.status).not.toBe(0)
-    expect(result.stderr).toContain('Not a public export in this scope: shikiform:useArray')
+    expect(result.stderr).toContain('Not a public export in this scope: shikiform:useRow')
   })
   it('does not count a landing-page link as a detailed API section', () => {
     const dir = fixture()

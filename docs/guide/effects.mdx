@@ -74,7 +74,7 @@ export default function App() {
 
 `watch` 用来做动作。它第一次不跑，源变了才跑。清空市放在这里。如果写进 `reaction`，一打开杭州就没了。
 
-每一行各自的结果用 `reaction.each`。选择器返回数组 handle，例如 `(d) => d.items`。某一格改了，只重算那一行。树用 `reaction.walk`，节点带 `pos`。
+每一行各自的结果用 `reaction.each`。选择器返回数组 handle，例如 `(d) => d.items`。某一格改了，只重算那一行。树用 `reaction.walk`。三个行级 API（`reaction.each`、`reaction.walk`、`watch.each`）回调都是 `(row, ctx)`，`ctx = { d, path, index, pos }`：需要根 draft 或下标时从 `ctx` 取，例如 `(row, { d, index }) => …`。
 
 两个 `reaction` 不要写同一个 `$` 状态。刚写完的 `$value` 不要在同一个函数里再读。
 

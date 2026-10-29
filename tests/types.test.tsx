@@ -35,7 +35,13 @@ form.batch((d) => {
 const effects = defineEffects<{ rows: { name: string }[]; nodes: { label: string }[] }>(({ reaction }) => {
   reaction.each(
     (d) => d.rows,
-    (row) => {
+    (row, ctx) => {
+      const _ctx: Expect<Equal<typeof ctx.index, number>> = true
+      const _path: Expect<Equal<typeof ctx.path, string>> = true
+      const _d: Expect<Equal<typeof ctx.d.rows.$value, { name: string }[]>> = true
+      void _ctx
+      void _path
+      void _d
       const name = row.name.$value
       const _row: Expect<Equal<typeof name, string>> = true
       void name

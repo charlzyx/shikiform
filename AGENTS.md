@@ -1,0 +1,133 @@
+# ShikiForm for coding agents
+
+ShikiForm is a TypeScript form library: a React-free engine (`shikiform/core`), headless React hooks and fields
+(`shikiform`), headless pro hooks (`shikiform/pro`), and an Ant Design adapter (`shikiform/antd`).
+State lives in one engine per form; linkage is written as `reaction` / `watch` over a **draft**.
+This page is the one-screen mental model plus the mistakes worth avoiding. Repo layout and module rules:
+`design/ARCHITECTURE.md`. Checks before a PR: `npm test`, `npm run check`, `npm run check:api`, `npm run build:lib`, `npm run build`.
+
+## 1. Handle vs value
+
+`d.user.name` is a **handle**: a path, not data. Property access never reads values. `$` members are state:
+`$value`, `$display`, `$visible`, `$pattern`, `$disabled`, `$required`, `$rules`, `$enum`, `$errors`, UI state
+(`$title`, `$description`, `$componentProps`, `$decoratorProps`, `$component`, `$decorator`), and form-level
+`d.$canSubmit` / `d.$submitting`. A field literally named `value` is `d.value.$value`.
+
+- Read data with `$value`; write a field by assigning its own path: `d.user.name.$value = 'x'`.
+- A `$value` object is a snapshot of immutable data. Never mutate it; assign a new value or write the child path.
+- A handle is not an array: no `.map`, `.length`, `for…of` on `d.items`. Use `d.items.$value` or `reaction.each`.
+
+Development builds throw `ShikiUsageError` with the fix for all three mistakes (mutating `$value`, using a handle
+as an array, and reading back a `$` state you wrote in the same pass). Production skips the checks.
+
+## 2. reaction vs watch
+
+- `reaction((d) => …)` **derives** state. Every `$` read is a dependency; writes are not. It re-runs only when a key
+  it read changes, and its writes wake downstream reactions in the same flush. A field whose `$value` a reaction
+  writes becomes computed (`readPretty` + `virtual` by default). Two reactions writing the same state is an error.
+- `watch(source, effect)` is an **action**: it runs after `source`'s reads change, never on the first pass; reads
+  inside `effect` are not dependencies. Use it for "when X changes, do Y once" (reset a dependent field, fetch).
+- Writes are buffered until the pass returns: keep a new value in a local instead of reading it back. UI state is
+  the exception (its pending writes replay, so `props.style ??= {}; props.style.color = 'red'` works).
+
+## 3. Rows and nodes: each / walk
+
+One callback shape for all three row-level APIs: `(row, ctx)` with `ctx = { d, path, index, pos }`
+(`d` root draft, `path` exact row path, `index` index in its array, `pos` tree coordinate; `[index]` for arrays).
+
+- `reaction.each((d) => d.items, (row, { d, index }) => …)`: one instance per row; a cell edit re-runs that row only.
+- `reaction.walk((d) => d.nodes, (node, { pos }) => …, { childrenKey })`: one instance per tree node.
+- `watch.each((d) => d.items, (row, ctx) => …)`: row-scoped watch; the `$` reads in the callback are its source.
+
+In React, a row component reads its row without names: `useArray()` (nearest array handle: `push`, `remove`,
+`move`…), `useIndex()`, `useRecord()` (reactive row value), `useTreeNode()` (inside `<RowScope path pos>`).
+`useArrayField(name)` is the named version. `ProArrayTable.useRow()` is built on these.
+
+## 4. Nested values: per-path writes vs `$componentProps` patches
+
+- **Form values** are written per path. `d.user.name.$value = 'x'` changes one field and wakes only its readers.
+  `d.user.$value = { ...d.user.$value, name: 'x' }` replaces the whole object (every reader of `user` re-runs).
+- **Object-valued UI state** (`$componentProps`, `$decoratorProps`) is patched Immer-style through the draft:
+  `d.city.$componentProps.placeholder = '…'` or `d.city.$componentProps.style.color = 'red'` copies the stored
+  object and keeps other keys. Missing intermediates are not created (`style ??= {}` first). Assigning the whole
+  object replaces every lower layer (`fields` and JSX); assigning `undefined` drops the reaction layer.
+- UI layers, highest first: reaction > JSX (`<Field title componentProps>`) > `fields` declaration.
+
+## 5. Field + decorator + component (the adapter)
+
+`<Field>` is the single owner of a path (Formily style). It renders `decorator` around `component` and provides the
+field through context; `FormItem` is a pure decorator and `connect()`ed controls need no `name`.
+
+```tsx
+import { createForm, defineEffects, Field, Form } from 'shikiform'
+import { FormItem, FormLayout, Input, Select } from 'shikiform/antd'
+
+const form = createForm({
+  initialValues: { kind: 'personal', email: '', city: '' },
+  fields: { city: { title: '城市', enum: [{ label: '上海', value: 'sh' }] } },
+  effects: [
+    defineEffects<{ kind: string; email: string; city: string }>(({ reaction }) => {
+      reaction((d) => {
+        d.email.$required = d.kind.$value === 'work'
+        d.email.$componentProps.placeholder = d.kind.$value === 'work' ? 'name@company.com' : 'name@example.com'
+      })
+    }),
+  ],
+})
+
+<Form form={form} onSubmit={(values) => save(values)}>
+  <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }}>
+    <Field name="email" title="邮箱" rules={{ format: 'email' }} decorator={[FormItem]} component={[Input]} />
+    <Field name="city" decorator={[FormItem]} component={[Select, { allowClear: true }]} />
+  </FormLayout>
+</Form>
+```
+
+- Slots take a component or `[Component, props]`; children (`<Field …><Input /></Field>`) or a render prop also work.
+- Table cells can drop the decorator (`<Field name="qty" component={[InputNumber]} />`) or use another one.
+- Hooks are the complete API: `useField(name, options)`, `mapFieldProps(field, props)`, `mapFormItemProps(field, props)`,
+  `useCurrentField()`. Components are thin sugar over them.
+
+## 6. Correct vs incorrect
+
+```ts
+// 1. Write a field by its path — never mutate a $value object
+d.user.$value.name = 'x'                         // ✗ throws in dev: mutates stored data, nobody is notified
+d.user.name.$value = 'x'                         // ✓
+d.items.$value.push(row)                         // ✗ throws in dev
+d.items.$value = [...d.items.$value, row]        // ✓ (outside effects: form.pushArray('items', row))
+
+// 2. Rows: reaction.each, not array methods on a handle
+d.items.forEach((row) => { row.total.$value = 1 })                    // ✗ a handle is not an array
+reaction.each((d) => d.items, (row) => {                                // ✓ one instance per row
+  row.total.$value = row.price.$value * row.qty.$value
+})
+
+// 3. Keep what you wrote in a local — do not read it back in the same pass
+d.total.$value = d.price.$value * d.qty.$value
+d.tax.$value = d.total.$value * 0.1              // ✗ reads the old total (throws in dev)
+const total = d.price.$value * d.qty.$value      // ✓
+d.total.$value = total
+d.tax.$value = total * 0.1
+
+// 4. Derive with reaction, act with watch
+watch((d) => d.price.$value, (d) => { d.total.$value = d.price.$value * 2 })  // ✗ a derivation hidden in a watch
+reaction((d) => { d.total.$value = d.price.$value * 2 })                       // ✓
+watch((d) => d.province.$value, (d) => { d.city.$value = undefined })          // ✓ an action on change
+
+// 5. Row callbacks take (row, ctx)
+reaction.each((d) => d.rows, (row, d, index) => { /* … */ })          // ✗ old signature
+reaction.each((d) => d.rows, (row, { d, index }) => {                   // ✓
+  row.name.$required = index === 0 || d.strict.$value
+})
+```
+
+```tsx
+// 6. Field owns the path; FormItem only decorates
+<FormItem name="email" label="邮箱" required><Input /></FormItem>                      // ✗ FormItem has no name
+<Field name="email" title="邮箱" required decorator={[FormItem]} component={[Input]} />  // ✓
+
+// 7. UI linkage goes through $componentProps, not a prop computed in render
+<Field name="city" component={[Select, { disabled: form.getValue('kind') === 'b' }]} />   // ✗ not reactive
+reaction((d) => { d.city.$componentProps.disabled = d.kind.$value === 'b' })             // ✓
+```

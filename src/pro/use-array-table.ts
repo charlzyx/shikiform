@@ -53,6 +53,8 @@ export interface ArrayTableApi<TRow = any> {
   pageRows: ArrayTableRow[]
   /** The array value (read on render; the hook itself subscribes to structure only). */
   record: (index: number) => TRow
+  /** 1-based position across pages of the row at array `index` (server paging adds the page offset). */
+  positionOf: (index: number) => number
   total: number
   page: number
   pageSize: number
@@ -170,6 +172,7 @@ export function useArrayTable<TRow = any>(name: string, options: UseArrayTableOp
       rows,
       pageRows,
       record,
+      positionOf: (index: number) => offset + index + 1,
       total,
       page,
       pageSize,

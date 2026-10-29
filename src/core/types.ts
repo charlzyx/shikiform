@@ -260,6 +260,24 @@ export interface EffectsAPI<T> {
   query(path: string, opts?: { ui?: string }): any
 }
 
+/**
+ * Second argument of every row-level effect (`reaction.each`, `reaction.walk`, `watch.each`). One shape for all three.
+ *
+ * - `d`: the root draft.
+ * - `path`: exact data path of this row / node (`items.2`, `nodes.0.children.1`).
+ * - `index`: index in its own array (the last segment of `pos`).
+ * - `pos`: tree coordinate (`[0, 1]`); for an array row it is `[index]`.
+ */
+export interface RowContext<T> {
+  d: Draft<T>
+  path: string
+  index: number
+  pos: Pos
+}
+
+/** The element draft of a selected array handle. */
+export type RowDraft<A> = A extends readonly (infer E)[] ? Draft<E> : Draft<A>
+
 export interface ReactionFn<T> {
   /**
    * Derive `$` state. Reads are dependencies. Writes are not, so do not read a `$` state you just wrote.
@@ -283,24 +301,21 @@ export interface ReactionFn<T> {
    * @example
    * reaction.each(
    *   (d) => d.rows,
-   *   (row) => {
-   *     row.name.$required = true
+   *   (row, { d, index }) => {
+   *     row.name.$required = index === 0 || d.strict.$value
    *   },
    * )
    */
-  each<A>(
-    select: (d: Draft<T>) => Draft<A>,
-    effect: (row: A extends readonly (infer E)[] ? Draft<E> : Draft<A>, d: Draft<T>, index: number) => void,
-  ): void
+  each<A>(select: (d: Draft<T>) => Draft<A>, effect: (row: RowDraft<A>, ctx: RowContext<T>) => void): void
   /**
-   * One reaction instance per tree node. `pos` is the index path after the walk (`[0, 2, 1]`).
+   * One reaction instance per tree node. `ctx.pos` is the index path after the walk (`[0, 2, 1]`).
    * Same skipping as {@link ReactionFn.each}: only a node whose reads intersect the dirty keys runs again.
    * Kept separate from `each` so array reactions stay one level deep.
    * `opts.childrenKey` defaults to `'children'`.
    */
   walk<A>(
     select: (d: Draft<T>) => Draft<A>,
-    effect: (node: A extends readonly (infer E)[] ? Draft<E> : Draft<A>, d: Draft<T>, pos: Pos) => void,
+    effect: (node: RowDraft<A>, ctx: RowContext<T>) => void,
     opts?: { childrenKey?: string },
   ): void
 }
@@ -320,10 +335,7 @@ export interface WatchFn<T> {
    * An edit re-fires the rows whose source keys are dirty, not the rest of the array.
    * One level of the array, same as {@link ReactionFn.each}.
    */
-  each<A>(
-    select: (d: Draft<T>) => Draft<A>,
-    effect: (row: A extends readonly (infer E)[] ? Draft<E> : Draft<A>, d: Draft<T>, index: number) => void,
-  ): void
+  each<A>(select: (d: Draft<T>) => Draft<A>, effect: (row: RowDraft<A>, ctx: RowContext<T>) => void): void
 }
 
 /**

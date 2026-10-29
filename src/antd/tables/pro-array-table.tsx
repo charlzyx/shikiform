@@ -18,9 +18,10 @@ import { joinPath } from '../../core/shared/path'
 import { useArrayTable, type ArrayTableApi, type ArrayTablePagination, type ArrayTableRow } from '../../pro/use-array-table'
 import { useColumnSettings, type ColumnSettingsApi, type TableDensity } from '../../pro/use-column-settings'
 import { useShadowForm, type UseShadowFormOptions } from '../../pro/use-shadow-form'
-import { RowScope } from '../../react/components/fields'
+import { ArrayScope, RowScope } from '../../react/components/fields'
 import { useFormContext, useScope } from '../../react/context'
 import { useArrayMove } from '../../react/hooks/use-array'
+import { useIndex, useRecord } from '../../react/hooks/use-row'
 import { ShadowDrawer, ShadowModal } from '../shadow/shadow'
 
 /** What a column renderer receives. It already renders inside the row's scope: `<Field name="a1">` is `list.N.a1`. */
@@ -86,7 +87,6 @@ interface ProArrayTableContextValue {
 }
 
 const TableContext = createContext<ProArrayTableContextValue | null>(null)
-const RowContext = createContext<ArrayTableRow | null>(null)
 
 /** The surrounding `ProArrayTable`'s state (pagination, selection, expansion, row actions) and its column settings. */
 function useTable(): ArrayTableApi<any> & { settings: ColumnSettingsApi } {
@@ -95,19 +95,25 @@ function useTable(): ArrayTableApi<any> & { settings: ColumnSettingsApi } {
   return { ...ctx.table, settings: ctx.settings }
 }
 
-/** The row a cell renders in. */
+/**
+ * The row a cell renders in: the headless {@link useIndex} / {@link useRecord} (reactive) plus the row id from the
+ * row scope and the table's 1-based `position`. No logic of its own.
+ */
 function useRow(): ArrayTableRow & { record: any } {
   const ctx = useContext(TableContext)
-  const row = useContext(RowContext)
-  if (!ctx || !row) throw new Error('ProArrayTable.useRow must render inside a ProArrayTable cell')
-  return { ...row, record: ctx.table.record(row.index) }
+  if (!ctx) throw new Error('ProArrayTable.useRow must render inside a ProArrayTable cell')
+  const index = useIndex()
+  const record = useRecord()
+  const key = useScope().itemKey ?? String(index)
+  return { key, index, position: ctx.table.positionOf(index), record }
 }
 
 function useCell() {
   const ctx = useContext(TableContext)
-  const row = useContext(RowContext)
-  if (!ctx || !row) throw new Error('ProArrayTable row actions must render inside a ProArrayTable cell')
-  return { ...ctx, row }
+  if (!ctx) throw new Error('ProArrayTable row actions must render inside a ProArrayTable cell')
+  const index = useIndex()
+  const key = useScope().itemKey ?? String(index)
+  return { ...ctx, row: { key, index, position: ctx.table.positionOf(index) } }
 }
 
 /** Drag handle; drop on another row of the same table to move this one there. */
@@ -368,8 +374,8 @@ function ProArrayTableImpl<TRow = any>(props: ProArrayTableProps<TRow>) {
   const byKey = new Map(props.columns.map((column) => [column.key, column]))
   const cellOf = (row: ArrayTableRow): ProArrayTableCell<TRow> => ({ ...row, record: table.record(row.index), table })
   const inRow = (row: ArrayTableRow, node: ReactNode) => (
-    <RowScope path={`${table.path}.${row.index}`} index={row.index}>
-      <RowContext.Provider value={row}>{node}</RowContext.Provider>
+    <RowScope path={`${table.path}.${row.index}`} index={row.index} itemKey={row.key}>
+      {node}
     </RowScope>
   )
   const columns: TableProps<ArrayTableRow>['columns'] = settings.items
@@ -395,6 +401,7 @@ function ProArrayTableImpl<TRow = any>(props: ProArrayTableProps<TRow>) {
 
   return (
     <TableContext.Provider value={ctx}>
+      <ArrayScope path={table.path} rowKey={props.rowKey}>
       <div data-array={table.path} data-testid={props.testId} className="shiki-pro-array-table">
         {header ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '8px 0' }}>
@@ -465,6 +472,7 @@ function ProArrayTableImpl<TRow = any>(props: ProArrayTableProps<TRow>) {
           </div>
         ) : null}
       </div>
+      </ArrayScope>
     </TableContext.Provider>
   )
 }

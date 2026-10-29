@@ -1,7 +1,7 @@
-import { useCallback, useRef, useSyncExternalStore, type DragEvent } from 'react'
+import { useCallback, useContext, useRef, useSyncExternalStore, type DragEvent } from 'react'
 import { joinPath } from '../../core/shared/path'
 import type { ArrayItemOf, ArrayPath } from '../../core/types'
-import { useFormContext, useScope } from '../context'
+import { ArrayContext, useFormContext, useScope } from '../context'
 
 /** One rendered row. `key` is the row id, or a stable identity when the row has none. */
 export interface ArrayKey {
@@ -9,7 +9,7 @@ export interface ArrayKey {
   index: number
 }
 
-type ArrayHandle<TRow> = {
+export type ArrayHandle<TRow> = {
   path: string
   keys: ArrayKey[]
   push: (row: TRow) => void
@@ -35,9 +35,31 @@ export function useArrayField<TScope, N extends ArrayPath<TScope>>(
   rowKey?: string,
 ): ArrayHandle<ArrayItemOf<TScope, N & string>>
 export function useArrayField(name: string, rowKey?: string): ArrayHandle<unknown> {
-  const form = useFormContext()
   const scope = useScope()
-  const path = joinPath(scope.path, name)
+  return useArrayAt(joinPath(scope.path, name), rowKey)
+}
+
+/**
+ * The nearest enclosing array, no name needed (Formily `ArrayBase.useArray`): inside an `<ArrayField>`, `ArrayTable`
+ * or `ProArrayTable` row (or its toolbar), the same handle {@link useArrayField} returns for that array.
+ * Throws outside an array.
+ *
+ * ```tsx
+ * function RemoveButton() {
+ *   const array = useArray()
+ *   const index = useIndex()
+ *   return <button onClick={() => array.remove(index)}>删除</button>
+ * }
+ * ```
+ */
+export function useArray<TRow = unknown>(): ArrayHandle<TRow> {
+  const ctx = useContext(ArrayContext)
+  if (!ctx) throw new Error('useArray() must render inside <ArrayField>, ArrayTable, or ProArrayTable')
+  return useArrayAt(ctx.path, ctx.rowKey) as ArrayHandle<TRow>
+}
+
+function useArrayAt(path: string, rowKey?: string): ArrayHandle<unknown> {
+  const form = useFormContext()
   const version = useSyncExternalStore(
     (onStoreChange) => form.subscribeStructure(path, onStoreChange),
     () => form.getStructureVersion(path),
