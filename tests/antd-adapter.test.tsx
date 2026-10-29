@@ -2,15 +2,17 @@ import dayjs from 'dayjs'
 import type { ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
-import { createForm, Form, useField, type FieldBinding } from '../src'
+import { createForm, defineEffects, Field, FieldContext, Form, useField, type FieldBinding } from '../src'
 import {
   Checkbox,
   connect,
   DatePicker,
   FormItem,
+  FormLayout,
   Input,
   InputNumber,
   mapFieldProps,
+  mapFormItemProps,
   mapProps,
   mapReadPretty,
   PreviewText,
@@ -124,7 +126,7 @@ describe('connect', () => {
     expect(form.getValue('a.b' as any)).toBe('w')
   })
 
-  it('binds from a surrounding FormItem without its own name', () => {
+  it('binds from the surrounding <Field> without its own name', () => {
     const seen: Record<string, any>[] = []
     const Probe = connect((props: { value?: unknown }) => {
       seen.push(props)
@@ -133,9 +135,9 @@ describe('connect', () => {
     const form = createForm({ initialValues: { city: 'Paris' } })
     renderToStaticMarkup(
       <Form form={form}>
-        <FormItem name="city" label="城市">
+        <Field name="city" title="城市" decorator={[FormItem]}>
           <Probe />
-        </FormItem>
+        </Field>
       </Form>,
     )
     expect(seen.at(-1)!.value).toBe('Paris')
@@ -177,9 +179,9 @@ describe('FormItem', () => {
     const view = () =>
       renderToStaticMarkup(
         <Form form={form}>
-          <FormItem name="email" label="邮箱" required>
+          <Field name="email" title="邮箱" required decorator={[FormItem]}>
             <Input />
-          </FormItem>
+          </Field>
         </Form>,
       )
     const first = view()
@@ -193,13 +195,13 @@ describe('FormItem', () => {
     expect(form.binding('email').errors).toEqual(['必填'])
   })
 
-  it('applies field options as a mount lease, like <Field rules>', async () => {
+  it('is a pure decorator: the <Field> owns the rules as a mount lease', async () => {
     const form = createForm({ initialValues: { code: 'x' } })
     renderToStaticMarkup(
       <Form form={form}>
-        <FormItem name="code" rules={{ minLength: 3 }}>
+        <Field name="code" rules={{ minLength: 3 }} decorator={[FormItem]}>
           <Input />
-        </FormItem>
+        </Field>
       </Form>,
     )
     expect(await form.validate()).toEqual([{ path: 'code', messages: ['至少 3 个字符'] }])
@@ -207,9 +209,9 @@ describe('FormItem', () => {
 
   it('renders nothing for display hidden / none and hides the required mark in readPretty', () => {
     const hidden = createForm({ initialValues: { a: 1 }, fields: { a: { display: 'hidden' } } })
-    expect(renderToStaticMarkup(<Form form={hidden}><FormItem name="a" label="A"><InputNumber /></FormItem></Form>)).not.toContain('A')
+    expect(renderToStaticMarkup(<Form form={hidden}><Field name="a" title="A" decorator={[FormItem]}><InputNumber /></Field></Form>)).not.toContain('A')
     const pretty = createForm({ initialValues: { a: 1 }, fields: { a: { pattern: 'readPretty', required: true } } })
-    const html = renderToStaticMarkup(<Form form={pretty}><FormItem name="a" label="A"><InputNumber /></FormItem></Form>)
+    const html = renderToStaticMarkup(<Form form={pretty}><Field name="a" title="A" decorator={[FormItem]}><InputNumber /></Field></Form>)
     expect(html).not.toContain('ant-form-item-required')
     expect(html).toContain('data-read-pretty')
   })
@@ -217,15 +219,157 @@ describe('FormItem', () => {
   it('accepts a binding from useField (hooks first, component as sugar)', async () => {
     const form = createForm({ initialValues: { name: '' } })
     function Hooked() {
-      const field = useField('name', { required: true })
+      const field = useField('name', { required: true, title: '姓名' })
       return (
-        <FormItem field={field} label="姓名">
-          <Input />
-        </FormItem>
+        <FieldContext.Provider value={field}>
+          <FormItem>
+            <Input />
+          </FormItem>
+        </FieldContext.Provider>
       )
     }
-    renderToStaticMarkup(<Form form={form}><Hooked /></Form>)
+    const html = renderToStaticMarkup(<Form form={form}><Hooked /></Form>)
+    expect(html).toContain('姓名')
     expect(await form.validate()).toEqual([{ path: 'name', messages: ['必填'] }])
+    const props = mapFormItemProps(form.binding('name', { title: '姓名' }) as FieldBinding<any>, { tooltip: 't' })
+    expect(props).toMatchObject({ label: '姓名', required: true, validateStatus: 'error', help: '必填', tooltip: 't', htmlFor: 'name' })
+  })
+
+  it('throws a clear error outside a field', () => {
+    const form = createForm({ initialValues: {} })
+    expect(() => renderToStaticMarkup(<Form form={form}><FormItem><Input /></FormItem></Form>)).toThrow(/FormItem is a decorator/)
+  })
+
+  it('maps title → label, description → extra, decoratorProps, and feedbackLayout', () => {
+    const form = createForm({ initialValues: { a: '' }, fields: { a: { title: '声明标题', description: '说明', decoratorProps: { tooltip: 'tip' } } } })
+    const field = form.binding('a') as FieldBinding<any>
+    expect(mapFormItemProps(field, {})).toMatchObject({ label: '声明标题', extra: '说明', tooltip: 'tip' })
+    expect(mapFormItemProps(field, { label: '显式', extra: 'x' })).toMatchObject({ label: '显式', extra: 'x' })
+    expect(mapFormItemProps(field, { feedbackLayout: 'terse' }).style).toEqual({ marginBottom: 0 })
+    expect(mapFormItemProps(field, { asterisk: true }).required).toBe(true)
+    form.registerField('a', { required: true })
+    void form.validate()
+    const failed = form.binding('a') as FieldBinding<any>
+    expect(mapFormItemProps(failed, { feedbackLayout: 'none' })).toMatchObject({ validateStatus: 'error', help: undefined })
+    expect(mapFormItemProps(failed, {}, { layout: 'vertical', labelCol: { span: 4 } })).toMatchObject({ layout: 'vertical', labelCol: { span: 4 } })
+  })
+})
+
+describe('<Field decorator component> (Formily style)', () => {
+  it('renders the decorator around the component and passes tuple props', () => {
+    const form = createForm({ initialValues: { email: 'a@b.c' } })
+    const html = renderToStaticMarkup(
+      <Form form={form}>
+        <Field name="email" title="邮箱" description="工作邮箱" required decorator={[FormItem, { tooltip: '提示' }]} component={[Input, { placeholder: 'name@example.com' }]} />
+      </Form>,
+    )
+    expect(html).toContain('邮箱')
+    expect(html).toContain('工作邮箱')
+    expect(html).toContain('ant-form-item-required')
+    expect(html).toContain('placeholder="name@example.com"')
+    expect(html).toContain('value="a@b.c"')
+  })
+
+  it('declares the slots in fields: <Field name /> alone renders them', () => {
+    const form = createForm({
+      initialValues: { city: 'sh' },
+      fields: { city: { title: '城市', decorator: [FormItem], component: [Select, { allowClear: true }], enum: [{ label: '上海', value: 'sh' }] } },
+    })
+    const html = renderToStaticMarkup(<Form form={form}><Field name="city" /></Form>)
+    expect(html).toContain('城市')
+    expect(html).toContain('上海')
+  })
+
+  it('a reaction patches $componentProps / $decoratorProps / $title and the control sees it', () => {
+    type V = { kind: string; city: string }
+    const effects = defineEffects<V>(({ reaction }) => {
+      reaction((d) => {
+        const vip = d.kind.$value === 'vip'
+        d.city.$componentProps.placeholder = vip ? 'VIP 城市' : '普通城市'
+        d.city.$decoratorProps.tooltip = vip ? 'vip-tip' : undefined
+        if (vip) d.city.$title = 'VIP 城市'
+      })
+    })
+    const form = createForm<V>({ initialValues: { kind: 'normal', city: '' }, effects: [effects] })
+    const view = () =>
+      renderToStaticMarkup(
+        <Form form={form}>
+          <Field name="city" title="城市" decorator={[FormItem]} component={[Input, { placeholder: 'jsx', maxLength: 5 }]} />
+        </Form>,
+      )
+    let html = view()
+    expect(html).toContain('placeholder="普通城市"')
+    expect(html).toContain('maxLength="5"')
+    expect(html).toContain('城市')
+    form.setValue('kind', 'vip')
+    html = view()
+    expect(html).toContain('placeholder="VIP 城市"')
+    expect(html).toContain('VIP 城市')
+  })
+
+  it('table cells can use no decorator, or a different one', () => {
+    const form = createForm({ initialValues: { a: 'x', b: 'y' } })
+    function Cell({ children }: { children?: React.ReactNode }) {
+      return <td data-cell>{children}</td>
+    }
+    const html = renderToStaticMarkup(
+      <Form form={form}>
+        <Field name="a" component={[Input]} />
+        <Field name="b" decorator={[Cell]} component={[Input]} />
+      </Form>,
+    )
+    expect(html).not.toContain('ant-form-item')
+    expect(html).toContain('data-cell')
+    expect(html).toContain('value="y"')
+  })
+
+  it('keeps the render-prop <Field> working, now with a field context', () => {
+    const form = createForm({ initialValues: { a: 'x' } })
+    const html = renderToStaticMarkup(
+      <Form form={form}>
+        <Field name="a" title="A">
+          {(field) => (
+            <FormItem>
+              <span data-v>{field.value}</span>
+            </FormItem>
+          )}
+        </Field>
+      </Form>,
+    )
+    expect(html).toContain('data-v')
+    expect(html).toContain('A')
+  })
+})
+
+describe('FormLayout', () => {
+  it('is inherited by FormItem; nested layouts and decoratorProps win', () => {
+    const form = createForm({ initialValues: { a: '', b: '' } })
+    const html = renderToStaticMarkup(
+      <Form form={form}>
+        <FormLayout layout="vertical" colon={false}>
+          <Field name="a" title="A" decorator={[FormItem]} component={[Input]} />
+          <FormLayout layout="horizontal" labelCol={{ span: 6 }}>
+            <Field name="b" title="B" decorator={[FormItem]} component={[Input]} />
+          </FormLayout>
+        </FormLayout>
+      </Form>,
+    )
+    expect(html).toContain('ant-form-item-vertical')
+    expect(html).toContain('ant-form-item-horizontal')
+    expect(html).toContain('ant-col-6')
+  })
+
+  it('inline layout and size', () => {
+    const form = createForm({ initialValues: { a: '' } })
+    const html = renderToStaticMarkup(
+      <Form form={form}>
+        <FormLayout layout="inline" size="small">
+          <Field name="a" title="A" decorator={[FormItem]} component={[Input]} />
+        </FormLayout>
+      </Form>,
+    )
+    expect(html).toContain('data-form-layout="inline"')
+    expect(html).toContain('ant-input-sm')
   })
 })
 
@@ -314,21 +458,21 @@ describe('connected Ant Design controls', () => {
     expect(html).toContain('2026-01-01 ~ 2026-01-31')
   })
 
-  it('server-renders every control under FormItem', () => {
+  it('server-renders every control in a FormItem-decorated <Field>', () => {
     const form = createForm({
       initialValues: { a: 'x', b: 2, c: 'red', d: true, e: true, f: ['red'], g: 'blue', h: '2026-10-29' },
       fields: { c: { enum: options }, f: { enum: options }, g: { enum: options } },
     })
     const html = renderToStaticMarkup(
       <Form form={form}>
-        <FormItem name="a" label="A"><Input /></FormItem>
-        <FormItem name="b" label="B"><InputNumber /></FormItem>
-        <FormItem name="c" label="C"><Select /></FormItem>
-        <FormItem name="d" label="D"><Switch /></FormItem>
-        <FormItem name="e" label="E"><Checkbox>同意</Checkbox></FormItem>
-        <FormItem name="f" label="F"><Checkbox.Group /></FormItem>
-        <FormItem name="g" label="G"><Radio.Group /></FormItem>
-        <FormItem name="h" label="H"><DatePicker /></FormItem>
+        <Field name="a" title="A" decorator={[FormItem]}><Input /></Field>
+        <Field name="b" title="B" decorator={[FormItem]}><InputNumber /></Field>
+        <Field name="c" title="C" decorator={[FormItem]}><Select /></Field>
+        <Field name="d" title="D" decorator={[FormItem]}><Switch /></Field>
+        <Field name="e" title="E" decorator={[FormItem]}><Checkbox>同意</Checkbox></Field>
+        <Field name="f" title="F" decorator={[FormItem]}><Checkbox.Group /></Field>
+        <Field name="g" title="G" decorator={[FormItem]}><Radio.Group /></Field>
+        <Field name="h" title="H" decorator={[FormItem]}><DatePicker /></Field>
       </Form>,
     )
     expect(html).toContain('value="x"')

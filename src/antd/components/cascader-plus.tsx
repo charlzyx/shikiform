@@ -85,7 +85,7 @@ function CascaderPreview({ value, multiple }: { value?: unknown; multiple?: bool
  * Field-bound {@link CascaderPlusView}. `readPretty` shows `labelInValue` labels (bare values otherwise).
  *
  * ```tsx
- * <FormItem name="area" label="地区"><CascaderPlus loadData={loadArea} labelInValue /></FormItem>
+ * <Field name="area" title="地区" decorator={[FormItem]} component={[CascaderPlus, { loadData: loadArea, labelInValue: true }]} />
  * ```
  */
 export const CascaderPlus = connect(CascaderPlusView, mapReadPretty(CascaderPreview))

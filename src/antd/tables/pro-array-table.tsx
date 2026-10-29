@@ -23,7 +23,7 @@ import { useFormContext, useScope } from '../../react/context'
 import { useArrayMove } from '../../react/hooks/use-array'
 import { ShadowDrawer, ShadowModal } from '../shadow/shadow'
 
-/** What a column renderer receives. It already renders inside the row's scope: `<FormItem name="a1">` is `list.N.a1`. */
+/** What a column renderer receives. It already renders inside the row's scope: `<Field name="a1">` is `list.N.a1`. */
 export interface ProArrayTableCell<TRow> extends ArrayTableRow {
   /** The row value at render time. Inputs should bind through fields, not this snapshot. */
   record: TRow
@@ -337,7 +337,8 @@ function ResizableTitle({ onResize, width, ...rest }: ThHTMLAttributes<HTMLTable
  * ```tsx
  * <ProArrayTable name="list" columns={[
  *   { key: 'sort', width: 50, render: () => <ProArrayTable.SortHandle /> },
- *   { key: 'a1', title: 'A1', render: () => <FormItem name="a1"><Input /></FormItem> },
+ *   { key: 'a1', title: 'A1', render: () => <Field name="a1" component={[Input]} /> }, // no decorator in a cell
+ *   { key: 'a2', title: 'A2', render: () => <Field name="a2" decorator={[FormItem, { feedbackLayout: 'terse' }]} component={[Input]} /> },
  *   { key: 'act', title: '操作', render: () => <ProArrayTable.Remove confirm /> },
  * ]} extra={<ProArrayTable.Addition />} rowSelection />
  * ```

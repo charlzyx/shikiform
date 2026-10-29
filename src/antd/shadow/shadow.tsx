@@ -81,7 +81,7 @@ function Trigger({ trigger, onOpen }: { trigger?: ReactNode; onOpen: () => void 
  *
  * ```tsx
  * <ShadowModal title="编辑" record={() => form.getValue('info')} onOk={(v) => form.setValue('info', v)} trigger={<Button>编辑</Button>}>
- *   <FormItem name="domain" label="域名"><Input /></FormItem>
+ *   <Field name="domain" title="域名" decorator={[FormItem]} component={[Input]} />
  * </ShadowModal>
  * ```
  */

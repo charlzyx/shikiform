@@ -15,7 +15,7 @@ import { ChoicePreview, stripPrettyType, type EnumPrettyProps } from './enum-pre
 
 /*
  * Ant Design controls wired through `connect`. Each one is only a mapping; the field logic is `useField`.
- * Use them under `FormItem`, inside `AppField`, or with `name` / `field` props.
+ * Use them as a `<Field component>`, as children of a `<Field>` / `AppField`, or with `name` / `field` props.
  */
 
 function PasswordPreview({ value }: { value?: unknown }) {

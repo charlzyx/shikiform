@@ -1,75 +1,83 @@
-import { Form, type FormItemProps as AntFormItemProps } from 'antd'
-import { useContext, type ReactNode } from 'react'
-import { useField, type FieldBinding, type UseFieldOptions } from '../../react/hooks/use-field'
-import { antdContexts } from './field-context'
+import { ConfigProvider, Form, type FormItemProps as AntFormItemProps } from 'antd'
+import type { ReactNode } from 'react'
+import { useCurrentField } from '../../react/field-context'
+import type { FieldBinding } from '../../react/hooks/use-field'
+import { useFormLayout, type FeedbackLayout, type FormLayoutValue } from './form-layout'
 
-/** `FormItem` props: field options (same as `useField(name, options)`), the field source, and Ant Design item layout. */
+/**
+ * `FormItem` props: Ant Design `Form.Item` layout props plus the inheritable {@link FormLayoutValue} keys.
+ * The field (name, rules, required) is not here: `FormItem` is a pure decorator and reads it from the surrounding
+ * `<Field>` / `AppField`.
+ */
 export interface FormItemProps
-  extends UseFieldOptions,
-    Omit<AntFormItemProps, 'name' | 'rules' | 'required' | 'children' | 'validateStatus' | 'help' | 'hidden'> {
-  /** Field name relative to the current scope. Omit it inside `AppField` or when passing `field`. */
-  name?: string
-  /** An explicit binding, e.g. from `useField(name, options)`. Wins over `name`. */
-  field?: FieldBinding<any>
+  extends Omit<
+      AntFormItemProps,
+      | 'name' | 'rules' | 'required' | 'children' | 'validateStatus' | 'help' | 'hidden' | 'layout' | 'dependencies'
+      | 'shouldUpdate' | 'trigger' | 'validateTrigger' | 'validateFirst' | 'valuePropName' | 'getValueFromEvent'
+      | 'getValueProps' | 'normalize' | 'initialValue' | 'messageVariables' | 'validateDebounce'
+    >,
+    Omit<FormLayoutValue, 'labelCol' | 'wrapperCol' | 'labelAlign' | 'colon'> {
+  /** Force the required mark on (`true`) or off (`false`). Default: the field's `required`, hidden in `readPretty`. */
+  asterisk?: boolean
   children?: ReactNode
 }
 
 /**
- * Decorator for one field (Formily `FormItem`). Reads the field and renders an Ant Design `Form.Item`:
- * `label`, the required mark (hidden in `readPretty`), `validateStatus` (`error` → `validating` → `warning`),
- * and `help` (first error, else first warning). Display `hidden` / `none` renders nothing, like `<Field>`.
- * Children that are `connect()`ed controls bind to this field without their own `name`.
+ * The `Form.Item` props for a field (pure; what `FormItem` renders). Layering, lowest first:
+ * `layout` (from `FormLayout`) ← `field.decoratorProps` (`fields` ← JSX ← `$decoratorProps`) ← `props`.
+ *
+ * - `label` ← `field.title`, `extra` ← `field.description` (an explicit `label` / `extra` wins);
+ * - `required` mark ← `field.required`, hidden in `readPretty` (override with `asterisk`);
+ * - `validateStatus`: `error` → `validating` → `warning`; `help`: first error, else first warning
+ *   (`feedbackLayout: 'none'` drops the message, `'terse'` drops the bottom margin while there is none);
+ * - `htmlFor` ← `field.id`.
+ *
+ * A hook user renders the same item without the component: `<Form.Item {...mapFormItemProps(field, {})}>`.
+ */
+export function mapFormItemProps(
+  field: FieldBinding<any>,
+  props: Omit<FormItemProps, 'children'>,
+  layout: FormLayoutValue = {},
+): AntFormItemProps {
+  const merged = { ...layout, ...field.decoratorProps, ...props } as FormItemProps & FormLayoutValue
+  const { asterisk, feedbackLayout = 'loose', size: _size, layout: direction, label, extra, style, ...rest } = merged
+  const status = field.errors.length ? 'error' : field.validating ? 'validating' : field.warnings.length ? 'warning' : undefined
+  const message = field.errors[0] ?? field.warnings[0]
+  const help = feedbackLayout === 'none' ? undefined : message
+  const out: AntFormItemProps = {
+    htmlFor: field.id,
+    ...rest,
+    label: label ?? (field.title as ReactNode),
+    extra: extra ?? (field.description as ReactNode),
+    required: asterisk ?? (field.required && field.pattern !== 'readPretty'),
+    validateStatus: status,
+    help,
+    style: feedbackLayout === 'terse' && help === undefined ? { marginBottom: 0, ...style } : style,
+  }
+  if (direction === 'horizontal' || direction === 'vertical') out.layout = direction
+  return out
+}
+
+/**
+ * Decorator for the current field (Formily `FormItem`). It owns nothing: use it as a `<Field>` decorator,
  *
  * ```tsx
- * <FormItem name="email" label="邮箱" required rules={{ format: 'email' }}>
- *   <Input placeholder="name@example.com" />
- * </FormItem>
+ * <Field name="email" title="邮箱" required decorator={[FormItem, { tooltip: '工作邮箱' }]} component={[Input]} />
  * ```
  *
- * Everything it reads is on the {@link useField} binding; a hook user can render the same item from `field`.
+ * or inside a `<Field>` / `AppField`. It reads the field from context and renders an Ant Design `Form.Item` from
+ * {@link mapFormItemProps}: label (`title`), extra (`description`), the required mark, status and help, plus the
+ * inherited {@link FormLayout} (`layout`, `labelCol`, `wrapperCol`, `labelAlign`, `colon`, `size`, `feedbackLayout`).
+ * Display `hidden` / `none` renders nothing.
  */
-export function FormItem(props: FormItemProps) {
-  if (props.field) return <FormItemView {...props} field={props.field} />
-  if (props.name !== undefined) return <NamedFormItem {...props} name={props.name} />
-  return <ContextFormItem {...props} />
-}
-
-function NamedFormItem({ rules, required, virtual, display, pattern, ...props }: FormItemProps & { name: string }) {
-  const field = useField(props.name, { rules, required, virtual, display, pattern })
-  return <FormItemView {...props} field={field} />
-}
-
-function ContextFormItem(props: FormItemProps) {
-  const field = useContext(antdContexts.fieldContext)
-  if (!field) throw new Error('FormItem needs a `name` prop, a `field` prop, or a surrounding AppField')
-  return <FormItemView {...props} field={field} />
-}
-
-function FormItemView({
-  field,
-  children,
-  name: _name,
-  rules: _rules,
-  required: _required,
-  virtual: _virtual,
-  display: _display,
-  pattern: _pattern,
-  ...itemProps
-}: FormItemProps & { field: FieldBinding<any> }) {
+export function FormItem({ children, ...props }: FormItemProps) {
+  const field = useCurrentField()
+  const layout = useFormLayout()
+  if (!field) {
+    throw new Error('FormItem is a decorator: use it as <Field decorator={[FormItem]}> or inside a <Field> / AppField')
+  }
   if (field.display !== 'visible') return null
-  const status = field.errors.length ? 'error' : field.validating ? 'validating' : field.warnings.length ? 'warning' : undefined
-  const help = field.errors[0] ?? field.warnings[0]
-  return (
-    <antdContexts.fieldContext.Provider value={field}>
-      <Form.Item
-        htmlFor={field.id}
-        {...itemProps}
-        required={field.required && field.pattern !== 'readPretty'}
-        validateStatus={status}
-        help={help}
-      >
-        {children}
-      </Form.Item>
-    </antdContexts.fieldContext.Provider>
-  )
+  const size = props.size ?? field.decoratorProps.size ?? layout.size
+  const item = <Form.Item {...mapFormItemProps(field, props, layout)}>{children}</Form.Item>
+  return size && size !== layout.size ? <ConfigProvider componentSize={size}>{item}</ConfigProvider> : item
 }

@@ -1,100 +1,140 @@
-import type { ReactElement } from 'react'
-import { describe, expect, it, vi } from 'vitest'
-import { createForm } from '../src/core'
+// @vitest-environment happy-dom
+import { cleanup, render } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
-// Capture the existing factory's component registry. Components are invoked as
-// binding adapters, not rendered as a fake browser; the engine is real.
-const harness = vi.hoisted(() => ({
-  field: null as any,
-  components: {} as Record<string, (props: any) => ReactElement<any>>,
-}))
-vi.mock('../src/react/factory/create-form-hook', () => ({
-  createFormHookContexts: () => ({ fieldContext: null, formContext: null, useFieldContext: () => harness.field }),
-  createFormHook: (options: any) => {
-    harness.components = options.fieldComponents
-    return { useAppForm: () => {}, withForm: () => {}, withFieldGroup: () => {} }
-  },
-}))
-import '../src/antd/form-hook/form-hook'
+// Record the props each Ant Design control receives. Everything else (FormItem, the engine, connect) is real,
+// so these contracts cover `useAntdForm`'s `field.Input` & co., which are now the connect() controls.
+const seen = vi.hoisted(() => ({} as Record<string, any>))
+vi.mock('antd', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('antd')>()
+  const spy = (name: string) =>
+    function Recorder(props: any) {
+      seen[name] = props
+      return null
+    }
+  return {
+    ...actual,
+    Input: Object.assign(spy('Input'), { TextArea: actual.Input.TextArea, Password: actual.Input.Password }),
+    Select: spy('Select'),
+    InputNumber: spy('InputNumber'),
+    Switch: spy('Switch'),
+    Checkbox: Object.assign(spy('Checkbox'), { Group: actual.Checkbox.Group }),
+  }
+})
+import { useAntdForm } from '../src/antd'
 
-function setup(value: unknown, pattern: 'editable' | 'disabled' | 'readOnly' | 'readPretty' = 'editable') {
-  const form = createForm({ initialValues: { value }, fields: { value: { pattern } } })
-  const field = form.binding('value')
-  const change = vi.fn(field.onChange)
-  const blur = vi.fn(field.onBlur)
-  harness.field = { ...field, onChange: change, onBlur: blur }
-  return { form, change, blur }
+type Pattern = 'editable' | 'disabled' | 'readOnly' | 'readPretty'
+
+afterEach(() => {
+  cleanup()
+  for (const key of Object.keys(seen)) delete seen[key]
+})
+
+function mount(name: string, value: unknown, pattern: Pattern = 'editable', props: Record<string, unknown> = {}) {
+  let api: any
+  function App() {
+    const form = useAntdForm({ initialValues: { value }, fields: { value: { pattern } } })
+    api = form
+    return (
+      <form.AppForm>
+        <form.AppField name="value">
+          {(field) => {
+            const Control = (field as any)[name]
+            return <Control {...props} />
+          }}
+        </form.AppField>
+      </form.AppForm>
+    )
+  }
+  const view = render(<App />)
+  return { form: api, html: () => view.container.innerHTML, control: () => seen[name] }
 }
-function leaf(element: ReactElement<any>): ReactElement<any> {
-  return element.props.children && typeof element.props.children === 'object' && !Array.isArray(element.props.children)
-    ? leaf(element.props.children)
-    : element
-}
 
-describe('Ant Design bound input contracts', () => {
+describe('Ant Design bound input contracts (useAntdForm field.X = connect controls)', () => {
   it.each([
     ['Input', '', [{ target: { value: 'Ada' } }], 'Ada'],
     ['Select', '', ['city', { label: 'City', value: 'city' }], 'city'],
-    ['InputNumber', 3, [null], 0],
+    ['InputNumber', 3, [null], null],
     ['Switch', false, [true, { type: 'click' }], true],
-    ['Checkbox', false, [{ target: { checked: true } }], true],
+    ['Checkbox', false, [{ target: { type: 'checkbox', checked: true } }], true],
   ])('%s writes once and calls the caller once with the original UI arguments', (name, initial, args, expected) => {
-    const { form, change } = setup(initial)
-    const caller = vi.fn(() => expect(form.getValue('value')).toBe(expected))
-    const control = leaf(harness.components[name as string]!({ onChange: caller }))
-    control.props.onChange(...(args as unknown[]))
-    expect(change).toHaveBeenCalledTimes(1)
-    expect(change).toHaveBeenCalledWith(expected)
+    let formRef: any
+    const caller = vi.fn(() => expect(formRef.getValue('value')).toBe(expected))
+    const { form, control } = mount(name as string, initial, 'editable', { onChange: caller })
+    formRef = form
+    control().onChange(...(args as unknown[]))
+    expect(form.getValue('value')).toBe(expected)
     expect(caller).toHaveBeenCalledTimes(1)
     expect(caller).toHaveBeenCalledWith(...(args as unknown[]))
   })
 
   it.each(['Input', 'Select', 'InputNumber', 'Checkbox', 'Switch'])('%s wires blur and the caller exactly once', (name) => {
-    const { form, blur } = setup('')
     const caller = vi.fn()
-    const element = harness.components[name]!({ onBlur: caller })
-    const target = leaf(element)
+    const { form, control } = mount(name, '', 'editable', { onBlur: caller })
     const event = { type: 'blur' }
-    expect(target.props.onBlur).toBeTypeOf('function')
-    target.props.onBlur(event)
-    expect(blur).toHaveBeenCalledTimes(1)
+    expect(control().onBlur).toBeTypeOf('function')
+    control().onBlur(event)
     expect(caller).toHaveBeenCalledTimes(1)
     expect(caller).toHaveBeenCalledWith(event)
     expect(form.binding('value').touched).toBe(true)
   })
 
   it.each(['Select', 'Switch', 'Checkbox'])('%s cannot edit a readOnly model', (name) => {
-    setup('', 'readOnly')
-    expect(leaf(harness.components[name]!({ disabled: false })).props.disabled).toBe(true)
+    const { control } = mount(name, '', 'readOnly', { disabled: false })
+    expect(control().disabled).toBe(true)
   })
 
   it.each(['Switch', 'Checkbox'])('%s uses a disabled boolean view for readPretty', (name) => {
-    setup(true, 'readPretty')
-    const control = leaf(harness.components[name]!({ disabled: false }))
-    expect(control.props.checked).toBe(true)
-    expect(control.props.disabled).toBe(true)
+    const { control } = mount(name, true, 'readPretty', { disabled: false })
+    expect(control().checked).toBe(true)
+    expect(control().disabled).toBe(true)
   })
 
   it.each(['Input', 'InputNumber'])('%s respects an explicit readOnly prop as well as the field state', (name) => {
-    setup('')
-    expect(leaf(harness.components[name]!({ readOnly: true })).props.readOnly).toBe(true)
+    const { control } = mount(name, '', 'editable', { readOnly: true })
+    expect(control().readOnly).toBe(true)
   })
 
   it.each(['Input', 'Select', 'InputNumber', 'Switch', 'Checkbox'])('%s preserves model values and disabled priority', (name) => {
-    setup(name === 'Switch' || name === 'Checkbox' ? true : 'model', 'disabled')
-    const control = leaf(harness.components[name]!({ value: 'caller', checked: false, disabled: false }))
-    expect(control.props.disabled).toBe(true)
-    expect(name === 'Switch' || name === 'Checkbox' ? control.props.checked : control.props.value).toBe(name === 'Switch' || name === 'Checkbox' ? true : 'model')
+    const boolean = name === 'Switch' || name === 'Checkbox'
+    const { control } = mount(name, boolean ? true : 'model', 'disabled', { value: 'caller', checked: false, disabled: false })
+    expect(control().disabled).toBe(true)
+    expect(boolean ? control().checked : control().value).toBe(boolean ? true : 'model')
   })
 
-  it('keeps the existing InputNumber null/string conversion, without rewriting caller payloads', () => {
-    const { form } = setup(4)
+  it('InputNumber writes the raw Ant Design value (null on clear), without rewriting caller payloads', () => {
     const caller = vi.fn()
-    const input = leaf(harness.components.InputNumber!({ stringMode: true, onChange: caller }))
-    input.props.onChange(null)
-    expect(form.getValue('value')).toBe(0)
-    input.props.onChange('12.5')
-    expect(form.getValue('value')).toBe(12.5)
+    const { form, control } = mount('InputNumber', 4, 'editable', { stringMode: true, onChange: caller })
+    control().onChange(null)
+    expect(form.getValue('value')).toBe(null)
+    control().onChange('12.5')
+    expect(form.getValue('value')).toBe('12.5')
     expect(caller.mock.calls).toEqual([[null], ['12.5']])
+  })
+
+  it('Input / Select / InputNumber sit in a FormItem: title as label, required mark, status', async () => {
+    let api: any
+    function App() {
+      const form = useAntdForm({ initialValues: { email: '' } })
+      api = form
+      return (
+        <form.AppForm>
+          <form.AppField name="email" title="邮箱" required>
+            {(field) => <field.Input />}
+          </form.AppField>
+        </form.AppForm>
+      )
+    }
+    const view = render(<App />)
+    expect(view.container.innerHTML).toContain('邮箱')
+    expect(view.container.innerHTML).toContain('ant-form-item-required')
+    await api.validate()
+    expect(seen.Input.status).toBe('error')
+  })
+
+  it('readPretty shows the preview text', () => {
+    const { html } = mount('Input', 'hello', 'readPretty')
+    expect(html()).toContain('data-read-pretty')
+    expect(html()).toContain('hello')
   })
 })
