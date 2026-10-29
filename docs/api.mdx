@@ -149,6 +149,8 @@ const effects = defineEffects<Values>(({ reaction, watch, query }) => {
 
 三个行级 API 的回调形状统一为 `(row, ctx)`，`ctx: RowContext<T> = { d, path, index, pos }`：`d` 是根 draft，`path` 是这一行 / 节点的精确路径，`index` 是在自身数组里的下标，`pos` 是树坐标（数组行为 `[index]`）。
 
+开发构建（`NODE_ENV !== 'production'`）会对三类误用抛 `ShikiUsageError`，信息里写明应该怎么改：修改 `$value` 返回的对象 / 数组（应写子路径 `d.user.name.$value = …` 或整体赋新值）、同一轮读回刚写的 `$` 状态（应先存到局部变量）、把 handle 当数组用（`d.items.map`、`for…of d.items`、`d.items.length`，应读 `d.items.$value` 或用 `reaction.each`）。生产构建不做这些检查。
+
 状态使用 `$`：`$value`、`$visible`、`$display`、`$required`、`$pattern`、`$rules`、`$errors`、`$enum` 等。`$pattern = undefined` 恢复继承。计算值默认 `readPretty` 且 `virtual`；需要提交时显式 `virtual: false`。设计解释与可运行例子见 [联动](/guide/effects)。
 
 ## 校验与显隐
