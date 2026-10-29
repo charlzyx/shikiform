@@ -1,0 +1,227 @@
+import { asOptions } from '../enum/enum-source'
+import { deepEqual } from '../shared/equal'
+import type { FieldModel } from '../state/field-model'
+import type { FieldStore } from '../state/field-store'
+import type { Notifier } from '../state/notifier'
+import type { FieldSpec, ValidateTrigger } from '../types'
+import { normalizeRules, type Rule, type RulesInput } from '../validation/rules'
+import type { Validator } from '../validation/validator'
+import { expandTemplate, isTemplatePath, rulesFromSpec, templateMatches } from './templates'
+
+export type RegisterSpec = FieldSpec & {
+  trigger?: ValidateTrigger[]
+  validator?: Rule['validator']
+  warning?: Rule['validator']
+  rules?: RulesInput
+}
+
+/**
+ * Where a field's configuration comes from, and which source wins.
+ *
+ * Precedence for `rules` / `required`: reaction (`$rules`, `$required`) > JSX mount (lease) >
+ * exact declaration (`fields`, `registerField`) > item template (`rows.*.name`).
+ * A JSX lease is released on unmount and the lower source is restored.
+ * Template instances follow the current array indexes; a flags-only exact declaration whose row
+ * disappears goes dormant and revives when the path is touched again.
+ */
+export class Declarations {
+  /** Item templates (`rows.*.name`). Expanded onto every current index. */
+  private itemTemplates: { pattern: string; spec: FieldSpec }[] = []
+  /** Flags-only declarations whose wildcard row is currently absent. No live validation state. */
+  private dormantDeclarations = new Map<string, FieldSpec>()
+
+  constructor(
+    private readonly store: FieldStore<any>,
+    private readonly notifier: Notifier,
+    private readonly validator: Validator,
+  ) {
+    store.onCreate = (path) => {
+      const declaration = this.dormantDeclarations.get(path)
+      if (declaration) {
+        this.dormantDeclarations.delete(path)
+        this.registerField(path, declaration)
+      }
+    }
+  }
+
+  registerField(path: string, spec: RegisterSpec = {}): void {
+    if (isTemplatePath(path)) {
+      const index = this.itemTemplates.findIndex((tpl) => tpl.pattern === path)
+      const entry = { pattern: path, spec }
+      if (index >= 0) this.itemTemplates[index] = entry
+      else this.itemTemplates.push(entry)
+      this.applyItemTemplates()
+      return
+    }
+    const field = this.store.ensure(path)
+    // Undefined options are no-ops here, just as in applyFieldFlags below.
+    field.declaration = {
+      ...field.declaration,
+      ...Object.fromEntries(Object.entries(spec).filter(([, value]) => value !== undefined)),
+    }
+    this.applyFieldFlags(field, spec, 'explicit')
+    const rules = rulesFromSpec(spec, field.declaredRules ?? field.rules)
+    if (rules) {
+      field.declaredRules = rules.slice()
+      if (!field.rulesFromEffect && field.jsxRules === undefined && !deepEqual(field.rules, rules)) {
+        field.rules = rules.slice()
+        this.notifier.bumpPath(path)
+      }
+    }
+    if (spec.required !== undefined) {
+      field.declaredRequired = spec.required
+      if (!field.requiredFromEffect && field.jsxRequired === undefined && field.required !== spec.required) {
+        field.required = spec.required
+        this.notifier.bumpPath(path)
+      }
+    }
+  }
+
+  mountJsxField(path: string, spec: FieldSpec = {}): void {
+    const field = this.store.ensure(path)
+    field.jsxActive = true
+    this.applyFieldFlags(field, spec, 'explicit')
+    const rules = rulesFromSpec(spec, field.rules)
+    if (rules && !field.rulesFromEffect) {
+      field.jsxRules = rules.slice()
+      if (!deepEqual(field.rules, rules)) {
+        field.rules = rules.slice()
+        this.notifier.bumpPath(path)
+      }
+    }
+    if (spec.required !== undefined && !field.requiredFromEffect) {
+      field.jsxRequired = spec.required
+      if (field.required !== spec.required) {
+        field.required = spec.required
+        this.notifier.bumpPath(path)
+      }
+    }
+  }
+
+  // Open issue #7 lives here: restoring an async declared validator re-runs it via the queued pass.
+  releaseJsxField(path: string): void {
+    const field = this.store.get(path)
+    if (!field) return
+    const restoreRules = field.jsxRules !== undefined
+    const restoreRequired = field.jsxRequired !== undefined
+    field.jsxActive = false
+    field.jsxRules = undefined
+    field.jsxRequired = undefined
+    if (restoreRules && !field.rulesFromEffect) {
+      const template = this.templateSpec(path)
+      const next =
+        field.declaredRules !== undefined
+          ? field.declaredRules.slice()
+          : template?.rules !== undefined
+            ? normalizeRules(template.rules)
+            : []
+      if (!deepEqual(field.rules, next)) {
+        field.rules = next
+        this.notifier.bumpPath(path)
+      }
+    }
+    if (restoreRequired && !field.requiredFromEffect) {
+      const template = this.templateSpec(path)
+      const next = field.declaredRequired !== undefined ? field.declaredRequired : (template?.required ?? false)
+      if (field.required !== next) {
+        field.required = next
+        this.notifier.bumpPath(path)
+      }
+    }
+    const owned = (restoreRules && !field.rulesFromEffect) || (restoreRequired && !field.requiredFromEffect)
+    if (!owned) return
+    this.validator.discardInflight(field)
+    this.validator.syncRuleMessages(path)
+    queueMicrotask(() => {
+      const current = this.store.get(path)
+      if (!current || current.jsxActive) return
+      void this.validator.validate(path)
+    })
+  }
+
+  private applyFieldFlags(field: FieldModel, spec: FieldSpec & { trigger?: ValidateTrigger[] }, mode: 'explicit' | 'template'): void {
+    if (spec.virtual !== undefined && (mode === 'explicit' || !field.virtualExplicit)) {
+      field.virtual = spec.virtual
+      if (mode === 'explicit') field.virtualExplicit = true
+    }
+    if (mode === 'explicit') {
+      if (spec.trigger) field.triggers = spec.trigger
+      if (spec.asyncDebounceMs !== undefined) field.asyncDebounceMs = spec.asyncDebounceMs
+      if (spec.enum && !field.enumFromEffect) field.enumOptions = asOptions(spec.enum) ?? []
+    }
+    if (spec.pattern !== undefined && !field.patternFromEffect && (mode === 'explicit' || !field.hasPattern)) {
+      field.pattern = spec.pattern
+      field.hasPattern = true
+    }
+    if (spec.display !== undefined && !field.displayFromEffect && (mode === 'explicit' || !field.hasDisplay)) {
+      field.display = spec.display
+      field.hasDisplay = true
+    }
+  }
+
+  /**
+   * Copy item templates onto indexes that exist right now, and drop template instances that no longer do.
+   * Exact rules/required keep their models. Flags-only declarations survive separately from removed template state.
+   * Open issue #8 lives here: an exact flags-only declaration (`virtual`) on a template path is lost on empty → refill.
+   */
+  applyItemTemplates(): void {
+    if (!this.itemTemplates.length) return
+    const live = new Set<string>()
+    for (const tpl of this.itemTemplates) {
+      for (const path of expandTemplate(tpl.pattern, this.store.values)) live.add(path)
+    }
+    const stale: string[] = []
+    for (const [path, field] of this.store.fields) {
+      if (!field.templateApplied) continue
+      if (field.declaredRules !== undefined || field.declaredRequired !== undefined) continue
+      if (live.has(path)) continue
+      if (!this.itemTemplates.some((tpl) => templateMatches(tpl.pattern, path))) continue
+      stale.push(path)
+    }
+    for (const path of stale) {
+      const declaration = this.store.get(path)?.declaration
+      if (declaration) this.dormantDeclarations.set(path, declaration)
+      this.validator.dropField(path)
+    }
+    for (const tpl of this.itemTemplates) {
+      for (const path of expandTemplate(tpl.pattern, this.store.values)) this.applyTemplateSpec(path, tpl.spec)
+    }
+  }
+
+  private applyTemplateSpec(path: string, spec: FieldSpec): void {
+    const field = this.store.ensure(path)
+    if (field.declaredRules === undefined && field.declaredRequired === undefined) field.templateApplied = true
+    this.applyFieldFlags(field, spec, 'template')
+    if (spec.rules !== undefined && !field.rulesFromEffect && field.declaredRules === undefined && field.jsxRules === undefined) {
+      const rules = normalizeRules(spec.rules)
+      if (!deepEqual(field.rules, rules)) {
+        field.rules = rules
+        this.notifier.bumpPath(path)
+      }
+    }
+    if (
+      spec.required !== undefined &&
+      !field.requiredFromEffect &&
+      field.declaredRequired === undefined &&
+      field.jsxRequired === undefined &&
+      field.required !== spec.required
+    ) {
+      field.required = spec.required
+      this.notifier.bumpPath(path)
+    }
+  }
+
+  /** The most specific template matching `path`. */
+  private templateSpec(path: string): FieldSpec | undefined {
+    let best: FieldSpec | undefined
+    let score = -1
+    for (const tpl of this.itemTemplates) {
+      if (!templateMatches(tpl.pattern, path)) continue
+      if (tpl.pattern.length > score) {
+        best = tpl.spec
+        score = tpl.pattern.length
+      }
+    }
+    return best
+  }
+}

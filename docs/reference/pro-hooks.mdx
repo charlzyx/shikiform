@@ -1,0 +1,87 @@
+---
+title: Pro Hooks 参考
+description: useArrayTable、useColumnSettings、useShadowForm、useArrayShadow、useSuggestion、useLazyCascader、enumItems。
+---
+
+# Pro Hooks 参考
+
+从 `shikiform/pro` 导入，没有 antd 依赖。它们是 Pro.formily 那些高级组件的完整能力；`shikiform/antd` 里的 [ProArrayTable、ShadowModal、Suggestion、CascaderPlus](/reference/pro-components) 只负责渲染。可点的例子：[/play/pro-array-table](/play/pro-array-table)、[/play/shadow-form](/play/shadow-form)、[/play/pro-enum](/play/pro-enum)。
+
+## useArrayTable
+
+```ts
+useArrayTable<TRow>(name: string, options?: UseArrayTableOptions<TRow>): ArrayTableApi<TRow>
+// options: rowKey, pagination (false | { pageSize, current, total, hideOnSinglePage, onChange }),
+//          preserveSelection, selectedKeys / onSelectionChange, defaultExpandAll, rowExpandable, onRemove
+```
+
+数组字段的表格状态，不含 UI：分页切片（给了 `pagination.total` 就是受控的服务端分页，数组只放一页）、行选择（`selectPage` / `invertPage` / `clearSelection`，默认翻页清空，`preserveSelection` 保留）、展开（`defaultExpandAll` 每页重新展开）、行操作（`remove` 先跑异步 `onRemove`，失败保留；`add` 追加并翻到新行所在页；`copy`、`moveUp`、`moveDown`）。只订阅数组结构，单元格改值不会让表格重渲染。`pageRows[i].position` 是跨页的 1 起序号。
+
+## useColumnSettings
+
+```ts
+useColumnSettings(columns: { key: string; title?: unknown; width?: number; hidden?: boolean }[]): ColumnSettingsApi
+// items, visibleKeys, toggle(key), move(from, to), setWidth(key, width), density, setDensity, reset()
+```
+
+列配置状态（Pro.formily `ProSettings`）：显示 / 隐藏、排序、列宽（拖拽表头时调用 `setWidth`）、密度（large / middle / small）。后来新增的列追加在末尾，被删掉的列自动消失；`reset()` 恢复初始顺序、可见性、列宽和密度。
+
+## useShadowForm
+
+```ts
+useShadowForm<TValues, TContext>(options?: {
+  initialValues?, fields?, effects?, formOptions?,
+  onOk?: (values: TValues, context?: TContext) => void | Promise<void>,
+  onCancel?: (context?: TContext) => void,
+}): ShadowFormApi<TValues, TContext>
+// { form, visible, loading, submitting, context, open(init?, context?), confirm(onOk?), cancel() }
+```
+
+影子表单（Pro.formily `ShadowForm`）：编辑一份副本，确认才把校验后的值交给 `onOk`，它自己从不写宿主表单。每次 `open()` 都新建一个引擎，`initialValues` 就是打开时的值，所以 `reset`、`dirty`、错误和 effects 每次都是干净的。`open` 可以传值或（异步）加载函数，较新的 `open` 会作废还在加载的旧请求。`confirm` 校验失败时返回 `{ ok: false, errors }` 并保持打开。
+
+## useArrayShadow
+
+```ts
+useArrayShadow<TRow>(name: string, options?: UseShadowFormOptions & {
+  form?: FormEngine, rowKey?: string,
+  onOk?: (values, context) => void | false | Promise<void | false>,
+  merge?: (row, values) => TRow, append?: (row) => void,
+}): ShadowFormApi<TRow, ArrayShadowContext> & { edit(index, loader?), add(init?) }
+```
+
+一份草稿服务整张表的行编辑（Pro.formily `DelegateAction` + `ShadowModal` + `ProAddition`）：`edit(index, loader)` 打开这一行（`loader` 即 `initLoader`），确认后按行 id 找回该行并 `{ ...row, ...values }` 写回；`add()` 打开空草稿，确认后追加。`onOk` 返回 `false` 可以跳过默认写入自己处理。不在 `<Form>` 里调用时传 `form`，`name` 视为绝对路径。
+
+## useSuggestion
+
+```ts
+useSuggestion({ fetch: (keyword, { signal }) => Promise<EnumOption[]>, debounce?: number, minLength?: number }): SuggestionApi
+// { keyword, options, loading, error, search(keyword), remember(options), labelOf(value) }
+```
+
+远程联想（Pro.formily `Suggestion`）：防抖，新关键字中止旧请求，迟到的结果按序号丢弃（最后一次请求胜出）。`remember` 记住用户选中的选项，下一次搜索后它们的标签仍能显示。
+
+## useLazyCascader
+
+```ts
+useLazyCascader({ load: (path: (string | number)[]) => Promise<CascaderOption[]>, all?: boolean, paths?: (string | number)[][] }): LazyCascaderApi
+// { options, loading, loadChildren(path), ensure(paths), labelsOf(path) }
+```
+
+懒加载级联（Pro.formily `CascaderPlus`）：挂载时 `load([])` 取根，展开时 `load(path)` 取子级；同一路径并发只请求一次。`paths` 是已有值，打开时逐级加载每一层祖先，标签就能反显。`all` 表示 `load([])` 直接返回整棵树。
+
+## enumItems
+
+```ts
+enumItems(value: unknown, options?: EnumOption[], config?: { strict?: boolean; colorful?: boolean }): EnumDisplayItem[]
+// → [{ value, label, color }]
+```
+
+把字段值（单个或数组）按枚举解析成显示项：标签和颜色。默认宽松匹配（`1` 等于 `'1'`，与 Pro.formily 一致），`strict` 改为 `===`；选项没写 `color` 时按位置取调色板颜色，`colorful: false` 关闭。找不到的值被丢掉。
+
+## ENUM_COLORS
+
+```ts
+const ENUM_COLORS: { success: 'green'; processing: 'blue'; error: 'red'; warning: 'gold'; default: '#d9d9d9'; … }
+```
+
+枚举选项 `color` 可以写的语义色名（`success`、`processing`、`error`、`warning`、`default`）和 antd 预设色名；其他字符串（如 `#1677ff`）原样使用。`enumItems` 和 `EnumPretty` 都按这张表把名字换成颜色。

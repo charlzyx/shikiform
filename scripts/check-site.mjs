@@ -78,7 +78,7 @@ for (const symbols of Object.values(references)) for (const [name, source] of Ob
   assert(search.some((index) => index.search(name, { prefix: true }).some((result) => result.id === route)), `Native search cannot find ${name}`)
 }
 const playRoutes = [...readFileSync('playground/routes.ts', 'utf8').split('PLAY_ROUTES = ')[1].matchAll(/'([^']+)'/g)].map((match) => match[1])
-assert.equal(playRoutes.length, 15)
+assert.equal(playRoutes.length, 23, 'Preserve the 15 original and 8 Pro scenarios')
 for (const route of playRoutes) {
   const html = readFileSync(htmlFile(`/play/${route}`), 'utf8')
   assert(html.includes('/play/assets/'), `Play shell missing: ${route}`)

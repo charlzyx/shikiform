@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
-import { createFormHook, createFormHookContexts } from '../src/react/create-form-hook'
-import type { FormEngine } from '../src/core/form'
+import { createFormHook, createFormHookContexts } from '../src/react/factory/create-form-hook'
+import type { FormEngine } from '../src/core/engine/form-engine'
 
 const contexts = createFormHookContexts()
 function Input() {

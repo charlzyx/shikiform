@@ -9,21 +9,24 @@ ShikiForm 把「数据怎样变化」和「控件怎样显示」分开。字段�
 
 如果你只想先写出一个表单，可以直接进入 [最小上手](/tutorial/1-start)，再回来理解这些边界。
 
-## 三层分工
+## 分层与依赖方向
 
 | 层 | 负责什么 | 不负责什么 |
 |---|---|---|
 | `shikiform/core` | 值与字段状态、精确 path、联动、校验、提交结果；用 `createForm` 创建引擎 | 不依赖 React 或 antd，不渲染控件 |
 | `shikiform` 的 React 层 | `useForm` 保留引擎实例；`Form` 提供上下文；`Field`、结构字段和 Hooks 订阅及绑定它 | 不另建一份业务值，不替控件猜测事件参数 |
-| `shikiform/antd` | 把通用绑定接到 antd 的 value/checked、事件、禁用态、反馈与布局 | 不用第二个 AntD Form store 管理同一份值 |
+| `shikiform/pro` | 无 UI 的查询、数组表格状态、影子草稿、联想与懒加载级联 Hooks | 不依赖 antd，不把查询请求或草稿确认自动等同于后端保存 |
+| `shikiform/antd` | `connect` / `FormItem` 把通用字段绑定接到控件与反馈；表格、草稿容器和高级输入渲染 Pro Hooks | 不用第二个 AntD Form store 管理同一份值 |
 
-`shikiform/pro` 是可选的无 UI 查询逻辑层：`useQueryTable` 管理请求、分页和选择，既能接 antd，也能接原生 HTML。见 [两种查询界面](/examples#查询与校验)。
+依赖方向是 `antd → pro → react → core`（上层也可直接使用更底层能力）。`useQueryTable` 既能接 antd，也能接原生 HTML；`useArrayTable`、`useShadowForm` 等同样可不使用现成 UI。见 [查询 Hooks](/reference/query-hooks) 和 [Pro Hooks](/reference/pro-hooks)。
 
 ### 为什么先用通用绑定
 
-`Field` 使用 render prop，把 `value`、`onChange(value)`、`onBlur()` 等交给你。原生 input、antd Input、自定义编辑器的事件形状不同，取值转换留在适配层。布局使用普通 React 组件，不需要增加一种布局字段。
+`useField(name, options)` 是字段绑定与挂载期配置的基础；`Field` 只是调用它、在非 visible 时不渲染，再把绑定交给 render prop。原生 input、antd Input、自定义编辑器的事件形状不同，取值转换留在适配层。纯 Hook 用户需自行处理 `field.display`。
 
-项目可以用 `createFormHook` 预绑定自己的控件。`useAntdForm` / `useAntdField` 是现成的预绑定与匹配上下文入口，不是另一套引擎。工厂的 `useFieldContext()` 读取当前 `AppField`；通用 `useField(name)` 按路径取得绑定，两者不是同一个签名。见 [工厂参考](/reference/form-hook) 和 [antd 接线指南](/guide/antd-binding)。
+正式 Ant Design 适配层提供 `connect`、`mapProps`、`mapReadPretty` 和 `FormItem`：控件映射值与事件，装饰器显示 label、必填与反馈；Hook 用户也可直接用 `mapFieldProps`。布局仍是普通 React 组件。见 [适配层参考](/reference/antd-adapter)。
+
+项目也可以用 `createFormHook` 预绑定自己的控件。`useAntdForm` / `useAntdField` 保留现成预绑定与匹配上下文，不是另一套引擎。工厂的 `useFieldContext()` 读取当前 `AppField`；通用 `useField(name, options)` 按路径取得绑定，两者不是同一个签名。见 [工厂参考](/reference/form-hook) 和 [antd 接线指南](/guide/antd-binding)。
 
 ## 一次输入如何流动
 
@@ -58,11 +61,15 @@ ShikiForm 把「数据怎样变化」和「控件怎样显示」分开。字段�
 
 ## 规则声明与组件生命周期
 
-`Field` 的 JSX `rules` / `required` 只在该组件挂载期间有效；卸载后释放这份校验配置。仅把 display 改成 hidden 不等于卸载 `Field`，不能据此绕过校验。
+`useField(name, { rules, required })` 与 `Field` 的同名 JSX 属性使用同一挂载期规则机制；卸载后释放这份校验配置。`virtual` / `display` / `pattern` 是持久字段标记，不随这份规则一起释放。仅把 display 改成 hidden 不等于卸载规则所有者，不能据此绕过校验。
 
-表单 `fields` 声明、`registerField`、数组模板和 reaction 写入的规则不依赖输入框挂载。跨标签页仍要校验的业务规则应放在这里；只有当前页面需要的临时输入规则才放 JSX。`useField(name)` 本身是绑定 Hook，不拥有 JSX 规则生命周期。
+表单 `fields` 声明、`registerField`、数组模板和 reaction 写入的规则不依赖输入框挂载。跨标签页仍要校验的业务规则应放在这里；只有当前页面需要的临时输入规则才放 Hook options 或 JSX。不传规则选项的 `useField(name)` 是纯绑定消费者，不负责释放其他组件的规则。
 
 不要让多个同 path 的组件同时提供互相竞争的 JSX 规则；需要复用输入时，把业务规则声明在表单上，由多个纯绑定消费者读取。例子见 [没挂载的字段](/guide/unmounted) 和 [标签页](/play/tabs)。
+
+## 影子草稿与宿主的边界
+
+`useShadowForm` 每次打开都创建独立 `FormEngine`，编辑不直接改宿主；确认先校验，再把值交给 `onOk`。`ShadowModal`、`ShadowDrawer`、`ShadowPopconfirm` 和内联 `ShadowForm` 负责容器与草稿上下文，不自带后端保存。`useArrayShadow` 在此基础上提供行编辑/追加的默认写回；它是一份编辑草稿，不是并发多行事务系统。见 [Pro 组件](/reference/pro-components) 与 [影子草稿示例](/examples#pro-表格与影子草稿)。
 
 ## 从设计走到业务
 

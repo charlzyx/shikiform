@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react'
-import type { FormEngine } from '../core/form'
+import type { FormEngine } from '../core/engine/form-engine'
 
 /** React scope for relative field names. `path` is the index path of the parent object or row. */
 export interface ScopeValue {

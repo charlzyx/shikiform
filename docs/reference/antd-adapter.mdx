@@ -1,0 +1,162 @@
+---
+title: Ant Design 适配层
+description: connect / mapProps / mapReadPretty / FormItem，以及经 connect 接好的 antd 控件。
+---
+
+# Ant Design 适配层
+
+从 `shikiform/antd` 导入。这一层参照 Formily 的 `connect` + `mapProps` + `mapReadPretty` 与 `FormItem` 装饰器：**字段逻辑全部来自 [useField](/reference/react-hooks#usefield)**，适配层只把 `FieldBinding` 映射成 antd 控件的 props，不保存任何自己的状态。Hook 用户可以直接用 `mapFieldProps(useField(name), props)` 得到完全相同的映射。
+
+控件找字段的顺序：`field` 属性 → `name` 属性（内部调用 `useField(name)`）→ 外层 `FormItem` / `AppField` 提供的字段。
+
+```tsx
+import { createForm, Form } from 'shikiform'
+import { FormItem, Input, Select, Switch } from 'shikiform/antd'
+
+const form = createForm({
+  initialValues: { email: '', city: 'sh', vip: false },
+  fields: { city: { enum: [{ label: '上海', value: 'sh' }, { label: '北京', value: 'bj' }] } },
+})
+
+export default function Profile() {
+  return (
+    <Form form={form} onSubmit={(values) => console.log(values)}>
+      <FormItem name="email" label="邮箱" required rules={{ format: 'email' }}>
+        <Input placeholder="name@example.com" />
+      </FormItem>
+      <FormItem name="city" label="城市"><Select /></FormItem>
+      <FormItem name="vip" label="会员"><Switch /></FormItem>
+    </Form>
+  )
+}
+```
+
+## connect
+
+```ts
+connect<P>(target: ComponentType<P>, ...enhancers: ConnectEnhancer[]): ConnectedComponent<P>
+// ConnectedComponent<P> = ComponentType<Partial<P> & { name?: string; field?: FieldBinding<any> }>
+```
+
+把任意 value/onChange 控件变成字段控件。`enhancers` 由 [mapProps](#mapprops) 与 [mapReadPretty](#mapreadpretty) 生成。返回的组件没有自己的状态：每次渲染都是对当前 `FieldBinding` 调一次 [mapFieldProps](#mapfieldprops)。缺少 `name`、`field` 且不在 `FormItem` / `AppField` 内时抛错。
+
+```tsx
+const Rate = connect(AntRate, mapProps({ status: false }))
+<FormItem name="score" label="评分"><Rate /></FormItem>
+```
+
+## mapProps
+
+```ts
+mapProps(...args: Array<PropsMapping | PropsTransform>): ConnectEnhancer
+type PropsMapping = Partial<Record<'value' | 'onChange' | 'onBlur' | 'disabled' | 'readOnly' | 'status' | 'id' | 'options' | 'loading', string | false>>
+  & { getValueFromEvent?: (...args: any[]) => unknown }
+type PropsTransform = (props: Record<string, any>, field: FieldBinding<any>) => Record<string, any>
+```
+
+对象参数重命名（`{ value: 'checked' }`）、合并（`{ readOnly: 'disabled' }`，与 `disabled` OR）或丢弃（`{ status: false }`）绑定属性；`options` / `loading` 默认不传，映射后才把字段枚举与加载状态交给控件。函数参数在最后变换 props。`getValueFromEvent` 把控件 `onChange` 的参数换成字段值，默认读取事件的 `target.checked`（checkbox）或 `target.value`，否则取第一个参数本身。
+
+## mapReadPretty
+
+```ts
+mapReadPretty(component: ComponentType<any>, props?: Record<string, unknown>): ConnectEnhancer
+```
+
+字段 `pattern` 为 `readPretty` 时渲染 `component` 而不是控件。它收到调用方 props，加上 `value` 与 `options`（字段枚举）。没有 `mapReadPretty` 的控件在 `readPretty` 下按 `readOnly` 处理（例如 `Switch` 变为禁用）。默认的阅读态视图是 [PreviewText](#previewtext)。
+
+## mapFieldProps
+
+```ts
+mapFieldProps(field: FieldBinding<any>, props: Record<string, any>, ...mappers: Array<PropsMapping | PropsTransform>): Record<string, any>
+```
+
+`connect` 的纯函数核心，给 Hook 用户直接使用：`value` 取字段值；`onChange` 先写字段再以原始参数调用调用方的 `onChange`，各一次；`onBlur` 先标记 touched 再调调用方；`disabled` / `readOnly` 与调用方 props 取 OR；`status` 有错误时为 `'error'`、只有警告时为 `'warning'`，调用方显式传入时以调用方为准；`id` 默认是字段 id。
+
+```tsx
+const field = useField('email', { required: true })
+return <AntInput {...mapFieldProps(field, { placeholder: 'Email' })} />
+```
+
+## FormItem
+
+```ts
+FormItem(props: FormItemProps): ReactElement | null
+interface FormItemProps extends UseFieldOptions, Omit<antd.FormItemProps, 'name' | 'rules' | 'required' | 'children' | 'validateStatus' | 'help' | 'hidden'> {
+  name?: string
+  field?: FieldBinding<any>
+  children?: ReactNode
+}
+```
+
+一个字段的装饰器（Formily `FormItem`）。`rules` / `required` / `virtual` / `display` / `pattern` 与 `useField(name, options)` 语义完全相同（`rules`、`required` 是挂载期 lease）。渲染 antd `Form.Item`：`label` 透传；必填星号跟随字段 `required`，`readPretty` 下隐藏；`validateStatus` 依次为 `error` → `validating` → `warning`；`help` 取第一条错误，否则第一条警告。`display` 为 `hidden` / `none` 时不渲染（与 `<Field>` 一致，校验语义不变）。子级的 connect 控件无需再写 `name`。也可以传 `field={useField(...)}` 让 Hook 用户复用同一装饰。
+
+## PreviewText
+
+```ts
+PreviewText(props: { value?: unknown; options?: { label: ReactNode; value: unknown }[]; placeholder?: ReactNode; format?: string }): ReactElement
+```
+
+阅读态文本：枚举值显示 `label`，数组用 `, ` 连接，布尔值显示 `是` / `否`，带 `format()` 方法的日期对象按 `format`（默认 `YYYY-MM-DD`）格式化；空值显示 `placeholder`（默认空串）。输出 `<span data-read-pretty>`。
+
+## Input
+
+```ts
+const Input: ConnectedComponent<antd.InputProps> & {
+  TextArea: ConnectedComponent<antd.TextAreaProps>
+  Password: ConnectedComponent<antd.PasswordProps>
+}
+```
+
+`connect(antd.Input, mapReadPretty(PreviewText))`。`onChange(event)` 写入 `event.target.value`。`readOnly` 字段传 `readOnly`；`readPretty` 显示文本。`Input.TextArea` 同理；`Input.Password` 的阅读态显示 `******`。
+
+## InputNumber
+
+```ts
+const InputNumber: ConnectedComponent<antd.InputNumberProps>
+```
+
+`connect(antd.InputNumber, mapReadPretty(PreviewText))`。写入 antd 给出的原始值：数字，清空时为 `null`（与 `AppField` 上预绑定的 `field.InputNumber` 把空值写成 `0` 不同）。`readPretty` 显示数字文本。
+
+## Select
+
+```ts
+const Select: ConnectedComponent<antd.SelectProps>
+```
+
+`connect(antd.Select, mapProps({ options: 'options', loading: 'loading', readOnly: 'disabled' }), mapReadPretty(PreviewText))`。未传 `options` 时使用字段枚举（`fields.x.enum`、`$enum`，含 `EnumSource` 异步加载的 `loading`）。`readOnly` 渲染为禁用；`readPretty` 显示选项的 `label`，多选用 `, ` 连接。
+
+## Switch
+
+```ts
+const Switch: ConnectedComponent<antd.SwitchProps>
+```
+
+`connect(antd.Switch, mapProps({ value: 'checked', readOnly: 'disabled', status: false }))`。字段值对应 `checked`，`onChange(checked)` 写入布尔值。`readOnly` 与 `readPretty` 都渲染为禁用开关；没有阅读态文本视图。
+
+## Checkbox
+
+```ts
+const Checkbox: ConnectedComponent<antd.CheckboxProps> & {
+  Group: ConnectedComponent<antd.CheckboxGroupProps>
+}
+```
+
+单个 `Checkbox` 的字段值对应 `checked`，`readOnly` / `readPretty` 渲染为禁用。`Checkbox.Group` 绑定数组值，未传 `options` 时使用字段枚举，`readPretty` 显示所选标签（`, ` 连接）。
+
+## Radio
+
+```ts
+const Radio: { Group: ConnectedComponent<antd.RadioGroupProps> }
+```
+
+`Radio.Group` 绑定单值：`onChange(event)` 写入 `event.target.value`。未传 `options` 时使用字段枚举；`readOnly` 渲染为禁用；`readPretty` 显示所选标签。只导出 `Group`：单个 `Radio` 不是字段控件。
+
+## DatePicker
+
+```ts
+const DatePicker: ConnectedComponent<antd.DatePickerProps> & {
+  RangePicker: ConnectedComponent<antd.RangePickerProps>
+}
+```
+
+与 Formily 一致，字段保存**格式化后的字符串**（按控件 `format`，默认 `YYYY-MM-DD`），只在交给 antd 时转成 dayjs，所以值能经受 `initialValues` 克隆、`reset` 和提交（核心用 `structuredClone`，会丢掉 dayjs 原型）。清空写入 `undefined`。`RangePicker` 保存 `[start, end]` 字符串元组，阅读态显示 `start ~ end`。需要 `dayjs`（antd 自带依赖）作为 peer dependency。

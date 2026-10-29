@@ -13,7 +13,15 @@
   },
   "shikiform/pro": {
     "useQueryTable": "reference/query-hooks.mdx",
-    "useBuiltinQuery": "reference/query-hooks.mdx"
+    "useBuiltinQuery": "reference/query-hooks.mdx",
+    "useArrayTable": "reference/pro-hooks.mdx",
+    "useColumnSettings": "reference/pro-hooks.mdx",
+    "useShadowForm": "reference/pro-hooks.mdx",
+    "useArrayShadow": "reference/pro-hooks.mdx",
+    "useSuggestion": "reference/pro-hooks.mdx",
+    "useLazyCascader": "reference/pro-hooks.mdx",
+    "enumItems": "reference/pro-hooks.mdx",
+    "ENUM_COLORS": "reference/pro-hooks.mdx"
   },
   "shikiform/antd": {
     "antdForm": "reference/antd.mdx",
@@ -26,6 +34,32 @@
     "MergedTable": "reference/antd.mdx",
     "groupRowSpan": "reference/antd.mdx",
     "ProQueryTable": "reference/antd.mdx",
-    "QueryForm": "reference/antd.mdx"
+    "QueryForm": "reference/antd.mdx",
+    "connect": "reference/antd-adapter.mdx",
+    "mapProps": "reference/antd-adapter.mdx",
+    "mapReadPretty": "reference/antd-adapter.mdx",
+    "mapFieldProps": "reference/antd-adapter.mdx",
+    "FormItem": "reference/antd-adapter.mdx",
+    "PreviewText": "reference/antd-adapter.mdx",
+    "Input": "reference/antd-adapter.mdx",
+    "InputNumber": "reference/antd-adapter.mdx",
+    "Select": "reference/antd-adapter.mdx",
+    "Switch": "reference/antd-adapter.mdx",
+    "Checkbox": "reference/antd-adapter.mdx",
+    "Radio": "reference/antd-adapter.mdx",
+    "DatePicker": "reference/antd-adapter.mdx",
+    "ProArrayTable": "reference/pro-components.mdx",
+    "QueryList": "reference/pro-components.mdx",
+    "ShadowModal": "reference/pro-components.mdx",
+    "ShadowDrawer": "reference/pro-components.mdx",
+    "ShadowPopconfirm": "reference/pro-components.mdx",
+    "ShadowForm": "reference/pro-components.mdx",
+    "useShadow": "reference/pro-components.mdx",
+    "EnumPretty": "reference/pro-components.mdx",
+    "EnumPrettyView": "reference/pro-components.mdx",
+    "Suggestion": "reference/pro-components.mdx",
+    "SuggestionSelect": "reference/pro-components.mdx",
+    "CascaderPlus": "reference/pro-components.mdx",
+    "CascaderPlusView": "reference/pro-components.mdx"
   }
 }
