@@ -234,14 +234,14 @@ describe('reaction', () => {
         }>(({ reaction }) => {
           reaction.each(
             (d) => d.rows,
-            (row, d, index) => {
+            (row, { d, index }) => {
               rowsHit.push(index)
               row.suggested.$value = (row.cost.$value ?? 0) + (d.tax.$value ?? 0)
             },
           )
           reaction.walk(
             (d) => d.nodes,
-            (node, _d, pos) => {
+            (node, { pos }) => {
               walkHit.push(pos.join('.'))
               node.echo.$value = node.label.$value ?? ''
             },
@@ -285,7 +285,7 @@ describe('reaction', () => {
         defineEffects<{ rows: { sku: string; cost: number; markup: number; suggested: number }[] }>(({ reaction }) => {
           reaction.each(
             (d) => d.rows,
-            (row, _d, index) => {
+            (row, { index }) => {
               hit.push(index)
               const cost = row.cost.$value ?? 0
               const markup = row.markup.$value ?? 0
@@ -335,7 +335,7 @@ describe('reaction', () => {
           )
           watch.each(
             (d) => d.rows,
-            (row, _d, index) => {
+            (row, { index }) => {
               rowRuns.push(index)
               void row.name.$value
             },
@@ -362,5 +362,48 @@ describe('reaction', () => {
     })
     const errors = await form.validate()
     expect(errors.some((error) => error.path === 'x' && error.messages.length > 0)).toBe(true)
+  })
+})
+
+describe('row-level effects share one (row, ctx) shape', () => {
+  it('passes { d, path, index, pos } to each / walk / watch.each', () => {
+    type V = { rows: { n: number }[]; nodes: { label: string; children: { label: string; children: never[] }[] }[]; flag: boolean }
+    const seen: string[] = []
+    const form = createForm<V>({
+      initialValues: { rows: [{ n: 1 }, { n: 2 }], nodes: [{ label: 'a', children: [{ label: 'b', children: [] }] }], flag: true },
+      effects: [
+        defineEffects<V>(({ reaction, watch }) => {
+          reaction.each(
+            (d) => d.rows,
+            (row, { d, path, index, pos }) => {
+              void row.n.$value
+              seen.push(`each ${path} ${index} ${pos.join('.')} ${d.flag.$value}`)
+            },
+          )
+          reaction.walk(
+            (d) => d.nodes,
+            (node, { path, index, pos }) => {
+              void node.label.$value
+              seen.push(`walk ${path} ${index} ${pos.join('.')}`)
+            },
+          )
+          watch.each(
+            (d) => d.rows,
+            (row, { path, index }) => {
+              void row.n.$value
+              seen.push(`watch ${path} ${index}`)
+            },
+          )
+        }),
+      ],
+    })
+    expect(seen).toContain('each rows.0 0 0 true')
+    expect(seen).toContain('each rows.1 1 1 true')
+    expect(seen).toContain('walk nodes.0 0 0')
+    expect(seen).toContain('walk nodes.0.children.0 0 0.0')
+    seen.length = 0
+    form.setValue('rows.1.n' as any, 5)
+    expect(seen).toContain('each rows.1 1 1 true')
+    expect(seen).toContain('watch rows.1 1')
   })
 })

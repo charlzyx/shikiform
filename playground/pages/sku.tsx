@@ -32,7 +32,7 @@ const effects = defineEffects<Values>(({ reaction, watch }) => {
   })
   watch.each(
     (d) => d.skuRows,
-    (row, d) => {
+    (row, { d }) => {
       const id = row.id.$value
       if (!id) return
       const price = row.price.$value

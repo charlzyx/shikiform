@@ -39,6 +39,8 @@ export type {
   CommitMode,
   Display,
   Draft,
+  RowContext,
+  RowDraft,
   EffectDef,
   EnumPolicy,
   FieldError,

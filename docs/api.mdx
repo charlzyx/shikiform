@@ -141,10 +141,13 @@ const effects = defineEffects<Values>(({ reaction, watch, query }) => {
 | API | 触发 / 参数 | 返回与边界 |
 |---|---|---|
 | `reaction(d => { ... })` | 初始化运行；之后由读到的 `$` 状态变化触发 | 注册返回 `void`；同步计算。不要在同轮读刚写的值，不要两处写同一状态 |
-| `reaction.each(d => d.items, (row, d, index) => { ... })` | 为数组每个直接子项注册一个实例；选择器返回 handle | 不递归树或嵌套数组，结构变化后调整实例 |
-| `reaction.walk(d => d.nodes, (node, d, pos) => { ... }, options?)` | 为树节点注册实例；`childrenKey` 默认 `'children'` | `pos` 是索引数组，不是稳定 ID |
+| `reaction.each(d => d.items, (row, { d, index, path, pos }) => { ... })` | 为数组每个直接子项注册一个实例；选择器返回 handle | 不递归树或嵌套数组，结构变化后调整实例 |
+| `reaction.walk(d => d.nodes, (node, { d, index, path, pos }) => { ... }, options?)` | 为树节点注册实例；`childrenKey` 默认 `'children'` | `pos` 是索引数组，不是稳定 ID |
+| `watch.each(d => d.items, (row, { d, index, path, pos }) => { ... })` | 行级 watch：回调里读到的 `$` 状态就是该行的 source，首轮只侦察不执行 | 与 `reaction.each` 同样一层 |
 | `watch(source, effect)` | 首次不执行动作；显式 source 读到的状态变化后执行 | source 推荐读 `$value`；多源可返回数组，effect 中的读取不变成依赖 |
 | `query(path, { ui? }?)` | 精确字符串路径 → 未定型 handle | 应用优先用有类型的 `d.a.b`；core UI 句柄不代表 React Field 已支持 `ui` 属性 |
+
+三个行级 API 的回调形状统一为 `(row, ctx)`，`ctx: RowContext<T> = { d, path, index, pos }`：`d` 是根 draft，`path` 是这一行 / 节点的精确路径，`index` 是在自身数组里的下标，`pos` 是树坐标（数组行为 `[index]`）。
 
 状态使用 `$`：`$value`、`$visible`、`$display`、`$required`、`$pattern`、`$rules`、`$errors`、`$enum` 等。`$pattern = undefined` 恢复继承。计算值默认 `readPretty` 且 `virtual`；需要提交时显式 `virtual: false`。设计解释与可运行例子见 [联动](/guide/effects)。
 

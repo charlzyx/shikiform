@@ -1,7 +1,7 @@
 import { createUiHandle } from '../draft/handle'
 import type { DraftHost } from '../draft/host'
-import { listPositions, posKey } from '../shared/tree-ops'
-import type { Draft, EffectDef, EffectsAPI, EffectsRuntime } from '../types'
+import { listPositions, posKey, type Pos } from '../shared/tree-ops'
+import type { Draft, EffectDef, EffectsAPI, EffectsRuntime, RowContext } from '../types'
 import type { EachRec } from './scheduler'
 
 /** What `reaction.each` / `reaction.walk` / `watch.each` need beyond the public runtime. */
@@ -30,8 +30,8 @@ interface EachRuntime extends EffectsRuntime<any> {
  *   })
  *   reaction.each(
  *     (d) => d.rows,
- *     (row) => {
- *       row.name.$required = true
+ *     (row, { index }) => {
+ *       row.name.$required = index > 0
  *     },
  *   )
  * })
@@ -128,7 +128,7 @@ function runArrayEach(runtime: EachRuntime, rec: EachRec, id: string): void {
         inst,
         () => {
           const result = runtime.runWith({ id: inst, deps: true, writes: true }, () =>
-            rec.effect(runtime.handle(`${rec.arrayPath}.${captured}`), runtime.draft, captured),
+            rec.effect(runtime.handle(`${rec.arrayPath}.${captured}`), rowContext(runtime, `${rec.arrayPath}.${captured}`, [captured])),
           )
           runtime.setDeps(inst, result.deps)
           runtime.applyWrites(inst, result.writes)
@@ -160,7 +160,7 @@ function runWalk(runtime: EachRuntime, rec: EachRec, id: string): void {
         () => {
           const result = runtime.runWith(
             { id: inst, deps: true, writes: true, pos: captured.pos, nodePath: captured.path },
-            () => rec.effect(runtime.handle(captured.path), runtime.draft, captured.pos),
+            () => rec.effect(runtime.handle(captured.path), rowContext(runtime, captured.path, captured.pos)),
           )
           runtime.setDeps(inst, result.deps)
           runtime.applyWrites(inst, result.writes)
@@ -189,12 +189,12 @@ function installWatchEach(runtime: EffectsRuntime<any>, select: (d: Draft<any>) 
       seen.add(inst)
       if (!known.has(inst)) {
         const scout = runtime.runWith({ id: inst, deps: true, writes: false }, () =>
-          effect(runtime.handle(`${arrayPath}.${index}`), runtime.draft, index),
+          effect(runtime.handle(`${arrayPath}.${index}`), rowContext(runtime, `${arrayPath}.${index}`, [index])),
         )
         runtime.setDeps(inst, scout.deps)
         runtime.registerWatch(inst, () => {
           const result = runtime.runWith({ id: inst, deps: false, writes: true }, () =>
-            effect(runtime.handle(`${arrayPath}.${index}`), runtime.draft, index),
+            effect(runtime.handle(`${arrayPath}.${index}`), rowContext(runtime, `${arrayPath}.${index}`, [index])),
           )
           runtime.applyWrites(inst, result.writes)
         }, scout.deps)
@@ -206,6 +206,11 @@ function installWatchEach(runtime: EffectsRuntime<any>, select: (d: Draft<any>) 
   }
   runtime.registerReaction(id, run, new Set())
   runtime.queue(id)
+}
+
+/** The one `ctx` shape every row-level effect receives (see `RowContext`). */
+function rowContext(runtime: EffectsRuntime<any>, path: string, pos: Pos): RowContext<any> {
+  return { d: runtime.draft, path, index: pos[pos.length - 1] ?? -1, pos }
 }
 
 function dropUnseen(runtime: EffectsRuntime<any>, instances: Set<string>, seen: Set<string>): void {

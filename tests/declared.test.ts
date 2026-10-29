@@ -74,7 +74,7 @@ describe('declared fields and unmounted rules', () => {
         defineEffects<{ rows: { name: string }[] }>(({ reaction }) => {
           reaction.each(
             (d) => d.rows,
-            (row, _d, index) => {
+            (row, { index }) => {
               if (index === 1) row.name.$rules = [{ maxLength: 10, message: '太长' }]
             },
           )

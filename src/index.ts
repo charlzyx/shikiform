@@ -33,6 +33,8 @@ export type {
   AppFormApi,
   ArrayItemOf,
   Draft,
+  RowContext,
+  RowDraft,
   FieldBinding,
   FieldProps,
   FieldSlot,
