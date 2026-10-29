@@ -1,6 +1,6 @@
 import { Button, ConfigProvider, Space } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
-import { defineEffects, Form, ObjectField, useForm, useWatch, type Draft } from 'shikiform'
+import { Field, defineEffects, Form, ObjectField, useForm, useWatch, type Draft } from 'shikiform'
 import { CascaderPlus, Checkbox, EnumPretty, FormItem, Radio, Select, Suggestion } from 'shikiform/antd'
 import { Enum } from 'shikiform/core'
 import { loadArea, suggest, wait } from '../pro-data'
@@ -75,39 +75,39 @@ export function ProEnumPage() {
         <Form form={form}>
           <ObjectField name="demo">
             <div style={grid} data-testid="enum-grid">
-              <FormItem name="select" label="Select" layout="vertical">
+              <Field name="select" title="Select" decorator={[FormItem, { layout: 'vertical' }]}>
                 <Select prettyType="badge" data-testid="select" allowClear />
-              </FormItem>
-              <FormItem name="lazySelect" label="Lazy Select" layout="vertical">
+              </Field>
+              <Field name="lazySelect" title="Lazy Select" decorator={[FormItem, { layout: 'vertical' }]}>
                 <Select mode="multiple" prettyType="tag" data-testid="lazy-select" />
-              </FormItem>
-              <FormItem name="radio" label="Radio" layout="vertical">
+              </Field>
+              <Field name="radio" title="Radio" decorator={[FormItem, { layout: 'vertical' }]}>
                 <Radio.Group />
-              </FormItem>
-              <FormItem name="lazyRadio" label="Lazy Radio" layout="vertical">
+              </Field>
+              <Field name="lazyRadio" title="Lazy Radio" decorator={[FormItem, { layout: 'vertical' }]}>
                 <Radio.Group />
-              </FormItem>
-              <FormItem name="checkbox" label="Checkbox" layout="vertical">
+              </Field>
+              <Field name="checkbox" title="Checkbox" decorator={[FormItem, { layout: 'vertical' }]}>
                 <Checkbox.Group />
-              </FormItem>
-              <FormItem name="lazyCheckbox" label="Lazy Checkbox" layout="vertical">
+              </Field>
+              <Field name="lazyCheckbox" title="Lazy Checkbox" decorator={[FormItem, { layout: 'vertical' }]}>
                 <Checkbox.Group />
-              </FormItem>
-              <FormItem name="pretty" label="EnumPretty" layout="vertical">
+              </Field>
+              <Field name="pretty" title="EnumPretty" decorator={[FormItem, { layout: 'vertical' }]}>
                 <EnumPretty />
-              </FormItem>
-              <FormItem name="prettybadge" label="EnumPretty Badge" layout="vertical">
+              </Field>
+              <Field name="prettybadge" title="EnumPretty Badge" decorator={[FormItem, { layout: 'vertical' }]}>
                 <EnumPretty showType="badge" />
-              </FormItem>
-              <FormItem name="prettytag" label="EnumPretty Tag" layout="vertical">
+              </Field>
+              <Field name="prettytag" title="EnumPretty Tag" decorator={[FormItem, { layout: 'vertical' }]}>
                 <EnumPretty showType="tag" />
-              </FormItem>
-              <FormItem name="suggest" label="Suggestion" layout="vertical">
+              </Field>
+              <Field name="suggest" title="Suggestion" decorator={[FormItem, { layout: 'vertical' }]}>
                 <Suggestion fetch={suggest} debounce={200} multiple placeholder="查询商品.." />
-              </FormItem>
-              <FormItem name="linkage" label="Linkage" layout="vertical">
+              </Field>
+              <Field name="linkage" title="Linkage" decorator={[FormItem, { layout: 'vertical' }]}>
                 <CascaderPlus loadData={loadArea} labelInValue placeholder="省 / 市 / 区" />
-              </FormItem>
+              </Field>
             </div>
           </ObjectField>
           <ValuesView />

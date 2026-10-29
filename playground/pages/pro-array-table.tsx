@@ -1,7 +1,7 @@
 import { Button, ConfigProvider, Divider, message, Space } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import { useState } from 'react'
-import { Form, useForm } from 'shikiform'
+import { Field, Form, useForm } from 'shikiform'
 import { FormItem, Input, ProArrayTable, type ProArrayTableColumn } from 'shikiform/antd'
 
 /** Pro.formily `ProArrayTable.tsx` demo, on ShikiForm. */
@@ -64,9 +64,9 @@ function RowSummary() {
 
 const itemColumns = (prefix: string): ProArrayTableColumn<Item>[] => [
   { key: 'index', title: 'Index', width: 70, align: 'center', render: () => <ProArrayTable.Index /> },
-  { key: 'a1', title: 'A1', width: 160, render: ({ index }) => <FormItem name="a1" style={{ margin: 0 }}><Input data-testid={`${prefix}a1-${index}`} /></FormItem> },
-  { key: 'a2', title: 'A2', width: 160, render: ({ index }) => <FormItem name="a2" style={{ margin: 0 }}><Input data-testid={`${prefix}a2-${index}`} /></FormItem> },
-  { key: 'a3', title: 'A3', width: 160, render: ({ index }) => <FormItem name="a3" style={{ margin: 0 }}><Input data-testid={`${prefix}a3-${index}`} /></FormItem> },
+  { key: 'a1', title: 'A1', width: 160, render: ({ index }) => <Field name="a1" decorator={[FormItem, { style: { margin: 0 } }]}><Input data-testid={`${prefix}a1-${index}`} /></Field> },
+  { key: 'a2', title: 'A2', width: 160, render: ({ index }) => <Field name="a2" decorator={[FormItem, { style: { margin: 0 } }]}><Input data-testid={`${prefix}a2-${index}`} /></Field> },
+  { key: 'a3', title: 'A3', width: 160, render: ({ index }) => <Field name="a3" decorator={[FormItem, { style: { margin: 0 } }]}><Input data-testid={`${prefix}a3-${index}`} /></Field> },
 ]
 
 export function ProArrayTablePage() {

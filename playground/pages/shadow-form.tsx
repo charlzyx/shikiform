@@ -1,7 +1,7 @@
 import { Button, Card, ConfigProvider, Divider, Space } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import { useState } from 'react'
-import { Form, useForm, useWatch, type Draft } from 'shikiform'
+import { Field, Form, useForm, useWatch, type Draft } from 'shikiform'
 import { FormItem, Input, ShadowDrawer, ShadowForm, ShadowModal, ShadowPopconfirm, useShadow } from 'shikiform/antd'
 import { useShadowForm } from 'shikiform/pro'
 
@@ -18,12 +18,12 @@ interface Values {
 function ShadowFields({ prefix }: { prefix: string }) {
   return (
     <>
-      <FormItem name="domain" label="域名" required>
+      <Field name="domain" title="域名" required decorator={[FormItem]}>
         <Input data-testid={`${prefix}-domain`} />
-      </FormItem>
-      <FormItem name="desc" label="描述">
+      </Field>
+      <Field name="desc" title="描述" decorator={[FormItem]}>
         <Input.TextArea data-testid={`${prefix}-desc`} />
-      </FormItem>
+      </Field>
     </>
   )
 }
@@ -48,12 +48,12 @@ export function ShadowFormPage() {
           </ShadowModal>
           <Divider />
           <Card title="info（阅读态）" size="small">
-            <FormItem name="info.domain" label="域名" pattern="readPretty">
+            <Field name="info.domain" title="域名" pattern="readPretty" decorator={[FormItem]}>
               <Input data-testid="info-domain" />
-            </FormItem>
-            <FormItem name="info.desc" label="描述" pattern="readPretty">
+            </Field>
+            <Field name="info.desc" title="描述" pattern="readPretty" decorator={[FormItem]}>
               <Input.TextArea rows={4} />
-            </FormItem>
+            </Field>
             <Space wrap>
               <ShadowModal<Info> title="内置的 Modal" record={record} onOk={save('modal')} trigger={<Button data-testid="open-modal">内置的 Modal</Button>}>
                 <ShadowFields prefix="modal" />
@@ -139,9 +139,9 @@ function HeadlessStyle({ record, onSave }: { record: () => Info; onSave: (values
       {shadow.visible ? (
         <Form form={shadow.form}>
           <DirtyState />
-          <FormItem name="domain" label="域名" required>
+          <Field name="domain" title="域名" required decorator={[FormItem]}>
             <Input data-testid="headless-domain" />
-          </FormItem>
+          </Field>
         </Form>
       ) : null}
     </div>

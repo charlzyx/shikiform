@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createForm, Form } from '../src'
+import { createForm, Field, Form } from '../src'
 import { EnumPretty, FormItem, Input, QueryList, Select } from '../src/antd'
 import { enumItems, useLazyCascader, useQueryTable, useSuggestion, type CascaderOption } from '../src/pro'
 
@@ -31,8 +31,8 @@ describe('enumItems / EnumPretty', () => {
     const form = createForm({ initialValues: { tags: ['a', 'e'], one: 'o' }, fields: { tags: { enum: LIST }, one: { enum: LIST, pattern: 'readPretty' } } })
     const { container } = render(
       <Form form={form}>
-        <FormItem name="tags"><EnumPretty showType="tag" /></FormItem>
-        <FormItem name="one"><Select prettyType="badge" /></FormItem>
+        <Field name="tags" decorator={[FormItem]}><EnumPretty showType="tag" /></Field>
+        <Field name="one" decorator={[FormItem]}><Select prettyType="badge" /></Field>
       </Form>,
     )
     expect([...container.querySelectorAll('.ant-tag')].map((node) => node.textContent)).toEqual(['啊', '呃'])
@@ -110,10 +110,10 @@ describe('QueryList', () => {
           list="list"
           columns={[
             { key: 'id', title: 'ID', render: ({ record }) => record.id },
-            { key: 'domain', title: 'DOMAIN', render: ({ index }) => <FormItem name="domain"><Input data-testid={`domain-${index}`} /></FormItem> },
+            { key: 'domain', title: 'DOMAIN', render: ({ index }) => <Field name="domain" decorator={[FormItem]}><Input data-testid={`domain-${index}`} /></Field> },
           ]}
         >
-          <FormItem name="query.domain" label="域名"><Input data-testid="q-domain" /></FormItem>
+          <Field name="query.domain" title="域名" decorator={[FormItem]}><Input data-testid="q-domain" /></Field>
         </QueryList>
       )
     }

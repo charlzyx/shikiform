@@ -1,6 +1,6 @@
 import { Button, ConfigProvider } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
-import { Form, useForm, useWatch, type Draft } from 'shikiform'
+import { Field, Form, useForm, useWatch, type Draft } from 'shikiform'
 import { FormItem, Input, ProArrayTable, ShadowModal } from 'shikiform/antd'
 import { useArrayShadow } from 'shikiform/pro'
 
@@ -18,15 +18,15 @@ interface Values {
 function RowFields({ prefix }: { prefix: string }) {
   return (
     <>
-      <FormItem name="id" label="ID" required>
+      <Field name="id" title="ID" required decorator={[FormItem]}>
         <Input data-testid={`${prefix}-id`} />
-      </FormItem>
-      <FormItem name="domain" label="域名" required>
+      </Field>
+      <Field name="domain" title="域名" required decorator={[FormItem]}>
         <Input data-testid={`${prefix}-domain`} />
-      </FormItem>
-      <FormItem name="desc" label="描述">
+      </Field>
+      <Field name="desc" title="描述" decorator={[FormItem]}>
         <Input.TextArea rows={4} data-testid={`${prefix}-desc`} />
-      </FormItem>
+      </Field>
     </>
   )
 }
@@ -65,8 +65,8 @@ function ShadowTable() {
         name="list"
         pagination={{ pageSize: 5 }}
         columns={[
-          { key: 'id', title: 'ID', width: 80, align: 'center', render: () => <FormItem name="id" pattern="readPretty" style={{ margin: 0 }}><Input /></FormItem> },
-          { key: 'domain', title: 'DOMAIN', width: 220, align: 'center', render: ({ index }) => <FormItem name="domain" pattern="readPretty" style={{ margin: 0 }}><Input data-testid={`domain-${index}`} /></FormItem> },
+          { key: 'id', title: 'ID', width: 80, align: 'center', render: () => <Field name="id" pattern="readPretty" decorator={[FormItem, { style: { margin: 0 } }]}><Input /></Field> },
+          { key: 'domain', title: 'DOMAIN', width: 220, align: 'center', render: ({ index }) => <Field name="domain" pattern="readPretty" decorator={[FormItem, { style: { margin: 0 } }]}><Input data-testid={`domain-${index}`} /></Field> },
           {
             key: 'edit',
             title: '编辑',

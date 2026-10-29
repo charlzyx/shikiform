@@ -1,6 +1,6 @@
 import { ConfigProvider } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
-import { Form, useForm, useWatch, type Draft } from 'shikiform'
+import { Field, Form, useForm, useWatch, type Draft } from 'shikiform'
 import { FormItem, Suggestion } from 'shikiform/antd'
 import { suggest } from '../pro-data'
 
@@ -21,18 +21,18 @@ export function SuggestionPage() {
         <p>远程联想：输入后防抖请求，新关键字会中止旧请求、丢弃迟到结果。数据来自本地模拟的「淘宝搜索」。</p>
         <Form form={form}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', columnGap: 16 }}>
-            <FormItem name="s1" label="淘宝搜索" extra="string" layout="vertical">
+            <Field name="s1" title="淘宝搜索" description="string" decorator={[FormItem, { layout: 'vertical' }]}>
               <Suggestion fetch={suggest} data-testid="s1" />
-            </FormItem>
-            <FormItem name="s2" label="淘宝搜索" extra="labelInValue" layout="vertical">
+            </Field>
+            <Field name="s2" title="淘宝搜索" description="labelInValue" decorator={[FormItem, { layout: 'vertical' }]}>
               <Suggestion fetch={suggest} labelInValue data-testid="s2" />
-            </FormItem>
-            <FormItem name="s3" label="淘宝搜索" extra="multiple" layout="vertical">
+            </Field>
+            <Field name="s3" title="淘宝搜索" description="multiple" decorator={[FormItem, { layout: 'vertical' }]}>
               <Suggestion fetch={suggest} multiple data-testid="s3" />
-            </FormItem>
-            <FormItem name="s4" label="淘宝搜索" extra="multiple & labelInValue" layout="vertical">
+            </Field>
+            <Field name="s4" title="淘宝搜索" description="multiple & labelInValue" decorator={[FormItem, { layout: 'vertical' }]}>
               <Suggestion fetch={suggest} multiple labelInValue data-testid="s4" />
-            </FormItem>
+            </Field>
           </div>
           <Code />
         </Form>
