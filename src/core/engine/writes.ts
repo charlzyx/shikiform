@@ -8,6 +8,7 @@ import type { Notifier } from '../state/notifier'
 import type { Display, FormOptions, Pattern, WriteOp } from '../types'
 import { isEmpty, optionIncludes, type Rule } from '../validation/rules'
 import type { Validator } from '../validation/validator'
+import { uiKeyOf, type FieldUi } from './field-ui'
 
 interface EnumLoadBinding {
   source: { debounce: number; cached: (p: any) => EnumOption[] | undefined; load: (p: any, s: AbortSignal) => Promise<EnumOption[]> }
@@ -23,6 +24,8 @@ export interface WriterDeps {
   options: FormOptions<any>
   /** Injected by the engine (structure layer): keep id-less array rows' identity across a cell edit. */
   carryRowIdentity?: (path: string, before: unknown, after: unknown) => void
+  /** UI state (`$title`, `$componentProps`, …). Set by the engine after construction. */
+  ui?: FieldUi
 }
 
 /**
@@ -39,6 +42,11 @@ export class StateWriter {
 
   constructor(private readonly deps: WriterDeps) {}
 
+  attachUi(ui: FieldUi): FieldUi {
+    this.deps.ui = ui
+    return ui
+  }
+
   /** Draft write entry point (`DraftHost.writeState`). */
   writeState(path: string, key: string, value: unknown): void {
     const scheduler = this.deps.scheduler
@@ -47,8 +55,13 @@ export class StateWriter {
     if (tracker) {
       if (!tracker.recordWrites) return
       const index = tracker.writes.findIndex((item) => item.key === op.key)
-      if (index >= 0) tracker.writes[index] = op
-      else tracker.writes.push(op)
+      // UI patches apply on top of each other: keep them in write order.
+      if (index >= 0 && this.deps.ui?.isUiOp(op)) tracker.writes.splice(index, 1)
+      else if (index >= 0) {
+        tracker.writes[index] = op
+        return
+      }
+      tracker.writes.push(op)
       return
     }
     if (scheduler.batchDepth > 0) {
@@ -136,6 +149,8 @@ export class StateWriter {
   }
 
   private makeOp(path: string, key: string, value: unknown): WriteOp {
+    const uiKey = uiKeyOf(key)
+    if (uiKey && this.deps.ui) return this.deps.ui.makeOp(path, uiKey, value)
     if (key === '$value') {
       const fromReaction = isReactionId(this.deps.scheduler.current()?.id ?? '')
       return { key: `${path}:value`, apply: () => this.commitValue(path, value, fromReaction) }

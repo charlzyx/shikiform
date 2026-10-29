@@ -116,7 +116,28 @@ type IndexValue<T, K extends string> = T extends readonly (infer E)[]
     ? T[K]
     : never
 
-export interface FieldSpec {
+/**
+ * UI state for the field's decorator and component (Formily `title` / `description` / `decorator` / `component`).
+ * Core stores these opaquely; the React layer gives them meaning (`<Field decorator component>`, `FormItem`).
+ * `component` / `decorator` may be a `[Component, props]` tuple: the props become `componentProps` / `decoratorProps`.
+ * A reaction overrides them through `$title`, `$componentProps.placeholder = …`, and so on.
+ */
+export interface FieldUiSpec {
+  /** Label shown by the decorator (`FormItem` → `label`). Any renderable value. */
+  title?: unknown
+  /** Help text shown by the decorator (`FormItem` → `extra`). */
+  description?: unknown
+  /** The control `<Field>` renders, or a `[Component, props]` tuple. */
+  component?: unknown
+  /** The wrapper `<Field>` renders around the control, or a `[Decorator, props]` tuple. */
+  decorator?: unknown
+  /** Props merged into the control. Shallow-merged with lower layers per key. */
+  componentProps?: Record<string, any>
+  /** Props merged into the decorator. Shallow-merged with lower layers per key. */
+  decoratorProps?: Record<string, any>
+}
+
+export interface FieldSpec extends FieldUiSpec {
   /**
    * Omit this field from {@link FormInstance.getSubmitValues}. Effects can still read and write it.
    * A computed field (a reaction wrote `$value`) becomes virtual unless this is `false`.
@@ -311,6 +332,7 @@ export interface WatchFn<T> {
  * literally named `value` is `d.value.$value`, not `d.$value`.
  *
  * Do not read a `$` state you just wrote in the same pass. Keep the new value in a local.
+ * (Exception: UI state — `$title`, `$componentProps`, … — reads replay this pass's own pending writes.)
  * Reading `array.$value` depends on the whole array. Prefer `reaction.each` for per-row work.
  */
 export type Draft<T> = IsAny<T> extends true ? any : DraftState<T> & DraftNav<T>
@@ -346,6 +368,23 @@ export interface DraftState<T> {
    * A reaction wins over JSX `rules`, `registerField`, and an item template.
    */
   $rules: Rule[]
+  /** Decorator label (`FormItem` → `label`). Assign `undefined` to fall back to JSX / `fields`. */
+  $title: unknown
+  /** Decorator help text (`FormItem` → `extra`). Assign `undefined` to fall back to JSX / `fields`. */
+  $description: unknown
+  /** The control `<Field>` renders. Assign `undefined` to fall back to JSX / `fields`. */
+  $component: unknown
+  /** The decorator `<Field>` renders. Assign `undefined` to fall back to JSX / `fields`. */
+  $decorator: unknown
+  /**
+   * Props for the control, merged over JSX / `fields` props per top-level key.
+   * Nested writes patch one key immutably: `d.city.$componentProps.placeholder = '…'`,
+   * `d.city.$componentProps.style.color = 'red'` (missing intermediates are not created: assign `style ??= {}` first).
+   * Assigning an object replaces every lower layer; assigning `undefined` drops the reaction layer.
+   */
+  $componentProps: Record<string, any>
+  /** Props for the decorator. Same layering and nested-patch semantics as `$componentProps`. */
+  $decoratorProps: Record<string, any>
   /** Own messages plus descendant messages. Read-only. */
   readonly $errors: string[]
   readonly $warnings: string[]

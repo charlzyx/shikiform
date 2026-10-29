@@ -1,6 +1,6 @@
 import { asOptions } from '../enum/enum-source'
 import { deepEqual } from '../shared/equal'
-import type { FieldModel } from '../state/field-model'
+import { normalizeUiSpec, type FieldModel } from '../state/field-model'
 import type { FieldStore } from '../state/field-store'
 import type { Notifier } from '../state/notifier'
 import type { FieldSpec, ValidateTrigger } from '../types'
@@ -60,6 +60,7 @@ export class Declarations {
       ...Object.fromEntries(Object.entries(spec).filter(([, value]) => value !== undefined)),
     }
     this.applyFieldFlags(field, spec, 'explicit')
+    this.applyUi(field, spec, 'explicit')
     const rules = rulesFromSpec(spec, field.declaredRules ?? field.rules)
     if (rules) {
       field.declaredRules = rules.slice()
@@ -139,6 +140,24 @@ export class Declarations {
     })
   }
 
+  /** Declared UI state. An exact declaration replaces per key; a template only fills keys nobody declared. */
+  private applyUi(field: FieldModel, spec: FieldSpec, mode: 'explicit' | 'template'): void {
+    const ui = normalizeUiSpec(spec)
+    const keys = Object.keys(ui) as (keyof typeof ui)[]
+    if (!keys.length) return
+    const next = { ...field.uiDeclared }
+    let changed = false
+    for (const key of keys) {
+      if (mode === 'template' && field.declaration?.[key] !== undefined) continue
+      if (shallowSame(next[key], ui[key])) continue
+      next[key] = ui[key]
+      changed = true
+    }
+    if (!changed) return
+    field.uiDeclared = next
+    this.notifier.bumpPath(field.path)
+  }
+
   private applyFieldFlags(field: FieldModel, spec: FieldSpec & { trigger?: ValidateTrigger[] }, mode: 'explicit' | 'template'): void {
     if (spec.virtual !== undefined && (mode === 'explicit' || !field.virtualExplicit)) {
       field.virtual = spec.virtual
@@ -192,6 +211,7 @@ export class Declarations {
     const field = this.store.ensure(path)
     if (field.declaredRules === undefined && field.declaredRequired === undefined) field.templateApplied = true
     this.applyFieldFlags(field, spec, 'template')
+    this.applyUi(field, spec, 'template')
     if (spec.rules !== undefined && !field.rulesFromEffect && field.declaredRules === undefined && field.jsxRules === undefined) {
       const rules = normalizeRules(spec.rules)
       if (!deepEqual(field.rules, rules)) {
@@ -224,4 +244,11 @@ export class Declarations {
     }
     return best
   }
+}
+
+function shallowSame(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) return true
+  if (!a || !b || typeof a !== 'object' || typeof b !== 'object' || Array.isArray(a) !== Array.isArray(b)) return false
+  const ak = Object.keys(a)
+  return ak.length === Object.keys(b).length && ak.every((k) => Object.is((a as any)[k], (b as any)[k]))
 }

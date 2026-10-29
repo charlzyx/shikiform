@@ -44,6 +44,7 @@ export type {
   FieldError,
   FieldPath,
   FieldSpec,
+  FieldUiSpec,
   TemplatePath,
   FormInstance,
   FormOptions,
