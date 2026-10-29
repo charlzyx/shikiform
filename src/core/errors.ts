@@ -34,3 +34,21 @@ export class ShikiUiError extends Error {
     this.name = 'ShikiUiError'
   }
 }
+
+/**
+ * A draft misuse caught in development (`process.env.NODE_ENV !== 'production'`): mutating a `$value` object,
+ * reading a `$` state right after writing it in the same reaction, or treating a draft handle as an array.
+ * The message says what to write instead.
+ */
+export class ShikiUsageError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'ShikiUsageError'
+  }
+}
+
+/** `items.0.name` → `d.items[0].name` (root → `d`), for messages. */
+export function showDraftPath(path: string): string {
+  if (!path) return 'd'
+  return 'd' + path.split('.').map((seg) => (/^\d+$/.test(seg) ? `[${seg}]` : `.${seg}`)).join('')
+}

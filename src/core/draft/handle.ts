@@ -1,3 +1,4 @@
+import { ShikiUsageError, showDraftPath } from '../errors'
 import type { DraftHost } from './host'
 import type { Pos } from '../shared/tree-ops'
 
@@ -48,10 +49,26 @@ export function createHandle(host: DraftHost, path: string): any {
     return undefined
   }
   return new Proxy(fn, {
+    apply() {
+      throw misuseCall(path)
+    },
     get(_target, prop) {
       if (prop === PATH) return path
-      if (prop === 'then' || typeof prop === 'symbol') return undefined
+      if (prop === 'then') return undefined
+      if (typeof prop === 'symbol') {
+        if (process.env.NODE_ENV !== 'production' && (prop === Symbol.iterator || prop === Symbol.toPrimitive)) {
+          throw misuseSymbol(path, prop)
+        }
+        return undefined
+      }
       const key = String(prop)
+      if (key === 'length' && process.env.NODE_ENV !== 'production' && Array.isArray(host.peekValue?.(path))) {
+        throw new ShikiUsageError(
+          `${showDraftPath(path)}.length is a child path, not the array length: ${showDraftPath(path)} is a draft handle. ` +
+            `Read ${showDraftPath(path)}.$value.length (depends on the whole array), or run per-row logic with ` +
+            `reaction.each((d) => ${showDraftPath(path)}, (row, ctx) => …).`,
+        )
+      }
       if (!STATE.has(key)) return createHandle(host, path ? `${path}.${key}` : key)
       return host.readState(path, key)
     },
@@ -72,6 +89,28 @@ export function createHandle(host: DraftHost, path: string): any {
       return { configurable: true, enumerable: false, value: (target as any)[prop] }
     },
   })
+}
+
+function misuseCall(path: string): ShikiUsageError {
+  const dot = path.lastIndexOf('.')
+  const parent = dot < 0 ? '' : path.slice(0, dot)
+  const method = dot < 0 ? path : path.slice(dot + 1)
+  const owner = showDraftPath(parent)
+  return new ShikiUsageError(
+    `${owner}.${method}(…) is not a method: ${owner} is a draft handle (a path), not the value. ` +
+      `Read the value with ${owner}.$value.${method}(…), or run per-row logic with reaction.each((d) => ${owner}, (row, ctx) => …).`,
+  )
+}
+
+function misuseSymbol(path: string, symbol: symbol): ShikiUsageError {
+  const shown = showDraftPath(path)
+  if (symbol === Symbol.iterator) {
+    return new ShikiUsageError(
+      `${shown} is a draft handle, not an array: it cannot be iterated (for…of, spread, Array.from). ` +
+        `Iterate the value with ${shown}.$value, or run per-row logic with reaction.each((d) => ${shown}, (row, ctx) => …).`,
+    )
+  }
+  return new ShikiUsageError(`${shown} is a draft handle, not a value. Read ${shown}.$value.`)
 }
 
 export function createUiHandle(host: DraftHost, path: string, name: string): any {

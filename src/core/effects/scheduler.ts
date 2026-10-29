@@ -1,4 +1,4 @@
-import { ShikiConflictError, ShikiCycleError } from '../errors'
+import { ShikiConflictError, ShikiCycleError, ShikiUsageError, showDraftPath } from '../errors'
 import { parentPath } from '../shared/path'
 import type { Notifier } from '../state/notifier'
 import type { Pos } from '../shared/tree-ops'
@@ -32,6 +32,18 @@ export interface RunOptions {
   writes: boolean
   pos?: Pos
   nodePath?: string
+}
+
+/** Draft key → the write-op state it would read back. */
+const WRITTEN_STATE: Record<string, string> = {
+  $value: 'value',
+  $visible: 'display',
+  $display: 'display',
+  $pattern: 'pattern',
+  $disabled: 'pattern',
+  $required: 'required',
+  $enum: 'enum',
+  $rules: 'rules',
 }
 
 const REACTION_PREFIX = /^(reaction|each|walk):/
@@ -109,6 +121,25 @@ export class Scheduler {
 
   trackOnly<S>(fn: () => S): { value: S; deps: Set<string> } {
     return this.runWith({ id: 'track', deps: true, writes: false }, fn)
+  }
+
+  /**
+   * Development guard: reading a `$` state this reaction / watch already wrote in the same pass sees the old value
+   * (writes are buffered until the pass returns). UI state (`$title`, `$componentProps`, …) is exempt: it replays.
+   */
+  assertNotWritten(path: string, draftKey: string): void {
+    const tracker = this.stack.at(-1)
+    if (!tracker?.recordWrites || !tracker.writes.length) return
+    const state = WRITTEN_STATE[draftKey]
+    if (!state) return
+    const key = `${path}:${state}`
+    if (!tracker.writes.some((op) => op.key === key)) return
+    const shown = `${showDraftPath(path)}.${draftKey}`
+    throw new ShikiUsageError(
+      `Read ${shown} after writing it in the same ${isReactionId(tracker.id) ? 'reaction' : 'watch'}. ` +
+        `Writes are buffered until the pass returns, so this read sees the old value. ` +
+        `Keep the new value in a local: const next = …; ${shown} = next; then use next.`,
+    )
   }
 
   /** Record a read of `path:state` on the running tracker. */

@@ -1,3 +1,4 @@
+import { unwrapReadonly } from '../draft/readonly'
 import type { Declarations } from '../declarations/declarations'
 import type { Scheduler } from '../effects/scheduler'
 import { getAt, joinPath, parentPath, setAt } from '../shared/path'
@@ -120,6 +121,8 @@ export class ArrayOps {
   }
 
   private commit(path: string, before: any[], next: any[], dirty: Set<number>): void {
+    // Development: a row taken from a reaction's `$value` is a read-only view; store plain data.
+    if (process.env.NODE_ENV !== 'production') next = unwrapReadonly(next)
     const { store, scheduler } = this
     const rowKey = this.arrays.get(path)?.rowKey
     const oldIds = new Map<string, string>()
