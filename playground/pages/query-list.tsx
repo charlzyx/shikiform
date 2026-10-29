@@ -41,28 +41,26 @@ function useDomainTable() {
   })
 }
 
+/** Table cells: the FormItem decorator only for its error status, without margins. */
+const cell = { style: { margin: 0 } }
+
 const columns: ProArrayTableColumn<DomainRow>[] = [
   { key: 'id', title: 'ID', width: 60, align: 'center', render: ({ record }) => <span data-testid="row-id">{record.id}</span> },
-  { key: 'status', title: 'STATUS', width: 110, align: 'center', render: () => <Field name="status" decorator={[FormItem, { style: { margin: 0 } }]}><EnumPretty showType="badge" /></Field> },
-  { key: 'domain', title: 'DOMAIN', align: 'center', render: ({ index }) => <Field name="domain" decorator={[FormItem, { style: { margin: 0 } }]}><Input data-testid={`domain-${index}`} /></Field> },
-  { key: 'classify', title: '分类', width: 160, hidden: true, render: () => <Field name="classify" decorator={[FormItem, { style: { margin: 0 } }]}><EnumPretty showType="tag" /></Field> },
+  { key: 'status', title: 'STATUS', width: 110, align: 'center', render: () => <Field name="status" decorator={[FormItem, cell]}><EnumPretty showType="badge" /></Field> },
+  { key: 'domain', title: 'DOMAIN', align: 'center', render: ({ index }) => <Field name="domain" decorator={[FormItem, cell]}><Input data-testid={`domain-${index}`} /></Field> },
+  { key: 'classify', title: '分类', width: 160, hidden: true, render: () => <Field name="classify" decorator={[FormItem, cell]}><EnumPretty showType="tag" /></Field> },
   { key: 'date', title: '日期', width: 120, render: ({ record }) => record.date },
 ]
 
+/** Search fields sit in QueryList's grid cells: vertical labels. */
+const search = { layout: 'vertical' } as const
+
 function SearchFields() {
   return [
-    <Field key="domain" name="query.domain" title="域名" decorator={[FormItem, { layout: 'vertical' }]}>
-      <Input data-testid="q-domain" />
-    </Field>,
-    <Field key="range" name="query.range" title="日期区间" decorator={[FormItem, { layout: 'vertical' }]}>
-      <DatePicker.RangePicker style={{ width: '100%' }} />
-    </Field>,
-    <Field key="classify" name="query.classify" title="分类" decorator={[FormItem, { layout: 'vertical' }]}>
-      <Select mode="multiple" allowClear />
-    </Field>,
-    <Field key="status" name="query.status" title="状态" decorator={[FormItem, { layout: 'vertical' }]}>
-      <Select allowClear data-testid="q-status" />
-    </Field>,
+    <Field key="domain" name="query.domain" title="域名" decorator={[FormItem, search]} component={[Input, { 'data-testid': 'q-domain' }]} />,
+    <Field key="range" name="query.range" title="日期区间" decorator={[FormItem, search]} component={[DatePicker.RangePicker, { style: { width: '100%' } }]} />,
+    <Field key="classify" name="query.classify" title="分类" decorator={[FormItem, search]} component={[Select, { mode: 'multiple', allowClear: true }]} />,
+    <Field key="status" name="query.status" title="状态" decorator={[FormItem, search]} component={[Select, { allowClear: true, 'data-testid': 'q-status' }]} />,
   ]
 }
 

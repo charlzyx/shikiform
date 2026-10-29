@@ -65,8 +65,8 @@ function ShadowTable() {
         name="list"
         pagination={{ pageSize: 5 }}
         columns={[
-          { key: 'id', title: 'ID', width: 80, align: 'center', render: () => <Field name="id" pattern="readPretty" decorator={[FormItem, { style: { margin: 0 } }]}><Input /></Field> },
-          { key: 'domain', title: 'DOMAIN', width: 220, align: 'center', render: ({ index }) => <Field name="domain" pattern="readPretty" decorator={[FormItem, { style: { margin: 0 } }]}><Input data-testid={`domain-${index}`} /></Field> },
+          { key: 'id', title: 'ID', width: 80, align: 'center', render: () => <Field name="id" pattern="readPretty" component={[Input]} /> },
+          { key: 'domain', title: 'DOMAIN', width: 220, align: 'center', render: ({ index }) => <Field name="domain" pattern="readPretty" component={[Input, { 'data-testid': `domain-${index}` }]} /> },
           {
             key: 'edit',
             title: '编辑',

@@ -8,7 +8,7 @@ import {
   Switch as AntSwitch,
 } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
-import type { ComponentProps, ComponentType } from 'react'
+import type { ComponentProps, ComponentType, FocusEventHandler } from 'react'
 import { connect, mapProps, mapReadPretty } from '../adapter/connect'
 import { PreviewText } from '../adapter/preview'
 import { ChoicePreview, stripPrettyType, type EnumPrettyProps } from './enum-pretty'
@@ -44,8 +44,14 @@ export const InputNumber = connect(AntInputNumber, mapReadPretty(PreviewText))
  */
 export const Select = connect(withPretty(AntSelect), choice, pretty)
 
+/**
+ * Ant Design forwards `onBlur` to rc-switch's button although the public `SwitchProps` omit it.
+ * Typed here so a caller can listen to blur (the field is marked touched first).
+ */
+type SwitchWithBlur = ComponentType<ComponentProps<typeof AntSwitch> & { onBlur?: FocusEventHandler<HTMLButtonElement> }>
+
 /** Boolean switch: field value ↔ `checked`. `readOnly` / `readPretty` render it disabled. */
-export const Switch = connect(AntSwitch, mapProps({ value: 'checked', readOnly: 'disabled', status: false }))
+export const Switch = connect(AntSwitch as SwitchWithBlur, mapProps({ value: 'checked', readOnly: 'disabled', status: false }))
 
 /** Single checkbox: field value ↔ `checked`. `Checkbox.Group` binds an array with enum `options`. */
 export const Checkbox = Object.assign(connect(AntCheckbox, mapProps({ value: 'checked', readOnly: 'disabled', status: false })), {

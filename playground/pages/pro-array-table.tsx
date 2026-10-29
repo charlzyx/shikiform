@@ -17,6 +17,9 @@ interface Values {
   array: Row[]
 }
 
+/** Table cells: the FormItem decorator only for its error status, without margins. */
+const cell = { style: { margin: 0 } }
+
 function range(count: number): Row[] {
   return Array.from({ length: count }, (_, key) => {
     const row: Row = { a1: `${key}.1`, a2: `${key}.2`, a3: `${key}.3` }
@@ -64,9 +67,9 @@ function RowSummary() {
 
 const itemColumns = (prefix: string): ProArrayTableColumn<Item>[] => [
   { key: 'index', title: 'Index', width: 70, align: 'center', render: () => <ProArrayTable.Index /> },
-  { key: 'a1', title: 'A1', width: 160, render: ({ index }) => <Field name="a1" decorator={[FormItem, { style: { margin: 0 } }]}><Input data-testid={`${prefix}a1-${index}`} /></Field> },
-  { key: 'a2', title: 'A2', width: 160, render: ({ index }) => <Field name="a2" decorator={[FormItem, { style: { margin: 0 } }]}><Input data-testid={`${prefix}a2-${index}`} /></Field> },
-  { key: 'a3', title: 'A3', width: 160, render: ({ index }) => <Field name="a3" decorator={[FormItem, { style: { margin: 0 } }]}><Input data-testid={`${prefix}a3-${index}`} /></Field> },
+  { key: 'a1', title: 'A1', width: 160, render: ({ index }) => <Field name="a1" decorator={[FormItem, cell]}><Input data-testid={`${prefix}a1-${index}`} /></Field> },
+  { key: 'a2', title: 'A2', width: 160, render: ({ index }) => <Field name="a2" decorator={[FormItem, cell]}><Input data-testid={`${prefix}a2-${index}`} /></Field> },
+  { key: 'a3', title: 'A3', width: 160, render: ({ index }) => <Field name="a3" decorator={[FormItem, cell]}><Input data-testid={`${prefix}a3-${index}`} /></Field> },
 ]
 
 export function ProArrayTablePage() {
