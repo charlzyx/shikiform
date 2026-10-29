@@ -18,7 +18,7 @@ Hooks 是主 API，JSX 是其结构与渲染封装；draft 和 `$` 描述状态�
 ## 本地开发
 
 ```bash
-npm install
+npm ci
 npm run dev         # VitePress 文档站
 npm test            # 正式库 + 同源教程的 vitest
 npm run check       # 库、playground、测试的 tsc --noEmit（教程另有 check:docs）
@@ -33,6 +33,12 @@ npm run test:e2e    # 文档构建 + playground 构建，再跑 Playwright
 ```
 
 教程在 `/tutorial`。每一步左边是说明，右边可以改代码。不需要 WebContainers，也不需要 COOP/COEP。
+
+### 安装工具链与 React 身份
+
+部署兼容门使用 Cloudflare 当前的 **Node 22.23.4 / npm 10.9.9**：从空 `node_modules` 运行 `npm clean-install --progress=false`，再跑测试、类型检查和完整构建。更新依赖后，用该 npm 版本生成并提交 `package-lock.json`；不要用 `--legacy-peer-deps` 绕过锁校验，也不要只凭 npm 11 安装通过就判断 CF 可部署。
+
+VitePress 的 `@docsearch/js` 所带 React 适配器有可选 `React <19` peers；锁内嵌套的 React 18 仅供该依赖，本站使用本地搜索。正式库、React 岛、教程编辑器和 AntD 仍共用根 React 19，不降级、不套额外 Provider。`react-runtime-identity` 单测核真实安装的解析身份，pack 门继续核公开包跨入口 context/类身份。
 
 ## 部署：Cloudflare Pages（GitHub 联动）
 
