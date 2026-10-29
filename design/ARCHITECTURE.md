@@ -4,10 +4,10 @@
 
 ## 1. API 原则：Hooks 优先，组件是糖
 
-1. **Hooks 是完整的主 API。** `shikiform` 导出的 `useForm`、`useField`、`useArrayField` / `useArrayMove`、`useTreeField` / `useTreeMove`、`useWatch` 能做到组件能做的一切。
+1. **Hooks 是完整的主 API。** `shikiform` 导出的 `useForm`、`useField`、`useArrayField` / `useArrayMove`、`useTreeField` / `useTreeMove`、`useWatch`，以及无需 name 的上下文 Hook `useCurrentField`、`useArray`、`useIndex`、`useRecord`、`useTreeNode`（Formily `ArrayBase.useArray/useIndex/useRecord`）能做到组件能做的一切。
 2. **组件只是 Hook 的薄封装，不得拥有 Hook 用户拿不到的逻辑。**
    - `<Field name rules required virtual display pattern title description decorator component>` = `useField(name, options)` + `display !== 'visible'` 时返回 `null` + 渲染 `decorator` 包住 `component`（或 children），并用 `FieldContext` 提供 binding。
-   - `<ArrayField>` = `useArrayField` + `RowScope`；`<TreeField>` = `useTreeField`；`<Watch>` = `useWatch`；`<Form>` = Context Provider + `form.submit()`。
+   - `<ArrayField>` = `useArrayField` + `ArrayScope`（供 `useArray()`）+ 每行 `RowScope`（供 `useIndex()` / `useRecord()`）；`<TreeField>` = `useTreeField`；`<Watch>` = `useWatch`；`<Form>` = Context Provider + `form.submit()`。
    - `AppField`（`createFormHook`）= `<Field>` + 字段 Context。
 3. **Ant Design 适配层是 `useField` 之上的 Formily 式 connect 层。** `<Field>` 是字段唯一的拥有者；装饰器和控件都从 `FieldContext` 读同一个 binding。
    - `connect(Control, mapProps(...), mapReadPretty(...))` 每次渲染只做一件事：`mapFieldProps(binding, props)`（binding 来自 `field` 属性 / `name` / `useCurrentField()`）。`mapFieldProps` 本身是导出的纯函数，Hook 用户可直接 `<AntInput {...mapFieldProps(field, props)} />`。
@@ -25,7 +25,8 @@ src/
     index.ts
     types.ts  errors.ts    公开类型 / 错误类
     shared/                纯函数：path.ts、equal.ts、tree-ops.ts（pos、moveNode、listPositions…）
-    draft/                 draft 代理：handle.ts（$ 读写 → DraftHost）、host.ts、patch.ts（对象型 $ 状态的 Immer 式嵌套写）
+    draft/                 draft 代理：handle.ts（$ 读写 → DraftHost）、host.ts、patch.ts（对象型 $ 状态的 Immer 式嵌套写）、
+                           readonly.ts（开发期 `$value` 只读视图）
     enum/                  enum-source.ts（EnumSource 缓存/防抖/加载）、combo.ts（组合联动算法）
     state/                 ① 状态：field-model.ts、field-store.ts、notifier.ts
     effects/               ② 调度：scheduler.ts、define-effects.ts
@@ -37,7 +38,8 @@ src/
   react/                   headless React 绑定（只依赖 core）
     context.tsx            FormContext / ScopeContext
     field-context.ts       FieldContext / useCurrentField（<Field> 提供，装饰器与 connect 控件读取）
-    hooks/                 use-form、use-field、use-array、use-tree、use-watch、field-lifecycle（JSX lease）
+    hooks/                 use-form、use-field、use-array（useArrayField / useArray）、use-row（useIndex / useRecord / useTreeNode）、
+                           use-tree、use-watch、field-lifecycle（JSX lease）
     components/            fields.tsx（Form/Field/ObjectField/ArrayField/RowScope/TreeField/Watch）、virtual-rows.tsx
     factory/               create-form-hook.tsx（createFormHook / createFormHookContexts）
   pro/                     无 UI 的高级 Hook（依赖 react / core）
