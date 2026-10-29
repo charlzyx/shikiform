@@ -1,7 +1,8 @@
-import { useEffect, useRef, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useSyncExternalStore, type ComponentType, type ReactNode } from 'react'
 import type { EnumOption } from '../../core/enum/enum-source'
 import { joinPath } from '../../core/shared/path'
-import type { Display, FieldPath, PathValue, Pattern } from '../../core/types'
+import { normalizeUiSpec } from '../../core/state/field-model'
+import type { Display, FieldPath, FieldUiSpec, PathValue, Pattern } from '../../core/types'
 import type { RulesInput } from '../../core/validation/rules'
 import { useFormContext, useScope } from '../context'
 import { applyJsxField } from './field-lifecycle'
@@ -31,7 +32,22 @@ export interface FieldBinding<TValue> {
   options: EnumOption[]
   loading: boolean
   id: string
+  /** Decorator label. Reaction `$title` > JSX `title` > `fields.x.title`. */
+  title: ReactNode
+  /** Decorator help text. Reaction `$description` > JSX > `fields`. */
+  description: ReactNode
+  /** The control `<Field>` renders (from the `component` slot). */
+  component: ComponentType<any> | undefined
+  /** The wrapper `<Field>` renders (from the `decorator` slot). */
+  decorator: ComponentType<any> | undefined
+  /** Props for the control: `fields` ← JSX ← reaction (`$componentProps`), merged per key. */
+  componentProps: Record<string, any>
+  /** Props for the decorator: `fields` ← JSX ← reaction (`$decoratorProps`), merged per key. */
+  decoratorProps: Record<string, any>
 }
+
+/** A `component` / `decorator` slot: the component, or `[Component, props]` (Formily style). */
+export type FieldSlot = ComponentType<any> | readonly [ComponentType<any>] | readonly [ComponentType<any>, Record<string, any> | undefined]
 
 /**
  * Field options a hook caller can pass. Same semantics as the `<Field>` props of the same name:
@@ -44,6 +60,16 @@ export interface UseFieldOptions {
   virtual?: boolean
   display?: Display
   pattern?: Pattern
+  /**
+   * UI state, the render-time JSX layer: not stored on the model, so inline objects and handlers are free.
+   * A reaction (`$title`, `$componentProps.x = …`) wins over it; it wins over `fields` declarations.
+   */
+  title?: ReactNode
+  description?: ReactNode
+  component?: FieldSlot
+  decorator?: FieldSlot
+  componentProps?: Record<string, any>
+  decoratorProps?: Record<string, any>
 }
 
 /**
@@ -52,7 +78,8 @@ export interface UseFieldOptions {
  * Inside a row whose scope is `items.0`, `useField('price')` is `items.0.price`.
  *
  * Pass `options` to own the field's JSX-level config from a hook: `useField('email', { rules: z.string().email() })`
- * behaves exactly like `<Field name="email" rules={z.string().email()}>`.
+ * behaves exactly like `<Field name="email" rules={z.string().email()}>`. UI options (`title`, `componentProps`,
+ * `decorator`, …) are merged into the returned binding the same way `<Field>` merges them.
  *
  * A dynamic `string` name returns `FieldBinding<any>` so a column renderer can share one component.
  * `useField<Row>('price')` rejects a key `Row` does not have. That value is the union of `Row`'s fields.
@@ -85,5 +112,11 @@ export function useField(name: string, options?: UseFieldOptions): FieldBinding<
   )
   void version
   form.registerField(path, {})
-  return form.binding(path) as FieldBinding<any>
+  return form.binding(path, options && uiLayer(options)) as FieldBinding<any>
+}
+
+function uiLayer(options: UseFieldOptions): FieldUiSpec | undefined {
+  const { title, description, component, decorator, componentProps, decoratorProps } = options
+  if (title === undefined && description === undefined && component === undefined && decorator === undefined && componentProps === undefined && decoratorProps === undefined) return undefined
+  return normalizeUiSpec({ title, description, component, decorator, componentProps, decoratorProps }) as FieldUiSpec
 }
