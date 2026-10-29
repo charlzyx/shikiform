@@ -7,7 +7,7 @@ description: useAntdForm、useAntdField、字段组、预绑定控件和表格�
 
 从 `shikiform/antd` 导入这些 API。新项目先理解组件库无关的 [React Hooks](/reference/react-hooks) 与 `Field`；antd 只负责控件、布局、反馈和事件适配。想看代码怎么接，读 [把字段接到 Ant Design](/guide/antd-binding)。
 
-这里的适配层使用同一个 `FormEngine`，不是把业务值再同步进 antd Form。`useAntdForm` / `useAntdField` 是保留的预绑定便利入口，不是另一套状态架构，也不是使用 antd 控件的前提。`AppField` render prop 上的 `field.Input`、`field.Select` 等是预绑定成员，`Submit` 是表单实例成员。`shikiform/antd` 另有同名的独立导出 `Input`、`Select` 等：它们是 `connect` 适配层的控件，配合 `FormItem` 使用，见 [Ant Design 适配层](/reference/antd-adapter)。
+这里的适配层使用同一个 `FormEngine`，不是把业务值再同步进 antd Form。`useAntdForm` / `useAntdField` 是保留的预绑定便利入口，不是另一套状态架构，也不是使用 antd 控件的前提。`AppField` render prop 上的 `field.Input`、`field.Select` 等是预绑定成员，`Submit` 是表单实例成员。`shikiform/antd` 另有同名的独立导出 `Input`、`Select` 等：它们是 `connect` 适配层的控件，与 `<Field decorator={[FormItem]} component={[Input]}>` 配合使用，见 [Ant Design 适配层](/reference/antd-adapter)。`field.Input` 等预绑定成员就是这些控件（Input / Select / InputNumber 外包一层 `FormItem`），全库只有一套适配层。
 
 ## useAntdForm
 
@@ -24,7 +24,7 @@ useAntdForm<T>(options?: FormOptions<T>)
 | `Submit` | antd `ButtonProps` → React 元素 | 使用当前表单的提交/校验状态，细节见下文 |
 | 其余引擎方法 | `getValue`、`setValue`、`reset`、`validate`、`submit` 等 | 仍是 [正式表单实例](/api#读写和提交)，没有第二份值 |
 
-`AppField` 只接收 `name` 和 `children`，不接收 `rules`、`required`、`component` 或 `decorator`。规则可声明在 `useAntdForm({ fields })`，动态规则写在 effects；需要 JSX 挂载期规则时用 [正式 `Field`](/api#react-字段)。`AppField` 复用正式 `Field` 的订阅/显示路径：`hidden` / `none` 不渲染控件，但二者的校验/提交语义仍不同。它没有 JSX 校验声明，因此不取得或释放同路径其他 Field 的规则 lease。
+`AppField` 接收 `name`、`children` 和 `useField` 的全部选项（`rules`、`required`、`title`、`description`、`componentProps`…）；它就是正式 `Field` 加预绑定控件：`hidden` / `none` 不渲染控件，`rules` / `required` 是挂载期 lease，`title` 会显示为 `field.Input` 外层 `FormItem` 的 label。不传 `rules` / `required` 时不取得或释放同路径其他 Field 的规则 lease。
 
 `AppForm` 的原生提交会调用 `form.submit()` 做校验。要拿到通过校验的业务值，显式调用 `form.submit(onValid)`；完整写法在 [预绑定示例](/guide/antd-binding#第二步使用预绑定控件)。不要给 `AppForm` 传一个它不接收的回调。
 
@@ -147,15 +147,15 @@ export default function App() {
 |---|---|---|
 | `field.Input` | `InputProps` | `event.target.value`；空显示为 `''` |
 | `field.Select` | `SelectProps` | antd 的选择值；优先用 `props.options`，否则映射 `field.options` 的 label/value |
-| `field.InputNumber` | `InputNumberProps` | 数字直接写入，其他值使用 `Number(value ?? 0)`；**清空为 `0`** |
+| `field.InputNumber` | `InputNumberProps` | 写入 antd 给出的原始值（数字；`stringMode` 下是字符串）；**清空为 `null`** |
 | `field.Switch` | `ComponentProps<typeof Switch>`，另支持 `onBlur?: React.FocusEventHandler<HTMLButtonElement>` | `checked` 布尔值；失焦从真实 button 透传，先通知字段再通知用户，不新增包装节点 |
 | `field.Checkbox` | `ComponentProps<typeof Checkbox>` | `event.target.checked`；children 是勾选文字 |
 
 `InputNumber` 的转换是当前正式适配器契约。教程里可复制的 `NumberField` 故意示范了另一种项目策略：空值写 `undefined`。二者不能混为同一个组件；需要空值、字符串精度等不同策略时，使用 `Field` / `useAntdField` 自己接线，不假定正式适配器保留 antd 的所有值类型。
 
-Input、Select、InputNumber 外面有**无 `name` 的 `antd Form.Item`**，显示第一个错误、error 状态和 required。它不负责字段值/规则，也没有自动 `label`；可用 `aria-label`、单独的 label，或按指南自定义完整布局。Switch/Checkbox 不自动带这个外壳。
+Input、Select、InputNumber 外面有一层 **`FormItem` 装饰器**（从 `AppField` 提供的字段上下文读字段），显示第一个错误、error 状态、required，以及 `AppField title` 作为 label。它不负责字段值/规则。Switch/Checkbox 不自动带这个外壳。
 
-字段 `disabled` 和控件 `disabled` 合并。Input/InputNumber 的 readOnly 使用原生只读属性，Select 的 readOnly 映射为 disabled；Switch/Checkbox 在 readOnly 和 readPretty 时都保留 checked 外观并禁用交互，不声称变成纯文本。Input/Select/InputNumber 的 readPretty 改为文本展示。显示与提交的区别见 [pattern](/guide/pattern) 和 [显隐](/guide/display)。这些 UI 状态不禁止程序调用 `form.setValue()`。
+字段 `disabled` 和控件 `disabled` 合并。Input/InputNumber 的 readOnly 使用原生只读属性，Select 的 readOnly 映射为 disabled；Switch/Checkbox 在 readOnly 和 readPretty 时都保留 checked 外观并禁用交互，不声称变成纯文本。Input/Select/InputNumber 的 readPretty 改为文本展示（Select 显示选项 label）。显示与提交的区别见 [pattern](/guide/pattern) 和 [显隐](/guide/display)。这些 UI 状态不禁止程序调用 `form.setValue()`。
 
 ### form.Submit
 

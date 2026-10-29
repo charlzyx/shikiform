@@ -6,15 +6,15 @@
 
 1. **Hooks 是完整的主 API。** `shikiform` 导出的 `useForm`、`useField`、`useArrayField` / `useArrayMove`、`useTreeField` / `useTreeMove`、`useWatch` 能做到组件能做的一切。
 2. **组件只是 Hook 的薄封装，不得拥有 Hook 用户拿不到的逻辑。**
-   - `<Field name rules required virtual display pattern>` = `useField(name, { rules, required, virtual, display, pattern })` + `display !== 'visible'` 时返回 `null`。
+   - `<Field name rules required virtual display pattern title description decorator component>` = `useField(name, options)` + `display !== 'visible'` 时返回 `null` + 渲染 `decorator` 包住 `component`（或 children），并用 `FieldContext` 提供 binding。
    - `<ArrayField>` = `useArrayField` + `RowScope`；`<TreeField>` = `useTreeField`；`<Watch>` = `useWatch`；`<Form>` = Context Provider + `form.submit()`。
    - `AppField`（`createFormHook`）= `<Field>` + 字段 Context。
-3. **Ant Design 适配层是 `useField` 之上的 connect 层。**
-   - `connect(Control, mapProps(...), mapReadPretty(...))` 每次渲染只做一件事：`mapFieldProps(useField(name), props)`。`mapFieldProps` 本身是导出的纯函数，Hook 用户可直接 `<AntInput {...mapFieldProps(field, props)} />`。
-   - `FormItem` 读取同一个 `FieldBinding`（可用 `field={useField(...)}` 显式传入），只负责 label / 必填星号 / 状态 / help 的渲染。
+3. **Ant Design 适配层是 `useField` 之上的 Formily 式 connect 层。** `<Field>` 是字段唯一的拥有者；装饰器和控件都从 `FieldContext` 读同一个 binding。
+   - `connect(Control, mapProps(...), mapReadPretty(...))` 每次渲染只做一件事：`mapFieldProps(binding, props)`（binding 来自 `field` 属性 / `name` / `useCurrentField()`）。`mapFieldProps` 本身是导出的纯函数，Hook 用户可直接 `<AntInput {...mapFieldProps(field, props)} />`。
+   - `FormItem` 是纯装饰器：不拥有字段，`mapFormItemProps(binding, props, useFormLayout())` 是它的纯函数核心，Hook 用户可直接 `<Form.Item {...mapFormItemProps(field, {})}>`。
    - 表格（`ArrayTable`、`ProQueryTable`）分别建立在 `useArrayField`、`useQueryTable`（`shikiform/pro`）之上。
    - Pro 组件（复刻 Pro.formily）同样是 Hook 之上的薄封装，见 §10：`ProArrayTable` = `useArrayTable` + `useColumnSettings`；`QueryList` = `useQueryTable({ rows })` + `ProArrayTable`；`ShadowModal` / `ShadowDrawer` / `ShadowPopconfirm` / `ShadowForm` = `useShadowForm`（行编辑用 `useArrayShadow`）；`Suggestion` = `useSuggestion`；`CascaderPlus` = `useLazyCascader`；`EnumPretty` = `enumItems`。
-4. **公开导出向后兼容。** 本次重构只新增导出（`UseFieldOptions` 类型、antd 适配层），没有删除或改名任何公开导出。
+4. **公开导出。** 核心重构（PR #16）只新增导出；Formily 式适配层重构删除了 `FormItem` 的 `name` / `field` / `rules` / `required` / `virtual` / `display` / `pattern` 属性（字段只由 `<Field>` 拥有，见 §8），导出名本身没有删除。
 
 ## 2. 目录与依赖方向
 
@@ -25,7 +25,7 @@ src/
     index.ts
     types.ts  errors.ts    公开类型 / 错误类
     shared/                纯函数：path.ts、equal.ts、tree-ops.ts（pos、moveNode、listPositions…）
-    draft/                 draft 代理：handle.ts（$ 读写 → DraftHost）、host.ts
+    draft/                 draft 代理：handle.ts（$ 读写 → DraftHost）、host.ts、patch.ts（对象型 $ 状态的 Immer 式嵌套写）
     enum/                  enum-source.ts（EnumSource 缓存/防抖/加载）、combo.ts（组合联动算法）
     state/                 ① 状态：field-model.ts、field-store.ts、notifier.ts
     effects/               ② 调度：scheduler.ts、define-effects.ts
@@ -33,9 +33,10 @@ src/
     declarations/          ④ 声明：declarations.ts、templates.ts
     structure/             ⑤ 结构：arrays.ts、trees.ts、migrate.ts
     ui/                    ⑤ 命名 UI：ui-registry.ts
-    engine/                ⑥ 门面：form-engine.ts（FormEngine/createForm）、writes.ts（StateWriter）
+    engine/                ⑥ 门面：form-engine.ts（FormEngine/createForm）、writes.ts（StateWriter）、field-ui.ts（字段 UI 状态）
   react/                   headless React 绑定（只依赖 core）
-    context.tsx
+    context.tsx            FormContext / ScopeContext
+    field-context.ts       FieldContext / useCurrentField（<Field> 提供，装饰器与 connect 控件读取）
     hooks/                 use-form、use-field、use-array、use-tree、use-watch、field-lifecycle（JSX lease）
     components/            fields.tsx（Form/Field/ObjectField/ArrayField/RowScope/TreeField/Watch）、virtual-rows.tsx
     factory/               create-form-hook.tsx（createFormHook / createFormHookContexts）
@@ -49,11 +50,12 @@ src/
     use-lazy-cascader.ts     懒加载级联：按路径加载、反显时逐级加载祖先
     enum-pretty.ts           enumItems / ENUM_COLORS（纯函数）
   antd/                    Ant Design（依赖 react / pro）
-    adapter/               connect.tsx、form-item.tsx、preview.tsx、field-context.ts
+    adapter/               connect.tsx、form-item.tsx（FormItem / mapFormItemProps）、form-layout.tsx（FormLayout / useFormLayout）、
+                           preview.tsx、field-context.ts（只服务 useAntdForm 的 AppField / useAntdField）
     components/            controls.tsx（Input、InputNumber、Select、Switch、Checkbox、Radio、DatePicker）、
                            enum-pretty.tsx（EnumPretty / EnumPrettyView；选择类控件阅读态 prettyType）、
                            suggestion.tsx（Suggestion）、cascader-plus.tsx（CascaderPlus）
-    form-hook/             form-hook.tsx（useAntdForm / AppField 预绑定控件）
+    form-hook/             form-hook.tsx（useAntdForm：field.Input 等 = connect 控件 + FormItem，不是第二套适配）
     shadow/                shadow.tsx（ShadowModal / ShadowDrawer / ShadowPopconfirm / ShadowForm / useShadow）
     tables/                array-table.tsx、merged-table.tsx、query-table.tsx、pro-array-table.tsx、query-list.tsx
 ```
@@ -81,9 +83,22 @@ core 内部（有状态部分，编号小者在下）：
 
 ## 3. 字段模型与状态（`core/state`）
 
-- **`FieldModel`**（`field-model.ts`）：每个精确 path 一个模型，所有挂在该 path 上的 UI 共享。除 `display/pattern/required/rules/errors/touched/dirty/validating/enum` 外，还记录**来源**：`*FromEffect`（reaction 写入）、`declared*`（`fields`/`registerField`）、`jsx*`（挂载期 lease）、`templateApplied`（条目模板实例），用于多来源叠加。
+- **`FieldModel`**（`field-model.ts`）：每个精确 path 一个模型，所有挂在该 path 上的 UI 共享。除 `display/pattern/required/rules/errors/touched/dirty/validating/enum` 外，还记录**来源**：`*FromEffect`（reaction 写入）、`declared*`（`fields`/`registerField`）、`jsx*`（挂载期 lease）、`templateApplied`（条目模板实例），用于多来源叠加。UI 状态（`uiDeclared` / `uiEffect`）见 §3.1。
 - **`FieldStore`**（`field-store.ts`）：`values`、`initial`、表单级 `dirty/submitting/submitCount/validating`、`fields` Map；`ensure(path)` 首次触碰即创建模型。继承读：`effectiveDisplay`（祖先 `none` 优先，其次 `hidden`）、`effectivePattern`（最近的自身/祖先值；computed 字段默认 `readPretty`）。它只存数据，不通知、不调度。
 - **`Notifier`**（`notifier.ts`）：path / structure / dep / meta / debug 五类版本号与监听器；写入方只 bump 版本并标记 pending，`emit()` 一次性派发（顺序：path → structure → meta → dep → debug）。React 的 `useSyncExternalStore` 读的就是这些版本号。
+
+### 3.1 字段 UI 状态（`engine/field-ui.ts`）
+
+Formily 的 `field.title` / `description` / `decorator` / `component` / `setComponentProps` / `setDecoratorProps` 在 ShikiForm 里是模型上的六个 UI 键：`title`、`description`、`component`、`decorator`、`componentProps`、`decoratorProps`。核心不认识 React，只把它们当不透明值存储（`FieldUiSpec` 类型为 `unknown` / `Record<string, any>`）；React 层（`<Field>`、`FormItem`、`connect`）赋予含义。
+
+- **三层，从高到低**：reaction（`d.x.$title = …`、`d.x.$componentProps.placeholder = …`，存 `uiEffect`）> JSX（`<Field title componentProps decorator={[D, props]}>` / `useField(name, { title, … })`）> 声明（`fields` / `registerField` / 条目模板，存 `uiDeclared`；精确声明按键覆盖，模板只填没有精确声明的键）。
+- **JSX 层不写进模型**：它在渲染时作为 `form.binding(path, jsxUi)` 的参数合并，所以内联对象、回调、ReactNode 每次渲染换引用也不会 bump 版本或引起渲染期写入。代价：reaction 读 `$title` / `$componentProps` 看到的是「声明 + reaction」两层，不含 JSX 层。
+- **合并规则**：标量键取最高的有值层；`componentProps` / `decoratorProps` 按顶层键浅合并（`fields` ← JSX ← reaction）。reaction 整体赋值（`$componentProps = {...}`）标记 `replace`，丢弃所有下层；赋 `undefined` 撤销 reaction 层（与 `$pattern = undefined` 一致）。
+- **`[Component, props]` 元组**：`normalizeUiSpec`（`state/field-model.ts`）把 `component: [C, p]` 拆成 `component = C` + `componentProps = { ...p, ...componentProps }`，`decorator` 同理。声明与 JSX 共用。
+- **嵌套写是 Immer 式的**（`draft/patch.ts`）：读 `$componentProps` 返回真实值——普通对象 / 数组包一层写跟踪代理，原始值、`undefined`、函数、类实例、React 元素原样返回，所以读的行为和普通 JS 一样（不存在的键是 `undefined`，`d.x.$componentProps.style.color = …` 在 `style` 不存在时照样抛 `TypeError`）。任意深度的赋值 / `delete` 报告 `(keys, value)`；`FieldUi` 以当前有效对象为底，用 `setIn` 做不可变拷贝，生成一个以顶层键为单位的写操作（op key `path:componentProps.<顶层键>`；整体赋值是 `path:componentProps`）。不会自动创建缺失的中间对象：先写 `style ??= {}`，或直接 `style = { color }`。
+- **同一轮可读到自己的写**：UI 写操作记在 `WeakMap<WriteOp, patch>` 里；在 reaction / batch 中读 UI 键时，把本轮缓冲的同字段同键写操作按顺序重放到有效值上，所以 `props.style ??= {}; props.style.color = 'red'` 在 reaction 内成立（其他 `$` 状态仍是「本轮写、下轮读」）。同键的 UI 写操作在缓冲区里移到末尾而不是原地替换，保证补丁按写入顺序叠加。
+- **依赖粒度**：`path:<UI 键>`（如 `city:componentProps`、`city:title`）。读写同一个 UI 键的 reaction 会自唤醒一次，第二次写入值不变即收敛。冲突检测按 op key：两个 reaction 补丁同一顶层键会抛 `ShikiConflictError`，补不同键不冲突。
+- **比较**：UI 值可能含函数与 React 元素，变化检测用按键 `Object.is` 的浅比较，不用 `deepEqual`。
 
 ## 4. 副作用调度（`core/effects`）
 
@@ -117,24 +132,32 @@ core 内部（有状态部分，编号小者在下）：
 
 ## 8. Ant Design 适配层（`src/antd`）
 
+照搬 Formily 的分工：**`<Field>` 拥有字段，`FormItem` 装饰，`connect` 控件绑定**，三者通过 `FieldContext` 共享同一个 `FieldBinding`。只有一种写法（`<FormItem name>` 已删除）。
+
 ```tsx
-import { Form } from 'shikiform'
-import { FormItem, Input, Select, connect, mapProps } from 'shikiform/antd'
+import { Field, Form } from 'shikiform'
+import { FormItem, FormLayout, Input, Select, connect, mapProps } from 'shikiform/antd'
 
 const Rate = connect(AntRate, mapProps({ status: false }))
 
 <Form form={form}>
-  <FormItem name="email" label="邮箱" required rules={{ format: 'email' }}><Input /></FormItem>
-  <FormItem name="city" label="城市"><Select /></FormItem>   {/* options 来自字段 enum */}
-  <FormItem name="score" label="评分"><Rate /></FormItem>
+  <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }}>
+    <Field name="email" title="邮箱" required rules={{ format: 'email' }}
+      decorator={[FormItem, { tooltip: '工作邮箱' }]} component={[Input, { placeholder: 'name@example.com' }]} />
+    <Field name="city" title="城市" decorator={[FormItem]} component={[Select]} />   {/* options 来自字段 enum */}
+    <Field name="score" title="评分" decorator={[FormItem]}><Rate /></Field>        {/* children 也可以是控件 */}
+  </FormLayout>
 </Form>
 ```
 
-- **字段来源**：`field` 属性 → `name` 属性（`useField(name)`）→ 外层 `FormItem` / `AppField` 的共享 Context（`adapter/field-context.ts`，与 `useAntdForm` 的 `AppField` 是同一个 Context，所以 connect 控件也能放在 `AppField` 里）。
-- **默认映射**（`mapFieldProps`）：`value`、`onChange`（`getValueFromEvent`：checkbox 取 `checked`，事件取 `target.value`，其他取第一个参数；然后以原始参数调用调用方 handler）、`onBlur`、`disabled`/`readOnly`（与调用方 OR）、`status`（error/warning，调用方优先）、`id`；`options`/`loading` 需显式映射。无 `mapReadPretty` 时 `readPretty` 视作 `readOnly`。
+- **`<Field>`**（react 层）：`useField(name, options)` → `display !== 'visible'` 返回 `null` → `FieldContext.Provider` 里渲染 `<Decorator {...decoratorProps}>{content}</Decorator>`，`content` 依次取 render prop、children、`<Component {...componentProps} />`。传给槽位的是**有效**的 props（`fields` ← JSX ← reaction），与组件自己从 binding 里再合并的是同一份值，所以没有新旧覆盖问题。槽位也可以在 `fields` 里声明，`<Field name="city" />` 即可渲染。
+- **字段来源（connect 控件）**：`field` 属性 → `name` 属性（`useField(name)`）→ `useCurrentField()`（外层 `<Field>` / `AppField`）。`AppField` 内部就是 `<Field>`，所以同样提供 `FieldContext`；`adapter/field-context.ts` 里的 antd 专用 context 只服务 `useAntdField`。
+- **默认映射**（`mapFieldProps`）：先把 `field.componentProps` 合并在调用方 props 之下，再映射 `value`、`onChange`（`getValueFromEvent`：checkbox 取 `checked`，事件取 `target.value`，其他取第一个参数；然后以原始参数调用调用方 handler）、`onBlur`、`disabled`/`readOnly`（与调用方 OR）、`status`（error/warning，调用方优先）、`id`；`options`/`loading` 需显式映射。无 `mapReadPretty` 时 `readPretty` 视作 `readOnly`。
 - **内置控件**：`Input`（`.TextArea`、`.Password`）、`InputNumber`（清空写 `null`）、`Select`（enum→options、readOnly→disabled、阅读态显示 label）、`Switch`/`Checkbox`（value↔checked）、`Checkbox.Group`、`Radio.Group`、`DatePicker`（`.RangePicker`；字段存格式化字符串，因为核心 `structuredClone` 会丢掉 dayjs 原型）。
-- **`FormItem`**：`rules/required/virtual/display/pattern` 与 `useField(name, options)` 同义；`validateStatus` 依次 error → validating → warning；`help` 取第一条错误或警告；`readPretty` 隐藏必填星号；`hidden/none` 不渲染。
-- **旧的预绑定控件**（`form-hook/`：`useAntdForm` 的 `field.Input` 等）保持原样，以免改变已有契约（如 `field.InputNumber` 把空值写成 `0`）；新代码推荐 connect 控件。
+- **`FormItem`**（纯装饰器）：没有 `name` / `field` / `rules` / `required` 属性，字段外使用抛错。`mapFormItemProps(field, props, layout)`：合并 `layout`（`FormLayout`）← `field.decoratorProps` ← `props`；`label` ← `title`、`extra` ← `description`（显式优先）；必填星号 ← `required`（`readPretty` 隐藏，`asterisk` 可强制）；`validateStatus` 依次 error → validating → warning；`help` 取第一条错误或警告；`feedbackLayout`：`loose`（默认）/ `terse`（无提示时去掉底部间距，适合单元格与栅格）/ `none`（不显示提示文字）。`hidden/none` 不渲染。
+- **`FormLayout`**：`layout`（`horizontal` / `vertical` / `inline`）、`labelCol`、`wrapperCol`、`labelAlign`、`colon`、`size`、`feedbackLayout` 经 context 向下继承，嵌套时按键合并；`size` 同时通过 antd `ConfigProvider componentSize` 作用于控件；`inline` 用一层 flex 容器排布。`useFormLayout()` 读当前合并结果，供自定义装饰器使用。
+- **表格**：单元格就是行作用域里的 `<Field>`，可以不要装饰器（`component={[Input]}`），或用别的装饰器 / `FormItem` 的 `feedbackLayout: 'terse'`。
+- **`useAntdForm`**：`field.Input` / `field.Select` / `field.InputNumber` = 对应 connect 控件包在 `FormItem` 里；`field.Switch` / `field.Checkbox` 就是 connect 控件。全库只有一套适配层（旧的手写 `FieldInput` 等已删除）；行为变化见 PR：`InputNumber` 清空写 `null`（原为 `0`）、`stringMode` 下写字符串、`Select` 阅读态显示 label、`AppField title` 显示为 label。
 
 ## 9. 已知未解决问题 → 所在模块
 

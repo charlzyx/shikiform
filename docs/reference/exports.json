@@ -9,7 +9,8 @@
     "useTreeField": "reference/react-hooks.mdx",
     "useTreeMove": "reference/react-hooks.mdx",
     "createFormHook": "reference/form-hook.mdx",
-    "createFormHookContexts": "reference/form-hook.mdx"
+    "createFormHookContexts": "reference/form-hook.mdx",
+    "useCurrentField": "reference/react-hooks.mdx"
   },
   "shikiform/pro": {
     "useQueryTable": "reference/query-hooks.mdx",
@@ -60,6 +61,9 @@
     "Suggestion": "reference/pro-components.mdx",
     "SuggestionSelect": "reference/pro-components.mdx",
     "CascaderPlus": "reference/pro-components.mdx",
-    "CascaderPlusView": "reference/pro-components.mdx"
+    "CascaderPlusView": "reference/pro-components.mdx",
+    "FormLayout": "reference/antd-adapter.mdx",
+    "useFormLayout": "reference/antd-adapter.mdx",
+    "mapFormItemProps": "reference/antd-adapter.mdx"
   }
 }
