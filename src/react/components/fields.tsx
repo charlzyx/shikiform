@@ -5,7 +5,8 @@ import type { Display, Draft, FieldPath, PathValue, Pattern } from '../../core/t
 import type { RulesInput } from '../../core/validation/rules'
 import { FormContext, ScopeContext, useFormContext, useScope } from '../context'
 import { useArrayField } from '../hooks/use-array'
-import { useField, type FieldBinding } from '../hooks/use-field'
+import { FieldContext } from '../field-context'
+import { useField, type FieldBinding, type FieldSlot } from '../hooks/use-field'
 import { useTreeField } from '../hooks/use-tree'
 import { useWatch } from '../hooks/use-watch'
 
@@ -44,26 +45,8 @@ export function Form<T>({
   )
 }
 
-/**
- * One field. `rules` may be a built-in rule, a Standard Schema, or a mix:
- * `rules={z.string().email()}` or `rules={[z.string().min(2), { maxLength: 20 }]}`.
- *
- * JSX `rules` and `required` apply only while this component is mounted.
- * Unmount clears them and leaves rules from `useForm({ fields })`, `registerField`, an item template (`rows.*.name`), or `$rules`.
- * `virtual` omits the value from submit. `display="hidden"` still validates. `display="none"` skips validation.
- * `<Field<Row> name="price">` checks the name. `<Field<Row, 'price'> name="price">` types the value.
- * `<Field>` is a thin wrapper around {@link useField}: `useField(name, { rules, required, virtual, display, pattern })`
- * plus `display !== 'visible'` → `null`.
- */
-export function Field<TScope = any, N extends FieldPath<TScope> = FieldPath<TScope>>({
-  name,
-  rules,
-  virtual,
-  required,
-  display,
-  pattern,
-  children,
-}: {
+/** `<Field>` props. Every prop except `name` / `children` is a {@link useField} option of the same name. */
+export interface FieldProps<TScope = any, N extends FieldPath<TScope> = FieldPath<TScope>> {
   /** Name relative to the current `<ObjectField>` / `<ArrayField>` / `<TreeField>` scope. */
   name: N
   /** Mount-scoped rules. Cleared on unmount. Does not erase a declaration, a template, or `$rules`. */
@@ -76,12 +59,61 @@ export function Field<TScope = any, N extends FieldPath<TScope> = FieldPath<TSco
   display?: Display
   /** Initial pattern when no reaction has written `$pattern`. `$pattern = undefined` inherits again. */
   pattern?: Pattern
-  children?: (field: FieldBinding<PathValue<TScope, N & string>>) => ReactNode
-}) {
+  /** Decorator label (`FormItem` shows it as `label`). A reaction's `$title` wins. */
+  title?: ReactNode
+  /** Decorator help text (`FormItem` shows it as `extra`). A reaction's `$description` wins. */
+  description?: ReactNode
+  /** Wrapper around the control: `decorator={[FormItem, { tooltip: '…' }]}`. Reads the field from context. */
+  decorator?: FieldSlot
+  /** The control: `component={[Input, { placeholder: '…' }]}`. A `connect()`ed control reads the field from context. */
+  component?: FieldSlot
+  /** Extra decorator props, merged under a reaction's `$decoratorProps` (same as the decorator tuple's props). */
+  decoratorProps?: Record<string, any>
+  /** Extra control props, merged under a reaction's `$componentProps` (same as the component tuple's props). */
+  componentProps?: Record<string, any>
+  /** A render prop (`(field) => …`), or field-aware children (`<Input />`) rendered instead of `component`. */
+  children?: ReactNode | ((field: FieldBinding<PathValue<TScope, N & string>>) => ReactNode)
+}
+
+/**
+ * One field: the single owner of a path's JSX config (Formily `<Field>`).
+ *
+ * ```tsx
+ * <Field name="email" title="邮箱" required rules={{ format: 'email' }}
+ *   decorator={[FormItem]} component={[Input, { placeholder: 'name@example.com' }]} />
+ * ```
+ *
+ * It renders `decorator` around `component` (or around `children`), and provides the binding through
+ * {@link FieldContext}, so a decorator (`FormItem`) and a `connect()`ed control need no `name` of their own.
+ * Both receive the effective `decoratorProps` / `componentProps` (`fields` ← JSX ← reaction). A render prop
+ * `children={(field) => …}` still works and replaces `component`.
+ *
+ * `rules` may be a built-in rule, a Standard Schema, or a mix. JSX `rules` and `required` apply only while this
+ * component is mounted; unmount restores rules from `useForm({ fields })`, `registerField`, an item template, or `$rules`.
+ * `virtual` omits the value from submit. `display="hidden"` still validates. `display="none"` skips validation.
+ * `<Field<Row> name="price">` checks the name. `<Field<Row, 'price'> name="price">` types the value.
+ * `<Field>` is a thin wrapper around {@link useField}: `useField(name, options)` + `display !== 'visible'` → `null`
+ * + the two slots.
+ */
+export function Field<TScope = any, N extends FieldPath<TScope> = FieldPath<TScope>>({ name, children, ...options }: FieldProps<TScope, N>) {
   // Sugar over the hook: everything <Field> does is reachable through useField(name, options).
-  const field = useField<TScope, N>(name, { rules, virtual, required, display, pattern })
+  const field = useField<TScope, N>(name, options)
   if (field.display !== 'visible') return null
-  return children ? <>{children(field)}</> : null
+  const Component = field.component
+  const Decorator = field.decorator
+  const content =
+    typeof children === 'function'
+      ? children(field)
+      : children !== undefined
+        ? children
+        : Component
+          ? <Component {...field.componentProps} />
+          : null
+  return (
+    <FieldContext.Provider value={field}>
+      {Decorator ? <Decorator {...field.decoratorProps}>{content}</Decorator> : content}
+    </FieldContext.Provider>
+  )
 }
 
 /**

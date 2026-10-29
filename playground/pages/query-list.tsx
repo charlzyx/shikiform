@@ -1,6 +1,6 @@
 import { Button, ConfigProvider } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
-import { Form, useWatch, type Draft } from 'shikiform'
+import { Field, Form, useWatch, type Draft } from 'shikiform'
 import { DatePicker, EnumPretty, FormItem, Input, ProArrayTable, QueryList, Select, ShadowModal, type ProArrayTableColumn } from 'shikiform/antd'
 import { useArrayShadow, useQueryTable } from 'shikiform/pro'
 import { CLASSIFY_ENUM, domainService, STATUS_ENUM, type DomainQuery, type DomainRow } from '../pro-data'
@@ -41,28 +41,26 @@ function useDomainTable() {
   })
 }
 
+/** Table cells: the FormItem decorator only for its error status, without margins. */
+const cell = { style: { margin: 0 } }
+
 const columns: ProArrayTableColumn<DomainRow>[] = [
   { key: 'id', title: 'ID', width: 60, align: 'center', render: ({ record }) => <span data-testid="row-id">{record.id}</span> },
-  { key: 'status', title: 'STATUS', width: 110, align: 'center', render: () => <FormItem name="status" style={{ margin: 0 }}><EnumPretty showType="badge" /></FormItem> },
-  { key: 'domain', title: 'DOMAIN', align: 'center', render: ({ index }) => <FormItem name="domain" style={{ margin: 0 }}><Input data-testid={`domain-${index}`} /></FormItem> },
-  { key: 'classify', title: '分类', width: 160, hidden: true, render: () => <FormItem name="classify" style={{ margin: 0 }}><EnumPretty showType="tag" /></FormItem> },
+  { key: 'status', title: 'STATUS', width: 110, align: 'center', render: () => <Field name="status" decorator={[FormItem, cell]}><EnumPretty showType="badge" /></Field> },
+  { key: 'domain', title: 'DOMAIN', align: 'center', render: ({ index }) => <Field name="domain" decorator={[FormItem, cell]}><Input data-testid={`domain-${index}`} /></Field> },
+  { key: 'classify', title: '分类', width: 160, hidden: true, render: () => <Field name="classify" decorator={[FormItem, cell]}><EnumPretty showType="tag" /></Field> },
   { key: 'date', title: '日期', width: 120, render: ({ record }) => record.date },
 ]
 
+/** Search fields sit in QueryList's grid cells: vertical labels. */
+const search = { layout: 'vertical' } as const
+
 function SearchFields() {
   return [
-    <FormItem key="domain" name="query.domain" label="域名" layout="vertical">
-      <Input data-testid="q-domain" />
-    </FormItem>,
-    <FormItem key="range" name="query.range" label="日期区间" layout="vertical">
-      <DatePicker.RangePicker style={{ width: '100%' }} />
-    </FormItem>,
-    <FormItem key="classify" name="query.classify" label="分类" layout="vertical">
-      <Select mode="multiple" allowClear />
-    </FormItem>,
-    <FormItem key="status" name="query.status" label="状态" layout="vertical">
-      <Select allowClear data-testid="q-status" />
-    </FormItem>,
+    <Field key="domain" name="query.domain" title="域名" decorator={[FormItem, search]} component={[Input, { 'data-testid': 'q-domain' }]} />,
+    <Field key="range" name="query.range" title="日期区间" decorator={[FormItem, search]} component={[DatePicker.RangePicker, { style: { width: '100%' } }]} />,
+    <Field key="classify" name="query.classify" title="分类" decorator={[FormItem, search]} component={[Select, { mode: 'multiple', allowClear: true }]} />,
+    <Field key="status" name="query.status" title="状态" decorator={[FormItem, search]} component={[Select, { allowClear: true, 'data-testid': 'q-status' }]} />,
   ]
 }
 
@@ -147,15 +145,15 @@ function ListText() {
 function RowFields({ prefix }: { prefix: string }) {
   return (
     <>
-      <FormItem name="id" label="ID" required>
+      <Field name="id" title="ID" required decorator={[FormItem]}>
         <Input data-testid={`${prefix}-id`} />
-      </FormItem>
-      <FormItem name="domain" label="域名" required>
+      </Field>
+      <Field name="domain" title="域名" required decorator={[FormItem]}>
         <Input data-testid={`${prefix}-domain`} />
-      </FormItem>
-      <FormItem name="desc" label="描述">
+      </Field>
+      <Field name="desc" title="描述" decorator={[FormItem]}>
         <Input.TextArea rows={4} data-testid={`${prefix}-desc`} />
-      </FormItem>
+      </Field>
     </>
   )
 }

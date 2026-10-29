@@ -3,7 +3,7 @@ import type { FormEngine } from '../../core/engine/form-engine'
 import { joinPath } from '../../core/shared/path'
 import type { FieldPath, FormOptions, PathValue } from '../../core/types'
 import { FormContext, ScopeContext, useScope } from '../context'
-import type { FieldBinding } from '../hooks/use-field'
+import type { FieldBinding, UseFieldOptions } from '../hooks/use-field'
 import { Field } from '../components/fields'
 import { useForm } from '../hooks/use-form'
 
@@ -55,12 +55,12 @@ export function createFormHook<
   fieldContext: Context<FieldBinding<any> | null>
   formContext: Context<FormEngine<any> | null>
 }) {
-  function AppField({ name, children }: { name: string; children: (field: FieldBinding<any> & TFields) => ReactNode }) {
+  function AppField({ name, children, ...fieldOptions }: { name: string; children: (field: FieldBinding<any> & TFields) => ReactNode } & UseFieldOptions) {
     const scope = useScope()
     const path = joinPath(scope.path, name)
     const next = useMemo(() => ({ path, index: -1 }), [path])
     return (
-      <Field name={name}>
+      <Field name={name} {...fieldOptions}>
         {(field) => (
           <options.fieldContext.Provider value={field}>
             <ScopeContext.Provider value={next}>{children({ ...field, ...options.fieldComponents })}</ScopeContext.Provider>
@@ -142,10 +142,11 @@ export type AppFormApi<
   TFields extends Record<string, ComponentType<any>>,
   TForms extends Record<string, ComponentType<any>>,
 > = FormEngine<T> & {
+  /** `<Field>` with the pre-bound components. Accepts the same field options (`rules`, `title`, …) as {@link UseFieldOptions}. */
   AppField: <N extends FieldPath<T>>(props: {
     name: N
     children: (field: FieldBinding<PathValue<T, N & string>> & TFields) => ReactNode
-  }) => ReactNode
+  } & UseFieldOptions) => ReactNode
   AppForm: (props: { children?: ReactNode }) => ReactNode
 } & TForms
 
@@ -154,5 +155,5 @@ export type GroupApi<TGroup, TFields extends Record<string, ComponentType<any>>>
   AppField: <N extends FieldPath<TGroup>>(props: {
     name: N
     children: (field: FieldBinding<PathValue<TGroup, N & string>> & TFields) => ReactNode
-  }) => ReactNode
+  } & UseFieldOptions) => ReactNode
 }

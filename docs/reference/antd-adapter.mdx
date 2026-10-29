@@ -1,35 +1,44 @@
 ---
 title: Ant Design 适配层
-description: connect / mapProps / mapReadPretty / FormItem，以及经 connect 接好的 antd 控件。
+description: Formily 式适配：Field 的 decorator / component 槽位、FormItem 装饰器、FormLayout、connect / mapProps / mapReadPretty，以及接好的 antd 控件。
 ---
 
 # Ant Design 适配层
 
-从 `shikiform/antd` 导入。这一层参照 Formily 的 `connect` + `mapProps` + `mapReadPretty` 与 `FormItem` 装饰器：**字段逻辑全部来自 [useField](/reference/react-hooks#usefield)**，适配层只把 `FieldBinding` 映射成 antd 控件的 props，不保存任何自己的状态。Hook 用户可以直接用 `mapFieldProps(useField(name), props)` 得到完全相同的映射。
-
-控件找字段的顺序：`field` 属性 → `name` 属性（内部调用 `useField(name)`）→ 外层 `FormItem` / `AppField` 提供的字段。
+从 `shikiform/antd` 导入。这一层照搬 Formily 的分工：**`<Field>` 是字段唯一的拥有者**（`name`、`rules`、`required`、`title`、`description`、`decorator`、`component`），`FormItem` 是纯装饰器，控件经 `connect` + `mapProps` + `mapReadPretty` 接线。字段逻辑全部来自 [useField](/reference/react-hooks#usefield)，适配层只把 `FieldBinding` 映射成 antd 的 props，不保存任何自己的状态。
 
 ```tsx
-import { createForm, Form } from 'shikiform'
-import { FormItem, Input, Select, Switch } from 'shikiform/antd'
+import { createForm, Field, Form } from 'shikiform'
+import { FormItem, FormLayout, Input, Select, Switch } from 'shikiform/antd'
 
 const form = createForm({
   initialValues: { email: '', city: 'sh', vip: false },
-  fields: { city: { enum: [{ label: '上海', value: 'sh' }, { label: '北京', value: 'bj' }] } },
+  fields: {
+    // 也可以在 fields 里声明 UI：<Field name="city" /> 就会渲染出来
+    city: { title: '城市', decorator: [FormItem], component: [Select], enum: [{ label: '上海', value: 'sh' }, { label: '北京', value: 'bj' }] },
+  },
 })
 
 export default function Profile() {
   return (
     <Form form={form} onSubmit={(values) => console.log(values)}>
-      <FormItem name="email" label="邮箱" required rules={{ format: 'email' }}>
-        <Input placeholder="name@example.com" />
-      </FormItem>
-      <FormItem name="city" label="城市"><Select /></FormItem>
-      <FormItem name="vip" label="会员"><Switch /></FormItem>
+      <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }}>
+        <Field name="email" title="邮箱" required rules={{ format: 'email' }}
+          decorator={[FormItem, { tooltip: '工作邮箱' }]} component={[Input, { placeholder: 'name@example.com' }]} />
+        <Field name="city" />
+        <Field name="vip" title="会员" decorator={[FormItem]} component={[Switch]} />
+      </FormLayout>
     </Form>
   )
 }
 ```
+
+- **`<Field>` 渲染 `decorator` 包住 `component`**（或包住 `children`），并通过 `FieldContext` 提供字段，所以 `FormItem` 与 connect 控件都不需要 `name`。`children` 也可以是控件本身：`<Field name="x" decorator={[FormItem]}><Input /></Field>`；render prop `(field) => …` 照常可用。
+- **UI 状态在字段模型上**：`title` → `label`，`description` → `extra`，`componentProps` 合并进控件 props，`decoratorProps` 合并进 `FormItem`。来源从低到高：`fields` 声明 → JSX（`title`、元组里的 props）→ reaction（`$title`、`$componentProps.placeholder = …`），对象按顶层键合并。
+- **联动改 UI**：`reaction((d) => { d.city.$componentProps.disabled = d.vip.$value; d.city.$decoratorProps.tooltip = '…' })`。嵌套写 `d.x.$componentProps.style.color = 'red'` 只改这一处（不可变拷贝，其他键保留）；缺失的中间对象不会自动创建，先 `style ??= {}`。整体赋值 `d.x.$componentProps = {...}` 替换所有下层，赋 `undefined` 撤销 reaction 层。
+- **表格单元格**可以不要装饰器（`<Field name="a1" component={[Input]} />`），或换一个（`decorator={[FormItem, { feedbackLayout: 'terse' }]}`）。
+
+控件找字段的顺序：`field` 属性 → `name` 属性（内部调用 `useField(name)`）→ 外层 `<Field>` / `AppField` 提供的字段（`useCurrentField()`）。
 
 ## connect
 
@@ -38,11 +47,11 @@ connect<P>(target: ComponentType<P>, ...enhancers: ConnectEnhancer[]): Connected
 // ConnectedComponent<P> = ComponentType<Partial<P> & { name?: string; field?: FieldBinding<any> }>
 ```
 
-把任意 value/onChange 控件变成字段控件。`enhancers` 由 [mapProps](#mapprops) 与 [mapReadPretty](#mapreadpretty) 生成。返回的组件没有自己的状态：每次渲染都是对当前 `FieldBinding` 调一次 [mapFieldProps](#mapfieldprops)。缺少 `name`、`field` 且不在 `FormItem` / `AppField` 内时抛错。
+把任意 value/onChange 控件变成字段控件。`enhancers` 由 [mapProps](#mapprops) 与 [mapReadPretty](#mapreadpretty) 生成。返回的组件没有自己的状态：每次渲染都是对当前 `FieldBinding` 调一次 [mapFieldProps](#mapfieldprops)。字段的 `componentProps` 合并在调用方 props 之下（reaction 写的 `$componentProps` 因此能到达控件）。缺少 `name`、`field` 且不在 `<Field>` / `AppField` 内时抛错。
 
 ```tsx
 const Rate = connect(AntRate, mapProps({ status: false }))
-<FormItem name="score" label="评分"><Rate /></FormItem>
+<Field name="score" title="评分" decorator={[FormItem]} component={[Rate, { count: 10 }]} />
 ```
 
 ## mapProps
@@ -70,7 +79,7 @@ mapReadPretty(component: ComponentType<any>, props?: Record<string, unknown>): C
 mapFieldProps(field: FieldBinding<any>, props: Record<string, any>, ...mappers: Array<PropsMapping | PropsTransform>): Record<string, any>
 ```
 
-`connect` 的纯函数核心，给 Hook 用户直接使用：`value` 取字段值；`onChange` 先写字段再以原始参数调用调用方的 `onChange`，各一次；`onBlur` 先标记 touched 再调调用方；`disabled` / `readOnly` 与调用方 props 取 OR；`status` 有错误时为 `'error'`、只有警告时为 `'warning'`，调用方显式传入时以调用方为准；`id` 默认是字段 id。
+`connect` 的纯函数核心，给 Hook 用户直接使用：`value` 取字段值；`onChange` 先写字段再以原始参数调用调用方的 `onChange`，各一次；`onBlur` 先标记 touched 再调调用方；`disabled` / `readOnly` 与调用方 props 取 OR；`status` 有错误时为 `'error'`、只有警告时为 `'warning'`，调用方显式传入时以调用方为准；`id` 默认是字段 id；`field.componentProps` 合并在 `props` 之下。
 
 ```tsx
 const field = useField('email', { required: true })
@@ -81,14 +90,71 @@ return <AntInput {...mapFieldProps(field, { placeholder: 'Email' })} />
 
 ```ts
 FormItem(props: FormItemProps): ReactElement | null
-interface FormItemProps extends UseFieldOptions, Omit<antd.FormItemProps, 'name' | 'rules' | 'required' | 'children' | 'validateStatus' | 'help' | 'hidden'> {
-  name?: string
-  field?: FieldBinding<any>
+interface FormItemProps
+  extends Omit<antd.FormItemProps, 'name' | 'rules' | 'required' | 'children' | 'validateStatus' | 'help' | 'hidden' | 'layout' | …>,
+    Pick<FormLayoutValue, 'layout' | 'size' | 'feedbackLayout'> {
+  asterisk?: boolean   // 强制显示 / 隐藏必填星号
   children?: ReactNode
 }
 ```
 
-一个字段的装饰器（Formily `FormItem`）。`rules` / `required` / `virtual` / `display` / `pattern` 与 `useField(name, options)` 语义完全相同（`rules`、`required` 是挂载期 lease）。渲染 antd `Form.Item`：`label` 透传；必填星号跟随字段 `required`，`readPretty` 下隐藏；`validateStatus` 依次为 `error` → `validating` → `warning`；`help` 取第一条错误，否则第一条警告。`display` 为 `hidden` / `none` 时不渲染（与 `<Field>` 一致，校验语义不变）。子级的 connect 控件无需再写 `name`。也可以传 `field={useField(...)}` 让 Hook 用户复用同一装饰。
+当前字段的装饰器（Formily `FormItem`），**不拥有字段**：没有 `name` / `rules` / `required` / `field` 属性，从外层 `<Field>` / `AppField` 的上下文读字段，在字段外使用会抛错。用法是 `<Field decorator={[FormItem, props]}>`，或放在 `<Field>` 的 children / render prop 里。
+
+渲染 antd `Form.Item`（props 由 [mapFormItemProps](#mapformitemprops) 计算）：`label` 取字段 `title`，`extra` 取 `description`（显式传入时以显式为准）；必填星号跟随字段 `required`，`readPretty` 下隐藏；`validateStatus` 依次为 `error` → `validating` → `warning`；`help` 取第一条错误，否则第一条警告；继承外层 [FormLayout](#formlayout)。`display` 为 `hidden` / `none` 时不渲染。
+
+```tsx
+<Field name="email" title="邮箱" description="用于登录" required decorator={[FormItem, { tooltip: '工作邮箱' }]} component={[Input]} />
+```
+
+## mapFormItemProps
+
+```ts
+mapFormItemProps(field: FieldBinding<any>, props: Omit<FormItemProps, 'children'>, layout?: FormLayoutValue): antd.FormItemProps
+```
+
+`FormItem` 的纯函数核心。合并顺序（低 → 高）：`layout`（`FormLayout`）← `field.decoratorProps`（`fields` ← JSX ← `$decoratorProps`）← `props`。`feedbackLayout: 'none'` 去掉提示文字（状态颜色保留），`'terse'` 在没有提示时去掉底部间距。Hook 用户不用组件也能得到同样的装饰：
+
+```tsx
+const field = useField('email', { required: true, title: '邮箱' })
+return <Form.Item {...mapFormItemProps(field, {})}><AntInput {...mapFieldProps(field, {})} /></Form.Item>
+```
+
+## FormLayout
+
+```ts
+FormLayout(props: FormLayoutProps): ReactElement
+interface FormLayoutProps {
+  layout?: 'horizontal' | 'vertical' | 'inline'
+  labelCol?: ColProps
+  wrapperCol?: ColProps
+  labelAlign?: 'left' | 'right'
+  colon?: boolean
+  size?: 'small' | 'middle' | 'large'
+  feedbackLayout?: 'loose' | 'terse' | 'none'
+  className?: string
+  style?: CSSProperties
+  children?: ReactNode
+}
+```
+
+Formily `FormLayout`：给内部所有 `FormItem` 一份布局。嵌套的 `FormLayout` 按键合并，近的优先；`FormItem` 自己的 props 与字段 `decoratorProps` 优先于布局。`size` 同时作用于内部控件（antd `componentSize`）；`inline` 让条目横向排布。
+
+```tsx
+<FormLayout layout="vertical" size="small">
+  <Field name="a" title="A" decorator={[FormItem]} component={[Input]} />
+  <FormLayout layout="horizontal" labelCol={{ span: 6 }}>
+    <Field name="b" title="B" decorator={[FormItem]} component={[Input]} />
+  </FormLayout>
+</FormLayout>
+```
+
+## useFormLayout
+
+```ts
+useFormLayout(): FormLayoutValue   // FormLayoutProps 去掉 children / className / style
+```
+
+读取当前位置合并后的布局（所有外层 `FormLayout` 的合并结果）。自定义装饰器用它继承同一套布局，例如 `mapFormItemProps(field, props, useFormLayout())`；在任何 `FormLayout` 之外返回 `{}`。
 
 ## PreviewText
 
@@ -115,7 +181,7 @@ const Input: ConnectedComponent<antd.InputProps> & {
 const InputNumber: ConnectedComponent<antd.InputNumberProps>
 ```
 
-`connect(antd.InputNumber, mapReadPretty(PreviewText))`。写入 antd 给出的原始值：数字，清空时为 `null`（与 `AppField` 上预绑定的 `field.InputNumber` 把空值写成 `0` 不同）。`readPretty` 显示数字文本。
+`connect(antd.InputNumber, mapReadPretty(PreviewText))`。写入 antd 给出的原始值：数字，清空时为 `null`（`useAntdForm` 的 `field.InputNumber` 现在就是这个控件，行为相同）。`readPretty` 显示数字文本。
 
 ## Select
 

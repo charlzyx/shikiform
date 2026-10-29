@@ -1,130 +1,35 @@
-import { Button, Checkbox, Form, Input, InputNumber, Select, Switch, type ButtonProps, type InputNumberProps, type InputProps, type SelectProps } from 'antd'
-import type { ComponentProps, FocusEventHandler } from 'react'
+import { Button, type ButtonProps } from 'antd'
+import type { ComponentProps, ComponentType } from 'react'
 import type { Draft } from '../../core/types'
 import { createFormHook } from '../../react/factory/create-form-hook'
 import { useWatch } from '../../react/hooks/use-watch'
 import { antdContexts as contexts } from '../adapter/field-context'
+import { FormItem } from '../adapter/form-item'
+import { Checkbox, Input, InputNumber, Select, Switch } from '../components/controls'
 
 /** Read the field `AppField` is rendering. Use this inside a custom pre-bound input. */
 export const useAntdField = contexts.useFieldContext
 
-function FieldInput(props: InputProps) {
-  const field = contexts.useFieldContext<string>()
-  if (field.pattern === 'readPretty') return <span data-read-pretty>{field.value ?? ''}</span>
-  return (
-    <Form.Item help={field.errors[0]} validateStatus={field.errors.length ? 'error' : undefined} required={field.required}>
-      <Input
-        {...props}
-        id={field.id}
-        value={field.value ?? ''}
-        disabled={field.disabled || props.disabled}
-        readOnly={field.readOnly || props.readOnly}
-        onChange={(event) => {
-          field.onChange(event.target.value)
-          props.onChange?.(event)
-        }}
-        onBlur={(event) => {
-          field.onBlur()
-          props.onBlur?.(event)
-        }}
-      />
-    </Form.Item>
-  )
+/**
+ * `field.Input` & co. are the same `connect()`ed controls as `shikiform/antd`'s `Input`, wrapped in the `FormItem`
+ * decorator (label from the field `title`, required mark, status, help). There is one adapter, not two.
+ */
+function decorated<C extends ComponentType<any>>(Control: C, name: string) {
+  function Decorated(props: ComponentProps<C>) {
+    const Target = Control as ComponentType<any>
+    return (
+      <FormItem>
+        <Target {...props} />
+      </FormItem>
+    )
+  }
+  Decorated.displayName = `Decorated(${name})`
+  return Decorated
 }
 
-function FieldSelect(props: SelectProps) {
-  const field = contexts.useFieldContext<unknown>()
-  const options = props.options ?? field.options.map((option) => ({ label: option.label, value: option.value as string | number }))
-  if (field.pattern === 'readPretty') return <span data-read-pretty>{String(field.value ?? '')}</span>
-  return (
-    <Form.Item help={field.errors[0]} validateStatus={field.errors.length ? 'error' : undefined} required={field.required}>
-      <Select
-        {...props}
-        id={field.id}
-        options={options}
-        value={field.value as never}
-        disabled={field.disabled || field.readOnly || props.disabled}
-        onChange={(value, option) => {
-          field.onChange(value)
-          props.onChange?.(value, option)
-        }}
-        onBlur={(event) => {
-          field.onBlur()
-          props.onBlur?.(event)
-        }}
-      />
-    </Form.Item>
-  )
-}
-
-function FieldNumber(props: InputNumberProps) {
-  const field = contexts.useFieldContext<number>()
-  if (field.pattern === 'readPretty') return <span data-read-pretty>{field.value ?? ''}</span>
-  return (
-    <Form.Item help={field.errors[0]} validateStatus={field.errors.length ? 'error' : undefined} required={field.required}>
-      <InputNumber
-        {...props}
-        id={field.id}
-        value={field.value}
-        disabled={field.disabled || props.disabled}
-        readOnly={field.readOnly || props.readOnly}
-        onChange={(value) => {
-          field.onChange(typeof value === 'number' ? value : Number(value ?? 0))
-          props.onChange?.(value)
-        }}
-        onBlur={(event) => {
-          field.onBlur()
-          props.onBlur?.(event)
-        }}
-      />
-    </Form.Item>
-  )
-}
-
-function FieldSwitch({ onBlur, ...props }: ComponentProps<typeof Switch> & { onBlur?: FocusEventHandler<HTMLButtonElement> }) {
-  const field = contexts.useFieldContext<boolean>()
-  // Public SwitchProps omit onBlur, but AntD forwards it to rc-switch's button.
-  // Keep the real button currentTarget rather than adding a different wrapper.
-  const blurProps = { onBlur: ((event) => {
-    field.onBlur()
-    onBlur?.(event)
-  }) satisfies FocusEventHandler<HTMLButtonElement> }
-  return (
-      <Switch
-        {...props}
-        {...blurProps}
-        id={field.id}
-        checked={!!field.value}
-        disabled={field.disabled || field.readOnly || field.pattern === 'readPretty' || props.disabled}
-        onChange={(checked, event) => {
-          field.onChange(checked)
-          props.onChange?.(checked, event)
-        }}
-      />
-  )
-}
-
-function FieldCheckbox(props: ComponentProps<typeof Checkbox>) {
-  const field = contexts.useFieldContext<boolean>()
-  return (
-    <Checkbox
-      {...props}
-      id={field.id}
-      checked={!!field.value}
-      disabled={field.disabled || field.readOnly || field.pattern === 'readPretty' || props.disabled}
-      onChange={(event) => {
-        field.onChange(event.target.checked)
-        props.onChange?.(event)
-      }}
-      onBlur={(event) => {
-        field.onBlur()
-        props.onBlur?.(event)
-      }}
-    >
-      {props.children}
-    </Checkbox>
-  )
-}
+const FieldInput = decorated(Input, 'Input')
+const FieldSelect = decorated(Select, 'Select')
+const FieldNumber = decorated(InputNumber, 'InputNumber')
 
 function Submit(props: ButtonProps) {
   const meta = useWatch((d: Draft<any>) => ({ can: d.$canSubmit === true, submitting: d.$submitting === true }))
@@ -137,8 +42,9 @@ function Submit(props: ButtonProps) {
 
 /**
  * Type-safe Ant Design binding.
- * `useAppForm<Values>()` then `<form.AppField name="email">{(field) => <field.Input />}</form.AppField>`.
- * `name` is checked against `Values`. The inputs read the field through context; they are not a second form store.
+ * `useAppForm<Values>()` then `<form.AppField name="email" title="邮箱">{(field) => <field.Input />}</form.AppField>`.
+ * `name` is checked against `Values`. The inputs are the `connect()`ed controls (in a `FormItem` for Input / Select /
+ * InputNumber) reading the field through context; they are not a second form store or a second adapter.
  */
 export function createAntdFormHook() {
   return createFormHook({
@@ -148,8 +54,8 @@ export function createAntdFormHook() {
       Input: FieldInput,
       Select: FieldSelect,
       InputNumber: FieldNumber,
-      Switch: FieldSwitch,
-      Checkbox: FieldCheckbox,
+      Switch,
+      Checkbox,
     },
     formComponents: { Submit },
   })

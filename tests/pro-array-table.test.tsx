@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createForm, Form } from '../src'
+import { createForm, Field, Form } from '../src'
 import { FormItem, Input, ProArrayTable } from '../src/antd'
 
 afterEach(cleanup)
@@ -25,7 +25,7 @@ function mount(initial: Row[], extra: Partial<Parameters<typeof ProArrayTable>[0
         rowSelection
         columns={[
           { key: 'index', title: 'Index', render: () => <ProArrayTable.Index /> },
-          { key: 'a1', title: 'A1', render: (cell) => <FormItem name="a1"><Input data-testid={`a1-${cell.index}`} /></FormItem> },
+          { key: 'a1', title: 'A1', render: (cell) => <Field name="a1" decorator={[FormItem]}><Input data-testid={`a1-${cell.index}`} /></Field> },
           { key: 'act', title: '操作', render: () => <><ProArrayTable.MoveUp /><ProArrayTable.MoveDown /><ProArrayTable.Remove /></> },
         ]}
         extra={<ProArrayTable.Addition defaultValue={() => ({ a1: 'new' })} />}
@@ -93,12 +93,12 @@ describe('ProArrayTable', () => {
         <ProArrayTable<Row>
           name="list"
           settings={false}
-          columns={[{ key: 'a1', title: 'A1', render: () => <FormItem name="a1"><Input /></FormItem> }]}
+          columns={[{ key: 'a1', title: 'A1', render: () => <Field name="a1" decorator={[FormItem]}><Input /></Field> }]}
           expandable={{
             defaultExpandAll: true,
             rowExpandable: (record) => Array.isArray(record.subitems),
             render: () => (
-              <ProArrayTable name="subitems" pattern="readPretty" settings={false} showHeader={false} columns={[{ key: 'a1', render: () => <FormItem name="a1"><Input /></FormItem> }]} />
+              <ProArrayTable name="subitems" pattern="readPretty" settings={false} showHeader={false} columns={[{ key: 'a1', render: () => <Field name="a1" decorator={[FormItem]}><Input /></Field> }]} />
             ),
           }}
         />
@@ -113,7 +113,7 @@ describe('ProArrayTable', () => {
     const { form } = mount(rows(4), {
       columns: [
         { key: 'sort', render: () => <ProArrayTable.SortHandle /> },
-        { key: 'a1', title: 'A1', render: () => <FormItem name="a1"><Input /></FormItem> },
+        { key: 'a1', title: 'A1', render: () => <Field name="a1" decorator={[FormItem]}><Input /></Field> },
       ],
     })
     fireEvent.dragStart(screen.getAllByTestId('sort-handle')[0]!)

@@ -14,7 +14,8 @@ description: ProArrayTable、QueryList、ShadowModal / ShadowDrawer / ShadowPopc
   name="list" rowKey="id" pagination={{ pageSize: 10 }} rowSelection resizeable
   columns={[
     { key: 'sort', width: 50, render: () => <ProArrayTable.SortHandle /> },
-    { key: 'a1', title: 'A1', render: () => <FormItem name="a1"><Input /></FormItem> },
+    { key: 'a1', title: 'A1', render: () => <Field name="a1" component={[Input]} /> },   // 单元格可以不要装饰器
+    { key: 'a2', title: 'A2', render: () => <Field name="a2" required decorator={[FormItem, { feedbackLayout: 'terse' }]} component={[Input]} /> },
     { key: 'act', title: '操作', render: () => <ProArrayTable.Remove confirm /> },
   ]}
   expandable={{ rowExpandable: (r) => !!r.children, render: () => <ProArrayTable name="children" pattern="readPretty" columns={…} /> }}
@@ -23,14 +24,14 @@ description: ProArrayTable、QueryList、ShadowModal / ShadowDrawer / ShadowPopc
 />
 ```
 
-Pro.formily `ProArrayTable`：数组字段上的 antd 表格，建立在 `useArrayTable` + `useColumnSettings` 上。列是普通的 render 函数，渲染在行作用域里（`<FormItem name="a1">` 就是 `list.N.a1`），所以展开行里可以再放一张子表。自带分页、选择条（选中 N 项 / 清空 / 全选 / 反选）、列配置和密度、表头拖拽改列宽、拖拽排序、异步删除。行操作：`SortHandle`、`Index`、`Remove`、`MoveUp`、`MoveDown`、`Copy`、`Addition`、`ProAddition`（影子表单添加，弹窗或抽屉）；上下文：`ProArrayTable.useTable()`、`ProArrayTable.useRow()`。
+Pro.formily `ProArrayTable`：数组字段上的 antd 表格，建立在 `useArrayTable` + `useColumnSettings` 上。列是普通的 render 函数，渲染在行作用域里（`<Field name="a1">` 就是 `list.N.a1`；单元格可用不同的装饰器，或不要装饰器），所以展开行里可以再放一张子表。自带分页、选择条（选中 N 项 / 清空 / 全选 / 反选）、列配置和密度、表头拖拽改列宽、拖拽排序、异步删除。行操作：`SortHandle`、`Index`、`Remove`、`MoveUp`、`MoveDown`、`Copy`、`Addition`、`ProAddition`（影子表单添加，弹窗或抽屉）；上下文：`ProArrayTable.useTable()`、`ProArrayTable.useRow()`。
 
 ## QueryList
 
 ```tsx
 const table = useQueryTable({ initialValues: { query: {}, list: [] }, params: 'query', rows: 'list', request })
 <QueryList table={table} list="list" columns={columns} collapseAfter={3}>
-  <FormItem name="query.domain" label="域名"><Input /></FormItem>
+  <Field name="query.domain" title="域名" decorator={[FormItem, { layout: 'vertical' }]} component={[Input]} />
   …
 </QueryList>
 ```
@@ -41,7 +42,7 @@ Pro.formily `QueryList` + `QueryForm` + `QueryTable`：可折叠的查询栅格�
 
 ```tsx
 <ShadowModal<Info> title="编辑" record={() => form.getValue('info')} onOk={(values) => form.setValue('info', values)} trigger={<Button>编辑</Button>}>
-  <FormItem name="domain" label="域名" required><Input /></FormItem>
+  <Field name="domain" title="域名" required decorator={[FormItem]} component={[Input]} />
 </ShadowModal>
 ```
 
@@ -51,7 +52,7 @@ Pro.formily `QueryList` + `QueryForm` + `QueryTable`：可折叠的查询栅格�
 
 ```tsx
 <ShadowDrawer shadow={editor} title="编辑" okText="保存">
-  <FormItem name="domain" label="域名"><Input /></FormItem>
+  <Field name="domain" title="域名" decorator={[FormItem]} component={[Input]} />
 </ShadowDrawer>
 ```
 
@@ -61,7 +62,7 @@ Pro.formily `QueryList` + `QueryForm` + `QueryTable`：可折叠的查询栅格�
 
 ```tsx
 <ShadowPopconfirm record={() => ({ name: form.getValue('name') })} onOk={(v) => form.setValue('name', v.name)} trigger={<Button>改名</Button>}>
-  <FormItem name="name"><Input /></FormItem>
+  <Field name="name" decorator={[FormItem]} component={[Input]} />
 </ShadowPopconfirm>
 ```
 
@@ -88,8 +89,8 @@ useShadow<TValues, TContext>(): ShadowFormApi<TValues, TContext>
 ## EnumPretty
 
 ```tsx
-<FormItem name="status" label="状态"><EnumPretty showType="badge" /></FormItem>
-<FormItem name="tags"><EnumPretty showType="tag" strict colorful={false} empty="无" /></FormItem>
+<Field name="status" title="状态" decorator={[FormItem]} component={[EnumPretty, { showType: 'badge' }]} />
+<Field name="tags" decorator={[FormItem]}><EnumPretty showType="tag" strict colorful={false} empty="无" /></Field>
 ```
 
 只读的枚举显示（Pro.formily `ProEnumPretty`）：读字段值和字段枚举（`fields.x.enum`、`$enum`、`EnumSource`），按 `showType` 画成文字、徽标或标签；颜色来自选项的 `color`（可用 `success` / `processing` / `error` / `warning` 等语义名）或调色板。`Select`、`Radio.Group`、`Checkbox.Group` 的阅读态同样接受 `prettyType="badge" | "tag"`。
@@ -105,7 +106,7 @@ useShadow<TValues, TContext>(): ShadowFormApi<TValues, TContext>
 ## Suggestion
 
 ```tsx
-<FormItem name="keyword" label="淘宝搜索"><Suggestion fetch={search} debounce={200} multiple labelInValue /></FormItem>
+<Field name="keyword" title="淘宝搜索" decorator={[FormItem]} component={[Suggestion, { fetch: search, debounce: 200, multiple: true, labelInValue: true }]} />
 ```
 
 字段绑定的远程联想下拉（Pro.formily `Suggestion`），建立在 `useSuggestion` 上。值有四种形状：`string`、`{ label, value }`（`labelInValue`）、`string[]`（`multiple`）、`{ label, value }[]`（两者都开）。阅读态显示标签。
@@ -121,7 +122,7 @@ useShadow<TValues, TContext>(): ShadowFormApi<TValues, TContext>
 ## CascaderPlus
 
 ```tsx
-<FormItem name="area" label="地区"><CascaderPlus loadData={(path) => api.children(path)} labelInValue /></FormItem>
+<Field name="area" title="地区" decorator={[FormItem]} component={[CascaderPlus, { loadData: (path) => api.children(path), labelInValue: true }]} />
 ```
 
 字段绑定的懒加载级联（Pro.formily `CascaderPlus`），建立在 `useLazyCascader` 上：一个 `loadData(path)` 服务所有层级，已有值打开时逐级加载以反显标签；`all` 表示整棵树一次返回；支持 `multiple` 和 `labelInValue`（每一级 `{ label, value }`）。默认 `changeOnSelect`。

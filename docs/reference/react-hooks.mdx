@@ -75,10 +75,17 @@ interface UseFieldOptions {
   virtual?: boolean
   display?: Display
   pattern?: Pattern
+  // UI 状态（渲染期的 JSX 层，不写进模型；reaction 的 $title / $componentProps 优先，fields 声明在下）
+  title?: ReactNode
+  description?: ReactNode
+  component?: FieldSlot          // Component 或 [Component, props]
+  decorator?: FieldSlot          // Decorator 或 [Decorator, props]
+  componentProps?: Record<string, any>
+  decoratorProps?: Record<string, any>
 }
 ```
 
-`options` 与 `<Field>` 同名属性语义相同：`rules` / `required` 是挂载期 lease（调用组件卸载时释放），`virtual` / `display` / `pattern` 是持久字段标记。`<Field>` 就是 `useField(name, options)` 加上「非 visible 返回 null」。
+`options` 与 `<Field>` 同名属性语义相同：`rules` / `required` 是挂载期 lease（调用组件卸载时释放），`virtual` / `display` / `pattern` 是持久字段标记，UI 选项合并进返回的 binding。`<Field>` 就是 `useField(name, options)` 加上「非 visible 返回 null」，再渲染 `decorator` 包住的 `component`，并通过 `FieldContext` 提供 binding。
 
 `name` 必填，是当前对象 / 行作用域下的**相对路径**。例如在 `items.0` 的 `RowScope` 下，`useField('price')` 绑定 `items.0.price`。在行里再写 `items.0.price` 会重复前缀；稳定行 ID 也不是路径。
 
@@ -104,10 +111,35 @@ interface UseFieldOptions {
 | `required` / `disabled` / `readOnly` | `boolean`；有效字段状态 |
 | `touched` / `dirty` / `validating` | `boolean`；失焦、编辑、异步校验状态 |
 | `options` / `loading` | 枚举选项数组 / 枚举加载状态 |
+| `title` / `description` | 装饰器的标题 / 说明（`FormItem` → `label` / `extra`）：reaction > JSX > `fields` |
+| `component` / `decorator` | `<Field>` 渲染的控件 / 装饰器组件 |
+| `componentProps` / `decoratorProps` | 合并后的控件 / 装饰器 props（`fields` ← JSX ← `$componentProps` / `$decoratorProps`，按顶层键） |
 
 `useField` 订阅该路径并注册基础字段模型，但**不会替你渲染或隐藏输入**。自定义 UI 要处理 `display` / `pattern`；需要 JSX `rules`、`required` 生命周期时传 `options`（或用 `<Field>`）。`hidden` 仍校验/提交，`none` 才跳过，见 [显隐](/guide/display) 和 [未挂载规则](/guide/unmounted)。
 
 [实现：use-field.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-field.ts)
+
+## useCurrentField
+
+```ts
+useCurrentField<TValue = any>(): FieldBinding<TValue> | null
+const FieldContext: React.Context<FieldBinding<any> | null>
+```
+
+外层 `<Field>`（以及 `AppField`）正在渲染的字段 binding；不在字段内时返回 `null`。这就是 Formily 的字段上下文：装饰器（antd 的 `FormItem`）和 connect 控件靠它找到字段，所以不用写 `name`。自定义装饰器 / 控件同样用它：
+
+```tsx
+function MyDecorator({ children }: { children?: ReactNode }) {
+  const field = useCurrentField()
+  if (!field) throw new Error('MyDecorator 需要放在 <Field> 里')
+  return <label>{field.title}{field.required ? ' *' : ''}{children}<small>{field.errors[0]}</small></label>
+}
+<Field name="email" title="邮箱" decorator={[MyDecorator]} component={[Input]} />
+```
+
+Hook 用户可以自己提供上下文：`<FieldContext.Provider value={useField('email')}>…</FieldContext.Provider>`。
+
+[实现：field-context.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/field-context.ts)
 
 ## useWatch
 

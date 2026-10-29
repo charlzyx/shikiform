@@ -50,7 +50,7 @@ export function EnumPrettyView({ value, options, showType = 'text', strict, colo
  * (`fields.x.enum`, `$enum`, an `EnumSource`). Always read-only.
  *
  * ```tsx
- * <FormItem name="status" label="状态"><EnumPretty showType="badge" /></FormItem>
+ * <Field name="status" title="状态" decorator={[FormItem]} component={[EnumPretty, { showType: 'badge' }]} />
  * ```
  */
 export const EnumPretty = connect(

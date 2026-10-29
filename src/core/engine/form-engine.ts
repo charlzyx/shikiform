@@ -12,6 +12,7 @@ import { ArrayOps } from '../structure/arrays'
 import { findPos, pathOf, type Pos } from '../shared/tree-ops'
 import { TreeOps, type TreeConfig } from '../structure/trees'
 import type {
+  FieldUiSpec,
   ArrayItemOf,
   ArrayPath,
   Draft,
@@ -27,6 +28,7 @@ import type {
 } from '../types'
 import { UiRegistry } from '../ui/ui-registry'
 import { Validator } from '../validation/validator'
+import { FieldUi, uiKeyOf } from './field-ui'
 import { StateWriter } from './writes'
 
 /**
@@ -55,6 +57,7 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
   private readonly trees: TreeOps
   private readonly ui: UiRegistry
   private readonly writer: StateWriter
+  private readonly fieldUi: FieldUi
   private pendingSubmits = 0
 
   constructor(options: FormOptions<T> = {}) {
@@ -72,6 +75,7 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
       store, notifier, scheduler, validator, declarations, options,
       carryRowIdentity: (path, before, after) => this.arrays.carryIdentity(path, before, after),
     })
+    this.fieldUi = this.writer.attachUi(new FieldUi(store, notifier, scheduler, (path, key, value) => this.writeState(path, key, value)))
     this.draft = createHandle(this, '') as Draft<T>
     for (const [path, spec] of Object.entries(options.trees ?? {})) {
       this.registerTree(path, spec)
@@ -513,6 +517,8 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
       scheduler.track(path, 'value')
       return getAt(store.values, path) as never
     }
+    const uiKey = uiKeyOf(key)
+    if (uiKey) return this.fieldUi.read(path, uiKey)
     if (key === '$errors') return this.validator.aggregate(path, 'errors')
     if (key === '$warnings') return this.validator.aggregate(path, 'warnings')
     const field = store.ensure(path)
@@ -626,10 +632,10 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
   }
 
   /**
-   * Input props for `path`: value, errors, display, pattern, touched, dirty, validating.
-   * `errors` is empty when the effective display is `none`.
+   * Input props for `path`: value, errors, display, pattern, touched, dirty, validating, and UI state.
+   * `errors` is empty when the effective display is `none`. `ui` is the render-time JSX layer (`<Field title>`).
    */
-  binding(path: string) {
+  binding(path: string, ui?: FieldUiSpec) {
     const store = this.store
     const field = store.get(path)
     const pattern = store.effectivePattern(path)
@@ -652,6 +658,7 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
       options: field?.enumOptions ?? [],
       loading: field?.enumLoading ?? false,
       id: path.replace(/[^a-zA-Z0-9_-]/g, '-') || 'field',
+      ...this.fieldUi.view(path, ui),
     }
   }
 

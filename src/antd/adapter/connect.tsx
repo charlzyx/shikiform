@@ -1,6 +1,6 @@
-import { useContext, type ComponentType, type ReactElement } from 'react'
+import type { ComponentType, ReactElement } from 'react'
+import { useCurrentField } from '../../react/field-context'
 import { useField, type FieldBinding } from '../../react/hooks/use-field'
-import { antdContexts } from './field-context'
 
 /** Binding keys a control can receive. Each maps to a prop name, or `false` to not pass it. */
 export type FieldPropKey = 'value' | 'onChange' | 'onBlur' | 'disabled' | 'readOnly' | 'status' | 'id' | 'options' | 'loading'
@@ -22,7 +22,7 @@ export type ConnectEnhancer =
 
 /** Props every connected control accepts besides its own. */
 export interface ConnectFieldProps {
-  /** Field name relative to the current scope. Omit it under `FormItem` / `AppField`, which supply the field. */
+  /** Field name relative to the current scope. Omit it inside a `<Field>` / `AppField`, which supply the field. */
   name?: string
   /** An explicit binding, e.g. from `useField(name, options)`. Wins over `name` and context. */
   field?: FieldBinding<any>
@@ -72,6 +72,7 @@ export function valueFromEvent(...args: any[]): unknown {
  * - `status` is `'error'` with errors, `'warning'` with only warnings; an explicit caller `status` wins.
  * - `options` (enum) and `loading` are passed only when mapped; an explicit caller prop wins.
  * - `readPretty` without a `mapReadPretty` view is treated as `readOnly`.
+ * - `field.componentProps` (`fields` ← JSX ← `$componentProps`) are merged under `props`.
  */
 export function mapFieldProps(
   field: FieldBinding<any>,
@@ -84,7 +85,7 @@ export function mapFieldProps(
     if (typeof mapper === 'function') transforms.push(mapper)
     else Object.assign(mapping, mapper)
   }
-  return applyMapping(field, props, mapping, transforms, false)
+  return applyMapping(field, { ...field.componentProps, ...props }, mapping, transforms, false)
 }
 
 function applyMapping(
@@ -167,12 +168,13 @@ export function mapReadPretty(component: ComponentType<any>, props?: Record<stri
 /**
  * Turn any value/onChange control into a ShikiForm field control (Formily `connect`).
  * The result reads its field from, in order: a `field` prop, a `name` prop (via {@link useField}),
- * or the surrounding `FormItem` / `AppField`. It has no state of its own: every prop comes from
- * {@link mapFieldProps} over the hook's binding.
+ * or the surrounding `<Field>` / `AppField` (`useCurrentField`). It has no state of its own: every prop comes from
+ * {@link mapFieldProps} over the binding, with the field's `componentProps` merged under the caller's props
+ * (so `$componentProps.placeholder = …` in a reaction reaches the control).
  *
  * ```tsx
  * const Rate = connect(AntRate, mapProps({ status: false }))
- * <FormItem name="score" label="评分"><Rate /></FormItem>
+ * <Field name="score" title="评分" decorator={[FormItem]} component={[Rate, { count: 10 }]} />
  * ```
  */
 export function connect<P>(target: ComponentType<P>, ...enhancers: ConnectEnhancer[]): ConnectedComponent<P> {
@@ -186,7 +188,9 @@ export function connect<P>(target: ComponentType<P>, ...enhancers: ConnectEnhanc
     } else readPretty = enhancer
   }
   const Target = target as ComponentType<any>
-  const render = (field: FieldBinding<any>, props: Record<string, any>): ReactElement => {
+  const render = (field: FieldBinding<any>, callerProps: Record<string, any>): ReactElement => {
+    // The field's componentProps (`fields` ← JSX ← `$componentProps`) sit under the caller's own props.
+    const props = { ...field.componentProps, ...callerProps }
     if (readPretty && field.pattern === 'readPretty') {
       const Pretty = readPretty.component
       return <Pretty {...readPretty.props} {...props} value={field.value} options={props.options ?? field.options} />
@@ -200,8 +204,8 @@ export function connect<P>(target: ComponentType<P>, ...enhancers: ConnectEnhanc
     return render(useField(name), rest)
   }
   function FromContext({ rest }: { rest: Record<string, any> }) {
-    const field = useContext(antdContexts.fieldContext)
-    if (!field) throw new Error(`${displayName} needs a \`name\` prop, a \`field\` prop, or a surrounding FormItem / AppField`)
+    const field = useCurrentField()
+    if (!field) throw new Error(`${displayName} needs a \`name\` prop, a \`field\` prop, or a surrounding <Field> / AppField`)
     return render(field, rest)
   }
   const displayName = `Connected(${Target.displayName ?? Target.name ?? 'Component'})`

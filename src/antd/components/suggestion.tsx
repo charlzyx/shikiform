@@ -72,7 +72,7 @@ function SuggestionPreview({ value }: { value?: unknown }) {
  * Field-bound {@link SuggestionSelect}.
  *
  * ```tsx
- * <FormItem name="keyword" label="淘宝搜索"><Suggestion fetch={search} multiple labelInValue /></FormItem>
+ * <Field name="keyword" title="淘宝搜索" decorator={[FormItem]} component={[Suggestion, { fetch: search, multiple: true, labelInValue: true }]} />
  * ```
  */
 export const Suggestion = connect(SuggestionSelect, mapReadPretty(SuggestionPreview))

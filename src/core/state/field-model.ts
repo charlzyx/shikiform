@@ -1,5 +1,5 @@
 import type { EnumOption } from '../enum/enum-source'
-import type { Display, FieldSpec, Pattern, ValidateTrigger } from '../types'
+import type { Display, FieldSpec, FieldUiSpec, Pattern, ValidateTrigger } from '../types'
 import type { Rule } from '../validation/rules'
 
 /**
@@ -50,6 +50,39 @@ export interface FieldModel {
   triggers?: ValidateTrigger[]
   asyncSeq: number
   enumSeq: number
+  /** UI state from `fields` / `registerField` / item templates (title, componentProps, …). See `engine/field-ui.ts`. */
+  uiDeclared?: Partial<Record<UiKey, unknown>>
+  /** UI state written by reactions. Object keys hold a sparse top-level patch unless `replace` is set. */
+  uiEffect?: Partial<Record<UiKey, UiEffect>>
+}
+
+/** One reaction-written UI value. For `componentProps` / `decoratorProps`, `replace` means lower layers are dropped. */
+export interface UiEffect {
+  value: unknown
+  replace?: boolean
+}
+
+/** UI state a field carries for its decorator and component. Core stores it opaquely (no React here). */
+export const UI_KEYS = ['title', 'description', 'component', 'decorator', 'componentProps', 'decoratorProps'] as const
+export type UiKey = (typeof UI_KEYS)[number]
+/** Object-valued keys: shallow-merged across layers, patchable at any depth through the draft. */
+export const OBJECT_UI_KEYS: ReadonlySet<UiKey> = new Set<UiKey>(['componentProps', 'decoratorProps'])
+
+/**
+ * A declaration's UI keys. A `[Component, props]` slot tuple becomes `component` + `componentProps`
+ * (`decorator` likewise); tuple props merge under an explicit `componentProps`.
+ */
+export function normalizeUiSpec(spec: FieldUiSpec): Partial<Record<UiKey, unknown>> {
+  const out: Partial<Record<UiKey, unknown>> = {}
+  for (const key of UI_KEYS) if (spec[key] !== undefined) out[key] = spec[key]
+  for (const [slot, props] of [['component', 'componentProps'], ['decorator', 'decoratorProps']] as const) {
+    const value = out[slot]
+    if (Array.isArray(value)) {
+      out[slot] = value[0]
+      if (value[1] !== undefined || out[props] !== undefined) out[props] = { ...value[1], ...(out[props] as object) }
+    }
+  }
+  return out
 }
 
 export function createFieldModel(path: string): FieldModel {

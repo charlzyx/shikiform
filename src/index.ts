@@ -7,6 +7,7 @@
 export {
   ArrayField,
   Field,
+  FieldContext,
   Form,
   FormEngine,
   ObjectField,
@@ -20,6 +21,7 @@ export {
   defineEffects,
   useArrayField,
   useArrayMove,
+  useCurrentField,
   useField,
   useForm,
   useFormContext,
@@ -27,4 +29,17 @@ export {
   useTreeMove,
   useWatch,
 } from './react'
-export type { AppFormApi, ArrayItemOf, Draft, FieldBinding, FormOptions, GroupApi, TemplatePath, UseFieldOptions } from './react'
+export type {
+  AppFormApi,
+  ArrayItemOf,
+  Draft,
+  FieldBinding,
+  FieldProps,
+  FieldSlot,
+  FieldSpec,
+  FieldUiSpec,
+  FormOptions,
+  GroupApi,
+  TemplatePath,
+  UseFieldOptions,
+} from './react'

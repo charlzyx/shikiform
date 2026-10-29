@@ -2,7 +2,7 @@
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react'
 import { Button } from 'antd'
 import { afterEach, describe, expect, it } from 'vitest'
-import { createForm, Form, RowScope, useField } from '../src'
+import { createForm, Field, Form, RowScope, useField } from '../src'
 import { FormItem, Input, ProArrayTable, ShadowForm, ShadowModal, ShadowPopconfirm, useShadow } from '../src/antd'
 import { useArrayShadow, useShadowForm } from '../src/pro'
 import type { ReactNode } from 'react'
@@ -66,9 +66,9 @@ describe('Shadow components', () => {
           onOk={(values) => form.setValue('info', values as never)}
           trigger={<Button data-testid="open">编辑</Button>}
         >
-          <FormItem name="domain" label="域名">
+          <Field name="domain" title="域名" decorator={[FormItem]}>
             <Input data-testid="shadow-domain" />
-          </FormItem>
+          </Field>
         </ShadowModal>
       </Host>,
     )
@@ -90,7 +90,7 @@ describe('Shadow components', () => {
     render(
       <Host form={form}>
         <ShadowPopconfirm record={() => ({ name: form.getValue('name') })} onOk={(values: any) => form.setValue('name', values.name)} trigger={<Button data-testid="pop">改名</Button>}>
-          <FormItem name="name"><Input data-testid="pop-name" /></FormItem>
+          <Field name="name" decorator={[FormItem]}><Input data-testid="pop-name" /></Field>
         </ShadowPopconfirm>
       </Host>,
     )
@@ -111,7 +111,7 @@ describe('Shadow components', () => {
       <ShadowForm record={{ domain: 'a.com' }} onOk={(values) => void submitted.push(values)}>
         {(shadow) => (
           <>
-            <FormItem name="domain"><Input data-testid="inline-domain" /></FormItem>
+            <Field name="domain" decorator={[FormItem]}><Input data-testid="inline-domain" /></Field>
             <span data-testid="dirty">{String(shadow.visible)}</span>
             <SubmitButton />
           </>
@@ -155,17 +155,17 @@ describe('useArrayShadow + ProArrayTable', () => {
             rowKey="id"
             pagination={{ pageSize: 2 }}
             columns={[
-              { key: 'domain', title: '域名', render: () => <FormItem name="domain" pattern="readPretty"><Input /></FormItem> },
+              { key: 'domain', title: '域名', render: () => <Field name="domain" pattern="readPretty" decorator={[FormItem]}><Input /></Field> },
               { key: 'edit', title: '编辑', render: ({ index }) => <Button data-testid={`edit-${index}`} onClick={() => void editor.edit(index)}>编辑</Button> },
             ]}
             extra={
               <ProArrayTable.ProAddition title="添加条目">
-                <FormItem name="domain"><Input data-testid="add-domain" /></FormItem>
+                <Field name="domain" decorator={[FormItem]}><Input data-testid="add-domain" /></Field>
               </ProArrayTable.ProAddition>
             }
           />
           <ShadowModal shadow={editor} title="编辑行">
-            <FormItem name="domain"><Input data-testid="edit-domain" /></FormItem>
+            <Field name="domain" decorator={[FormItem]}><Input data-testid="edit-domain" /></Field>
           </ShadowModal>
         </>
       )
