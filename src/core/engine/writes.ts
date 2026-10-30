@@ -109,20 +109,15 @@ export class StateWriter {
   commitValue(path: string, value: unknown, fromReaction: boolean): boolean {
     const { store, notifier, scheduler, declarations } = this.deps
     const old = getAt(store.values, path)
-    const same = deepEqual(old, value)
-    // An equal write used to return before the computed mark. A derived total that
-    // already equals price * qty (a new row at 0) then stayed in the submit payload.
-    if (fromReaction) {
-      const field = store.ensure(path)
-      const flagsChanged = !field.computed || (!field.virtualExplicit && !field.virtual)
-      field.computed = true
-      if (!field.virtualExplicit) field.virtual = true
-      if (same && flagsChanged) notifier.bumpPath(path)
-    }
-    if (same) return false
+    if (deepEqual(old, value)) return false
     const before = store.values
     store.values = setAt(store.values, path, value)
     this.deps.carryRowIdentity?.(path, before, store.values)
+    if (fromReaction) {
+      const field = store.ensure(path)
+      field.computed = true
+      if (!field.virtualExplicit) field.virtual = true
+    }
     notifier.bumpPath(path)
     let cursor: string | null = path
     while (cursor) {
