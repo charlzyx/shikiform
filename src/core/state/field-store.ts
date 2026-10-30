@@ -3,6 +3,12 @@ import { getAt, parentPath } from '../shared/path'
 import type { Display, Pattern } from '../types'
 import { createFieldModel, type FieldModel } from './field-model'
 
+/** Models an array / tree change dropped, and the ones it re-keyed (with their previous path). */
+export interface ReindexResult {
+  dropped: FieldModel[]
+  moved: { from: string; model: FieldModel }[]
+}
+
 /**
  * The form's state: current values, form-level flags, and the field-model map.
  * Pure data plus inherited reads (`display`, `pattern`). It does not notify or schedule.
@@ -18,8 +24,8 @@ export class FieldStore<T = any> {
   readonly fields = new Map<string, FieldModel>()
   /** Called once after a model is created. Declarations use it to revive a dormant declaration. */
   onCreate?: (path: string) => void
-  /** Called with the models an array / tree change dropped, before the new value is written. */
-  onDrop?: (models: FieldModel[]) => void
+  /** Called with the models an array / tree change dropped or moved, before the new value is written. */
+  onReindex?: (result: ReindexResult) => void
   /** Called after an array / tree change wrote its new value. */
   onRestructure?: () => void
 

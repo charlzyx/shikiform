@@ -22,14 +22,18 @@ export type RegisterSpec = FieldSpec & {
  * Precedence for `rules` / `required`: reaction (`$rules`, `$required`) > JSX mount (lease) >
  * exact declaration (`fields`, `registerField`) > item template (`rows.*.name`).
  * A JSX lease is released on unmount and the lower source is restored.
- * Template instances follow the current array indexes; a flags-only exact declaration whose row
- * disappears goes dormant and revives when the path is touched again.
+ * Template instances follow the current array indexes. An exact declaration is path-scoped: it never moves with
+ * a row. When an array / tree change moves the row away, the moved model is stripped of it and the declaration is
+ * re-applied to whatever row now sits on the path; when the path is empty it goes dormant and revives later (#8).
+ * Per-row settings that follow the row are wildcard templates (`rows.*.x`) or `reaction.each`.
  */
 export class Declarations {
   /** Item templates (`rows.*.name`). Expanded onto every current index. */
   private itemTemplates: { pattern: string; spec: FieldSpec }[] = []
   /** Flags-only declarations whose wildcard row is currently absent. No live validation state. */
   private dormantDeclarations = new Map<string, FieldSpec>()
+  /** Moved models that lost an exact declaration; their built-in messages are recomputed after the restructure. */
+  private strippedPaths = new Set<string>()
 
   constructor(
     private readonly store: FieldStore<any>,
@@ -43,14 +47,55 @@ export class Declarations {
         this.registerField(path, declaration)
       }
     }
-    // An array / tree change drops the models under rows that disappeared. An exact declaration among them is
-    // path-keyed configuration, not row state: park it and revive it when its row exists again (#8).
-    store.onDrop = (models) => {
-      for (const model of models) {
+    // An array / tree change drops models under rows that disappeared and re-keys models under rows that moved.
+    // An exact declaration is path-keyed configuration, not row state: park it on its old path, strip it from a
+    // moved model, and re-register it when the path is occupied again (#8, path-scoped since 2026-10-30).
+    store.onReindex = ({ dropped, moved }) => {
+      for (const model of dropped) {
         if (model.declaration) this.dormantDeclarations.set(model.path, model.declaration)
       }
+      for (const { from, model } of moved) {
+        if (!model.declaration) continue
+        this.dormantDeclarations.set(from, model.declaration)
+        this.stripDeclaration(model)
+      }
     }
-    store.onRestructure = () => this.reviveDormant()
+    store.onRestructure = () => this.applyItemTemplates()
+  }
+
+  /** Remove what an exact declaration put on a model that moved off the declared path. Lower layers refill it. */
+  private stripDeclaration(field: FieldModel): void {
+    const spec = field.declaration!
+    field.declaration = undefined
+    if (field.declaredRules !== undefined) {
+      field.declaredRules = undefined
+      if (!field.rulesFromEffect && field.jsxRules === undefined) field.rules = []
+    }
+    if (field.declaredRequired !== undefined) {
+      field.declaredRequired = undefined
+      if (!field.requiredFromEffect && field.jsxRequired === undefined) field.required = false
+    }
+    if (spec.virtual !== undefined) {
+      field.virtual = false
+      field.virtualExplicit = false
+    }
+    if (spec.pattern !== undefined && !field.patternFromEffect) {
+      field.pattern = undefined
+      field.hasPattern = false
+    }
+    if (spec.display !== undefined && !field.displayFromEffect) {
+      field.display = undefined
+      field.hasDisplay = false
+    }
+    if ((spec as RegisterSpec).trigger) field.triggers = undefined
+    if (spec.asyncDebounceMs !== undefined) field.asyncDebounceMs = undefined
+    if (spec.enum && !field.enumFromEffect) field.enumOptions = undefined
+    if (field.uiDeclared) {
+      const next = { ...field.uiDeclared }
+      for (const key of Object.keys(normalizeUiSpec(spec))) delete next[key as keyof typeof next]
+      field.uiDeclared = Object.keys(next).length ? next : undefined
+    }
+    this.strippedPaths.add(field.path)
   }
 
   /** Re-register dormant exact declarations whose parent value exists again. */
@@ -210,6 +255,19 @@ export class Declarations {
    */
   applyItemTemplates(): void {
     this.reviveDormant()
+    this.applyTemplates()
+    if (!this.strippedPaths.size) return
+    const paths = [...this.strippedPaths]
+    this.strippedPaths.clear()
+    for (const path of paths) {
+      const field = this.store.get(path)
+      if (!field) continue
+      this.notifier.bumpPath(path)
+      if (field.errors.length) this.validator.syncRuleMessages(path)
+    }
+  }
+
+  private applyTemplates(): void {
     if (!this.itemTemplates.length) return
     const live = new Set<string>()
     for (const tpl of this.itemTemplates) {

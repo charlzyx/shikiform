@@ -59,3 +59,75 @@ describe('exact declarations on template paths (#8)', () => {
     expect(errors.map((error) => error.path)).toEqual(['rows.1.token'])
   })
 })
+
+/** Decision 2026-10-30: an exact-path declaration stays on its path when rows move. */
+describe('exact declarations stay on their path on move / swap / insert', () => {
+  const rows = () => [
+    { id: 'a', token: 'A', note: 'na' },
+    { id: 'b', token: 'B', note: 'nb' },
+    { id: 'c', token: 'C', note: 'nc' },
+  ]
+  function make3() {
+    return createForm({
+      initialValues: { rows: rows() },
+      fields: {
+        'rows.0.token': { virtual: true },
+        'rows.0.note': { display: 'none', title: 'First note' },
+      },
+    })
+  }
+
+  it('moveArray: the declaration stays at rows.0, the moved row loses it', () => {
+    const form = make3()
+    form.moveArray('rows', 0, 2)
+    expect(form.getSubmitValues()).toEqual({
+      rows: [{ id: 'b' }, { id: 'c', token: 'C', note: 'nc' }, { id: 'a', token: 'A', note: 'na' }],
+    })
+    expect(form.query('rows.0.note').$title).toBe('First note')
+    expect(form.query('rows.2.note').$title).toBeUndefined()
+    expect(form.query('rows.2.note').$display).toBe('visible')
+  })
+
+  it('swapArray: the declaration stays on rows.0', () => {
+    const form = make3()
+    form.swapArray('rows', 0, 1)
+    expect(form.getSubmitValues()).toEqual({
+      rows: [{ id: 'b' }, { id: 'a', token: 'A', note: 'na' }, { id: 'c', token: 'C', note: 'nc' }],
+    })
+  })
+
+  it('insertArray at 0: the new row sits on the declared path', () => {
+    const form = make3()
+    form.insertArray('rows', 0, { id: 'z', token: 'Z', note: 'nz' })
+    expect(form.getSubmitValues().rows[0]).toEqual({ id: 'z' })
+    expect(form.getSubmitValues().rows[1]).toEqual({ id: 'a', token: 'A', note: 'na' })
+  })
+
+  it('exact rules stay on the path; the moved row keeps only the template rules', async () => {
+    const form = createForm({
+      initialValues: { rows: [{ id: 'a', token: '' }, { id: 'b', token: '' }] },
+      fields: { 'rows.0.token': { required: true } },
+    })
+    form.moveArray('rows', 0, 1)
+    const errors = await form.validate()
+    expect(errors.map((error) => error.path)).toEqual(['rows.0.token'])
+  })
+
+  it('wildcard declarations still apply to every row after a move', () => {
+    const form = createForm({ initialValues: { rows: rows() }, fields: { 'rows.*.token': { virtual: true } } })
+    form.moveArray('rows', 0, 2)
+    expect(form.getSubmitValues()).toEqual({ rows: [{ id: 'b', note: 'nb' }, { id: 'c', note: 'nc' }, { id: 'a', note: 'na' }] })
+  })
+
+  it('moveTree: a declaration on an exact node path stays there', () => {
+    const form = createForm({
+      initialValues: { menus: [{ id: 'm1', name: 'one', children: [] }, { id: 'm2', name: 'two', children: [] }] },
+      fields: { 'menus.0.name': { virtual: true } },
+    })
+    form.registerTree('menus')
+    form.moveTree('menus', [0], [1])
+    expect(form.getSubmitValues()).toEqual({
+      menus: [{ id: 'm2', children: [] }, { id: 'm1', name: 'one', children: [] }],
+    })
+  })
+})

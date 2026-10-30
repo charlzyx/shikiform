@@ -13,6 +13,8 @@ function runsFor(stats: Record<string, number>, suffix: string) {
 }
 
 describe('array move', () => {
+  // Row state (errors, touched) follows the row; per-row rules that follow it are wildcard declarations.
+  // An exact `rows.1.name` declaration stays on its path (see exact-declarations.test.ts).
   it('moves values and field errors with the row id', async () => {
     const form = createForm<{ rows: Item[] }>({
       initialValues: {
@@ -24,7 +26,7 @@ describe('array move', () => {
         ],
       },
     })
-    form.registerField('rows.1.name', { required: true })
+    form.registerField('rows.*.name', { required: true })
     const errors = await form.validate('rows.1.name')
     expect(errors.some((error) => error.path === 'rows.1.name')).toBe(true)
     form.moveArray('rows', 1, 3)
@@ -43,7 +45,7 @@ describe('array move', () => {
         ],
       },
     })
-    form.registerField('rows.0.name', { required: true })
+    form.registerField('rows.*.name', { required: true })
     await form.validate('rows.0.name')
     form.swapArray('rows', 0, 2)
     expect(form.getValue('rows').map((row) => row.id)).toEqual(['c', 'b', 'a'])
@@ -85,7 +87,7 @@ describe('array move', () => {
     const form = createForm<{ rows: Item[] }>({
       initialValues: { rows: [{ id: 'a', name: '' }] },
     })
-    form.registerField('rows.0.name', { required: true })
+    form.registerField('rows.*.name', { required: true })
     await form.validate('rows.0.name')
     expect(form.errors).toHaveLength(1)
     form.replaceArray('rows', 0, { id: 'z', name: 'Z' })
