@@ -7,7 +7,7 @@ import type { Notifier } from '../state/notifier'
 import { scopeOf, type Pos } from '../shared/tree-ops'
 import type { FieldError, FormOptions, ValidateTrigger } from '../types'
 import { fieldSchemaIssues, optionIncludes, runRules, type ValidateCtx } from './rules'
-import { collectSchemaIssues, groupSchemaIssues, isStandardSchema, schemaIssuePath, type SchemaIssue } from './schema'
+import { collectSchemaIssues, groupSchemaIssues, isStandardSchema, schemaIssuePath, type SchemaIssue, type StandardSchemaV1 } from './schema'
 
 export interface ValidatorDeps {
   store: FieldStore<any>
@@ -24,7 +24,10 @@ export interface ValidatorDeps {
  *
  * Per field: `rules` + `required` → `runRules` (sync messages + pending promises) and field schemas.
  * A pass is generation-stamped (`validateGen`); only the newest pass commits form-level issues.
+ * A pass reads ONE immutable snapshot of `store.values` (writes replace the object), taken after `prepare`:
+ * every field rule (value, ctx.record/root/parent/array/get) and the form-level schema / resolver see it (#1).
  * A field's async result is stamped with `asyncSeq` and its `AbortController`; a newer edit drops it.
+ * A throwing field rule (sync throw or rejection, validator or schema) becomes that field's message (#2, #7).
  */
 export class Validator {
   /** Form-level schema / resolver / field-schema messages by path. */
@@ -58,26 +61,39 @@ export class Validator {
   }
 
   async validate(path?: string): Promise<FieldError[]> {
+    return (await this.run(path)).errors
+  }
+
+  /**
+   * One validation pass. `values` is the snapshot every rule saw; `current` is false when a newer pass
+   * started meanwhile (the errors are then whatever is shown, not this pass's verdict).
+   * `submit` compares `values` with the live values to know whether what it would submit was validated (#6).
+   */
+  async run(path?: string): Promise<{ errors: FieldError[]; values: unknown; current: boolean }> {
     const { store, scheduler, notifier, options } = this.deps
     this.prepare()
     const gen = ++this.validateGen
+    const values = store.values
     store.validating = true
     scheduler.bumpMeta()
     notifier.emit()
-    const scoped = () => this.errors().filter((e) => !path || e.path === path || e.path.startsWith(path + '.'))
+    const scoped = () => ({
+      errors: this.errors().filter((e) => !path || e.path === path || e.path.startsWith(path + '.')),
+      values,
+      current: gen === this.validateGen,
+    })
     try {
       const targets = [...store.fields.keys()].filter((p) => !path || p === path || p.startsWith(path + '.'))
       const collected: SchemaIssue[] = []
       const preserve = new Set<string>()
       for (const target of targets) {
         if (gen !== this.validateGen) return scoped()
-        const result = await this.validateOne(target)
+        const result = await this.validateOne(target, values)
         if (gen !== this.validateGen) return scoped()
         if (result.stale) preserve.add(target)
         else collected.push(...result.issues)
       }
       const validate = options.validate
-      const values = store.values
       if (isStandardSchema(validate)) {
         const issues = await collectSchemaIssues(validate, values)
         if (gen !== this.validateGen) return scoped()
@@ -95,7 +111,6 @@ export class Validator {
       if (gen !== this.validateGen) return scoped()
       this.commitSchemaIssues(path, collected, preserve)
       await this.waitAsync()
-      if (gen !== this.validateGen) return scoped()
       return scoped()
     } finally {
       if (gen === this.validateGen) {
@@ -106,9 +121,28 @@ export class Validator {
     }
   }
 
-  // Open issue #1 (row-draft cross-field validation reads the committed row) maps here: ctx is built from store.values.
-  private buildCtx(path: string, value: unknown, pos: Pos | undefined, signal?: AbortSignal): ValidateCtx {
-    const values = this.store.values
+  /**
+   * Validate the whole form until a pass describes the live values (#6, used by `submit`).
+   * A pass validates one snapshot; when the values differ from it once the pass settles (an edit while waiting
+   * on async rules, a reaction derived from `$errors`, a reset), validate again, up to {@link SETTLE_PASSES}.
+   * Returns that pass's errors, or `null` when the values never settled or a newer pass superseded this one
+   * without any value change (that pass owns the shown state).
+   */
+  async runSettled(): Promise<FieldError[] | null> {
+    for (let pass = 0; pass < SETTLE_PASSES; pass++) {
+      const result = await this.run()
+      if (!sameValues(result.values, this.store.values)) continue
+      return result.current ? result.errors : null
+    }
+    return null
+  }
+
+  /**
+   * Cross-field context over one snapshot (#1). `value`, `record`, `root`, `parent`, `array` and `get` all read
+   * `values`, so a rule never compares a pending value with another version of its row. A future
+   * draft-row validation must pass a snapshot with the draft set at its real row path, not a side channel.
+   */
+  private buildCtx(path: string, value: unknown, pos: Pos | undefined, values: unknown, signal?: AbortSignal): ValidateCtx {
     const scope = scopeOf(path)
     const ctx: ValidateCtx = {
       path,
@@ -118,8 +152,7 @@ export class Validator {
       parent: scope.parentPath ? getAt(values, scope.parentPath) : values,
       array: scope.arrayPath ? (getAt(values, scope.arrayPath) as any[]) : undefined,
       index: scope.index,
-      // Live read (not the snapshot above): unchanged from the pre-split engine.
-      get: (p) => getAt(this.store.values, p),
+      get: (p) => getAt(values, p),
       pos,
       depth: pos?.length,
     }
@@ -127,7 +160,7 @@ export class Validator {
     return ctx
   }
 
-  private async validateOne(path: string): Promise<{ stale: boolean; issues: SchemaIssue[] }> {
+  private async validateOne(path: string, values: unknown): Promise<{ stale: boolean; issues: SchemaIssue[] }> {
     const { store, notifier, scheduler, options } = this.deps
     const field = store.get(path)
     if (!field) return { stale: false, issues: [] }
@@ -139,8 +172,8 @@ export class Validator {
     const ac = new AbortController()
     field.abort = ac
     const seq = ++field.asyncSeq
-    const value = getAt(store.values, path)
-    const ctx = this.buildCtx(path, value, this.deps.readPos(path) ?? undefined, ac.signal)
+    const value = getAt(values, path)
+    const ctx = this.buildCtx(path, value, this.deps.readPos(path) ?? undefined, values, ac.signal)
     const rules = field.rules.slice()
     if (options.enumPolicy === 'error' && field.enumOptions && !optionIncludes(field.enumOptions, value)) {
       rules.push({ validator: () => '不在可选范围内' })
@@ -151,7 +184,13 @@ export class Validator {
     const schemaPending: Promise<SchemaIssue[]>[] = []
     for (const rule of rules) {
       if (!rule.schema) continue
-      const result = rule.schema['~standard'].validate(value)
+      let result: ReturnType<StandardSchemaV1['~standard']['validate']>
+      try {
+        result = rule.schema['~standard'].validate(value)
+      } catch (err) {
+        issues.push({ path, message: errorMessage(err) })
+        continue
+      }
       if (isPromise(result)) {
         schemaPending.push(
           Promise.resolve(result).then((resolved) => {
@@ -192,7 +231,7 @@ export class Validator {
           if (message) extra.push(message)
         } catch (err) {
           if (field.asyncSeq !== seq || ac.signal.aborted) return { stale: true as const, issues: [] as SchemaIssue[] }
-          extra.push(err instanceof Error ? err.message : '校验失败')
+          extra.push(errorMessage(err))
         }
       }
       for (const item of schemaPending) {
@@ -202,7 +241,7 @@ export class Validator {
           issues.push(...schemaIssues)
         } catch (err) {
           if (field.asyncSeq !== seq || ac.signal.aborted) return { stale: true as const, issues: [] as SchemaIssue[] }
-          issues.push({ path, message: err instanceof Error ? err.message : '校验失败' })
+          issues.push({ path, message: errorMessage(err) })
         }
       }
       return apply(extra)
@@ -214,7 +253,7 @@ export class Validator {
 
   /**
    * Debounce async rules. Sync-only fields validate on the next turn of `validate`.
-   * Open issue #2 (debounced async reject leaves callers pending) maps here + validateOne's try/catch.
+   * Field-rule failures are messages already; a detached pass only reports what is left (#2).
    */
   scheduleValidate(path: string): void {
     const field = this.store.ensure(path)
@@ -227,12 +266,23 @@ export class Validator {
       field.asyncSeq += 1
       const timer = setTimeout(() => {
         this.validateTimers.delete(path)
-        void this.validate(path)
+        this.validateDetached(path)
       }, ms)
       this.validateTimers.set(path, timer)
       return
     }
-    void this.validate(path)
+    this.validateDetached(path)
+  }
+
+  /**
+   * A pass nobody awaits (trigger, debounce timer, JSX release). Field rules never reject a pass; a throwing
+   * form-level `validate` / `resolver` or a reaction error still could, so it is reported instead of being
+   * left as an unhandled rejection. Awaited `validate()` / `submit()` pass those errors to the caller.
+   */
+  validateDetached(path: string): void {
+    this.validate(path).catch((err: unknown) => {
+      console.error('[shikiform] validation pass failed', err)
+    })
   }
 
   /** Cancel debounce timers and wait until no field validator is in flight. */
@@ -261,8 +311,9 @@ export class Validator {
       this.setErrors(path, [])
       return
     }
-    const value = getAt(this.store.values, path)
-    const ctx = this.buildCtx(path, value, this.deps.readPos(path))
+    const values = this.store.values
+    const value = getAt(values, path)
+    const ctx = this.buildCtx(path, value, this.deps.readPos(path), values)
     const { messages } = runRules(
       value,
       field.rules.filter((rule) => !rule.schema).map((rule) => ({ ...rule, validator: undefined })),
@@ -405,6 +456,18 @@ function recordToIssues(extra: Partial<Record<string, string>> | void): SchemaIs
   return Object.entries(extra)
     .filter((entry): entry is [string, string] => !!entry[1])
     .map(([path, message]) => ({ path, message }))
+}
+
+/** Passes {@link Validator.runSettled} may run while the values keep changing under it. */
+const SETTLE_PASSES = 3
+
+/** Writes replace the values object, so identity is the fast path; equal content counts as unchanged. */
+function sameValues(a: unknown, b: unknown): boolean {
+  return a === b || deepEqual(a, b)
+}
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error && err.message ? err.message : '校验失败'
 }
 
 function isPromise(value: unknown): value is Promise<unknown> {
