@@ -109,22 +109,16 @@ export class StateWriter {
   commitValue(path: string, value: unknown, fromReaction: boolean): boolean {
     const { store, notifier, scheduler, declarations } = this.deps
     const old = getAt(store.values, path)
-    const same = deepEqual(old, value)
-    // A reaction write is an ordinary assignment: the field stays in the submit
-    // payload. `computed` only selects readPretty, because the reaction owns the
-    // value. Drop it from submit only with an explicit `virtual: true`.
-    // Mark computed even when the value does not change, so a derived total that
-    // already equals price * qty is still read-only.
-    if (fromReaction) {
-      const field = store.ensure(path)
-      const becameComputed = !field.computed
-      field.computed = true
-      if (same && becameComputed) notifier.bumpPath(path)
-    }
-    if (same) return false
+    if (deepEqual(old, value)) return false
     const before = store.values
     store.values = setAt(store.values, path, value)
     this.deps.carryRowIdentity?.(path, before, store.values)
+    // A reaction write that changes the value marks the field computed (`readPretty`
+    // when no pattern is set). It stays in the submit payload unless `virtual: true`.
+    if (fromReaction) {
+      const field = store.ensure(path)
+      field.computed = true
+    }
     notifier.bumpPath(path)
     let cursor: string | null = path
     while (cursor) {
