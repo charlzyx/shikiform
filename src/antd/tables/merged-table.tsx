@@ -31,15 +31,21 @@ export function MergedTable<T extends { id: string }>({
   rows,
   groupOf,
   columns,
+  rowKey = 'id',
 }: {
   rows: readonly T[]
   groupOf: (row: T) => string
   columns: MergedColumn<T>[]
+  /**
+   * React identity of a row. Defaults to `id`. Pass a stable key when a group's lead row
+   * changes id (a placeholder replaced by its first product) so the parent field stays mounted.
+   */
+  rowKey?: string | ((row: T) => string)
 }) {
   const spans = groupRowSpan(rows, groupOf)
   return (
     <Table<T>
-      rowKey="id"
+      rowKey={rowKey}
       pagination={false}
       dataSource={rows as T[]}
       columns={columns.map((column) => ({
