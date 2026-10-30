@@ -178,13 +178,11 @@ const Rate = connect(AntRate, mapProps({ status: false }))
 - **表格**：单元格就是行作用域里的 `<Field>`，可以不要装饰器（`component={[Input]}`），或用别的装饰器 / `FormItem` 的 `feedbackLayout: 'terse'`。
 - **`useAntdForm`**：`field.Input` / `field.Select` / `field.InputNumber` = 对应 connect 控件包在 `FormItem` 里；`field.Switch` / `field.Checkbox` 就是 connect 控件。全库只有一套适配层（旧的手写 `FieldInput` 等已删除）；行为变化见 PR：`InputNumber` 清空写 `null`（原为 `0`）、`stringMode` 下写字符串、`Select` 阅读态显示 label、`AppField title` 显示为 label。
 
-## 9. 已知未解决问题 → 所在模块
+## 9. 已删除的半成品配置
 
-| Issue | 摘要 | 所在位置 |
-|---|---|---|
-| P3-3 | `commit: 'blur'` 已声明但未实现 | `core/engine/writes.ts` 的 `commitExternal`。 |
+`FormOptions.commit` 与类型 `CommitMode`（`'change' | 'blur'`）在发布前删除，不实现。用户编辑一直走 `StateWriter.commitExternal`，在 change 时写入；删掉未实现的 `'blur'` 后只剩 `'change'`，所以整个选项一并移除，没有残留分支。
 
-代码中在对应位置留有 `Open issue #n` 注释。#1、#2、#6、#7 已由 `fix/validation-races` 修复，见第 5 节。#3、#8、#12 已由 `fix/pro-gaps` 解决：#3（列筛选清空选择，见 §10 查询表）、#8（精确声明是按路径的配置：`setValue`/`reset` 清掉行时由 `applyItemTemplates`、数组 / 树操作丢掉行时由 `onDrop` 转为休眠，行再出现时 `reviveDormant` 重新注册，`virtual`/`display`/`pattern`/UI 都恢复，见 §2 注入表）、#12（P0 示例与「文档构建含 playground」已在 main：`npm run build` = VitePress + `build:play` + `check-site`）。
+#1、#2、#6、#7 已由 `fix/validation-races` 修复，见第 5 节。#3、#8、#12 已由 `fix/pro-gaps` 解决：#3（列筛选清空选择，见 §10 查询表）、#8（精确声明是按路径的配置：`setValue`/`reset` 清掉行时由 `applyItemTemplates`、数组 / 树操作丢掉行时由 `onDrop` 转为休眠，行再出现时 `reviveDormant` 重新注册，`virtual`/`display`/`pattern`/UI 都恢复，见 §2 注入表）、#12（P0 示例与「文档构建含 playground」已在 main：`npm run build` = VitePress + `build:play` + `check-site`）。
 
 ## 10. Pro 层（复刻 Pro.formily）
 

@@ -28,9 +28,6 @@ export type Display = 'visible' | 'hidden' | 'none'
  */
 export type Pattern = 'editable' | 'disabled' | 'readOnly' | 'readPretty'
 
-/** When an input writes into the store. `blur` keeps keystrokes local until blur or Enter. */
-export type CommitMode = 'change' | 'blur'
-
 /**
  * When a field validates.
  * The field's own `trigger` wins over {@link FormOptions.validateTrigger}.
@@ -210,8 +207,6 @@ export interface FormOptions<T> {
    * Stale runs are cancelled with `AbortSignal` and ignored when they resolve.
    */
   asyncDebounceMs?: number
-  /** Default commit mode. Default `'change'`. Large tables usually want `'blur'`. */
-  commit?: CommitMode
   /**
    * What to do when the current value is no longer in `$enum`.
    * Default `'none'` (leave the value; clear it yourself in a `watch` if you need to keep the last edit).

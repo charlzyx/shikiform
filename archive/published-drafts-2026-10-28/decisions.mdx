@@ -24,6 +24,6 @@ description: 已经定下的字段和联动行为，以及仍待拍板的问题�
 - JSX 规则只在字段挂载时生效；声明、模板和 reaction 规则不依赖挂载。`hidden` 仍校验和提交，`none` 才跳过。见 [没挂载的字段](/guide/unmounted)。
 - `Field` 当前是 render-prop API。`component/decorator` 写法、JSON renderer 和完整 UI Brand 适配仍待设计，不是本教程可复制的接口。
 - 跨模块规则怎样暴露 handle、重复 UI brand 的 React 生命周期、查看态 UI 适配仍需收敛成公开规范。
-- `commit: 'blur'` 的类型/行为缺口和性能证据没有在教程迁移中补齐；ShadowForm 已在后续版本补上（见 [Pro 组件](/reference/pro-components#shadowmodal)），其余延后项见清单。见 [案例补全清单](/coverage-checklist)。
+- 性能证据（2000 行、浏览器计时）没有在教程迁移中补齐。输入在 change 时写入，没有延迟到 blur 的提交配置。ShadowForm 已在后续版本补上（见 [Pro 组件](/reference/pro-components#shadowmodal)），其余延后项见清单。见 [案例补全清单](/coverage-checklist)。
 
 旧的 `usage` 页面保留设计草稿的历史写法；不要把归档伪代码当成当前导出。入门和运行契约以 [教程](/tutorial)、[指南](/guide) 与 [API](/api) 为准。

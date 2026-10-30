@@ -158,9 +158,9 @@ export function EventListColumns() {
   return (
     <ProTable.Column
       title="等级"
-      // 列头筛选：查询条件 level（根上的字段），commit="immediate"
+      // 列头筛选：查询条件 level（根上的字段）
       filter={
-        <Field name="level" ui="filter" decorator={<CellItem />} enum={LevelEnum} commit="immediate">
+        <Field name="level" ui="filter" decorator={<CellItem />} enum={LevelEnum}>
           <Select multiple />
         </Field>
       }

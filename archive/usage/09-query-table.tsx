@@ -69,8 +69,7 @@ const queryEffects = defineEffects<LogQuery>(({ reaction, watch }) => {
 
   // 查询条件变了（不论来自查询表单还是列筛选）：回第 1 页、清空选择
   // ❓ 但查询表单是“点查询按钮才生效”，列筛选是“改了立刻生效”——同一个 status 字段两种生效时机。
-  //    这里的方案：params 是“草稿参数”，useQueryTable 维护“已提交参数”；
-  //    列筛选 UI 上声明 commit="immediate"，查询表单 UI 上 commit 跟随查询按钮。见下面 JSX。
+  //    字段没有 commit 选项。params 是草稿参数，已提交参数由查询按钮和列筛选各自的交互决定何时写入。
   watch(
     (d) => d.params,
     (d) => {
@@ -172,9 +171,9 @@ export function CallLogPage() {
         <ProTable.Column
           title="状态"
           // 列头筛选：这里放的是查询条件 status（根上的字段），和上面查询表单是同一个数据字段，UI Brand = filter
-          // 改它 → status 值变 → params 变 → 回第 1 页 → commit="immediate" 立即查询
+          // 改它 → status 值变 → params 变 → 回第 1 页 → 列筛选自己立即查询
           filter={
-            <Field name="status" ui="filter" decorator={<CellItem />} enum={StatusEnum} commit="immediate">
+            <Field name="status" ui="filter" decorator={<CellItem />} enum={StatusEnum}>
               <Checkbox.Group />
             </Field>
           }

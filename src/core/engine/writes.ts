@@ -75,7 +75,6 @@ export class StateWriter {
     scheduler.flush()
   }
 
-  // Open issue P3-3 (`commit: 'blur'`) lives here: user edits always commit on change.
   commitExternal(path: string, value: unknown): void {
     const { store, notifier, scheduler, validator } = this.deps
     if (process.env.NODE_ENV !== 'production') value = unwrapReadonly(value)
