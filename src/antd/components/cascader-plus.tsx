@@ -1,10 +1,9 @@
 import { Cascader as AntCascader, type CascaderProps } from 'antd'
 import { useEffect, useRef } from 'react'
-import { useLazyCascader, type CascaderLoader, type CascaderOption } from '../../pro/use-lazy-cascader'
+import { cascaderPaths, useCascaderLabels, useLazyCascader, type CascaderLoader, type CascaderOption } from '../../pro/use-lazy-cascader'
 import { connect, mapReadPretty } from '../adapter/connect'
 
 type Key = string | number
-type Labeled = { label: string; value: Key }
 
 export interface CascaderPlusViewProps
   extends Omit<CascaderProps<CascaderOption>, 'value' | 'onChange' | 'options' | 'loadData' | 'multiple'> {
@@ -19,20 +18,13 @@ export interface CascaderPlusViewProps
   labelInValue?: boolean
 }
 
-/** Value paths in the field value: one path, or (multiple) several. */
-function pathsOf(value: unknown, multiple: boolean | undefined): Key[][] {
-  if (!Array.isArray(value) || !value.length) return []
-  const unwrap = (path: unknown[]): Key[] => path.map((item) => (item && typeof item === 'object' ? (item as Labeled).value : (item as Key)))
-  return multiple ? (value as unknown[][]).filter(Array.isArray).map(unwrap) : [unwrap(value)]
-}
-
 /**
  * Lazy cascader over {@link useLazyCascader} (Pro.formily `CascaderPlus`): one `loadData(path)` for every level,
  * echo of an existing value (each ancestor level is loaded so labels show), `all` for a full tree,
  * `multiple`, and `labelInValue` (`[{ label, value }, …]` per path).
  */
 export function CascaderPlusView({ value, onChange, loadData, all, multiple, labelInValue, ...rest }: CascaderPlusViewProps) {
-  const paths = pathsOf(value, multiple)
+  const paths = cascaderPaths(value, multiple)
   const cascader = useLazyCascader({ load: loadData, all, paths })
   const seen = useRef(JSON.stringify(paths))
   useEffect(() => {
@@ -75,14 +67,19 @@ export function CascaderPlusView({ value, onChange, loadData, all, multiple, lab
   )
 }
 
-function CascaderPreview({ value, multiple }: { value?: unknown; multiple?: boolean }) {
-  const list = !Array.isArray(value) ? [] : multiple ? (value as unknown[][]) : [value as unknown[]]
-  const text = list.map((path) => path.map((item) => (item && typeof item === 'object' ? (item as Labeled).label : String(item))).join('/')).join(', ')
-  return <span data-read-pretty>{text}</span>
+/** Read view: labels from a `labelInValue` value, or resolved through `loadData` for bare values ({@link useCascaderLabels}). */
+function CascaderPreview({ value, multiple, loadData, all }: { value?: unknown; multiple?: boolean; loadData?: CascaderLoader; all?: boolean }) {
+  const { labels, loading } = useCascaderLabels({ value, multiple, load: loadData, all })
+  return (
+    <span data-read-pretty aria-busy={loading || undefined}>
+      {labels.map((path) => path.join('/')).join(', ')}
+    </span>
+  )
 }
 
 /**
- * Field-bound {@link CascaderPlusView}. `readPretty` shows `labelInValue` labels (bare values otherwise).
+ * Field-bound {@link CascaderPlusView}. `readPretty` shows labels: a `labelInValue` value carries them; a bare value
+ * (`['zj', 'hz']`) is resolved by loading its ancestor levels through the same `loadData`.
  *
  * ```tsx
  * <Field name="area" title="地区" decorator={[FormItem]} component={[CascaderPlus, { loadData: loadArea, labelInValue: true }]} />

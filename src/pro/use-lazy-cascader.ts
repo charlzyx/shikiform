@@ -20,6 +20,8 @@ export interface UseLazyCascaderOptions {
   all?: boolean
   /** Value paths to show on open (反显). Each path's ancestors are loaded so the labels resolve. */
   paths?: ReadonlyArray<ReadonlyArray<string | number>>
+  /** Default true. `false` loads nothing (a read view whose value already carries its labels). */
+  enabled?: boolean
 }
 
 export interface LazyCascaderApi {
@@ -88,7 +90,9 @@ export function useLazyCascader(options: UseLazyCascaderOptions): LazyCascaderAp
 
   const pathsRef = useRef(options.paths)
   pathsRef.current = options.paths
+  const enabled = options.enabled !== false
   useEffect(() => {
+    if (!enabled) return
     let live = true
     setLoading(true)
     rootReady.current = Promise.resolve(loadRef.current([])).then((root) => {
@@ -104,7 +108,7 @@ export function useLazyCascader(options: UseLazyCascaderOptions): LazyCascaderAp
     return () => {
       live = false
     }
-  }, [options.all])
+  }, [options.all, enabled])
 
   void version
   return {
@@ -139,4 +143,63 @@ function find(tree: CascaderOption[], path: ReadonlyArray<string | number>): Cas
 
 function clone(node: CascaderOption): CascaderOption {
   return { ...node, children: node.children?.map(clone) }
+}
+
+type Key = string | number
+
+/**
+ * The value paths a cascader field holds: one path, or (`multiple`) several. A `labelInValue` level
+ * (`{ label, value }`) contributes its `value`.
+ */
+export function cascaderPaths(value: unknown, multiple?: boolean): Key[][] {
+  if (!Array.isArray(value) || !value.length) return []
+  const unwrap = (path: unknown[]): Key[] => path.map((item) => (item && typeof item === 'object' ? (item as { value: Key }).value : (item as Key)))
+  return multiple ? (value as unknown[]).filter(Array.isArray).map((path) => unwrap(path as unknown[])) : [unwrap(value)]
+}
+
+export interface UseCascaderLabelsOptions {
+  value: unknown
+  multiple?: boolean
+  /** The same loader the editable cascader uses. Without it, levels without a label show their value. */
+  load?: CascaderLoader
+  all?: boolean
+}
+
+export interface CascaderLabelsApi {
+  /** One label list per path. A level shows its `labelInValue` label, else the loaded label, else its value. */
+  labels: string[][]
+  /** True while the tree loads the ancestors needed to resolve a bare value. */
+  loading: boolean
+}
+
+/**
+ * Labels for a cascader value, for a read view (`readPretty`). A `labelInValue` value already carries its labels and
+ * loads nothing. A bare value (`['zj', 'hz']`) is resolved by loading each ancestor level through `load`, the same way
+ * {@link useLazyCascader} echoes a value into the editor.
+ */
+export function useCascaderLabels(options: UseCascaderLabelsOptions): CascaderLabelsApi {
+  const list: unknown[][] = !Array.isArray(options.value) || !options.value.length
+    ? []
+    : options.multiple
+      ? (options.value as unknown[]).filter(Array.isArray) as unknown[][]
+      : [options.value as unknown[]]
+  const labeled = (item: unknown) => !!item && typeof item === 'object' && typeof (item as { label?: unknown }).label === 'string'
+  const needsTree = !!options.load && list.some((path) => path.some((item) => !labeled(item)))
+  const paths = cascaderPaths(options.value, options.multiple)
+  const tree = useLazyCascader({ load: options.load ?? (() => []), all: options.all, paths, enabled: needsTree })
+  const key = JSON.stringify(paths)
+  const seen = useRef(key)
+  useEffect(() => {
+    if (!needsTree || key === seen.current) return
+    seen.current = key
+    void tree.ensure(paths)
+  })
+  const labels = list.map((path, index) => {
+    const loaded = needsTree ? tree.labelsOf(paths[index]!) : []
+    return path.map((item, depth) => {
+      if (labeled(item)) return (item as { label: string }).label
+      return loaded[depth] ?? String(item && typeof item === 'object' ? (item as { value: unknown }).value : item)
+    })
+  })
+  return { labels, loading: needsTree && tree.loading }
 }
