@@ -180,4 +180,18 @@ describe('SKU and merged pages on the current APIs', () => {
     fireEvent.click(screen.getByTestId('only-active'))
     await waitFor(() => expect(screen.getByTestId('supplier-cell-sA').closest('td')!.getAttribute('rowspan')).not.toBe('2'))
   })
+
+  it('/play/merged keeps a duplicate-name error when the placeholder row becomes the first product', async () => {
+    render(<MergedPage />)
+    fireEvent.click(screen.getByTestId('add-supplier'))
+    const add = screen.getAllByTestId(/^add-product-/).at(-1)!
+    const supplierId = add.getAttribute('data-testid')!.slice('add-product-'.length)
+    const input = within(screen.getByTestId(`supplier-cell-${supplierId}`)).getByRole('textbox', { name: '供应商名称' })
+    fireEvent.change(input, { target: { value: '供应商A' } })
+    fireEvent.blur(input)
+    await waitFor(() => expect(screen.getByTestId(`supplier-error-${supplierId}`).textContent).toContain('重名'))
+    fireEvent.click(add)
+    await waitFor(() => expect(screen.queryByTestId(`empty-supplier-${supplierId}`)).toBeNull())
+    expect(screen.getByTestId(`supplier-error-${supplierId}`).textContent).toContain('重名')
+  })
 })

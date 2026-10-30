@@ -209,7 +209,9 @@ export async function compileMdxPage(source: string, filename: string, options: 
         }
         transform(child)
         if (child.type === 'heading') {
-          child.children!.push(jsxFragment(`<a className="header-anchor" href=${JSON.stringify(`#${child.data!.hProperties!.id}`)} aria-label=${JSON.stringify(`Permalink to ${text(child)}`)}>​</a>`))
+          // aria-hidden: the permalink is a hover affordance. Its label would otherwise
+          // become part of the heading's accessible name ("标题 Permalink to 标题").
+          child.children!.push(jsxFragment(`<a className="header-anchor" href=${JSON.stringify(`#${child.data!.hProperties!.id}`)} aria-label=${JSON.stringify(`Permalink to ${text(child)}`)} aria-hidden="true" tabIndex={-1}>​</a>`))
         }
         return child
       })
@@ -358,6 +360,11 @@ export async function prepareMdxPages(options: MdxSiteOptions) {
       pageData.title = page.title
       pageData.description = String(page.frontmatter.description ?? '')
       pageData.frontmatter = { ...pageData.frontmatter, ...page.frontmatter }
+      // `outline: false` only hides the links. VitePress still mounts a fixed aside,
+      // and its empty spacer covers wide content (the tutorial exercise) at 1280px.
+      if ((page.frontmatter.outline === false || page.frontmatter.pageType === 'doc-wide') && page.frontmatter.aside == null) {
+        pageData.frontmatter.aside = false
+      }
       pageData.headers = page.headers
     },
     renderSearch(source: string, env: { relativePath?: string; frontmatter?: Record<string, unknown> }, md: { render(source: string, env: object): string }) {
