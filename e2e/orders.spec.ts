@@ -10,7 +10,8 @@ test('expanded line edits stay after collapse and are written directly', async (
   await expect(page.getByTestId('line-i1')).toHaveText('40')
   await expect(page.getByTestId('amount-o1')).toHaveText('56')
   await page.getByTestId('expand-o1').click()
-  await expect(page.getByTestId('items-o1')).toHaveCount(0)
+  // antd Table keeps a collapsed expanded row mounted but hidden.
+  await expect(page.getByTestId('items-o1')).toBeHidden()
   await page.getByTestId('expand-o1').click()
   await expect(page.getByTestId('qty-i1')).toHaveValue('4')
   await expect(page.getByTestId('qty-i3')).toHaveCount(0)

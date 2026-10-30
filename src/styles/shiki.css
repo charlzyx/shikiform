@@ -22,7 +22,9 @@
 
 .tutorial-step {
   display: grid;
-  grid-template-columns: minmax(240px, 300px) minmax(640px, 1fr);
+  /* The play column shrinks with the doc column. A 640px floor overflows a 1280px
+     viewport (sidebar + outline) and slides under the fixed aside. */
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
   gap: 20px;
   align-items: start;
 }
