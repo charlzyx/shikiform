@@ -106,11 +106,11 @@ form.AppField<N extends FieldPath<T>>(props: {
 
 `field.TextInput` 在字段 context 中读取当前绑定，不再传 `name`。同一个 AppField 内再创建字段组时，子名字相对这个字段路径。
 
-AppField 复用普通 Field 的订阅与显示路径：`hidden` / `none` 不渲染子 UI，但二者的校验和提交含义不同。因为它没有 JSX `rules` / `required` 声明，所以只消费绑定，不取得或释放别人的校验 lease。参见 [显隐](/guide/concepts)。
+`AppField` 就是 `<Field>`：`name`、`children`，再加上 `useField` 的选项（`title`、`required`、`rules`、`description`、`display`、`pattern`、`virtual`）。`title` 给装饰器当标签。传了 `rules` 或 `required` 才拥有 JSX 校验租约，卸载时释放，不擦掉 `fields` 或 `$rules`。不传这两项时只消费绑定，不释放同路径别人的规则。
 
-普通 `Field` 只有在实际传入 `rules` 或 `required` 时才拥有 JSX 校验声明；`rules={[]}`、`required={false}` 也算显式声明。纯绑定消费者可以与已有规则的 Field 同路径挂载，但当前核心仍只保存一份 JSX 规则，不支持多个同路径 Field 各自持有不同的 JSX 校验配置；不要把这次纯消费者修正当成多 owner 规则合并。
+`component` / `decorator` 不在 `AppField` 上。控件用 render prop 里的 `field.Input` 这类预绑定组件，或 children 里的 `connect` 控件。跨卸载仍要生效的规则写在 `useAppForm({ fields })`。
 
-**当前公开 props 只有 `name` 和 `children`**。不要向 AppField 传普通 Field 的 `rules`、`required`、`display`，更不要传尚未支持的 `component` / `decorator`。这里需要的规则/显示写在 `useAppForm({ fields, effects })`；它们属于模型声明，UI 卸载不会把声明删除。要使用 JSX 挂载期规则，直接用公开 `<Field rules={...}>`。
+`hidden` / `none` 都不渲染子 UI，校验和提交不同，见 [核心概念](/guide/concepts)。`rules={[]}`、`required={false}` 也算显式声明。同一 path 只保存一份 JSX 规则，不要挂两个带不同 `rules` 的 Field。
 
 ## AppForm
 

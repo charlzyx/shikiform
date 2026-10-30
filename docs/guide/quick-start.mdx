@@ -1,9 +1,11 @@
 ---
 title: 快速开始
-description: 准备依赖，写出第一张能校验、能提交的表单。
+description: 用 useAntdForm 写出第一张能校验、能提交、名字有类型的表单。
 ---
 
 # 快速开始
+
+应用表单从这里开始：`useAntdForm` 创建引擎，`AppField` 的 `name` 按 `initialValues` 检查，`field.Input` 已经包好标签和错误。`<Field decorator component>` 留给自定义控件，见 [Field、装饰器与组件](/guide/field)。
 
 ## 准备
 
@@ -16,26 +18,29 @@ ShikiForm 目前没有发布到 npm（`package.json` 是 `private`）。在仓�
 
 ## 第一张表单
 
-三步：`useForm` 建引擎，`<Form>` 提供它，`<Field>` 声明每个字段。
-
 ```tsx preview
 import { useState } from 'react';
 import { Button, Form as AntdForm } from 'antd';
-import { Field, Form, useForm } from 'shikiform';
-import { FormItem, FormLayout, Input, InputNumber } from 'shikiform/antd';
+import { Form } from 'shikiform';
+import { FormLayout, useAntdForm } from 'shikiform/antd';
 
 type Values = { name: string; email: string; age: number | null };
 
 export default function App() {
   const [result, setResult] = useState('还没有提交');
-  const form = useForm<Values>({ initialValues: { name: '', email: '', age: 18 } });
+  const form = useAntdForm({ initialValues: { name: '', email: '', age: 18 } });
   return (
     <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
       <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }}>
-        <Field name="name" title="姓名" required decorator={[FormItem]} component={[Input, { placeholder: 'Ada' }]} />
-        <Field name="email" title="邮箱" required rules={{ format: 'email', message: '邮箱格式不对' }}
-          decorator={[FormItem]} component={[Input]} />
-        <Field name="age" title="年龄" rules={{ min: 0, max: 150 }} decorator={[FormItem]} component={[InputNumber]} />
+        <form.AppField name="name" title="姓名" required>
+          {(field) => <field.Input placeholder="Ada" />}
+        </form.AppField>
+        <form.AppField name="email" title="邮箱" required rules={{ format: 'email', message: '邮箱格式不对' }}>
+          {(field) => <field.Input />}
+        </form.AppField>
+        <form.AppField name="age" title="年龄" rules={{ min: 0, max: 150 }}>
+          {(field) => <field.InputNumber />}
+        </form.AppField>
         <AntdForm.Item wrapperCol={{ offset: 4, span: 20 }}>
           <Button type="primary" htmlType="submit">提交</Button>
         </AntdForm.Item>
@@ -48,48 +53,18 @@ export default function App() {
 
 直接点提交，必填项会报错；离开输入框时也会校验（默认触发时机是 `onBlur` 和 `onSubmit`）。全部通过后，`onSubmit` 才收到值。
 
-- `<Field>` 是字段的唯一拥有者：`name`、`title`、`required`、`rules` 都写在它上面。
-- `decorator={[FormItem]}` 负责标签、星号和错误；`component={[Input, props]}` 负责输入。两个槽都可以是组件本身或 `[组件, props]`。
-- `FormItem` 和 `Input` 都不需要 `name`，它们从外层 `<Field>` 读字段。
-- 组件外创建引擎用 `createForm(options)`，选项和 `useForm` 相同。
+- `useAntdForm` 就是 `useForm` 加上有类型的 `AppField`。`name="emial"` 这种拼写在类型检查里失败。
+- `title`、`required`、`rules` 写在 `AppField` 上。`field.Input` / `field.InputNumber` 外面已经是 `FormItem`，显示标签和错误。
+- 这些规则挂在组件上：`AppField` 卸载后不再查。折叠、未打开的标签页、虚拟行之外仍要校验的规则，写在 `useAntdForm({ fields })` 里。
+- 组件外创建引擎用 `createForm(options)`，选项和 `useAntdForm` 相同。
 
 ## 不用 antd
 
-UI 库不是必需的。`useField(name)` 返回一个绑定（`value`、`onChange`、`onBlur`、`errors` …），接到任何控件上：
-
-```tsx preview
-import { Form, useField, useForm, type FieldBinding } from 'shikiform';
-
-function TextInput({ field, label }: { field: FieldBinding<string>; label: string }) {
-  return (
-    <p>
-      <label htmlFor={field.id}>{label} </label>
-      <input id={field.id} value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} />
-      {field.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {field.errors[0]}</small>}
-    </p>
-  );
-}
-
-function NameField() {
-  const field = useField<{ name: string }, 'name'>('name', { required: true });
-  return <TextInput field={field} label="姓名" />;
-}
-
-export default function App() {
-  const form = useForm({ initialValues: { name: '' } });
-  return (
-    <Form form={form} onSubmit={(values) => alert(JSON.stringify(values))}>
-      <NameField />
-      <button type="submit">提交</button>
-    </Form>
-  );
-}
-```
-
-`useField` 必须在 `<Form>` 的后代组件里调用，所以字段放进 `NameField`，而不是直接写在 `App` 里。
+UI 库不是必需的。`useField(name)` 返回 `value`、`onChange`、`onBlur`、`errors`，接到任何控件上。它必须写在 `<Form>` 里面的子组件里。完整例子在 [Headless Hooks](/guide/headless)。
 
 ## 下一步
 
-- [核心概念](/guide/concepts)：为什么联动写在引擎里，`$` 状态都有哪些。
-- [分步教程](/tutorial/)：在浏览器里边改边学，十个小步骤。
-- [示例库](/examples)：SKU、嵌套订单、查询表等完整场景。
+- [核心概念](/guide/concepts)：`$` 状态、`hidden` 和 `none` 的差别。
+- [联动](/guide/linkage)：`reaction` 派生，`watch` 做一次性动作。
+- [Field、装饰器与组件](/guide/field)：自己包控件时再用 `decorator` / `component`。
+- [分步教程](/tutorial/) 和 [示例库](/examples)。
