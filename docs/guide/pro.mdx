@@ -46,7 +46,7 @@ export default function App() {
         columns={[
           { key: 'sort', width: 48, render: () => <ProArrayTable.SortHandle /> },
           { key: 'index', title: '#', width: 48, render: () => <ProArrayTable.Index /> },
-          { key: 'name', title: '名称', render: () => <Field name="name" required decorator={[FormItem, { feedbackLayout: 'terse' }]} component={[Input]} /> },
+          { key: 'name', title: '名称', width: 200, render: () => <Field name="name" required decorator={[FormItem, { feedbackLayout: 'terse' }]} component={[Input]} /> },
           { key: 'price', title: '单价', width: 120, render: () => <Field name="price" component={[InputNumber, { min: 0 }]} /> },
           { key: 'qty', title: '数量', width: 100, render: () => <Field name="qty" component={[InputNumber, { min: 1 }]} /> },
           { key: 'subtotal', title: '小计', width: 100, align: 'right', render: () => <Subtotal /> },
