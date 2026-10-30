@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { expect, test } from '@playwright/test'
+import { gotoHydrated } from './hydration'
 
 test('deployment includes named Hook references and the same executable adapter examples', () => {
   const manifest = JSON.parse(readFileSync('docs/reference/exports.json', 'utf8')) as Record<string, Record<string, string>>
@@ -26,20 +27,22 @@ test('deployment includes named Hook references and the same executable adapter 
 test('API links to named Hooks and the quick-start example validates and submits', async ({ page }) => {
   await page.goto('/api')
   await page.locator('.vp-doc').getByRole('link', { name: 'React Hooks', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'useField', exact: true })).toBeVisible()
-  await page.goto('/guide/quick-start')
+  // VitePress headings carry a "Permalink to …" anchor in their accessible name.
+  await expect(page.getByRole('heading', { name: /^useField\b/ })).toBeVisible()
+  await gotoHydrated(page, '/guide/quick-start')
   const demo = page.locator('.sf-demo').first()
   const form = demo.locator('form')
   await form.getByRole('button', { name: '提 交' }).click()
   await expect(form).toContainText('必填')
-  await form.getByRole('textbox', { name: '姓名', exact: true }).fill('Grace')
-  await form.getByRole('textbox', { name: '邮箱', exact: true }).fill('grace@example.com')
+  // antd FormItem labels put the required "*" and ":" (CSS generated content) into the accessible name.
+  await form.getByRole('textbox', { name: '姓名' }).fill('Grace')
+  await form.getByRole('textbox', { name: '邮箱' }).fill('grace@example.com')
   await form.getByRole('button', { name: '提 交' }).click()
   await expect(form.locator('pre')).toContainText('grace@example.com')
 })
 
 test('the demo toolbar edits, recompiles, copies and resets the same example', async ({ page }) => {
-  await page.goto('/guide/quick-start')
+  await gotoHydrated(page, '/guide/quick-start')
   const demo = page.locator('.sf-demo').first()
   await demo.getByRole('button', { name: '查看代码' }).click()
   await expect(demo.locator('.sf-demo__highlighted')).toContainText('useForm')
@@ -54,7 +57,7 @@ test('the demo toolbar edits, recompiles, copies and resets the same example', a
 })
 
 test('Switch forwards one real button blur and follows readOnly/display across remounts', async ({ page }) => {
-  await page.goto('/reference/antd')
+  await gotoHydrated(page, '/reference/antd')
   const example = page.getByRole('region', { name: '适配状态与事件', exact: true })
   const input = example.getByRole('switch', { name: '通知开关', exact: true })
   await input.click()
