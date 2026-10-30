@@ -5,7 +5,7 @@ description: useAntdForm、useAntdField、字段组、预绑定控件和表格�
 
 # Ant Design 参考
 
-从 `shikiform/antd` 导入这些 API。新项目先理解组件库无关的 [React Hooks](/reference/react-hooks) 与 `Field`；antd 只负责控件、布局、反馈和事件适配。想看代码怎么接，读 [把字段接到 Ant Design](/guide/antd-binding)。
+从 `shikiform/antd` 导入这些 API。新项目先理解组件库无关的 [React Hooks](/reference/react-hooks) 与 `Field`；antd 只负责控件、布局、反馈和事件适配。想看代码怎么接，读 [把字段接到 Ant Design](/guide/antd)。
 
 这里的适配层使用同一个 `FormEngine`，不是把业务值再同步进 antd Form。`useAntdForm` / `useAntdField` 是保留的预绑定便利入口，不是另一套状态架构，也不是使用 antd 控件的前提。`AppField` render prop 上的 `field.Input`、`field.Select` 等是预绑定成员，`Submit` 是表单实例成员。`shikiform/antd` 另有同名的独立导出 `Input`、`Select` 等：它们是 `connect` 适配层的控件，与 `<Field decorator={[FormItem]} component={[Input]}>` 配合使用，见 [Ant Design 适配层](/reference/antd-adapter)。`field.Input` 等预绑定成员就是这些控件（Input / Select / InputNumber 外包一层 `FormItem`），全库只有一套适配层。
 
@@ -26,7 +26,7 @@ useAntdForm<T>(options?: FormOptions<T>)
 
 `AppField` 接收 `name`、`children` 和 `useField` 的全部选项（`rules`、`required`、`title`、`description`、`componentProps`…）；它就是正式 `Field` 加预绑定控件：`hidden` / `none` 不渲染控件，`rules` / `required` 是挂载期 lease，`title` 会显示为 `field.Input` 外层 `FormItem` 的 label。不传 `rules` / `required` 时不取得或释放同路径其他 Field 的规则 lease。
 
-`AppForm` 的原生提交会调用 `form.submit()` 做校验。要拿到通过校验的业务值，显式调用 `form.submit(onValid)`；完整写法在 [预绑定示例](/guide/antd-binding#第二步使用预绑定控件)。不要给 `AppForm` 传一个它不接收的回调。
+`AppForm` 的原生提交会调用 `form.submit()` 做校验。要拿到通过校验的业务值，显式调用 `form.submit(onValid)`；完整写法在 [预绑定示例](/guide/antd#预绑定useantdform)。不要给 `AppForm` 传一个它不接收的回调。
 
 ## useAntdField
 
@@ -38,7 +38,7 @@ useAntdField<TValue = any>(): FieldBinding<TValue>
 
 - 在 `useAntdForm` / `createAntdFormHook()` 的 `AppField` 后代中调用。缺少上下文会抛错。
 - 它不同于 `useField(name)`：后者按相对路径订阅；前者消费当前预绑定字段。
-- 用它封装自定义控件时仍要处理 `value` / `checked`、事件取值、失焦、错误和展示态。见 [自定义适配](/guide/antd-binding#第三步封装项目自己的控件)。
+- 用它封装自定义控件时仍要处理 `value` / `checked`、事件取值、失焦、错误和展示态。见 [自定义适配](/guide/antd#封装自己的控件)。
 
 ## createAntdFormHook
 
@@ -155,7 +155,7 @@ export default function App() {
 
 Input、Select、InputNumber 外面有一层 **`FormItem` 装饰器**（从 `AppField` 提供的字段上下文读字段），显示第一个错误、error 状态、required，以及 `AppField title` 作为 label。它不负责字段值/规则。Switch/Checkbox 不自动带这个外壳。
 
-字段 `disabled` 和控件 `disabled` 合并。Input/InputNumber 的 readOnly 使用原生只读属性，Select 的 readOnly 映射为 disabled；Switch/Checkbox 在 readOnly 和 readPretty 时都保留 checked 外观并禁用交互，不声称变成纯文本。Input/Select/InputNumber 的 readPretty 改为文本展示（Select 显示选项 label）。显示与提交的区别见 [pattern](/guide/pattern) 和 [显隐](/guide/display)。这些 UI 状态不禁止程序调用 `form.setValue()`。
+字段 `disabled` 和控件 `disabled` 合并。Input/InputNumber 的 readOnly 使用原生只读属性，Select 的 readOnly 映射为 disabled；Switch/Checkbox 在 readOnly 和 readPretty 时都保留 checked 外观并禁用交互，不声称变成纯文本。Input/Select/InputNumber 的 readPretty 改为文本展示（Select 显示选项 label）。显示与提交的区别见 [pattern](/guide/concepts) 和 [显隐](/guide/concepts)。这些 UI 状态不禁止程序调用 `form.setValue()`。
 
 ### form.Submit
 
@@ -214,7 +214,7 @@ export default function App() {
 | `virtualScroll` | 默认不启用；`{ height, rowHeight?, overscan? }` | height 必填；rowHeight 默认 `42`，overscan 默认 `4` |
 | `children` | `({ index: number, key: string }) => ReactNode` | 在 `RowScope` 内渲染；子字段 name 相对当前行 |
 
-这是 `useArrayField` + 行 scope + 可选 `VirtualRows`，**不是 Ant Design Table**，不接收 columns/pagination，也不创建增删按钮。数组操作见 [useArrayField](/reference/react-hooks#usearrayfield)。虚拟滚动的未挂载规则见 [未挂载字段](/guide/unmounted)。
+这是 `useArrayField` + 行 scope + 可选 `VirtualRows`，**不是 Ant Design Table**，不接收 columns/pagination，也不创建增删按钮。数组操作见 [useArrayField](/reference/react-hooks#usearrayfield)。虚拟滚动的未挂载规则见 [未挂载字段](/guide/validation)。
 
 ## MergedTable
 

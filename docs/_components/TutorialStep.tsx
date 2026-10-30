@@ -1,44 +1,33 @@
-import '@live-demo/rspress/web/index.css';
-import { LiveDemoLazy } from '@live-demo/rspress/web/lazy';
-import { useSiteDark } from '../../site/bridge/theme';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { Playground } from '../../site/bridge/playground/Playground';
 import fields from '../tutorial/_files/fields.tsx?raw';
 
-const EXTERNAL = ['shikiform', 'antd', 'zod'];
-
+/**
+ * One tutorial exercise: App.tsx (the lesson) and fields.tsx (a copyable UI adapter over the public `Field`),
+ * both editable. "看答案" swaps in the solution; reset returns to the starter code.
+ */
 export function TutorialPlay({ starter, solution }: { starter: string; solution: string }) {
-  const isDark = useSiteDark();
   const [answer, setAnswer] = useState(false);
-  const [nonce, setNonce] = useState(0);
-  const code = answer ? solution : starter;
-  const pluginProps = {
-    // Both files are visible and editable. Copy them together into an application.
-    // fields.tsx only adapts the public Field binding; it has no form state of its own.
-    files: JSON.stringify({ 'App.tsx': code, 'fields.tsx': fields }),
-    entryFileName: JSON.stringify('App.tsx'),
-    externalImports: JSON.stringify(EXTERNAL),
-    options: JSON.stringify({ fileTabs: { hideSingleTab: true } }),
-  };
+  const [round, setRound] = useState(0);
+  const files = useMemo(() => ({ 'App.tsx': answer ? solution : starter, 'fields.tsx': fields }), [answer, starter, solution]);
   return (
     <div className="tutorial-play">
-      <div className="tutorial-actions">
-        <button type="button" className="shiki-btn shiki-btn-primary" onClick={() => setAnswer(true)}>
-          看答案
-        </button>
-        <button
-          type="button"
-          className="shiki-btn"
-          onClick={() => {
-            setAnswer(false);
-            setNonce((value) => value + 1);
-          }}
-        >
-          重置
-        </button>
-        <span className="shiki-muted">{answer ? '正在看参考写法' : '这是起始代码，可以直接改'}</span>
-      </div>
-      <p className="shiki-muted">App.tsx 是本节示例；fields.tsx 是可复制的 UI 适配层。两个文件都能查看、修改，请一起复制。</p>
-      <LiveDemoLazy key={`${answer ? 'answer' : 'starter'}-${nonce}`} isDark={isDark} pluginProps={pluginProps} />
+      <Playground
+        key={`${answer ? 'answer' : 'starter'}-${round}`}
+        files={files}
+        editing
+        label="教程练习"
+        status={answer ? '参考写法' : '起始代码'}
+        actions={
+          <button type="button" className="sf-demo__btn sf-demo__btn--primary" disabled={answer} onClick={() => setAnswer(true)}>
+            看答案
+          </button>
+        }
+        onReset={() => {
+          setAnswer(false);
+          setRound((value) => value + 1);
+        }}
+      />
     </div>
   );
 }

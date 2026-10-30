@@ -1,32 +1,115 @@
 ---
 title: 校验
-description: 离开输入框和提交时查。规则写在哪，卸掉之后还在不在，以库为准。
+description: 内置规则、Standard Schema（Zod）、跨字段与异步校验；规则写在哪决定组件卸载后还查不查。
 ---
+
+import starter from '../tutorial/_files/10-declared.tsx?raw';
+import solution from '../tutorial/_files/10-declared.solution.tsx?raw';
+import { TutorialPlay } from '../_components/TutorialStep';
 
 # 校验
 
-姓名留空，离开输入框，会出现提示。邀请码的输入框可以不在页面上，提交时仍然会查。这两件事不是同一种规则。
+## 规则
 
-默认在离开输入框（`onBlur`）和提交（`onSubmit`）时校验。表单用 `validateTrigger` 配置；当前 React `Field` 不接收 `trigger` 属性。需要逐字段触发配置时，使用引擎的 `registerField(path, { trigger: [...] })`。
+`rules` 接受一条内置规则、一个 [Standard Schema](https://standardschema.dev)（Zod、Valibot、ArkType），或它们的数组：
 
-规则从哪里来，决定卸掉输入框之后还查不查。
-
-| 规则写在 | 输入框卸掉之后 |
+| 内置规则 | 含义 |
 |---|---|
-| JSX 的 `rules` / `required` | 不再查。卸掉时清掉，不擦掉下面两行 |
-| `useForm({ fields })` 或 `registerField` | 仍查 |
-| `reaction` 里的 `$rules` / `$required` | 仍查 |
+| `required` | 空值失败（也可以直接写 `required` 属性） |
+| `min` / `max` | 数字上下限（含） |
+| `minLength` / `maxLength` | 字符串长度 |
+| `pattern` | 正则 |
+| `format: 'email' \| 'url'` | 内置格式 |
+| `isTrue` | 必须为 `true`（同意条款） |
+| `validator(value, ctx)` | 返回错误文案、空值或它们的 Promise；`ctx` 有 `record`（最近的对象）、`parent`（跳过数组的上一层）、`root`、`get(path)`、`signal` |
+| `message` | 覆盖这条规则的文案 |
 
-可以在 [没挂载的字段](/guide/unmounted) 里点：关掉「填写更多」再提交，邀请码仍报「必填」，昵称不再报。
+```tsx preview play=schema
+import { useState } from 'react';
+import { Button, Form as AntdForm } from 'antd';
+import { z } from 'zod';
+import { Field, Form, Watch, useForm, type Draft } from 'shikiform';
+import { Checkbox, FormItem, FormLayout, Input } from 'shikiform/antd';
 
-display 再决定查不查得到：
+type Values = { username: string; email: string; password: string; confirm: string; agree: boolean };
+const TAKEN = ['admin', 'root'];
 
-- `visible` 和 `hidden` 都查。藏起来的必填，提交一样会挡住。
-- `none` 不查，也不进提交结果。
-- 计算字段不查。
+export default function App() {
+  const [result, setResult] = useState('');
+  const form = useForm<Values>({
+    initialValues: { username: '', email: '', password: '', confirm: '', agree: false },
+    fields: {
+      username: { asyncDebounceMs: 300 }, // 停止输入 300ms 后才跑异步规则
+      confirm: { virtual: true }, // 参与校验，不进提交结果
+    },
+    // 跨字段：返回 path → 文案
+    validate: (values) => (values.confirm && values.confirm !== values.password ? { confirm: '两次密码不一致' } : undefined),
+  });
+  return (
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
+      <FormLayout labelCol={{ span: 5 }} wrapperCol={{ span: 19 }}>
+        <Field name="username" title="用户名" required decorator={[FormItem]} component={[Input]}
+          rules={[
+            z.string().min(3, '至少 3 个字符'),
+            { validator: (value, { signal }) => new Promise<string | null>((resolve) => {
+              const timer = setTimeout(() => resolve(TAKEN.includes(String(value)) ? '用户名已被占用' : null), 400);
+              signal?.addEventListener('abort', () => clearTimeout(timer));
+            }) },
+          ]} />
+        <Field name="email" title="邮箱" required rules={{ format: 'email' }} decorator={[FormItem]} component={[Input]} />
+        <Field name="password" title="密码" required rules={{ minLength: 6, message: '至少 6 位' }} decorator={[FormItem]} component={[Input.Password]} />
+        <Field name="confirm" title="确认密码" required decorator={[FormItem]} component={[Input.Password]} />
+        <Field name="agree" rules={{ isTrue: true, message: '请先同意条款' }} decorator={[FormItem, { wrapperCol: { offset: 5, span: 19 } }]}>
+          <Checkbox>我已阅读并同意条款</Checkbox>
+        </Field>
+        <AntdForm.Item wrapperCol={{ offset: 5, span: 19 }}>
+          <Watch select={(d: Draft<Values>) => d.$submitting}>
+            {(submitting) => <Button type="primary" htmlType="submit" loading={submitting}>注册</Button>}
+          </Watch>
+        </AntdForm.Item>
+      </FormLayout>
+      <pre aria-live="polite">{result}</pre>
+    </Form>
+  );
+}
+```
 
-数量上限可以写在 `reaction` 里，例如库存变了就改 `$rules` 的 `max`。SKU 选择器就是这样，见 [SKU 选择器](/play/sku-picker)。
+试试 `admin`：异步规则在停止输入后运行，较新的输入会中止旧请求（`signal`）并丢弃迟到的结果。
 
-跨层规则用 `validator` 的 `ctx`。`ctx.parent` 是上一层记录（跳过数组）。C 级供应商的单价不能超过 1000，写在产品价格上，读的是供应商的 `level`。见 [供应商和产品](/play/merged)。
+整表也可以交给一个 schema：`useForm({ validate: z.object({ … }) })`，issue 的 `path` 会落到对应字段（`['items', 0, 'name']` → `items.0.name`）。字段上的 schema 校验这个字段的值，issue path 相对字段。
 
-提交会先等进行中的异步规则。校验过程中值又变了，或者又开始了新的一轮校验，这次提交不写入，提示再交一次。
+## 什么时候校验
+
+- 默认在失焦（`onBlur`）和提交（`onSubmit`）时；表单级改 `validateTrigger: ['onChange', 'onBlur', 'onSubmit']`。控件必须把 blur 交回 `field.onBlur`（接好的 antd 控件已经做了）。
+- 手动：`form.validate()` 校验全表，`form.validate('items')` 校验一棵子树，都返回 `FieldError[]`（`{ path, messages }`）。
+- `submit` 先等进行中的异步规则再校验；通过才调用回调。校验期间值又变了，这次提交返回 `ok: false` 并提示重试，不会把没校验过的值交出去。
+
+## 规则写在哪
+
+规则的来源决定**组件卸载后还查不查**：
+
+| 规则写在 | `<Field>` 卸载后 |
+|---|---|
+| JSX：`<Field rules required>`、`useField(name, { rules })` | 不再查（挂载期规则，卸载时释放） |
+| `useForm({ fields })`、`registerField`、行模板 `items.*.name` | 仍查 |
+| reaction 里的 `$rules` / `$required` | 仍查（并且优先级最高） |
+
+显隐再决定查不查：`visible` 和 `hidden` 都查（藏起来的必填照样挡住提交），`none` 不查也不提交，计算字段不查。
+
+跨标签页、折叠区、虚拟滚动之外都要校验的业务规则，写在 `fields` 或 reaction 里；只在当前界面有意义的临时规则才写 JSX。
+
+### 练一练：没挂载的字段
+
+关掉「填写更多」，昵称和邀请码的输入框都不在页面上，现在直接提交没有错误。改成：
+
+1. `defineEffects` 里写 `d.code.$rules = [{ required: true, message: '邀请码必填' }]`，把 effects 传给 `useForm`；
+2. `useForm` 加上 `fields: { code: {} }`；
+3. 邀请码的 `Field` 去掉 `rules`，昵称的 JSX 规则留着。
+
+再关掉开关提交：错误列表仍有「邀请码必填」，昵称不再校验。点「看答案」对照。
+
+<div>
+<TutorialPlay starter={starter} solution={solution} />
+</div>
+
+继续：按名字查 [API](/api)。

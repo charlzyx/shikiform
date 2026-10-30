@@ -106,7 +106,7 @@ form.AppField<N extends FieldPath<T>>(props: {
 
 `field.TextInput` 在字段 context 中读取当前绑定，不再传 `name`。同一个 AppField 内再创建字段组时，子名字相对这个字段路径。
 
-AppField 复用普通 Field 的订阅与显示路径：`hidden` / `none` 不渲染子 UI，但二者的校验和提交含义不同。因为它没有 JSX `rules` / `required` 声明，所以只消费绑定，不取得或释放别人的校验 lease。参见 [显隐](/guide/display)。
+AppField 复用普通 Field 的订阅与显示路径：`hidden` / `none` 不渲染子 UI，但二者的校验和提交含义不同。因为它没有 JSX `rules` / `required` 声明，所以只消费绑定，不取得或释放别人的校验 lease。参见 [显隐](/guide/concepts)。
 
 普通 `Field` 只有在实际传入 `rules` 或 `required` 时才拥有 JSX 校验声明；`rules={[]}`、`required={false}` 也算显式声明。纯绑定消费者可以与已有规则的 Field 同路径挂载，但当前核心仍只保存一份 JSX 规则，不支持多个同路径 Field 各自持有不同的 JSX 校验配置；不要把这次纯消费者修正当成多 owner 规则合并。
 
@@ -219,4 +219,4 @@ export default function FormHookExample() {
 
 这就是预绑定的边界：工厂处理上下文与类型，输入组件处理 UI props，引擎处理值和规则。没有 `cloneElement` 猜测子组件属性，也没有第二套 `Form.Item name` 注册。
 
-[实现：create-form-hook.tsx](https://github.com/charlzyx/shikiform/blob/main/src/react/factory/create-form-hook.tsx) · [字段生命周期](/guide/unmounted) · [API 总览](/api)
+[实现：create-form-hook.tsx](https://github.com/charlzyx/shikiform/blob/main/src/react/factory/create-form-hook.tsx) · [字段生命周期](/guide/validation) · [API 总览](/api)

@@ -52,7 +52,7 @@ VitePress 的 `@docsearch/js` 所带 React 适配器有可选 `React <19` peers�
 - Framework preset：`None`。不要留着 Astro。
 - Node 版本过低时加环境变量 `NODE_VERSION=22`。
 
-Playground 随 `npm run build` 一起进入 `dist/play/`。每个 `/play/...` 路由都有静态入口；从 [可点的例子](https://shikiform.pages.dev/guide/demos) 进入，不依赖开发服务器的 SPA fallback。只改 playground 时可单独运行 `npm run build:play`，它不会清掉 `dist/` 下的文档。
+Playground 随 `npm run build` 一起进入 `dist/play/`。每个 `/play/...` 路由都有静态入口；从 [示例库](https://shikiform.pages.dev/examples) 进入，不依赖开发服务器的 SPA fallback。只改 playground 时可单独运行 `npm run build:play`，它不会清掉 `dist/` 下的文档。
 
 默认构建先运行 `check:docs`：从本次 `npm pack` 解包创建消费者，复制原样教程与可执行 MDX，严格类型检查、生产打包，并以该包执行 SSR。这个检查不访问注册表安装依赖，不代表浏览器交互/水合通过；真实浏览器仍由 `test:e2e` 覆盖。
 
@@ -62,7 +62,7 @@ ESM 入口共享内部 chunks，避免 `shikiform` 与 `shikiform/antd` 各自�
 
 ### 验证部署成功
 
-- 首页、`/architecture`、`/tutorial/`、十节教程、`/examples`、`/api`、七个参考页与深入指南存在真实 SSR 正文。
+- 首页、`/guide/*` 指南（快速开始 → 核心概念 → 字段 → 联动 → 结构 → Pro → 校验）、`/tutorial/`、十节教程、`/examples`、`/api`、七个参考页与 `/agents` 存在真实 SSR 正文，每个 `tsx preview` 示例都 SSR 出真实组件。
 - `/examples` 能进入全部 23 个 `/play/...` 场景，静态入口不依赖 SPA fallback。
 - MDX 整页进入 VitePress 原生侧栏、上一页/下一页、本页目录和本地搜索；React 负责岛内节点，Vue 路由卸载时清理 React root。
 - 原内部草稿 `/usage/*`、`/OUTLINE`、`/coverage-checklist` 不再进入公共构建或搜索；旧链接显式重定向到正式教程/指南/示例。
@@ -83,6 +83,6 @@ ESM 入口共享内部 chunks，避免 `shikiform` 与 `shikiform/antd` 各自�
 
 ## 文档架构
 
-`docs/` 是公开内容的单一来源。`site/mdx/` 在构建前为 `.mdx` 自动生成原生 VitePress `.md` 路由壳，使用官方 MDX 编译器；正文仍由原文件编译，没有第二份手写页面。标题、目录锚点与搜索来自同一正文 AST。静态 preview 在构建时编译原样 TSX，并 SSR 真实正式库组件；可编辑教程复用 `@live-demo/rspress/web/lazy` 的公开运行时入口，不使用 Rspress 站点引擎。编辑器运行可信示例，不是任意代码沙箱，运行时需要 CSP `unsafe-eval`。
+`docs/` 是公开内容的单一来源。`site/mdx/` 在构建前为 `.mdx` 自动生成原生 VitePress `.md` 路由壳，使用官方 MDX 编译器；正文仍由原文件编译，没有第二份手写页面。标题、目录锚点与搜索来自同一正文 AST。静态 preview 在构建时编译原样 TSX，并 SSR 真实正式库组件。示例外壳是 `site/bridge/playground/`（样式 `site/.vitepress/theme/demo.css`，只用 VitePress 变量）：预览在上、源码可折叠，工具栏可编辑（按需加载 CodeMirror 与 Sucrase，在浏览器里重新编译同一份源码）、复制、重新运行、重置、打开 `/play`、全屏；antd 跟随 VitePress 明暗主题，切换不丢表单状态。预览区带 `.vp-raw`，经 `postcssIsolateStyles` 隔离 VitePress 的重置与正文样式。编辑器运行可信示例，不是任意代码沙箱，运行时需要 CSP `unsafe-eval`。
 
 归档和排期放在 `archive/`、`internal/`；实现分层说明在 [design/ARCHITECTURE.md](design/ARCHITECTURE.md)，都不在站点 source tree。源码测试与 JSDOM 生命周期验证不能替代真实浏览器布局、键盘/拖动、导航验收；受限环境下未执行的浏览器项必须单独记录。

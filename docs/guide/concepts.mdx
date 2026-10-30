@@ -1,0 +1,131 @@
+---
+title: 核心概念
+description: handle 与 value、$ 状态、fields 声明，以及一次输入怎样流过引擎。
+---
+
+# 核心概念
+
+## 一张表单一个引擎
+
+`useForm` / `createForm` 返回一个 `FormEngine`。它同时持有**值**（`initialValues` 的那棵树）和**字段模型**（每个 path 的显隐、pattern、规则、错误、UI 状态）。React 组件、联动、校验都读写这一个引擎，没有第二份 store。
+
+| 层 | 负责 | 不负责 |
+|---|---|---|
+| core | 值与字段状态、联动、校验、提交 | 渲染 |
+| React | 订阅 path、提供作用域（对象 / 行 / 树节点） | 另存一份值 |
+| antd 适配 | 把字段映射成控件 props 和 `Form.Item` 反馈 | 用 antd `Form` 管同一份值 |
+
+## handle 与 value
+
+联动和 `form.batch` 拿到的 `d` 是一个 **draft**。`d.user.name` 是 **handle**：只是一个 path，访问属性不会读取数据。以 `$` 开头的成员才是状态：
+
+```ts
+d.user.name.$value            // 读值（在 reaction 里会成为依赖）
+d.user.name.$value = 'Ada'    // 写这个字段
+d.user.name.$required = true  // 写字段状态
+d.items.$value                // 整个数组的值；d.items 本身不是数组
+```
+
+- 写字段就赋值它自己的 path：`d.user.name.$value = 'x'`。不要改 `$value` 返回的对象（`d.user.$value.name = 'x'`）：那是不可变快照，改了没人知道。
+- handle 不是数组：`d.items.map`、`d.items.length`、`for…of` 都不对。读 `d.items.$value`，或者用 [`reaction.each`](/guide/linkage)。
+- 名为 `value` 的字段写作 `d.value.$value`。
+
+开发构建遇到这几类错误会抛 `ShikiUsageError`，信息里写着该怎么改；生产构建不做检查。
+
+```tsx preview
+import { Button, Space } from 'antd';
+import { Field, Form, Watch, useForm, type Draft } from 'shikiform';
+import { FormItem, Input } from 'shikiform/antd';
+
+type Values = { user: { name: string; email: string } };
+
+export default function App() {
+  const form = useForm<Values>({ initialValues: { user: { name: 'Ada', email: '' } } });
+  return (
+    <Form form={form}>
+      <Field name="user.name" title="姓名" decorator={[FormItem]} component={[Input]} />
+      <Field name="user.email" title="邮箱" decorator={[FormItem]} component={[Input]} />
+      <Space wrap>
+        <Button onClick={() => form.batch((d) => { d.user.name.$value = 'Grace'; })}>写 user.name</Button>
+        <Button onClick={() => form.batch((d) => { d.user.email.$required = !d.user.email.$required; })}>切换邮箱必填</Button>
+        <Button onClick={() => form.batch((d) => { d.user.email.$pattern = d.user.email.$pattern === 'readPretty' ? undefined : 'readPretty'; })}>切换阅读态</Button>
+      </Space>
+      <Watch select={(d: Draft<Values>) => d.user.$value}>{(user) => <pre>{JSON.stringify(user)}</pre>}</Watch>
+    </Form>
+  );
+}
+```
+
+`form.batch(fn)` 用同一个 draft 做一组写入，只触发一轮联动和一次通知。单个值也可以 `form.setValue('user.name', 'Grace')`。
+
+## `$` 状态
+
+| 状态 | 含义 |
+|---|---|
+| `$value` | 值。reaction 写它时，字段成为**计算字段**（默认 `readPretty` + `virtual`） |
+| `$display` / `$visible` | `visible` / `hidden` / `none`；`$visible = false` 等于 `hidden` |
+| `$pattern` / `$disabled` | `editable` / `disabled` / `readOnly` / `readPretty`；`undefined` 表示继承父级 |
+| `$required` / `$rules` | 必填与规则；reaction 写的规则不随组件卸载 |
+| `$enum` | 选项（静态数组或 `EnumSource.with(params)`） |
+| `$title` / `$description` | 装饰器的标签 / 说明（`FormItem` → `label` / `extra`） |
+| `$component` / `$decorator` | `<Field>` 渲染的控件 / 装饰器 |
+| `$componentProps` / `$decoratorProps` | 控件 / 装饰器 props，可以按键打补丁 |
+| `$errors` `$warnings` `$validating` `$touched` `$dirty` | 只读 |
+| `d.$canSubmit` `d.$submitting` `d.$submitCount` | 表单级只读状态，在根 draft 上读 |
+
+## 显隐、pattern 与提交
+
+| 设置 | UI | 校验 | 提交 |
+|---|---|---|---|
+| `display: 'visible'` | 渲染 | 查 | 带上 |
+| `display: 'hidden'`（含 `$visible = false`） | 不渲染 | **仍查** | **仍带上** |
+| `display: 'none'` | 不渲染 | 跳过 | 拿掉 |
+| `virtual: true` | 不影响 | 查 | 拿掉 |
+
+`display` 和 `pattern` 都从父级往下传：父级 `none`，子级都是 `none`；子级显式写了 `$pattern` 就用自己的，写 `undefined` 恢复继承。`disabled` / `readOnly` 只是交互约束，不阻止程序写入。
+
+## `fields` 声明
+
+字段模型可以不等组件挂载就存在。写在 `fields` 里的字段，没渲染（标签页没打开、折叠、虚拟滚动之外）也照样校验；它的 UI 也可以一起声明，然后 `<Field name="city" />` 就能渲染出来：
+
+```tsx preview play=tabs
+import { Field, Form, Watch, useForm, type Draft } from 'shikiform';
+import { FormItem, Input, Select } from 'shikiform/antd';
+
+type Values = { city: string; note: string; items: { name: string }[] };
+
+export default function App() {
+  const form = useForm<Values>({
+    initialValues: { city: 'sh', note: '', items: [{ name: '' }, { name: '' }] },
+    fields: {
+      city: {
+        title: '城市', decorator: [FormItem], component: [Select, { style: { width: 160 } }],
+        enum: [{ label: '上海', value: 'sh' }, { label: '北京', value: 'bj' }],
+      },
+      note: { title: '备注', description: '声明在 fields 里的说明', decorator: [FormItem], component: [Input.TextArea] },
+      // 模板：作用于 items 的每一行（包括以后 push 的行）
+      'items.*.name': { required: true },
+    },
+  });
+  return (
+    <Form form={form}>
+      <Field name="city" />
+      <Field name="note" />
+      <button type="button" onClick={() => void form.validate()}>校验（items 没有渲染）</button>
+      <Watch select={(d: Draft<Values>) => d.items.$errors}>{(errors) => <small> 错误：{errors.join('；') || '无'}</small>}</Watch>
+    </Form>
+  );
+}
+```
+
+UI 状态有三层，后者覆盖前者（对象按顶层键合并）：`fields` 声明 → JSX（`<Field title componentProps>`）→ reaction（`$title`、`$componentProps`）。
+
+## 一次输入的路径
+
+1. 控件把事件转成值，调用 `field.onChange(value)`。
+2. 引擎写入，标记脏键；读过这些键的 `reaction` 重新运行，写下的状态继续唤醒下游，直到稳定。`watch` 在来源变化后执行动作。
+3. 订阅了相关 path 的组件重新渲染。父组件不订阅单元格的值。
+4. 失焦、提交（或配置的 `onChange`）时校验。
+5. `submit` 等待异步规则并校验；通过才调用回调，结果里去掉 `virtual`、`display: 'none'` 和计算字段。
+
+继续：[Field、装饰器与组件](/guide/field)。

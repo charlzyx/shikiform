@@ -1,0 +1,139 @@
+---
+title: 数组、树与嵌套对象
+description: ObjectField / ArrayField / TreeField 提供相对作用域；按 path 写值，对象型 UI 状态按键打补丁。
+---
+
+# 数组、树与嵌套对象
+
+值就是普通的嵌套对象和数组。结构组件只做一件事：给里面的字段一个**作用域**，让它们写相对名字。
+
+| 组件 | 作用域 | 行 / 节点操作 |
+|---|---|---|
+| `<ObjectField name="profile">` | `profile.*` | — |
+| `<ArrayField name="items" rowKey="id">{({ index, key }) => …}</ArrayField>` | 每行 `items.N.*` | `form.pushArray` / `insertArray` / `removeArray` / `moveArray` / `swapArray` / `replaceArray`，行内 `useArray()` |
+| `<TreeField name="nodes">{(tree) => …}</TreeField>` + `<RowScope path pos>` | 每个节点 | `tree.move(from, to)`（`form.moveTree`） |
+
+## 对象与数组
+
+```tsx preview
+import { Button, Space } from 'antd';
+import { ArrayField, Field, Form, ObjectField, Watch, useArray, useIndex, useForm, type Draft } from 'shikiform';
+import { FormItem, FormLayout, Input } from 'shikiform/antd';
+
+type Contact = { id: number; name: string; phone: string };
+type Values = { profile: { name: string; address: { city: string } }; contacts: Contact[] };
+
+let nextId = 3;
+
+/** 行内操作：不需要知道数组名和行号，从作用域里拿。 */
+function RowActions() {
+  const array = useArray<Contact>();
+  const index = useIndex();
+  return (
+    <Space.Compact>
+      <Button disabled={index === 0} onClick={() => array.move(index, index - 1)}>上移</Button>
+      <Button disabled={index === array.keys.length - 1} onClick={() => array.move(index, index + 1)}>下移</Button>
+      <Button danger onClick={() => array.remove(index)}>删除</Button>
+    </Space.Compact>
+  );
+}
+
+export default function App() {
+  const form = useForm<Values>({
+    initialValues: {
+      profile: { name: 'Ada', address: { city: '伦敦' } },
+      contacts: [{ id: 1, name: 'Charles', phone: '100' }, { id: 2, name: 'Mary', phone: '200' }],
+    },
+    fields: { 'contacts.*.name': { required: true } },
+  });
+  return (
+    <Form form={form}>
+      <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }}>
+        <ObjectField name="profile">
+          <Field name="name" title="姓名" decorator={[FormItem]} component={[Input]} />
+          <ObjectField name="address">
+            <Field name="city" title="城市" description="path 是 profile.address.city" decorator={[FormItem]} component={[Input]} />
+          </ObjectField>
+        </ObjectField>
+      </FormLayout>
+      <ArrayField name="contacts" rowKey="id">
+        {() => (
+          <FormLayout layout="inline" feedbackLayout="terse" style={{ marginBottom: 8 }}>
+            <Field name="name" title="联系人" decorator={[FormItem]} component={[Input, { style: { width: 120 } }]} />
+            <Field name="phone" title="电话" decorator={[FormItem]} component={[Input, { style: { width: 120 } }]} />
+            <RowActions />
+          </FormLayout>
+        )}
+      </ArrayField>
+      <Button onClick={() => form.pushArray('contacts', { id: nextId++, name: '', phone: '' })}>添加联系人</Button>
+      <Watch select={(d: Draft<Values>) => d.$value}>{(values) => <pre>{JSON.stringify(values, null, 2)}</pre>}</Watch>
+    </Form>
+  );
+}
+```
+
+- 行身份用 `rowKey`（这里是 `id`），移动后字段状态（错误、touched）跟着行走；path 里的下标会变，不要拿下标当身份。
+- `ArrayField` 的父组件只订阅**结构**（行数、行 id），不订阅单元格的值。
+- `contacts.*.name` 是行模板：已有的行和以后 push 的行都带这条规则，行没渲染也会校验。
+- 数组的增删改走 `form.*Array` 或 `useArray()`；不要原地 `push` 到 `getValue` 拿到的数组。
+
+树的写法见 [联动 · reaction.walk](/guide/linkage) 和 [Headless Hooks](/guide/headless)：节点由你渲染，每个节点包一层 `<RowScope path pos>`；`trees` 选项让联动在组件挂载前就能找到树根。
+
+## 嵌套值：按 path 写
+
+表单值按 path 写，只唤醒读过这个 path 的订阅者：
+
+```ts
+d.user.name.$value = 'x'                              // ✓ 只改一个字段，只唤醒 user.name 的读者
+d.user.$value = { ...d.user.$value, name: 'x' }       // 整体替换：所有读 user 的地方都会重跑
+d.user.$value.name = 'x'                              // ✗ 改了不可变快照，开发构建直接抛错
+d.items.$value = [...d.items.$value, row]             // 整体替换数组（effects 外用 form.pushArray）
+```
+
+## 对象型 UI 状态：按键打补丁
+
+`$componentProps` / `$decoratorProps` 是对象，通过 draft 写它们是 Immer 式的：拷贝已存的对象，只改你写到的那个键。
+
+```tsx preview
+import { Field, Form, defineEffects, useForm } from 'shikiform';
+import { FormItem, FormLayout, Input, Switch } from 'shikiform/antd';
+
+type Values = { highlight: boolean; city: string };
+
+const effects = defineEffects<Values>(({ reaction }) => {
+  reaction((d) => {
+    const props = d.city.$componentProps;
+    props.style ??= {}; // 中间对象不会自动创建
+    props.style.color = d.highlight.$value ? 'crimson' : undefined; // 只改 style.color
+  });
+});
+
+export default function App() {
+  const form = useForm<Values>({
+    initialValues: { highlight: true, city: '杭州' },
+    // 声明层的 style.width 会被补丁保留
+    fields: { city: { componentProps: { style: { width: 240 } } } },
+    effects: [effects],
+  });
+  return (
+    <Form form={form}>
+      <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }}>
+        <Field name="highlight" title="高亮" decorator={[FormItem]} component={[Switch]} />
+        {/* JSX 的 placeholder / allowClear 不受影响：reaction 没写这两个键 */}
+        <Field name="city" title="城市" decorator={[FormItem]} component={[Input, { placeholder: '城市', allowClear: true }]} />
+      </FormLayout>
+    </Form>
+  );
+}
+```
+
+| 写法 | 结果 |
+|---|---|
+| `d.x.$componentProps.placeholder = '…'` | 只改这个键，其他键保留 |
+| `d.x.$componentProps.style.color = 'red'` | 以模型里已存的 `style`（`fields` 声明 + 之前的 reaction 写入）为底拷贝；`style` 不存在时先 `??= {}` |
+| `d.x.$componentProps = { … }` | 整体替换，所有下层（`fields`、JSX）都不再生效 |
+| `d.x.$componentProps = undefined` | 撤销 reaction 这一层 |
+
+合并按顶层键进行：reaction 写了 `style`，JSX 里的整个 `style` 就被它盖住。所以要和联动配合的嵌套 props（如 `style`）放进 `fields` 声明，而不是 JSX。
+
+继续：[Headless Hooks](/guide/headless)。

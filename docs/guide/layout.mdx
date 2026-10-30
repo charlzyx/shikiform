@@ -1,0 +1,65 @@
+---
+title: FormLayout
+description: 给一组 FormItem 统一布局、标签宽度、尺寸和反馈方式；可以嵌套。
+---
+
+# FormLayout
+
+`FormLayout`（`shikiform/antd`）把布局交给里面的每个 `FormItem`，对应 Formily 的 `FormLayout`。它不是表单，也不持有值；嵌套时逐键合并，最近的一层优先。
+
+```tsx preview
+import { useState } from 'react';
+import { Radio as AntRadio, Space } from 'antd';
+import { Field, Form, useForm } from 'shikiform';
+import { FormItem, FormLayout, Input, Select, type FeedbackLayout } from 'shikiform/antd';
+
+type Layout = 'horizontal' | 'vertical' | 'inline';
+type Size = 'small' | 'middle' | 'large';
+
+export default function App() {
+  const [layout, setLayout] = useState<Layout>('horizontal');
+  const [size, setSize] = useState<Size>('middle');
+  const [feedback, setFeedback] = useState<FeedbackLayout>('loose');
+  const form = useForm({
+    initialValues: { name: '', city: undefined, remark: '' },
+    fields: { city: { enum: [{ label: '上海', value: 'sh' }, { label: '北京', value: 'bj' }] } },
+  });
+  return (
+    <>
+      <Space wrap style={{ marginBottom: 16 }}>
+        <AntRadio.Group size="small" value={layout} onChange={(event) => setLayout(event.target.value)}
+          options={['horizontal', 'vertical', 'inline']} optionType="button" />
+        <AntRadio.Group size="small" value={size} onChange={(event) => setSize(event.target.value)}
+          options={['small', 'middle', 'large']} optionType="button" />
+        <AntRadio.Group size="small" value={feedback} onChange={(event) => setFeedback(event.target.value)}
+          options={['loose', 'terse', 'none']} optionType="button" />
+      </Space>
+      <Form form={form}>
+        <FormLayout layout={layout} size={size} feedbackLayout={feedback} labelCol={{ span: 5 }} wrapperCol={{ span: 19 }}>
+          <Field name="name" title="姓名" required decorator={[FormItem]} component={[Input]} />
+          <Field name="city" title="城市" required decorator={[FormItem]} component={[Select, { style: { minWidth: 120 } }]} />
+          {/* 局部覆盖：这一项的标签放到上方 */}
+          <FormLayout layout="vertical" labelCol={{ span: 24 }} wrapperCol={{ span: 24 }}>
+            <Field name="remark" title="备注（嵌套的 vertical 布局）" decorator={[FormItem]} component={[Input.TextArea]} />
+          </FormLayout>
+          <button type="button" onClick={() => void form.validate()}>校验，看反馈方式</button>
+        </FormLayout>
+      </Form>
+    </>
+  );
+}
+```
+
+| 属性 | 作用 |
+|---|---|
+| `layout` | `horizontal`（标签在左）/ `vertical`（标签在上）/ `inline`（同一行流式排列） |
+| `labelCol` / `wrapperCol` / `labelAlign` / `colon` | 与 antd `Form.Item` 相同 |
+| `size` | 同时决定里面控件的尺寸（antd `componentSize`） |
+| `feedbackLayout` | `loose`（默认，错误占一行）/ `terse`（没有提示时不留底部间距，适合密集栅格和表格）/ `none`（不显示文字，只保留状态颜色） |
+| `className` / `style` | 包裹层样式 |
+
+优先级（低 → 高）：`FormLayout` → 字段的 `decoratorProps`（`fields` ← JSX ← `$decoratorProps`）→ `FormItem` 自己的 props。读当前继承到的布局用 `useFormLayout()`。
+
+表格单元格通常不要装饰器，或用 `decorator={[FormItem, { feedbackLayout: 'terse' }]}`，见 [Pro 组件](/guide/pro)。完整签名见 [FormLayout 参考](/reference/antd-adapter#formlayout)。
+
+继续：[Ant Design 适配](/guide/antd)。

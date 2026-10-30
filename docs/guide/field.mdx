@@ -1,0 +1,132 @@
+---
+title: Field、装饰器与组件
+description: Formily 式的 Field：decorator 包住 component，字段通过上下文传下去；UI 状态分三层。
+---
+
+# Field、装饰器与组件
+
+`<Field>` 是一个 path 的唯一拥有者。它渲染 `decorator` 包住 `component`，并通过上下文提供字段，所以装饰器（`FormItem`）和 `connect` 过的控件都不需要 `name`。
+
+```tsx
+<Field
+  name="email"              // 相对当前作用域（ObjectField / 数组行 / 树节点）
+  title="邮箱"               // 装饰器标签（FormItem → label）
+  description="用于登录"      // 装饰器说明（FormItem → extra）
+  required rules={{ format: 'email' }}
+  decorator={[FormItem, { tooltip: '工作邮箱' }]}
+  component={[Input, { placeholder: 'name@example.com' }]}
+/>
+```
+
+| 属性 | 作用 |
+|---|---|
+| `name` | 相对路径。`profile.name` 或在 `<ObjectField name="profile">` 里写 `name` |
+| `rules` / `required` | 挂载期规则：组件卸载时释放，不擦掉 `fields` 声明或 `$rules` |
+| `display` / `pattern` / `virtual` | 初始显隐 / 编辑态 / 不进提交；reaction 写的值优先 |
+| `title` / `description` | 装饰器的标签 / 说明 |
+| `decorator` / `component` | 组件，或 `[组件, props]` |
+| `decoratorProps` / `componentProps` | 与元组里的 props 相同，单独写 |
+| `children` | 控件元素（`<Input />`）或 render prop `(field) => …`，代替 `component` |
+
+## 四种写法
+
+同一个字段，按需要选：
+
+```tsx preview
+import { Input as AntInput } from 'antd';
+import { Field, Form, useForm } from 'shikiform';
+import { FormItem, FormLayout, Input } from 'shikiform/antd';
+
+export default function App() {
+  const form = useForm({ initialValues: { a: '元组', b: '子元素', c: 'render prop', d: '无装饰器' } });
+  return (
+    <Form form={form}>
+      <FormLayout labelCol={{ span: 6 }} wrapperCol={{ span: 18 }}>
+        {/* 1. 槽位：最常用 */}
+        <Field name="a" title="decorator + component" decorator={[FormItem]} component={[Input, { allowClear: true }]} />
+        {/* 2. 子元素：控件从上下文读字段 */}
+        <Field name="b" title="children 元素" decorator={[FormItem]}>
+          <Input addonBefore="@" />
+        </Field>
+        {/* 3. render prop：完全自己接线（这里用原生 antd Input） */}
+        <Field name="c" title="render prop" decorator={[FormItem]}>
+          {(field) => <AntInput id={field.id} value={field.value} onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} />}
+        </Field>
+        {/* 4. 不要装饰器：表格单元格常用 */}
+        <Field name="d" component={[Input]} />
+      </FormLayout>
+    </Form>
+  );
+}
+```
+
+`display` 不是 `visible` 时 `<Field>` 返回 `null`，但订阅和字段模型都在，校验照常。
+
+## UI 状态三层叠加
+
+`title`、`description`、`componentProps`、`decoratorProps` 存在字段模型上，来源从低到高：
+
+1. `fields` 声明；
+2. JSX（`<Field title>`、元组里的 props）；
+3. reaction（`$title`、`$componentProps.placeholder = …`）。
+
+对象按顶层键合并。所以「根据别的字段改控件属性」写在 reaction 里，而不是在渲染时算 props：
+
+```tsx preview
+import { Field, Form, defineEffects, useForm } from 'shikiform';
+import { FormItem, FormLayout, Input, Switch } from 'shikiform/antd';
+
+type Values = { vip: boolean; code: string };
+
+const effects = defineEffects<Values>(({ reaction }) => {
+  reaction((d) => {
+    const vip = d.vip.$value;
+    d.code.$title = vip ? '会员码' : '邀请码';
+    d.code.$componentProps.placeholder = vip ? 'VIP-0000' : '选填';
+    d.code.$componentProps.disabled = !vip;
+    d.code.$decoratorProps.tooltip = vip ? '会员必填' : undefined;
+    d.code.$required = vip;
+  });
+});
+
+export default function App() {
+  const form = useForm<Values>({ initialValues: { vip: false, code: '' }, effects: [effects] });
+  return (
+    <Form form={form}>
+      <FormLayout labelCol={{ span: 5 }} wrapperCol={{ span: 19 }}>
+        <Field name="vip" title="会员" decorator={[FormItem]} component={[Switch]} />
+        {/* JSX 的 allowClear 保留：reaction 只覆盖它写到的键 */}
+        <Field name="code" title="（被 reaction 覆盖）" decorator={[FormItem]} component={[Input, { allowClear: true }]} />
+      </FormLayout>
+    </Form>
+  );
+}
+```
+
+- 嵌套写 `d.x.$componentProps.style.color = 'red'` 只改这一处（不可变拷贝，其余键保留）；缺的中间对象不会自动创建，先 `style ??= {}`。
+- 整体赋值 `d.x.$componentProps = {…}` 替换所有下层；赋 `undefined` 撤销 reaction 这一层。
+- 同一个 reaction 里可以读回刚写的 UI 状态（这是唯一的例外，`$value` 等不行）。
+
+## Field 就是 useField
+
+`<Field>` 只是 `useField(name, options)` 加上「不是 visible 就返回 null」，再渲染两个槽。不用组件也能得到完全一样的结果：
+
+```tsx
+import { Form as AntdForm, Input as AntInput } from 'antd'
+import { useField } from 'shikiform'
+import { mapFieldProps, mapFormItemProps } from 'shikiform/antd'
+
+function Email() {
+  const field = useField('email', { required: true, title: '邮箱' })
+  if (field.display !== 'visible') return null
+  return (
+    <AntdForm.Item {...mapFormItemProps(field, {})}>
+      <AntInput {...mapFieldProps(field, { placeholder: 'name@example.com' })} />
+    </AntdForm.Item>
+  )
+}
+```
+
+在装饰器或控件内部读当前字段，用 `useCurrentField()`。完整签名见 [useField](/reference/react-hooks#usefield) 和 [适配层参考](/reference/antd-adapter)。
+
+继续：[FormLayout](/guide/layout)。

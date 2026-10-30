@@ -1,32 +1,25 @@
-import { type ComponentType } from 'react'
-import { LiveDemoLazy } from '@live-demo/rspress/web/lazy'
-import '@live-demo/rspress/web/index.css'
-import { useSiteDark } from './theme'
+import { useMemo, type ComponentType } from 'react'
+import { Playground } from './playground/Playground'
 
+/** Props the MDX compiler (site/mdx) passes for a `tsx preview` / `tsx live` fence. */
 export interface DemoProps {
   code: string
   language: string
   mode: 'preview' | 'live'
   id: string
+  /** Build-time module of the same fence (`preview` only). */
   component?: ComponentType
+  /** The fence highlighted by VitePress' own Markdown renderer. */
+  html?: string
+  /** `play=<route>` in the fence meta: a full /play scenario for this example. */
+  play?: string
 }
 
-/** Preview executes the same build-time module shown below; live edits trusted local examples. */
-export function Demo({ code, language, mode, id, component: Component }: DemoProps) {
-  const isDark = useSiteDark()
-  if (mode === 'preview') {
-    if (!Component) throw new Error(`Missing compiled preview: ${id}`)
-    return <section className="shiki-demo" aria-label="可运行示例">
-      <div className="shiki-demo-preview"><Component /></div>
-      <details><summary>查看完整源码</summary><pre><code className={`language-${language}`}>{code}</code></pre></details>
-    </section>
-  }
-  const pluginProps = {
-    files: JSON.stringify({ 'App.tsx': code }),
-    entryFileName: JSON.stringify('App.tsx'),
-    externalImports: JSON.stringify(['react', 'shikiform', 'shikiform/core', 'shikiform/pro', 'shikiform/antd', 'antd', 'zod']),
-    options: JSON.stringify({ fileTabs: { hideSingleTab: true } }),
-  }
-  // Source revision changes reset the editor; theme-only changes must not reset form state.
-  return <LiveDemoLazy key={`${id}:${code}`} isDark={isDark} pluginProps={pluginProps} />
+/** Preview renders the build-time module of the fence it shows; live compiles that same source in the browser. */
+export function Demo({ code, language, mode, id, component, html, play }: DemoProps) {
+  if (mode === 'preview' && !component) throw new Error(`Missing compiled preview: ${id}`)
+  const files = useMemo(() => ({ [`App.${language}`]: code }), [code, language])
+  // A source revision starts over; a theme change re-renders in place and keeps form state.
+  return <Playground key={`${id}:${code}`} files={files} language={language} component={component} codeHtml={html}
+    editing={mode === 'live'} play={play} />
 }

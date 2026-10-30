@@ -1,43 +1,73 @@
 ---
 title: ShikiForm
-description: 用字段描述数据，用 reaction 描述联动。
+description: 一个无 UI 的表单引擎，用 draft + $ 状态写联动，用 Formily 式的 Field 接 Ant Design。
 ---
 
 # ShikiForm
 
-用字段描述数据，用 `reaction` 描述联动。输入框只负责显示。
+一个表单 = 一个引擎。值、字段状态、校验和联动都在引擎里；联动写成 `reaction` / `watch`，读写的是 **draft**（`d.email.$required = …`）。React 层只订阅和渲染，Ant Design 适配层只把字段映射成控件。
 
 ```tsx preview
 import { useState } from 'react';
-import { Button, Input } from 'antd';
-import { Form, Field, useForm } from 'shikiform';
+import { Button, Form as AntdForm } from 'antd';
+import { Field, Form, defineEffects, useForm } from 'shikiform';
+import { FormItem, FormLayout, Input, Radio } from 'shikiform/antd';
 
-export default function Welcome() {
-  const [payload, setPayload] = useState('');
-  const form = useForm({ initialValues: { name: 'Ada' } });
+type Values = { kind: 'personal' | 'work'; email: string; company: string };
+
+const effects = defineEffects<Values>(({ reaction }) => {
+  reaction((d) => {
+    const work = d.kind.$value === 'work';
+    d.email.$required = work;
+    d.email.$componentProps.placeholder = work ? 'name@company.com' : 'name@example.com';
+    d.company.$display = work ? 'visible' : 'none';
+  });
+});
+
+export default function App() {
+  const [result, setResult] = useState('');
+  const form = useForm<Values>({
+    initialValues: { kind: 'personal', email: '', company: '' },
+    fields: { kind: { enum: [{ label: '个人', value: 'personal' }, { label: '工作', value: 'work' }] } },
+    effects: [effects],
+  });
   return (
-    <Form form={form} onSubmit={(values) => setPayload(JSON.stringify(values))}>
-      <Field<{ name: string }, 'name'> name="name">
-        {(field) => (
-          <label htmlFor={field.id}>
-            姓名
-            <Input id={field.id} value={field.value} onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} />
-          </label>
-        )}
-      </Field>
-      <Button htmlType="submit">提交</Button>
-      <pre aria-live="polite">{payload}</pre>
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
+      <FormLayout labelCol={{ span: 5 }} wrapperCol={{ span: 19 }}>
+        <Field name="kind" title="账号类型" decorator={[FormItem]} component={[Radio.Group]} />
+        <Field name="email" title="邮箱" rules={{ format: 'email' }} decorator={[FormItem]} component={[Input]} />
+        <Field name="company" title="公司" required decorator={[FormItem]} component={[Input]} />
+        <AntdForm.Item wrapperCol={{ offset: 5, span: 19 }}>
+          <Button type="primary" htmlType="submit">提交</Button>
+        </AntdForm.Item>
+      </FormLayout>
+      <pre aria-live="polite">{result}</pre>
     </Form>
   );
 }
 ```
 
-改一改姓名，点提交。值在 ShikiForm 里，输入框是 antd 的 `Input`。
+切到「工作」：邮箱变成必填、占位符换掉、公司出现；切回「个人」，公司既不显示、也不校验、不进提交结果（`display: 'none'`）。这些都写在一个 `reaction` 里，组件代码里没有一个 `if`。
 
-## 从这里开始
+## 四个入口
 
-- [设计架构](/architecture)：一份核心引擎，通用 React 绑定，可选 antd 适配。先理解值、联动和 UI 的边界。
-- [最小上手](/tutorial)：从一份表单开始，逐步学习字段、数组、联动和校验；代码可以直接修改。
-- [复杂示例](/examples)：在 SKU、嵌套订单、树、查询表和行编辑里看真实业务流程。
-- [完整 API](/api)：按名称查 Hooks、字段、工厂、参数默认值、返回与限制。
-- [深入指南](/guide)：解释 pattern、显隐、path、校验生命周期，以及如何接入 antd。
+| 入口 | 内容 | 依赖 |
+|---|---|---|
+| `shikiform/core` | `createForm`、`defineEffects`、`EnumSource`、校验与树工具 | 无 |
+| `shikiform` | core + React：`useForm`、`Form`、`Field`、`ObjectField`、`ArrayField`、`TreeField`、`useField`、`useWatch`、`useArray` … | React |
+| `shikiform/pro` | 无 UI 的查询、数组表格、影子草稿、联想、懒加载级联 Hooks | React |
+| `shikiform/antd` | `FormItem`、`FormLayout`、`connect`、接好的 antd 控件、`ProArrayTable`、`QueryList`、`ShadowModal` … | React + antd 5 |
+
+依赖方向是 `antd → pro → react → core`。不用 antd 时，只用前两个入口加你自己的控件。
+
+## 阅读路线
+
+1. [快速开始](/guide/quick-start)：五分钟写出第一张表单。
+2. [核心概念](/guide/concepts)：handle 与 value、`$` 状态、`fields` 声明。
+3. [Field、装饰器与组件](/guide/field) → [FormLayout](/guide/layout) → [Ant Design 适配](/guide/antd)。
+4. [联动](/guide/linkage)：`reaction`、`watch`、`reaction.each`、`reaction.walk`。
+5. [数组、树与嵌套对象](/guide/structures) → [Headless Hooks](/guide/headless)。
+6. [Pro 组件](/guide/pro) 与 [示例库](/examples)。
+7. [校验](/guide/validation)，按名字查 [API](/api)。
+
+用 AI 写代码？看 [Agent 指南](/agents)，或把 [/llms.txt](/llms.txt) 交给它。想一步一步动手，走 [分步教程](/tutorial/)。
