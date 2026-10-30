@@ -157,6 +157,12 @@ export function analyzeMdx(source: string, sourcePath = 'page.mdx'): MdxPage {
   }
 }
 
+/** Re-serialize a code node as a Markdown fence for VitePress' renderer (language only, no demo meta). */
+function fenced(node: Node): string {
+  const fence = '`'.repeat(Math.max(3, ...(node.value?.match(/`+/g) ?? []).map(s => s.length + 1)))
+  return `${fence}${node.lang ?? ''}\n${node.value ?? ''}\n${fence}`
+}
+
 function jsxFragment(source: string): Node {
   return parse(source).children![0]
 }
@@ -175,21 +181,29 @@ export async function compileMdxPage(source: string, filename: string, options: 
       if (!node.children) return
       node.children = node.children.map(child => {
         if (child.type === 'code') {
-          const mode = child.meta?.split(/\s+/).find(token => token === 'preview' || token === 'live')
+          const tokens = child.meta?.split(/\s+/) ?? []
+          const mode = tokens.find(token => token === 'preview' || token === 'live')
           if (mode) {
             if (!/^(?:tsx|jsx)$/.test(child.lang ?? '')) throw new Error(`Executable MDX fence must be tsx/jsx in ${filename}`)
             const id = `${slash(filename)}:${demoCount++}`
-            let preview = ''
+            const props = [`code={${JSON.stringify(child.value ?? '')}}`, `language=${JSON.stringify(child.lang)}`, `mode=${JSON.stringify(mode)}`, `id=${JSON.stringify(id)}`]
             if (mode === 'preview') {
               const binding = `_ShikiFormPreview${demoCount - 1}`
               previewImports.push(`import ${binding} from ${JSON.stringify(`${slash(filename)}?mdx-preview=${demoCount - 1}.tsx`)}`)
-              preview = ` component={${binding}}`
+              props.push(`component={${binding}}`)
             }
-            return jsxFragment(`<_ShikiFormMdxDemo code={${JSON.stringify(child.value ?? '')}} language=${JSON.stringify(child.lang)} mode=${JSON.stringify(mode)} id=${JSON.stringify(id)}${preview} />`)
+            // `play=<route>` links the example to its full /play scenario.
+            const play = tokens.find(token => token.startsWith('play='))?.slice(5)
+            if (play !== undefined) {
+              if (!/^[a-z\d-]+$/.test(play)) throw new Error(`Invalid play route "${play}" in ${filename}`)
+              props.push(`play=${JSON.stringify(play)}`)
+            }
+            // The same VitePress highlighter as a plain code block, so the source reads natively.
+            if (options.renderCode) props.push(`html={${JSON.stringify(options.renderCode(fenced(child)))}}`)
+            return jsxFragment(`<_ShikiFormMdxDemo ${props.join(' ')} />`)
           }
           if (options.renderCode) {
-            const fence = '`'.repeat(Math.max(3, ...(child.value?.match(/`+/g) ?? []).map(s => s.length + 1)))
-            const html = options.renderCode(`${fence}${child.lang ?? ''}\n${child.value ?? ''}\n${fence}`)
+            const html = options.renderCode(fenced(child))
             return jsxFragment(`<div dangerouslySetInnerHTML={{__html:${JSON.stringify(html)}}} />`)
           }
         }

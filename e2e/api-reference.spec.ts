@@ -16,36 +16,41 @@ test('deployment includes named Hook references and the same executable adapter 
 
     }
   }
-  expect(landing).toContain('href="/guide/antd-binding"')
-  const guide = readFileSync('dist/guide/antd-binding.html', 'utf8')
-  expect(guide).toContain('提交邮箱')
-  expect(guide).toContain('校验并保存')
+  expect(landing).toContain('href="/guide/field"')
+  const pro = readFileSync('dist/guide/pro.html', 'utf8')
+  expect(pro).toContain('采购清单')
   const adapters = readFileSync('dist/reference/antd.html', 'utf8')
   expect(adapters).toContain('adapter-event-counts')
 })
 
-test('API exposes actual named Hooks and the manual AntD example validates and submits', async ({ page }) => {
+test('API links to named Hooks and the quick-start example validates and submits', async ({ page }) => {
   await page.goto('/api')
-  await page.getByRole('link', { name: '字段绑定', exact: true }).click()
+  await page.locator('.vp-doc').getByRole('link', { name: 'React Hooks', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'useField', exact: true })).toBeVisible()
-  await page.goto('/guide/antd-binding')
-  const form = page.locator('form').filter({ has: page.getByRole('button', { name: '提交邮箱', exact: true }) })
-  await form.getByRole('textbox', { name: '邮箱', exact: true }).fill('')
-  await form.getByRole('textbox', { name: '邮箱', exact: true }).blur()
+  await page.goto('/guide/quick-start')
+  const demo = page.locator('.sf-demo').first()
+  const form = demo.locator('form')
+  await form.getByRole('button', { name: '提 交' }).click()
   await expect(form).toContainText('必填')
+  await form.getByRole('textbox', { name: '姓名', exact: true }).fill('Grace')
   await form.getByRole('textbox', { name: '邮箱', exact: true }).fill('grace@example.com')
-  await form.getByRole('button', { name: '提交邮箱', exact: true }).click()
+  await form.getByRole('button', { name: '提 交' }).click()
   await expect(form.locator('pre')).toContainText('grace@example.com')
 })
 
-test('the pre-bound adapter writes the checkbox and submits through the same engine', async ({ page }) => {
-  await page.goto('/guide/antd-binding')
-  const form = page.locator('form').filter({ has: page.getByRole('button', { name: '校验并保存', exact: true }) })
-  await form.getByRole('textbox', { name: '邮箱', exact: true }).fill('grace@example.com')
-  await form.getByRole('checkbox', { name: '接收通知', exact: true }).uncheck()
-  await form.getByRole('button', { name: '校验并保存', exact: true }).click()
-  await expect(form.locator('pre')).toContainText('"notify":false')
-  await expect(form.locator('pre')).toContainText('grace@example.com')
+test('the demo toolbar edits, recompiles, copies and resets the same example', async ({ page }) => {
+  await page.goto('/guide/quick-start')
+  const demo = page.locator('.sf-demo').first()
+  await demo.getByRole('button', { name: '查看代码' }).click()
+  await expect(demo.locator('.sf-demo__highlighted')).toContainText('useForm')
+  await demo.getByRole('button', { name: '编辑代码', exact: true }).click()
+  const editor = demo.locator('.cm-content')
+  const source = await editor.innerText()
+  await editor.fill(source.replace('title="姓名"', 'title="名字"'))
+  await expect(demo.locator('form')).toContainText('名字')
+  await expect(demo).toContainText('已修改')
+  await demo.getByRole('button', { name: '重置', exact: true }).click()
+  await expect(demo.locator('form')).toContainText('姓名')
 })
 
 test('Switch forwards one real button blur and follows readOnly/display across remounts', async ({ page }) => {

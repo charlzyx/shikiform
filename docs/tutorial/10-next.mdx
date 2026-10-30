@@ -9,7 +9,7 @@ description: 教程里会的东西，以及更完整的用例。
 
 ## 理解设计，再查 API
 
-[设计架构](/architecture) 把核心引擎、React 绑定和可选 UI 适配连起来。正式包的四个入口、Hooks、组件、effects 和校验边界列在 [API](/api)。教程的 `fields.tsx` 是可复制的本地适配，不是额外的 `shikiform/ui` 包。
+[核心概念](/guide/concepts) 把引擎、React 绑定和 UI 适配连起来；[Field、装饰器与组件](/guide/field) 是正式项目里更常用的写法（`decorator={[FormItem]} component={[Input]}`）。四个入口、引擎方法和联动 API 列在 [API](/api)。教程的 `fields.tsx` 是可复制的本地适配，不是额外的 `shikiform/ui` 包。
 
 ## 把概念放进业务里
 
@@ -19,4 +19,4 @@ description: 教程里会的东西，以及更完整的用例。
 - [订单行](/play/orders)：逐行计算、父级状态与展开/收起。
 - [抽屉行编辑](/play/row-edit)：什么时候直接写值，什么时候先装载到临时 editor 再确认。
 
-全部 15 个页面和各自边界见 [复杂示例](/examples)。继续深挖概念时，看 [联动](/guide/effects)、[pattern](/guide/pattern)、[显隐](/guide/display) 和 [校验](/guide/validation)；封装控件前先看 [antd 接线指南](/guide/antd-binding)。
+全部 23 个场景见 [示例库](/examples)。继续深挖时，看 [联动](/guide/linkage)、[数组、树与嵌套对象](/guide/structures) 和 [校验](/guide/validation)；封装控件前先看 [Ant Design 适配](/guide/antd)。

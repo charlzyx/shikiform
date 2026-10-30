@@ -5,7 +5,7 @@ description: 左边是说明，右边可以改代码。
 
 # 教程
 
-每一步先看右边的例子，再读左边的概念。点 **看答案** 换成参考写法，点 **重置** 回到这一步开始时的代码。
+每一步左边是说明，右边是可以直接改的代码和运行结果。工具栏里点 **看答案** 换成参考写法，点重置按钮回到这一步开始时的代码。
 
 教程运行的就是正式库。`useForm` / `Field` 从 `shikiform` 导入，输入控件从 `antd` 导入，Zod 从 `zod` 导入。没有另一份教学 store。
 
@@ -24,24 +24,4 @@ description: 左边是说明，右边可以改代码。
 9. [规则和提交](/tutorial/9-rules)
 10. [接下来](/tutorial/10-next)
 
-先了解分层与数据流，见 [设计架构](/architecture)。完成教程后，可以进入 [复杂示例](/examples) 或按名称查 [API](/api)。
-
-{/* Register public dependencies for the lazy editor; this is not another form implementation. */}
-<div className="tutorial-register">
-
-```tsx live
-import { useForm } from 'shikiform';
-import { Input, Button } from 'antd';
-import { z } from 'zod';
-
-void useForm;
-void Input;
-void Button;
-void z;
-
-export default function Register() {
-  return null;
-}
-```
-
-</div>
+教程用 render prop 手写控件接线，方便看清每一步；正式项目里更常用 [Field + FormItem + 接好的控件](/guide/field)。概念讲解见 [核心概念](/guide/concepts)，完整场景见 [示例库](/examples)。

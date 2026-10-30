@@ -1,0 +1,112 @@
+---
+title: Ant Design 适配
+description: 接好的 antd 控件、阅读态、connect / mapProps / mapReadPretty 接自己的控件，以及预绑定工厂。
+---
+
+# Ant Design 适配
+
+`shikiform/antd` 只做映射：把 `FieldBinding`（值、事件、状态、错误）变成 antd 的 props。值始终在 ShikiForm 引擎里，**不要再把同一份值交给 antd `Form` 的 `name` / `rules` / `initialValues`**。
+
+## 接好的控件
+
+`Input`（含 `TextArea`、`Password`）、`InputNumber`、`Select`、`Switch`、`Checkbox`（含 `Group`）、`Radio.Group`、`DatePicker`（含 `RangePicker`）都已经 `connect` 好：
+
+- 选择类控件的 `options` 默认取字段枚举（`fields.x.enum` 或 `$enum`），异步枚举时自动带 `loading`。
+- `pattern` 自动生效：`disabled` / `readOnly` 禁用控件，`readPretty` 换成文字（选择类显示标签，可加 `prettyType="badge" | "tag"`）。
+- `DatePicker` 的字段值是格式化后的字符串（默认 `YYYY-MM-DD`），不是 dayjs 对象。
+
+```tsx preview
+import { Radio as AntRadio } from 'antd';
+import { Field, Form, ObjectField, useForm } from 'shikiform';
+import { Checkbox, DatePicker, FormItem, FormLayout, Input, InputNumber, Radio, Select, Switch } from 'shikiform/antd';
+import type { Pattern } from 'shikiform/core';
+
+type Profile = { name: string; age: number; level: string; tags: string[]; gender: string; vip: boolean; birthday: string };
+
+const PATTERNS: Pattern[] = ['editable', 'disabled', 'readOnly', 'readPretty'];
+
+export default function App() {
+  const form = useForm<{ profile: Profile }>({
+    initialValues: { profile: { name: 'Ada', age: 36, level: 'gold', tags: ['math'], gender: 'f', vip: true, birthday: '1815-12-10' } },
+    fields: {
+      'profile.level': { enum: [{ label: '黄金', value: 'gold', color: 'gold' }, { label: '白银', value: 'silver' }] },
+      'profile.tags': { enum: [{ label: '数学', value: 'math' }, { label: '诗歌', value: 'poetry' }] },
+      'profile.gender': { enum: [{ label: '女', value: 'f' }, { label: '男', value: 'm' }] },
+    },
+  });
+  return (
+    <Form form={form}>
+      <AntRadio.Group style={{ marginBottom: 16 }} optionType="button" options={PATTERNS} defaultValue="editable"
+        onChange={(event) => form.batch((d) => { d.profile.$pattern = event.target.value; })} />
+      <FormLayout labelCol={{ span: 5 }} wrapperCol={{ span: 19 }}>
+        {/* 子字段都继承 profile 的 pattern */}
+        <ObjectField name="profile">
+          <Field name="name" title="Input" decorator={[FormItem]} component={[Input]} />
+          <Field name="age" title="InputNumber" decorator={[FormItem]} component={[InputNumber]} />
+          <Field name="level" title="Select" decorator={[FormItem]} component={[Select, { prettyType: 'tag', style: { width: 160 } }]} />
+          <Field name="tags" title="Checkbox.Group" decorator={[FormItem]} component={[Checkbox.Group]} />
+          <Field name="gender" title="Radio.Group" decorator={[FormItem]} component={[Radio.Group]} />
+          <Field name="vip" title="Switch" decorator={[FormItem]} component={[Switch]} />
+          <Field name="birthday" title="DatePicker" decorator={[FormItem]} component={[DatePicker]} />
+        </ObjectField>
+      </FormLayout>
+    </Form>
+  );
+}
+```
+
+`pattern` 从父级继承：只写 `d.profile.$pattern`，下面所有字段一起切换；子字段自己写了 `$pattern` 就用自己的。
+
+## 封装自己的控件
+
+任何 `value` / `onChange` 控件经 `connect(Component, ...enhancers)` 就成了字段控件：
+
+| enhancer | 作用 |
+|---|---|
+| `mapProps({ value: 'checked' })` | 重命名绑定属性；`false` 丢弃（`{ status: false }`）；`getValueFromEvent` 自定义取值 |
+| `mapProps((props, field) => props)` | 最后一步变换 props |
+| `mapReadPretty(View)` | `readPretty` 时渲染 `View`（收到 `value` 和 `options`）；没有它时按 `readOnly` 处理 |
+
+```tsx preview
+import { Rate as AntRate, Slider as AntSlider } from 'antd';
+import { Field, Form, useForm } from 'shikiform';
+import { FormItem, FormLayout, Switch, connect, mapProps, mapReadPretty } from 'shikiform/antd';
+
+// Rate 没有 status 属性；阅读态显示星星文字
+const Rate = connect(AntRate, mapProps({ status: false }), mapReadPretty(({ value }: { value?: number }) => <span>{'★'.repeat(value ?? 0)}</span>));
+// Slider 的 onChange 直接给数字，默认取值逻辑就能处理；阅读态显示百分比
+const Slider = connect(AntSlider, mapProps({ status: false, readOnly: 'disabled' }), mapReadPretty(({ value }: { value?: number }) => <span>{value}%</span>));
+
+export default function App() {
+  const form = useForm({ initialValues: { pretty: false, score: 3, volume: 40 } });
+  return (
+    <Form form={form}>
+      <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }}>
+        <Field name="pretty" title="阅读态" decorator={[FormItem]}>
+          <Switch onChange={(checked: boolean) => form.batch((d) => { d.score.$pattern = checked ? 'readPretty' : undefined; d.volume.$pattern = checked ? 'readPretty' : undefined; })} />
+        </Field>
+        <Field name="score" title="评分" decorator={[FormItem]} component={[Rate, { count: 5 }]} />
+        <Field name="volume" title="音量" decorator={[FormItem]} component={[Slider]} />
+      </FormLayout>
+    </Form>
+  );
+}
+```
+
+控件的 `onChange` 先写字段，再用原始参数调用你传的 `onChange`；`onBlur` 同理。不用组件时，纯函数 `mapFieldProps(field, props)` 与 `mapFormItemProps(field, props)` 给出同样的 props。
+
+## 预绑定：useAntdForm
+
+想少写 `decorator` / `component`，可以用预绑定工厂：`useAntdForm` 返回普通引擎，加上 `AppForm`、`AppField`、`Submit`，`AppField` 的 render prop 带着 `field.Input`、`field.Select` 等成员（外面已经包了 `FormItem`）：
+
+```tsx
+const form = useAntdForm({ initialValues: { email: '' } })
+<form.AppForm>
+  <form.AppField name="email" title="邮箱" required>{(field) => <field.Input />}</form.AppField>
+  <form.Submit>保存</form.Submit>
+</form.AppForm>
+```
+
+它建在通用的 [`createFormHook`](/reference/form-hook) 上，和 `<Field decorator component>` 共用同一套控件和引擎，二选一即可。细节见 [antd 参考](/reference/antd)。
+
+继续：[联动](/guide/linkage)。

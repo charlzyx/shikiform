@@ -118,7 +118,7 @@ interface UseFieldOptions {
 | `component` / `decorator` | `<Field>` 渲染的控件 / 装饰器组件 |
 | `componentProps` / `decoratorProps` | 合并后的控件 / 装饰器 props（`fields` ← JSX ← `$componentProps` / `$decoratorProps`，按顶层键） |
 
-`useField` 订阅该路径并注册基础字段模型，但**不会替你渲染或隐藏输入**。自定义 UI 要处理 `display` / `pattern`；需要 JSX `rules`、`required` 生命周期时传 `options`（或用 `<Field>`）。`hidden` 仍校验/提交，`none` 才跳过，见 [显隐](/guide/display) 和 [未挂载规则](/guide/unmounted)。
+`useField` 订阅该路径并注册基础字段模型，但**不会替你渲染或隐藏输入**。自定义 UI 要处理 `display` / `pattern`；需要 JSX `rules`、`required` 生命周期时传 `options`（或用 `<Field>`）。`hidden` 仍校验/提交，`none` 才跳过，见 [显隐](/guide/concepts) 和 [未挂载规则](/guide/validation)。
 
 [实现：use-field.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-field.ts)
 
@@ -160,7 +160,7 @@ useWatch<T, S>(select: (draft: Draft<T>) => S): S
 
 返回对象/数组可用，快照通过 `Object.is` / 深比较复用；不要返回每次新建的函数。没有读到任何 `$` 依赖时会退回整表通知，因此它不适合作为“零订阅”的替代品。
 
-`useWatch` 是 React 中的读取/渲染；effects 里的 `watch(source, effect)` 是值变化后的动作，两者不是同一 API。参见 [联动](/guide/effects)。
+`useWatch` 是 React 中的读取/渲染；effects 里的 `watch(source, effect)` 是值变化后的动作，两者不是同一 API。参见 [联动](/guide/linkage)。
 
 [实现：use-watch.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-watch.ts)
 
@@ -376,7 +376,7 @@ useTreeField(name: string, options?: {
 
 `[0, 2]` 表示第一个根节点的第三个孩子，不是节点 ID。稳定 ID 用于移动时保持字段状态；不要用当前坐标代替业务 ID。
 
-[实现：use-tree.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-tree.ts) · [结构与路径](/guide/path)
+[实现：use-tree.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-tree.ts) · [结构与路径](/guide/concepts)
 
 ## useTreeMove
 
@@ -438,7 +438,7 @@ export default function TreeHookExample() {
 }
 ```
 
-需要 JSX 结构组件时看 [Field、ArrayField、TreeField](/api#react-字段)；需要将这些绑定封装成项目自己的输入组件时看 [createFormHook](/reference/form-hook)。
+需要 JSX 结构组件时看 [Field、ArrayField、TreeField](/api#react-组件)；需要将这些绑定封装成项目自己的输入组件时看 [createFormHook](/reference/form-hook)。
 
 ## useTreeNode
 

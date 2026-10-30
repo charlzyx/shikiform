@@ -5,8 +5,8 @@ async function answer(page: Page, route: string) {
   const tutorial = page.locator('.tutorial-play')
   await tutorial.scrollIntoViewIfNeeded()
   await tutorial.getByRole('button', { name: '看答案', exact: true }).click()
-  await expect(tutorial.getByRole('button', { name: 'App.tsx', exact: true })).toBeVisible()
-  await expect(tutorial.getByRole('button', { name: 'fields.tsx', exact: true })).toBeVisible()
+  await expect(tutorial.getByRole('tab', { name: 'App.tsx', exact: true })).toBeVisible()
+  await expect(tutorial.getByRole('tab', { name: 'fields.tsx', exact: true })).toBeVisible()
   return tutorial
 }
 
@@ -17,9 +17,9 @@ test('the copied two-file example submits through the public package and can be 
   await form.getByRole('textbox', { name: '邮箱', exact: true }).fill('ada@example.com')
   await form.getByRole('button', { name: '提交', exact: true }).click()
   await expect(form.locator('pre.shiki-code')).toContainText('ada@example.com')
-  await tutorial.getByRole('button', { name: 'fields.tsx', exact: true }).click()
+  await tutorial.getByRole('tab', { name: 'fields.tsx', exact: true }).click()
   await expect(tutorial.locator('.cm-content')).toContainText('public <Field> lifecycle')
-  await tutorial.getByRole('button', { name: 'App.tsx', exact: true }).click()
+  await tutorial.getByRole('tab', { name: 'App.tsx', exact: true }).click()
   const editor = tutorial.locator('.cm-content')
   const source = await editor.innerText()
   await editor.fill(source.replace('label="姓名"', 'label="名字"'))

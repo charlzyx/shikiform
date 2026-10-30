@@ -1,13 +1,6 @@
 :root { --vp-layout-max-width: 1600px; }
 .VPDoc.has-aside .content-container { max-width: 880px; }
 .VPDoc:not(.has-aside) .content-container { max-width: 1280px; }
-.shiki-demo { border: 1px solid var(--vp-c-divider); border-radius: 8px; margin: 1.5rem 0; }
-.shiki-demo-preview { padding: 24px; }
-.shiki-demo details { border-top: 1px solid var(--vp-c-divider); }
-.shiki-demo summary { padding: 10px 16px; cursor: pointer; color: var(--vp-c-brand-1); }
-.shiki-demo pre { margin: 0; padding: 16px; overflow: auto; font-size: 13px; background: var(--vp-code-block-bg); }
+/* Tutorial pages: the exercise stays in view next to the lesson (layout in src/styles/shiki.css). */
 .tutorial-play { top: calc(var(--vp-nav-height, 64px) + 12px); }
-.vp-doc .tutorial-play button { font-family: inherit; }
-.vp-doc .tutorial-play pre { margin: 0; }
-/* Markdown chrome must not turn React controls into document elements. */
-.vp-doc .shiki-demo-preview button, .vp-doc .tutorial-play button { line-height: normal; }
+.tutorial-play .sf-demo { margin: 0; }

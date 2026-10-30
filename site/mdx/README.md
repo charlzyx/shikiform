@@ -35,8 +35,9 @@ come from one GitHub slugger pass (including duplicate headings).
 
 `tsx preview` / `jsx preview` fences become build-time modules loaded by this Vite
 plugin. The named React `Demo` gets
-`{ code, language, mode, id, component }`: `code` and the compiled component derive
-from the **same original fence**. `Demo` must actually render `component` for SSR
+`{ code, language, mode, id, component, html, play }`: `code` and the compiled component derive
+from the **same original fence**; `html` is that fence highlighted by VitePress' own
+renderer, and `play` comes from a `play=<route>` token in the fence meta. `Demo` must actually render `component` for SSR
 and show that same `code`, not silently replace it with a lazy editor.
 
 `tsx live` / `jsx live` receive the same props without `component`, for the public

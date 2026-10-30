@@ -36,13 +36,18 @@ for (const page of manifest.pages) {
   assert(doc.querySelector('.VPDoc'), `Not a native VitePress document: ${file}`)
   assert(doc.querySelector('[data-react-island] h1'), `MDX body missing from SSR: ${file}`)
   for (const heading of flatten(page.headers)) assert(doc.getElementById(heading.slug), `SSR heading missing ${page.route}#${heading.slug}`)
-  previews += doc.querySelectorAll('.shiki-demo-preview').length
+  for (const preview of doc.querySelectorAll('.sf-demo__preview[data-prebuilt]')) {
+    assert(preview.textContent.trim() || preview.querySelector('input,button,table,svg'), `Empty preview on ${page.route}`)
+    previews++
+  }
   for (const element of doc.querySelectorAll('a[href]')) {
     const href = element.getAttribute('href')
     if (!href.startsWith('/') && !href.startsWith('#')) continue
     assert(!forbidden.test(href), `Public navigation exposes internal source: ${href}`)
     const [route, fragment] = href.split('#')
     if (route.startsWith('//')) continue
+    // A public static file (/llms.txt) is not a page route; it must still be emitted.
+    if (/\.(?!html$)[a-z\d]+$/i.test(route)) { assert(existsSync(path.join(output, decodeURI(route))), `Missing static file: ${href}`); continue }
     const target = route ? htmlFile(route) : file
     if (fragment) assert(documentFor(target).getElementById(decodeURIComponent(fragment)), `Broken fragment: ${page.route} → ${href}`)
   }
@@ -53,8 +58,11 @@ for (const page of manifest.pages) {
     assets++
   }
 }
-assert.equal(previews, 14, 'Every executable preview must SSR its real component')
-for (const marker of ['提交邮箱', '校验并保存']) assert(readFileSync(htmlFile('/guide/antd-binding'), 'utf8').includes(marker))
+// Every `tsx preview` fence SSRs its real component; count the fences in the sources rather than hard-coding a total.
+const previewFences = manifest.pages.reduce((sum, page) => sum + (readFileSync(path.join('docs', page.source), 'utf8').match(/^```[tj]sx preview\b/gm) ?? []).length, 0)
+assert(previewFences > 0, 'No executable previews found')
+assert.equal(previews, previewFences, 'Every executable preview must SSR its real component')
+for (const marker of ['采购清单', '钢笔']) assert(readFileSync(htmlFile('/guide/pro'), 'utf8').includes(marker), `ProArrayTable SSR missing ${marker}`)
 assert(readFileSync(htmlFile('/reference/antd'), 'utf8').includes('adapter-event-counts'))
 for (const file of readdirSync('docs/tutorial').filter((name) => /^\d.*\.mdx$/.test(name))) {
   const doc = documentFor(htmlFile(`/tutorial/${file.replace(/\.mdx$/, '')}`))

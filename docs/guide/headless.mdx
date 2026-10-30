@@ -1,0 +1,152 @@
+---
+title: Headless Hooks
+description: 不依赖任何 UI 库：useField、useWatch，行内的 useArray / useIndex / useRecord，树节点的 useTreeNode。
+---
+
+# Headless Hooks
+
+组件都是 Hook 的薄封装，Hook 才是完整的 API。下面的例子只用原生 HTML。
+
+| Hook | 返回 | 订阅 |
+|---|---|---|
+| `useField(name, options?)` | `FieldBinding`：`value`、`onChange`、`onBlur`、`errors`、`display`、`pattern`、`options` … | 这个 path |
+| `useWatch(select)` / `<Watch select>` | selector 的结果 | selector 实际读到的 `$` 键 |
+| `useArrayField(name, rowKey?)` | `{ path, keys, push, insert, remove, move, swap, replace }` | 数组结构 |
+| `useArray()` | 最近一层数组的同一个 handle（不需要名字） | 数组结构 |
+| `useIndex()` | 当前行号 | — |
+| `useRecord()` | 当前行的值（响应式，随行移动） | 这一行 |
+| `useTreeNode()` | `{ path, pos, index, record }` | 这个节点 |
+| `useArrayMove(name)` / `useTreeMove(name)` | `{ move, bind }`：`bind(index)` / `bind(pos)` 返回 HTML5 拖拽事件 | 不订阅 |
+
+`useArray` / `useIndex` / `useRecord` 对应 Formily 的 `ArrayBase.useArray / useIndex / useRecord`，在 `<ArrayField>`、`ArrayTable`、`ProArrayTable` 的行里都能用。
+
+## 数组：行组件不需要名字
+
+```tsx preview
+import { ArrayField, Form, Watch, useArray, useArrayMove, useField, useForm, useIndex, useRecord, type Draft } from 'shikiform';
+
+type Todo = { id: number; title: string; done: boolean };
+type Values = { todos: Todo[] };
+let nextId = 4;
+
+function TitleInput() {
+  const field = useField<Todo, 'title'>('title', { required: true });
+  return (
+    <span>
+      <input aria-label="标题" value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} />
+      {field.errors[0] && <small style={{ color: 'crimson' }}> {field.errors[0]}</small>}
+    </span>
+  );
+}
+
+function DoneBox() {
+  const field = useField<Todo, 'done'>('done');
+  return <input type="checkbox" aria-label="完成" checked={field.value} onChange={(event) => field.onChange(event.target.checked)} />;
+}
+
+type DragBind = ReturnType<typeof useArrayMove>['bind'];
+
+function Row({ bind }: { bind: DragBind }) {
+  const array = useArray<Todo>();
+  const index = useIndex();
+  const record = useRecord<Todo>();
+  return (
+    <li {...bind(index)} style={{ cursor: 'grab', opacity: record.done ? 0.5 : 1 }}>
+      ⠿ <DoneBox /> <TitleInput /> <small>#{index} · id {record.id}</small>{' '}
+      <button type="button" onClick={() => array.remove(index)}>删除</button>
+    </li>
+  );
+}
+
+/** 名字相对当前作用域，所以拖拽 Hook 放在行外面（这里是根作用域）。 */
+function TodoList() {
+  const { bind } = useArrayMove('todos');
+  return (
+    <ul style={{ paddingLeft: 0, listStyle: 'none' }}>
+      <ArrayField name="todos" rowKey="id">{() => <Row bind={bind} />}</ArrayField>
+    </ul>
+  );
+}
+
+export default function App() {
+  const form = useForm<Values>({
+    initialValues: { todos: [{ id: 1, title: '读文档', done: true }, { id: 2, title: '写表单', done: false }, { id: 3, title: '拖动排序', done: false }] },
+  });
+  return (
+    <Form form={form}>
+      <TodoList />
+      <button type="button" onClick={() => form.pushArray('todos', { id: nextId++, title: '', done: false })}>添加</button>
+      <Watch select={(d: Draft<Values>) => d.todos.$value.filter((todo) => todo.done).length}>
+        {(done) => <p>已完成 {done} 项</p>}
+      </Watch>
+    </Form>
+  );
+}
+```
+
+`useArrayMove` / `useTreeMove` 的名字和 `useField` 一样相对当前作用域，在行里调用会拼成 `todos.0.todos`，所以放在行外再把 `bind` 传下去。拖动一行，`#` 后的行号变了，`id` 不变。
+
+## 树：每个节点一层 RowScope
+
+```tsx preview play=headless
+import { Form, RowScope, TreeField, useField, useForm, useTreeMove, useTreeNode } from 'shikiform';
+
+type Node = { id: string; name: string; children?: Node[] };
+type Bind = ReturnType<typeof useTreeMove>['bind'];
+
+function NodeLabel({ bind }: { bind: Bind }) {
+  const { pos, record } = useTreeNode<Node>();
+  const field = useField<Node, 'name'>('name');
+  return (
+    <div {...bind(pos)} style={{ cursor: 'grab' }}>
+      ⠿ <input aria-label="名称" value={field.value} onChange={(event) => field.onChange(event.target.value)} />
+      <small> pos [{pos.join(', ')}] · {record.children?.length ?? 0} 个子节点</small>
+    </div>
+  );
+}
+
+function Branch({ path, nodes, pos, bind }: { path: string; nodes: Node[]; pos: number[]; bind: Bind }) {
+  return (
+    <ul style={{ paddingLeft: pos.length ? 20 : 0, listStyle: 'none' }}>
+      {nodes.map((node, index) => (
+        <li key={node.id}>
+          <RowScope path={`${path}.${index}`} pos={[...pos, index]}>
+            <NodeLabel bind={bind} />
+            {node.children?.length ? <Branch path={`${path}.${index}.children`} nodes={node.children} pos={[...pos, index]} bind={bind} /> : null}
+          </RowScope>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function Menu() {
+  const { bind } = useTreeMove('menu');
+  return (
+    <TreeField name="menu" rowKey="id">
+      {(tree) => <Branch path={tree.path} nodes={tree.value as Node[]} pos={[]} bind={bind} />}
+    </TreeField>
+  );
+}
+
+export default function App() {
+  const form = useForm({
+    initialValues: {
+      menu: [
+        { id: 'file', name: '文件', children: [{ id: 'new', name: '新建' }, { id: 'open', name: '打开' }] },
+        { id: 'edit', name: '编辑', children: [{ id: 'undo', name: '撤销' }] },
+      ] as Node[],
+    },
+  });
+  return (
+    <Form form={form}>
+      <Menu />
+      <p>把一个节点拖到另一个节点上，它会移动到那个位置；不能拖进自己的子孙。</p>
+    </Form>
+  );
+}
+```
+
+签名、订阅边界和更多例子见 [React Hooks 参考](/reference/react-hooks)。
+
+继续：[Pro 组件](/guide/pro)。

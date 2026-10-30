@@ -1,0 +1,238 @@
+/*
+ * Documentation examples (site/bridge/playground). Everything comes from VitePress' own variables, so the block
+ * reads like `.vp-doc div[class*='language-']` and follows the appearance switch without JavaScript.
+ */
+:root {
+  --sf-demo-radius: 8px;
+  --sf-demo-code-size: 13px;
+  --sf-demo-code-max-height: 480px;
+  /* GitHub light / dark: the Shiki themes VitePress highlights static code blocks with. */
+  --sf-tok-keyword: #d73a49;
+  --sf-tok-string: #032f62;
+  --sf-tok-constant: #005cc5;
+  --sf-tok-comment: #6a737d;
+  --sf-tok-function: #6f42c1;
+  --sf-tok-definition: #e36209;
+  --sf-tok-tag: #22863a;
+  --sf-tok-property: #005cc5;
+}
+.dark {
+  --sf-tok-keyword: #f97583;
+  --sf-tok-string: #9ecbff;
+  --sf-tok-constant: #79b8ff;
+  --sf-tok-comment: #6a737d;
+  --sf-tok-function: #b392f0;
+  --sf-tok-definition: #ffab70;
+  --sf-tok-tag: #85e89d;
+  --sf-tok-property: #79b8ff;
+}
+
+.sf-demo {
+  position: relative;
+  margin: 16px 0;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: var(--sf-demo-radius);
+  background: var(--vp-c-bg);
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* Preview: isolated from VitePress' reset and typography by `.vp-raw` (see postcssIsolateStyles in site/config.ts). */
+.sf-demo__preview {
+  position: relative;
+  padding: 24px;
+  overflow-x: auto;
+  color: var(--vp-c-text-1);
+  font-size: 14px;
+  line-height: 1.5715;
+}
+.sf-demo__loading {
+  margin: 0;
+  color: var(--vp-c-text-3);
+  font-size: 13px;
+}
+.sf-demo__error {
+  margin: 12px 0 0;
+  padding: 12px 16px;
+  border-radius: 6px;
+  background: var(--vp-c-danger-soft);
+  color: var(--vp-c-danger-1);
+  font: 13px / 1.6 var(--vp-font-family-mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Toolbar: the strip a VitePress code-group draws above its tabs. */
+.sf-demo__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-height: 40px;
+  padding: 0 8px 0 12px;
+  border-top: 1px solid var(--vp-c-divider);
+  background: var(--vp-c-bg-soft);
+  font-size: 12px;
+}
+.sf-demo__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px 4px 2px;
+  border-radius: 6px;
+  color: var(--vp-c-text-2);
+  font-size: 13px;
+  font-weight: 500;
+  transition: color 0.25s;
+}
+.sf-demo__toggle:hover { color: var(--vp-c-brand-1); }
+.sf-demo__toggle svg { transition: transform 0.2s; }
+.sf-demo__toggle[aria-expanded='true'] svg { transform: rotate(90deg); }
+.sf-demo__lang {
+  color: var(--vp-code-lang-color, var(--vp-c-text-3));
+  font-family: var(--vp-font-family-mono);
+}
+.sf-demo__status {
+  padding: 0 8px;
+  border-radius: 10px;
+  background: var(--vp-c-default-soft);
+  color: var(--vp-c-text-2);
+  line-height: 20px;
+}
+.sf-demo__actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+.sf-demo__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 6px;
+  color: var(--vp-c-text-2);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: color 0.25s, background-color 0.25s;
+}
+.vp-doc a.sf-demo__btn { color: var(--vp-c-text-2); text-decoration: none; }
+.sf-demo__btn:hover,
+.vp-doc a.sf-demo__btn:hover {
+  background: var(--vp-c-default-soft);
+  color: var(--vp-c-text-1);
+}
+.sf-demo__btn[aria-pressed='true'] { color: var(--vp-c-brand-1); }
+.sf-demo__btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.sf-demo__btn:focus-visible,
+.sf-demo__toggle:focus-visible,
+.sf-demo__tab:focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: -2px;
+}
+.sf-demo__btn--primary { color: var(--vp-c-brand-1); }
+.sf-demo__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+/* Code: a VitePress code block without its own frame, or the editor in its place. */
+.sf-demo__code {
+  border-top: 1px solid var(--vp-c-divider);
+  background: var(--vp-code-block-bg);
+}
+.sf-demo__tabs {
+  display: flex;
+  gap: 0 4px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--vp-code-tab-divider);
+  background: var(--vp-code-tab-bg);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.sf-demo__tab {
+  position: relative;
+  padding: 0 12px;
+  line-height: 40px;
+  color: var(--vp-code-tab-text-color);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: color 0.25s;
+}
+.sf-demo__tab:hover { color: var(--vp-code-tab-hover-text-color); }
+.sf-demo__tab[aria-selected='true'] { color: var(--vp-code-tab-active-text-color); }
+.sf-demo__tab[aria-selected='true']::after {
+  content: '';
+  position: absolute;
+  right: 8px;
+  bottom: -1px;
+  left: 8px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--vp-code-tab-active-bar-color);
+}
+.sf-demo__highlighted,
+.sf-demo__pre,
+.sf-demo__editor .cm-scroller {
+  max-height: var(--sf-demo-code-max-height);
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--vp-c-divider) transparent;
+}
+.vp-doc .sf-demo__highlighted div[class*='language-'] {
+  margin: 0;
+  border-radius: 0;
+}
+.vp-doc .sf-demo__highlighted div[class*='language-'] code { font-size: var(--sf-demo-code-size); }
+/* The toolbar already shows the language and a copy button. */
+.vp-doc .sf-demo__highlighted div[class*='language-'] > button.copy,
+.vp-doc .sf-demo__highlighted div[class*='language-'] > span.lang { display: none; }
+.vp-doc .sf-demo .sf-demo__pre {
+  margin: 0;
+  padding: 16px 20px;
+  border-radius: 0;
+  background: transparent;
+  font: var(--sf-demo-code-size) / var(--vp-code-line-height) var(--vp-font-family-mono);
+  color: var(--vp-code-block-color, var(--vp-c-text-1));
+}
+.vp-doc .sf-demo .sf-demo__pre code {
+  padding: 0;
+  background: none;
+  font-size: inherit;
+  color: inherit;
+}
+
+/* Editor token colors (site/bridge/playground/editor.ts). */
+.sf-demo .tok-keyword { color: var(--sf-tok-keyword); }
+.sf-demo .tok-string { color: var(--sf-tok-string); }
+.sf-demo .tok-constant { color: var(--sf-tok-constant); }
+.sf-demo .tok-comment { color: var(--sf-tok-comment); font-style: italic; }
+.sf-demo .tok-function { color: var(--sf-tok-function); }
+.sf-demo .tok-definition { color: var(--sf-tok-definition); }
+.sf-demo .tok-tag { color: var(--sf-tok-tag); }
+.sf-demo .tok-property { color: var(--sf-tok-property); }
+
+/* Fullscreen: the same stack, scrolling as one page. */
+.sf-demo:fullscreen {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  overflow: auto;
+}
+.sf-demo:fullscreen .sf-demo__highlighted,
+.sf-demo:fullscreen .sf-demo__pre,
+.sf-demo:fullscreen .sf-demo__editor .cm-scroller { max-height: none; }
+
+@media (max-width: 767px) {
+  .sf-demo__preview { padding: 16px; }
+  .sf-demo__btn { min-width: 30px; height: 30px; padding: 0 6px; }
+}
