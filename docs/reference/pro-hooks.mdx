@@ -1,6 +1,6 @@
 ---
 title: Pro Hooks 参考
-description: useArrayTable、useColumnSettings、useShadowForm、useArrayShadow、useSuggestion、useLazyCascader、enumItems。
+description: useArrayTable、useColumnSettings、useShadowForm、useArrayShadow、useSuggestion、useLazyCascader、useCascaderLabels、cascaderPaths、enumItems。
 ---
 
 # Pro Hooks 参考
@@ -21,10 +21,23 @@ useArrayTable<TRow>(name: string, options?: UseArrayTableOptions<TRow>): ArrayTa
 
 ```ts
 useColumnSettings(columns: { key: string; title?: unknown; width?: number; hidden?: boolean }[]): ColumnSettingsApi
-// items, visibleKeys, toggle(key), move(from, to), setWidth(key, width), density, setDensity, reset()
+// items, visibleKeys, toggle(key), move(from, to), moveKey(fromKey, toKey), setWidth(key, width),
+// density, setDensity, reset(), dragProps(key), drag: { from, over }
 ```
 
 列配置状态（Pro.formily `ProSettings`）：显示 / 隐藏、排序、列宽（拖拽表头时调用 `setWidth`）、密度（large / middle / small）。后来新增的列追加在末尾，被删掉的列自动消失；`reset()` 恢复初始顺序、可见性、列宽和密度。
+
+拖拽排序不依赖任何库：`dragProps(key)` 返回一组 HTML5 拖放属性（`draggable`、`onDragStart`、`onDragOver`、`onDragLeave`、`onDrop`、`onDragEnd`，以及拖动中 / 悬停目标的 `data-dragging` / `data-drag-over`），展开到每一行上，把一行放到另一行上就移到那一行的位置（`moveKey`）。只接受从列表里开始的拖动，拖进来的文件之类不会改顺序。拖放不能用键盘操作，所以保留 `move(from, to)` 做 ↑ ↓ 按钮。
+
+```tsx
+const settings = useColumnSettings(columns)
+settings.items.map((item, index) => (
+  <div key={item.key} {...settings.dragProps(item.key)}>
+    ⋮⋮ {item.title}
+    <button aria-label="上移" onClick={() => settings.move(index, index - 1)}>↑</button>
+  </div>
+))
+```
 
 ## useShadowForm
 
@@ -63,11 +76,33 @@ useSuggestion({ fetch: (keyword, { signal }) => Promise<EnumOption[]>, debounce?
 ## useLazyCascader
 
 ```ts
-useLazyCascader({ load: (path: (string | number)[]) => Promise<CascaderOption[]>, all?: boolean, paths?: (string | number)[][] }): LazyCascaderApi
+useLazyCascader({ load: (path: (string | number)[]) => Promise<CascaderOption[]>, all?: boolean, paths?: (string | number)[][], enabled?: boolean }): LazyCascaderApi
 // { options, loading, loadChildren(path), ensure(paths), labelsOf(path) }
 ```
 
-懒加载级联（Pro.formily `CascaderPlus`）：挂载时 `load([])` 取根，展开时 `load(path)` 取子级；同一路径并发只请求一次。`paths` 是已有值，打开时逐级加载每一层祖先，标签就能反显。`all` 表示 `load([])` 直接返回整棵树。
+懒加载级联（Pro.formily `CascaderPlus`）：挂载时 `load([])` 取根，展开时 `load(path)` 取子级；同一路径并发只请求一次。`paths` 是已有值，打开时逐级加载每一层祖先，标签就能反显。`all` 表示 `load([])` 直接返回整棵树。`enabled: false` 时什么都不加载。
+
+## useCascaderLabels
+
+```ts
+useCascaderLabels({ value: unknown, multiple?: boolean, load?: CascaderLoader, all?: boolean }): CascaderLabelsApi
+// { labels: string[][], loading }
+```
+
+级联值的标签，给阅读态用（`CascaderPlus` 的 `readPretty` 就是它）。`labelInValue` 的值自带标签，不发请求；裸值（`['410000', '410600']`）用同一个 `load` 逐级加载祖先后解析成标签，加载完成前或找不到的层级显示原值。没有 `load` 时只能显示原值。每条路径一组标签，`multiple` 时有多组。
+
+```tsx
+const { labels } = useCascaderLabels({ value: ['410000', '410600', '410621'], load: loadArea })
+labels[0].join('/') // '河南省/鹤壁市/浚县'
+```
+
+## cascaderPaths
+
+```ts
+cascaderPaths(value: unknown, multiple?: boolean): (string | number)[][]
+```
+
+把级联字段的值规整成值路径的列表：单选是一条，`multiple` 是多条；`labelInValue` 的层级 `{ label, value }` 取 `value`，不是数组的条目被丢掉。`CascaderPlus` 用它把字段值交给 antd `Cascader`，自己写级联视图时也能直接用。
 
 ## enumItems
 

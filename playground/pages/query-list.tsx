@@ -37,7 +37,9 @@ function useDomainTable() {
       return query
     },
     rows: 'list',
-    request: ({ params, page, pageSize }) => domainService({ params, page, pageSize }),
+    // Header sort arrives as `sorter` (the ID column has `sorter: true`); the mock service sorts by id.
+    request: ({ params, page, pageSize, sorter }) =>
+      domainService({ params, page, pageSize, idOrder: sorter.find((item) => item.field === 'id')?.order }),
   })
 }
 
@@ -45,7 +47,7 @@ function useDomainTable() {
 const cell = { style: { margin: 0 } }
 
 const columns: ProArrayTableColumn<DomainRow>[] = [
-  { key: 'id', title: 'ID', width: 60, align: 'center', render: ({ record }) => <span data-testid="row-id">{record.id}</span> },
+  { key: 'id', title: 'ID', width: 80, align: 'center', sorter: true, render: ({ record }) => <span data-testid="row-id">{record.id}</span> },
   { key: 'status', title: 'STATUS', width: 110, align: 'center', render: () => <Field name="status" decorator={[FormItem, cell]}><EnumPretty showType="badge" /></Field> },
   { key: 'domain', title: 'DOMAIN', align: 'center', render: ({ index }) => <Field name="domain" decorator={[FormItem, cell]}><Input data-testid={`domain-${index}`} /></Field> },
   { key: 'classify', title: '分类', width: 160, hidden: true, render: () => <Field name="classify" decorator={[FormItem, cell]}><EnumPretty showType="tag" /></Field> },
@@ -70,7 +72,7 @@ export function QueryListPage() {
     <ConfigProvider locale={zhCN}>
       <main style={{ padding: 16 }}>
         <h1>QueryList</h1>
-        <p>查询表单（超过一行折叠，展开 / 收起）+ 服务端分页表格。每页结果写进表单的 list 数组，DOMAIN 可以直接改；翻页、刷新、列配置（「分类」默认隐藏）都在表头。共 45 条模拟数据。</p>
+        <p>查询表单（超过一行折叠，展开 / 收起）+ 服务端分页表格。每页结果写进表单的 list 数组，DOMAIN 可以直接改；翻页、刷新、列配置（「分类」默认隐藏）都在表头；点 ID 表头排序，排序随请求发给服务端并回到第 1 页。共 45 条模拟数据。</p>
         <QueryList table={table} list="list" columns={columns} collapseAfter={2}>
           {SearchFields()}
         </QueryList>

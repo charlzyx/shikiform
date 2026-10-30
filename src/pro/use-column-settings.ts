@@ -33,10 +33,38 @@ export interface ColumnSettingsApi {
   setDensity: (density: TableDensity) => void
   /** Restore order, visibility, widths, and density. */
   reset: () => void
+  /** Move the column `from` to where the column `to` is (drag-and-drop by key). */
+  moveKey: (from: string, to: string) => void
+  /**
+   * HTML5 drag-and-drop props for one settings row: spread them on the row element. Dropping a row on another moves
+   * it there. Keep `move` buttons beside them for keyboard users.
+   */
+  dragProps: (key: string) => ColumnDragProps
+  /** Key being dragged and key under it, for styling. */
+  drag: { from: string | null; over: string | null }
+}
+
+/** Minimal drag event shape, so the hook does not depend on DOM or React event types. */
+export interface ColumnDragEvent {
+  preventDefault: () => void
+  dataTransfer?: { setData?: (format: string, data: string) => void; effectAllowed?: string; dropEffect?: string } | null
+}
+
+/** What {@link ColumnSettingsApi.dragProps} returns. */
+export interface ColumnDragProps {
+  draggable: true
+  'data-dragging'?: 'true'
+  'data-drag-over'?: 'true'
+  onDragStart: (event: ColumnDragEvent) => void
+  onDragOver: (event: ColumnDragEvent) => void
+  onDragLeave: () => void
+  onDrop: (event: ColumnDragEvent) => void
+  onDragEnd: () => void
 }
 
 /**
- * Headless column settings (Pro.formily `ProSettings`): show / hide, reorder, resize, density.
+ * Headless column settings (Pro.formily `ProSettings`): show / hide, reorder (`move` by index, or drag-and-drop through
+ * `dragProps`), resize, density.
  * Columns added later are appended; removed columns drop out.
  */
 export function useColumnSettings(columns: readonly ColumnSettingInput[]): ColumnSettingsApi {
@@ -69,14 +97,57 @@ export function useColumnSettings(columns: readonly ColumnSettingInput[]): Colum
   )
   const setWidth = useCallback((key: string, width: number) => setState((prev) => ({ ...prev, widths: { ...prev.widths, [key]: Math.max(40, Math.round(width)) } })), [])
   const setDensity = useCallback((density: TableDensity) => setState((prev) => ({ ...prev, density })), [])
+  const [drag, setDrag] = useState<{ from: string | null; over: string | null }>({ from: null, over: null })
+  const dragFrom = useRef<string | null>(null)
+  const moveKey = useCallback(
+    (from: string, to: string) => {
+      const fromIndex = order.indexOf(from)
+      const toIndex = order.indexOf(to)
+      if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return
+      move(fromIndex, toIndex)
+    },
+    [order.join('|'), move],
+  )
+  const dragProps = (key: string): ColumnDragProps => ({
+    draggable: true,
+    ...(drag.from === key ? { 'data-dragging': 'true' as const } : {}),
+    ...(drag.over === key && drag.from !== key ? { 'data-drag-over': 'true' as const } : {}),
+    onDragStart: (event) => {
+      dragFrom.current = key
+      // Firefox only starts a drag that carries data.
+      event.dataTransfer?.setData?.('text/plain', key)
+      if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
+      setDrag({ from: key, over: null })
+    },
+    onDragOver: (event) => {
+      if (dragFrom.current === null) return
+      event.preventDefault()
+      if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
+      setDrag((prev) => (prev.over === key ? prev : { from: dragFrom.current, over: key }))
+    },
+    onDragLeave: () => setDrag((prev) => (prev.over === key ? { ...prev, over: null } : prev)),
+    onDrop: (event) => {
+      const from = dragFrom.current
+      if (from === null) return
+      event.preventDefault()
+      dragFrom.current = null
+      setDrag({ from: null, over: null })
+      moveKey(from, key)
+    },
+    onDragEnd: () => {
+      dragFrom.current = null
+      setDrag({ from: null, over: null })
+    },
+  })
   const reset = useCallback(
     () => setState({ order: initial.current.map((column) => column.key), hidden: hiddenOf(initial.current), widths: {}, density: 'middle' }),
     [],
   )
-  return useMemo(
-    () => ({ items, visibleKeys: items.filter((item) => item.show).map((item) => item.key), toggle, move, setWidth, density: state.density, setDensity, reset }),
-    [JSON.stringify(items.map(({ key, show, width }) => [key, show, width])), state.density, toggle, move, setWidth, setDensity, reset],
+  const stableApi = useMemo(
+    () => ({ items, visibleKeys: items.filter((item) => item.show).map((item) => item.key), toggle, move, moveKey, setWidth, density: state.density, setDensity, reset }),
+    [JSON.stringify(items.map(({ key, show, width }) => [key, show, width])), state.density, toggle, move, moveKey, setWidth, setDensity, reset],
   )
+  return { ...stableApi, dragProps, drag }
 }
 
 function hiddenOf(columns: readonly ColumnSettingInput[]): string[] {

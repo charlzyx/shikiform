@@ -1,5 +1,6 @@
 import { asOptions } from '../enum/enum-source'
 import { deepEqual } from '../shared/equal'
+import { parentPath } from '../shared/path'
 import { normalizeUiSpec, type FieldModel } from '../state/field-model'
 import type { FieldStore } from '../state/field-store'
 import type { Notifier } from '../state/notifier'
@@ -41,6 +42,26 @@ export class Declarations {
         this.dormantDeclarations.delete(path)
         this.registerField(path, declaration)
       }
+    }
+    // An array / tree change drops the models under rows that disappeared. An exact declaration among them is
+    // path-keyed configuration, not row state: park it and revive it when its row exists again (#8).
+    store.onDrop = (models) => {
+      for (const model of models) {
+        if (model.declaration) this.dormantDeclarations.set(model.path, model.declaration)
+      }
+    }
+    store.onRestructure = () => this.reviveDormant()
+  }
+
+  /** Re-register dormant exact declarations whose parent value exists again. */
+  reviveDormant(): void {
+    if (!this.dormantDeclarations.size) return
+    for (const [path, declaration] of [...this.dormantDeclarations]) {
+      const parent = parentPath(path)
+      const container = parent ? this.store.getValue(parent) : this.store.values
+      if (container == null || typeof container !== 'object') continue
+      this.dormantDeclarations.delete(path)
+      this.registerField(path, declaration)
     }
   }
 
@@ -183,10 +204,12 @@ export class Declarations {
 
   /**
    * Copy item templates onto indexes that exist right now, and drop template instances that no longer do.
-   * Exact rules/required keep their models. Flags-only declarations survive separately from removed template state.
-   * Open issue #8 lives here: an exact flags-only declaration (`virtual`) on a template path is lost on empty → refill.
+   * Exact rules/required keep their models. Other exact declarations (`virtual`, `display`, `pattern`, UI) go dormant
+   * with their row and are re-registered when it exists again, whether the row left through `setValue` / `reset` or
+   * an array operation (#8).
    */
   applyItemTemplates(): void {
+    this.reviveDormant()
     if (!this.itemTemplates.length) return
     const live = new Set<string>()
     for (const tpl of this.itemTemplates) {

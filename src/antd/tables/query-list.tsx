@@ -31,7 +31,8 @@ export interface QueryListProps<TValues, TParams, TRow> {
 /**
  * Pro.formily `QueryList` + `QueryForm` + `QueryTable` in one: a collapsible search grid with 重置 / 查询,
  * and a {@link ProArrayTable} on a controlled server page with a refresh button. All state (filters, page,
- * selection, request) is {@link useQueryTable}; this only lays it out.
+ * selection, sort, column filters, request) is {@link useQueryTable}; this only lays it out. A column with
+ * `sorter: true` / `filters` sends its header state to `request` as `sorter` / `filters` and returns to page 1.
  */
 export function QueryList<TValues, TParams, TRow>(props: QueryListProps<TValues, TParams, TRow>) {
   const { table } = props
@@ -64,7 +65,12 @@ export function QueryList<TValues, TParams, TRow>(props: QueryListProps<TValues,
       <ProArrayTable<TRow>
         name={props.list}
         rowKey={props.rowKey ?? 'id'}
-        columns={props.columns}
+        columns={props.columns.map((column) => ({
+          ...column,
+          sortOrder: column.sorter && column.sortOrder === undefined ? table.sortOrderOf(column.key) : column.sortOrder,
+          filteredValue: column.filters && column.filteredValue === undefined ? table.filteredValueOf(column.key) : column.filteredValue,
+        }))}
+        onTableChange={table.onTableChange}
         title={props.title}
         toolbar={props.toolbar}
         footer={props.footer}

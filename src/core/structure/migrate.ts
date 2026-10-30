@@ -5,9 +5,11 @@ import type { FieldModel } from '../state/field-model'
  * `oldIds` / `newIds` map a row id to its path before and after the change.
  * A model under a row that disappeared is dropped; one under a moved row is re-keyed to the new path.
  * The deepest owning row wins, so nested rows migrate independently.
+ * Returns the dropped models, so exact declarations among them can go dormant instead of being lost (#8).
  */
-export function reindexById(fields: Map<string, FieldModel>, oldIds: Map<string, string>, newIds: Map<string, string>): void {
+export function reindexById(fields: Map<string, FieldModel>, oldIds: Map<string, string>, newIds: Map<string, string>): FieldModel[] {
   const owned: string[] = []
+  const dropped: FieldModel[] = []
   const moves: { to: string; model: FieldModel }[] = []
   for (const [fieldPath, model] of fields) {
     let best = ''
@@ -21,7 +23,10 @@ export function reindexById(fields: Map<string, FieldModel>, oldIds: Map<string,
     if (!best) continue
     owned.push(fieldPath)
     const target = newIds.get(bestId)
-    if (!target) continue
+    if (!target) {
+      dropped.push(model)
+      continue
+    }
     moves.push({ to: target + fieldPath.slice(best.length), model })
   }
   for (const path of owned) fields.delete(path)
@@ -29,4 +34,5 @@ export function reindexById(fields: Map<string, FieldModel>, oldIds: Map<string,
     move.model.path = move.to
     fields.set(move.to, move.model)
   }
+  return dropped
 }

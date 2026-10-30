@@ -40,6 +40,18 @@ export interface ProArrayTableColumn<TRow = any> {
   ellipsis?: boolean
   /** Start hidden in the column settings. */
   hidden?: boolean
+  /**
+   * Sortable header. `true` only reports the change (`onTableChange`, e.g. a server sort through `QueryList`);
+   * a compare function also sorts the rows on screen.
+   */
+  sorter?: boolean | ((a: TRow, b: TRow) => number)
+  /** Controlled sort state of this column. */
+  sortOrder?: 'ascend' | 'descend' | null
+  /** Header filter menu (antd `filters`). The selection is reported through `onTableChange`. */
+  filters?: { text: ReactNode; value: string | number | boolean }[]
+  filterMultiple?: boolean
+  /** Controlled filter selection of this column. */
+  filteredValue?: Array<string | number | boolean> | null
   /** Cell content, rendered in the row scope. */
   render: (cell: ProArrayTableCell<TRow>) => ReactNode
 }
@@ -78,6 +90,11 @@ export interface ProArrayTableProps<TRow = any> {
   size?: TableDensity
   /** Extra `data-testid` on the wrapper. */
   testId?: string
+  /**
+   * Header sort / filter changes, with antd `Table` `onChange` arguments (`useQueryTable().onTableChange` fits).
+   * Paging is the footer pager's, so `pagination` is always empty here.
+   */
+  onTableChange?: (pagination: unknown, filters: Record<string, unknown>, sorter: unknown, extra: { action?: string }) => void
 }
 
 interface ProArrayTableContextValue {
@@ -262,19 +279,34 @@ function SelectionBar() {
 const DENSITY: TableDensity[] = ['middle', 'small', 'large']
 const DENSITY_LABEL: Record<TableDensity, string> = { large: '宽松', middle: '默认', small: '紧凑' }
 
-/** Column settings popover: show / hide, reorder, density, reset. */
+/** Column settings popover: show / hide, reorder (drag a row, or ↑ ↓ from the keyboard), density, reset. */
 function SettingsButton() {
   const { settings } = useTable()
   const content = (
     <div data-testid="column-settings" style={{ minWidth: 200 }}>
       {settings.items.map((item, index) => (
-        <div key={item.key} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 0' }}>
+        <div
+          key={item.key}
+          data-testid={`column-row-${item.key}`}
+          {...settings.dragProps(item.key)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '2px 0',
+            opacity: settings.drag.from === item.key ? 0.4 : 1,
+            boxShadow: settings.drag.over === item.key && settings.drag.from !== item.key ? 'inset 0 2px 0 #1677ff' : undefined,
+          }}
+        >
+          <span data-testid={`column-drag-${item.key}`} aria-hidden style={{ cursor: 'grab', userSelect: 'none', color: '#999' }} title="拖动排序">
+            ⋮⋮
+          </span>
           <AntCheckbox data-testid={`column-show-${item.key}`} checked={item.show} onChange={() => settings.toggle(item.key)} />
           <span style={{ flex: 1 }}>{(item.title as ReactNode) ?? item.key}</span>
-          <Button size="small" type="text" disabled={index === 0} data-testid={`column-up-${item.key}`} onClick={() => settings.move(index, index - 1)}>
+          <Button size="small" type="text" aria-label="上移" disabled={index === 0} data-testid={`column-up-${item.key}`} onClick={() => settings.move(index, index - 1)}>
             ↑
           </Button>
-          <Button size="small" type="text" disabled={index === settings.items.length - 1} data-testid={`column-down-${item.key}`} onClick={() => settings.move(index, index + 1)}>
+          <Button size="small" type="text" aria-label="下移" disabled={index === settings.items.length - 1} data-testid={`column-down-${item.key}`} onClick={() => settings.move(index, index + 1)}>
             ↓
           </Button>
         </div>
@@ -304,6 +336,22 @@ function SettingsButton() {
       </Popover>
     </Space>
   )
+}
+
+/** antd sort / filter column props, with a compare function lifted from records to table rows. */
+function sortFilterProps<TRow>(column: ProArrayTableColumn<TRow>, recordOf: (row: ArrayTableRow) => TRow): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  if (column.sorter) {
+    const compare = column.sorter
+    out.sorter = typeof compare === 'function' ? (a: ArrayTableRow, b: ArrayTableRow) => compare(recordOf(a), recordOf(b)) : true
+    if (column.sortOrder !== undefined) out.sortOrder = column.sortOrder
+  }
+  if (column.filters) {
+    out.filters = column.filters
+    if (column.filterMultiple !== undefined) out.filterMultiple = column.filterMultiple
+    if (column.filteredValue !== undefined) out.filteredValue = column.filteredValue
+  }
+  return out
 }
 
 /** Header cell with a drag handle on its right edge. */
@@ -389,6 +437,7 @@ function ProArrayTableImpl<TRow = any>(props: ProArrayTableProps<TRow>) {
         align: column.align,
         fixed: column.fixed,
         ellipsis: column.ellipsis,
+        ...sortFilterProps(column, (row) => table.record(row.index)),
         render: (_: unknown, row: ArrayTableRow) => inRow(row, column.render(cellOf(row))),
         onHeaderCell: props.resizeable ? () => ({ width: item.width, onResize: (width: number) => settings.setWidth(column.key, width) }) as object : undefined,
       }
@@ -430,6 +479,7 @@ function ProArrayTableImpl<TRow = any>(props: ProArrayTableProps<TRow>) {
           pagination={false}
           dataSource={table.pageRows}
           columns={columns}
+          onChange={props.onTableChange ? (pagination, filters, sorter, extra) => props.onTableChange!(pagination, filters, sorter, extra) : undefined}
           components={props.resizeable ? { header: { cell: ResizableTitle } } : undefined}
           onRow={(row) => {
             const { onDragOver, onDrop } = mover.bind(row.index)

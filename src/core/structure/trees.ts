@@ -69,8 +69,9 @@ export class TreeOps {
     if (!result.ok || !result.tree) return { ok: false, reason: result.reason }
     const next = result.tree
     const newIds = locateIds(next, path, cfg.childrenKey, cfg.rowKey)
-    reindexById(store.fields, oldIds, newIds)
+    store.onDrop?.(reindexById(store.fields, oldIds, newIds))
     store.values = setAt(store.values, path, next)
+    store.onRestructure?.()
     const beforePos = new Map(listPositions(before, path, cfg.childrenKey, cfg.rowKey).map((n) => [posKey(n.pos), n.id]))
     const afterPos = new Map(listPositions(next, path, cfg.childrenKey, cfg.rowKey).map((n) => [posKey(n.pos), n.id]))
     const dirty = new Set<string>()

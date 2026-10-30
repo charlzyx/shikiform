@@ -18,6 +18,10 @@ export class FieldStore<T = any> {
   readonly fields = new Map<string, FieldModel>()
   /** Called once after a model is created. Declarations use it to revive a dormant declaration. */
   onCreate?: (path: string) => void
+  /** Called with the models an array / tree change dropped, before the new value is written. */
+  onDrop?: (models: FieldModel[]) => void
+  /** Called after an array / tree change wrote its new value. */
+  onRestructure?: () => void
 
   constructor(initialValues: T) {
     this.initial = clone(initialValues)
