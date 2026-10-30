@@ -369,7 +369,11 @@ export interface DraftState<T> {
   $display: Display
   /** When true, empty values fail validation even without a `required` rule. */
   $required: boolean
-  /** `true` sets pattern `disabled`. `false` sets pattern `editable`. */
+  /**
+   * `true` sets pattern `disabled`.
+   * `false` clears it when this shortcut installed the current pattern, so the field inherits again.
+   * An explicit `$pattern` is left as written. To force `editable`, assign `$pattern`.
+   */
   $disabled: boolean
   /** Explicit pattern. Assign `undefined` to inherit again. */
   $pattern: Pattern | undefined
