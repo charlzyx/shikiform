@@ -34,8 +34,9 @@ test('API links to named Hooks and the quick-start example validates and submits
   const form = demo.locator('form')
   await form.getByRole('button', { name: '提 交' }).click()
   await expect(form).toContainText('必填')
-  await form.getByRole('textbox', { name: '姓名', exact: true }).fill('Grace')
-  await form.getByRole('textbox', { name: '邮箱', exact: true }).fill('grace@example.com')
+  // antd FormItem labels put the required "*" and ":" (CSS generated content) into the accessible name.
+  await form.getByRole('textbox', { name: '姓名' }).fill('Grace')
+  await form.getByRole('textbox', { name: '邮箱' }).fill('grace@example.com')
   await form.getByRole('button', { name: '提 交' }).click()
   await expect(form.locator('pre')).toContainText('grace@example.com')
 })
