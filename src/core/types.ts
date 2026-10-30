@@ -140,8 +140,9 @@ export interface FieldUiSpec {
 export interface FieldSpec extends FieldUiSpec {
   /**
    * Omit this field from {@link FormInstance.getSubmitValues}. Effects can still read and write it.
-   * A computed field (a reaction wrote `$value`) becomes virtual unless this is `false`.
-   * Client-paging `page` and `selectedKeys` are virtual. The value stays on the form either way.
+   * A reaction writing `$value` does not set this. Declare `virtual: true` to drop a field,
+   * including a computed one. Client-paging `page` and `selectedKeys` are virtual.
+   * The value stays on the form either way.
    */
   virtual?: boolean
   /**
@@ -358,7 +359,10 @@ export interface UiDraft {
 }
 
 export interface DraftState<T> {
-  /** Current value. Reading tracks a dependency. Writing marks the field computed. */
+  /**
+   * Current value. Reading tracks a dependency. A reaction write marks the field computed
+   * (`readPretty`). The value is still submitted unless the field is `virtual`.
+   */
   $value: T
   /**
    * Convenience for display. `false` sets `hidden` (keep, validate, submit), not `none`.
@@ -484,7 +488,7 @@ export interface FormInstance<T> {
   batch(fn: (d: Draft<T>) => void): void
   /**
    * Wait for in-flight async rules, validate, drop `virtual` and `display: 'none'` values.
-   * `hidden` values are kept. Computed fields are omitted unless `virtual` was set false.
+   * `hidden` values are kept. A reaction-written value is kept unless `virtual` is true.
    * Values changed during validation, or a newer validation pass: returns `ok: false`
    * with a root retry message and does not call `onValid`. Submit again once settled.
    */

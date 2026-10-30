@@ -59,7 +59,7 @@ createForm<T>(options?: FormOptions<T>): FormEngine<T>  // 组件外
 | `moveTree(path, from, to)` | 移动树节点到最终坐标，拒绝移进自己的子孙，返回 `{ ok, reason? }` |
 | `validate(path?)` | 校验全表或一棵子树 → `Promise<FieldError[]>` |
 | `submit(onValid?)` | 等异步规则、校验，通过才调用 `onValid` → `{ ok: true, values } \| { ok: false, errors }` |
-| `getSubmitValues()` | 去掉 `virtual`、`display: 'none'` 和计算字段后的值 |
+| `getSubmitValues()` | 去掉 `virtual: true` 和 `display: 'none'` 后的值。reaction 写过的字段默认留下 |
 | `reset(path?)` | 恢复初始值（全表或子树），计算字段重新算 |
 
 实例属性（`values`、`errors`、`canSubmit`、`submitting` …）不会触发渲染；在 React 里用 `useWatch((d) => d.$canSubmit)` 之类订阅。
@@ -92,7 +92,7 @@ const effects = defineEffects<Values>(({ reaction, watch, query }) => {
 
 | API | 触发 | 说明 |
 |---|---|---|
-| `reaction(effect)` | 立即运行；之后读到的 `$` 状态变化时 | 同步派生；写 `$value` 使字段成为计算字段 |
+| `reaction(effect)` | 立即运行；之后读到的 `$` 状态变化时 | 同步派生；写 `$value` 使字段成为只读计算字段，默认仍提交 |
 | `reaction.each(select, effect)` | 每行一个实例 | 只处理一层数组 |
 | `reaction.walk(select, effect, opts?)` | 每个树节点一个实例 | `childrenKey` 默认 `'children'` |
 | `watch(source, effect)` | `source` 读到的状态变化后；首次不运行 | 多个来源返回数组 |

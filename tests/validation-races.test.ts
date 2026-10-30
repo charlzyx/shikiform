@@ -192,7 +192,7 @@ describe('submit returns only values its pass validated (#6)', () => {
     })
     expect(await form.submit()).toEqual({ ok: false, errors: [{ path: 'name', messages: ['必填'] }] })
     form.setValue('name', 'ok')
-    expect(await form.submit()).toEqual({ ok: true, values: { name: 'ok' } })
+    expect(await form.submit()).toEqual({ ok: true, values: { name: 'ok', hasError: false } })
   })
 
   it('gives up with the retry message when values never settle (bounded)', async () => {

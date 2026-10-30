@@ -41,7 +41,7 @@ test('the tutorial uses library hidden semantics instead of silently skipping va
   await expect(form.locator('pre.shiki-code')).toHaveCount(0)
 })
 
-test('array tutorial additions and removals use stable real rows and computed values stay virtual', async ({ page }) => {
+test('array tutorial additions and removals use stable real rows and computed totals are submitted', async ({ page }) => {
   const tutorial = await answer(page, '/tutorial/7-array')
   const form = tutorial.locator('form')
   await form.getByRole('button', { name: '添加一行', exact: true }).click()
@@ -52,7 +52,7 @@ test('array tutorial additions and removals use stable real rows and computed va
   await expect(form.getByRole('textbox', { name: '名称' })).toHaveValue('新行')
   await form.getByRole('button', { name: '提交', exact: true }).click()
   await expect(form.locator('pre.shiki-code')).toContainText('新行')
-  await expect(form.locator('pre.shiki-code')).not.toContainText('"total"')
+  await expect(form.locator('pre.shiki-code')).toContainText('"total": 0')
 })
 
 test('Standard Schema works without a private zod adapter', async ({ page }) => {

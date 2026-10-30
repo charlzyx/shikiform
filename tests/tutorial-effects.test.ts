@@ -25,25 +25,26 @@ describe('tutorial effects use the published FormEngine contract', () => {
     expect(solution.binding('city').disabled).toBe(true)
   })
 
-  it('derives a read-pretty amount and excludes it from submit by default', () => {
+  it('derives a read-pretty amount and still submits it', () => {
     const form = createForm({ initialValues: { price: 10, qty: 2, amount: 0 }, effects: [computedEffects] })
     expect(form.getValue('amount')).toBe(20)
     expect(form.binding('amount').pattern).toBe('readPretty')
     form.setValue('price', 30)
     expect(form.getValue('amount')).toBe(60)
-    expect(form.getSubmitValues()).toEqual({ price: 30, qty: 2 })
+    expect(form.getSubmitValues()).toEqual({ price: 30, qty: 2, amount: 60 })
   })
 
-  it('allows explicit virtual:false to include the same computed value', () => {
+  it('omits a computed amount only when virtual is declared', () => {
     const form = createForm({
       initialValues: { price: 10, qty: 2, amount: 0 },
       effects: [computedEffects],
-      fields: { amount: { virtual: false } },
+      fields: { amount: { virtual: true } },
     })
-    expect(form.getSubmitValues()).toEqual({ price: 10, qty: 2, amount: 20 })
+    expect(form.binding('amount').pattern).toBe('readPretty')
+    expect(form.getSubmitValues()).toEqual({ price: 10, qty: 2 })
   })
 
-  it('calculates each array row after adding/removing and omits every derived total', () => {
+  it('calculates each array row after adding/removing and submits every derived total', () => {
     const form = createForm({
       initialValues: { items: [{ id: 'row-1', name: '贴纸', price: 2, qty: 4, total: 0 }] },
       effects: [arrayEffects],
@@ -57,7 +58,14 @@ describe('tutorial effects use the published FormEngine contract', () => {
     form.removeArray('items', 0)
     expect(form.getValue('items.0.id')).toBe('row-2')
     expect(form.getValue('items.0.total')).toBe(15)
-    expect(form.getSubmitValues()).toEqual({ items: [{ id: 'row-2', name: '卡片', price: 3, qty: 5 }] })
+    expect(form.getSubmitValues()).toEqual({ items: [{ id: 'row-2', name: '卡片', price: 3, qty: 5, total: 15 }] })
+    const same = createForm({
+      initialValues: { items: [{ id: 'row-2', name: '新行', price: 0, qty: 1, total: 0 }] },
+      effects: [arrayEffects],
+    })
+    expect(same.getValue('items.0.total')).toBe(0)
+    expect(same.binding('items.0.total').pattern).toBe('readPretty')
+    expect(same.getSubmitValues()).toEqual({ items: [{ id: 'row-2', name: '新行', price: 0, qty: 1, total: 0 }] })
     form.binding('items.0.price').onChange(undefined)
     expect(form.getValue('items.0.total')).toBe(0)
   })

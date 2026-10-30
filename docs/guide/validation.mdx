@@ -94,7 +94,7 @@ export default function App() {
 | `useForm({ fields })`、`registerField`、行模板 `items.*.name` | 仍查 |
 | reaction 里的 `$rules` / `$required` | 仍查（并且优先级最高） |
 
-显隐再决定查不查：`visible` 和 `hidden` 都查（藏起来的必填照样挡住提交），`none` 不查也不提交，计算字段不查。
+显隐再决定查不查：`visible` 和 `hidden` 都查（藏起来的必填照样挡住提交），`none` 不查也不提交。计算字段不查，但默认仍提交，除非声明了 `virtual: true`。
 
 跨标签页、折叠区、虚拟滚动之外都要校验的业务规则，写在 `fields` 或 reaction 里；只在当前界面有意义的临时规则才写 JSX。
 
