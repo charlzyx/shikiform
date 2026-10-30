@@ -79,6 +79,7 @@ core 内部（有状态部分，编号小者在下）：
 | 下层 | 注入的上层能力 | 注入方 |
 |---|---|---|
 | `FieldStore.onCreate` | 复活休眠声明（`Declarations`） | `Declarations` 构造时 |
+| `FieldStore.onDrop` / `onRestructure` | 数组 / 树操作丢弃的模型里有精确声明时转为休眠，结构写入后父值存在即复活（#8） | `Declarations` 构造时 |
 | `Validator.prepare` | 校验前展开条目模板 | `FormEngine` 构造时 |
 | `Validator` 的 `readPos` | 树节点 pos（`TreeOps.readPos`） | `FormEngine` 构造时 |
 | `StateWriter.carryRowIdentity` | 单元格写入后，把旧行对象的身份交给重建的行（`ArrayOps.carryIdentity`） | `FormEngine` 构造时 |
@@ -140,7 +141,7 @@ Formily 的 `field.title` / `description` / `decorator` / `component` / `setComp
 - **`ArrayOps`**：`push/insert/remove/move/swap/replace` 都走同一 `commit`：计算新数组 → 按行 id（`rowKey`/`id`，否则对象身份 WeakMap）用 `reindexById` 迁移字段模型（错误、touched、规则跟着行走）→ 记录 `dirtyRows` → bump structure，并把数组及祖先的 `:value` 标脏（读 `d.rows.$value` 的 reaction / useWatch 会重跑；行级 `each` 仍只看 `dirtyRows`）→ 重新展开条目模板 → flush。
 - **无 id 行的身份**：单元格写入经 `setAt` 重建了行对象；`carryIdentity` 把旧对象在 WeakMap 里的身份交给新对象，所以渲染 key、选择、展开在编辑后不变。
 - **`TreeOps`**：注册树根（`childrenKey`、`rowKey`、`canMove`）、`readPos`（优先当前 `walk` 实例的 pos）、`move(from, to)`（拒绝移入自身后代，按节点 id 迁移模型，记录 `dirtyPos`）。
-- **`migrate.ts`**：`reindexById` —— 以最深的所属行为准，删除消失行下的模型，重键移动行下的模型。
+- **`migrate.ts`**：`reindexById` —— 以最深的所属行为准，删除消失行下的模型，重键移动行下的模型；返回被删除的模型，`ArrayOps` / `TreeOps` 交给 `FieldStore.onDrop`，其中的精确声明（`fields` / `registerField`）转为休眠而不是丢失（#8）。注意：移动行下的模型连同其声明跟着行走。
 - **`shared/tree-ops.ts`**：无状态的 pos / path 算法（`posOf`、`pathOf`、`moveNode`、`listPositions`、`scopeOf`…）。
 
 ## 7. 引擎门面（`core/engine`）
@@ -181,12 +182,9 @@ const Rate = connect(AntRate, mapProps({ status: false }))
 
 | Issue | 摘要 | 所在位置 |
 |---|---|---|
-| #3 | QueryTable 列筛选后保留旧选择 | `src/pro/use-query-table.ts`（选择/查询状态）与 `src/antd/tables/query-table.tsx`（列筛选接线）。 |
-| #8 | 清空再填数组丢失精确字段的 `virtual` 声明 | `core/declarations/declarations.ts` 的 `applyItemTemplates`（休眠声明）与 `FieldStore.onCreate` 复活路径。 |
-| #12 | P0 示例交互回归与文档构建 | 不在库代码：`playground/`、`docs/`、构建配置。 |
 | P3-3 | `commit: 'blur'` 已声明但未实现 | `core/engine/writes.ts` 的 `commitExternal`。 |
 
-代码中在对应位置留有 `Open issue #n` 注释。#1、#2、#6、#7 已由 `fix/validation-races` 修复，见第 5 节。
+代码中在对应位置留有 `Open issue #n` 注释。#1、#2、#6、#7 已由 `fix/validation-races` 修复，见第 5 节。#3、#8、#12 已由 `fix/pro-gaps` 解决：#3（列筛选清空选择，见 §10 查询表）、#8（精确声明是按路径的配置：`setValue`/`reset` 清掉行时由 `applyItemTemplates`、数组 / 树操作丢掉行时由 `onDrop` 转为休眠，行再出现时 `reviveDormant` 重新注册，`virtual`/`display`/`pattern`/UI 都恢复，见 §2 注入表）、#12（P0 示例与「文档构建含 playground」已在 main：`npm run build` = VitePress + `build:play` + `check-site`）。
 
 ## 10. Pro 层（复刻 Pro.formily）
 
@@ -202,6 +200,9 @@ const Rate = connect(AntRate, mapProps({ status: false }))
 
 - **影子表单不写宿主。** `useShadowForm` 每次 `open` 新建引擎（`initialValues` = 打开的记录），`confirm` 校验通过后只调用 `onOk`；写回由调用方（或 `useArrayShadow` 的默认写回）决定。草稿字段经 `ShadowBody` 提供 `FormContext` 并把 `ScopeContext` 重置为根，不渲染 `<form>`，可以嵌在宿主 `<Form>` 里或从行内打开。
 - **`<Form>` 同样把作用域重置为根，并阻止 submit 事件冒泡到宿主表单**（React 合成事件会穿过 portal）。
+- **查询表的表头排序与列筛选在 `useQueryTable`。** `sorter: QuerySort[]`、`filters: QueryFilters` 是 Hook 的 React 状态（不进表单值），随 `queryKey` 与 `request` 参数一起发送。`onTableChange` 接 antd `Table onChange`（忽略 `paginate`，分页走 `onPageChange`），值没变不请求。排序变化：回第 1 页、保留选择（结果集不变）；列筛选变化：回第 1 页、清空选择（结果集变了，旧选择会让批量操作处理看不见的行，#3）；`submit` 保留二者，`reset` 清空。`ProQueryTable` / `QueryList` 只把列的 `sortOrder` / `filteredValue` 设为受控并转发 `onChange`。
+- **列配置拖拽在 `useColumnSettings`。** `dragProps(key)` 是无依赖的 HTML5 拖放属性（只接受从列表内开始的拖动），`moveKey(from, to)` 按 key 移动；antd 层只把它展开到每行并保留 ↑ ↓ 按钮（键盘可达）。
+- **级联阅读态在 `useCascaderLabels`。** `labelInValue` 值直接取标签、不加载；裸值复用 `useLazyCascader`（`enabled` 控制是否加载）逐级加载祖先后解析标签。`CascaderPlus` 的 `mapReadPretty` 视图只是它的渲染。
 - **表格状态不进表单值。** 分页、选择、展开、列配置是 React 状态（`useArrayTable` 可受控传入 `selectedKeys`）；查询表的选择仍是 `useQueryTable` 的 virtual 字段，`QueryList` 把它作为受控选择传给 `ProArrayTable`。
 
 ## 11. 行上下文 Hook（`react/hooks/use-row.ts`、`use-array.ts`）

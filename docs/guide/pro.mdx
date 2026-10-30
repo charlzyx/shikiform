@@ -12,7 +12,7 @@ Pro 分两层：`shikiform/pro` 是无 UI 的 Hooks，`shikiform/antd` 里的组
 | `ProArrayTable` | `useArrayTable` + `useColumnSettings` | 可编辑的数组表格：分页、选择、拖拽排序、列配置、展开子表 |
 | `ShadowModal` / `ShadowDrawer` / `ShadowPopconfirm` / `ShadowForm` | `useShadowForm` / `useArrayShadow` | 影子草稿：在独立引擎里编辑，确认后才写回 |
 | `QueryList` / `ProQueryTable` | `useQueryTable` | 查询条件 + 服务端分页列表 |
-| `EnumPretty` / `Suggestion` / `CascaderPlus` | `enumItems` / `useSuggestion` / `useLazyCascader` | 枚举展示、远程联想、懒加载级联 |
+| `EnumPretty` / `Suggestion` / `CascaderPlus` | `enumItems` / `useSuggestion` / `useLazyCascader` + `useCascaderLabels` | 枚举展示、远程联想、懒加载级联 |
 
 ## ProArrayTable
 
@@ -124,7 +124,7 @@ export default function App() {
 
 ## 查询列表
 
-`useQueryTable` 管查询条件、分页、请求竞态和选择；`QueryList` 渲染可折叠的条件栅格加一张受控分页的 `ProArrayTable`。每页结果写进 `rows` 指定的数组字段，所以单元格同样可以编辑。
+`useQueryTable` 管查询条件、分页、表头排序和列筛选、请求竞态和选择；`QueryList` 渲染可折叠的条件栅格加一张受控分页的 `ProArrayTable`。每页结果写进 `rows` 指定的数组字段，所以单元格同样可以编辑。
 
 ```tsx
 const table = useQueryTable({ initialValues: { query: {}, list: [] }, params: 'query', rows: 'list', request })
@@ -133,13 +133,15 @@ const table = useQueryTable({ initialValues: { query: {}, list: [] }, params: 'q
 </QueryList>
 ```
 
+列上写 `sorter: true` / `filters`，表头排序和列筛选会随请求发给服务端（`request` 的 `sorter` / `filters`）并回到第 1 页。列筛选和点「查询」一样会清空选择，免得批量操作碰到已经看不见的行；只翻页或排序时选择保留。
+
 请求协议和返回值见 [查询 Hooks](/reference/query-hooks)；完整页面见 [/play/query-list](/play/query-list) 和不依赖 antd 的 [/play/query-native](/play/query-native)。
 
 ## 枚举、联想与级联
 
 - `EnumPretty`：只读枚举显示，文字 / 徽标 / 标签（[/play/pro-enum](/play/pro-enum)）。
 - `Suggestion`：远程联想下拉，防抖并丢弃过期结果，支持多选和 `labelInValue`（[/play/suggestion](/play/suggestion)）。
-- `CascaderPlus`：一个 `loadData(path)` 服务所有层级的懒加载级联，打开已有值时逐级反显（[/play/cascader-plus](/play/cascader-plus)）。
+- `CascaderPlus`：一个 `loadData(path)` 服务所有层级的懒加载级联，打开已有值时逐级反显；阅读态显示标签，没有 `labelInValue` 的裸编码也会经同一个 `loadData` 解析成标签（[/play/cascader-plus](/play/cascader-plus)）。
 
 每个组件还有不绑定字段的 `…View` / `SuggestionSelect` 版本。签名见 [Pro 组件参考](/reference/pro-components) 与 [Pro Hooks 参考](/reference/pro-hooks)，所有可点的场景在 [示例库](/examples)。
 
