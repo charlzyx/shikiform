@@ -207,7 +207,8 @@ export interface FormOptions<T> {
   validateTrigger?: ValidateTrigger[]
   /**
    * Debounce async field validators and async Standard Schemas. `0` runs them immediately.
-   * Stale runs are cancelled with `AbortSignal` and ignored when they resolve.
+   * A newer edit aborts the previous `AbortSignal`. That attempt leaves the in-flight set
+   * immediately, so `submit` does not wait for it; a later resolve or reject is ignored.
    */
   asyncDebounceMs?: number
   /** Default commit mode. Default `'change'`. Large tables usually want `'blur'`. */
