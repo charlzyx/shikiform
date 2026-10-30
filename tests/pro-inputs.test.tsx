@@ -2,8 +2,8 @@
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createForm, Field, Form } from '../src'
-import { EnumPretty, FormItem, Input, QueryList, Select } from '../src/antd'
-import { enumItems, useLazyCascader, useQueryTable, useSuggestion, type CascaderOption } from '../src/pro'
+import { CascaderPlus, EnumPretty, FormItem, Input, QueryList, Select } from '../src/antd'
+import { cascaderPaths, enumItems, useCascaderLabels, useColumnSettings, useLazyCascader, useQueryTable, useSuggestion, type CascaderOption } from '../src/pro'
 
 afterEach(() => {
   cleanup()
@@ -87,6 +87,65 @@ describe('useLazyCascader', () => {
     expect(result.current.labelsOf(['410000', '410600'])).toEqual(['河南省', '鹤壁市'])
     await act(() => result.current.loadChildren(['410000']))
     expect(load).toHaveBeenCalledTimes(4)
+  })
+})
+
+describe('CascaderPlus readPretty labels', () => {
+  const load = () => vi.fn(async (path: Array<string | number>) => AREA[JSON.stringify(path)] ?? [])
+
+  it('useCascaderLabels resolves bare codes through the loader, and skips loading for labelInValue', async () => {
+    const loader = load()
+    const { result } = renderHook(() => useCascaderLabels({ value: ['410000', '410600', '410621'], load: loader }))
+    await waitFor(() => expect(result.current.labels).toEqual([['河南省', '鹤壁市', '浚县']]))
+    expect(result.current.loading).toBe(false)
+    const labeledLoader = load()
+    const labeled = renderHook(() =>
+      useCascaderLabels({ value: [{ label: '北京市', value: '110000' }, { label: '朝阳区', value: '110105' }], load: labeledLoader }),
+    )
+    expect(labeled.result.current.labels).toEqual([['北京市', '朝阳区']])
+    expect(labeledLoader).not.toHaveBeenCalled()
+    // No loader: the value is all there is.
+    expect(renderHook(() => useCascaderLabels({ value: ['x', 'y'] })).result.current.labels).toEqual([['x', 'y']])
+    expect(cascaderPaths([[{ label: 'a', value: 1 }, 2], 'bad'], true)).toEqual([[1, 2]])
+  })
+
+  it('shows labels, not codes, for a readPretty field without labelInValue (single and multiple)', async () => {
+    const form = createForm({
+      initialValues: { one: ['110000', '11000000', '110105'], many: [['110000', '11000000', '110105'], ['410000', '410600', '410621']] },
+      fields: { one: { pattern: 'readPretty' }, many: { pattern: 'readPretty' } },
+    })
+    const loader = load()
+    const { container } = render(
+      <Form form={form}>
+        <Field name="one" decorator={[FormItem]} component={[CascaderPlus, { loadData: loader }]} />
+        <Field name="many" decorator={[FormItem]} component={[CascaderPlus, { loadData: loader, multiple: true }]} />
+      </Form>,
+    )
+    await waitFor(() =>
+      expect([...container.querySelectorAll('[data-read-pretty]')].map((node) => node.textContent)).toEqual([
+        '北京市/北京市/朝阳区',
+        '北京市/北京市/朝阳区, 河南省/鹤壁市/浚县',
+      ]),
+    )
+    act(() => form.setValue('one', ['410000', '410600']))
+    await waitFor(() => expect(container.querySelector('[data-read-pretty]')?.textContent).toBe('河南省/鹤壁市'))
+  })
+})
+
+describe('useColumnSettings drag', () => {
+  it('moveKey and dragProps reorder by key', () => {
+    const { result } = renderHook(() => useColumnSettings([{ key: 'a' }, { key: 'b' }, { key: 'c' }]))
+    act(() => result.current.moveKey('c', 'a'))
+    expect(result.current.visibleKeys).toEqual(['c', 'a', 'b'])
+    const event = { preventDefault: vi.fn(), dataTransfer: { setData: vi.fn(), effectAllowed: '', dropEffect: '' } }
+    act(() => result.current.dragProps('c').onDragStart(event))
+    expect(event.dataTransfer.setData).toHaveBeenCalledWith('text/plain', 'c')
+    act(() => result.current.dragProps('b').onDragOver(event))
+    expect(event.preventDefault).toHaveBeenCalled()
+    expect(result.current.drag).toEqual({ from: 'c', over: 'b' })
+    act(() => result.current.dragProps('b').onDrop(event))
+    expect(result.current.visibleKeys).toEqual(['a', 'b', 'c'])
+    expect(result.current.drag).toEqual({ from: null, over: null })
   })
 })
 
