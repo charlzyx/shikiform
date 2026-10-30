@@ -216,27 +216,23 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
   /**
    * Bump `submitCount`, wait for in-flight async rules, validate, then call `onValid` with {@link FormEngine.getSubmitValues}.
    * `virtual` and display `none` are omitted. `hidden` is kept. Computed fields are omitted unless `virtual` was set false.
-   * If values change or another validation supersedes this pass, return `ok: false` with a root retry message.
-   * No `onValid` call is made for that attempt; submit again after the edit/validation has settled.
+   *
+   * Submit only returns values its own pass validated (#6): see `Validator.runSettled`. When the values never
+   * settle, or another validation supersedes the pass, it returns `ok: false` with a root retry message
+   * and does not call `onValid`.
    */
   async submit(onValid?: (values: T) => void | Promise<void>) {
-    // Open issue #6 lives here and in Validator.validate: an edit while waiting on async rules.
     const { store, scheduler, notifier, validator } = this
     store.submitCount += 1
     this.pendingSubmits += 1
     store.submitting = true
     scheduler.bumpMeta()
     notifier.emit()
+    const retry = { ok: false as const, errors: [{ path: '', messages: ['表单或校验已更新，请重新提交'] }] }
     try {
       await validator.waitAsync()
-      // Supported writes replace the values object. Capture before validate's
-      // synchronous notifications, which may themselves start a newer pass.
-      const valuesVersion = store.values
-      const expectedGen = validator.validateGen + 1
-      const errors = await validator.validate()
-      if (valuesVersion !== store.values || expectedGen !== validator.validateGen) {
-        return { ok: false as const, errors: [{ path: '', messages: ['表单或校验已更新，请重新提交'] }] }
-      }
+      const errors = await validator.runSettled()
+      if (!errors) return retry
       if (errors.length) return { ok: false as const, errors }
       const values = this.getSubmitValues()
       if (onValid) await onValid(values)

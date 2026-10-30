@@ -115,7 +115,14 @@ export function runRules(
       if (rule.max != null && value > rule.max) messages.push(rule.message ?? `不能大于 ${rule.max}`)
     }
     if (rule.validator) {
-      const result = rule.validator(value, ctx)
+      // A synchronous throw is that rule's message, like a rejection (#2, #7): a pass never rejects on a field rule.
+      let result: RuleMessage
+      try {
+        result = rule.validator(value, ctx)
+      } catch (err) {
+        messages.push(err instanceof Error && err.message ? err.message : '校验失败')
+        continue
+      }
       if (result && typeof (result as Promise<unknown>).then === 'function') pending.push(result as Promise<string | null | undefined>)
       else if (typeof result === 'string' && result) messages.push(result)
     }

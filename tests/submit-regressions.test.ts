@@ -9,7 +9,7 @@ function gate() {
 
 describe('submit validates the values it returns (#6)', () => {
   for (const kind of ['schema', 'resolver', 'function'] as const) {
-    it(`${kind}: rejects an edit during validation instead of submitting unvalidated values`, async () => {
+    it(`${kind}: re-validates an edit made during validation instead of submitting unvalidated values`, async () => {
       const entered = gate()
       const held = gate()
       const check = async (values: { name: string }) => {
@@ -42,8 +42,8 @@ describe('submit validates the values it returns (#6)', () => {
       form.setValue('name', 'invalid')
       held.open()
       const result = await pending
-      expect(result.ok).toBe(false)
-      if (!result.ok) expect(result.errors).toEqual([{ path: '', messages: ['表单或校验已更新，请重新提交'] }])
+      // The edit is validated by a second pass; its real error comes back, not a retry message.
+      expect(result).toEqual({ ok: false, errors: [{ path: 'name', messages: ['invalid current name'] }] })
       expect(onValid).not.toHaveBeenCalled()
       expect(form.submitting).toBe(false)
       expect(form.validating).toBe(false)
@@ -81,25 +81,30 @@ describe('submit validates the values it returns (#6)', () => {
   })
 
   for (const edit of ['reset', 'replace-array'] as const) {
-    it(`invalidates a pending submission after ${edit}`, async () => {
+    it(`re-validates and submits the new values after ${edit} during a pending submission`, async () => {
+      let passes = 0
       const entered = gate()
       const held = gate()
       const form = createForm({
         initialValues: { rows: [{ name: 'valid' }] },
         validate: async () => {
+          passes += 1
           entered.open()
           await held.promise
           return {}
         },
       })
+      form.setValue('rows', [{ name: 'edited' }])
       const onValid = vi.fn()
       const pending = form.submit(onValid)
       await entered.promise
       if (edit === 'reset') form.reset()
       else form.setValue('rows', [{ name: 'unvalidated' }])
       held.open()
-      expect((await pending).ok).toBe(false)
-      expect(onValid).not.toHaveBeenCalled()
+      const expected = { rows: [{ name: edit === 'reset' ? 'valid' : 'unvalidated' }] }
+      expect(await pending).toEqual({ ok: true, values: expected })
+      expect(onValid).toHaveBeenCalledExactlyOnceWith(expected)
+      expect(passes).toBe(2)
     })
   }
 

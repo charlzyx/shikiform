@@ -99,7 +99,10 @@ export class Declarations {
     }
   }
 
-  // Open issue #7 lives here: restoring an async declared validator re-runs it via the queued pass.
+  /**
+   * Restore declared rules after a JSX `<Field>` unmounts. The sync preview strips custom validators, and the
+   * one queued managed pass runs them once; a throw or rejection lands as a message (#7).
+   */
   releaseJsxField(path: string): void {
     const field = this.store.get(path)
     if (!field) return
@@ -136,7 +139,7 @@ export class Declarations {
     queueMicrotask(() => {
       const current = this.store.get(path)
       if (!current || current.jsxActive) return
-      void this.validator.validate(path)
+      this.validator.validateDetached(path)
     })
   }
 

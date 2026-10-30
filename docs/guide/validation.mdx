@@ -21,7 +21,7 @@ import { TutorialPlay } from '../_components/TutorialStep';
 | `pattern` | 正则 |
 | `format: 'email' \| 'url'` | 内置格式 |
 | `isTrue` | 必须为 `true`（同意条款） |
-| `validator(value, ctx)` | 返回错误文案、空值或它们的 Promise；`ctx` 有 `record`（最近的对象）、`parent`（跳过数组的上一层）、`root`、`get(path)`、`signal` |
+| `validator(value, ctx)` | 返回错误文案、空值或它们的 Promise；`ctx` 有 `record`（最近的对象）、`parent`（跳过数组的上一层）、`root`、`get(path)`、`signal`，它们和 `value` 读的是同一轮校验开始时的值。抛错或 reject 时，错误的 `message` 就是这个字段的提示 |
 | `message` | 覆盖这条规则的文案 |
 
 ```tsx preview play=schema
@@ -82,7 +82,7 @@ export default function App() {
 
 - 默认在失焦（`onBlur`）和提交（`onSubmit`）时；表单级改 `validateTrigger: ['onChange', 'onBlur', 'onSubmit']`。控件必须把 blur 交回 `field.onBlur`（接好的 antd 控件已经做了）。
 - 手动：`form.validate()` 校验全表，`form.validate('items')` 校验一棵子树，都返回 `FieldError[]`（`{ path, messages }`）。
-- `submit` 先等进行中的异步规则再校验；通过才调用回调。校验期间值又变了，这次提交返回 `ok: false` 并提示重试，不会把没校验过的值交出去。
+- `submit` 先等进行中的异步规则再校验；通过才调用回调。校验期间值又变了，就按新值再校验一轮（最多 3 轮），交出去的永远是刚校验过的值；值一直在变才返回 `ok: false` 并提示重新提交。
 
 ## 规则写在哪
 

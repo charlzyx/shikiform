@@ -127,9 +127,13 @@ Formily 的 `field.title` / `description` / `decorator` / `component` / `setComp
 1. **规则来源**（由 `declarations` 合成到 `field.rules/required`）：reaction（`$rules/$required`）> JSX lease（`<Field rules>` / `useField(name, { rules })`，卸载即释放）> 精确声明（`fields`、`registerField`）> 条目模板（`rows.*.name`）。
 2. **触发**：`validateTrigger`（默认 `onBlur` + `onSubmit`），字段可覆盖；`onChange`/`onBlur` 走 `scheduleValidate`，有 `asyncDebounceMs` 且含异步规则时防抖。
 3. **单字段**（`validateOne`）：`display: none` 或 computed 字段清空错误并跳过；`runRules` 产出同步消息与 pending Promise；字段 Standard Schema 同步/异步收集 issue；`enumPolicy: 'error'` 追加枚举校验。每次校验 `asyncSeq+1` 并换新 `AbortController`，迟到结果比对 seq/abort 后丢弃（stale）。
-4. **整表**（`validate(path?)`）：`validateGen` 代数，只有最新一轮可提交；依次跑字段 → 表单级 `validate`（Standard Schema 或函数）→ `resolver`；issue 按路径分组写入 `schemaErrors`（scoped 校验只替换 `path` 之下，stale 字段保留旧值）；最后等待在途异步。
+   - **规则抛错即消息**（#2、#7）：自定义 `validator` 同步 `throw`、返回的 Promise reject、字段 Schema 的 `validate` 同步抛错，都按同一契约变成该字段的错误消息（`err.message`，空则 `校验失败`）。因此字段规则永远不会让一轮校验 reject；公开的 `runRules` 也遵守这一点。
+   - **无人等待的校验**（`validateDetached`：触发器、防抖定时器、JSX 卸载后恢复声明规则的那一轮）只可能因表单级 `validate`/`resolver` 抛错或 reaction 错误而失败，此时 `console.error` 报告，不留下未处理拒绝；被 `await` 的 `validate()`/`submit()` 仍把这类错误交给调用方。
+4. **整表**（`validate(path?)` = `run(path).errors`）：`validateGen` 代数，只有最新一轮可提交；`prepare()` 之后取**一份不可变快照** `values = store.values`（写入总是替换对象），本轮所有字段规则与表单级校验都只读这份快照（#1）：`value`、`ctx.record/root/parent/array` 与 `ctx.get()` 读同一版本，不再出现「值是新的、同行另一列是旧的」。依次跑字段 → 表单级 `validate`（Standard Schema 或函数）→ `resolver`；issue 按路径分组写入 `schemaErrors`（scoped 校验只替换 `path` 之下，stale 字段保留旧值）；最后等待在途异步。`run` 返回 `{ errors, values: 快照, current: 是否仍是最新一轮 }`。以后若再引入「行草稿」校验，应构造一份把草稿写在真实行路径上的快照交给这条管线，而不是另开旁路。
 5. **展示**：`errors = rule errors + schemaErrors`；`hidden` 仍校验/提交，`none`（含祖先）跳过并清除错误。`canSubmit` 在提交/校验中或存在可见错误时为 false。
-6. **提交**（`FormEngine.submit`）：`submitCount+1` → 等待在途异步 → `validate()` → 若期间值或代数变化则返回「请重新提交」→ `getSubmitValues()`（去掉 `virtual` 与 `none`）→ `onValid`。
+6. **提交**（`FormEngine.submit`）：`submitCount+1` → 等待在途异步 → `Validator.runSettled()` → `getSubmitValues()`（去掉 `virtual` 与 `none`）→ `onValid`。
+   - **语义（#6）：只提交本轮校验过的值。** `runSettled` 跑一轮 `run()`，结束时若实时值与该轮快照不同（`===` 或 `deepEqual` 判等；来源可能是等待异步时的编辑、基于 `$errors` 的派生 reaction、`reset`），就**重新校验**，最多 3 轮。值稳定后：该轮仍是最新则返回它的错误（有错 → `ok: false` 带真实错误；无错 → 提交当前值，即刚校验过的那份）；若被另一轮校验取代而值没变，返回 `null`。值始终不稳定或被取代时，`submit` 返回根路径「表单或校验已更新，请重新提交」，不调用 `onValid`。
+   - 取舍：相比「改值即拒绝」，重校验让用户在等待期间的编辑直接得到真实结论（错误或成功），也避免派生写入把每次提交都变成「请重新提交」；3 轮上限防止持续写值导致活锁。
 
 ## 6. 结构操作（`core/structure`）
 
@@ -177,16 +181,12 @@ const Rate = connect(AntRate, mapProps({ status: false }))
 
 | Issue | 摘要 | 所在位置 |
 |---|---|---|
-| #1 | 行草稿跨字段校验读到旧行 | 原 `nestedTable.ts` 已不存在；对应能力是 `core/validation/validator.ts` 的 `buildCtx`（ctx 基于 `store.values` 构建，没有「草稿覆盖」入口）。行编辑草稿若再引入，应在此注入覆盖快照。 |
-| #2 | 防抖异步校验 reject 后调用方一直 pending | 原 `validation.ts` 已不存在；对应 `Validator.scheduleValidate` + `validateOne`（当前 reject 已被 try/catch 转成消息，需按 issue 补回归测试确认）。 |
 | #3 | QueryTable 列筛选后保留旧选择 | `src/pro/use-query-table.ts`（选择/查询状态）与 `src/antd/tables/query-table.tsx`（列筛选接线）。 |
-| #6 | submit 等待异步校验时改值，提交了未校验的新值 | `core/engine/form-engine.ts` 的 `submit` 与 `Validator.validate` 的代数/快照判断。 |
-| #7 | `releaseJsxField` 恢复异步声明规则时重复调用 validator 并产生未处理拒绝 | `core/declarations/declarations.ts` 的 `releaseJsxField`（+ `Validator.syncRuleMessages/discardInflight`）。 |
 | #8 | 清空再填数组丢失精确字段的 `virtual` 声明 | `core/declarations/declarations.ts` 的 `applyItemTemplates`（休眠声明）与 `FieldStore.onCreate` 复活路径。 |
 | #12 | P0 示例交互回归与文档构建 | 不在库代码：`playground/`、`docs/`、构建配置。 |
 | P3-3 | `commit: 'blur'` 已声明但未实现 | `core/engine/writes.ts` 的 `commitExternal`。 |
 
-本次重构未修复以上任何问题；代码中在对应位置留有 `Open issue #n` 注释。
+代码中在对应位置留有 `Open issue #n` 注释。#1、#2、#6、#7 已由 `fix/validation-races` 修复，见第 5 节。
 
 ## 10. Pro 层（复刻 Pro.formily）
 
