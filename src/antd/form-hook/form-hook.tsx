@@ -5,7 +5,7 @@ import { createFormHook } from '../../react/factory/create-form-hook'
 import { useWatch } from '../../react/hooks/use-watch'
 import { antdContexts as contexts } from '../adapter/field-context'
 import { FormItem } from '../adapter/form-item'
-import { Checkbox, Input, InputNumber, Select, Switch } from '../components/controls'
+import { Checkbox, DatePicker, Input, InputNumber, Radio, Select, Switch } from '../components/controls'
 
 /** Read the field `AppField` is rendering. Use this inside a custom pre-bound input. */
 export const useAntdField = contexts.useFieldContext
@@ -13,6 +13,7 @@ export const useAntdField = contexts.useFieldContext
 /**
  * `field.Input` & co. are the same `connect()`ed controls as `shikiform/antd`'s `Input`, wrapped in the `FormItem`
  * decorator (label from the field `title`, required mark, status, help). There is one adapter, not two.
+ * Sub-controls (`Input.Password`, `Checkbox.Group`, `DatePicker.RangePicker`) get the same shell.
  */
 function decorated<C extends ComponentType<any>>(Control: C, name: string) {
   function Decorated(props: ComponentProps<C>) {
@@ -27,9 +28,21 @@ function decorated<C extends ComponentType<any>>(Control: C, name: string) {
   return Decorated
 }
 
-const FieldInput = decorated(Input, 'Input')
+const FieldInput = Object.assign(decorated(Input, 'Input'), {
+  TextArea: decorated(Input.TextArea, 'Input.TextArea'),
+  Password: decorated(Input.Password, 'Input.Password'),
+})
 const FieldSelect = decorated(Select, 'Select')
 const FieldNumber = decorated(InputNumber, 'InputNumber')
+const FieldCheckbox = Object.assign(decorated(Checkbox, 'Checkbox'), {
+  Group: decorated(Checkbox.Group, 'Checkbox.Group'),
+})
+const FieldRadio = Object.assign(decorated(Radio.Group, 'Radio'), {
+  Group: decorated(Radio.Group, 'Radio.Group'),
+})
+const FieldDatePicker = Object.assign(decorated(DatePicker, 'DatePicker'), {
+  RangePicker: decorated(DatePicker.RangePicker, 'DatePicker.RangePicker'),
+})
 
 function Submit(props: ButtonProps) {
   const meta = useWatch((d: Draft<any>) => ({ can: d.$canSubmit === true, submitting: d.$submitting === true }))
@@ -43,8 +56,8 @@ function Submit(props: ButtonProps) {
 /**
  * Type-safe Ant Design binding.
  * `useAppForm<Values>()` then `<form.AppField name="email" title="邮箱">{(field) => <field.Input />}</form.AppField>`.
- * `name` is checked against `Values`. The inputs are the `connect()`ed controls (in a `FormItem` for Input / Select /
- * InputNumber) reading the field through context; they are not a second form store or a second adapter.
+ * `name` is checked against `Values`. Every pre-bound control is the `connect()`ed one inside `FormItem`
+ * (`Input.Password`, `Radio` / `Radio.Group`, `DatePicker` / `RangePicker` included). Not a second form store.
  */
 export function createAntdFormHook() {
   return createFormHook({
@@ -54,8 +67,10 @@ export function createAntdFormHook() {
       Input: FieldInput,
       Select: FieldSelect,
       InputNumber: FieldNumber,
-      Switch,
-      Checkbox,
+      Switch: decorated(Switch, 'Switch'),
+      Checkbox: FieldCheckbox,
+      Radio: FieldRadio,
+      DatePicker: FieldDatePicker,
     },
     formComponents: { Submit },
   })

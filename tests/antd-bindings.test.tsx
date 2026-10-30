@@ -137,4 +137,25 @@ describe('Ant Design bound input contracts (useAntdForm field.X = connect contro
     expect(html()).toContain('data-read-pretty')
     expect(html()).toContain('hello')
   })
+
+  it('Switch, Radio, DatePicker and Input.Password show the field title in FormItem', () => {
+    function App() {
+      const form = useAntdForm({
+        initialValues: { on: false, picked: 'a', day: '2020-01-02', secret: 'x' },
+        fields: { picked: { enum: [{ label: '甲', value: 'a' }] } },
+      })
+      return (
+        <form.AppForm>
+          <form.AppField name="on" title="开关">{(field) => <field.Switch />}</form.AppField>
+          <form.AppField name="picked" title="单选">{(field) => <field.Radio />}</form.AppField>
+          <form.AppField name="day" title="日期">{(field) => <field.DatePicker />}</form.AppField>
+          <form.AppField name="secret" title="密码">{(field) => <field.Input.Password />}</form.AppField>
+        </form.AppForm>
+      )
+    }
+    const view = render(<App />)
+    const html = view.container.innerHTML
+    for (const label of ['开关', '单选', '日期', '密码']) expect(html).toContain(label)
+    expect(view.container.querySelectorAll('.ant-form-item').length).toBe(4)
+  })
 })

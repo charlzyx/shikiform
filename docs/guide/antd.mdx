@@ -97,7 +97,7 @@ export default function App() {
 
 ## 预绑定：useAntdForm
 
-想少写 `decorator` / `component`，可以用预绑定工厂：`useAntdForm` 返回普通引擎，加上 `AppForm`、`AppField`、`Submit`，`AppField` 的 render prop 带着 `field.Input`、`field.Select` 等成员（外面已经包了 `FormItem`）：
+想少写 `decorator` / `component`，可以用预绑定工厂：`useAntdForm` 返回普通引擎，加上 `AppForm`、`AppField`、`Submit`。`AppField` 的 render prop 带着 `field.Input`、`field.Input.Password`、`field.Select`、`field.Switch`、`field.Checkbox`、`field.Radio`、`field.DatePicker` 等，外面都包了 `FormItem`：
 
 ```tsx
 const form = useAntdForm({ initialValues: { email: '' } })

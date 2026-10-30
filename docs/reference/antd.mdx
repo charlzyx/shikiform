@@ -148,12 +148,15 @@ export default function App() {
 | `field.Input` | `InputProps` | `event.target.value`；空显示为 `''` |
 | `field.Select` | `SelectProps` | antd 的选择值；优先用 `props.options`，否则映射 `field.options` 的 label/value |
 | `field.InputNumber` | `InputNumberProps` | 写入 antd 给出的原始值（数字；`stringMode` 下是字符串）；**清空为 `null`** |
-| `field.Switch` | `ComponentProps<typeof Switch>`，另支持 `onBlur?: React.FocusEventHandler<HTMLButtonElement>` | `checked` 布尔值；失焦从真实 button 透传，先通知字段再通知用户，不新增包装节点 |
-| `field.Checkbox` | `ComponentProps<typeof Checkbox>` | `event.target.checked`；children 是勾选文字 |
+| `field.Switch` | `ComponentProps<typeof Switch>`，另支持 `onBlur?: React.FocusEventHandler<HTMLButtonElement>` | `checked` 布尔值；失焦从真实 button 透传，先通知字段再通知用户 |
+| `field.Checkbox` | `ComponentProps<typeof Checkbox>`；`field.Checkbox.Group` 绑数组 | `event.target.checked`；Group 写入选中值数组 |
+| `field.Radio` / `field.Radio.Group` | `Radio.Group` 的 props | 选中值；`options` 默认取字段枚举 |
+| `field.DatePicker` | `DatePicker` 的 props；`field.DatePicker.RangePicker` 为区间 | 格式化字符串（默认 `YYYY-MM-DD`），不是 dayjs；清空为 `undefined` |
+| `field.Input.Password` / `field.Input.TextArea` | 同 `Input` 的对应变体 | 与 `field.Input` 一样写回字符串；Password 的阅读态是 `******` |
 
 `InputNumber` 的转换是当前正式适配器契约。教程里可复制的 `NumberField` 故意示范了另一种项目策略：空值写 `undefined`。二者不能混为同一个组件；需要空值、字符串精度等不同策略时，使用 `Field` / `useAntdField` 自己接线，不假定正式适配器保留 antd 的所有值类型。
 
-Input、Select、InputNumber 外面有一层 **`FormItem` 装饰器**（从 `AppField` 提供的字段上下文读字段），显示第一个错误、error 状态、required，以及 `AppField title` 作为 label。它不负责字段值/规则。Switch/Checkbox 不自动带这个外壳。
+预绑定控件外面都有一层 **`FormItem`**（从 `AppField` 提供的字段上下文读字段），显示第一个错误、error 状态、required，以及 `AppField title` 作为 label。它不负责字段值/规则。`Input`、`Select`、`InputNumber`、`Switch`、`Checkbox`（含 `Group`）、`Radio`、`DatePicker`（含 `RangePicker`）、`Input.Password`、`Input.TextArea` 都是这一层。
 
 字段 `disabled` 和控件 `disabled` 合并。Input/InputNumber 的 readOnly 使用原生只读属性，Select 的 readOnly 映射为 disabled；Switch/Checkbox 在 readOnly 和 readPretty 时都保留 checked 外观并禁用交互，不声称变成纯文本。Input/Select/InputNumber 的 readPretty 改为文本展示（Select 显示选项 label）。显示与提交的区别见 [pattern](/guide/concepts) 和 [显隐](/guide/concepts)。这些 UI 状态不禁止程序调用 `form.setValue()`。
 
