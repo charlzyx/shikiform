@@ -55,6 +55,7 @@ describe('native VitePress MDX pages', () => {
     const data = { relativePath: 'guide/arrays.md', title: '', description: '', headers: [], frontmatter: {} }
     site.transformPageData(data)
     expect(data.title).toBe('Arrays')
+    expect(data.frontmatter).toMatchObject({ outline: false, aside: false })
     expect(data.headers).toMatchObject([{ slug: 'add-rows' }])
     expect(site.renderSearch(wrapper, { relativePath: 'guide/arrays.md' }, { render: () => 'unused' })).toContain('Useful searchable body')
   })

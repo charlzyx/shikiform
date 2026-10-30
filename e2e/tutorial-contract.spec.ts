@@ -1,10 +1,12 @@
 import { expect, test, type Page } from '@playwright/test'
+import { gotoHydrated } from './hydration'
 
 async function answer(page: Page, route: string) {
-  await page.goto(route)
+  await gotoHydrated(page, route)
   const tutorial = page.locator('.tutorial-play')
   await tutorial.scrollIntoViewIfNeeded()
   await tutorial.getByRole('button', { name: '看答案', exact: true }).click()
+  await expect(tutorial.getByText('参考写法', { exact: true })).toBeVisible()
   await expect(tutorial.getByRole('tab', { name: 'App.tsx', exact: true })).toBeVisible()
   await expect(tutorial.getByRole('tab', { name: 'fields.tsx', exact: true })).toBeVisible()
   return tutorial
@@ -15,7 +17,7 @@ test('the copied two-file example submits through the public package and can be 
   const form = tutorial.locator('form')
   await form.getByRole('textbox', { name: '姓名', exact: true }).fill('Ada')
   await form.getByRole('textbox', { name: '邮箱', exact: true }).fill('ada@example.com')
-  await form.getByRole('button', { name: '提交', exact: true }).click()
+  await form.getByRole('button', { name: '提 交', exact: true }).click()
   await expect(form.locator('pre.shiki-code')).toContainText('ada@example.com')
   await tutorial.getByRole('tab', { name: 'fields.tsx', exact: true }).click()
   await expect(tutorial.locator('.cm-content')).toContainText('public <Field> lifecycle')
@@ -36,7 +38,7 @@ test('the tutorial uses library hidden semantics instead of silently skipping va
   await form.getByRole('textbox', { name: '邮箱', exact: true }).fill('')
   await form.getByRole('switch', { name: '需要联系', exact: true }).uncheck()
   await expect(form.getByRole('textbox', { name: '邮箱', exact: true })).toHaveCount(0)
-  await form.getByRole('button', { name: '提交', exact: true }).click()
+  await form.getByRole('button', { name: '提 交', exact: true }).click()
   await expect(form.getByRole('list', { name: '表单错误' })).toContainText('必填')
   await expect(form.locator('pre.shiki-code')).toHaveCount(0)
 })
@@ -50,7 +52,7 @@ test('array tutorial additions and removals use stable real rows and computed va
   await form.locator('fieldset').first().getByRole('button', { name: '删除' }).click()
   await expect(form.locator('fieldset')).toHaveCount(1)
   await expect(form.getByRole('textbox', { name: '名称' })).toHaveValue('新行')
-  await form.getByRole('button', { name: '提交', exact: true }).click()
+  await form.getByRole('button', { name: '提 交', exact: true }).click()
   await expect(form.locator('pre.shiki-code')).toContainText('新行')
   await expect(form.locator('pre.shiki-code')).not.toContainText('"total"')
 })
@@ -65,6 +67,6 @@ test('Standard Schema works without a private zod adapter', async ({ page }) => 
   await form.getByRole('textbox', { name: '邮箱', exact: true }).fill('ada@example.com')
   await form.getByRole('spinbutton', { name: '年龄', exact: true }).fill('24')
   await form.getByRole('spinbutton', { name: '年龄', exact: true }).blur()
-  await form.getByRole('button', { name: '提交', exact: true }).click()
+  await form.getByRole('button', { name: '提 交', exact: true }).click()
   await expect(form.locator('pre.shiki-code')).toContainText('"age": 24')
 })

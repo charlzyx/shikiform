@@ -58,6 +58,13 @@ describe('tutorial effects use the published FormEngine contract', () => {
     expect(form.getValue('items.0.id')).toBe('row-2')
     expect(form.getValue('items.0.total')).toBe(15)
     expect(form.getSubmitValues()).toEqual({ items: [{ id: 'row-2', name: '卡片', price: 3, qty: 5 }] })
+    const zero = createForm({
+      initialValues: { items: [{ id: 'row-2', name: '新行', price: 0, qty: 1, total: 0 }] },
+      effects: [arrayEffects],
+    })
+    expect(zero.getValue('items.0.total')).toBe(0)
+    expect(zero.binding('items.0.total').pattern).toBe('readPretty')
+    expect(zero.getSubmitValues()).toEqual({ items: [{ id: 'row-2', name: '新行', price: 0, qty: 1 }] })
     form.binding('items.0.price').onChange(undefined)
     expect(form.getValue('items.0.total')).toBe(0)
   })

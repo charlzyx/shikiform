@@ -1,6 +1,6 @@
 import { MergedTable } from 'shikiform/antd'
 import { Field, Form, useForm, useFormContext, useWatch, type Draft } from 'shikiform'
-import { newProduct, newSupplier, supplierRows, type Supplier } from '../merged-model'
+import { newProduct, newSupplier, supplierRows, type FlatRow, type Supplier } from '../merged-model'
 
 interface Values {
   onlyActive: boolean
@@ -63,6 +63,7 @@ function MergedBody() {
       <MergedTable
         rows={rows}
         groupOf={(row) => row.supplierId}
+        rowKey={mergedRowKey}
         columns={[
           {
             title: '供应商',
@@ -138,6 +139,11 @@ function MergedBody() {
       </button>
     </main>
   )
+}
+
+/** The lead row's id changes when a placeholder is replaced by the first product. The supplier field must not. */
+function mergedRowKey(row: FlatRow) {
+  return row.lead ? `lead:${row.supplierId}` : row.id
 }
 
 function SupplierCell({ supplierIndex, rowId }: { supplierIndex: number; rowId: string }) {
