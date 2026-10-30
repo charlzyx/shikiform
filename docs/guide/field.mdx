@@ -60,7 +60,7 @@ export default function App() {
 }
 ```
 
-`display` 不是 `visible` 时 `<Field>` 返回 `null`，但订阅和字段模型都在，校验照常。
+`display: 'hidden'` 时 `<Field>` 返回 `null`，订阅和字段模型都在，校验和提交照常。`display: 'none'` 同样不渲染，但跳过校验，也不进入提交结果。reaction 写过 `$value` 的计算字段也不校验。
 
 ## UI 状态三层叠加
 
