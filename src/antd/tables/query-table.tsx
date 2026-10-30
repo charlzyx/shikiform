@@ -5,7 +5,8 @@ import { Form } from '../../react/components/fields'
 
 /**
  * Ant Design table + search bar over {@link useQueryTable}.
- * The hook owns loading, paging, selection, and the request. This component only renders them.
+ * The hook owns loading, paging, selection, sort, column filters, and the request. This component only renders them:
+ * a column with `sorter: true` / `filters` sends its state to `request` as `sorter` / `filters`.
  */
 export function ProQueryTable<TValues, TParams, TRow extends object>({
   table,
@@ -40,7 +41,8 @@ export function ProQueryTable<TValues, TParams, TRow extends object>({
         rowKey={rowKey}
         loading={table.loading}
         dataSource={table.data}
-        columns={columns}
+        columns={controlColumns(table, columns)}
+        onChange={(pagination, filters, sorter, extra) => table.onTableChange(pagination, filters, sorter as never, extra)}
         rowSelection={{
           selectedRowKeys: table.selectedKeys,
           preserveSelectedRowKeys: true,
@@ -56,6 +58,22 @@ export function ProQueryTable<TValues, TParams, TRow extends object>({
       />
     </Form>
   )
+}
+
+/**
+ * Columns with `sorter` / `filters` get a controlled `sortOrder` / `filteredValue` from the hook, so 重置 clears them
+ * and the header shows what the request was sent with. A column that sets its own value keeps it.
+ */
+function controlColumns<TRow>(table: QueryTableApi<any, any, TRow>, columns: TableProps<TRow>['columns']): TableProps<TRow>['columns'] {
+  return columns?.map((column) => {
+    const raw = (column as { dataIndex?: unknown }).dataIndex
+    const key = String(column.key ?? (Array.isArray(raw) ? raw.join('.') : raw ?? ''))
+    if (!key) return column
+    const next = { ...column } as typeof column & { sortOrder?: unknown; filteredValue?: unknown }
+    if (column.sorter && !('sortOrder' in column)) next.sortOrder = table.sortOrderOf(key)
+    if (column.filters && !('filteredValue' in column)) next.filteredValue = table.filteredValueOf(key)
+    return next
+  })
 }
 
 /**

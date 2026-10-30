@@ -12,7 +12,30 @@ export interface QueryRequestArgs<TParams> {
   params: TParams
   page: number
   pageSize: number
+  /** Table sort, in priority order. Empty when the table is unsorted. */
+  sorter: QuerySort[]
+  /** Table column filters with at least one value, keyed by column key. */
+  filters: QueryFilters
   signal: AbortSignal
+}
+
+/** One sorted column: the column key (antd `columnKey`, else `dataIndex`) and its direction. */
+export interface QuerySort {
+  field: string
+  order: 'ascend' | 'descend'
+}
+
+/** Column filters keyed by column key. Only columns with a selected value appear. */
+export type QueryFilters = Record<string, Array<string | number | boolean>>
+
+/**
+ * The parts of an antd `Table` `onChange` sorter result the hook reads. Structural, so the hook does not import antd.
+ * `columnKey` wins over `field` (`dataIndex`); an array `field` is joined with `.`.
+ */
+export interface TableSorterLike {
+  columnKey?: unknown
+  field?: unknown
+  order?: 'ascend' | 'descend' | null
 }
 
 /** `data` is the rows for this response. `total` is the unpaged count in server mode. */
@@ -103,6 +126,24 @@ export interface QueryTableApi<TValues, TParams, TRow> {
   /** Change page. Filters and the selection stay. A new search is what returns to page 1. */
   onPageChange: (page: number, pageSize?: number) => void
   setSelectedKeys: (keys: string[]) => void
+  /** Current table sort, sent to `request` as `sorter`. */
+  sorter: QuerySort[]
+  /** Current column filters, sent to `request` as `filters`. */
+  filters: QueryFilters
+  /** Sort by these columns: back to page 1, reload. The selection stays (the result set is the same rows). */
+  setSorter: (sorter: QuerySort[]) => void
+  /** Filter by these columns: back to page 1, clear the selection, reload. */
+  setFilters: (filters: QueryFilters | Record<string, unknown>) => void
+  /**
+   * Pass to antd `Table` `onChange` (or call with the same arguments). Sort and filter changes go through
+   * {@link QueryTableApi.setSorter} / {@link QueryTableApi.setFilters}; a `paginate` action is ignored here, since the
+   * pager's own `onChange` calls {@link QueryTableApi.onPageChange}.
+   */
+  onTableChange: (pagination: unknown, filters?: Record<string, unknown>, sorter?: unknown, extra?: { action?: string }) => void
+  /** Controlled `sortOrder` for a column key (`null` when unsorted). */
+  sortOrderOf: (key: string) => 'ascend' | 'descend' | null
+  /** Controlled `filteredValue` for a column key (`null` when unfiltered). */
+  filteredValueOf: (key: string) => Array<string | number | boolean> | null
 }
 
 /**
@@ -162,6 +203,10 @@ export function useQueryTable<TValues, TParams = TValues, TRow = unknown>(
   const submitted = useRef<TParams | null>(null)
   const pageRef = useRef(1)
   const sizeRef = useRef(sizeDefault)
+  const sortRef = useRef<QuerySort[]>([])
+  const filtersRef = useRef<QueryFilters>({})
+  const [sortState, setSortState] = useState<QuerySort[]>([])
+  const [filterState, setFilterState] = useState<QueryFilters>({})
   const requestRef = useRef(options.request)
   requestRef.current = options.request
   const bump = useRef(0)
@@ -181,6 +226,8 @@ export function useQueryTable<TValues, TParams = TValues, TRow = unknown>(
       params: (submitted.current ?? readRef.current()) as TParams,
       page: pageRef.current,
       pageSize: sizeRef.current,
+      sorter: sortRef.current,
+      filters: filtersRef.current,
       signal: ctx.signal,
     })
   }, [])
@@ -224,7 +271,25 @@ export function useQueryTable<TValues, TParams = TValues, TRow = unknown>(
     if (mode === 'client' && kind === 'page') return
     if (force) bump.current += 1
     const token = mode === 'client' ? 'filters' : `${nextPage}:${nextSize}`
-    setQueryKey(['shikiform-query', stable(params), token, bump.current])
+    setQueryKey(['shikiform-query', stable(params), token, bump.current, stable(sortRef.current), stable(filtersRef.current)])
+  }
+
+  const applyTable = (nextSort: QuerySort[] | null, nextFilters: QueryFilters | null) => {
+    const sortChanged = nextSort !== null && stable(nextSort) !== stable(sortRef.current)
+    const filtersChanged = nextFilters !== null && stable(nextFilters) !== stable(filtersRef.current)
+    if (!sortChanged && !filtersChanged) return
+    if (sortChanged) {
+      sortRef.current = nextSort!
+      setSortState(nextSort!)
+    }
+    form.setValue(pagePath as never, 1 as never)
+    if (filtersChanged) {
+      filtersRef.current = nextFilters!
+      setFilterState(nextFilters!)
+      // A different filter is a different result set: an old selection could name rows the user no longer sees (#3).
+      form.setValue(selectedPath as never, [] as never)
+    }
+    publish(1, pageSize, submitted.current ?? readParams(), 'filters')
   }
 
   return {
@@ -244,6 +309,10 @@ export function useQueryTable<TValues, TParams = TValues, TRow = unknown>(
       publish(1, pageSize, params, 'filters', true)
     },
     reset: () => {
+      sortRef.current = []
+      filtersRef.current = {}
+      setSortState([])
+      setFilterState({})
       form.reset()
       if (form.getValue(pagePath as never) == null) form.setValue(pagePath as never, 1 as never)
       form.setValue(selectedPath as never, [] as never)
@@ -261,7 +330,41 @@ export function useQueryTable<TValues, TParams = TValues, TRow = unknown>(
     setSelectedKeys: (keys: string[]) => {
       form.setValue(selectedPath as never, keys as never)
     },
+    sorter: sortState,
+    filters: filterState,
+    setSorter: (next) => applyTable(normalizeSort(next), null),
+    setFilters: (next) => applyTable(null, normalizeFilters(next)),
+    onTableChange: (_pagination, filters, sorter, extra) => {
+      if (extra?.action === 'paginate') return
+      applyTable(sorter === undefined ? null : normalizeSort(sorter as TableSorterLike | TableSorterLike[]), filters === undefined ? null : normalizeFilters(filters))
+    },
+    sortOrderOf: (key) => sortState.find((item) => item.field === key)?.order ?? null,
+    filteredValueOf: (key) => filterState[key] ?? null,
   }
+}
+
+/** antd sorter result(s) → `QuerySort[]`. Columns without an order are dropped. */
+export function normalizeSort(sorter: TableSorterLike | TableSorterLike[] | QuerySort[] | null | undefined): QuerySort[] {
+  const list = (Array.isArray(sorter) ? sorter : sorter ? [sorter] : []) as Array<TableSorterLike & Partial<QuerySort>>
+  const out: QuerySort[] = []
+  for (const item of list) {
+    if (item.order !== 'ascend' && item.order !== 'descend') continue
+    const raw = item.columnKey ?? item.field
+    const field = Array.isArray(raw) ? raw.join('.') : raw == null ? '' : String(raw)
+    if (field) out.push({ field, order: item.order })
+  }
+  return out
+}
+
+/** antd filters → `QueryFilters`. `null` / empty selections are dropped. */
+export function normalizeFilters(filters: Record<string, unknown> | null | undefined): QueryFilters {
+  const out: QueryFilters = {}
+  for (const [key, value] of Object.entries(filters ?? {})) {
+    if (value == null) continue
+    const list = (Array.isArray(value) ? value : [value]).filter((item) => item != null) as QueryFilters[string]
+    if (list.length) out[key] = list
+  }
+  return out
 }
 
 /** Built-in runner. Keeps the previous `data` while `isFetching` is true. */

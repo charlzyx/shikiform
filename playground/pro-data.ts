@@ -114,13 +114,14 @@ export interface DomainQuery {
 }
 
 /** 45 rows in total, paged on the "server", 456 ms later — the shape of Pro.formily's `service`. */
-export async function domainService({ params, page, pageSize }: { params: DomainQuery; page: number; pageSize: number }) {
+/** `idOrder: 'descend'` serves the rows by id high → low (the ID column header sort in `/play/query-list`). */
+export async function domainService({ params, page, pageSize, idOrder }: { params: DomainQuery; page: number; pageSize: number; idOrder?: 'ascend' | 'descend' }) {
   await wait(456)
   const total = 45
   const from = (page - 1) * pageSize
   const count = Math.max(0, Math.min(pageSize, total - from))
   const data: DomainRow[] = Array.from({ length: count }, (_, i) => {
-    const id = from + i + 1
+    const id = idOrder === 'descend' ? total - from - i : from + i + 1
     const rnd = seeded(id)
     const name = NAMES[Math.floor(rnd() * NAMES.length)]!
     const day = String(1 + Math.floor(rnd() * 28)).padStart(2, '0')
