@@ -7,7 +7,7 @@ description: useAntdForm、useAntdField、字段组、预绑定控件和表格�
 
 从 `shikiform/antd` 导入这些 API。新项目先理解组件库无关的 [React Hooks](/reference/react-hooks) 与 `Field`；antd 只负责控件、布局、反馈和事件适配。想看代码怎么接，读 [把字段接到 Ant Design](/guide/antd)。
 
-这里的适配层使用同一个 `FormEngine`，不是把业务值再同步进 antd Form。`useAntdForm` / `useAntdField` 是保留的预绑定便利入口，不是另一套状态架构，也不是使用 antd 控件的前提。`AppField` render prop 上的 `field.Input`、`field.Select` 等是预绑定成员，`Submit` 是表单实例成员。`shikiform/antd` 另有同名的独立导出 `Input`、`Select` 等：它们是 `connect` 适配层的控件，与 `<Field decorator={[FormItem]} component={[Input]}>` 配合使用，见 [Ant Design 适配层](/reference/antd-adapter)。`field.Input` 等预绑定成员就是这些控件（Input / Select / InputNumber 外包一层 `FormItem`），全库只有一套适配层。
+这里的适配层使用同一个 `FormEngine`，不是把业务值再同步进 antd Form。`useAntdForm` / `useAntdField` 是保留的预绑定便利入口，不是另一套状态架构，也不是使用 antd 控件的前提。`AppField` render prop 上的 `field.Input`、`field.Select` 等是预绑定成员，`Submit` 是表单实例成员。`shikiform/antd` 另有同名的独立导出 `Input`、`Select` 等：它们是 `connect` 适配层的控件，与 `<Field decorator={[FormItem]} component={[Input]}>` 配合使用，见 [Ant Design 适配层](/reference/antd-adapter)。`field.Input` 等预绑定成员就是这些控件，外面都包一层 `FormItem`，全库只有一套适配层。
 
 ## useAntdForm
 
@@ -26,7 +26,7 @@ useAntdForm<T>(options?: FormOptions<T>)
 
 `AppField` 接收 `name`、`children` 和 `useField` 的全部选项（`rules`、`required`、`title`、`description`、`componentProps`…）；它就是正式 `Field` 加预绑定控件：`hidden` / `none` 不渲染控件，`rules` / `required` 是挂载期 lease，`title` 会显示为 `field.Input` 外层 `FormItem` 的 label。不传 `rules` / `required` 时不取得或释放同路径其他 Field 的规则 lease。
 
-`AppForm` 的原生提交会调用 `form.submit()` 做校验。要拿到通过校验的业务值，显式调用 `form.submit(onValid)`；完整写法在 [预绑定示例](/guide/antd#预绑定useantdform)。不要给 `AppForm` 传一个它不接收的回调。
+`AppForm` 没有 `onSubmit`。原生提交只调用 `form.submit()` 做校验。要拿到通过校验的业务值，调用 `form.submit(onValid)`，或者不用 `AppForm`，把这些 `AppField` 包在 shikiform 的 `<Form form={form} onSubmit>` 里。两种写法都只有一个 `<form>`，不要套两层。不要给 `AppForm` 传一个它不接收的回调。
 
 ## useAntdField
 

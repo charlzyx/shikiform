@@ -158,4 +158,33 @@ describe('Ant Design bound input contracts (useAntdForm field.X = connect contro
     for (const label of ['开关', '单选', '日期', '密码']) expect(html).toContain(label)
     expect(view.container.querySelectorAll('.ant-form-item').length).toBe(4)
   })
+
+  it('Checkbox.Group, Radio.Group, RangePicker and TextArea are wrapped in FormItem', () => {
+    function App() {
+      const form = useAntdForm({
+        initialValues: {
+          checks: ['a'],
+          picked: 'a',
+          range: ['2020-01-02', '2020-01-03'],
+          note: '备注',
+        },
+        fields: {
+          checks: { enum: [{ label: '甲', value: 'a' }] },
+          picked: { enum: [{ label: '甲', value: 'a' }] },
+        },
+      })
+      return (
+        <form.AppForm>
+          <form.AppField name="checks" title="多选">{(field) => <field.Checkbox.Group />}</form.AppField>
+          <form.AppField name="picked" title="单选组">{(field) => <field.Radio.Group />}</form.AppField>
+          <form.AppField name="range" title="区间">{(field) => <field.DatePicker.RangePicker />}</form.AppField>
+          <form.AppField name="note" title="备注">{(field) => <field.Input.TextArea />}</form.AppField>
+        </form.AppForm>
+      )
+    }
+    const view = render(<App />)
+    const html = view.container.innerHTML
+    for (const label of ['多选', '单选组', '区间', '备注']) expect(html).toContain(label)
+    expect(view.container.querySelectorAll('.ant-form-item').length).toBe(4)
+  })
 })
