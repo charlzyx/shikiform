@@ -45,6 +45,11 @@ export class Notifier {
     return this.depListeners.keys()
   }
 
+  /** Paths some structure listener (array / tree component) subscribes to right now. */
+  structureKeys(): string[] {
+    return [...this.structListeners.keys()]
+  }
+
   getPathVersion(path: string): number {
     return this.pathVersion.get(path) ?? 0
   }

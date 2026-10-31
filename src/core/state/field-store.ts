@@ -15,9 +15,10 @@ export interface ReindexResult {
  */
 export class FieldStore<T = any> {
   values: T
-  readonly initial: T
-  /** Form-level dirty: a user edit happened since the last `reset`. */
-  dirty = false
+  /** Baseline for `reset` and `dirty`. Replaced by `reset(values)` / `setInitialValues`. */
+  initial: T
+  /** Sticky form-level flag: a user edit happened since the last `reset`. `dirty` is derived (see `form-engine.ts`). */
+  edited = false
   submitting = false
   submitCount = 0
   validating = false

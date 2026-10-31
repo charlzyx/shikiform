@@ -408,8 +408,13 @@ export interface DraftState<T> {
   readonly $validating: boolean
   /** True after blur (or a touch from the binding). Reset clears it. */
   readonly $touched: boolean
-  /** True after a user edit. A reaction writing `$value` does not set it. Reset clears it. */
+  /**
+   * The value differs from its initial value (deep compare); changing it back clears it.
+   * On the root (`d.$dirty`): any non-`virtual`, non-computed value differs. Follows `reset(values)` / `setInitialValues`.
+   */
   readonly $dirty: boolean
+  /** Sticky: a user edit (`setValue`, input `onChange`) happened since the last reset. A reaction write does not set it. */
+  readonly $edited: boolean
   /**
    * Form-level, read it on the root draft: `d.$canSubmit`.
    * False while submitting or validating, or while any visible/hidden field has `$errors`.
@@ -467,8 +472,15 @@ export interface FormInstance<T> {
   readonly submitting: boolean
   /** True while a validate pass is running, including the async rules it waits for. */
   readonly validating: boolean
-  /** True after a user edit that is not itself a computed write. */
+  /** Baseline for `reset()` and `dirty`. Replaced by `reset(values)` / `setInitialValues`. */
+  readonly initial: T
+  /**
+   * Values differ from `initial` (deep compare). Changing a value back clears it.
+   * `virtual` and computed (reaction-written) fields do not count.
+   */
   readonly dirty: boolean
+  /** Sticky: true after a user edit (`setValue`, input `onChange`) until `reset`. */
+  readonly edited: boolean
   /** How many times {@link FormInstance.submit} has been called. */
   readonly submitCount: number
   /** True while {@link FormInstance.submit} is running. */
@@ -493,8 +505,23 @@ export interface FormInstance<T> {
    * with a root retry message and does not call `onValid`. Submit again once settled.
    */
   submit(onValid?: (values: T) => void | Promise<void>): Promise<{ ok: true; values: T } | { ok: false; errors: FieldError[] }>
-  /** Restore initial values. Pass a path to restore one subtree. Computed values are written again. */
-  reset(path?: FieldPath<T>): void
+  /**
+   * Restore initial values; touched, edited, and every message clear; computed values are written again.
+   * `reset('a.b')` restores one subtree. `reset(values)` first makes `values` the new initial values (edit-page backfill).
+   */
+  reset(pathOrValues?: FieldPath<T> | T): void
+  /** Replace the baseline (`initial`) without changing values. `dirty` re-derives; a later `reset()` returns to it. */
+  setInitialValues(values: T): void
+  /**
+   * External messages (a server response), `{ path: message | messages }` or `FieldError[]`; `''` is the root.
+   * Shown with rule messages and blocking `canSubmit` until the value at, above, or below the path changes,
+   * the field validates again (every `submit` does), or `reset` / `clearErrors`.
+   */
+  setErrors(errors: Partial<Record<FieldPath<T> | '', string | string[] | null | undefined>> | FieldError[]): void
+  /** One path's external messages. Same lifetime as `setErrors`. */
+  setFieldError(path: FieldPath<T> | '', messages: string | string[]): void
+  /** Clear rule, schema and external messages on `path` and its descendants, or everywhere. */
+  clearErrors(path?: FieldPath<T>): void
   /**
    * Validate `path` and its descendants, or the whole form when `path` is omitted.
    * Fields from `fields`, `registerField`, `$rules`, and `rows.*.name` templates are included

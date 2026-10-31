@@ -83,6 +83,8 @@ export class Scheduler {
   readonly batchOps: WriteOp[] = []
   private seq = 0
   private trace: string[] = []
+  /** Runs once a flush settles, before notifications go out. The engine re-derives `dirty` here. */
+  onSettle?: () => void
 
   constructor(private readonly notifier: Notifier, devtools = false) {
     this.devtools = devtools
@@ -259,6 +261,7 @@ export class Scheduler {
       }
     } finally {
       this.flushing = false
+      this.onSettle?.()
       this.notifier.emit()
     }
   }

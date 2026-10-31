@@ -40,7 +40,7 @@ d.user.name.$required = true  // 写字段状态
 d.items.$value                // 整个数组的值；d.items 本身不是数组
 ```
 
-- 写字段就赋值它自己的 path。`d.user.$value.name = 'x'` 改的是不可变快照，不会生效。
+- 写字段就赋值它自己的 path。`$value` 读到的是不可变快照：`d.user.$value.name = 'x'` 在开发构建的 reaction / watch / `form.batch` 里直接抛错，别处也不会通知任何人。
 - handle 不是数组：`d.items.map`、`d.items.length`、`for…of` 都不对。读 `d.items.$value`，或者用 [`reaction.each`](/guide/linkage)。
 - 名为 `value` 的字段写作 `d.value.$value`。
 
@@ -84,7 +84,8 @@ export default function App() {
 | `$title` / `$description` | 装饰器的标签 / 说明（`FormItem` → `label` / `extra`） |
 | `$component` / `$decorator` | `<Field>` 渲染的控件 / 装饰器 |
 | `$componentProps` / `$decoratorProps` | 控件 / 装饰器 props，按键打补丁，见 [UI 状态三层叠加](/guide/field#ui-状态三层叠加) |
-| `$errors` `$warnings` `$validating` `$touched` `$dirty` | 只读 |
+| `$errors` `$warnings` `$validating` `$touched` | 只读 |
+| `$dirty` / `$edited` | 只读。`$dirty`：值和初始值不同（深比较，改回原值即 `false`；根上 `d.$dirty` 不算 `virtual` 和计算字段）。`$edited`：用户编辑过，直到 `reset` |
 | `d.$canSubmit` `d.$submitting` `d.$submitCount` | 表单级只读状态，在根 draft 上读 |
 
 ## 显隐、pattern 与提交

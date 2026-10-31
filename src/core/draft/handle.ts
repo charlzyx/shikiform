@@ -24,6 +24,7 @@ const STATE = new Set([
   '$validating',
   '$touched',
   '$dirty',
+  '$edited',
   '$canSubmit',
   '$submitting',
   '$submitCount',

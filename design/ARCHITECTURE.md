@@ -34,7 +34,7 @@ src/
     declarations/          ④ 声明：declarations.ts、templates.ts
     structure/             ⑤ 结构：arrays.ts、trees.ts、migrate.ts
     ui/                    ⑤ 命名 UI：ui-registry.ts
-    engine/                ⑥ 门面：form-engine.ts（FormEngine/createForm）、writes.ts（StateWriter）、field-ui.ts（字段 UI 状态）
+    engine/                ⑥ 门面：form-engine.ts（FormEngine/createForm）、writes.ts（StateWriter）、field-ui.ts（字段 UI 状态）、baseline.ts（初始值基线、派生 dirty、reset）
   react/                   headless React 绑定（只依赖 core）
     context.tsx            FormContext / ScopeContext
     field-context.ts       FieldContext / useCurrentField（<Field> 提供，装饰器与 connect 控件读取）
@@ -147,7 +147,10 @@ Formily 的 `field.title` / `description` / `decorator` / `component` / `setComp
 ## 7. 引擎门面（`core/engine`）
 
 - **`FormEngine`**：构造并连接各部件，保留全部原有公开方法与属性（`values`、`submitting` 等改为 getter/setter 访问器，读写语义不变），并实现 `DraftHost`（`readState` 读 `$` 状态并登记依赖）与 `EffectsRuntime`（委托给 `Scheduler`）。
-- **`StateWriter`**（`writes.ts`）：所有写入的唯一入口。用户编辑 `commitExternal`（置 dirty、触发 `onChange` 校验）；draft 写 `writeState`（在 reaction/watch/batch 中缓冲，否则立即应用）；`$value/$display/$pattern/$required/$rules/$enum` 的落地；`EnumSource` 异步加载（防抖、abort、seq）与 `enumPolicy: 'clear'`。
+- **`Baseline`**（`baseline.ts`）：`dirty` 不存储，按「values 与 initial 深比较，跳过 `virtual` / 计算字段」派生，按 values/initial 引用缓存；每次 flush 结束（`Scheduler.onSettle`）若表单级 dirty 翻转就 `bumpMeta`。`$dirty` 依赖 `path:value` 与 `path:dirty`，基线移动（`reset(values)` / `setInitialValues`）时标记 `:dirty`。`reset` 的实现也在这里。
+- **公开状态只读**（#36）：`values` / `submitting` / `dirty` / `submitCount` / `validating` 只有 getter，写入都走会通知的方法。
+- **外部错误**（#34）：`FieldModel.externalErrors`，与规则、schema 消息一起显示（`shownErrors`）；值变化、该字段重新校验、`reset`、`clearErrors` 时清除。
+- **`StateWriter`**（`writes.ts`）：所有写入的唯一入口。用户编辑 `commitExternal`（置粘滞的 `edited`、触发 `onChange` 校验）；`commitValue` 改值时清掉该 path 上下级的外部错误（`setErrors`）；draft 写 `writeState`（在 reaction/watch/batch 中缓冲，否则立即应用）；`$value/$display/$pattern/$required/$rules/$enum` 的落地；`EnumSource` 异步加载（防抖、abort、seq）与 `enumPolicy: 'clear'`。
 
 ## 8. Ant Design 适配层（`src/antd`）
 

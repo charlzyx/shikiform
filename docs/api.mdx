@@ -60,9 +60,28 @@ createForm<T>(options?: FormOptions<T>): FormEngine<T>  // 组件外
 | `validate(path?)` | 校验全表或一棵子树 → `Promise<FieldError[]>` |
 | `submit(onValid?)` | 等异步规则、校验，通过才调用 `onValid` → `{ ok: true, values } \| { ok: false, errors }` |
 | `getSubmitValues()` | 去掉 `virtual: true` 和 `display: 'none'` 后的值。reaction 写过的字段默认留下 |
-| `reset(path?)` | 恢复初始值（全表或子树），计算字段重新算 |
+| `reset(path?)` | 恢复初始值（全表或子树），计算字段重新算；touched、edited、错误清空 |
+| `reset(values)` | 编辑页回填：`values` 同时成为新的初始值，之后 `reset()` 回到它，`dirty` 以它为基线 |
+| `setInitialValues(values)` | 只换基线、不改当前值。保存成功后 `form.setInitialValues(form.values)` |
+| `setErrors(errors)` / `setFieldError(path, msg)` | 回填外部（服务端）错误，见 [校验 · 服务端错误](/guide/validation#服务端错误) |
+| `clearErrors(path?)` | 清掉全表或子树上的所有错误（规则、schema、外部），值不变 |
 
-实例属性（`values`、`errors`、`canSubmit`、`submitting` …）不会触发渲染；在 React 里用 `useWatch((d) => d.$canSubmit)` 之类订阅。
+实例属性（`values`、`initial`、`errors`、`canSubmit`、`submitting`、`validating`、`submitCount`、`dirty`、`edited`）都是**只读**的，赋值是 TS 错误、运行时抛 `TypeError`；写值走上面的方法。它们不会触发渲染；在 React 里用 `useWatch((d) => d.$canSubmit)` 之类订阅。
+
+- `dirty`：当前值和初始值**不同**（深比较），改回原值就变回 `false`；表单级不算 `virtual` 和计算字段。适合「没改动时禁用保存」「离开前提示未保存」。
+- `edited`：粘滞标记，用户编辑过（`setValue` / 控件 `onChange`）就为 `true`，直到 `reset`。reaction 写值不算。
+
+### 编辑页回填
+
+```ts
+const form = useForm<Values>({ initialValues: EMPTY })
+useEffect(() => { if (record) form.reset(record) }, [record])   // 值 + 基线，dirty 为 false
+const dirty = useWatch((d: Draft<Values>) => d.$dirty)          // 改回原值也会变回 false
+
+<Button disabled={!dirty} onClick={() => form.submit(save)}>保存</Button>
+```
+
+`useForm` 的选项只在创建时读取，记录异步到达后不要靠重新传 `initialValues`，也不要用 `key` 重挂整个表单。
 
 ## React 组件
 

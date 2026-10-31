@@ -32,7 +32,8 @@ export interface WriterDeps {
 /**
  * Every write to values and `$` state goes through here.
  *
- * - User edits (`setValue`, `binding().onChange`) → {@link StateWriter.commitExternal}: dirty flags + `onChange` trigger.
+ * - User edits (`setValue`, `binding().onChange`) → {@link StateWriter.commitExternal}: sticky `edited` flags + `onChange` trigger.
+ *   `dirty` is not written here: the engine derives it from values vs `initial`.
  * - Draft writes (`d.x.$value = …`, `$display`, `$rules`, …) → {@link StateWriter.writeState}: buffered inside a
  *   reaction / watch / batch, applied immediately otherwise.
  * - `$enum` with an `EnumSource` binding loads asynchronously (debounced, aborted, sequence-stamped).
@@ -80,13 +81,13 @@ export class StateWriter {
     if (process.env.NODE_ENV !== 'production') value = unwrapReadonly(value)
     if (!this.commitValue(path, value, false)) return
     const field = store.ensure(path)
-    if (!field.dirty) {
-      field.dirty = true
-      scheduler.markDirty(`${path}:dirty`)
+    if (!field.edited) {
+      field.edited = true
+      scheduler.markDirty(`${path}:edited`)
       notifier.bumpPath(path)
     }
-    if (!store.dirty) {
-      store.dirty = true
+    if (!store.edited) {
+      store.edited = true
       scheduler.bumpMeta()
     }
     scheduler.enqueueFromDirty()
@@ -119,6 +120,8 @@ export class StateWriter {
       field.computed = true
     }
     notifier.bumpPath(path)
+    // A changed value invalidates external (`setErrors`) messages on this path, its ancestors and descendants.
+    this.deps.validator.clearExternalAround(path)
     let cursor: string | null = path
     while (cursor) {
       scheduler.markDirty(`${cursor}:value`)

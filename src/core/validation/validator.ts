@@ -77,6 +77,8 @@ export class Validator {
     this.prepare()
     const gen = ++this.validateGen
     const values = store.values
+    // Validating a field again replaces what the server said about it.
+    this.clearExternalUnder(path)
     store.validating = true
     scheduler.bumpMeta()
     notifier.emit()
@@ -436,6 +438,78 @@ export class Validator {
     this.markErrorDeps(path)
     scheduler.bumpMeta()
     if (!scheduler.flushing) {
+      scheduler.enqueueFromDirty()
+      scheduler.flush()
+    }
+  }
+
+  /**
+   * External messages (`form.setErrors`, a server response). An empty list clears that path.
+   * They show with rule and schema messages and block `canSubmit` until the value at, above or below the path
+   * changes, the field validates again, or `reset` / `clearErrors` runs.
+   */
+  setExternalMany(entries: [string, string[]][]): void {
+    for (const [path, messages] of entries) {
+      const field = this.store.ensure(path)
+      if (deepEqual(field.externalErrors, messages)) continue
+      field.externalErrors = messages.slice()
+      this.afterErrorChange(path, false)
+    }
+    const { scheduler } = this.deps
+    if (!scheduler.flushing) {
+      scheduler.enqueueFromDirty()
+      scheduler.flush()
+    }
+  }
+
+  /** Drop external messages on `path`, its ancestors (root included) and descendants. Called when a value changes. */
+  clearExternalAround(path: string): void {
+    for (const [fieldPath, field] of this.store.fields) {
+      if (!field.externalErrors.length) continue
+      const related = !fieldPath || fieldPath === path || fieldPath.startsWith(path + '.') || path.startsWith(fieldPath + '.')
+      if (!related) continue
+      field.externalErrors = []
+      this.afterErrorChange(fieldPath, false)
+    }
+  }
+
+  /** Drop external messages on `path` and descendants (every field for no path). */
+  clearExternalUnder(path?: string): void {
+    for (const [fieldPath, field] of this.store.fields) {
+      if (!field.externalErrors.length) continue
+      if (path && fieldPath !== path && !fieldPath.startsWith(path + '.')) continue
+      field.externalErrors = []
+      this.afterErrorChange(fieldPath, false)
+    }
+  }
+
+  /** `clearErrors(path?)`: rule, schema and external messages on `path` and descendants. */
+  clearAll(path?: string): void {
+    this.clearExternalUnder(path)
+    this.clearSchemaMessages(path)
+    for (const [fieldPath] of this.store.fields) {
+      if (path && fieldPath !== path && !fieldPath.startsWith(path + '.')) continue
+      this.setErrors(fieldPath, [])
+    }
+    const { scheduler } = this.deps
+    if (!scheduler.flushing) {
+      scheduler.enqueueFromDirty()
+      scheduler.flush()
+    }
+  }
+
+  private clearSchemaMessages(path?: string): void {
+    const next = new Map(this.schemaByPath)
+    for (const key of [...next.keys()]) if (!path || key === path || key.startsWith(path + '.')) next.delete(key)
+    this.applySchemaMap(next)
+  }
+
+  private afterErrorChange(path: string, flush = true): void {
+    const { notifier, scheduler } = this.deps
+    notifier.bumpPath(path)
+    this.markErrorDeps(path)
+    scheduler.bumpMeta()
+    if (flush && !scheduler.flushing) {
       scheduler.enqueueFromDirty()
       scheduler.flush()
     }

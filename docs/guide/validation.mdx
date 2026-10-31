@@ -86,6 +86,22 @@ export default function App() {
 - 手动：`form.validate()` 校验全表，`form.validate('items')` 校验一棵子树，都返回 `FieldError[]`（`{ path, messages }`）。
 - `submit` 先等进行中的异步规则再校验；通过才调用回调。校验期间值又变了，就按新值再校验一轮（最多 3 轮），交出去的永远是刚校验过的值；值一直在变才返回 `ok: false` 并提示重新提交。
 
+## 服务端错误
+
+提交后后端说「用户名已存在」，用 `setErrors` 把错误写到字段上：
+
+```ts
+await form.submit(async (values) => {
+  const res = await api.register(values)
+  if (res.status === 409) form.setErrors({ username: '用户名已存在' })
+  // 也可以一次给多条、给表单根：form.setErrors({ email: ['格式不对'], '': '服务器繁忙' })
+})
+```
+
+- 接受 `{ path: 文案 | 文案[] }` 或 `FieldError[]`；`''` 是表单根；空数组清掉那条。单个字段可以用 `setFieldError(path, msg)`。
+- 和规则错误一起出现在 `form.errors`、`field.errors`、`$errors` 里，并让 `canSubmit` 为 `false`。
+- 自动清除：这个值（或它的上级、下级）变了，或这个字段重新校验（每次 `submit` 都会校验全表）；也可以 `reset()` / `clearErrors(path?)`。
+
 ## 规则写在哪
 
 规则写在哪，决定**组件卸载后还查不查**：

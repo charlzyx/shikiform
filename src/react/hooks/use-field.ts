@@ -25,8 +25,10 @@ export interface FieldBinding<TValue> {
   readOnly: boolean
   /** True after blur. `reset` clears it. */
   touched: boolean
-  /** True after a user edit. A reaction writing `$value` does not set it. */
+  /** The value differs from its initial value (deep compare). Changing it back clears it. */
   dirty: boolean
+  /** Sticky: a user edit happened since the last reset. A reaction writing `$value` does not set it. */
+  edited: boolean
   /** True while an async rule or schema for this field is in flight. */
   validating: boolean
   options: EnumOption[]
