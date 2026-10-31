@@ -5,20 +5,14 @@ description: 不依赖任何 UI 库：useField、useWatch，行内的 useArray /
 
 # Headless Hooks
 
-组件都是 Hook 的薄封装，Hook 才是完整的 API。下面的例子只用原生 HTML。
+不用 antd、或者要自己做表格和树组件时，直接用 Hook。`<Field>`、`<ArrayField>` 都是它们的薄封装；下面的例子只用原生 HTML。
 
-| Hook | 返回 | 订阅 |
-|---|---|---|
-| `useField(name, options?)` | `FieldBinding`：`value`、`onChange`、`onBlur`、`errors`、`display`、`pattern`、`options` … | 这个 path |
-| `useWatch(select)` / `<Watch select>` | selector 的结果 | selector 实际读到的 `$` 键 |
-| `useArrayField(name, rowKey?)` | `{ path, keys, push, insert, remove, move, swap, replace }` | 数组结构 |
-| `useArray()` | 最近一层数组的同一个 handle（不需要名字） | 数组结构 |
-| `useIndex()` | 当前行号 | — |
-| `useRecord()` | 当前行的值（响应式，随行移动） | 这一行 |
-| `useTreeNode()` | `{ path, pos, index, record }` | 这个节点 |
-| `useArrayMove(name)` / `useTreeMove(name)` | `{ move, bind }`：`bind(index)` / `bind(pos)` 返回 HTML5 拖拽事件 | 不订阅 |
+- `useField(name)` 绑定一个字段，`useWatch(select)` / `<Watch>` 订阅任意 `$` 状态。
+- 行内：`useArray()` 拿最近一层数组的操作，`useIndex()` 拿行号，`useRecord()` 拿这一行的值；都不需要写数组名。
+- 树节点内：`useTreeNode()` 返回 `{ path, pos, index, record }`。
+- 拖拽：`useArrayMove(name)` / `useTreeMove(name)` 返回 `bind(index | pos)`，给出 HTML5 拖拽事件。
 
-`useArray` / `useIndex` / `useRecord` 对应 Formily 的 `ArrayBase.useArray / useIndex / useRecord`，在 `<ArrayField>`、`ArrayTable`、`ProArrayTable` 的行里都能用。
+`useArray` / `useIndex` / `useRecord` 在 `<ArrayField>`、`ArrayTable`、`ProArrayTable` 的行里都能用。
 
 ## 数组：行组件不需要名字
 
@@ -88,65 +82,23 @@ export default function App() {
 
 ## 树：每个节点一层 RowScope
 
-```tsx preview play=headless
-import { Form, RowScope, TreeField, useField, useForm, useTreeMove, useTreeNode } from 'shikiform';
+树没有现成的行组件，节点由你递归渲染。每个节点包一层 `<RowScope path pos>`，里面的 `useField('name')` 就指向这个节点，`useTreeNode()` 给出它的坐标和值：
 
-type Node = { id: string; name: string; children?: Node[] };
-type Bind = ReturnType<typeof useTreeMove>['bind'];
-
+```tsx
 function NodeLabel({ bind }: { bind: Bind }) {
-  const { pos, record } = useTreeNode<Node>();
-  const field = useField<Node, 'name'>('name');
-  return (
-    <div {...bind(pos)} style={{ cursor: 'grab' }}>
-      ⠿ <input aria-label="名称" value={field.value} onChange={(event) => field.onChange(event.target.value)} />
-      <small> pos [{pos.join(', ')}] · {record.children?.length ?? 0} 个子节点</small>
-    </div>
-  );
+  const { pos, record } = useTreeNode<Node>()
+  const field = useField<Node, 'name'>('name')
+  return <div {...bind(pos)}>⠿ <input value={field.value} onChange={(e) => field.onChange(e.target.value)} /> {record.children?.length ?? 0}</div>
 }
 
-function Branch({ path, nodes, pos, bind }: { path: string; nodes: Node[]; pos: number[]; bind: Bind }) {
-  return (
-    <ul style={{ paddingLeft: pos.length ? 20 : 0, listStyle: 'none' }}>
-      {nodes.map((node, index) => (
-        <li key={node.id}>
-          <RowScope path={`${path}.${index}`} pos={[...pos, index]}>
-            <NodeLabel bind={bind} />
-            {node.children?.length ? <Branch path={`${path}.${index}.children`} nodes={node.children} pos={[...pos, index]} bind={bind} /> : null}
-          </RowScope>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function Menu() {
-  const { bind } = useTreeMove('menu');
-  return (
-    <TreeField name="menu" rowKey="id">
-      {(tree) => <Branch path={tree.path} nodes={tree.value as Node[]} pos={[]} bind={bind} />}
-    </TreeField>
-  );
-}
-
-export default function App() {
-  const form = useForm({
-    initialValues: {
-      menu: [
-        { id: 'file', name: '文件', children: [{ id: 'new', name: '新建' }, { id: 'open', name: '打开' }] },
-        { id: 'edit', name: '编辑', children: [{ id: 'undo', name: '撤销' }] },
-      ] as Node[],
-    },
-  });
-  return (
-    <Form form={form}>
-      <Menu />
-      <p>把一个节点拖到另一个节点上，它会移动到那个位置；不能拖进自己的子孙。</p>
-    </Form>
-  );
-}
+<RowScope path={`${path}.${index}`} pos={[...pos, index]}>
+  <NodeLabel bind={bind} />
+  {node.children?.length ? <Branch path={`${path}.${index}.children`} nodes={node.children} pos={[...pos, index]} /> : null}
+</RowScope>
 ```
+
+`useTreeMove('menu').bind(pos)` 给节点加上拖拽：拖到另一个节点上就移动到那个位置，不能拖进自己的子孙。可运行的完整版见 [示例库 · 树：跨层移动](/examples/arrays#树跨层移动)。
 
 签名、订阅边界和更多例子见 [React Hooks 参考](/reference/react-hooks)。
 
-继续：[Pro 组件](/guide/pro)。
+下一步：[Pro 组件](/guide/pro)，可编辑表格、影子草稿和查询列表。

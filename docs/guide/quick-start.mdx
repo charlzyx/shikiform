@@ -5,9 +5,11 @@ description: 准备依赖，写出第一张能校验、能提交的表单。
 
 # 快速开始
 
+从安装到一张会校验、会提交的表单。
+
 ## 准备
 
-ShikiForm 目前没有发布到 npm（`package.json` 是 `private`）。在仓库里运行 `npm ci && npm run build:lib` 生成 `lib/`，再以 workspace 或 `file:` 依赖接进你的项目。四个入口是 `shikiform`、`shikiform/core`、`shikiform/pro`、`shikiform/antd`。
+ShikiForm 还没有发布到 npm。在仓库里运行 `npm ci && npm run build:lib` 生成 `lib/`，再以 workspace 或 `file:` 依赖接进项目。
 
 | peer 依赖 | 版本 | 什么时候需要 |
 |---|---|---|
@@ -46,16 +48,15 @@ export default function App() {
 }
 ```
 
-直接点提交，必填项会报错；离开输入框时也会校验（默认触发时机是 `onBlur` 和 `onSubmit`）。全部通过后，`onSubmit` 才收到值。
+直接点提交，必填项报错；失焦时也会校验。全部通过后 `onSubmit` 才收到值。
 
-- `<Field>` 是字段的唯一拥有者：`name`、`title`、`required`、`rules` 都写在它上面。
-- `decorator={[FormItem]}` 负责标签、星号和错误；`component={[Input, props]}` 负责输入。两个槽都可以是组件本身或 `[组件, props]`。
-- `FormItem` 和 `Input` 都不需要 `name`，它们从外层 `<Field>` 读字段。
+- `<Field>` 拥有这个字段：`name`、`title`、`required`、`rules` 都写在它上面。
+- `decorator`（这里是 `FormItem`）画标签、星号和错误；`component`（这里是 `Input`）负责输入。两者都从外层 `<Field>` 读字段，不需要 `name`。
 - 组件外创建引擎用 `createForm(options)`，选项和 `useForm` 相同。
 
 ## 不用 antd
 
-UI 库不是必需的。`useField(name)` 返回一个绑定（`value`、`onChange`、`onBlur`、`errors` …），接到任何控件上：
+`useField(name)` 返回一个绑定（`value`、`onChange`、`onBlur`、`errors` …），接到任何控件上：
 
 ```tsx preview
 import { Form, useField, useForm, type FieldBinding } from 'shikiform';
@@ -86,10 +87,6 @@ export default function App() {
 }
 ```
 
-`useField` 必须在 `<Form>` 的后代组件里调用，所以字段放进 `NameField`，而不是直接写在 `App` 里。
+`useField` 必须在 `<Form>` 的后代组件里调用，所以字段放进 `NameField`，而不是写在 `App` 里。
 
-## 下一步
-
-- [核心概念](/guide/concepts)：为什么联动写在引擎里，`$` 状态都有哪些。
-- [分步教程](/tutorial/)：在浏览器里边改边学，十个小步骤。
-- [示例库](/examples)：SKU、嵌套订单、查询表等完整场景。
+下一步：[核心概念](/guide/concepts)，引擎、draft 和 `$` 状态。

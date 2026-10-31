@@ -5,7 +5,7 @@ description: Formily 式适配：Field 的 decorator / component 槽位、FormIt
 
 # Ant Design 适配层
 
-从 `shikiform/antd` 导入。这一层照搬 Formily 的分工：**`<Field>` 是字段唯一的拥有者**（`name`、`rules`、`required`、`title`、`description`、`decorator`、`component`），`FormItem` 是纯装饰器，控件经 `connect` + `mapProps` + `mapReadPretty` 接线。字段逻辑全部来自 [useField](/reference/react-hooks#usefield)，适配层只把 `FieldBinding` 映射成 antd 的 props，不保存任何自己的状态。
+从 `shikiform/antd` 导入。`<Field>` 拥有字段（`name`、`rules`、`title`、`decorator`、`component`），`FormItem` 只是装饰器，控件经 `connect` + `mapProps` + `mapReadPretty` 接线。适配层把 [useField](/reference/react-hooks#usefield) 的 `FieldBinding` 映射成 antd props，不保存自己的状态。用法见 [Ant Design 适配](/guide/antd)。
 
 ```tsx
 import { createForm, Field, Form } from 'shikiform'

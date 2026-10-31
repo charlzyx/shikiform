@@ -9,6 +9,8 @@ import { TutorialPlay } from '../_components/TutorialStep';
 
 # 校验
 
+校验要回答两件事：规则是什么，以及字段不在页面上时还查不查。
+
 ## 规则
 
 `rules` 接受一条内置规则、一个 [Standard Schema](https://standardschema.dev)（Zod、Valibot、ArkType），或它们的数组：
@@ -53,10 +55,7 @@ export default function App() {
             z.string().min(3, '至少 3 个字符'),
             { validator: (value, { signal }) => new Promise<string | null>((resolve) => {
               const timer = setTimeout(() => resolve(TAKEN.includes(String(value)) ? '用户名已被占用' : null), 400);
-              signal?.addEventListener('abort', () => {
-                clearTimeout(timer);
-                resolve(null);
-              });
+              signal?.addEventListener('abort', () => clearTimeout(timer));
             }) },
           ]} />
         <Field name="email" title="邮箱" required rules={{ format: 'email' }} decorator={[FormItem]} component={[Input]} />
@@ -77,7 +76,7 @@ export default function App() {
 }
 ```
 
-试试 `admin`：异步规则在停止输入后运行，较新的输入会中止旧请求（`signal`）并丢弃迟到的结果。abort 时记得 `resolve`，不要只清定时器。
+输入 `admin`：异步规则在停止输入后运行，较新的输入会中止旧请求（`signal`）并丢弃迟到的结果。被中止的规则不会拖住提交，即使它的 Promise 永远不 resolve；用 `signal` 清掉定时器或取消请求即可。
 
 整表也可以交给一个 schema：`useForm({ validate: z.object({ … }) })`，issue 的 `path` 会落到对应字段（`['items', 0, 'name']` → `items.0.name`）。字段上的 schema 校验这个字段的值，issue path 相对字段。
 
@@ -89,7 +88,7 @@ export default function App() {
 
 ## 规则写在哪
 
-规则的来源决定**组件卸载后还查不查**：
+规则写在哪，决定**组件卸载后还查不查**：
 
 | 规则写在 | `<Field>` 卸载后 |
 |---|---|
@@ -97,9 +96,9 @@ export default function App() {
 | `useForm({ fields })`、`registerField`、行模板 `items.*.name` | 仍查 |
 | reaction 里的 `$rules` / `$required` | 仍查（并且优先级最高） |
 
-显隐再决定查不查：`visible` 和 `hidden` 都查（藏起来的必填照样挡住提交），`none` 不查也不提交。计算字段不查，但默认仍提交，除非声明了 `virtual: true`。
+显隐和计算字段也会跳过校验，见 [显隐、pattern 与提交](/guide/concepts#显隐pattern-与提交)。注意 `hidden` 仍然校验：藏起来的必填照样挡住提交。
 
-跨标签页、折叠区、虚拟滚动之外都要校验的业务规则，写在 `fields` 或 reaction 里；只在当前界面有意义的临时规则才写 JSX。
+跨标签页、折叠区、虚拟滚动之外都要校验的业务规则，写在 `fields` 或 reaction 里；只在当前界面有意义的规则才写 JSX。
 
 ### 练一练：没挂载的字段
 
@@ -115,4 +114,4 @@ export default function App() {
 <TutorialPlay starter={starter} solution={solution} />
 </div>
 
-继续：按名字查 [API](/api)。
+下一步：[示例库](/examples)，把这些拼成完整场景。

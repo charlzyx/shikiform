@@ -1,11 +1,11 @@
 ---
 title: Field、装饰器与组件
-description: Formily 式的 Field：decorator 包住 component，字段通过上下文传下去；UI 状态分三层。
+description: Field 拥有一个 path，decorator 包住 component；UI 属性分三层叠加，按键深合并。
 ---
 
 # Field、装饰器与组件
 
-`<Field>` 是一个 path 的唯一拥有者。它渲染 `decorator` 包住 `component`，并通过上下文提供字段，所以装饰器（`FormItem`）和 `connect` 过的控件都不需要 `name`。
+一个字段要有标签、控件、错误提示，还要知道自己的值和状态。`<Field>` 把这些收在一处：它拥有一个 path，渲染 `decorator` 包住 `component`，并通过上下文把字段交给二者，所以 `FormItem` 和接好的控件都不需要 `name`。
 
 ```tsx
 <Field
@@ -20,17 +20,17 @@ description: Formily 式的 Field：decorator 包住 component，字段通过上
 
 | 属性 | 作用 |
 |---|---|
-| `name` | 相对路径。`profile.name` 或在 `<ObjectField name="profile">` 里写 `name` |
-| `rules` / `required` | 挂载期规则：组件卸载时释放，不擦掉 `fields` 声明或 `$rules` |
+| `name` | 相对路径。`profile.name`，或在 `<ObjectField name="profile">` 里写 `name` |
+| `rules` / `required` | 挂载期规则，组件卸载时释放，见 [规则写在哪](/guide/validation#规则写在哪) |
 | `display` / `pattern` / `virtual` | 初始显隐 / 编辑态 / 不进提交；reaction 写的值优先 |
 | `title` / `description` | 装饰器的标签 / 说明 |
 | `decorator` / `component` | 组件，或 `[组件, props]` |
 | `decoratorProps` / `componentProps` | 与元组里的 props 相同，单独写 |
 | `children` | 控件元素（`<Input />`）或 render prop `(field) => …`，代替 `component` |
 
-## 四种写法
+`display` 不是 `visible` 时 `<Field>` 不渲染，字段模型仍在；各取值对校验和提交的影响见 [显隐、pattern 与提交](/guide/concepts#显隐pattern-与提交)。
 
-同一个字段，按需要选：
+## 四种写法
 
 ```tsx preview
 import { Input as AntInput } from 'antd';
@@ -60,8 +60,6 @@ export default function App() {
 }
 ```
 
-`display: 'hidden'` 时 `<Field>` 返回 `null`，订阅和字段模型都在，校验和提交照常。`display: 'none'` 同样不渲染，但跳过校验，也不进入提交结果。reaction 写过 `$value` 的计算字段也不校验。
-
 ## UI 状态三层叠加
 
 `title`、`description`、`componentProps`、`decoratorProps` 存在字段模型上，来源从低到高：
@@ -70,7 +68,7 @@ export default function App() {
 2. JSX（`<Field title>`、元组里的 props）；
 3. reaction（`$title`、`$componentProps.placeholder = …`）。
 
-对象（`componentProps` / `decoratorProps`）深合并：普通对象逐键递归合并，数组、函数、React 元素、类实例整值取最高层。所以「根据别的字段改控件属性」写在 reaction 里，而不是在渲染时算 props：
+`componentProps` / `decoratorProps` 深合并：普通对象逐键递归合并，数组、函数、React 元素、类实例取最高一层的整值。所以「根据别的字段改控件属性」写在 reaction 里，而不是在渲染时算 props：
 
 ```tsx preview
 import { Field, Form, defineEffects, useForm } from 'shikiform';
@@ -103,30 +101,22 @@ export default function App() {
 }
 ```
 
-- 嵌套写 `d.x.$componentProps.style.color = 'red'` 只补这一处，JSX 和声明里 `style` 的其他键都保留；缺的中间对象不会自动创建，先 `style ??= {}`（赋 `{}` 只开一层，不清空下层）。
-- 整键赋值 `$componentProps.style = {…}` 替换这个键；整体赋值 `d.x.$componentProps = {…}` 替换所有下层；赋 `undefined` 撤销 reaction 这一层。
-- 同一个 reaction 里可以读回刚写的 UI 状态（这是唯一的例外，`$value` 等不行）。
+reaction 通过 draft 写入时只改写到的那一处：
+
+| 写法 | 结果 |
+|---|---|
+| `d.x.$componentProps.placeholder = '…'` | 只改这个键，其他键保留 |
+| `d.x.$componentProps.style.color = 'red'` | 只补 `style.color`，下层 `style` 的其他键保留。中间对象不会自动创建，先写 `style ??= {}` |
+| `d.x.$componentProps.style ??= {}` | 开一层空补丁，不清空下层的 `style` |
+| `d.x.$componentProps.style = { color: 'red' }` | 整键替换：下层的 `style` 不再生效 |
+| `delete d.x.$componentProps.style` | 去掉这个键，下层的也不再生效 |
+| `d.x.$componentProps = { … }` | 整体替换，`fields` 和 JSX 两层都不再生效 |
+| `d.x.$componentProps = undefined` | 撤销 reaction 这一层 |
+
+reaction 里读 `$componentProps` 看到的是「声明 + reaction」两层，JSX 只在渲染时合并。UI 状态是唯一能在同一轮读回刚写的值的 `$` 状态。
 
 ## Field 就是 useField
 
-`<Field>` 只是 `useField(name, options)` 加上「不是 visible 就返回 null」，再渲染两个槽。不用组件也能得到完全一样的结果：
+`<Field>` 等于 `useField(name, options)` 加「不是 visible 就返回 null」，再渲染两个槽。不用组件时，纯函数 `mapFormItemProps(field, props)` 和 `mapFieldProps(field, props)` 给出同样的 `Form.Item` 和控件 props。在装饰器或控件内部读当前字段，用 `useCurrentField()`。完整签名见 [useField](/reference/react-hooks#usefield) 和 [适配层参考](/reference/antd-adapter)。
 
-```tsx
-import { Form as AntdForm, Input as AntInput } from 'antd'
-import { useField } from 'shikiform'
-import { mapFieldProps, mapFormItemProps } from 'shikiform/antd'
-
-function Email() {
-  const field = useField('email', { required: true, title: '邮箱' })
-  if (field.display !== 'visible') return null
-  return (
-    <AntdForm.Item {...mapFormItemProps(field, {})}>
-      <AntInput {...mapFieldProps(field, { placeholder: 'name@example.com' })} />
-    </AntdForm.Item>
-  )
-}
-```
-
-在装饰器或控件内部读当前字段，用 `useCurrentField()`。完整签名见 [useField](/reference/react-hooks#usefield) 和 [适配层参考](/reference/antd-adapter)。
-
-继续：[FormLayout](/guide/layout)。
+下一步：[FormLayout](/guide/layout)，统一一组字段的布局。
