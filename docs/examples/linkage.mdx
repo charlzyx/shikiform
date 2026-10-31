@@ -152,7 +152,7 @@ export default function App() {
 ```
 
 - 生成行用 `watch`，不用 `reaction`：它只在勾选变化时执行，回调里读 `d.rows.$value` 不会成为依赖，所以可以「读旧行、写新行」。
-- `reaction.each` 的回调是 `(row, ctx)`；`row.total` 这类 handle 相对这一行。见 [reaction.each](/guide/linkage#reaction-each-每一行一个实例)。
+- `reaction.each` 的回调是 `(row, ctx)`；`row.total` 这类 handle 相对这一行。见 [reaction.each](/guide/linkage#reactioneach每一行一个实例)。
 - 缺货组合在 `enum` 里带 `disabled: true`，`Checkbox.Group` 直接禁用它。
 - 完整版用一张 `overrides` 表按组合 id 记住改过的价格，再由 reaction 重建整个数组。
 
