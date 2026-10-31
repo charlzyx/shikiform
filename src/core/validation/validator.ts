@@ -5,7 +5,7 @@ import { shownErrors, type FieldModel } from '../state/field-model'
 import type { FieldStore } from '../state/field-store'
 import type { Notifier } from '../state/notifier'
 import { scopeOf, type Pos } from '../shared/tree-ops'
-import type { FieldError, FormOptions, ValidateTrigger } from '../types'
+import type { FieldError, FormOptions, SubmitResult, ValidateTrigger } from '../types'
 import { formatMessage, type FormMessageKey, type MessageParams } from './messages'
 import { fieldSchemaIssues, optionIncludes, runRules, type ValidateCtx } from './rules'
 import { collectSchemaIssues, groupSchemaIssues, isStandardSchema, schemaIssuePath, type SchemaIssue, type StandardSchemaV1 } from './schema'
@@ -170,6 +170,17 @@ export class Validator {
       if (result.current) return result.errors
     }
     return null
+  }
+
+  /**
+   * `submit`'s verdict: wait for in-flight rules, then {@link Validator.runSettled}. `null` when the live values
+   * validated clean; otherwise `reason: 'invalid'` with the errors, or `'superseded'` when they never settled.
+   */
+  async submitVerdict(): Promise<Exclude<SubmitResult<unknown>, { ok: true }> | null> {
+    await this.waitAsync()
+    const errors = await this.runSettled()
+    if (!errors) return { ok: false, reason: 'superseded', errors: [], message: this.message('superseded', { path: '', value: this.store.values }) }
+    return errors.length ? { ok: false, reason: 'invalid', errors } : null
   }
 
   /**

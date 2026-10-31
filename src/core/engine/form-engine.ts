@@ -219,9 +219,7 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
    * `virtual` and display `none` are omitted. `hidden` is kept. A computed field is omitted only when
    * it was declared `virtual: true`.
    *
-   * Submit only returns values its own pass validated (#6): see `Validator.runSettled`. A concurrent submit on
-   * the same values shares the newer pass's verdict instead of failing (#41). Never rejects (#38): a throwing
-   * `onValid` is `{ ok: false, reason: 'error', error }`; values that never settle are `reason: 'superseded'`.
+   * Only values its own pass validated are submitted (#6, #41; see `Validator.submitVerdict`). Never rejects (#38).
    */
   async submit(onValid?: (values: T) => void | Promise<void>): Promise<SubmitResult<T>> {
     const { store, scheduler, notifier, validator } = this
@@ -231,12 +229,8 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     scheduler.bumpMeta()
     notifier.emit()
     try {
-      await validator.waitAsync()
-      const errors = await validator.runSettled()
-      if (!errors) {
-        return { ok: false, reason: 'superseded', errors: [], message: validator.message('superseded', { path: '', value: store.values }) }
-      }
-      if (errors.length) return { ok: false, reason: 'invalid', errors }
+      const failed = await validator.submitVerdict()
+      if (failed) return failed
       const values = this.getSubmitValues()
       if (onValid) await onValid(values)
       return { ok: true, values }
