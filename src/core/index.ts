@@ -32,7 +32,7 @@ export {
 } from './shared/tree-ops'
 export type { Pos, TreeMoveResult } from './shared/tree-ops'
 export { enUS, getDefaultMessages, setDefaultMessages, zhCN } from './validation/messages'
-export type { FormMessageKey, FormMessages, MessageBase, MessageParams, MessageTemplate } from './validation/messages'
+export type { FormMessageKey, FormMessages, MessageArgs, MessageBase, MessageParams, MessageTemplate, NoParams, TreeMoveParams } from './validation/messages'
 export { normalizeRules, runRules } from './validation/rules'
 export type { Rule, RulesInput, ValidateCtx } from './validation/rules'
 export type {

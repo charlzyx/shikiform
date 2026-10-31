@@ -6,7 +6,7 @@ import type { FieldStore } from '../state/field-store'
 import type { Notifier } from '../state/notifier'
 import { scopeOf, type Pos } from '../shared/tree-ops'
 import type { FieldError, FormOptions, SubmitResult, ValidateTrigger } from '../types'
-import { formatMessage, type FormMessageKey, type MessageParams } from './messages'
+import { formatMessage, type FormMessageKey, type MessageArgs, type MessageParams } from './messages'
 import { fieldSchemaIssues, optionIncludes, runRules, type ValidateCtx } from './rules'
 import { collectSchemaIssues, groupSchemaIssues, isStandardSchema, schemaIssuePath, type SchemaIssue, type StandardSchemaV1 } from './schema'
 
@@ -50,7 +50,7 @@ export class Validator {
 
   /** A built-in message for this form (#44). */
   message<K extends FormMessageKey>(key: K, params: MessageParams<K>): string {
-    return formatMessage(this.deps.options.messages, key, params)
+    return formatMessage(this.deps.options.messages, key, ...([params] as MessageArgs<K>))
   }
 
   private errorMessage(err: unknown, path: string, value: unknown): string {

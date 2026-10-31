@@ -48,7 +48,7 @@ createForm<T, TSubmit = T>(options?: FormOptions<T>): FormEngine<T, TSubmit>  //
 | `enumPolicy` | `'none'` | 值不在 `$enum` 里时：`'clear'` 清掉，`'error'` 报错 |
 | `trees` | — | `{ [path]: { childrenKey?, rowKey? } }`：让联动在挂载前就认识树根 |
 | `resolver` | — | 额外的 path → 文案校验函数 |
-| `messages` | 中文 | 覆盖内置文案（必填、格式、长度、枚举越界、兜底、提交重试），可部分覆盖，值可以是函数，见 [内置文案](/guide/validation#内置文案) |
+| `messages` | 中文 | 覆盖内置文案（校验、提交重试、树移动拒绝、antd 组件按钮），可部分覆盖，值可以是函数，见 [内置文案](/guide/validation#内置文案) |
 
 ### 读写和提交
 
@@ -66,6 +66,7 @@ createForm<T, TSubmit = T>(options?: FormOptions<T>): FormEngine<T, TSubmit>  //
 | `setInitialValues(values)` | 只换基线、不改当前值。保存成功后 `form.setInitialValues(form.values)` |
 | `setErrors(errors)` / `setFieldError(path, msg)` | 回填外部（服务端）错误，见 [校验 · 服务端错误](/guide/validation#服务端错误) |
 | `clearErrors(path?)` | 清掉全表或子树上的所有错误（规则、schema、外部），值不变 |
+| `message(key, params?)` | 按本表单的 `messages` → `setDefaultMessages` → `zhCN` 解析一条内置文案 |
 
 实例属性（`values`、`initial`、`errors`、`canSubmit`、`submitting`、`validating`、`submitCount`、`dirty`、`edited`）都是**只读**的，赋值是 TS 错误、运行时抛 `TypeError`；写值走上面的方法。它们不会触发渲染；在 React 里用 `useWatch((d) => d.$canSubmit)` 之类订阅。
 
@@ -75,14 +76,13 @@ createForm<T, TSubmit = T>(options?: FormOptions<T>): FormEngine<T, TSubmit>  //
 ### 编辑页回填
 
 ```ts
-const form = useForm<Values>({ initialValues: EMPTY })
-useEffect(() => { if (record) form.reset(record) }, [record])   // 值 + 基线，dirty 为 false
+const form = useForm<Values>({ values: query.data })            // 记录到达 / 重新加载 → reset(记录)
 const dirty = useWatch((d: Draft<Values>) => d.$dirty)          // 改回原值也会变回 false
 
 <Button disabled={!dirty} onClick={() => form.submit(save)}>保存</Button>
 ```
 
-`useForm` 的选项只在创建时读取，记录异步到达后不要靠重新传 `initialValues`，也不要用 `key` 重挂整个表单。
+`initialValues` 只在创建时读取；`values` 是外部拥有的数据：第一次渲染当作初始值，之后换成**内容不同**的新对象时自动 `reset(values)`——成为新基线，丢弃未保存的编辑，`dirty` 为 `false`。内容相同的新对象（每次渲染新建的字面量）什么也不做。没有 React 时自己调 `form.reset(record)`；不要用 `key` 重挂整个表单。
 
 ### 提交值类型
 

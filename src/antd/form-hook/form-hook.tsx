@@ -1,3 +1,4 @@
+import { useFormMessage } from '../../react/hooks/use-form-message'
 import { Button, type ButtonProps } from 'antd'
 import type { ComponentProps, ComponentType } from 'react'
 import type { Draft } from '../../core/types'
@@ -46,9 +47,10 @@ const FieldDatePicker = Object.assign(decorated(DatePicker, 'DatePicker'), {
 
 function Submit(props: ButtonProps) {
   const meta = useWatch((d: Draft<any>) => ({ can: d.$canSubmit === true, submitting: d.$submitting === true }))
+  const t = useFormMessage()
   return (
     <Button htmlType="submit" type="primary" {...props} disabled={props.disabled ?? !meta.can} loading={meta.submitting || props.loading}>
-      {props.children ?? '提交'}
+      {props.children ?? t('submit')}
     </Button>
   )
 }

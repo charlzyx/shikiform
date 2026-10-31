@@ -50,14 +50,14 @@ export function QueryList<TValues, TParams, TRow>(props: QueryListProps<TValues,
           <Space style={{ display: 'flex', justifyContent: 'flex-end', margin: '8px 0' }}>
             {foldable ? (
               <Button type="link" data-testid="query-toggle" onClick={() => setCollapsed((value) => !value)}>
-                {collapsed ? '展开' : '收起'}
+                {collapsed ? table.form.message('expand') : table.form.message('collapse')}
               </Button>
             ) : null}
             <Button data-testid="query-reset" disabled={table.fetching} onClick={() => table.reset()}>
-              重置
+              {table.form.message('reset')}
             </Button>
             <Button type="primary" data-testid="query-submit" disabled={table.fetching} onClick={() => table.submit()}>
-              查询
+              {table.form.message('search')}
             </Button>
           </Space>
         </>
@@ -83,7 +83,7 @@ export function QueryList<TValues, TParams, TRow>(props: QueryListProps<TValues,
         extra={
           <>
             {props.extra}
-            <Button size="small" data-testid="query-refresh" loading={table.fetching} onClick={() => table.refresh()}>
+            <Button size="small" data-testid="query-refresh" title={table.form.message('refresh')} loading={table.fetching} onClick={() => table.refresh()}>
               ⟳
             </Button>
           </>

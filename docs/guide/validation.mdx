@@ -114,7 +114,7 @@ export default function App() {
 
 ## 内置文案
 
-内置规则和引擎的默认文案是中文。`messages` 按 key 覆盖，没写的 key 用默认值；规则自己的 `message` 永远优先：
+内置规则、引擎和 `shikiform/antd` 组件的默认文案都是中文。`messages` 按 key 覆盖，没写的 key 用默认值；规则自己的 `message`、组件自己的属性（`title`、`okText` …）永远优先：
 
 ```ts
 import { createForm, enUS, setDefaultMessages } from 'shikiform'
@@ -138,8 +138,14 @@ setDefaultMessages(enUS)                              // 全应用默认，启�
 | `enum` | `enumPolicy: 'error'` 且值不在 `$enum` | `options` |
 | `fallback` | validator 抛出没有 message 的错误，或 schema issue 的 `message` 为空 | `error` |
 | `superseded` | `submit` 结果 `reason: 'superseded'` 的 `message` | — |
+| `treeIntoSelf` / `treeSourceMissing` / `treeTargetMissing` / `treeEmptyPos` | `moveTree` 拒绝时的 `reason` | `from`、`to`（不含 `path`、`value`） |
+| `submit` / `reset` / `search` / `refresh` / `expand` / `collapse` | antd 按钮：`Submit`、QueryList、ProQueryTable | — |
+| `add` / `remove` / `removeConfirm` / `moveUp` / `moveDown` / `copy` / `dragSort` | ProArrayTable 行操作 | — |
+| `selectionCount` / `selectionClear` / `selectionAll` / `selectionInvert` / `density` / `columnSettings` | ProArrayTable 选择栏、密度、列配置 | `selectionCount`：`count`；`density`：`density` |
+| `edit` / `ok` / `cancel` | Shadow 触发按钮、ShadowDrawer 底部 | — |
+| `yes` / `no` / `empty` | `PreviewText`（阅读态）的布尔值和空值，`empty` 默认空串 | — |
 
-优先级：规则 `message` > 表单 `messages` > `setDefaultMessages` > 内置中文（`zhCN`）。工厂写法可以 `createFormHook({ …, messages })`，对它创建的每个表单生效。
+优先级：规则 `message` > 表单 `messages` > `setDefaultMessages` > 内置中文（`zhCN`）。工厂写法可以 `createFormHook({ …, messages })`，对它创建的每个表单生效。组件读最近的 `<Form>` 的文案；QueryList / ProQueryTable 读 `table.form` 的，要英文就把 `useForm({ messages: enUS })` 作为 `form` 传给 `useQueryTable`，或者直接 `setDefaultMessages(enUS)`。自定义组件用 `useFormMessage()` 跟随同一套文案：`const t = useFormMessage(); t('submit')`；有实例时也可以 `form.message('submit')`。
 
 ## 服务端错误
 

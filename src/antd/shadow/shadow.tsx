@@ -3,6 +3,7 @@ import { cloneElement, createContext, isValidElement, useContext, useEffect, use
 import type { FormEngine } from '../../core/engine/form-engine'
 import { useShadowForm, type ShadowFormApi, type ShadowInit, type UseShadowFormOptions } from '../../pro/use-shadow-form'
 import { FormContext, ScopeContext } from '../../react/context'
+import { useFormMessage } from '../../react/hooks/use-form-message'
 
 const ROOT = { path: '', index: -1 }
 const ShadowContext = createContext<ShadowFormApi<any, any> | null>(null)
@@ -113,6 +114,7 @@ export function ShadowDrawer<TValues = any, TContext = unknown>(
   props: ShadowOwnProps<TValues, TContext> & { drawerProps?: Omit<DrawerProps, 'open' | 'onClose'>; title?: ReactNode; okText?: ReactNode; cancelText?: ReactNode },
 ) {
   const shadow = useOwnedShadow(props)
+  const t = useFormMessage()
   return (
     <>
       <Trigger trigger={props.trigger} onOpen={() => void shadow.open(props.record)} />
@@ -125,9 +127,9 @@ export function ShadowDrawer<TValues = any, TContext = unknown>(
         onClose={() => shadow.cancel()}
         footer={
           <Space style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <Button onClick={() => shadow.cancel()}>{props.cancelText ?? '取消'}</Button>
+            <Button onClick={() => shadow.cancel()}>{props.cancelText ?? t('cancel')}</Button>
             <Button type="primary" loading={shadow.submitting} disabled={shadow.loading} onClick={() => void shadow.confirm().catch(() => undefined)}>
-              {props.okText ?? '确定'}
+              {props.okText ?? t('ok')}
             </Button>
           </Space>
         }
@@ -146,9 +148,10 @@ export function ShadowPopconfirm<TValues = any, TContext = unknown>(
   props: ShadowOwnProps<TValues, TContext> & { popconfirmProps?: Omit<PopconfirmProps, 'open' | 'title' | 'onConfirm' | 'onCancel' | 'onOpenChange'> },
 ) {
   const shadow = useOwnedShadow(props)
+  const t = useFormMessage()
   const trigger = isValidElement(props.trigger) ? props.trigger : (
     <Button size="small" type="link">
-      {props.trigger ?? '编辑'}
+      {props.trigger ?? t('edit')}
     </Button>
   )
   return (

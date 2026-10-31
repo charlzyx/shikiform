@@ -29,21 +29,42 @@ description: useForm、useField、useWatch、数组与树 Hooks 的签名、返�
 ## useForm
 
 ```ts
-useForm<T, TSubmit = T>(options?: FormOptions<T>): FormEngine<T, TSubmit>
+useForm<T, TSubmit = T>(options?: UseFormOptions<T>): FormEngine<T, TSubmit>
+
+interface UseFormOptions<T> extends FormOptions<T> { values?: T }
 ```
 
 | 参数 / 返回 | 含义与默认 |
 |---|---|
-| `options` | 省略等同 `{}`；仅第一次渲染读取 |
+| `options` | 省略等同 `{}`；除 `values` 外仅第一次渲染读取 |
 | `options.initialValues` | 省略时以空对象开始；建议完整写出值形状，让 `T` 可推断 |
+| `options.values` | 外部拥有的数据（加载的记录、查询缓存）。第一次渲染当作初始值；之后内容变化时调 `reset(values)`（新基线，不 dirty）。内容相同的新对象不触发 |
 | `TSubmit` | `submit` / `getSubmitValues` / `<Form onSubmit>` 的值类型，默认 `T`；有 `virtual` / `display: 'none'` 字段时用 `SubmitValues<T, 'tmp'>`，见 [提交值类型](/api#提交值类型) |
 | 返回值 | 稳定的 `FormEngine<T, TSubmit>` 实例，提供 `getValue`、`setValue`、`reset`、`validate`、`submit` 等方法 |
 
-`useForm` 本身不要求父级 Provider。后续渲染传入新 `initialValues` 不会重建实例；回填数据用写入 API，恢复初值用 `reset`。渲染需要实时值时用 `useField` / `useWatch`，不要期待读取 `form.values` 就自动重渲染。
+`useForm` 本身不要求父级 Provider。后续渲染传入新 `initialValues` 不会重建实例，也不会生效；会变的数据用 `values`，或自己调 `reset(record)`。`useAppForm` / `useAntdForm` 接受同样的选项。渲染需要实时值时用 `useField` / `useWatch`，不要期待读取 `form.values` 就自动重渲染。
 
 完整选项、校验默认触发器和提交返回值见 [创建表单](/api#创建表单)。非 React 环境用 `createForm`。
 
 [实现：use-form.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-form.ts)
+
+## useFormMessage
+
+```ts
+useFormMessage(): (key: FormMessageKey, params?) => string
+```
+
+返回一个函数，按最近 `<Form>` / `<AppForm>` 的 `messages` → `setDefaultMessages` → `zhCN` 解析内置文案；没有表单时只用应用默认值。`shikiform/antd` 的按钮文案都经过它，自定义组件用它就能跟着同一套语言：
+
+```tsx
+const t = useFormMessage()
+<Button>{t('submit')}</Button>
+<span>{t('selectionCount', { count: 3 })}</span>
+```
+
+key 列表见 [内置文案](/guide/validation#内置文案)。有实例时等价于 `form.message(key, params)`。
+
+[实现：use-form-message.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-form-message.ts)
 
 ## typed
 
