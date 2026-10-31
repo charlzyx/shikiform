@@ -31,11 +31,11 @@ description: 四个入口、createForm 选项、引擎方法、React 组件与�
 ## 创建表单
 
 ```ts
-useForm<T>(options?: FormOptions<T>): FormEngine<T>     // 组件里，实例在组件生命周期内稳定
-createForm<T>(options?: FormOptions<T>): FormEngine<T>  // 组件外
+useForm<T, TSubmit = T>(options?: FormOptions<T>): FormEngine<T, TSubmit>     // 组件里，实例在组件生命周期内稳定
+createForm<T, TSubmit = T>(options?: FormOptions<T>): FormEngine<T, TSubmit>  // 组件外
 ```
 
-选项只在创建时读取，之后改值用写入 API 或 `reset`。
+选项只在创建时读取，之后改值用写入 API 或 `reset`。`TSubmit` 是提交值的类型，见下面的 [提交值类型](#提交值类型)。
 
 | 选项 | 默认 | 作用 |
 |---|---|---|
@@ -84,6 +84,26 @@ const dirty = useWatch((d: Draft<Values>) => d.$dirty)          // 改回原值�
 
 `useForm` 的选项只在创建时读取，记录异步到达后不要靠重新传 `initialValues`，也不要用 `key` 重挂整个表单。
 
+### 提交值类型
+
+`submit` / `getSubmitValues` / `<Form onSubmit>` 的值类型是表单的第二个泛型 `TSubmit`，默认等于 `T`。运行时会删掉 `virtual` 和 `display: 'none'` 的字段，而哪些字段被 reaction 隐藏只有运行时才知道，所以默认类型不会替你猜。表单里有会被删掉的字段时，用 `SubmitValues<T, 路径>` 把它们声明成可选：
+
+```ts
+import { createForm, type SubmitValues } from 'shikiform'
+
+type V = { a: string; tmp: string; b: string; rows: { qty: number; total: number }[] }
+const form = createForm<V, SubmitValues<V, 'tmp' | 'b' | 'rows.*.total'>>({
+  initialValues: { a: '1', tmp: 'x', b: '', rows: [] },
+  fields: { tmp: { virtual: true }, 'rows.*.total': { virtual: true } },
+})
+await form.submit((values) => {
+  values.tmp   // string | undefined
+  values.rows[0]?.total // number | undefined
+})
+```
+
+路径写法与 `fields` 相同：`rows.*.total` 对每一行生效，数字下标也会让每一行的该字段变成可选。不传路径时 `SubmitValues<T>` 就是 `T`。提交类型与后端 DTO 完全不同时，直接写 `createForm<V, SaveDto>()`，`onSubmit` 里自己转换。
+
 ## React 组件
 
 | 组件 | 说明 |
@@ -97,6 +117,8 @@ const dirty = useWatch((d: Draft<Values>) => d.$dirty)          // 改回原值�
 | `<ArrayScope path rowKey?>` | 自己实现的数组组件里，标记 `useArray()` 的目标 |
 | `<Watch select>{(value) => …}` | `useWatch` 的渲染形式 |
 | `<VirtualRows>` | 只挂载可见行的容器 |
+
+`<Field>`、`<ObjectField>`、`<ArrayField>`、`useField` 不写泛型时接受任意字符串（动态路径的出口）。要按表单类型检查名字，用 [`typed(form)`](/reference/react-hooks#typed) 拿到同一组组件的有类型版本：`<F.Field name="emial">` 编译不过，`ArrayField` 的每一行再给一组按行类型检查的 `row.Field` / `row.AppField`。名字在运行时始终相对当前作用域。
 
 ## 联动
 

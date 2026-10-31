@@ -68,13 +68,13 @@ createFormHook<
 ## useAppForm
 
 ```ts
-useAppForm<T>(options?: FormOptions<T>): AppFormApi<T, TFields, TForms>
+useAppForm<T, TSubmit = T>(options?: FormOptions<T>): AppFormApi<T, TFields, TForms, TSubmit>
 ```
 
 `options` 和 `useForm` 一致，省略为 `{}`，只在首次渲染读取。返回的是同一个引擎加上绑定组件：
 
 ```ts
-type AppFormApi<T, TFields, TForms> = FormEngine<T> & {
+type AppFormApi<T, TFields, TForms, TSubmit = T> = FormEngine<T, TSubmit> & {
   AppField: /* 当前表单值类型约束的组件 */
   AppForm: /* 提供上下文与原生 form 的组件 */
 } & TForms
@@ -95,7 +95,7 @@ form.AppField<N extends FieldPath<T>>(props: {
 
 | 属性 | 作用 |
 |---|---|
-| `name` | 必填；检查当前表单或字段组的路径，运行时仍相对当前 scope |
+| `name` | 必填；`form.AppField` 按表单根检查，`group.AppField` 按字段组检查；运行时相对当前 scope |
 | `children` | 必填 render prop；拿到当前绑定及 `fieldComponents` 中的组件 |
 | `rules` / `required` / `title` 等 | 与 [`useField` 的选项](/reference/react-hooks#usefield) 相同，原样传给内部的 `<Field>` |
 
@@ -106,6 +106,20 @@ form.AppField<N extends FieldPath<T>>(props: {
 ```
 
 `field.TextInput` 在字段 context 中读取当前绑定，不再传 `name`。同一个 AppField 内再创建字段组时，子名字相对这个字段路径。
+
+**在 `ArrayField` / `ObjectField` 里**名字相对那一行 / 那个对象，而 `form.AppField` 按根检查，两者对不上。用 [`typed(form)`](/reference/react-hooks#typed) 的作用域版本，类型和运行时用同一条规则：
+
+```tsx
+const F = typed(form)
+<F.ArrayField name="items" rowKey="id">
+  {(row) => <row.AppField name="name">{(f) => <f.TextInput />}</row.AppField>}
+</F.ArrayField>
+<F.ObjectField name="profile">
+  {(obj) => <obj.AppField name="name">{(f) => <f.TextInput />}</obj.AppField>}
+</F.ObjectField>
+```
+
+在作用域里写根路径（`items.${index}.name`、`profile.name`）会在开发环境抛 `ShikiUsageError`，而不是静默绑到 `items.0.items.0.name`。可复用的片段仍用 [`withFieldGroup`](#withfieldgroup)。
 
 AppField 复用普通 Field 的订阅与显示路径。`hidden` 不渲染子 UI，但仍校验、仍提交。`none` 不渲染，并且跳过校验、不进入提交结果。参见 [显隐](/guide/concepts)。
 

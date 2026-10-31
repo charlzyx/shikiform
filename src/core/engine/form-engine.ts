@@ -45,7 +45,7 @@ import { StateWriter } from './writes'
  * JSX `rules` and `required` apply only while that component is mounted and do not erase the sources above.
  * `hidden` still validates and submits. `none` drops the value and skips validation. An ancestor `none` covers descendants.
  */
-export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsRuntime<T> {
+export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit>, DraftHost, EffectsRuntime<T> {
   /** Root draft. Prefer {@link FormEngine.batch} so writes flush once. */
   readonly draft: Draft<T>
   /** Options passed to {@link createForm}. */
@@ -181,15 +181,15 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     }
   }
 
-  /** Values with `virtual` and display `none` removed. `hidden` is kept. The static type is still `T`. */
-  getSubmitValues(): T {
+  /** Values with `virtual` and display `none` removed. `hidden` is kept. Typed `TSubmit` (default `T`, see `SubmitValues`). */
+  getSubmitValues(): TSubmit {
     let out = clone(this.store.values)
     const omit = [...this.store.fields.entries()]
       .filter(([, field]) => field.virtual || this.store.effectiveDisplay(field.path) === 'none')
       .map(([path]) => path)
       .sort((a, b) => b.length - a.length)
     for (const path of omit) out = deleteAt(out, path)
-    return out
+    return out as unknown as TSubmit
   }
 
   // —— submit / reset / validate ——
@@ -201,7 +201,7 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
    *
    * Only values its own pass validated are submitted (#6, #41; see `Validator.submitVerdict`). Never rejects (#38).
    */
-  async submit(onValid?: (values: T) => void | Promise<void>): Promise<SubmitResult<T>> {
+  async submit(onValid?: (values: TSubmit) => void | Promise<void>): Promise<SubmitResult<TSubmit>> {
     const { store, scheduler, notifier, validator } = this
     store.submitCount += 1
     this.pendingSubmits += 1
@@ -263,8 +263,8 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
    * The form-level schema always runs. A scoped call replaces schema issues under `path` only.
    * A newer `validate` supersedes an in-flight form schema or resolver; the older pass does not write errors.
    */
-  validate(path?: string): Promise<FieldError[]> {
-    return this.validator.validate(path)
+  validate(path?: FieldPath<T>): Promise<FieldError[]> {
+    return this.validator.validate(path as string | undefined)
   }
 
   /** Untyped handle for an exact path, or for `opts.ui`. Prefer {@link FormEngine.getValue} and {@link FormEngine.batch}. */
@@ -680,6 +680,6 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
  *   fields: { code: { required: true }, 'rows.*.name': { required: true } },
  * })
  */
-export function createForm<T>(options: FormOptions<T> = {}): FormEngine<T> {
-  return new FormEngine(options)
+export function createForm<T, TSubmit = T>(options: FormOptions<T> = {}): FormEngine<T, TSubmit> {
+  return new FormEngine<T, TSubmit>(options)
 }

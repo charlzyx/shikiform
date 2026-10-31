@@ -110,7 +110,22 @@ const form = createForm({
   `minLength: ({ minLength }) => …`), app-wide with `setDefaultMessages(enUS)`, per factory with
   `createFormHook({ messages })`. A rule's own `message` wins.
 
-## 7. Correct vs incorrect
+## 7. Types: names, watch, submit
+
+- Plain `<Field>` / `useField` / `<ArrayField>` / `<ObjectField>` read the form from context, so an unannotated `name`
+  is any string (the escape hatch for dynamic paths). For checked names use `const F = typed(form)`: the same
+  components and hooks with the form's types (`F.Field`, `F.ArrayField`, `F.ObjectField`, `F.useField`, `F.useWatch`,
+  `F.Watch`, plus `F.AppField` on a `useAppForm()` form). No new runtime.
+- Names are **relative to the current scope**, and so are the types: `F.ArrayField` hands each row `row.Field` /
+  `row.AppField` typed as one row; `F.ObjectField`'s function children get `obj.Field` typed as that object.
+  A root path inside a scope (`items.0.name` in the `items.0` row) throws `ShikiUsageError` in development.
+  A row component without the instance uses `typed<Row>().useField('price')`.
+- `useWatch((d) => …)` without annotation compiles with an untyped `d`; `F.useWatch((d) => d.email.$value)` is typed.
+- `submit` / `getSubmitValues` / `onSubmit` values are the form's second type argument `TSubmit` (default `T`).
+  Fields dropped at runtime (`virtual`, `display: 'none'`) are not in the default type: declare them with
+  `createForm<V, SubmitValues<V, 'tmp' | 'rows.*.total'>>()` (those paths become optional).
+
+## 8. Correct vs incorrect
 
 ```ts
 // 1. Write a field by its path — never mutate a $value object
@@ -152,6 +167,10 @@ reaction.each((d) => d.rows, (row, { d, index }) => {                   // ✓
 // 7. UI linkage goes through $componentProps, not a prop computed in render
 <Field name="city" component={[Select, { disabled: form.getValue('kind') === 'b' }]} />   // ✗ not reactive
 reaction((d) => { d.city.$componentProps.disabled = d.kind.$value === 'b' })             // ✓
+
+// 8. Inside a row the name is relative, and typed by the row
+<ArrayField name="items">{({ index }) => <form.AppField name={`items.${index}.name`} />}</ArrayField>  // ✗ items.0.items.0.name (dev error)
+<F.ArrayField name="items">{(row) => <row.AppField name="name">{(f) => <f.Input />}</row.AppField>}</F.ArrayField>  // ✓ F = typed(form)
 ```
 
 ## 7. Form state: dirty, backfill, server errors

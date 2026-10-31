@@ -10,6 +10,7 @@ description: useForm、useField、useWatch、数组与树 Hooks 的签名、返�
 | 要做什么 | Hook | 是否订阅 |
 |---|---|---|
 | 创建并保留表单 | [`useForm`](#useform) | 不自动订阅值 |
+| 按表单类型检查字段名 | [`typed`](#typed) | 不订阅（返回有类型的组件和 Hooks） |
 | 取得上层表单 | [`useFormContext`](#useformcontext) | 不自动订阅值 |
 | 绑定一个输入 | [`useField`](#usefield) | 该路径的值和字段状态 |
 | 读取选中的值或状态 | [`useWatch`](#usewatch) | selector 实际读取的 `$` 依赖 |
@@ -28,20 +29,65 @@ description: useForm、useField、useWatch、数组与树 Hooks 的签名、返�
 ## useForm
 
 ```ts
-useForm<T>(options?: FormOptions<T>): FormEngine<T>
+useForm<T, TSubmit = T>(options?: FormOptions<T>): FormEngine<T, TSubmit>
 ```
 
 | 参数 / 返回 | 含义与默认 |
 |---|---|
 | `options` | 省略等同 `{}`；仅第一次渲染读取 |
 | `options.initialValues` | 省略时以空对象开始；建议完整写出值形状，让 `T` 可推断 |
-| 返回值 | 稳定的 `FormEngine<T>` 实例，提供 `getValue`、`setValue`、`reset`、`validate`、`submit` 等方法 |
+| `TSubmit` | `submit` / `getSubmitValues` / `<Form onSubmit>` 的值类型，默认 `T`；有 `virtual` / `display: 'none'` 字段时用 `SubmitValues<T, 'tmp'>`，见 [提交值类型](/api#提交值类型) |
+| 返回值 | 稳定的 `FormEngine<T, TSubmit>` 实例，提供 `getValue`、`setValue`、`reset`、`validate`、`submit` 等方法 |
 
 `useForm` 本身不要求父级 Provider。后续渲染传入新 `initialValues` 不会重建实例；回填数据用写入 API，恢复初值用 `reset`。渲染需要实时值时用 `useField` / `useWatch`，不要期待读取 `form.values` 就自动重渲染。
 
 完整选项、校验默认触发器和提交返回值见 [创建表单](/api#创建表单)。非 React 环境用 `createForm`。
 
 [实现：use-form.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-form.ts)
+
+## typed
+
+```ts
+typed<T>(form: FormEngine<T>): TypedForm<T>              // 普通表单
+typed<T>(form: AppFormApi<T, TFields, …>): TypedForm<T, TFields>  // useAppForm 的表单，多一个 AppField
+typed<T, TFields = {}, TRoot = T>(): TypedForm<T, TFields, TRoot>  // 没有实例时（行组件）
+
+type TypedForm<T> = {
+  Field, ObjectField, ArrayField        // name 按 T 检查；行 / 对象拿到按自身类型检查的同一组组件
+  AppField?                             // 仅 useAppForm 的表单
+  useField(name: FieldPath<T>, options?): FieldBinding<PathValue<T, name>>
+  useArrayField(name: ArrayPath<T>, rowKey?): ArrayHandle<行类型>
+  useWatch<S>(select: (d: Draft<TRoot>) => S): S
+  Watch: <S>(props: { select: (d: Draft<TRoot>) => S; children: (value: S) => ReactNode }) => ReactNode
+}
+```
+
+普通的 `<Field>` / `useField` / `<ArrayField>` / `<ObjectField>` 读的是 React 上下文，拿不到表单的类型，所以不写泛型时 `name` 是任意字符串。`typed(form)` 返回**同一批组件和 Hooks**，只是带上了表单的类型：拼错的名字编译不过，`value` 有具体类型，`useWatch` 不用注解 `d`。
+
+```tsx
+const form = useForm({ initialValues: { email: '', items: [{ id: 1, name: '' }] } })
+const F = typed(form)
+
+<Form form={form}>
+  <F.Field name="email" />                       {/* 'emial' 编译不过 */}
+  <F.ArrayField name="items" rowKey="id">
+    {(row) => <row.Field name="name" />}         {/* 按一行检查，绑定 items.<i>.name */}
+  </F.ArrayField>
+  <F.ObjectField name="profile">
+    {(obj) => <obj.Field name="city" />}         {/* 按 profile 检查 */}
+  </F.ObjectField>
+  <F.Watch select={(d) => d.$canSubmit}>{(ok) => <button disabled={!ok}>提交</button>}</F.Watch>
+</Form>
+```
+
+规则只有一条：**名字相对当前作用域**，类型也跟着作用域走。根上用 `F.*`，`ArrayField` 的行里用 `row.*`，`ObjectField` 的函数子节点里用 `obj.*`。在 `items.0` 行里写 `items.0.name` 会在开发环境抛 `ShikiUsageError`（它会被拼成 `items.0.items.0.name`）。
+
+- `useAppForm()` 的表单：`typed(form)` 多一个 `AppField`，每一行 / 对象也有自己的 `row.AppField`，见 [AppField](/reference/form-hook#appfield)。
+- 行组件里没有表单实例：`const Row = typed<RowValue>()`，`Row.useField('price')` 按行检查。它的 `useWatch` 仍读根 draft，需要类型时写 `typed<RowValue, {}, Values>()`。
+- 需要动态字符串（列定义、后端下发的路径）时继续用普通组件，`useField(name)` 返回 `FieldBinding<any>`。
+- `typed` 没有新的运行时：同一个表单多次调用返回同一个对象。
+
+[实现：typed.tsx](https://github.com/charlzyx/shikiform/blob/main/src/react/factory/typed.tsx)
 
 ## useFormContext
 
@@ -145,7 +191,7 @@ Hook 用户可以自己提供上下文：`<FieldContext.Provider value={useField
 ## useWatch
 
 ```ts
-useWatch<T, S>(select: (draft: Draft<T>) => S): S
+useWatch<T = any, S = unknown>(select: (draft: Draft<T>) => S): S
 ```
 
 | 参数 / 返回 | 契约 |
@@ -154,7 +200,7 @@ useWatch<T, S>(select: (draft: Draft<T>) => S): S
 | 返回值 | selector 的结果 `S`；没有额外包装对象 |
 | 依赖 | 自动跟踪本轮读到的 `$` 状态；分支变化后调整订阅 |
 
-推荐 `useWatch((d: Draft<Values>) => d.name.$value)`：`S` 会推断为 `string`。只写 `useWatch<Values>(...)` 不会继续推断第二个泛型；要么注解参数，要么写全两个泛型。
+不注解时 `useWatch((d) => d.$submitting)` 可以编译，`d` 是 `any`，返回值也是 `any`。要类型就用 [`typed(form).useWatch((d) => d.name.$value)`](#typed)（`string`），或注解 `useWatch((d: Draft<Values>) => d.name.$value)`。只写一个泛型 `useWatch<Values>(...)` 时 TypeScript 不再推断 `S`（它是 `unknown`），不要这样写。
 
 返回对象/数组可用，快照通过 `Object.is` / 深比较复用；不要返回每次新建的函数。没有读到任何 `$` 依赖时会退回整表通知，因此它不适合作为“零订阅”的替代品。
 

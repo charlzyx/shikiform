@@ -23,6 +23,7 @@ export {
   enUS,
   getDefaultMessages,
   setDefaultMessages,
+  typed,
   useArray,
   useArrayField,
   useArrayMove,
@@ -63,6 +64,10 @@ export type {
   FieldUiSpec,
   FormOptions,
   GroupApi,
+  ScopeFields,
+  SubmitValues,
   TemplatePath,
+  TypedAppField,
+  TypedForm,
   UseFieldOptions,
 } from './react'
