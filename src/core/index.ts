@@ -36,7 +36,6 @@ export type { Rule, RulesInput, ValidateCtx } from './validation/rules'
 export type {
   ArrayItemOf,
   ArrayPath,
-  CommitMode,
   Display,
   Draft,
   RowContext,

@@ -1,7 +1,8 @@
 // 12 超大表格：2000 行价格批量调整
 // 覆盖：行虚拟化（只挂可视区）；字段级订阅（改一格只重渲染该格 + 真正依赖它的计算值）；
-//      commit="blur"：打字只改本地草稿，不触发全局 reaction，blur / 回车才提交一次；
-//      按 record 缓存计算值；rowKey 稳定，排序不 remount 不丢焦点；渲染计数用于验收。
+//      reaction.each 把重算限制在被改的行；按 record 缓存计算值；
+//      rowKey 稳定，排序不 remount 不丢焦点；渲染计数用于验收。
+//      输入在 change 时写入 store。
 // ⚠️ 假代码：只看 API 是否顺手，不能运行。
 import { useForm, Form, Field, defineEffects, useFormState, useFormContext } from 'shikiform';
 import { ArrayTable, RenderCounter } from 'shikiform/pro';
@@ -24,7 +25,7 @@ const priceEffects = defineEffects<Values>(({ reaction }) => {
       row.belowCost.$value = row.price.$value < row.cost.$value;
     },
   );
-  // 全表聚合：任意一行 price 提交后重算一次（不是每次按键，见 commit: 'blur'）
+  // 全表聚合：读整表 rows.$value，任一行写入后重算。大表应避免这种读取，改用上面的 reaction.each。
   reaction((d) => {
     d.belowCostCount.$value = d.rows.$value.filter((r) => r.belowCost).length;
   });
@@ -34,10 +35,6 @@ export function BulkPriceEditor({ rows }: { rows: PriceRow[] }) {
   const form = useForm<Values>({
     initialValues: { rows, globalMarkup: 0.3 },
     effects: [priceEffects],
-    // 全表单默认：文本 / 数字输入都在 blur / Enter 时才 commit 到 store（大表推荐）
-    // ❓ commit 默认值：普通表单 'change'（每次按键进 store）更符合直觉；大表 'blur'。
-    //    放在 useForm 全局配置 + Field 覆盖，还是由 ArrayTable virtual 时自动切到 'blur'？
-    commit: 'blur',
   });
 
   return (
@@ -70,7 +67,7 @@ export function BulkPriceEditor({ rows }: { rows: PriceRow[] }) {
           </Field>
         </ArrayTable.Column>
         <ArrayTable.Column title="售价" width={140}>
-          {/* 单元格校验时机：默认就是 commit 时（blur / Enter），打字不校验 */}
+          {/* 单元格校验时机：默认 onBlur + onSubmit，打字不校验 */}
           <Field
             name="price"
             decorator={<CellItem />}
