@@ -5,11 +5,11 @@ description: 接好的 antd 控件、阅读态、connect / mapProps / mapReadPre
 
 # Ant Design 适配
 
-`shikiform/antd` 只做映射：把 `FieldBinding`（值、事件、状态、错误）变成 antd 的 props。值始终在 ShikiForm 引擎里，**不要再把同一份值交给 antd `Form` 的 `name` / `rules` / `initialValues`**。
+antd 控件要的是 `value`、`onChange`、`status`、`disabled` 这些 props。`shikiform/antd` 把字段绑定映射成这些 props，值仍在 ShikiForm 引擎里，所以**不要再把同一份值交给 antd `Form` 的 `name` / `rules` / `initialValues`**。
 
 ## 接好的控件
 
-`Input`（含 `TextArea`、`Password`）、`InputNumber`、`Select`、`Switch`、`Checkbox`（含 `Group`）、`Radio.Group`、`DatePicker`（含 `RangePicker`）都已经 `connect` 好：
+`Input`（含 `TextArea`、`Password`）、`InputNumber`、`Select`、`Switch`、`Checkbox`（含 `Group`）、`Radio.Group`、`DatePicker`（含 `RangePicker`）可以直接放进 `component`：
 
 - 选择类控件的 `options` 默认取字段枚举（`fields.x.enum` 或 `$enum`），异步枚举时自动带 `loading`。
 - `pattern` 自动生效：`disabled` / `readOnly` 禁用控件，`readPretty` 换成文字（选择类显示标签，可加 `prettyType="badge" | "tag"`）。
@@ -55,11 +55,11 @@ export default function App() {
 }
 ```
 
-`pattern` 从父级继承：只写 `d.profile.$pattern`，下面所有字段一起切换；子字段自己写了 `$pattern` 就用自己的。
+切换上面的按钮只写了 `d.profile.$pattern`，下面的字段靠继承一起切换。
 
 ## 封装自己的控件
 
-任何 `value` / `onChange` 控件经 `connect(Component, ...enhancers)` 就成了字段控件：
+任何 `value` / `onChange` 控件经 `connect(Component, ...enhancers)` 都能当 `component` 用：
 
 | enhancer | 作用 |
 |---|---|
@@ -93,11 +93,11 @@ export default function App() {
 }
 ```
 
-控件的 `onChange` 先写字段，再用原始参数调用你传的 `onChange`；`onBlur` 同理。不用组件时，纯函数 `mapFieldProps(field, props)` 与 `mapFormItemProps(field, props)` 给出同样的 props。
+控件的 `onChange` 先写字段，再用原始参数调用你传的 `onChange`；`onBlur` 同理。
 
 ## 预绑定：useAntdForm
 
-想少写 `decorator` / `component`，可以用预绑定工厂：`useAntdForm` 返回普通引擎，加上 `AppForm`、`AppField`、`Submit`。`AppField` 的 render prop 带着 `field.Input`、`field.Input.Password`、`field.Select`、`field.Switch`、`field.Checkbox`、`field.Radio`、`field.DatePicker` 等，外面都包了 `FormItem`：
+不想每个字段都写 `decorator` / `component`，可以用预绑定工厂。`useAntdForm` 返回普通引擎，外加 `AppForm`、`AppField`、`Submit`；`AppField` 的 render prop 带着 `field.Input`、`field.Select`、`field.DatePicker` 等，外面都包了 `FormItem`：
 
 ```tsx
 const form = useAntdForm({ initialValues: { email: '' } })
@@ -107,6 +107,6 @@ const form = useAntdForm({ initialValues: { email: '' } })
 </form.AppForm>
 ```
 
-它建在通用的 [`createFormHook`](/reference/form-hook) 上，和 `<Field decorator component>` 共用同一套控件和引擎，二选一即可。`AppForm` 没有 `onSubmit`。要在校验通过后拿到值，调用 `form.submit(onValid)`，或者不用 `AppForm`，把 `AppField` 包进 `<Form form={form} onSubmit>`。不要在 `AppForm` 里再套一个 `<form>`。细节见 [antd 参考](/reference/antd)。
+它和 `<Field decorator component>` 共用同一套控件和引擎，二选一即可。`AppForm` 没有 `onSubmit`：要在校验通过后拿到值，调用 `form.submit(onValid)`，或把 `AppField` 包进 `<Form form={form} onSubmit>`。不要在 `AppForm` 里再套一个 `<form>`。细节见 [antd 参考](/reference/antd) 和 [`createFormHook`](/reference/form-hook)。
 
-继续：[联动](/guide/linkage)。
+下一步：[联动](/guide/linkage)，让字段跟着别的字段变。

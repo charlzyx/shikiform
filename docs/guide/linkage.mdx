@@ -5,7 +5,7 @@ description: reaction 维持派生状态，watch 做一次性动作；reaction.e
 
 # 联动
 
-联动写在 `defineEffects` 里，交给 `useForm({ effects })`。它们直接读写引擎，所以字段有没有挂载都一样生效。
+「金额 = 单价 × 数量」「省份变了清空城市」这类规则写在 `defineEffects` 里，交给 `useForm({ effects })`。它们直接读写引擎，字段有没有挂载都生效。
 
 ```ts
 const effects = defineEffects<Values>(({ reaction, watch }) => {
@@ -68,9 +68,9 @@ export default function App() {
 | 用途 | **派生**：维持一份结果 | **动作**：X 变了就做一次 Y |
 | 首次 | 立即运行 | 不运行 |
 | 依赖 | `effect` 里读到的所有 `$` 状态 | 只有 `source` 读到的；`effect` 里的读取不算 |
-| 写 `$value` | 字段成为计算字段：`readPretty`，默认仍提交（不提交就声明 `virtual: true`） | 不改变字段性质 |
+| 写 `$value` | 字段成为[计算字段](/guide/concepts#显隐pattern-与提交)，默认仍提交；不想提交就声明 `virtual: true` | 普通写入 |
 
-几条规则：
+规则：
 
 - 写入在本轮结束才生效。刚写的值不要在同一轮读回，先放进局部变量：`const total = …; d.total.$value = total; d.tax.$value = total * 0.1`。
 - 一个 `$` 状态只能由一个 reaction 写；两个 reaction 写同一个状态会报错。
@@ -85,7 +85,7 @@ export default function App() {
 reaction.each((d) => d.items, (row, { d, index, path, pos }) => { … })
 ```
 
-三个行级 API（`reaction.each`、`reaction.walk`、`watch.each`）的回调都是 `(row, ctx)`：`ctx.d` 是根 draft，`ctx.path` 是这一行的精确路径（`items.2`），`ctx.index` 是行号，`ctx.pos` 是树坐标（数组行是 `[index]`）。
+三个行级 API（`reaction.each`、`reaction.walk`、`watch.each`）的回调都是 `(row, ctx)`：`ctx.d` 是根 draft，`ctx.path` 是这一行此刻的路径（`items.2`），`ctx.index` 是行号，`ctx.pos` 是树坐标（数组行是 `[index]`）。插入、删除、移动之后，换了行的位置会用新的行重跑，所以写下的状态跟着行走。
 
 `watch.each` 是行级的 `watch`：回调里读到的 `$` 状态就是这一行的来源，来源变了才执行。
 
@@ -142,7 +142,7 @@ export default function App() {
 }
 ```
 
-改某一行的数量，只有那一行重算；改折扣，所有行重算（它们都读了 `d.discount`）。`price` 和 `total` 是只读计算字段，默认仍在提交结果里。不想交出去就声明 `virtual: true`。
+改某一行的数量，只有那一行重算；改折扣，所有行重算（它们都读了 `d.discount`）。`price` 和 `total` 是计算字段，仍在提交结果里。
 
 ## reaction.walk：每个树节点一个实例
 
@@ -213,18 +213,8 @@ export default function App() {
 
 ## UI 也是状态
 
-显隐、禁用、必填、选项、标签、占位符都是 `$` 状态，写法和值一样：
+显隐、必填、选项、标签、占位符都是 `$` 状态，在 reaction 里赋值即可（完整例子见 [首页](/)）。不要在渲染时根据 `form.getValue(...)` 算 props：那不是响应式的。
 
-```ts
-reaction((d) => {
-  const company = d.kind.$value === 'company'
-  d.taxId.$display = company ? 'visible' : 'none'   // none：不校验、不提交
-  d.taxId.$required = company
-  d.name.$title = company ? '公司名称' : '姓名'
-  d.name.$componentProps.placeholder = company ? '营业执照上的名称' : '身份证上的姓名'
-})
-```
+三个维度的 SKU 选择、冲突清理、价格与库存联动见 [SKU 选择器](/play/sku-picker)，更多场景在 [联动示例](/examples/linkage)。
 
-不要在渲染时根据 `form.getValue(...)` 算 props：那不是响应式的。三个维度的 SKU 选择、冲突清理、价格与库存联动见 [SKU 选择器](/play/sku-picker)；更多场景在 [示例库](/examples)。
-
-继续：[数组、树与嵌套对象](/guide/structures)。
+下一步：[数组、树与嵌套对象](/guide/structures)，给字段分组、按行渲染。

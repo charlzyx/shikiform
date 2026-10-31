@@ -5,7 +5,7 @@ description: 给一组 FormItem 统一布局、标签宽度、尺寸和反馈方
 
 # FormLayout
 
-`FormLayout`（`shikiform/antd`）把布局交给里面的每个 `FormItem`，对应 Formily 的 `FormLayout`。它不是表单，也不持有值；嵌套时逐键合并，最近的一层优先。
+每个 `FormItem` 都写一遍 `labelCol`、`size` 太啰嗦。`FormLayout`（`shikiform/antd`）把这些设置交给里面所有的 `FormItem`；它不持有值，可以嵌套，嵌套时逐键合并，最近的一层优先。
 
 ```tsx preview
 import { useState } from 'react';
@@ -60,6 +60,6 @@ export default function App() {
 
 优先级（低 → 高）：`FormLayout` → 字段的 `decoratorProps`（`fields` ← JSX ← `$decoratorProps`）→ `FormItem` 自己的 props。读当前继承到的布局用 `useFormLayout()`。
 
-表格单元格通常不要装饰器，或用 `decorator={[FormItem, { feedbackLayout: 'terse' }]}`，见 [Pro 组件](/guide/pro)。完整签名见 [FormLayout 参考](/reference/antd-adapter#formlayout)。
+表格单元格通常不要装饰器，或用 `decorator={[FormItem, { feedbackLayout: 'terse' }]}`。完整签名见 [FormLayout 参考](/reference/antd-adapter#formlayout)。
 
-继续：[Ant Design 适配](/guide/antd)。
+下一步：[Ant Design 适配](/guide/antd)，接好的控件和自己的控件。

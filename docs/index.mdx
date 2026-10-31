@@ -5,7 +5,7 @@ description: 一个无 UI 的表单引擎，用 draft + $ 状态写联动，用 
 
 # ShikiForm
 
-一个表单 = 一个引擎。值、字段状态、校验和联动都在引擎里；联动写成 `reaction` / `watch`，读写的是 **draft**（`d.email.$required = …`）。React 层只订阅和渲染，Ant Design 适配层只把字段映射成控件。
+表单一复杂，「这个字段什么时候必填、什么时候隐藏、隐藏了还交不交」就散落在组件的 `if` 里。ShikiForm 把值、字段状态、校验和联动都放进一个引擎：联动用 `reaction` 写成对字段状态的赋值，组件只负责渲染。
 
 ```tsx preview
 import { useState } from 'react';
@@ -47,27 +47,12 @@ export default function App() {
 }
 ```
 
-切到「工作」：邮箱变成必填、占位符换掉、公司出现；切回「个人」，公司既不显示、也不校验、不进提交结果（`display: 'none'`）。这些都写在一个 `reaction` 里，组件代码里没有一个 `if`。
+切到「工作」：邮箱变成必填、占位符换掉、公司出现；切回「个人」，公司既不显示、也不校验、不进提交结果。规则都在 `reaction` 里，组件里没有分支。`d.email.$required` 这类写法在 [核心概念](/guide/concepts) 里解释。
 
 ## 四个入口
 
-| 入口 | 内容 | 依赖 |
-|---|---|---|
-| `shikiform/core` | `createForm`、`defineEffects`、`EnumSource`、校验与树工具 | 无 |
-| `shikiform` | core + React：`useForm`、`Form`、`Field`、`ObjectField`、`ArrayField`、`TreeField`、`useField`、`useWatch`、`useArray` … | React |
-| `shikiform/pro` | 无 UI 的查询、数组表格、影子草稿、联想、懒加载级联 Hooks | React |
-| `shikiform/antd` | `FormItem`、`FormLayout`、`connect`、接好的 antd 控件、`ProArrayTable`、`QueryList`、`ShadowModal` … | React + antd 5 |
+`shikiform/core` 是不依赖 React 的引擎；`shikiform` 加上 React 组件与 Hooks；`shikiform/pro` 是无 UI 的表格、查询、草稿 Hooks；`shikiform/antd` 是 Ant Design 控件和 Pro 组件。依赖方向是 `antd → pro → react → core`，不用 antd 时只用前两个。各入口的导出见 [模块入口](/api#模块入口)。
 
-依赖方向是 `antd → pro → react → core`。不用 antd 时，只用前两个入口加你自己的控件。
+用 AI 写代码时，把 [/llms.txt](/llms.txt) 交给它，或看 [Agent 指南](/agents)。想边改边学，走 [分步教程](/tutorial/)。
 
-## 阅读路线
-
-1. [快速开始](/guide/quick-start)：五分钟写出第一张表单。
-2. [核心概念](/guide/concepts)：handle 与 value、`$` 状态、`fields` 声明。
-3. [Field、装饰器与组件](/guide/field) → [FormLayout](/guide/layout) → [Ant Design 适配](/guide/antd)。
-4. [联动](/guide/linkage)：`reaction`、`watch`、`reaction.each`、`reaction.walk`。
-5. [数组、树与嵌套对象](/guide/structures) → [Headless Hooks](/guide/headless)。
-6. [Pro 组件](/guide/pro) 与 [示例库](/examples)。
-7. [校验](/guide/validation)，按名字查 [API](/api)。
-
-用 AI 写代码？看 [Agent 指南](/agents)，或把 [/llms.txt](/llms.txt) 交给它。想一步一步动手，走 [分步教程](/tutorial/)。
+下一步：[快速开始](/guide/quick-start)，写出第一张能校验、能提交的表单。

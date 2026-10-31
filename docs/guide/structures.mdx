@@ -1,11 +1,11 @@
 ---
 title: 数组、树与嵌套对象
-description: ObjectField / ArrayField / TreeField 提供相对作用域；按 path 写值，对象型 UI 状态按键打补丁。
+description: ObjectField / ArrayField / TreeField 提供相对作用域；行身份用 rowKey，设置用行模板跟着行走；嵌套值按 path 写。
 ---
 
 # 数组、树与嵌套对象
 
-值就是普通的嵌套对象和数组。结构组件只做一件事：给里面的字段一个**作用域**，让它们写相对名字。
+值就是普通的嵌套对象和数组。字段一多，每个都写完整 path（`contacts.2.phone`）既啰嗦又跟不上行的增删。结构组件给里面的字段一个**作用域**，字段只写相对名字。
 
 | 组件 | 作用域 | 行 / 节点操作 |
 |---|---|---|
@@ -72,13 +72,12 @@ export default function App() {
 }
 ```
 
-- 行身份用 `rowKey`（这里是 `id`），移动后字段状态（错误、touched）跟着行走；path 里的下标会变，不要拿下标当身份。
-- 写死下标的声明（`fields: { 'contacts.0.name': { virtual: true } }`、`registerField('contacts.0.name', …)`）属于**这个路径**，不属于行：移动、交换、插入、删除后，它留在 `contacts.0.name`，作用于此刻占着第 0 行的那一行。要让设置跟着行走，用行模板 `contacts.*.name` 或 `reaction.each`。
-- `ArrayField` 的父组件只订阅**结构**（行数、行 id），不订阅单元格的值。
-- `contacts.*.name` 是行模板：已有的行和以后 push 的行都带这条规则，行没渲染也会校验。
-- 数组的增删改走 `form.*Array` 或 `useArray()`；不要原地 `push` 到 `getValue` 拿到的数组。
+- 行身份用 `rowKey`（这里是 `id`）。移动后字段状态（错误、touched）跟着行走；path 里的下标会变，不要拿下标当身份。
+- `contacts.*.name` 是行模板：已有的行和以后添加的行都带这条设置，行没渲染也会校验。
+- 写死下标的声明（`fields: { 'contacts.0.name': { virtual: true } }`、`registerField('contacts.0.name', …)`）属于**这个路径**，不属于行：移动、交换、插入、删除后，它留在 `contacts.0.name`，作用于此刻占着第 0 行的那一行。要让设置跟着行走，用 `contacts.*.name` 或 [`reaction.each`](/guide/linkage#reactioneach每一行一个实例)。
+- 增删改行走 `form.*Array` 或 `useArray()`，不要原地 `push` 到 `getValue` 拿到的数组。`ArrayField` 的父组件只订阅结构（行数、行 id），不订阅单元格的值。
 
-树的写法见 [联动 · reaction.walk](/guide/linkage) 和 [Headless Hooks](/guide/headless)：节点由你渲染，每个节点包一层 `<RowScope path pos>`；`trees` 选项让联动在组件挂载前就能找到树根。
+树的节点由你渲染，每个节点包一层 `<RowScope path pos>`；`trees` 选项让联动在组件挂载前就认识树根。例子见 [联动 · reaction.walk](/guide/linkage#reactionwalk每个树节点一个实例) 和 [Headless Hooks](/guide/headless)。
 
 ## 嵌套值：按 path 写
 
@@ -91,53 +90,6 @@ d.user.$value.name = 'x'                              // ✗ 改了不可变快�
 d.items.$value = [...d.items.$value, row]             // 整体替换数组（effects 外用 form.pushArray）
 ```
 
-## 对象型 UI 状态：深合并 + 补丁
+`$componentProps` 这类对象型 UI 状态不按 path 写，而是按键打补丁，见 [UI 状态三层叠加](/guide/field#ui-状态三层叠加)。
 
-`$componentProps` / `$decoratorProps` 三层深合并，优先级 reaction > JSX > `fields` 声明：普通对象逐键递归合并；数组、函数、React 元素、类实例取最高层的整值。reaction 通过 draft 写是 Immer 式的补丁：只改你写到的那一处，下层同一个对象的其他键保留。
-
-```tsx preview
-import { Field, Form, defineEffects, useForm } from 'shikiform';
-import { FormItem, FormLayout, Input, Switch } from 'shikiform/antd';
-
-type Values = { highlight: boolean; city: string };
-
-const effects = defineEffects<Values>(({ reaction }) => {
-  reaction((d) => {
-    const props = d.city.$componentProps;
-    props.style ??= {}; // 中间对象不会自动创建；赋 {} 只是开一层，不清空下层
-    props.style.color = d.highlight.$value ? 'crimson' : undefined; // 只改 style.color
-  });
-});
-
-export default function App() {
-  const form = useForm<Values>({
-    initialValues: { highlight: true, city: '杭州' },
-    // 声明层的 style.width 会被补丁保留
-    fields: { city: { componentProps: { style: { width: 240 } } } },
-    effects: [effects],
-  });
-  return (
-    <Form form={form}>
-      <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }}>
-        <Field name="highlight" title="高亮" decorator={[FormItem]} component={[Switch]} />
-        {/* JSX 的 style.fontWeight 和声明的 style.width 一起保留：三层深合并 */}
-        <Field name="city" title="城市" decorator={[FormItem]} component={[Input, { placeholder: '城市', allowClear: true, style: { fontWeight: 600 } }]} />
-      </FormLayout>
-    </Form>
-  );
-}
-```
-
-| 写法 | 结果 |
-|---|---|
-| `d.x.$componentProps.placeholder = '…'` | 只改这个键，其他键保留 |
-| `d.x.$componentProps.style.color = 'red'` | 只补 `style.color`：JSX / 声明里的 `style` 其他键都保留。reaction 读不到 JSX 层，所以 `style` 只在 JSX 里时先 `style ??= {}` |
-| `d.x.$componentProps.style ??= {}` | 开一层空补丁，不清空下层的 `style` |
-| `d.x.$componentProps.style = { color: 'red' }` | 整键替换：下层的 `style` 不再生效 |
-| `delete d.x.$componentProps.style` | 去掉这个键（下层的也不再生效） |
-| `d.x.$componentProps = { … }` | 整体替换，所有下层（`fields`、JSX）都不再生效 |
-| `d.x.$componentProps = undefined` | 撤销 reaction 这一层 |
-
-reaction 里读 `$componentProps` 看到的是「声明 + reaction」两层：JSX 只在渲染时合并，不存进模型。
-
-继续：[Headless Hooks](/guide/headless)。
+下一步：[Headless Hooks](/guide/headless)，不依赖 UI 库写同样的结构。

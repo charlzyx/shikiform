@@ -5,9 +5,7 @@ description: useAntdForm、useAntdField、字段组、预绑定控件和表格�
 
 # Ant Design 参考
 
-从 `shikiform/antd` 导入这些 API。新项目先理解组件库无关的 [React Hooks](/reference/react-hooks) 与 `Field`；antd 只负责控件、布局、反馈和事件适配。想看代码怎么接，读 [把字段接到 Ant Design](/guide/antd)。
-
-这里的适配层使用同一个 `FormEngine`，不是把业务值再同步进 antd Form。`useAntdForm` / `useAntdField` 是保留的预绑定便利入口，不是另一套状态架构，也不是使用 antd 控件的前提。`AppField` render prop 上的 `field.Input`、`field.Select` 等是预绑定成员，`Submit` 是表单实例成员。`shikiform/antd` 另有同名的独立导出 `Input`、`Select` 等：它们是 `connect` 适配层的控件，与 `<Field decorator={[FormItem]} component={[Input]}>` 配合使用，见 [Ant Design 适配层](/reference/antd-adapter)。`field.Input` 等预绑定成员就是这些控件，外面都包一层 `FormItem`，全库只有一套适配层。
+从 `shikiform/antd` 导入。`useAntdForm` / `useAntdField` 是预绑定入口：返回同一个 `FormEngine`，`AppField` render prop 上的 `field.Input`、`field.Select` 就是 [适配层](/reference/antd-adapter) 的 `Input`、`Select` 外包一层 `FormItem`。用法见 [Ant Design 适配](/guide/antd)。
 
 ## useAntdForm
 

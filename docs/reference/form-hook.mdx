@@ -5,9 +5,7 @@ description: createFormHookContexts、createFormHook、useAppForm、AppField、A
 
 # 组件 Hook 工厂
 
-`useField(name)` 适合手写绑定；每个输入都重复 `value/onChange/onBlur` 时，可以用 `createFormHook` **预绑定一组组件**。它不会创建第二个 store，也不要求新的字段描述语言。
-
-**普通 `Form` + `useField` / `<Field>` 是起点，工厂是可选的通用 React 复用层，不是 UI 核心。** 只有几种输入时可以直接写薄适配，不必为了使用 ShikiForm 先定义工厂。
+每个输入都重复 `value` / `onChange` / `onBlur` 时，用 `createFormHook` 预绑定一组组件。它用同一个引擎，是可选的复用层；只有几种输入时直接用 `<Field>` 或 `useField`。
 
 从 `shikiform` 导入 `createFormHook` / `createFormHookContexts`。`useAppForm`、`withForm`、`withFieldGroup` 是工厂的返回值；`AppField` / `AppForm` 是表单实例上的组件，**不是单独的包导出**。
 

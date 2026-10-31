@@ -5,7 +5,7 @@ description: ProArrayTable、影子草稿（ShadowModal / ShadowDrawer / ShadowF
 
 # Pro 组件
 
-Pro 分两层：`shikiform/pro` 是无 UI 的 Hooks，`shikiform/antd` 里的组件是它们的薄封装。组件能做的，Hook 都能做。
+后台表单常见的可编辑表格、弹窗编辑、查询列表，不必每次从 `ArrayField` 搭起。`shikiform/pro` 提供无 UI 的 Hooks，`shikiform/antd` 里的同名组件是它们的薄封装。
 
 | 组件（`shikiform/antd`） | Hook（`shikiform/pro`） | 用途 |
 |---|---|---|
@@ -67,11 +67,11 @@ export default function App() {
 }
 ```
 
-试试：拖动 ⋮⋮ 排序、勾选行、在弹窗里添加（先校验再写回）、复制和删除。完整版（展开子表、列宽拖拽、异步删除、10 万行）在 [/play/pro-array-table](/play/pro-array-table)。
+拖动 ⋮⋮ 排序、勾选行、在弹窗里添加（先校验再写回）、复制和删除。展开子表、列宽拖拽、异步删除、10 万行见 [/play/pro-array-table](/play/pro-array-table)。
 
 ## 影子草稿
 
-影子表单每次打开都建一个**独立的引擎**：编辑不碰宿主，确认时先校验，通过后把值交给 `onOk`，由你决定怎么写回；取消什么都不写。
+编辑到一半想取消，宿主表单不能被改脏。影子表单每次打开都建一个**独立的引擎**：确认时先校验，通过后把值交给 `onOk`，由你决定怎么写回；取消什么都不写。
 
 ```tsx preview play=shadow-form
 import { Button, Descriptions } from 'antd';
@@ -143,6 +143,6 @@ const table = useQueryTable({ initialValues: { query: {}, list: [] }, params: 'q
 - `Suggestion`：远程联想下拉，防抖并丢弃过期结果，支持多选和 `labelInValue`（[/play/suggestion](/play/suggestion)）。
 - `CascaderPlus`：一个 `loadData(path)` 服务所有层级的懒加载级联，打开已有值时逐级反显；阅读态显示标签，没有 `labelInValue` 的裸编码也会经同一个 `loadData` 解析成标签（[/play/cascader-plus](/play/cascader-plus)）。
 
-每个组件还有不绑定字段的 `…View` / `SuggestionSelect` 版本。签名见 [Pro 组件参考](/reference/pro-components) 与 [Pro Hooks 参考](/reference/pro-hooks)，所有可点的场景在 [示例库](/examples)。
+每个组件还有不绑定字段的 `…View` / `SuggestionSelect` 版本。签名见 [Pro 组件参考](/reference/pro-components) 与 [Pro Hooks 参考](/reference/pro-hooks)，更多场景在 [Pro 示例](/examples/pro)。
 
-继续：[校验](/guide/validation)。
+下一步：[校验](/guide/validation)，规则、异步校验和提交。

@@ -5,7 +5,7 @@ description: 四个入口、createForm 选项、引擎方法、React 组件与�
 
 # API 总览
 
-本页是索引和常用语义。每个 Hook / 组件的签名、默认值和完整例子在参考页：
+按名字找 API。`createForm` 选项、引擎方法、组件和联动 API 列在本页；每个 Hook / 组件的签名、默认值和例子在参考页：
 
 | 要查什么 | 参考页 |
 |---|---|
@@ -41,7 +41,7 @@ createForm<T>(options?: FormOptions<T>): FormEngine<T>  // 组件外
 |---|---|---|
 | `initialValues` | `{}` | 初始值，`reset` 的目标；写全形状以便推断 `T` |
 | `effects` | — | `defineEffects` 模块数组，按顺序安装 |
-| `fields` | — | `{ [path]: FieldSpec }`：不依赖挂载的字段模型（规则、`required`、`enum`、`virtual`、`display`、`pattern`、`title`、`decorator`、`component`、`componentProps` …）；`items.*.name` 是行模板，跟着每一行；写死下标的 `items.0.name` 留在这个路径上，行移动不带走 |
+| `fields` | — | `{ [path]: FieldSpec }`：不依赖挂载的字段模型（规则、`required`、`enum`、`virtual`、`display`、`pattern`、`title`、`decorator`、`component`、`componentProps` …）。`items.*.name` 跟着每一行；`items.0.name` 留在路径上，见 [数组](/guide/structures) |
 | `validate` | — | 整表 Standard Schema，或返回 path → 文案的（异步）函数 |
 | `validateTrigger` | `['onBlur', 'onSubmit']` | 可加 `'onChange'` |
 | `asyncDebounceMs` | `0` | 异步规则的防抖，字段可单独设置 |
@@ -69,7 +69,7 @@ createForm<T>(options?: FormOptions<T>): FormEngine<T>  // 组件外
 | 组件 | 说明 |
 |---|---|
 | `<Form form onSubmit>` | 提供引擎，渲染原生 `<form>`，提交时调用 `form.submit(onSubmit)` |
-| `<Field name …>` | 字段的唯一拥有者，属性见 [Field](/guide/field)；等于 `useField(name, options)` + 两个槽 |
+| `<Field name …>` | 拥有一个 path，渲染 decorator + component，属性见 [Field](/guide/field) |
 | `<ObjectField name virtual?>` | 对象作用域 |
 | `<ArrayField name rowKey?>{({ index, key }) => …}` | 每行一个作用域；父组件只订阅结构 |
 | `<TreeField name childrenKey? rowKey?>{(tree) => …}` | 注册树根，节点由你渲染 |
@@ -92,16 +92,13 @@ const effects = defineEffects<Values>(({ reaction, watch, query }) => {
 
 | API | 触发 | 说明 |
 |---|---|---|
-| `reaction(effect)` | 立即运行；之后读到的 `$` 状态变化时 | 同步派生；写 `$value` 使字段成为只读计算字段，默认仍提交 |
+| `reaction(effect)` | 立即运行；之后读到的 `$` 状态变化时 | 同步派生；写 `$value` 的字段成为计算字段，默认仍提交 |
 | `reaction.each(select, effect)` | 每行一个实例 | 只处理一层数组 |
 | `reaction.walk(select, effect, opts?)` | 每个树节点一个实例 | `childrenKey` 默认 `'children'` |
 | `watch(source, effect)` | `source` 读到的状态变化后；首次不运行 | 多个来源返回数组 |
 | `watch.each(select, effect)` | 行级 watch：回调里读到的状态就是来源 | 只处理一层数组 |
 | `query(path, { ui? })` | — | 精确 path 的底层 handle，优先用 `d.a.b` |
 
-行级回调都是 `(row, ctx)`，`ctx: RowContext = { d, path, index, pos }`。详见 [联动](/guide/linkage)。
+行级回调都是 `(row, ctx)`，`ctx: RowContext = { d, path, index, pos }`。详见 [联动](/guide/linkage)；`$` 状态与显隐见 [核心概念](/guide/concepts)，规则见 [校验](/guide/validation)。
 
-## 校验与显隐
-
-- 规则与触发时机见 [校验](/guide/validation)；`hidden` 仍校验、仍提交，`none` 跳过并排除，`virtual` 只排除提交值。
-- `$` 状态一览见 [核心概念](/guide/concepts)。
+下一步：[React Hooks 参考](/reference/react-hooks)，`useForm`、`useField`、`useWatch` 等的签名。
