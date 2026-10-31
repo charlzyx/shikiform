@@ -124,21 +124,25 @@ export class StateWriter {
       scheduler.markDirty(`${cursor}:value`)
       cursor = parentPath(cursor)
     }
+    scheduler.markDirty(':value') // the root: `d.$value` / `<Watch select={(d) => d.$value}>`
     if (Array.isArray(old) || Array.isArray(value)) {
       scheduler.dirtyRows.set(path, 'all')
       scheduler.markStructure(path)
       declarations.applyItemTemplates()
     }
-    if (value != null && typeof value === 'object') this.dirtyUnder(path)
+    if ((value != null && typeof value === 'object') || (old != null && typeof old === 'object')) this.dirtyUnder(path)
     return true
   }
 
   private dirtyUnder(path: string): void {
     const { store, notifier, scheduler } = this.deps
     const prefix = path + '.'
-    for (const dep of scheduler.depKeys()) {
-      const depPath = dep.slice(0, dep.lastIndexOf(':'))
-      if (depPath === path || depPath.startsWith(prefix)) scheduler.markDirty(dep)
+    // Effects' recorded reads, and `useWatch` / `<Watch>` subscriptions: replacing `editor` changes `editor.open`.
+    for (const keys of [scheduler.depKeys(), notifier.depListenerKeys()]) {
+      for (const dep of keys) {
+        const depPath = dep.slice(0, dep.lastIndexOf(':'))
+        if (depPath === path || depPath.startsWith(prefix)) scheduler.markDirty(dep)
+      }
     }
     for (const fieldPath of store.fields.keys()) {
       if (fieldPath.startsWith(prefix)) notifier.bumpPath(fieldPath)

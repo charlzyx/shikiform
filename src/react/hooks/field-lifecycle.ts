@@ -13,6 +13,6 @@ export function applyJsxField(
     form.registerField(path, { virtual: spec.virtual, display: spec.display, pattern: spec.pattern })
     return undefined
   }
-  form.mountJsxField(path, spec)
-  return () => form.releaseJsxField(path)
+  const lease = form.mountJsxField(path, spec)
+  return () => form.releaseJsxField(path, lease)
 }

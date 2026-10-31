@@ -40,6 +40,11 @@ export class Notifier {
     return () => this.debugListeners.delete(listener)
   }
 
+  /** Dep keys some listener (`useWatch`, `<Watch>`) subscribes to right now. */
+  depListenerKeys(): IterableIterator<string> {
+    return this.depListeners.keys()
+  }
+
   getPathVersion(path: string): number {
     return this.pathVersion.get(path) ?? 0
   }
