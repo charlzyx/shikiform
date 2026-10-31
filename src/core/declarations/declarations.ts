@@ -144,7 +144,7 @@ export class Declarations {
     }
   }
 
-  mountJsxField(path: string, spec: FieldSpec = {}): void {
+  mountJsxField(path: string, spec: FieldSpec = {}): FieldModel {
     const field = this.store.ensure(path)
     field.jsxActive = true
     this.applyFieldFlags(field, spec, 'explicit')
@@ -163,15 +163,22 @@ export class Declarations {
         this.notifier.bumpPath(path)
       }
     }
+    return field
   }
 
   /**
    * Restore declared rules after a JSX `<Field>` unmounts. The sync preview strips custom validators, and the
    * one queued managed pass runs them once; a throw or rejection lands as a message (#7).
    */
-  releaseJsxField(path: string): void {
+  releaseJsxField(path: string, lease?: unknown): void {
     const field = this.store.get(path)
     if (!field) return
+    // A move carried the leased model to another path; `path` now holds another row's field, which is not ours to
+    // release. (A leased model that no longer exists, e.g. replaced by a reset, still releases `path`.)
+    if (lease !== undefined && lease !== field) {
+      const leased = lease as FieldModel
+      if (this.store.get(leased.path) === leased) return
+    }
     const restoreRules = field.jsxRules !== undefined
     const restoreRequired = field.jsxRequired !== undefined
     field.jsxActive = false
@@ -236,6 +243,10 @@ export class Declarations {
       if (spec.trigger) field.triggers = spec.trigger
       if (spec.asyncDebounceMs !== undefined) field.asyncDebounceMs = spec.asyncDebounceMs
       if (spec.enum && !field.enumFromEffect) field.enumOptions = asOptions(spec.enum) ?? []
+    } else if (spec.enum && !field.enumFromEffect && field.declaration?.enum === undefined && field.enumOptions === undefined) {
+      // `rows.*.status: { enum }`: a template fills the enum only where no exact declaration or effect set one.
+      field.enumOptions = asOptions(spec.enum) ?? []
+      this.notifier.bumpPath(field.path)
     }
     if (spec.pattern !== undefined && !field.patternFromEffect && (mode === 'explicit' || !field.hasPattern)) {
       field.pattern = spec.pattern

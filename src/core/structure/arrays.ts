@@ -136,6 +136,7 @@ export class ArrayOps {
     // The array value itself changed: wake readers of `$value` on it and its ancestors (useWatch, reactions).
     // Row-level deps stay on dirtyRows, so `each` instances whose occupant did not change still skip.
     for (let cursor: string | null = path; cursor; cursor = parentPath(cursor)) scheduler.markDirty(`${cursor}:value`)
+    scheduler.markDirty(':value')
     this.declarations.applyItemTemplates()
     scheduler.enqueueFromDirty()
     scheduler.flush()

@@ -606,9 +606,10 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
   /**
    * Apply JSX `rules` and `required` while `<Field>` is mounted.
    * Does not replace `$rules`. Pair with {@link releaseJsxField} on unmount so a declaration or item template is restored.
+   * Returns a lease to pass back to `releaseJsxField`.
    */
-  mountJsxField(path: string, spec: FieldSpec = {}): void {
-    this.declarations.mountJsxField(path, spec)
+  mountJsxField(path: string, spec: FieldSpec = {}): unknown {
+    return this.declarations.mountJsxField(path, spec)
   }
 
   /**
@@ -616,9 +617,11 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
    * Restores a declaration or item template, recomputes built-in errors immediately, and drops an unresolved validator.
    * Custom validators and schemas run once through the queued validation pass.
    * Leaves `$rules` and `$required` from a reaction in place.
+   * With the `lease` from `mountJsxField`, does nothing once a row or tree move has put another field at `path`:
+   * the leased field moved with its row and its component re-mounts it at the new path.
    */
-  releaseJsxField(path: string): void {
-    this.declarations.releaseJsxField(path)
+  releaseJsxField(path: string, lease?: unknown): void {
+    this.declarations.releaseJsxField(path, lease)
   }
 
   /** Mount a named UI instance. The same name twice on one path throws {@link ShikiUiError} in dev. */
