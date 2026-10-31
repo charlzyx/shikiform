@@ -49,6 +49,10 @@ One callback shape for all three row-level APIs: `(row, ctx)` with `ctx = { d, p
 - `reaction.walk((d) => d.nodes, (node, { pos }) => …, { childrenKey })`: one instance per tree node.
 - `watch.each((d) => d.items, (row, ctx) => …)`: row-scoped watch; the `$` reads in the callback are its source.
 
+Per-row settings that must follow the row when it moves are `rows.*.x` templates (in `fields`) or `reaction.each`.
+An exact-index declaration (`fields: { 'rows.0.x': … }`, `registerField('rows.0.x', …)`) belongs to that path: after a
+move / swap / insert / remove it stays on `rows.0.x` and applies to whichever row sits there now.
+
 In React, a row component reads its row without names: `useArray()` (nearest array handle: `push`, `remove`,
 `move`…), `useIndex()`, `useRecord()` (reactive row value), `useTreeNode()` (inside `<RowScope path pos>`).
 `useArrayField(name)` is the named version. `ProArrayTable.useRow()` is built on these.
@@ -57,10 +61,12 @@ In React, a row component reads its row without names: `useArray()` (nearest arr
 
 - **Form values** are written per path. `d.user.name.$value = 'x'` changes one field and wakes only its readers.
   `d.user.$value = { ...d.user.$value, name: 'x' }` replaces the whole object (every reader of `user` re-runs).
-- **Object-valued UI state** (`$componentProps`, `$decoratorProps`) is patched Immer-style through the draft:
-  `d.city.$componentProps.placeholder = '…'` or `d.city.$componentProps.style.color = 'red'` copies the stored
-  object and keeps other keys. Missing intermediates are not created (`style ??= {}` first). Assigning the whole
-  object replaces every lower layer (`fields` and JSX); assigning `undefined` drops the reaction layer.
+- **Object-valued UI state** (`$componentProps`, `$decoratorProps`) deep-merges across layers and is patched
+  Immer-style through the draft: `d.city.$componentProps.style.color = 'red'` adds one leaf, and the JSX / declared
+  `style` keeps its other keys. Plain objects merge at every depth; arrays, functions, React elements and class
+  instances are replaced whole. Missing intermediates are not created (`style ??= {}` first; `{}` only opens a level).
+  Assigning a key (`$componentProps.style = { … }`) replaces that key; assigning the whole object replaces every lower
+  layer (`fields` and JSX); assigning `undefined` drops the reaction layer. Reaction reads do not see the JSX layer.
 - UI layers, highest first: reaction > JSX (`<Field title componentProps>`) > `fields` declaration.
 
 ## 5. Field + decorator + component (the adapter)

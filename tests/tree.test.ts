@@ -23,7 +23,7 @@ describe('tree move', () => {
   it('moves a node across parents and keeps its error', async () => {
     const form = createForm<{ nodes: Node[] }>({ initialValues: { nodes: initial() } })
     form.registerTree('nodes', { childrenKey: 'children', rowKey: 'id' })
-    form.registerField('nodes.0.children.0.name', { required: true })
+    form.registerField('nodes.*.children.*.name', { required: true })
     await form.validate('nodes.0.children.0.name')
     expect(form.errors.some((error) => error.path === 'nodes.0.children.0.name')).toBe(true)
     const moved = form.moveTree('nodes', [0, 0], [1, 1])

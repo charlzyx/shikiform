@@ -70,7 +70,7 @@ export default function App() {
 2. JSX（`<Field title>`、元组里的 props）；
 3. reaction（`$title`、`$componentProps.placeholder = …`）。
 
-对象按顶层键合并。所以「根据别的字段改控件属性」写在 reaction 里，而不是在渲染时算 props：
+对象（`componentProps` / `decoratorProps`）深合并：普通对象逐键递归合并，数组、函数、React 元素、类实例整值取最高层。所以「根据别的字段改控件属性」写在 reaction 里，而不是在渲染时算 props：
 
 ```tsx preview
 import { Field, Form, defineEffects, useForm } from 'shikiform';
@@ -103,8 +103,8 @@ export default function App() {
 }
 ```
 
-- 嵌套写 `d.x.$componentProps.style.color = 'red'` 只改这一处（不可变拷贝，其余键保留）；缺的中间对象不会自动创建，先 `style ??= {}`。
-- 整体赋值 `d.x.$componentProps = {…}` 替换所有下层；赋 `undefined` 撤销 reaction 这一层。
+- 嵌套写 `d.x.$componentProps.style.color = 'red'` 只补这一处，JSX 和声明里 `style` 的其他键都保留；缺的中间对象不会自动创建，先 `style ??= {}`（赋 `{}` 只开一层，不清空下层）。
+- 整键赋值 `$componentProps.style = {…}` 替换这个键；整体赋值 `d.x.$componentProps = {…}` 替换所有下层；赋 `undefined` 撤销 reaction 这一层。
 - 同一个 reaction 里可以读回刚写的 UI 状态（这是唯一的例外，`$value` 等不行）。
 
 ## Field 就是 useField

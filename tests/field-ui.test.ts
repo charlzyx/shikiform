@@ -145,4 +145,71 @@ describe('field UI state ($title, $componentProps, …)', () => {
     expect(calls).toBe(1)
     expect(form.binding('city').decoratorProps).toEqual({ tooltip: 'hi' })
   })
+
+  /** Decision 2026-10-30: object UI state deep-merges across layers, reaction > JSX > declaration. */
+  describe('deep merge across layers', () => {
+    const jsx = { componentProps: { placeholder: 'jsx', style: { width: 120, fontSize: 12 } } }
+
+    it('a nested reaction write merges into the JSX style instead of replacing it', () => {
+      const effects = defineEffects<V>(({ reaction }) => {
+        reaction((d) => {
+          const props = d.city.$componentProps
+          props.style ??= {}
+          props.style.color = d.kind.$value === 'b' ? 'red' : 'blue'
+        })
+      })
+      const form = createForm({ initialValues, effects: [effects] })
+      expect(form.binding('city', jsx).componentProps).toEqual({ placeholder: 'jsx', style: { width: 120, fontSize: 12, color: 'blue' } })
+      form.setValue('kind', 'b')
+      expect(form.binding('city', jsx).componentProps).toEqual({ placeholder: 'jsx', style: { width: 120, fontSize: 12, color: 'red' } })
+    })
+
+    it('JSX deep-merges over the declaration', () => {
+      const form = createForm({
+        initialValues,
+        fields: { city: { componentProps: { style: { width: 100, margin: 4 }, allowClear: true }, decoratorProps: { labelCol: { span: 4 } } } },
+      })
+      const b = form.binding('city', { componentProps: { style: { width: 200 } }, decoratorProps: { labelCol: { offset: 1 } } })
+      expect(b.componentProps).toEqual({ style: { width: 200, margin: 4 }, allowClear: true })
+      expect(b.decoratorProps).toEqual({ labelCol: { span: 4, offset: 1 } })
+    })
+
+    it('arrays, functions, React elements and class instances are replaced whole', () => {
+      class Box {
+        constructor(readonly n: number) {}
+      }
+      const fnA = () => 'a'
+      const fnB = () => 'b'
+      const el = { $$typeof: Symbol.for('react.element'), type: 'b', props: {} }
+      const form = createForm({
+        initialValues,
+        fields: { city: { componentProps: { options: [1, 2, 3], render: fnA, icon: { a: 1 }, box: new Box(1) } } },
+      })
+      const b = form.binding('city', { componentProps: { options: [9], render: fnB, icon: el, box: new Box(2) } }).componentProps
+      expect(b.options).toEqual([9])
+      expect(b.render).toBe(fnB)
+      expect(b.icon).toBe(el)
+      expect(b.box).toBeInstanceOf(Box)
+      expect(b.box.n).toBe(2)
+    })
+
+    it('whole-key assignment still replaces that key on every lower layer', () => {
+      const form = createForm({ initialValues, fields: { city: { componentProps: { style: { margin: 4 } } } } })
+      form.batch((d) => {
+        d.city.$componentProps.style = { color: 'red' }
+      })
+      expect(form.binding('city', jsx).componentProps).toEqual({ placeholder: 'jsx', style: { color: 'red' } })
+    })
+
+    it('deep writes merge at every depth; two keys of one nested object both survive', () => {
+      const form = createForm({ initialValues, fields: { city: { decoratorProps: { wrapperCol: { style: { padding: 1 } } } } } })
+      form.batch((d) => {
+        d.city.$decoratorProps.wrapperCol.style.color = 'red'
+        d.city.$decoratorProps.wrapperCol.style.margin = 2
+      })
+      expect(form.binding('city', { decoratorProps: { wrapperCol: { span: 8, style: { border: 0 } } } }).decoratorProps).toEqual({
+        wrapperCol: { span: 8, style: { padding: 1, border: 0, color: 'red', margin: 2 } },
+      })
+    })
+  })
 })

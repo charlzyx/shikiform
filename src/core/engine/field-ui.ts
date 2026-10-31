@@ -1,4 +1,4 @@
-import { createPatchDraft, DELETE, setIn } from '../draft/patch'
+import { createPatchDraft, DELETE, isPatchable, setIn } from '../draft/patch'
 import type { Scheduler } from '../effects/scheduler'
 import { OBJECT_UI_KEYS, UI_KEYS, type FieldModel, type UiEffect, type UiKey } from '../state/field-model'
 import type { FieldStore } from '../state/field-store'
@@ -30,11 +30,15 @@ type Patch = (state: UiEffect | undefined) => UiEffect | undefined
  * Three layers, highest first: reaction (`d.x.$componentProps…`) > JSX (`<Field title componentProps>`, passed to
  * {@link FieldUi.view} at render time and never stored, so inline objects and handlers do not churn the model) >
  * declaration (`fields`, `registerField`, item templates). Scalars take the highest layer that has a value.
- * `componentProps` / `decoratorProps` merge shallowly across layers per top-level key; a reaction that assigns the whole
- * object replaces every lower layer, and assigning `undefined` drops the reaction layer again.
+ * `componentProps` / `decoratorProps` deep-merge across layers: plain objects merge key by key at every depth; arrays,
+ * functions, React elements and class instances are taken whole from the highest layer that has them.
  *
- * Nested writes are Immer-like: `d.x.$componentProps.style.color = 'red'` copies the stored object, keeps other keys,
- * and is one write op keyed by the top-level prop, so later reads in the same pass see it.
+ * The reaction layer is a sparse patch tree. A nested write (`d.x.$componentProps.style.color = 'red'`) adds one
+ * leaf, so the JSX / declared `style` keeps its other keys. Assigning a non-empty object or any non-object to a key
+ * (`$componentProps.style = { … }`) replaces that key on every lower layer; assigning `{}` only opens an
+ * intermediate (`style ??= {}`), so it adds nothing. Assigning the whole object (`$componentProps = { … }`) replaces
+ * every lower layer, and `undefined` drops the reaction layer again. Reads are Immer-like and replay this pass's
+ * pending writes; they see declaration + reaction (JSX is render-time only).
  */
 export class FieldUi {
   /** Write ops this class created, with the patch they apply. Lets reads replay pending writes. */
@@ -67,15 +71,13 @@ export class FieldUi {
     let opKey = `${path}:${key}`
     let patch: Patch
     if (isPatch(value)) {
-      const [top, ...rest] = value[PATCH] as [string, ...string[]]
-      const base = (this.current(path, key) ?? {}) as Record<string, unknown>
-      const next = rest.length ? setIn(base[top], rest, value.value) : value.value
-      opKey = `${path}:${key}.${top}`
+      const keys = value[PATCH] as string[]
+      const next = value.value
+      opKey = `${path}:${key}.${keys.join('.')}`
       patch = (state) => {
-        const patchValue = { ...((state?.value as Record<string, unknown>) ?? {}) }
-        if (next === DELETE && state?.replace) delete patchValue[top]
-        else patchValue[top] = next === DELETE ? undefined : next
-        return { value: patchValue, replace: state?.replace }
+        // Whole-object replacement: the stored value is concrete, write into it like Immer.
+        if (state?.replace) return { value: setIn(state.value, keys, next), replace: true }
+        return { value: patchAt(state?.value as PatchTree | undefined, keys, next) }
       }
     } else if (value === undefined) {
       patch = () => undefined
@@ -105,7 +107,7 @@ export class FieldUi {
     if (next) effects[key] = next
     else delete effects[key]
     field.uiEffect = effects
-    if (sameValue(before, resolve(field, key, undefined, next))) return false
+    if (deepSame(before, resolve(field, key, undefined, next))) return false
     this.notifier.bumpPath(path)
     this.scheduler.markDirty(`${path}:${key}`)
     return true
@@ -131,21 +133,72 @@ function isPatch(value: unknown): value is { [PATCH]: string[]; value: unknown }
   return !!value && typeof value === 'object' && PATCH in value
 }
 
+/** A whole value assigned at one key of the reaction patch tree. */
+class Assign {
+  constructor(readonly value: unknown) {}
+}
+
+/** Reaction layer of an object UI key: plain nodes merge into lower layers, `Assign` leaves replace. */
+type PatchTree = { [key: string]: PatchTree | Assign }
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return isPatchable(value) && !Array.isArray(value)
+}
+
+/** The patch tree with `value` written at `keys`. `{}` opens an intermediate; a write inside an `Assign` edits it. */
+function patchAt(tree: PatchTree | undefined, keys: readonly string[], value: unknown): PatchTree {
+  const [key, ...rest] = keys as [string, ...string[]]
+  const node = tree?.[key]
+  let next: PatchTree | Assign
+  if (!rest.length) {
+    next = isPlainObject(value) && !Object.keys(value).length && !(node instanceof Assign) ? (node ?? {}) : new Assign(value)
+  } else if (node instanceof Assign) {
+    next = new Assign(setIn(node.value, rest, value))
+  } else {
+    next = patchAt(node, rest, value)
+  }
+  return { ...tree, [key]: next }
+}
+
+/** Lower layer with the patch tree applied. Arrays patch by index into a copy. */
+function applyPatch(base: unknown, tree: PatchTree): unknown {
+  const out: any = Array.isArray(base) ? base.slice() : isPlainObject(base) ? { ...base } : {}
+  for (const [key, node] of Object.entries(tree)) {
+    if (node instanceof Assign) {
+      if (node.value === DELETE) delete out[key]
+      else out[key] = node.value
+    } else {
+      out[key] = applyPatch(out[key], node)
+    }
+  }
+  return out
+}
+
+/** `upper` over `lower`: plain objects merge recursively; anything else is taken whole from `upper` when present. */
+export function deepMerge(lower: unknown, upper: unknown): unknown {
+  if (upper === undefined) return lower
+  if (!isPlainObject(lower) || !isPlainObject(upper)) return upper
+  const out: Record<string, unknown> = { ...lower }
+  for (const key of Object.keys(upper)) out[key] = key in lower ? deepMerge(lower[key], upper[key]) : upper[key]
+  return out
+}
+
 function resolve(field: FieldModel | undefined, key: UiKey, jsx: unknown, effect: UiEffect | undefined): unknown {
   const declared = field?.uiDeclared?.[key]
   if (OBJECT_UI_KEYS.has(key)) {
     if (effect?.replace) return effect.value
-    return { ...(declared as object), ...(jsx as object), ...(effect?.value as object) }
+    const base = deepMerge(deepMerge({}, declared), jsx) as Record<string, unknown>
+    return effect ? applyPatch(base, effect.value as PatchTree) : base
   }
   if (effect) return effect.value
   return jsx !== undefined ? jsx : declared
 }
 
-/** Shallow per-key comparison (UI values may hold functions and React elements). */
-function sameValue(a: unknown, b: unknown): boolean {
+/** Structural comparison through plain objects and arrays; identity for functions, elements, instances. */
+function deepSame(a: unknown, b: unknown): boolean {
   if (Object.is(a, b)) return true
-  if (!a || !b || typeof a !== 'object' || typeof b !== 'object') return false
+  if (!isPatchable(a) || !isPatchable(b) || Array.isArray(a) !== Array.isArray(b)) return false
   const ak = Object.keys(a)
   if (ak.length !== Object.keys(b).length) return false
-  return ak.every((k) => Object.prototype.hasOwnProperty.call(b, k) && Object.is((a as any)[k], (b as any)[k]))
+  return ak.every((k) => Object.prototype.hasOwnProperty.call(b, k) && deepSame((a as any)[k], (b as any)[k]))
 }
