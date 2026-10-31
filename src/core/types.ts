@@ -347,7 +347,10 @@ export interface WatchFn<T> {
 export type Draft<T> = IsAny<T> extends true ? any : DraftState<T> & DraftNav<T>
 
 export interface UiDraft {
-  /** `false` hides this UI only. The field model is unchanged, so other UIs and validation stay. */
+  /**
+   * `false` hides this UI only (writes this UI's display as `none`). The field model is unchanged,
+   * so other UIs, validation and submit stay.
+   */
   $visible: boolean
   $display: Display
   /** `undefined` restores the field pattern. */
@@ -361,10 +364,17 @@ export interface DraftState<T> {
    */
   $value: T
   /**
-   * Convenience for display. `false` sets `hidden` (keep, validate, submit), not `none`.
+   * Convenience for display, same as Formily `visible`: `false` sets `none` (no UI, not validated,
+   * not submitted; the value stays in the form and comes back when shown again). `true` sets `visible`.
    * Reading is true only when the effective display is `visible`.
+   * To hide the UI but keep validating and submitting, use `$hidden = true` / `$display = 'hidden'`.
    */
   $visible: boolean
+  /**
+   * Convenience for display, same as Formily `hidden`: `true` sets `hidden` (no UI, still validated,
+   * still submitted). `false` sets `visible`. Reading is true only when the effective display is `hidden`.
+   */
+  $hidden: boolean
   /** `visible` | `hidden` | `none`. See {@link Display}. */
   $display: Display
   /** When true, empty values fail validation even without a `required` rule. */

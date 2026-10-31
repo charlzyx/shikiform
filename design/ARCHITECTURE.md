@@ -118,7 +118,7 @@ Formily 的 `field.title` / `description` / `decorator` / `component` / `setComp
 | 误用 | 检测位置 | 提示 |
 |---|---|---|
 | 修改 `$value` 返回的对象 / 数组（`d.user.$value.name = 'x'`、`d.items.$value.push(row)`） | `readState('$value')` 在 reaction / watch 执行中（tracker `recordWrites`）返回 `draft/readonly.ts` 的只读视图：`set` / `delete` / `defineProperty` / 数组变更方法抛错。selector（`useWatch`）与引擎外读取不包装。 | 写子路径 `d.user.name.$value = …`，或整体替换；数组赋新数组 / `form.pushArray` |
-| 同一轮读回刚写的 `$` 状态 | `Scheduler.assertNotWritten`：读键映射到写操作键（`$value`→`value`，`$visible`/`$display`→`display`，`$pattern`/`$disabled`→`pattern`，`$required`/`$enum`/`$rules`），若本 tracker 已缓冲同键写操作则抛错。UI 状态不检查（会重放）。 | `const next = …; d.x.$value = next;` 之后用 `next` |
+| 同一轮读回刚写的 `$` 状态 | `Scheduler.assertNotWritten`：读键映射到写操作键（`$value`→`value`，`$visible`/`$hidden`/`$display`→`display`，`$pattern`/`$disabled`→`pattern`，`$required`/`$enum`/`$rules`），若本 tracker 已缓冲同键写操作则抛错。UI 状态不检查（会重放）。 | `const next = …; d.x.$value = next;` 之后用 `next` |
 | 把 handle 当数组 / 值（`d.items.map(…)`、`for…of d.items`、`d.items.length`、`d.count + 1`） | `draft/handle.ts`：调用 handle（`apply` 陷阱，始终抛错——调用 handle 没有合法用途）；开发期读 `Symbol.iterator` / `Symbol.toPrimitive`；开发期读 `length` 且该路径当前值是数组（经 `DraftHost.peekValue`，不登记依赖；值不是数组时 `length` 仍是普通子字段）。 | `d.items.$value.map(…)` 或 `reaction.each((d) => d.items, (row, ctx) => …)` |
 
 写入侧（`StateWriter.writeState` / `commitExternal`、`ArrayOps.commit`）在开发期用 `unwrapReadonly` 把只读视图还原成原始数据，所以 `d.a.$value = d.b.$value` 或 `.filter(…)` 的结果存进去的是普通对象（可 `structuredClone`）；没有创建过视图时直接跳过。

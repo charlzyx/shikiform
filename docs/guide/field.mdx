@@ -28,7 +28,7 @@ description: Field 拥有一个 path，decorator 包住 component；UI 属性分
 | `decoratorProps` / `componentProps` | 与元组里的 props 相同，单独写 |
 | `children` | 控件元素（`<Input />`）或 render prop `(field) => …`，代替 `component` |
 
-`display` 不是 `visible` 时 `<Field>` 不渲染，字段模型仍在；各取值对校验和提交的影响见 [显隐、pattern 与提交](/guide/concepts#显隐pattern-与提交)。
+`display` 不是 `visible` 时 `<Field>` 不渲染，字段模型仍在：`hidden`（`$hidden = true`）仍校验、仍提交，`none`（`$visible = false`）跳过校验、不提交；详见 [显隐、pattern 与提交](/guide/concepts#显隐pattern-与提交)。
 
 ## 四种写法
 

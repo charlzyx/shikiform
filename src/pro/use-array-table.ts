@@ -20,6 +20,18 @@ export interface ArrayTablePagination {
 export interface UseArrayTableOptions<TRow = any> {
   /** Row id property. Selection and expansion keys are this id (or a stable identity when rows have none). */
   rowKey?: string
+  /**
+   * New id for a row that needs one (requires `rowKey`): `copy` always calls it for the copied row, `add` calls it
+   * when the added row's `rowKey` is `undefined` / `null`. It receives the new row without its id.
+   * Without it, `copy` drops the id field (the copy is keyed by object identity until you give it one) and
+   * `add` inserts the row as given.
+   *
+   * ```ts
+   * let next = 1000
+   * useArrayTable<Row>('rows', { rowKey: 'id', createRowKey: () => ++next })
+   * ```
+   */
+  createRowKey?: (row: TRow) => unknown
   /** `false` shows every row. Default: client pages of 10. */
   pagination?: false | ArrayTablePagination
   /** Keep selected keys across page changes. Default false (Pro.formily: a page change clears the selection). */
@@ -82,8 +94,12 @@ export interface ArrayTableApi<TRow = any> {
   remove: (index: number) => Promise<boolean>
   /** Append a row. By default jumps to the page that shows it. */
   add: (row: TRow, options?: { jump?: boolean }) => void
-  /** Insert a structured copy of the row right after it (row id fields are dropped when `rowKey` is set). */
-  copy: (index: number) => void
+  /**
+   * Insert a structured copy of the row right after it. With `rowKey`, the copy gets `createRowKey(copy)` as its id,
+   * or has the id field dropped when there is no `createRowKey`. `transform` runs last and returns the row to insert,
+   * e.g. `copy(i, (row) => ({ ...row, id: nextId(), name: row.name + ' (副本)' }))`.
+   */
+  copy: (index: number, transform?: (copy: TRow, source: TRow) => TRow) => void
   moveUp: (index: number) => void
   moveDown: (index: number) => void
   move: (from: number, to: number) => void
@@ -217,16 +233,26 @@ export function useArrayTable<TRow = any>(name: string, options: UseArrayTableOp
         return true
       },
       add: (row: TRow, addOptions?: { jump?: boolean }) => {
+        const { rowKey, createRowKey } = optionsRef.current
+        if (rowKey && createRowKey && isRecord(row) && row[rowKey] == null) {
+          const rest = { ...row }
+          delete rest[rowKey]
+          row = { ...rest, [rowKey]: createRowKey(rest as TRow) } as TRow
+        }
         form.pushArray(path as never, row as never)
         if (addOptions?.jump === false || !paging || server) return
         const count = form.structureKeys(path, optionsRef.current.rowKey).length
         setPage(Math.max(1, Math.ceil(count / pageSize)), pageSize)
       },
-      copy: (index: number) => {
+      copy: (index: number, transform?: (copy: TRow, source: TRow) => TRow) => {
         const source = record(index)
-        let next = source && typeof source === 'object' ? structuredClone(source) : source
-        const rowKey = optionsRef.current.rowKey
-        if (rowKey && next && typeof next === 'object') delete (next as Record<string, unknown>)[rowKey]
+        let next = (source && typeof source === 'object' ? structuredClone(source) : source) as TRow
+        const { rowKey, createRowKey } = optionsRef.current
+        if (rowKey && isRecord(next)) {
+          delete next[rowKey]
+          if (createRowKey) next = { ...next, [rowKey]: createRowKey(next as TRow) } as TRow
+        }
+        if (transform) next = transform(next, source)
         form.insertArray(path as never, index + 1, next as never)
       },
       moveUp: (index: number) => {
@@ -238,6 +264,10 @@ export function useArrayTable<TRow = any>(name: string, options: UseArrayTableOp
       move: (from: number, to: number) => form.moveArray(path as never, from, to),
     }
   }, [path, rows, pageRows.length, pageKeys.join('|'), page, pageSize, total, showPager, selectedKeys, expandedKeys, removing, record, isExpandable, setPage, form, server])
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
 }
 
 function unique<T>(items: T[]): T[] {
