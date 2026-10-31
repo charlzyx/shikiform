@@ -64,7 +64,7 @@ export default function App() {
 |---|---|
 | `$value` | 值。reaction 写它时，字段成为**计算字段**（默认 `readPretty` + `virtual`） |
 | `$display` / `$visible` | `visible` / `hidden` / `none`；`$visible = false` 等于 `hidden` |
-| `$pattern` / `$disabled` | `editable` / `disabled` / `readOnly` / `readPretty`；`undefined` 表示继承父级 |
+| `$pattern` / `$disabled` | `editable` / `disabled` / `readOnly` / `readPretty`。`$pattern = undefined` 恢复继承；`$disabled = false` 只撤销这个开关写下的 `disabled` |
 | `$required` / `$rules` | 必填与规则；reaction 写的规则不随组件卸载 |
 | `$enum` | 选项（静态数组或 `EnumSource.with(params)`） |
 | `$title` / `$description` | 装饰器的标签 / 说明（`FormItem` → `label` / `extra`） |
@@ -82,7 +82,7 @@ export default function App() {
 | `display: 'none'` | 不渲染 | 跳过 | 拿掉 |
 | `virtual: true` | 不影响 | 查 | 拿掉 |
 
-`display` 和 `pattern` 都从父级往下传：父级 `none`，子级都是 `none`；子级显式写了 `$pattern` 就用自己的，写 `undefined` 恢复继承。`disabled` / `readOnly` 只是交互约束，不阻止程序写入。
+`display` 和 `pattern` 都从父级往下传：父级 `none`，子级都是 `none`；子级显式写了 `$pattern` 就用自己的，写 `undefined` 恢复继承。`$disabled = true` 把当前字段写成 `disabled`；写成 `false` 时，若这份 pattern 仍是该开关设置的，就清掉并重新继承，显式 `$pattern` 保持不动。`disabled` / `readOnly` 只是交互约束，不阻止程序写入。
 
 ## `fields` 声明
 

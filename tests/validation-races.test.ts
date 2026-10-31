@@ -211,6 +211,276 @@ describe('submit returns only values its pass validated (#6)', () => {
   })
 })
 
+function withTimeout<T>(promise: Promise<T>, ms = 1000): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`timed out after ${ms}ms`)), ms)
+    promise.then(
+      (value) => {
+        clearTimeout(timer)
+        resolve(value)
+      },
+      (err) => {
+        clearTimeout(timer)
+        reject(err instanceof Error ? err : new Error(String(err)))
+      },
+    )
+  })
+}
+
+describe('an aborted async validator leaves the in-flight set', () => {
+  it('submit finishes when the aborted validator never settles', async () => {
+    const started = gate()
+    let calls = 0
+    const form = createForm<{ name: string }>({
+      initialValues: { name: 'old' },
+      asyncDebounceMs: 1000,
+      validateTrigger: ['onChange'],
+      fields: {
+        name: {
+          rules: {
+            validator: (_value, ctx) => {
+              calls += 1
+              const generation = calls
+              return new Promise<string | null>((resolve) => {
+                if (generation === 1) {
+                  started.open()
+                  ctx.signal?.addEventListener('abort', () => {})
+                  return
+                }
+                resolve(null)
+              })
+            },
+          },
+        },
+      },
+    })
+    const first = form.validate()
+    await started.promise
+    expect(form.binding('name').validating).toBe(true)
+    form.setValue('name', 'new')
+    expect(calls).toBe(1)
+    expect(await withTimeout(form.submit())).toEqual({ ok: true, values: { name: 'new' } })
+    expect(form.errors).toEqual([])
+    expect(form.submitting).toBe(false)
+    expect(form.binding('name').validating).toBe(false)
+    await withTimeout(first)
+    expect(calls).toBeGreaterThan(1)
+  })
+
+  it('submit still waits for the validator that replaced the aborted one', async () => {
+    const started = gate()
+    const live = gate()
+    let calls = 0
+    const form = createForm<{ name: string }>({
+      initialValues: { name: 'a' },
+      asyncDebounceMs: 1000,
+      validateTrigger: ['onChange'],
+      fields: {
+        name: {
+          rules: {
+            validator: (_value, ctx) => {
+              calls += 1
+              const generation = calls
+              return new Promise<string | null>((resolve) => {
+                if (generation === 1) {
+                  started.open()
+                  ctx.signal?.addEventListener('abort', () => {})
+                  return
+                }
+                void live.promise.then(() => resolve('仍要等'))
+              })
+            },
+          },
+        },
+      },
+    })
+    const first = form.validate()
+    await started.promise
+    form.setValue('name', 'b')
+    let settled = false
+    const pending = form.submit().then((result) => {
+      settled = true
+      return result
+    })
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(settled).toBe(false)
+    expect(calls).toBeGreaterThan(1)
+    live.open()
+    expect(await withTimeout(pending)).toEqual({ ok: false, errors: [{ path: 'name', messages: ['仍要等'] }] })
+    expect(form.submitting).toBe(false)
+    await withTimeout(first)
+  })
+
+  it('a late resolve from an aborted validator does not write the field', async () => {
+    let late!: (message: string | null) => void
+    const started = gate()
+    let calls = 0
+    const form = createForm<{ name: string }>({
+      initialValues: { name: 'first' },
+      fields: {
+        name: {
+          rules: {
+            validator: () => {
+              calls += 1
+              if (calls === 1) {
+                return new Promise<string | null>((resolve) => {
+                  late = resolve
+                  started.open()
+                })
+              }
+              return '第二次错误'
+            },
+          },
+        },
+      },
+    })
+    const first = form.validate()
+    await started.promise
+    expect(await withTimeout(form.validate())).toEqual([{ path: 'name', messages: ['第二次错误'] }])
+    late('过期错误')
+    await sleep(20)
+    expect(form.errors).toEqual([{ path: 'name', messages: ['第二次错误'] }])
+    await withTimeout(first)
+    expect(form.errors).toEqual([{ path: 'name', messages: ['第二次错误'] }])
+    expect(unhandled).toEqual([])
+  })
+
+  it('ignores an error resolved from the abort listener itself', async () => {
+    const started = gate()
+    let calls = 0
+    const form = createForm<{ name: string }>({
+      initialValues: { name: 'first' },
+      fields: {
+        name: {
+          rules: {
+            validator: (_value, ctx) => {
+              calls += 1
+              if (calls === 1) {
+                return new Promise<string | null>((resolve) => {
+                  started.open()
+                  ctx.signal?.addEventListener('abort', () => resolve('过期错误'))
+                })
+              }
+              return null
+            },
+          },
+        },
+      },
+    })
+    const first = form.validate()
+    await started.promise
+    expect(await withTimeout(form.validate())).toEqual([])
+    await sleep(20)
+    expect(form.errors).toEqual([])
+    await withTimeout(first)
+    expect(unhandled).toEqual([])
+  })
+
+  it('a late rejection from an aborted validator does not write the field', async () => {
+    let late!: (reason: unknown) => void
+    const started = gate()
+    let calls = 0
+    const form = createForm<{ name: string }>({
+      initialValues: { name: 'first' },
+      fields: {
+        name: {
+          rules: {
+            validator: () => {
+              calls += 1
+              if (calls === 1) {
+                return new Promise<string | null>((_resolve, reject) => {
+                  late = reject
+                  started.open()
+                })
+              }
+              return '第二次错误'
+            },
+          },
+        },
+      },
+    })
+    const first = form.validate()
+    await started.promise
+    expect(await withTimeout(form.validate())).toEqual([{ path: 'name', messages: ['第二次错误'] }])
+    late(new Error('过期失败'))
+    await sleep(20)
+    expect(unhandled).toEqual([])
+    expect(form.errors).toEqual([{ path: 'name', messages: ['第二次错误'] }])
+    await withTimeout(first)
+  })
+
+  it('an aborted async field schema that never settles does not pin submit', async () => {
+    const started = gate()
+    let calls = 0
+    const schema: StandardSchemaV1<string> = {
+      '~standard': {
+        version: 1,
+        vendor: 'test',
+        validate: () => {
+          calls += 1
+          if (calls === 1) {
+            started.open()
+            return new Promise<never>(() => {})
+          }
+          return { value: 'new' }
+        },
+      },
+    }
+    const form = createForm<{ name: string }>({
+      initialValues: { name: 'old' },
+      asyncDebounceMs: 1000,
+      validateTrigger: ['onChange'],
+      fields: { name: { rules: schema } },
+    })
+    const first = form.validate()
+    await started.promise
+    form.setValue('name', 'new')
+    expect(await withTimeout(form.submit())).toEqual({ ok: true, values: { name: 'new' } })
+    expect(form.errors).toEqual([])
+    await withTimeout(first)
+  })
+
+  it('still waits for an async validator and keeps its message', async () => {
+    const pendingResult = gate()
+    const later = gate()
+    let calls = 0
+    const form = createForm<{ name: string }>({
+      initialValues: { name: 'x' },
+      fields: {
+        name: {
+          rules: {
+            validator: () => {
+              const generation = calls
+              calls += 1
+              const hold = generation === 0 ? pendingResult.promise : later.promise
+              return hold.then(() => (generation === 0 ? '异步错误' : null))
+            },
+          },
+        },
+      },
+    })
+    let settled = false
+    const pending = form.submit().then((result) => {
+      settled = true
+      return result
+    })
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(settled).toBe(false)
+    expect(form.binding('name').validating).toBe(true)
+    pendingResult.open()
+    expect(await pending).toEqual({ ok: false, errors: [{ path: 'name', messages: ['异步错误'] }] })
+    expect(form.validating).toBe(false)
+    expect(form.submitting).toBe(false)
+    const again = form.submit()
+    await Promise.resolve()
+    expect(form.submitting).toBe(true)
+    later.open()
+    expect(await again).toEqual({ ok: true, values: { name: 'x' } })
+  })
+})
+
 describe('restoring a declared validator after JSX unmount (#7)', () => {
   it('a synchronously throwing declared validator runs once and lands as a message', async () => {
     let calls = 0

@@ -75,7 +75,6 @@ export class StateWriter {
     scheduler.flush()
   }
 
-  // Open issue P3-3 (`commit: 'blur'`) lives here: user edits always commit on change.
   commitExternal(path: string, value: unknown): void {
     const { store, notifier, scheduler, validator } = this.deps
     if (process.env.NODE_ENV !== 'production') value = unwrapReadonly(value)
@@ -166,13 +165,19 @@ export class StateWriter {
       return { key: `${path}:display`, apply: () => this.setDisplay(path, value as Display, true) }
     }
     if (key === '$pattern') {
-      return { key: `${path}:pattern`, apply: () => this.setPattern(path, value as Pattern | undefined, true) }
-    }
-    if (key === '$disabled') {
       return {
         key: `${path}:pattern`,
-        apply: () => this.setPattern(path, value ? 'disabled' : 'editable', true),
+        apply: () => {
+          const changed = this.setPattern(path, value as Pattern | undefined, true)
+          // An explicit pattern write takes the pattern back from the `$disabled` shortcut.
+          this.deps.store.ensure(path).patternFromDisabled = false
+          return changed
+        },
       }
+    }
+    if (key === '$disabled') {
+      // Same op key as `$pattern`, so conflict detection is unchanged.
+      return { key: `${path}:pattern`, apply: () => this.applyDisabled(path, !!value) }
     }
     if (key === '$required') {
       return { key: `${path}:required`, apply: () => this.setRequired(path, !!value) }
@@ -198,6 +203,25 @@ export class StateWriter {
     scheduler.markDirty(`${path}:display`)
     if (display === 'none' || store.effectiveDisplay(path) === 'none') validator.clearHiddenErrors(path)
     return true
+  }
+
+  /**
+   * `$disabled` owns the pattern only while its `true` write is what installed the current value.
+   * `false` then clears it, the same as `$pattern = undefined`, and the field inherits again.
+   * `false` does nothing when something else owns the pattern.
+   * `true` does not take over a pattern that is already `disabled`.
+   */
+  private applyDisabled(path: string, disabled: boolean): boolean {
+    if (!disabled) {
+      const field = this.deps.store.get(path)
+      if (!field?.patternFromDisabled) return false
+      field.patternFromDisabled = false
+      return this.setPattern(path, undefined, true)
+    }
+    const field = this.deps.store.ensure(path)
+    const changed = this.setPattern(path, 'disabled', true)
+    if (changed || field.patternFromDisabled) field.patternFromDisabled = true
+    return changed
   }
 
   private setPattern(path: string, pattern: Pattern | undefined, fromEffect: boolean): boolean {

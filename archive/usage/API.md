@@ -18,7 +18,6 @@
 | `options.effects` | `Effects[]`，由 `defineEffects(({ reaction, watch, query }) => …)` 定义，可组合 [02][13][16] |
 | `options.validate` | 表单级 / 双向约束：`(values) => { [path]: message }`（原 `e.validate`）[11 ❓] |
 | `options.validateTrigger` | 默认校验时机，默认 `['onBlur','onSubmit']` [01][11] |
-| `options.commit` | `'change' \| 'blur'`：输入何时写入 store；大表用 `'blur'` [12] |
 | `options.enumPolicy` | 枚举范围变化后旧值不合法时：`'error' \| 'clear' \| 'none'`，全表单一种 [02][11] |
 | `options.resolver` | 可选外部校验（Zod 等），结果并入字段错误树 [11] |
 | `options.fields` | 没有自己 `<Field>` 的字段的属性声明，如 `{ selectedIds: { virtual: true } }`（选择 / 展开 / 前端分页的 page）[09][10][14][16] |
@@ -79,7 +78,7 @@
 - **定位某个节点**：先找 pos，再换成精确 path：`const pos = findPos(d.menus.$value, n => n.id === 'home')` → `query(pathOf('menus', pos))`。pos 不是 query 的过滤条件（2026-10-27，原 `query(treePath, { pos })` 删除）[05 ❓]。
 - **身份**：pos 是派生值，移动后会变；React key / 展开 / 选择按 `rowKey`（稳定 id）挂；值 / 错误按 path（由 pos 推出）。拖拽期间数据不动、pos 不变，drop 时一次 `move` 事务。
 
-**Field 额外 props**：`virtual`（默认 false）[01][08][10][11]、`enum`（数组或 Enum）、`pretty`（readPretty 时的展示组件）[10]、`commit`（`'change'|'blur'|'immediate'`）[09][12]、`gridSpan` [09]。
+**Field 额外 props**：`virtual`（默认 false）[01][08][10][11]、`enum`（数组或 Enum）、`pretty`（readPretty 时的展示组件）[10]、`gridSpan` [09]。
 
 **Decorator / Component 分工**
 - Decorator 消化：label、required 星号、errors / warnings / validating、help、布局、visible、pattern 展示侧。通过 `useDecorator(props)` 读 [_ui]。
@@ -185,7 +184,7 @@ core 另带通用组合工具 `comboOptions(table, selection, dim)` / `comboMatc
 - `ctx`：`record / root / parent / array / index / get(path) / signal`；树节点另有 `pos / depth / parentPos`。
 - 可复用：`defineRules({...})` [11]；动态规则：reaction 里 `d.qty.$rules = [...]` [07]。
 - 表单级 / 双向约束：`useForm({ validate: (v) => ({ [path]: message }) })` [11 ❓]。
-- 时机：默认 onBlur + onSubmit；表格单元格默认 commit 时；异步规则默认不在 onChange 跑。
+- 时机：默认 onBlur + onSubmit；异步规则默认不在 onChange 跑。输入在 change 时写入 store。
 - 状态写回字段状态树，Decorator 统一展示；隐藏字段跳过校验、值保留。
 - 未挂载字段（如非激活 Tab）：Q5 提议“字段按声明存在，reaction 写的 `$rules` 不论挂载都校验；JSX `rules` 只在挂载时生效”——未定 [13]。
 
