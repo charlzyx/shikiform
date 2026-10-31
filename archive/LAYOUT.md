@@ -75,7 +75,7 @@ ui -> （无表单依赖）
 
 - **执行集中（core/validation.ts，不在每个 Field 里各写一套）：**
   `validateField` / `validateForm` / `rulesForTrigger` / `shouldValidate` 只有一份；
-  触发时机统一：默认 onBlur + onSubmit，不 onChange；表格 cell 只在 commit 时跑。
+  触发时机统一：默认 onBlur + onSubmit，不 onChange。
   跨字段 validator 拿到的不是绝对路径字符串，而是 `ctx = { path, record, root, get }`，
   record 是最近父对象，root 是整表单，同一快照下算，不各自读一份过期值。
 
@@ -101,7 +101,7 @@ ui -> （无表单依赖）
   两者都不进 core。
 - 查询表单 + 表格：查询 transform、列筛选合并、批量选择 transient、分页重置是 pro 逻辑，
   provider / model 具体值是 examples 数据。
-- 大表：字段级订阅 + 虚拟窗口 + 本地草稿，状态在 store 里，不在窗口组件里。
+- 大表：字段级订阅 + 虚拟窗口，状态在 store 里，不在窗口组件里。
 - 异步校验竞态、枚举懒树、跨模块数据根联动，见上节和 STATE.md。
 
 ## 4. 动手顺序（按这个来，不一开始就改算法）

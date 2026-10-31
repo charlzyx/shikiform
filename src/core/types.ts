@@ -28,9 +28,6 @@ export type Display = 'visible' | 'hidden' | 'none'
  */
 export type Pattern = 'editable' | 'disabled' | 'readOnly' | 'readPretty'
 
-/** When an input writes into the store. `blur` keeps keystrokes local until blur or Enter. */
-export type CommitMode = 'change' | 'blur'
-
 /**
  * When a field validates.
  * The field's own `trigger` wins over {@link FormOptions.validateTrigger}.
@@ -208,11 +205,10 @@ export interface FormOptions<T> {
   validateTrigger?: ValidateTrigger[]
   /**
    * Debounce async field validators and async Standard Schemas. `0` runs them immediately.
-   * Stale runs are cancelled with `AbortSignal` and ignored when they resolve.
+   * A newer edit aborts the previous `AbortSignal`. That attempt leaves the in-flight set
+   * immediately, so `submit` does not wait for it; a later resolve or reject is ignored.
    */
   asyncDebounceMs?: number
-  /** Default commit mode. Default `'change'`. Large tables usually want `'blur'`. */
-  commit?: CommitMode
   /**
    * What to do when the current value is no longer in `$enum`.
    * Default `'none'` (leave the value; clear it yourself in a `watch` if you need to keep the last edit).
@@ -373,7 +369,11 @@ export interface DraftState<T> {
   $display: Display
   /** When true, empty values fail validation even without a `required` rule. */
   $required: boolean
-  /** `true` sets pattern `disabled`. `false` sets pattern `editable`. */
+  /**
+   * `true` sets pattern `disabled`.
+   * `false` clears it when this shortcut installed the current pattern, so the field inherits again.
+   * An explicit `$pattern` is left as written. To force `editable`, assign `$pattern`.
+   */
   $disabled: boolean
   /** Explicit pattern. Assign `undefined` to inherit again. */
   $pattern: Pattern | undefined

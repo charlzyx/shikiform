@@ -69,7 +69,7 @@ description: 对照 Formily / pro.formily / ProComponents / SKU 表格编辑的�
 |---|---|---|---|
 | P3-1 | 大表 2000 行虚拟化可点 + 渲染计数 | ⚠️ large/virtual 模型测 | Rspress 性能页：改一格渲染数；标明「非浏览器 FPS」 |
 | P3-2 | 浏览器帧率/首屏/改格耗时中位数表 | ❌ | 有实测再写数字；否则写「待实测」 |
-| P3-3 | 打字不进全局 reaction（blur 提交） | ⚠️ | demo + 计数证明 |
+| P3-3 | 打字不进全局 reaction（blur 提交） | ⏸️ 发布前删除，不实现 | 值在 change 时写入。没有 `FormOptions.commit` |
 | P3-4 | core/pro 无业务数据泄漏 | QUALITY §7 | CI/检查脚本或文档检查项 |
 | P3-5 | 禁止空壳导出 / path≠id / 无本地 state 冒充库模型 | QUALITY | 每个新 playground 过收尾检查 |
 
@@ -155,7 +155,7 @@ description: 对照 Formily / pro.formily / ProComponents / SKU 表格编辑的�
 | P2-8 | `playground/pages/headless.tsx`、`playground/pages/large.tsx`、`src/react/hooks/use-field.ts` | `e2e/headless.spec.ts`、`e2e/large.spec.ts` | 有原生DOM/useField绑定，headless页本身主要拖动/文本；缺从value/onChange/onBlur/errors逐步接入的独立教程。 |
 | P3-1 | `playground/pages/large.tsx`、`playground/pages/virtual.tsx`、`src/react/components/virtual-rows.tsx` | `e2e/large.spec.ts`、`e2e/virtual.spec.ts`、`tests/reaction.test.ts` | large实际40/200行(200/1000字段)，virtual40行；不是2000行。已有挂载窗口和data-renders断言源，但无2000行浏览器运行证据或性能专题。 |
 | P3-2 | `archive/QUALITY.md` | 暂无专项测试 | 无现成测量结果/基准脚本；只能标待实测，不能以模型计数代替。 |
-| P3-3 | `src/core/types.ts:192-193`、`src/core/engine/writes.ts`（`commitExternal`）、`playground/pages/large.tsx` | 暂无专项测试 | commit?:change / blur在类型中声明，但绑定onChange仍直接commitExternal。定向原核心复现commit:blur仍在blur前改正式值并触发reaction。 |
+| P3-3 | `StateWriter.commitExternal`（`src/core/engine/writes.ts`） | — | 发布前删除 `FormOptions.commit` 与 `CommitMode`。`'blur'` 从未被读取，去掉后只剩 `'change'`，故整个选项删除。用户编辑在 change 时写入。 |
 | P3-4 | `archive/QUALITY.md`、`src/core`、`src/pro` | 暂无专项测试 | 已做限定静态grep：SKU_TABLE/PROVIDER_MODELS/makeQueryRows/makeSuppliers及import examples/playground无匹配；无自动CI守卫，不能据此证明所有业务泄漏不存在。 |
 | P3-5 | `archive/QUALITY.md`、`src/core/engine/form-engine.ts`、`tests/move.test.ts`、`playground/pages/merged.tsx` | `tests/move.test.ts`、`tests/tree.test.ts` | 有规则和部分回归，但不等于全导出审计。PR11已证实固定产品ID导致错误迁移串行；首批修复由主任务负责。 |
 
@@ -163,7 +163,7 @@ description: 对照 Formily / pro.formily / ProComponents / SKU 表格编辑的�
 
 1. **正式库与文档同一契约（2a 代码已补，待上线）。** 本批移除 `src/runtime` 和私有 alias，24 个题目/答案与可见 `fields.tsx` 使用正式包。`check:docs` 通过 `npm pack` → 无 paths/alias 的消费者检查同份源码；API页纠正公开导出与hidden语义。浏览器仍待验收，API的完整检索深化留到2b。
 2. **可复用的最小完整场景。** Provider 配置、Array 增删移动、Tree 按钮移动，先小例子再解释设计边界。基础教程可改代码，完整场景的页内代码编辑仍待补，不能把可改输入等同于可改源码。
-3. **真实质量与性能证据。** 先修 `commit: 'blur'` 的类型/行为契约（当前核心定向复现仍会在 onChange 更新正式值），再做 2000 行和浏览器计时。没有测量就写待实测，不把渲染次数当 FPS。
+3. **真实质量与性能证据。** 2000 行和浏览器计时仍待实测。没有测量就写待实测，不把渲染次数当 FPS。输入在每次 change 写入；大表靠字段级订阅、虚拟化和 `reaction.each`，不要再建议 blur 提交。
 
 ShadowForm、跨查询远端全选、懒树浮层等明确延后项不在这几批内。API 扩展和 JSON renderer 另行设计，不阻塞本批三项修复。只有合入并经授权发布后，在 `shikiform.pages.dev` 通过对应入口、行为、教学与 API 检查，才算产品验收完成。
 

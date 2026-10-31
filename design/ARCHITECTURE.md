@@ -127,7 +127,7 @@ Formily 的 `field.title` / `description` / `decorator` / `component` / `setComp
 
 1. **规则来源**（由 `declarations` 合成到 `field.rules/required`）：reaction（`$rules/$required`）> JSX lease（`<Field rules>` / `useField(name, { rules })`，卸载即释放）> 精确声明（`fields`、`registerField`）> 条目模板（`rows.*.name`）。
 2. **触发**：`validateTrigger`（默认 `onBlur` + `onSubmit`），字段可覆盖；`onChange`/`onBlur` 走 `scheduleValidate`，有 `asyncDebounceMs` 且含异步规则时防抖。
-3. **单字段**（`validateOne`）：`display: none` 或 computed 字段清空错误并跳过；`runRules` 产出同步消息与 pending Promise；字段 Standard Schema 同步/异步收集 issue；`enumPolicy: 'error'` 追加枚举校验。每次校验 `asyncSeq+1` 并换新 `AbortController`，迟到结果比对 seq/abort 后丢弃（stale）。
+3. **单字段**（`validateOne`）：`display: none` 或 computed 字段清空错误并跳过；`runRules` 产出同步消息与 pending Promise；字段 Standard Schema 同步/异步收集 issue；`enumPolicy: 'error'` 追加枚举校验。每次校验 `asyncSeq+1` 并换新 `AbortController`。abort 发生时该次任务立即离开 inflight，`waitAsync` / `submit` 不再等它；之后 Promise 无论 resolve 还是 reject 都不再写回（stale）。
    - **规则抛错即消息**（#2、#7）：自定义 `validator` 同步 `throw`、返回的 Promise reject、字段 Schema 的 `validate` 同步抛错，都按同一契约变成该字段的错误消息（`err.message`，空则 `校验失败`）。因此字段规则永远不会让一轮校验 reject；公开的 `runRules` 也遵守这一点。
    - **无人等待的校验**（`validateDetached`：触发器、防抖定时器、JSX 卸载后恢复声明规则的那一轮）只可能因表单级 `validate`/`resolver` 抛错或 reaction 错误而失败，此时 `console.error` 报告，不留下未处理拒绝；被 `await` 的 `validate()`/`submit()` 仍把这类错误交给调用方。
 4. **整表**（`validate(path?)` = `run(path).errors`）：`validateGen` 代数，只有最新一轮可提交；`prepare()` 之后取**一份不可变快照** `values = store.values`（写入总是替换对象），本轮所有字段规则与表单级校验都只读这份快照（#1）：`value`、`ctx.record/root/parent/array` 与 `ctx.get()` 读同一版本，不再出现「值是新的、同行另一列是旧的」。依次跑字段 → 表单级 `validate`（Standard Schema 或函数）→ `resolver`；issue 按路径分组写入 `schemaErrors`（scoped 校验只替换 `path` 之下，stale 字段保留旧值）；最后等待在途异步。`run` 返回 `{ errors, values: 快照, current: 是否仍是最新一轮 }`。以后若再引入「行草稿」校验，应构造一份把草稿写在真实行路径上的快照交给这条管线，而不是另开旁路。
@@ -178,13 +178,11 @@ const Rate = connect(AntRate, mapProps({ status: false }))
 - **表格**：单元格就是行作用域里的 `<Field>`，可以不要装饰器（`component={[Input]}`），或用别的装饰器 / `FormItem` 的 `feedbackLayout: 'terse'`。
 - **`useAntdForm`**：`field.Input` / `field.Select` / `field.InputNumber` = 对应 connect 控件包在 `FormItem` 里；`field.Switch` / `field.Checkbox` 就是 connect 控件。全库只有一套适配层（旧的手写 `FieldInput` 等已删除）；行为变化见 PR：`InputNumber` 清空写 `null`（原为 `0`）、`stringMode` 下写字符串、`Select` 阅读态显示 label、`AppField title` 显示为 label。
 
-## 9. 已知未解决问题 → 所在模块
+## 9. 已删除的半成品配置
 
-| Issue | 摘要 | 所在位置 |
-|---|---|---|
-| P3-3 | `commit: 'blur'` 已声明但未实现 | `core/engine/writes.ts` 的 `commitExternal`。 |
+`FormOptions.commit` 与类型 `CommitMode`（`'change' | 'blur'`）在发布前删除，不实现。用户编辑一直走 `StateWriter.commitExternal`，在 change 时写入；删掉未实现的 `'blur'` 后只剩 `'change'`，所以整个选项一并移除，没有残留分支。
 
-代码中在对应位置留有 `Open issue #n` 注释。#1、#2、#6、#7 已由 `fix/validation-races` 修复，见第 5 节。#3、#8、#12 已由 `fix/pro-gaps` 解决：#3（列筛选清空选择，见 §10 查询表）、#8（精确声明是按路径的配置：`setValue`/`reset` 清掉行时由 `applyItemTemplates`、数组 / 树操作丢掉行时由 `onDrop` 转为休眠，行再出现时 `reviveDormant` 重新注册，`virtual`/`display`/`pattern`/UI 都恢复，见 §2 注入表）、#12（P0 示例与「文档构建含 playground」已在 main：`npm run build` = VitePress + `build:play` + `check-site`）。
+#1、#2、#6、#7 已由 `fix/validation-races` 修复，见第 5 节。#3、#8、#12 已由 `fix/pro-gaps` 解决：#3（列筛选清空选择，见 §10 查询表）、#8（精确声明是按路径的配置：`setValue`/`reset` 清掉行时由 `applyItemTemplates`、数组 / 树操作丢掉行时由 `onDrop` 转为休眠，行再出现时 `reviveDormant` 重新注册，`virtual`/`display`/`pattern`/UI 都恢复，见 §2 注入表）、#12（P0 示例与「文档构建含 playground」已在 main：`npm run build` = VitePress + `build:play` + `check-site`）。
 
 ## 10. Pro 层（复刻 Pro.formily）
 
