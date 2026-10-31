@@ -7,6 +7,7 @@ export const PATH = Symbol('shikiform.path')
 const STATE = new Set([
   '$value',
   '$visible',
+  '$hidden',
   '$display',
   '$required',
   '$disabled',

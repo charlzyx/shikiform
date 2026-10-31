@@ -38,6 +38,7 @@ export interface RunOptions {
 const WRITTEN_STATE: Record<string, string> = {
   $value: 'value',
   $visible: 'display',
+  $hidden: 'display',
   $display: 'display',
   $pattern: 'pattern',
   $disabled: 'pattern',

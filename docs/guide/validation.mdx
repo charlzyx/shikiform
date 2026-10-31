@@ -112,7 +112,7 @@ await form.submit(async (values) => {
 | `useForm({ fields })`、`registerField`、行模板 `items.*.name` | 仍查 |
 | reaction 里的 `$rules` / `$required` | 仍查（并且优先级最高） |
 
-显隐和计算字段也会跳过校验，见 [显隐、pattern 与提交](/guide/concepts#显隐pattern-与提交)。注意 `hidden` 仍然校验：藏起来的必填照样挡住提交。
+显隐和计算字段也会跳过校验，见 [显隐、pattern 与提交](/guide/concepts#显隐pattern-与提交)。注意 `hidden`（`$hidden = true`）仍然校验：藏起来的必填照样挡住提交；`$visible = false` 是 `none`，不校验。
 
 跨标签页、折叠区、虚拟滚动之外都要校验的业务规则，写在 `fields` 或 reaction 里；只在当前界面有意义的规则才写 JSX。
 

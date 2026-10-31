@@ -19,7 +19,7 @@ This page is the one-screen mental model plus the mistakes worth avoiding. Repo 
 ## 1. Handle vs value
 
 `d.user.name` is a **handle**: a path, not data. Property access never reads values. `$` members are state:
-`$value`, `$display`, `$visible`, `$pattern`, `$disabled`, `$required`, `$rules`, `$enum`, `$errors`, UI state
+`$value`, `$display`, `$visible`, `$hidden`, `$pattern`, `$disabled`, `$required`, `$rules`, `$enum`, `$errors`, UI state
 (`$title`, `$description`, `$componentProps`, `$decoratorProps`, `$component`, `$decorator`), and form-level
 `d.$canSubmit` / `d.$submitting`. A field literally named `value` is `d.value.$value`.
 
@@ -27,6 +27,9 @@ This page is the one-screen mental model plus the mistakes worth avoiding. Repo 
 - A `$value` object is a snapshot of immutable data. Never mutate it; assign a new value or write the child path.
   Inside `reaction`, `watch` and `form.batch` the snapshot is read-only in development (mutation throws).
 - A handle is not an array: no `.map`, `.length`, `for…of` on `d.items`. Use `d.items.$value` or `reaction.each`.
+- Display follows Formily: `$visible = false` is `display: 'none'` (no UI, not validated, not submitted; the value
+  stays and returns when shown again). `$hidden = true` is `display: 'hidden'` (no UI, still validated and submitted).
+  A conditional field ("tax id only for companies") is `$visible`; an inactive tab whose values must still submit is `$hidden`.
 
 Development builds throw `ShikiUsageError` with the fix for all three mistakes (mutating `$value`, using a handle
 as an array, and reading back a `$` state you wrote in the same pass). Production skips the checks.

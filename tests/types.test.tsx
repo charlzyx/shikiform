@@ -28,6 +28,7 @@ form.batch((d) => {
   d.name.$pattern = undefined
   d.name.$display = 'hidden'
   d.name.$visible = false
+  d.name.$hidden = true
   void value
   void _value
 })

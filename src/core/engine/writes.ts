@@ -167,7 +167,10 @@ export class StateWriter {
       return { key: `${path}:value`, apply: () => this.commitValue(path, value, fromReaction) }
     }
     if (key === '$visible') {
-      return { key: `${path}:display`, apply: () => this.setDisplay(path, value ? 'visible' : 'hidden', true) }
+      return { key: `${path}:display`, apply: () => this.setDisplay(path, value ? 'visible' : 'none', true) }
+    }
+    if (key === '$hidden') {
+      return { key: `${path}:display`, apply: () => this.setDisplay(path, value ? 'hidden' : 'visible', true) }
     }
     if (key === '$display') {
       return { key: `${path}:display`, apply: () => this.setDisplay(path, value as Display, true) }

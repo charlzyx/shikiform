@@ -11,11 +11,27 @@ description: useArrayTable、useColumnSettings、useShadowForm、useArrayShadow�
 
 ```ts
 useArrayTable<TRow>(name: string, options?: UseArrayTableOptions<TRow>): ArrayTableApi<TRow>
-// options: rowKey, pagination (false | { pageSize, current, total, hideOnSinglePage, onChange }),
+// options: rowKey, createRowKey?(row), pagination (false | { pageSize, current, total, hideOnSinglePage, onChange }),
 //          preserveSelection, selectedKeys / onSelectionChange, defaultExpandAll, rowExpandable, onRemove
+// 行操作: remove(i), add(row, { jump? }), copy(i, transform?(copy, source)), moveUp(i), moveDown(i), move(from, to)
 ```
 
 数组字段的表格状态，不含 UI：分页切片（给了 `pagination.total` 就是受控的服务端分页，数组只放一页）、行选择（`selectPage` / `invertPage` / `clearSelection`，默认翻页清空，`preserveSelection` 保留）、展开（`defaultExpandAll` 每页重新展开）、行操作（`remove` 先跑异步 `onRemove`，失败保留；`add` 追加并翻到新行所在页；`copy`、`moveUp`、`moveDown`）。只订阅数组结构，单元格改值不会让表格重渲染。`pageRows[i].position` 是跨页的 1 起序号。
+
+**复制行与行 id。** `copy(i)` 在第 `i` 行后插入一份深拷贝。设了 `rowKey` 时，复制行的 id 这样处理：
+
+- 传了 `createRowKey(row)`：复制行的 id 是它的返回值（`row` 是去掉 id 的拷贝），内部 key 也随之变成这个 id；`add(row)` 遇到 `row[rowKey]` 为 `undefined` / `null` 时同样调用它补 id，已有 id 不动。
+- 没传：默认删掉 id 字段，复制行按对象身份做 key，提交结果里这行没有 id，需要自己补。
+- `copy(i, (copy, source) => …)` 的返回值就是要插入的行，最后执行，可以改 id 或其他字段。
+
+```ts
+let seq = 1000
+const table = useArrayTable<Row>('rows', { rowKey: 'id', createRowKey: () => ++seq })
+table.copy(0)                                                   // { id: 1001, sku: 'a' }
+table.copy(0, (row, source) => ({ ...row, sku: `${source.sku} (副本)` }))
+```
+
+`ProArrayTable` 同样接受 `createRowKey`，`ProArrayTable.Copy` 按钮会用它。
 
 ## useColumnSettings
 
