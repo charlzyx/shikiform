@@ -5,20 +5,22 @@ import { useFormContext } from '../context'
 
 /**
  * Subscribe to the `$` reads inside `select`.
- * Annotate the draft. The return type is the selector's return, not `any`:
+ * An unannotated draft compiles and is untyped (`useWatch((d) => d.$submitting)`, `d` is `any`).
+ * For a typed draft and value, use the form's typed handle or annotate `d`:
  *
  * ```tsx
- * const name = useWatch((d: Draft<Values>) => d.name.$value)
- * const can = useWatch((d: Draft<Values>) => d.$canSubmit === true)
+ * const F = typed(form)
+ * const name = F.useWatch((d) => d.name.$value)          // string
+ * const can = useWatch((d: Draft<Values>) => d.$canSubmit) // boolean
  * ```
  *
- * Passing only the form type (`useWatch<Values>(...)`) does not infer the selected value.
- * TypeScript stops inferring once any type argument is written, so annotate `d` instead.
+ * `useWatch<Values>(...)` (one type argument) fixes `S` to `unknown`: TypeScript does not infer the rest once any
+ * type argument is written. Use `typed(form).useWatch` or annotate `d` instead.
  * `select={(d) => d.email.$errors}` re-renders when that field's errors change.
  * `select={(d) => d.$canSubmit}` re-renders when submit, validation, or errors change, not on unrelated keystrokes.
  * Return data, not a new function. The snapshot is cached with {@link deepEqual}.
  */
-export function useWatch<T, S>(select: (d: Draft<T>) => S): S {
+export function useWatch<T = any, S = unknown>(select: (d: Draft<T>) => S): S {
   const form = useFormContext<T>()
   const selectRef = useRef(select)
   selectRef.current = select

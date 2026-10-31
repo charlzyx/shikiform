@@ -8,6 +8,8 @@ import type { FormOptions } from '../../core/types'
  * The returned engine is headless: nothing here imports a UI kit.
  *
  * `T` is inferred from `initialValues`. `getValue` / `setValue` / `batch` use that type.
+ * `TSubmit` (default `T`) types `submit` / `getSubmitValues` / `<Form onSubmit>`; see `SubmitValues`.
+ * `typed(form)` gives the name-checked `Field` / `ArrayField` / `useField` / `useWatch` for this form.
  * `fields` and `rows.*.name` templates validate even when the matching `<Field>` is not mounted.
  *
  * @example
@@ -16,8 +18,8 @@ import type { FormOptions } from '../../core/types'
  *   fields: { email: { required: true }, 'rows.*.name': { required: true } },
  * })
  */
-export function useForm<T>(options?: FormOptions<T>): FormEngine<T> {
-  const ref = useRef<FormEngine<T> | null>(null)
-  if (!ref.current) ref.current = createForm(options)
+export function useForm<T, TSubmit = T>(options?: FormOptions<T>): FormEngine<T, TSubmit> {
+  const ref = useRef<FormEngine<T, TSubmit> | null>(null)
+  if (!ref.current) ref.current = createForm<T, TSubmit>(options)
   return ref.current
 }

@@ -1,11 +1,11 @@
 import { useEffect, useRef, useSyncExternalStore, type ComponentType, type ReactNode } from 'react'
 import type { EnumOption } from '../../core/enum/enum-source'
-import { joinPath } from '../../core/shared/path'
 import { normalizeUiSpec } from '../../core/state/field-model'
 import type { Display, FieldPath, FieldUiSpec, PathValue, Pattern } from '../../core/types'
 import type { RulesInput } from '../../core/validation/rules'
 import { useFormContext, useScope } from '../context'
 import { applyJsxField } from './field-lifecycle'
+import { resolveName } from './resolve-name'
 
 /**
  * What `useField` and `<Field>` hand to an input.
@@ -93,7 +93,7 @@ export function useField<TScope, N extends FieldPath<TScope>>(name: N, options?:
 export function useField(name: string, options?: UseFieldOptions): FieldBinding<any> {
   const form = useFormContext()
   const scope = useScope()
-  const path = joinPath(scope.path, String(name))
+  const path = resolveName(form, scope, String(name))
   const spec = options
     ? { rules: options.rules, virtual: options.virtual, required: options.required, display: options.display, pattern: options.pattern }
     : undefined

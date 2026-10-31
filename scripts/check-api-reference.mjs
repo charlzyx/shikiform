@@ -32,7 +32,7 @@ for (const [module, file] of Object.entries(entries)) {
   actual[module] = checker.getExportsOfModule(symbol).filter((exported) => {
     const target = exported.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(exported) : exported
     if (!(target.flags & ts.SymbolFlags.Value)) return false
-    return module !== 'shikiform' || /^use[A-Z]/.test(exported.name) || ['createFormHook', 'createFormHookContexts'].includes(exported.name)
+    return module !== 'shikiform' || /^use[A-Z]/.test(exported.name) || ['createFormHook', 'createFormHookContexts', 'typed'].includes(exported.name)
   }).map((symbol) => symbol.name).sort()
 }
 if (args.includes('--list')) {

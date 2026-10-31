@@ -1,7 +1,6 @@
 import { useMemo, type FormEvent, type FormHTMLAttributes, type ReactNode } from 'react'
 import type { FormEngine } from '../../core/engine/form-engine'
-import { joinPath } from '../../core/shared/path'
-import type { Display, Draft, FieldError, FieldPath, PathValue, Pattern } from '../../core/types'
+import type { ArrayPath, Display, Draft, FieldError, FieldPath, PathValue, Pattern } from '../../core/types'
 import type { RulesInput } from '../../core/validation/rules'
 import type { Pos } from '../../core/shared/tree-ops'
 import { ArrayContext, FormContext, ScopeContext, useFormContext, useScope } from '../context'
@@ -10,6 +9,7 @@ import { FieldContext } from '../field-context'
 import { useField, type FieldBinding, type FieldSlot } from '../hooks/use-field'
 import { useTreeField } from '../hooks/use-tree'
 import { useWatch } from '../hooks/use-watch'
+import { resolveName } from '../hooks/resolve-name'
 
 const ROOT_SCOPE = { path: '', index: -1 }
 
@@ -29,9 +29,9 @@ export interface FormSubmitHandlers<T> {
 /** Native `<form>` attributes `<Form>` / `<form.AppForm>` pass through (`id`, `className`, `noValidate`, `aria-*` …). */
 export type FormDomProps = Omit<FormHTMLAttributes<HTMLFormElement>, 'onSubmit' | 'onInvalid' | 'children'>
 
-/** `<Form>` props. */
-export type FormProps<T> = FormSubmitHandlers<T> & FormDomProps & {
-  form: FormEngine<T>
+/** `<Form>` props. `onSubmit` receives the form's `TSubmit` (default `T`, see `SubmitValues`). */
+export type FormProps<T, TSubmit = T> = FormSubmitHandlers<TSubmit> & FormDomProps & {
+  form: FormEngine<T, TSubmit>
   children?: ReactNode
 }
 
@@ -39,7 +39,11 @@ export type FormProps<T> = FormSubmitHandlers<T> & FormDomProps & {
  * The native submit handler of `<Form>` and `<form.AppForm>`: Enter, a `type="submit"` button, and an external
  * `<button form={id}>` all run `form.submit(onSubmit)` and route the result to `onInvalid` / `onSubmitError`.
  */
-export function handleFormSubmit<T>(form: FormEngine<T>, event: FormEvent<HTMLFormElement>, handlers: FormSubmitHandlers<T>): void {
+export function handleFormSubmit<T, TSubmit = T>(
+  form: FormEngine<T, TSubmit>,
+  event: FormEvent<HTMLFormElement>,
+  handlers: FormSubmitHandlers<TSubmit>,
+): void {
   event.preventDefault()
   // React bubbles synthetic events through portals: keep a nested form's submit from reaching the host form.
   event.stopPropagation()
@@ -65,7 +69,7 @@ export function handleFormSubmit<T>(form: FormEngine<T>, event: FormEvent<HTMLFo
  * `<Field>` returns null for display `hidden` and `none` after subscribing, so a mounted model stays registered.
  * A field declared on the form, or given `$rules` / `registerField`, still validates when this component is not rendered.
  */
-export function Form<T>({ form, children, onSubmit, onInvalid, onSubmitError, ...rest }: FormProps<T>) {
+export function Form<T, TSubmit = T>({ form, children, onSubmit, onInvalid, onSubmitError, ...rest }: FormProps<T, TSubmit>) {
   return (
     <FormContext.Provider value={form}>
       {/* A nested form (a shadow form in a row's modal) starts at its own root, not at the row's scope. */}
@@ -153,11 +157,20 @@ export function Field<TScope = any, N extends FieldPath<TScope> = FieldPath<TSco
  * Scope child names under an object path. Does not subscribe to child values.
  * `virtual` omits this object from submit (`getSubmitValues`).
  * Also list it in `useForm({ fields })` so the omission holds before this component mounts.
+ * `<ObjectField<Values> name="address">` checks the name; `typed(form).ObjectField` also types the children.
  */
-export function ObjectField({ name, virtual, children }: { name: string; virtual?: boolean; children?: ReactNode }) {
+export function ObjectField<TScope = any>({
+  name,
+  virtual,
+  children,
+}: {
+  name: FieldPath<TScope>
+  virtual?: boolean
+  children?: ReactNode
+}) {
   const form = useFormContext()
   const scope = useScope()
-  const path = joinPath(scope.path, name)
+  const path = resolveName(form, scope, String(name))
   if (virtual !== undefined) form.registerField(path, { virtual })
   const next = useMemo(() => ({ path, index: -1 }), [path])
   return <ScopeContext.Provider value={next}>{children}</ScopeContext.Provider>
@@ -166,17 +179,19 @@ export function ObjectField({ name, virtual, children }: { name: string; virtual
 /**
  * Repeat `children` once per row. The key is the row id when present.
  * The parent subscribes to structure only. Put cell inputs in a child that calls `useField`.
+ * Names inside a row are relative to the row (`name="price"`, not `items.0.price`).
+ * `<ArrayField<Values> name="items">` checks the name; `typed(form).ArrayField` also types the row's fields.
  */
-export function ArrayField({
+export function ArrayField<TScope = any>({
   name,
   rowKey,
   children,
 }: {
-  name: string
+  name: ArrayPath<TScope>
   rowKey?: string
   children: (row: { index: number; key: string }) => ReactNode
 }) {
-  const array = useArrayField(name, rowKey)
+  const array = useArrayField(String(name), rowKey)
   return (
     <ArrayScope path={array.path} rowKey={rowKey}>
       {array.keys.map((row) => (
@@ -224,30 +239,29 @@ export function RowScope({
   return <ScopeContext.Provider value={value}>{children}</ScopeContext.Provider>
 }
 
-/** Register a tree root. Rendering nodes is the caller's job (`pos` is `number[]`). */
-export function TreeField({
+/** Register a tree root. Rendering nodes is the caller's job (`pos` is `number[]`). `<TreeField<Values>>` checks the name. */
+export function TreeField<TScope = any>({
   name,
   childrenKey,
   rowKey,
   children,
 }: {
-  name: string
+  name: ArrayPath<TScope>
   childrenKey?: string
   rowKey?: string
   children: (tree: ReturnType<typeof useTreeField>) => ReactNode
 }) {
-  const tree = useTreeField(name, { childrenKey, rowKey })
+  const tree = useTreeField(String(name), { childrenKey, rowKey })
   return children(tree)
 }
 
 /**
- * Render `children` with the current selector value.
- * Annotate the draft so the selected value is inferred: `select={(d: Draft<Values>) => d.email.$value}`.
- * A single type argument (`Watch<Values>`) does not infer the selected value.
+ * Render `children` with the current selector value. Same selectors and typing as {@link useWatch}:
+ * an unannotated `select={(d) => d.$canSubmit}` compiles (`d` is untyped); `typed(form).Watch` or
+ * `select={(d: Draft<Values>) => …}` types the draft and the value.
  * `select={(d) => d.$canSubmit}` subscribes a submit button without subscribing to every keystroke.
- * Same selectors as {@link useWatch}.
  */
-export function Watch<T, S>({ select, children }: { select: (d: Draft<T>) => S; children: (value: S) => ReactNode }) {
+export function Watch<T = any, S = unknown>({ select, children }: { select: (d: Draft<T>) => S; children: (value: S) => ReactNode }) {
   const value = useWatch<T, S>(select)
   return <>{children(value)}</>
 }

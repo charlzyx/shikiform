@@ -96,6 +96,37 @@ export type ArrayPath<T> = IsAny<T> extends true
       : never
     : never
 
+/**
+ * The submitted shape of `T` when the paths in `P` may be dropped from submit: each listed path becomes optional
+ * (`?:`), at any depth. An array index may be `*` (or a number, which also makes it optional on every row).
+ * Use it as the form's second type argument for `virtual`, `display: 'none'` and computed fields:
+ *
+ * ```ts
+ * const form = createForm<V, SubmitValues<V, 'tmp' | 'rows.*.total'>>({ … })
+ * form.submit((values) => values.tmp) // string | undefined
+ * ```
+ *
+ * With no `P` this is `T`.
+ */
+export type SubmitValues<T, P extends TemplatePath<T> = never> = [P] extends [never] ? T : OptionalPaths<T, P & string>
+
+type HeadKey<P extends string> = P extends `${string}.${string}` ? never : P
+type RestOf<P extends string, K extends string> = P extends `${K}.${infer R}` ? R : never
+type OptionalAt<V, R extends string> = [R] extends [never] ? V : OptionalPaths<V, R>
+type Simplify<T> = { [K in keyof T]: T[K] } & {}
+
+type OptionalPaths<T, P extends string> = T extends readonly (infer E)[]
+  ? OptionalAt<E, RestOf<P, IndexSegment> | RestOf<P, `${number}`>>[]
+  : T extends object
+    ? Simplify<
+        {
+          [K in keyof T as K extends HeadKey<P> ? never : K]: OptionalAt<T[K], RestOf<P, K & string>>
+        } & {
+          [K in keyof T as K extends HeadKey<P> ? K : never]?: OptionalAt<T[K], RestOf<P, K & string>>
+        }
+      >
+    : T
+
 /** Value type at `P`. */
 export type PathValue<T, P extends string> = IsAny<T> extends true
   ? any
@@ -497,7 +528,7 @@ export interface MoveResult {
  * Core form. No React.
  * Field models are created lazily on `$` access, `registerField`, or `fields` in options.
  */
-export interface FormInstance<T> {
+export interface FormInstance<T, TSubmit = T> {
   readonly values: T
   /** Alias of {@link FormInstance.isSubmitting}. */
   readonly submitting: boolean
@@ -534,8 +565,9 @@ export interface FormInstance<T> {
    * `hidden` values are kept. A reaction-written value is kept unless `virtual` is true.
    * Values changed during validation are validated again (bounded); two submits on the same values both pass.
    * Never rejects: see {@link SubmitResult} for `invalid` / `error` / `superseded`.
+   * `values` is `TSubmit` (the form's second type argument, default `T`); see {@link SubmitValues}.
    */
-  submit(onValid?: (values: T) => void | Promise<void>): Promise<SubmitResult<T>>
+  submit(onValid?: (values: TSubmit) => void | Promise<void>): Promise<SubmitResult<TSubmit>>
   /**
    * Restore initial values; touched, edited, and every message clear; computed values are written again.
    * `reset('a.b')` restores one subtree. `reset(values)` first makes `values` the new initial values (edit-page backfill).
@@ -560,12 +592,13 @@ export interface FormInstance<T> {
    * Display `none` skips the field, and an ancestor `none` covers descendants. `hidden` still validates.
    * A form-level Standard Schema always runs. A scoped call refreshes schema issues under `path` only.
    */
-  validate(path?: string): Promise<FieldError[]>
+  validate(path?: FieldPath<T>): Promise<FieldError[]>
   /**
    * Clone of the values with `virtual` fields and display `none` removed.
-   * `hidden` values are kept. The static return type is still `T` because display is decided at runtime.
+   * `hidden` values are kept. The static type is `TSubmit` (default `T`): the form cannot know statically which
+   * fields a reaction hides, so declare the droppable paths with `createForm<T, SubmitValues<T, 'tmp'>>()`.
    */
-  getSubmitValues(): T
+  getSubmitValues(): TSubmit
   /**
    * Escape hatch for an exact path. Prefer `getValue` / `batch`.
    * `opts.ui` is a named UI instance. The return is untyped.

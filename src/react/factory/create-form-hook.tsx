@@ -1,12 +1,13 @@
 import { createContext, useContext, useMemo, type ComponentType, type Context, type ReactNode } from 'react'
 import type { FormEngine } from '../../core/engine/form-engine'
 import { joinPath } from '../../core/shared/path'
-import type { FieldPath, FormOptions, PathValue } from '../../core/types'
+import type { FormOptions } from '../../core/types'
 import { FormContext, ScopeContext, useScope } from '../context'
 import type { FieldBinding, UseFieldOptions } from '../hooks/use-field'
 import { Field, handleFormSubmit, type FormDomProps, type FormSubmitHandlers } from '../components/fields'
 import type { FormMessages } from '../../core/validation/messages'
 import { useForm } from '../hooks/use-form'
+import type { TypedAppField } from './typed'
 
 /**
  * Contexts for {@link createFormHook}.
@@ -73,10 +74,10 @@ export function createFormHook<
     )
   }
 
-  function useAppForm<T>(opts?: FormOptions<T>): AppFormApi<T, TFields, TForms> {
-    const form = useForm(options.messages ? { ...opts, messages: { ...options.messages, ...opts?.messages } } : opts)
+  function useAppForm<T, TSubmit = T>(opts?: FormOptions<T>): AppFormApi<T, TFields, TForms, TSubmit> {
+    const form = useForm<T, TSubmit>(options.messages ? { ...opts, messages: { ...options.messages, ...opts?.messages } } : opts)
     return useMemo(() => {
-      function AppForm({ children, onSubmit, onInvalid, onSubmitError, ...rest }: AppFormProps<T>) {
+      function AppForm({ children, onSubmit, onInvalid, onSubmitError, ...rest }: AppFormProps<TSubmit>) {
         return (
           <FormContext.Provider value={form}>
             <options.formContext.Provider value={form}>
@@ -88,10 +89,10 @@ export function createFormHook<
         )
       }
       return Object.assign(form, {
-        AppField: AppField as AppFormApi<T, TFields, TForms>['AppField'],
+        AppField: AppField as AppFormApi<T, TFields, TForms, TSubmit>['AppField'],
         AppForm,
         ...(options.formComponents ?? {}),
-      }) as unknown as AppFormApi<T, TFields, TForms>
+      }) as unknown as AppFormApi<T, TFields, TForms, TSubmit>
     }, [form])
   }
 
@@ -134,19 +135,24 @@ export function createFormHook<
   return { useAppForm, withForm, withFieldGroup }
 }
 
-/** `useAppForm()` return value: the core form plus pre-bound `AppField` / `AppForm` / form components. */
+/**
+ * `useAppForm()` return value: the core form plus pre-bound `AppField` / `AppForm` / form components.
+ * `AppField` names are checked from the form root. Inside `<ArrayField>` / `<ObjectField>` names are relative to
+ * that scope, so use the scope's own `AppField` from `typed(form)` (`row.AppField`, `obj.AppField`), or a
+ * `withFieldGroup`.
+ */
 export type AppFormApi<
   T,
   TFields extends Record<string, ComponentType<any>>,
   TForms extends Record<string, ComponentType<any>>,
-> = FormEngine<T> & {
+  TSubmit = T,
+> = FormEngine<T, TSubmit> & {
   /** `<Field>` with the pre-bound components. Accepts the same field options (`rules`, `title`, …) as {@link UseFieldOptions}. */
-  AppField: <N extends FieldPath<T>>(props: {
-    name: N
-    children: (field: FieldBinding<PathValue<T, N & string>> & TFields) => ReactNode
-  } & UseFieldOptions) => ReactNode
+  AppField: TypedAppField<T, TFields>
   /** The native `<form>`. Enter / `type="submit"` run `form.submit(onSubmit)`; see {@link AppFormProps}. */
-  AppForm: (props: AppFormProps<T>) => ReactNode
+  AppForm: (props: AppFormProps<TSubmit>) => ReactNode
+  /** Type-only: the pre-bound field components, read by `typed(form)`. Never set at runtime. */
+  readonly '~appFields'?: TFields
 } & TForms
 
 /**
@@ -157,8 +163,5 @@ export type AppFormProps<T> = FormSubmitHandlers<T> & FormDomProps & { children?
 
 /** Field group handle. `name` is checked against the group value, not the whole form. */
 export type GroupApi<TGroup, TFields extends Record<string, ComponentType<any>>> = {
-  AppField: <N extends FieldPath<TGroup>>(props: {
-    name: N
-    children: (field: FieldBinding<PathValue<TGroup, N & string>> & TFields) => ReactNode
-  } & UseFieldOptions) => ReactNode
+  AppField: TypedAppField<TGroup, TFields>
 }

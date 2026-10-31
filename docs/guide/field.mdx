@@ -119,4 +119,16 @@ reaction 里读 `$componentProps` 看到的是「声明 + reaction」两层，JS
 
 `<Field>` 等于 `useField(name, options)` 加「不是 visible 就返回 null」，再渲染两个槽。不用组件时，纯函数 `mapFormItemProps(field, props)` 和 `mapFieldProps(field, props)` 给出同样的 `Form.Item` 和控件 props。在装饰器或控件内部读当前字段，用 `useCurrentField()`。完整签名见 [useField](/reference/react-hooks#usefield) 和 [适配层参考](/reference/antd-adapter)。
 
+## 字段名的类型检查
+
+`<Field name>` 从 React 上下文找表单，拿不到表单的值类型，所以 `name` 默认是任意字符串。要让拼错的名字编译不过，用 `typed(form)` 拿同一组组件的有类型版本：
+
+```tsx
+const F = typed(form)
+<F.Field name="email" decorator={[FormItem]} component={[Input]} />   // name="emial" 编译不过
+<F.ArrayField name="items">{(row) => <row.Field name="name" component={[Input]} />}</F.ArrayField>
+```
+
+名字始终相对当前作用域，`row.Field` 按一行的类型检查。见 [typed](/reference/react-hooks#typed)。
+
 下一步：[FormLayout](/guide/layout)，统一一组字段的布局。

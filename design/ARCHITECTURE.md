@@ -41,7 +41,7 @@ src/
     hooks/                 use-form、use-field、use-array（useArrayField / useArray）、use-row（useIndex / useRecord / useTreeNode）、
                            use-tree、use-watch、field-lifecycle（JSX lease）
     components/            fields.tsx（Form/Field/ObjectField/ArrayField/RowScope/TreeField/Watch）、virtual-rows.tsx
-    factory/               create-form-hook.tsx（createFormHook / createFormHookContexts）
+    factory/               create-form-hook.tsx（createFormHook / createFormHookContexts）、typed.tsx（typed(form)：按表单类型检查名字的同一组组件 / Hooks，类型随作用域）
   pro/                     无 UI 的高级 Hook（依赖 react / core）
     use-query-table.ts       查询表（请求、分页、选择；`rows` 把每页写进数组字段）
     use-array-table.ts       数组表格状态：分页切片 / 受控服务端页、选择、展开、行操作
