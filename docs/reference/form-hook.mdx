@@ -5,7 +5,7 @@ description: createFormHookContexts、createFormHook、useAppForm、AppField、A
 
 # 组件 Hook 工厂
 
-每个输入都重复 `value` / `onChange` / `onBlur` 时，用 `createFormHook` 预绑定一组组件。它用同一个引擎，是可选的复用层；只有几种输入时直接用 `<Field>` 或 `useField`。
+[快速开始](/guide/quick-start) 的 `useAntdForm` 就是这个工厂接上 antd 控件。自己的输入要反复写 `value` / `onChange` / `onBlur` 时，用 `createFormHook` 预绑定一次。它用同一个引擎，不另存一份值。显式的 `<Field>` 见 [快速开始 · 进阶](/guide/quick-start#进阶直接写-field)。
 
 从 `shikiform` 导入 `createFormHook` / `createFormHookContexts`。`useAppForm`、`withForm`、`withFieldGroup` 是工厂的返回值；`AppField` / `AppForm` 是表单实例上的组件，**不是单独的包导出**。
 

@@ -1,5 +1,60 @@
 # ShikiForm
 
+表单一复杂，字段何时必填、何时隐藏、隐藏后还交不交，容易散落在组件的 `if` 里。ShikiForm 把值、字段状态、校验和联动放进一个引擎：联动写成对 draft 上 `$` 状态的赋值，组件只负责渲染。
+
+文档站：<https://shikiform.pages.dev>（[快速开始](https://shikiform.pages.dev/guide/quick-start) · [核心概念](https://shikiform.pages.dev/guide/concepts) · [示例库](https://shikiform.pages.dev/examples) · [分步教程](https://shikiform.pages.dev/tutorial/)）
+
+## 安装
+
+还没有发布到 npm。克隆仓库后运行 `npm ci && npm run build:lib` 得到 `lib/`，再用 workspace 或 `file:` 依赖接进项目。
+
+| peer 依赖 | 版本 | 什么时候需要 |
+|---|---|---|
+| `react` / `react-dom` | `^18 \|\| ^19` | 用 React 层时 |
+| `antd` / `dayjs` | `^5` / `^1` | 只在用 `shikiform/antd` 时 |
+
+四个入口：`shikiform/core`（无 React 的引擎）、`shikiform`（React 与 `createFormHook`）、`shikiform/pro`（无 UI 的表格 / 查询 / 草稿）、`shikiform/antd`（控件与 `useAntdForm`）。
+
+## 第一张表单
+
+antd 用 `useAntdForm`。它是 `createFormHook` 接好的适配：`AppField` 按表单类型检查 `name`，`field.Input` 已经包了 `FormItem`。提交回调写在 `AppForm` 上；`AppForm` 自己就是 `<form>`，不要再套一层。
+
+```tsx
+import { useState } from 'react';
+import { Form as AntdForm } from 'antd';
+import { FormLayout, useAntdForm } from 'shikiform/antd';
+
+type Values = { name: string; email: string; age: number | null };
+
+export default function App() {
+  const [result, setResult] = useState('还没有提交');
+  const form = useAntdForm<Values>({ initialValues: { name: '', email: '', age: 18 } });
+  return (
+    <form.AppForm onSubmit={(values) => setResult(JSON.stringify(values))}>
+      <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }}>
+        <form.AppField name="name" title="姓名" required>
+          {(field) => <field.Input placeholder="Ada" />}
+        </form.AppField>
+        <form.AppField name="email" title="邮箱" required rules={{ format: 'email', message: '邮箱格式不对' }}>
+          {(field) => <field.Input />}
+        </form.AppField>
+        <form.AppField name="age" title="年龄" rules={{ min: 0, max: 150 }}>
+          {(field) => <field.InputNumber />}
+        </form.AppField>
+        <AntdForm.Item wrapperCol={{ offset: 4, span: 20 }}>
+          <form.Submit>提交</form.Submit>
+        </AntdForm.Item>
+      </FormLayout>
+      <pre aria-live="polite">{result}</pre>
+    </form.AppForm>
+  );
+}
+```
+
+这段和文档站[快速开始](https://shikiform.pages.dev/guide/quick-start)的第一例相同，`check:docs` 会把它和该页的 preview 一起做类型检查。不用 antd 时，用 `createFormHook` / `useAppForm` / `AppField` 预绑定自己的输入。要自己写 `decorator` 和 `component`，用 `<Field>`（`AppField` 内部就是它），见该页的进阶一节。
+
+## 开发这个仓库
+
 Hooks 是主 API，JSX 是其结构与渲染封装；draft 和 `$` 描述状态，`reaction` / `reaction.each` / `watch` 描述联动。文档站（https://shikiform.pages.dev）用 [VitePress](https://vitepress.dev/)。教程在浏览器里改代码。
 
 教程和库使用同一个 FormEngine：`src/core`、`src/react`、`src/pro`、`src/antd`，包入口在构建后的 `lib/`。没有替换核心行为的教学 store。

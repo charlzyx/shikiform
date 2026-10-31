@@ -68,6 +68,14 @@ describe('packed docs contract inputs', () => {
     expect(sources.find((source) => source.file.endsWith('/01-start.tsx'))?.sha256).toBe(createHash('sha256').update(app).digest('hex'))
   })
 
+  it('includes the README tsx sample when checking the real docs directory', () => {
+    const sources = JSON.parse(execFileSync(process.execPath, [script, '--list'], { encoding: 'utf8' })) as Array<{ source: string }>
+    expect(sources.some((source) => source.source.startsWith('README.md:'))).toBe(true)
+    const readme = sources.filter((source) => source.source.startsWith('README.md:'))
+    expect(readme).toHaveLength(1)
+    expect(readme[0].source).toMatch(/^README\.md:\d+$/)
+  })
+
   it('does not silently pass when the tutorial source directory is absent', () => {
     const root = fixture({ 'index.mdx': '# No tutorials' })
     const result = spawnSync(process.execPath, [script, '--docs-dir', root, '--list'], { encoding: 'utf8' })

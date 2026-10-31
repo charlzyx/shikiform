@@ -97,7 +97,7 @@ export default function App() {
 
 ## 预绑定：useAntdForm
 
-不想每个字段都写 `decorator` / `component`，可以用预绑定工厂。`useAntdForm` 返回普通引擎，外加 `AppForm`、`AppField`、`Submit`；`AppField` 的 render prop 带着 `field.Input`、`field.Select`、`field.DatePicker` 等，外面都包了 `FormItem`：
+[快速开始](/guide/quick-start) 用的就是这个工厂。`useAntdForm` 返回普通引擎，外加 `AppForm`、`AppField`、`Submit`；`field.Input`、`field.Select`、`field.DatePicker` 等是上面的 connect 控件包了 `FormItem`。上面各节的 `<Field decorator component>` 是同一套控件的显式写法：
 
 ```tsx
 const form = useAntdForm({ initialValues: { email: '' } })
@@ -107,6 +107,6 @@ const form = useAntdForm({ initialValues: { email: '' } })
 </form.AppForm>
 ```
 
-它和 `<Field decorator component>` 共用同一套控件和引擎，二选一即可。提交回调写在 `<form.AppForm onSubmit={save} onInvalid={…}>` 上，和 `<Form>` 一样。不要在 `AppForm` 里再套一个 `<form>`。细节见 [antd 参考](/reference/antd) 和 [`createFormHook`](/reference/form-hook)。
+提交回调写在 `<form.AppForm onSubmit={save} onInvalid={…}>` 上，和 `<Form>` 一样。不要在 `AppForm` 里再套一个 `<form>`。细节见 [antd 参考](/reference/antd) 和 [`createFormHook`](/reference/form-hook)。
 
 下一步：[联动](/guide/linkage)，让字段跟着别的字段变。

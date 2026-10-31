@@ -11,6 +11,7 @@ import remarkParse from 'remark-parse'
 import { visit } from 'unist-util-visit'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const repoDocs = path.join(root, 'docs')
 const args = process.argv.slice(2)
 function option(name, fallback) {
   const index = args.indexOf(name)
@@ -18,7 +19,7 @@ function option(name, fallback) {
   if (!args[index + 1] || args[index + 1].startsWith('--')) throw new Error(`Missing value for ${name}`)
   return path.resolve(args[index + 1])
 }
-const docs = option('--docs-dir', path.join(root, 'docs'))
+const docs = option('--docs-dir', repoDocs)
 const keepDir = option('--keep-dir', undefined)
 const listOnly = args.includes('--list')
 const supported = new Set(['--docs-dir', '--keep-dir', '--list'])
@@ -38,18 +39,26 @@ const sources = []
 for (const file of filesUnder(path.join(docs, 'tutorial', '_files')).filter((file) => file.endsWith('.tsx'))) {
   sources.push({ source: path.relative(docs, file), file: path.relative(docs, file), code: readFileSync(file, 'utf8'), kind: 'tutorial' })
 }
-for (const file of filesUnder(docs).filter((file) => file.endsWith('.mdx'))) {
-  const text = readFileSync(file, 'utf8')
+function pushCode(label, text, accept) {
   let index = 0
   visit(unified().use(remarkParse).parse(text), 'code', (node) => {
-    if (!['tsx', 'jsx'].includes(node.lang) || !/(?:^|\s)(preview|live)(?:\s|$)/.test(node.meta ?? '')) return
-    const relative = path.relative(docs, file)
+    if (!accept(node)) return
     sources.push({
-      source: `${relative}:${node.position.start.line}`,
-      file: path.join('inline', relative.replace(/\.mdx$/, ''), `example-${++index}.tsx`),
+      source: `${label}:${node.position.start.line}`,
+      file: path.join('inline', label.replace(/\.mdx?$/, ''), `example-${++index}.tsx`),
       code: `${node.value}\n`, kind: 'inline',
     })
   })
+}
+const isPreview = (node) => ['tsx', 'jsx'].includes(node.lang) && /(?:^|\s)(preview|live)(?:\s|$)/.test(node.meta ?? '')
+for (const file of filesUnder(docs).filter((file) => file.endsWith('.mdx'))) {
+  pushCode(path.relative(docs, file), readFileSync(file, 'utf8'), isPreview)
+}
+// The GitHub README is the user intro. Its ```tsx blocks are the same samples as the
+// quick-start previews; only the real docs dir is scanned, so fixture --docs-dir runs stay isolated.
+if (path.resolve(docs) === path.resolve(repoDocs)) {
+  const readme = path.join(root, 'README.md')
+  if (existsSync(readme)) pushCode('README.md', readFileSync(readme, 'utf8'), (node) => ['tsx', 'jsx'].includes(node.lang))
 }
 if (!sources.some((source) => source.kind === 'tutorial')) throw new Error('No tutorial TSX found; refusing an empty contract check')
 const manifest = sources.map(({ source, file, code, kind }) => ({ source, file, kind, sha256: createHash('sha256').update(code).digest('hex') }))
