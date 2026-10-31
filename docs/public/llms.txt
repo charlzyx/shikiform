@@ -104,7 +104,19 @@ const form = createForm({
 - Hooks are the complete API: `useField(name, options)`, `mapFieldProps(field, props)`, `mapFormItemProps(field, props)`,
   `useCurrentField()`. Components are thin sugar over them.
 
-## 6. Correct vs incorrect
+## 6. Submit and messages
+
+- `form.submit(onValid?)` never rejects. It resolves `{ ok: true, values }` or `{ ok: false, reason }`:
+  `'invalid'` (`errors`), `'error'` (`onValid` threw; `error`), `'superseded'` (values never settled; `message`).
+  Branch on `reason`, not on a message string. Two submits on unchanged values both succeed.
+- `<Form>` and `<form.AppForm>` take the same callbacks: `onSubmit(values)`, `onInvalid(errors)`,
+  `onSubmitError(error)` (default `console.error`); other props go to the native `<form>` (`id`, `className`, `noValidate`).
+  Enter, `type="submit"`, and `form.submit(onValid)` behave the same; do not add a second `<form>`.
+- Built-in messages default to Chinese. Override per form with `messages` (partial; functions get params:
+  `minLength: ({ minLength }) => …`), app-wide with `setDefaultMessages(enUS)`, per factory with
+  `createFormHook({ messages })`. A rule's own `message` wins.
+
+## 7. Correct vs incorrect
 
 ```ts
 // 1. Write a field by its path — never mutate a $value object

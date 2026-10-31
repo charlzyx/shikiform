@@ -116,7 +116,7 @@ describe('a throwing field validator settles every caller (#2)', () => {
       fields: { name: { rules: { validator: () => { throw new Error('sync boom') } } } },
     })
     await expect(form.validate('name')).resolves.toEqual([{ path: 'name', messages: ['sync boom'] }])
-    await expect(form.submit()).resolves.toEqual({ ok: false, errors: [{ path: 'name', messages: ['sync boom'] }] })
+    await expect(form.submit()).resolves.toEqual({ ok: false, reason: 'invalid', errors: [{ path: 'name', messages: ['sync boom'] }] })
     expect(form.validating).toBe(false)
     expect(form.submitting).toBe(false)
     await sleep(10)
@@ -153,7 +153,7 @@ describe('submit returns only values its pass validated (#6)', () => {
     await entered.promise
     form.setValue('name', 'invalid')
     held.open()
-    expect(await pending).toEqual({ ok: false, errors: [{ path: 'name', messages: ['invalid current name'] }] })
+    expect(await pending).toEqual({ ok: false, reason: 'invalid', errors: [{ path: 'name', messages: ['invalid current name'] }] })
     expect(onValid).not.toHaveBeenCalled()
   })
 
@@ -190,7 +190,7 @@ describe('submit returns only values its pass validated (#6)', () => {
         reaction((d) => { d.hasError.$value = d.$errors.length > 0 })
       })],
     })
-    expect(await form.submit()).toEqual({ ok: false, errors: [{ path: 'name', messages: ['必填'] }] })
+    expect(await form.submit()).toEqual({ ok: false, reason: 'invalid', errors: [{ path: 'name', messages: ['必填'] }] })
     form.setValue('name', 'ok')
     expect(await form.submit()).toEqual({ ok: true, values: { name: 'ok', hasError: false } })
   })
@@ -205,7 +205,7 @@ describe('submit returns only values its pass validated (#6)', () => {
         return {}
       },
     })
-    expect(await form.submit()).toEqual({ ok: false, errors: [{ path: '', messages: ['表单或校验已更新，请重新提交'] }] })
+    expect(await form.submit()).toEqual({ ok: false, reason: 'superseded', errors: [], message: '表单或校验已更新，请重新提交' })
     expect(calls).toBe(3)
     expect(form.submitting).toBe(false)
   })
@@ -307,7 +307,7 @@ describe('an aborted async validator leaves the in-flight set', () => {
     expect(settled).toBe(false)
     expect(calls).toBeGreaterThan(1)
     live.open()
-    expect(await withTimeout(pending)).toEqual({ ok: false, errors: [{ path: 'name', messages: ['仍要等'] }] })
+    expect(await withTimeout(pending)).toEqual({ ok: false, reason: 'invalid', errors: [{ path: 'name', messages: ['仍要等'] }] })
     expect(form.submitting).toBe(false)
     await withTimeout(first)
   })
@@ -470,7 +470,7 @@ describe('an aborted async validator leaves the in-flight set', () => {
     expect(settled).toBe(false)
     expect(form.binding('name').validating).toBe(true)
     pendingResult.open()
-    expect(await pending).toEqual({ ok: false, errors: [{ path: 'name', messages: ['异步错误'] }] })
+    expect(await pending).toEqual({ ok: false, reason: 'invalid', errors: [{ path: 'name', messages: ['异步错误'] }] })
     expect(form.validating).toBe(false)
     expect(form.submitting).toBe(false)
     const again = form.submit()

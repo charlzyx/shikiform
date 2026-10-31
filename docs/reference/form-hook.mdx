@@ -49,6 +49,7 @@ createFormHook<
   formComponents?: TForms
   fieldContext: React.Context<FieldBinding<any> | null>
   formContext: React.Context<FormEngine<any> | null>
+  messages?: Partial<FormMessages>
 }): { useAppForm, withForm, withFieldGroup }
 ```
 
@@ -58,6 +59,7 @@ createFormHook<
 | `formComponents` | 可选，未传则无额外组件 | 如 `{ Save }`；成为表单实例的 `form.Save` |
 | `fieldContext` | 必填 | 传入 `createFormHookContexts()` 创建的 context |
 | `formContext` | 必填 | 传入同一套 contexts 的 form context |
+| `messages` | 可选 | 内置文案覆盖，作用于这个工厂的每个 `useAppForm()`；表单自己的 `messages` 同名 key 优先，见 [内置文案](/guide/validation#内置文案) |
 
 组件类型通常由对象字面量推断，不用手写 `TFields` / `TForms`。自定义组件名称不要覆盖 `value`、`onChange`、`AppField`、`submit` 等绑定/引擎成员；组件会按名字合并到返回对象，而不是放进独立命名空间。
 
@@ -112,12 +114,17 @@ AppField 复用普通 Field 的订阅与显示路径。`hidden` 不渲染子 UI�
 ## AppForm
 
 ```ts
-form.AppForm(props: { children?: React.ReactNode }): React.ReactNode
+form.AppForm(props: AppFormProps<T>): React.ReactNode
+
+type AppFormProps<T> = {
+  children?: React.ReactNode
+  onSubmit?: (values: T) => void | Promise<void>   // 通过校验后调用
+  onInvalid?: (errors: FieldError[]) => void        // 校验失败
+  onSubmitError?: (error: unknown) => void          // onSubmit 抛错；不传则 console.error
+} & Omit<React.FormHTMLAttributes<HTMLFormElement>, 'onSubmit' | 'onInvalid' | 'children'>
 ```
 
-提供通用 Form context、工厂 form context 和一个原生 `<form>`。submit 时阻止默认页面跳转，调用 `form.submit()` 校验/提交，不创建 antd 的 Form store。
-
-当前没有 `onSubmit`、`onFinish`、`initialValues` 或任意 DOM props 的透传；不要给 `<form.AppForm>` 写这些属性。要拿到提交值，调用 `form.submit(onValid)`，或者不用 `AppForm`，把 `AppField` 包在 shikiform 的 `<Form form={form} onSubmit>` 里。`AppForm` 自己已经渲染了 `<form>`，不要再套一层。它没有自动请求后端的行为。
+提供通用 Form context、工厂 form context 和一个原生 `<form>`，回调与 `<Form>` 相同。回车、`type="submit"` 按钮、外部 `<button form={id}>` 都走 `form.submit(onSubmit)`，结果分给 `onInvalid` / `onSubmitError`，与手动 `form.submit(onValid)` 一致。其余属性（`id`、`className`、`noValidate`、`aria-*`）透传给 `<form>`；`onInvalid` 是 shikiform 的校验失败回调，不是 DOM 的 `invalid` 事件。不创建 antd 的 Form store，`AppForm` 自己已经渲染了 `<form>`，不要再套一层。
 
 ## withForm
 
@@ -152,7 +159,7 @@ withFieldGroup<TGroup, P extends object = {}>(config: {
 
 ## 完整例子：把输入、保存按钮和地址片段封装一次
 
-本例只有一份 `Profile` 数据。`TextInput` 负责 UI 接线，`AddressFields` 负责相对路径，`Save` 显式传成功回调。点击“保存”才更新下方 JSON；AppForm 的原生 Enter 提交本身只调用 `form.submit()`，不等同这个保存回调。
+本例只有一份 `Profile` 数据。`TextInput` 负责 UI 接线，`AddressFields` 负责相对路径，`Save` 显式传成功回调。点击“保存”才更新下方 JSON；需要回车也保存时，把同一个回调传给 `<form.AppForm onSubmit>`。
 
 ```tsx preview
 import { useState } from 'react';

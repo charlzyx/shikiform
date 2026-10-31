@@ -48,6 +48,7 @@ createForm<T>(options?: FormOptions<T>): FormEngine<T>  // 组件外
 | `enumPolicy` | `'none'` | 值不在 `$enum` 里时：`'clear'` 清掉，`'error'` 报错 |
 | `trees` | — | `{ [path]: { childrenKey?, rowKey? } }`：让联动在挂载前就认识树根 |
 | `resolver` | — | 额外的 path → 文案校验函数 |
+| `messages` | 中文 | 覆盖内置文案（必填、格式、长度、枚举越界、兜底、提交重试），可部分覆盖，值可以是函数，见 [内置文案](/guide/validation#内置文案) |
 
 ### 读写和提交
 
@@ -58,7 +59,7 @@ createForm<T>(options?: FormOptions<T>): FormEngine<T>  // 组件外
 | `pushArray` / `insertArray` / `removeArray` / `moveArray` / `swapArray` / `replaceArray` | 数组行操作，字段状态跟着 `rowKey` 走 |
 | `moveTree(path, from, to)` | 移动树节点到最终坐标，拒绝移进自己的子孙，返回 `{ ok, reason? }` |
 | `validate(path?)` | 校验全表或一棵子树 → `Promise<FieldError[]>` |
-| `submit(onValid?)` | 等异步规则、校验，通过才调用 `onValid` → `{ ok: true, values } \| { ok: false, errors }` |
+| `submit(onValid?)` | 等异步规则、校验，通过才调用 `onValid` → `SubmitResult`：`{ ok: true, values }`，或 `ok: false` 带 `reason`：`'invalid'`（`errors`）/ `'error'`（`onValid` 抛错，`error`）/ `'superseded'`（值一直在变，`message`）。从不 reject |
 | `getSubmitValues()` | 去掉 `virtual: true` 和 `display: 'none'` 后的值。reaction 写过的字段默认留下 |
 | `reset(path?)` | 恢复初始值（全表或子树），计算字段重新算 |
 
@@ -68,7 +69,7 @@ createForm<T>(options?: FormOptions<T>): FormEngine<T>  // 组件外
 
 | 组件 | 说明 |
 |---|---|
-| `<Form form onSubmit>` | 提供引擎，渲染原生 `<form>`，提交时调用 `form.submit(onSubmit)` |
+| `<Form form onSubmit onInvalid onSubmitError …>` | 提供引擎，渲染原生 `<form>`，提交时调用 `form.submit(onSubmit)`；校验失败调 `onInvalid(errors)`，`onSubmit` 抛错调 `onSubmitError(error)`（不传则 `console.error`）；其余属性（`id`、`className`、`noValidate`、`aria-*`）透传给 `<form>` |
 | `<Field name …>` | 拥有一个 path，渲染 decorator + component，属性见 [Field](/guide/field) |
 | `<ObjectField name virtual?>` | 对象作用域 |
 | `<ArrayField name rowKey?>{({ index, key }) => …}` | 每行一个作用域；父组件只订阅结构 |

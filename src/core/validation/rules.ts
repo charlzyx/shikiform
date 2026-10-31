@@ -1,4 +1,5 @@
 import type { EnumOption } from '../enum/enum-source'
+import { formatMessage, type FormMessages } from './messages'
 import { isStandardSchema, schemaIssuePath, type SchemaIssue, type StandardSchemaV1 } from './schema'
 
 /** Cross-field context. `record` is the nearest object. `parent` skips the enclosing array. */
@@ -20,7 +21,7 @@ export interface ValidateCtx {
 export type RuleMessage = string | null | undefined | Promise<string | null | undefined>
 
 export interface Rule {
-  /** Empty values fail. The default message is `必填` unless `message` is set. */
+  /** Empty values fail. The default message is `messages.required` (`必填`) unless `message` is set. */
   required?: boolean
   /** Inclusive lower bound for a number. */
   min?: number
@@ -36,7 +37,7 @@ export interface Rule {
   format?: 'email' | 'url'
   /** Value must be `true` (a checkbox). */
   isTrue?: boolean
-  /** Overrides the default message for this rule. */
+  /** Overrides the default message (form `messages` / app defaults) for every check on this rule. */
   message?: string
   /**
    * Standard Schema validated against this field's value.
@@ -84,35 +85,43 @@ export function isEmpty(value: unknown): boolean {
 /**
  * Run synchronous rules. Async validators are returned separately so the caller
  * can drop a stale resolution when a newer pass has started.
+ * Default messages come from `messages` (the form's overrides) and then the app defaults; `rule.message` wins.
  */
 export function runRules(
   value: unknown,
   rules: readonly Rule[],
   ctx: ValidateCtx,
   required: boolean,
+  messages?: Partial<FormMessages>,
 ): { messages: string[]; pending: Promise<string | null | undefined>[] } {
-  const messages: string[] = []
+  const out: string[] = []
   const pending: Promise<string | null | undefined>[] = []
+  const base = { path: ctx.path, value }
   if ((required || rules.some((r) => r.required)) && isEmpty(value)) {
-    messages.push(rules.find((r) => r.required)?.message ?? '必填')
+    out.push(rules.find((r) => r.required)?.message ?? formatMessage(messages, 'required', base))
   }
   for (const rule of rules) {
     // `required` is reported above. Other constraints on the same rule still run.
-    if (rule.isTrue && value !== true) messages.push(rule.message ?? '必须勾选')
+    if (rule.isTrue && value !== true) out.push(rule.message ?? formatMessage(messages, 'isTrue', base))
     if (!isEmpty(value) && rule.format === 'email' && (typeof value !== 'string' || !EMAIL.test(value))) {
-      messages.push(rule.message ?? '邮箱格式不对')
+      out.push(rule.message ?? formatMessage(messages, 'email', base))
     }
     if (!isEmpty(value) && rule.format === 'url' && (typeof value !== 'string' || !URL.test(value))) {
-      messages.push(rule.message ?? 'URL 格式不对')
+      out.push(rule.message ?? formatMessage(messages, 'url', base))
     }
     if (typeof value === 'string') {
-      if (rule.minLength != null && value.length < rule.minLength) messages.push(rule.message ?? `至少 ${rule.minLength} 个字符`)
-      if (rule.maxLength != null && value.length > rule.maxLength) messages.push(rule.message ?? `最多 ${rule.maxLength} 个字符`)
-      if (rule.pattern && !rule.pattern.test(value)) messages.push(rule.message ?? '格式不对')
+      const length = value.length
+      if (rule.minLength != null && length < rule.minLength) {
+        out.push(rule.message ?? formatMessage(messages, 'minLength', { ...base, minLength: rule.minLength, length }))
+      }
+      if (rule.maxLength != null && length > rule.maxLength) {
+        out.push(rule.message ?? formatMessage(messages, 'maxLength', { ...base, maxLength: rule.maxLength, length }))
+      }
+      if (rule.pattern && !rule.pattern.test(value)) out.push(rule.message ?? formatMessage(messages, 'pattern', { ...base, pattern: rule.pattern }))
     }
     if (typeof value === 'number') {
-      if (rule.min != null && value < rule.min) messages.push(rule.message ?? `不能小于 ${rule.min}`)
-      if (rule.max != null && value > rule.max) messages.push(rule.message ?? `不能大于 ${rule.max}`)
+      if (rule.min != null && value < rule.min) out.push(rule.message ?? formatMessage(messages, 'min', { ...base, min: rule.min }))
+      if (rule.max != null && value > rule.max) out.push(rule.message ?? formatMessage(messages, 'max', { ...base, max: rule.max }))
     }
     if (rule.validator) {
       // A synchronous throw is that rule's message, like a rejection (#2, #7): a pass never rejects on a field rule.
@@ -120,14 +129,14 @@ export function runRules(
       try {
         result = rule.validator(value, ctx)
       } catch (err) {
-        messages.push(err instanceof Error && err.message ? err.message : '校验失败')
+        out.push(err instanceof Error && err.message ? err.message : formatMessage(messages, 'fallback', { ...base, error: err }))
         continue
       }
       if (result && typeof (result as Promise<unknown>).then === 'function') pending.push(result as Promise<string | null | undefined>)
-      else if (typeof result === 'string' && result) messages.push(result)
+      else if (typeof result === 'string' && result) out.push(result)
     }
   }
-  return { messages, pending }
+  return { messages: out, pending }
 }
 
 export function optionIncludes(options: readonly EnumOption[] | undefined, value: unknown): boolean {

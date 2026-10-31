@@ -43,7 +43,7 @@ describe('submit validates the values it returns (#6)', () => {
       held.open()
       const result = await pending
       // The edit is validated by a second pass; its real error comes back, not a retry message.
-      expect(result).toEqual({ ok: false, errors: [{ path: 'name', messages: ['invalid current name'] }] })
+      expect(result).toEqual({ ok: false, reason: 'invalid', errors: [{ path: 'name', messages: ['invalid current name'] }] })
       expect(onValid).not.toHaveBeenCalled()
       expect(form.submitting).toBe(false)
       expect(form.validating).toBe(false)
@@ -73,9 +73,10 @@ describe('submit validates the values it returns (#6)', () => {
     const newer = form.validate()
     await entered[1]!.promise
     held[0]!.open()
-    expect((await pending).ok).toBe(false)
-    expect(onValid).not.toHaveBeenCalled()
     held[1]!.open()
+    // The superseded submit adopts the newer pass's verdict on the same values (#41): its error, not a retry.
+    expect(await pending).toEqual({ ok: false, reason: 'invalid', errors: [{ path: 'name', messages: ['new validation error'] }] })
+    expect(onValid).not.toHaveBeenCalled()
     expect(await newer).toEqual([{ path: 'name', messages: ['new validation error'] }])
     expect(calls).toBe(2)
   })
@@ -108,7 +109,7 @@ describe('submit validates the values it returns (#6)', () => {
     })
   }
 
-  it('detects validation reentered synchronously from a notification', async () => {
+  it('adopts a validation reentered synchronously from a notification on the same values (#41)', async () => {
     const form = createForm({ initialValues: { name: 'valid' }, validate: async () => ({}) })
     let newer: Promise<unknown> | undefined
     let reentered = false
@@ -119,16 +120,16 @@ describe('submit validates the values it returns (#6)', () => {
     })
     const onValid = vi.fn()
     try {
-      expect((await form.submit(onValid)).ok).toBe(false)
+      expect(await form.submit(onValid)).toEqual({ ok: true, values: { name: 'valid' } })
       await newer
       expect(reentered).toBe(true)
-      expect(onValid).not.toHaveBeenCalled()
+      expect(onValid).toHaveBeenCalledExactlyOnceWith({ name: 'valid' })
     } finally {
       unsubscribe()
     }
   })
 
-  it('settles concurrent submissions without retry loops or accepting the older pass', async () => {
+  it('settles concurrent submissions on unchanged values with the newer pass verdict, both ok (#41)', async () => {
     const entered = [gate(), gate()]
     const held = [gate(), gate()]
     let calls = 0
@@ -148,12 +149,15 @@ describe('submit validates the values it returns (#6)', () => {
     const second = form.submit(secondCallback)
     await entered[1]!.promise
     held[0]!.open()
-    expect((await first).ok).toBe(false)
+    // The first pass is superseded: it waits for the newer pass instead of failing with a retry.
+    await Promise.resolve()
+    expect(firstCallback).not.toHaveBeenCalled()
     expect(form.submitting).toBe(true)
     held[1]!.open()
+    expect(await first).toEqual({ ok: true, values: { name: 'valid' } })
     expect(await second).toEqual({ ok: true, values: { name: 'valid' } })
     expect(calls).toBe(2)
-    expect(firstCallback).not.toHaveBeenCalled()
+    expect(firstCallback).toHaveBeenCalledExactlyOnceWith({ name: 'valid' })
     expect(secondCallback).toHaveBeenCalledExactlyOnceWith({ name: 'valid' })
     expect(form.submitting).toBe(false)
   })
