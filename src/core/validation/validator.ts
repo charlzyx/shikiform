@@ -26,7 +26,9 @@ export interface ValidatorDeps {
  * A pass is generation-stamped (`validateGen`); only the newest pass commits form-level issues.
  * A pass reads ONE immutable snapshot of `store.values` (writes replace the object), taken after `prepare`:
  * every field rule (value, ctx.record/root/parent/array/get) and the form-level schema / resolver see it (#1).
- * A field's async result is stamped with `asyncSeq` and its `AbortController`; a newer edit drops it.
+ * A field's async result is stamped with `asyncSeq` and its `AbortController`; a newer edit aborts it.
+ * Abort removes that attempt from {@link Validator.inflight} immediately, so `waitAsync` / `submit` do not
+ * wait for a validator that only clears a timer. A later resolve or reject does not write field errors.
  * A throwing field rule (sync throw or rejection, validator or schema) becomes that field's message (#2, #7).
  */
 export class Validator {
@@ -34,6 +36,7 @@ export class Validator {
   schemaByPath = new Map<string, string[]>()
   /** Bumped at the start of each {@link Validator.validate}. Only the latest pass may commit. */
   validateGen = 0
+  /** Attempts `waitAsync` still has to finish. Aborted attempts are removed in the abort listener. */
   private inflight = new Set<Promise<unknown>>()
   private validateTimers = new Map<string, ReturnType<typeof setTimeout>>()
   /** Runs before every pass. The engine expands item templates here. */
@@ -222,33 +225,45 @@ export class Validator {
     field.validating = true
     notifier.bumpPath(path)
     scheduler.bumpMeta()
+    const stale = () => ({ stale: true as const, issues: [] as SchemaIssue[] })
     const task = (async () => {
+      // A validator we stop awaiting (abort mid-list) must not reject unhandled.
+      for (const item of pending) ignoreRejection(item)
+      for (const item of schemaPending) ignoreRejection(item)
       const extra: string[] = []
       for (const item of pending) {
-        try {
-          const message = await item
-          if (field.asyncSeq !== seq || ac.signal.aborted) return { stale: true as const, issues: [] as SchemaIssue[] }
-          if (message) extra.push(message)
-        } catch (err) {
-          if (field.asyncSeq !== seq || ac.signal.aborted) return { stale: true as const, issues: [] as SchemaIssue[] }
-          extra.push(errorMessage(err))
-        }
+        const outcome = await settleUnlessAborted(item, ac.signal)
+        if (outcome.status === 'aborted' || field.asyncSeq !== seq || ac.signal.aborted) return stale()
+        if (outcome.status === 'rejected') extra.push(errorMessage(outcome.reason))
+        else if (outcome.value) extra.push(outcome.value)
       }
       for (const item of schemaPending) {
-        try {
-          const schemaIssues = await item
-          if (field.asyncSeq !== seq || ac.signal.aborted) return { stale: true as const, issues: [] as SchemaIssue[] }
-          issues.push(...schemaIssues)
-        } catch (err) {
-          if (field.asyncSeq !== seq || ac.signal.aborted) return { stale: true as const, issues: [] as SchemaIssue[] }
-          issues.push({ path, message: errorMessage(err) })
-        }
+        const outcome = await settleUnlessAborted(item, ac.signal)
+        if (outcome.status === 'aborted' || field.asyncSeq !== seq || ac.signal.aborted) return stale()
+        if (outcome.status === 'rejected') issues.push({ path, message: errorMessage(outcome.reason) })
+        else issues.push(...outcome.value)
       }
       return apply(extra)
     })()
-    this.inflight.add(task)
-    void task.finally(() => this.inflight.delete(task))
+    this.trackInflight(task, ac.signal)
     return task
+  }
+
+  /**
+   * `waitAsync` waits on this set. Abort drops the attempt before its promise settles, so a validator
+   * that never resolves after `signal` aborts cannot pin `submit`.
+   */
+  private trackInflight(task: Promise<unknown>, signal: AbortSignal): void {
+    if (signal.aborted) return
+    this.inflight.add(task)
+    const drop = () => {
+      this.inflight.delete(task)
+    }
+    signal.addEventListener('abort', drop, { once: true })
+    void task.finally(() => {
+      signal.removeEventListener('abort', drop)
+      this.inflight.delete(task)
+    })
   }
 
   /**
@@ -285,7 +300,7 @@ export class Validator {
     })
   }
 
-  /** Cancel debounce timers and wait until no field validator is in flight. */
+  /** Cancel debounce timers and wait until no field validator is in flight. Aborted attempts are already gone. */
   async waitAsync(): Promise<void> {
     for (const timer of this.validateTimers.values()) clearTimeout(timer)
     this.validateTimers.clear()
@@ -472,4 +487,46 @@ function errorMessage(err: unknown): string {
 
 function isPromise(value: unknown): value is Promise<unknown> {
   return !!value && typeof (value as Promise<unknown>).then === 'function'
+}
+
+type Settled<T> =
+  | { status: 'fulfilled'; value: T }
+  | { status: 'rejected'; reason: unknown }
+  | { status: 'aborted' }
+
+/**
+ * Wait for `promise` unless `signal` aborts first. After abort, a later resolve or reject is ignored.
+ * The promise's rejection is always observed, so dropping it cannot become an unhandled rejection.
+ */
+function settleUnlessAborted<T>(promise: Promise<T>, signal: AbortSignal): Promise<Settled<T>> {
+  if (signal.aborted) return Promise.resolve({ status: 'aborted' })
+  return new Promise((resolve) => {
+    let settled = false
+    const onAbort = () => {
+      if (settled) return
+      settled = true
+      signal.removeEventListener('abort', onAbort)
+      resolve({ status: 'aborted' })
+    }
+    signal.addEventListener('abort', onAbort)
+    promise.then(
+      (value) => {
+        if (settled) return
+        settled = true
+        signal.removeEventListener('abort', onAbort)
+        resolve({ status: 'fulfilled', value })
+      },
+      (reason) => {
+        if (settled) return
+        settled = true
+        signal.removeEventListener('abort', onAbort)
+        resolve({ status: 'rejected', reason })
+      },
+    )
+  })
+}
+
+/** Observe a rejection and drop the reason. Used for attempts abandoned before they are awaited. */
+function ignoreRejection(promise: Promise<unknown>): void {
+  void promise.then(() => {}, () => {})
 }
