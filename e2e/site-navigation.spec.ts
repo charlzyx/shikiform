@@ -42,7 +42,7 @@ for (const [label, route, heading] of [
     await page.reload()
     await expect(content).toBeVisible()
     await page.goBack()
-    await expect(page.getByRole('heading', { name: '示例库', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: '示例库', exact: true, level: 1 })).toBeVisible()
     expect(errors).toEqual([])
   })
 }

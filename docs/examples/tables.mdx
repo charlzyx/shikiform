@@ -1,0 +1,201 @@
+---
+title: 表格与查询
+description: 带联动条件的查询表、不依赖 antd 的同一个查询 Hook、抽屉里编辑表格行。
+---
+
+# 表格与查询
+
+## 查询表
+
+场景：日志查询页。条件超过一行时折叠（折叠不丢值），「供应商」决定「模型」的选项，表头还能按状态筛选；新的查询回到第 1 页，翻页保留勾选。
+
+```tsx preview play=query
+import { useState } from 'react';
+import { Button } from 'antd';
+import { Field, defineEffects } from 'shikiform';
+import { useQueryTable } from 'shikiform/pro';
+import { FormItem, FormLayout, Input, ProQueryTable, QueryForm, Select } from 'shikiform/antd';
+
+type Log = { id: string; keyword: string; provider: string; model: string; status: string };
+type Values = { keyword: string; provider: string; model: string; user: string };
+
+const LOGS: Log[] = Array.from({ length: 12 }, (_, i) => ({
+  id: String(i + 1), keyword: `${i % 2 ? 'beta' : 'alpha'}-${i + 1}`,
+  provider: i % 2 ? 'anthropic' : 'openai', model: i % 2 ? 'claude' : 'gpt', status: i % 3 ? 'ok' : 'error',
+}));
+const MODELS: Record<string, string[]> = { openai: ['gpt'], anthropic: ['claude'], '': ['gpt', 'claude'] };
+const options = (values: string[]) => values.map((value) => ({ label: value, value }));
+
+const effects = defineEffects<Values>(({ reaction, watch }) => {
+  reaction((d) => {
+    d.model.$enum = options(MODELS[d.provider.$value] ?? []);
+  });
+  watch((d) => d.provider.$value, (d) => {
+    if (!(MODELS[d.provider.$value] ?? []).includes(d.model.$value)) d.model.$value = '';
+  });
+});
+
+export default function App() {
+  const [collapsed, setCollapsed] = useState(true);
+  const table = useQueryTable({
+    initialValues: { keyword: '', provider: '', model: '', user: '' } as Values,
+    fields: { provider: { enum: options(['openai', 'anthropic']) } },
+    effects: [effects],
+    defaultPageSize: 5,
+    params: (values: Values) => values,
+    request: async ({ params, page, pageSize, filters }) => {
+      const rows = LOGS.filter((row) =>
+        (!params.keyword || row.keyword.includes(params.keyword)) &&
+        (!params.provider || row.provider === params.provider) &&
+        (!params.model || row.model === params.model) &&
+        (!params.user || row.id === params.user) &&
+        (!filters.status || filters.status.includes(row.status)));
+      return { data: rows.slice((page - 1) * pageSize, page * pageSize), total: rows.length };
+    },
+  });
+  return (
+    <ProQueryTable
+      table={table}
+      search={
+        <FormLayout layout="vertical">
+          <QueryForm collapsed={collapsed} collapseAfter={3}>
+            <Field name="keyword" title="关键字" decorator={[FormItem]} component={[Input]} />
+            <Field name="provider" title="供应商" decorator={[FormItem]} component={[Select, { allowClear: true }]} />
+            <Field name="model" title="模型" decorator={[FormItem]} component={[Select, { allowClear: true }]} />
+            <Field name="user" title="用户 ID" decorator={[FormItem]} component={[Input]} />
+          </QueryForm>
+        </FormLayout>
+      }
+      toolbar={<Button type="link" onClick={() => setCollapsed(!collapsed)}>{collapsed ? '展开条件' : '收起条件'}</Button>}
+      columns={[
+        { title: '关键字', dataIndex: 'keyword' },
+        { title: '供应商', dataIndex: 'provider' },
+        { title: '模型', dataIndex: 'model' },
+        { title: '状态', key: 'status', dataIndex: 'status', filters: [{ text: '成功', value: 'ok' }, { text: '失败', value: 'error' }] },
+      ]}
+    />
+  );
+}
+```
+
+- `useQueryTable`（`shikiform/pro`）管条件、分页、勾选、表头筛选和请求竞态；`ProQueryTable` 只负责摆放。它的 `form` 是普通引擎，所以条件之间照常写 `reaction` / `watch`。
+- `QueryForm` 折叠时只是隐藏多出来的格子，不卸载字段，值不丢。
+- 表头筛选随请求发给 `request` 的 `filters`，并回到第 1 页、清空勾选；只翻页时勾选保留。见 [查询 Hooks](/reference/query-hooks)。
+
+## 不用 antd 的查询表
+
+场景：同一个查询 Hook，换成原生 HTML。
+
+```tsx preview play=query-native
+import { Field, Form } from 'shikiform';
+import { useQueryTable } from 'shikiform/pro';
+
+type Log = { id: string; keyword: string };
+const LOGS: Log[] = Array.from({ length: 12 }, (_, i) => ({ id: String(i + 1), keyword: `${i % 2 ? 'beta' : 'alpha'}-${i + 1}` }));
+
+export default function App() {
+  const table = useQueryTable({
+    initialValues: { keyword: '' },
+    defaultPageSize: 5,
+    params: (values: { keyword: string }) => values,
+    request: async ({ params, page, pageSize }) => {
+      const rows = LOGS.filter((row) => row.keyword.includes(params.keyword));
+      return { data: rows.slice((page - 1) * pageSize, page * pageSize), total: rows.length };
+    },
+  });
+  const pages = Math.max(1, Math.ceil(table.total / table.pageSize));
+  const toggle = (id: string, on: boolean) =>
+    table.setSelectedKeys(on ? [...table.selectedKeys, id] : table.selectedKeys.filter((key) => key !== id));
+  return (
+    <Form form={table.form} onSubmit={() => table.submit()}>
+      <Field name="keyword">
+        {(field) => <input aria-label="关键字" placeholder="alpha" value={field.value} onChange={(event) => field.onChange(event.target.value)} />}
+      </Field>{' '}
+      <button type="submit">查询</button> <button type="button" onClick={table.reset}>重置</button>{' '}
+      <button type="button" onClick={table.refresh}>刷新</button>
+      <table>
+        <tbody>
+          {table.data.map((row) => (
+            <tr key={row.id}>
+              <td><input type="checkbox" aria-label={`选择 ${row.id}`} checked={table.selectedKeys.includes(row.id)} onChange={(event) => toggle(row.id, event.target.checked)} /></td>
+              <td>{row.keyword}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <button type="button" disabled={table.page <= 1} onClick={() => table.onPageChange(table.page - 1)}>上一页</button>
+      <span> {table.page} / {pages} · 已选 {table.selectedKeys.length} {table.loading ? '· 加载中' : ''} </span>
+      <button type="button" disabled={table.page >= pages} onClick={() => table.onPageChange(table.page + 1)}>下一页</button>
+    </Form>
+  );
+}
+```
+
+- Hook 返回的是状态和动作（`data`、`total`、`page`、`selectedKeys`、`submit`、`onPageChange` …），没有任何 UI 假设。
+- `<Form form={table.form} onSubmit={() => table.submit()}>`：回车也是一次新查询。
+
+## 抽屉里编辑一行
+
+场景：表格只读展示，点「编辑」在抽屉里改一行；取消不写回，确定按 id 写回原行。
+
+```tsx preview play=row-edit
+import { Button, Drawer, Table } from 'antd';
+import { Field, Form, ObjectField, Watch, useForm, type Draft } from 'shikiform';
+import { FormItem, Input, InputNumber } from 'shikiform/antd';
+
+type Row = { id: string; name: string; price: number };
+type Values = { rows: Row[]; editor: Row & { open: boolean } };
+
+export default function App() {
+  const form = useForm<Values>({
+    initialValues: {
+      rows: [{ id: 'a', name: '钢笔', price: 12 }, { id: 'b', name: '墨水', price: 8 }],
+      editor: { open: false, id: '', name: '', price: 0 },
+    },
+    fields: { editor: { virtual: true } }, // 编辑区不进提交结果
+  });
+  const open = (row: Row) => form.setValue('editor', { ...row, open: true });
+  const close = () => form.setValue('editor.open', false);
+  const save = async () => {
+    if ((await form.validate('editor')).length) return;
+    const { id, name, price } = form.getValue('editor');
+    const index = form.getValue('rows').findIndex((row) => row.id === id);
+    form.batch((d) => {
+      d.rows[index].name.$value = name;
+      d.rows[index].price.$value = price;
+      d.editor.open.$value = false;
+    });
+  };
+  return (
+    <Form form={form} onSubmit={(values) => alert(JSON.stringify(values))}>
+      <Watch select={(d: Draft<Values>) => d.rows.$value}>
+        {(rows) => (
+          <Table<Row> rowKey="id" pagination={false} dataSource={rows} columns={[
+            { title: '名称', dataIndex: 'name' },
+            { title: '价格', dataIndex: 'price' },
+            { title: '操作', render: (_, row) => <Button type="link" onClick={() => open(row)}>编辑</Button> },
+          ]} />
+        )}
+      </Watch>
+      <Watch select={(d: Draft<Values>) => d.editor.open.$value}>
+        {(visible) => (
+          <Drawer title="编辑" open={visible} onClose={close} destroyOnHidden
+            extra={<><Button onClick={close}>取消</Button> <Button type="primary" onClick={save}>确定</Button></>}>
+            <ObjectField name="editor">
+              <Field name="name" title="名称" required decorator={[FormItem]} component={[Input]} />
+              <Field name="price" title="价格" decorator={[FormItem]} component={[InputNumber, { min: 0 }]} />
+            </ObjectField>
+          </Drawer>
+        )}
+      </Watch>
+      <Button htmlType="submit" style={{ marginTop: 12 }}>提交（看 editor 不在结果里）</Button>
+    </Form>
+  );
+}
+```
+
+- 编辑区是同一个引擎里的一个 `virtual` 对象：参与校验（`form.validate('editor')` 只查这棵子树），不进提交结果。
+- 写回用 `form.batch` 按 path 写到原行，一轮联动、一次通知。
+- 只有一个编辑器、要打开就拷贝、确认才写回，这正是 [影子草稿](/examples/pro#影子表单的几种容器) 的形状；需要独立引擎、弹窗 / 抽屉容器时用 `ShadowModal` / `useArrayShadow`。完整版还演示了异步加载和「旧请求不能覆盖新打开的行」。
+
+下一组：[Pro 组件](/examples/pro)。
