@@ -79,7 +79,7 @@ core 内部（有状态部分，编号小者在下）：
 | 下层 | 注入的上层能力 | 注入方 |
 |---|---|---|
 | `FieldStore.onCreate` | 复活休眠声明（`Declarations`） | `Declarations` 构造时 |
-| `FieldStore.onDrop` / `onRestructure` | 数组 / 树操作丢弃的模型里有精确声明时转为休眠，结构写入后父值存在即复活（#8） | `Declarations` 构造时 |
+| `FieldStore.onReindex` / `onRestructure` | 精确声明按路径：数组 / 树操作丢弃或移走的模型身上的精确声明停在原路径（休眠），移走的模型被剥掉该声明；结构写入后路径有父值即在原路径重新注册（#8；2026-10-30 起移动也按路径） | `Declarations` 构造时 |
 | `Validator.prepare` | 校验前展开条目模板 | `FormEngine` 构造时 |
 | `Validator` 的 `readPos` | 树节点 pos（`TreeOps.readPos`） | `FormEngine` 构造时 |
 | `StateWriter.carryRowIdentity` | 单元格写入后，把旧行对象的身份交给重建的行（`ArrayOps.carryIdentity`） | `FormEngine` 构造时 |
@@ -96,12 +96,12 @@ Formily 的 `field.title` / `description` / `decorator` / `component` / `setComp
 
 - **三层，从高到低**：reaction（`d.x.$title = …`、`d.x.$componentProps.placeholder = …`，存 `uiEffect`）> JSX（`<Field title componentProps decorator={[D, props]}>` / `useField(name, { title, … })`）> 声明（`fields` / `registerField` / 条目模板，存 `uiDeclared`；精确声明按键覆盖，模板只填没有精确声明的键）。
 - **JSX 层不写进模型**：它在渲染时作为 `form.binding(path, jsxUi)` 的参数合并，所以内联对象、回调、ReactNode 每次渲染换引用也不会 bump 版本或引起渲染期写入。代价：reaction 读 `$title` / `$componentProps` 看到的是「声明 + reaction」两层，不含 JSX 层。
-- **合并规则**：标量键取最高的有值层；`componentProps` / `decoratorProps` 按顶层键浅合并（`fields` ← JSX ← reaction）。reaction 整体赋值（`$componentProps = {...}`）标记 `replace`，丢弃所有下层；赋 `undefined` 撤销 reaction 层（与 `$pattern = undefined` 一致）。
+- **合并规则**：标量键取最高的有值层；`componentProps` / `decoratorProps` **深合并**（`fields` ← JSX ← reaction，2026-10-30 起）：普通对象逐键递归合并；数组、函数、React 元素（`$$typeof`）、类实例整值取最高层（`isPatchable` 判定）。reaction 整体赋值（`$componentProps = {...}`）标记 `replace`，丢弃所有下层；赋 `undefined` 撤销 reaction 层（与 `$pattern = undefined` 一致）。
 - **`[Component, props]` 元组**：`normalizeUiSpec`（`state/field-model.ts`）把 `component: [C, p]` 拆成 `component = C` + `componentProps = { ...p, ...componentProps }`，`decorator` 同理。声明与 JSX 共用。
-- **嵌套写是 Immer 式的**（`draft/patch.ts`）：读 `$componentProps` 返回真实值——普通对象 / 数组包一层写跟踪代理，原始值、`undefined`、函数、类实例、React 元素原样返回，所以读的行为和普通 JS 一样（不存在的键是 `undefined`，`d.x.$componentProps.style.color = …` 在 `style` 不存在时照样抛 `TypeError`）。任意深度的赋值 / `delete` 报告 `(keys, value)`；`FieldUi` 以当前有效对象为底，用 `setIn` 做不可变拷贝，生成一个以顶层键为单位的写操作（op key `path:componentProps.<顶层键>`；整体赋值是 `path:componentProps`）。不会自动创建缺失的中间对象：先写 `style ??= {}`，或直接 `style = { color }`。
+- **嵌套写是 Immer 式的**（`draft/patch.ts`）：读 `$componentProps` 返回真实值——普通对象 / 数组包一层写跟踪代理，原始值、`undefined`、函数、类实例、React 元素原样返回，所以读的行为和普通 JS 一样（不存在的键是 `undefined`，`d.x.$componentProps.style.color = …` 在 `style` 不存在时照样抛 `TypeError`）。任意深度的赋值 / `delete` 报告 `(keys, value)`。reaction 层存成**稀疏补丁树**（`uiEffect.value`）：中间节点是普通对象，会深合并进下层；叶子是 `Assign` 盒子，整值替换该键（`delete` 是 `Assign(DELETE)`）。所以 `style.color = 'red'` 只加一片叶子，JSX 的 `style.width` 保留；`style = { … }`（非空对象或非对象）替换该键；赋 `{}` 只开一个中间节点（`style ??= {}` 用），不清空下层。写进 `Assign` 内部时用 `setIn` 改盒内值；`replace` 状态下直接 `setIn` 改整值。op key 为完整键路径 `path:componentProps.style.color`（整体赋值是 `path:componentProps`）。不会自动创建缺失的中间对象：先写 `style ??= {}`，或直接 `style = { color }`。
 - **同一轮可读到自己的写**：UI 写操作记在 `WeakMap<WriteOp, patch>` 里；在 reaction / batch 中读 UI 键时，把本轮缓冲的同字段同键写操作按顺序重放到有效值上，所以 `props.style ??= {}; props.style.color = 'red'` 在 reaction 内成立（其他 `$` 状态仍是「本轮写、下轮读」）。同键的 UI 写操作在缓冲区里移到末尾而不是原地替换，保证补丁按写入顺序叠加。
-- **依赖粒度**：`path:<UI 键>`（如 `city:componentProps`、`city:title`）。读写同一个 UI 键的 reaction 会自唤醒一次，第二次写入值不变即收敛。冲突检测按 op key：两个 reaction 补丁同一顶层键会抛 `ShikiConflictError`，补不同键不冲突。
-- **比较**：UI 值可能含函数与 React 元素，变化检测用按键 `Object.is` 的浅比较，不用 `deepEqual`。
+- **依赖粒度**：`path:<UI 键>`（如 `city:componentProps`、`city:title`）。读写同一个 UI 键的 reaction 会自唤醒一次，第二次写入值不变即收敛。冲突检测按 op key：两个 reaction 补丁同一键路径会抛 `ShikiConflictError`，补不同叶子（如 `style.color` 与 `style.width`）不冲突。
+- **比较**：UI 值可能含函数与 React 元素，变化检测沿普通对象 / 数组递归、其余按 `Object.is`（`deepSame`），不用 `deepEqual`。
 
 ## 4. 副作用调度（`core/effects`）
 
@@ -138,10 +138,10 @@ Formily 的 `field.title` / `description` / `decorator` / `component` / `setComp
 
 ## 6. 结构操作（`core/structure`）
 
-- **`ArrayOps`**：`push/insert/remove/move/swap/replace` 都走同一 `commit`：计算新数组 → 按行 id（`rowKey`/`id`，否则对象身份 WeakMap）用 `reindexById` 迁移字段模型（错误、touched、规则跟着行走）→ 记录 `dirtyRows` → bump structure，并把数组及祖先的 `:value` 标脏（读 `d.rows.$value` 的 reaction / useWatch 会重跑；行级 `each` 仍只看 `dirtyRows`）→ 重新展开条目模板 → flush。
+- **`ArrayOps`**：`push/insert/remove/move/swap/replace` 都走同一 `commit`：计算新数组 → 按行 id（`rowKey`/`id`，否则对象身份 WeakMap）用 `reindexById` 迁移字段模型（错误、touched、模板规则跟着行走；精确声明留在原路径，见 `migrate.ts`）→ 记录 `dirtyRows` → bump structure，并把数组及祖先的 `:value` 标脏（读 `d.rows.$value` 的 reaction / useWatch 会重跑；行级 `each` 仍只看 `dirtyRows`）→ 重新展开条目模板 → flush。
 - **无 id 行的身份**：单元格写入经 `setAt` 重建了行对象；`carryIdentity` 把旧对象在 WeakMap 里的身份交给新对象，所以渲染 key、选择、展开在编辑后不变。
 - **`TreeOps`**：注册树根（`childrenKey`、`rowKey`、`canMove`）、`readPos`（优先当前 `walk` 实例的 pos）、`move(from, to)`（拒绝移入自身后代，按节点 id 迁移模型，记录 `dirtyPos`）。
-- **`migrate.ts`**：`reindexById` —— 以最深的所属行为准，删除消失行下的模型，重键移动行下的模型；返回被删除的模型，`ArrayOps` / `TreeOps` 交给 `FieldStore.onDrop`，其中的精确声明（`fields` / `registerField`）转为休眠而不是丢失（#8）。注意：移动行下的模型连同其声明跟着行走。
+- **`migrate.ts`**：`reindexById` —— 以最深的所属行为准，删除消失行下的模型，重键移动行下的模型；返回 `{ dropped, moved }`，`ArrayOps` / `TreeOps` 交给 `FieldStore.onReindex`。**精确声明（`fields` / `registerField` 写死下标）属于路径，不属于行**（2026-10-30 决定）：被删除模型的声明停在原路径休眠（#8）；被移走模型的声明也停在原路径，`Declarations.stripDeclaration` 把它从模型上剥掉（规则、required、virtual、display、pattern、trigger、enum、UI 键，下层的模板 / JSX / reaction 再补回）；结构写入后 `applyItemTemplates` → `reviveDormant` 把声明重新注册到此刻占着该路径的行，并对剥掉规则且有错误的模型重算内置规则消息。要跟着行走的配置用 `rows.*.x` 模板或 `reaction.each`。错误、touched、dirty 等运行态仍跟着行走。
 - **`shared/tree-ops.ts`**：无状态的 pos / path 算法（`posOf`、`pathOf`、`moveNode`、`listPositions`、`scopeOf`…）。
 
 ## 7. 引擎门面（`core/engine`）
@@ -182,7 +182,7 @@ const Rate = connect(AntRate, mapProps({ status: false }))
 
 `FormOptions.commit` 与类型 `CommitMode`（`'change' | 'blur'`）在发布前删除，不实现。用户编辑一直走 `StateWriter.commitExternal`，在 change 时写入；删掉未实现的 `'blur'` 后只剩 `'change'`，所以整个选项一并移除，没有残留分支。
 
-#1、#2、#6、#7 已由 `fix/validation-races` 修复，见第 5 节。#3、#8、#12 已由 `fix/pro-gaps` 解决：#3（列筛选清空选择，见 §10 查询表）、#8（精确声明是按路径的配置：`setValue`/`reset` 清掉行时由 `applyItemTemplates`、数组 / 树操作丢掉行时由 `onDrop` 转为休眠，行再出现时 `reviveDormant` 重新注册，`virtual`/`display`/`pattern`/UI 都恢复，见 §2 注入表）、#12（P0 示例与「文档构建含 playground」已在 main：`npm run build` = VitePress + `build:play` + `check-site`）。
+#1、#2、#6、#7 已由 `fix/validation-races` 修复，见第 5 节。#3、#8、#12 已由 `fix/pro-gaps` 解决：#3（列筛选清空选择，见 §10 查询表）、#8（精确声明是按路径的配置：`setValue`/`reset` 清掉行时由 `applyItemTemplates`、数组 / 树操作丢掉行时由 `onReindex` 转为休眠，行再出现时 `reviveDormant` 重新注册，`virtual`/`display`/`pattern`/UI 都恢复，见 §2 注入表）、#12（P0 示例与「文档构建含 playground」已在 main：`npm run build` = VitePress + `build:play` + `check-site`）。
 
 ## 10. Pro 层（复刻 Pro.formily）
 
