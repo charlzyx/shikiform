@@ -62,7 +62,7 @@ export default function App() {
 
 | 状态 | 含义 |
 |---|---|
-| `$value` | 值。reaction 写它时，字段成为**计算字段**（默认 `readPretty` + `virtual`） |
+| `$value` | 值。reaction 写它时，字段成为**计算字段**（`readPretty`）。默认仍提交，只有显式 `virtual: true` 才从提交结果拿掉 |
 | `$display` / `$visible` | `visible` / `hidden` / `none`；`$visible = false` 等于 `hidden` |
 | `$pattern` / `$disabled` | `editable` / `disabled` / `readOnly` / `readPretty`。`$pattern = undefined` 恢复继承；`$disabled = false` 只撤销这个开关写下的 `disabled` |
 | `$required` / `$rules` | 必填与规则；reaction 写的规则不随组件卸载 |
@@ -126,6 +126,6 @@ UI 状态有三层，后者覆盖前者（对象按顶层键合并）：`fields`
 2. 引擎写入，标记脏键；读过这些键的 `reaction` 重新运行，写下的状态继续唤醒下游，直到稳定。`watch` 在来源变化后执行动作。
 3. 订阅了相关 path 的组件重新渲染。父组件不订阅单元格的值。
 4. 失焦、提交（或配置的 `onChange`）时校验。
-5. `submit` 等待异步规则并校验；通过才调用回调，结果里去掉 `virtual`、`display: 'none'` 和计算字段。
+5. `submit` 等待异步规则并校验；通过才调用回调，结果里去掉 `virtual: true` 和 `display: 'none'`。计算字段默认留下。
 
 继续：[Field、装饰器与组件](/guide/field)。

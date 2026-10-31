@@ -112,10 +112,11 @@ export class StateWriter {
     const before = store.values
     store.values = setAt(store.values, path, value)
     this.deps.carryRowIdentity?.(path, before, store.values)
+    // A reaction write that changes the value marks the field computed (`readPretty`
+    // when no pattern is set). It stays in the submit payload unless `virtual: true`.
     if (fromReaction) {
       const field = store.ensure(path)
       field.computed = true
-      if (!field.virtualExplicit) field.virtual = true
     }
     notifier.bumpPath(path)
     let cursor: string | null = path

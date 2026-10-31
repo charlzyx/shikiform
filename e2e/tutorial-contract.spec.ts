@@ -43,7 +43,7 @@ test('the tutorial uses library hidden semantics instead of silently skipping va
   await expect(form.locator('pre.shiki-code')).toHaveCount(0)
 })
 
-test('array tutorial additions and removals keep a stable real row', async ({ page }) => {
+test('array tutorial additions and removals use stable real rows and computed totals are submitted', async ({ page }) => {
   const tutorial = await answer(page, '/tutorial/7-array')
   const form = tutorial.locator('form')
   await form.getByRole('button', { name: '添加一行', exact: true }).click()
@@ -54,8 +54,6 @@ test('array tutorial additions and removals keep a stable real row', async ({ pa
   await expect(form.getByRole('textbox', { name: '名称' })).toHaveValue('新行')
   await form.getByRole('button', { name: '提 交', exact: true }).click()
   await expect(form.locator('pre.shiki-code')).toContainText('新行')
-  // main leaves an equal reaction write unmarked, so a new row whose total is
-  // already 0 still submits it. Do not encode a different submit policy here.
   await expect(form.locator('pre.shiki-code')).toContainText('"total": 0')
 })
 

@@ -215,7 +215,8 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
 
   /**
    * Bump `submitCount`, wait for in-flight async rules, validate, then call `onValid` with {@link FormEngine.getSubmitValues}.
-   * `virtual` and display `none` are omitted. `hidden` is kept. Computed fields are omitted unless `virtual` was set false.
+   * `virtual` and display `none` are omitted. `hidden` is kept. A computed field is omitted only when
+   * it was declared `virtual: true`.
    *
    * Submit only returns values its own pass validated (#6): see `Validator.runSettled`. When the values never
    * settle, or another validation supersedes the pass, it returns `ok: false` with a root retry message

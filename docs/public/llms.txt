@@ -34,7 +34,7 @@ as an array, and reading back a `$` state you wrote in the same pass). Productio
 
 - `reaction((d) => …)` **derives** state. Every `$` read is a dependency; writes are not. It re-runs only when a key
   it read changes, and its writes wake downstream reactions in the same flush. A field whose `$value` a reaction
-  writes becomes computed (`readPretty` + `virtual` by default). Two reactions writing the same state is an error.
+  writes becomes computed (`readPretty` by default, still submitted). Declare `virtual: true` to omit it. Two reactions writing the same state is an error.
 - `watch(source, effect)` is an **action**: it runs after `source`'s reads change, never on the first pass; reads
   inside `effect` are not dependencies. Use it for "when X changes, do Y once" (reset a dependent field, fetch).
 - Writes are buffered until the pass returns: keep a new value in a local instead of reading it back. UI state is
