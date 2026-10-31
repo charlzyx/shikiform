@@ -30,6 +30,7 @@ import type {
 } from '../types'
 import { UiRegistry } from '../ui/ui-registry'
 import { Validator } from '../validation/validator'
+import { Baseline, errorEntries } from './baseline'
 import { FieldUi, uiKeyOf } from './field-ui'
 import { StateWriter } from './writes'
 
@@ -61,6 +62,7 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
   private readonly writer: StateWriter
   private readonly fieldUi: FieldUi
   private pendingSubmits = 0
+  private readonly baseline: Baseline
 
   constructor(options: FormOptions<T> = {}) {
     this.options = options
@@ -79,6 +81,8 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     })
     this.fieldUi = this.writer.attachUi(new FieldUi(store, notifier, scheduler, (path, key, value) => this.writeState(path, key, value)))
     this.draft = createHandle(this, '') as Draft<T>
+    this.baseline = new Baseline({ store, notifier, scheduler, validator, declarations })
+    scheduler.onSettle = () => this.baseline.sync()
     for (const [path, spec] of Object.entries(options.trees ?? {})) {
       this.registerTree(path, spec)
     }
@@ -92,52 +96,28 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     scheduler.flush()
   }
 
-  // —— form state ——
+  // —— form state (read-only, #36: writes go through setValue / batch / reset / submit so subscribers hear them) ——
 
-  /** Current values. Write them with `setValue`, `batch`, or the array and tree methods. */
-  get values(): T {
-    return this.store.values
-  }
-  set values(next: T) {
-    this.store.values = next
-  }
+  /** Current values. Write with `setValue`, `batch`, `reset(values)`, or the array and tree methods. */
+  get values(): T { return this.store.values }
 
-  /** Snapshot `reset` restores. Cloned when the form is created. */
-  get initial(): T {
-    return this.store.initial
-  }
+  /** Baseline `reset()` restores and `dirty` compares against. Cloned on create; replaced by `reset(values)` / `setInitialValues`. */
+  get initial(): T { return this.store.initial }
 
   /** True while {@link FormEngine.submit} is running. Same value as {@link FormEngine.isSubmitting}. */
-  get submitting(): boolean {
-    return this.store.submitting
-  }
-  set submitting(next: boolean) {
-    this.store.submitting = next
-  }
+  get submitting(): boolean { return this.store.submitting }
 
   /** True while a validate pass is running, including the async rules it waits for. */
-  get validating(): boolean {
-    return this.store.validating
-  }
-  set validating(next: boolean) {
-    this.store.validating = next
-  }
+  get validating(): boolean { return this.store.validating }
 
-  /** True after a user edit. A reaction writing `$value` does not set this. `reset` clears it. */
-  get dirty(): boolean {
-    return this.store.dirty
-  }
-  set dirty(next: boolean) {
-    this.store.dirty = next
-  }
+  /** Values differ from {@link FormEngine.initial} (deep; reverting clears it). `virtual` / computed fields are ignored. */
+  get dirty(): boolean { return this.baseline.formDirty() }
+
+  /** Sticky: a user edit (`setValue`, `binding().onChange`) happened since `reset`. A reaction write does not count. */
+  get edited(): boolean { return this.store.edited }
 
   /** Incremented once per {@link FormEngine.submit}, including calls that fail validation. */
-  get submitCount(): number {
-    return this.store.submitCount
-  }
-  set submitCount(next: number) {
-    this.store.submitCount = next
-  }
+  get submitCount(): number { return this.store.submitCount }
 
   /** When true, each reaction pass is traced. */
   get devtools(): boolean {
@@ -244,32 +224,36 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     }
   }
 
-  /** Restore initial values. Pass a path to restore one subtree. Reactions run again. Touched, dirty, and errors clear. */
-  reset(path?: FieldPath<T>): void {
-    const { store, notifier, scheduler, validator } = this
-    if (path) store.values = setAt(store.values, String(path), clone(getAt(store.initial, String(path))))
-    else store.values = clone(store.initial)
-    store.dirty = false
-    for (const field of store.fields.values()) {
-      if (path && field.path !== path && !field.path.startsWith(String(path) + '.')) continue
-      field.errors = []
-      field.schemaErrors = []
-      field.warnings = []
-      field.touched = false
-      field.dirty = false
-      field.validating = false
-      field.abort?.abort()
-      notifier.bumpPath(field.path)
-    }
-    validator.clearSchema(path ? String(path) : undefined)
-    this.declarations.applyItemTemplates()
-    scheduler.bumpMeta()
-    for (const rec of scheduler.eachRecs.values()) rec.first = true
-    for (const id of scheduler.runners.keys()) {
-      if (id.startsWith('watch')) continue
-      scheduler.queue(id)
-    }
-    scheduler.flush()
+  /**
+   * Restore initial values (`reset('a.b')`: one subtree). Reactions run again; touched, edited and all messages clear.
+   * `reset(values)` first makes `values` the new initial values (edit-page backfill): a later `reset()` returns to them.
+   */
+  reset(pathOrValues?: FieldPath<T> | T): void {
+    this.baseline.reset(pathOrValues as string | object | undefined)
+  }
+
+  /** Replace the baseline, keep the values: after a save, `setInitialValues(form.values)`. To load a record, `reset(record)`. */
+  setInitialValues(values: T): void {
+    this.baseline.setInitial(values)
+  }
+
+  /**
+   * External messages (a server response): `{ path: message | messages }` or `FieldError[]`, `''` is the root; empty clears.
+   * Shown in `errors` / `binding().errors` / `$errors` and block `canSubmit` until the value at, above or below the path
+   * changes, the field validates again (every `submit` does), or `reset` / `clearErrors`.
+   */
+  setErrors(errors: Partial<Record<FieldPath<T> | '', string | string[] | null | undefined>> | FieldError[]): void {
+    this.validator.setExternalMany(errorEntries(errors as Record<string, string | string[] | null | undefined> | FieldError[]))
+  }
+
+  /** One field's external messages. Same lifetime as {@link FormEngine.setErrors}. `''` is the form root. */
+  setFieldError(path: FieldPath<T> | '', messages: string | string[]): void {
+    this.setErrors({ [path]: messages } as never)
+  }
+
+  /** Clear every message (rule, schema, external) on `path` and its descendants, or on the whole form. Values are untouched. */
+  clearErrors(path?: FieldPath<T>): void {
+    this.validator.clearAll(path ? String(path) : undefined)
   }
 
   /**
@@ -513,8 +497,9 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
     if (key === '$value') {
       scheduler.track(path, 'value')
       const value = getAt(store.values, path)
-      // Development: a reaction / watch gets a read-only view so `d.x.$value.y = 1` / `.push()` throw with the fix.
-      return (process.env.NODE_ENV !== 'production' && scheduler.current()?.recordWrites ? readonlyValue(value, path) : value) as never
+      // Development: reaction / watch / `batch` reads are read-only views, so `$value.y = 1` / `.push()` throw (#35).
+      const guard = process.env.NODE_ENV !== 'production' && (scheduler.current()?.recordWrites || scheduler.batchDepth > 0)
+      return (guard ? readonlyValue(value, path) : value) as never
     }
     const uiKey = uiKeyOf(key)
     if (uiKey) return this.fieldUi.read(path, uiKey)
@@ -562,12 +547,14 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
       return field.touched
     }
     if (key === '$dirty') {
-      if (!path) {
-        scheduler.track('', 'meta')
-        return store.dirty
-      }
+      // Derived: depends on the value, and on `:dirty`, marked when the baseline moves.
+      scheduler.track(path, 'value')
       scheduler.track(path, 'dirty')
-      return field.dirty
+      return path ? this.baseline.fieldDirty(path) : this.baseline.formDirty()
+    }
+    if (key === '$edited') {
+      scheduler.track(path, path ? 'edited' : 'meta')
+      return path ? field.edited : store.edited
     }
     if (key === '$canSubmit' || key === '$submitting' || key === '$submitCount') {
       scheduler.track('', 'meta')
@@ -663,7 +650,8 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
       disabled: pattern === 'disabled',
       readOnly: pattern === 'readOnly',
       touched: field?.touched ?? false,
-      dirty: path ? (field?.dirty ?? false) : store.dirty,
+      dirty: path ? this.baseline.fieldDirty(path) : this.baseline.formDirty(),
+      edited: path ? (field?.edited ?? false) : store.edited,
       validating: field?.validating ?? false,
       options: field?.enumOptions ?? [],
       loading: field?.enumLoading ?? false,
@@ -676,6 +664,7 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
   blur(path: string): void {
     this.writer.blur(path)
   }
+
 }
 
 /**

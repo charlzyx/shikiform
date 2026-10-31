@@ -110,7 +110,7 @@ interface UseFieldOptions {
 | `display` | `'visible' \| 'hidden' \| 'none'` |
 | `pattern` | `'editable' \| 'disabled' \| 'readOnly' \| 'readPretty'` |
 | `required` / `disabled` / `readOnly` | `boolean`；有效字段状态 |
-| `touched` / `dirty` / `validating` | `boolean`；失焦、编辑、异步校验状态 |
+| `touched` / `dirty` / `edited` / `validating` | `boolean`；失焦过、值与初始值不同（改回即 `false`）、用户编辑过（粘滞）、异步校验中 |
 | `options` / `loading` | 枚举选项数组 / 枚举加载状态 |
 | `title` / `description` | 装饰器的标题 / 说明（`FormItem` → `label` / `extra`）：reaction > JSX > `fields` |
 | `component` / `decorator` | `<Field>` 渲染的控件 / 装饰器组件 |

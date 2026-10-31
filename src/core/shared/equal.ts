@@ -24,3 +24,23 @@ export function clone<T>(value: T): T {
   if (typeof structuredClone === 'function') return structuredClone(value)
   return JSON.parse(JSON.stringify(value)) as T
 }
+
+/**
+ * `!deepEqual(a, b)` where `a` / `b` sit at `path`, ignoring every subtree in `skip` (exact data paths).
+ * Used by `dirty`: virtual and computed fields do not count as a change.
+ */
+export function differsExcept(a: unknown, b: unknown, path: string, skip: readonly string[]): boolean {
+  if (Object.is(a, b)) return false
+  const inside = skip.filter((p) => !path || p.startsWith(path + '.'))
+  if (!inside.length) return !deepEqual(a, b)
+  if (typeof a !== 'object' || typeof b !== 'object' || a == null || b == null) return !deepEqual(a, b)
+  if (Array.isArray(a) !== Array.isArray(b)) return true
+  if (Array.isArray(a) && (a as unknown[]).length !== (b as unknown[]).length) return true
+  const keys = new Set([...Object.keys(a), ...Object.keys(b as object)])
+  for (const key of keys) {
+    const child = path ? `${path}.${key}` : key
+    if (inside.includes(child)) continue
+    if (differsExcept((a as any)[key], (b as any)[key], child, inside)) return true
+  }
+  return false
+}

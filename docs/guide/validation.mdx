@@ -141,6 +141,22 @@ setDefaultMessages(enUS)                              // 全应用默认，启�
 
 优先级：规则 `message` > 表单 `messages` > `setDefaultMessages` > 内置中文（`zhCN`）。工厂写法可以 `createFormHook({ …, messages })`，对它创建的每个表单生效。
 
+## 服务端错误
+
+提交后后端说「用户名已存在」，用 `setErrors` 把错误写到字段上：
+
+```ts
+await form.submit(async (values) => {
+  const res = await api.register(values)
+  if (res.status === 409) form.setErrors({ username: '用户名已存在' })
+  // 也可以一次给多条、给表单根：form.setErrors({ email: ['格式不对'], '': '服务器繁忙' })
+})
+```
+
+- 接受 `{ path: 文案 | 文案[] }` 或 `FieldError[]`；`''` 是表单根；空数组清掉那条。单个字段可以用 `setFieldError(path, msg)`。
+- 和规则错误一起出现在 `form.errors`、`field.errors`、`$errors` 里，并让 `canSubmit` 为 `false`。
+- 自动清除：这个值（或它的上级、下级）变了，或这个字段重新校验（每次 `submit` 都会校验全表）；也可以 `reset()` / `clearErrors(path?)`。
+
 ## 规则写在哪
 
 规则写在哪，决定**组件卸载后还查不查**：

@@ -42,9 +42,12 @@ export interface FieldModel {
   errors: string[]
   warnings: string[]
   touched: boolean
-  dirty: boolean
+  /** Sticky: a user edit (`setValue`, `binding().onChange`) happened since the last reset. `dirty` is derived from values. */
+  edited: boolean
   validating: boolean
   schemaErrors: string[]
+  /** Messages written from outside (`setErrors`, a server response). Cleared when the value at, above, or below this path changes, or when this field validates again. */
+  externalErrors: string[]
   /** Set when an item template owns validation at this path. Exact validation declarations are not dropped with the row. */
   templateApplied: boolean
   abort?: AbortController
@@ -108,9 +111,10 @@ export function createFieldModel(path: string): FieldModel {
     rulesFromEffect: false,
     errors: [],
     schemaErrors: [],
+    externalErrors: [],
     warnings: [],
     touched: false,
-    dirty: false,
+    edited: false,
     validating: false,
     enumLoading: false,
     enumFromEffect: false,
@@ -120,8 +124,8 @@ export function createFieldModel(path: string): FieldModel {
   }
 }
 
-/** Rule messages followed by schema messages. */
+/** Rule messages, then schema messages, then external (`setErrors`) messages. */
 export function shownErrors(field: FieldModel): string[] {
-  if (!field.errors.length && !field.schemaErrors.length) return []
-  return [...field.errors, ...field.schemaErrors]
+  if (!field.errors.length && !field.schemaErrors.length && !field.externalErrors.length) return []
+  return [...field.errors, ...field.schemaErrors, ...field.externalErrors]
 }

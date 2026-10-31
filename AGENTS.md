@@ -15,6 +15,7 @@ This page is the one-screen mental model plus the mistakes worth avoiding. Repo 
 
 - Read data with `$value`; write a field by assigning its own path: `d.user.name.$value = 'x'`.
 - A `$value` object is a snapshot of immutable data. Never mutate it; assign a new value or write the child path.
+  Inside `reaction`, `watch` and `form.batch` the snapshot is read-only in development (mutation throws).
 - A handle is not an array: no `.map`, `.length`, `for…of` on `d.items`. Use `d.items.$value` or `reaction.each`.
 - Display follows Formily: `$visible = false` is `display: 'none'` (no UI, not validated, not submitted; the value
   stays and returns when shown again). `$hidden = true` is `display: 'hidden'` (no UI, still validated and submitted).
@@ -151,4 +152,27 @@ reaction.each((d) => d.rows, (row, { d, index }) => {                   // ✓
 // 7. UI linkage goes through $componentProps, not a prop computed in render
 <Field name="city" component={[Select, { disabled: form.getValue('kind') === 'b' }]} />   // ✗ not reactive
 reaction((d) => { d.city.$componentProps.disabled = d.kind.$value === 'b' })             // ✓
+```
+
+## 7. Form state: dirty, backfill, server errors
+
+- `form.values`, `submitting`, `dirty`, `submitCount`, `validating` are read-only getters. Write values with
+  `setValue` / `batch` / array ops, never `form.values = x` (a TS error, and a `TypeError` at runtime).
+- `dirty` / `$dirty` / `binding.dirty` = the value differs from `initial` (deep compare; changing it back clears it;
+  `virtual` and computed fields do not count at form level). `edited` / `$edited` is the sticky "a user edited it" flag.
+- Edit page: `form.reset(record)` loads a record and makes it the new initial values (a later `reset()` returns to it).
+  After a save, `form.setInitialValues(form.values)` moves the baseline without changing values.
+- Server errors: `form.setErrors({ username: '已存在', '': '服务器繁忙' })` (or `setFieldError(path, msg)`). They show
+  with rule errors and block `canSubmit` until that value (or one above / below it) changes, the field validates again
+  (every `submit` does), or `reset` / `clearErrors(path?)`.
+
+```ts
+form.values = record                              // ✗ read-only
+form.batch((d) => { d.$value = record })          // ✗ a later reset() goes back to the empty form
+form.reset(record)                                // ✓ values + baseline; dirty is false
+await form.submit(async (values) => {
+  const res = await save(values)
+  if (res.fieldErrors) form.setErrors(res.fieldErrors)  // ✓ { username: '已存在' }
+  else form.setInitialValues(form.values)               // ✓ saved: no longer dirty
+})
 ```

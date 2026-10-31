@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import type { FormEngine } from '../core/engine/form-engine'
+import { setAt } from '../core/shared/path'
 import type { EffectDef, FieldPath, FormOptions, PathValue } from '../core/types'
 import { useForm } from '../react/hooks/use-form'
 
@@ -101,7 +102,8 @@ export interface UseQueryTableOptions<TValues, TParams, TRow> {
   defaultPageSize?: number
   /**
    * Array field that receives each response's rows (`data`), so the page can be edited in place
-   * (`QueryList` / `ProArrayTable` in `shikiform/antd`). Written like a reaction: it does not mark the form dirty.
+   * (`QueryList` / `ProArrayTable` in `shikiform/antd`). Each response also becomes the initial value of that path,
+   * so the form is not `dirty` (or `edited`) until the user changes a row.
    */
   rows?: FieldPath<TValues>
 }
@@ -260,6 +262,8 @@ export function useQueryTable<TValues, TParams = TValues, TRow = unknown>(
     form.batch(() => {
       form.query(rowsPath).$value = structuredClone(pageRows)
     })
+    // Loaded rows are the baseline: `dirty` means the user changed this page, and `reset()` returns to it.
+    form.setInitialValues(setAt(form.initial, rowsPath, structuredClone(pageRows)))
   }, [rowsPath, queried.data, mode === 'client' ? `${page}:${pageSize}` : ''])
   const data = mode === 'client' ? full.slice(Math.max(0, page - 1) * pageSize, Math.max(0, page - 1) * pageSize + pageSize) : full
   const total = mode === 'client' ? full.length : (queried.data?.total ?? 0)
