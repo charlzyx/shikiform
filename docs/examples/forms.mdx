@@ -64,7 +64,7 @@ export default function App() {
 ```
 
 - `useForm({ validate: schema })` 接任何 [Standard Schema](https://standardschema.dev)；issue 的 `path` 落到对应字段，`['address', 'city']` → `address.city`。
-- 昵称设成 `hidden` 后看不见，但空昵称仍挡住提交；设成 `none` 才既不校验、也不进提交结果。见 [显隐与提交](/guide/concepts#显隐pattern-与提交)。
+- 昵称设成 `hidden` 后看不见，但空昵称仍挡住提交；设成 `none`（`$visible = false` 就是它）才既不校验、也不进提交结果。见 [显隐与提交](/guide/concepts#显隐pattern-与提交)。
 - 字段级规则和异步校验见 [校验](/guide/validation)。完整版另有 Valibot 版本和 `withAntdFieldGroup` 字段组。
 
 ## 显隐对照
@@ -119,8 +119,8 @@ export default function App() {
 | `contact.$display` | 渲染 | 空邮箱挡住提交 | 提交结果里有 `contact` |
 |---|---|---|---|
 | `visible` | ✓ | ✓ | ✓ |
-| `hidden` | ✗ | ✓ | ✓ |
-| `none` | ✗ | ✗ | ✗ |
+| `hidden`（`$hidden = true`） | ✗ | ✓ | ✓ |
+| `none`（`$visible = false`） | ✗ | ✗ | ✗ |
 
 - `mode` 声明了 `virtual: true`：参与联动，不进提交结果。
 - 只写父级 `d.contact.$display`，子字段跟着变；子字段自己写了 `$display` 就用自己的。

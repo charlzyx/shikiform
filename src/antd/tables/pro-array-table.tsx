@@ -60,6 +60,8 @@ export interface ProArrayTableProps<TRow = any> {
   /** Array field name, relative to the current scope. */
   name: string
   rowKey?: string
+  /** New id for copied rows (and added rows without one). See `useArrayTable` `createRowKey`. */
+  createRowKey?: (row: TRow) => unknown
   columns: ProArrayTableColumn<TRow>[]
   /** Header title (left). */
   title?: ReactNode
@@ -403,6 +405,7 @@ function ProArrayTableImpl<TRow = any>(props: ProArrayTableProps<TRow>) {
   const selection = props.rowSelection === true ? {} : props.rowSelection || null
   const table = useArrayTable<TRow>(props.name, {
     rowKey: props.rowKey,
+    createRowKey: props.createRowKey,
     pagination: props.pagination,
     preserveSelection: selection?.preserve,
     selectedKeys: selection?.selectedKeys,

@@ -82,17 +82,18 @@ describe('tutorial effects use the published FormEngine contract', () => {
     expect(await form.submit()).toEqual({ ok: true, values: { name: 'Ada', email: 'ada@example.com', age: 18 } })
   })
 
-  it('keeps the hidden email value and validation instead of emulating the old teaching store', async () => {
+  it('$visible = false drops the email from validation and submit, and keeps the value for later', async () => {
     const form = createForm({
       initialValues: { contact: false, email: '' },
       effects: [visibleEffects],
       fields: { email: { required: true } },
     })
-    expect(form.binding('email').display).toBe('hidden')
+    expect(form.binding('email').display).toBe('none')
+    expect(await form.submit()).toEqual({ ok: true, values: { contact: false } })
+    form.setValue('contact', true)
     expect((await form.submit()).ok).toBe(false)
-    expect(form.getSubmitValues()).toEqual({ contact: false, email: '' })
     form.setValue('email', 'ada@example.com')
-    expect((await form.submit()).ok).toBe(true)
+    expect(await form.submit()).toEqual({ ok: true, values: { contact: true, email: 'ada@example.com' } })
   })
 
   it('validates the invitation rule even before its input is mounted', async () => {

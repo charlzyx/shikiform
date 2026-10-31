@@ -53,7 +53,7 @@ export class UiRegistry {
           ui.pattern = value as Pattern | undefined
         } else if (key === '$visible') {
           ui.hasDisplay = true
-          ui.display = value ? 'visible' : 'hidden'
+          ui.display = value ? 'visible' : 'none'
         } else if (key === '$display') {
           ui.hasDisplay = true
           ui.display = value as Display
