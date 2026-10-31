@@ -17,14 +17,14 @@ useAntdForm<T>(options?: FormOptions<T>)
 
 | 返回成员 | 参数 / 返回 | 边界 |
 |---|---|---|
-| `AppForm` | `{ children? }` → React 元素 | 提供正式表单和预绑定组件上下文，渲染原生 `<form>`；目前**没有 `onSubmit` 属性** |
+| `AppForm` | `{ children?, onSubmit?, onInvalid?, onSubmitError?, …<form> 属性 }` → React 元素 | 提供正式表单和预绑定组件上下文，渲染原生 `<form>`；回车 / `form.Submit` 调用 `form.submit(onSubmit)` |
 | `AppField` | `{ name, children(field) }` → React 节点 | `name` 校验属于 `T`；`field.value` 对应该路径类型；提供下面的预绑定控件 |
 | `Submit` | antd `ButtonProps` → React 元素 | 使用当前表单的提交/校验状态，细节见下文 |
 | 其余引擎方法 | `getValue`、`setValue`、`reset`、`validate`、`submit` 等 | 仍是 [正式表单实例](/api#读写和提交)，没有第二份值 |
 
 `AppField` 接收 `name`、`children` 和 `useField` 的全部选项（`rules`、`required`、`title`、`description`、`componentProps`…）；它就是正式 `Field` 加预绑定控件：`hidden` / `none` 不渲染控件，`rules` / `required` 是挂载期 lease，`title` 会显示为 `field.Input` 外层 `FormItem` 的 label。不传 `rules` / `required` 时不取得或释放同路径其他 Field 的规则 lease。
 
-`AppForm` 没有 `onSubmit`。原生提交只调用 `form.submit()` 做校验。要拿到通过校验的业务值，调用 `form.submit(onValid)`，或者不用 `AppForm`，把这些 `AppField` 包在 shikiform 的 `<Form form={form} onSubmit>` 里。两种写法都只有一个 `<form>`，不要套两层。不要给 `AppForm` 传一个它不接收的回调。
+`<form.AppForm onSubmit={save} onInvalid={…} onSubmitError={…}>`：回车和 `<form.Submit />` 校验通过后调用 `save`，回调与 `<Form>` 相同（见 [提交结果](/guide/validation#提交结果)），其余属性透传给 `<form>`。`AppForm` 只渲染一个 `<form>`，不要再套一层。
 
 ## useAntdField
 
@@ -162,7 +162,7 @@ export default function App() {
 
 接收 `ButtonProps`。默认 `htmlType="submit"`、`type="primary"`、children 为“提交”。`disabled` 默认取 `!$canSubmit`（显式 props 值可覆盖），`loading` 是 `$submitting || props.loading`。
 
-它订阅的是当前表单元数据，不是所有输入值。`<form.Submit />` 触发 `AppForm` 的原生提交；需要业务回调时可以 `htmlType="button"` 并在 `onClick` 调用 `form.submit(onValid)`，见接线指南。
+它订阅的是当前表单元数据，不是所有输入值。`<form.Submit />` 触发 `AppForm` 的原生提交，业务回调写在 `<form.AppForm onSubmit>` 上。
 
 ### 完整例子：状态与事件回调
 

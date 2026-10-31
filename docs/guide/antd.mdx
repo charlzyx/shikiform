@@ -107,6 +107,6 @@ const form = useAntdForm({ initialValues: { email: '' } })
 </form.AppForm>
 ```
 
-它和 `<Field decorator component>` 共用同一套控件和引擎，二选一即可。`AppForm` 没有 `onSubmit`：要在校验通过后拿到值，调用 `form.submit(onValid)`，或把 `AppField` 包进 `<Form form={form} onSubmit>`。不要在 `AppForm` 里再套一个 `<form>`。细节见 [antd 参考](/reference/antd) 和 [`createFormHook`](/reference/form-hook)。
+它和 `<Field decorator component>` 共用同一套控件和引擎，二选一即可。提交回调写在 `<form.AppForm onSubmit={save} onInvalid={…}>` 上，和 `<Form>` 一样。不要在 `AppForm` 里再套一个 `<form>`。细节见 [antd 参考](/reference/antd) 和 [`createFormHook`](/reference/form-hook)。
 
 下一步：[联动](/guide/linkage)，让字段跟着别的字段变。

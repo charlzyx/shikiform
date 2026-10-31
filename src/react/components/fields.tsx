@@ -1,7 +1,7 @@
-import { useMemo, type ReactNode } from 'react'
+import { useMemo, type FormEvent, type FormHTMLAttributes, type ReactNode } from 'react'
 import type { FormEngine } from '../../core/engine/form-engine'
 import { joinPath } from '../../core/shared/path'
-import type { Display, Draft, FieldPath, PathValue, Pattern } from '../../core/types'
+import type { Display, Draft, FieldError, FieldPath, PathValue, Pattern } from '../../core/types'
 import type { RulesInput } from '../../core/validation/rules'
 import type { Pos } from '../../core/shared/tree-ops'
 import { ArrayContext, FormContext, ScopeContext, useFormContext, useScope } from '../context'
@@ -13,32 +13,64 @@ import { useWatch } from '../hooks/use-watch'
 
 const ROOT_SCOPE = { path: '', index: -1 }
 
+/** Submit callbacks shared by `<Form>` and `<form.AppForm>`. */
+export interface FormSubmitHandlers<T> {
+  /** Called with the submit values after validation passes. May be async; the submit waits for it. */
+  onSubmit?: (values: T) => void | Promise<void>
+  /** Called with the errors when validation fails (`reason: 'invalid'`). Scroll to the first error, show a toast … */
+  onInvalid?: (errors: FieldError[]) => void
+  /**
+   * Called when `onSubmit` (or a form-level `validate` / `resolver`) throws or rejects (`reason: 'error'`).
+   * Without it the error is reported with `console.error`; it never becomes an unhandled rejection.
+   */
+  onSubmitError?: (error: unknown) => void
+}
+
+/** Native `<form>` attributes `<Form>` / `<form.AppForm>` pass through (`id`, `className`, `noValidate`, `aria-*` …). */
+export type FormDomProps = Omit<FormHTMLAttributes<HTMLFormElement>, 'onSubmit' | 'onInvalid' | 'children'>
+
+/** `<Form>` props. */
+export type FormProps<T> = FormSubmitHandlers<T> & FormDomProps & {
+  form: FormEngine<T>
+  children?: ReactNode
+}
+
+/**
+ * The native submit handler of `<Form>` and `<form.AppForm>`: Enter, a `type="submit"` button, and an external
+ * `<button form={id}>` all run `form.submit(onSubmit)` and route the result to `onInvalid` / `onSubmitError`.
+ */
+export function handleFormSubmit<T>(form: FormEngine<T>, event: FormEvent<HTMLFormElement>, handlers: FormSubmitHandlers<T>): void {
+  event.preventDefault()
+  // React bubbles synthetic events through portals: keep a nested form's submit from reaching the host form.
+  event.stopPropagation()
+  void form
+    .submit(handlers.onSubmit)
+    .then((result) => {
+      if (result.ok) return
+      if (result.reason === 'invalid') handlers.onInvalid?.(result.errors)
+      else if (result.reason === 'error') {
+        if (handlers.onSubmitError) handlers.onSubmitError(result.error)
+        else console.error('[shikiform] onSubmit failed', result.error)
+      }
+    })
+    .catch((err: unknown) => {
+      console.error('[shikiform] submit callback failed', err)
+    })
+}
+
 /**
  * Provide `form` and submit on Enter / the submit button.
+ * `onInvalid` gets the errors when validation fails; `onSubmitError` gets what `onSubmit` threw.
+ * Other props go to the native `<form>`.
  * `<Field>` returns null for display `hidden` and `none` after subscribing, so a mounted model stays registered.
  * A field declared on the form, or given `$rules` / `registerField`, still validates when this component is not rendered.
  */
-export function Form<T>({
-  form,
-  children,
-  onSubmit,
-}: {
-  form: FormEngine<T>
-  children?: ReactNode
-  onSubmit?: (values: T) => void | Promise<void>
-}) {
+export function Form<T>({ form, children, onSubmit, onInvalid, onSubmitError, ...rest }: FormProps<T>) {
   return (
     <FormContext.Provider value={form}>
       {/* A nested form (a shadow form in a row's modal) starts at its own root, not at the row's scope. */}
       <ScopeContext.Provider value={ROOT_SCOPE}>
-        <form
-          onSubmit={(event) => {
-            event.preventDefault()
-            // React bubbles synthetic events through portals: keep a nested form's submit from reaching the host form.
-            event.stopPropagation()
-            void form.submit(onSubmit)
-          }}
-        >
+        <form {...rest} onSubmit={(event) => handleFormSubmit(form, event, { onSubmit, onInvalid, onSubmitError })}>
           {children}
         </form>
       </ScopeContext.Provider>

@@ -5,7 +5,8 @@ import { shownErrors, type FieldModel } from '../state/field-model'
 import type { FieldStore } from '../state/field-store'
 import type { Notifier } from '../state/notifier'
 import { scopeOf, type Pos } from '../shared/tree-ops'
-import type { FieldError, FormOptions, ValidateTrigger } from '../types'
+import type { FieldError, FormOptions, SubmitResult, ValidateTrigger } from '../types'
+import { formatMessage, type FormMessageKey, type MessageParams } from './messages'
 import { fieldSchemaIssues, optionIncludes, runRules, type ValidateCtx } from './rules'
 import { collectSchemaIssues, groupSchemaIssues, isStandardSchema, schemaIssuePath, type SchemaIssue, type StandardSchemaV1 } from './schema'
 
@@ -30,6 +31,7 @@ export interface ValidatorDeps {
  * Abort removes that attempt from {@link Validator.inflight} immediately, so `waitAsync` / `submit` do not
  * wait for a validator that only clears a timer. A later resolve or reject does not write field errors.
  * A throwing field rule (sync throw or rejection, validator or schema) becomes that field's message (#2, #7).
+ * Built-in messages (enum, fallback) resolve through `options.messages`, then the app defaults (#44).
  */
 export class Validator {
   /** Form-level schema / resolver / field-schema messages by path. */
@@ -41,8 +43,19 @@ export class Validator {
   private validateTimers = new Map<string, ReturnType<typeof setTimeout>>()
   /** Runs before every pass. The engine expands item templates here. */
   prepare: () => void = () => {}
+  /** The newest whole-form pass. A superseded `runSettled` adopts its verdict instead of failing (#41). */
+  private latestFull: { gen: number; promise?: Promise<RunResult> } | undefined
 
   constructor(private readonly deps: ValidatorDeps) {}
+
+  /** A built-in message for this form (#44). */
+  message<K extends FormMessageKey>(key: K, params: MessageParams<K>): string {
+    return formatMessage(this.deps.options.messages, key, params)
+  }
+
+  private errorMessage(err: unknown, path: string, value: unknown): string {
+    return err instanceof Error && err.message ? err.message : this.message('fallback', { path, value, error: err })
+  }
 
   private get store() {
     return this.deps.store
@@ -72,18 +85,31 @@ export class Validator {
    * started meanwhile (the errors are then whatever is shown, not this pass's verdict).
    * `submit` compares `values` with the live values to know whether what it would submit was validated (#6).
    */
-  async run(path?: string): Promise<{ errors: FieldError[]; values: unknown; current: boolean }> {
+  run(path?: string): Promise<RunResult> {
+    const record: { gen: number; promise?: Promise<RunResult> } = { gen: 0 }
+    // Registered when the pass takes its generation, before it notifies: a pass started from that
+    // notification (re-entry) registers after it and is correctly the newer one.
+    record.promise = this.runPass(path, (gen) => {
+      record.gen = gen
+      if (!path) this.latestFull = record
+    })
+    return record.promise
+  }
+
+  private async runPass(path: string | undefined, onStart: (gen: number) => void): Promise<RunResult> {
     const { store, scheduler, notifier, options } = this.deps
     this.prepare()
     const gen = ++this.validateGen
+    onStart(gen)
     const values = store.values
     store.validating = true
     scheduler.bumpMeta()
     notifier.emit()
-    const scoped = () => ({
+    const scoped = (): RunResult => ({
       errors: this.errors().filter((e) => !path || e.path === path || e.path.startsWith(path + '.')),
       values,
       current: gen === this.validateGen,
+      gen,
     })
     try {
       const targets = [...store.fields.keys()].filter((p) => !path || p === path || p.startsWith(path + '.'))
@@ -98,7 +124,9 @@ export class Validator {
       }
       const validate = options.validate
       if (isStandardSchema(validate)) {
-        const issues = await collectSchemaIssues(validate, values)
+        const issues = await collectSchemaIssues(validate, values, (error, issuePath) =>
+          this.message('fallback', { path: issuePath, value: getAt(values, issuePath), error }),
+        )
         if (gen !== this.validateGen) return scoped()
         collected.push(...issues)
       } else if (typeof validate === 'function') {
@@ -128,16 +156,31 @@ export class Validator {
    * Validate the whole form until a pass describes the live values (#6, used by `submit`).
    * A pass validates one snapshot; when the values differ from it once the pass settles (an edit while waiting
    * on async rules, a reaction derived from `$errors`, a reset), validate again, up to {@link SETTLE_PASSES}.
-   * Returns that pass's errors, or `null` when the values never settled or a newer pass superseded this one
-   * without any value change (that pass owns the shown state).
+   * A pass superseded by a newer whole-form pass adopts that pass's verdict (a second `submit()` on the same
+   * values must not fail the first, #41); one superseded by a scoped `validate(path)` runs again.
+   * Returns the errors of a current pass over the live values, or `null` when the values never settled.
    */
   async runSettled(): Promise<FieldError[] | null> {
     for (let pass = 0; pass < SETTLE_PASSES; pass++) {
-      const result = await this.run()
+      let result = await this.run()
+      while (!result.current && this.latestFull?.promise && this.latestFull.gen > result.gen) {
+        result = await this.latestFull.promise
+      }
       if (!sameValues(result.values, this.store.values)) continue
-      return result.current ? result.errors : null
+      if (result.current) return result.errors
     }
     return null
+  }
+
+  /**
+   * `submit`'s verdict: wait for in-flight rules, then {@link Validator.runSettled}. `null` when the live values
+   * validated clean; otherwise `reason: 'invalid'` with the errors, or `'superseded'` when they never settled.
+   */
+  async submitVerdict(): Promise<Exclude<SubmitResult<unknown>, { ok: true }> | null> {
+    await this.waitAsync()
+    const errors = await this.runSettled()
+    if (!errors) return { ok: false, reason: 'superseded', errors: [], message: this.message('superseded', { path: '', value: this.store.values }) }
+    return errors.length ? { ok: false, reason: 'invalid', errors } : null
   }
 
   /**
@@ -179,10 +222,13 @@ export class Validator {
     const ctx = this.buildCtx(path, value, this.deps.readPos(path) ?? undefined, values, ac.signal)
     const rules = field.rules.slice()
     if (options.enumPolicy === 'error' && field.enumOptions && !optionIncludes(field.enumOptions, value)) {
-      rules.push({ validator: () => '不在可选范围内' })
+      const enumMessage = this.message('enum', { path, value, options: field.enumOptions })
+      rules.push({ validator: () => enumMessage })
     }
     const plain = rules.filter((rule) => !rule.schema)
-    const { messages, pending } = runRules(value, plain, ctx, field.required)
+    const { messages, pending } = runRules(value, plain, ctx, field.required, options.messages)
+    const fallback = (issuePath: string) =>
+      this.message('fallback', { path: issuePath ? `${path}.${issuePath}` : path, value: issuePath ? getAt(value, issuePath) : value, error: undefined })
     const issues: SchemaIssue[] = []
     const schemaPending: Promise<SchemaIssue[]>[] = []
     for (const rule of rules) {
@@ -191,7 +237,7 @@ export class Validator {
       try {
         result = rule.schema['~standard'].validate(value)
       } catch (err) {
-        issues.push({ path, message: errorMessage(err) })
+        issues.push({ path, message: this.errorMessage(err, path, value) })
         continue
       }
       if (isPromise(result)) {
@@ -200,7 +246,10 @@ export class Validator {
             if (!resolved.issues?.length) return []
             return fieldSchemaIssues(
               path,
-              resolved.issues.map((issue) => ({ path: schemaIssuePath(issue.path), message: issue.message || '校验失败' })),
+              resolved.issues.map((issue) => {
+                const issuePath = schemaIssuePath(issue.path)
+                return { path: issuePath, message: issue.message || fallback(issuePath) }
+              }),
             )
           }),
         )
@@ -208,7 +257,10 @@ export class Validator {
         issues.push(
           ...fieldSchemaIssues(
             path,
-            result.issues.map((issue) => ({ path: schemaIssuePath(issue.path), message: issue.message || '校验失败' })),
+            result.issues.map((issue) => {
+              const issuePath = schemaIssuePath(issue.path)
+              return { path: issuePath, message: issue.message || fallback(issuePath) }
+            }),
           ),
         )
       }
@@ -234,13 +286,13 @@ export class Validator {
       for (const item of pending) {
         const outcome = await settleUnlessAborted(item, ac.signal)
         if (outcome.status === 'aborted' || field.asyncSeq !== seq || ac.signal.aborted) return stale()
-        if (outcome.status === 'rejected') extra.push(errorMessage(outcome.reason))
+        if (outcome.status === 'rejected') extra.push(this.errorMessage(outcome.reason, path, value))
         else if (outcome.value) extra.push(outcome.value)
       }
       for (const item of schemaPending) {
         const outcome = await settleUnlessAborted(item, ac.signal)
         if (outcome.status === 'aborted' || field.asyncSeq !== seq || ac.signal.aborted) return stale()
-        if (outcome.status === 'rejected') issues.push({ path, message: errorMessage(outcome.reason) })
+        if (outcome.status === 'rejected') issues.push({ path, message: this.errorMessage(outcome.reason, path, value) })
         else issues.push(...outcome.value)
       }
       return apply(extra)
@@ -334,6 +386,7 @@ export class Validator {
       field.rules.filter((rule) => !rule.schema).map((rule) => ({ ...rule, validator: undefined })),
       ctx,
       field.required,
+      this.deps.options.messages,
     )
     this.setErrors(path, messages)
   }
@@ -466,6 +519,14 @@ export class Validator {
   }
 }
 
+/** One pass's outcome. `gen` is its generation (see {@link Validator.validateGen}). */
+export interface RunResult {
+  errors: FieldError[]
+  values: unknown
+  current: boolean
+  gen: number
+}
+
 function recordToIssues(extra: Partial<Record<string, string>> | void): SchemaIssue[] {
   if (!extra) return []
   return Object.entries(extra)
@@ -479,10 +540,6 @@ const SETTLE_PASSES = 3
 /** Writes replace the values object, so identity is the fast path; equal content counts as unchanged. */
 function sameValues(a: unknown, b: unknown): boolean {
   return a === b || deepEqual(a, b)
-}
-
-function errorMessage(err: unknown): string {
-  return err instanceof Error && err.message ? err.message : '校验失败'
 }
 
 function isPromise(value: unknown): value is Promise<unknown> {
