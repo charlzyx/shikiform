@@ -90,13 +90,14 @@ type AppFormApi<T, TFields, TForms> = FormEngine<T> & {
 form.AppField<N extends FieldPath<T>>(props: {
   name: N
   children: (field: FieldBinding<PathValue<T, N & string>> & TFields) => React.ReactNode
-}): React.ReactNode
+} & UseFieldOptions): React.ReactNode
 ```
 
 | 属性 | 作用 |
 |---|---|
 | `name` | 必填；检查当前表单或字段组的路径，运行时仍相对当前 scope |
 | `children` | 必填 render prop；拿到当前绑定及 `fieldComponents` 中的组件 |
+| `rules` / `required` / `title` 等 | 与 [`useField` 的选项](/reference/react-hooks#usefield) 相同，原样传给内部的 `<Field>` |
 
 ```tsx
 <form.AppField name="email">
@@ -106,11 +107,9 @@ form.AppField<N extends FieldPath<T>>(props: {
 
 `field.TextInput` 在字段 context 中读取当前绑定，不再传 `name`。同一个 AppField 内再创建字段组时，子名字相对这个字段路径。
 
-AppField 复用普通 Field 的订阅与显示路径：`hidden` / `none` 不渲染子 UI，但二者的校验和提交含义不同。因为它没有 JSX `rules` / `required` 声明，所以只消费绑定，不取得或释放别人的校验 lease。参见 [显隐](/guide/concepts)。
+AppField 复用普通 Field 的订阅与显示路径。`hidden` 不渲染子 UI，但仍校验、仍提交。`none` 不渲染，并且跳过校验、不进入提交结果。参见 [显隐](/guide/concepts)。
 
-普通 `Field` 只有在实际传入 `rules` 或 `required` 时才拥有 JSX 校验声明；`rules={[]}`、`required={false}` 也算显式声明。纯绑定消费者可以与已有规则的 Field 同路径挂载，但当前核心仍只保存一份 JSX 规则，不支持多个同路径 Field 各自持有不同的 JSX 校验配置；不要把这次纯消费者修正当成多 owner 规则合并。
-
-**当前公开 props 只有 `name` 和 `children`**。不要向 AppField 传普通 Field 的 `rules`、`required`、`display`，更不要传尚未支持的 `component` / `decorator`。这里需要的规则/显示写在 `useAppForm({ fields, effects })`；它们属于模型声明，UI 卸载不会把声明删除。要使用 JSX 挂载期规则，直接用公开 `<Field rules={...}>`。
+`rules`、`required`、`title` 都可以写在 `AppField` 上，和 `<Field>` 一样。传入 `rules` / `required` 时，挂载期间持有 JSX 校验声明，卸载后释放。`rules={[]}`、`required={false}` 也算显式声明。不传这两项时只消费绑定，不取得、也不释放同路径其他 Field 的规则 lease。当前核心仍只保存一份 JSX 规则，不支持多个同路径 Field 各自持有不同的 JSX 校验配置。
 
 ## AppForm
 
@@ -120,9 +119,7 @@ form.AppForm(props: { children?: React.ReactNode }): React.ReactNode
 
 提供通用 Form context、工厂 form context 和一个原生 `<form>`。submit 时阻止默认页面跳转，调用 `form.submit()` 校验/提交，不创建 antd 的 Form store。
 
-当前没有 `onSubmit`、`onFinish`、`initialValues` 或任意 DOM props 的透传；不要给 `<form.AppForm>` 写这些属性。业务保存用 `form.submit(onValid)` 或检查其返回结果，见下方完整例子。它没有自动请求后端的行为。
-
-需要原生提交事件直接执行成功回调时，可在 `withForm` 片段里使用通用 `<Form form={form} onSubmit={...}>`；不要把两个原生 form 嵌套。通用 Form 和 AppForm 的公开属性不是同一组。
+当前没有 `onSubmit`、`onFinish`、`initialValues` 或任意 DOM props 的透传；不要给 `<form.AppForm>` 写这些属性。要拿到提交值，调用 `form.submit(onValid)`，或者不用 `AppForm`，把 `AppField` 包在 shikiform 的 `<Form form={form} onSubmit>` 里。`AppForm` 自己已经渲染了 `<form>`，不要再套一层。它没有自动请求后端的行为。
 
 ## withForm
 
