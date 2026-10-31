@@ -1,0 +1,228 @@
+---
+title: 联动
+description: SKU 选择器的选项与冲突清理、按勾选生成数组行、上千个字段下的局部重算。
+---
+
+# 联动
+
+## SKU 选择器
+
+场景：商品有颜色、容量、版本三个维度，用户可以按任意顺序选；选项要跟着已选维度禁用缺货组合，冲突的选择要自动清掉，价格和库存随选择变化。
+
+```tsx preview play=sku-picker
+import { Field, Form, defineEffects, useForm, type Draft } from 'shikiform';
+import { comboMatch, comboOptions } from 'shikiform/core';
+import { FormItem, FormLayout, Input, InputNumber, Radio } from 'shikiform/antd';
+
+const SKUS = [
+  { skuId: 'B-128-STD', color: '黑色', storage: '128G', edition: '标准版', price: 999, stock: 12 },
+  { skuId: 'B-256-PRO', color: '黑色', storage: '256G', edition: 'Pro', price: 1499, stock: 3 },
+  { skuId: 'W-256-PRO', color: '白色', storage: '256G', edition: 'Pro', price: 1499, stock: 8 },
+  { skuId: 'W-128-STD', color: '白色', storage: '128G', edition: '标准版', price: 999, stock: 0 },
+  { skuId: 'R-512-MAX', color: '红色', storage: '512G', edition: 'Max', price: 1999, stock: 5 },
+];
+const DIMS = ['color', 'storage', 'edition'] as const;
+type Dim = (typeof DIMS)[number];
+type Selection = Record<Dim, string>; // '' 表示未选
+type Values = Selection & { qty: number; skuId: string; price: string; stock: string };
+
+const selectionOf = (d: Draft<Values>): Selection => ({ color: d.color.$value, storage: d.storage.$value, edition: d.edition.$value });
+const matching = (sel: Selection) => SKUS.filter((row) => DIMS.every((dim) => !sel[dim] || row[dim] === sel[dim]));
+/** 选了 dim = value 之后：保留它，清掉和它组合不出来的其他维度。 */
+function afterPick(sel: Selection, dim: Dim, value: string): Selection {
+  const next: Selection = { ...sel, [dim]: value };
+  for (const other of DIMS) {
+    if (other !== dim && next[other] && !comboMatch(SKUS, { [dim]: value, [other]: next[other] })) next[other] = '';
+  }
+  return next;
+}
+
+const effects = defineEffects<Values>(({ reaction, watch }) => {
+  // 选项：每个值都能点；点下去之后没有有货的组合，就禁用
+  reaction((d) => {
+    const sel = selectionOf(d);
+    for (const dim of DIMS) {
+      d[dim].$enum = comboOptions(SKUS, {}, dim).map((option) => ({
+        ...option,
+        disabled: !matching(afterPick(sel, dim, String(option.value))).some((row) => row.stock > 0),
+      }));
+    }
+  });
+  // 动作：改了一个维度，清掉与它冲突的其他维度
+  for (const dim of DIMS) {
+    watch((d) => d[dim].$value, (d) => {
+      const sel = selectionOf(d);
+      const next = afterPick(sel, dim, sel[dim]);
+      for (const other of DIMS) if (next[other] !== sel[other]) d[other].$value = next[other];
+    });
+  }
+  // 派生：价格区间、库存、数量上限
+  reaction((d) => {
+    const rows = matching(selectionOf(d));
+    const sku = rows.length === 1 ? rows[0] : undefined;
+    const prices = rows.map((row) => row.price);
+    const [min, max] = [Math.min(...prices), Math.max(...prices)];
+    d.skuId.$value = sku?.skuId ?? '—';
+    d.price.$value = min === max ? `¥${min}` : `¥${min} ~ ¥${max}`;
+    d.stock.$value = sku ? `${sku.stock} 件` : '—';
+    d.qty.$disabled = !sku;
+    d.qty.$rules = [{ max: sku?.stock ?? 1, message: `库存仅剩 ${sku?.stock ?? 0} 件` }];
+  });
+});
+
+export default function App() {
+  const form = useForm<Values>({ initialValues: { color: '', storage: '', edition: '', qty: 1, skuId: '', price: '', stock: '' },
+    fields: { skuId: { virtual: true }, price: { virtual: true }, stock: { virtual: true } }, // 展示用，不进提交结果
+    effects: [effects],
+  });
+  return (
+    <Form form={form}>
+      <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }}>
+        <Field name="color" title="颜色" decorator={[FormItem]} component={[Radio.Group, { optionType: 'button' }]} />
+        <Field name="storage" title="容量" decorator={[FormItem]} component={[Radio.Group, { optionType: 'button' }]} />
+        <Field name="edition" title="版本" decorator={[FormItem]} component={[Radio.Group, { optionType: 'button' }]} />
+        <Field name="price" title="价格" decorator={[FormItem]} component={[Input]} />
+        <Field name="stock" title="库存" decorator={[FormItem]} component={[Input]} />
+        <Field name="skuId" title="SKU" decorator={[FormItem]} component={[Input]} />
+        <Field name="qty" title="数量" decorator={[FormItem]} component={[InputNumber, { min: 1 }]} />
+      </FormLayout>
+    </Form>
+  );
+}
+```
+
+- 三种联动各司其职：`reaction` 维持选项和价格（[派生](/guide/linkage#reaction-与-watch)），`watch` 在维度变化时清理冲突（动作），`$rules` 让数量上限跟着库存。
+- `comboOptions` / `comboMatch`（`shikiform/core`）只做组合表查询，组合表由你提供。
+- 价格、库存、SKU 被 reaction 写了 `$value`，自动成为阅读态；它们只是展示文字，所以声明了 `virtual: true`，不进提交结果。reaction 写入的值默认是会提交的。
+- 先选「白色」再选「128G」：白色 128G 缺货，所以「128G」是禁用的；先选「128G」再点「白色」也一样。
+
+## 按勾选生成行
+
+场景：勾选颜色 × 容量的组合，每个组合生成一行价格表；取消勾选删掉那一行，已经改过的价格不能因为勾选变化而丢失。
+
+```tsx preview play=sku
+import { ArrayField, Field, Form, defineEffects, useForm } from 'shikiform';
+import { Checkbox, FormItem, FormLayout, Input, InputNumber } from 'shikiform/antd';
+
+const CATALOG = [
+  { id: '白色/128G', price: 10, stock: 0 },
+  { id: '白色/256G', price: 20, stock: 2 },
+  { id: '黑色/128G', price: 12, stock: 3 },
+  { id: '黑色/256G', price: 22, stock: 9 },
+];
+type Row = { id: string; price: number; qty: number; total: number };
+type Values = { picked: string[]; rows: Row[] };
+
+const effects = defineEffects<Values>(({ reaction, watch }) => {
+  // 动作：勾选变了才同步行；已有的行原样保留（包括改过的价格）
+  watch((d) => d.picked.$value, (d) => {
+    const before = d.rows.$value;
+    d.rows.$value = d.picked.$value.map((id) =>
+      before.find((row) => row.id === id) ?? { id, price: CATALOG.find((item) => item.id === id)?.price ?? 0, qty: 1, total: 0 });
+  });
+  // 派生：每行一个实例，只重算改动的那一行
+  reaction.each((d) => d.rows, (row) => {
+    row.total.$value = row.price.$value * row.qty.$value;
+  });
+});
+
+export default function App() {
+  const form = useForm<Values>({
+    initialValues: { picked: [], rows: [] },
+    fields: { picked: { enum: CATALOG.map((item) => ({ label: item.id, value: item.id, disabled: item.stock === 0 })) } },
+    effects: [effects],
+  });
+  return (
+    <Form form={form} onSubmit={(values) => alert(JSON.stringify(values.rows))}>
+      <Field name="picked" title="组合" decorator={[FormItem]} component={[Checkbox.Group]} />
+      <ArrayField name="rows" rowKey="id">
+        {() => (
+          <FormLayout layout="inline" feedbackLayout="terse" style={{ marginBottom: 8 }}>
+            <Field name="id" pattern="readPretty" component={[Input]} />
+            <Field name="price" title="单价" decorator={[FormItem]} component={[InputNumber, { min: 0 }]} />
+            <Field name="qty" title="数量" decorator={[FormItem]} component={[InputNumber, { min: 1 }]} />
+            <Field name="total" title="小计" decorator={[FormItem]} component={[InputNumber]} />
+          </FormLayout>
+        )}
+      </ArrayField>
+      <button type="submit">提交</button>
+    </Form>
+  );
+}
+```
+
+- 生成行用 `watch`，不用 `reaction`：它只在勾选变化时执行，回调里读 `d.rows.$value` 不会成为依赖，所以可以「读旧行、写新行」。
+- `reaction.each` 的回调是 `(row, ctx)`；`row.total` 这类 handle 相对这一行。见 [reaction.each](/guide/linkage#reaction-each-每一行一个实例)。
+- 缺货组合在 `enum` 里带 `disabled: true`，`Checkbox.Group` 直接禁用它。
+- 完整版用一张 `overrides` 表按组合 id 记住改过的价格，再由 reaction 重建整个数组。
+
+## 上千个字段
+
+场景：1000 行 × 4 个字段的价格表，每行的建议价由成本和加价率算出；改一个单元格，不应该让整张表重渲染或重算。
+
+```tsx preview play=large
+import { memo, useRef } from 'react';
+import { Form, RowScope, VirtualRows, defineEffects, useArrayField, useField, useForm } from 'shikiform';
+
+type Row = { id: string; cost: number; markup: number; suggested: number };
+type Values = { rows: Row[] };
+
+const effects = defineEffects<Values>(({ reaction }) => {
+  reaction.each((d) => d.rows, (row) => {
+    row.suggested.$value = Math.round(row.cost.$value * (1 + row.markup.$value / 100));
+  });
+});
+
+/** 每个单元格只订阅自己的 path；数字是它渲染过的次数。 */
+function Cell({ name }: { name: keyof Row }) {
+  const field = useField(name);
+  const renders = useRef(0);
+  renders.current += 1;
+  return (
+    <label style={{ marginRight: 8 }}>
+      <input style={{ width: 72 }} aria-label={name} value={String(field.value ?? '')} readOnly={name === 'suggested'}
+        onChange={(event) => field.onChange(Number(event.target.value))} />
+      <sup>{renders.current}</sup>
+    </label>
+  );
+}
+
+const Line = memo(function Line({ index }: { index: number }) {
+  return (
+    <RowScope path={`rows.${index}`} index={index}>
+      <div style={{ height: 36 }}>
+        <code style={{ display: 'inline-block', width: 48 }}>#{index}</code>
+        <Cell name="cost" /><Cell name="markup" /><Cell name="suggested" />
+      </div>
+    </RowScope>
+  );
+});
+
+function Table() {
+  const rows = useArrayField('rows');
+  return (
+    <VirtualRows count={rows.keys.length} height={300} rowHeight={36} overscan={4}>
+      {(index) => <Line index={index} />}
+    </VirtualRows>
+  );
+}
+
+export default function App() {
+  const form = useForm<Values>({
+    initialValues: { rows: Array.from({ length: 1000 }, (_, index) => ({ id: `r${index}`, cost: 10 + (index % 7), markup: 20, suggested: 0 })) },
+    effects: [effects],
+  });
+  return (
+    <Form form={form}>
+      <p>成本 / 加价率 % / 建议价（上标是渲染次数）</p>
+      <Table />
+    </Form>
+  );
+}
+```
+
+- 改第 3 行的成本：只有这一行的 `cost` 和 `suggested` 渲染次数加一，其他行不动。`useArrayField` 只订阅数组结构（行数和行身份），不订阅单元格。
+- `VirtualRows` 只挂载可见行；没挂载的行照样有 `reaction.each` 实例，建议价一开始就全部算好。
+- 完整版同时放了 200 / 1000 两档，用来观察渲染计数，它不是性能基准。
+
+下一组：[数组与树](/examples/arrays)。
