@@ -531,6 +531,10 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
       scheduler.trackChain(path, 'display')
       return store.effectiveDisplay(path) === 'visible'
     }
+    if (key === '$hidden') {
+      scheduler.trackChain(path, 'display')
+      return store.effectiveDisplay(path) === 'hidden'
+    }
     if (key === '$display') {
       scheduler.trackChain(path, 'display')
       return store.effectiveDisplay(path)

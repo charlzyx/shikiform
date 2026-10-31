@@ -31,7 +31,7 @@ test('the copied two-file example submits through the public package and can be 
   await expect(form.locator('pre.shiki-code')).toHaveCount(0)
 })
 
-test('the tutorial uses library hidden semantics instead of silently skipping validation', async ({ page }) => {
+test('the tutorial $visible = false skips validation and drops the field from submit (display none)', async ({ page }) => {
   const tutorial = await answer(page, '/tutorial/4-state')
   const form = tutorial.locator('form')
   await form.getByRole('switch', { name: '需要联系', exact: true }).check()
@@ -39,8 +39,8 @@ test('the tutorial uses library hidden semantics instead of silently skipping va
   await form.getByRole('switch', { name: '需要联系', exact: true }).uncheck()
   await expect(form.getByRole('textbox', { name: '邮箱', exact: true })).toHaveCount(0)
   await form.getByRole('button', { name: '提 交', exact: true }).click()
-  await expect(form.getByRole('list', { name: '表单错误' })).toContainText('必填')
-  await expect(form.locator('pre.shiki-code')).toHaveCount(0)
+  await expect(form.locator('pre.shiki-code')).toContainText('"contact": false')
+  await expect(form.locator('pre.shiki-code')).not.toContainText('email')
 })
 
 test('array tutorial additions and removals use stable real rows and computed totals are submitted', async ({ page }) => {

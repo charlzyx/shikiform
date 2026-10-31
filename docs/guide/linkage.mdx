@@ -213,7 +213,7 @@ export default function App() {
 
 ## UI 也是状态
 
-显隐、必填、选项、标签、占位符都是 `$` 状态，在 reaction 里赋值即可（完整例子见 [首页](/)）。不要在渲染时根据 `form.getValue(...)` 算 props：那不是响应式的。
+显隐、必填、选项、标签、占位符都是 `$` 状态，在 reaction 里赋值即可（完整例子见 [首页](/)）。条件显示的字段写 `$visible`：`false` 等于 `display: 'none'`，不校验、不提交（与 Formily 一致）；要「只藏 UI、仍校验仍提交」写 `$hidden = true`。见 [显隐、pattern 与提交](/guide/concepts#显隐pattern-与提交)。不要在渲染时根据 `form.getValue(...)` 算 props：那不是响应式的。
 
 三个维度的 SKU 选择、冲突清理、价格与库存联动见 [SKU 选择器](/play/sku-picker)，更多场景在 [联动示例](/examples/linkage)。
 
