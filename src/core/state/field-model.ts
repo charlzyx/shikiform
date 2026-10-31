@@ -15,6 +15,11 @@ export interface FieldModel {
   pattern?: Pattern
   hasPattern: boolean
   patternFromEffect: boolean
+  /**
+   * The explicit pattern was installed by `$disabled = true` and has not been replaced by `$pattern`.
+   * `$disabled = false` clears the pattern only while this is set, so the field inherits again.
+   */
+  patternFromDisabled: boolean
   required: boolean
   requiredFromEffect: boolean
   virtual: boolean
@@ -92,6 +97,7 @@ export function createFieldModel(path: string): FieldModel {
     displayFromEffect: false,
     hasPattern: false,
     patternFromEffect: false,
+    patternFromDisabled: false,
     required: false,
     requiredFromEffect: false,
     virtual: false,
