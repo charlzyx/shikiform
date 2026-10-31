@@ -98,39 +98,25 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
   // —— form state (read-only, #36: writes go through setValue / batch / reset / submit so subscribers hear them) ——
 
   /** Current values. Write with `setValue`, `batch`, `reset(values)`, or the array and tree methods. */
-  get values(): T {
-    return this.store.values
-  }
+  get values(): T { return this.store.values }
 
   /** Baseline `reset()` restores and `dirty` compares against. Cloned on create; replaced by `reset(values)` / `setInitialValues`. */
-  get initial(): T {
-    return this.store.initial
-  }
+  get initial(): T { return this.store.initial }
 
   /** True while {@link FormEngine.submit} is running. Same value as {@link FormEngine.isSubmitting}. */
-  get submitting(): boolean {
-    return this.store.submitting
-  }
+  get submitting(): boolean { return this.store.submitting }
 
   /** True while a validate pass is running, including the async rules it waits for. */
-  get validating(): boolean {
-    return this.store.validating
-  }
+  get validating(): boolean { return this.store.validating }
 
   /** Values differ from {@link FormEngine.initial} (deep; reverting clears it). `virtual` / computed fields are ignored. */
-  get dirty(): boolean {
-    return this.baseline.formDirty()
-  }
+  get dirty(): boolean { return this.baseline.formDirty() }
 
   /** Sticky: a user edit (`setValue`, `binding().onChange`) happened since `reset`. A reaction write does not count. */
-  get edited(): boolean {
-    return this.store.edited
-  }
+  get edited(): boolean { return this.store.edited }
 
   /** Incremented once per {@link FormEngine.submit}, including calls that fail validation. */
-  get submitCount(): number {
-    return this.store.submitCount
-  }
+  get submitCount(): number { return this.store.submitCount }
 
   /** When true, each reaction pass is traced. */
   get devtools(): boolean {
