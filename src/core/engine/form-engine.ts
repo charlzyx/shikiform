@@ -25,6 +25,7 @@ import type {
   FormOptions,
   MoveResult,
   PathValue,
+  SubmitResult,
   WriteOp,
 } from '../types'
 import { UiRegistry } from '../ui/ui-registry'
@@ -198,26 +199,23 @@ export class FormEngine<T = any> implements FormInstance<T>, DraftHost, EffectsR
    * `virtual` and display `none` are omitted. `hidden` is kept. A computed field is omitted only when
    * it was declared `virtual: true`.
    *
-   * Submit only returns values its own pass validated (#6): see `Validator.runSettled`. When the values never
-   * settle, or another validation supersedes the pass, it returns `ok: false` with a root retry message
-   * and does not call `onValid`.
+   * Only values its own pass validated are submitted (#6, #41; see `Validator.submitVerdict`). Never rejects (#38).
    */
-  async submit(onValid?: (values: T) => void | Promise<void>) {
+  async submit(onValid?: (values: T) => void | Promise<void>): Promise<SubmitResult<T>> {
     const { store, scheduler, notifier, validator } = this
     store.submitCount += 1
     this.pendingSubmits += 1
     store.submitting = true
     scheduler.bumpMeta()
     notifier.emit()
-    const retry = { ok: false as const, errors: [{ path: '', messages: ['表单或校验已更新，请重新提交'] }] }
     try {
-      await validator.waitAsync()
-      const errors = await validator.runSettled()
-      if (!errors) return retry
-      if (errors.length) return { ok: false as const, errors }
+      const failed = await validator.submitVerdict()
+      if (failed) return failed
       const values = this.getSubmitValues()
       if (onValid) await onValid(values)
-      return { ok: true as const, values }
+      return { ok: true, values }
+    } catch (error) {
+      return { ok: false, reason: 'error', errors: [], error }
     } finally {
       this.pendingSubmits -= 1
       store.submitting = this.pendingSubmits > 0

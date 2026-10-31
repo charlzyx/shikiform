@@ -1,3 +1,5 @@
+import { formatMessage } from './messages'
+
 /**
  * [Standard Schema](https://standardschema.dev) v1.
  * Zod, Valibot, and ArkType implement this. Pass the schema itself — there is no adapter.
@@ -64,18 +66,24 @@ export function schemaIssuePath(path: StandardSchemaV1.Issue['path'] | undefined
 /**
  * Run a Standard Schema. Sync and async schemas both come back as a list.
  * A thrown validator becomes a single issue on the value itself.
+ * An issue without a message, or a throw without one, gets `fallback` (default: the `fallback` built-in message).
  * The caller decides which paths are display `none` and must be dropped.
  */
-export async function collectSchemaIssues(schema: StandardSchemaV1, value: unknown): Promise<SchemaIssue[]> {
+export async function collectSchemaIssues(
+  schema: StandardSchemaV1,
+  value: unknown,
+  fallback: string | ((error: unknown, path: string) => string) = (error, path) => formatMessage(undefined, 'fallback', { path, value, error }),
+): Promise<SchemaIssue[]> {
+  const fill = (error: unknown, path: string) => (typeof fallback === 'function' ? fallback(error, path) : fallback)
   try {
     const result = await schema['~standard'].validate(value)
     if (!result.issues?.length) return []
-    return result.issues.map((issue) => ({
-      path: schemaIssuePath(issue.path),
-      message: issue.message || '校验失败',
-    }))
+    return result.issues.map((issue) => {
+      const path = schemaIssuePath(issue.path)
+      return { path, message: issue.message || fill(undefined, path) }
+    })
   } catch (err) {
-    return [{ path: '', message: err instanceof Error ? err.message : '校验失败' }]
+    return [{ path: '', message: err instanceof Error && err.message ? err.message : fill(err, '') }]
   }
 }
 

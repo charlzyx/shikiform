@@ -4,7 +4,8 @@ import { joinPath } from '../../core/shared/path'
 import type { FieldPath, FormOptions, PathValue } from '../../core/types'
 import { FormContext, ScopeContext, useScope } from '../context'
 import type { FieldBinding, UseFieldOptions } from '../hooks/use-field'
-import { Field } from '../components/fields'
+import { Field, handleFormSubmit, type FormDomProps, type FormSubmitHandlers } from '../components/fields'
+import type { FormMessages } from '../../core/validation/messages'
 import { useForm } from '../hooks/use-form'
 
 /**
@@ -54,6 +55,8 @@ export function createFormHook<
   formComponents?: TForms
   fieldContext: Context<FieldBinding<any> | null>
   formContext: Context<FormEngine<any> | null>
+  /** Built-in message overrides for every `useAppForm()`; a form's own `messages` keys win. */
+  messages?: Partial<FormMessages>
 }) {
   function AppField({ name, children, ...fieldOptions }: { name: string; children: (field: FieldBinding<any> & TFields) => ReactNode } & UseFieldOptions) {
     const scope = useScope()
@@ -71,18 +74,13 @@ export function createFormHook<
   }
 
   function useAppForm<T>(opts?: FormOptions<T>): AppFormApi<T, TFields, TForms> {
-    const form = useForm(opts)
+    const form = useForm(options.messages ? { ...opts, messages: { ...options.messages, ...opts?.messages } } : opts)
     return useMemo(() => {
-      function AppForm({ children }: { children?: ReactNode }) {
+      function AppForm({ children, onSubmit, onInvalid, onSubmitError, ...rest }: AppFormProps<T>) {
         return (
           <FormContext.Provider value={form}>
             <options.formContext.Provider value={form}>
-              <form
-                onSubmit={(event) => {
-                  event.preventDefault()
-                  void form.submit()
-                }}
-              >
+              <form {...rest} onSubmit={(event) => handleFormSubmit(form, event, { onSubmit, onInvalid, onSubmitError })}>
                 {children}
               </form>
             </options.formContext.Provider>
@@ -147,8 +145,15 @@ export type AppFormApi<
     name: N
     children: (field: FieldBinding<PathValue<T, N & string>> & TFields) => ReactNode
   } & UseFieldOptions) => ReactNode
-  AppForm: (props: { children?: ReactNode }) => ReactNode
+  /** The native `<form>`. Enter / `type="submit"` run `form.submit(onSubmit)`; see {@link AppFormProps}. */
+  AppForm: (props: AppFormProps<T>) => ReactNode
 } & TForms
+
+/**
+ * `<form.AppForm>` props: the same submit callbacks as `<Form>` (`onSubmit`, `onInvalid`, `onSubmitError`)
+ * plus native `<form>` attributes.
+ */
+export type AppFormProps<T> = FormSubmitHandlers<T> & FormDomProps & { children?: ReactNode }
 
 /** Field group handle. `name` is checked against the group value, not the whole form. */
 export type GroupApi<TGroup, TFields extends Record<string, ComponentType<any>>> = {

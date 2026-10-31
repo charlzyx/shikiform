@@ -84,7 +84,62 @@ export default function App() {
 
 - 默认在失焦（`onBlur`）和提交（`onSubmit`）时；表单级改 `validateTrigger: ['onChange', 'onBlur', 'onSubmit']`。控件必须把 blur 交回 `field.onBlur`（接好的 antd 控件已经做了）。
 - 手动：`form.validate()` 校验全表，`form.validate('items')` 校验一棵子树，都返回 `FieldError[]`（`{ path, messages }`）。
-- `submit` 先等进行中的异步规则再校验；通过才调用回调。校验期间值又变了，就按新值再校验一轮（最多 3 轮），交出去的永远是刚校验过的值；值一直在变才返回 `ok: false` 并提示重新提交。
+- `submit` 先等进行中的异步规则再校验；通过才调用回调。校验期间值又变了，就按新值再校验一轮（最多 3 轮），交出去的永远是刚校验过的值。值没变时并发的两次 `submit`（双击）都成功，各自调用自己的回调；要防重复提交，按钮用 `$submitting` 禁用。
+
+## 提交结果
+
+`submit()` 从不 reject，结果按 `reason` 区分：
+
+| 结果 | 含义 |
+|---|---|
+| `{ ok: true, values }` | 校验通过，`onValid` 已执行完 |
+| `{ ok: false, reason: 'invalid', errors }` | 校验失败，没有调用 `onValid` |
+| `{ ok: false, reason: 'error', error }` | `onValid`（或表单级 `validate` / `resolver`）抛错，`error` 是抛出的值 |
+| `{ ok: false, reason: 'superseded', message }` | 值一直在变，3 轮都没稳定；不是校验错误，`errors` 为空，再提交一次 |
+
+`<Form>` 和 `<form.AppForm>` 把结果交给回调：
+
+```tsx
+<Form
+  form={form}
+  id="profile"
+  onSubmit={save}                                   // 通过校验后调用，可以是 async
+  onInvalid={(errors) => scrollToField(errors[0].path)}
+  onSubmitError={(error) => message.error(String(error))}  // save 抛错；不传就 console.error
+>
+  …
+</Form>
+<button type="submit" form="profile">保存</button>   {/* 其余属性透传给 <form> */}
+```
+
+## 内置文案
+
+内置规则和引擎的默认文案是中文。`messages` 按 key 覆盖，没写的 key 用默认值；规则自己的 `message` 永远优先：
+
+```ts
+import { createForm, enUS, setDefaultMessages } from 'shikiform'
+
+createForm({ messages: enUS })                       // 整套英文
+createForm({
+  messages: {
+    required: 'Required',
+    minLength: ({ minLength }) => `At least ${minLength} characters`,  // 函数拿到参数
+    enum: ({ value }) => `${value} is not an option`,
+  },
+})
+setDefaultMessages(enUS)                              // 全应用默认，启动时调一次
+```
+
+| key | 何时 | 函数参数（都有 `path`、`value`） |
+|---|---|---|
+| `required` / `isTrue` / `email` / `url` / `pattern` | 对应规则 | `pattern` 另有 `pattern` |
+| `minLength` / `maxLength` | 字符串长度 | `minLength` / `maxLength`、`length` |
+| `min` / `max` | 数字范围 | `min` / `max` |
+| `enum` | `enumPolicy: 'error'` 且值不在 `$enum` | `options` |
+| `fallback` | validator 抛出没有 message 的错误，或 schema issue 的 `message` 为空 | `error` |
+| `superseded` | `submit` 结果 `reason: 'superseded'` 的 `message` | — |
+
+优先级：规则 `message` > 表单 `messages` > `setDefaultMessages` > 内置中文（`zhCN`）。工厂写法可以 `createFormHook({ …, messages })`，对它创建的每个表单生效。
 
 ## 服务端错误
 

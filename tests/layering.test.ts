@@ -43,7 +43,7 @@ const CORE_RANK: Record<string, number> = {
   ui: 4,
   engine: 5,
 }
-const PURE = ['core/shared/', 'core/enum/', 'core/draft/', 'core/types', 'core/errors', 'core/validation/rules', 'core/validation/schema']
+const PURE = ['core/shared/', 'core/enum/', 'core/draft/', 'core/types', 'core/errors', 'core/validation/rules', 'core/validation/schema', 'core/validation/messages']
 
 describe('module layering', () => {
   it('has no import cycles', () => {

@@ -1,6 +1,7 @@
 import type { EnumBinding, EnumOption, EnumSource } from './enum/enum-source'
 import type { StandardSchemaV1 } from './validation/schema'
 import type { Rule, RulesInput, ValidateCtx } from './validation/rules'
+import type { FormMessages } from './validation/messages'
 import type { Pos } from './shared/tree-ops'
 
 export type { StandardSchemaV1, RulesInput }
@@ -216,6 +217,12 @@ export interface FormOptions<T> {
   enumPolicy?: EnumPolicy
   /** Optional external schema. Its path→message map is merged with field rules. */
   resolver?: (values: T) => Partial<Record<string, string>> | Promise<Partial<Record<string, string>>>
+  /**
+   * Override built-in messages for this form (#44): `required`, `email`, `minLength`, `enum`, `fallback`,
+   * `superseded` … A key is a string or a function of the check's parameters (`({ minLength }) => …`).
+   * Order: the rule's own `message` > this > `setDefaultMessages` > {@link zhCN}. Pass `enUS` for English.
+   */
+  messages?: Partial<FormMessages>
   /** Log each pass when true. */
   devtools?: boolean
   /** Tree roots that effects address before React mounts. */
@@ -466,6 +473,20 @@ export interface FieldError {
   messages: string[]
 }
 
+/**
+ * What `submit()` resolves to. It never rejects.
+ * - `ok: true` — validation passed and `onValid` (if any) finished; `values` are the submitted values.
+ * - `reason: 'invalid'` — validation failed; `errors` lists them. `onValid` was not called.
+ * - `reason: 'error'` — `onValid` (or a form-level `validate` / `resolver`) threw or rejected; `error` is what was thrown.
+ * - `reason: 'superseded'` — the values kept changing while validating (bounded retries); `message` is
+ *   `messages.superseded`. Not a validation error, `errors` is empty. Submit again.
+ */
+export type SubmitResult<T> =
+  | { ok: true; values: T }
+  | { ok: false; reason: 'invalid'; errors: FieldError[] }
+  | { ok: false; reason: 'error'; errors: FieldError[]; error: unknown }
+  | { ok: false; reason: 'superseded'; errors: FieldError[]; message: string }
+
 /** Result of a tree move. `reason` is set when the move is refused. */
 export interface MoveResult {
   ok: boolean
@@ -511,10 +532,10 @@ export interface FormInstance<T> {
   /**
    * Wait for in-flight async rules, validate, drop `virtual` and `display: 'none'` values.
    * `hidden` values are kept. A reaction-written value is kept unless `virtual` is true.
-   * Values changed during validation, or a newer validation pass: returns `ok: false`
-   * with a root retry message and does not call `onValid`. Submit again once settled.
+   * Values changed during validation are validated again (bounded); two submits on the same values both pass.
+   * Never rejects: see {@link SubmitResult} for `invalid` / `error` / `superseded`.
    */
-  submit(onValid?: (values: T) => void | Promise<void>): Promise<{ ok: true; values: T } | { ok: false; errors: FieldError[] }>
+  submit(onValid?: (values: T) => void | Promise<void>): Promise<SubmitResult<T>>
   /**
    * Restore initial values; touched, edited, and every message clear; computed values are written again.
    * `reset('a.b')` restores one subtree. `reset(values)` first makes `values` the new initial values (edit-page backfill).

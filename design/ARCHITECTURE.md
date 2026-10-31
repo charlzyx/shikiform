@@ -30,7 +30,7 @@ src/
     enum/                  enum-source.ts（EnumSource 缓存/防抖/加载）、combo.ts（组合联动算法）
     state/                 ① 状态：field-model.ts、field-store.ts、notifier.ts
     effects/               ② 调度：scheduler.ts、define-effects.ts
-    validation/            ③ 校验：validator.ts（管线）、rules.ts、schema.ts（纯函数）
+    validation/            ③ 校验：validator.ts（管线）、rules.ts、schema.ts、messages.ts（内置文案，纯函数）
     declarations/          ④ 声明：declarations.ts、templates.ts
     structure/             ⑤ 结构：arrays.ts、trees.ts、migrate.ts
     ui/                    ⑤ 命名 UI：ui-registry.ts
@@ -69,7 +69,7 @@ antd ─► pro ─► react ─► core
 core 内部（有状态部分，编号小者在下）：
   state ◄─ effects ◄─ validation ◄─ declarations ◄─ structure ◄─ engine
                   ▲                                   ui ◄──────┘
-纯模块（shared / draft / enum / types / errors / validation/rules / validation/schema）可被任何层引用，自身不引用有状态部分。
+纯模块（shared / draft / enum / types / errors / validation/rules / validation/schema / validation/messages）可被任何层引用，自身不引用有状态部分。
 ```
 
 `tests/layering.test.ts` 机械地守住这些规则：无循环 import；有状态部分只向下依赖；core 不引用 React/antd/react/pro；react 不引用 antd；core 单文件不超过 700 行。
@@ -133,7 +133,9 @@ Formily 的 `field.title` / `description` / `decorator` / `component` / `setComp
 4. **整表**（`validate(path?)` = `run(path).errors`）：`validateGen` 代数，只有最新一轮可提交；`prepare()` 之后取**一份不可变快照** `values = store.values`（写入总是替换对象），本轮所有字段规则与表单级校验都只读这份快照（#1）：`value`、`ctx.record/root/parent/array` 与 `ctx.get()` 读同一版本，不再出现「值是新的、同行另一列是旧的」。依次跑字段 → 表单级 `validate`（Standard Schema 或函数）→ `resolver`；issue 按路径分组写入 `schemaErrors`（scoped 校验只替换 `path` 之下，stale 字段保留旧值）；最后等待在途异步。`run` 返回 `{ errors, values: 快照, current: 是否仍是最新一轮 }`。以后若再引入「行草稿」校验，应构造一份把草稿写在真实行路径上的快照交给这条管线，而不是另开旁路。
 5. **展示**：`errors = rule errors + schemaErrors`；`hidden` 仍校验/提交，`none`（含祖先）跳过并清除错误。`canSubmit` 在提交/校验中或存在可见错误时为 false。
 6. **提交**（`FormEngine.submit`）：`submitCount+1` → 等待在途异步 → `Validator.runSettled()` → `getSubmitValues()`（去掉 `virtual` 与 `none`）→ `onValid`。
-   - **语义（#6）：只提交本轮校验过的值。** `runSettled` 跑一轮 `run()`，结束时若实时值与该轮快照不同（`===` 或 `deepEqual` 判等；来源可能是等待异步时的编辑、基于 `$errors` 的派生 reaction、`reset`），就**重新校验**，最多 3 轮。值稳定后：该轮仍是最新则返回它的错误（有错 → `ok: false` 带真实错误；无错 → 提交当前值，即刚校验过的那份）；若被另一轮校验取代而值没变，返回 `null`。值始终不稳定或被取代时，`submit` 返回根路径「表单或校验已更新，请重新提交」，不调用 `onValid`。
+   - **语义（#6）：只提交本轮校验过的值。** `runSettled` 跑一轮 `run()`，结束时若实时值与该轮快照不同（`===` 或 `deepEqual` 判等；来源可能是等待异步时的编辑、基于 `$errors` 的派生 reaction、`reset`），就**重新校验**，最多 3 轮。值稳定后：该轮仍是最新则返回它的错误（有错 → `ok: false, reason: 'invalid'`；无错 → 提交当前值，即刚校验过的那份）。**被更新的整表校验取代且值没变（#41）**：等待并采用那一轮的结论（`latestFull`，在该轮取得 generation 时、通知之前登记，所以通知里重入的校验是更新的一轮），双击提交两次都成功；被局部 `validate(path)` 取代则再跑一轮。3 轮仍不稳定时返回 `{ ok: false, reason: 'superseded', errors: [], message }`（文案为 `messages.superseded`），不调用 `onValid`。
+   - **从不 reject（#38）**：`onValid` 或表单级 `validate` / `resolver` 抛错 → `{ ok: false, reason: 'error', error }`。`<Form>` / `AppForm` 用共享的 `handleFormSubmit` 把结果分给 `onInvalid` / `onSubmitError`（默认 `console.error`）。
+   - **文案（#44）**：内置文案都经 `formatMessage(options.messages, key, params)`：规则 `message` > 表单 `messages` > `setDefaultMessages` > `zhCN`。
    - 取舍：相比「改值即拒绝」，重校验让用户在等待期间的编辑直接得到真实结论（错误或成功），也避免派生写入把每次提交都变成「请重新提交」；3 轮上限防止持续写值导致活锁。
 
 ## 6. 结构操作（`core/structure`）
