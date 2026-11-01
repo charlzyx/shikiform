@@ -146,7 +146,6 @@ function queryTypes() {
 const contexts = createFormHookContexts()
 const hook = createFormHook({
   fieldComponents: { Input: () => null },
-  fieldContext: contexts.fieldContext,
   formContext: contexts.formContext,
 })
 

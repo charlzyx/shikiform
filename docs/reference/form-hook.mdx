@@ -22,21 +22,19 @@ description: createFormHookContexts、createFormHook、useAppForm、AppField、A
 
 ```ts
 createFormHookContexts(): {
-  fieldContext: React.Context<FieldBinding<any> | null>
   formContext: React.Context<FormEngine<any> | null>
-  useFieldContext<TValue = any>(): FieldBinding<TValue>
   useFormContext<T = any>(): FormEngine<T>
 }
 ```
 
-无参数。为一套组件创建一对独立 React context 和读取它们的 Hooks；初始值均为 `null`。
+无参数。为一套组件创建独立的表单 React context 和读取它的 Hook；初始值为 `null`。
 
-- `useFieldContext<TValue>()` **没有 name 参数**，读取当前 `<form.AppField>` 的绑定；没有对应 Provider 时抛错。
+- 字段不需要工厂 context：`AppField` 内部就是 `<Field>`，自定义输入用不带参数的 [`useField<TValue>()`](/reference/react-hooks#usefield) 读当前字段，在 `AppField` 外调用抛 `ShikiUsageError`。
 - 工厂返回的 `useFormContext<T>()` 读取该工厂的表单 context，来自 `<form.AppForm>` 或 `withForm`；缺失时抛错。
-- `TValue` / `T` 是已有数据的类型说明，不做运行时转换。这两个 context Hook 本身不添加字段/状态订阅；输入所在的 AppField 负责字段订阅，表单状态展示仍用 `useWatch`。
+- `TValue` / `T` 是已有数据的类型说明，不做运行时转换。`useFormContext` / 无参 `useField()` 本身不添加字段/状态订阅；输入所在的 AppField 负责字段订阅，表单状态展示仍用 `useWatch`。
 - 普通 `import { useFormContext } from 'shikiform'` 读取的是通用 Form context，不是这个工厂专属 context。
 
-**在模块顶层创建一次**，不要每次渲染都创建 context。自定义组件与工厂必须使用同一对 context；从另一套工厂拿来的 Hook 不能读这里的字段。
+**在模块顶层创建一次**，不要每次渲染都创建 context。表单组件与工厂必须使用同一个 form context；从另一套工厂拿来的 `useFormContext` 读不到这里的表单。
 
 ## createFormHook
 
@@ -47,7 +45,6 @@ createFormHook<
 >(options: {
   fieldComponents: TFields
   formComponents?: TForms
-  fieldContext: React.Context<FieldBinding<any> | null>
   formContext: React.Context<FormEngine<any> | null>
   messages?: Partial<FormMessages>
 }): { useAppForm, withForm, withFieldGroup }
@@ -57,8 +54,7 @@ createFormHook<
 |---|---|---|
 | `fieldComponents` | 必填 | 如 `{ TextInput }`；成为 render prop 中的 `field.TextInput` |
 | `formComponents` | 可选，未传则无额外组件 | 如 `{ Save }`；成为表单实例的 `form.Save` |
-| `fieldContext` | 必填 | 传入 `createFormHookContexts()` 创建的 context |
-| `formContext` | 必填 | 传入同一套 contexts 的 form context |
+| `formContext` | 必填 | 传入 `createFormHookContexts()` 创建的 form context |
 | `messages` | 可选 | 内置文案覆盖，作用于这个工厂的每个 `useAppForm()`；表单自己的 `messages` 同名 key 优先，见 [内置文案](/guide/validation#内置文案) |
 
 组件类型通常由对象字面量推断，不用手写 `TFields` / `TForms`。自定义组件名称不要覆盖 `value`、`onChange`、`AppField`、`submit` 等绑定/引擎成员；组件会按名字合并到返回对象，而不是放进独立命名空间。
@@ -177,14 +173,14 @@ withFieldGroup<TGroup, P extends object = {}>(config: {
 
 ```tsx preview
 import { useState } from 'react';
-import { createFormHook, createFormHookContexts, useWatch, type Draft } from 'shikiform';
+import { createFormHook, createFormHookContexts, useField, useWatch, type Draft } from 'shikiform';
 
 type Address = { city: string };
 type Profile = { name: string; address: Address };
 const contexts = createFormHookContexts();
 
 function TextInput({ label }: { label: string }) {
-  const field = contexts.useFieldContext<string>();
+  const field = useField<string>();
   if (field.pattern === 'readPretty') return <p>{label}：{field.value}</p>;
   return <label htmlFor={field.id}>{label}
     <input id={field.id} value={field.value ?? ''} disabled={field.disabled} readOnly={field.readOnly}
@@ -200,7 +196,6 @@ function Save({ onSaved }: { onSaved: (values: Profile) => void }) {
 }
 
 const { useAppForm, withForm, withFieldGroup } = createFormHook({
-  fieldContext: contexts.fieldContext,
   formContext: contexts.formContext,
   fieldComponents: { TextInput },
   formComponents: { Save },

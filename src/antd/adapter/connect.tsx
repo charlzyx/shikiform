@@ -1,5 +1,5 @@
 import type { ComponentType, ReactElement } from 'react'
-import { useCurrentField } from '../../react/field-context'
+import { useFieldContextOrNull } from '../../react/field-context'
 import { useField, type FieldBinding } from '../../react/hooks/use-field'
 
 /** Binding keys a control can receive. Each maps to a prop name, or `false` to not pass it. */
@@ -168,7 +168,7 @@ export function mapReadPretty(component: ComponentType<any>, props?: Record<stri
 /**
  * Turn any value/onChange control into a ShikiForm field control (Formily `connect`).
  * The result reads its field from, in order: a `field` prop, a `name` prop (via {@link useField}),
- * or the surrounding `<Field>` / `AppField` (`useCurrentField`). It has no state of its own: every prop comes from
+ * or the surrounding `<Field>` / `AppField` (what `useField()` with no name returns). It has no state of its own: every prop comes from
  * {@link mapFieldProps} over the binding, with the field's `componentProps` merged under the caller's props
  * (so `$componentProps.placeholder = …` in a reaction reaches the control).
  *
@@ -204,7 +204,7 @@ export function connect<P>(target: ComponentType<P>, ...enhancers: ConnectEnhanc
     return render(useField(name), rest)
   }
   function FromContext({ rest }: { rest: Record<string, any> }) {
-    const field = useCurrentField()
+    const field = useFieldContextOrNull()
     if (!field) throw new Error(`${displayName} needs a \`name\` prop, a \`field\` prop, or a surrounding <Field> / AppField`)
     return render(field, rest)
   }

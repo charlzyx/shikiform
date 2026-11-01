@@ -1,11 +1,12 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 import { createFormHook, createFormHookContexts } from '../src/react/factory/create-form-hook'
+import { useField } from '../src/react/hooks/use-field'
 import type { FormEngine } from '../src/core/engine/form-engine'
 
 const contexts = createFormHookContexts()
 function Input() {
-  const field = contexts.useFieldContext<string>()
+  const field = useField<string>()
   return <input value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value)} />
 }
 const factory = createFormHook({ ...contexts, fieldComponents: { Input } })

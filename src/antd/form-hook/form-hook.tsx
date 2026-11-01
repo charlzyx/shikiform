@@ -8,9 +8,6 @@ import { antdContexts as contexts } from '../adapter/field-context'
 import { FormItem } from '../adapter/form-item'
 import { Checkbox, DatePicker, Input, InputNumber, Radio, Select, Switch } from '../components/controls'
 
-/** Read the field `AppField` is rendering. Use this inside a custom pre-bound input. */
-export const useAntdField = contexts.useFieldContext
-
 /**
  * `field.Input` & co. are the same `connect()`ed controls as `shikiform/antd`'s `Input`, wrapped in the `FormItem`
  * decorator (label from the field `title`, required mark, status, help). There is one adapter, not two.
@@ -63,7 +60,6 @@ function Submit(props: ButtonProps) {
  */
 export function createAntdFormHook() {
   return createFormHook({
-    fieldContext: contexts.fieldContext,
     formContext: contexts.formContext,
     fieldComponents: {
       Input: FieldInput,

@@ -12,6 +12,7 @@ import {
   Form,
   ObjectField,
   typed,
+  useField,
   useForm,
   useWatch,
   Watch,
@@ -129,10 +130,10 @@ function scopedNames() {
 
 const ctx = createFormHookContexts()
 function TextInput() {
-  const f = ctx.useFieldContext<string>()
+  const f = useField<string>()
   return <input aria-label={`${f.path}=${String(f.value)}`} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} />
 }
-const { useAppForm } = createFormHook({ fieldContext: ctx.fieldContext, formContext: ctx.formContext, fieldComponents: { TextInput } })
+const { useAppForm } = createFormHook({ formContext: ctx.formContext, fieldComponents: { TextInput } })
 
 function AppScoped() {
   const form = useAppForm<V>({ initialValues: init })

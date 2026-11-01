@@ -1,8 +1,9 @@
-import { useEffect, useRef, useSyncExternalStore, type ComponentType, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useRef, useSyncExternalStore, type ComponentType, type ReactNode } from 'react'
 import type { EnumOption } from '../../core/enum/enum-source'
 import { normalizeUiSpec } from '../../core/state/field-model'
 import type { Display, FieldPath, FieldUiSpec, PathValue, Pattern } from '../../core/types'
 import type { RulesInput } from '../../core/validation/rules'
+import { ShikiUsageError } from '../../core/errors'
 import { useRequiredForm, useScope } from '../context'
 import { applyJsxField } from './field-lifecycle'
 import { resolveName } from './resolve-name'
@@ -48,6 +49,12 @@ export interface FieldBinding<TValue> {
   decoratorProps: Record<string, any>
 }
 
+/**
+ * Internal (re-exported by `../field-context`, never from a package entry). The field a `<Field>` (and therefore
+ * every `AppField`) is rendering; `useField()` with no name reads it (Formily's field context).
+ */
+export const FieldContext = createContext<FieldBinding<any> | null>(null)
+
 /** A `component` / `decorator` slot: the component, or `[Component, props]` (Formily style). */
 export type FieldSlot = ComponentType<any> | readonly [ComponentType<any>] | readonly [ComponentType<any>, Record<string, any> | undefined]
 
@@ -86,11 +93,22 @@ export interface UseFieldOptions {
  * A dynamic `string` name returns `FieldBinding<any>` so a column renderer can share one component.
  * `useField<Row>('price')` rejects a key `Row` does not have. That value is the union of `Row`'s fields.
  * `useField<Row, 'price'>('price')` types `field.value` as that property.
+ *
+ * With no name, `useField()` returns the field the nearest `<Field>` / `AppField` is rendering (Formily's
+ * `useField()`): this is how a custom input, decorator, or table cell reads its field without repeating the name.
+ * `useField<string>()` types `field.value`. Outside a field it throws a `ShikiUsageError` naming the fix.
+ * A call site either always passes a name or never does (the two forms use different hooks).
  */
+export function useField<TValue = any>(): FieldBinding<TValue>
 export function useField(name: string, options?: UseFieldOptions): FieldBinding<any>
 export function useField<TScope>(name: FieldPath<TScope>, options?: UseFieldOptions): FieldBinding<PathValue<TScope, FieldPath<TScope> & string>>
 export function useField<TScope, N extends FieldPath<TScope>>(name: N, options?: UseFieldOptions): FieldBinding<PathValue<TScope, N & string>>
-export function useField(name: string, options?: UseFieldOptions): FieldBinding<any> {
+export function useField(name?: string, options?: UseFieldOptions): FieldBinding<any> {
+  const current = useContext(FieldContext)
+  if (name === undefined) {
+    if (!current) throw new ShikiUsageError(NO_FIELD)
+    return current
+  }
   const form = useRequiredForm(`useField('${String(name)}') / <Field name="${String(name)}">`)
   const scope = useScope()
   const path = resolveName(form, scope, String(name))
@@ -116,6 +134,11 @@ export function useField(name: string, options?: UseFieldOptions): FieldBinding<
   form.registerField(path, {})
   return form.binding(path, options && uiLayer(options)) as FieldBinding<any>
 }
+
+const NO_FIELD =
+  '[shikiform] useField() without a name reads the surrounding <Field> / AppField, but this component is not inside one. ' +
+  "Render it inside <Field name=\"…\"> / <form.AppField name=\"…\"> (or as their component / decorator / children), " +
+  "or pass a name: useField('email')."
 
 function uiLayer(options: UseFieldOptions): FieldUiSpec | undefined {
   const { title, description, component, decorator, componentProps, decoratorProps } = options

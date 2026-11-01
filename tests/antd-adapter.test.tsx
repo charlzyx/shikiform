@@ -2,7 +2,8 @@ import dayjs from 'dayjs'
 import type { ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
-import { createForm, defineEffects, Field, FieldContext, Form, useField, type FieldBinding } from '../src'
+import { createForm, defineEffects, Field, Form, useField, type FieldBinding } from '../src'
+import { FieldContext } from '../src/react/field-context'
 import {
   Checkbox,
   connect,

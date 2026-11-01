@@ -1,16 +1,13 @@
-import { createContext, useContext } from 'react'
-import type { FieldBinding } from './hooks/use-field'
+import { useContext } from 'react'
+import { FieldContext, type FieldBinding } from './hooks/use-field'
+
+/** Internal: the field context `<Field>` provides. Not exported from any package entry. */
+export { FieldContext }
 
 /**
- * The field a `<Field>` (or `AppField`) is rendering. Decorators and connected controls read it, so they need no `name`
- * (Formily's field context). `null` outside a field.
+ * Internal, outside-field tolerant read: the surrounding field, or `null`. For components (`FormItem`, `connect`)
+ * that throw their own, more specific error. Public code uses `useField()` with no name.
  */
-export const FieldContext = createContext<FieldBinding<any> | null>(null)
-
-/**
- * The binding of the surrounding `<Field>` / `AppField`, or `null` outside one.
- * This is how a decorator (`FormItem`) or a control (`connect`) finds its field without a `name`.
- */
-export function useCurrentField<TValue = any>(): FieldBinding<TValue> | null {
+export function useFieldContextOrNull<TValue = any>(): FieldBinding<TValue> | null {
   return useContext(FieldContext) as FieldBinding<TValue> | null
 }

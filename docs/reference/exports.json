@@ -12,7 +12,6 @@
     "useTreeMove": "reference/react-hooks.mdx",
     "createFormHook": "reference/form-hook.mdx",
     "createFormHookContexts": "reference/form-hook.mdx",
-    "useCurrentField": "reference/react-hooks.mdx",
     "useArray": "reference/react-hooks.mdx",
     "useIndex": "reference/react-hooks.mdx",
     "useRecord": "reference/react-hooks.mdx",
@@ -37,7 +36,6 @@
   "shikiform/antd": {
     "antdForm": "reference/antd.mdx",
     "useAntdForm": "reference/antd.mdx",
-    "useAntdField": "reference/antd.mdx",
     "createAntdFormHook": "reference/antd.mdx",
     "withAntdForm": "reference/antd.mdx",
     "withAntdFieldGroup": "reference/antd.mdx",

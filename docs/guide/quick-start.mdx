@@ -64,13 +64,13 @@ export default function App() {
 
 ```tsx preview
 import { useState } from 'react';
-import { createFormHook, createFormHookContexts } from 'shikiform';
+import { createFormHook, createFormHookContexts, useField } from 'shikiform';
 
 type Values = { username: string };
 const contexts = createFormHookContexts();
 
 function TextInput({ label }: { label: string }) {
-  const field = contexts.useFieldContext<string>();
+  const field = useField<string>();
   return (
     <p>
       <label htmlFor={field.id}>{label} </label>
@@ -81,7 +81,6 @@ function TextInput({ label }: { label: string }) {
 }
 
 const { useAppForm } = createFormHook({
-  fieldContext: contexts.fieldContext,
   formContext: contexts.formContext,
   fieldComponents: { TextInput },
 });
@@ -99,7 +98,7 @@ export default function App() {
 }
 ```
 
-`useFieldContext()` 没有 name，必须写在 `AppField` 的子组件里。输入组件自己把 `value` / `onChange` / `onBlur` 接到控件上。字段组、`withForm` 见 [组件 Hook 工厂](/reference/form-hook)。
+不带参数的 `useField()` 读当前字段，必须写在 `AppField`（或 `<Field>`）的子组件里，否则抛错并提示修法。输入组件自己把 `value` / `onChange` / `onBlur` 接到控件上。字段组、`withForm` 见 [组件 Hook 工厂](/reference/form-hook)。
 
 ## 进阶：直接写 Field
 

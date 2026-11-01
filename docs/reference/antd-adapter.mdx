@@ -33,12 +33,12 @@ export default function Profile() {
 }
 ```
 
-- **`<Field>` 渲染 `decorator` 包住 `component`**（或包住 `children`），并通过 `FieldContext` 提供字段，所以 `FormItem` 与 connect 控件都不需要 `name`。`children` 也可以是控件本身：`<Field name="x" decorator={[FormItem]}><Input /></Field>`；render prop `(field) => …` 照常可用。
+- **`<Field>` 渲染 `decorator` 包住 `component`**（或包住 `children`），并把字段提供给子树（不带参数的 `useField()` 读到它），所以 `FormItem` 与 connect 控件都不需要 `name`。`children` 也可以是控件本身：`<Field name="x" decorator={[FormItem]}><Input /></Field>`；render prop `(field) => …` 照常可用。
 - **UI 状态在字段模型上**：`title` → `label`，`description` → `extra`，`componentProps` 合并进控件 props，`decoratorProps` 合并进 `FormItem`。来源从低到高：`fields` 声明 → JSX（`title`、元组里的 props）→ reaction（`$title`、`$componentProps.placeholder = …`），对象深合并（数组、函数、React 元素整值替换）。
 - **联动改 UI**：`reaction((d) => { d.city.$componentProps.disabled = d.vip.$value; d.city.$decoratorProps.tooltip = '…' })`。嵌套写 `d.x.$componentProps.style.color = 'red'` 只补这一处，JSX / 声明里 `style` 的其他键保留；缺失的中间对象不会自动创建，先 `style ??= {}`（只开一层，不清空下层）。整键赋值 `style = {...}` 替换这个键，整体赋值 `d.x.$componentProps = {...}` 替换所有下层，赋 `undefined` 撤销 reaction 层。
 - **表格单元格**可以不要装饰器（`<Field name="a1" component={[Input]} />`），或换一个（`decorator={[FormItem, { feedbackLayout: 'terse' }]}`）。
 
-控件找字段的顺序：`field` 属性 → `name` 属性（内部调用 `useField(name)`）→ 外层 `<Field>` / `AppField` 提供的字段（`useCurrentField()`）。
+控件找字段的顺序：`field` 属性 → `name` 属性（内部调用 `useField(name)`）→ 外层 `<Field>` / `AppField` 提供的字段（即不带参数的 `useField()`）。
 
 ## connect
 

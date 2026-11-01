@@ -12,19 +12,18 @@ description: useForm、useField、useWatch、数组与树 Hooks 的签名、返�
 | 创建并保留表单 | [`useForm`](#useform) | 不自动订阅值 |
 | 按表单类型检查字段名 | [`typed`](#typed) | 不订阅（返回有类型的组件和 Hooks） |
 | 取得上层表单 | [`useFormContext`](#useformcontext) | 不自动订阅值 |
-| 绑定一个输入 | [`useField`](#usefield) | 该路径的值和字段状态 |
+| 绑定一个输入；无参时读当前字段（自定义控件、装饰器、单元格） | [`useField`](#usefield) | `useField(name)` 订阅该路径；`useField()` 不另订阅（随外层 Field 渲染） |
 | 读取选中的值或状态 | [`useWatch`](#usewatch) | selector 实际读取的 `$` 依赖 |
 | 数组行增删和排序 | [`useArrayField`](#usearrayfield) | 数组结构，不是每个单元格 |
 | 数组拖动事件 | [`useArrayMove`](#usearraymove) | 不订阅 |
 | 行内取最近的数组 / 行号 / 行值（无需 name） | [`useArray`](#usearray)、[`useIndex`](#useindex)、[`useRecord`](#userecord) | 数组结构 / 不订阅 / 这一行的值 |
-| 当前字段（装饰器、控件） | [`useCurrentField`](#usecurrentfield) | 不订阅（随外层 Field 渲染） |
 | 树结构和节点移动 | [`useTreeField`](#usetreefield) | 树结构 |
 | 树拖动事件 | [`useTreeMove`](#usetreemove) | 不订阅 |
 | 当前树节点（无需 name） | [`useTreeNode`](#usetreenode) | 这个节点的值 |
 
 除 `useForm` 外，本页 Hooks 都必须在 `<Form form={form}>` 或工厂返回的 `<form.AppForm>` 后代中调用。**在一个组件中先调用 `useField`、再从它返回 `<Form>` 不算在 Provider 内**；把读字段的组件放到 Form 里面。
 
-名字也有区别：`useField(name)` / `useArrayField(name)` 需要名字，返回输入绑定 / 行操作；对应 Formily `ArrayBase.useArray / useIndex / useRecord` 的无名上下文 Hook 是 [`useArray()`](#usearray)、[`useIndex()`](#useindex)、[`useRecord()`](#userecord)，当前字段是 [`useCurrentField()`](#usecurrentfield)。预绑定组件读取当前字段的方式见 [工厂上下文](/reference/form-hook#createformhookcontexts)。
+名字也有区别：`useField(name)` / `useArrayField(name)` 需要名字，返回输入绑定 / 行操作；对应 Formily `ArrayBase.useArray / useIndex / useRecord` 的无名上下文 Hook 是 [`useArray()`](#usearray)、[`useIndex()`](#useindex)、[`useRecord()`](#userecord)，当前字段是不带参数的 [`useField()`](#usefield)（与 Formily `useField()` 相同）。`<Field>`、`AppField`、表格单元格里的 `<Field>` 都用它，只有这一种写法。
 
 ## useForm
 
@@ -127,6 +126,7 @@ useFormContext<T = any>(): FormEngine<T>
 ## useField
 
 ```ts
+useField<TValue = any>(): FieldBinding<TValue>        // 无参：当前字段
 useField(name: string, options?: UseFieldOptions): FieldBinding<any>
 useField<TScope>(
   name: FieldPath<TScope>,
@@ -153,9 +153,9 @@ interface UseFieldOptions {
 }
 ```
 
-`options` 与 `<Field>` 同名属性语义相同：`rules` / `required` 是挂载期 lease（调用组件卸载时释放），`virtual` / `display` / `pattern` 是持久字段标记，UI 选项合并进返回的 binding。`<Field>` 就是 `useField(name, options)` 加上「非 visible 返回 null」，再渲染 `decorator` 包住的 `component`，并通过 `FieldContext` 提供 binding。
+`options` 与 `<Field>` 同名属性语义相同：`rules` / `required` 是挂载期 lease（调用组件卸载时释放），`virtual` / `display` / `pattern` 是持久字段标记，UI 选项合并进返回的 binding。`<Field>` 就是 `useField(name, options)` 加上「非 visible 返回 null」，再渲染 `decorator` 包住的 `component`，并把 binding 提供给子树里不带参数的 `useField()`。
 
-`name` 必填，是当前对象 / 行作用域下的**相对路径**。例如在 `items.0` 的 `RowScope` 下，`useField('price')` 绑定 `items.0.price`。在行里再写 `items.0.price` 会重复前缀；稳定行 ID 也不是路径。
+带 `name` 时，它是当前对象 / 行作用域下的**相对路径**。例如在 `items.0` 的 `RowScope` 下，`useField('price')` 绑定 `items.0.price`。在行里再写 `items.0.price` 会重复前缀；稳定行 ID 也不是路径。
 
 | 写法 | 类型效果 |
 |---|---|
@@ -185,29 +185,28 @@ interface UseFieldOptions {
 
 `useField` 订阅该路径并注册基础字段模型，但**不会替你渲染或隐藏输入**。自定义 UI 要处理 `display` / `pattern`；需要 JSX `rules`、`required` 生命周期时传 `options`（或用 `<Field>`）。`hidden`（`$hidden = true`）仍校验/提交，`none`（`$visible = false`）才跳过，见 [显隐](/guide/concepts) 和 [未挂载规则](/guide/validation)。
 
-[实现：use-field.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-field.ts)
+### 无参 useField：当前字段
 
-## useCurrentField
-
-```ts
-useCurrentField<TValue = any>(): FieldBinding<TValue> | null
-const FieldContext: React.Context<FieldBinding<any> | null>
-```
-
-外层 `<Field>`（以及 `AppField`）正在渲染的字段 binding；不在字段内时返回 `null`。这就是 Formily 的字段上下文：装饰器（antd 的 `FormItem`）和 connect 控件靠它找到字段，所以不用写 `name`。自定义装饰器 / 控件同样用它：
+`useField()` 不带参数时，返回最近的 `<Field>`（以及 `AppField`，它内部就是 `<Field>`）正在渲染的字段 binding，与 Formily 的 `useField()` 一样。自定义控件、装饰器、表格单元格里的输入都用它，不用重复写 `name`；`useField<string>()` 给 `field.value` 定类型。
 
 ```tsx
+function TextInput() {
+  const field = useField<string>()
+  return <input value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />
+}
 function MyDecorator({ children }: { children?: ReactNode }) {
-  const field = useCurrentField()
-  if (!field) throw new Error('MyDecorator 需要放在 <Field> 里')
+  const field = useField()
   return <label>{field.title}{field.required ? ' *' : ''}{children}<small>{field.errors[0]}</small></label>
 }
-<Field name="email" title="邮箱" decorator={[MyDecorator]} component={[Input]} />
+<Field name="email" title="邮箱" decorator={[MyDecorator]} component={[TextInput]} />
+<form.AppField name="email">{() => <TextInput />}</form.AppField>
 ```
 
-Hook 用户可以自己提供上下文：`<FieldContext.Provider value={useField('email')}>…</FieldContext.Provider>`。
+- 不在任何 `<Field>` / `AppField` 内调用时抛出 `ShikiUsageError`，消息写明修法：放进 `<Field name="…">` / `<form.AppField name="…">`，或改成 `useField('email')`。
+- 它不另外订阅：值随外层 `<Field>` 重新渲染。只想在 Hook 里绑定一个字段时，直接 `useField('email', options)`；要把这个 binding 交给 connect 控件，传 `field` 属性（`<Input field={field} />`）。
+- 同一调用处要么总带 `name`，要么总不带（两种形式使用不同的 Hooks）。
 
-[实现：field-context.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/field-context.ts)
+[实现：use-field.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-field.ts)
 
 ## useWatch
 
