@@ -97,7 +97,7 @@ export default function App() {
 | `{ ok: false, reason: 'error', error }` | `onValid`（或表单级 `validate` / `resolver`）抛错，`error` 是抛出的值 |
 | `{ ok: false, reason: 'superseded', message }` | 值一直在变，3 轮都没稳定；不是校验错误，`errors` 为空，再提交一次 |
 
-`<Form>` 和 `<form.AppForm>` 把结果交给回调：
+`<Form>` 把结果交给回调（antd 的 `<Submit onSubmit>` 也接受同样三个回调）：
 
 ```tsx
 <Form
@@ -145,7 +145,7 @@ setDefaultMessages(enUS)                              // 全应用默认，启�
 | `edit` / `ok` / `cancel` | Shadow 触发按钮、ShadowDrawer 底部 | — |
 | `yes` / `no` / `empty` | `PreviewText`（阅读态）的布尔值和空值，`empty` 默认空串 | — |
 
-优先级：规则 `message` > 表单 `messages` > `setDefaultMessages` > 内置中文（`zhCN`）。工厂写法可以 `createFormHook({ …, messages })`，对它创建的每个表单生效。组件读最近的 `<Form>` 的文案；QueryList / ProQueryTable 读 `table.form` 的，要英文就把 `useForm({ messages: enUS })` 作为 `form` 传给 `useQueryTable`，或者直接 `setDefaultMessages(enUS)`。自定义组件用 `useFormMessage()` 跟随同一套文案：`const t = useFormMessage(); t('submit')`；有实例时也可以 `form.message('submit')`。
+优先级：规则 `message` > 表单 `messages` > `setDefaultMessages` > 内置中文（`zhCN`）。组件读最近的 `<Form>` 的文案；QueryList / ProQueryTable 读 `table.form` 的，要英文就把 `useForm({ messages: enUS })` 作为 `form` 传给 `useQueryTable`，或者直接 `setDefaultMessages(enUS)`。自定义组件用 `useFormMessage()` 跟随同一套文案：`const t = useFormMessage(); t('submit')`；有实例时也可以 `form.message('submit')`。
 
 ## 服务端错误
 

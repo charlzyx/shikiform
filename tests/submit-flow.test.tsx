@@ -4,8 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   Form,
   createForm,
-  createFormHook,
-  createFormHookContexts,
+  Field,
   enUS,
   getDefaultMessages,
   setDefaultMessages,
@@ -15,18 +14,17 @@ import {
   type FieldError,
 } from '../src'
 import type { StandardSchemaV1 } from '../src/core'
+import { Reset, Submit } from '../src/antd'
 
 afterEach(() => {
   cleanup()
   setDefaultMessages(zhCN)
 })
 
-const ctx = createFormHookContexts()
 function TextInput({ label }: { label: string }) {
   const f = useField<string>()
   return <input aria-label={label} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} />
 }
-const { useAppForm } = createFormHook({ formContext: ctx.formContext, fieldComponents: { TextInput } })
 
 type Login = { email: string; password: string }
 
@@ -39,15 +37,15 @@ async function submitNative(container: HTMLElement) {
   })
 }
 
-describe('AppForm submit callbacks (#37)', () => {
+describe('<Form> submit callbacks (#37)', () => {
   function Login(props: { onValid: (v: Login) => void; onInvalid?: (e: FieldError[]) => void }) {
-    const form = useAppForm<Login>({ initialValues: { email: '', password: '' }, fields: { email: { required: true } } })
+    const form = useForm<Login>({ initialValues: { email: '', password: '' }, fields: { email: { required: true } } })
     return (
-      <form.AppForm onSubmit={props.onValid} onInvalid={props.onInvalid} id="login" className="login-form" noValidate>
-        <form.AppField name="email">{(f) => <f.TextInput label="邮箱" />}</form.AppField>
-        <form.AppField name="password">{(f) => <f.TextInput label="密码" />}</form.AppField>
+      <Form form={form} onSubmit={props.onValid} onInvalid={props.onInvalid} id="login" className="login-form" noValidate>
+        <Field name="email" component={[TextInput, { label: '邮箱' }]} />
+        <Field name="password" component={[TextInput, { label: '密码' }]} />
         <button type="submit">登录</button>
-      </form.AppForm>
+      </Form>
     )
   }
 
@@ -74,22 +72,6 @@ describe('AppForm submit callbacks (#37)', () => {
     expect(form.id).toBe('login')
     expect(form.className).toBe('login-form')
     expect(form.noValidate).toBe(true)
-  })
-
-  it('createFormHook({ messages }) applies to every useAppForm', async () => {
-    const hook = createFormHook({ ...ctx, fieldComponents: { TextInput }, messages: { required: 'Required' } })
-    let errors: FieldError[] = []
-    function App() {
-      const form = hook.useAppForm<{ a: string; b: string }>({
-        initialValues: { a: '', b: '' },
-        fields: { a: { required: true }, b: { rules: { minLength: 2 } } },
-        messages: { minLength: ({ minLength }) => `min ${minLength}` },
-      })
-      return <form.AppForm onInvalid={(e) => (errors = e)} />
-    }
-    const { container } = render(<App />)
-    await submitNative(container)
-    expect(errors).toEqual([{ path: 'a', messages: ['Required'] }, { path: 'b', messages: ['min 2'] }])
   })
 })
 
@@ -318,5 +300,77 @@ describe('built-in messages (#44)', () => {
     expect(await b.validate()).toEqual([{ path: 'x', messages: ['必须填'] }])
     setDefaultMessages(zhCN)
     expect(await a.validate()).toEqual([{ path: 'x', messages: ['必填'] }])
+  })
+})
+
+describe('antd Submit / Reset', () => {
+  it('Submit with onSubmit submits on click, without a native <form> around it', async () => {
+    const onSubmit = vi.fn()
+    const onInvalid = vi.fn()
+    let api: any
+    function App({ ok }: { ok: boolean }) {
+      const form = useForm({ initialValues: { a: ok ? 'x' : '' }, fields: { a: { required: true } } })
+      api = form
+      return (
+        <Form form={form}>
+          <Submit onSubmit={onSubmit} onInvalid={onInvalid}>save</Submit>
+        </Form>
+      )
+    }
+    const ok = render(<App ok />)
+    const button = ok.getByRole('button') as HTMLButtonElement
+    expect(button.type).toBe('button')
+    await act(async () => {
+      fireEvent.click(button)
+      await new Promise((r) => setTimeout(r, 0))
+    })
+    expect(onSubmit).toHaveBeenCalledExactlyOnceWith({ a: 'x' })
+    ok.unmount()
+    const bad = render(<App ok={false} />)
+    await act(async () => {
+      fireEvent.click(bad.getByRole('button'))
+      await new Promise((r) => setTimeout(r, 0))
+    })
+    expect(onInvalid).toHaveBeenCalledOnce()
+    expect(api.errors).toEqual([{ path: 'a', messages: ['必填'] }])
+  })
+
+  it('Submit without onSubmit is a native submit button for <Form onSubmit>', async () => {
+    const onSubmit = vi.fn()
+    function App() {
+      const form = useForm({ initialValues: { a: 'x' } })
+      return (
+        <Form form={form} onSubmit={onSubmit}>
+          <Submit />
+        </Form>
+      )
+    }
+    const view = render(<App />)
+    expect((view.getByRole('button') as HTMLButtonElement).type).toBe('submit')
+    await submitNative(view.container)
+    expect(onSubmit).toHaveBeenCalledExactlyOnceWith({ a: 'x' })
+  })
+
+  it('Reset restores the initial values (or resets to `values`)', () => {
+    let api: any
+    function App({ values }: { values?: { a: string } }) {
+      const form = useForm({ initialValues: { a: 'init' } })
+      api = form
+      return (
+        <Form form={form}>
+          <Reset values={values} />
+        </Form>
+      )
+    }
+    const view = render(<App />)
+    act(() => api.setValue('a', 'edited'))
+    fireEvent.click(view.getByRole('button'))
+    expect(api.getValue('a')).toBe('init')
+    expect(api.dirty).toBe(false)
+    view.unmount()
+    const next = render(<App values={{ a: 'loaded' }} />)
+    fireEvent.click(next.getByRole('button'))
+    expect(api.getValue('a')).toBe('loaded')
+    expect(api.initial).toEqual({ a: 'loaded' })
   })
 })

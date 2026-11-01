@@ -22,21 +22,21 @@ export const FormContext = createContext<FormEngine<any> | null>(null)
 export const ScopeContext = createContext<ScopeValue>({ path: '', index: -1 })
 export const ArrayContext = createContext<ArrayScopeValue | null>(null)
 
-/** The form provided by `<Form>` / `<AppForm>`. */
+/** The form provided by `<Form>`. */
 export function useFormContext<T = any>(): FormEngine<T> {
   return useRequiredForm<T>('useFormContext()')
 }
 
 /**
  * The provided form, or an error naming the caller (`useField('email')`, `<ArrayField name="items">`) and the fix.
- * `useForm()` / `createForm()` only create the engine; it reaches fields through `<Form form={form}>` or `<form.AppForm>`.
+ * `useForm()` / `createForm()` only create the engine; it reaches fields through `<Form form={form}>`.
  */
 export function useRequiredForm<T = any>(caller: string): FormEngine<T> {
   const form = useContext(FormContext)
   if (!form) {
     throw new Error(
-      `[shikiform] ${caller} has no form. Render it inside <Form form={form}> (useForm / createForm) or ` +
-        `<form.AppForm> (useAppForm / useAntdForm). A form instance is not provided until one of them wraps the fields.`,
+      `[shikiform] ${caller} has no form. Render it inside <Form form={form}> (useForm / createForm). ` +
+        `A form instance is not provided until <Form> wraps the fields.`,
     )
   }
   return form as FormEngine<T>

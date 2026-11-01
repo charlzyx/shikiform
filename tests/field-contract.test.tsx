@@ -1,38 +1,37 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
-import { createFormHook, createFormHookContexts } from '../src/react/factory/create-form-hook'
+import { Field, Form, ObjectField } from '../src/react/components/fields'
+import { useForm } from '../src/react/hooks/use-form'
 import { useField } from '../src/react/hooks/use-field'
 import type { FormEngine } from '../src/core/engine/form-engine'
 
-const contexts = createFormHookContexts()
 function Input() {
   const field = useField<string>()
   return <input value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value)} />
 }
-const factory = createFormHook({ ...contexts, fieldComponents: { Input } })
 
-describe('AppField uses the public Field controller', () => {
+describe('<Field> as the one field controller', () => {
   it.each(['hidden', 'none'] as const)('does not render a %s field but preserves declared validation', async (display) => {
     let engine!: FormEngine<{ email: string }>
     function App() {
-      const form = factory.useAppForm({ initialValues: { email: '' }, fields: { email: { required: true, display } } })
+      const form = useForm({ initialValues: { email: '' }, fields: { email: { required: true, display } } })
       engine = form
-      return <form.AppForm><form.AppField name="email">{(field) => <field.Input />}</form.AppField></form.AppForm>
+      return <Form form={form}><Field name="email" component={[Input]} /></Form>
     }
     expect(renderToStaticMarkup(<App />)).not.toContain('<input')
     expect((await engine.validate()).length > 0).toBe(display === 'hidden')
     expect(engine.getSubmitValues()).toEqual(display === 'none' ? {} : { email: '' })
   })
 
-  it('binds the exact scoped value without claiming a JSX validation lease for a pure consumer', () => {
+  it('a fragment component under ObjectField binds the scoped value without claiming a JSX validation lease', () => {
     let mount!: ReturnType<typeof vi.spyOn>
-    const Group = factory.withFieldGroup<{ city: string }>({
-      render: ({ group }) => <group.AppField name="city">{(field) => <field.Input />}</group.AppField>,
-    })
+    function Address() {
+      return <Field name="city" component={[Input]} />
+    }
     function App() {
-      const form = factory.useAppForm({ initialValues: { address: { city: 'Shanghai' } } })
+      const form = useForm({ initialValues: { address: { city: 'Shanghai' } } })
       mount = vi.spyOn(form, 'mountJsxField')
-      return <form.AppForm><Group name="address" /></form.AppForm>
+      return <Form form={form}><ObjectField name="address"><Address /></ObjectField></Form>
     }
     const html = renderToStaticMarkup(<App />)
     expect(html).toContain('Shanghai')

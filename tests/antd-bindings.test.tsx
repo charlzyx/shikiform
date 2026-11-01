@@ -3,7 +3,7 @@ import { cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 // Record the props each Ant Design control receives. Everything else (FormItem, the engine, connect) is real,
-// so these contracts cover `useAntdForm`'s `field.Input` & co., which are now the connect() controls.
+// so these contracts cover the connect() controls inside a `<Field decorator={[FormItem]}>`.
 const seen = vi.hoisted(() => ({} as Record<string, any>))
 vi.mock('antd', async (importOriginal) => {
   const actual = await importOriginal<typeof import('antd')>()
@@ -21,7 +21,10 @@ vi.mock('antd', async (importOriginal) => {
     Checkbox: Object.assign(spy('Checkbox'), { Group: actual.Checkbox.Group }),
   }
 })
-import { useAntdForm } from '../src/antd'
+import { Field, Form, useForm } from '../src'
+import { Checkbox, DatePicker, FormItem, Input, InputNumber, Radio, Select, Switch } from '../src/antd'
+
+const CONTROLS: Record<string, any> = { Input, Select, InputNumber, Switch, Checkbox }
 
 type Pattern = 'editable' | 'disabled' | 'readOnly' | 'readPretty'
 
@@ -33,24 +36,19 @@ afterEach(() => {
 function mount(name: string, value: unknown, pattern: Pattern = 'editable', props: Record<string, unknown> = {}) {
   let api: any
   function App() {
-    const form = useAntdForm({ initialValues: { value }, fields: { value: { pattern } } })
+    const form = useForm({ initialValues: { value }, fields: { value: { pattern } } })
     api = form
     return (
-      <form.AppForm>
-        <form.AppField name="value">
-          {(field) => {
-            const Control = (field as any)[name]
-            return <Control {...props} />
-          }}
-        </form.AppField>
-      </form.AppForm>
+      <Form form={form}>
+        <Field name="value" decorator={[FormItem]} component={[CONTROLS[name], props]} />
+      </Form>
     )
   }
   const view = render(<App />)
   return { form: api, html: () => view.container.innerHTML, control: () => seen[name] }
 }
 
-describe('Ant Design bound input contracts (useAntdForm field.X = connect controls)', () => {
+describe('Ant Design control contracts (connect controls in a FormItem field)', () => {
   it.each([
     ['Input', '', [{ target: { value: 'Ada' } }], 'Ada'],
     ['Select', '', ['city', { label: 'City', value: 'city' }], 'city'],
@@ -115,14 +113,12 @@ describe('Ant Design bound input contracts (useAntdForm field.X = connect contro
   it('Input / Select / InputNumber sit in a FormItem: title as label, required mark, status', async () => {
     let api: any
     function App() {
-      const form = useAntdForm({ initialValues: { email: '' } })
+      const form = useForm({ initialValues: { email: '' } })
       api = form
       return (
-        <form.AppForm>
-          <form.AppField name="email" title="邮箱" required>
-            {(field) => <field.Input />}
-          </form.AppField>
-        </form.AppForm>
+        <Form form={form}>
+          <Field name="email" title="邮箱" required decorator={[FormItem]} component={[Input]} />
+        </Form>
       )
     }
     const view = render(<App />)
@@ -140,17 +136,17 @@ describe('Ant Design bound input contracts (useAntdForm field.X = connect contro
 
   it('Switch, Radio, DatePicker and Input.Password show the field title in FormItem', () => {
     function App() {
-      const form = useAntdForm({
+      const form = useForm({
         initialValues: { on: false, picked: 'a', day: '2020-01-02', secret: 'x' },
         fields: { picked: { enum: [{ label: '甲', value: 'a' }] } },
       })
       return (
-        <form.AppForm>
-          <form.AppField name="on" title="开关">{(field) => <field.Switch />}</form.AppField>
-          <form.AppField name="picked" title="单选">{(field) => <field.Radio />}</form.AppField>
-          <form.AppField name="day" title="日期">{(field) => <field.DatePicker />}</form.AppField>
-          <form.AppField name="secret" title="密码">{(field) => <field.Input.Password />}</form.AppField>
-        </form.AppForm>
+        <Form form={form}>
+          <Field name="on" title="开关" decorator={[FormItem]} component={[Switch]} />
+          <Field name="picked" title="单选" decorator={[FormItem]} component={[Radio.Group]} />
+          <Field name="day" title="日期" decorator={[FormItem]} component={[DatePicker]} />
+          <Field name="secret" title="密码" decorator={[FormItem]} component={[Input.Password]} />
+        </Form>
       )
     }
     const view = render(<App />)
@@ -161,7 +157,7 @@ describe('Ant Design bound input contracts (useAntdForm field.X = connect contro
 
   it('Checkbox.Group, Radio.Group, RangePicker and TextArea are wrapped in FormItem', () => {
     function App() {
-      const form = useAntdForm({
+      const form = useForm({
         initialValues: {
           checks: ['a'],
           picked: 'a',
@@ -174,12 +170,12 @@ describe('Ant Design bound input contracts (useAntdForm field.X = connect contro
         },
       })
       return (
-        <form.AppForm>
-          <form.AppField name="checks" title="多选">{(field) => <field.Checkbox.Group />}</form.AppField>
-          <form.AppField name="picked" title="单选组">{(field) => <field.Radio.Group />}</form.AppField>
-          <form.AppField name="range" title="区间">{(field) => <field.DatePicker.RangePicker />}</form.AppField>
-          <form.AppField name="note" title="备注">{(field) => <field.Input.TextArea />}</form.AppField>
-        </form.AppForm>
+        <Form form={form}>
+          <Field name="checks" title="多选" decorator={[FormItem]} component={[Checkbox.Group]} />
+          <Field name="picked" title="单选组" decorator={[FormItem]} component={[Radio.Group]} />
+          <Field name="range" title="区间" decorator={[FormItem]} component={[DatePicker.RangePicker]} />
+          <Field name="note" title="备注" decorator={[FormItem]} component={[Input.TextArea]} />
+        </Form>
       )
     }
     const view = render(<App />)

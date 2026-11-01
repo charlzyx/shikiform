@@ -3,7 +3,7 @@
  * - adapter: `connect` / `mapProps` / `mapReadPretty` / `mapFieldProps`, the `FormItem` decorator and `FormLayout`
  *   (all reading the field a `<Field>` provides; Formily style: `<Field decorator={[FormItem]} component={[Input]} />`);
  * - components: `Input`, `InputNumber`, `Select`, `Switch`, `Checkbox`, `Radio`, `DatePicker` wired through `connect`;
- * - form hook: `useAntdForm` / `AppField` with pre-bound inputs (over `createFormHook`);
+ * - buttons: `Submit` / `Reset` for the surrounding form;
  * - tables: `ArrayTable`, `MergedTable`, `ProQueryTable` / `QueryForm` (over `useArrayField` / `useQueryTable`),
  *   `ProArrayTable` (over `useArrayTable` / `useColumnSettings`), `QueryList` (over `useQueryTable`);
  * - shadow forms: `ShadowForm`, `ShadowModal`, `ShadowDrawer`, `ShadowPopconfirm`, `useShadow` (over `useShadowForm`);
@@ -20,7 +20,8 @@ export type { FeedbackLayout, FormLayoutProps, FormLayoutValue } from './adapter
 export { PreviewText } from './adapter/preview'
 export type { PreviewTextProps } from './adapter/preview'
 export { Checkbox, DatePicker, Input, InputNumber, Radio, Select, Switch } from './components/controls'
-export { createAntdFormHook, antdForm, useAntdForm, withAntdFieldGroup, withAntdForm } from './form-hook/form-hook'
+export { Reset, Submit } from './components/buttons'
+export type { ResetProps, SubmitProps } from './components/buttons'
 export { ArrayTable } from './tables/array-table'
 export { MergedTable, groupRowSpan } from './tables/merged-table'
 export type { MergedColumn } from './tables/merged-table'

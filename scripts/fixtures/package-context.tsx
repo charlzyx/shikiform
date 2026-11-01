@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { Field, Form, FormEngine, ObjectField, useField, useForm, useFormContext, useWatch, type Draft } from 'shikiform'
 import { FormEngine as CoreFormEngine } from 'shikiform/core'
-import { ArrayTable, ProQueryTable, useAntdForm } from 'shikiform/antd'
+import { ArrayTable, FormItem, Input, ProQueryTable, Submit } from 'shikiform/antd'
 import { useQueryTable } from 'shikiform/pro'
 
 // Copied into the isolated npm-pack consumer, never resolved through TS paths.
@@ -15,13 +15,15 @@ function Probe({ form, expected }: { form: FormEngine<any>; expected: string }) 
   return <span>{field.path}:{field.value}</span>
 }
 
-function PreboundProvider() {
-  const form = useAntdForm({ initialValues: { email: 'root', profile: { email: 'nested' } } })
-  return <form.AppForm>
+function AntdProvider() {
+  const form = useForm({ initialValues: { email: 'root', profile: { email: 'nested' } } })
+  return <Form form={form}>
     <Probe form={form} expected="root" />
-    {/* AppField is exactly <Field> and opens no scope; an object scope is ObjectField. */}
+    {/* <Field> opens no scope; an object scope is ObjectField. */}
+    <Field name="email" decorator={[FormItem]} component={[Input]} />
     <ObjectField name="profile"><Probe form={form} expected="nested" /></ObjectField>
-  </form.AppForm>
+    <Submit />
+  </Form>
 }
 
 function RootProvider() {
@@ -43,8 +45,8 @@ function QueryProvider() {
 
 export function verifyPackageContexts() {
   assert.equal(FormEngine, CoreFormEngine, 'root/core must export the same class')
-  const prebound = renderToStaticMarkup(<PreboundProvider />)
-  assert.match(prebound, /profile\.email/)
+  const antd = renderToStaticMarkup(<AntdProvider />)
+  assert.match(antd, /profile\.email/)
   const rows = renderToStaticMarkup(<RootProvider />)
   assert.match(rows, /group\.rows\.0\.email/)
   const query = renderToStaticMarkup(<QueryProvider />)

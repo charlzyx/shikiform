@@ -7,7 +7,7 @@ import { useFormLayout, type FeedbackLayout, type FormLayoutValue } from './form
 /**
  * `FormItem` props: Ant Design `Form.Item` layout props plus the inheritable {@link FormLayoutValue} keys.
  * The field (name, rules, required) is not here: `FormItem` is a pure decorator and reads it from the surrounding
- * `<Field>` / `AppField`.
+ * `<Field>`.
  */
 export interface FormItemProps
   extends Omit<
@@ -65,7 +65,7 @@ export function mapFormItemProps(
  * <Field name="email" title="邮箱" required decorator={[FormItem, { tooltip: '工作邮箱' }]} component={[Input]} />
  * ```
  *
- * or inside a `<Field>` / `AppField`. It reads the field from context and renders an Ant Design `Form.Item` from
+ * or inside a `<Field>`. It reads the field from context and renders an Ant Design `Form.Item` from
  * {@link mapFormItemProps}: label (`title`), extra (`description`), the required mark, status and help, plus the
  * inherited {@link FormLayout} (`layout`, `labelCol`, `wrapperCol`, `labelAlign`, `colon`, `size`, `feedbackLayout`).
  * Display `hidden` / `none` renders nothing.
@@ -74,7 +74,7 @@ export function FormItem({ children, ...props }: FormItemProps) {
   const field = useFieldContextOrNull()
   const layout = useFormLayout()
   if (!field) {
-    throw new Error('FormItem is a decorator: use it as <Field decorator={[FormItem]}> or inside a <Field> / AppField')
+    throw new Error('FormItem is a decorator: use it as <Field decorator={[FormItem]}> or inside a <Field>')
   }
   if (field.display !== 'visible') return null
   const size = props.size ?? field.decoratorProps.size ?? layout.size

@@ -94,7 +94,7 @@ export class StateWriter {
     scheduler.enqueueFromDirty()
     scheduler.flush()
     // An error already on screen is re-checked on every edit, whatever the trigger: it disappears as soon as
-    // the value is fixed instead of waiting for blur (and `$canSubmit` / `form.Submit` come back with it).
+    // the value is fixed instead of waiting for blur (and `$canSubmit` / the `Submit` button come back with it).
     if (validator.triggersFor(path).includes('onChange') || shownErrors(field).length) validator.scheduleValidate(path)
   }
 

@@ -55,7 +55,7 @@ export interface FormMessages {
   treeTargetMissing: MessageTemplate<TreeMoveParams>
 
   // Component labels (`shikiform/antd`), read through `useFormMessage()` from the nearest form.
-  /** Submit button (`form.Submit`). */
+  /** Submit button (`Submit` in `shikiform/antd`). */
   submit: MessageTemplate<NoParams>
   /** Reset button (QueryList, ProQueryTable, column settings). */
   reset: MessageTemplate<NoParams>

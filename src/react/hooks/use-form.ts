@@ -5,7 +5,7 @@ import type { FormOptions } from '../../core/types'
 
 const useIsoLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 
-/** `useForm` / `useAppForm` options: {@link FormOptions} plus `values`. */
+/** `useForm` options: {@link FormOptions} plus `values`. */
 export interface UseFormOptions<T> extends FormOptions<T> {
   /**
    * Values owned outside the form (a loaded record, a query cache). The first render uses them as `initialValues`.

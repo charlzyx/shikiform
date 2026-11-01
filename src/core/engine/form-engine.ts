@@ -1,5 +1,5 @@
 import { Declarations, type RegisterSpec } from '../declarations/declarations'
-import { createHandle, createUiHandle, handlePath } from '../draft/handle'
+import { createHandle, handlePath } from '../draft/handle'
 import type { DraftHost } from '../draft/host'
 import { readonlyValue } from '../draft/readonly'
 import type { EachRec } from '../effects/scheduler'
@@ -29,7 +29,6 @@ import type {
   SubmitResult,
   WriteOp,
 } from '../types'
-import { UiRegistry } from '../ui/ui-registry'
 import { Validator } from '../validation/validator'
 import { Baseline, errorEntries } from './baseline'
 import { FieldUi, uiKeyOf } from './field-ui'
@@ -39,7 +38,7 @@ import { StateWriter } from './writes'
  * Form engine. No React and no UI.
  *
  * A facade over the engine parts (see `design/ARCHITECTURE.md`): `FieldStore` (state), `Notifier` (versions),
- * `Scheduler` (reaction / watch), `Validator`, `Declarations`, `ArrayOps` / `TreeOps`, `UiRegistry`, `StateWriter`.
+ * `Scheduler` (reaction / watch), `Validator`, `Declarations`, `ArrayOps` / `TreeOps`, `StateWriter`.
  *
  * Field models exist by declaration: `fields`, `registerField`, `$rules` / `$required`, and `rows.*.name`
  * templates all join submit validation when the JSX `<Field>` is not mounted.
@@ -59,7 +58,6 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   private readonly declarations: Declarations
   private readonly arrays: ArrayOps
   private readonly trees: TreeOps
-  private readonly ui: UiRegistry
   private readonly writer: StateWriter
   private readonly fieldUi: FieldUi
   private pendingSubmits = 0
@@ -75,7 +73,6 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     const declarations = (this.declarations = new Declarations(store, notifier, validator))
     validator.prepare = () => declarations.applyItemTemplates()
     this.arrays = new ArrayOps(store, scheduler, declarations)
-    this.ui = new UiRegistry(store, notifier, scheduler)
     this.writer = new StateWriter({
       store, notifier, scheduler, validator, declarations, options,
       carryRowIdentity: (path, before, after) => this.arrays.carryIdentity(path, before, after),
@@ -268,9 +265,8 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     return this.validator.validate(path as string | undefined)
   }
 
-  /** Untyped handle for an exact path, or for `opts.ui`. Prefer {@link FormEngine.getValue} and {@link FormEngine.batch}. */
-  query(path: string, opts?: { ui?: string }): any {
-    if (opts?.ui) return createUiHandle(this, path, opts.ui)
+  /** Untyped handle for an exact path. Prefer {@link FormEngine.getValue} and {@link FormEngine.batch}. */
+  query(path: string): any {
     return this.handle(path)
   }
 
@@ -482,7 +478,6 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     const { store, scheduler, trees } = this
     if (key === '$path') return path
     if (key === '$pos') return trees.readPos(path)
-    if (key === '$ui') return (name: string) => createUiHandle(this, path, name)
     if (key === '$find') {
       return (pred: (node: any, pos: Pos) => boolean) => {
         scheduler.track(path, 'value')
@@ -574,14 +569,6 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     return getAt(this.store.values, path)
   }
 
-  readUi(path: string, name: string, key: string): unknown {
-    return this.ui.read(path, name, key)
-  }
-
-  writeUi(path: string, name: string, key: string, value: unknown): void {
-    this.ui.write(path, name, key, value)
-  }
-
   // —— field registration (React / tests) ——
 
   /**
@@ -612,21 +599,6 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
    */
   releaseJsxField(path: string, lease?: unknown): void {
     this.declarations.releaseJsxField(path, lease)
-  }
-
-  /** Mount a named UI instance. The same name twice on one path throws {@link ShikiUiError} in dev. */
-  claimUi(path: string, name: string): void {
-    this.ui.claim(path, name)
-  }
-
-  /** Unmount a named UI instance. The field model is unchanged. */
-  releaseUi(path: string, name: string): void {
-    this.ui.release(path, name)
-  }
-
-  /** False when the field display is not `visible`, or when the named UI / region is hidden. */
-  uiVisible(path: string, name: string | undefined, region: string | undefined): boolean {
-    return this.ui.visible(path, name, region)
   }
 
   /**

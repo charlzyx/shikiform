@@ -1,6 +1,6 @@
 ---
 title: Ant Design 适配
-description: 接好的 antd 控件、阅读态、connect / mapProps / mapReadPretty 接自己的控件，以及预绑定工厂。
+description: 接好的 antd 控件、阅读态、connect / mapProps / mapReadPretty 接自己的控件，以及提交 / 重置按钮。
 ---
 
 # Ant Design 适配
@@ -95,7 +95,7 @@ export default function App() {
 
 控件的 `onChange` 先写字段，再用原始参数调用你传的 `onChange`；`onBlur` 同理。
 
-不想经过 `connect` 时，组件里用不带参数的 `useField()` 读当前字段，自己接线。`<Field>`、`AppField`、表格单元格里的 `<Field>` 都一样：
+不想经过 `connect` 时，组件里用不带参数的 `useField()` 读当前字段，自己接线。`<Field>` 的 `component`、子元素、表格单元格里的 `<Field>` 都一样：
 
 ```tsx
 import { useField } from 'shikiform';
@@ -105,23 +105,23 @@ function Percent() {
   return <AntSlider value={field.value} onChange={field.onChange} disabled={field.disabled} />;
 }
 <Field name="volume" title="音量" decorator={[FormItem]} component={[Percent]} />
-<form.AppField name="volume" title="音量">{() => <Percent />}</form.AppField>
 ```
 
-在任何 `<Field>` / `AppField` 之外调用会抛 `ShikiUsageError`，消息里写明怎么改。
+在任何 `<Field>` 之外调用会抛 `ShikiUsageError`，消息里写明怎么改。
 
-## 预绑定：useAntdForm
+## 提交与重置按钮
 
-[快速开始](/guide/quick-start) 用的就是这个工厂。`useAntdForm` 返回普通引擎，外加 `AppForm`、`AppField`、`Submit`；`field.Input`、`field.Select`、`field.DatePicker` 等是上面的 connect 控件包了 `FormItem`。上面各节的 `<Field decorator component>` 是同一套控件的显式写法：
+`Submit` / `Reset` 读最近的 `<Form>`：`Submit` 在 `$canSubmit` 为 false 时不可点、提交中显示 loading；`Reset` 调 `form.reset()`。按钮文字跟随表单的 `messages`。
 
 ```tsx
-const form = useAntdForm({ initialValues: { email: '' } })
-<form.AppForm>
-  <form.AppField name="email" title="邮箱" required>{(field) => <field.Input />}</form.AppField>
-  <form.Submit>保存</form.Submit>
-</form.AppForm>
+<Form form={form} onSubmit={save}>
+  <Field name="email" title="邮箱" required decorator={[FormItem]} component={[Input]} />
+  <Submit />                                         {/* 原生 submit，交给 <Form onSubmit> */}
+  <Reset />
+  <Submit onSubmit={saveDraft}>存草稿</Submit>        {/* 自己调用 form.submit(saveDraft) */}
+</Form>
 ```
 
-提交回调写在 `<form.AppForm onSubmit={save} onInvalid={…}>` 上，和 `<Form>` 一样。不要在 `AppForm` 里再套一个 `<form>`。细节见 [antd 参考](/reference/antd) 和 [`createFormHook`](/reference/form-hook)。
+按表单值类型检查字段名用 [`typed(form)`](/reference/react-hooks#typed)。细节见 [antd 参考](/reference/antd#submit)。
 
 下一步：[联动](/guide/linkage)，让字段跟着别的字段变。

@@ -1,5 +1,3 @@
-import { createUiHandle } from '../draft/handle'
-import type { DraftHost } from '../draft/host'
 import { listPositions, posKey, type Pos } from '../shared/tree-ops'
 import type { Draft, EffectDef, EffectsAPI, EffectsRuntime, RowContext } from '../types'
 import type { EachRec } from './scheduler'
@@ -81,7 +79,7 @@ export function defineEffects<T>(factory: (api: EffectsAPI<T>) => void): EffectD
       factory({
         reaction,
         watch,
-        query: (path, opts) => (opts?.ui ? createUiHandle(runtime as unknown as DraftHost, path, opts.ui) : runtime.handle(path)),
+        query: (path) => runtime.handle(path),
       })
     },
   }

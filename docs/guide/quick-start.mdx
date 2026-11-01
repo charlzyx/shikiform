@@ -1,11 +1,11 @@
 ---
 title: 快速开始
-description: 准备依赖，用 useAntdForm 或 createFormHook 写出第一张能校验、能提交的表单。
+description: 准备依赖，用 Field + FormItem + Submit 写出第一张能校验、能提交的表单。
 ---
 
 # 快速开始
 
-从安装到一张会校验、会提交的表单。antd 用 `useAntdForm`；自己的控件用 `createFormHook`。
+从安装到一张会校验、会提交的表单。字段只有一种写法：`<Field>`，装饰器包住控件。
 
 ## 准备
 
@@ -18,56 +18,50 @@ ShikiForm 还没有发布到 npm。在仓库里运行 `npm ci && npm run build:l
 
 ## 第一张表单
 
-`useAntdForm`（`shikiform/antd`）是接好的工厂：返回引擎，再加上 `AppForm`、`AppField`、`Submit`。`name` 按表单值类型检查；没写泛型时，这个类型从 `initialValues` 推断。`field.Input` 是 connect 过的控件，外面已经包了 `FormItem`（标签、星号、错误），不用再写 `decorator` / `component`。
+`useForm` 创建引擎，`<Form>` 把它交给字段并渲染原生 `<form>`。`<Field>` 拥有一个路径：`decorator={[FormItem]}` 显示标签、星号和错误，`component={[Input]}` 是 connect 过的 antd 控件，二者都从字段上下文读字段，不再写 `name`。`typed(form)` 返回同一组组件，只是 `name` 按表单值类型检查。
 
 ```tsx preview
 import { useState } from 'react';
 import { Form as AntdForm } from 'antd';
-import { FormLayout, useAntdForm } from 'shikiform/antd';
+import { Form, typed, useForm } from 'shikiform';
+import { FormItem, FormLayout, Input, InputNumber, Submit } from 'shikiform/antd';
 
 type Values = { name: string; email: string; age: number | null };
 
 export default function App() {
   const [result, setResult] = useState('还没有提交');
-  const form = useAntdForm<Values>({ initialValues: { name: '', email: '', age: 18 } });
+  const form = useForm<Values>({ initialValues: { name: '', email: '', age: 18 } });
+  const F = typed(form);
   return (
-    <form.AppForm onSubmit={(values) => setResult(JSON.stringify(values))}>
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
       <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }}>
-        <form.AppField name="name" title="姓名" required>
-          {(field) => <field.Input placeholder="Ada" />}
-        </form.AppField>
-        <form.AppField name="email" title="邮箱" required rules={{ format: 'email', message: '邮箱格式不对' }}>
-          {(field) => <field.Input />}
-        </form.AppField>
-        <form.AppField name="age" title="年龄" rules={{ min: 0, max: 150 }}>
-          {(field) => <field.InputNumber />}
-        </form.AppField>
+        <F.Field name="name" title="姓名" required decorator={[FormItem]} component={[Input, { placeholder: 'Ada' }]} />
+        <F.Field name="email" title="邮箱" required rules={{ format: 'email', message: '邮箱格式不对' }}
+          decorator={[FormItem]} component={[Input]} />
+        <F.Field name="age" title="年龄" rules={{ min: 0, max: 150 }} decorator={[FormItem]} component={[InputNumber]} />
         <AntdForm.Item wrapperCol={{ offset: 4, span: 20 }}>
-          <form.Submit>提交</form.Submit>
+          <Submit>提交</Submit>
         </AntdForm.Item>
       </FormLayout>
       <pre aria-live="polite">{result}</pre>
-    </form.AppForm>
+    </Form>
   );
 }
 ```
 
 直接点提交，必填项报错；失焦时也会校验。全部通过后 `onSubmit` 才收到值。
 
-- `title`、`required`、`rules` 写在 `AppField` 上。
-- `<form.Submit>` 在已经有错误、或正在提交时不可点（`$canSubmit` 为 false）。还没校验过的空必填项不挡住它，第一次点击仍会跑校验。
-- `AppForm` 自己就是 `<form>`，不要再套一层。组件外创建引擎用 `createForm`，选项和 `useAntdForm` / `useForm` 相同。
+- `title`、`required`、`rules` 写在 `Field` 上；`component` / `decorator` 的第二项是传给控件 / 装饰器的属性。
+- `<Submit>` 在已经有错误、或正在提交时不可点（`$canSubmit` 为 false）。还没校验过的空必填项不挡住它，第一次点击仍会跑校验。`<Reset>` 回到初始值。
+- `<Form>` 自己就是 `<form>`，不要再套一层。组件外创建引擎用 `createForm`，选项和 `useForm` 相同。
 
 ## 不用 antd
 
-预绑定自己的输入：模块顶层 `createFormHookContexts` 和 `createFormHook` 各调用一次，组件里用返回的 `useAppForm`。`AppField` / `AppForm` 挂在表单实例上，**不是** `shikiform` 的具名导出。
+自己的输入组件用不带参数的 `useField()` 读当前字段，放进 `component`（或作为 `<Field>` 的子元素）。
 
 ```tsx preview
 import { useState } from 'react';
-import { createFormHook, createFormHookContexts, useField } from 'shikiform';
-
-type Values = { username: string };
-const contexts = createFormHookContexts();
+import { Field, Form, useField, useForm } from 'shikiform';
 
 function TextInput({ label }: { label: string }) {
   const field = useField<string>();
@@ -80,41 +74,12 @@ function TextInput({ label }: { label: string }) {
   );
 }
 
-const { useAppForm } = createFormHook({
-  formContext: contexts.formContext,
-  fieldComponents: { TextInput },
-});
-
 export default function App() {
   const [result, setResult] = useState('还没有提交');
-  const form = useAppForm<Values>({ initialValues: { username: '' } });
-  return (
-    <form.AppForm onSubmit={(values) => setResult(JSON.stringify(values))}>
-      <form.AppField name="username" required>{(field) => <field.TextInput label="姓名" />}</form.AppField>
-      <button type="submit">提交</button>
-      <pre aria-live="polite">{result}</pre>
-    </form.AppForm>
-  );
-}
-```
-
-不带参数的 `useField()` 读当前字段，必须写在 `AppField`（或 `<Field>`）的子组件里，否则抛错并提示修法。输入组件自己把 `value` / `onChange` / `onBlur` 接到控件上。字段组、`withForm` 见 [组件 Hook 工厂](/reference/form-hook)。
-
-## 进阶：直接写 Field
-
-要自己指定装饰器和控件时，用 `<Field>`。它拥有这个 path，`decorator` 包住 `component`，二者从上下文读字段，不再写 `name`。`useAntdForm` 的 `AppField` 内部就是它。
-
-```tsx preview
-import { useState } from 'react';
-import { Field, Form, useForm } from 'shikiform';
-import { FormItem, Input } from 'shikiform/antd';
-
-export default function App() {
-  const [result, setResult] = useState('还没有提交');
-  const form = useForm({ initialValues: { fullName: '' } });
+  const form = useForm({ initialValues: { username: '' } });
   return (
     <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
-      <Field name="fullName" title="姓名" required decorator={[FormItem]} component={[Input]} />
+      <Field name="username" required component={[TextInput, { label: '姓名' }]} />
       <button type="submit">提交</button>
       <pre aria-live="polite">{result}</pre>
     </Form>
@@ -122,6 +87,39 @@ export default function App() {
 }
 ```
 
-四种写法和 UI 属性分层见 [Field、装饰器与组件](/guide/field)。只要绑定、不要工厂时用 `useField`，见 [Headless Hooks](/guide/headless)。
+不带参数的 `useField()` 必须写在 `<Field>` 的 `component` / `decorator` / 子元素里，否则抛错并提示修法。输入组件自己把 `value` / `onChange` / `onBlur` 接到控件上；要套用 antd 那样的映射，用 [`connect`](/reference/antd-adapter#connect)。
+
+## 复用一段字段
+
+片段就是普通组件：名字相对外层 `<ObjectField>` / 行作用域解析，`typed<Address>()` 按片段自己的值类型检查。
+
+```tsx preview
+import { Form, ObjectField, typed, useForm } from 'shikiform';
+import { FormItem, Input } from 'shikiform/antd';
+
+type Address = { city: string; street: string };
+const A = typed<Address>();
+
+function AddressFields() {
+  return (
+    <>
+      <A.Field name="city" title="城市" decorator={[FormItem]} component={[Input]} />
+      <A.Field name="street" title="街道" decorator={[FormItem]} component={[Input]} />
+    </>
+  );
+}
+
+export default function App() {
+  const form = useForm({ initialValues: { home: { city: '杭州', street: '' }, office: { city: '上海', street: '' } } });
+  return (
+    <Form form={form}>
+      <ObjectField name="home"><AddressFields /></ObjectField>
+      <ObjectField name="office"><AddressFields /></ObjectField>
+    </Form>
+  );
+}
+```
+
+装饰器和控件的四种写法、UI 属性分层见 [Field、装饰器与组件](/guide/field)。只要绑定、不要组件时用 `useField`，见 [Headless Hooks](/guide/headless)。
 
 下一步：[核心概念](/guide/concepts)，引擎、draft 和 `$` 状态。

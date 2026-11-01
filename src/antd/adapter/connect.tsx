@@ -22,7 +22,7 @@ export type ConnectEnhancer =
 
 /** Props every connected control accepts besides its own. */
 export interface ConnectFieldProps {
-  /** Field name relative to the current scope. Omit it inside a `<Field>` / `AppField`, which supply the field. */
+  /** Field name relative to the current scope. Omit it inside a `<Field>`, which supplies the field. */
   name?: string
   /** An explicit binding, e.g. from `useField(name, options)`. Wins over `name` and context. */
   field?: FieldBinding<any>
@@ -168,7 +168,7 @@ export function mapReadPretty(component: ComponentType<any>, props?: Record<stri
 /**
  * Turn any value/onChange control into a ShikiForm field control (Formily `connect`).
  * The result reads its field from, in order: a `field` prop, a `name` prop (via {@link useField}),
- * or the surrounding `<Field>` / `AppField` (what `useField()` with no name returns). It has no state of its own: every prop comes from
+ * or the surrounding `<Field>` (what `useField()` with no name returns). It has no state of its own: every prop comes from
  * {@link mapFieldProps} over the binding, with the field's `componentProps` merged under the caller's props
  * (so `$componentProps.placeholder = …` in a reaction reaches the control).
  *
@@ -205,7 +205,7 @@ export function connect<P>(target: ComponentType<P>, ...enhancers: ConnectEnhanc
   }
   function FromContext({ rest }: { rest: Record<string, any> }) {
     const field = useFieldContextOrNull()
-    if (!field) throw new Error(`${displayName} needs a \`name\` prop, a \`field\` prop, or a surrounding <Field> / AppField`)
+    if (!field) throw new Error(`${displayName} needs a \`name\` prop, a \`field\` prop, or a surrounding <Field>`)
     return render(field, rest)
   }
   const displayName = `Connected(${Target.displayName ?? Target.name ?? 'Component'})`

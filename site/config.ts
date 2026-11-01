@@ -54,7 +54,7 @@ export default async () => {
         group('Pro 组件', ['guide/pro']),
         group('校验', ['guide/validation']),
         group('示例库', ['examples', 'examples/forms', 'examples/linkage', 'examples/arrays', 'examples/tables', 'examples/business', 'examples/pro']),
-        group('API 参考', ['api', 'reference/react-hooks', 'reference/form-hook', 'reference/antd-adapter', 'reference/antd', 'reference/query-hooks', 'reference/pro-hooks', 'reference/pro-components']),
+        group('API 参考', ['api', 'reference/react-hooks', 'reference/antd-adapter', 'reference/antd', 'reference/query-hooks', 'reference/pro-hooks', 'reference/pro-components']),
         group('Agent 指南', ['agents']),
         section('tutorial', '分步教程', true),
       ],

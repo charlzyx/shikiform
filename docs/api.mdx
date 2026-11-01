@@ -9,10 +9,9 @@ description: 四个入口、createForm 选项、引擎方法、React 组件与�
 
 | 要查什么 | 参考页 |
 |---|---|
-| `useForm`、`useFormContext`、`useField`（无参即当前字段）、`useWatch`、`useArrayField`、`useArray`、`useIndex`、`useRecord`、`useArrayMove`、`useTreeField`、`useTreeNode`、`useTreeMove` | [React Hooks](/reference/react-hooks) |
-| `createFormHookContexts`、`createFormHook`（`useAppForm` / `AppField` / `withForm` / `withFieldGroup`） | [组件 Hook 工厂](/reference/form-hook) |
+| `useForm`、`typed`、`useFormContext`、`useField`（无参即当前字段）、`useWatch`、`useArrayField`、`useArray`、`useIndex`、`useRecord`、`useArrayMove`、`useTreeField`、`useTreeNode`、`useTreeMove` | [React Hooks](/reference/react-hooks) |
 | `connect`、`mapProps`、`mapReadPretty`、`mapFieldProps`、`FormItem`、`mapFormItemProps`、`FormLayout`、`useFormLayout`、`PreviewText`、接好的控件 | [Ant Design 适配层](/reference/antd-adapter) |
-| `useAntdForm`、`createAntdFormHook`、`antdForm`、`withAntdForm`、`withAntdFieldGroup`、`ArrayTable`、`MergedTable`、`groupRowSpan`、`ProQueryTable`、`QueryForm` | [Ant Design 参考](/reference/antd) |
+| `Submit`、`Reset`、控件取值契约、`ArrayTable`、`MergedTable`、`groupRowSpan`、`ProQueryTable`、`QueryForm` | [Ant Design 参考](/reference/antd) |
 | `useQueryTable`、`useBuiltinQuery` | [查询 Hooks](/reference/query-hooks) |
 | `useArrayTable`、`useColumnSettings`、`useShadowForm`、`useArrayShadow`、`useSuggestion`、`useLazyCascader`、`enumItems`、`ENUM_COLORS` | [Pro Hooks](/reference/pro-hooks) |
 | `ProArrayTable`、`QueryList`、`ShadowModal` / `ShadowDrawer` / `ShadowPopconfirm` / `ShadowForm`、`useShadow`、`EnumPretty`、`Suggestion`、`CascaderPlus` 及其 `…View` | [Pro 组件](/reference/pro-components) |
@@ -24,7 +23,7 @@ description: 四个入口、createForm 选项、引擎方法、React 组件与�
 | `shikiform` | `useForm`、`createForm`、`FormEngine`、`defineEffects`；`Form`、`Field`、`ObjectField`、`ArrayField`、`ArrayScope`、`RowScope`、`TreeField`、`Watch`、`VirtualRows`；上表的 React Hooks；类型 `Draft`、`FieldBinding`、`FieldProps`、`FormOptions`、`RowContext` … |
 | `shikiform/core` | `createForm`、`defineEffects`、`EnumSource`、`comboMatch`、`comboOptions`、`ShikiUsageError` 等错误类、Standard Schema 与树坐标工具；类型 `Pattern`、`Display`、`Rule`、`RulesInput`、`Pos` … |
 | `shikiform/pro` | 上表的 Pro Hooks，不依赖 antd |
-| `shikiform/antd` | 适配层、接好的控件、预绑定工厂、表格与 Pro 组件 |
+| `shikiform/antd` | 适配层、接好的控件、`Submit` / `Reset`、表格与 Pro 组件 |
 
 没有 `shikiform/ui`、`shikiform/zod` 入口：Zod 实现了 Standard Schema，直接传给 `rules` / `validate`。行上下文是 `useIndex()` / `useRecord()`（或 `ProArrayTable.useRow()`），没有独立的 `useRow` 导出。
 
@@ -118,7 +117,7 @@ await form.submit((values) => {
 | `<Watch select>{(value) => …}` | `useWatch` 的渲染形式 |
 | `<VirtualRows>` | 只挂载可见行的容器 |
 
-`<Field>`、`<ObjectField>`、`<ArrayField>`、`useField` 不写泛型时接受任意字符串（动态路径的出口）。要按表单类型检查名字，用 [`typed(form)`](/reference/react-hooks#typed) 拿到同一组组件的有类型版本：`<F.Field name="emial">` 编译不过，`ArrayField` 的每一行再给一组按行类型检查的 `row.Field` / `row.AppField`。名字在运行时始终相对当前作用域。
+`<Field>`、`<ObjectField>`、`<ArrayField>`、`useField` 不写泛型时接受任意字符串（动态路径的出口）。要按表单类型检查名字，用 [`typed(form)`](/reference/react-hooks#typed) 拿到同一组组件的有类型版本：`<F.Field name="emial">` 编译不过，`ArrayField` 的每一行再给一组按行类型检查的 `row.Field`。可复用的字段片段是普通组件，放在 `<ObjectField>` 里，用 `typed<Address>()` 按片段自己的类型检查。名字在运行时始终相对当前作用域。
 
 ## 联动
 

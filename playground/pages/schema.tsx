@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { z } from 'zod'
 import * as v from 'valibot'
-import { withAntdFieldGroup, useAntdForm } from 'shikiform/antd'
-import { Field } from 'shikiform'
+import { FormItem, Input, Submit } from 'shikiform/antd'
+import { Field, Form, ObjectField, typed, useForm } from 'shikiform'
 
 interface Address {
   city: string
@@ -35,17 +35,19 @@ const crossField = v.pipe(
   ),
 )
 
-const AddressFields = withAntdFieldGroup<Address>({
-  render: ({ group }) => (
+/** A reusable fragment is a plain component: names are relative to the surrounding `<ObjectField>`. */
+const A = typed<Address>()
+function AddressFields() {
+  return (
     <>
-      <group.AppField name="city">{(field) => <field.Input data-testid="city" placeholder="城市" />}</group.AppField>
-      <group.AppField name="street">{(field) => <field.Input data-testid="street" placeholder="街道" />}</group.AppField>
+      <A.Field name="city" decorator={[FormItem]} component={[Input, { 'data-testid': 'city', placeholder: '城市' }]} />
+      <A.Field name="street" decorator={[FormItem]} component={[Input, { 'data-testid': 'street', placeholder: '街道' }]} />
     </>
-  ),
-})
+  )
+}
 
 export function SchemaPage() {
-  const form = useAntdForm<Values>({
+  const form = useForm<Values>({
     initialValues: {
       email: '',
       password: '',
@@ -60,7 +62,7 @@ export function SchemaPage() {
   const [result, setResult] = useState('')
   const [errors, setErrors] = useState('')
   return (
-    <form.AppForm>
+    <Form form={form}>
       <Field name="email" rules={[z.string().email('邮箱格式不对'), { minLength: 3, message: '太短' }]}>
         {(field) => (
           <label>
@@ -95,7 +97,9 @@ export function SchemaPage() {
           <input data-testid="ghost" value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value)} />
         )}
       </Field>
-      <AddressFields name="address" />
+      <ObjectField name="address">
+        <AddressFields />
+      </ObjectField>
       <Field name="items.0.name">
         {(field) => (
           <input data-testid="item-name" value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value)} />
@@ -134,7 +138,7 @@ export function SchemaPage() {
       >
         丢弃幽灵
       </button>
-      <form.Submit
+      <Submit
         data-testid="schema-submit"
         htmlType="button"
         disabled={false}
@@ -147,9 +151,9 @@ export function SchemaPage() {
         }}
       >
         提交
-      </form.Submit>
+      </Submit>
       <pre data-testid="errors">{errors}</pre>
       <pre data-testid="result">{result}</pre>
-    </form.AppForm>
+    </Form>
   )
 }

@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import { createForm, defineEffects, type Draft } from '../src/core'
 import { useQueryTable } from '../src/pro/use-query-table'
-import { createFormHook, createFormHookContexts, Field, useArrayField, useField, useForm, useWatch } from '../src/react'
+import { Field, ObjectField, typed, useArrayField, useField, useForm, useWatch } from '../src/react'
 
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false
 type Expect<T extends true> = T
@@ -143,82 +143,69 @@ function queryTypes() {
   void mapped
 }
 
-const contexts = createFormHookContexts()
-const hook = createFormHook({
-  fieldComponents: { Input: () => null },
-  formContext: contexts.formContext,
-})
-
-function appFormTypes() {
-  const app = hook.useAppForm({ initialValues: { email: '' } })
+function typedFormTypes() {
+  const app = useForm({ initialValues: { email: '' } })
+  const F = typed(app)
   const email = app.getValue('email')
   const _e: Expect<Equal<typeof email, string>> = true
   void email
   void _e
   return (
-    <app.AppField name="email">
+    <F.Field name="email">
       {(field) => {
         const value = field.value
         const _v: Expect<Equal<typeof value, string>> = true
         void value
         void _v
-        return <field.Input />
+        return null
       }}
-    </app.AppField>
+    </F.Field>
   )
 }
 
-function badAppField() {
-  const app = hook.useAppForm({ initialValues: { email: '' } })
+function badTypedField() {
+  const app = useForm({ initialValues: { email: '' } })
+  const F = typed(app)
   return (
-    <app.AppField
+    <F.Field
       // @ts-expect-error email is the only field
       name="nope"
-    >
-      {() => null}
-    </app.AppField>
+    />
   )
 }
 
-const Address = hook.withFieldGroup<{ city: string }, { title: string }>({
-  render: ({ group, title }) => {
-    const label: string = title
-    void label
-    return (
-      <group.AppField name="city">
-        {(field) => {
-          const value = field.value
-          const _v: Expect<Equal<typeof value, string>> = true
-          void value
-          void _v
-          return null
-        }}
-      </group.AppField>
-    )
-  },
-})
-
-const Block = hook.withForm<{ email: string }, { label: string }>({
-  render: ({ form: bound, label }) => {
-    const email = bound.getValue('email')
-    const _e: Expect<Equal<typeof email, string>> = true
-    const text: string = label
-    void email
-    void _e
-    void text
-    return null
-  },
-})
+/** A reusable fragment: a plain component typed against its own scope with `typed<T>()`. */
+const A = typed<{ city: string }>()
+function Address({ title }: { title: string }) {
+  const label: string = title
+  void label
+  return (
+    <A.Field name="city">
+      {(field) => {
+        const value = field.value
+        const _v: Expect<Equal<typeof value, string>> = true
+        void value
+        void _v
+        return null
+      }}
+    </A.Field>
+  )
+}
+function badFragment() {
+  // @ts-expect-error city is the only field of the fragment scope
+  return <A.Field name="street" />
+}
 
 function groupUse() {
-  const app = hook.useAppForm({ initialValues: { email: '' } })
+  const app = useForm({ initialValues: { email: '', ship: { city: '' } } })
+  const F = typed(app)
   return (
-    <>
-      <Address name="ship" title="Ship" />
-      <Block form={app} label="Email" />
-    </>
+    <F.ObjectField name="ship">
+      <Address title="Ship" />
+    </F.ObjectField>
   )
 }
+void ObjectField
 
 it('checks paths at compile time', () => {
   expect(form.getValue('items.0.price')).toBe(1)
@@ -226,8 +213,9 @@ it('checks paths at compile time', () => {
   expect(typeof effects).toBe('object')
   expect(typeof Address).toBe('function')
   expect(typeof queryTypes).toBe('function')
-  expect(typeof appFormTypes).toBe('function')
-  expect(typeof badAppField).toBe('function')
+  expect(typeof typedFormTypes).toBe('function')
+  expect(typeof badTypedField).toBe('function')
+  expect(typeof badFragment).toBe('function')
   expect(typeof groupUse).toBe('function')
   expect(_name).toBe(true)
   expect(_price).toBe(true)

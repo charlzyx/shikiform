@@ -20,7 +20,6 @@ import {
   Radio,
   Select,
   Switch,
-  useAntdForm,
 } from '../src/antd'
 
 type Pattern = 'editable' | 'disabled' | 'readOnly' | 'readPretty'
@@ -159,18 +158,6 @@ describe('connect', () => {
     const Bare = connect(() => null)
     const form = createForm({ initialValues: {} })
     expect(() => renderToStaticMarkup(<Form form={form}><Bare /></Form>)).toThrow(/needs a `name` prop/)
-  })
-
-  it('works inside useAntdForm AppField (shared field context)', () => {
-    function App() {
-      const form = useAntdForm({ initialValues: { email: 'a@b.c' } })
-      return (
-        <form.AppForm>
-          <form.AppField name="email">{() => <Input />}</form.AppField>
-        </form.AppForm>
-      )
-    }
-    expect(renderToStaticMarkup(<App />)).toContain('value="a@b.c"')
   })
 })
 

@@ -16,8 +16,6 @@ export {
   VirtualRows,
   Watch,
   createForm,
-  createFormHook,
-  createFormHookContexts,
   defineEffects,
   enUS,
   getDefaultMessages,
@@ -39,8 +37,6 @@ export {
   zhCN,
 } from './react'
 export type {
-  AppFormApi,
-  AppFormProps,
   FieldError,
   FormDomProps,
   FormMessageKey,
@@ -65,17 +61,15 @@ export type {
   FieldSpec,
   FieldUiSpec,
   FormOptions,
-  GroupApi,
   ScopeFields,
   SubmitValues,
   TemplatePath,
-  TypedAppField,
   TypedForm,
   UseFieldOptions,
   UseFormOptions,
 } from './react'
 // Engine names a React app needs without a second import line (`shikiform/core` exports the same objects).
-export { EnumSource, ShikiConflictError, ShikiCycleError, ShikiUiError, ShikiUsageError } from './core'
+export { EnumSource, ShikiConflictError, ShikiCycleError, ShikiUsageError } from './core'
 export type {
   Display,
   EffectDef,

@@ -6,8 +6,6 @@ import { afterEach, describe, expect, it } from 'vitest'
 import {
   ArrayField,
   createForm,
-  createFormHook,
-  createFormHookContexts,
   Field,
   Form,
   ObjectField,
@@ -128,42 +126,40 @@ function scopedNames() {
   )
 }
 
-const ctx = createFormHookContexts()
 function TextInput() {
   const f = useField<string>()
   return <input aria-label={`${f.path}=${String(f.value)}`} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} />
 }
-const { useAppForm } = createFormHook({ formContext: ctx.formContext, fieldComponents: { TextInput } })
 
 function AppScoped() {
-  const form = useAppForm<V>({ initialValues: init })
+  const form = useForm<V>({ initialValues: init })
   const F = typed(form)
   return (
-    <form.AppForm>
+    <Form form={form}>
       <F.ArrayField name="items" rowKey="id">
         {(row) => (
-          <row.AppField name="name">
+          <row.Field name="name">
             {(f) => {
               const _v: Expect<Equal<typeof f.value, string>> = true
               void _v
-              return <f.TextInput />
+              return <TextInput />
             }}
-          </row.AppField>
+          </row.Field>
         )}
       </F.ArrayField>
       <F.ObjectField name="profile">
         {(obj) => (
           <>
-            <obj.AppField name="name">{(f) => <f.TextInput />}</obj.AppField>
+            <obj.Field name="name" component={[TextInput]} />
             {false && (
               // @ts-expect-error relative to profile (and a dev ShikiUsageError at runtime)
-              <obj.AppField name="profile.name">{(f) => <f.TextInput />}</obj.AppField>
+              <obj.Field name="profile.name" component={[TextInput]} />
             )}
           </>
         )}
       </F.ObjectField>
-      <form.AppField name="email">{(f) => <f.TextInput />}</form.AppField>
-    </form.AppForm>
+      <F.Field name="email" component={[TextInput]} />
+    </Form>
   )
 }
 
@@ -208,7 +204,7 @@ void watchTypes
 afterEach(cleanup)
 
 describe('typed handles (runtime)', () => {
-  it('row / object AppField bind scope-relative paths (#30)', () => {
+  it('row / object Field bind scope-relative paths (#30)', () => {
     render(<AppScoped />)
     expect(screen.getAllByRole('textbox').map((e) => e.getAttribute('aria-label'))).toEqual([
       'items.0.name=x',
@@ -219,13 +215,13 @@ describe('typed handles (runtime)', () => {
 
   it('an absolute name inside a scope throws ShikiUsageError in development (#30)', () => {
     function Bad() {
-      const form = useAppForm<V>({ initialValues: init })
+      const form = useForm<V>({ initialValues: init })
       return (
-        <form.AppForm>
+        <Form form={form}>
           <ObjectField name="profile">
-            <form.AppField name="profile.name">{(f) => <f.TextInput />}</form.AppField>
+            <Field name="profile.name" component={[TextInput]} />
           </ObjectField>
-        </form.AppForm>
+        </Form>
       )
     }
     const spy = console.error

@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@t
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createForm, enUS, Field, Form, setDefaultMessages, useForm, useFormMessage, zhCN } from '../src'
 import { moveNode } from '../src/core'
-import { PreviewText, ProArrayTable, ProQueryTable, QueryList, ShadowDrawer, ShadowPopconfirm, useAntdForm } from '../src/antd'
+import { PreviewText, ProArrayTable, ProQueryTable, QueryList, Reset, ShadowDrawer, ShadowPopconfirm, Submit } from '../src/antd'
 import { useQueryTable } from '../src/pro'
 
 afterEach(() => {
@@ -43,25 +43,28 @@ describe('built-in texts go through messages', () => {
     expect(result.current('density', { density: 'small' })).toBe('Density: Compact')
   })
 
-  it('antd Submit and PreviewText follow the form messages', () => {
+  it('antd Submit / Reset and PreviewText follow the form messages', () => {
     function Page({ en }: { en?: boolean }) {
-      const form = useAntdForm({ initialValues: { ok: true, no: false, empty: '' }, messages: en ? { ...enUS, empty: '—' } : undefined })
+      const form = useForm({ initialValues: { ok: true, no: false, empty: '' }, messages: en ? { ...enUS, empty: '—' } : undefined })
       return (
-        <form.AppForm>
+        <Form form={form}>
           <span data-testid="yes"><PreviewText value={form.getValue('ok')} /></span>
           <span data-testid="no"><PreviewText value={form.getValue('no')} /></span>
           <span data-testid="empty"><PreviewText value={form.getValue('empty')} /></span>
-          <form.Submit />
-        </form.AppForm>
+          <Submit />
+          <Reset data-testid="reset" />
+        </Form>
       )
     }
     const zh = render(<Page />)
-    expect(screen.getByRole('button').textContent?.replace(/\s/g, '')).toBe('提交')
+    expect(screen.getAllByRole('button')[0]!.textContent?.replace(/\s/g, '')).toBe('提交')
+    expect(screen.getByTestId('reset').textContent?.replace(/\s/g, '')).toBe('重置')
     expect(screen.getByTestId('yes').textContent).toBe('是')
     expect(screen.getByTestId('empty').textContent).toBe('')
     zh.unmount()
     render(<Page en />)
-    expect(screen.getByRole('button').textContent).toBe('Submit')
+    expect(screen.getAllByRole('button')[0]!.textContent).toBe('Submit')
+    expect(screen.getByTestId('reset').textContent).toBe('Reset')
     expect(screen.getByTestId('yes').textContent).toBe('Yes')
     expect(screen.getByTestId('no').textContent).toBe('No')
     expect(screen.getByTestId('empty').textContent).toBe('—')
@@ -150,12 +153,5 @@ describe('useForm({ values })', () => {
     act(() => form.setValue('name', 'edited'))
     rerender({ values: { name: 'loaded' } })
     expect(form.getValue('name')).toBe('edited')
-  })
-
-  it('useAppForm forwards values', () => {
-    const { result, rerender } = renderHook(({ values }) => useAntdForm({ values }), { initialProps: { values: { n: 1 } } })
-    rerender({ values: { n: 2 } })
-    expect(result.current.values).toEqual({ n: 2 })
-    expect(result.current.dirty).toBe(false)
   })
 })
