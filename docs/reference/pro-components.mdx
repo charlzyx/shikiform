@@ -30,13 +30,13 @@ Pro.formily `ProArrayTable`：数组字段上的 antd 表格，建立在 `useArr
 
 ```tsx
 const table = useQueryTable({ initialValues: { query: {}, list: [] }, params: 'query', rows: 'list', request })
-<QueryList table={table} list="list" columns={columns} collapseAfter={3}>
+<QueryList table={table} columns={columns} collapseAfter={3}>
   <Field name="query.domain" title="域名" decorator={[FormItem, { layout: 'vertical' }]} component={[Input]} />
   …
 </QueryList>
 ```
 
-Pro.formily `QueryList` + `QueryForm` + `QueryTable`：可折叠的查询栅格（展开 / 收起、重置、查询）加一张受控服务端分页的 `ProArrayTable`，表头带刷新。状态全部在 `useQueryTable`；它的 `rows` 选项把每页结果写进 `list` 数组字段，单元格可以直接编辑。选择存在 Hook 里，翻页保留、新查询清空。列上写 `sorter: true` / `filters`，表头排序和列筛选会作为 `sorter` / `filters` 发给 `request` 并回到第 1 页；列筛选和新查询一样清空选择，排序保留选择；表头状态受 Hook 控制，`重置` 一并清空（见 [表头排序与列筛选](/reference/query-hooks#表头排序与列筛选)）。`ProQueryTable` 对普通 antd 列做同样的接线。
+Pro.formily `QueryList` + `QueryForm` + `QueryTable`：可折叠的查询栅格（展开 / 收起、重置、查询）加一张受控服务端分页的 `ProArrayTable`，表头带刷新。状态全部在 `useQueryTable`；它的 `rows` 选项把每页结果写进 `list` 数组字段，单元格可以直接编辑；`QueryList` 默认渲染这个字段，只有要显示别的数组时才传 `list`。选择存在 Hook 里，翻页保留、新查询清空。列上写 `sorter: true` / `filters`，表头排序和列筛选会作为 `sorter` / `filters` 发给 `request` 并回到第 1 页；列筛选和新查询一样清空选择，排序保留选择；表头状态受 Hook 控制，`重置` 一并清空（见 [表头排序与列筛选](/reference/query-hooks#表头排序与列筛选)）。`ProQueryTable` 对普通 antd 列做同样的接线。
 
 ## ShadowModal
 

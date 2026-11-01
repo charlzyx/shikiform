@@ -23,6 +23,7 @@ export { Checkbox, DatePicker, Input, InputNumber, Radio, Select, Switch } from 
 export { createAntdFormHook, antdForm, useAntdField, useAntdForm, withAntdFieldGroup, withAntdForm } from './form-hook/form-hook'
 export { ArrayTable } from './tables/array-table'
 export { MergedTable, groupRowSpan } from './tables/merged-table'
+export type { MergedColumn } from './tables/merged-table'
 export { ProQueryTable, QueryForm } from './tables/query-table'
 export { ProArrayTable } from './tables/pro-array-table'
 export type { ProArrayTableCell, ProArrayTableColumn, ProArrayTableProps } from './tables/pro-array-table'
