@@ -10,7 +10,8 @@ describe('React JSX lease sequences over the real engine (not a browser effect t
     form.mountJsxField('email', { required: true, rules: [{ minLength: 3 }] })
     if (order === 'owner-first') consumer = applyJsxField(form, 'email', {})
     const before = await form.validate()
-    expect(before[0]?.messages).toHaveLength(2)
+    // empty value: only `required` reports (#63), minLength is skipped
+    expect(before[0]?.messages).toEqual(['必填'])
     consumer?.()
     expect(form.binding('email').required).toBe(true)
     expect(await form.validate()).toEqual(before)
@@ -39,7 +40,7 @@ describe('React JSX lease sequences over the real engine (not a browser effect t
   })
 
   it('an explicit empty rules array is an owner, not an absent declaration', async () => {
-    const form = createForm({ initialValues: { email: '' }, fields: { email: { rules: [{ minLength: 3 }] } } })
+    const form = createForm({ initialValues: { email: 'ab' }, fields: { email: { rules: [{ minLength: 3 }] } } })
     const cleanup = applyJsxField(form, 'email', { rules: [] })
     expect(await form.validate()).toEqual([])
     cleanup?.()
@@ -52,7 +53,7 @@ describe('React JSX lease sequences over the real engine (not a browser effect t
     const first = applyJsxField(form, 'email', spec)
     first?.()
     const second = applyJsxField(form, 'email', spec)
-    expect((await form.validate())[0]?.messages).toHaveLength(2)
+    expect((await form.validate())[0]?.messages).toEqual(['必填'])
     second?.()
     expect(await form.validate()).toEqual([])
   })
