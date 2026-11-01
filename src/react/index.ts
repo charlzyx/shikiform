@@ -6,7 +6,6 @@ export { ArrayContext, FormContext, ScopeContext, useFormContext, useScope } fro
 export type { ArrayScopeValue, ScopeValue } from './context'
 export { ArrayField, ArrayScope, Field, Form, ObjectField, RowScope, TreeField, Watch } from './components/fields'
 export type { FieldProps, FormDomProps, FormProps, FormSubmitHandlers } from './components/fields'
-export { FieldContext, useCurrentField } from './field-context'
 export { useArray, useArrayField, useArrayMove } from './hooks/use-array'
 export type { ArrayHandle, ArrayKey } from './hooks/use-array'
 export { useIndex, useRecord, useTreeNode } from './hooks/use-row'

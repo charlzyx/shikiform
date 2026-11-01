@@ -1,11 +1,11 @@
 ---
 title: Ant Design 参考
-description: useAntdForm、useAntdField、字段组、预绑定控件和表格的实际接口。
+description: useAntdForm、字段组、预绑定控件和表格的实际接口。
 ---
 
 # Ant Design 参考
 
-从 `shikiform/antd` 导入。`useAntdForm` / `useAntdField` 是预绑定入口：返回同一个 `FormEngine`，`AppField` render prop 上的 `field.Input`、`field.Select` 就是 [适配层](/reference/antd-adapter) 的 `Input`、`Select` 外包一层 `FormItem`。用法见 [Ant Design 适配](/guide/antd)。
+从 `shikiform/antd` 导入。`useAntdForm` 是预绑定入口：返回同一个 `FormEngine`，`AppField` render prop 上的 `field.Input`、`field.Select` 就是 [适配层](/reference/antd-adapter) 的 `Input`、`Select` 外包一层 `FormItem`。用法见 [Ant Design 适配](/guide/antd)。
 
 ## useAntdForm
 
@@ -26,17 +26,7 @@ useAntdForm<T>(options?: FormOptions<T>)
 
 `<form.AppForm onSubmit={save} onInvalid={…} onSubmitError={…}>`：回车和 `<form.Submit />` 校验通过后调用 `save`，回调与 `<Form>` 相同（见 [提交结果](/guide/validation#提交结果)），其余属性透传给 `<form>`。`AppForm` 只渲染一个 `<form>`，不要再套一层。
 
-## useAntdField
-
-```ts
-useAntdField<TValue = any>(): FieldBinding<TValue>
-```
-
-无参数，读取**最近的 AntD `AppField` 上下文**。返回 `value`、`onChange`、`onBlur`、`errors`、`pattern` 等 [FieldBinding](/reference/react-hooks#usefield)。泛型只标注值类型，不创建字段，也不按名字查找另一字段。
-
-- 在 `useAntdForm` / `createAntdFormHook()` 的 `AppField` 后代中调用。缺少上下文会抛错。
-- 它不同于 `useField(name)`：后者按相对路径订阅；前者消费当前预绑定字段。
-- 用它封装自定义控件时仍要处理 `value` / `checked`、事件取值、失焦、错误和展示态。见 [自定义适配](/guide/antd#封装自己的控件)。
+自定义控件在 `AppField` 里读当前字段，用 `shikiform` 的不带参数的 [`useField<TValue>()`](/reference/react-hooks#usefield)（`AppField` 内部就是 `<Field>`，没有 antd 专用的字段 Hook）。封装时仍要处理 `value` / `checked`、事件取值、失焦、错误和展示态，见 [自定义适配](/guide/antd#封装自己的控件)。
 
 ## createAntdFormHook
 
@@ -152,7 +142,7 @@ export default function App() {
 | `field.DatePicker` | `DatePicker` 的 props；`field.DatePicker.RangePicker` 为区间 | 格式化字符串（默认 `YYYY-MM-DD`），不是 dayjs；清空为 `undefined` |
 | `field.Input.Password` / `field.Input.TextArea` | 同 `Input` 的对应变体 | 与 `field.Input` 一样写回字符串；Password 的阅读态是 `******` |
 
-`InputNumber` 的转换是当前正式适配器契约。教程里可复制的 `NumberField` 故意示范了另一种项目策略：空值写 `undefined`。二者不能混为同一个组件；需要空值、字符串精度等不同策略时，使用 `Field` / `useAntdField` 自己接线，不假定正式适配器保留 antd 的所有值类型。
+`InputNumber` 的转换是当前正式适配器契约。教程里可复制的 `NumberField` 故意示范了另一种项目策略：空值写 `undefined`。二者不能混为同一个组件；需要空值、字符串精度等不同策略时，使用 `Field` / 无参 `useField()` 自己接线，不假定正式适配器保留 antd 的所有值类型。
 
 预绑定控件外面都有一层 **`FormItem`**（从 `AppField` 提供的字段上下文读字段），显示第一个错误、error 状态、required，以及 `AppField title` 作为 label。它不负责字段值/规则。`Input`、`Select`、`InputNumber`、`Switch`、`Checkbox`（含 `Group`）、`Radio`、`DatePicker`（含 `RangePicker`）、`Input.Password`、`Input.TextArea` 都是这一层。
 

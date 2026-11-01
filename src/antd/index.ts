@@ -20,7 +20,7 @@ export type { FeedbackLayout, FormLayoutProps, FormLayoutValue } from './adapter
 export { PreviewText } from './adapter/preview'
 export type { PreviewTextProps } from './adapter/preview'
 export { Checkbox, DatePicker, Input, InputNumber, Radio, Select, Switch } from './components/controls'
-export { createAntdFormHook, antdForm, useAntdField, useAntdForm, withAntdFieldGroup, withAntdForm } from './form-hook/form-hook'
+export { createAntdFormHook, antdForm, useAntdForm, withAntdFieldGroup, withAntdForm } from './form-hook/form-hook'
 export { ArrayTable } from './tables/array-table'
 export { MergedTable, groupRowSpan } from './tables/merged-table'
 export type { MergedColumn } from './tables/merged-table'

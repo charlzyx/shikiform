@@ -9,23 +9,17 @@ import { useForm, type UseFormOptions } from '../hooks/use-form'
 import type { TypedAppField } from './typed'
 
 /**
- * Contexts for {@link createFormHook}.
- * Field components call `useFieldContext()`. Form components call the `useFormContext` returned here.
+ * Form context for {@link createFormHook}. Form components call the `useFormContext` returned here.
+ * Field components need nothing from it: `AppField` renders a `<Field>`, so they call `useField()` with no name.
  */
 export function createFormHookContexts() {
-  const fieldContext = createContext<FieldBinding<any> | null>(null)
   const formContext = createContext<FormEngine<any> | null>(null)
-  function useFieldContext<TValue = any>(): FieldBinding<TValue> {
-    const value = useContext(fieldContext)
-    if (!value) throw new Error('useFieldContext must be used inside AppField')
-    return value as FieldBinding<TValue>
-  }
   function useBoundFormContext<T = any>(): FormEngine<T> {
     const value = useContext(formContext)
     if (!value) throw new Error('This form component must be used inside AppForm')
     return value as FormEngine<T>
   }
-  return { fieldContext, formContext, useFieldContext, useFormContext: useBoundFormContext }
+  return { formContext, useFormContext: useBoundFormContext }
 }
 
 /**
@@ -35,7 +29,6 @@ export function createFormHookContexts() {
  * const { useAppForm, withForm, withFieldGroup } = createFormHook({
  *   fieldComponents: { Input },
  *   formComponents: { Submit },
- *   fieldContext,
  *   formContext,
  * })
  * const form = useAppForm({ initialValues: { email: '' } })
@@ -53,7 +46,6 @@ export function createFormHook<
 >(options: {
   fieldComponents: TFields
   formComponents?: TForms
-  fieldContext: Context<FieldBinding<any> | null>
   formContext: Context<FormEngine<any> | null>
   /** Built-in message overrides for every `useAppForm()`; a form's own `messages` keys win. */
   messages?: Partial<FormMessages>
@@ -64,11 +56,7 @@ export function createFormHook<
     const next = useMemo(() => ({ path, index: -1 }), [path])
     return (
       <Field name={name} {...fieldOptions}>
-        {(field) => (
-          <options.fieldContext.Provider value={field}>
-            <ScopeContext.Provider value={next}>{children({ ...field, ...options.fieldComponents })}</ScopeContext.Provider>
-          </options.fieldContext.Provider>
-        )}
+        {(field) => <ScopeContext.Provider value={next}>{children({ ...field, ...options.fieldComponents })}</ScopeContext.Provider>}
       </Field>
     )
   }

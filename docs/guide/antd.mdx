@@ -95,6 +95,21 @@ export default function App() {
 
 控件的 `onChange` 先写字段，再用原始参数调用你传的 `onChange`；`onBlur` 同理。
 
+不想经过 `connect` 时，组件里用不带参数的 `useField()` 读当前字段，自己接线。`<Field>`、`AppField`、表格单元格里的 `<Field>` 都一样：
+
+```tsx
+import { useField } from 'shikiform';
+
+function Percent() {
+  const field = useField<number>();
+  return <AntSlider value={field.value} onChange={field.onChange} disabled={field.disabled} />;
+}
+<Field name="volume" title="音量" decorator={[FormItem]} component={[Percent]} />
+<form.AppField name="volume" title="音量">{() => <Percent />}</form.AppField>
+```
+
+在任何 `<Field>` / `AppField` 之外调用会抛 `ShikiUsageError`，消息里写明怎么改。
+
 ## 预绑定：useAntdForm
 
 [快速开始](/guide/quick-start) 用的就是这个工厂。`useAntdForm` 返回普通引擎，外加 `AppForm`、`AppField`、`Submit`；`field.Input`、`field.Select`、`field.DatePicker` 等是上面的 connect 控件包了 `FormItem`。上面各节的 `<Field decorator component>` 是同一套控件的显式写法：

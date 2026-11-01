@@ -9,6 +9,7 @@ import {
   enUS,
   getDefaultMessages,
   setDefaultMessages,
+  useField,
   useForm,
   zhCN,
   type FieldError,
@@ -22,10 +23,10 @@ afterEach(() => {
 
 const ctx = createFormHookContexts()
 function TextInput({ label }: { label: string }) {
-  const f = ctx.useFieldContext<string>()
+  const f = useField<string>()
   return <input aria-label={label} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} />
 }
-const { useAppForm } = createFormHook({ fieldContext: ctx.fieldContext, formContext: ctx.formContext, fieldComponents: { TextInput } })
+const { useAppForm } = createFormHook({ formContext: ctx.formContext, fieldComponents: { TextInput } })
 
 type Login = { email: string; password: string }
 

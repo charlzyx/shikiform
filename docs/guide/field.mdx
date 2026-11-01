@@ -117,7 +117,7 @@ reaction 里读 `$componentProps` 看到的是「声明 + reaction」两层，JS
 
 ## Field 就是 useField
 
-`<Field>` 等于 `useField(name, options)` 加「不是 visible 就返回 null」，再渲染两个槽。不用组件时，纯函数 `mapFormItemProps(field, props)` 和 `mapFieldProps(field, props)` 给出同样的 `Form.Item` 和控件 props。在装饰器或控件内部读当前字段，用 `useCurrentField()`。完整签名见 [useField](/reference/react-hooks#usefield) 和 [适配层参考](/reference/antd-adapter)。
+`<Field>` 等于 `useField(name, options)` 加「不是 visible 就返回 null」，再渲染两个槽。不用组件时，纯函数 `mapFormItemProps(field, props)` 和 `mapFieldProps(field, props)` 给出同样的 `Form.Item` 和控件 props。在装饰器或控件内部读当前字段，用不带参数的 `useField()`。完整签名见 [useField](/reference/react-hooks#usefield) 和 [适配层参考](/reference/antd-adapter)。
 
 ## 字段名的类型检查
 

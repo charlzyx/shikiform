@@ -4,13 +4,13 @@
 
 ## 1. API 原则：Hooks 优先，组件是糖
 
-1. **Hooks 是完整的主 API。** `shikiform` 导出的 `useForm`、`useField`、`useArrayField` / `useArrayMove`、`useTreeField` / `useTreeMove`、`useWatch`，以及无需 name 的上下文 Hook `useCurrentField`、`useArray`、`useIndex`、`useRecord`、`useTreeNode`（Formily `ArrayBase.useArray/useIndex/useRecord`）能做到组件能做的一切。
+1. **Hooks 是完整的主 API。** `shikiform` 导出的 `useForm`、`useField`、`useArrayField` / `useArrayMove`、`useTreeField` / `useTreeMove`、`useWatch`，以及无需 name 的上下文 Hook：无参 `useField()`（当前字段，Formily `useField()`）、`useArray`、`useIndex`、`useRecord`、`useTreeNode`（Formily `ArrayBase.useArray/useIndex/useRecord`）能做到组件能做的一切。
 2. **组件只是 Hook 的薄封装，不得拥有 Hook 用户拿不到的逻辑。**
-   - `<Field name rules required virtual display pattern title description decorator component>` = `useField(name, options)` + `display !== 'visible'` 时返回 `null` + 渲染 `decorator` 包住 `component`（或 children），并用 `FieldContext` 提供 binding。
+   - `<Field name rules required virtual display pattern title description decorator component>` = `useField(name, options)` + `display !== 'visible'` 时返回 `null` + 渲染 `decorator` 包住 `component`（或 children），并用内部 `FieldContext` 提供 binding（经无参 `useField()` 读取，不导出）。
    - `<ArrayField>` = `useArrayField` + `ArrayScope`（供 `useArray()`）+ 每行 `RowScope`（供 `useIndex()` / `useRecord()`）；`<TreeField>` = `useTreeField`；`<Watch>` = `useWatch`；`<Form>` = Context Provider + `form.submit()`。
    - `AppField`（`createFormHook`）= `<Field>` + 字段 Context。
 3. **Ant Design 适配层是 `useField` 之上的 Formily 式 connect 层。** `<Field>` 是字段唯一的拥有者；装饰器和控件都从 `FieldContext` 读同一个 binding。
-   - `connect(Control, mapProps(...), mapReadPretty(...))` 每次渲染只做一件事：`mapFieldProps(binding, props)`（binding 来自 `field` 属性 / `name` / `useCurrentField()`）。`mapFieldProps` 本身是导出的纯函数，Hook 用户可直接 `<AntInput {...mapFieldProps(field, props)} />`。
+   - `connect(Control, mapProps(...), mapReadPretty(...))` 每次渲染只做一件事：`mapFieldProps(binding, props)`（binding 来自 `field` 属性 / `name` / 外层 `<Field>`）。`mapFieldProps` 本身是导出的纯函数，Hook 用户可直接 `<AntInput {...mapFieldProps(field, props)} />`。
    - `FormItem` 是纯装饰器：不拥有字段，`mapFormItemProps(binding, props, useFormLayout())` 是它的纯函数核心，Hook 用户可直接 `<Form.Item {...mapFormItemProps(field, {})}>`。
    - 表格（`ArrayTable`、`ProQueryTable`）分别建立在 `useArrayField`、`useQueryTable`（`shikiform/pro`）之上。
    - Pro 组件（复刻 Pro.formily）同样是 Hook 之上的薄封装，见 §10：`ProArrayTable` = `useArrayTable` + `useColumnSettings`；`QueryList` = `useQueryTable({ rows })` + `ProArrayTable`；`ShadowModal` / `ShadowDrawer` / `ShadowPopconfirm` / `ShadowForm` = `useShadowForm`（行编辑用 `useArrayShadow`）；`Suggestion` = `useSuggestion`；`CascaderPlus` = `useLazyCascader`；`EnumPretty` = `enumItems`。
@@ -37,7 +37,7 @@ src/
     engine/                ⑥ 门面：form-engine.ts（FormEngine/createForm）、writes.ts（StateWriter）、field-ui.ts（字段 UI 状态）、baseline.ts（初始值基线、派生 dirty、reset）
   react/                   headless React 绑定（只依赖 core）
     context.tsx            FormContext / ScopeContext
-    field-context.ts       FieldContext / useCurrentField（<Field> 提供，装饰器与 connect 控件读取）
+    field-context.ts       内部 FieldContext / useFieldContextOrNull（<Field> 提供；公开读取走无参 useField()）
     hooks/                 use-form、use-field、use-array（useArrayField / useArray）、use-row（useIndex / useRecord / useTreeNode）、
                            use-tree、use-watch、field-lifecycle（JSX lease）
     components/            fields.tsx（Form/Field/ObjectField/ArrayField/RowScope/TreeField/Watch）、virtual-rows.tsx
@@ -53,7 +53,7 @@ src/
     enum-pretty.ts           enumItems / ENUM_COLORS（纯函数）
   antd/                    Ant Design（依赖 react / pro）
     adapter/               connect.tsx、form-item.tsx（FormItem / mapFormItemProps）、form-layout.tsx（FormLayout / useFormLayout）、
-                           preview.tsx、field-context.ts（只服务 useAntdForm 的 AppField / useAntdField）
+                           preview.tsx、field-context.ts（只服务 useAntdForm 的 AppForm / withAntdForm 表单 context）
     components/            controls.tsx（Input、InputNumber、Select、Switch、Checkbox、Radio、DatePicker）、
                            enum-pretty.tsx（EnumPretty / EnumPrettyView；选择类控件阅读态 prettyType）、
                            suggestion.tsx（Suggestion）、cascader-plus.tsx（CascaderPlus）
@@ -175,7 +175,7 @@ const Rate = connect(AntRate, mapProps({ status: false }))
 ```
 
 - **`<Field>`**（react 层）：`useField(name, options)` → `display !== 'visible'` 返回 `null` → `FieldContext.Provider` 里渲染 `<Decorator {...decoratorProps}>{content}</Decorator>`，`content` 依次取 render prop、children、`<Component {...componentProps} />`。传给槽位的是**有效**的 props（`fields` ← JSX ← reaction），与组件自己从 binding 里再合并的是同一份值，所以没有新旧覆盖问题。槽位也可以在 `fields` 里声明，`<Field name="city" />` 即可渲染。
-- **字段来源（connect 控件）**：`field` 属性 → `name` 属性（`useField(name)`）→ `useCurrentField()`（外层 `<Field>` / `AppField`）。`AppField` 内部就是 `<Field>`，所以同样提供 `FieldContext`；`adapter/field-context.ts` 里的 antd 专用 context 只服务 `useAntdField`。
+- **字段来源（connect 控件）**：`field` 属性 → `name` 属性（`useField(name)`）→ 外层 `<Field>` / `AppField`（内部 `useFieldContextOrNull()`，以便抛控件自己的错误）。`AppField` 内部就是 `<Field>`，所以同样提供字段；自定义控件用无参 `useField()`。`adapter/field-context.ts` 只剩 antd 工厂的表单 context。
 - **默认映射**（`mapFieldProps`）：先把 `field.componentProps` 合并在调用方 props 之下，再映射 `value`、`onChange`（`getValueFromEvent`：checkbox 取 `checked`，事件取 `target.value`，其他取第一个参数；然后以原始参数调用调用方 handler）、`onBlur`、`disabled`/`readOnly`（与调用方 OR）、`status`（error/warning，调用方优先）、`id`；`options`/`loading` 需显式映射。无 `mapReadPretty` 时 `readPretty` 视作 `readOnly`。
 - **内置控件**：`Input`（`.TextArea`、`.Password`）、`InputNumber`（清空写 `null`）、`Select`（enum→options、readOnly→disabled、阅读态显示 label）、`Switch`/`Checkbox`（value↔checked）、`Checkbox.Group`、`Radio.Group`、`DatePicker`（`.RangePicker`；字段存格式化字符串，因为核心 `structuredClone` 会丢掉 dayjs 原型）。
 - **`FormItem`**（纯装饰器）：没有 `name` / `field` / `rules` / `required` 属性，字段外使用抛错。`mapFormItemProps(field, props, layout)`：合并 `layout`（`FormLayout`）← `field.decoratorProps` ← `props`；`label` ← `title`、`extra` ← `description`（显式优先）；必填星号 ← `required`（`readPretty` 隐藏，`asterisk` 可强制）；`validateStatus` 依次 error → validating → warning；`help` 取第一条错误或警告；`feedbackLayout`：`loose`（默认）/ `terse`（无提示时去掉底部间距，适合单元格与栅格）/ `none`（不显示提示文字）。`hidden/none` 不渲染。

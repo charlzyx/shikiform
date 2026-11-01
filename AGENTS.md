@@ -96,8 +96,12 @@ const form = createForm({
 
 - Slots take a component or `[Component, props]`; children (`<Field …><Input /></Field>`) or a render prop also work.
 - Table cells can drop the decorator (`<Field name="qty" component={[InputNumber]} />`) or use another one.
-- Hooks are the complete API: `useField(name, options)`, `mapFieldProps(field, props)`, `mapFormItemProps(field, props)`,
-  `useCurrentField()`. Components are thin sugar over them.
+- Hooks are the complete API: `useField(name, options)`, `mapFieldProps(field, props)`, `mapFormItemProps(field, props)`.
+  Components are thin sugar over them.
+- One field hook (Formily-style): `useField()` with no name returns the field the nearest `<Field>` / `AppField`
+  renders — use it in custom inputs, decorators, and table cells (`useField<string>()` types the value). Outside a
+  field it throws `ShikiUsageError`. It is the only way to read the current field: no separate context hook, and the
+  field context itself is internal.
 
 ## 6. Submit and messages
 

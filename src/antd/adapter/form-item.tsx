@@ -1,6 +1,6 @@
 import { ConfigProvider, Form, type FormItemProps as AntFormItemProps } from 'antd'
 import type { ReactNode } from 'react'
-import { useCurrentField } from '../../react/field-context'
+import { useFieldContextOrNull } from '../../react/field-context'
 import type { FieldBinding } from '../../react/hooks/use-field'
 import { useFormLayout, type FeedbackLayout, type FormLayoutValue } from './form-layout'
 
@@ -71,7 +71,7 @@ export function mapFormItemProps(
  * Display `hidden` / `none` renders nothing.
  */
 export function FormItem({ children, ...props }: FormItemProps) {
-  const field = useCurrentField()
+  const field = useFieldContextOrNull()
   const layout = useFormLayout()
   if (!field) {
     throw new Error('FormItem is a decorator: use it as <Field decorator={[FormItem]}> or inside a <Field> / AppField')

@@ -9,10 +9,10 @@ description: 四个入口、createForm 选项、引擎方法、React 组件与�
 
 | 要查什么 | 参考页 |
 |---|---|
-| `useForm`、`useFormContext`、`useField`、`useCurrentField`、`useWatch`、`useArrayField`、`useArray`、`useIndex`、`useRecord`、`useArrayMove`、`useTreeField`、`useTreeNode`、`useTreeMove` | [React Hooks](/reference/react-hooks) |
+| `useForm`、`useFormContext`、`useField`（无参即当前字段）、`useWatch`、`useArrayField`、`useArray`、`useIndex`、`useRecord`、`useArrayMove`、`useTreeField`、`useTreeNode`、`useTreeMove` | [React Hooks](/reference/react-hooks) |
 | `createFormHookContexts`、`createFormHook`（`useAppForm` / `AppField` / `withForm` / `withFieldGroup`） | [组件 Hook 工厂](/reference/form-hook) |
 | `connect`、`mapProps`、`mapReadPretty`、`mapFieldProps`、`FormItem`、`mapFormItemProps`、`FormLayout`、`useFormLayout`、`PreviewText`、接好的控件 | [Ant Design 适配层](/reference/antd-adapter) |
-| `useAntdForm`、`useAntdField`、`createAntdFormHook`、`antdForm`、`withAntdForm`、`withAntdFieldGroup`、`ArrayTable`、`MergedTable`、`groupRowSpan`、`ProQueryTable`、`QueryForm` | [Ant Design 参考](/reference/antd) |
+| `useAntdForm`、`createAntdFormHook`、`antdForm`、`withAntdForm`、`withAntdFieldGroup`、`ArrayTable`、`MergedTable`、`groupRowSpan`、`ProQueryTable`、`QueryForm` | [Ant Design 参考](/reference/antd) |
 | `useQueryTable`、`useBuiltinQuery` | [查询 Hooks](/reference/query-hooks) |
 | `useArrayTable`、`useColumnSettings`、`useShadowForm`、`useArrayShadow`、`useSuggestion`、`useLazyCascader`、`enumItems`、`ENUM_COLORS` | [Pro Hooks](/reference/pro-hooks) |
 | `ProArrayTable`、`QueryList`、`ShadowModal` / `ShadowDrawer` / `ShadowPopconfirm` / `ShadowForm`、`useShadow`、`EnumPretty`、`Suggestion`、`CascaderPlus` 及其 `…View` | [Pro 组件](/reference/pro-components) |
@@ -21,7 +21,7 @@ description: 四个入口、createForm 选项、引擎方法、React 组件与�
 
 | 入口 | 主要导出 |
 |---|---|
-| `shikiform` | `useForm`、`createForm`、`FormEngine`、`defineEffects`；`Form`、`Field`、`ObjectField`、`ArrayField`、`ArrayScope`、`RowScope`、`TreeField`、`Watch`、`VirtualRows`、`FieldContext`；上表的 React Hooks；类型 `Draft`、`FieldBinding`、`FieldProps`、`FormOptions`、`RowContext` … |
+| `shikiform` | `useForm`、`createForm`、`FormEngine`、`defineEffects`；`Form`、`Field`、`ObjectField`、`ArrayField`、`ArrayScope`、`RowScope`、`TreeField`、`Watch`、`VirtualRows`；上表的 React Hooks；类型 `Draft`、`FieldBinding`、`FieldProps`、`FormOptions`、`RowContext` … |
 | `shikiform/core` | `createForm`、`defineEffects`、`EnumSource`（别名 `Enum`）、`comboMatch`、`comboOptions`、`ShikiUsageError` 等错误类、Standard Schema 与树坐标工具；类型 `Pattern`、`Display`、`Rule`、`RulesInput`、`Pos` … |
 | `shikiform/pro` | 上表的 Pro Hooks，不依赖 antd |
 | `shikiform/antd` | 适配层、接好的控件、预绑定工厂、表格与 Pro 组件 |
