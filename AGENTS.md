@@ -98,7 +98,7 @@ const form = createForm({
 - Table cells can drop the decorator (`<Field name="qty" component={[InputNumber]} />`) or use another one.
 - Hooks are the complete API: `useField(name, options)`, `mapFieldProps(field, props)`, `mapFormItemProps(field, props)`.
   Components are thin sugar over them.
-- One field hook (Formily-style): `useField()` with no name returns the field the nearest `<Field>` / `AppField`
+- One field hook (Formily-style): `useField()` with no name returns the field the nearest `<Field>`
   renders — use it in custom inputs, decorators, and table cells (`useField<string>()` types the value). Outside a
   field it throws `ShikiUsageError`. It is the only way to read the current field: no separate context hook, and the
   field context itself is internal.
@@ -108,12 +108,13 @@ const form = createForm({
 - `form.submit(onValid?)` never rejects. It resolves `{ ok: true, values }` or `{ ok: false, reason }`:
   `'invalid'` (`errors`), `'error'` (`onValid` threw; `error`), `'superseded'` (values never settled; `message`).
   Branch on `reason`, not on a message string. Two submits on unchanged values both succeed.
-- `<Form>` and `<form.AppForm>` take the same callbacks: `onSubmit(values)`, `onInvalid(errors)`,
+- `<Form>` takes the submit callbacks: `onSubmit(values)`, `onInvalid(errors)`,
   `onSubmitError(error)` (default `console.error`); other props go to the native `<form>` (`id`, `className`, `noValidate`).
   Enter, `type="submit"`, and `form.submit(onValid)` behave the same; do not add a second `<form>`.
+- Buttons (`shikiform/antd`): `<Submit />` (native submit for `<Form onSubmit>`; disabled while `$canSubmit` is false,
+  loading while submitting) and `<Reset />` (`form.reset()`). `<Submit onSubmit={fn}>` submits on click by itself.
 - Built-in messages default to Chinese. Override per form with `messages` (partial; functions get params:
-  `minLength: ({ minLength }) => …`), app-wide with `setDefaultMessages(enUS)`, per factory with
-  `createFormHook({ messages })`. A rule's own `message` wins. The same `messages` cover `moveTree` refusal reasons
+  `minLength: ({ minLength }) => …`), app-wide with `setDefaultMessages(enUS)`. A rule's own `message` wins. The same `messages` cover `moveTree` refusal reasons
   and every `shikiform/antd` label (提交 / 重置 / 查询 / 删除 …); a component's own prop (`title`, `okText`) wins.
   Custom components read them with `useFormMessage()` (`t('submit')`) or `form.message('submit')`.
 
@@ -122,11 +123,13 @@ const form = createForm({
 - Plain `<Field>` / `useField` / `<ArrayField>` / `<ObjectField>` read the form from context, so an unannotated `name`
   is any string (the escape hatch for dynamic paths). For checked names use `const F = typed(form)`: the same
   components and hooks with the form's types (`F.Field`, `F.ArrayField`, `F.ObjectField`, `F.useField`, `F.useWatch`,
-  `F.Watch`, plus `F.AppField` on a `useAppForm()` form). No new runtime.
-- Names are **relative to the current scope**, and so are the types: `F.ArrayField` hands each row `row.Field` /
-  `row.AppField` typed as one row; `F.ObjectField`'s function children get `obj.Field` typed as that object.
+  `F.Watch`). No new runtime. There is no form factory / `AppField`: `<Field>` + `typed(form)` is the one way.
+- Names are **relative to the current scope**, and so are the types: `F.ArrayField` hands each row `row.Field`
+  typed as one row; `F.ObjectField`'s function children get `obj.Field` typed as that object.
   A root path inside a scope (`items.0.name` in the `items.0` row) throws `ShikiUsageError` in development.
   A row component without the instance uses `typed<Row>().useField('price')`.
+- Reusable fragments are plain components: `const A = typed<Address>()`, render `<A.Field name="city" … />`, and
+  mount it under `<ObjectField name="home"><AddressFields /></ObjectField>`.
 - `useWatch((d) => …)` without annotation compiles with an untyped `d`; `F.useWatch((d) => d.email.$value)` is typed.
 - `submit` / `getSubmitValues` / `onSubmit` values are the form's second type argument `TSubmit` (default `T`).
   Fields dropped at runtime (`virtual`, `display: 'none'`) are not in the default type: declare them with
@@ -176,8 +179,8 @@ reaction.each((d) => d.rows, (row, { d, index }) => {                   // ✓
 reaction((d) => { d.city.$componentProps.disabled = d.kind.$value === 'b' })             // ✓
 
 // 8. Inside a row the name is relative, and typed by the row
-<ArrayField name="items">{({ index }) => <form.AppField name={`items.${index}.name`} />}</ArrayField>  // ✗ items.0.items.0.name (dev error)
-<F.ArrayField name="items">{(row) => <row.AppField name="name">{(f) => <f.Input />}</row.AppField>}</F.ArrayField>  // ✓ F = typed(form)
+<ArrayField name="items">{({ index }) => <Field name={`items.${index}.name`} />}</ArrayField>  // ✗ items.0.items.0.name (dev error)
+<F.ArrayField name="items">{(row) => <row.Field name="name" decorator={[FormItem]} component={[Input]} />}</F.ArrayField>  // ✓ F = typed(form)
 ```
 
 ## 9. Form state: dirty, backfill, server errors

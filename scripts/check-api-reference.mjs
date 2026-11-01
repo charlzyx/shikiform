@@ -32,7 +32,7 @@ for (const [module, file] of Object.entries(entries)) {
   actual[module] = checker.getExportsOfModule(symbol).filter((exported) => {
     const target = exported.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(exported) : exported
     if (!(target.flags & ts.SymbolFlags.Value)) return false
-    return module !== 'shikiform' || /^use[A-Z]/.test(exported.name) || ['createFormHook', 'createFormHookContexts', 'typed'].includes(exported.name)
+    return module !== 'shikiform' || /^use[A-Z]/.test(exported.name) || exported.name === 'typed'
   }).map((symbol) => symbol.name).sort()
 }
 if (args.includes('--list')) {
@@ -66,4 +66,4 @@ for (const [module, names] of Object.entries(actual)) {
   }
 }
 if (errors.length) throw new Error(errors.join('\n'))
-console.log(`API reference coverage passed: ${Object.values(actual).reduce((sum, names) => sum + names.length, 0)} public React hooks/factories and pro/antd runtime exports`)
+console.log(`API reference coverage passed: ${Object.values(actual).reduce((sum, names) => sum + names.length, 0)} public React hooks (+ typed) and pro/antd runtime exports`)

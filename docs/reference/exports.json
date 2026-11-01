@@ -10,8 +10,6 @@
     "useArrayMove": "reference/react-hooks.mdx",
     "useTreeField": "reference/react-hooks.mdx",
     "useTreeMove": "reference/react-hooks.mdx",
-    "createFormHook": "reference/form-hook.mdx",
-    "createFormHookContexts": "reference/form-hook.mdx",
     "useArray": "reference/react-hooks.mdx",
     "useIndex": "reference/react-hooks.mdx",
     "useRecord": "reference/react-hooks.mdx",
@@ -34,11 +32,8 @@
     "ENUM_COLORS": "reference/pro-hooks.mdx"
   },
   "shikiform/antd": {
-    "antdForm": "reference/antd.mdx",
-    "useAntdForm": "reference/antd.mdx",
-    "createAntdFormHook": "reference/antd.mdx",
-    "withAntdForm": "reference/antd.mdx",
-    "withAntdFieldGroup": "reference/antd.mdx",
+    "Submit": "reference/antd.mdx",
+    "Reset": "reference/antd.mdx",
     "ArrayTable": "reference/antd.mdx",
     "MergedTable": "reference/antd.mdx",
     "groupRowSpan": "reference/antd.mdx",

@@ -38,8 +38,8 @@
 /usage/01-basic-form/ /tutorial/1-start 301
 /usage/02-provider-config /guide/linkage 301
 /usage/02-provider-config/ /guide/linkage 301
-/usage/03-nested-object /reference/form-hook#withfieldgroup 301
-/usage/03-nested-object/ /reference/form-hook#withfieldgroup 301
+/usage/03-nested-object /reference/react-hooks#typed 301
+/usage/03-nested-object/ /reference/react-hooks#typed 301
 /usage/04-array /reference/react-hooks#usearrayfield 301
 /usage/04-array/ /reference/react-hooks#usearrayfield 301
 /usage/05-tree /reference/react-hooks#usetreefield 301
@@ -58,8 +58,8 @@
 /usage/11-validation-enum/ /guide/validation 301
 /usage/12-large-table /play/large 301
 /usage/12-large-table/ /play/large 301
-/usage/13-cross-module /reference/form-hook#withfieldgroup 301
-/usage/13-cross-module/ /reference/form-hook#withfieldgroup 301
+/usage/13-cross-module /reference/react-hooks#typed 301
+/usage/13-cross-module/ /reference/react-hooks#typed 301
 /usage/14-address-vs-path /guide/concepts 301
 /usage/14-address-vs-path/ /guide/concepts 301
 /usage/15-linkage-graph /guide/linkage 301
@@ -76,3 +76,5 @@
 /guide/effects /guide/linkage 301
 /guide/unmounted /guide/validation 301
 /guide/antd-binding /guide/antd 301
+/reference/form-hook /reference/react-hooks#typed 301
+/reference/form-hook/ /reference/react-hooks#typed 301

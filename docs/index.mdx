@@ -1,6 +1,6 @@
 ---
 title: ShikiForm
-description: 一个无 UI 的表单引擎，用 draft + $ 状态写联动，用 useAntdForm 接 Ant Design。
+description: 一个无 UI 的表单引擎，用 draft + $ 状态写联动，用 Field + FormItem 接 Ant Design。
 ---
 
 # ShikiForm
@@ -10,8 +10,8 @@ description: 一个无 UI 的表单引擎，用 draft + $ 状态写联动，用 
 ```tsx preview
 import { useState } from 'react';
 import { Form as AntdForm } from 'antd';
-import { defineEffects } from 'shikiform';
-import { FormLayout, useAntdForm } from 'shikiform/antd';
+import { defineEffects, Form, typed, useForm } from 'shikiform';
+import { FormItem, FormLayout, Input, Radio, Submit } from 'shikiform/antd';
 
 type Values = { kind: 'personal' | 'work'; email: string; company: string };
 
@@ -26,28 +26,29 @@ const effects = defineEffects<Values>(({ reaction }) => {
 
 export default function App() {
   const [result, setResult] = useState('');
-  const form = useAntdForm<Values>({
+  const form = useForm<Values>({
     initialValues: { kind: 'personal', email: '', company: '' },
     fields: { kind: { enum: [{ label: '个人', value: 'personal' }, { label: '工作', value: 'work' }] } },
     effects: [effects],
   });
+  const F = typed(form);
   return (
-    <form.AppForm onSubmit={(values) => setResult(JSON.stringify(values))}>
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
       <FormLayout labelCol={{ span: 5 }} wrapperCol={{ span: 19 }}>
-        <form.AppField name="kind" title="账号类型">{(field) => <field.Radio />}</form.AppField>
-        <form.AppField name="email" title="邮箱" rules={{ format: 'email' }}>{(field) => <field.Input />}</form.AppField>
-        <form.AppField name="company" title="公司" required>{(field) => <field.Input />}</form.AppField>
+        <F.Field name="kind" title="账号类型" decorator={[FormItem]} component={[Radio.Group]} />
+        <F.Field name="email" title="邮箱" rules={{ format: 'email' }} decorator={[FormItem]} component={[Input]} />
+        <F.Field name="company" title="公司" required decorator={[FormItem]} component={[Input]} />
         <AntdForm.Item wrapperCol={{ offset: 5, span: 19 }}>
-          <form.Submit>提交</form.Submit>
+          <Submit>提交</Submit>
         </AntdForm.Item>
       </FormLayout>
       <pre aria-live="polite">{result}</pre>
-    </form.AppForm>
+    </Form>
   );
 }
 ```
 
-切到「工作」：邮箱变成必填、占位符换掉、公司出现；切回「个人」，公司既不显示、也不校验、不进提交结果。规则都在 `reaction` 里，组件里没有分支。`field.Input` 已经包了 `FormItem`；要自己写 `decorator` / `component` 时看 [快速开始 · 进阶](/guide/quick-start#进阶直接写-field)。`d.email.$required` 这类写法在 [核心概念](/guide/concepts) 里解释。
+切到「工作」：邮箱变成必填、占位符换掉、公司出现；切回「个人」，公司既不显示、也不校验、不进提交结果。规则都在 `reaction` 里，组件里没有分支。每个字段都是同一种写法：`<Field>` 拥有路径，`FormItem` 装饰器显示标签和错误，`component` 是控件，见 [快速开始](/guide/quick-start)。`d.email.$required` 这类写法在 [核心概念](/guide/concepts) 里解释。
 
 ## 四个入口
 

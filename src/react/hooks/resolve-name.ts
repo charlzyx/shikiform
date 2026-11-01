@@ -18,7 +18,7 @@ export function resolveName(form: FormEngine<any, any>, scope: ScopeValue, name:
       throw new ShikiUsageError(
         `Field name "${name}" is inside the "${scope.path}" scope, so it resolves to "${path}". ` +
           `Names are relative to the enclosing ObjectField / ArrayField / row: write name="${relative}" ` +
-          `(typed: the row / object handles from typed(form), e.g. row.Field or row.AppField).`,
+          `(typed: the row / object handles from typed(form), e.g. row.Field).`,
       )
     }
   }

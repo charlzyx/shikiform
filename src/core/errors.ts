@@ -27,14 +27,6 @@ export class ShikiConflictError extends Error {
   }
 }
 
-/** The same `ui` name was mounted twice on one path. */
-export class ShikiUiError extends Error {
-  constructor(message: string) {
-    super(message)
-    this.name = 'ShikiUiError'
-  }
-}
-
 /**
  * A draft misuse caught in development (`process.env.NODE_ENV !== 'production'`): mutating a `$value` object,
  * reading a `$` state right after writing it in the same reaction, or treating a draft handle as an array.

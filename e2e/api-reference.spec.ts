@@ -37,7 +37,7 @@ test('API links to named Hooks and the quick-start example validates and submits
   // antd FormItem labels put the required "*" and ":" (CSS generated content) into the accessible name.
   await form.getByRole('textbox', { name: '姓名' }).fill('Grace')
   await form.getByRole('textbox', { name: '邮箱' }).fill('grace@example.com')
-  // form.Submit stays disabled while the submit errors are showing; blur revalidates.
+  // Submit stays disabled while the submit errors are showing; blur revalidates.
   await form.getByRole('textbox', { name: '邮箱' }).blur()
   await expect(form.getByRole('button', { name: '提 交' })).toBeEnabled()
   await form.getByRole('button', { name: '提 交' }).click()
@@ -48,7 +48,7 @@ test('the demo toolbar edits, recompiles, copies and resets the same example', a
   await gotoHydrated(page, '/guide/quick-start')
   const demo = page.locator('.sf-demo').first()
   await demo.getByRole('button', { name: '查看代码' }).click()
-  await expect(demo.locator('.sf-demo__highlighted')).toContainText('useAntdForm')
+  await expect(demo.locator('.sf-demo__highlighted')).toContainText('typed(form)')
   await demo.getByRole('button', { name: '编辑代码', exact: true }).click()
   const editor = demo.locator('.cm-content')
   const source = await editor.innerText()

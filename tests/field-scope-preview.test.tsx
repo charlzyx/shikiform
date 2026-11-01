@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { ArrayField, createForm, Field, Form, RowScope, useField, useIndex, useRecord } from '../src'
-import { Input, PreviewText, Select, useAntdForm } from '../src/antd'
+import { ArrayField, createForm, Field, Form, RowScope, useField, useForm, useIndex, useRecord } from '../src'
+import { Input, PreviewText, Select } from '../src/antd'
 
 afterEach(cleanup)
 
@@ -12,36 +12,24 @@ function RowProbe() {
   return <span data-testid={`row-${index}`}>{`${index}:${record.name}`}</span>
 }
 
-describe('AppField is exactly <Field> plus the pre-bound components', () => {
-  it('keeps the row scope: useIndex() / useRecord() work inside an AppField in a row', () => {
-    function App() {
-      const form = useAntdForm({ initialValues: { items: [{ name: 'a' }, { name: 'b' }] } })
-      return (
-        <form.AppForm>
-          <ArrayField name="items">{() => <form.AppField name={'name' as never}>{() => <RowProbe />}</form.AppField>}</ArrayField>
-        </form.AppForm>
-      )
-    }
-    render(<App />)
+describe('<Field> keeps the surrounding scope', () => {
+  it('useIndex() / useRecord() work inside a <Field> in a row', () => {
+    const form = createForm({ initialValues: { items: [{ name: 'a' }, { name: 'b' }] } })
+    render(
+      <Form form={form}>
+        <ArrayField name="items">{() => <Field name="name"><RowProbe /></Field>}</ArrayField>
+      </Form>,
+    )
     expect(screen.getByTestId('row-0').textContent).toBe('0:a')
     expect(screen.getByTestId('row-1').textContent).toBe('1:b')
   })
 
-  it('a named useField inside an AppField resolves like inside <Field> (siblings, not children of the field)', () => {
+  it('a named useField inside a <Field> resolves against the scope (siblings, not children of the field)', () => {
     const paths: string[] = []
     function Sibling() {
       paths.push(useField('other').path)
       return null
     }
-    function App() {
-      const form = useAntdForm({ initialValues: { a: '', other: '' } })
-      return (
-        <form.AppForm>
-          <form.AppField name="a">{() => <Sibling />}</form.AppField>
-        </form.AppForm>
-      )
-    }
-    render(<App />)
     const form = createForm({ initialValues: { a: '', other: '' } })
     render(
       <Form form={form}>
@@ -50,18 +38,17 @@ describe('AppField is exactly <Field> plus the pre-bound components', () => {
         </Field>
       </Form>,
     )
-    expect(paths.length).toBeGreaterThanOrEqual(2)
     expect(new Set(paths)).toEqual(new Set(['other']))
   })
 
-  it('AppForm starts at the root scope, like <Form>, even when rendered inside a row', () => {
+  it('<Form> starts at the root scope even when rendered inside a row', () => {
     let path = ''
     function Inner() {
-      const form = useAntdForm({ initialValues: { title: 't' } })
+      const form = useForm({ initialValues: { title: 't' } })
       return (
-        <form.AppForm>
-          <form.AppField name="title">{(field) => { path = field.path; return null }}</form.AppField>
-        </form.AppForm>
+        <Form form={form}>
+          <Field name="title">{(field) => { path = field.path; return null }}</Field>
+        </Form>
       )
     }
     const host = createForm({ initialValues: { rows: [{ title: 'x' }] } })

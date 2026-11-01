@@ -11,7 +11,7 @@ description: 引擎、draft 与 handle、$ 状态、显隐与提交、fields 声
 
 | 术语 | 含义 |
 |---|---|
-| 引擎 | `useForm`、`createForm`，或工厂的 `useAppForm` / `useAntdForm` 返回的 `FormEngine`，持有值和每个 path 的字段状态 |
+| 引擎 | `useForm`、`createForm` 返回的 `FormEngine`，持有值和每个 path 的字段状态 |
 | draft | 联动和 `form.batch` 回调收到的 `d`，用来读写引擎 |
 | handle | draft 上的一个 path，例如 `d.user.name`；访问它不读数据 |
 | `$` 状态 | handle 上以 `$` 开头的成员：`$value`、`$required`、`$display` … |

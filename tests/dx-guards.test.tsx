@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ArrayField, Field, ObjectField, createForm, defineEffects, useField } from '../src'
+import { ArrayField, Field, Form, ObjectField, createForm, defineEffects, useField, useForm } from '../src'
 import { ShikiUsageError } from '../src/core'
-import { Input, ProArrayTable, useAntdForm } from '../src/antd'
+import { FormItem, Input, ProArrayTable, Submit } from '../src/antd'
 
 afterEach(cleanup)
 
@@ -59,7 +59,7 @@ describe('a missing <Form> names the caller and the fix', () => {
   it('Field / useField / ObjectField / ArrayField / ProArrayTable', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
-      expect(() => render(<Field name="email" component={[Input]} />)).toThrow(/useField\('email'\) \/ <Field name="email"> has no form\. Render it inside <Form form=\{form\}> .* or <form\.AppForm>/)
+      expect(() => render(<Field name="email" component={[Input]} />)).toThrow(/useField\('email'\) \/ <Field name="email"> has no form\. Render it inside <Form form=\{form\}> \(useForm \/ createForm\)/)
       function Hook() { useField('age'); return null }
       expect(() => render(<Hook />)).toThrow(/useField\('age'\)/)
       expect(() => render(<ObjectField name="addr" />)).toThrow(/<ObjectField name="addr"> has no form/)
@@ -72,15 +72,15 @@ describe('a missing <Form> names the caller and the fix', () => {
 })
 
 describe('an error on screen is re-checked on change', () => {
-  it('typing a valid value clears 必填 and re-enables form.Submit without a blur', async () => {
+  it('typing a valid value clears 必填 and re-enables Submit without a blur', async () => {
     const onSubmit = vi.fn()
     function App() {
-      const form = useAntdForm({ initialValues: { name: '' } })
+      const form = useForm({ initialValues: { name: '' } })
       return (
-        <form.AppForm onSubmit={onSubmit}>
-          <form.AppField name="name" title="姓名" required>{(f) => <f.Input />}</form.AppField>
-          <form.Submit>go</form.Submit>
-        </form.AppForm>
+        <Form form={form} onSubmit={onSubmit}>
+          <Field name="name" title="姓名" required decorator={[FormItem]} component={[Input]} />
+          <Submit>go</Submit>
+        </Form>
       )
     }
     const view = render(<App />)

@@ -31,7 +31,6 @@ const STATE = new Set([
   '$submitCount',
   '$path',
   '$pos',
-  '$ui',
   '$find',
   '$pathOf',
 ])
@@ -200,19 +199,6 @@ function misuseSymbol(path: string, symbol: symbol): ShikiUsageError {
     )
   }
   return new ShikiUsageError(`${shown} is a draft handle, not a value. Read ${shown}.$value.`)
-}
-
-export function createUiHandle(host: DraftHost, path: string, name: string): any {
-  return new Proxy(function ui() {}, {
-    get(_t, prop) {
-      if (prop === 'then') return undefined
-      return host.readUi(path, name, String(prop))
-    },
-    set(_t, prop, value) {
-      host.writeUi(path, name, String(prop), value)
-      return true
-    },
-  })
 }
 
 export type { Pos }

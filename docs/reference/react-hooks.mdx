@@ -21,9 +21,9 @@ description: useForm、useField、useWatch、数组与树 Hooks 的签名、返�
 | 树拖动事件 | [`useTreeMove`](#usetreemove) | 不订阅 |
 | 当前树节点（无需 name） | [`useTreeNode`](#usetreenode) | 这个节点的值 |
 
-除 `useForm` 外，本页 Hooks 都必须在 `<Form form={form}>` 或工厂返回的 `<form.AppForm>` 后代中调用。**在一个组件中先调用 `useField`、再从它返回 `<Form>` 不算在 Provider 内**；把读字段的组件放到 Form 里面。
+除 `useForm` 外，本页 Hooks 都必须在 `<Form form={form}>` 后代中调用。**在一个组件中先调用 `useField`、再从它返回 `<Form>` 不算在 Provider 内**；把读字段的组件放到 Form 里面。
 
-名字也有区别：`useField(name)` / `useArrayField(name)` 需要名字，返回输入绑定 / 行操作；对应 Formily `ArrayBase.useArray / useIndex / useRecord` 的无名上下文 Hook 是 [`useArray()`](#usearray)、[`useIndex()`](#useindex)、[`useRecord()`](#userecord)，当前字段是不带参数的 [`useField()`](#usefield)（与 Formily `useField()` 相同）。`<Field>`、`AppField`、表格单元格里的 `<Field>` 都用它，只有这一种写法。
+名字也有区别：`useField(name)` / `useArrayField(name)` 需要名字，返回输入绑定 / 行操作；对应 Formily `ArrayBase.useArray / useIndex / useRecord` 的无名上下文 Hook 是 [`useArray()`](#usearray)、[`useIndex()`](#useindex)、[`useRecord()`](#userecord)，当前字段是不带参数的 [`useField()`](#usefield)（与 Formily `useField()` 相同）。`<Field>`、表格单元格里的 `<Field>` 都用它，只有这一种写法。
 
 ## useForm
 
@@ -41,7 +41,7 @@ interface UseFormOptions<T> extends FormOptions<T> { values?: T }
 | `TSubmit` | `submit` / `getSubmitValues` / `<Form onSubmit>` 的值类型，默认 `T`；有 `virtual` / `display: 'none'` 字段时用 `SubmitValues<T, 'tmp'>`，见 [提交值类型](/api#提交值类型) |
 | 返回值 | 稳定的 `FormEngine<T, TSubmit>` 实例，提供 `getValue`、`setValue`、`reset`、`validate`、`submit` 等方法 |
 
-`useForm` 本身不要求父级 Provider。后续渲染传入新 `initialValues` 不会重建实例，也不会生效；会变的数据用 `values`，或自己调 `reset(record)`。`useAppForm` / `useAntdForm` 接受同样的选项。渲染需要实时值时用 `useField` / `useWatch`，不要期待读取 `form.values` 就自动重渲染。
+`useForm` 本身不要求父级 Provider。后续渲染传入新 `initialValues` 不会重建实例，也不会生效；会变的数据用 `values`，或自己调 `reset(record)`。渲染需要实时值时用 `useField` / `useWatch`，不要期待读取 `form.values` 就自动重渲染。
 
 完整选项、校验默认触发器和提交返回值见 [创建表单](/api#创建表单)。非 React 环境用 `createForm`。
 
@@ -53,7 +53,7 @@ interface UseFormOptions<T> extends FormOptions<T> { values?: T }
 useFormMessage(): (key: FormMessageKey, params?) => string
 ```
 
-返回一个函数，按最近 `<Form>` / `<AppForm>` 的 `messages` → `setDefaultMessages` → `zhCN` 解析内置文案；没有表单时只用应用默认值。`shikiform/antd` 的按钮文案都经过它，自定义组件用它就能跟着同一套语言：
+返回一个函数，按最近 `<Form>` 的 `messages` → `setDefaultMessages` → `zhCN` 解析内置文案；没有表单时只用应用默认值。`shikiform/antd` 的按钮文案都经过它，自定义组件用它就能跟着同一套语言：
 
 ```tsx
 const t = useFormMessage()
@@ -68,13 +68,11 @@ key 列表见 [内置文案](/guide/validation#内置文案)。有实例时等�
 ## typed
 
 ```ts
-typed<T>(form: FormEngine<T>): TypedForm<T>              // 普通表单
-typed<T>(form: AppFormApi<T, TFields, …>): TypedForm<T, TFields>  // useAppForm 的表单，多一个 AppField
-typed<T, TFields = {}, TRoot = T>(): TypedForm<T, TFields, TRoot>  // 没有实例时（行组件）
+typed<T>(form: FormEngine<T>): TypedForm<T>       // 一张表单
+typed<T, TRoot = T>(): TypedForm<T, TRoot>          // 没有实例时（行组件、可复用片段）
 
 type TypedForm<T> = {
   Field, ObjectField, ArrayField        // name 按 T 检查；行 / 对象拿到按自身类型检查的同一组组件
-  AppField?                             // 仅 useAppForm 的表单
   useField(name: FieldPath<T>, options?): FieldBinding<PathValue<T, name>>
   useArrayField(name: ArrayPath<T>, rowKey?): ArrayHandle<行类型>
   useWatch<S>(select: (d: Draft<TRoot>) => S): S
@@ -102,8 +100,8 @@ const F = typed(form)
 
 规则只有一条：**名字相对当前作用域**，类型也跟着作用域走。根上用 `F.*`，`ArrayField` 的行里用 `row.*`，`ObjectField` 的函数子节点里用 `obj.*`。在 `items.0` 行里写 `items.0.name` 会在开发环境抛 `ShikiUsageError`（它会被拼成 `items.0.items.0.name`）。
 
-- `useAppForm()` 的表单：`typed(form)` 多一个 `AppField`，每一行 / 对象也有自己的 `row.AppField`，见 [AppField](/reference/form-hook#appfield)。
-- 行组件里没有表单实例：`const Row = typed<RowValue>()`，`Row.useField('price')` 按行检查。它的 `useWatch` 仍读根 draft，需要类型时写 `typed<RowValue, {}, Values>()`。
+- 行组件里没有表单实例：`const Row = typed<RowValue>()`，`Row.useField('price')` 按行检查。它的 `useWatch` 仍读根 draft，需要类型时写 `typed<RowValue, Values>()`。
+- 可复用片段（地址块、联系人块）就是普通组件：`const A = typed<Address>()`，组件里写 `<A.Field name="city" …/>`，用的地方 `<ObjectField name="home"><AddressFields /></ObjectField>`。同一个片段放在不同的 `ObjectField` 里就绑定不同的路径；需要额外参数就是普通 props。
 - 需要动态字符串（列定义、后端下发的路径）时继续用普通组件，`useField(name)` 返回 `FieldBinding<any>`。
 - `typed` 没有新的运行时：同一个表单多次调用返回同一个对象。
 
@@ -115,11 +113,11 @@ const F = typed(form)
 useFormContext<T = any>(): FormEngine<T>
 ```
 
-无参数。返回最近 `<Form>` / `<AppForm>` 提供的同一个引擎；缺少 Provider 时抛错，不会偷偷创建表单。
+无参数。返回最近 `<Form>` 提供的同一个引擎；缺少 Provider 时抛错，不会偷偷创建表单。
 
 `T` 是调用者对已有实例的类型说明，不做运行时转换。它不订阅字段值或 `submitting`，适合按钮事件里调用 `reset`、`submit`。要显示实时提交状态，配合 `useWatch`。
 
-这是顶层公开 Hook；`useScope` 只是内部实现，不是 `shikiform` 顶层导出。[工厂返回的 `useFormContext`](/reference/form-hook#createformhookcontexts) 则读取工厂专属上下文，两者不要混用。
+这是顶层公开 Hook；`useScope` 只是内部实现，不是 `shikiform` 顶层导出。
 
 [实现：context.tsx](https://github.com/charlzyx/shikiform/blob/main/src/react/context.tsx)
 
@@ -187,7 +185,7 @@ interface UseFieldOptions {
 
 ### 无参 useField：当前字段
 
-`useField()` 不带参数时，返回最近的 `<Field>`（以及 `AppField`，它内部就是 `<Field>`）正在渲染的字段 binding，与 Formily 的 `useField()` 一样。自定义控件、装饰器、表格单元格里的输入都用它，不用重复写 `name`；`useField<string>()` 给 `field.value` 定类型。
+`useField()` 不带参数时，返回最近的 `<Field>` 正在渲染的字段 binding，与 Formily 的 `useField()` 一样。自定义控件、装饰器、表格单元格里的输入都用它，不用重复写 `name`；`useField<string>()` 给 `field.value` 定类型。
 
 ```tsx
 function TextInput() {
@@ -199,10 +197,10 @@ function MyDecorator({ children }: { children?: ReactNode }) {
   return <label>{field.title}{field.required ? ' *' : ''}{children}<small>{field.errors[0]}</small></label>
 }
 <Field name="email" title="邮箱" decorator={[MyDecorator]} component={[TextInput]} />
-<form.AppField name="email">{() => <TextInput />}</form.AppField>
+<Field name="phone"><TextInput /></Field>   {/* 作为子元素也一样 */}
 ```
 
-- 不在任何 `<Field>` / `AppField` 内调用时抛出 `ShikiUsageError`，消息写明修法：放进 `<Field name="…">` / `<form.AppField name="…">`，或改成 `useField('email')`。
+- 不在任何 `<Field>` 内调用时抛出 `ShikiUsageError`，消息写明修法：放进 `<Field name="…">`，或改成 `useField('email')`。
 - 它不另外订阅：值随外层 `<Field>` 重新渲染。只想在 Hook 里绑定一个字段时，直接 `useField('email', options)`；要把这个 binding 交给 connect 控件，传 `field` 属性（`<Input field={field} />`）。
 - 同一调用处要么总带 `name`，要么总不带（两种形式使用不同的 Hooks）。
 
@@ -502,7 +500,7 @@ export default function TreeHookExample() {
 }
 ```
 
-需要 JSX 结构组件时看 [Field、ArrayField、TreeField](/api#react-组件)；需要将这些绑定封装成项目自己的输入组件时看 [createFormHook](/reference/form-hook)。
+需要 JSX 结构组件时看 [Field、ArrayField、TreeField](/api#react-组件)；需要把绑定封装成项目自己的输入组件时看 [connect](/reference/antd-adapter#connect) 和上面的无参 `useField()`。
 
 ## useTreeNode
 

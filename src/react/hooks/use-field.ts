@@ -50,8 +50,7 @@ export interface FieldBinding<TValue> {
 }
 
 /**
- * Internal (re-exported by `../field-context`, never from a package entry). The field a `<Field>` (and therefore
- * every `AppField`) is rendering; `useField()` with no name reads it (Formily's field context).
+ * Internal (re-exported by `../field-context`, never from a package entry). The field a `<Field>` is rendering; `useField()` with no name reads it (Formily's field context).
  */
 export const FieldContext = createContext<FieldBinding<any> | null>(null)
 
@@ -82,7 +81,7 @@ export interface UseFieldOptions {
 }
 
 /**
- * Subscribe to one field. This is the primitive every field component (`<Field>`, `AppField`, the Ant Design
+ * Subscribe to one field. This is the primitive every field component (`<Field>`, the Ant Design
  * `connect` adapter, `FormItem`) is built on.
  * Inside a row whose scope is `items.0`, `useField('price')` is `items.0.price`.
  *
@@ -94,7 +93,7 @@ export interface UseFieldOptions {
  * `useField<Row>('price')` rejects a key `Row` does not have. That value is the union of `Row`'s fields.
  * `useField<Row, 'price'>('price')` types `field.value` as that property.
  *
- * With no name, `useField()` returns the field the nearest `<Field>` / `AppField` is rendering (Formily's
+ * With no name, `useField()` returns the field the nearest `<Field>` is rendering (Formily's
  * `useField()`): this is how a custom input, decorator, or table cell reads its field without repeating the name.
  * `useField<string>()` types `field.value`. Outside a field it throws a `ShikiUsageError` naming the fix.
  * A call site either always passes a name or never does (the two forms use different hooks).
@@ -136,8 +135,8 @@ export function useField(name?: string, options?: UseFieldOptions): FieldBinding
 }
 
 const NO_FIELD =
-  '[shikiform] useField() without a name reads the surrounding <Field> / AppField, but this component is not inside one. ' +
-  "Render it inside <Field name=\"…\"> / <form.AppField name=\"…\"> (or as their component / decorator / children), " +
+  '[shikiform] useField() without a name reads the surrounding <Field>, but this component is not inside one. ' +
+  "Render it inside <Field name=\"…\"> (or as its component / decorator / children), " +
   "or pass a name: useField('email')."
 
 function uiLayer(options: UseFieldOptions): FieldUiSpec | undefined {

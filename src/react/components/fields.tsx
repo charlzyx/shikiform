@@ -13,7 +13,7 @@ import { resolveName } from '../hooks/resolve-name'
 
 const ROOT_SCOPE = { path: '', index: -1 }
 
-/** Submit callbacks shared by `<Form>` and `<form.AppForm>`. */
+/** Submit callbacks of `<Form>` (and the antd `Submit` button's own `onSubmit`). */
 export interface FormSubmitHandlers<T> {
   /** Called with the submit values after validation passes. May be async; the submit waits for it. */
   onSubmit?: (values: T) => void | Promise<void>
@@ -26,7 +26,7 @@ export interface FormSubmitHandlers<T> {
   onSubmitError?: (error: unknown) => void
 }
 
-/** Native `<form>` attributes `<Form>` / `<form.AppForm>` pass through (`id`, `className`, `noValidate`, `aria-*` …). */
+/** Native `<form>` attributes `<Form>` passes through (`id`, `className`, `noValidate`, `aria-*` …). */
 export type FormDomProps = Omit<FormHTMLAttributes<HTMLFormElement>, 'onSubmit' | 'onInvalid' | 'children'>
 
 /** `<Form>` props. `onSubmit` receives the form's `TSubmit` (default `T`, see `SubmitValues`). */
@@ -36,7 +36,7 @@ export type FormProps<T, TSubmit = T> = FormSubmitHandlers<TSubmit> & FormDomPro
 }
 
 /**
- * The native submit handler of `<Form>` and `<form.AppForm>`: Enter, a `type="submit"` button, and an external
+ * The native submit handler of `<Form>`: Enter, a `type="submit"` button, and an external
  * `<button form={id}>` all run `form.submit(onSubmit)` and route the result to `onInvalid` / `onSubmitError`.
  */
 export function handleFormSubmit<T, TSubmit = T>(
@@ -47,6 +47,11 @@ export function handleFormSubmit<T, TSubmit = T>(
   event.preventDefault()
   // React bubbles synthetic events through portals: keep a nested form's submit from reaching the host form.
   event.stopPropagation()
+  runSubmit(form, handlers)
+}
+
+/** `form.submit(onSubmit)` with the result routed to `onInvalid` / `onSubmitError` (shared by `<Form>` and `Submit`). */
+export function runSubmit<T, TSubmit = T>(form: FormEngine<T, TSubmit>, handlers: FormSubmitHandlers<TSubmit>): void {
   void form
     .submit(handlers.onSubmit)
     .then((result) => {

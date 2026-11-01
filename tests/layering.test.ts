@@ -40,7 +40,6 @@ const CORE_RANK: Record<string, number> = {
   validation: 2,
   declarations: 3,
   structure: 4,
-  ui: 4,
   engine: 5,
 }
 const PURE = ['core/shared/', 'core/enum/', 'core/draft/', 'core/types', 'core/errors', 'core/validation/rules', 'core/validation/schema', 'core/validation/messages']

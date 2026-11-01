@@ -289,10 +289,9 @@ export interface EffectsAPI<T> {
   watch: WatchFn<T>
   /**
    * Low-level handle for an exact path. Prefer `d.a.b` inside a reaction.
-   * `opts.ui` addresses a named UI instance (`$ui`), not a child field.
    * The return is untyped. App code should use the draft instead.
    */
-  query(path: string, opts?: { ui?: string }): any
+  query(path: string): any
 }
 
 /**
@@ -384,17 +383,6 @@ export interface WatchFn<T> {
  */
 export type Draft<T> = IsAny<T> extends true ? any : DraftState<T> & DraftNav<T>
 
-export interface UiDraft {
-  /**
-   * `false` hides this UI only (writes this UI's display as `none`). The field model is unchanged,
-   * so other UIs, validation and submit stay.
-   */
-  $visible: boolean
-  $display: Display
-  /** `undefined` restores the field pattern. */
-  $pattern: Pattern | undefined
-}
-
 export interface DraftState<T> {
   /**
    * Current value. Reading tracks a dependency. A reaction write marks the field computed
@@ -477,12 +465,6 @@ export interface DraftState<T> {
   readonly $path: string
   /** Tree coordinate. `undefined` on ordinary array rows. Depth is `pos.length` (no `$depth`). */
   readonly $pos: Pos | undefined
-  /**
-   * UI instance named in JSX with `ui="…"`.
-   * `$ui` is the spelling because a child field may be named `ui`.
-   * The same name mounted twice on one path is a dev error.
-   */
-  $ui(name: string): UiDraft
   /**
    * First node matching `pred`, or `undefined`. Depends on this subtree's value.
    * The node is untyped: a tree mixes the value at this path with nested `children`.
@@ -598,10 +580,9 @@ export interface FormInstance<T, TSubmit = T> {
    */
   getSubmitValues(): TSubmit
   /**
-   * Escape hatch for an exact path. Prefer `getValue` / `batch`.
-   * `opts.ui` is a named UI instance. The return is untyped.
+   * Escape hatch for an exact path. Prefer `getValue` / `batch`. The return is untyped.
    */
-  query(path: string, opts?: { ui?: string }): any
+  query(path: string): any
 
   /** Move an array row. `to` is the final index. Field models follow the row id. */
   moveArray<P extends ArrayPath<T>>(path: P, from: number, to: number): void

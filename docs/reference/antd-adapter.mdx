@@ -38,7 +38,7 @@ export default function Profile() {
 - **联动改 UI**：`reaction((d) => { d.city.$componentProps.disabled = d.vip.$value; d.city.$decoratorProps.tooltip = '…' })`。嵌套写 `d.x.$componentProps.style.color = 'red'` 只补这一处，JSX / 声明里 `style` 的其他键保留；缺失的中间对象不会自动创建，先 `style ??= {}`（只开一层，不清空下层）。整键赋值 `style = {...}` 替换这个键，整体赋值 `d.x.$componentProps = {...}` 替换所有下层，赋 `undefined` 撤销 reaction 层。
 - **表格单元格**可以不要装饰器（`<Field name="a1" component={[Input]} />`），或换一个（`decorator={[FormItem, { feedbackLayout: 'terse' }]}`）。
 
-控件找字段的顺序：`field` 属性 → `name` 属性（内部调用 `useField(name)`）→ 外层 `<Field>` / `AppField` 提供的字段（即不带参数的 `useField()`）。
+控件找字段的顺序：`field` 属性 → `name` 属性（内部调用 `useField(name)`）→ 外层 `<Field>` 提供的字段（即不带参数的 `useField()`）。
 
 ## connect
 
@@ -47,7 +47,7 @@ connect<P>(target: ComponentType<P>, ...enhancers: ConnectEnhancer[]): Connected
 // ConnectedComponent<P> = ComponentType<Partial<P> & { name?: string; field?: FieldBinding<any> }>
 ```
 
-把任意 value/onChange 控件变成字段控件。`enhancers` 由 [mapProps](#mapprops) 与 [mapReadPretty](#mapreadpretty) 生成。返回的组件没有自己的状态：每次渲染都是对当前 `FieldBinding` 调一次 [mapFieldProps](#mapfieldprops)。字段的 `componentProps` 合并在调用方 props 之下（reaction 写的 `$componentProps` 因此能到达控件）。缺少 `name`、`field` 且不在 `<Field>` / `AppField` 内时抛错。
+把任意 value/onChange 控件变成字段控件。`enhancers` 由 [mapProps](#mapprops) 与 [mapReadPretty](#mapreadpretty) 生成。返回的组件没有自己的状态：每次渲染都是对当前 `FieldBinding` 调一次 [mapFieldProps](#mapfieldprops)。字段的 `componentProps` 合并在调用方 props 之下（reaction 写的 `$componentProps` 因此能到达控件）。缺少 `name`、`field` 且不在 `<Field>` 内时抛错。
 
 ```tsx
 const Rate = connect(AntRate, mapProps({ status: false }))
@@ -98,7 +98,7 @@ interface FormItemProps
 }
 ```
 
-当前字段的装饰器（Formily `FormItem`），**不拥有字段**：没有 `name` / `rules` / `required` / `field` 属性，从外层 `<Field>` / `AppField` 的上下文读字段，在字段外使用会抛错。用法是 `<Field decorator={[FormItem, props]}>`，或放在 `<Field>` 的 children / render prop 里。
+当前字段的装饰器（Formily `FormItem`），**不拥有字段**：没有 `name` / `rules` / `required` / `field` 属性，从外层 `<Field>` 的上下文读字段，在字段外使用会抛错。用法是 `<Field decorator={[FormItem, props]}>`，或放在 `<Field>` 的 children / render prop 里。
 
 渲染 antd `Form.Item`（props 由 [mapFormItemProps](#mapformitemprops) 计算）：`label` 取字段 `title`，`extra` 取 `description`（显式传入时以显式为准）；必填星号跟随字段 `required`，`readPretty` 下隐藏；`validateStatus` 依次为 `error` → `validating` → `warning`；`help` 取第一条错误，否则第一条警告；继承外层 [FormLayout](#formlayout)。`display` 为 `hidden` / `none` 时不渲染。
 
@@ -181,7 +181,7 @@ const Input: ConnectedComponent<antd.InputProps> & {
 const InputNumber: ConnectedComponent<antd.InputNumberProps>
 ```
 
-`connect(antd.InputNumber, mapReadPretty(PreviewText))`。写入 antd 给出的原始值：数字，清空时为 `null`（`useAntdForm` 的 `field.InputNumber` 就是这个控件）。`readPretty` 显示数字文本。
+`connect(antd.InputNumber, mapReadPretty(PreviewText))`。写入 antd 给出的原始值：数字，清空时为 `null`。`readPretty` 显示数字文本。
 
 ## Select
 

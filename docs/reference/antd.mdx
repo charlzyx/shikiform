@@ -1,158 +1,82 @@
 ---
 title: Ant Design 参考
-description: useAntdForm、字段组、预绑定控件和表格的实际接口。
+description: Submit / Reset 按钮、控件取值契约和表格组件的实际接口。
 ---
 
 # Ant Design 参考
 
-从 `shikiform/antd` 导入。`useAntdForm` 是预绑定入口：返回同一个 `FormEngine`，`AppField` render prop 上的 `field.Input`、`field.Select` 就是 [适配层](/reference/antd-adapter) 的 `Input`、`Select` 外包一层 `FormItem`。用法见 [Ant Design 适配](/guide/antd)。
+从 `shikiform/antd` 导入。字段只有一种写法：`<Field decorator={[FormItem]} component={[Input]} />`（适配层见 [Ant Design 适配层参考](/reference/antd-adapter)），按表单类型检查名字用 [`typed(form)`](/reference/react-hooks#typed)。本页是按钮、控件的取值契约和表格组件。用法见 [Ant Design 适配](/guide/antd)。
 
-## useAntdForm
-
-```ts
-useAntdForm<T>(options?: UseFormOptions<T>)
-```
-
-参数与 [useForm](/reference/react-hooks#useform) 相同；`T` 可从 `initialValues` 推断。首次渲染创建实例，后续传入新 options 不会重新初始化。返回原 `FormEngine<T>`，加上以下成员：
-
-| 返回成员 | 参数 / 返回 | 边界 |
-|---|---|---|
-| `AppForm` | `{ children?, onSubmit?, onInvalid?, onSubmitError?, …<form> 属性 }` → React 元素 | 提供正式表单和预绑定组件上下文，渲染原生 `<form>`；回车 / `form.Submit` 调用 `form.submit(onSubmit)` |
-| `AppField` | `{ name, children(field) }` → React 节点 | `name` 校验属于 `T`；`field.value` 对应该路径类型；提供下面的预绑定控件 |
-| `Submit` | antd `ButtonProps` → React 元素 | 使用当前表单的提交/校验状态，细节见下文 |
-| 其余引擎方法 | `getValue`、`setValue`、`reset`、`validate`、`submit` 等 | 仍是 [正式表单实例](/api#读写和提交)，没有第二份值 |
-
-`AppField` 接收 `name`、`children` 和 `useField` 的全部选项（`rules`、`required`、`title`、`description`、`componentProps`…）；它就是正式 `Field` 加预绑定控件：`hidden` / `none` 不渲染控件，`rules` / `required` 是挂载期 lease，`title` 会显示为 `field.Input` 外层 `FormItem` 的 label。不传 `rules` / `required` 时不取得或释放同路径其他 Field 的规则 lease。
-
-`<form.AppForm onSubmit={save} onInvalid={…} onSubmitError={…}>`：回车和 `<form.Submit />` 校验通过后调用 `save`，回调与 `<Form>` 相同（见 [提交结果](/guide/validation#提交结果)），其余属性透传给 `<form>`。`AppForm` 只渲染一个 `<form>`，不要再套一层。
-
-自定义控件在 `AppField` 里读当前字段，用 `shikiform` 的不带参数的 [`useField<TValue>()`](/reference/react-hooks#usefield)（`AppField` 内部就是 `<Field>`，没有 antd 专用的字段 Hook）。封装时仍要处理 `value` / `checked`、事件取值、失焦、错误和展示态，见 [自定义适配](/guide/antd#封装自己的控件)。
-
-## createAntdFormHook
+## Submit
 
 ```ts
-createAntdFormHook(): {
-  useAppForm: typeof useAntdForm;
-  withForm: typeof withAntdForm;
-  withFieldGroup: typeof withAntdFieldGroup;
-}
-```
-
-无参数。把本页七个预绑定控件（`Input`、`Select`、`InputNumber`、`Switch`、`Checkbox`、`Radio`、`DatePicker`）和 `Submit` 交给 [createFormHook](/reference/form-hook#createformhook)，返回一套 Hook/字段组工厂。通常在模块顶层调用一次，而不是组件每次渲染时创建。
-
-它不是 `createForm()`：调用工厂不会创建业务表单；真正的实例由返回的 `useAppForm(options)` 创建。每次调用都共用模块内同一个表单 context，不创建隔离的 context，也不能追加自己的控件（要加控件，用 `createFormHook` 重新组装）。
-
-## antdForm
-
-```ts
-const antdForm = createAntdFormHook();
-```
-
-预先创建的工厂结果，不是表单实例。以下导出是它的对应成员：
-
-```ts
-useAntdForm        // antdForm.useAppForm
-withAntdForm       // antdForm.withForm
-withAntdFieldGroup // antdForm.withFieldGroup
-```
-
-直接用命名导出即可；`antdForm` 适合希望把整套工厂作为依赖传递的模块。
-
-## withAntdForm
-
-```ts
-withAntdForm<T, P extends object = {}>({
-  render: (props: { form: ReturnType<typeof useAntdForm<T>> } & P) => ReactNode
+Submit<T = any>(props: Omit<ButtonProps, 'onSubmit'> & {
+  onSubmit?: (values: T) => void | Promise<void>;
+  onInvalid?: (errors: FieldError[]) => void;
+  onSubmitError?: (error: unknown) => void;
 })
 ```
 
-返回接收 `{ form } & P` 的 React 组件。`form` 必须是同一值类型的 AntD 预绑定表单；额外属性类型是第二个泛型参数，默认 `{}`。
+当前表单（`<Form>` 提供）的主按钮。默认 `type="primary"`，文字取 `messages.submit`（`提交` / `Submit`）。`disabled` 默认 `!$canSubmit`（已有错误或正在提交时不可点；还没校验过的空必填项不挡它，第一次点击仍会跑校验），显式传 `disabled` 覆盖；`loading` 是 `$submitting || props.loading`。它只订阅表单元数据，不订阅输入值。
 
-它提供表单 contexts 后调用 `render`，**不会新建表单实例，也不渲染另一个原生 `<form>`**。用于复用表单片段，不要把它当成提交按钮或 `FormOptions` 的替代品。
-
-## withAntdFieldGroup
-
-```ts
-withAntdFieldGroup<TGroup, P extends object = {}>({
-  render: (props: {
-    group: Pick<ReturnType<typeof useAntdForm<TGroup>>, 'AppField'>
-  } & P) => ReactNode
-})
-```
-
-这里用公开 Hook 的返回类型表达 group：它只有同类型表单的 `AppField`，没有独立的值、提交或重置方法。返回的组件接收 `P & { name?: string }`：
-
-| 项 | 默认 / 行为 |
+| 写法 | 行为 |
 |---|---|
-| `name` | 省略时沿用当前 scope；提供时拼接到父 scope |
-| `group.AppField` | 内部字段名相对于该 group，按 `TGroup` 检查 |
-| 表单上下文 | 由外层 `AppForm` 或 `withAntdForm` 提供；group 不创建表单 |
-| 数据和规则 | 仍在原表单对应路径；group 不自动声明规则或初始化对象 |
+| 不传 `onSubmit` | 原生 `htmlType="submit"`，交给外层 `<Form onSubmit>`；回车同样提交 |
+| 传 `onSubmit`（可加 `onInvalid` / `onSubmitError`） | `htmlType="button"`，点击时自己调用 `form.submit(onSubmit)`，结果分发同 `<Form>`；不需要外层 `<form>` 元素，适合弹窗页脚 |
 
-外层 `name` 当前是 `string`，不受根值类型检查；组内 `AppField` 名称才按 `TGroup` 检查。先在 `initialValues` 中放好对象。
+`onClick` 先执行；在里面 `event.preventDefault()` 会跳过自带的提交。表单外渲染会抛错并提示用 `<Form form={form}>` 包住。
 
-下面一个组件复用整表片段，另一个复用相对路径的地址组。
+## Reset
+
+```ts
+Reset<T = any>(props: ButtonProps & { values?: T })
+```
+
+点击调用 `form.reset(values)`：不传 `values` 回到初始值；传了则把它设为新的初始值再重置（编辑页回填）。touched、edited 和全部消息一并清空。文字取 `messages.reset`（`重置` / `Reset`），`htmlType="button"`，不会触发原生 reset。`onClick` 先执行，`event.preventDefault()` 跳过重置。
 
 ```tsx preview
-import { useAntdForm, withAntdForm, withAntdFieldGroup } from 'shikiform/antd';
-
-type Address = { city: string };
-type Values = { email: string; address: Address };
-
-const EmailFields = withAntdForm<Values, { label: string }>({
-  render: ({ form, label }) => (
-    <form.AppField name="email">
-      {(field) => <field.Input aria-label={label} placeholder={label} />}
-    </form.AppField>
-  ),
-});
-const AddressFields = withAntdFieldGroup<Address, { label: string }>({
-  render: ({ group, label }) => (
-    <group.AppField name="city">
-      {(field) => <field.Input aria-label={label} placeholder={label} />}
-    </group.AppField>
-  ),
-});
+import { useState } from 'react';
+import { Space } from 'antd';
+import { Field, Form, useForm } from 'shikiform';
+import { FormItem, FormLayout, Input, Reset, Submit } from 'shikiform/antd';
 
 export default function App() {
-  const form = useAntdForm<Values>({
-    initialValues: { email: 'ada@example.com', address: { city: '杭州' } },
-  });
+  const [saved, setSaved] = useState('还没有提交');
+  const form = useForm({ initialValues: { name: 'Ada' } });
   return (
-    <form.AppForm>
-      <EmailFields form={form} label="邮箱" />
-      <AddressFields name="address" label="城市" />
-    </form.AppForm>
+    <Form form={form} onSubmit={(values) => setSaved(JSON.stringify(values))}>
+      <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }}>
+        <Field name="name" title="姓名" required decorator={[FormItem]} component={[Input]} />
+      </FormLayout>
+      <Space>
+        <Submit />
+        <Reset />
+        <Submit onSubmit={(values) => setSaved(`草稿：${JSON.stringify(values)}`)}>存草稿</Submit>
+      </Space>
+      <pre aria-live="polite">{saved}</pre>
+    </Form>
   );
 }
 ```
 
-## 预绑定控件
+## 控件取值契约
 
-`<form.AppField name="email">{(field) => <field.Input />}</form.AppField>` 中的 `field.Input` 接收 antd `InputProps`；其他成员同理。值和 ID 由字段绑定负责，传入的 `value` / `checked` / `id` 不能覆盖字段状态。字段内部 change/blur 通知先执行，用户对应回调随后以原始参数执行一次；不应在用户回调里再次写回同一个字段。
+`Input`、`Select` 等是 `connect()` 过的控件（[适配层参考](/reference/antd-adapter#input)）。值和 ID 由字段绑定负责，传入的 `value` / `checked` / `id` 不能覆盖字段状态。字段内部 change/blur 通知先执行，调用方对应回调随后以原始参数执行一次；不要在回调里再次写回同一个字段。
 
-| 成员 | UI 属性类型 | 写回值 / 重要默认 |
+| 控件 | UI 属性类型 | 写回值 / 重要默认 |
 |---|---|---|
-| `field.Input` | `InputProps` | `event.target.value`；空显示为 `''` |
-| `field.Select` | `SelectProps` | antd 的选择值；优先用 `props.options`，否则映射 `field.options` 的 label/value |
-| `field.InputNumber` | `InputNumberProps` | 写入 antd 给出的原始值（数字；`stringMode` 下是字符串）；**清空为 `null`** |
-| `field.Switch` | `ComponentProps<typeof Switch>`，另支持 `onBlur?: React.FocusEventHandler<HTMLButtonElement>` | `checked` 布尔值；失焦从真实 button 透传，先通知字段再通知用户 |
-| `field.Checkbox` | `ComponentProps<typeof Checkbox>`；`field.Checkbox.Group` 绑数组 | `event.target.checked`；Group 写入选中值数组 |
-| `field.Radio` / `field.Radio.Group` | `Radio.Group` 的 props | 选中值；`options` 默认取字段枚举 |
-| `field.DatePicker` | `DatePicker` 的 props；`field.DatePicker.RangePicker` 为区间 | 格式化字符串（默认 `YYYY-MM-DD`），不是 dayjs；清空为 `undefined` |
-| `field.Input.Password` / `field.Input.TextArea` | 同 `Input` 的对应变体 | 与 `field.Input` 一样写回字符串；Password 的阅读态是 `******` |
+| `Input` | `InputProps` | `event.target.value`；空显示为 `''` |
+| `Select` | `SelectProps` | antd 的选择值；优先用 `props.options`，否则映射 `field.options` 的 label/value |
+| `InputNumber` | `InputNumberProps` | 写入 antd 给出的原始值（数字；`stringMode` 下是字符串）；**清空为 `null`** |
+| `Switch` | `ComponentProps<typeof Switch>`，另支持 `onBlur?: React.FocusEventHandler<HTMLButtonElement>` | `checked` 布尔值；失焦从真实 button 透传，先通知字段再通知调用方 |
+| `Checkbox` | `ComponentProps<typeof Checkbox>`；`Checkbox.Group` 绑数组 | `event.target.checked`；Group 写入选中值数组 |
+| `Radio.Group` | `Radio.Group` 的 props | 选中值；`options` 默认取字段枚举 |
+| `DatePicker` | `DatePicker` 的 props；`DatePicker.RangePicker` 为区间 | 格式化字符串（默认 `YYYY-MM-DD`），不是 dayjs；清空为 `undefined` |
+| `Input.Password` / `Input.TextArea` | 同 `Input` 的对应变体 | 与 `Input` 一样写回字符串；Password 的阅读态是 `******` |
 
-`InputNumber` 的转换是当前正式适配器契约。教程里可复制的 `NumberField` 故意示范了另一种项目策略：空值写 `undefined`。二者不能混为同一个组件；需要空值、字符串精度等不同策略时，使用 `Field` / 无参 `useField()` 自己接线，不假定正式适配器保留 antd 的所有值类型。
+`InputNumber` 的转换是正式适配器契约。教程里可复制的 `NumberField` 故意示范了另一种项目策略：空值写 `undefined`。需要不同的空值、字符串精度策略时，用 `<Field>` + 无参 `useField()` 自己接线。
 
-预绑定控件外面都有一层 **`FormItem`**（从 `AppField` 提供的字段上下文读字段），显示第一个错误、error 状态、required，以及 `AppField title` 作为 label。它不负责字段值/规则。`Input`、`Select`、`InputNumber`、`Switch`、`Checkbox`（含 `Group`）、`Radio`、`DatePicker`（含 `RangePicker`）、`Input.Password`、`Input.TextArea` 都是这一层。
-
-字段 `disabled` 和控件 `disabled` 合并。Input/InputNumber 的 readOnly 使用原生只读属性，Select 的 readOnly 映射为 disabled；Switch/Checkbox 在 readOnly 和 readPretty 时都保留 checked 外观并禁用交互，不声称变成纯文本。Input/Select/InputNumber 的 readPretty 改为文本展示（Select 显示选项 label）。显示与提交的区别见 [pattern](/guide/concepts) 和 [显隐](/guide/concepts)。这些 UI 状态不禁止程序调用 `form.setValue()`。
-
-### form.Submit
-
-接收 `ButtonProps`。默认 `htmlType="submit"`、`type="primary"`、children 为“提交”。`disabled` 默认取 `!$canSubmit`（显式 props 值可覆盖），`loading` 是 `$submitting || props.loading`。
-
-它订阅的是当前表单元数据，不是所有输入值。`<form.Submit />` 触发 `AppForm` 的原生提交，业务回调写在 `<form.AppForm onSubmit>` 上。
+字段 `disabled` 和控件 `disabled` 合并。Input/InputNumber 的 readOnly 使用原生只读属性，Select 的 readOnly 映射为 disabled；Switch/Checkbox 在 readOnly 和 readPretty 时都保留 checked 外观并禁用交互。Input/Select/InputNumber 的 readPretty 改为文本展示（Select 显示选项 label）。这些 UI 状态不禁止程序调用 `form.setValue()`。
 
 ### 完整例子：状态与事件回调
 
@@ -160,24 +84,25 @@ export default function App() {
 
 ```tsx preview
 import { useState } from 'react';
-import { useAntdForm } from 'shikiform/antd';
+import { Field, Form, useForm } from 'shikiform';
+import { FormItem, Switch } from 'shikiform/antd';
 
 export default function App() {
-  const form = useAntdForm({ initialValues: { notify: true } });
+  const form = useForm({ initialValues: { notify: true } });
   const [changes, setChanges] = useState(0);
   const [blurs, setBlurs] = useState(0);
   const [target, setTarget] = useState('尚未失焦');
   return (
-    <form.AppForm>
+    <Form form={form}>
       <section aria-label="适配状态与事件">
-        <form.AppField name="notify">
-          {(field) => <field.Switch aria-label="通知开关"
+        <Field name="notify" decorator={[FormItem]}>
+          <Switch aria-label="通知开关"
             onChange={() => setChanges((count) => count + 1)}
             onBlur={(event) => {
               setBlurs((count) => count + 1);
               setTarget(event.currentTarget.tagName);
-            }} />}
-        </form.AppField>
+            }} />
+        </Field>
         <button type="button" onClick={() => form.batch((d) => { d.notify.$pattern = 'readOnly'; })}>设为只读</button>
         <button type="button" onClick={() => form.batch((d) => { d.notify.$pattern = 'readPretty'; })}>设为展示</button>
         <button type="button" onClick={() => form.batch((d) => { d.notify.$pattern = 'editable'; })}>恢复编辑</button>
@@ -185,7 +110,7 @@ export default function App() {
         <button type="button" onClick={() => form.batch((d) => { d.notify.$display = 'visible'; })}>显示通知控件</button>
         <pre data-testid="adapter-event-counts">{JSON.stringify({ changes, blurs, target })}</pre>
       </section>
-    </form.AppForm>
+    </Form>
   );
 }
 ```
@@ -253,7 +178,6 @@ QueryForm({ collapsed = false, collapseAfter = 3, children? })
 
 ## 实现位置
 
-- Hook 与控件接线：`src/antd/form-hook/form-hook.tsx`。
-- 预绑定 context/片段工厂：`src/react/factory/create-form-hook.tsx`。
+- 按钮：`src/antd/components/buttons.tsx`；控件接线：`src/antd/components/controls.tsx`。
 - 表格与网格：`src/antd/tables/array-table.tsx`、`tables/merged-table.tsx`、`tables/query-table.tsx`。
 - 本模块的真实导出清单：`src/antd/index.ts`；所有示例只使用这些公开入口。

@@ -57,7 +57,7 @@ export function isReactionId(id: string): boolean {
 /**
  * Dependency tracking and the reaction / watch run loop.
  *
- * A dep key is `path:state` (`rows.0.cost:value`, `:meta`, `@ui:path#name:display`).
+ * A dep key is `path:state` (`rows.0.cost:value`, `:meta`).
  * Writers add keys to `dirtyDeps`; {@link Scheduler.enqueueFromDirty} queues every runner whose
  * last recorded reads intersect them; {@link Scheduler.flush} runs waves until the queue settles
  * (more than 10 waves is a {@link ShikiCycleError}), then emits notifications.

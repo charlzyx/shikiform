@@ -13,45 +13,42 @@
 | `react` / `react-dom` | `^18 \|\| ^19` | 用 React 层时 |
 | `antd` / `dayjs` | `^5` / `^1` | 只在用 `shikiform/antd` 时 |
 
-四个入口：`shikiform/core`（无 React 的引擎）、`shikiform`（React 与 `createFormHook`）、`shikiform/pro`（无 UI 的表格 / 查询 / 草稿）、`shikiform/antd`（控件与 `useAntdForm`）。
+四个入口：`shikiform/core`（无 React 的引擎）、`shikiform`（React 组件与 Hooks）、`shikiform/pro`（无 UI 的表格 / 查询 / 草稿）、`shikiform/antd`（`FormItem`、控件与按钮）。
 
 ## 第一张表单
 
-antd 用 `useAntdForm`。它是 `createFormHook` 接好的适配：`AppField` 按表单类型检查 `name`，`field.Input` 已经包了 `FormItem`。提交回调写在 `AppForm` 上；`AppForm` 自己就是 `<form>`，不要再套一层。
+字段只有一种写法：`<Field>` 拥有路径，`decorator={[FormItem]}` 显示标签、星号和错误，`component={[Input]}` 是 connect 过的 antd 控件。`typed(form)` 返回同一组组件，`name` 按表单值类型检查。`<Form>` 自己就是 `<form>`，提交回调写在它上面。
 
 ```tsx
 import { useState } from 'react';
 import { Form as AntdForm } from 'antd';
-import { FormLayout, useAntdForm } from 'shikiform/antd';
+import { Form, typed, useForm } from 'shikiform';
+import { FormItem, FormLayout, Input, InputNumber, Submit } from 'shikiform/antd';
 
 type Values = { name: string; email: string; age: number | null };
 
 export default function App() {
   const [result, setResult] = useState('还没有提交');
-  const form = useAntdForm<Values>({ initialValues: { name: '', email: '', age: 18 } });
+  const form = useForm<Values>({ initialValues: { name: '', email: '', age: 18 } });
+  const F = typed(form);
   return (
-    <form.AppForm onSubmit={(values) => setResult(JSON.stringify(values))}>
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
       <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }}>
-        <form.AppField name="name" title="姓名" required>
-          {(field) => <field.Input placeholder="Ada" />}
-        </form.AppField>
-        <form.AppField name="email" title="邮箱" required rules={{ format: 'email', message: '邮箱格式不对' }}>
-          {(field) => <field.Input />}
-        </form.AppField>
-        <form.AppField name="age" title="年龄" rules={{ min: 0, max: 150 }}>
-          {(field) => <field.InputNumber />}
-        </form.AppField>
+        <F.Field name="name" title="姓名" required decorator={[FormItem]} component={[Input, { placeholder: 'Ada' }]} />
+        <F.Field name="email" title="邮箱" required rules={{ format: 'email', message: '邮箱格式不对' }}
+          decorator={[FormItem]} component={[Input]} />
+        <F.Field name="age" title="年龄" rules={{ min: 0, max: 150 }} decorator={[FormItem]} component={[InputNumber]} />
         <AntdForm.Item wrapperCol={{ offset: 4, span: 20 }}>
-          <form.Submit>提交</form.Submit>
+          <Submit>提交</Submit>
         </AntdForm.Item>
       </FormLayout>
       <pre aria-live="polite">{result}</pre>
-    </form.AppForm>
+    </Form>
   );
 }
 ```
 
-这段和文档站[快速开始](https://shikiform.pages.dev/guide/quick-start)的第一例相同，`check:docs` 会把它和该页的 preview 一起做类型检查。不用 antd 时，用 `createFormHook` / `useAppForm` / `AppField` 预绑定自己的输入。要自己写 `decorator` 和 `component`，用 `<Field>`（`AppField` 内部就是它），见该页的进阶一节。
+这段和文档站[快速开始](https://shikiform.pages.dev/guide/quick-start)的第一例相同，`check:docs` 会把它和该页的 preview 一起做类型检查。不用 antd 时，自己的输入组件用不带参数的 `useField()` 读当前字段，放进 `component`；可复用的字段片段是普通组件加 `<ObjectField>` 和 `typed<T>()`。
 
 ## 开发这个仓库
 
@@ -63,10 +60,10 @@ Hooks 是主 API，JSX 是其结构与渲染封装；draft 和 `$` 描述状态�
 
 ## 包
 
-- `shikiform` — core 加 headless React（`useForm`、`useField(name, options?)`、`useArrayField`、`useArrayMove`、`useTreeField`、`useTreeMove`、`useWatch`、`createFormHook`、`<Watch>`）
+- `shikiform` — core 加 headless React（`useForm`、`useField(name, options?)`、`useArrayField`、`useArrayMove`、`useTreeField`、`useTreeMove`、`useWatch`、`typed`、`<Watch>`）
 - `shikiform/core` — 表单引擎，没有 React
 - `shikiform/pro` — headless 查询、数组表格/列配置、影子草稿、联想与懒加载级联 Hooks，以及枚举显示工具（不依赖 antd）
-- `shikiform/antd` — `connect` / `FormItem` 适配与已绑定控件、预绑定工厂；`ProArrayTable`、`QueryList`、影子容器和高级输入，以及原有 `ProQueryTable`、`ArrayTable`、`MergedTable`
+- `shikiform/antd` — `connect` / `FormItem` / `FormLayout` 适配、已绑定控件和 `Submit` / `Reset`；`ProArrayTable`、`QueryList`、影子容器和高级输入，以及原有 `ProQueryTable`、`ArrayTable`、`MergedTable`
 
 `react` / `react-dom` 的 peer 是 `^18 || ^19`。`antd` 的 peer 是 `^5`。包是 `private`，`exports` 指向 `lib/`。仓库开发的 TypeScript paths 和 Vite alias 指向正式 `src/` 入口；教程不再有特殊运行时 alias。`check:docs` 从 `npm pack` 的 tarball 创建独立消费者，不继承仓库 paths/alias，检查真正复制出去的源码。
 
@@ -77,7 +74,7 @@ npm ci
 npm run dev         # VitePress 文档站
 npm test            # 正式库 + 同源教程的 vitest
 npm run check       # 库、playground、测试的 tsc --noEmit（教程另有 check:docs）
-npm run check:api   # 真实 Hook/工厂与 pro/antd 导出对应的参考章节覆盖
+npm run check:api   # 真实 Hook 与 pro/antd 导出对应的参考章节覆盖
 npm run check:docs  # npm pack 隔离消费者：同份教程/执行 MDX 的类型、bundle、SSR
 npm run build       # 文档 + playground，输出 dist/。Cloudflare Pages 跑的就是这条
 npm run preview     # 本地预览 dist/
@@ -111,7 +108,7 @@ Playground 随 `npm run build` 一起进入 `dist/play/`。每个 `/play/...` �
 
 默认构建先运行 `check:docs`：从本次 `npm pack` 解包创建消费者，复制原样教程与可执行 MDX，严格类型检查、生产打包，并以该包执行 SSR。这个检查不访问注册表安装依赖，不代表浏览器交互/水合通过；真实浏览器仍由 `test:e2e` 覆盖。
 
-`check:docs` 同时运行 `check:api`：从实际 TypeScript 公开入口解析 React Hooks/工厂，以及全部 pro/antd 运行时导出，核对 `docs/reference/exports.json`、命名章节和签名代码。它防止已有 Hook 再次只剩空索引或假导出，不自动证明每句话的语义；文案仍需与源码复核，页面里的 `tsx preview` 示例进入同一 pack 消费者门。
+`check:docs` 同时运行 `check:api`：从实际 TypeScript 公开入口解析 React Hooks 与 `typed`，以及全部 pro/antd 运行时导出，核对 `docs/reference/exports.json`、命名章节和签名代码。它防止已有 Hook 再次只剩空索引或假导出，不自动证明每句话的语义；文案仍需与源码复核，页面里的 `tsx preview` 示例进入同一 pack 消费者门。
 
 ESM 入口共享内部 chunks，避免 `shikiform` 与 `shikiform/antd` 各自创建一份 React context。pack 门还验证跨入口 Provider/Hook/行 scope 和 core 类身份，并递归检查打包后的 core 不引入 React、headless 入口不引入 antd；`lib` 中的共享 chunks 必须随包一起交付，不能只复制四个入口文件。这些执行检查仍是 SSR，不是浏览器挂载/事件测试。
 

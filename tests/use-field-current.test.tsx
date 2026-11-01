@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as root from '../src'
 import { createForm, Field, Form, ShikiUsageError, useField, type FieldBinding } from '../src'
 import * as antd from '../src/antd'
-import { FormItem, ProArrayTable, useAntdForm } from '../src/antd'
+import { FormItem, ProArrayTable } from '../src/antd'
 
 afterEach(cleanup)
 
@@ -32,24 +32,6 @@ describe('useField() with no name reads the current field', () => {
     expect((screen.getByTestId('b') as HTMLInputElement).value).toBe('y')
     fireEvent.change(screen.getByTestId('a'), { target: { value: 'edited' } })
     expect(form.getValue('a')).toBe('edited')
-  })
-
-  it('inside AppField (useAntdForm), including a nested scope', () => {
-    let engine!: ReturnType<typeof useAntdForm<{ user: { email: string } }>>
-    function App() {
-      const form = useAntdForm<{ user: { email: string } }>({ initialValues: { user: { email: 'e' } } })
-      engine = form
-      return (
-        <form.AppForm>
-          <form.AppField name="user.email">{() => <TextInput testId="email" />}</form.AppField>
-        </form.AppForm>
-      )
-    }
-    render(<App />)
-    const input = screen.getByTestId('email') as HTMLInputElement
-    expect(input.getAttribute('data-path')).toBe('user.email')
-    fireEvent.change(input, { target: { value: 'new' } })
-    expect(engine.getValue('user.email')).toBe('new')
   })
 
   it('inside a ProArrayTable cell <Field>', () => {
@@ -87,10 +69,10 @@ describe('useField() with no name reads the current field', () => {
     expect((error as Error).message).toContain("useField('email')")
   })
 
-  it('is the only field-access hook: the old names are gone', () => {
+  it('is the only field-access hook: the old names and the factory are gone', () => {
     for (const name of ['useCurrentField', 'FieldContext', 'useFieldContext']) expect(name in root).toBe(false)
     expect('useAntdField' in antd).toBe(false)
-    expect('fieldContext' in root.createFormHookContexts()).toBe(false)
-    expect('useFieldContext' in root.createFormHookContexts()).toBe(false)
+    for (const name of ['createFormHook', 'createFormHookContexts']) expect(name in root).toBe(false)
+    for (const name of ['useAntdForm', 'createAntdFormHook', 'antdForm', 'withAntdForm', 'withAntdFieldGroup']) expect(name in antd).toBe(false)
   })
 })
