@@ -5,6 +5,7 @@
  *   (all reading the field a `<Field>` provides; Formily style: `<Field decorator={[FormItem]} component={[Input]} />`);
  * - components: `Input`, `InputNumber`, `Select`, `Switch`, `Checkbox`, `Radio`, `DatePicker` wired through `connect`;
  * - buttons: `Submit` / `Reset` for the surrounding form;
+ * - arrays: `ArrayItems` / `ArrayCards`, containers for `<ArrayField component>` (add / remove / move / drag rows);
  * - tables: `ArrayTable`, `MergedTable`, `ProQueryTable` / `QueryForm` (over `useArrayField` / `useQueryTable`),
  *   `ProArrayTable` (over `useArrayTable` / `useColumnSettings`), `QueryList` (over `useQueryTable`);
  * - shadow forms: `ShadowForm`, `ShadowModal`, `ShadowDrawer`, `ShadowPopconfirm`, `useShadow` (over `useShadowForm`);
@@ -27,6 +28,7 @@ export type { PreviewTextProps } from './adapter/preview'
 export { Checkbox, DatePicker, Input, InputNumber, Radio, Select, Switch } from './components/controls'
 export { Reset, Submit } from './components/buttons'
 export type { ResetProps, SubmitProps } from './components/buttons'
+export { ArrayCards, ArrayItems, useArrayEditable } from './arrays/array-items'
 export { ArrayTable } from './tables/array-table'
 export { MergedTable, groupRowSpan } from './tables/merged-table'
 export type { MergedColumn } from './tables/merged-table'

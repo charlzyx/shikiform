@@ -7,7 +7,7 @@
 1. **Hooks 是完整的主 API。** `shikiform` 导出的 `useForm`、`useField`、`useArrayField` / `useArrayMove`、`useTreeField` / `useTreeMove`、`useWatch`，以及无需 name 的上下文 Hook：无参 `useField()`（当前字段，Formily `useField()`）、`useArray`、`useIndex`、`useRecord`、`useTreeNode`（Formily `ArrayBase.useArray/useIndex/useRecord`）能做到组件能做的一切。
 2. **组件只是 Hook 的薄封装，不得拥有 Hook 用户拿不到的逻辑。**
    - `<Field name rules required virtual display pattern title description decorator component>` = `useField(name, options)` + `display !== 'visible'` 时返回 `null` + 渲染 `decorator` 包住 `component`（或 children），并用内部 `FieldContext` 提供 binding（经无参 `useField()` 读取，不导出）。
-   - `<ArrayField>` = `useArrayField` + `ArrayScope`（供 `useArray()`）+ 每行 `RowScope`（供 `useIndex()` / `useRecord()`）；`<TreeField>` = `useTreeField`；`<Watch>` = `useWatch`；`<Form>` = Context Provider + `form.submit()`。
+   - `<ArrayField>` = `useArrayField` + `ArrayScope`（供 `useArray()`）+ 每行 `RowScope`（供 `useIndex()` / `useRecord()`）+ 可选的容器 `component`（`[C, props]`，在 `ArrayScope` 内以各行为 `children` 渲染）；`<TreeField>` = `useTreeField`；`<Watch>` = `useWatch`；`<Form>` = Context Provider + `form.submit()`。
    - `typed(form)` / `typed<T>()` = 同一批组件和 Hook 加上类型（名字按作用域检查），没有新的运行时。字段只有 `<Field>` 一种写法：没有预绑定工厂（2026-11-01 删除 `createFormHook` / `useAntdForm` / `AppField` 等）；片段复用是普通组件 + `<ObjectField>` + `typed<T>()`。
 3. **Ant Design 适配层是 `useField` 之上的 Formily 式 connect 层。** `<Field>` 是字段唯一的拥有者；装饰器和控件都从 `FieldContext` 读同一个 binding。
    - `connect(Control, mapProps(...), mapReadPretty(...))` 每次渲染只做一件事：`mapFieldProps(binding, props)`（binding 来自 `field` 属性 / `name` / 外层 `<Field>`）。`mapFieldProps` 本身是导出的纯函数，Hook 用户可直接 `<AntInput {...mapFieldProps(field, props)} />`。
@@ -56,6 +56,7 @@ src/
     components/            controls.tsx（Input、InputNumber、Select、Switch、Checkbox、Radio、DatePicker）、
                            enum-pretty.tsx（EnumPretty / EnumPrettyView；选择类控件阅读态 prettyType）、
                            suggestion.tsx（Suggestion）、cascader-plus.tsx（CascaderPlus）、buttons.tsx（Submit / Reset）
+    arrays/                array-items.tsx（ArrayItems / ArrayCards / useArrayEditable：<ArrayField component> 容器，按钮 = useArray + useIndex）
     shadow/                shadow.tsx（ShadowModal / ShadowDrawer / ShadowPopconfirm / ShadowForm / useShadow）
     tables/                array-table.tsx、merged-table.tsx、query-table.tsx、pro-array-table.tsx、query-list.tsx
 ```
@@ -147,6 +148,7 @@ Formily 的 `field.title` / `description` / `decorator` / `component` / `setComp
 
 - **`FormEngine`**：构造并连接各部件，保留全部原有公开方法与属性（`values`、`submitting` 等改为 getter/setter 访问器，读写语义不变），并实现 `DraftHost`（`readState` 读 `$` 状态并登记依赖）与 `EffectsRuntime`（委托给 `Scheduler`）。
 - **`Baseline`**（`baseline.ts`）：`dirty` 不存储，按「values 与 initial 深比较，跳过 `virtual` / 计算字段」派生，按 values/initial 引用缓存；每次 flush 结束（`Scheduler.onSettle`）若表单级 dirty 翻转就 `bumpMeta`。`$dirty` 依赖 `path:value` 与 `path:dirty`，基线移动（`reset(values)` / `setInitialValues`）时标记 `:dirty`。`reset` 的实现也在这里。
+- **表单级初始 pattern**：`FormOptions.pattern` 在构造时 `writeState('', '$pattern', …)`，即根上的 `$pattern`（字段经 `effectivePattern` 继承，根在祖先链末尾）；之后 `d.$pattern = undefined` 回到可编辑，`reset` 不改它。
 - **公开状态只读**（#36）：`values` / `submitting` / `dirty` / `submitCount` / `validating` 只有 getter，写入都走会通知的方法。
 - **外部错误**（#34）：`FieldModel.externalErrors`，与规则、schema 消息一起显示（`shownErrors`）；值变化、该字段重新校验、`reset`、`clearErrors` 时清除。
 - **`StateWriter`**（`writes.ts`）：所有写入的唯一入口。用户编辑 `commitExternal`（置粘滞的 `edited`、触发 `onChange` 校验）；`commitValue` 改值时清掉该 path 上下级的外部错误（`setErrors`）；draft 写 `writeState`（在 reaction/watch/batch 中缓冲，否则立即应用）；`$value/$display/$pattern/$required/$rules/$enum` 的落地；`EnumSource` 异步加载（防抖、abort、seq）与 `enumPolicy: 'clear'`。
@@ -178,6 +180,7 @@ const Rate = connect(AntRate, mapProps({ status: false }))
 - **`FormItem`**（装饰器 / 纯布局）：没有 `name` / `field` / `rules` / `required` 属性。字段里：`mapFormItemProps(field, props, layout, env)`：合并 `layout`（`FormLayout`）← `field.decoratorProps` ← `props`；`label` ← `title`、`extra` ← `description`（显式优先）；必填星号 ← `required`（`readPretty` 隐藏，`asterisk` 强制；`requiredMark: false` 隐藏，`'optional'` 改为给非必填项标签加 `messages.optional`）；`validateStatus` 依次 error → validating → warning；`help` 是全部错误（否则全部警告），一条一行；`feedbackLayout`：`loose` / `terse`（无提示时去掉底部间距）/ `popover`（组件用 antd `Popover` 浮在控件上，不占行）/ `none`；`labelWidth` / `wrapperWidth` → `labelCol` / `wrapperCol` 的 `flex`；`labelWrap` → 给 label 列加 antd 自己的 `${prefixCls}-item-label-wrap` 类（antd 的 `labelWrap` 只能从 `Form` context 给，`labelCol.className` 是它读的公开入口）；`tooltipLayout: 'text'` 把 tooltip 拼进 label；`gridSpan` → `gridColumn`（按 `FormGrid` 当前列数截断）。`env`（类名前缀、可选文案、列数）由组件从 context 读，纯函数保持纯。字段外 `field = null`：纯布局，无状态。`addonBefore/After` 与 popover 是组件自己的标记。`hidden/none` 不渲染。
 - **`FormLayout`**：`layout`、`labelCol`、`wrapperCol`、`labelWidth`、`wrapperWidth`、`labelAlign`、`labelWrap`、`colon`、`requiredMark`、`tooltipLayout`、`size`、`feedbackLayout` 经 context 向下继承，嵌套时按键合并；前六个可按断点给数组，`FormLayout` 用 `ResizeObserver` 量**自身**宽度（`use-container-width.ts`；未测量时取最宽一档，SSR 一致）后解析成标量再下发；`size` 同时通过 antd `ConfigProvider componentSize` 作用于控件；`inline` 用一层 flex 容器排布。`useFormLayout()` 读当前合并结果。
 - **`FormGrid`**：CSS grid，列数 = 自身宽度能放下的 `minWidth` 列数，夹在 `[minColumns, maxColumns]`（均可按断点给数组），经 `useFormGrid()` 交给 `FormItem` / `GridColumn` 截断跨列。**`FormButtonGroup`**：flex 按钮行；`.FormItem` = 空标签（`label=" "`）的纯布局 `FormItem`，因此 `labelCol` / `labelWidth` 自动对齐；`.Sticky` = `position: sticky` 栏。
+- **数组容器**（`arrays/array-items.tsx`，Formily `ArrayItems` / `ArrayCards`）：是 `<ArrayField component>`，没有自己的状态。容器用 `useArray()` 拿数组、`useArrayMoveAt(path)`（`useArrayMove` 的绝对路径版，内部导出）做拖拽并经 context 给行；`Item` / 卡片是放置目标，`SortHandle` 是拖动源。`Addition` / `Remove` / `MoveUp` / `MoveDown` / `SortHandle` 由 `useArrayEditable()`（`useWatch(form.query(数组路径).$pattern === 'editable')`，沿祖先继承到根）决定是否渲染；`Index` 总是显示。`ArrayCards` 不要求行包装：它 `cloneElement` `<ArrayField>` 给的每个 `RowScope`，把行内容换成卡片，卡片仍在该行作用域里（依赖 `<ArrayField>` 的子节点就是 `RowScope` 这一内部约定）。空状态是 antd `Empty`。不新增行 id：无 `rowKey` / `id` 的对象行已有 WeakMap 对象身份（§6），所以 `Addition` 默认推 `{}`。
 - **表格**：单元格就是行作用域里的 `<Field>`，可以不要装饰器（`component={[Input]}`），或用别的装饰器 / `FormItem` 的 `feedbackLayout: 'terse'`。
 - **按钮**（`components/buttons.tsx`）：`Submit` 订阅 `$canSubmit` / `$submitting`；不传 `onSubmit` 时是原生 submit（交给 `<Form onSubmit>`），传了则点击时 `runSubmit(form, handlers)`。`Reset` = `form.reset(values)`。文案走 `useFormMessage()`。
 - **阅读态**：`mapReadPretty` 视图收到调用方 props + `value` / `options`；`PreviewText` 的空值文案是 `empty`（不是 `placeholder`，否则控件的编辑态占位符会显示成值）。
@@ -211,7 +214,7 @@ const Rate = connect(AntRate, mapProps({ status: false }))
 
 ## 11. 行上下文 Hook（`react/hooks/use-row.ts`、`use-array.ts`）
 
-- `ArrayContext`（`react/context.tsx`）记录最近一层数组的绝对路径与 `rowKey`，由 `ArrayScope` 提供；`<ArrayField>`、antd `ArrayTable`、`ProArrayTable` 都渲染它。`useArray()` 读它，再走与 `useArrayField` 相同的 `useArrayAt(path, rowKey)`（订阅结构）。
+- `ArrayContext`（`react/context.tsx`）记录最近一层数组的绝对路径与 `rowKey`，由 `ArrayScope` 提供；`<ArrayField>`（及其容器 `component`）、antd `ArrayTable`、`ProArrayTable` 都渲染它。`useArray()` 读它，再走与 `useArrayField` 相同的 `useArrayAt(path, rowKey)`（订阅结构）。
 - `ScopeContext` 的值扩展为 `{ path, index, itemKey?, pos? }`；`RowScope` 接受 `itemKey`（行 id）与 `pos`（树坐标）。`useIndex()` 读 `index`；`useTreeNode()` 读 `pos`；二者在行 / 节点外抛错。
 - `useRecord()` = `useWatch(() => form.query(scope.path).$value)`：单元格写入会把祖先的 `:value` 依赖标脏，所以这一行任一单元格变化都会重渲染，其他行不会；行移动后 `RowScope` 的 path 变化，selector 跟着换。
 - `ProArrayTable.useRow()` = `{ key: scope.itemKey, index: useIndex(), position: table.positionOf(index), record: useRecord() }`，antd 层不再有自己的行 Context；`useTable()` 只是表格状态（`useArrayTable` + `useColumnSettings`）的 Context。

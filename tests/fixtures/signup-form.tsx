@@ -1,10 +1,10 @@
-import { Button, ColorPicker as AntColorPicker, Space, Switch } from 'antd'
-import { defineEffects, Form, typed, useArray, useForm, useIndex } from '../../src'
+import { ColorPicker as AntColorPicker, Space, Switch } from 'antd'
+import { defineEffects, Form, typed, useForm } from '../../src'
 import {
-  connect, FormButtonGroup, FormItem, FormLayout, Input, mapProps, mapReadPretty, Reset, Select, Submit,
+  ArrayItems, connect, FormButtonGroup, FormItem, FormLayout, Input, mapProps, mapReadPretty, Reset, Select, Submit,
 } from '../../src/antd'
 
-export type Contact = { id: number; name: string; phone: string }
+export type Contact = { name: string; phone: string }
 export type Signup = {
   username: string
   email: string
@@ -36,16 +36,7 @@ const effects = defineEffects<Signup>(({ reaction, watch }) => {
   watch((d) => d.province.$value, (d) => { d.city.$value = '' })
 })
 
-let nextId = 2
-
-function RemoveContact() {
-  const array = useArray<Contact>()
-  const index = useIndex()
-  const editable = typed<Signup>().useWatch((d) => d.contacts.$pattern === 'editable')
-  return editable ? <Button danger onClick={() => array.remove(index)}>删除</Button> : null
-}
-
-const EMPTY: Signup = { username: '', email: '', password: '', province: '', city: '', color: '#1677ff', contacts: [{ id: 1, name: '', phone: '' }] }
+const EMPTY: Signup = { username: '', email: '', password: '', province: '', city: '', color: '#1677ff', contacts: [{ name: '', phone: '' }] }
 
 export function SignupForm({ onSubmit, initialValues = EMPTY }: { onSubmit: (values: Signup) => void; initialValues?: Signup }) {
   const form = useForm<Signup>({
@@ -71,18 +62,15 @@ export function SignupForm({ onSubmit, initialValues = EMPTY }: { onSubmit: (val
         </FormItem>
         <F.Field name="color" title="主题色" decorator={[FormItem]} component={[ColorPicker]} />
         <FormItem label="联系人">
-          <F.ArrayField name="contacts" rowKey="id">
+          <F.ArrayField name="contacts" component={[ArrayItems, { addition: <ArrayItems.Addition title="添加联系人" /> }]}>
             {(row) => (
-              <Space>
+              <ArrayItems.Item>
                 <row.Field name="name" decorator={[FormItem]} component={[Input, { placeholder: '姓名' }]} />
                 <row.Field name="phone" decorator={[FormItem]} component={[Input, { placeholder: '电话' }]} />
-                <RemoveContact />
-              </Space>
+                <ArrayItems.Remove />
+              </ArrayItems.Item>
             )}
           </F.ArrayField>
-          <F.Watch select={(d) => d.contacts.$pattern === 'editable'}>
-            {(editable) => editable && <Button onClick={() => form.pushArray('contacts', { id: nextId++, name: '', phone: '' })}>添加联系人</Button>}
-          </F.Watch>
         </FormItem>
         <FormButtonGroup.FormItem>
           <Submit>注册</Submit>

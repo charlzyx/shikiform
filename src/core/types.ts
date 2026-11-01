@@ -254,6 +254,12 @@ export interface FormOptions<T> {
    * Order: the rule's own `message` > this > `setDefaultMessages` > {@link zhCN}. Pass `enUS` for English.
    */
   messages?: Partial<FormMessages>
+  /**
+   * Initial pattern of the whole form: the root `$pattern`, inherited by every field without its own pattern
+   * (`'readPretty'` for a detail page, `'disabled'` while loading). Change it later with `d.$pattern = …`;
+   * `d.$pattern = undefined` makes the form editable again.
+   */
+  pattern?: Pattern
   /** Log each pass when true. */
   devtools?: boolean
   /** Tree roots that effects address before React mounts. */

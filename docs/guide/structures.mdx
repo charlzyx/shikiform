@@ -1,6 +1,6 @@
 ---
 title: 数组、树与嵌套对象
-description: ObjectField / ArrayField / TreeField 提供相对作用域；行身份用 rowKey，设置用行模板跟着行走；嵌套值按 path 写。
+description: ObjectField / ArrayField / TreeField 提供相对作用域；行身份用 rowKey（或对象身份），设置用行模板跟着行走；嵌套值按 path 写。
 ---
 
 # 数组、树与嵌套对象
@@ -76,6 +76,8 @@ export default function App() {
 - `contacts.*.name` 是行模板：已有的行和以后添加的行都带这条设置，行没渲染也会校验。
 - 写死下标的声明（`fields: { 'contacts.0.name': { virtual: true } }`、`registerField('contacts.0.name', …)`）属于**这个路径**，不属于行：移动、交换、插入、删除后，它留在 `contacts.0.name`，作用于此刻占着第 0 行的那一行。要让设置跟着行走，用 `contacts.*.name` 或 [`reaction.each`](/guide/linkage#reactioneach每一行一个实例)。
 - 增删改行走 `form.*Array` 或 `useArray()`，不要原地 `push` 到 `getValue` 拿到的数组。`ArrayField` 的父组件只订阅结构（行数、行 id），不订阅单元格的值。
+- 行没有 `rowKey` / `id` 时用对象身份当 key，同样跟着行走；`rowKey` 只在行里本来就有业务 id 时传。
+- 现成的添加 / 删除 / 移动 / 拖拽按钮（不可编辑时自动隐藏）：[数组容器 ArrayItems / ArrayCards](/guide/arrays)。
 
 树的节点由你渲染，每个节点包一层 `<RowScope path pos>`；`trees` 选项让联动在组件挂载前就认识树根。例子见 [联动 · reaction.walk](/guide/linkage#reactionwalk每个树节点一个实例) 和 [Headless Hooks](/guide/headless)。
 

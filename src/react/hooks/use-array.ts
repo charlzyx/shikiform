@@ -88,9 +88,13 @@ function useArrayAt(path: string, rowKey?: string): ArrayHandle<unknown> {
  * `to` is the final index.
  */
 export function useArrayMove(name: string) {
-  const form = useFormContext()
   const scope = useScope()
-  const path = joinPath(scope.path, name)
+  return useArrayMoveAt(joinPath(scope.path, name))
+}
+
+/** {@link useArrayMove} for an absolute array path (internal: array containers read it from `ArrayContext`). */
+export function useArrayMoveAt(path: string) {
+  const form = useFormContext()
   const fromRef = useRef<number | null>(null)
   const move = useCallback((from: number, to: number) => form.moveArray(path, from, to), [form, path])
   const swap = useCallback((indexA: number, indexB: number) => form.swapArray(path, indexA, indexB), [form, path])

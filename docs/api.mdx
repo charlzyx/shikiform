@@ -45,6 +45,7 @@ createForm<T, TSubmit = T>(options?: FormOptions<T>): FormEngine<T, TSubmit>  //
 | `validateTrigger` | `['onBlur', 'onSubmit']` | 可加 `'onChange'` |
 | `asyncDebounceMs` | `0` | 异步规则的防抖，字段可单独设置 |
 | `enumPolicy` | `'none'` | 值不在 `$enum` 里时：`'clear'` 清掉，`'error'` 报错 |
+| `pattern` | — | 整张表的初始 pattern（根上的 `$pattern`），没有自己 pattern 的字段都继承：`'readPretty'` 做详情页。之后用 `d.$pattern = …` 改，`undefined` 恢复可编辑 |
 | `trees` | — | `{ [path]: { childrenKey?, rowKey? } }`：让联动在挂载前就认识树根 |
 | `resolver` | — | 额外的 path → 文案校验函数 |
 | `messages` | 中文 | 覆盖内置文案（校验、提交重试、树移动拒绝、antd 组件按钮），可部分覆盖，值可以是函数，见 [内置文案](/guide/validation#内置文案) |
@@ -110,7 +111,7 @@ await form.submit((values) => {
 | `<Form form onSubmit onInvalid onSubmitError …>` | 提供引擎，渲染原生 `<form>`，提交时调用 `form.submit(onSubmit)`；校验失败调 `onInvalid(errors)`，`onSubmit` 抛错调 `onSubmitError(error)`（不传则 `console.error`）；其余属性（`id`、`className`、`noValidate`、`aria-*`）透传给 `<form>` |
 | `<Field name …>` | 拥有一个 path，渲染 decorator + component，属性见 [Field](/guide/field) |
 | `<ObjectField name virtual?>` | 对象作用域 |
-| `<ArrayField name rowKey?>{({ index, key }) => …}` | 每行一个作用域；父组件只订阅结构 |
+| `<ArrayField name rowKey? component?>{({ index, key }) => …}` | 每行一个作用域；父组件只订阅结构。`component` 是包住各行的容器（`ArrayItems` / `ArrayCards`，见 [数组容器](/guide/arrays)） |
 | `<TreeField name childrenKey? rowKey?>{(tree) => …}` | 注册树根，节点由你渲染 |
 | `<RowScope path index? itemKey? pos?>` | 行 / 树节点作用域，`useIndex` / `useRecord` / `useTreeNode` 从这里读 |
 | `<ArrayScope path rowKey?>` | 自己实现的数组组件里，标记 `useArray()` 的目标 |

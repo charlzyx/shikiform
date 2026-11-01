@@ -24,7 +24,8 @@ This page is the one-screen mental model plus the mistakes worth avoiding. Repo 
 `d.$canSubmit` / `d.$submitting`. A field literally named `value` is `d.value.$value`.
 
 - `$pattern` / `$display` inherit from ancestors, the root included: `form.batch((d) => { d.$pattern = 'readPretty' })`
-  switches the whole form (a field with its own pattern wins; `undefined` inherits again).
+  switches the whole form (a field with its own pattern wins; `undefined` inherits again). To start that way (a detail
+  page), `useForm({ initialValues, pattern: 'readPretty' })` sets the root `$pattern` at creation.
 - Empty values (`''`, `null`, `undefined`) are judged only by `required`: `minLength`, `pattern`, `min`, `format` pass them.
 
 - Read data with `$value`; write a field by assigning its own path: `d.user.name.$value = 'x'`.
@@ -65,6 +66,25 @@ move / swap / insert / remove it stays on `rows.0.x` and applies to whichever ro
 In React, a row component reads its row without names: `useArray()` (nearest array handle: `push`, `remove`,
 `move`…), `useIndex()`, `useRecord()` (reactive row value), `useTreeNode()` (inside `<RowScope path pos>`).
 `useArrayField(name)` is the named version. `ProArrayTable.useRow()` is built on these.
+Rows need no id: object rows without `rowKey` / `id` keep a stable object identity (state follows them on move).
+
+Ready-made row buttons: give `<ArrayField>` a container `component` from `shikiform/antd` (Formily `ArrayItems` /
+`ArrayCards`) instead of writing `useArray()` buttons by hand. Action buttons render only while the array's effective
+pattern is `editable` (readPretty / readOnly / disabled anywhere above hides them; `useArrayEditable()` for your own).
+
+```tsx
+<F.ArrayField name="contacts" component={[ArrayItems, { addition: <ArrayItems.Addition /> }]}>
+  {(row) => (
+    <ArrayItems.Item>
+      <ArrayItems.SortHandle /><ArrayItems.Index />
+      <row.Field name="name" decorator={[FormItem]} component={[Input]} />
+      <ArrayItems.MoveUp /><ArrayItems.MoveDown /><ArrayItems.Remove />
+    </ArrayItems.Item>
+  )}
+</F.ArrayField>
+// ArrayCards: each row's fields become a card body, header `title #n`, default extra = up / down / remove
+<F.ArrayField name="items" component={[ArrayCards, { title: '商品' }]}>{(row) => <row.Field name="sku" … />}</F.ArrayField>
+```
 
 ## 4. Nested values: per-path writes vs `$componentProps` patches
 
