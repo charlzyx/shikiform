@@ -110,6 +110,8 @@ export interface UseQueryTableOptions<TValues, TParams, TRow> {
 
 export interface QueryTableApi<TValues, TParams, TRow> {
   form: FormEngine<TValues>
+  /** The `rows` option: the array field each page is written into (`undefined` without it). `QueryList` renders it. */
+  rows?: string
   /** Rows for the current page. The previous page stays up while the next request is in flight. */
   data: TRow[]
   total: number
@@ -298,6 +300,7 @@ export function useQueryTable<TValues, TParams = TValues, TRow = unknown>(
 
   return {
     form,
+    rows: rowsPath || undefined,
     data,
     total,
     loading: queried.isFetching && queried.data == null,

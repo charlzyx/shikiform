@@ -43,6 +43,7 @@ useQueryTable<TValues, TRow = unknown>(
 | `selectedKeys` | `'selectedKeys'` | 选择字段路径；初始缺失时为 `[]`，读取时转换为 string[] |
 | `mode` | `'server'` | server 模式由服务端分页；client 模式对请求结果的整个 data 做切片 |
 | `request` | **必填** | 异步返回 `{ data, total }`，见协议 |
+| `rows` | 不写回 | 数组字段路径：每页 `data` 写进这个字段并作为它的初始值，单元格可直接编辑（`QueryList` 用它） |
 | `useQuery` | `useBuiltinQuery` | 可接 TanStack Query 等兼容 Hook；每次渲染应传同一个 Hook，不要动态切换 Hook 实现 |
 
 初始化时，client 的 page、pageSize 都标记 virtual；server 中两者非 virtual；selectedKeys 总是 virtual。路径和模式等配置在同一实例生命周期内保持稳定。首次请求在 effect 中发起，SSR 不发送请求。
@@ -71,6 +72,7 @@ server 返回当前页 data 和未分页的 total；client 返回本次筛选下
 | 返回成员 | 类型 / 行为 |
 |---|---|
 | `form` | 原表单实例，可以用正式 Field/Hook 接搜索控件 |
+| `rows` | `rows` 选项的字段路径（没传为 `undefined`）；`QueryList` 默认渲染它 |
 | `data`、`total` | 当前页 `TRow[]`、总数；未取得数据时 `[]` / `0` |
 | `loading` | 请求中且还没有旧数据时 true |
 | `fetching` | 所有进行中的请求都为 true，包含保留旧结果的刷新 |

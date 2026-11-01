@@ -8,8 +8,11 @@ import { QueryForm } from './query-table'
 export interface QueryListProps<TValues, TParams, TRow> {
   /** From `useQueryTable({ …, rows: list })`: the hook writes each page into the `list` array field. */
   table: QueryTableApi<TValues, TParams, TRow>
-  /** The array field the hook writes (`rows` option). Rows are form fields, so cells can be edited in place. */
-  list: string
+  /**
+   * The array field the hook writes. Defaults to the hook's `rows` option, so it is only needed for another array.
+   * Rows are form fields, so cells can be edited in place.
+   */
+  list?: string
   rowKey?: string
   columns: ProArrayTableColumn<TRow>[]
   /** Search fields, one child per grid cell. */
@@ -36,6 +39,19 @@ export interface QueryListProps<TValues, TParams, TRow> {
  */
 export function QueryList<TValues, TParams, TRow>(props: QueryListProps<TValues, TParams, TRow>) {
   const { table } = props
+  const list = props.list ?? table.rows
+  if (!list) {
+    throw new Error(
+      '[shikiform] QueryList has no rows to render: pass `rows` to useQueryTable (`useQueryTable({ …, rows: \'list\' })`), ' +
+        'the array field each page is written into.',
+    )
+  }
+  if (process.env.NODE_ENV !== 'production' && props.list && props.list !== table.rows) {
+    console.warn(
+      `[shikiform] <QueryList list="${props.list}"> but useQueryTable writes ${table.rows ? `rows: '${table.rows}'` : 'no rows (no `rows` option)'}: ` +
+        'the table shows that array, not the query results. Drop `list` or set the same path as `rows`.',
+    )
+  }
   const fields = Children.toArray(props.children)
   const collapseAfter = props.collapseAfter ?? 3
   const [collapsed, setCollapsed] = useState(true)
@@ -63,7 +79,7 @@ export function QueryList<TValues, TParams, TRow>(props: QueryListProps<TValues,
         </>
       ) : null}
       <ProArrayTable<TRow>
-        name={props.list}
+        name={list}
         rowKey={props.rowKey ?? 'id'}
         columns={props.columns.map((column) => ({
           ...column,

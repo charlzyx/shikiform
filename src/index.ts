@@ -76,3 +76,21 @@ export type {
   UseFieldOptions,
   UseFormOptions,
 } from './react'
+// Engine names a React app needs without a second import line (`shikiform/core` exports the same objects).
+export { Enum, EnumSource, ShikiConflictError, ShikiCycleError, ShikiUiError, ShikiUsageError } from './core'
+export type {
+  Display,
+  EffectDef,
+  EnumBinding,
+  EnumOption,
+  FieldPath,
+  FormInstance,
+  MoveResult,
+  PathValue,
+  Pattern,
+  Pos,
+  Rule,
+  RulesInput,
+  ValidateCtx,
+  ValidateTrigger,
+} from './core'
