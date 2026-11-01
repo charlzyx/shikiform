@@ -156,9 +156,10 @@ export class StateWriter {
   }
 
   private bumpDescendants(path: string): void {
-    const prefix = path + '.'
+    // The root ('') is everyone's ancestor.
+    const prefix = path ? path + '.' : ''
     for (const fieldPath of this.deps.store.fields.keys()) {
-      if (fieldPath.startsWith(prefix)) this.deps.notifier.bumpPath(fieldPath)
+      if (fieldPath && fieldPath !== path && fieldPath.startsWith(prefix)) this.deps.notifier.bumpPath(fieldPath)
     }
   }
 

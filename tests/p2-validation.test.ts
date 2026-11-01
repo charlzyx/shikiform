@@ -99,7 +99,7 @@ describe('rules that combine required with other constraints', () => {
     expect((await combined.validate()).flatMap((error) => error.messages)).toContain('至少 6 个字符')
   })
 
-  it('reports both required and minLength when the value is empty', async () => {
+  it('reports only required when the value is empty (other rules skip empty values)', async () => {
     const combined = createForm<{ name: string }>({
       initialValues: { name: '' },
       fields: { name: { rules: [{ required: true, minLength: 6 }] } },
@@ -111,7 +111,7 @@ describe('rules that combine required with other constraints', () => {
     const combinedErrors = await combined.validate()
     const splitErrors = await split.validate()
     expect(combinedErrors).toEqual(splitErrors)
-    expect(combinedErrors.flatMap((error) => error.messages)).toEqual(['必填', '至少 6 个字符'])
+    expect(combinedErrors.flatMap((error) => error.messages)).toEqual(['必填'])
   })
 
   it('runs a validator that shares a rule with required', async () => {
@@ -157,7 +157,8 @@ describe('JSX unmount', () => {
     })
     form.mountJsxField('name', { rules: [{ minLength: 4, message: '太短' }] })
     await form.validate()
-    expect(form.errors.flatMap((error) => error.messages)).toEqual(['必填', '太短'])
+    // empty value: the JSX minLength skips it, only the declared required reports
+    expect(form.errors.flatMap((error) => error.messages)).toEqual(['必填'])
     form.releaseJsxField('name')
     expect(form.binding('name').required).toBe(true)
     expect(form.errors.flatMap((error) => error.messages)).toEqual(['必填'])

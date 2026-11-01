@@ -26,6 +26,8 @@ import { TutorialPlay } from '../_components/TutorialStep';
 | `validator(value, ctx)` | 返回错误文案、空值或它们的 Promise；`ctx` 有 `record`（最近的对象）、`parent`（跳过数组的上一层）、`root`、`get(path)`、`signal`，它们和 `value` 读的是同一轮校验开始时的值。抛错或 reject 时，错误的 `message` 就是这个字段的提示 |
 | `message` | 覆盖这条规则的文案 |
 
+空值（`''`、`null`、`undefined`）只由 `required` 判断：`minLength`、`pattern`、`min`、`format` 等对空值直接通过（与 Formily、antd 相同），所以选填字段不会因为没填而报「至少 3 个字符」，必填字段没填时也只显示「必填」一条。
+
 ```tsx preview play=schema
 import { useState } from 'react';
 import { Button } from 'antd';

@@ -27,7 +27,7 @@ export interface Rule {
   min?: number
   /** Inclusive upper bound for a number. */
   max?: number
-  /** Minimum string length. An empty string fails this check. */
+  /** Minimum string length. Like every constraint except `required` / `isTrue`, an empty value passes it. */
   minLength?: number
   /** Maximum string length. */
   maxLength?: number
@@ -109,7 +109,8 @@ export function runRules(
     if (!isEmpty(value) && rule.format === 'url' && (typeof value !== 'string' || !URL.test(value))) {
       out.push(rule.message ?? formatMessage(messages, 'url', base))
     }
-    if (typeof value === 'string') {
+    // An empty value is `required`'s job: constraints only judge what was entered (Formily, antd).
+    if (typeof value === 'string' && value !== '') {
       const length = value.length
       if (rule.minLength != null && length < rule.minLength) {
         out.push(rule.message ?? formatMessage(messages, 'minLength', { ...base, minLength: rule.minLength, length }))

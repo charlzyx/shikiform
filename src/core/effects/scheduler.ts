@@ -1,5 +1,5 @@
 import { ShikiConflictError, ShikiCycleError, ShikiUsageError, showDraftPath } from '../errors'
-import { parentPath } from '../shared/path'
+import { parentPath, selfAndAncestors } from '../shared/path'
 import type { Notifier } from '../state/notifier'
 import type { Pos } from '../shared/tree-ops'
 import type { Draft, WriteOp } from '../types'
@@ -152,13 +152,9 @@ export class Scheduler {
     tracker.deps.add(`${path}:${state}`)
   }
 
-  /** Record reads on `path` and every ancestor (inherited states: display, pattern). */
+  /** Record reads on `path`, every ancestor and the root (inherited states: display, pattern). */
   trackChain(path: string, state: string): void {
-    let cursor: string | null = path
-    while (cursor) {
-      this.track(cursor, state)
-      cursor = parentPath(cursor)
-    }
+    for (const cursor of selfAndAncestors(path)) this.track(cursor, state)
   }
 
   register(id: string, run: () => void, deps: Set<string>): void {

@@ -13,6 +13,10 @@ This page is the one-screen mental model plus the mistakes worth avoiding. Repo 
 (`$title`, `$description`, `$componentProps`, `$decoratorProps`, `$component`, `$decorator`), and form-level
 `d.$canSubmit` / `d.$submitting`. A field literally named `value` is `d.value.$value`.
 
+- `$pattern` / `$display` inherit from ancestors, the root included: `form.batch((d) => { d.$pattern = 'readPretty' })`
+  switches the whole form (a field with its own pattern wins; `undefined` inherits again).
+- Empty values (`''`, `null`, `undefined`) are judged only by `required`: `minLength`, `pattern`, `min`, `format` pass them.
+
 - Read data with `$value`; write a field by assigning its own path: `d.user.name.$value = 'x'`.
 - A `$value` object is a snapshot of immutable data. Never mutate it; assign a new value or write the child path.
   Inside `reaction`, `watch` and `form.batch` the snapshot is read-only in development (mutation throws).
@@ -99,7 +103,9 @@ const form = createForm({
 
 - Slots take a component or `[Component, props]`; children (`<Field …><Input /></Field>`) or a render prop also work.
 - Table cells can drop the decorator (`<Field name="qty" component={[InputNumber]} />`) or use another one.
-- `FormItem` outside a field is pure layout: `<FormItem label="地址">…two Fields…</FormItem>`. It shows all errors;
+- `FormItem` outside a field is pure layout: `<FormItem label="地址" asterisk>…two Fields, each `decorator={[FormItem]}`…</FormItem>`.
+  A label-less `FormItem` takes no `labelCol` / `wrapperCol` / `labelWidth` from `FormLayout` (Formily), so the inner
+  items fill the row and show their own errors. A field `FormItem` shows all errors;
   `feedbackLayout: 'popover'`, `addonBefore/After`, `labelWidth`, `requiredMark: 'optional'` are props or `FormLayout` keys.
 - Layout: `FormLayout` (responsive arrays for layout / labelCol / labelWidth …), `FormGrid` + `gridSpan` / `GridColumn`,
   buttons in `<FormButtonGroup.FormItem><Submit /><Reset /></FormButtonGroup.FormItem>` (aligned to the control column).

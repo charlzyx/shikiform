@@ -71,7 +71,8 @@ function feedback(messages: readonly string[]): ReactNode {
  *   (`feedbackLayout: 'none'` / `'popover'` drop the help row, `'terse'` drops the bottom margin while there is none);
  * - `labelWidth` / `wrapperWidth` become `labelCol` / `wrapperCol` `flex`; `labelWrap` adds Ant Design's wrap class;
  *   `tooltipLayout: 'text'` puts `tooltip` after the label as text; `gridSpan` sets `gridColumn`;
- * - `htmlFor` ← `field.id`.
+ * - `htmlFor` ← `field.id`;
+ * - an item with no label ignores the layout's `labelCol` / `wrapperCol` / `labelWidth` / `wrapperWidth` (Formily).
  *
  * `field` may be `null`: pure layout, no status. A hook user renders the same item without the component:
  * `<Form.Item {...mapFormItemProps(field, {})}>` (the addons and the popover are the component's own markup).
@@ -83,7 +84,12 @@ export function mapFormItemProps(
   env: FormItemEnv = {},
 ): AntFormItemProps {
   const binding = field ?? NO_FIELD
-  const merged = { ...layout, ...binding.decoratorProps, ...props } as FormItemProps & FormLayoutValue
+  // Like Formily, an item with no label takes no columns from the layout: a label-less field inside a labelled row
+  // (`<FormItem label="地址">` over two fields) fills that row instead of shrinking to the layout's `wrapperCol`.
+  // Columns given on the item itself (`decoratorProps` / props) still apply.
+  const hasLabel = !!(props.label ?? binding.decoratorProps.label ?? field?.title)
+  const { labelCol: _lc, wrapperCol: _wc, labelWidth: _lw, wrapperWidth: _ww, ...layoutRest } = layout
+  const merged = { ...(hasLabel ? layout : layoutRest), ...binding.decoratorProps, ...props } as FormItemProps & FormLayoutValue
   const {
     asterisk, feedbackLayout = 'loose', size: _size, layout: direction, label, extra, style, addonBefore: _before,
     addonAfter: _after, gridSpan, labelWidth, wrapperWidth, labelWrap, requiredMark = true, tooltipLayout = 'icon',
