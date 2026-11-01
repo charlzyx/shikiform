@@ -68,6 +68,9 @@ In React, a row component reads its row without names: `useArray()` (nearest arr
 
 `<Field>` is the single owner of a path (Formily style). It renders `decorator` around `component` and provides the
 field through context; `FormItem` is a pure decorator and `connect()`ed controls need no `name`.
+A `connect()`ed control forwards `ref` and keeps the target's statics (`Select.Option`). Outside a field with no
+`name` / `field` prop it renders as the plain control with only your props (dev warning once) — it is not bound.
+`mapProps` object keys also take field state: `mapProps({ title: 'placeholder' })`.
 
 ```tsx
 import { createForm, defineEffects, Field, Form } from 'shikiform'

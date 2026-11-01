@@ -9,7 +9,7 @@ antd 控件要的是 `value`、`onChange`、`status`、`disabled` 这些 props�
 
 ## 接好的控件
 
-`Input`（含 `TextArea`、`Password`）、`InputNumber`、`Select`、`Switch`、`Checkbox`（含 `Group`）、`Radio.Group`、`DatePicker`（含 `RangePicker`）可以直接放进 `component`：
+`Input`（含 `TextArea`、`Password`）、`InputNumber`、`Select`、`Switch`、`Checkbox`（含 `Group`）、`Radio`（就是单选组，`Radio.Group` 同一个）、`DatePicker`（含 `RangePicker`）可以直接放进 `component`：
 
 - 选择类控件的 `options` 默认取字段枚举（`fields.x.enum` 或 `$enum`），异步枚举时自动带 `loading`。
 - `pattern` 自动生效：`disabled` / `readOnly` 禁用控件，`readPretty` 换成文字（选择类显示标签，可加 `prettyType="badge" | "tag"`）。
@@ -45,7 +45,7 @@ export default function App() {
           <Field name="age" title="InputNumber" decorator={[FormItem]} component={[InputNumber]} />
           <Field name="level" title="Select" decorator={[FormItem]} component={[Select, { prettyType: 'tag', style: { width: 160 } }]} />
           <Field name="tags" title="Checkbox.Group" decorator={[FormItem]} component={[Checkbox.Group]} />
-          <Field name="gender" title="Radio.Group" decorator={[FormItem]} component={[Radio.Group]} />
+          <Field name="gender" title="Radio" decorator={[FormItem]} component={[Radio]} />
           <Field name="vip" title="Switch" decorator={[FormItem]} component={[Switch]} />
           <Field name="birthday" title="DatePicker" decorator={[FormItem]} component={[DatePicker]} />
         </ObjectField>
@@ -64,6 +64,7 @@ export default function App() {
 | enhancer | 作用 |
 |---|---|
 | `mapProps({ value: 'checked' })` | 重命名绑定属性；`false` 丢弃（`{ status: false }`）；`getValueFromEvent` 自定义取值 |
+| `mapProps({ title: 'placeholder' })` | 把其他字段状态交给某个 prop：`title`、`description`、`required`、`validating`、`componentProps.x` …；调用方显式传的 prop 优先 |
 | `mapProps((props, field) => props)` | 最后一步变换 props |
 | `mapReadPretty(View)` | `readPretty` 时渲染 `View`（收到 `value` 和 `options`）；没有它时按 `readOnly` 处理 |
 
@@ -94,6 +95,8 @@ export default function App() {
 ```
 
 控件的 `onChange` 先写字段，再用原始参数调用你传的 `onChange`；`onBlur` 同理。
+
+和 Formily 一样，`ref` 转发给原控件，静态成员（`Select.Option`、`Input.Search`）保留。接好的控件放在 `<Field>` 外、也没给 `name` 时，就是普通控件：只用你传的 props，开发环境警告一次。
 
 不想经过 `connect` 时，组件里用不带参数的 `useField()` 读当前字段，自己接线。`<Field>` 的 `component`、子元素、表格单元格里的 `<Field>` 都一样：
 

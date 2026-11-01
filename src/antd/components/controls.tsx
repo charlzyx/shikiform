@@ -9,7 +9,7 @@ import {
 } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
 import type { ComponentProps, ComponentType, FocusEventHandler } from 'react'
-import { connect, mapProps, mapReadPretty } from '../adapter/connect'
+import { connect, mapProps, mapReadPretty, type ComponentStatics } from '../adapter/connect'
 import { PreviewText } from '../adapter/preview'
 import { ChoicePreview, stripPrettyType, type EnumPrettyProps } from './enum-pretty'
 
@@ -25,8 +25,8 @@ function PasswordPreview({ value }: { value?: unknown }) {
 const choice = mapProps({ options: 'options', loading: 'loading', readOnly: 'disabled' }, stripPrettyType)
 const pretty = mapReadPretty(ChoicePreview)
 /** A choice control also takes `prettyType` for its `readPretty` view. */
-function withPretty<C extends ComponentType<any>>(component: C): ComponentType<ComponentProps<C> & EnumPrettyProps> {
-  return component as ComponentType<ComponentProps<C> & EnumPrettyProps>
+function withPretty<C extends ComponentType<any>>(component: C): ComponentStatics<C> & ComponentType<ComponentProps<C> & EnumPrettyProps> {
+  return component as unknown as ComponentStatics<C> & ComponentType<ComponentProps<C> & EnumPrettyProps>
 }
 
 /** Text input. `readPretty` shows the text. `Input.TextArea` and `Input.Password` are connected too. */
@@ -58,10 +58,18 @@ export const Checkbox = Object.assign(connect(AntCheckbox, mapProps({ value: 'ch
   Group: connect(withPretty(AntCheckbox.Group), mapProps({ options: 'options', readOnly: 'disabled', status: false, id: false }, stripPrettyType), pretty),
 })
 
-/** `Radio.Group` with enum `options`. `readPretty` shows the selected label (badge / tag with `prettyType`). */
-export const Radio = {
-  Group: connect(withPretty(AntRadio.Group), mapProps({ options: 'options', readOnly: 'disabled', status: false, id: false }, stripPrettyType), pretty),
-}
+const RadioGroup = connect(
+  withPretty(AntRadio.Group),
+  mapProps({ options: 'options', readOnly: 'disabled', status: false, id: false }, stripPrettyType),
+  pretty,
+)
+
+/**
+ * Radio group with enum `options`; `Radio` and `Radio.Group` are the same control (`component={[Radio]}` works).
+ * A single yes/no radio is a `Checkbox` / `Switch` job. `Radio.Button` is Ant Design's, for `optionType="button"` children.
+ * `readPretty` shows the selected label (badge / tag with `prettyType`).
+ */
+export const Radio = Object.assign(RadioGroup, { Group: RadioGroup, Button: AntRadio.Button })
 
 function toDayjs(value: unknown, format: unknown): Dayjs | null {
   if (value == null || value === '') return null

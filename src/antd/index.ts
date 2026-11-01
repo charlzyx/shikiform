@@ -13,7 +13,7 @@
  * @packageDocumentation
  */
 export { connect, mapFieldProps, mapProps, mapReadPretty } from './adapter/connect'
-export type { ConnectEnhancer, ConnectFieldProps, ConnectedComponent, FieldPropKey, PropsMapping, PropsTransform } from './adapter/connect'
+export type { ComponentStatics, ConnectEnhancer, ConnectFieldProps, ConnectedComponent, FieldPropKey, FieldStateKey, PropsMapping, PropsTransform } from './adapter/connect'
 export { FormItem, mapFormItemProps } from './adapter/form-item'
 export type { FormItemEnv, FormItemProps } from './adapter/form-item'
 export { FormLayout, useFormLayout } from './adapter/form-layout'
