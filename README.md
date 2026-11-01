@@ -11,7 +11,7 @@
 | peer 依赖 | 版本 | 什么时候需要 |
 |---|---|---|
 | `react` / `react-dom` | `^18 \|\| ^19` | 用 React 层时 |
-| `antd` / `dayjs` | `^5` / `^1` | 只在用 `shikiform/antd` 时 |
+| `antd` / `dayjs` | `^5.18` / `^1` | 只在用 `shikiform/antd` 时（`FormLayout layout="vertical"` 需要 antd 5.18 起的 `Form.Item layout`） |
 
 四个入口：`shikiform/core`（无 React 的引擎）、`shikiform`（React 组件与 Hooks）、`shikiform/pro`（无 UI 的表格 / 查询 / 草稿）、`shikiform/antd`（`FormItem`、控件与按钮）。
 
@@ -65,7 +65,7 @@ Hooks 是主 API，JSX 是其结构与渲染封装；draft 和 `$` 描述状态�
 - `shikiform/pro` — headless 查询、数组表格/列配置、影子草稿、联想与懒加载级联 Hooks，以及枚举显示工具（不依赖 antd）
 - `shikiform/antd` — `connect` / `FormItem` / `FormLayout` 适配、已绑定控件和 `Submit` / `Reset`；`ProArrayTable`、`QueryList`、影子容器和高级输入，以及原有 `ProQueryTable`、`ArrayTable`、`MergedTable`
 
-`react` / `react-dom` 的 peer 是 `^18 || ^19`。`antd` 的 peer 是 `^5`。包是 `private`，`exports` 指向 `lib/`。仓库开发的 TypeScript paths 和 Vite alias 指向正式 `src/` 入口；教程不再有特殊运行时 alias。`check:docs` 从 `npm pack` 的 tarball 创建独立消费者，不继承仓库 paths/alias，检查真正复制出去的源码。
+`react` / `react-dom` 的 peer 是 `^18 || ^19`。`antd` 的 peer 是 `^5.18.0`（`Form.Item layout`）；运行时依赖只有 `@tanstack/react-virtual`，react / antd / dayjs 都是 peer，zod / immer 只用于文档和 playground。包是 `private`，`exports` 指向 `lib/`。仓库开发的 TypeScript paths 和 Vite alias 指向正式 `src/` 入口；教程不再有特殊运行时 alias。`check:docs` 从 `npm pack` 的 tarball 创建独立消费者，不继承仓库 paths/alias，检查真正复制出去的源码。
 
 ## 本地开发
 

@@ -1,5 +1,5 @@
 import dayjs from 'dayjs'
-import type { ReactElement } from 'react'
+import { createRef, forwardRef, type ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 import { createForm, defineEffects, Field, Form, useField, type FieldBinding } from '../src'
@@ -34,7 +34,8 @@ function binding(value: unknown, extra: { pattern?: Pattern; enum?: { label: str
  * The `field` branch calls no hooks, so the mapping is inspectable without a DOM.
  */
 function target(Component: any, props: Record<string, unknown>): ReactElement<any> {
-  let element: ReactElement<any> = Component(props)
+  // `connect` returns a forwardRef component: call its render with no ref.
+  let element: ReactElement<any> = typeof Component === 'function' ? Component(props) : Component.render(props, null)
   while (typeof element.type === 'function' && (element.type as any).name === 'WithField') {
     element = (element.type as any)(element.props)
   }
@@ -154,10 +155,53 @@ describe('connect', () => {
     expect(html).toContain('hi')
   })
 
-  it('throws a clear error with no field source', () => {
-    const Bare = connect(() => null)
+  it('outside a field renders the plain control and warns once in development', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const Bare = connect(function BareControl(props: { label?: string }) { return <i>{props.label}</i> })
     const form = createForm({ initialValues: {} })
-    expect(() => renderToStaticMarkup(<Form form={form}><Bare /></Form>)).toThrow(/needs a `name` prop/)
+    expect(renderToStaticMarkup(<Form form={form}><Bare label="plain" /><Bare label="again" /></Form>)).toBe('<form><i>plain</i><i>again</i></form>')
+    expect(renderToStaticMarkup(<Bare label="no form" />)).toBe('<i>no form</i>')
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(String(warn.mock.calls[0]![0])).toMatch(/Connected\(BareControl\) is outside a <Field>/)
+    warn.mockRestore()
+  })
+
+  it('forwards ref and hoists statics (Select.Option, Input.Search)', () => {
+    let seen: unknown
+    const Target = forwardRef<HTMLInputElement, { value?: string }>(function Target(props, ref) {
+      seen = ref
+      return <input ref={ref} readOnly value={props.value ?? ''} />
+    })
+    const withStatic = Object.assign(Target, { Extra: 'x' as const })
+    const Connected = connect(withStatic)
+    const _typed: 'x' = Connected.Extra
+    void _typed
+    const ref = createRef<HTMLInputElement>()
+    const form = createForm({ initialValues: { a: 'v' } })
+    renderToStaticMarkup(<Form form={form}><Connected name="a" ref={ref} /></Form>)
+    expect(seen).toBe(ref)
+    expect(Connected.Extra).toBe('x')
+    expect(Select.Option).toBeDefined()
+    expect((Input as any).Search).toBeDefined()
+  })
+
+  it('mapProps object keys take any field state: title, required, componentProps.x', () => {
+    const Probe = vi.fn((_props: Record<string, unknown>) => null)
+    const Connected = connect(Probe, mapProps({ title: 'placeholder', required: 'aria-required', 'componentProps.max': 'count' }))
+    const form = createForm({ initialValues: { a: '' }, fields: { a: { title: '名称', required: true, componentProps: { max: 5 } } } })
+    renderToStaticMarkup(<Form form={form}><Connected name="a" /></Form>)
+    expect(Probe.mock.calls[0]![0]).toMatchObject({ placeholder: '名称', 'aria-required': true, count: 5 })
+    renderToStaticMarkup(<Form form={form}><Connected name="a" placeholder="explicit" /></Form>)
+    expect(Probe.mock.calls[1]![0]).toMatchObject({ placeholder: 'explicit' })
+  })
+
+  it('Radio is usable as a component itself (the group), with Radio.Group and Radio.Button', () => {
+    const form = createForm({ initialValues: { r: 'b' }, fields: { r: { enum: [{ label: '甲', value: 'a' }, { label: '乙', value: 'b' }] } } })
+    const html = renderToStaticMarkup(<Form form={form}><Field name="r" component={[Radio]} /></Form>)
+    expect(html).toContain('ant-radio-group')
+    expect(html).toContain('乙')
+    expect(Radio.Group).toBe(Radio)
+    expect(Radio.Button).toBeDefined()
   })
 })
 

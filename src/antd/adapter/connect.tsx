@@ -1,15 +1,35 @@
-import type { ComponentType, ReactElement } from 'react'
+import {
+  forwardRef,
+  type ComponentClass,
+  type ComponentProps,
+  type ComponentType,
+  type ForwardRefExoticComponent,
+  type FunctionComponent,
+  type ReactElement,
+  type Ref,
+} from 'react'
 import { useFieldContextOrNull } from '../../react/field-context'
 import { useField, type FieldBinding } from '../../react/hooks/use-field'
 
-/** Binding keys a control can receive. Each maps to a prop name, or `false` to not pass it. */
+/** Binding keys a control receives by default (each under its own name unless mapped). */
 export type FieldPropKey = 'value' | 'onChange' | 'onBlur' | 'disabled' | 'readOnly' | 'status' | 'id' | 'options' | 'loading'
 
 /**
- * Rename (`{ value: 'checked' }`), merge (`{ readOnly: 'disabled' }`), or drop (`{ status: false }`) binding props.
+ * Any other field state a `mapProps` object can hand to a prop (Formily: the key is a field path):
+ * `{ title: 'placeholder' }`, `{ required: 'aria-required' }`, `{ 'componentProps.max': 'count' }`.
+ */
+export type FieldStateKey =
+  | 'title' | 'description' | 'required' | 'validating' | 'touched' | 'dirty' | 'edited' | 'pattern' | 'display' | 'path'
+  | 'errors' | 'warnings'
+  | `componentProps.${string}`
+  | `decoratorProps.${string}`
+
+/**
+ * Rename (`{ value: 'checked' }`), merge (`{ readOnly: 'disabled' }`), drop (`{ status: false }`) binding props, or pass
+ * more field state to a prop (`{ title: 'placeholder' }`; an explicit caller prop wins).
  * `getValueFromEvent` turns the control's `onChange` arguments into the field value.
  */
-export type PropsMapping = Partial<Record<FieldPropKey, string | false>> & {
+export type PropsMapping = Partial<Record<FieldPropKey | FieldStateKey, string | false>> & {
   getValueFromEvent?: (...args: any[]) => unknown
 }
 
@@ -28,7 +48,14 @@ export interface ConnectFieldProps {
   field?: FieldBinding<any>
 }
 
-export type ConnectedComponent<P> = ComponentType<Partial<P> & ConnectFieldProps>
+/** A connected control: the target's props (all optional) plus {@link ConnectFieldProps}; the ref reaches the target. */
+export type ConnectedComponent<P> = ComponentType<Partial<P> & ConnectFieldProps & { ref?: Ref<any> }>
+
+/** Static members of a component (`Select.Option`, `Input.Group` …), hoisted onto its connected version. */
+export type ComponentStatics<C> = Omit<
+  C,
+  keyof FunctionComponent<any> | keyof ComponentClass<any> | keyof ForwardRefExoticComponent<any> | 'prototype'
+>
 
 const DEFAULT_TARGETS: Record<FieldPropKey, string | false> = {
   value: 'value',
@@ -88,6 +115,16 @@ export function mapFieldProps(
   return applyMapping(field, { ...field.componentProps, ...props }, mapping, transforms, false)
 }
 
+/** `title`, `componentProps.max` … read from the binding. */
+function readState(field: FieldBinding<any>, key: string): unknown {
+  let current: unknown = field
+  for (const part of key.split('.')) {
+    if (current == null || typeof current !== 'object') return undefined
+    current = (current as Record<string, unknown>)[part]
+  }
+  return current
+}
+
 function applyMapping(
   field: FieldBinding<any>,
   props: Record<string, any>,
@@ -134,6 +171,10 @@ function applyMapping(
       caller?.(...args)
     }
   }
+  for (const [key, prop] of Object.entries(mapping)) {
+    if (key === 'getValueFromEvent' || key in DEFAULT_TARGETS || typeof prop !== 'string') continue
+    if (props[prop] === undefined) out[prop] = readState(field, key)
+  }
   let result = out
   for (const transform of transforms) result = transform(result, field) ?? result
   return result
@@ -165,19 +206,34 @@ export function mapReadPretty(component: ComponentType<any>, props?: Record<stri
   return { kind: 'readPretty', component, props }
 }
 
+const NOT_STATIC = new Set([
+  // React component statics and function / class built-ins: never copied.
+  'displayName', 'propTypes', 'defaultProps', 'contextType', 'contextTypes', 'childContextTypes', 'getDefaultProps',
+  'getDerivedStateFromProps', 'getDerivedStateFromError', 'mixins', '$$typeof', 'render', 'compare', 'type',
+  'length', 'name', 'prototype', 'caller', 'callee', 'arguments', 'arity',
+])
+const warned = new Set<string>()
+
 /**
  * Turn any value/onChange control into a ShikiForm field control (Formily `connect`).
  * The result reads its field from, in order: a `field` prop, a `name` prop (via {@link useField}),
- * or the surrounding `<Field>` (what `useField()` with no name returns). It has no state of its own: every prop comes from
- * {@link mapFieldProps} over the binding, with the field's `componentProps` merged under the caller's props
+ * or the surrounding `<Field>` (what `useField()` with no name returns). It has no state of its own: every prop comes
+ * from {@link mapFieldProps} over the binding, with the field's `componentProps` merged under the caller's props
  * (so `$componentProps.placeholder = …` in a reaction reaches the control).
+ *
+ * Like Formily, it forwards `ref` to the target and copies the target's static members (`Select.Option`,
+ * `Input.Search` — the originals, not connected). With no field at all it renders the plain control with the
+ * caller's props and warns once in development.
  *
  * ```tsx
  * const Rate = connect(AntRate, mapProps({ status: false }))
  * <Field name="score" title="评分" decorator={[FormItem]} component={[Rate, { count: 10 }]} />
  * ```
  */
-export function connect<P>(target: ComponentType<P>, ...enhancers: ConnectEnhancer[]): ConnectedComponent<P> {
+export function connect<C extends ComponentType<any>>(
+  target: C,
+  ...enhancers: ConnectEnhancer[]
+): ConnectedComponent<ComponentProps<C>> & ComponentStatics<C> {
   const mapping: PropsMapping = {}
   const transforms: PropsTransform[] = []
   let readPretty: Extract<ConnectEnhancer, { kind: 'readPretty' }> | undefined
@@ -188,33 +244,46 @@ export function connect<P>(target: ComponentType<P>, ...enhancers: ConnectEnhanc
     } else readPretty = enhancer
   }
   const Target = target as ComponentType<any>
-  const render = (field: FieldBinding<any>, callerProps: Record<string, any>): ReactElement => {
+  const displayName = `Connected(${Target.displayName ?? Target.name ?? 'Component'})`
+  const render = (field: FieldBinding<any>, callerProps: Record<string, any>, ref: Ref<any>): ReactElement => {
     // The field's componentProps (`fields` ← JSX ← `$componentProps`) sit under the caller's own props.
     const props = { ...field.componentProps, ...callerProps }
     if (readPretty && field.pattern === 'readPretty') {
       const Pretty = readPretty.component
       return <Pretty {...readPretty.props} {...props} value={field.value} options={props.options ?? field.options} />
     }
-    return <Target {...applyMapping(field, props, mapping, transforms, !!readPretty)} />
+    const mapped = applyMapping(field, props, mapping, transforms, !!readPretty)
+    return ref == null ? <Target {...mapped} /> : <Target {...mapped} ref={ref} />
   }
-  function WithField({ field, rest }: { field: FieldBinding<any>; rest: Record<string, any> }) {
-    return render(field, rest)
+  function WithField({ field, rest, forwarded }: { field: FieldBinding<any>; rest: Record<string, any>; forwarded: Ref<any> }) {
+    return render(field, rest, forwarded)
   }
-  function WithName({ name, rest }: { name: string; rest: Record<string, any> }) {
-    return render(useField(name), rest)
+  function WithName({ name, rest, forwarded }: { name: string; rest: Record<string, any>; forwarded: Ref<any> }) {
+    return render(useField(name), rest, forwarded)
   }
-  function FromContext({ rest }: { rest: Record<string, any> }) {
+  function FromContext({ rest, forwarded }: { rest: Record<string, any>; forwarded: Ref<any> }) {
     const field = useFieldContextOrNull()
-    if (!field) throw new Error(`${displayName} needs a \`name\` prop, a \`field\` prop, or a surrounding <Field>`)
-    return render(field, rest)
+    if (field) return render(field, rest, forwarded)
+    if (process.env.NODE_ENV !== 'production' && !warned.has(displayName)) {
+      warned.add(displayName)
+      console.warn(
+        `[shikiform] ${displayName} is outside a <Field> and has no \`name\` / \`field\` prop: it renders as the plain ` +
+          'control, bound to nothing. Put it in <Field name="…" component={[…]}>, or pass name="…".',
+      )
+    }
+    return forwarded == null ? <Target {...rest} /> : <Target {...rest} ref={forwarded} />
   }
-  const displayName = `Connected(${Target.displayName ?? Target.name ?? 'Component'})`
-  function Connected(props: Partial<P> & ConnectFieldProps) {
+  const Connected = forwardRef<any, Record<string, any>>(function Connected(props, forwarded) {
     const { name, field, ...rest } = props as ConnectFieldProps & Record<string, any>
-    if (field) return <WithField field={field} rest={rest} />
-    if (name !== undefined) return <WithName name={name} rest={rest} />
-    return <FromContext rest={rest} />
-  }
+    if (field) return <WithField field={field} rest={rest} forwarded={forwarded} />
+    if (name !== undefined) return <WithName name={name} rest={rest} forwarded={forwarded} />
+    return <FromContext rest={rest} forwarded={forwarded} />
+  })
   Connected.displayName = displayName
-  return Connected
+  for (const key of Object.getOwnPropertyNames(target)) {
+    if (NOT_STATIC.has(key) || key in Connected) continue
+    const descriptor = Object.getOwnPropertyDescriptor(target, key)
+    if (descriptor) Object.defineProperty(Connected, key, descriptor)
+  }
+  return Connected as unknown as ConnectedComponent<ComponentProps<C>> & ComponentStatics<C>
 }

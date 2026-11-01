@@ -43,11 +43,14 @@ export default function Profile() {
 ## connect
 
 ```ts
-connect<P>(target: ComponentType<P>, ...enhancers: ConnectEnhancer[]): ConnectedComponent<P>
-// ConnectedComponent<P> = ComponentType<Partial<P> & { name?: string; field?: FieldBinding<any> }>
+connect<C extends ComponentType<any>>(target: C, ...enhancers: ConnectEnhancer[]): ConnectedComponent<ComponentProps<C>> & ComponentStatics<C>
+// ConnectedComponent<P> = ComponentType<Partial<P> & { name?: string; field?: FieldBinding<any>; ref?: Ref<any> }>
+// ComponentStatics<C> = C 的静态成员（Select.Option、Input.Search …）
 ```
 
-把任意 value/onChange 控件变成字段控件。`enhancers` 由 [mapProps](#mapprops) 与 [mapReadPretty](#mapreadpretty) 生成。返回的组件没有自己的状态：每次渲染都是对当前 `FieldBinding` 调一次 [mapFieldProps](#mapfieldprops)。字段的 `componentProps` 合并在调用方 props 之下（reaction 写的 `$componentProps` 因此能到达控件）。缺少 `name`、`field` 且不在 `<Field>` 内时抛错。
+把任意 value/onChange 控件变成字段控件。`enhancers` 由 [mapProps](#mapprops) 与 [mapReadPretty](#mapreadpretty) 生成。返回的组件没有自己的状态：每次渲染都是对当前 `FieldBinding` 调一次 [mapFieldProps](#mapfieldprops)。字段的 `componentProps` 合并在调用方 props 之下（reaction 写的 `$componentProps` 因此能到达控件）。
+
+和 Formily 一样：`ref` 转发给原控件（React 18 也能拿到）；原控件的静态成员拷到返回值上（`Select.Option`、`Input.Search`，是原始的、未接字段的成员；类型也带上）。既没有 `name` / `field`、又不在 `<Field>` 里时，按普通控件渲染调用方 props，开发环境警告一次。
 
 ```tsx
 const Rate = connect(AntRate, mapProps({ status: false }))
@@ -58,12 +61,14 @@ const Rate = connect(AntRate, mapProps({ status: false }))
 
 ```ts
 mapProps(...args: Array<PropsMapping | PropsTransform>): ConnectEnhancer
-type PropsMapping = Partial<Record<'value' | 'onChange' | 'onBlur' | 'disabled' | 'readOnly' | 'status' | 'id' | 'options' | 'loading', string | false>>
-  & { getValueFromEvent?: (...args: any[]) => unknown }
+type PropsMapping = Partial<Record<FieldPropKey | FieldStateKey, string | false>> & { getValueFromEvent?: (...args: any[]) => unknown }
+type FieldPropKey = 'value' | 'onChange' | 'onBlur' | 'disabled' | 'readOnly' | 'status' | 'id' | 'options' | 'loading'
+type FieldStateKey = 'title' | 'description' | 'required' | 'validating' | 'touched' | 'dirty' | 'edited' | 'pattern' | 'display' | 'path'
+  | 'errors' | 'warnings' | `componentProps.${string}` | `decoratorProps.${string}`
 type PropsTransform = (props: Record<string, any>, field: FieldBinding<any>) => Record<string, any>
 ```
 
-对象参数重命名（`{ value: 'checked' }`）、合并（`{ readOnly: 'disabled' }`，与 `disabled` OR）或丢弃（`{ status: false }`）绑定属性；`options` / `loading` 默认不传，映射后才把字段枚举与加载状态交给控件。函数参数在最后变换 props。`getValueFromEvent` 把控件 `onChange` 的参数换成字段值，默认读取事件的 `target.checked`（checkbox）或 `target.value`，否则取第一个参数本身。
+对象参数重命名（`{ value: 'checked' }`）、合并（`{ readOnly: 'disabled' }`，与 `disabled` OR）或丢弃（`{ status: false }`）绑定属性；`options` / `loading` 默认不传，映射后才把字段枚举与加载状态交给控件。其他字段状态也能用对象写法交给某个 prop（Formily 的对象键）：`mapProps({ title: 'placeholder', required: 'aria-required', 'componentProps.max': 'count' })`，调用方显式传了该 prop 时以调用方为准。函数参数在最后变换 props。`getValueFromEvent` 把控件 `onChange` 的参数换成字段值，默认读取事件的 `target.checked`（checkbox）或 `target.value`，否则取第一个参数本身。
 
 ## mapReadPretty
 
@@ -371,10 +376,13 @@ const Checkbox: ConnectedComponent<antd.CheckboxProps> & {
 ## Radio
 
 ```ts
-const Radio: { Group: ConnectedComponent<antd.RadioGroupProps> }
+const Radio: ConnectedComponent<antd.RadioGroupProps> & {
+  Group: typeof Radio          // 同一个控件
+  Button: typeof antd.Radio.Button
+}
 ```
 
-`Radio.Group` 绑定单值：`onChange(event)` 写入 `event.target.value`。未传 `options` 时使用字段枚举；`readOnly` 渲染为禁用；`readPretty` 显示所选标签。只导出 `Group`：单个 `Radio` 不是字段控件。
+`Radio` 本身就是单选**组**（`component={[Radio]}` 与 `component={[Radio.Group]}` 相同）：`onChange(event)` 写入 `event.target.value`。未传 `options` 时使用字段枚举；`readOnly` 渲染为禁用；`readPretty` 显示所选标签。单独一个是/否单选用 `Checkbox` 或 `Switch`；`Radio.Button` 是 antd 原件，给 `optionType="button"` 以外的手写子项用。
 
 ## DatePicker
 
