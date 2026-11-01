@@ -33,7 +33,7 @@ export type ScopeFields<T> = {
  * `useWatch` / `Watch` select from the root draft (`Draft<TRoot>`).
  */
 export type TypedForm<T, TRoot = T> = ScopeFields<T> & {
-  useField: <N extends FieldPath<T>>(name: N, options?: UseFieldOptions) => FieldBinding<PathValue<T, N & string>>
+  useField: <N extends FieldPath<T>>(name: N, options?: UseFieldOptions<PathValue<T, N & string>>) => FieldBinding<PathValue<T, N & string>>
   useArrayField: <N extends ArrayPath<T>>(name: N, rowKey?: string) => ArrayHandle<ArrayItemOf<T, N & string>>
   useWatch: <S>(select: (d: Draft<TRoot>) => S) => S
   Watch: <S>(props: { select: (d: Draft<TRoot>) => S; children: (value: S) => ReactNode }) => ReactNode

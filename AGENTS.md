@@ -117,10 +117,17 @@ const form = createForm({
   <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }}>
     <Field name="email" title="邮箱" rules={{ format: 'email' }} decorator={[FormItem]} component={[Input]} />
     <Field name="city" decorator={[FormItem]} component={[Select, { allowClear: true }]} />
+    <Field name="kind" enum={[{ label: '个人', value: 'personal' }, { label: '工作', value: 'work' }]}
+      decorator={[FormItem]} component={[Select]} />
   </FormLayout>
 </Form>
 ```
 
+- Options inline: `<Field enum={[{ label, value }] | ['a', 'b'] | Source.with(params)}>` (Formily `enum`); Select /
+  Radio / Checkbox.Group and their readPretty views read it. Precedence: reaction `$enum` > JSX `enum` > `fields.x.enum`
+  > `rows.*.x` template. The JSX layer is mount-scoped (unmount restores the declaration) and re-applied when the prop
+  changes (deep compare, inline arrays are fine). With `typed(form).Field` / `row.Field` option values are checked
+  against the field value (element type for arrays). Options that depend on another field stay in a reaction.
 - Slots take a component or `[Component, props]`; children (`<Field …><Input /></Field>`) or a render prop also work.
 - Table cells can drop the decorator (`<Field name="qty" component={[InputNumber]} />`) or use another one.
 - `FormItem` outside a field is pure layout: `<FormItem label="地址" asterisk>…two Fields, each `decorator={[FormItem]}`…</FormItem>`.

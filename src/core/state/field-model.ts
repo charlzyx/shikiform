@@ -1,4 +1,4 @@
-import type { EnumOption } from '../enum/enum-source'
+import type { EnumBinding, EnumOption } from '../enum/enum-source'
 import type { Display, FieldSpec, FieldUiSpec, Pattern, ValidateTrigger } from '../types'
 import type { Rule } from '../validation/rules'
 
@@ -55,6 +55,8 @@ export interface FieldModel {
   enumOptions?: EnumOption[]
   enumLoading: boolean
   enumFromEffect: boolean
+  /** `<Field enum>` while mounted (normalized options, or an `EnumSource` binding). Below `$enum`, above `fields`. */
+  jsxEnum?: EnumOption[] | EnumBinding
   triggers?: ValidateTrigger[]
   asyncSeq: number
   enumSeq: number

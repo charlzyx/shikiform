@@ -84,7 +84,7 @@ core 内部（有状态部分，编号小者在下）：
 
 ## 3. 字段模型与状态（`core/state`）
 
-- **`FieldModel`**（`field-model.ts`）：每个精确 path 一个模型，所有挂在该 path 上的 UI 共享。除 `display/pattern/required/rules/errors/touched/dirty/validating/enum` 外，还记录**来源**：`*FromEffect`（reaction 写入）、`declared*`（`fields`/`registerField`）、`jsx*`（挂载期 lease）、`templateApplied`（条目模板实例），用于多来源叠加。UI 状态（`uiDeclared` / `uiEffect`）见 §3.1。
+- **`FieldModel`**（`field-model.ts`）：每个精确 path 一个模型，所有挂在该 path 上的 UI 共享。除 `display/pattern/required/rules/errors/touched/dirty/validating/enum` 外，还记录**来源**：`*FromEffect`（reaction 写入）、`declared*`（`fields`/`registerField`）、`jsx*`（挂载期 lease：`jsxRules` / `jsxRequired` / `jsxEnum`）、`templateApplied`（条目模板实例），用于多来源叠加。UI 状态（`uiDeclared` / `uiEffect`）见 §3.1。
 - **`FieldStore`**（`field-store.ts`）：`values`、`initial`、表单级 `edited/submitting/submitCount/validating`（`dirty` 由 `Baseline` 派生，见 §7）、`fields` Map；`ensure(path)` 首次触碰即创建模型。继承读：`effectiveDisplay`（祖先 `none` 优先，其次 `hidden`）、`effectivePattern`（最近的自身/祖先值；computed 字段默认 `readPretty`）。它只存数据，不通知、不调度。
 - **`Notifier`**（`notifier.ts`）：path / structure / dep / meta / debug 五类版本号与监听器；写入方只 bump 版本并标记 pending，`emit()` 一次性派发（顺序：path → structure → meta → dep → debug）。React 的 `useSyncExternalStore` 读的就是这些版本号。
 
@@ -151,7 +151,7 @@ Formily 的 `field.title` / `description` / `decorator` / `component` / `setComp
 - **表单级初始 pattern**：`FormOptions.pattern` 在构造时 `writeState('', '$pattern', …)`，即根上的 `$pattern`（字段经 `effectivePattern` 继承，根在祖先链末尾）；之后 `d.$pattern = undefined` 回到可编辑，`reset` 不改它。
 - **公开状态只读**（#36）：`values` / `submitting` / `dirty` / `submitCount` / `validating` 只有 getter，写入都走会通知的方法。
 - **外部错误**（#34）：`FieldModel.externalErrors`，与规则、schema 消息一起显示（`shownErrors`）；值变化、该字段重新校验、`reset`、`clearErrors` 时清除。
-- **`StateWriter`**（`writes.ts`）：所有写入的唯一入口。用户编辑 `commitExternal`（置粘滞的 `edited`、触发 `onChange` 校验）；`commitValue` 改值时清掉该 path 上下级的外部错误（`setErrors`）；draft 写 `writeState`（在 reaction/watch/batch 中缓冲，否则立即应用）；`$value/$display/$pattern/$required/$rules/$enum` 的落地；`EnumSource` 异步加载（防抖、abort、seq）与 `enumPolicy: 'clear'`。
+- **`StateWriter`**（`writes.ts`）：所有写入的唯一入口。用户编辑 `commitExternal`（置粘滞的 `edited`、触发 `onChange` 校验）；`commitValue` 改值时清掉该 path 上下级的外部错误（`setErrors`）；draft 写 `writeState`（在 reaction/watch/batch 中缓冲，否则立即应用）；`$value/$display/$pattern/$required/$rules/$enum` 的落地；`EnumSource` 异步加载（防抖、abort、seq）与 `enumPolicy: 'clear'`；JSX `enum` 层的 `applyJsxEnum` / `releaseJsxEnum`（见 §8）。
 
 ## 8. Ant Design 适配层（`src/antd`）
 
@@ -168,12 +168,14 @@ const Rate = connect(AntRate, mapProps({ status: false }))
     <Field name="email" title="邮箱" required rules={{ format: 'email' }}
       decorator={[FormItem, { tooltip: '工作邮箱' }]} component={[Input, { placeholder: 'name@example.com' }]} />
     <Field name="city" title="城市" decorator={[FormItem]} component={[Select]} />   {/* options 来自字段 enum */}
+    <Field name="level" title="等级" enum={[{ label: '黄金', value: 'gold' }]} decorator={[FormItem]} component={[Select]} />
     <Field name="score" title="评分" decorator={[FormItem]}><Rate /></Field>        {/* children 也可以是控件 */}
   </FormLayout>
 </Form>
 ```
 
 - **`<Field>`**（react 层）：`useField(name, options)` → `display !== 'visible'` 返回 `null` → `FieldContext.Provider` 里渲染 `<Decorator {...decoratorProps}>{content}</Decorator>`，`content` 依次取 render prop、children、`<Component {...componentProps} />`。传给槽位的是**有效**的 props（`fields` ← JSX ← reaction），与组件自己从 binding 里再合并的是同一份值，所以没有新旧覆盖问题。槽位也可以在 `fields` 里声明，`<Field name="city" />` 即可渲染。
+- **`<Field enum>` / `useField(name, { enum })`**：JSX 层的选项，存在模型的 `jsxEnum` 上，优先级 reaction `$enum` > `jsxEnum` > 精确声明 `fields.x.enum` > 条目模板（`Declarations` 在 `jsxEnum` 存在时不覆盖 `enumOptions`）。`useField` 渲染期调用 `form.applyJsxEnum(path, enum, 'render')`：静态数组 / 原始值数组（`asOptions` 归一）立即写 `enumOptions` 并 bump，所以首帧就有选项；effect 里 `'commit'` 才启动 `EnumSource.with(params)` 的异步加载（复用 `$enum` 的防抖 / abort / seq）、对**更新**套用 `enumPolicy`（首次挂载与声明一样不清值）、flush 读 `$enum` 的 reaction。相等值（静态深比较；绑定比 source 身份 + params 深比较）是空操作，所以内联数组没问题。卸载、path 变化或属性改回 `undefined` 时 `releaseJsxEnum(path, lease)` 恢复声明 / 模板选项（`Declarations.declaredEnum`）；lease 是模型身份，行移动后旧 path 上的别的模型不会被释放。类型：`FieldEnum<V>`，选项 `value` 是 `EnumValueOf<V>`（数组字段取元素类型，`any` 不检查）。
 - **字段来源（connect 控件）**：`field` 属性 → `name` 属性（`useField(name)`）→ 外层 `<Field>`（内部 `useFieldContextOrNull()`）；都没有时按普通控件渲染调用方 props，开发期警告一次（不抛错）。`connect` 用 `forwardRef` 把 ref 交给原控件，并把原控件的静态成员（除 React / Function 内建键）拷到结果上（`Select.Option`）。`mapProps` 对象写法除绑定键外，还能把任意字段状态（`title`、`required`、`componentProps.x` …）交给某个 prop，调用方显式 prop 优先。自定义控件用无参 `useField()`。
 - **默认映射**（`mapFieldProps`）：先把 `field.componentProps` 合并在调用方 props 之下，再映射 `value`、`onChange`（`getValueFromEvent`：checkbox 取 `checked`，事件取 `target.value`，其他取第一个参数；然后以原始参数调用调用方 handler）、`onBlur`、`disabled`/`readOnly`（与调用方 OR）、`status`（error/warning，调用方优先）、`id`；`options`/`loading` 需显式映射。无 `mapReadPretty` 时 `readPretty` 视作 `readOnly`。
 - **内置控件**：`Input`（`.TextArea`、`.Password`）、`InputNumber`（清空写 `null`）、`Select`（enum→options、readOnly→disabled、阅读态显示 label）、`Switch`/`Checkbox`（value↔checked）、`Checkbox.Group`、`Radio.Group`、`DatePicker`（`.RangePicker`；字段存格式化字符串，因为核心 `structuredClone` 会丢掉 dayjs 原型）。

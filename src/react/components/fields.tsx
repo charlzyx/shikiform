@@ -1,6 +1,6 @@
 import { useMemo, type ComponentType, type FormEvent, type FormHTMLAttributes, type ReactNode } from 'react'
 import type { FormEngine } from '../../core/engine/form-engine'
-import type { ArrayPath, Display, Draft, FieldError, FieldPath, PathValue, Pattern } from '../../core/types'
+import type { ArrayPath, Display, Draft, FieldEnum, FieldError, FieldPath, PathValue, Pattern } from '../../core/types'
 import type { RulesInput } from '../../core/validation/rules'
 import type { Pos } from '../../core/shared/tree-ops'
 import { ArrayContext, FormContext, ScopeContext, useRequiredForm, useScope } from '../context'
@@ -91,6 +91,14 @@ export function Form<T, TSubmit = T>({ form, children, onSubmit, onInvalid, onSu
 export interface FieldProps<TScope = any, N extends FieldPath<TScope> = FieldPath<TScope>> {
   /** Name relative to the current `<ObjectField>` / `<ArrayField>` / `<TreeField>` scope. */
   name: N
+  /**
+   * Inline options (Formily `enum`): `[{ label, value }]`, bare primitives (`['a', 'b']`), or `SomeEnum.with(params)`.
+   * Option values are typed against the field value (its element type for an array field) when the name is typed
+   * (`typed(form).Field`, `row.Field`). Wins over `fields.x.enum` while mounted; a reaction's `$enum` wins over it.
+   * Changing the prop re-applies it; unmount restores the declared enum. Select / Radio / Checkbox.Group and their
+   * readPretty views read it as `options`.
+   */
+  enum?: FieldEnum<PathValue<TScope, N & string>>
   /** Mount-scoped rules. Cleared on unmount. Does not erase a declaration, a template, or `$rules`. */
   rules?: RulesInput
   /** Omit this value from submit. Effects can still read it. */

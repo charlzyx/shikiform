@@ -75,6 +75,7 @@ export type {
   EffectDef,
   EnumBinding,
   EnumOption,
+  FieldEnum,
   FieldPath,
   FormInstance,
   MoveResult,

@@ -22,6 +22,7 @@ description: Field 拥有一个 path，decorator 包住 component；UI 属性分
 |---|---|
 | `name` | 相对路径。`profile.name`，或在 `<ObjectField name="profile">` 里写 `name` |
 | `rules` / `required` | 挂载期规则，组件卸载时释放，见 [规则写在哪](/guide/validation#规则写在哪) |
+| `enum` | 选项：`[{ label, value }]`、原始值数组 `['a', 'b']` 或 `SomeEnum.with(params)`，见 [选项写在 JSX 里](#选项写在-jsx-里) |
 | `display` / `pattern` / `virtual` | 初始显隐 / 编辑态 / 不进提交；reaction 写的值优先 |
 | `title` / `description` | 装饰器的标签 / 说明 |
 | `decorator` / `component` | 组件，或 `[组件, props]` |
@@ -114,6 +115,46 @@ reaction 通过 draft 写入时只改写到的那一处：
 | `d.x.$componentProps = undefined` | 撤销 reaction 这一层 |
 
 reaction 里读 `$componentProps` 看到的是「声明 + reaction」两层，JSX 只在渲染时合并。UI 状态是唯一能在同一轮读回刚写的值的 `$` 状态。
+
+## 选项写在 JSX 里
+
+选择类字段的选项可以直接写在 `<Field enum>` 上（Formily 的 `enum`），不用先去 `fields` 里声明。`Select`、`Radio`、`Checkbox.Group` 把它当 `options`，阅读态显示标签。
+
+```tsx preview
+import { Switch } from 'antd';
+import { Form, typed, useForm } from 'shikiform';
+import { Checkbox, FormItem, FormLayout, Radio, Select } from 'shikiform/antd';
+
+type Values = { level: 'gold' | 'silver'; tags: string[]; size: number };
+
+export default function App() {
+  const form = useForm<Values>({ initialValues: { level: 'gold', tags: ['math'], size: 2 } });
+  const F = typed(form);
+  return (
+    <Form form={form}>
+      <FormLayout labelCol={{ span: 5 }} wrapperCol={{ span: 19 }}>
+        <FormItem label="阅读态">
+          <Switch onChange={(on) => form.batch((d) => { d.$pattern = on ? 'readPretty' : undefined; })} />
+        </FormItem>
+        {/* value 按字段类型检查：写 'bronze' 编译不过 */}
+        <F.Field name="level" title="等级" enum={[{ label: '黄金', value: 'gold' }, { label: '白银', value: 'silver' }]}
+          decorator={[FormItem]} component={[Select, { style: { width: 160 } }]} />
+        {/* 数组字段按元素类型检查 */}
+        <F.Field name="tags" title="兴趣" enum={[{ label: '数学', value: 'math' }, { label: '诗歌', value: 'poetry' }]}
+          decorator={[FormItem]} component={[Checkbox.Group]} />
+        {/* 原始值：标签就是 String(value) */}
+        <F.Field name="size" title="尺码" enum={[1, 2, 3]} decorator={[FormItem]} component={[Radio]} />
+      </FormLayout>
+    </Form>
+  );
+}
+```
+
+- 与其他来源叠加：reaction 的 `$enum` > JSX `enum` > `fields.x.enum` > 条目模板（`rows.*.x`）。JSX 的 `enum` 只在组件挂载期间生效，卸载或改回 `undefined` 后恢复声明的选项。
+- 属性变了就重新应用（深比较，所以每次渲染写一个新数组没关系）。之后的变化按 `enumPolicy` 处理（`'clear'` 清掉不在新选项里的值）；首次挂载和 `fields` 声明一样不清值。
+- 异步选项写 `enum={Cities.with(province)}`，和 `$enum = Cities.with(…)` 一样加载、带 `loading`。随别的字段变化的选项仍然写在 reaction 里（`d.city.$enum = …`），它优先于 JSX。
+- reaction 里读 `$enum` 读到的是生效的选项，包括 JSX 这一层。
+- 用 `typed(form)` / `row.Field` 时 `value` 按字段值检查（数组字段按元素）；普通 `<Field>` 不检查。
 
 ## Field 就是 useField
 
