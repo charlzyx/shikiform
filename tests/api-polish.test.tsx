@@ -48,11 +48,12 @@ describe('QueryList reads the rows path from useQueryTable', () => {
 })
 
 describe('root entry re-exports the engine names an app needs', () => {
-  it('errors and Enum are the same objects as shikiform/core', () => {
+  it('errors and EnumSource are the same objects as shikiform/core', () => {
     expect(root.ShikiUsageError).toBe(core.ShikiUsageError)
     expect(root.ShikiConflictError).toBe(core.ShikiConflictError)
     expect(root.ShikiCycleError).toBe(core.ShikiCycleError)
-    expect(root.Enum).toBe(core.Enum)
+    expect('Enum' in root).toBe(false)
+    expect('Enum' in core).toBe(false)
     expect(root.EnumSource).toBe(core.EnumSource)
   })
 

@@ -23,7 +23,7 @@ export interface EnumConfig<P> {
 
 /**
  * Static list or async loader.
- * `Enum.from(list)` and `Enum.from(async (params, ctx) => list, config)` are both valid.
+ * `EnumSource.from(list)` and `EnumSource.from(async (params, ctx) => list, config)` are both valid.
  * `source.with(params)` is what a reaction assigns to `$enum`.
  */
 export class EnumSource<P = unknown> {
@@ -35,7 +35,7 @@ export class EnumSource<P = unknown> {
     private readonly config: EnumConfig<P> = {},
   ) {}
 
-  /** `Enum.from(list)` or `Enum.from(async (params, ctx) => list, config)`. */
+  /** `EnumSource.from(list)` or `EnumSource.from(async (params, ctx) => list, config)`. */
   static from<P>(
     source: readonly EnumOption[] | ((params: P, ctx: EnumLoadContext) => Promise<readonly EnumOption[]> | readonly EnumOption[]),
     config?: EnumConfig<P>,

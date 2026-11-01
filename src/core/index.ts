@@ -7,7 +7,7 @@
 export { createForm, FormEngine } from './engine/form-engine'
 export { defineEffects } from './effects/define-effects'
 export { comboMatch, comboOptions } from './enum/combo'
-export { EnumSource, EnumSource as Enum, asOptions, isEnumBinding } from './enum/enum-source'
+export { EnumSource, asOptions, isEnumBinding } from './enum/enum-source'
 export type { EnumBinding, EnumConfig, EnumLoadContext, EnumOption } from './enum/enum-source'
 export { ShikiConflictError, ShikiCycleError, ShikiUiError, ShikiUsageError } from './errors'
 export {

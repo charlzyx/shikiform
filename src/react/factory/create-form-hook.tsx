@@ -8,6 +8,8 @@ import type { FormMessages } from '../../core/validation/messages'
 import { useForm, type UseFormOptions } from '../hooks/use-form'
 import type { TypedAppField } from './typed'
 
+const ROOT_SCOPE = { path: '', index: -1 }
+
 /**
  * Form context for {@link createFormHook}. Form components call the `useFormContext` returned here.
  * Field components need nothing from it: `AppField` renders a `<Field>`, so they call `useField()` with no name.
@@ -50,13 +52,14 @@ export function createFormHook<
   /** Built-in message overrides for every `useAppForm()`; a form's own `messages` keys win. */
   messages?: Partial<FormMessages>
 }) {
+  /**
+   * Exactly `<Field>` plus the pre-bound components on the render-prop argument. It does not open a scope of its own:
+   * inside a row, `useIndex()` / `useRecord()` / `ProArrayTable.useRow()` and relative names work as under `<Field>`.
+   */
   function AppField({ name, children, ...fieldOptions }: { name: string; children: (field: FieldBinding<any> & TFields) => ReactNode } & UseFieldOptions) {
-    const scope = useScope()
-    const path = joinPath(scope.path, name)
-    const next = useMemo(() => ({ path, index: -1 }), [path])
     return (
       <Field name={name} {...fieldOptions}>
-        {(field) => <ScopeContext.Provider value={next}>{children({ ...field, ...options.fieldComponents })}</ScopeContext.Provider>}
+        {(field) => children({ ...field, ...options.fieldComponents })}
       </Field>
     )
   }
@@ -68,9 +71,12 @@ export function createFormHook<
         return (
           <FormContext.Provider value={form}>
             <options.formContext.Provider value={form}>
-              <form {...rest} onSubmit={(event) => handleFormSubmit(form, event, { onSubmit, onInvalid, onSubmitError })}>
-                {children}
-              </form>
+              {/* Like <Form>: a form nested in a row (a modal opened from a cell) starts at its own root. */}
+              <ScopeContext.Provider value={ROOT_SCOPE}>
+                <form {...rest} onSubmit={(event) => handleFormSubmit(form, event, { onSubmit, onInvalid, onSubmitError })}>
+                  {children}
+                </form>
+              </ScopeContext.Provider>
             </options.formContext.Provider>
           </FormContext.Provider>
         )

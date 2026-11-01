@@ -101,7 +101,7 @@ form.AppField<N extends FieldPath<T>>(props: {
 </form.AppField>
 ```
 
-`field.TextInput` 在字段 context 中读取当前绑定，不再传 `name`。同一个 AppField 内再创建字段组时，子名字相对这个字段路径。
+`field.TextInput` 在字段 context 中读取当前绑定，不再传 `name`。`AppField` 就是 `<Field>` 加上这些组件，不另开作用域：在数组行里，`useIndex()` / `useRecord()` / `ProArrayTable.useRow()` 照常可用，`useField('x')` 的解析也和在 `<Field>` 里一样。
 
 **在 `ArrayField` / `ObjectField` 里**名字相对那一行 / 那个对象，而 `form.AppField` 按根检查，两者对不上。用 [`typed(form)`](/reference/react-hooks#typed) 的作用域版本，类型和运行时用同一条规则：
 

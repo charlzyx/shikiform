@@ -10,8 +10,11 @@ interface PreviewOption {
 export interface PreviewTextProps {
   value?: unknown
   options?: readonly PreviewOption[]
-  /** Shown for an empty value. Defaults to `messages.empty` (an empty string). */
-  placeholder?: ReactNode
+  /**
+   * Shown for an empty value. Defaults to `messages.empty` (an empty string). Not `placeholder`: a connected control's
+   * edit-time placeholder (`请输入…`) also reaches this view and must not read as a value.
+   */
+  empty?: ReactNode
   /** dayjs-style format for date values (`value.format(format)`). */
   format?: string
   [key: string]: unknown
@@ -37,8 +40,8 @@ function show(value: unknown, options: readonly PreviewOption[] | undefined, for
  * dates use `format` (`YYYY-MM-DD` by default), booleans `messages.yes` / `messages.no`. The default `readPretty`
  * view of the connected inputs.
  */
-export function PreviewText({ value, options, placeholder, format }: PreviewTextProps) {
+export function PreviewText({ value, options, empty, format }: PreviewTextProps) {
   const t = useFormMessage()
   const text = show(value, options, format, [t('yes'), t('no')])
-  return <span data-read-pretty>{text ?? placeholder ?? t('empty')}</span>
+  return <span data-read-pretty>{text ?? empty ?? t('empty')}</span>
 }

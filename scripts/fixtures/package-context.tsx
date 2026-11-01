@@ -19,7 +19,8 @@ function PreboundProvider() {
   const form = useAntdForm({ initialValues: { email: 'root', profile: { email: 'nested' } } })
   return <form.AppForm>
     <Probe form={form} expected="root" />
-    <form.AppField name="profile">{() => <Probe form={form} expected="nested" />}</form.AppField>
+    {/* AppField is exactly <Field> and opens no scope; an object scope is ObjectField. */}
+    <ObjectField name="profile"><Probe form={form} expected="nested" /></ObjectField>
   </form.AppForm>
 }
 
