@@ -1,6 +1,6 @@
 ---
 title: Ant Design 适配层
-description: Formily 式适配：Field 的 decorator / component 槽位、FormItem 装饰器、FormLayout、connect / mapProps / mapReadPretty，以及接好的 antd 控件。
+description: Formily 式适配：Field 的 decorator / component 槽位、FormItem 装饰器、FormLayout / FormGrid / FormButtonGroup、connect / mapProps / mapReadPretty，以及接好的 antd 控件。
 ---
 
 # Ant Design 适配层
@@ -92,27 +92,84 @@ return <AntInput {...mapFieldProps(field, { placeholder: 'Email' })} />
 FormItem(props: FormItemProps): ReactElement | null
 interface FormItemProps
   extends Omit<antd.FormItemProps, 'name' | 'rules' | 'required' | 'children' | 'validateStatus' | 'help' | 'hidden' | 'layout' | …>,
-    Pick<FormLayoutValue, 'layout' | 'size' | 'feedbackLayout'> {
-  asterisk?: boolean   // 强制显示 / 隐藏必填星号
+    Omit<FormLayoutValue, 'labelCol' | 'wrapperCol' | 'labelAlign' | 'colon'> {  // layout、labelWidth、requiredMark、feedbackLayout…
+  asterisk?: boolean         // 强制显示 / 隐藏必填星号
+  addonBefore?: ReactNode    // 控件同一行的前缀（单位、前置选择…）
+  addonAfter?: ReactNode     // 控件同一行的后缀
+  gridSpan?: number          // 在 FormGrid 里占几列（按当前列数截断），-1 占满一行
   children?: ReactNode
 }
 ```
 
-当前字段的装饰器（Formily `FormItem`），**不拥有字段**：没有 `name` / `rules` / `required` / `field` 属性，从外层 `<Field>` 的上下文读字段，在字段外使用会抛错。用法是 `<Field decorator={[FormItem, props]}>`，或放在 `<Field>` 的 children / render prop 里。
+Formily `FormItem`，**不拥有字段**：没有 `name` / `rules` / `required` / `field` 属性。
 
-渲染 antd `Form.Item`（props 由 [mapFormItemProps](#mapformitemprops) 计算）：`label` 取字段 `title`，`extra` 取 `description`（显式传入时以显式为准）；必填星号跟随字段 `required`，`readPretty` 下隐藏；`validateStatus` 依次为 `error` → `validating` → `warning`；`help` 取第一条错误，否则第一条警告；继承外层 [FormLayout](#formlayout)。`display` 为 `hidden` / `none` 时不渲染。
+- **字段里**（`<Field decorator={[FormItem, props]}>`，或放在 `<Field>` 的 children 里）：从上下文读字段，渲染 antd `Form.Item`（props 由 [mapFormItemProps](#mapformitemprops) 计算）。`label` 取字段 `title`，`extra` 取 `description`（显式传入优先）；必填星号跟随 `required`，`readPretty` 下隐藏；`validateStatus` 依次 `error` → `validating` → `warning`；`help` 是**全部**错误（没有错误时是全部警告），一条一行。`display` 为 `hidden` / `none` 时不渲染。
+- **字段外**：纯布局（Formily `FormItem.BaseItem`）。一个标签、同一套列宽包住任何内容，常用来给几个字段一个标签；没有状态和提示，里面的字段自己的控件仍会变红。
 
 ```tsx
 <Field name="email" title="邮箱" description="用于登录" required decorator={[FormItem, { tooltip: '工作邮箱' }]} component={[Input]} />
+<Field name="price" title="价格" decorator={[FormItem, { addonBefore: '¥', addonAfter: '元', feedbackLayout: 'popover' }]} component={[InputNumber]} />
+<FormItem label="地址">
+  <Space><Field name="province" component={[Select]} /><Field name="city" component={[Select]} /></Space>
+</FormItem>
+```
+
+| 属性 | 行为 |
+|---|---|
+| `feedbackLayout` | `loose`（默认，提示占一行）/ `terse`（没有提示时去掉底部间距）/ `popover`（提示浮在控件上方，不占行）/ `none`（只保留状态颜色） |
+| `labelWidth` / `wrapperWidth` | 固定宽度（数字是 px），变成 `labelCol` / `wrapperCol` 的 `flex`，优先于 `span`；只给 `labelWidth` 时控件列占满剩余宽度 |
+| `labelWrap` | 长标签换行，不截断（antd 自带的换行样式） |
+| `tooltipLayout` | `icon`（默认，ⓘ 图标）/ `text`（tooltip 文字直接跟在标签后面） |
+| `requiredMark` | `true`（默认）显示星号；`false` 不显示；`'optional'` 不显示星号，改在非必填项标签后加 `messages.optional`（`（可选）`） |
+| `asterisk` | 强制显示 / 隐藏星号，优先于上面两项 |
+| `addonBefore` / `addonAfter` | 与控件同一行的前后缀 |
+| `gridSpan` | 只在 [FormGrid](#formgrid) 里生效 |
+
+这些键都能写在 `FormItem` props、字段 `decoratorProps` 或外层 `FormLayout` 上，优先级 props > `decoratorProps` > 布局。
+
+```tsx preview
+import { Space } from 'antd';
+import { Field, Form, useForm } from 'shikiform';
+import { FormItem, FormLayout, Input, InputNumber } from 'shikiform/antd';
+
+export default function App() {
+  const form = useForm({ initialValues: { code: 'a', price: null, province: '', city: '', note: '' } });
+  return (
+    <Form form={form}>
+      <FormLayout labelWidth={110} requiredMark="optional" labelWrap>
+        <Field name="code" title="编码" required
+          rules={[{ minLength: 3, message: '至少 3 位' }, { pattern: /^\d+$/, message: '只能是数字' }]}
+          decorator={[FormItem, { tooltip: '供应商内部编码', tooltipLayout: 'text' }]} component={[Input]} />
+        <Field name="price" title="价格" required rules={{ min: 1, message: '至少 1 元' }}
+          decorator={[FormItem, { addonBefore: '¥', addonAfter: '元', feedbackLayout: 'popover' }]} component={[InputNumber]} />
+        <FormItem label="所在地区（省 / 市，可以只填省）">
+          <Space>
+            <Field name="province" component={[Input, { placeholder: '省' }]} />
+            <Field name="city" component={[Input, { placeholder: '市' }]} />
+          </Space>
+        </FormItem>
+        <Field name="note" title="备注" decorator={[FormItem]} component={[Input]} />
+        <FormItem label=" " colon={false}>
+          <button type="button" onClick={() => void form.validate()}>校验</button>
+        </FormItem>
+      </FormLayout>
+    </Form>
+  );
+}
 ```
 
 ## mapFormItemProps
 
 ```ts
-mapFormItemProps(field: FieldBinding<any>, props: Omit<FormItemProps, 'children'>, layout?: FormLayoutValue): antd.FormItemProps
+mapFormItemProps(
+  field: FieldBinding<any> | null,
+  props: Omit<FormItemProps, 'children'>,
+  layout?: FormLayoutValue,
+  env?: { prefixCls?: string; optionalText?: ReactNode; gridColumns?: number },
+): antd.FormItemProps
 ```
 
-`FormItem` 的纯函数核心。合并顺序（低 → 高）：`layout`（`FormLayout`）← `field.decoratorProps`（`fields` ← JSX ← `$decoratorProps`）← `props`。`feedbackLayout: 'none'` 去掉提示文字（状态颜色保留），`'terse'` 在没有提示时去掉底部间距。Hook 用户不用组件也能得到同样的装饰：
+`FormItem` 的纯函数核心。合并顺序（低 → 高）：`layout`（`FormLayout`）← `field.decoratorProps`（`fields` ← JSX ← `$decoratorProps`）← `props`。`field` 为 `null` 时是纯布局（没有状态和提示）。`env` 是组件自己从上下文读的部分：antd 表单类名前缀（`labelWrap` 用，默认 `ant-form`）、可选标记文案（默认 `(optional)`）、外层 `FormGrid` 的列数（`gridSpan` 用）。`addonBefore` / `addonAfter` 和 `popover` 的浮层是组件自己的标记，不在返回值里。Hook 用户不用组件也能得到同样的装饰：
 
 ```tsx
 const field = useField('email', { required: true, title: '邮箱' })
@@ -123,14 +180,23 @@ return <Form.Item {...mapFormItemProps(field, {})}><AntInput {...mapFieldProps(f
 
 ```ts
 FormLayout(props: FormLayoutProps): ReactElement
-interface FormLayoutProps {
+interface FormLayoutValue {
   layout?: 'horizontal' | 'vertical' | 'inline'
   labelCol?: ColProps
   wrapperCol?: ColProps
+  labelWidth?: number | string
+  wrapperWidth?: number | string
   labelAlign?: 'left' | 'right'
+  labelWrap?: boolean
   colon?: boolean
+  requiredMark?: boolean | 'optional'
+  tooltipLayout?: 'icon' | 'text'
   size?: 'small' | 'middle' | 'large'
-  feedbackLayout?: 'loose' | 'terse' | 'none'
+  feedbackLayout?: 'loose' | 'terse' | 'popover' | 'none'
+}
+type FormLayoutProps = FormLayoutValue & {
+  // 这六个键可以按断点给数组：layout、labelCol、wrapperCol、labelWidth、wrapperWidth、labelAlign
+  breakpoints?: number[]   // 默认 [720, 1280, 1920]
   className?: string
   style?: CSSProperties
   children?: ReactNode
@@ -139,8 +205,10 @@ interface FormLayoutProps {
 
 Formily `FormLayout`：给内部所有 `FormItem` 一份布局。嵌套的 `FormLayout` 按键合并，近的优先；`FormItem` 自己的 props 与字段 `decoratorProps` 优先于布局。`size` 同时作用于内部控件（antd `componentSize`）；`inline` 让条目横向排布。
 
+**响应式**：`layout={['vertical', 'horizontal']}` 这样的数组按 `FormLayout` **自身容器**的宽度取值（不是窗口）：宽度 < `breakpoints[0]` 取第 0 项，< `breakpoints[1]` 取第 1 项……数组比断点短时沿用最后一项。有数组时会多渲染一层测量用的 `<div>`；首次渲染（含 SSR）还没量到宽度，按最宽的一档。
+
 ```tsx
-<FormLayout layout="vertical" size="small">
+<FormLayout layout={['vertical', 'horizontal']} labelWidth={[undefined, 96]} breakpoints={[600]}>
   <Field name="a" title="A" decorator={[FormItem]} component={[Input]} />
   <FormLayout layout="horizontal" labelCol={{ span: 6 }}>
     <Field name="b" title="B" decorator={[FormItem]} component={[Input]} />
@@ -151,10 +219,101 @@ Formily `FormLayout`：给内部所有 `FormItem` 一份布局。嵌套的 `Form
 ## useFormLayout
 
 ```ts
-useFormLayout(): FormLayoutValue   // FormLayoutProps 去掉 children / className / style
+useFormLayout(): FormLayoutValue
 ```
 
-读取当前位置合并后的布局（所有外层 `FormLayout` 的合并结果）。自定义装饰器用它继承同一套布局，例如 `mapFormItemProps(field, props, useFormLayout())`；在任何 `FormLayout` 之外返回 `{}`。
+读取当前位置合并后的布局（所有外层 `FormLayout` 的合并结果，响应式数组已按宽度取值）。自定义装饰器用它继承同一套布局，例如 `mapFormItemProps(field, props, useFormLayout())`；在任何 `FormLayout` 之外返回 `{}`。
+
+## FormGrid
+
+```ts
+FormGrid(props: {
+  maxColumns?: number | number[]   // 默认 4；可按断点给数组
+  minColumns?: number | number[]   // 默认 1
+  minWidth?: number | number[]     // 每列最窄宽度（px），默认 200
+  columnGap?: number               // 默认 16
+  rowGap?: number                  // 默认 0（FormItem 自带底部间距）
+  breakpoints?: number[]           // 默认 [720, 1280, 1920]
+  className?: string
+  style?: CSSProperties
+  children?: ReactNode
+}): ReactElement
+```
+
+Formily `FormGrid`：CSS grid，列数跟随**自身宽度**——能放下几个 `minWidth` 宽的列就放几列，夹在 `minColumns` 与 `maxColumns` 之间；没量到宽度前（SSR）按 `maxColumns`。每个直接子元素占一格；`FormItem` 用 `gridSpan` 多占几格（超过当前列数时截断，`-1` 占满一行），其他内容用 [GridColumn](#gridcolumn)。
+
+```tsx preview
+import { Field, Form, useForm } from 'shikiform';
+import { FormGrid, FormItem, FormLayout, GridColumn, Input } from 'shikiform/antd';
+
+export default function App() {
+  const form = useForm({ initialValues: { name: '', phone: '', email: '', city: '', address: '' } });
+  return (
+    <Form form={form}>
+      <FormLayout layout="vertical">
+        <FormGrid maxColumns={3} minWidth={180}>
+          <Field name="name" title="姓名" decorator={[FormItem]} component={[Input]} />
+          <Field name="phone" title="电话" decorator={[FormItem]} component={[Input]} />
+          <Field name="email" title="邮箱" decorator={[FormItem]} component={[Input]} />
+          <Field name="city" title="城市" decorator={[FormItem]} component={[Input]} />
+          <Field name="address" title="详细地址（占两列）" decorator={[FormItem, { gridSpan: 2 }]} component={[Input]} />
+          <GridColumn gridSpan={-1}><small>改变窗口宽度，列数在 1–3 之间变化。</small></GridColumn>
+        </FormGrid>
+      </FormLayout>
+    </Form>
+  );
+}
+```
+
+## GridColumn
+
+```ts
+GridColumn(props: { gridSpan?: number; style?: CSSProperties; children?: ReactNode }): ReactElement
+```
+
+`FormGrid` 里不是 `FormItem` 的一格（一段说明、一组按钮），占 `gridSpan` 列（默认 1，按当前列数截断，`-1` 占满一行）。
+
+## useFormGrid
+
+```ts
+useFormGrid(): { columns: number } | null
+```
+
+外层 `FormGrid` 当前的列数（随容器宽度变化，未测量前是 `maxColumns`）；不在 `FormGrid` 里时返回 `null`。自定义装饰器用它把自己的跨列截断到当前列数：`Math.min(span, grid?.columns ?? span)`。
+
+## FormButtonGroup
+
+```ts
+FormButtonGroup(props: { align?: 'left' | 'center' | 'right'; gap?: number; className?: string; style?: CSSProperties; children?: ReactNode }): ReactElement
+FormButtonGroup.FormItem(props: 同上 & Omit<FormItemProps, 'children'>): ReactElement
+FormButtonGroup.Sticky(props: { position?: 'top' | 'bottom'; offset?: number; className?: string; style?: CSSProperties; children?: ReactNode }): ReactElement
+```
+
+Formily `FormButtonGroup`：一行按钮，`gap` 默认 8，可换行。
+
+- **`.FormItem`**：放在一个空标签的纯布局 `FormItem` 里，所以按钮自动对齐到 `FormLayout` 的控件列——`labelCol` 和 `labelWidth` 都不用再写一遍偏移；`vertical` / `inline` 布局下没有空标签。
+- **`.Sticky`**：`position: sticky` 的底栏（或顶栏），长表单滚动时按钮一直可见；背景和分隔线取 antd 主题。
+
+```tsx preview
+import { Field, Form, useForm } from 'shikiform';
+import { FormButtonGroup, FormItem, FormLayout, Input, Reset, Submit } from 'shikiform/antd';
+
+export default function App() {
+  const form = useForm({ initialValues: { name: '', email: '' } });
+  return (
+    <Form form={form} onSubmit={(values) => alert(JSON.stringify(values))}>
+      <FormLayout labelWidth={88}>
+        <Field name="name" title="姓名" required decorator={[FormItem]} component={[Input]} />
+        <Field name="email" title="邮箱" decorator={[FormItem]} component={[Input]} />
+        <FormButtonGroup.FormItem>
+          <Submit />
+          <Reset />
+        </FormButtonGroup.FormItem>
+      </FormLayout>
+    </Form>
+  );
+}
+```
 
 ## PreviewText
 

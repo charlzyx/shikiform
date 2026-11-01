@@ -1,6 +1,6 @@
 ---
 title: FormLayout
-description: 给一组 FormItem 统一布局、标签宽度、尺寸和反馈方式；可以嵌套。
+description: FormLayout 统一布局、标签宽度、尺寸和反馈方式；FormGrid 栅格；FormButtonGroup 对齐按钮；FormItem 单独当标签用。
 ---
 
 # FormLayout
@@ -32,7 +32,7 @@ export default function App() {
         <AntRadio.Group size="small" value={size} onChange={(event) => setSize(event.target.value)}
           options={['small', 'middle', 'large']} optionType="button" />
         <AntRadio.Group size="small" value={feedback} onChange={(event) => setFeedback(event.target.value)}
-          options={['loose', 'terse', 'none']} optionType="button" />
+          options={['loose', 'terse', 'popover', 'none']} optionType="button" />
       </Space>
       <Form form={form}>
         <FormLayout layout={layout} size={size} feedbackLayout={feedback} labelCol={{ span: 5 }} wrapperCol={{ span: 19 }}>
@@ -54,12 +54,81 @@ export default function App() {
 |---|---|
 | `layout` | `horizontal`（标签在左）/ `vertical`（标签在上）/ `inline`（同一行流式排列） |
 | `labelCol` / `wrapperCol` / `labelAlign` / `colon` | 与 antd `Form.Item` 相同 |
+| `labelWidth` / `wrapperWidth` | 固定列宽（数字是 px），优先于 `labelCol` / `wrapperCol` |
+| `labelWrap` | 长标签换行，不截断 |
+| `requiredMark` | `true` 星号 / `false` 不显示 / `'optional'` 改为给非必填项加「（可选）」 |
+| `tooltipLayout` | `icon`（ⓘ 图标）/ `text`（提示文字跟在标签后） |
 | `size` | 同时决定里面控件的尺寸（antd `componentSize`） |
-| `feedbackLayout` | `loose`（默认，错误占一行）/ `terse`（没有提示时不留底部间距，适合密集栅格和表格）/ `none`（不显示文字，只保留状态颜色） |
+| `feedbackLayout` | `loose`（默认，错误占一行）/ `terse`（没有提示时不留底部间距，适合密集栅格和表格）/ `popover`（错误浮在控件上方）/ `none`（不显示文字，只保留状态颜色） |
+| `breakpoints` | 列相关的键给数组时，按容器宽度分档（默认 `[720, 1280, 1920]`） |
 | `className` / `style` | 包裹层样式 |
 
 优先级（低 → 高）：`FormLayout` → 字段的 `decoratorProps`（`fields` ← JSX ← `$decoratorProps`）→ `FormItem` 自己的 props。读当前继承到的布局用 `useFormLayout()`。
 
 表格单元格通常不要装饰器，或用 `decorator={[FormItem, { feedbackLayout: 'terse' }]}`。完整签名见 [FormLayout 参考](/reference/antd-adapter#formlayout)。
+
+## 窄屏改成标签在上
+
+`layout`、`labelCol`、`wrapperCol`、`labelWidth`、`wrapperWidth`、`labelAlign` 可以按断点给数组，量的是 `FormLayout` 自己的宽度（放进抽屉、侧栏时也对）：
+
+```tsx
+<FormLayout layout={['vertical', 'horizontal']} labelWidth={[undefined, 96]} breakpoints={[600]}>
+  …
+</FormLayout>
+```
+
+## 栅格：FormGrid
+
+多列表单用 `FormGrid`：能放下几个 `minWidth` 宽的列就放几列（夹在 `minColumns` 和 `maxColumns` 之间），列数跟着容器变。字段用 `decorator={[FormItem, { gridSpan: 2 }]}` 跨列，其他内容用 `GridColumn`。
+
+```tsx preview
+import { Field, Form, useForm } from 'shikiform';
+import { FormButtonGroup, FormGrid, FormItem, FormLayout, GridColumn, Input, Reset, Submit } from 'shikiform/antd';
+
+export default function App() {
+  const form = useForm({ initialValues: { keyword: '', owner: '', status: '', from: '', to: '', note: '' } });
+  return (
+    <Form form={form} onSubmit={(values) => alert(JSON.stringify(values))}>
+      <FormLayout labelWidth={72}>
+        <FormGrid maxColumns={3} minWidth={220}>
+          <Field name="keyword" title="关键词" decorator={[FormItem]} component={[Input]} />
+          <Field name="owner" title="负责人" decorator={[FormItem]} component={[Input]} />
+          <Field name="status" title="状态" decorator={[FormItem]} component={[Input]} />
+          <Field name="note" title="备注" decorator={[FormItem, { gridSpan: 2 }]} component={[Input]} />
+          <GridColumn>
+            <FormButtonGroup align="right"><Submit>查询</Submit><Reset /></FormButtonGroup>
+          </GridColumn>
+        </FormGrid>
+      </FormLayout>
+    </Form>
+  );
+}
+```
+
+## 一个标签放几个字段
+
+`FormItem` 不在字段里时就是纯布局：一个标签、同一套列宽，里面放什么都行。
+
+```tsx
+<FormItem label="地址">
+  <Space>
+    <Field name="province" component={[Select]} />
+    <Field name="city" component={[Select]} />
+  </Space>
+</FormItem>
+```
+
+里面的字段没有自己的 `FormItem`，所以只有控件变红、没有提示文字；需要提示时给每个字段 `decorator={[FormItem, { feedbackLayout: 'popover' }]}`。
+
+## 按钮对齐到控件列
+
+`FormButtonGroup.FormItem` 用一个空标签占住标签列，按钮自动和上面的控件对齐，`labelCol` 和 `labelWidth` 都适用；长表单用 `FormButtonGroup.Sticky` 让按钮栏贴在底部。
+
+```tsx
+<FormLayout labelWidth={96}>
+  …
+  <FormButtonGroup.FormItem><Submit /><Reset /></FormButtonGroup.FormItem>
+</FormLayout>
+```
 
 下一步：[Ant Design 适配](/guide/antd)，接好的控件和自己的控件。
