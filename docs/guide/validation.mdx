@@ -82,7 +82,7 @@ export default function App() {
 
 ## 什么时候校验
 
-- 默认在失焦（`onBlur`）和提交（`onSubmit`）时；表单级改 `validateTrigger: ['onChange', 'onBlur', 'onSubmit']`。控件必须把 blur 交回 `field.onBlur`（接好的 antd 控件已经做了）。
+- 默认在失焦（`onBlur`）和提交（`onSubmit`）时；表单级改 `validateTrigger: ['onChange', 'onBlur', 'onSubmit']`。控件必须把 blur 交回 `field.onBlur`（接好的 antd 控件已经做了）。已经显示错误的字段，之后每次修改都会重新校验，改对即消失，不必等失焦。
 - 手动：`form.validate()` 校验全表，`form.validate('items')` 校验一棵子树，都返回 `FieldError[]`（`{ path, messages }`）。
 - `submit` 先等进行中的异步规则再校验；通过才调用回调。校验期间值又变了，就按新值再校验一轮（最多 3 轮），交出去的永远是刚校验过的值。值没变时并发的两次 `submit`（双击）都成功，各自调用自己的回调；要防重复提交，按钮用 `$submitting` 禁用。
 

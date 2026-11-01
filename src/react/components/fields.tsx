@@ -3,7 +3,7 @@ import type { FormEngine } from '../../core/engine/form-engine'
 import type { ArrayPath, Display, Draft, FieldError, FieldPath, PathValue, Pattern } from '../../core/types'
 import type { RulesInput } from '../../core/validation/rules'
 import type { Pos } from '../../core/shared/tree-ops'
-import { ArrayContext, FormContext, ScopeContext, useFormContext, useScope } from '../context'
+import { ArrayContext, FormContext, ScopeContext, useRequiredForm, useScope } from '../context'
 import { useArrayField } from '../hooks/use-array'
 import { FieldContext } from '../field-context'
 import { useField, type FieldBinding, type FieldSlot } from '../hooks/use-field'
@@ -168,7 +168,7 @@ export function ObjectField<TScope = any>({
   virtual?: boolean
   children?: ReactNode
 }) {
-  const form = useFormContext()
+  const form = useRequiredForm(`<ObjectField name="${String(name)}">`)
   const scope = useScope()
   const path = resolveName(form, scope, String(name))
   if (virtual !== undefined) form.registerField(path, { virtual })

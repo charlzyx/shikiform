@@ -32,7 +32,8 @@ This page is the one-screen mental model plus the mistakes worth avoiding. Repo 
   A conditional field ("tax id only for companies") is `$visible`; an inactive tab whose values must still submit is `$hidden`.
 
 Development builds throw `ShikiUsageError` with the fix for all three mistakes (mutating `$value`, using a handle
-as an array, and reading back a `$` state you wrote in the same pass). Production skips the checks.
+as an array, and reading back a `$` state you wrote in the same pass), and for a misspelled state (`$valeu`,
+`$requird`), a write to a read-only state (`$errors`, `$touched`), or `d.x.value = …` without `$`. Production skips the checks.
 
 ## 2. reaction vs watch
 

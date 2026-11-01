@@ -3,7 +3,7 @@ import type { EnumOption } from '../../core/enum/enum-source'
 import { normalizeUiSpec } from '../../core/state/field-model'
 import type { Display, FieldPath, FieldUiSpec, PathValue, Pattern } from '../../core/types'
 import type { RulesInput } from '../../core/validation/rules'
-import { useFormContext, useScope } from '../context'
+import { useRequiredForm, useScope } from '../context'
 import { applyJsxField } from './field-lifecycle'
 import { resolveName } from './resolve-name'
 
@@ -91,7 +91,7 @@ export function useField(name: string, options?: UseFieldOptions): FieldBinding<
 export function useField<TScope>(name: FieldPath<TScope>, options?: UseFieldOptions): FieldBinding<PathValue<TScope, FieldPath<TScope> & string>>
 export function useField<TScope, N extends FieldPath<TScope>>(name: N, options?: UseFieldOptions): FieldBinding<PathValue<TScope, N & string>>
 export function useField(name: string, options?: UseFieldOptions): FieldBinding<any> {
-  const form = useFormContext()
+  const form = useRequiredForm(`useField('${String(name)}') / <Field name="${String(name)}">`)
   const scope = useScope()
   const path = resolveName(form, scope, String(name))
   const spec = options
