@@ -182,8 +182,7 @@ await form.submit(async (values) => {
 关掉「填写更多」，昵称和邀请码的输入框都不在页面上，现在直接提交没有错误。改成：
 
 1. `defineEffects` 里写 `d.code.$rules = [{ required: true, message: '邀请码必填' }]`，把 effects 传给 `useForm`；
-2. `useForm` 加上 `fields: { code: {} }`；
-3. 邀请码的 `Field` 去掉 `rules`，昵称的 JSX 规则留着。
+2. 邀请码的 `Field` 去掉 `rules`，昵称的 JSX 规则留着。
 
 再关掉开关提交：错误列表仍有「邀请码必填」，昵称不再校验。点「看答案」对照。
 

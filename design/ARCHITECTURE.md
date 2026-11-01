@@ -8,13 +8,13 @@
 2. **组件只是 Hook 的薄封装，不得拥有 Hook 用户拿不到的逻辑。**
    - `<Field name rules required virtual display pattern title description decorator component>` = `useField(name, options)` + `display !== 'visible'` 时返回 `null` + 渲染 `decorator` 包住 `component`（或 children），并用内部 `FieldContext` 提供 binding（经无参 `useField()` 读取，不导出）。
    - `<ArrayField>` = `useArrayField` + `ArrayScope`（供 `useArray()`）+ 每行 `RowScope`（供 `useIndex()` / `useRecord()`）；`<TreeField>` = `useTreeField`；`<Watch>` = `useWatch`；`<Form>` = Context Provider + `form.submit()`。
-   - `AppField`（`createFormHook`）= `<Field>` + 字段 Context。
+   - `AppField`（`createFormHook`）= `<Field>` + 预绑定组件（挂在 render prop 参数上）；不另开作用域。`AppForm` 与 `<Form>` 一样把作用域重置为根。
 3. **Ant Design 适配层是 `useField` 之上的 Formily 式 connect 层。** `<Field>` 是字段唯一的拥有者；装饰器和控件都从 `FieldContext` 读同一个 binding。
    - `connect(Control, mapProps(...), mapReadPretty(...))` 每次渲染只做一件事：`mapFieldProps(binding, props)`（binding 来自 `field` 属性 / `name` / 外层 `<Field>`）。`mapFieldProps` 本身是导出的纯函数，Hook 用户可直接 `<AntInput {...mapFieldProps(field, props)} />`。
    - `FormItem` 是纯装饰器：不拥有字段，`mapFormItemProps(binding, props, useFormLayout())` 是它的纯函数核心，Hook 用户可直接 `<Form.Item {...mapFormItemProps(field, {})}>`。
    - 表格（`ArrayTable`、`ProQueryTable`）分别建立在 `useArrayField`、`useQueryTable`（`shikiform/pro`）之上。
    - Pro 组件（复刻 Pro.formily）同样是 Hook 之上的薄封装，见 §10：`ProArrayTable` = `useArrayTable` + `useColumnSettings`；`QueryList` = `useQueryTable({ rows })` + `ProArrayTable`；`ShadowModal` / `ShadowDrawer` / `ShadowPopconfirm` / `ShadowForm` = `useShadowForm`（行编辑用 `useArrayShadow`）；`Suggestion` = `useSuggestion`；`CascaderPlus` = `useLazyCascader`；`EnumPretty` = `enumItems`。
-4. **公开导出。** 核心重构（PR #16）只新增导出；Formily 式适配层重构删除了 `FormItem` 的 `name` / `field` / `rules` / `required` / `virtual` / `display` / `pattern` 属性（字段只由 `<Field>` 拥有，见 §8），导出名本身没有删除。
+4. **公开导出。** 未发布前不留兼容别名，旧名字直接删除（2026-11-01 删除 `isSubmitting`、`Enum`）。`FormItem` 没有 `name` / `field` / `rules` / `required` 等属性，字段只由 `<Field>` 拥有（§8）。
 
 ## 2. 目录与依赖方向
 
@@ -33,13 +33,13 @@ src/
     validation/            ③ 校验：validator.ts（管线）、rules.ts、schema.ts、messages.ts（内置文案，纯函数）
     declarations/          ④ 声明：declarations.ts、templates.ts
     structure/             ⑤ 结构：arrays.ts、trees.ts、migrate.ts
-    ui/                    ⑤ 命名 UI：ui-registry.ts
+    ui/                    ⑤ 命名 UI：ui-registry.ts（`$ui(name)`；引擎有、React 层未接入，见 §12）
     engine/                ⑥ 门面：form-engine.ts（FormEngine/createForm）、writes.ts（StateWriter）、field-ui.ts（字段 UI 状态）、baseline.ts（初始值基线、派生 dirty、reset）
   react/                   headless React 绑定（只依赖 core）
     context.tsx            FormContext / ScopeContext
     field-context.ts       内部 FieldContext / useFieldContextOrNull（<Field> 提供；公开读取走无参 useField()）
     hooks/                 use-form、use-field、use-array（useArrayField / useArray）、use-row（useIndex / useRecord / useTreeNode）、
-                           use-tree、use-watch、field-lifecycle（JSX lease）
+                           use-tree、use-watch、use-form-message、field-lifecycle（JSX lease）、resolve-name（相对名 → path，开发期查重复前缀）
     components/            fields.tsx（Form/Field/ObjectField/ArrayField/RowScope/TreeField/Watch）、virtual-rows.tsx
     factory/               create-form-hook.tsx（createFormHook / createFormHookContexts）、typed.tsx（typed(form)：按表单类型检查名字的同一组组件 / Hooks，类型随作用域）
   pro/                     无 UI 的高级 Hook（依赖 react / core）
@@ -87,7 +87,7 @@ core 内部（有状态部分，编号小者在下）：
 ## 3. 字段模型与状态（`core/state`）
 
 - **`FieldModel`**（`field-model.ts`）：每个精确 path 一个模型，所有挂在该 path 上的 UI 共享。除 `display/pattern/required/rules/errors/touched/dirty/validating/enum` 外，还记录**来源**：`*FromEffect`（reaction 写入）、`declared*`（`fields`/`registerField`）、`jsx*`（挂载期 lease）、`templateApplied`（条目模板实例），用于多来源叠加。UI 状态（`uiDeclared` / `uiEffect`）见 §3.1。
-- **`FieldStore`**（`field-store.ts`）：`values`、`initial`、表单级 `dirty/submitting/submitCount/validating`、`fields` Map；`ensure(path)` 首次触碰即创建模型。继承读：`effectiveDisplay`（祖先 `none` 优先，其次 `hidden`）、`effectivePattern`（最近的自身/祖先值；computed 字段默认 `readPretty`）。它只存数据，不通知、不调度。
+- **`FieldStore`**（`field-store.ts`）：`values`、`initial`、表单级 `edited/submitting/submitCount/validating`（`dirty` 由 `Baseline` 派生，见 §7）、`fields` Map；`ensure(path)` 首次触碰即创建模型。继承读：`effectiveDisplay`（祖先 `none` 优先，其次 `hidden`）、`effectivePattern`（最近的自身/祖先值；computed 字段默认 `readPretty`）。它只存数据，不通知、不调度。
 - **`Notifier`**（`notifier.ts`）：path / structure / dep / meta / debug 五类版本号与监听器；写入方只 bump 版本并标记 pending，`emit()` 一次性派发（顺序：path → structure → meta → dep → debug）。React 的 `useSyncExternalStore` 读的就是这些版本号。
 
 ### 3.1 字段 UI 状态（`engine/field-ui.ts`）
@@ -181,7 +181,8 @@ const Rate = connect(AntRate, mapProps({ status: false }))
 - **`FormItem`**（纯装饰器）：没有 `name` / `field` / `rules` / `required` 属性，字段外使用抛错。`mapFormItemProps(field, props, layout)`：合并 `layout`（`FormLayout`）← `field.decoratorProps` ← `props`；`label` ← `title`、`extra` ← `description`（显式优先）；必填星号 ← `required`（`readPretty` 隐藏，`asterisk` 可强制）；`validateStatus` 依次 error → validating → warning；`help` 取第一条错误或警告；`feedbackLayout`：`loose`（默认）/ `terse`（无提示时去掉底部间距，适合单元格与栅格）/ `none`（不显示提示文字）。`hidden/none` 不渲染。
 - **`FormLayout`**：`layout`（`horizontal` / `vertical` / `inline`）、`labelCol`、`wrapperCol`、`labelAlign`、`colon`、`size`、`feedbackLayout` 经 context 向下继承，嵌套时按键合并；`size` 同时通过 antd `ConfigProvider componentSize` 作用于控件；`inline` 用一层 flex 容器排布。`useFormLayout()` 读当前合并结果，供自定义装饰器使用。
 - **表格**：单元格就是行作用域里的 `<Field>`，可以不要装饰器（`component={[Input]}`），或用别的装饰器 / `FormItem` 的 `feedbackLayout: 'terse'`。
-- **`useAntdForm`**：`field.Input` / `field.Select` / `field.InputNumber` = 对应 connect 控件包在 `FormItem` 里；`field.Switch` / `field.Checkbox` 就是 connect 控件。全库只有一套适配层（旧的手写 `FieldInput` 等已删除）；行为变化见 PR：`InputNumber` 清空写 `null`（原为 `0`）、`stringMode` 下写字符串、`Select` 阅读态显示 label、`AppField title` 显示为 label。
+- **`useAntdForm`**：七个预绑定控件（`Input`、`Select`、`InputNumber`、`Switch`、`Checkbox`、`Radio`、`DatePicker`，含子控件）都是对应 connect 控件包在 `FormItem` 里。全库只有一套适配层。`createAntdFormHook()` 没有参数，不能追加控件。
+- **阅读态**：`mapReadPretty` 视图收到调用方 props + `value` / `options`；`PreviewText` 的空值文案是 `empty`（不是 `placeholder`，否则控件的编辑态占位符会显示成值）。
 
 ## 9. 已删除的半成品配置
 
@@ -214,3 +215,7 @@ const Rate = connect(AntRate, mapProps({ status: false }))
 - `ScopeContext` 的值扩展为 `{ path, index, itemKey?, pos? }`；`RowScope` 接受 `itemKey`（行 id）与 `pos`（树坐标）。`useIndex()` 读 `index`；`useTreeNode()` 读 `pos`；二者在行 / 节点外抛错。
 - `useRecord()` = `useWatch(() => form.query(scope.path).$value)`：单元格写入会把祖先的 `:value` 依赖标脏，所以这一行任一单元格变化都会重渲染，其他行不会；行移动后 `RowScope` 的 path 变化，selector 跟着换。
 - `ProArrayTable.useRow()` = `{ key: scope.itemKey, index: useIndex(), position: table.positionOf(index), record: useRecord() }`，antd 层不再有自己的行 Context；`useTable()` 只是表格状态（`useArrayTable` + `useColumnSettings`）的 Context。
+
+## 12. 半成品与待决定
+
+- **命名 UI（`core/ui/ui-registry.ts`）**：`d.x.$ui('summary')` / `d.$ui('aside')` 给同一字段的多个 UI 实例各自的 `display` / `pattern`，`claimUi` / `releaseUi` / `uiVisible`、`query(path, { ui })` 和 `ShikiUiError` 都在引擎里，但没有任何 React 组件调用 `claimUi` / `uiVisible`，文档也没有写。写 `$ui('x').$visible = false` 目前什么都不会发生。要么接进 `<Field ui="summary">`，要么整块删除（同 `commit: 'blur'` 的处理）。

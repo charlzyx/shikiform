@@ -13,7 +13,7 @@ description: createFormHookContexts、createFormHook、useAppForm、AppField、A
 |---|---|
 | FormEngine | 值、字段状态、校验与 effects |
 | Field / AppField | 当前字段的订阅、显示和挂载生命周期 |
-| 工厂 context | 把当前 FieldBinding / FormEngine 交给预绑定组件 |
+| 工厂 context | 把 FormEngine 交给表单级组件（`formComponents`，如 `form.Save`）；字段由 `<Field>` 的上下文提供，输入组件用无参 `useField()` 读 |
 | 自定义输入组件 | 把绑定转成 UI props，展示标签、错误和只读文本 |
 
 先看 [基础 Hooks](/reference/react-hooks)，已有 antd 预绑定可用时看 [API 模块入口](/api#模块入口)，不必重新发明一套表单引擎。
@@ -64,10 +64,10 @@ createFormHook<
 ## useAppForm
 
 ```ts
-useAppForm<T, TSubmit = T>(options?: FormOptions<T>): AppFormApi<T, TFields, TForms, TSubmit>
+useAppForm<T, TSubmit = T>(options?: UseFormOptions<T>): AppFormApi<T, TFields, TForms, TSubmit>
 ```
 
-`options` 和 `useForm` 一致，省略为 `{}`，只在首次渲染读取。返回的是同一个引擎加上绑定组件：
+`options` 和 `useForm` 一致（含 `values`），省略为 `{}`；除 `values` 外只在首次渲染读取。返回的是同一个引擎加上绑定组件：
 
 ```ts
 type AppFormApi<T, TFields, TForms, TSubmit = T> = FormEngine<T, TSubmit> & {

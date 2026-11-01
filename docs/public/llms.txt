@@ -190,7 +190,7 @@ reaction((d) => { d.city.$componentProps.disabled = d.kind.$value === 'b' })    
 <F.ArrayField name="items">{(row) => <row.AppField name="name">{(f) => <f.Input />}</row.AppField>}</F.ArrayField>  // ✓ F = typed(form)
 ```
 
-## 7. Form state: dirty, backfill, server errors
+## 9. Form state: dirty, backfill, server errors
 
 - `form.values`, `submitting`, `dirty`, `submitCount`, `validating` are read-only getters. Write values with
   `setValue` / `batch` / array ops, never `form.values = x` (a TS error, and a `TypeError` at runtime).

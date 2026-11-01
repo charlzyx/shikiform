@@ -31,7 +31,7 @@ description: 四个入口、createForm 选项、引擎方法、React 组件与�
 ## 创建表单
 
 ```ts
-useForm<T, TSubmit = T>(options?: FormOptions<T>): FormEngine<T, TSubmit>     // 组件里，实例在组件生命周期内稳定
+useForm<T, TSubmit = T>(options?: UseFormOptions<T>): FormEngine<T, TSubmit>  // 组件里，实例稳定；UseFormOptions = FormOptions + values
 createForm<T, TSubmit = T>(options?: FormOptions<T>): FormEngine<T, TSubmit>  // 组件外
 ```
 
