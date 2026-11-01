@@ -9,7 +9,7 @@ const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 30))
 
 const FILLED: Signup = {
   username: 'ada', email: 'ada@example.com', password: 'secret', province: 'zj', city: 'hz', color: '#ff0000',
-  contacts: [{ id: 1, name: 'Charles', phone: '100' }],
+  contacts: [{ name: 'Charles', phone: '100' }],
 }
 
 /** The self-review form (tests/fixtures/signup-form.tsx) compared against Formily in the 2026-11-01 review. */

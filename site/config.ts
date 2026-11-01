@@ -50,7 +50,7 @@ export default async () => {
         group('开始', ['index', 'guide/quick-start', 'guide/concepts']),
         group('字段与组件', ['guide/field', 'guide/layout', 'guide/antd']),
         group('联动', ['guide/linkage']),
-        group('数据结构', ['guide/structures', 'guide/headless']),
+        group('数据结构', ['guide/structures', 'guide/arrays', 'guide/headless']),
         group('Pro 组件', ['guide/pro']),
         group('校验', ['guide/validation']),
         group('示例库', ['examples', 'examples/forms', 'examples/linkage', 'examples/arrays', 'examples/tables', 'examples/business', 'examples/pro']),

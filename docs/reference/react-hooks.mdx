@@ -306,7 +306,7 @@ useArray<TRow = unknown>(): ArrayHandle<TRow>
 // ArrayHandle = useArrayField 的返回值：{ path, keys, push, insert, remove, move, swap, replace }
 ```
 
-最近一层数组（Formily `ArrayBase.useArray`），无需 name：在 `<ArrayField>`、antd `ArrayTable`、`ProArrayTable` 的行、工具栏或展开行里，返回与 `useArrayField` 对同一数组相同的句柄（订阅数组结构）。嵌套数组取最近的一层。不在数组内时抛错。自定义数组组件用 `<ArrayScope path rowKey>` 提供它。
+最近一层数组（Formily `ArrayBase.useArray`），无需 name：在 `<ArrayField>`（含它的 `component` 容器，如 `ArrayItems`）、antd `ArrayTable`、`ProArrayTable` 的行、工具栏或展开行里，返回与 `useArrayField` 对同一数组相同的句柄（订阅数组结构）。嵌套数组取最近的一层。不在数组内时抛错。自定义数组组件用 `<ArrayScope path rowKey>` 提供它。
 
 ```tsx
 function RemoveButton() {

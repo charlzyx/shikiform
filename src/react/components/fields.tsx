@@ -1,4 +1,4 @@
-import { useMemo, type FormEvent, type FormHTMLAttributes, type ReactNode } from 'react'
+import { useMemo, type ComponentType, type FormEvent, type FormHTMLAttributes, type ReactNode } from 'react'
 import type { FormEngine } from '../../core/engine/form-engine'
 import type { ArrayPath, Display, Draft, FieldError, FieldPath, PathValue, Pattern } from '../../core/types'
 import type { RulesInput } from '../../core/validation/rules'
@@ -182,30 +182,35 @@ export function ObjectField<TScope = any>({
 }
 
 /**
- * Repeat `children` once per row. The key is the row id when present.
+ * Repeat `children` once per row. The key is the row id when present (`rowKey`, else `id`), otherwise a stable
+ * object identity, so rows without an id keep their state when they move.
  * The parent subscribes to structure only. Put cell inputs in a child that calls `useField`.
  * Names inside a row are relative to the row (`name="price"`, not `items.0.price`).
+ * `component` is the container around the rows (Formily `ArrayItems` / `ArrayCards` in `shikiform/antd`):
+ * `component={[ArrayItems, { addition: <ArrayItems.Addition /> }]}` renders `<ArrayItems …>{rows}</ArrayItems>`
+ * inside the array's scope, so its buttons reach the array through {@link useArray}.
  * `<ArrayField<Values> name="items">` checks the name; `typed(form).ArrayField` also types the row's fields.
  */
 export function ArrayField<TScope = any>({
   name,
   rowKey,
+  component,
   children,
 }: {
   name: ArrayPath<TScope>
   rowKey?: string
+  /** Container around the rows: the component, or `[Component, props]`. It receives the rows as `children`. */
+  component?: FieldSlot
   children: (row: { index: number; key: string }) => ReactNode
 }) {
   const array = useArrayField(String(name), rowKey)
-  return (
-    <ArrayScope path={array.path} rowKey={rowKey}>
-      {array.keys.map((row) => (
-        <RowScope key={row.key} path={`${array.path}.${row.index}`} index={row.index} itemKey={row.key}>
-          {children(row)}
-        </RowScope>
-      ))}
-    </ArrayScope>
-  )
+  const rows = array.keys.map((row) => (
+    <RowScope key={row.key} path={`${array.path}.${row.index}`} index={row.index} itemKey={row.key}>
+      {children(row)}
+    </RowScope>
+  ))
+  const [Container, props] = Array.isArray(component) ? component : [component as ComponentType<any> | undefined, undefined]
+  return <ArrayScope path={array.path} rowKey={rowKey}>{Container ? <Container {...props}>{rows}</Container> : rows}</ArrayScope>
 }
 
 /**

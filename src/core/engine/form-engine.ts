@@ -87,6 +87,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     for (const [path, spec] of Object.entries(options.fields ?? {}) as [string, FieldSpec | undefined][]) {
       if (spec) this.registerField(path, spec)
     }
+    if (options.pattern) this.writeState('', '$pattern', options.pattern)
     for (const effect of options.effects ?? []) effect.install(this)
     scheduler.flush()
     declarations.applyItemTemplates()

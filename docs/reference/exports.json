@@ -71,6 +71,9 @@
     "FormGrid": "reference/antd-adapter.mdx",
     "GridColumn": "reference/antd-adapter.mdx",
     "useFormGrid": "reference/antd-adapter.mdx",
-    "FormButtonGroup": "reference/antd-adapter.mdx"
+    "FormButtonGroup": "reference/antd-adapter.mdx",
+    "ArrayItems": "reference/antd.mdx",
+    "ArrayCards": "reference/antd.mdx",
+    "useArrayEditable": "reference/antd.mdx"
   }
 }

@@ -1,11 +1,11 @@
 ---
 title: Ant Design 参考
-description: Submit / Reset 按钮、控件取值契约和表格组件的实际接口。
+description: Submit / Reset 按钮、控件取值契约、数组容器（ArrayItems / ArrayCards）和表格组件的实际接口。
 ---
 
 # Ant Design 参考
 
-从 `shikiform/antd` 导入。字段只有一种写法：`<Field decorator={[FormItem]} component={[Input]} />`（适配层见 [Ant Design 适配层参考](/reference/antd-adapter)），按表单类型检查名字用 [`typed(form)`](/reference/react-hooks#typed)。本页是按钮、控件的取值契约和表格组件。用法见 [Ant Design 适配](/guide/antd)。
+从 `shikiform/antd` 导入。字段只有一种写法：`<Field decorator={[FormItem]} component={[Input]} />`（适配层见 [Ant Design 适配层参考](/reference/antd-adapter)），按表单类型检查名字用 [`typed(form)`](/reference/react-hooks#typed)。本页是按钮、控件的取值契约、数组容器和表格组件。用法见 [Ant Design 适配](/guide/antd)。
 
 ## Submit
 
@@ -176,8 +176,63 @@ QueryForm({ collapsed = false, collapseAfter = 3, children? })
 
 它**不卸载字段，不写 `$display`，不跳过校验，也不提供表单 context**。折叠搜索区仍可能有保留的字段状态；查询选择如何清空由 hook 控制。
 
+## ArrayItems
+
+```tsx
+<ArrayField name="contacts" component={[ArrayItems, { addition: <ArrayItems.Addition />, empty?: ReactNode | false }]}>
+  {(row) => (
+    <ArrayItems.Item>
+      <ArrayItems.SortHandle /> <ArrayItems.Index /> {/* 行字段 */} <ArrayItems.MoveUp /> <ArrayItems.MoveDown /> <ArrayItems.Remove />
+    </ArrayItems.Item>
+  )}
+</ArrayField>
+```
+
+数组容器（Formily `ArrayItems`），作为 `<ArrayField>` / `F.ArrayField` 的 `component`。`<ArrayField>` 把它渲染在数组的 `ArrayScope` 里，`children` 是各行（每行一个 `RowScope`），所以下面的成员都只是 `useArray()` + `useIndex()`。
+
+| 成员 / 参数 | 行为 |
+|---|---|
+| `addition` | 渲染在各行下方，通常是 `<ArrayItems.Addition />` |
+| `empty` | 没有行时显示；默认 antd `Empty`（简洁图），`false` 不显示 |
+| `className` / `style` | 外层纵向 flex 容器（间距 8） |
+| `ArrayItems.Item` | 一行横排（flex，间距 8），也是拖拽的放置目标 |
+| `ArrayItems.SortHandle` | `⋮⋮` 拖拽把手，放到另一行上 = `array.move(from, to)`（HTML5 拖放） |
+| `ArrayItems.Index` | `#序号`（从 1 开始），`prefix` 换前缀；任何 pattern 都显示 |
+| `ArrayItems.Remove` | `title?`、`confirm?: boolean \| string`（先 `Popconfirm`） |
+| `ArrayItems.MoveUp` / `MoveDown` | `title?`；首行 / 末行禁用 |
+| `ArrayItems.Addition` | `title?`、`defaultValue?`（值每次克隆，或函数；默认 `{}`）、`method?: 'push' \| 'unshift'` |
+
+`SortHandle`、`Remove`、`MoveUp`、`MoveDown`、`Addition` 只在数组的有效 pattern 为 `editable` 时渲染（见 [useArrayEditable](#usearrayeditable)）。按钮文案走表单 `messages`（`add`、`remove`、`removeConfirm`、`moveUp`、`moveDown`、`dragSort`）。行可以没有 id：对象行的身份是稳定的对象身份，`rowKey` 只在行里有业务 id 时传。
+
+## ArrayCards
+
+```tsx
+<ArrayField name="items" component={[ArrayCards, { title: '商品', extra?: ReactNode, addition: <ArrayCards.Addition />, empty? }]}>
+  {(row) => /* 卡片内容：行字段 */}
+</ArrayField>
+```
+
+每行一张 antd `Card`（`size="small"`，Formily `ArrayCards`）。不需要行包装组件：容器把每行内容包进卡片，卡片仍在该行的 `RowScope` 里。
+
+| 参数 | 行为 |
+|---|---|
+| `title` | 卡片标题前缀，后面跟 `#序号`；可编辑时标题前有拖拽把手 |
+| `extra` | 卡片右上角；默认 `MoveUp` + `MoveDown` + `Remove` |
+| `addition` / `empty` / `className` / `style` | 同 `ArrayItems` |
+
+静态成员 `SortHandle`、`Index`、`Remove`、`MoveUp`、`MoveDown`、`Addition` 与 `ArrayItems` 的是同一批组件。
+
+## useArrayEditable
+
+```ts
+useArrayEditable(): boolean
+```
+
+最近一层数组（`<ArrayField>` 的容器或行内）的有效 pattern 是否为 `editable`。有效 pattern 沿祖先继承到根：`useForm({ pattern: 'readPretty' })`、`d.$pattern = 'disabled'`、`d.contacts.$pattern = 'readOnly'` 都让它变成 `false`。`ArrayItems` / `ArrayCards` 的动作按钮靠它隐藏；自己写的行操作也用它。在数组外调用抛错。
+
 ## 实现位置
 
 - 按钮：`src/antd/components/buttons.tsx`；控件接线：`src/antd/components/controls.tsx`。
+- 数组容器：`src/antd/arrays/array-items.tsx`。
 - 表格与网格：`src/antd/tables/array-table.tsx`、`tables/merged-table.tsx`、`tables/query-table.tsx`。
 - 本模块的真实导出清单：`src/antd/index.ts`；所有示例只使用这些公开入口。

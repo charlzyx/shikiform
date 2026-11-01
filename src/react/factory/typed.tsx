@@ -3,7 +3,7 @@ import type { FormEngine } from '../../core/engine/form-engine'
 import type { ArrayItemOf, ArrayPath, Draft, FieldPath, PathValue } from '../../core/types'
 import { ArrayField, Field, ObjectField, Watch, type FieldProps } from '../components/fields'
 import { useArrayField, type ArrayHandle, type ArrayKey } from '../hooks/use-array'
-import { useField, type FieldBinding, type UseFieldOptions } from '../hooks/use-field'
+import { useField, type FieldBinding, type FieldSlot, type UseFieldOptions } from '../hooks/use-field'
 import { useWatch } from '../hooks/use-watch'
 
 /**
@@ -22,6 +22,7 @@ export type ScopeFields<T> = {
   ArrayField: <N extends ArrayPath<T>>(props: {
     name: N
     rowKey?: string
+    component?: FieldSlot
     children: (row: ArrayKey & ScopeFields<ArrayItemOf<T, N & string>>) => ReactNode
   }) => ReactNode
 }
@@ -65,7 +66,7 @@ export function typed(_form?: FormEngine<any, any>): TypedForm<any> {
   return handles
 }
 
-function TypedArrayField({ children, ...props }: { name: string; rowKey?: string; children: (row: any) => ReactNode }) {
+function TypedArrayField({ children, ...props }: { name: string; rowKey?: string; component?: FieldSlot; children: (row: any) => ReactNode }) {
   return <ArrayField {...props}>{(row) => children({ ...row, ...scope })}</ArrayField>
 }
 function TypedObjectField({ children, ...props }: { name: string; virtual?: boolean; children?: ReactNode | ((scope: any) => ReactNode) }) {
