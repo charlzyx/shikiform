@@ -1,3 +1,4 @@
+import { formatMessage, type FormMessages } from '../validation/messages'
 import { getAt } from './path'
 
 /** Index path of a tree node. Depth is `pos.length`. The last entry is the sibling index. */
@@ -102,7 +103,8 @@ export interface CanMoveArgs {
 /**
  * Move `from` so that its final coordinate is `to`.
  * `to` is the index path **after** the move (not the pre-removal insertion slot).
- * Moving a node into itself or its descendant is refused.
+ * Moving a node into itself or its descendant is refused. Refusal reasons come from `messages` (`treeIntoSelf` …),
+ * then the app defaults.
  */
 export function moveNode(
   nodes: any[],
@@ -110,24 +112,27 @@ export function moveNode(
   to: Pos,
   childrenKey = 'children',
   canMove?: (args: CanMoveArgs) => string | null | undefined,
+  messages?: Partial<FormMessages>,
 ): TreeMoveResult {
-  if (!from.length || !to.length) return { ok: false, reason: 'pos 不能为空' }
-  if (isPosPrefix(from, to)) return { ok: false, reason: '不能移入自身或其后代' }
+  const refuse = (key: 'treeEmptyPos' | 'treeIntoSelf' | 'treeSourceMissing' | 'treeTargetMissing'): TreeMoveResult => ({
+    ok: false,
+    reason: formatMessage(messages, key, { from, to }),
+  })
+  if (!from.length || !to.length) return refuse('treeEmptyPos')
+  if (isPosPrefix(from, to)) return refuse('treeIntoSelf')
   const node = getNode(nodes, from, childrenKey)
-  if (node == null) return { ok: false, reason: '源节点不存在' }
+  if (node == null) return refuse('treeSourceMissing')
   const parentPos = to.slice(0, -1)
-  if (parentPos.length && isPosPrefix(from, parentPos)) {
-    return { ok: false, reason: '不能移入自身或其后代' }
-  }
+  if (parentPos.length && isPosPrefix(from, parentPos)) return refuse('treeIntoSelf')
   if (canMove) {
     const toParent = parentPos.length ? getNode(nodes, parentPos, childrenKey) : null
     const reason = canMove({ from, to, node, toParent })
     if (reason) return { ok: false, reason }
   }
   const removed = removeNode(nodes, from, childrenKey)
-  if (!removed) return { ok: false, reason: '源节点不存在' }
+  if (!removed) return refuse('treeSourceMissing')
   const parentList = parentListOf(removed.tree, to, childrenKey)
-  if (!parentList) return { ok: false, reason: '目标父节点不存在' }
+  if (!parentList) return refuse('treeTargetMissing')
   const index = Math.min(Math.max(to[to.length - 1]!, 0), parentList.length)
   parentList.splice(index, 0, removed.node)
   return { ok: true, tree: removed.tree }

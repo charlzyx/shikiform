@@ -1,12 +1,11 @@
 import { createContext, useContext, useMemo, type ComponentType, type Context, type ReactNode } from 'react'
 import type { FormEngine } from '../../core/engine/form-engine'
 import { joinPath } from '../../core/shared/path'
-import type { FormOptions } from '../../core/types'
 import { FormContext, ScopeContext, useScope } from '../context'
 import type { FieldBinding, UseFieldOptions } from '../hooks/use-field'
 import { Field, handleFormSubmit, type FormDomProps, type FormSubmitHandlers } from '../components/fields'
 import type { FormMessages } from '../../core/validation/messages'
-import { useForm } from '../hooks/use-form'
+import { useForm, type UseFormOptions } from '../hooks/use-form'
 import type { TypedAppField } from './typed'
 
 /**
@@ -74,7 +73,7 @@ export function createFormHook<
     )
   }
 
-  function useAppForm<T, TSubmit = T>(opts?: FormOptions<T>): AppFormApi<T, TFields, TForms, TSubmit> {
+  function useAppForm<T, TSubmit = T>(opts?: UseFormOptions<T>): AppFormApi<T, TFields, TForms, TSubmit> {
     const form = useForm<T, TSubmit>(options.messages ? { ...opts, messages: { ...options.messages, ...opts?.messages } } : opts)
     return useMemo(() => {
       function AppForm({ children, onSubmit, onInvalid, onSubmitError, ...rest }: AppFormProps<TSubmit>) {

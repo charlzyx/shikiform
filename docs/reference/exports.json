@@ -1,6 +1,7 @@
 {
   "shikiform": {
     "useForm": "reference/react-hooks.mdx",
+    "useFormMessage": "reference/react-hooks.mdx",
     "typed": "reference/react-hooks.mdx",
     "useFormContext": "reference/react-hooks.mdx",
     "useField": "reference/react-hooks.mdx",

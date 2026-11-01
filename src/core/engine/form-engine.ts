@@ -12,6 +12,7 @@ import { Notifier } from '../state/notifier'
 import { ArrayOps } from '../structure/arrays'
 import { findPos, pathOf, type Pos } from '../shared/tree-ops'
 import { TreeOps, type TreeConfig } from '../structure/trees'
+import { formatMessage, type FormMessageKey, type MessageArgs } from '../validation/messages'
 import type {
   FieldUiSpec,
   ArrayItemOf,
@@ -69,7 +70,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     const store = (this.store = new FieldStore<T>((options.initialValues ?? {}) as T))
     const notifier = (this.notifier = new Notifier())
     const scheduler = (this.scheduler = new Scheduler(notifier, !!options.devtools))
-    const trees = (this.trees = new TreeOps(store, scheduler))
+    const trees = (this.trees = new TreeOps(store, scheduler, options.messages))
     const validator = (this.validator = new Validator({ store, notifier, scheduler, options, readPos: (path) => trees.readPos(path) }))
     const declarations = (this.declarations = new Declarations(store, notifier, validator))
     validator.prepare = () => declarations.applyItemTemplates()
@@ -254,6 +255,11 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   /** Clear every message (rule, schema, external) on `path` and its descendants, or on the whole form. Values are untouched. */
   clearErrors(path?: FieldPath<T>): void {
     this.validator.clearAll(path ? String(path) : undefined)
+  }
+
+  /** One built-in text resolved for this form: `options.messages` → `setDefaultMessages` → `zhCN`. */
+  message<K extends FormMessageKey>(key: K, ...params: MessageArgs<K>): string {
+    return formatMessage(this.options.messages, key, ...params)
   }
 
   /**

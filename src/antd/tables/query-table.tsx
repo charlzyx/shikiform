@@ -26,13 +26,13 @@ export function ProQueryTable<TValues, TParams, TRow extends object>({
       {search}
       <Space style={{ margin: '12px 0' }}>
         <Button type="primary" data-testid="query-submit" onClick={() => table.submit()}>
-          查询
+          {table.form.message('search')}
         </Button>
         <Button data-testid="query-reset" onClick={() => table.reset()}>
-          重置
+          {table.form.message('reset')}
         </Button>
         <Button data-testid="query-refresh" onClick={() => table.refresh()}>
-          刷新
+          {table.form.message('refresh')}
         </Button>
         {toolbar}
       </Space>

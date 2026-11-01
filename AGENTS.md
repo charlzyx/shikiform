@@ -108,7 +108,9 @@ const form = createForm({
   Enter, `type="submit"`, and `form.submit(onValid)` behave the same; do not add a second `<form>`.
 - Built-in messages default to Chinese. Override per form with `messages` (partial; functions get params:
   `minLength: ({ minLength }) => …`), app-wide with `setDefaultMessages(enUS)`, per factory with
-  `createFormHook({ messages })`. A rule's own `message` wins.
+  `createFormHook({ messages })`. A rule's own `message` wins. The same `messages` cover `moveTree` refusal reasons
+  and every `shikiform/antd` label (提交 / 重置 / 查询 / 删除 …); a component's own prop (`title`, `okText`) wins.
+  Custom components read them with `useFormMessage()` (`t('submit')`) or `form.message('submit')`.
 
 ## 7. Types: names, watch, submit
 
@@ -179,7 +181,8 @@ reaction((d) => { d.city.$componentProps.disabled = d.kind.$value === 'b' })    
   `setValue` / `batch` / array ops, never `form.values = x` (a TS error, and a `TypeError` at runtime).
 - `dirty` / `$dirty` / `binding.dirty` = the value differs from `initial` (deep compare; changing it back clears it;
   `virtual` and computed fields do not count at form level). `edited` / `$edited` is the sticky "a user edited it" flag.
-- Edit page: `form.reset(record)` loads a record and makes it the new initial values (a later `reset()` returns to it).
+- Edit page: `useForm({ values: record })` resets to `record` whenever its content changes (new baseline, not dirty;
+  `initialValues` is read once). Without React, `form.reset(record)` does the same; a later `reset()` returns to it.
   After a save, `form.setInitialValues(form.values)` moves the baseline without changing values.
 - Server errors: `form.setErrors({ username: '已存在', '': '服务器繁忙' })` (or `setFieldError(path, msg)`). They show
   with rule errors and block `canSubmit` until that value (or one above / below it) changes, the field validates again

@@ -21,6 +21,7 @@ import { useShadowForm, type UseShadowFormOptions } from '../../pro/use-shadow-f
 import { ArrayScope, RowScope } from '../../react/components/fields'
 import { useFormContext, useScope } from '../../react/context'
 import { useArrayMove } from '../../react/hooks/use-array'
+import { useFormMessage } from '../../react/hooks/use-form-message'
 import { useIndex, useRecord } from '../../react/hooks/use-row'
 import { ShadowDrawer, ShadowModal } from '../shadow/shadow'
 
@@ -139,8 +140,9 @@ function useCell() {
 function SortHandle() {
   const { mover, row } = useCell()
   const { draggable, onDragStart } = mover.bind(row.index)
+  const t = useFormMessage()
   return (
-    <span data-testid="sort-handle" draggable={draggable} onDragStart={onDragStart} style={{ cursor: 'move', userSelect: 'none', padding: '0 4px' }} title="拖动排序">
+    <span data-testid="sort-handle" draggable={draggable} onDragStart={onDragStart} style={{ cursor: 'move', userSelect: 'none', padding: '0 4px' }} title={t('dragSort')}>
       ⋮⋮
     </span>
   )
@@ -156,14 +158,15 @@ function Index() {
 function Remove({ confirm, title }: { confirm?: boolean | string; title?: ReactNode }) {
   const { table, row } = useCell()
   const busy = table.removing.includes(row.key)
+  const t = useFormMessage()
   const button = (
     <Button size="small" type="link" danger loading={busy} data-testid="row-remove" onClick={confirm ? undefined : () => void table.remove(row.index)}>
-      {title ?? '删除'}
+      {title ?? t('remove')}
     </Button>
   )
   if (!confirm) return button
   return (
-    <Popconfirm title={typeof confirm === 'string' ? confirm : '确定删除这一行？'} onConfirm={() => table.remove(row.index).then(() => undefined)}>
+    <Popconfirm title={typeof confirm === 'string' ? confirm : t('removeConfirm')} onConfirm={() => table.remove(row.index).then(() => undefined)}>
       {button}
     </Popconfirm>
   )
@@ -171,27 +174,30 @@ function Remove({ confirm, title }: { confirm?: boolean | string; title?: ReactN
 
 function MoveUp({ title }: { title?: ReactNode }) {
   const { table, row } = useCell()
+  const t = useFormMessage()
   return (
     <Button size="small" type="link" data-testid="row-up" disabled={row.index === 0} onClick={() => table.moveUp(row.index)}>
-      {title ?? '上移'}
+      {title ?? t('moveUp')}
     </Button>
   )
 }
 
 function MoveDown({ title }: { title?: ReactNode }) {
   const { table, row } = useCell()
+  const t = useFormMessage()
   return (
     <Button size="small" type="link" data-testid="row-down" disabled={row.index >= table.rows.length - 1} onClick={() => table.moveDown(row.index)}>
-      {title ?? '下移'}
+      {title ?? t('moveDown')}
     </Button>
   )
 }
 
 function Copy({ title }: { title?: ReactNode }) {
   const { table, row } = useCell()
+  const t = useFormMessage()
   return (
     <Button size="small" type="link" data-testid="row-copy" onClick={() => table.copy(row.index)}>
-      {title ?? '复制'}
+      {title ?? t('copy')}
     </Button>
   )
 }
@@ -199,9 +205,10 @@ function Copy({ title }: { title?: ReactNode }) {
 /** Append a row (default `{}` or `defaultValue()`), then show the page it landed on. */
 function Addition({ title, defaultValue }: { title?: ReactNode; defaultValue?: () => any }) {
   const table = useTable()
+  const t = useFormMessage()
   return (
     <Button size="small" type="dashed" data-testid="row-add" onClick={() => table.add(defaultValue ? defaultValue() : {})}>
-      {title ?? '添加条目'}
+      {title ?? t('add')}
     </Button>
   )
 }
@@ -224,6 +231,7 @@ function ProAddition<TRow = any>({
   onOk?: (values: TRow, table: ArrayTableApi<TRow>) => void | false | Promise<void | false>
 }) {
   const table = useTable()
+  const t = useFormMessage()
   const shadow = useShadowForm<TRow>({
     ...shadowOptions,
     onOk: async (values) => {
@@ -233,7 +241,7 @@ function ProAddition<TRow = any>({
   })
   const trigger = (
     <Button size="small" type="dashed" data-testid="pro-addition" onClick={() => void shadow.open(initialValues ?? ({} as TRow))}>
-      {title ?? '添加条目'}
+      {title ?? t('add')}
     </Button>
   )
   return popType === 'drawer' ? (
@@ -255,6 +263,7 @@ function ProAddition<TRow = any>({
 
 function SelectionBar() {
   const table = useTable()
+  const t = useFormMessage()
   if (!table.pageRows.length) return null
   return (
     <Alert
@@ -262,15 +271,15 @@ function SelectionBar() {
       type="info"
       message={
         <Space size="small" split={<Divider type="vertical" />}>
-          <span data-testid="selection-count">选中 {table.selectedKeys.length} 项</span>
+          <span data-testid="selection-count">{t('selectionCount', { count: table.selectedKeys.length })}</span>
           <Button size="small" type="link" data-testid="selection-clear" onClick={table.clearSelection}>
-            清空
+            {t('selectionClear')}
           </Button>
           <Button size="small" type="link" data-testid="selection-all" onClick={table.selectPage}>
-            全选
+            {t('selectionAll')}
           </Button>
           <Button size="small" type="link" data-testid="selection-invert" onClick={table.invertPage}>
-            反选
+            {t('selectionInvert')}
           </Button>
         </Space>
       }
@@ -279,11 +288,11 @@ function SelectionBar() {
 }
 
 const DENSITY: TableDensity[] = ['middle', 'small', 'large']
-const DENSITY_LABEL: Record<TableDensity, string> = { large: '宽松', middle: '默认', small: '紧凑' }
 
 /** Column settings popover: show / hide, reorder (drag a row, or ↑ ↓ from the keyboard), density, reset. */
 function SettingsButton() {
   const { settings } = useTable()
+  const t = useFormMessage()
   const content = (
     <div data-testid="column-settings" style={{ minWidth: 200 }}>
       {settings.items.map((item, index) => (
@@ -300,28 +309,28 @@ function SettingsButton() {
             boxShadow: settings.drag.over === item.key && settings.drag.from !== item.key ? 'inset 0 2px 0 #1677ff' : undefined,
           }}
         >
-          <span data-testid={`column-drag-${item.key}`} aria-hidden style={{ cursor: 'grab', userSelect: 'none', color: '#999' }} title="拖动排序">
+          <span data-testid={`column-drag-${item.key}`} aria-hidden style={{ cursor: 'grab', userSelect: 'none', color: '#999' }} title={t('dragSort')}>
             ⋮⋮
           </span>
           <AntCheckbox data-testid={`column-show-${item.key}`} checked={item.show} onChange={() => settings.toggle(item.key)} />
           <span style={{ flex: 1 }}>{(item.title as ReactNode) ?? item.key}</span>
-          <Button size="small" type="text" aria-label="上移" disabled={index === 0} data-testid={`column-up-${item.key}`} onClick={() => settings.move(index, index - 1)}>
+          <Button size="small" type="text" aria-label={t('moveUp')} disabled={index === 0} data-testid={`column-up-${item.key}`} onClick={() => settings.move(index, index - 1)}>
             ↑
           </Button>
-          <Button size="small" type="text" aria-label="下移" disabled={index === settings.items.length - 1} data-testid={`column-down-${item.key}`} onClick={() => settings.move(index, index + 1)}>
+          <Button size="small" type="text" aria-label={t('moveDown')} disabled={index === settings.items.length - 1} data-testid={`column-down-${item.key}`} onClick={() => settings.move(index, index + 1)}>
             ↓
           </Button>
         </div>
       ))}
       <Divider style={{ margin: '6px 0' }} />
       <Button size="small" type="link" onClick={settings.reset}>
-        重置
+        {t('reset')}
       </Button>
     </div>
   )
   return (
     <Space size={4}>
-      <Tooltip title={`密度：${DENSITY_LABEL[settings.density]}`}>
+      <Tooltip title={t('density', { density: settings.density })}>
         <Button
           size="small"
           type="text"
@@ -331,7 +340,7 @@ function SettingsButton() {
           ↕
         </Button>
       </Tooltip>
-      <Popover content={content} title="列配置" trigger="click">
+      <Popover content={content} title={t('columnSettings')} trigger="click">
         <Button size="small" type="text" data-testid="table-settings">
           ⚙
         </Button>

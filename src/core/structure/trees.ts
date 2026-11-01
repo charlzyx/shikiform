@@ -2,6 +2,7 @@ import type { Scheduler } from '../effects/scheduler'
 import { setAt } from '../shared/path'
 import type { FieldStore } from '../state/field-store'
 import type { MoveResult } from '../types'
+import type { FormMessages } from '../validation/messages'
 import { reindexById } from './migrate'
 import { listPositions, locateIds, moveNode, posKey, posOf, type Pos } from '../shared/tree-ops'
 
@@ -18,6 +19,7 @@ export class TreeOps {
   constructor(
     private readonly store: FieldStore<any>,
     private readonly scheduler: Scheduler,
+    private readonly messages?: Partial<FormMessages>,
   ) {}
 
   register(path: string, spec: { childrenKey?: string; rowKey?: string; canMove?: TreeConfig['canMove'] } = {}): void {
@@ -65,7 +67,7 @@ export class TreeOps {
     const cfg = this.config(path)
     const before = store.arrayOf(path)
     const oldIds = locateIds(before, path, cfg.childrenKey, cfg.rowKey)
-    const result = moveNode(before, from, to, cfg.childrenKey, cfg.canMove)
+    const result = moveNode(before, from, to, cfg.childrenKey, cfg.canMove, this.messages)
     if (!result.ok || !result.tree) return { ok: false, reason: result.reason }
     const next = result.tree
     const newIds = locateIds(next, path, cfg.childrenKey, cfg.rowKey)

@@ -10,8 +10,9 @@ export interface MessageBase {
 }
 
 /**
- * Every built-in message. Override them per form with {@link FormOptions.messages}, or for the whole app with
- * {@link setDefaultMessages}. A rule's own `message` always wins.
+ * Every built-in text: validation messages, tree-move refusals and the `shikiform/antd` component labels.
+ * Override them per form with {@link FormOptions.messages}, or for the whole app with {@link setDefaultMessages}.
+ * A rule's own `message` and a component's own prop (`title`, `okText` …) always win.
  * Defaults are {@link zhCN}; {@link enUS} ships too.
  */
 export interface FormMessages {
@@ -42,6 +43,76 @@ export interface FormMessages {
   fallback: MessageTemplate<MessageBase & { error: unknown }>
   /** `submit()` result `message` when it gives up with `reason: 'superseded'` (values never settled). */
   superseded: MessageTemplate<{ path: ''; value: unknown }>
+
+  // Tree moves (`moveTree`, `useTreeMove`, `moveNode`): the refused `MoveResult.reason`.
+  /** `from` or `to` is an empty position. */
+  treeEmptyPos: MessageTemplate<TreeMoveParams>
+  /** Moving a node into itself or one of its descendants. */
+  treeIntoSelf: MessageTemplate<TreeMoveParams>
+  /** No node at `from`. */
+  treeSourceMissing: MessageTemplate<TreeMoveParams>
+  /** No parent list at `to`. */
+  treeTargetMissing: MessageTemplate<TreeMoveParams>
+
+  // Component labels (`shikiform/antd`), read through `useFormMessage()` from the nearest form.
+  /** Submit button (`form.Submit`). */
+  submit: MessageTemplate<NoParams>
+  /** Reset button (QueryList, ProQueryTable, column settings). */
+  reset: MessageTemplate<NoParams>
+  /** Search button (QueryList, ProQueryTable). */
+  search: MessageTemplate<NoParams>
+  /** Refresh button (ProQueryTable). */
+  refresh: MessageTemplate<NoParams>
+  /** QueryList toggle while collapsed. */
+  expand: MessageTemplate<NoParams>
+  /** QueryList toggle while expanded. */
+  collapse: MessageTemplate<NoParams>
+  /** Append a row (`ProArrayTable.Addition` / `ProAddition`). */
+  add: MessageTemplate<NoParams>
+  /** Remove a row (`ProArrayTable.Remove`). */
+  remove: MessageTemplate<NoParams>
+  /** `ProArrayTable.Remove confirm` without its own text. */
+  removeConfirm: MessageTemplate<NoParams>
+  /** Move a row or column up. */
+  moveUp: MessageTemplate<NoParams>
+  /** Move a row or column down. */
+  moveDown: MessageTemplate<NoParams>
+  /** Copy a row (`ProArrayTable.Copy`). */
+  copy: MessageTemplate<NoParams>
+  /** Drag handle tooltip. */
+  dragSort: MessageTemplate<NoParams>
+  /** Selection bar count. */
+  selectionCount: MessageTemplate<{ count: number }>
+  /** Selection bar: clear. */
+  selectionClear: MessageTemplate<NoParams>
+  /** Selection bar: select the page. */
+  selectionAll: MessageTemplate<NoParams>
+  /** Selection bar: invert the page. */
+  selectionInvert: MessageTemplate<NoParams>
+  /** Density tooltip. */
+  density: MessageTemplate<{ density: 'large' | 'middle' | 'small' }>
+  /** Column settings popover title. */
+  columnSettings: MessageTemplate<NoParams>
+  /** Shadow trigger default text. */
+  edit: MessageTemplate<NoParams>
+  /** Shadow drawer confirm. */
+  ok: MessageTemplate<NoParams>
+  /** Shadow drawer cancel. */
+  cancel: MessageTemplate<NoParams>
+  /** `PreviewText` for `true`. */
+  yes: MessageTemplate<NoParams>
+  /** `PreviewText` for `false`. */
+  no: MessageTemplate<NoParams>
+  /** `PreviewText` for an empty value when no `placeholder` is given. Default `''`. */
+  empty: MessageTemplate<NoParams>
+}
+
+/** Messages that take no parameters. */
+export type NoParams = Record<string, never>
+/** Parameters of the tree-move messages. */
+export interface TreeMoveParams {
+  from: readonly number[]
+  to: readonly number[]
 }
 
 export type FormMessageKey = keyof FormMessages
@@ -61,6 +132,35 @@ export const zhCN: FormMessages = {
   enum: '不在可选范围内',
   fallback: '校验失败',
   superseded: '表单或校验已更新，请重新提交',
+  treeEmptyPos: 'pos 不能为空',
+  treeIntoSelf: '不能移入自身或其后代',
+  treeSourceMissing: '源节点不存在',
+  treeTargetMissing: '目标父节点不存在',
+  submit: '提交',
+  reset: '重置',
+  search: '查询',
+  refresh: '刷新',
+  expand: '展开',
+  collapse: '收起',
+  add: '添加条目',
+  remove: '删除',
+  removeConfirm: '确定删除这一行？',
+  moveUp: '上移',
+  moveDown: '下移',
+  copy: '复制',
+  dragSort: '拖动排序',
+  selectionCount: ({ count }) => `选中 ${count} 项`,
+  selectionClear: '清空',
+  selectionAll: '全选',
+  selectionInvert: '反选',
+  density: ({ density }) => `密度：${{ large: '宽松', middle: '默认', small: '紧凑' }[density]}`,
+  columnSettings: '列配置',
+  edit: '编辑',
+  ok: '确定',
+  cancel: '取消',
+  yes: '是',
+  no: '否',
+  empty: '',
 }
 
 /** Built-in English messages. `createForm({ messages: enUS })` or `setDefaultMessages(enUS)`. */
@@ -77,6 +177,35 @@ export const enUS: FormMessages = {
   enum: 'Not an allowed option',
   fallback: 'Invalid value',
   superseded: 'The form changed while submitting. Submit again.',
+  treeEmptyPos: 'Position must not be empty',
+  treeIntoSelf: 'Cannot move a node into itself or its descendants',
+  treeSourceMissing: 'Source node not found',
+  treeTargetMissing: 'Target parent not found',
+  submit: 'Submit',
+  reset: 'Reset',
+  search: 'Search',
+  refresh: 'Refresh',
+  expand: 'Expand',
+  collapse: 'Collapse',
+  add: 'Add item',
+  remove: 'Delete',
+  removeConfirm: 'Delete this row?',
+  moveUp: 'Move up',
+  moveDown: 'Move down',
+  copy: 'Copy',
+  dragSort: 'Drag to reorder',
+  selectionCount: ({ count }) => `${count} selected`,
+  selectionClear: 'Clear',
+  selectionAll: 'Select all',
+  selectionInvert: 'Invert',
+  density: ({ density }) => `Density: ${{ large: 'Large', middle: 'Default', small: 'Compact' }[density]}`,
+  columnSettings: 'Columns',
+  edit: 'Edit',
+  ok: 'OK',
+  cancel: 'Cancel',
+  yes: 'Yes',
+  no: 'No',
+  empty: '',
 }
 
 let defaults: FormMessages = { ...zhCN }
@@ -98,11 +227,14 @@ export function getDefaultMessages(): FormMessages {
 export function formatMessage<K extends FormMessageKey>(
   overrides: Partial<FormMessages> | undefined,
   key: K,
-  params: MessageParams<K>,
+  ...params: MessageArgs<K>
 ): string {
   const template = (overrides?.[key] ?? defaults[key]) as MessageTemplate<MessageParams<K>>
-  return typeof template === 'function' ? template(params) : template
+  return typeof template === 'function' ? template((params[0] ?? {}) as MessageParams<K>) : template
 }
+
+/** Rest arguments after a message key: optional when the message takes no parameters. */
+export type MessageArgs<K extends FormMessageKey> = MessageParams<K> extends NoParams ? [params?: MessageParams<K>] : [params: MessageParams<K>]
 
 function stripUndefined<T extends object>(input: T): Partial<T> {
   const out: Partial<T> = {}
