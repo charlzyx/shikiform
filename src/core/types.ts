@@ -530,7 +530,7 @@ export interface MoveResult {
  */
 export interface FormInstance<T, TSubmit = T> {
   readonly values: T
-  /** Alias of {@link FormInstance.isSubmitting}. */
+  /** True while {@link FormInstance.submit} is running, including the validation it waits for. */
   readonly submitting: boolean
   /** True while a validate pass is running, including the async rules it waits for. */
   readonly validating: boolean
@@ -545,8 +545,6 @@ export interface FormInstance<T, TSubmit = T> {
   readonly edited: boolean
   /** How many times {@link FormInstance.submit} has been called. */
   readonly submitCount: number
-  /** True while {@link FormInstance.submit} is running. */
-  readonly isSubmitting: boolean
   /**
    * False while a submit or validation is running, or while any field that is not display `none` has errors.
    * Empty required fields do not block until a validation trigger has run.
@@ -629,7 +627,7 @@ export interface FormInstance<T, TSubmit = T> {
 
   subscribePath(path: string, listener: () => void): () => void
   subscribeStructure(path: string, listener: () => void): () => void
-  /** Notified when `canSubmit`, `isSubmitting`, `submitCount`, `dirty`, or `validating` change. */
+  /** Notified when `canSubmit`, `submitting`, `submitCount`, `dirty`, or `validating` change. */
   subscribeMeta(listener: () => void): () => void
   getMetaVersion(): number
   subscribeDebug(listener: () => void): () => void

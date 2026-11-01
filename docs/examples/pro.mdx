@@ -322,12 +322,12 @@ export default function App() {
 ```tsx preview play=pro-enum
 import { Button, Space } from 'antd';
 import { Field, Form, ObjectField, defineEffects, useForm } from 'shikiform';
-import { Enum } from 'shikiform/core';
+import { EnumSource } from 'shikiform/core';
 import { Checkbox, EnumPretty, FormItem, FormLayout, Radio, Select } from 'shikiform/antd';
 
 const LIST = [{ label: '啊', value: 'a', color: 'blue' }, { label: '哦', value: 'o', color: 'green' }, { label: '呃', value: 'e' }];
 /** 懒加载枚举：加载一次，所有用它的字段共享。 */
-const remote = Enum.from(async () => {
+const remote = EnumSource.from(async () => {
   await new Promise((resolve) => setTimeout(resolve, 800));
   return LIST;
 });
@@ -370,7 +370,7 @@ export default function App() {
 }
 ```
 
-- 静态选项写在 `fields.x.enum`；远程选项用 `Enum.from(loader)`（即 `EnumSource`），在 reaction 里赋 `$enum = source.with(params)`。参数变了会重新加载并作废旧请求。
+- 静态选项写在 `fields.x.enum`；远程选项用 `EnumSource.from(loader)`，在 reaction 里赋 `$enum = source.with(params)`。参数变了会重新加载并作废旧请求。
 - 选择类控件的 `options` 默认取字段枚举，加载中自动 `loading`；`prettyType` / `showType` 决定阅读态显示成文字、`badge` 还是 `tag`（颜色取选项的 `color`）。
 - `EnumPretty` 只负责显示，适合表格单元格。
 

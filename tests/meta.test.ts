@@ -10,7 +10,7 @@ describe('field and form meta', () => {
     const failed = await form.submit()
     expect(failed.ok).toBe(false)
     expect(form.submitCount).toBe(1)
-    expect(form.isSubmitting).toBe(false)
+    expect(form.submitting).toBe(false)
     expect(form.canSubmit).toBe(false)
     form.setValue('name', 'ada')
     expect(form.dirty).toBe(true)

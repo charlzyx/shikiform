@@ -159,10 +159,10 @@ useFormLayout(): FormLayoutValue   // FormLayoutProps 去掉 children / classNam
 ## PreviewText
 
 ```ts
-PreviewText(props: { value?: unknown; options?: { label: ReactNode; value: unknown }[]; placeholder?: ReactNode; format?: string }): ReactElement
+PreviewText(props: { value?: unknown; options?: { label: ReactNode; value: unknown }[]; empty?: ReactNode; format?: string }): ReactElement
 ```
 
-阅读态文本：枚举值显示 `label`，数组用 `, ` 连接，布尔值显示 `是` / `否`，带 `format()` 方法的日期对象按 `format`（默认 `YYYY-MM-DD`）格式化；空值显示 `placeholder`（默认空串）。输出 `<span data-read-pretty>`。
+阅读态文本：枚举值显示 `label`，数组用 `, ` 连接，布尔值显示 `是` / `否`，带 `format()` 方法的日期对象按 `format`（默认 `YYYY-MM-DD`）格式化；空值显示 `empty`（默认 `messages.empty`，空串）。控件编辑态的 `placeholder`（「请输入…」）不会出现在阅读态里。输出 `<span data-read-pretty>`。
 
 ## Input
 

@@ -105,7 +105,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   /** Baseline `reset()` restores and `dirty` compares against. Cloned on create; replaced by `reset(values)` / `setInitialValues`. */
   get initial(): T { return this.store.initial }
 
-  /** True while {@link FormEngine.submit} is running. Same value as {@link FormEngine.isSubmitting}. */
+  /** True for the duration of {@link FormEngine.submit}, including the validation it waits for. */
   get submitting(): boolean { return this.store.submitting }
 
   /** True while a validate pass is running, including the async rules it waits for. */
@@ -131,11 +131,6 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   /** Messages for every field whose effective display is not `none`. */
   get errors(): FieldError[] {
     return this.validator.errors()
-  }
-
-  /** True for the duration of {@link FormEngine.submit}, including the validation it waits for. */
-  get isSubmitting(): boolean {
-    return this.store.submitting
   }
 
   /**
@@ -361,7 +356,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     return this.notifier.subscribeStructure(path, listener)
   }
 
-  /** Notified when `canSubmit`, `isSubmitting`, `submitCount`, `dirty`, or `validating` change. */
+  /** Notified when `canSubmit`, `submitting`, `submitCount`, `dirty`, or `validating` change. */
   subscribeMeta(listener: () => void): () => void {
     return this.notifier.subscribeMeta(listener)
   }

@@ -66,7 +66,7 @@ export interface EnumPrettyProps {
 
 /** `readPretty` view of the choice controls: `PreviewText`, or {@link EnumPrettyView} when `prettyType` is set. */
 export function ChoicePreview(props: Record<string, any>) {
-  if (props.prettyType) return <EnumPrettyView value={props.value} options={props.options} showType={props.prettyType} empty={props.placeholder ?? ''} />
+  if (props.prettyType) return <EnumPrettyView value={props.value} options={props.options} showType={props.prettyType} empty={props.empty ?? ''} />
   return <PreviewText {...props} />
 }
 

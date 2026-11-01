@@ -114,7 +114,7 @@ export class Scheduler {
     try {
       const value = fn()
       if (value && typeof (value as unknown as Promise<unknown>).then === 'function') {
-        throw new Error('reaction and watch must be synchronous. Put async work in an Enum loader or a watch that only starts it.')
+        throw new Error('reaction and watch must be synchronous. Put async work in an EnumSource loader or a watch that only starts it.')
       }
       return { value, deps: tracker.deps, writes: tracker.writes }
     } finally {
