@@ -1,5 +1,5 @@
 import { clone } from '../shared/equal'
-import { getAt, parentPath } from '../shared/path'
+import { getAt, selfAndAncestors } from '../shared/path'
 import type { Display, Pattern } from '../types'
 import { createFieldModel, type FieldModel } from './field-model'
 
@@ -62,23 +62,19 @@ export class FieldStore<T = any> {
   /** `none` on any ancestor wins; otherwise `hidden` on any ancestor; otherwise `visible`. */
   effectiveDisplay(path: string): Display {
     let hidden = false
-    let cursor: string | null = path
-    while (cursor) {
+    for (const cursor of selfAndAncestors(path)) {
       const display = this.fields.get(cursor)
       if (display?.hasDisplay && display.display === 'none') return 'none'
       if (display?.hasDisplay && display.display === 'hidden') hidden = true
-      cursor = parentPath(cursor)
     }
     return hidden ? 'hidden' : 'visible'
   }
 
-  /** Nearest own-or-ancestor pattern. A computed field with none reads as `readPretty`. */
+  /** Nearest own-or-ancestor pattern (the root `''` included: `d.$pattern` on the root draft is the form's). A computed field with none reads as `readPretty`. */
   effectivePattern(path: string): Pattern {
-    let cursor: string | null = path
-    while (cursor) {
+    for (const cursor of selfAndAncestors(path)) {
       const field = this.fields.get(cursor)
       if (field?.hasPattern && field.pattern) return field.pattern
-      cursor = parentPath(cursor)
     }
     if (this.fields.get(path)?.computed) return 'readPretty'
     return 'editable'

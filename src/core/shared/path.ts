@@ -5,6 +5,14 @@ export function parentPath(path: string): string | null {
   return i < 0 ? null : path.slice(0, i)
 }
 
+/** `path`, each ancestor, then the root `''` (inherited states: pattern, display). */
+export function selfAndAncestors(path: string): string[] {
+  const out: string[] = []
+  for (let cursor: string | null = path; cursor; cursor = parentPath(cursor)) out.push(cursor)
+  out.push('')
+  return out
+}
+
 export function joinPath(parent: string, key: string): string {
   if (!key) return parent
   return parent ? `${parent}.${key}` : key

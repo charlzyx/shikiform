@@ -63,10 +63,19 @@ describe('FormItem layout keys', () => {
   const field = createForm({ initialValues: { a: '' } }).binding('a') as FieldBinding<any>
 
   it('labelWidth / wrapperWidth become flex columns and win over span', () => {
-    const props = mapFormItemProps(field, {}, { labelCol: { span: 6 }, labelWidth: 120 })
+    const props = mapFormItemProps(field, { label: '名称' }, { labelCol: { span: 6 }, labelWidth: 120 })
     expect(props.labelCol).toEqual({ flex: '0 0 120px', span: undefined })
     expect(props.wrapperCol).toMatchObject({ flex: '1 1 0' })
-    expect(mapFormItemProps(field, { wrapperWidth: '20em' }, { labelWidth: 96 }).wrapperCol).toMatchObject({ flex: '0 0 20em' })
+    expect(mapFormItemProps(field, { label: '名称', wrapperWidth: '20em' }, { labelWidth: 96 }).wrapperCol).toMatchObject({ flex: '0 0 20em' })
+  })
+
+  it('an item with no label takes no columns from the layout (a label-less field inside a labelled row)', () => {
+    const layout = { labelCol: { span: 6 }, wrapperCol: { span: 18 }, labelWidth: 120 }
+    const bare = mapFormItemProps(field, {}, layout)
+    expect(bare.labelCol).toBeUndefined()
+    expect(bare.wrapperCol).toBeUndefined()
+    expect(mapFormItemProps(field, { wrapperCol: { offset: 6 } }, layout).wrapperCol).toEqual({ offset: 6 })
+    expect(mapFormItemProps(field, { label: '地址' }, { labelCol: { span: 6 } }).labelCol).toEqual({ span: 6 })
   })
 
   it('labelWrap adds Ant Design\u2019s wrap class to the label column', () => {

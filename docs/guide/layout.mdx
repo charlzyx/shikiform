@@ -110,15 +110,15 @@ export default function App() {
 `FormItem` 不在字段里时就是纯布局：一个标签、同一套列宽，里面放什么都行。
 
 ```tsx
-<FormItem label="地址">
+<FormItem label="地址" asterisk>
   <Space>
-    <Field name="province" component={[Select]} />
-    <Field name="city" component={[Select]} />
+    <Field name="province" required decorator={[FormItem]} component={[Select]} />
+    <Field name="city" required decorator={[FormItem]} component={[Select]} />
   </Space>
 </FormItem>
 ```
 
-里面的字段没有自己的 `FormItem`，所以只有控件变红、没有提示文字；需要提示时给每个字段 `decorator={[FormItem, { feedbackLayout: 'popover' }]}`。
+里面的字段各带一个没有标签的 `FormItem`，错误提示显示在各自控件下面。和 Formily 一样，**没有标签的 `FormItem` 不用 `FormLayout` 的 `labelCol` / `wrapperCol` / `labelWidth`**，所以不会在这一行里再缩一次；自己在 `FormItem` 上写的列宽照常生效。不给字段 `FormItem` 时只有控件变红、没有提示文字。
 
 ## 按钮对齐到控件列
 

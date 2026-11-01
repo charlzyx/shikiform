@@ -109,7 +109,7 @@ interface FormItemProps
 Formily `FormItem`，**不拥有字段**：没有 `name` / `rules` / `required` / `field` 属性。
 
 - **字段里**（`<Field decorator={[FormItem, props]}>`，或放在 `<Field>` 的 children 里）：从上下文读字段，渲染 antd `Form.Item`（props 由 [mapFormItemProps](#mapformitemprops) 计算）。`label` 取字段 `title`，`extra` 取 `description`（显式传入优先）；必填星号跟随 `required`，`readPretty` 下隐藏；`validateStatus` 依次 `error` → `validating` → `warning`；`help` 是**全部**错误（没有错误时是全部警告），一条一行。`display` 为 `hidden` / `none` 时不渲染。
-- **字段外**：纯布局（Formily `FormItem.BaseItem`）。一个标签、同一套列宽包住任何内容，常用来给几个字段一个标签；没有状态和提示，里面的字段自己的控件仍会变红。
+- **字段外**：纯布局（Formily `FormItem.BaseItem`）。一个标签、同一套列宽包住任何内容，常用来给几个字段一个标签；没有状态和提示；里面的字段各带一个无标签的 `FormItem` 就能显示自己的错误。没有标签的 `FormItem`（字段内外都一样）不继承 `FormLayout` 的 `labelCol` / `wrapperCol` / `labelWidth` / `wrapperWidth`（Formily 同样），自己传的列宽照常生效。
 
 ```tsx
 <Field name="email" title="邮箱" description="用于登录" required decorator={[FormItem, { tooltip: '工作邮箱' }]} component={[Input]} />
