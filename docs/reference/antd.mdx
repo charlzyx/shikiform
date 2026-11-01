@@ -10,7 +10,7 @@ description: useAntdForm、字段组、预绑定控件和表格的实际接口�
 ## useAntdForm
 
 ```ts
-useAntdForm<T>(options?: FormOptions<T>)
+useAntdForm<T>(options?: UseFormOptions<T>)
 ```
 
 参数与 [useForm](/reference/react-hooks#useform) 相同；`T` 可从 `initialValues` 推断。首次渲染创建实例，后续传入新 options 不会重新初始化。返回原 `FormEngine<T>`，加上以下成员：
@@ -38,9 +38,9 @@ createAntdFormHook(): {
 }
 ```
 
-无参数。把本页五种字段控件和 `Submit` 交给 [createFormHook](/reference/form-hook#createformhook)，返回一套 Hook/字段组工厂。通常在模块顶层调用一次，而不是组件每次渲染时创建。
+无参数。把本页七个预绑定控件（`Input`、`Select`、`InputNumber`、`Switch`、`Checkbox`、`Radio`、`DatePicker`）和 `Submit` 交给 [createFormHook](/reference/form-hook#createformhook)，返回一套 Hook/字段组工厂。通常在模块顶层调用一次，而不是组件每次渲染时创建。
 
-它不是 `createForm()`：调用工厂不会创建业务表单；真正的实例由返回的 `useAppForm(options)` 创建。当前 AntD 工厂共用模块内的字段/表单 contexts，并不为每次工厂调用创建新的隔离 context。
+它不是 `createForm()`：调用工厂不会创建业务表单；真正的实例由返回的 `useAppForm(options)` 创建。每次调用都共用模块内同一个表单 context，不创建隔离的 context，也不能追加自己的控件（要加控件，用 `createFormHook` 重新组装）。
 
 ## antdForm
 

@@ -163,7 +163,7 @@ interface UseFieldOptions {
 | `useField<Row>('price')` | 检查路径存在，但值类型是各可选路径值的联合 |
 | `useField<Row, 'price'>('price')` | 检查路径，值精确为 `Row['price']` |
 
-`FieldBinding` 从 `shikiform` 导入；签名中的 `FieldPath` / `PathValue` 类型从 `shikiform/core` 导入。
+`FieldBinding`、`FieldPath`、`PathValue` 都可从 `shikiform` 导入（`FieldPath` / `PathValue` 在 `shikiform/core` 里是同一个类型）。
 
 ### 返回的 FieldBinding
 
@@ -275,7 +275,7 @@ useArrayField<TScope, N extends ArrayPath<TScope>>(
 ): ArrayHandle<ArrayItemOf<TScope, N & string>>
 ```
 
-这里的 `ArrayHandle` 是返回形状的名字，**不是可从包导入的类型**；调用方通常直接用返回值推断。`ArrayPath` 从 `shikiform/core` 导入，`ArrayItemOf` 也可从 `shikiform` 导入。
+`ArrayHandle` 类型可从 `shikiform` 导入，调用方通常直接用返回值推断。`ArrayPath` 从 `shikiform/core` 导入，`ArrayItemOf` 也可从 `shikiform` 导入。
 
 | 参数 | 作用 / 默认 |
 |---|---|

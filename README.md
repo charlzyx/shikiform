@@ -131,7 +131,7 @@ ESM 入口共享内部 chunks，避免 `shikiform` 与 `shikiform/antd` 各自�
 
 ## 范围
 
-- 所有可执行教程与 playground 都使用正式库。`Field` 是 render prop；教程的 `fields.tsx` 只是可见适配，不是另一套 API 引擎。
+- 所有可执行教程与 playground 都使用正式库。教程的 `fields.tsx` 用 `<Field>` 的 render prop 手写接线，只是可见适配，不是另一套 API 引擎。
 - Pro 示例覆盖表格、影子草稿、枚举、联想、级联和查询列表；模拟请求与本地写回不代表接入后端。「10 万条」加载按钮不构成已验证的性能基准。
 - 单测包含同份 24 个题目/答案的服务端渲染与适配层契约；这不是浏览器 E2E，不能据此宣称线上交互已通过。
 - 设计笔记、用例伪代码、旧 Starlight 草稿，以及库的 start/guides/demos 原稿，在 [archive/](archive/README.md)，不进文档站。
