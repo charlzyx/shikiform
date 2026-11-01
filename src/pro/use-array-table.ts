@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { joinPath } from '../core/shared/path'
-import { useFormContext, useScope } from '../react/context'
+import { useRequiredForm, useScope } from '../react/context'
 import { useArrayField, type ArrayKey } from '../react/hooks/use-array'
 
 /** Client pagination (slice the array) or, when `total` is given, a controlled server page. */
@@ -114,7 +114,7 @@ export interface ArrayTableApi<TRow = any> {
  * ```
  */
 export function useArrayTable<TRow = any>(name: string, options: UseArrayTableOptions<TRow> = {}): ArrayTableApi<TRow> {
-  const form = useFormContext()
+  const form = useRequiredForm(`useArrayTable('${name}') / <ProArrayTable name="${name}">`)
   const scope = useScope()
   const path = joinPath(scope.path, name)
   const array = useArrayField(name, options.rowKey)

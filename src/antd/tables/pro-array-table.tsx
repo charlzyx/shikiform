@@ -19,7 +19,7 @@ import { useArrayTable, type ArrayTableApi, type ArrayTablePagination, type Arra
 import { useColumnSettings, type ColumnSettingsApi, type TableDensity } from '../../pro/use-column-settings'
 import { useShadowForm, type UseShadowFormOptions } from '../../pro/use-shadow-form'
 import { ArrayScope, RowScope } from '../../react/components/fields'
-import { useFormContext, useScope } from '../../react/context'
+import { useRequiredForm, useScope } from '../../react/context'
 import { useArrayMove } from '../../react/hooks/use-array'
 import { useFormMessage } from '../../react/hooks/use-form-message'
 import { useIndex, useRecord } from '../../react/hooks/use-row'
@@ -409,7 +409,7 @@ function ResizableTitle({ onResize, width, ...rest }: ThHTMLAttributes<HTMLTable
  * ```
  */
 function ProArrayTableImpl<TRow = any>(props: ProArrayTableProps<TRow>) {
-  const form = useFormContext()
+  const form = useRequiredForm(`<ProArrayTable name="${props.name}">`)
   const scope = useScope()
   const selection = props.rowSelection === true ? {} : props.rowSelection || null
   const table = useArrayTable<TRow>(props.name, {

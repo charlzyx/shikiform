@@ -4,6 +4,7 @@ import { asOptions, isEnumBinding, type EnumOption } from '../enum/enum-source'
 import { unwrapReadonly } from '../draft/readonly'
 import { deepEqual } from '../shared/equal'
 import { getAt, parentPath, setAt } from '../shared/path'
+import { shownErrors } from '../state/field-model'
 import type { FieldStore } from '../state/field-store'
 import type { Notifier } from '../state/notifier'
 import type { Display, FormOptions, Pattern, WriteOp } from '../types'
@@ -92,7 +93,9 @@ export class StateWriter {
     }
     scheduler.enqueueFromDirty()
     scheduler.flush()
-    if (validator.triggersFor(path).includes('onChange')) validator.scheduleValidate(path)
+    // An error already on screen is re-checked on every edit, whatever the trigger: it disappears as soon as
+    // the value is fixed instead of waiting for blur (and `$canSubmit` / `form.Submit` come back with it).
+    if (validator.triggersFor(path).includes('onChange') || shownErrors(field).length) validator.scheduleValidate(path)
   }
 
   /** Mark the field touched. Validates when the trigger list includes `onBlur`. */
