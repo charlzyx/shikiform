@@ -9,9 +9,8 @@ description: 一个无 UI 的表单引擎，用 draft + $ 状态写联动，用 
 
 ```tsx preview
 import { useState } from 'react';
-import { Form as AntdForm } from 'antd';
 import { defineEffects, Form, typed, useForm } from 'shikiform';
-import { FormItem, FormLayout, Input, Radio, Submit } from 'shikiform/antd';
+import { FormButtonGroup, FormItem, FormLayout, Input, Radio, Submit } from 'shikiform/antd';
 
 type Values = { kind: 'personal' | 'work'; email: string; company: string };
 
@@ -38,9 +37,9 @@ export default function App() {
         <F.Field name="kind" title="账号类型" decorator={[FormItem]} component={[Radio.Group]} />
         <F.Field name="email" title="邮箱" rules={{ format: 'email' }} decorator={[FormItem]} component={[Input]} />
         <F.Field name="company" title="公司" required decorator={[FormItem]} component={[Input]} />
-        <AntdForm.Item wrapperCol={{ offset: 5, span: 19 }}>
+        <FormButtonGroup.FormItem>
           <Submit>提交</Submit>
-        </AntdForm.Item>
+        </FormButtonGroup.FormItem>
       </FormLayout>
       <pre aria-live="polite">{result}</pre>
     </Form>

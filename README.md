@@ -21,9 +21,8 @@
 
 ```tsx
 import { useState } from 'react';
-import { Form as AntdForm } from 'antd';
 import { Form, typed, useForm } from 'shikiform';
-import { FormItem, FormLayout, Input, InputNumber, Submit } from 'shikiform/antd';
+import { FormButtonGroup, FormItem, FormLayout, Input, InputNumber, Reset, Submit } from 'shikiform/antd';
 
 type Values = { name: string; email: string; age: number | null };
 
@@ -38,9 +37,10 @@ export default function App() {
         <F.Field name="email" title="邮箱" required rules={{ format: 'email', message: '邮箱格式不对' }}
           decorator={[FormItem]} component={[Input]} />
         <F.Field name="age" title="年龄" rules={{ min: 0, max: 150 }} decorator={[FormItem]} component={[InputNumber]} />
-        <AntdForm.Item wrapperCol={{ offset: 4, span: 20 }}>
+        <FormButtonGroup.FormItem>
           <Submit>提交</Submit>
-        </AntdForm.Item>
+          <Reset />
+        </FormButtonGroup.FormItem>
       </FormLayout>
       <pre aria-live="polite">{result}</pre>
     </Form>

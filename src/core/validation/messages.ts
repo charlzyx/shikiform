@@ -57,8 +57,10 @@ export interface FormMessages {
   // Component labels (`shikiform/antd`), read through `useFormMessage()` from the nearest form.
   /** Submit button (`Submit` in `shikiform/antd`). */
   submit: MessageTemplate<NoParams>
-  /** Reset button (QueryList, ProQueryTable, column settings). */
+  /** Reset button (`Reset`, QueryList, ProQueryTable, column settings). */
   reset: MessageTemplate<NoParams>
+  /** After an optional field's label with `requiredMark: 'optional'` (`FormItem` / `FormLayout`). */
+  optional: MessageTemplate<NoParams>
   /** Search button (QueryList, ProQueryTable). */
   search: MessageTemplate<NoParams>
   /** Refresh button (ProQueryTable). */
@@ -138,6 +140,7 @@ export const zhCN: FormMessages = {
   treeTargetMissing: '目标父节点不存在',
   submit: '提交',
   reset: '重置',
+  optional: '（可选）',
   search: '查询',
   refresh: '刷新',
   expand: '展开',
@@ -183,6 +186,7 @@ export const enUS: FormMessages = {
   treeTargetMissing: 'Target parent not found',
   submit: 'Submit',
   reset: 'Reset',
+  optional: '(optional)',
   search: 'Search',
   refresh: 'Refresh',
   expand: 'Expand',

@@ -223,9 +223,22 @@ describe('FormItem', () => {
     expect(props).toMatchObject({ label: '姓名', required: true, validateStatus: 'error', help: '必填', tooltip: 't', htmlFor: 'name' })
   })
 
-  it('throws a clear error outside a field', () => {
-    const form = createForm({ initialValues: {} })
-    expect(() => renderToStaticMarkup(<Form form={form}><FormItem><Input /></FormItem></Form>)).toThrow(/FormItem is a decorator/)
+  it('outside a field is pure layout: a label around several fields, no status', () => {
+    const form = createForm({ initialValues: { province: 'zj', city: 'hz' } })
+    const html = renderToStaticMarkup(
+      <Form form={form}>
+        <FormItem label="地址">
+          <Field name="province" component={[Input]} />
+          <Field name="city" component={[Input]} />
+        </FormItem>
+      </Form>,
+    )
+    expect(html).toContain('地址')
+    expect(html).toContain('value="zj"')
+    expect(html).toContain('value="hz"')
+    expect(html.match(/ant-form-item-label/g)).toHaveLength(1)
+    expect(mapFormItemProps(null, { label: 'x' })).toMatchObject({ label: 'x', required: false, validateStatus: undefined, help: undefined })
+    expect(mapFormItemProps(null, { label: 'x' })).not.toHaveProperty('htmlFor')
   })
 
   it('maps title → label, description → extra, decoratorProps, and feedbackLayout', () => {

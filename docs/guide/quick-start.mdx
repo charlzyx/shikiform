@@ -22,9 +22,8 @@ ShikiForm 还没有发布到 npm。在仓库里运行 `npm ci && npm run build:l
 
 ```tsx preview
 import { useState } from 'react';
-import { Form as AntdForm } from 'antd';
 import { Form, typed, useForm } from 'shikiform';
-import { FormItem, FormLayout, Input, InputNumber, Submit } from 'shikiform/antd';
+import { FormButtonGroup, FormItem, FormLayout, Input, InputNumber, Reset, Submit } from 'shikiform/antd';
 
 type Values = { name: string; email: string; age: number | null };
 
@@ -39,9 +38,10 @@ export default function App() {
         <F.Field name="email" title="邮箱" required rules={{ format: 'email', message: '邮箱格式不对' }}
           decorator={[FormItem]} component={[Input]} />
         <F.Field name="age" title="年龄" rules={{ min: 0, max: 150 }} decorator={[FormItem]} component={[InputNumber]} />
-        <AntdForm.Item wrapperCol={{ offset: 4, span: 20 }}>
+        <FormButtonGroup.FormItem>
           <Submit>提交</Submit>
-        </AntdForm.Item>
+          <Reset />
+        </FormButtonGroup.FormItem>
       </FormLayout>
       <pre aria-live="polite">{result}</pre>
     </Form>
@@ -53,6 +53,7 @@ export default function App() {
 
 - `title`、`required`、`rules` 写在 `Field` 上；`component` / `decorator` 的第二项是传给控件 / 装饰器的属性。
 - `<Submit>` 在已经有错误、或正在提交时不可点（`$canSubmit` 为 false）。还没校验过的空必填项不挡住它，第一次点击仍会跑校验。`<Reset>` 回到初始值。
+- `FormButtonGroup.FormItem` 让按钮跟随 `FormLayout` 对齐到控件列，不用再写一遍偏移。
 - `<Form>` 自己就是 `<form>`，不要再套一层。组件外创建引擎用 `createForm`，选项和 `useForm` 相同。
 
 ## 不用 antd

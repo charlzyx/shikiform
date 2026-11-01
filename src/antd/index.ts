@@ -1,6 +1,7 @@
 /**
  * Ant Design binding. Layers, each built on the headless hooks in `shikiform`:
- * - adapter: `connect` / `mapProps` / `mapReadPretty` / `mapFieldProps`, the `FormItem` decorator and `FormLayout`
+ * - adapter: `connect` / `mapProps` / `mapReadPretty` / `mapFieldProps`, the `FormItem` decorator, `FormLayout`,
+ *   `FormGrid` / `GridColumn` and `FormButtonGroup`
  *   (all reading the field a `<Field>` provides; Formily style: `<Field decorator={[FormItem]} component={[Input]} />`);
  * - components: `Input`, `InputNumber`, `Select`, `Switch`, `Checkbox`, `Radio`, `DatePicker` wired through `connect`;
  * - buttons: `Submit` / `Reset` for the surrounding form;
@@ -14,9 +15,13 @@
 export { connect, mapFieldProps, mapProps, mapReadPretty } from './adapter/connect'
 export type { ConnectEnhancer, ConnectFieldProps, ConnectedComponent, FieldPropKey, PropsMapping, PropsTransform } from './adapter/connect'
 export { FormItem, mapFormItemProps } from './adapter/form-item'
-export type { FormItemProps } from './adapter/form-item'
+export type { FormItemEnv, FormItemProps } from './adapter/form-item'
 export { FormLayout, useFormLayout } from './adapter/form-layout'
-export type { FeedbackLayout, FormLayoutProps, FormLayoutValue } from './adapter/form-layout'
+export type { FeedbackLayout, FormLayoutProps, FormLayoutValue, Responsive } from './adapter/form-layout'
+export { FormGrid, GridColumn, useFormGrid } from './adapter/form-grid'
+export type { FormGridProps, FormGridValue } from './adapter/form-grid'
+export { FormButtonGroup } from './adapter/form-button-group'
+export type { FormButtonGroupProps, FormButtonGroupStickyProps } from './adapter/form-button-group'
 export { PreviewText } from './adapter/preview'
 export type { PreviewTextProps } from './adapter/preview'
 export { Checkbox, DatePicker, Input, InputNumber, Radio, Select, Switch } from './components/controls'

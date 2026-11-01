@@ -67,6 +67,10 @@
     "CascaderPlusView": "reference/pro-components.mdx",
     "FormLayout": "reference/antd-adapter.mdx",
     "useFormLayout": "reference/antd-adapter.mdx",
-    "mapFormItemProps": "reference/antd-adapter.mdx"
+    "mapFormItemProps": "reference/antd-adapter.mdx",
+    "FormGrid": "reference/antd-adapter.mdx",
+    "GridColumn": "reference/antd-adapter.mdx",
+    "useFormGrid": "reference/antd-adapter.mdx",
+    "FormButtonGroup": "reference/antd-adapter.mdx"
   }
 }
