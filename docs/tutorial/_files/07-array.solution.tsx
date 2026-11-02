@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { ArrayField, Form, defineEffects, useForm } from 'shikiform';
-import { TextField, NumberField, SubmitButton } from './fields';
+import { Button } from 'antd';
+import { ArrayField, Field, Form, defineEffects, useForm } from 'shikiform';
+import { FormItem, FormLayout, Input, InputNumber, Submit } from 'shikiform/antd';
 
 type Row = { id: string; name: string; price: number; qty: number; total: number };
 type Values = { items: Row[] };
@@ -31,20 +32,18 @@ export default function App() {
         {({ index }) => (
           <fieldset>
             <legend>第 {index + 1} 行</legend>
-            <TextField name="name" label="名称" />
-            <NumberField name="price" label="单价" />
-            <NumberField name="qty" label="数量" />
-            <NumberField name="total" label="小计" />
-            <button type="button" className="shiki-btn" onClick={() => form.removeArray('items', index)}>
-              删除
-            </button>
+            <FormLayout layout="inline" feedbackLayout="terse">
+              <Field name="name" title="名称" decorator={[FormItem]} component={[Input, { style: { width: 100 } }]} />
+              <Field name="price" title="单价" decorator={[FormItem]} component={[InputNumber]} />
+              <Field name="qty" title="数量" decorator={[FormItem]} component={[InputNumber]} />
+              <Field name="total" title="小计" decorator={[FormItem]} component={[InputNumber]} />
+              <Button danger onClick={() => form.removeArray('items', index)}>删除</Button>
+            </FormLayout>
           </fieldset>
         )}
       </ArrayField>
-      <button type="button" className="shiki-btn" onClick={() => form.pushArray('items', createRow())}>
-        添加一行
-      </button>
-      <SubmitButton>提交</SubmitButton>
+      <Button onClick={() => form.pushArray('items', createRow())}>添加一行</Button>{' '}
+      <Submit>提交</Submit>
       {payload ? <pre className="shiki-code">{payload}</pre> : null}
     </Form>
   );

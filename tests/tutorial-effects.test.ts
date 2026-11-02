@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { createForm } from 'shikiform'
-import { effects as visibleEffects } from '../docs/tutorial/_files/03-visible.solution'
+import { effects as visibleEffects } from '../docs/tutorial/_files/04-state.solution'
 import { effects as computedEffects } from '../docs/tutorial/_files/06-reaction.solution'
-import { effects as watchStarter } from '../docs/tutorial/_files/07-watch'
-import { effects as watchSolution } from '../docs/tutorial/_files/07-watch.solution'
-import { effects as arrayEffects } from '../docs/tutorial/_files/08-array.solution'
-import { schema } from '../docs/tutorial/_files/09-validation.solution'
+import { effects as watchStarter } from '../docs/tutorial/_files/08-watch'
+import { effects as watchSolution } from '../docs/tutorial/_files/08-watch.solution'
+import { effects as arrayEffects } from '../docs/tutorial/_files/07-array.solution'
+import { schema } from '../docs/tutorial/_files/09-rules.solution'
 import { effects as declaredEffects } from '../docs/tutorial/_files/10-declared.solution'
 
 // Reuse the actual editable tutorial sources, not a second copy of their logic.

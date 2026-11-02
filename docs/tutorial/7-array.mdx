@@ -5,8 +5,8 @@ pageType: doc-wide
 outline: false
 ---
 
-import starter from './_files/08-array.tsx?raw';
-import solution from './_files/08-array.solution.tsx?raw';
+import starter from './_files/07-array.tsx?raw';
+import solution from './_files/07-array.solution.tsx?raw';
 import { TutorialPlay } from '../_components/TutorialStep';
 
 # reaction.each
@@ -16,7 +16,7 @@ import { TutorialPlay } from '../_components/TutorialStep';
 
 右边是一行订单：贴纸，单价 2，数量 4。小计还是 0。可以再添加一行，也可以删掉。
 
-`ArrayField` 的 children 是一个函数，收到当前 `{ index, key }`。函数里渲染的字段名相对当前行，`rowKey="id"` 保持行身份。添加按钮调用 `form.pushArray('items', createRow())`；删除按钮调用 `form.removeArray('items', index)`。这里的 `createRow` 是示例自己的函数，不是 `ArrayField` 的属性。
+`ArrayField` 的 children 是一个函数，收到当前 `{ index, key }`。函数里渲染的字段名相对当前行，`rowKey="id"` 保持行身份。添加按钮调用 `form.pushArray('items', createRow())`；删除按钮调用 `form.removeArray('items', index)`。这里的 `createRow` 是示例自己的函数，不是 `ArrayField` 的属性。现成的添加 / 删除 / 排序按钮见 [数组容器](/guide/arrays)。
 
 数组用 `reaction.each`：每一行一个实例。选择器要返回这一列的 handle。
 

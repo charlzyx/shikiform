@@ -5,8 +5,8 @@ pageType: doc-wide
 outline: false
 ---
 
-import starter from './_files/07-watch.tsx?raw';
-import solution from './_files/07-watch.solution.tsx?raw';
+import starter from './_files/08-watch.tsx?raw';
+import solution from './_files/08-watch.solution.tsx?raw';
 import { TutorialPlay } from '../_components/TutorialStep';
 
 # watch
@@ -19,6 +19,8 @@ import { TutorialPlay } from '../_components/TutorialStep';
 `reaction` 初始化就会跑，适合保持派生状态。清空市是一个动作，应该等省变了再做。这种用 `watch`：初始化不跑，源变化之后才跑。
 
 起始代码在 `reaction` 里写了 `d.city.$value = ''`，所以杭州被清掉了。
+
+这一步的字段用 `F = typed(form)` 的 `F.Field`：同一个组件，只是字段名和 `enum` 的值按表单类型检查，写错 `name` 编译不过。
 
 **这一步：** `reaction` 只留 `d.city.$disabled = !d.province.$value`。清空改成：
 

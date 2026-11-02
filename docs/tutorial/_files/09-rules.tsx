@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Form, useForm } from 'shikiform';
-import { TextField, NumberField, SubmitButton } from './fields';
 import { z } from 'zod';
+import { Field, Form, useForm } from 'shikiform';
+import { FormItem, Input, InputNumber, Submit } from 'shikiform/antd';
 
 export const schema = z.object({
   name: z.string(),
@@ -18,10 +18,10 @@ export default function App() {
   void schema;
   return (
     <Form form={form} onSubmit={(values) => setPayload(JSON.stringify(values, null, 2))}>
-      <TextField name="name" label="姓名" />
-      <TextField name="email" label="邮箱" type="email" />
-      <NumberField name="age" label="年龄" />
-      <SubmitButton>提交</SubmitButton>
+      <Field name="name" title="姓名" decorator={[FormItem]} component={[Input]} />
+      <Field name="email" title="邮箱" decorator={[FormItem]} component={[Input]} />
+      <Field name="age" title="年龄" decorator={[FormItem]} component={[InputNumber]} />
+      <Submit>提交</Submit>
       {payload ? <pre className="shiki-code">{payload}</pre> : null}
     </Form>
   );

@@ -5,8 +5,8 @@ pageType: doc-wide
 outline: false
 ---
 
-import starter from './_files/09-validation.tsx?raw';
-import solution from './_files/09-validation.solution.tsx?raw';
+import starter from './_files/09-rules.tsx?raw';
+import solution from './_files/09-rules.solution.tsx?raw';
 import { TutorialPlay } from '../_components/TutorialStep';
 
 # 规则和提交
@@ -20,9 +20,9 @@ import { TutorialPlay } from '../_components/TutorialStep';
 
 起始代码写了 schema，但没有传进 `useForm`。姓名也没有规则。
 
-**这一步：** `useForm` 加上 `validate: schema`。姓名的 `rules` 写成必填，以及 `minLength: 2`、文案「至少 2 个字」。
+**这一步：** `useForm` 加上 `validate: schema`。姓名加上 `required`，`rules` 写 `{ minLength: 2, message: '至少 2 个字' }`。
 
-姓名一个字：失焦看到「至少 2 个字」。邮箱格式不对、年龄小于 18：看到 Zod 的文案。都合法之后，提交 JSON 里有三项。
+姓名空着失焦：只提示「必填」（空值只由 `required` 判断，`minLength` 不管空值）。姓名一个字：失焦看到「至少 2 个字」。邮箱格式不对、年龄小于 18：看到 Zod 的文案。都合法之后，提交 JSON 里有三项。
 
 JSX 的 `rules` 只在字段挂载期间生效；整表 `validate` 和声明规则仍在。下一步从 [没挂载的字段](/guide/validation) 继续看这个边界。
 

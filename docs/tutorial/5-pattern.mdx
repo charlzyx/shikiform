@@ -5,8 +5,8 @@ pageType: doc-wide
 outline: false
 ---
 
-import starter from './_files/04-pattern.tsx?raw';
-import solution from './_files/04-pattern.solution.tsx?raw';
+import starter from './_files/05-pattern.tsx?raw';
+import solution from './_files/05-pattern.solution.tsx?raw';
 import { TutorialPlay } from '../_components/TutorialStep';
 
 # pattern
@@ -15,6 +15,8 @@ import { TutorialPlay } from '../_components/TutorialStep';
 <div className="tutorial-copy">
 
 右边有一个模式下拉，还有姓名。现在换模式，姓名一直能改。
+
+下拉的选项直接写在 `Field` 的 `enum` 上：`[{ label, value }]`，`Select` 自己读它当 `options`。
 
 `pattern` 有四种：`editable`、`disabled`、`readOnly`、`readPretty`。写在父级上，子级跟着走。子级自己写了 `$pattern`，就用自己的。这一步只改姓名。
 

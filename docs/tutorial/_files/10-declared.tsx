@@ -1,20 +1,18 @@
-import { Form, useForm, useWatch, type Draft } from 'shikiform';
-import { TextField, SwitchField, SubmitButton, FormErrors } from './fields';
+import { Field, Form, Watch, useForm, type Draft } from 'shikiform';
+import { FormItem, Input, Submit, Switch } from 'shikiform/antd';
 
 type Values = { more: boolean; nickname: string; code: string };
 
 function More() {
-  const more = useWatch((d: Draft<Values>) => d.more.$value);
   return (
-    <>
-      <SwitchField name="more" label="填写更多" />
-      {more ? (
-        <TextField name="nickname" label="昵称" rules={[{ required: true, message: '昵称必填' }]} />
+    <Watch select={(d: Draft<Values>) => d.more.$value}>
+      {(more) => more ? (
+        <>
+          <Field name="nickname" title="昵称" rules={{ required: true, message: '昵称必填' }} decorator={[FormItem]} component={[Input]} />
+          <Field name="code" title="邀请码" rules={{ required: true, message: '邀请码必填' }} decorator={[FormItem]} component={[Input]} />
+        </>
       ) : null}
-      {more ? (
-        <TextField name="code" label="邀请码" rules={[{ required: true, message: '邀请码必填' }]} />
-      ) : null}
-    </>
+    </Watch>
   );
 }
 
@@ -24,9 +22,12 @@ export default function App() {
   });
   return (
     <Form form={form}>
+      <Field name="more" title="填写更多" decorator={[FormItem]} component={[Switch]} />
       <More />
-      <SubmitButton>提交</SubmitButton>
-      <FormErrors />
+      <Submit>提交</Submit>
+      <Watch select={(d: Draft<Values>) => d.$errors}>
+        {(errors) => (errors.length ? <ul aria-label="表单错误">{errors.map((message, index) => <li key={index}>{message}</li>)}</ul> : null)}
+      </Watch>
     </Form>
   );
 }

@@ -1,18 +1,18 @@
 import { useState } from 'react';
-import { Form, ObjectField, useForm } from 'shikiform';
-import { TextField, SubmitButton } from './fields';
+import { Field, Form, ObjectField, useForm } from 'shikiform';
+import { FormItem, Input, Submit } from 'shikiform/antd';
 
 export default function App() {
   const [payload, setPayload] = useState('');
   const form = useForm({ initialValues: { name: 'Ada', address: { city: '杭州', street: '' } } });
   return (
     <Form form={form} onSubmit={(values) => setPayload(JSON.stringify(values, null, 2))}>
-      <TextField name="name" label="姓名" />
+      <Field name="name" title="姓名" decorator={[FormItem]} component={[Input]} />
       <ObjectField name="address">
-        <TextField name="city" label="城市" />
-        <TextField name="street" label="街道" placeholder="延安路" />
+        <Field name="city" title="城市" decorator={[FormItem]} component={[Input]} />
+        <Field name="street" title="街道" decorator={[FormItem]} component={[Input, { placeholder: '延安路' }]} />
       </ObjectField>
-      <SubmitButton>提交</SubmitButton>
+      <Submit>提交</Submit>
       {payload ? <pre className="shiki-code">{payload}</pre> : null}
     </Form>
   );

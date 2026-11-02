@@ -56,7 +56,7 @@ Hooks 是主 API，JSX 是其结构与渲染封装；draft 和 `$` 描述状态�
 
 教程和库使用同一个 FormEngine：`src/core`、`src/react`、`src/pro`、`src/antd`，包入口在构建后的 `lib/`。没有替换核心行为的教学 store。
 
-教程编辑器展示 `App.tsx` 和 `fields.tsx` 两个可修改文件。`fields.tsx` 是可复制的本地 UI 适配层，使用正式 `<Field>` 的 render prop 和 antd 受控控件，不是包内隐藏导出，也不存储表单数据。复制时带上两个文件。公开包没有 `shikiform/ui` 或 `shikiform/zod`；Standard Schema（如 Zod）直接传给 `rules` / `validate`。
+教程编辑器只有一个可修改的 `App.tsx`，字段写法和文档其余部分相同（`<Field decorator={[FormItem]} component={[Input]}>`，控件来自 `shikiform/antd`），可以整段复制。公开包没有 `shikiform/ui` 或 `shikiform/zod`；Standard Schema（如 Zod）直接传给 `rules` / `validate`。
 
 ## 包
 
@@ -128,9 +128,9 @@ ESM 入口共享内部 chunks，避免 `shikiform` 与 `shikiform/antd` 各自�
 
 ## 范围
 
-- 所有可执行教程与 playground 都使用正式库。教程的 `fields.tsx` 用 `<Field>` 的 render prop 手写接线，只是可见适配，不是另一套 API 引擎。
+- 所有可执行教程与 playground 都使用正式库，教程不带本地适配文件。
 - Pro 示例覆盖表格、影子草稿、枚举、联想、级联和查询列表；模拟请求与本地写回不代表接入后端。「10 万条」加载按钮不构成已验证的性能基准。
-- 单测包含同份 24 个题目/答案的服务端渲染与适配层契约；这不是浏览器 E2E，不能据此宣称线上交互已通过。
+- 单测包含同份 20 个题目/答案（10 对）的服务端渲染与写法契约；这不是浏览器 E2E，不能据此宣称线上交互已通过。
 - 设计笔记、用例伪代码、旧 Starlight 草稿，以及库的 start/guides/demos 原稿，在 [archive/](archive/README.md)，不进文档站。
 
 ## 文档架构

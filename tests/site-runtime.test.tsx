@@ -3,15 +3,15 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { EditorView } from '@codemirror/view'
-import starter from '../docs/tutorial/_files/08-array.tsx?raw'
-import solution from '../docs/tutorial/_files/08-array.solution.tsx?raw'
+import starter from '../docs/tutorial/_files/07-array.tsx?raw'
+import solution from '../docs/tutorial/_files/07-array.solution.tsx?raw'
 import { SiteThemeContext } from '../site/bridge/theme'
 
 ;(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true
 let root: Root | undefined
 afterEach(async () => { await act(async () => root?.unmount()); root = undefined; document.body.innerHTML = ''; vi.unstubAllGlobals() })
 
-it('runs the real two-file array tutorial, preserves theme state, resets its answer and recompiles edits', async () => {
+it('runs the real array tutorial, preserves theme state, resets its answer and recompiles edits', async () => {
   // Inert geometry only: this is a DOM/lifecycle contract, not browser layout acceptance.
   class ResizeObserver { observe() {} unobserve() {} disconnect() {} }
   vi.stubGlobal('ResizeObserver', ResizeObserver)
@@ -27,7 +27,7 @@ it('runs the real two-file array tutorial, preserves theme state, resets its ans
   }, { timeout: 10000 })
   await act(async () => { render(false); await new Promise((resolve) => setTimeout(resolve, 200)) })
   await ready(1)
-  expect(host.textContent).toContain('App.tsx'); expect(host.textContent).toContain('fields.tsx')
+  expect(host.querySelector('[role="tablist"]')).toBeNull() // one file, no tabs
   const button = (text: string) => [...host.querySelectorAll('button')].find((element) => element.textContent === text)!
   await act(async () => { button('添加一行').click() })
   await ready(2)
@@ -35,13 +35,13 @@ it('runs the real two-file array tutorial, preserves theme state, resets its ans
   expect(host.querySelectorAll('fieldset')).toHaveLength(2)
   await act(async () => { button('看答案').click() })
   await ready(1)
-  expect((host.querySelector('input[aria-label="名称"]') as HTMLInputElement).value).toBe('贴纸')
+  expect((host.querySelector('fieldset input') as HTMLInputElement).value).toBe('贴纸')
   const editor = EditorView.findFromDOM(host.querySelector('.cm-editor') as HTMLElement)!
   expect(editor).toBeDefined()
   const edited = editor.state.doc.toString().replace("name: '贴纸'", "name: '编辑成功'")
   await act(async () => { editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: edited } }) })
   await vi.waitFor(async () => {
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 60)) })
-    expect((host.querySelector('input[aria-label="名称"]') as HTMLInputElement)?.value).toBe('编辑成功')
+    expect((host.querySelector('fieldset input') as HTMLInputElement)?.value).toBe('编辑成功')
   }, { timeout: 5000 })
 }, 20000)
