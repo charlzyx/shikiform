@@ -454,7 +454,7 @@ export interface DraftState<T> {
    * layer (like `$title` / `$pattern`): back to the mounted JSX `enum`, else `fields.x.enum`, else the item template.
    * `[]` clears the options.
    */
-  set $enum(value: EnumInput | EnumBinding | undefined)
+  set $enum(value: EnumInput | EnumBinding<any> | undefined)
   /**
    * Rules written by a reaction. They stay when a JSX `<Field rules>` unmounts.
    * A reaction wins over JSX `rules`, `registerField`, and an item template.

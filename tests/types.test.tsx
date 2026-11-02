@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { createForm, defineEffects, type Draft, type EnumOption } from '../src/core'
+import { createForm, defineEffects, EnumSource, type Draft, type EnumOption } from '../src/core'
 import { useQueryTable } from '../src/pro/use-query-table'
 import { Field, ObjectField, typed, useArrayField, useField, useForm, useWatch } from '../src/react'
 
@@ -57,6 +57,8 @@ const effects = defineEffects<{ rows: { name: string }[]; nodes: { label: string
     d.rows.$enum = ['a', 'b']
     d.rows.$enum = [{ label: 'A', value: 'a' }]
     d.rows.$enum = undefined
+    // A typed loader's binding is accepted (`EnumBinding<string>`, not only `EnumBinding<unknown>`).
+    d.rows.$enum = EnumSource.from(async (q: string) => [{ label: q, value: q }]).with('x')
     d.nodes.$enum = options.filter((option) => option.value !== 'a')
     // @ts-expect-error a number is not an enum input
     d.nodes.$enum = 1
