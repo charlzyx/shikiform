@@ -108,7 +108,7 @@ describe('<Field enum>', () => {
   it('reactions that read $enum see the JSX enum', async () => {
     let form!: FormEngine<Values>
     const effects = defineEffects<Values>(({ reaction }) => {
-      reaction((d) => { d.n.$value = (d.level.$enum as readonly unknown[]).length })
+      reaction((d) => { d.n.$value = d.level.$enum.length })
     })
     function App() {
       form = useForm<Values>({ initialValues: { level: '', tags: [], n: 0 }, effects: [effects] })
