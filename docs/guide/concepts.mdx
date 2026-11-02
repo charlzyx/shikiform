@@ -80,7 +80,7 @@ export default function App() {
 | `$display` / `$visible` / `$hidden` | `visible` / `hidden` / `none`；与 Formily 相同，`$visible = false` 等于 `none`（不校验、不提交），`$hidden = true` 等于 `hidden`（只藏 UI，仍校验、仍提交） |
 | `$pattern` / `$disabled` | `$pattern = undefined` 恢复继承；`$disabled = true` 写 `disabled`，`$disabled = false` 撤销它并恢复继承 |
 | `$required` / `$rules` | 必填与规则；reaction 写的规则不随组件卸载 |
-| `$enum` | 选项（静态数组或 `EnumSource.with(params)`）；优先于 `<Field enum>` 和 `fields.x.enum` |
+| `$enum` | 选项（静态数组或 `EnumSource.with(params)`）；优先于 `<Field enum>` 和 `fields.x.enum`。`$enum = undefined` 撤销 reaction 层、回到 JSX / 声明 / 模板的选项，`$enum = []` 才是清空 |
 | `$title` / `$description` | 装饰器的标签 / 说明（`FormItem` → `label` / `extra`） |
 | `$component` / `$decorator` | `<Field>` 渲染的控件 / 装饰器 |
 | `$componentProps` / `$decoratorProps` | 控件 / 装饰器 props，按键打补丁，见 [UI 状态三层叠加](/guide/field#ui-状态三层叠加) |

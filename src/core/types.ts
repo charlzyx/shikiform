@@ -445,12 +445,16 @@ export interface DraftState<T> {
   /** Explicit pattern. Assign `undefined` to inherit again. */
   $pattern: Pattern | undefined
   /**
-   * Reading gives the effective options as `{ label, value }` objects (reaction > JSX `enum` > `fields`; an async
+   * Reading gives the effective options as `{ label, value }` objects (reaction > JSX `enum` > `fields` > template; an async
    * `EnumSource` reads as its loaded options, `[]` until they arrive). Never `undefined`, never the binding.
    */
   get $enum(): readonly EnumOption[]
-  /** Static options (objects or bare primitives) or `SomeEnum.with(params)` (async). `undefined` sets no options. */
-  set $enum(value: EnumInput | EnumBinding | undefined)
+  /**
+   * Static options (objects or bare primitives) or `SomeEnum.with(params)` (async). `undefined` drops the reaction
+   * layer (like `$title` / `$pattern`): back to the mounted JSX `enum`, else `fields.x.enum`, else the item template.
+   * `[]` clears the options.
+   */
+  set $enum(value: EnumInput | EnumBinding<any> | undefined)
   /**
    * Rules written by a reaction. They stay when a JSX `<Field rules>` unmounts.
    * A reaction wins over JSX `rules`, `registerField`, and an item template.

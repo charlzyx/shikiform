@@ -154,7 +154,7 @@ interface UseFieldOptions<TValue = any> {
 }
 ```
 
-`options` 与 `<Field>` 同名属性语义相同：`rules` / `required` / `enum` 是挂载期 lease（调用组件卸载时释放；`enum` 的优先级是 reaction `$enum` > JSX > `fields` > 条目模板，属性变化（深比较）会重新应用），`virtual` / `display` / `pattern` 是持久字段标记，UI 选项合并进返回的 binding。`<Field>` 就是 `useField(name, options)` 加上「非 visible 返回 null」，再渲染 `decorator` 包住的 `component`，并把 binding 提供给子树里不带参数的 `useField()`。
+`options` 与 `<Field>` 同名属性语义相同：`rules` / `required` / `enum` 是挂载期 lease（调用组件卸载时释放；`enum` 的优先级是 reaction `$enum` > JSX > `fields` > 条目模板，reaction 写 `$enum = undefined` 回到 JSX 这一层，属性变化（深比较）会重新应用），`virtual` / `display` / `pattern` 是持久字段标记，UI 选项合并进返回的 binding。`<Field>` 就是 `useField(name, options)` 加上「非 visible 返回 null」，再渲染 `decorator` 包住的 `component`，并把 binding 提供给子树里不带参数的 `useField()`。
 
 带 `name` 时，它是当前对象 / 行作用域下的**相对路径**。例如在 `items.0` 的 `RowScope` 下，`useField('price')` 绑定 `items.0.price`。在行里再写 `items.0.price` 会重复前缀；稳定行 ID 也不是路径。
 

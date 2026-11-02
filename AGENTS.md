@@ -129,6 +129,9 @@ const form = createForm({
   changes (deep compare, inline arrays are fine). With `typed(form).Field` / `row.Field` option values are checked
   against the field value (element type for arrays). Options that depend on another field stay in a reaction.
   Reading `d.x.$enum` gives the effective options as `{ label, value }[]` (an async source: its loaded options, `[]` before).
+  `d.x.$enum = undefined` drops the reaction layer like `$title` / `$pattern = undefined`: back to the mounted JSX `enum`
+  (an async source re-binds), else `fields.x.enum`, else the template, else no options; a reaction load in flight is
+  aborted and `loading` resets; `enumPolicy` applies to the change. Clear explicitly with `$enum = []`.
 - Slots take a component or `[Component, props]`; children (`<Field …><Input /></Field>`) or a render prop also work.
 - Table cells can drop the decorator (`<Field name="qty" component={[InputNumber]} />`) or use another one.
 - `FormItem` outside a field is pure layout: `<FormItem label="地址" asterisk>…two Fields, each `decorator={[FormItem]}`…</FormItem>`.
