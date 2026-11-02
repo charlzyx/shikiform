@@ -28,18 +28,18 @@ test('FormStep guide: next validates only the current step; values survive back;
 
   await next.click()
   await expect(demo.locator('.ant-steps-item-error')).toContainText('账号')
-  await expect(demo.getByLabel('邮箱')).toBeVisible()
+  await expect(demo.getByLabel('账号邮箱')).toBeVisible()
   // The second step was not validated.
   await expect(demo.locator('.ant-steps-item-error')).toHaveCount(1)
 
-  await demo.getByLabel('邮箱').fill('ada@example.com')
+  await demo.getByLabel('账号邮箱').fill('ada@example.com')
   await demo.getByLabel('密码').fill('secret1')
   await next.click()
   await expect(demo.getByLabel('昵称')).toBeVisible()
-  await expect(demo.getByLabel('邮箱')).toBeHidden()
+  await expect(demo.getByLabel('账号邮箱')).toBeHidden()
 
   await demo.getByRole('button', { name: '上一步' }).click()
-  await expect(demo.getByLabel('邮箱')).toHaveValue('ada@example.com')
+  await expect(demo.getByLabel('账号邮箱')).toHaveValue('ada@example.com')
   await next.click()
   await demo.getByLabel('昵称').fill('ada')
   await next.click()

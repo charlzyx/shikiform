@@ -114,10 +114,10 @@ import { useState } from 'react';
 import { Form, typed, useForm } from 'shikiform';
 import { FormButtonGroup, FormItem, FormLayout, FormStep, Input, Submit, useFormStep } from 'shikiform/antd';
 
-type Values = { email: string; password: string; nickname: string; bio: string };
+type Values = { account: string; password: string; nickname: string; bio: string };
 
 export default function App() {
-  const form = useForm<Values>({ initialValues: { email: '', password: '', nickname: '', bio: '' } });
+  const form = useForm<Values>({ initialValues: { account: '', password: '', nickname: '', bio: '' } });
   const step = useFormStep();
   const F = typed(form);
   const [saved, setSaved] = useState<Values>();
@@ -126,7 +126,7 @@ export default function App() {
       <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 16 }}>
         <FormStep step={step}>
           <FormStep.Step title="账号">
-            <F.Field name="email" title="邮箱" required rules={{ format: 'email' }} decorator={[FormItem]} component={[Input]} />
+            <F.Field name="account" title="账号邮箱" required rules={{ format: 'email' }} decorator={[FormItem]} component={[Input]} />
             <F.Field name="password" title="密码" required rules={{ minLength: 6 }} decorator={[FormItem]} component={[Input.Password]} />
           </FormStep.Step>
           <FormStep.Step title="资料">
