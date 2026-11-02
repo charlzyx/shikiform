@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 import { createForm, defineEffects, Field, Form, useField, type FieldBinding } from '../src'
 import { FieldContext } from '../src/react/field-context'
+import { zhCN } from '../src/core/validation/messages'
 import {
   Checkbox,
   connect,
@@ -455,7 +456,7 @@ describe('connected Ant Design controls', () => {
     expect(html).not.toContain('blue')
   })
 
-  it('Switch and Checkbox bind checked; readPretty renders them disabled', () => {
+  it('Switch and Checkbox bind checked; readPretty shows messages.yes / no', () => {
     for (const Control of [Switch, Checkbox]) {
       const { form, field } = binding(false)
       const el = target(Control, { field })
@@ -463,8 +464,11 @@ describe('connected Ant Design controls', () => {
       expect(el.props.status).toBeUndefined()
       el.props.onChange(Control === Switch ? true : { target: { type: 'checkbox', checked: true } })
       expect(form.getValue('x')).toBe(true)
-      const pretty = binding(true, { pattern: 'readPretty' })
-      expect(target(Control, { field: pretty.field }).props.disabled).toBe(true)
+      const pretty = createForm({ initialValues: { x: true, y: false }, fields: { x: { pattern: 'readPretty' }, y: { pattern: 'readPretty' } } })
+      const html = renderToStaticMarkup(<Form form={pretty}><Control name="x" /><Control name="y" /></Form>)
+      expect(html).toContain(zhCN.yes)
+      expect(html).toContain(zhCN.no)
+      expect(html).not.toContain('ant-switch')
     }
   })
 
@@ -480,7 +484,10 @@ describe('connected Ant Design controls', () => {
     r.props.onChange({ target: { type: 'radio', value: 'blue', checked: true } })
     expect(radio.form.getValue('x')).toBe('blue')
     const pretty = createForm({ initialValues: { x: ['red', 'blue'] }, fields: { x: { enum: options, pattern: 'readPretty' } } })
-    expect(renderToStaticMarkup(<Form form={pretty}><Checkbox.Group name="x" /></Form>)).toContain('红, 蓝')
+    const groupHtml = renderToStaticMarkup(<Form form={pretty}><Checkbox.Group name="x" /></Form>)
+    expect(groupHtml).toContain('ant-tag')
+    expect(groupHtml).toContain('红')
+    expect(groupHtml).toContain('蓝')
   })
 
   it('DatePicker stores the formatted string and hands the picker a dayjs', () => {
