@@ -2,6 +2,7 @@ import { useCallback, useContext, useRef, useSyncExternalStore, type DragEvent }
 import { joinPath } from '../../core/shared/path'
 import type { ArrayItemOf, ArrayPath } from '../../core/types'
 import { ArrayContext, useFormContext, useRequiredForm, useScope } from '../context'
+import { useFieldGroupRegistration } from '../field-group'
 import { resolveName } from './resolve-name'
 
 /** One rendered row. `key` is the row id, or a stable identity when the row has none. */
@@ -37,7 +38,9 @@ export function useArrayField<TScope, N extends ArrayPath<TScope>>(
 ): ArrayHandle<ArrayItemOf<TScope, N & string>>
 export function useArrayField(name: string, rowKey?: string): ArrayHandle<unknown> {
   const scope = useScope()
-  return useArrayAt(resolveName(useRequiredForm(`useArrayField('${name}') / <ArrayField name="${name}">`), scope, name), rowKey)
+  const path = resolveName(useRequiredForm(`useArrayField('${name}') / <ArrayField name="${name}">`), scope, name)
+  useFieldGroupRegistration(path)
+  return useArrayAt(path, rowKey)
 }
 
 /**

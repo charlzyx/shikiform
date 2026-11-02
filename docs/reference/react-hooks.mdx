@@ -21,6 +21,7 @@ description: useForm、useField、useWatch、数组与树 Hooks 的签名、返�
 | 树结构和节点移动 | [`useTreeField`](#usetreefield) | 树结构 |
 | 树拖动事件 | [`useTreeMove`](#usetreemove) | 不订阅 |
 | 当前树节点（无需 name） | [`useTreeNode`](#usetreenode) | 这个节点的值 |
+| 收集一块 JSX 里的字段、读它们的错误 | [`useFieldGroup`](#usefieldgroup)、[`useFieldGroupErrors`](#usefieldgrouperrors) | 组成员 / 组内错误 |
 
 除 `useForm` 外，本页 Hooks 都必须在 `<Form form={form}>` 后代中调用。**在一个组件中先调用 `useField`、再从它返回 `<Form>` 不算在 Provider 内**；把读字段的组件放到 Form 里面。
 
@@ -520,3 +521,38 @@ function NodeLabel() {
 }
 <RowScope path={pathOf('nodes', pos)} pos={pos}><NodeLabel /></RowScope>
 ```
+
+## useFieldGroup
+
+```ts
+useFieldGroup(): FieldGroupHandle
+<FieldGroup value={group}>{children}</FieldGroup>
+
+interface FieldGroupHandle {
+  paths(): string[]                               // 组内挂载的字段绝对路径，按挂载顺序，去重
+  subscribe(listener: () => void): () => void     // 成员增减时调用
+  version(): number
+}
+```
+
+一块 JSX 区域里的字段集合。`<FieldGroup value={group}>` 不渲染 DOM；它里面每个 `<Field>` / `useField(name)` / `<ArrayField>` / `useArrayField` 挂载期间把自己的绝对路径登记进去，卸载时移除；嵌套的 `FieldGroup` 同时登记进所有外层组。句柄在组件生命周期内稳定。只收集**挂载**的字段：只在 `fields` 里声明、没渲染的字段不在组里。
+
+`form.validate(group.paths())` 只校验这一组（一次校验）。`FormTab` / `FormCollapse` 的错误徽标、`FormStep` 的「下一步」都是它；纯布局 `FormItem` 以后可以用它汇总里面字段的错误。
+
+## useFieldGroupErrors
+
+```ts
+useFieldGroupErrors(group: FieldGroupHandle): FieldError[]
+```
+
+组内字段当前显示的错误，每个有错的字段一项 `{ path, messages }`（display `none` 的不算），路径在组成员之下的错误（如对象下表单级 schema 的错误）也算。只在这份列表变化时重渲染。`errors.length` 就是标签页徽标上的数字。必须在 `<Form>` 里调用。
+
+```tsx
+function Section({ children }: { children: ReactNode }) {
+  const group = useFieldGroup()
+  const errors = useFieldGroupErrors(group)
+  return <fieldset><legend>资料 {errors.length || ''}</legend><FieldGroup value={group}>{children}</FieldGroup></fieldset>
+}
+```
+
+[实现：field-group.tsx](https://github.com/charlzyx/shikiform/blob/main/src/react/field-group.tsx) · [分组容器](/guide/containers)

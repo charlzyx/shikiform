@@ -6,6 +6,7 @@ import type { Display, FieldEnum, FieldPath, FieldUiSpec, PathValue, Pattern } f
 import type { RulesInput } from '../../core/validation/rules'
 import { ShikiUsageError } from '../../core/errors'
 import { useRequiredForm, useScope } from '../context'
+import { useFieldGroupRegistration } from '../field-group'
 import { applyJsxField } from './field-lifecycle'
 import { resolveName } from './resolve-name'
 
@@ -132,6 +133,7 @@ export function useField(name?: string, options?: UseFieldOptions): FieldBinding
     return current ? applyJsxField(form, path, current) : undefined
   }, [form, path, ownsValidation])
   useJsxEnum(form, path, options?.enum)
+  useFieldGroupRegistration(path)
   const version = useSyncExternalStore(
     (onStoreChange) => form.subscribePath(path, onStoreChange),
     () => form.getPathVersion(path),

@@ -13,7 +13,9 @@
     "useArray": "reference/react-hooks.mdx",
     "useIndex": "reference/react-hooks.mdx",
     "useRecord": "reference/react-hooks.mdx",
-    "useTreeNode": "reference/react-hooks.mdx"
+    "useTreeNode": "reference/react-hooks.mdx",
+    "useFieldGroup": "reference/react-hooks.mdx",
+    "useFieldGroupErrors": "reference/react-hooks.mdx"
   },
   "shikiform/pro": {
     "useQueryTable": "reference/query-hooks.mdx",
@@ -74,6 +76,10 @@
     "FormButtonGroup": "reference/antd-adapter.mdx",
     "ArrayItems": "reference/antd.mdx",
     "ArrayCards": "reference/antd.mdx",
-    "useArrayEditable": "reference/antd.mdx"
+    "useArrayEditable": "reference/antd.mdx",
+    "FormTab": "reference/antd.mdx",
+    "FormCollapse": "reference/antd.mdx",
+    "FormStep": "reference/antd.mdx",
+    "useFormStep": "reference/antd.mdx"
   }
 }

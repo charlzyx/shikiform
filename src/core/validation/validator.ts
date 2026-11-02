@@ -76,7 +76,7 @@ export class Validator {
     return this.store.get(path)?.triggers ?? this.deps.options.validateTrigger ?? ['onBlur', 'onSubmit']
   }
 
-  async validate(path?: string): Promise<FieldError[]> {
+  async validate(path?: ValidateScope): Promise<FieldError[]> {
     return (await this.run(path)).errors
   }
 
@@ -85,7 +85,7 @@ export class Validator {
    * started meanwhile (the errors are then whatever is shown, not this pass's verdict).
    * `submit` compares `values` with the live values to know whether what it would submit was validated (#6).
    */
-  run(path?: string): Promise<RunResult> {
+  run(path?: ValidateScope): Promise<RunResult> {
     const record: { gen: number; promise?: Promise<RunResult> } = { gen: 0 }
     // Registered when the pass takes its generation, before it notifies: a pass started from that
     // notification (re-entry) registers after it and is correctly the newer one.
@@ -96,25 +96,27 @@ export class Validator {
     return record.promise
   }
 
-  private async runPass(path: string | undefined, onStart: (gen: number) => void): Promise<RunResult> {
+  private async runPass(path: ValidateScope | undefined, onStart: (gen: number) => void): Promise<RunResult> {
     const { store, scheduler, notifier, options } = this.deps
     this.prepare()
     const gen = ++this.validateGen
     onStart(gen)
     const values = store.values
+    const inScope = scopeTest(path)
     // Validating a field again replaces what the server said about it.
-    this.clearExternalUnder(path)
+    if (typeof path === 'string' || path === undefined) this.clearExternalUnder(path)
+    else for (const one of path) this.clearExternalUnder(one)
     store.validating = true
     scheduler.bumpMeta()
     notifier.emit()
     const scoped = (): RunResult => ({
-      errors: this.errors().filter((e) => !path || e.path === path || e.path.startsWith(path + '.')),
+      errors: this.errors().filter((e) => inScope(e.path)),
       values,
       current: gen === this.validateGen,
       gen,
     })
     try {
-      const targets = [...store.fields.keys()].filter((p) => !path || p === path || p.startsWith(path + '.'))
+      const targets = [...store.fields.keys()].filter(inScope)
       const collected: SchemaIssue[] = []
       const preserve = new Set<string>()
       for (const target of targets) {
@@ -419,7 +421,7 @@ export class Validator {
     }
   }
 
-  private commitSchemaIssues(scope: string | undefined, issues: SchemaIssue[], preserve: Set<string>): void {
+  private commitSchemaIssues(scope: ValidateScope | undefined, issues: SchemaIssue[], preserve: Set<string>): void {
     const store = this.store
     const filtered = issues.filter((issue) => {
       if (!issue.message) return false
@@ -427,15 +429,15 @@ export class Validator {
       return store.effectiveDisplay(issue.path) !== 'none'
     })
     const grouped = groupSchemaIssues(filtered)
-    const replaceAll = !scope && preserve.size === 0
+    const replaceAll = (scope === undefined || scope === '') && preserve.size === 0
+    const inScope = scopeTest(scope)
     const next = replaceAll ? new Map<string, string[]>() : new Map(this.schemaByPath)
     const replaceable = (key: string) => {
       if (preserve.has(key)) return false
       for (const kept of preserve) {
         if (key.startsWith(kept + '.') || kept.startsWith(key + '.')) return false
       }
-      if (!scope) return true
-      return key === scope || key.startsWith(scope + '.')
+      return inScope(key)
     }
     if (!replaceAll) {
       for (const key of [...next.keys()]) if (replaceable(key)) next.delete(key)
@@ -591,6 +593,19 @@ export class Validator {
     }
     scheduler.markDirty(':errors')
   }
+}
+
+/**
+ * What one pass validates: the whole form (`undefined`), one path and its descendants, or several paths
+ * and their descendants (a step of a `FormStep`, a field group). `''` is the whole form; `[]` validates no field.
+ */
+export type ValidateScope = string | readonly string[]
+
+function scopeTest(scope: ValidateScope | undefined): (path: string) => boolean {
+  if (scope === undefined || scope === '') return () => true
+  const list = typeof scope === 'string' ? [scope] : scope
+  if (list.includes('')) return () => true
+  return (path) => list.some((one) => path === one || path.startsWith(one + '.'))
 }
 
 /** One pass's outcome. `gen` is its generation (see {@link Validator.validateGen}). */
