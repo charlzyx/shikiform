@@ -19,7 +19,7 @@ import {
 } from 'antd'
 import type { UploadFile } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
-import customParseFormat from 'dayjs/plugin/customParseFormat'
+import customParseFormat from 'dayjs/plugin/customParseFormat.js'
 import type { ComponentProps, ComponentType, FocusEventHandler } from 'react'
 import { useFormMessage } from '../../react/hooks/use-form-message'
 import { connect, mapProps, mapReadPretty, type ComponentStatics } from '../adapter/connect'
