@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Form, defineEffects, useForm } from 'shikiform';
-import { NumberField, SubmitButton } from './fields';
+import { Field, Form, defineEffects, useForm } from 'shikiform';
+import { FormItem, InputNumber, Submit } from 'shikiform/antd';
 
-export const effects = defineEffects<{ price: number; qty: number; amount: number }>(({ reaction }) => {
+type Values = { price: number; qty: number; amount: number };
+
+export const effects = defineEffects<Values>(({ reaction }) => {
   reaction((d) => {
     const amount = (d.price.$value || 0) * (d.qty.$value || 0);
     d.amount.$value = amount;
@@ -11,13 +13,13 @@ export const effects = defineEffects<{ price: number; qty: number; amount: numbe
 
 export default function App() {
   const [payload, setPayload] = useState('');
-  const form = useForm({ initialValues: { price: 10, qty: 2, amount: 0 }, effects: [effects] });
+  const form = useForm<Values>({ initialValues: { price: 10, qty: 2, amount: 0 }, effects: [effects] });
   return (
     <Form form={form} onSubmit={(values) => setPayload(JSON.stringify(values, null, 2))}>
-      <NumberField name="price" label="单价" />
-      <NumberField name="qty" label="数量" />
-      <NumberField name="amount" label="金额" help="reaction 写 $value，只读，默认仍提交" />
-      <SubmitButton>提交</SubmitButton>
+      <Field name="price" title="单价" decorator={[FormItem]} component={[InputNumber]} />
+      <Field name="qty" title="数量" decorator={[FormItem]} component={[InputNumber]} />
+      <Field name="amount" title="金额" description="reaction 写 $value：阅读态，默认仍提交" decorator={[FormItem]} component={[InputNumber]} />
+      <Submit>提交</Submit>
       {payload ? <pre className="shiki-code">{payload}</pre> : null}
     </Form>
   );

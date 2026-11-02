@@ -74,7 +74,7 @@ export default function App() {
 | `DatePicker` | `DatePicker` 的 props；`DatePicker.RangePicker` 为区间 | 格式化字符串（默认 `YYYY-MM-DD`），不是 dayjs；清空为 `undefined` |
 | `Input.Password` / `Input.TextArea` | 同 `Input` 的对应变体 | 与 `Input` 一样写回字符串；Password 的阅读态是 `******` |
 
-`InputNumber` 的转换是正式适配器契约。教程里可复制的 `NumberField` 故意示范了另一种项目策略：空值写 `undefined`。需要不同的空值、字符串精度策略时，用 `<Field>` + 无参 `useField()` 自己接线。
+`InputNumber` 的转换是正式适配器契约。需要不同的空值、字符串精度策略时，用 `connect(AntInputNumber, mapProps({ getValueFromEvent }))`，或 `<Field>` + 无参 `useField()` 自己接线。
 
 字段 `disabled` 和控件 `disabled` 合并。Input/InputNumber 的 readOnly 使用原生只读属性，Select 的 readOnly 映射为 disabled；Switch/Checkbox 在 readOnly 和 readPretty 时都保留 checked 外观并禁用交互。Input/Select/InputNumber 的 readPretty 改为文本展示（Select 显示选项 label）。这些 UI 状态不禁止程序调用 `form.setValue()`。
 
