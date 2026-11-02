@@ -603,6 +603,21 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   }
 
   /**
+   * Apply a JSX `<Field enum>` (static list, primitives, or `EnumSource.with(params)`) to `path`.
+   * Precedence: reaction `$enum` > JSX `enum` > `fields` / `registerField` > item template. `useField` calls it with
+   * `'render'` during render (static lists only, so the first paint has options) and `'commit'` in an effect
+   * (async loads, `enumPolicy` on updates, reactions reading `$enum`). Returns a lease for {@link releaseJsxEnum}.
+   */
+  applyJsxEnum(path: string, input: unknown, phase: 'render' | 'commit' = 'commit'): unknown {
+    return this.writer.applyJsxEnum(path, input, phase)
+  }
+
+  /** Drop the JSX `enum` on `path` and restore the declared / template enum. A lease from another row's model is ignored. */
+  releaseJsxEnum(path: string, lease?: unknown): void {
+    this.writer.releaseJsxEnum(path, lease)
+  }
+
+  /**
    * Input props for `path`: value, errors, display, pattern, touched, dirty, validating, and UI state.
    * `errors` is empty when the effective display is `none`. `ui` is the render-time JSX layer (`<Field title>`).
    */

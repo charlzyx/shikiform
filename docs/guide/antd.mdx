@@ -11,7 +11,7 @@ antd 控件要的是 `value`、`onChange`、`status`、`disabled` 这些 props�
 
 `Input`（含 `TextArea`、`Password`）、`InputNumber`、`Select`、`Switch`、`Checkbox`（含 `Group`）、`Radio`（就是单选组，`Radio.Group` 同一个）、`DatePicker`（含 `RangePicker`）可以直接放进 `component`：
 
-- 选择类控件的 `options` 默认取字段枚举（`fields.x.enum` 或 `$enum`），异步枚举时自动带 `loading`。
+- 选择类控件的 `options` 默认取字段枚举（`<Field enum>`、`fields.x.enum` 或 `$enum`），异步枚举时自动带 `loading`。
 - `pattern` 自动生效：`disabled` / `readOnly` 禁用控件，`readPretty` 换成文字（选择类显示标签，可加 `prettyType="badge" | "tag"`）。
 - `DatePicker` 的字段值是格式化后的字符串（默认 `YYYY-MM-DD`），不是 dayjs 对象。
 

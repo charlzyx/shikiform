@@ -46,6 +46,28 @@ export type EnumPolicy = 'error' | 'clear' | 'none'
 
 type IsAny<T> = 0 extends 1 & T ? true : false
 
+/** A static enum: `{ label, value }` options, or bare primitives (label = `String(value)`). */
+export type EnumInput = readonly EnumOption[] | readonly (string | number | boolean)[]
+
+/** The value one option carries for a field of type `V`: the element type for an array field (`Checkbox.Group`), else `V`. */
+export type EnumValueOf<V> = IsAny<V> extends true ? any : NonNullable<V> extends readonly (infer E)[] ? E : NonNullable<V>
+
+/** {@link EnumOption} with `value` typed. */
+export interface TypedEnumOption<V> extends Omit<EnumOption, 'value' | 'children'> {
+  value: V
+  children?: readonly TypedEnumOption<V>[]
+}
+
+/**
+ * What `<Field enum>` / `useField(name, { enum })` accept, typed against the field value `V`:
+ * `{ label, value }` options or bare primitives whose value matches the field (its element type for an array field),
+ * or `SomeEnum.with(params)` (async, loaded by the engine like `$enum`). With an untyped `<Field>` (`V = any`) anything goes.
+ */
+export type FieldEnum<V = any> =
+  | readonly TypedEnumOption<EnumValueOf<V>>[]
+  | readonly Extract<EnumValueOf<V>, string | number | boolean>[]
+  | EnumBinding<any>
+
 /**
  * Every readable/writable path of `T`, including array indexes (`items.0.price`).
  * A key that is not on `T` is not a member, so it fails to compile.
@@ -193,8 +215,11 @@ export interface FieldSpec extends FieldUiSpec {
    * JSX `rules` are mount-scoped and do not erase a declaration, an item template, or `$rules`.
    */
   rules?: RulesInput
-  /** Static options. A reaction assigns `$enum` (including `EnumSource.with(params)`) and that wins. */
-  enum?: EnumOption[] | readonly string[]
+  /**
+   * Static options: `{ label, value }` objects or bare primitives (`['a', 'b']`).
+   * A JSX `<Field enum>` wins over it while mounted; a reaction's `$enum` (including `EnumSource.with(params)`) wins over both.
+   */
+  enum?: EnumInput
   /**
    * Empty values fail validation even without a `required` rule.
    * On `fields` / `registerField` this flag stays after `<Field>` unmounts.
@@ -419,8 +444,8 @@ export interface DraftState<T> {
   $disabled: boolean
   /** Explicit pattern. Assign `undefined` to inherit again. */
   $pattern: Pattern | undefined
-  /** Static options, or `SomeEnum.with(params)`. */
-  $enum: EnumOption[] | readonly string[] | EnumBinding | undefined
+  /** Static options, or `SomeEnum.with(params)`. Reading it gives the effective options (reaction > JSX `enum` > `fields`). */
+  $enum: EnumInput | EnumBinding | undefined
   /**
    * Rules written by a reaction. They stay when a JSX `<Field rules>` unmounts.
    * A reaction wins over JSX `rules`, `registerField`, and an item template.

@@ -1,4 +1,4 @@
-import { asOptions } from '../enum/enum-source'
+import { asOptions, type EnumOption } from '../enum/enum-source'
 import { deepEqual } from '../shared/equal'
 import { parentPath } from '../shared/path'
 import { normalizeUiSpec, type FieldModel } from '../state/field-model'
@@ -89,7 +89,7 @@ export class Declarations {
     }
     if ((spec as RegisterSpec).trigger) field.triggers = undefined
     if (spec.asyncDebounceMs !== undefined) field.asyncDebounceMs = undefined
-    if (spec.enum && !field.enumFromEffect) field.enumOptions = undefined
+    if (spec.enum && !field.enumFromEffect && field.jsxEnum === undefined) field.enumOptions = undefined
     if (field.uiDeclared) {
       const next = { ...field.uiDeclared }
       for (const key of Object.keys(normalizeUiSpec(spec))) delete next[key as keyof typeof next]
@@ -242,8 +242,8 @@ export class Declarations {
     if (mode === 'explicit') {
       if (spec.trigger) field.triggers = spec.trigger
       if (spec.asyncDebounceMs !== undefined) field.asyncDebounceMs = spec.asyncDebounceMs
-      if (spec.enum && !field.enumFromEffect) field.enumOptions = asOptions(spec.enum) ?? []
-    } else if (spec.enum && !field.enumFromEffect && field.declaration?.enum === undefined && field.enumOptions === undefined) {
+      if (spec.enum && !field.enumFromEffect && field.jsxEnum === undefined) field.enumOptions = asOptions(spec.enum) ?? []
+    } else if (spec.enum && !field.enumFromEffect && field.jsxEnum === undefined && field.declaration?.enum === undefined && field.enumOptions === undefined) {
       // `rows.*.status: { enum }`: a template fills the enum only where no exact declaration or effect set one.
       field.enumOptions = asOptions(spec.enum) ?? []
       this.notifier.bumpPath(field.path)
@@ -324,6 +324,12 @@ export class Declarations {
       field.required = spec.required
       this.notifier.bumpPath(path)
     }
+  }
+
+  /** The enum `fields` / `registerField` or an item template gives `path` (what a released `<Field enum>` falls back to). */
+  declaredEnum(path: string): EnumOption[] | undefined {
+    const spec = this.store.get(path)?.declaration?.enum ?? this.templateSpec(path)?.enum
+    return spec ? (asOptions(spec) ?? []) : undefined
   }
 
   /** The most specific template matching `path`. */

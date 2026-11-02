@@ -41,7 +41,7 @@ const EMPTY: Signup = { username: '', email: '', password: '', province: '', cit
 export function SignupForm({ onSubmit, initialValues = EMPTY }: { onSubmit: (values: Signup) => void; initialValues?: Signup }) {
   const form = useForm<Signup>({
     initialValues,
-    fields: { province: { enum: PROVINCES }, 'contacts.*.name': { required: true } },
+    fields: { 'contacts.*.name': { required: true } },
     effects: [effects],
   })
   const F = typed(form)
@@ -56,7 +56,7 @@ export function SignupForm({ onSubmit, initialValues = EMPTY }: { onSubmit: (val
         <F.Field name="password" title="密码" required decorator={[FormItem]} component={[Input.Password]} />
         <FormItem label="地址" asterisk>
           <Space.Compact>
-            <F.Field name="province" required decorator={[FormItem]} component={[Select, { placeholder: '省', style: { width: 120 } }]} />
+            <F.Field name="province" enum={PROVINCES} required decorator={[FormItem]} component={[Select, { placeholder: '省', style: { width: 120 } }]} />
             <F.Field name="city" required decorator={[FormItem]} component={[Select, { placeholder: '市', style: { width: 120 } }]} />
           </Space.Compact>
         </FormItem>

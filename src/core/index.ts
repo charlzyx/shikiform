@@ -44,7 +44,10 @@ export type {
   RowDraft,
   SubmitValues,
   EffectDef,
+  EnumInput,
   EnumPolicy,
+  EnumValueOf,
+  FieldEnum,
   FieldError,
   FieldPath,
   FieldSpec,
@@ -56,5 +59,6 @@ export type {
   PathValue,
   Pattern,
   SubmitResult,
+  TypedEnumOption,
   ValidateTrigger,
 } from './types'

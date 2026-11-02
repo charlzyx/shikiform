@@ -1,10 +1,10 @@
 import type { Declarations } from '../declarations/declarations'
 import { isReactionId, type Scheduler } from '../effects/scheduler'
-import { asOptions, isEnumBinding, type EnumOption } from '../enum/enum-source'
+import { asOptions, isEnumBinding, type EnumBinding, type EnumOption } from '../enum/enum-source'
 import { unwrapReadonly } from '../draft/readonly'
 import { deepEqual } from '../shared/equal'
 import { getAt, parentPath, setAt } from '../shared/path'
-import { shownErrors } from '../state/field-model'
+import { shownErrors, type FieldModel } from '../state/field-model'
 import type { FieldStore } from '../state/field-store'
 import type { Notifier } from '../state/notifier'
 import type { Display, FormOptions, Pattern, WriteOp } from '../types'
@@ -42,6 +42,8 @@ export interface WriterDeps {
 export class StateWriter {
   private enumTimers = new Map<string, ReturnType<typeof setTimeout>>()
   private enumAbort = new Map<string, AbortController>()
+  /** Paths whose JSX enum changed in a render, waiting for the commit: `true` = an update, so `enumPolicy` applies. */
+  private jsxEnumPending = new Map<string, boolean>()
 
   constructor(private readonly deps: WriterDeps) {}
 
@@ -290,6 +292,74 @@ export class StateWriter {
     return true
   }
 
+  /**
+   * `<Field enum>`: the JSX layer between a reaction's `$enum` and `fields` / template enums.
+   * `phase: 'render'` applies a static list synchronously (no flush, no `enumPolicy: 'clear'` on the first apply,
+   * no async load) so the first paint already has the options; `phase: 'commit'` (an effect) starts an `EnumSource`
+   * load and flushes reactions that read `$enum`. Re-applying an equal value is a no-op, so an inline array is fine.
+   * Returns the model as the lease for {@link StateWriter.releaseJsxEnum}.
+   */
+  applyJsxEnum(path: string, input: unknown, phase: 'render' | 'commit'): FieldModel {
+    const { store, notifier, scheduler } = this.deps
+    const field = store.ensure(path)
+    const binding = isEnumBinding(input) ? input : undefined
+    if (binding && phase === 'render') return field
+    const next = binding ?? asOptions(input) ?? []
+    let changed = false
+    if (!sameJsxEnum(field.jsxEnum, next)) {
+      changed = true
+      const first = field.jsxEnum === undefined
+      field.jsxEnum = next
+      if (!field.enumFromEffect) {
+        if (binding) {
+          this.loadEnum(path, binding)
+        } else {
+          // Supersede an in-flight load (an earlier binding or a reaction's that has since been replaced).
+          field.enumSeq++
+          if (field.enumLoading) {
+            field.enumLoading = false
+            notifier.bumpPath(path)
+          }
+          if (!deepEqual(field.enumOptions, next)) {
+            field.enumOptions = next as EnumOption[]
+            notifier.bumpPath(path)
+            scheduler.markDirty(`${path}:enum`)
+            // An update behaves like `$enum` (policy applies, in the commit); the first mount like a declaration.
+            this.jsxEnumPending.set(path, !first || this.jsxEnumPending.get(path) === true)
+          }
+        }
+      }
+    }
+    if (phase === 'commit' && (changed || this.jsxEnumPending.has(path))) {
+      if (this.jsxEnumPending.get(path)) this.afterEnum(path)
+      this.jsxEnumPending.delete(path)
+      scheduler.enqueueFromDirty()
+      scheduler.flush()
+    }
+    return field
+  }
+
+  /** Drop the `<Field enum>` layer (unmount, or the prop removed) and fall back to `fields` / the item template. */
+  releaseJsxEnum(path: string, lease?: unknown): void {
+    const { store, notifier, scheduler, declarations } = this.deps
+    const field = store.get(path)
+    if (!field || field.jsxEnum === undefined) return
+    // The leased model moved with its row (its component re-applies at the new path) or was replaced.
+    if (lease !== undefined && lease !== field) return
+    field.jsxEnum = undefined
+    if (field.enumFromEffect) return
+    field.enumSeq++
+    const next = declarations.declaredEnum(path)
+    if (field.enumLoading || !deepEqual(field.enumOptions, next)) {
+      field.enumLoading = false
+      field.enumOptions = next
+      notifier.bumpPath(path)
+      scheduler.markDirty(`${path}:enum`)
+    }
+    scheduler.enqueueFromDirty()
+    scheduler.flush()
+  }
+
   private loadEnum(path: string, binding: EnumLoadBinding): void {
     const { store, notifier, scheduler } = this.deps
     const field = store.ensure(path)
@@ -338,4 +408,13 @@ export class StateWriter {
       }
     }
   }
+}
+
+/** Same JSX enum: equal static lists, or the same source with equal params. */
+function sameJsxEnum(prev: EnumOption[] | EnumBinding | undefined, next: EnumOption[] | EnumBinding): boolean {
+  if (prev === undefined) return false
+  if (isEnumBinding(prev) || isEnumBinding(next)) {
+    return isEnumBinding(prev) && isEnumBinding(next) && prev.source === next.source && deepEqual(prev.params, next.params)
+  }
+  return deepEqual(prev, next)
 }

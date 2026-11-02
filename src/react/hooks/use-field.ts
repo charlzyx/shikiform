@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect, useRef, useSyncExternalStore, type ComponentType, type ReactNode } from 'react'
+import type { FormEngine } from '../../core/engine/form-engine'
 import type { EnumOption } from '../../core/enum/enum-source'
 import { normalizeUiSpec } from '../../core/state/field-model'
-import type { Display, FieldPath, FieldUiSpec, PathValue, Pattern } from '../../core/types'
+import type { Display, FieldEnum, FieldPath, FieldUiSpec, PathValue, Pattern } from '../../core/types'
 import type { RulesInput } from '../../core/validation/rules'
 import { ShikiUsageError } from '../../core/errors'
 import { useRequiredForm, useScope } from '../context'
@@ -62,7 +63,13 @@ export type FieldSlot = ComponentType<any> | readonly [ComponentType<any>] | rea
  * `rules` / `required` are a mount-scoped lease (applied while the calling component is mounted, released on unmount,
  * restoring a declaration, item template, or `$rules`). `virtual`, `display`, and `pattern` are persistent flags.
  */
-export interface UseFieldOptions {
+export interface UseFieldOptions<TValue = any> {
+  /**
+   * Options for this field, inline (Formily `enum`): `[{ label, value }]`, bare primitives, or `SomeEnum.with(params)`.
+   * Wins over `fields.x.enum` / item templates while the component is mounted; a reaction's `$enum` wins over it.
+   * A new value (deep-compared, so an inline array is fine) is applied again; unmount or `undefined` restores the declaration.
+   */
+  enum?: FieldEnum<TValue>
   rules?: RulesInput
   required?: boolean
   virtual?: boolean
@@ -100,8 +107,8 @@ export interface UseFieldOptions {
  */
 export function useField<TValue = any>(): FieldBinding<TValue>
 export function useField(name: string, options?: UseFieldOptions): FieldBinding<any>
-export function useField<TScope>(name: FieldPath<TScope>, options?: UseFieldOptions): FieldBinding<PathValue<TScope, FieldPath<TScope> & string>>
-export function useField<TScope, N extends FieldPath<TScope>>(name: N, options?: UseFieldOptions): FieldBinding<PathValue<TScope, N & string>>
+export function useField<TScope>(name: FieldPath<TScope>, options?: UseFieldOptions<PathValue<TScope, FieldPath<TScope> & string>>): FieldBinding<PathValue<TScope, FieldPath<TScope> & string>>
+export function useField<TScope, N extends FieldPath<TScope>>(name: N, options?: UseFieldOptions<PathValue<TScope, N & string>>): FieldBinding<PathValue<TScope, N & string>>
 export function useField(name?: string, options?: UseFieldOptions): FieldBinding<any> {
   const current = useContext(FieldContext)
   if (name === undefined) {
@@ -124,6 +131,7 @@ export function useField(name?: string, options?: UseFieldOptions): FieldBinding
     const current = latestSpec.current
     return current ? applyJsxField(form, path, current) : undefined
   }, [form, path, ownsValidation])
+  useJsxEnum(form, path, options?.enum)
   const version = useSyncExternalStore(
     (onStoreChange) => form.subscribePath(path, onStoreChange),
     () => form.getPathVersion(path),
@@ -132,6 +140,26 @@ export function useField(name?: string, options?: UseFieldOptions): FieldBinding
   void version
   form.registerField(path, {})
   return form.binding(path, options && uiLayer(options)) as FieldBinding<any>
+}
+
+/**
+ * The `enum` option: a static list is applied during render (first paint has the options), the commit starts an
+ * `EnumSource` load and applies `enumPolicy` to an update. Released on unmount, on a path change, or when the
+ * option goes back to `undefined`; only the model this component leased is released (rows move with their models).
+ */
+function useJsxEnum(form: FormEngine<any, any>, path: string, input: unknown): void {
+  const has = input !== undefined
+  const lease = useRef<unknown>(undefined)
+  const latest = useRef(input)
+  latest.current = input
+  if (has) lease.current = form.applyJsxEnum(path, input, 'render')
+  useEffect(() => {
+    if (latest.current !== undefined) lease.current = form.applyJsxEnum(path, latest.current, 'commit')
+  })
+  useEffect(() => {
+    if (!has) return
+    return () => form.releaseJsxEnum(path, lease.current)
+  }, [form, path, has])
 }
 
 const NO_FIELD =
