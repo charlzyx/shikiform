@@ -151,9 +151,10 @@ export default function App() {
 ```
 
 - 与其他来源叠加：reaction 的 `$enum` > JSX `enum` > `fields.x.enum` > 条目模板（`rows.*.x`）。JSX 的 `enum` 只在组件挂载期间生效，卸载或改回 `undefined` 后恢复声明的选项。
+- reaction 写 `$enum = undefined` 撤销 reaction 这一层（和 `$title` / `$pattern = undefined` 一样），回到下一层：挂载中的 JSX `enum`（异步 source 会重新加载）> `fields.x.enum` > 条目模板，都没有就是空。reaction 自己发起、还没回来的异步加载会被 abort，`loading` 复位。要明确清空选项写 `$enum = []`。
 - 属性变了就重新应用（深比较，所以每次渲染写一个新数组没关系）。之后的变化按 `enumPolicy` 处理（`'clear'` 清掉不在新选项里的值）；首次挂载和 `fields` 声明一样不清值。
 - 异步选项写 `enum={Cities.with(province)}`，和 `$enum = Cities.with(…)` 一样加载、带 `loading`。随别的字段变化的选项仍然写在 reaction 里（`d.city.$enum = …`），它优先于 JSX。
-- reaction 里读 `$enum` 读到的是生效的选项，包括 JSX 这一层。
+- reaction 里读 `$enum` 读到的是生效的选项，包括 JSX 这一层；写 `undefined` 之后读到的是回退后的选项。
 - 用 `typed(form)` / `row.Field` 时 `value` 按字段值检查（数组字段按元素）；普通 `<Field>` 不检查。
 
 ## Field 就是 useField

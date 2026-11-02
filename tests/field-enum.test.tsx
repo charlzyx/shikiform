@@ -169,6 +169,155 @@ describe('<Field enum>', () => {
   })
 })
 
+describe('reaction `$enum = undefined` falls back', () => {
+  type Flag = Values & { on: boolean }
+  const RX = [{ label: '联动', value: 'rx' }]
+  const DECL = [{ label: '声明', value: 'gold' }]
+
+  function setup(opts: { decl?: boolean; jsx?: unknown; policy?: 'clear'; level?: string; initialOn?: boolean } = {}) {
+    let form!: FormEngine<Flag>
+    let setShow!: (on: boolean) => void
+    const effects = defineEffects<Flag>(({ reaction }) => {
+      reaction((d) => { d.level.$enum = d.on.$value ? RX : undefined })
+    })
+    function App() {
+      const [show, set] = useState(true)
+      setShow = set
+      form = useForm<Flag>({
+        initialValues: { level: opts.level ?? 'gold', tags: [], n: 1, on: opts.initialOn ?? true },
+        fields: opts.decl ? { level: { enum: DECL } } : undefined,
+        effects: [effects],
+        enumPolicy: opts.policy,
+      })
+      return <Form form={form}>{show ? <Field name="level" enum={opts.jsx as any} /> : null}</Form>
+    }
+    render(<App />)
+    const labels = () => form.binding('level').options.map((o) => o.label)
+    const read = () => { let seen: readonly { label: string }[] = []; form.batch((d) => { seen = d.level.$enum }); return seen.map((o) => o.label) }
+    return { form: () => form, setShow: (on: boolean) => setShow(on), labels, read }
+  }
+
+  it('JSX enum > fields.x.enum: undefined drops the reaction layer; reading $enum returns the fallback', async () => {
+    const t = setup({ decl: true, jsx: LEVELS })
+    await settle()
+    expect(t.labels()).toEqual(['联动'])
+    await act(async () => t.form().setValue('on', false))
+    expect(t.labels()).toEqual(['黄金', '白银'])
+    expect(t.read()).toEqual(['黄金', '白银'])
+    // The JSX layer works again while the reaction is off: unmount restores the declaration.
+    await act(async () => t.setShow(false))
+    expect(t.labels()).toEqual(['声明'])
+    await act(async () => t.form().setValue('on', true))
+    expect(t.labels()).toEqual(['联动'])
+    await act(async () => t.form().setValue('on', false))
+    expect(t.labels()).toEqual(['声明'])
+    expect(t.read()).toEqual(['声明'])
+  })
+
+  it('falls back to the rows.*.x template, and to no options when nothing is declared', async () => {
+    type Rows = { rows: { id: string; s: string }[]; on: boolean }
+    let form!: FormEngine<Rows>
+    const effects = defineEffects<Rows>(({ reaction }) => {
+      reaction((d) => { d.rows[0].s.$enum = d.on.$value ? RX : undefined })
+    })
+    function App() {
+      form = useForm<Rows>({
+        initialValues: { rows: [{ id: 'a', s: 'x' }], on: true },
+        fields: { 'rows.*.s': { enum: [{ label: '模板', value: 'x' }] } },
+        effects: [effects],
+      })
+      return <Form form={form}><ArrayField name="rows" rowKey="id">{() => <Field name="s" />}</ArrayField></Form>
+    }
+    render(<App />)
+    await settle()
+    expect(form.binding('rows.0.s').options.map((o) => o.label)).toEqual(['联动'])
+    await act(async () => form.setValue('on', false))
+    expect(form.binding('rows.0.s').options.map((o) => o.label)).toEqual(['模板'])
+
+    const bare = setup()
+    await settle()
+    expect(bare.labels()).toEqual(['联动'])
+    await act(async () => bare.form().setValue('on', false))
+    expect(bare.labels()).toEqual([])
+  })
+
+  it('`$enum = []` still clears explicitly (wins over JSX and declarations)', async () => {
+    let form!: FormEngine<Values>
+    function App() {
+      form = useForm<Values>({ initialValues: { level: 'gold', tags: [], n: 1 }, fields: { level: { enum: DECL } } })
+      return <Form form={form}><Field name="level" enum={LEVELS} /></Form>
+    }
+    render(<App />)
+    await act(async () => form.batch((d) => { d.level.$enum = [] }))
+    expect(form.binding('level').options).toEqual([])
+    await act(async () => form.batch((d) => { d.level.$enum = undefined }))
+    expect(form.binding('level').options).toEqual(LEVELS)
+  })
+
+  it('enumPolicy "clear" applies to the fallback options', async () => {
+    const t = setup({ decl: true, policy: 'clear', level: 'rx' })
+    await settle()
+    expect(t.form().getValue('level')).toBe('rx')
+    await act(async () => t.form().setValue('on', false))
+    expect(t.labels()).toEqual(['声明'])
+    expect(t.form().getValue('level')).toBeUndefined()
+  })
+
+  it('cancels a reaction EnumSource load: abort, loading reset, late result ignored', async () => {
+    let release!: (list: { label: string; value: unknown }[]) => void
+    let signal!: AbortSignal
+    const slow = EnumSource.from((_: string, ctx) => new Promise<{ label: string; value: unknown }[]>((resolve) => { signal = ctx.signal; release = resolve }))
+    let form!: FormEngine<Values>
+    function App() {
+      form = useForm<Values>({ initialValues: { level: 'gold', tags: [], n: 1 }, fields: { level: { enum: DECL } } })
+      return <Form form={form}><Field name="level" /></Form>
+    }
+    render(<App />)
+    await act(async () => form.batch((d) => { d.level.$enum = slow.with('q') }))
+    expect(form.binding('level').loading).toBe(true)
+    await act(async () => form.batch((d) => { d.level.$enum = undefined }))
+    expect(signal.aborted).toBe(true)
+    expect(form.binding('level').loading).toBe(false)
+    expect(form.binding('level').options).toEqual(DECL)
+    await act(async () => release([{ label: '迟到', value: 'late' }]))
+    await settle()
+    expect(form.binding('level').options).toEqual(DECL)
+  })
+
+  it('cancels a debounced reaction load before it starts', async () => {
+    let calls = 0
+    const debounced = EnumSource.from(async (q: string) => { calls++; return [{ label: q, value: q }] }, { debounce: 10 })
+    let form!: FormEngine<Values>
+    function App() {
+      form = useForm<Values>({ initialValues: { level: 'gold', tags: [], n: 1 } })
+      return <Form form={form}><Field name="level" enum={LEVELS} /></Form>
+    }
+    render(<App />)
+    await act(async () => form.batch((d) => { d.level.$enum = debounced.with('q') }))
+    await act(async () => form.batch((d) => { d.level.$enum = undefined }))
+    await settle()
+    expect(calls).toBe(0)
+    expect(form.binding('level').loading).toBe(false)
+    expect(form.binding('level').options).toEqual(LEVELS)
+  })
+
+  it('a JSX EnumSource re-binds on fallback', async () => {
+    let calls = 0
+    const remote = EnumSource.from(async (q: string) => { calls++; return [{ label: `远程-${q}`, value: 'gold' }] })
+    const t = setup({ jsx: remote.with('x'), initialOn: false })
+    await settle()
+    expect(t.labels()).toEqual(['远程-x'])
+    await act(async () => t.form().setValue('on', true))
+    expect(t.labels()).toEqual(['联动'])
+    await act(async () => t.form().setValue('on', false))
+    await settle()
+    expect(t.labels()).toEqual(['远程-x'])
+    expect(t.form().binding('level').loading).toBe(false)
+    expect(t.read()).toEqual(['远程-x'])
+    expect(calls).toBe(1) // the second bind hits the source cache
+  })
+})
+
 describe('<Field enum> with antd choice controls (editable + readPretty)', () => {
   function mount(pattern?: 'readPretty') {
     function App() {
