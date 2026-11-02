@@ -17,9 +17,8 @@ antd 控件要的是 `value`、`onChange`、`status`、`disabled` 这些 props�
 
 ```tsx preview
 import { Radio as AntRadio } from 'antd';
-import { Field, Form, ObjectField, useForm } from 'shikiform';
+import { Field, Form, ObjectField, useForm, type Pattern } from 'shikiform';
 import { Checkbox, DatePicker, FormItem, FormLayout, Input, InputNumber, Radio, Select, Switch } from 'shikiform/antd';
-import type { Pattern } from 'shikiform/core';
 
 type Profile = { name: string; age: number; level: string; tags: string[]; gender: string; vip: boolean; birthday: string };
 
@@ -28,11 +27,6 @@ const PATTERNS: Pattern[] = ['editable', 'disabled', 'readOnly', 'readPretty'];
 export default function App() {
   const form = useForm<{ profile: Profile }>({
     initialValues: { profile: { name: 'Ada', age: 36, level: 'gold', tags: ['math'], gender: 'f', vip: true, birthday: '1815-12-10' } },
-    fields: {
-      'profile.level': { enum: [{ label: '黄金', value: 'gold', color: 'gold' }, { label: '白银', value: 'silver' }] },
-      'profile.tags': { enum: [{ label: '数学', value: 'math' }, { label: '诗歌', value: 'poetry' }] },
-      'profile.gender': { enum: [{ label: '女', value: 'f' }, { label: '男', value: 'm' }] },
-    },
   });
   return (
     <Form form={form}>
@@ -43,9 +37,12 @@ export default function App() {
         <ObjectField name="profile">
           <Field name="name" title="Input" decorator={[FormItem]} component={[Input]} />
           <Field name="age" title="InputNumber" decorator={[FormItem]} component={[InputNumber]} />
-          <Field name="level" title="Select" decorator={[FormItem]} component={[Select, { prettyType: 'tag', style: { width: 160 } }]} />
-          <Field name="tags" title="Checkbox.Group" decorator={[FormItem]} component={[Checkbox.Group]} />
-          <Field name="gender" title="Radio" decorator={[FormItem]} component={[Radio]} />
+          <Field name="level" title="Select" enum={[{ label: '黄金', value: 'gold', color: 'gold' }, { label: '白银', value: 'silver' }]}
+            decorator={[FormItem]} component={[Select, { prettyType: 'tag', style: { width: 160 } }]} />
+          <Field name="tags" title="Checkbox.Group" enum={[{ label: '数学', value: 'math' }, { label: '诗歌', value: 'poetry' }]}
+            decorator={[FormItem]} component={[Checkbox.Group]} />
+          <Field name="gender" title="Radio" enum={[{ label: '女', value: 'f' }, { label: '男', value: 'm' }]}
+            decorator={[FormItem]} component={[Radio]} />
           <Field name="vip" title="Switch" decorator={[FormItem]} component={[Switch]} />
           <Field name="birthday" title="DatePicker" decorator={[FormItem]} component={[DatePicker]} />
         </ObjectField>
@@ -55,7 +52,7 @@ export default function App() {
 }
 ```
 
-切换上面的按钮只写了 `d.profile.$pattern`，下面的字段靠继承一起切换。
+切换上面的按钮只写了 `d.profile.$pattern`，下面的字段靠继承一起切换。选项直接写在 `<Field enum>` 上，见 [选项写在 JSX 里](/guide/field#选项写在-jsx-里)。
 
 ## 封装自己的控件
 

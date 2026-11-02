@@ -12,6 +12,7 @@ description: useForm、useField、useWatch、数组与树 Hooks 的签名、返�
 | 创建并保留表单 | [`useForm`](#useform) | 不自动订阅值 |
 | 按表单类型检查字段名 | [`typed`](#typed) | 不订阅（返回有类型的组件和 Hooks） |
 | 取得上层表单 | [`useFormContext`](#useformcontext) | 不自动订阅值 |
+| 跟随表单语言的内置文案 | [`useFormMessage`](#useformmessage) | 不订阅 |
 | 绑定一个输入；无参时读当前字段（自定义控件、装饰器、单元格） | [`useField`](#usefield) | `useField(name)` 订阅该路径；`useField()` 不另订阅（随外层 Field 渲染） |
 | 读取选中的值或状态 | [`useWatch`](#usewatch) | selector 实际读取的 `$` 依赖 |
 | 数组行增删和排序 | [`useArrayField`](#usearrayfield) | 数组结构，不是每个单元格 |
@@ -425,7 +426,7 @@ useTreeField(name: string, options?: {
 }
 ```
 
-`Pos` 是 `readonly number[]`，`MoveResult` 是 `{ ok: boolean; reason?: string }`，两者可从 `shikiform/core` 导入。当前 Hook 没有节点泛型；返回的 `value` 不是自动获得业务节点类型的数组。
+`Pos` 是 `readonly number[]`，`MoveResult` 是 `{ ok: boolean; reason?: string }`，两者都从 `shikiform` 导入。当前 Hook 没有节点泛型；返回的 `value` 不是自动获得业务节点类型的数组。
 
 | 参数 / 返回 | 含义 / 默认 |
 |---|---|

@@ -11,7 +11,7 @@ description: 嵌套对象与 pattern 继承、树节点跨层移动、只挂载�
 
 ```tsx preview play=nested
 import { useState } from 'react';
-import { Form as AntForm, Button, Drawer } from 'antd';
+import { Button, Drawer } from 'antd';
 import { ArrayField, Field, Form, ObjectField, Watch, defineEffects, useForm, type Draft } from 'shikiform';
 import { FormItem, FormLayout, Input, InputNumber, Switch } from 'shikiform/antd';
 
@@ -46,10 +46,10 @@ export default function App() {
         <Field name="editable" title="可编辑" decorator={[FormItem]} component={[Switch]} />
         <ObjectField name="profile">
           <Field name="name" title="姓名" decorator={[FormItem]} component={[Input]} />
-          <AntForm.Item label="地址">
+          <FormItem label="地址">
             <Watch select={(d: Draft<Values>) => d.profile.address.$value}>{(address) => <span>{address.city} · {address.street} </span>}</Watch>
             <Button size="small" onClick={() => setOpen(true)}>编辑</Button>
-          </AntForm.Item>
+          </FormItem>
           <Drawer title="地址" open={open} onClose={() => setOpen(false)}>
             <ObjectField name="address">
               <Field name="city" title="城市" decorator={[FormItem]} component={[Input]} />
@@ -75,7 +75,7 @@ export default function App() {
 - `$pattern` 从父级往下传：只写 `d.profile` 和 `d.orders`，下面所有字段一起变；`undefined` 表示「跟随上级」。
 - 行里的 `qty` 自己写了 `readPretty`，所以表格可编辑时它也只读；打开「已发货」开关试试。
 - 抽屉里的 `<ObjectField name="address">` 仍在 `profile` 作用域里：React context 能穿过 portal。抽屉关掉，值和字段状态都还在引擎里。
-- 「地址」那一行不是字段，只用 antd 的 `Form.Item` 对齐标签；`shikiform/antd` 的 `FormItem` 只能放在字段里。
+- 「地址」那一行不是字段：`FormItem` 放在字段外就是纯布局，标签和列宽跟随 `FormLayout`，见 [一个标签放几个字段](/guide/layout#一个标签放几个字段)。
 
 ## 树：跨层移动
 

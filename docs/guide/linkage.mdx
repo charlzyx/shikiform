@@ -46,7 +46,6 @@ const effects = defineEffects<Values>(({ reaction, watch }) => {
 export default function App() {
   const form = useForm<Values>({
     initialValues: { price: 10, qty: 2, amount: 0, province: 'zj', city: 'hz' },
-    fields: { province: { enum: [{ label: '浙江', value: 'zj' }, { label: '江苏', value: 'js' }] } },
     effects: [effects],
   });
   return (
@@ -55,7 +54,8 @@ export default function App() {
         <Field name="price" title="单价" decorator={[FormItem]} component={[InputNumber]} />
         <Field name="qty" title="数量" decorator={[FormItem]} component={[InputNumber]} />
         <Field name="amount" title="金额" decorator={[FormItem]} component={[InputNumber]} />
-        <Field name="province" title="省" decorator={[FormItem]} component={[Select, { style: { width: 160 } }]} />
+        <Field name="province" title="省" enum={[{ label: '浙江', value: 'zj' }, { label: '江苏', value: 'js' }]}
+          decorator={[FormItem]} component={[Select, { style: { width: 160 } }]} />
         <Field name="city" title="市" decorator={[FormItem]} component={[Select, { style: { width: 160 } }]} />
       </FormLayout>
     </Form>

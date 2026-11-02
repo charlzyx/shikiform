@@ -60,10 +60,10 @@ Hooks 是主 API，JSX 是其结构与渲染封装；draft 和 `$` 描述状态�
 
 ## 包
 
-- `shikiform` — core 加 headless React（`useForm`、`useField(name, options?)`、`useArrayField`、`useArrayMove`、`useTreeField`、`useTreeMove`、`useWatch`、`typed`、`<Watch>`）
+- `shikiform` — core 加 headless React（`<Field>` / `<ArrayField>` 等组件，`useForm`、`useField`、`useArrayField`、`useArray` / `useIndex` / `useRecord`、`useArrayMove`、`useTreeField`、`useTreeMove`、`useWatch`、`typed`）
 - `shikiform/core` — 表单引擎，没有 React
 - `shikiform/pro` — headless 查询、数组表格/列配置、影子草稿、联想与懒加载级联 Hooks，以及枚举显示工具（不依赖 antd）
-- `shikiform/antd` — `connect` / `FormItem` / `FormLayout` 适配、已绑定控件和 `Submit` / `Reset`；`ProArrayTable`、`QueryList`、影子容器和高级输入，以及原有 `ProQueryTable`、`ArrayTable`、`MergedTable`
+- `shikiform/antd` — `connect` / `FormItem` / `FormLayout` / `FormGrid` / `FormButtonGroup` 适配、已绑定控件、`Submit` / `Reset`、数组容器 `ArrayItems` / `ArrayCards`；`ProArrayTable`、`QueryList`、影子容器和高级输入，以及 `ProQueryTable`、`ArrayTable`、`MergedTable`
 
 `react` / `react-dom` 的 peer 是 `^18 || ^19`。`antd` 的 peer 是 `^5.18.0`（`Form.Item layout`）；运行时依赖只有 `@tanstack/react-virtual`，react / antd / dayjs 都是 peer，zod / immer 只用于文档和 playground。包是 `private`，`exports` 指向 `lib/`。仓库开发的 TypeScript paths 和 Vite alias 指向正式 `src/` 入口；教程不再有特殊运行时 alias。`check:docs` 从 `npm pack` 的 tarball 创建独立消费者，不继承仓库 paths/alias，检查真正复制出去的源码。
 
@@ -114,7 +114,7 @@ ESM 入口共享内部 chunks，避免 `shikiform` 与 `shikiform/antd` 各自�
 
 ### 验证部署成功
 
-- 首页、`/guide/*` 指南（快速开始 → 核心概念 → 字段 → 联动 → 结构 → Pro → 校验）、`/tutorial/`、十节教程、`/examples`、`/api`、七个参考页与 `/agents` 存在真实 SSR 正文，每个 `tsx preview` 示例都 SSR 出真实组件。
+- 首页、`/guide/*` 指南（快速开始 → 核心概念 → 字段 → 布局 → antd → 联动 → 结构 → 数组容器 → Headless → Pro → 校验）、`/tutorial/`、十节教程、`/examples`、`/api`、七个参考页与 `/agents` 存在真实 SSR 正文，每个 `tsx preview` 示例都 SSR 出真实组件。
 - `/examples` 能进入全部 23 个 `/play/...` 场景，静态入口不依赖 SPA fallback。
 - MDX 整页进入 VitePress 原生侧栏、上一页/下一页、本页目录和本地搜索；React 负责岛内节点，Vue 路由卸载时清理 React root。
 - 原内部草稿 `/usage/*`、`/OUTLINE`、`/coverage-checklist` 不再进入公共构建或搜索；旧链接显式重定向到正式教程/指南/示例。

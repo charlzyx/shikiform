@@ -78,9 +78,9 @@ export default function App() {
   return (
     <Form form={form}>
       <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }}>
-        <Field name="color" title="颜色" decorator={[FormItem]} component={[Radio.Group, { optionType: 'button' }]} />
-        <Field name="storage" title="容量" decorator={[FormItem]} component={[Radio.Group, { optionType: 'button' }]} />
-        <Field name="edition" title="版本" decorator={[FormItem]} component={[Radio.Group, { optionType: 'button' }]} />
+        <Field name="color" title="颜色" decorator={[FormItem]} component={[Radio, { optionType: 'button' }]} />
+        <Field name="storage" title="容量" decorator={[FormItem]} component={[Radio, { optionType: 'button' }]} />
+        <Field name="edition" title="版本" decorator={[FormItem]} component={[Radio, { optionType: 'button' }]} />
         <Field name="price" title="价格" decorator={[FormItem]} component={[Input]} />
         <Field name="stock" title="库存" decorator={[FormItem]} component={[Input]} />
         <Field name="skuId" title="SKU" decorator={[FormItem]} component={[Input]} />
@@ -110,6 +110,7 @@ const CATALOG = [
   { id: '黑色/128G', price: 12, stock: 3 },
   { id: '黑色/256G', price: 22, stock: 9 },
 ];
+const PICKS = CATALOG.map((item) => ({ label: item.id, value: item.id, disabled: item.stock === 0 }));
 type Row = { id: string; price: number; qty: number; total: number };
 type Values = { picked: string[]; rows: Row[] };
 
@@ -129,12 +130,11 @@ const effects = defineEffects<Values>(({ reaction, watch }) => {
 export default function App() {
   const form = useForm<Values>({
     initialValues: { picked: [], rows: [] },
-    fields: { picked: { enum: CATALOG.map((item) => ({ label: item.id, value: item.id, disabled: item.stock === 0 })) } },
     effects: [effects],
   });
   return (
     <Form form={form} onSubmit={(values) => alert(JSON.stringify(values.rows))}>
-      <Field name="picked" title="组合" decorator={[FormItem]} component={[Checkbox.Group]} />
+      <Field name="picked" title="组合" enum={PICKS} decorator={[FormItem]} component={[Checkbox.Group]} />
       <ArrayField name="rows" rowKey="id">
         {() => (
           <FormLayout layout="inline" feedbackLayout="terse" style={{ marginBottom: 8 }}>

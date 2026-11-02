@@ -128,6 +128,7 @@ const form = createForm({
   > `rows.*.x` template. The JSX layer is mount-scoped (unmount restores the declaration) and re-applied when the prop
   changes (deep compare, inline arrays are fine). With `typed(form).Field` / `row.Field` option values are checked
   against the field value (element type for arrays). Options that depend on another field stay in a reaction.
+  Reading `d.x.$enum` gives the effective options as `{ label, value }[]` (an async source: its loaded options, `[]` before).
 - Slots take a component or `[Component, props]`; children (`<Field …><Input /></Field>`) or a render prop also work.
 - Table cells can drop the decorator (`<Field name="qty" component={[InputNumber]} />`) or use another one.
 - `FormItem` outside a field is pure layout: `<FormItem label="地址" asterisk>…two Fields, each `decorator={[FormItem]}`…</FormItem>`.

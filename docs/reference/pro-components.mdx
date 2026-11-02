@@ -93,7 +93,7 @@ useShadow<TValues, TContext>(): ShadowFormApi<TValues, TContext>
 <Field name="tags" decorator={[FormItem]}><EnumPretty showType="tag" strict colorful={false} empty="无" /></Field>
 ```
 
-只读的枚举显示（Pro.formily `ProEnumPretty`）：读字段值和字段枚举（`fields.x.enum`、`$enum`、`EnumSource`），按 `showType` 画成文字、徽标或标签；颜色来自选项的 `color`（可用 `success` / `processing` / `error` / `warning` 等语义名）或调色板。`Select`、`Radio.Group`、`Checkbox.Group` 的阅读态同样接受 `prettyType="badge" | "tag"`。
+只读的枚举显示（Pro.formily `ProEnumPretty`）：读字段值和字段枚举（`<Field enum>`、`fields.x.enum`、`$enum`、`EnumSource`），按 `showType` 画成文字、徽标或标签；颜色来自选项的 `color`（可用 `success` / `processing` / `error` / `warning` 等语义名）或调色板。`Select`、`Radio`、`Checkbox.Group` 的阅读态同样接受 `prettyType="badge" | "tag"`。
 
 ## EnumPrettyView
 

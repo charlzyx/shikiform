@@ -353,7 +353,7 @@ const InputNumber: ConnectedComponent<antd.InputNumberProps>
 const Select: ConnectedComponent<antd.SelectProps>
 ```
 
-`connect(antd.Select, mapProps({ options: 'options', loading: 'loading', readOnly: 'disabled' }), mapReadPretty(…))`，阅读态视图是 `PreviewText`，写了 `prettyType` 时换成 `EnumPrettyView`。未传 `options` 时使用字段枚举（`fields.x.enum`、`$enum`，含 `EnumSource` 异步加载的 `loading`）。`readOnly` 渲染为禁用；`readPretty` 显示选项的 `label`，多选用 `, ` 连接。
+`connect(antd.Select, mapProps({ options: 'options', loading: 'loading', readOnly: 'disabled' }), mapReadPretty(…))`，阅读态视图是 `PreviewText`，写了 `prettyType` 时换成 `EnumPrettyView`。未传 `options` 时使用字段枚举（`<Field enum>`、`fields.x.enum`、`$enum`，含 `EnumSource` 异步加载的 `loading`）。`readOnly` 渲染为禁用；`readPretty` 显示选项的 `label`，多选用 `, ` 连接。
 
 ## Switch
 

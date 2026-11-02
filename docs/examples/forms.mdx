@@ -74,9 +74,8 @@ export default function App() {
 ```tsx preview play=display
 import { useState } from 'react';
 import { Button } from 'antd';
-import { Field, Form, ObjectField, defineEffects, useForm } from 'shikiform';
+import { Field, Form, ObjectField, defineEffects, useForm, type Display } from 'shikiform';
 import { FormItem, FormLayout, Input, Radio } from 'shikiform/antd';
-import type { Display } from 'shikiform/core';
 
 type Values = { mode: Display; contact: { email: string; phone: string } };
 
@@ -90,10 +89,7 @@ export default function App() {
   const [out, setOut] = useState('');
   const form = useForm<Values>({
     initialValues: { mode: 'visible', contact: { email: '', phone: '13800000000' } },
-    fields: {
-      mode: { virtual: true, enum: ['visible', 'hidden', 'none'].map((value) => ({ label: value, value })) },
-      'contact.email': { required: true },
-    },
+    fields: { 'contact.email': { required: true } },
     effects: [effects],
   });
   const submit = async () => {
@@ -103,7 +99,8 @@ export default function App() {
   return (
     <Form form={form}>
       <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }}>
-        <Field name="mode" title="contact" decorator={[FormItem]} component={[Radio.Group, { optionType: 'button' }]} />
+        <Field name="mode" title="contact" virtual enum={['visible', 'hidden', 'none']}
+          decorator={[FormItem]} component={[Radio, { optionType: 'button' }]} />
         <ObjectField name="contact">
           <Field name="email" title="邮箱" decorator={[FormItem]} component={[Input]} />
           <Field name="phone" title="电话" decorator={[FormItem]} component={[Input]} />
@@ -122,7 +119,7 @@ export default function App() {
 | `hidden`（`$hidden = true`） | ✗ | ✓ | ✓ |
 | `none`（`$visible = false`） | ✗ | ✗ | ✗ |
 
-- `mode` 声明了 `virtual: true`：参与联动，不进提交结果。
+- `mode` 写了 `virtual`：参与联动，不进提交结果；选项是原始值数组，标签就是值本身。
 - 只写父级 `d.contact.$display`，子字段跟着变；子字段自己写了 `$display` 就用自己的。
 
 ## 标签页与没挂载的字段
@@ -142,7 +139,6 @@ export default function App() {
   const form = useForm<Values>({
     initialValues: { tab: 'base', name: '', code: '', note: '' },
     fields: {
-      tab: { virtual: true, enum: [{ label: '基本', value: 'base' }, { label: '附加', value: 'extra' }] },
       name: { required: true }, // 声明的规则：不管挂没挂载都查
       code: { required: true },
     },
@@ -153,7 +149,8 @@ export default function App() {
   };
   return (
     <Form form={form}>
-      <Field name="tab" component={[Radio.Group, { optionType: 'button' }]} />
+      <Field name="tab" virtual enum={[{ label: '基本', value: 'base' }, { label: '附加', value: 'extra' }]}
+        component={[Radio, { optionType: 'button' }]} />
       <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }} style={{ marginTop: 16 }}>
         <Watch select={(d: Draft<Values>) => d.tab.$value}>
           {(tab) => tab === 'base' ? (
