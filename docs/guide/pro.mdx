@@ -12,7 +12,7 @@ description: ProArrayTable、影子草稿（ShadowModal / ShadowDrawer / ShadowF
 | `ProArrayTable` | `useArrayTable` + `useColumnSettings` | 可编辑的数组表格：分页、选择、拖拽排序、列配置、展开子表 |
 | `ShadowModal` / `ShadowDrawer` / `ShadowPopconfirm` / `ShadowForm` | `useShadowForm` / `useArrayShadow` | 影子草稿：在独立引擎里编辑，确认后才写回 |
 | `QueryList` / `ProQueryTable` | `useQueryTable` | 查询条件 + 服务端分页列表 |
-| `EnumPretty` / `Suggestion` / `CascaderPlus` | `enumItems` / `useSuggestion` / `useLazyCascader` + `useCascaderLabels` | 枚举展示、远程联想、懒加载级联 |
+| 选择控件 `prettyType` / `Suggestion` / `CascaderPlus` | `enumItems` / `useSuggestion` / `useLazyCascader` + `useCascaderLabels` | 枚举阅读态（徽标 / 标签）、远程联想、懒加载级联 |
 
 ## ProArrayTable
 
@@ -139,7 +139,7 @@ const table = useQueryTable({ initialValues: { query: {}, list: [] }, params: 'q
 
 ## 枚举、联想与级联
 
-- `EnumPretty`：只读枚举显示，文字 / 徽标 / 标签（[/play/pro-enum](/play/pro-enum)）。
+- 枚举阅读态：选择类控件在 `readPretty` 下显示 label，`prettyType="badge" | "tag"` 画成徽标 / 彩色标签；只显示的字段写 `pattern="readPretty"`，表单外用 `PreviewText.Select`（[/play/pro-enum](/play/pro-enum)，[控件与阅读态](/guide/controls)）。
 - `Suggestion`：远程联想下拉，防抖并丢弃过期结果，支持多选和 `labelInValue`（[/play/suggestion](/play/suggestion)）。
 - `CascaderPlus`：一个 `loadData(path)` 服务所有层级的懒加载级联，打开已有值时逐级反显；阅读态显示标签，没有 `labelInValue` 的裸编码也会经同一个 `loadData` 解析成标签（[/play/cascader-plus](/play/cascader-plus)）。
 

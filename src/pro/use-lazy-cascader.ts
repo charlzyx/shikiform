@@ -16,8 +16,6 @@ export type CascaderLoader = (path: Array<string | number>) => Promise<readonly 
 
 export interface UseLazyCascaderOptions {
   load: CascaderLoader
-  /** `load([])` returns the whole tree; never load lazily. */
-  all?: boolean
   /** Value paths to show on open (反显). Each path's ancestors are loaded so the labels resolve. */
   paths?: ReadonlyArray<ReadonlyArray<string | number>>
   /** Default true. `false` loads nothing (a read view whose value already carries its labels). */
@@ -38,7 +36,8 @@ export interface LazyCascaderApi {
 
 /**
  * Headless lazy cascader (Pro.formily `CascaderPlus`): root on mount, children on demand, a loader shared by
- * every level, and echo of an existing value by loading each ancestor level. `CascaderPlus` in
+ * every level, and echo of an existing value by loading each ancestor level. A tree known up front is not this
+ * hook's job: give it to `<Field enum>` and use `Cascader`. `CascaderPlus` in
  * `shikiform/antd` renders it with Ant Design's Cascader and adds `multiple` / `labelInValue`.
  */
 export function useLazyCascader(options: UseLazyCascaderOptions): LazyCascaderApi {
@@ -51,7 +50,6 @@ export function useLazyCascader(options: UseLazyCascaderOptions): LazyCascaderAp
   const bump = () => setVersion((v) => v + 1)
 
   const loadChildren = useCallback(async (path: Array<string | number>) => {
-    if (options.all) return
     const node = find(tree.current, path)
     if (!node || node.isLeaf || node.children) return
     const id = JSON.stringify(path)
@@ -72,20 +70,19 @@ export function useLazyCascader(options: UseLazyCascaderOptions): LazyCascaderAp
       })
     pending.current.set(id, task)
     return task
-  }, [options.all])
+  }, [])
 
   const rootReady = useRef<Promise<void> | null>(null)
   const ensure = useCallback(
     async (paths: ReadonlyArray<ReadonlyArray<string | number>>) => {
       if (rootReady.current) await rootReady.current
-      if (options.all) return
       await Promise.all(
         paths.map(async (path) => {
           for (let depth = 1; depth < path.length; depth++) await loadChildren(path.slice(0, depth))
         }),
       )
     },
-    [loadChildren, options.all],
+    [loadChildren],
   )
 
   const pathsRef = useRef(options.paths)
@@ -108,7 +105,7 @@ export function useLazyCascader(options: UseLazyCascaderOptions): LazyCascaderAp
     return () => {
       live = false
     }
-  }, [options.all, enabled])
+  }, [enabled])
 
   void version
   return {
@@ -162,7 +159,6 @@ export interface UseCascaderLabelsOptions {
   multiple?: boolean
   /** The same loader the editable cascader uses. Without it, levels without a label show their value. */
   load?: CascaderLoader
-  all?: boolean
 }
 
 export interface CascaderLabelsApi {
@@ -186,7 +182,7 @@ export function useCascaderLabels(options: UseCascaderLabelsOptions): CascaderLa
   const labeled = (item: unknown) => !!item && typeof item === 'object' && typeof (item as { label?: unknown }).label === 'string'
   const needsTree = !!options.load && list.some((path) => path.some((item) => !labeled(item)))
   const paths = cascaderPaths(options.value, options.multiple)
-  const tree = useLazyCascader({ load: options.load ?? (() => []), all: options.all, paths, enabled: needsTree })
+  const tree = useLazyCascader({ load: options.load ?? (() => []), paths, enabled: needsTree })
   const key = JSON.stringify(paths)
   const seen = useRef(key)
   useEffect(() => {

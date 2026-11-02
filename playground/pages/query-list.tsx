@@ -1,7 +1,7 @@
 import { Button, ConfigProvider } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import { Field, Form, useWatch, type Draft } from 'shikiform'
-import { DatePicker, EnumPretty, FormItem, Input, ProArrayTable, QueryList, Select, ShadowModal, type ProArrayTableColumn } from 'shikiform/antd'
+import { DatePicker, FormItem, Input, ProArrayTable, QueryList, Select, ShadowModal, type ProArrayTableColumn } from 'shikiform/antd'
 import { useArrayShadow, useQueryTable } from 'shikiform/pro'
 import { CLASSIFY_ENUM, domainService, STATUS_ENUM, type DomainQuery, type DomainRow } from '../pro-data'
 
@@ -48,9 +48,9 @@ const cell = { style: { margin: 0 } }
 
 const columns: ProArrayTableColumn<DomainRow>[] = [
   { key: 'id', title: 'ID', width: 80, align: 'center', sorter: true, render: ({ record }) => <span data-testid="row-id">{record.id}</span> },
-  { key: 'status', title: 'STATUS', width: 110, align: 'center', render: () => <Field name="status" decorator={[FormItem, cell]}><EnumPretty showType="badge" /></Field> },
+  { key: 'status', title: 'STATUS', width: 110, align: 'center', render: () => <Field name="status" pattern="readPretty" decorator={[FormItem, cell]}><Select prettyType="badge" /></Field> },
   { key: 'domain', title: 'DOMAIN', align: 'center', render: ({ index }) => <Field name="domain" decorator={[FormItem, cell]}><Input data-testid={`domain-${index}`} /></Field> },
-  { key: 'classify', title: '分类', width: 160, hidden: true, render: () => <Field name="classify" decorator={[FormItem, cell]}><EnumPretty showType="tag" /></Field> },
+  { key: 'classify', title: '分类', width: 160, hidden: true, render: () => <Field name="classify" pattern="readPretty" decorator={[FormItem, cell]}><Select mode="multiple" prettyType="tag" /></Field> },
   { key: 'date', title: '日期', width: 120, render: ({ record }) => record.date },
 ]
 

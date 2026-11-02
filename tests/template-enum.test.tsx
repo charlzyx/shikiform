@@ -3,7 +3,7 @@ import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { ArrayField, Field, Form, useForm } from '../src'
 import type { FormEngine } from '../src/core'
-import { EnumPretty } from '../src/antd'
+import { Select } from '../src/antd'
 
 afterEach(cleanup)
 
@@ -21,7 +21,7 @@ describe('item templates declare enum', () => {
       return (
         <Form form={form}>
           <ArrayField name="rows" rowKey="id">
-            {() => <Field name="status" component={[EnumPretty]} />}
+            {() => <Field name="status" pattern="readPretty" component={[Select]} />}
           </ArrayField>
         </Form>
       )
@@ -41,7 +41,7 @@ describe('item templates declare enum', () => {
       })
       return (
         <Form form={form}>
-          <ArrayField name="rows" rowKey="id">{() => <Field name="status" component={[EnumPretty]} />}</ArrayField>
+          <ArrayField name="rows" rowKey="id">{() => <Field name="status" pattern="readPretty" component={[Select]} />}</ArrayField>
         </Form>
       )
     }

@@ -102,7 +102,7 @@ describe('/play/pro-enum', () => {
     fireEvent.click(screen.getByTestId('read-pretty'))
     await waitFor(() => expect(screen.queryAllByRole('radio').length).toBe(0))
     expect(within(screen.getByTestId('enum-grid')).getAllByText('哦').length).toBeGreaterThan(0)
-    expect(document.querySelectorAll('[data-enum-pretty="tag"] .ant-tag').length).toBe(2)
+    expect(document.querySelectorAll('[data-pretty="tag"] .ant-tag').length).toBe(2)
     fireEvent.click(screen.getByTestId('editable'))
     await waitFor(() => expect(screen.getAllByRole('radio').length).toBe(6))
   })
@@ -113,7 +113,7 @@ describe('/play/cascader-plus', () => {
     render(<CascaderPlusPage />)
     await waitFor(() => {
       const text = document.body.textContent ?? ''
-      expect(text).toContain('北京市/北京市/朝阳区')
+      expect(text).toContain('北京市 / 北京市 / 朝阳区')
     }, slow)
   })
 })

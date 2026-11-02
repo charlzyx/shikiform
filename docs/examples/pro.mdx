@@ -203,7 +203,7 @@ export default function App() {
 ```tsx preview play=query-list
 import { Field } from 'shikiform';
 import { useQueryTable } from 'shikiform/pro';
-import { EnumPretty, FormItem, Input, QueryList, Select, type ProArrayTableColumn } from 'shikiform/antd';
+import { FormItem, Input, QueryList, Select, type ProArrayTableColumn } from 'shikiform/antd';
 
 type Row = { id: number; status: number; domain: string; classify: number[] };
 type Query = { domain?: string; status?: number };
@@ -225,9 +225,9 @@ async function service(query: Query, page: number, pageSize: number, desc: boole
 const cell = [FormItem, { style: { margin: 0 } }] as const;
 const columns: ProArrayTableColumn<Row>[] = [
   { key: 'id', title: 'ID', width: 80, sorter: true, render: ({ record }) => record.id },
-  { key: 'status', title: '状态', width: 120, render: () => <Field name="status" decorator={cell} component={[EnumPretty, { showType: 'badge' }]} /> },
+  { key: 'status', title: '状态', width: 120, render: () => <Field name="status" pattern="readPretty" decorator={cell} component={[Select, { prettyType: 'badge' }]} /> },
   { key: 'domain', title: '域名', render: () => <Field name="domain" required decorator={cell} component={[Input]} /> },
-  { key: 'classify', title: '分类', width: 140, hidden: true, render: () => <Field name="classify" decorator={cell} component={[EnumPretty, { showType: 'tag' }]} /> },
+  { key: 'classify', title: '分类', width: 140, hidden: true, render: () => <Field name="classify" pattern="readPretty" decorator={cell} component={[Select, { mode: 'multiple', prettyType: 'tag' }]} /> },
 ];
 
 export default function App() {
@@ -322,7 +322,7 @@ export default function App() {
 ```tsx preview play=pro-enum
 import { Button, Space } from 'antd';
 import { EnumSource, Field, Form, ObjectField, useForm } from 'shikiform';
-import { Checkbox, EnumPretty, FormItem, FormLayout, Radio, Select } from 'shikiform/antd';
+import { Checkbox, FormItem, FormLayout, Radio, Select } from 'shikiform/antd';
 
 const LIST = [{ label: '啊', value: 'a', color: 'blue' }, { label: '哦', value: 'o', color: 'green' }, { label: '呃', value: 'e' }];
 /** 懒加载枚举：加载一次，所有用它的字段共享。 */
@@ -352,8 +352,10 @@ export default function App() {
             component={[Select, { mode: 'multiple', prettyType: 'tag', style: { width: 200 } }]} />
           <Field name="radio" title="Radio" enum={LIST} decorator={[FormItem]} component={[Radio]} />
           <Field name="lazyCheckbox" title="懒加载 Checkbox" enum={remote.with(null)} decorator={[FormItem]} component={[Checkbox.Group]} />
-          <Field name="badge" title="EnumPretty 徽标" enum={LIST} decorator={[FormItem]} component={[EnumPretty, { showType: 'badge' }]} />
-          <Field name="tag" title="EnumPretty 标签" enum={LIST} decorator={[FormItem]} component={[EnumPretty, { showType: 'tag' }]} />
+          <Field name="badge" title="徽标（阅读态）" enum={LIST} pattern="readPretty" decorator={[FormItem]}
+            component={[Select, { mode: 'multiple', prettyType: 'badge' }]} />
+          <Field name="tag" title="标签（阅读态）" enum={LIST} pattern="readPretty" decorator={[FormItem]}
+            component={[Select, { mode: 'multiple', prettyType: 'tag' }]} />
         </ObjectField>
       </FormLayout>
     </Form>
@@ -362,8 +364,8 @@ export default function App() {
 ```
 
 - 选项写在 `<Field enum>` 上：静态数组，或远程的 `EnumSource.from(loader).with(params)`（同一个 source 加载一次，所有字段共享）。随别的字段变化的参数写在 reaction 里：`d.city.$enum = Cities.with(d.province.$value)`，参数变了会重新加载并作废旧请求。
-- 选择类控件的 `options` 默认取字段枚举，加载中自动 `loading`；`prettyType` / `showType` 决定阅读态显示成文字、`badge` 还是 `tag`（颜色取选项的 `color`）。
-- `EnumPretty` 只负责显示，适合表格单元格。
+- 选择类控件的 `options` 默认取字段枚举，加载中自动 `loading`；阅读态显示选项的 `label`（多个值是标签），`prettyType` 换成 `badge` 或彩色 `tag`（颜色取选项的 `color`）。
+- 只显示、不编辑的字段（表格里的状态列）就是 `pattern="readPretty"` 的选择控件；不在表单里用纯视图 `<PreviewText.Select value options prettyType />`。
 
 ## Suggestion：远程联想
 
@@ -405,7 +407,7 @@ export default function App() {
 
 ## CascaderPlus：懒加载级联
 
-场景：省 / 市 / 区三级地址，每一级都按需加载；表单里已有的值打开时要逐级反显，阅读态显示成「北京市/北京市/朝阳区」。
+场景：省 / 市 / 区三级地址，每一级都按需加载；表单里已有的值打开时要逐级反显，阅读态显示成「北京市 / 北京市 / 朝阳区」。
 
 ```tsx preview play=cascader-plus
 import { Button, Space } from 'antd';
@@ -454,6 +456,6 @@ export default function App() {
 
 - `loadData(path)` 收到已选值组成的路径（根是 `[]`），返回下一级选项；最后一级标 `isLeaf: true`。
 - 只有编码的值会通过同一个 `loadData` 解析出标签，编辑态和阅读态都能显示文字；`labelInValue` 的值自带标签。
-- 一次给出整棵树用 `all` 属性；不绑字段的组件是 `CascaderPlusView`，无 UI 的逻辑是 `useLazyCascader` / `useCascaderLabels`。完整版有单选 / 多选 / 全量加载的切换。
+- 选项一开始就是整棵树时不需要它：把树给 `<Field enum>`，用 [`Cascader`](/guide/controls#cascader)。不绑字段的组件是 `CascaderPlusView`，无 UI 的逻辑是 `useLazyCascader` / `useCascaderLabels`。
 
 下一组：[业务场景](/examples/business)。

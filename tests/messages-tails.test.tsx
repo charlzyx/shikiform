@@ -60,7 +60,7 @@ describe('built-in texts go through messages', () => {
     expect(screen.getAllByRole('button')[0]!.textContent?.replace(/\s/g, '')).toBe('提交')
     expect(screen.getByTestId('reset').textContent?.replace(/\s/g, '')).toBe('重置')
     expect(screen.getByTestId('yes').textContent).toBe('是')
-    expect(screen.getByTestId('empty').textContent).toBe('')
+    expect(screen.getByTestId('empty').textContent).toBe('-')
     zh.unmount()
     render(<Page en />)
     expect(screen.getAllByRole('button')[0]!.textContent).toBe('Submit')

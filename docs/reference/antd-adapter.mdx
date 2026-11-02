@@ -76,7 +76,7 @@ type PropsTransform = (props: Record<string, any>, field: FieldBinding<any>) => 
 mapReadPretty(component: ComponentType<any>, props?: Record<string, unknown>): ConnectEnhancer
 ```
 
-字段 `pattern` 为 `readPretty` 时渲染 `component` 而不是控件。它收到调用方 props，加上 `value` 与 `options`（字段枚举）。没有 `mapReadPretty` 的控件在 `readPretty` 下按 `readOnly` 处理（例如 `Switch` 变为禁用）。默认的阅读态视图是 [PreviewText](#previewtext)。
+字段 `pattern` 为 `readPretty`（自己的，或从祖先 / 根继承的）时渲染 `component` 而不是控件。它收到调用方 props，加上 `value` 与 `options`（字段枚举）。没有 `mapReadPretty` 的控件在 `readPretty` 下按 `readOnly` 处理。内置控件都有阅读态视图，见 [PreviewText](#previewtext)。
 
 ## mapFieldProps
 
@@ -323,10 +323,27 @@ export default function App() {
 ## PreviewText
 
 ```ts
-PreviewText(props: { value?: unknown; options?: { label: ReactNode; value: unknown }[]; empty?: ReactNode; format?: string }): ReactElement
+PreviewText(props: PreviewTextProps): ReactElement                    // 通用：枚举 label、数组 `, `、布尔 是/否
+PreviewText.Input / .Password / .Select / .TreeSelect / .Cascader     // 一族控件一个视图（Formily PreviewText.*）
+PreviewText.DatePicker / .DateRangePicker / .TimePicker / .TimeRangePicker
+PreviewText.Empty                                                      // 空值文字，给自定义视图用
+interface PreviewTextProps { value?: unknown; options?: PreviewOption[]; empty?: ReactNode; format?: unknown; [prop: string]: unknown }
 ```
 
-阅读态文本：枚举值显示 `label`，数组用 `, ` 连接，布尔值显示 `是` / `否`，带 `format()` 方法的日期对象按 `format`（默认 `YYYY-MM-DD`）格式化；空值显示 `empty`（默认 `messages.empty`，空串）。控件编辑态的 `placeholder`（「请输入…」）不会出现在阅读态里。输出 `<span data-read-pretty>`。
+阅读态视图（Formily `PreviewText`）。每个接好的控件都用 `mapReadPretty` 挂了其中一个，收到控件自己的 props 加 `value` / `options`（字段枚举）。也能单独当纯组件用，例如表格单元格：
+
+```tsx
+<PreviewText.Select value={row.status} options={STATUS} prettyType="badge" />
+connect(MyTreePicker, mapReadPretty(PreviewText.TreeSelect))   // 自定义控件复用
+```
+
+- `Input`：`addonBefore` `prefix` 文本 `suffix` `addonAfter`；有 `formatter`（`InputNumber`）时先格式化。`Password` 显示 `******`。
+- `Select`：值显示选项的 `label`（`labelInValue` 的项用自己的 `label`；匹配不到的值显示它自己；`1` 与 `'1'` 视为相同）；一个值是文字，多个值（数组）是标签。`prettyType: 'badge' | 'tag'` 画成徽标 / 彩色标签，颜色来自选项 `color`（`success` / `processing` / `error` / `warning` / antd 色名 / `#hex`）或按位置取调色板。`fieldNames` 生效。
+- `TreeSelect`：在整棵树（`treeData` 或字段枚举，`fieldNames` 生效）里找 label；多个值是标签。
+- `Cascader`：路径显示成 `浙江 / 杭州 / 西湖`；`multiple` 时每条路径一个标签。
+- `DatePicker` / `TimePicker`：字段里已是格式化好的字符串就原样显示；dayjs / `Date` 按 `format` 格式化（默认 `YYYY-MM-DD` / `HH:mm:ss`）。区间显示 `start ~ end`。
+- 空值（`undefined` / `null` / `''` / `[]`）显示 `empty` 属性，否则 `messages.empty`（默认 `-`）。整张表或整个应用改一次即可：`useForm({ messages: { empty: '—' } })` 或 `setDefaultMessages({ empty: '—' })`。控件编辑态的 `placeholder`（「请输入…」）不会出现在阅读态里。
+- 输出带 `data-read-pretty` 的元素（写了 `prettyType` 时另有 `data-pretty`）。
 
 ## Input
 
@@ -337,7 +354,7 @@ const Input: ConnectedComponent<antd.InputProps> & {
 }
 ```
 
-`connect(antd.Input, mapReadPretty(PreviewText))`。`onChange(event)` 写入 `event.target.value`。`readOnly` 字段传 `readOnly`；`readPretty` 显示文本。`Input.TextArea` 同理；`Input.Password` 的阅读态显示 `******`。
+`connect(antd.Input, mapReadPretty(PreviewText.Input))`。`onChange(event)` 写入 `event.target.value`。`readOnly` 字段传 `readOnly`；`readPretty` 显示文本和前后缀。`Input.TextArea` 阅读态保留换行；`Input.Password` 阅读态显示 `******`。
 
 ## InputNumber
 
@@ -345,15 +362,39 @@ const Input: ConnectedComponent<antd.InputProps> & {
 const InputNumber: ConnectedComponent<antd.InputNumberProps>
 ```
 
-`connect(antd.InputNumber, mapReadPretty(PreviewText))`。写入 antd 给出的原始值：数字，清空时为 `null`。`readPretty` 显示数字文本。
+`connect(antd.InputNumber, mapReadPretty(PreviewText.Input))`。写入 antd 给出的原始值：数字，清空时为 `null`。`readPretty` 显示数字，`formatter`、`prefix`、`addonBefore/After` 生效。
 
 ## Select
 
 ```ts
-const Select: ConnectedComponent<antd.SelectProps>
+const Select: ConnectedComponent<antd.SelectProps & { prettyType?: 'text' | 'badge' | 'tag' }>
 ```
 
-`connect(antd.Select, mapProps({ options: 'options', loading: 'loading', readOnly: 'disabled' }), mapReadPretty(…))`，阅读态视图是 `PreviewText`，写了 `prettyType` 时换成 `EnumPrettyView`。未传 `options` 时使用字段枚举（`<Field enum>`、`fields.x.enum`、`$enum`，含 `EnumSource` 异步加载的 `loading`）。`readOnly` 渲染为禁用；`readPretty` 显示选项的 `label`，多选用 `, ` 连接。
+`connect(antd.Select, mapProps({ options: 'options', loading: 'loading', readOnly: 'disabled' }), mapReadPretty(PreviewText.Select))`。未传 `options` 时使用字段枚举（`<Field enum>`、`fields.x.enum`、`$enum`，含 `EnumSource` 异步加载的 `loading`）。`readOnly` 渲染为禁用；`readPretty` 显示选项的 `label`，多选显示为标签，`prettyType` 画成徽标 / 彩色标签。只显示、不编辑的枚举字段（如表格里的状态列）就是 `pattern="readPretty"` 的 `Select`。
+
+## AutoComplete
+
+```ts
+const AutoComplete: ConnectedComponent<antd.AutoCompleteProps>
+```
+
+自由文本输入 + 联想（值不必是选项之一）。未传 `options` 时字段枚举就是联想项（`enum={['杭州', '南京']}`）。`readPretty` 显示文本。要从服务端搜、值必须是选项之一时用 [`Suggestion`](/reference/pro-components#suggestion)。
+
+## TreeSelect
+
+```ts
+const TreeSelect: ConnectedComponent<antd.TreeSelectProps & { prettyType?: 'text' | 'badge' | 'tag' }>
+```
+
+`connect(antd.TreeSelect, mapProps({ options: 'treeData', loading: 'loading', readOnly: 'disabled' }), mapReadPretty(PreviewText.TreeSelect))`。未传 `treeData` 时使用字段枚举，节点是 `{ label, value, children }`（`<Field enum={TREE}>`，`children` 原样保留）。`multiple` / `treeCheckable` 时值是数组。`readPretty` 在整棵树里找 label。
+
+## Cascader
+
+```ts
+const Cascader: ConnectedComponent<antd.CascaderProps>
+```
+
+`connect(antd.Cascader, mapProps({ options: 'options', loading: 'loading', readOnly: 'disabled' }), mapReadPretty(PreviewText.Cascader))`。值是路径 `['zj', 'hz', 'xh']`（`multiple` 时是路径数组）。未传 `options` 时使用字段枚举（`{ label, value, children }` 树）；`typed(form).Field` 下选项的 `value` 按路径元素类型检查。`readPretty` 显示 `浙江 / 杭州 / 西湖`。每一级要按需从服务端加载时用 [`CascaderPlus`](/reference/pro-components#cascaderplus)。
 
 ## Switch
 
@@ -361,22 +402,22 @@ const Select: ConnectedComponent<antd.SelectProps>
 const Switch: ConnectedComponent<antd.SwitchProps>
 ```
 
-`connect(antd.Switch, mapProps({ value: 'checked', readOnly: 'disabled', status: false }))`。字段值对应 `checked`，`onChange(checked)` 写入布尔值。`readOnly` 与 `readPretty` 都渲染为禁用开关；没有阅读态文本视图。
+`connect(antd.Switch, mapProps({ value: 'checked', readOnly: 'disabled', status: false }), mapReadPretty(…))`。字段值对应 `checked`，`onChange(checked)` 写入布尔值。`readOnly` 渲染为禁用开关；`readPretty` 显示 `checkedChildren` / `unCheckedChildren`，没写时显示 `messages.yes` / `messages.no`（是 / 否）。
 
 ## Checkbox
 
 ```ts
 const Checkbox: ConnectedComponent<antd.CheckboxProps> & {
-  Group: ConnectedComponent<antd.CheckboxGroupProps>
+  Group: ConnectedComponent<antd.CheckboxGroupProps & { prettyType?: 'text' | 'badge' | 'tag' }>
 }
 ```
 
-单个 `Checkbox` 的字段值对应 `checked`，`readOnly` / `readPretty` 渲染为禁用。`Checkbox.Group` 绑定数组值，未传 `options` 时使用字段枚举，`readPretty` 显示所选标签（`, ` 连接）。
+单个 `Checkbox` 的字段值对应 `checked`，`readOnly` 渲染为禁用，`readPretty` 显示 是 / 否。`Checkbox.Group` 绑定数组值，未传 `options` 时使用字段枚举，`readPretty` 把所选项显示为标签（`prettyType` 可选）。
 
 ## Radio
 
 ```ts
-const Radio: ConnectedComponent<antd.RadioGroupProps> & {
+const Radio: ConnectedComponent<antd.RadioGroupProps & { prettyType?: 'text' | 'badge' | 'tag' }> & {
   Group: typeof Radio          // 同一个控件
   Button: typeof antd.Radio.Button
 }
@@ -393,3 +434,55 @@ const DatePicker: ConnectedComponent<antd.DatePickerProps> & {
 ```
 
 与 Formily 一致，字段保存**格式化后的字符串**（按控件 `format`，默认 `YYYY-MM-DD`），只在交给 antd 时转成 dayjs，所以值能经受 `initialValues` 克隆、`reset` 和提交（核心用 `structuredClone`，会丢掉 dayjs 原型）。清空写入 `undefined`。`RangePicker` 保存 `[start, end]` 字符串元组，阅读态显示 `start ~ end`。需要 `dayjs`（antd 自带依赖）作为 peer dependency。
+
+## TimePicker
+
+```ts
+const TimePicker: ConnectedComponent<antd.TimePickerProps> & {
+  RangePicker: ConnectedComponent<antd.TimeRangePickerProps>
+}
+```
+
+与 `DatePicker` 相同：字段保存格式化后的字符串（`format`，默认 `HH:mm:ss`），清空写 `undefined`；`TimePicker.RangePicker` 保存 `[start, end]`。`readPretty` 显示文本，区间为 `start ~ end`。
+
+## Slider
+
+```ts
+const Slider: ConnectedComponent<antd.SliderSingleProps | antd.SliderRangeProps>
+```
+
+值是数字，`range` 时是 `[from, to]`。`readOnly` 渲染为禁用；`readPretty` 显示数字（区间 `from ~ to`）。
+
+## Rate
+
+```ts
+const Rate: ConnectedComponent<antd.RateProps>
+```
+
+值是数字。`readOnly` 渲染为禁用；`readPretty` 显示不可编辑的星星（`count`、`allowHalf`、`character` 生效），没有值时显示空值文字。
+
+## Transfer
+
+```ts
+const Transfer: ConnectedComponent<antd.TransferProps>
+```
+
+值是目标列的 key 数组（`targetKeys`，初始 `undefined` 也当作 `[]`）。未传 `dataSource` 时使用字段枚举，`{ label, value }` 变成 `{ key: value, title: label }`，默认 `render` 显示 `title`。`readPretty` 把已选项的标题显示为标签。
+
+## Upload
+
+```ts
+const Upload: ConnectedComponent<antd.UploadProps> & {
+  Dragger: ConnectedComponent<antd.DraggerProps>
+}
+```
+
+值是文件列表（antd `UploadFile[]`，`fileList` ↔ 字段值，`undefined` 当作 `[]`）。`onChange({ file, fileList })` 写入 `fileList`：去掉 `xhr`（不能克隆，会让提交失败），上传完成且没有 `url` 时取响应里的 `response.url`。其余（`action`、`beforeUpload`、`listType`、`maxCount`…）都是 antd 的 props；`beforeUpload` 返回 `false` 时文件留在 `originFileObj` 里随表单提交。`Upload.Dragger` 是拖拽区。`readPretty` 把文件列成链接（`picture` / `picture-card` 显示缩略图），没有上传按钮和删除按钮。
+
+## ColorPicker
+
+```ts
+const ColorPicker: ConnectedComponent<antd.ColorPickerProps>
+```
+
+值是颜色文本（按 `format`，默认 hex，如 `#1677ff`），不是 antd 的 `Color` 对象；`allowClear` 清空写 `undefined`。`readPretty` 显示色块和文本。

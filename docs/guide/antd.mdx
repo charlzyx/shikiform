@@ -9,11 +9,11 @@ antd 控件要的是 `value`、`onChange`、`status`、`disabled` 这些 props�
 
 ## 接好的控件
 
-`Input`（含 `TextArea`、`Password`）、`InputNumber`、`Select`、`Switch`、`Checkbox`（含 `Group`）、`Radio`（就是单选组，`Radio.Group` 同一个）、`DatePicker`（含 `RangePicker`）可以直接放进 `component`：
+`Input`（含 `TextArea`、`Password`）、`InputNumber`、`Select`、`AutoComplete`、`TreeSelect`、`Cascader`、`Switch`、`Checkbox`（含 `Group`）、`Radio`（就是单选组，`Radio.Group` 同一个）、`DatePicker` / `TimePicker`（含 `RangePicker`）、`Slider`、`Rate`、`Transfer`、`Upload`（含 `Dragger`）、`ColorPicker` 可以直接放进 `component`。全表和每个控件的阅读态见 [控件与阅读态](/guide/controls)。
 
-- 选择类控件的 `options` 默认取字段枚举（`<Field enum>`、`fields.x.enum` 或 `$enum`），异步枚举时自动带 `loading`。
-- `pattern` 自动生效：`disabled` / `readOnly` 禁用控件，`readPretty` 换成文字（选择类显示标签，可加 `prettyType="badge" | "tag"`）。
-- `DatePicker` 的字段值是格式化后的字符串（默认 `YYYY-MM-DD`），不是 dayjs 对象。
+- 选择类控件的 `options`（`TreeSelect` 的 `treeData`、`Transfer` 的 `dataSource`）默认取字段枚举（`<Field enum>`、`fields.x.enum` 或 `$enum`），异步枚举时自动带 `loading`。
+- `pattern` 自动生效：`disabled` / `readOnly` 禁用控件，`readPretty` 换成阅读态视图（选择类显示标签，可加 `prettyType="badge" | "tag"`）。
+- `DatePicker` / `TimePicker` 的字段值是格式化后的字符串（默认 `YYYY-MM-DD` / `HH:mm:ss`），不是 dayjs 对象。
 
 ```tsx preview
 import { Radio as AntRadio } from 'antd';
@@ -66,25 +66,26 @@ export default function App() {
 | `mapReadPretty(View)` | `readPretty` 时渲染 `View`（收到 `value` 和 `options`）；没有它时按 `readOnly` 处理 |
 
 ```tsx preview
-import { Rate as AntRate, Slider as AntSlider } from 'antd';
+import { Segmented as AntSegmented } from 'antd';
 import { Field, Form, useForm } from 'shikiform';
 import { FormItem, FormLayout, Switch, connect, mapProps, mapReadPretty } from 'shikiform/antd';
 
-// Rate 没有 status 属性；阅读态显示星星文字
-const Rate = connect(AntRate, mapProps({ status: false }), mapReadPretty(({ value }: { value?: number }) => <span>{'★'.repeat(value ?? 0)}</span>));
-// Slider 的 onChange 直接给数字，默认取值逻辑就能处理；阅读态显示百分比
-const Slider = connect(AntSlider, mapProps({ status: false, readOnly: 'disabled' }), mapReadPretty(({ value }: { value?: number }) => <span>{value}%</span>));
+// Segmented 的 onChange 直接给值，默认取值逻辑就能处理；没有 status / id；阅读态显示带圆点的文字
+const Segmented = connect(
+  AntSegmented,
+  mapProps({ status: false, id: false, readOnly: 'disabled' }),
+  mapReadPretty(({ value }: { value?: string }) => <span>● {value}</span>),
+);
 
 export default function App() {
-  const form = useForm({ initialValues: { pretty: false, score: 3, volume: 40 } });
+  const form = useForm({ initialValues: { pretty: false, size: '中' } });
   return (
     <Form form={form}>
       <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }}>
         <Field name="pretty" title="阅读态" decorator={[FormItem]}>
-          <Switch onChange={(checked: boolean) => form.batch((d) => { d.score.$pattern = checked ? 'readPretty' : undefined; d.volume.$pattern = checked ? 'readPretty' : undefined; })} />
+          <Switch onChange={(checked: boolean) => form.batch((d) => { d.size.$pattern = checked ? 'readPretty' : undefined; })} />
         </Field>
-        <Field name="score" title="评分" decorator={[FormItem]} component={[Rate, { count: 5 }]} />
-        <Field name="volume" title="音量" decorator={[FormItem]} component={[Slider]} />
+        <Field name="size" title="尺寸" decorator={[FormItem]} component={[Segmented, { options: ['小', '中', '大'] }]} />
       </FormLayout>
     </Form>
   );
@@ -124,4 +125,4 @@ function Percent() {
 
 按表单值类型检查字段名用 [`typed(form)`](/reference/react-hooks#typed)。细节见 [antd 参考](/reference/antd#submit)。
 
-下一步：[联动](/guide/linkage)，让字段跟着别的字段变。
+下一步：[控件与阅读态](/guide/controls)，全部接好的控件和它们的阅读态。

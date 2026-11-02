@@ -1,48 +1,97 @@
 import {
+  AutoComplete as AntAutoComplete,
+  Cascader as AntCascader,
   Checkbox as AntCheckbox,
+  ColorPicker as AntColorPicker,
   DatePicker as AntDatePicker,
   Input as AntInput,
   InputNumber as AntInputNumber,
   Radio as AntRadio,
+  Rate as AntRate,
   Select as AntSelect,
+  Slider as AntSlider,
+  Space,
   Switch as AntSwitch,
+  TimePicker as AntTimePicker,
+  Transfer as AntTransfer,
+  TreeSelect as AntTreeSelect,
+  Upload as AntUpload,
 } from 'antd'
+import type { UploadFile } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
+import customParseFormat from 'dayjs/plugin/customParseFormat'
 import type { ComponentProps, ComponentType, FocusEventHandler } from 'react'
+import { useFormMessage } from '../../react/hooks/use-form-message'
 import { connect, mapProps, mapReadPretty, type ComponentStatics } from '../adapter/connect'
-import { PreviewText } from '../adapter/preview'
-import { ChoicePreview, stripPrettyType, type EnumPrettyProps } from './enum-pretty'
+import { isEmptyValue, PreviewText, type PreviewTextProps, type PrettyType } from '../adapter/preview'
+
+dayjs.extend(customParseFormat)
 
 /*
- * Ant Design controls wired through `connect`. Each one is only a mapping; the field logic is `useField`.
- * Use them as a `<Field component>`, as children of a `<Field>`, or with `name` / `field` props.
+ * Ant Design controls wired through `connect`. Each one is only a mapping plus a read view (`PreviewText.*`);
+ * the field logic is `useField`. Use them as a `<Field component>`, as children of a `<Field>`, or with `name` /
+ * `field` props. Options default to the field enum (`<Field enum>`, `fields.x.enum`, `$enum`).
  */
 
-function PasswordPreview({ value }: { value?: unknown }) {
-  return <span data-read-pretty>{value == null || value === '' ? '' : '******'}</span>
+/** Extra prop the choice controls (`Select`, `Radio`, `Checkbox.Group`, `TreeSelect`) accept for their read view. */
+export interface PrettyTypeProps {
+  /** `readPretty` as text (one value; several are tags), `badge`, or colored `tag`. Ignored while editable. */
+  prettyType?: PrettyType
+}
+
+/** Drop `prettyType` before it reaches an editable Ant Design control. */
+function stripPrettyType(props: Record<string, any>): Record<string, any> {
+  if (!('prettyType' in props)) return props
+  const { prettyType: _drop, ...rest } = props
+  return rest
+}
+
+/** A choice control also takes `prettyType` for its `readPretty` view. */
+function withPretty<C extends ComponentType<any>>(component: C): ComponentStatics<C> & ComponentType<ComponentProps<C> & PrettyTypeProps> {
+  return component as unknown as ComponentStatics<C> & ComponentType<ComponentProps<C> & PrettyTypeProps>
 }
 
 const choice = mapProps({ options: 'options', loading: 'loading', readOnly: 'disabled' }, stripPrettyType)
-const pretty = mapReadPretty(ChoicePreview)
-/** A choice control also takes `prettyType` for its `readPretty` view. */
-function withPretty<C extends ComponentType<any>>(component: C): ComponentStatics<C> & ComponentType<ComponentProps<C> & EnumPrettyProps> {
-  return component as unknown as ComponentStatics<C> & ComponentType<ComponentProps<C> & EnumPrettyProps>
+const group = mapProps({ options: 'options', readOnly: 'disabled', status: false, id: false }, stripPrettyType)
+
+function TextAreaPreview(props: PreviewTextProps) {
+  if (isEmptyValue(props.value)) return <PreviewText.Empty empty={props.empty} />
+  return <span data-read-pretty style={{ whiteSpace: 'pre-wrap' }}>{String(props.value)}</span>
 }
 
-/** Text input. `readPretty` shows the text. `Input.TextArea` and `Input.Password` are connected too. */
-export const Input = Object.assign(connect(AntInput, mapReadPretty(PreviewText)), {
-  TextArea: connect(AntInput.TextArea, mapReadPretty(PreviewText)),
-  Password: connect(AntInput.Password, mapReadPretty(PasswordPreview)),
+/** Text input; `readPretty` shows the text with `addonBefore` / `prefix` / `suffix` / `addonAfter`. `.TextArea` keeps line breaks; `.Password` is masked. */
+export const Input = Object.assign(connect(AntInput, mapReadPretty(PreviewText.Input)), {
+  TextArea: connect(AntInput.TextArea, mapReadPretty(TextAreaPreview)),
+  Password: connect(AntInput.Password, mapReadPretty(PreviewText.Password)),
 })
 
-/** Number input. Clearing writes `null` (the raw Ant Design value). `readPretty` shows the number. */
-export const InputNumber = connect(AntInputNumber, mapReadPretty(PreviewText))
+/** Number input. Clearing writes `null` (the raw Ant Design value). `readPretty` applies `formatter` and the addons. */
+export const InputNumber = connect(AntInputNumber, mapReadPretty(PreviewText.Input))
 
 /**
- * Select. `options` default to the field enum (`$enum`, `fields.x.enum`); `loading` follows an async enum.
- * `readPretty` shows labels, or badges / tags with `prettyType`.
+ * Select. `options` default to the field enum; `loading` follows an async enum.
+ * `readPretty` shows labels (several as tags), or badges / colored tags with `prettyType`.
  */
-export const Select = connect(withPretty(AntSelect), choice, pretty)
+export const Select = connect(withPretty(AntSelect), choice, mapReadPretty(PreviewText.Select))
+
+/** Text input with suggestions (free text; the value need not be an option). `options` default to the field enum. */
+export const AutoComplete = connect(AntAutoComplete, mapProps({ options: 'options', readOnly: 'disabled' }), mapReadPretty(PreviewText.Input))
+
+/**
+ * Tree select. `treeData` defaults to the field enum (`{ label, value, children }` nodes); `multiple` /
+ * `treeCheckable` hold an array. `readPretty` shows the labels found in the tree.
+ */
+export const TreeSelect = connect(
+  withPretty(AntTreeSelect),
+  mapProps({ options: 'treeData', loading: 'loading', readOnly: 'disabled' }, stripPrettyType),
+  mapReadPretty(PreviewText.TreeSelect),
+)
+
+/**
+ * Cascader: the value is the path (`['zj', 'hz']`; `multiple`: a list of paths). `options` default to the field enum
+ * (`{ label, value, children }`). `readPretty` shows `label / label`. For children loaded level by level use `CascaderPlus`.
+ */
+export const Cascader = connect(AntCascader, mapProps({ options: 'options', loading: 'loading', readOnly: 'disabled' }), mapReadPretty(PreviewText.Cascader))
 
 /**
  * Ant Design forwards `onBlur` to rc-switch's button although the public `SwitchProps` omit it.
@@ -50,19 +99,25 @@ export const Select = connect(withPretty(AntSelect), choice, pretty)
  */
 type SwitchWithBlur = ComponentType<ComponentProps<typeof AntSwitch> & { onBlur?: FocusEventHandler<HTMLButtonElement> }>
 
-/** Boolean switch: field value ↔ `checked`. `readOnly` / `readPretty` render it disabled. */
-export const Switch = connect(AntSwitch as SwitchWithBlur, mapProps({ value: 'checked', readOnly: 'disabled', status: false }))
+function BooleanPreview({ value, checkedChildren, unCheckedChildren }: PreviewTextProps) {
+  const t = useFormMessage()
+  const on = !!value
+  const text = on ? (checkedChildren ?? t('yes')) : (unCheckedChildren ?? t('no'))
+  return <span data-read-pretty>{text as React.ReactNode}</span>
+}
 
-/** Single checkbox: field value ↔ `checked`. `Checkbox.Group` binds an array with enum `options`. */
-export const Checkbox = Object.assign(connect(AntCheckbox, mapProps({ value: 'checked', readOnly: 'disabled', status: false })), {
-  Group: connect(withPretty(AntCheckbox.Group), mapProps({ options: 'options', readOnly: 'disabled', status: false, id: false }, stripPrettyType), pretty),
+/** Boolean switch: field value ↔ `checked`. `readPretty` shows `checkedChildren` / `unCheckedChildren`, else `messages.yes` / `no`. */
+export const Switch = connect(AntSwitch as SwitchWithBlur, mapProps({ value: 'checked', readOnly: 'disabled', status: false }), mapReadPretty(BooleanPreview))
+
+/**
+ * Single checkbox: field value ↔ `checked`; `readPretty` shows `messages.yes` / `no`.
+ * `Checkbox.Group` binds an array with enum `options`; `readPretty` shows the labels as tags.
+ */
+export const Checkbox = Object.assign(connect(AntCheckbox, mapProps({ value: 'checked', readOnly: 'disabled', status: false }), mapReadPretty(BooleanPreview)), {
+  Group: connect(withPretty(AntCheckbox.Group), group, mapReadPretty(PreviewText.Select)),
 })
 
-const RadioGroup = connect(
-  withPretty(AntRadio.Group),
-  mapProps({ options: 'options', readOnly: 'disabled', status: false, id: false }, stripPrettyType),
-  pretty,
-)
+const RadioGroup = connect(withPretty(AntRadio.Group), group, mapReadPretty(PreviewText.Select))
 
 /**
  * Radio group with enum `options`; `Radio` and `Radio.Group` are the same control (`component={[Radio]}` works).
@@ -74,44 +129,169 @@ export const Radio = Object.assign(RadioGroup, { Group: RadioGroup, Button: AntR
 function toDayjs(value: unknown, format: unknown): Dayjs | null {
   if (value == null || value === '') return null
   if (dayjs.isDayjs(value)) return value
-  if (typeof format === 'string' && typeof value === 'string') {
-    const parsed = dayjs(value, format)
-    if (parsed.isValid()) return parsed
+  const formats = (Array.isArray(format) ? format : [format]).filter((item): item is string => typeof item === 'string')
+  if (typeof value === 'string') {
+    for (const item of formats) {
+      const parsed = dayjs(value, item, true)
+      if (parsed.isValid()) return parsed
+    }
   }
   const parsed = dayjs(value as string | number | Date)
   return parsed.isValid() ? parsed : null
 }
 
-function DateRangePreview({ value }: { value?: unknown }) {
-  const [start, end] = Array.isArray(value) ? value : []
-  return <span data-read-pretty>{start || end ? `${start ?? ''} ~ ${end ?? ''}` : ''}</span>
+/**
+ * A picker that holds text: the field value is the formatted string (`format`), never a dayjs object, so values
+ * survive `initialValues` cloning, `reset`, and submit. Clearing writes `undefined`.
+ */
+function pickerProps(defaultFormat: string) {
+  return mapProps(
+    { readOnly: 'disabled', getValueFromEvent: (_date: unknown, text: unknown) => (text ? text : undefined) },
+    (props) => ({ ...props, value: toDayjs(props.value, props.format ?? defaultFormat) }),
+  )
+}
+
+function rangeProps(defaultFormat: string) {
+  return mapProps(
+    { readOnly: 'disabled', getValueFromEvent: (dates: unknown, texts: unknown) => (dates ? texts : undefined) },
+    (props) => {
+      const format = props.format ?? defaultFormat
+      return { ...props, value: Array.isArray(props.value) ? [toDayjs(props.value[0], format), toDayjs(props.value[1], format)] : null }
+    },
+  )
 }
 
 /**
  * Date picker. Like Formily, the field holds the formatted string (`format`, default `YYYY-MM-DD`), not a dayjs
- * object, so values survive `initialValues` cloning, `reset`, and submit. Clearing writes `undefined`.
- * `DatePicker.RangePicker` holds a `[start, end]` string tuple. `readPretty` shows the text.
+ * object. `DatePicker.RangePicker` holds a `[start, end]` string tuple. `readPretty` shows the text.
  */
-export const DatePicker = Object.assign(
-  connect(
-    AntDatePicker,
-    mapProps(
-      { readOnly: 'disabled', getValueFromEvent: (_date: unknown, text: unknown) => (text ? text : undefined) },
-      (props) => ({ ...props, value: toDayjs(props.value, props.format) }),
-    ),
-    mapReadPretty(PreviewText),
-  ),
-  {
-    RangePicker: connect(
-      AntDatePicker.RangePicker,
-      mapProps(
-        { readOnly: 'disabled', getValueFromEvent: (dates: unknown, texts: unknown) => (dates ? texts : undefined) },
-        (props) => ({
-          ...props,
-          value: Array.isArray(props.value) ? [toDayjs(props.value[0], props.format), toDayjs(props.value[1], props.format)] : null,
-        }),
-      ),
-      mapReadPretty(DateRangePreview),
-    ),
-  },
+export const DatePicker = Object.assign(connect(AntDatePicker, pickerProps('YYYY-MM-DD'), mapReadPretty(PreviewText.DatePicker)), {
+  RangePicker: connect(AntDatePicker.RangePicker, rangeProps('YYYY-MM-DD'), mapReadPretty(PreviewText.DateRangePicker)),
+})
+
+/**
+ * Time picker: the field holds the formatted string (`format`, default `HH:mm:ss`). `TimePicker.RangePicker` holds a
+ * `[start, end]` tuple. `readPretty` shows the text.
+ */
+export const TimePicker = Object.assign(connect(AntTimePicker, pickerProps('HH:mm:ss'), mapReadPretty(PreviewText.TimePicker)), {
+  RangePicker: connect(AntTimePicker.RangePicker, rangeProps('HH:mm:ss'), mapReadPretty(PreviewText.TimeRangePicker)),
+})
+
+/** Slider: a number, or `[from, to]` with `range`. `readPretty` shows the number(s). */
+export const Slider = connect(
+  AntSlider,
+  mapProps({ readOnly: 'disabled', status: false }),
+  mapReadPretty(function SliderPreview({ value, empty }: PreviewTextProps) {
+    if (isEmptyValue(value)) return <PreviewText.Empty empty={empty} />
+    return <span data-read-pretty>{Array.isArray(value) ? `${value[0] ?? ''} ~ ${value[1] ?? ''}` : String(value)}</span>
+  }),
+)
+
+/** Star rating. `readPretty` shows the stars, not editable (`count`, `allowHalf`, `character` apply). */
+export const Rate = connect(
+  AntRate,
+  mapProps({ readOnly: 'disabled', status: false }),
+  mapReadPretty(function RatePreview({ value, empty, count, allowHalf, character }: PreviewTextProps) {
+    if (value == null) return <PreviewText.Empty empty={empty} />
+    return (
+      <span data-read-pretty>
+        <AntRate disabled value={Number(value)} count={count as number} allowHalf={allowHalf as boolean} character={character as React.ReactNode} />
+      </span>
+    )
+  }),
+)
+
+type TransferItem = { key: string | number; title?: React.ReactNode; disabled?: boolean; [key: string]: unknown }
+
+/** Options (`{ label, value }`) or Ant Design records (`{ key, title }`) → Transfer records. */
+function transferItems(source: unknown): TransferItem[] {
+  if (!Array.isArray(source)) return []
+  return source.map((item: Record<string, any>) => ({ ...item, key: item.key ?? item.value, title: item.title ?? item.label }))
+}
+
+/**
+ * Transfer: the value is the target keys (option values). `dataSource` defaults to the field enum (`{ label, value }`
+ * becomes `{ key, title }`). `readPretty` shows the chosen titles as tags.
+ */
+export const Transfer = connect(
+  AntTransfer,
+  mapProps({ value: 'targetKeys', options: 'dataSource', readOnly: 'disabled', id: false, onBlur: false }, (props) => ({
+    render: (item: TransferItem) => item.title,
+    ...props,
+    dataSource: transferItems(props.dataSource),
+    targetKeys: Array.isArray(props.targetKeys) ? props.targetKeys : [],
+  })),
+  mapReadPretty(function TransferPreview(props: PreviewTextProps) {
+    const options = transferItems(props.dataSource ?? props.options).map((item) => ({ label: item.title, value: item.key }))
+    return <PreviewText.Select value={props.value} options={options} empty={props.empty} />
+  }),
+)
+
+/**
+ * `onChange({ file, fileList })` → the field value. Keeps Ant Design's file objects, drops `xhr` (not cloneable,
+ * would break submit), and fills `url` from a `{ url }` response so a finished upload links to its file.
+ */
+function fileListFromEvent(info: unknown): UploadFile[] {
+  const list = Array.isArray(info) ? info : ((info as { fileList?: UploadFile[] } | undefined)?.fileList ?? [])
+  return list.map((file: UploadFile) => {
+    const { xhr: _xhr, ...rest } = file as UploadFile & { xhr?: unknown }
+    const responseUrl = (file.response as { url?: unknown } | undefined)?.url
+    return rest.url || typeof responseUrl !== 'string' ? rest : { ...rest, url: responseUrl }
+  })
+}
+
+const uploadProps = mapProps(
+  { value: 'fileList', getValueFromEvent: fileListFromEvent, readOnly: 'disabled', status: false, id: false, onBlur: false },
+  (props) => ({ ...props, fileList: Array.isArray(props.fileList) ? props.fileList : [] }),
+)
+
+function UploadPreview({ value, empty, listType }: PreviewTextProps) {
+  if (!Array.isArray(value) || !value.length) return <PreviewText.Empty empty={empty} />
+  const pictures = listType === 'picture' || listType === 'picture-card' || listType === 'picture-circle'
+  return (
+    <Space size={8} wrap={pictures} direction={pictures ? 'horizontal' : 'vertical'} data-read-pretty>
+      {(value as UploadFile[]).map((file, index) => {
+        const href = file.url ?? file.thumbUrl
+        const thumb = file.thumbUrl ?? file.url
+        const name = file.name ?? href ?? String(index + 1)
+        const body = pictures && thumb ? <img src={thumb} alt={name} style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 4 }} /> : name
+        return href ? (
+          <a key={file.uid ?? index} href={href} target="_blank" rel="noreferrer" title={name}>
+            {body}
+          </a>
+        ) : (
+          <span key={file.uid ?? index}>{body}</span>
+        )
+      })}
+    </Space>
+  )
+}
+
+/**
+ * Upload: the value is the file list (Ant Design `UploadFile[]`, `fileList` ↔ value). `Upload.Dragger` is the drop
+ * zone. `readPretty` lists the files as links (thumbnails for the picture list types), without trigger or remove buttons.
+ */
+export const Upload = Object.assign(connect(AntUpload, uploadProps, mapReadPretty(UploadPreview)), {
+  Dragger: connect(AntUpload.Dragger, uploadProps, mapReadPretty(UploadPreview)),
+})
+
+/** Color picker: the value is the color text (`format`: hex by default; cleared → `undefined`). `readPretty` shows a swatch and the text. */
+export const ColorPicker = connect(
+  AntColorPicker,
+  mapProps({
+    readOnly: 'disabled',
+    status: false,
+    onBlur: false,
+    getValueFromEvent: (color: { cleared?: unknown } | undefined, text: unknown) => (!color || color.cleared ? undefined : text),
+  }),
+  mapReadPretty(function ColorPreview({ value, empty }: PreviewTextProps) {
+    if (isEmptyValue(value)) return <PreviewText.Empty empty={empty} />
+    const text = typeof value === 'string' ? value : String((value as { toHexString?: () => string }).toHexString?.() ?? value)
+    return (
+      <Space size={6} data-read-pretty>
+        <span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: 3, background: text, border: '1px solid rgba(0,0,0,0.1)', verticalAlign: 'middle' }} />
+        <span>{text}</span>
+      </Space>
+    )
+  }),
 )

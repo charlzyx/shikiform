@@ -82,10 +82,12 @@ describe('Ant Design control contracts (connect controls in a FormItem field)', 
     expect(control().disabled).toBe(true)
   })
 
-  it.each(['Switch', 'Checkbox'])('%s uses a disabled boolean view for readPretty', (name) => {
-    const { control } = mount(name, true, 'readPretty', { disabled: false })
-    expect(control().checked).toBe(true)
-    expect(control().disabled).toBe(true)
+  it.each(['Switch', 'Checkbox'])('%s reads as 是 / 否 in readPretty (no control rendered)', (name) => {
+    const on = mount(name, true, 'readPretty')
+    expect(on.control()).toBeUndefined()
+    expect(on.html()).toContain('是')
+    cleanup()
+    expect(mount(name, false, 'readPretty').html()).toContain('否')
   })
 
   it.each(['Input', 'InputNumber'])('%s respects an explicit readOnly prop as well as the field state', (name) => {
