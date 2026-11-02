@@ -70,7 +70,7 @@ export default function App() {
 | `InputNumber` | `InputNumberProps` | 写入 antd 给出的原始值（数字；`stringMode` 下是字符串）；**清空为 `null`** |
 | `Switch` | `ComponentProps<typeof Switch>`，另支持 `onBlur?: React.FocusEventHandler<HTMLButtonElement>` | `checked` 布尔值；失焦从真实 button 透传，先通知字段再通知调用方 |
 | `Checkbox` | `ComponentProps<typeof Checkbox>`；`Checkbox.Group` 绑数组 | `event.target.checked`；Group 写入选中值数组 |
-| `Radio.Group` | `Radio.Group` 的 props | 选中值；`options` 默认取字段枚举 |
+| `Radio`（= `Radio.Group`） | antd `RadioGroupProps` | 选中值；`options` 默认取字段枚举 |
 | `DatePicker` | `DatePicker` 的 props；`DatePicker.RangePicker` 为区间 | 格式化字符串（默认 `YYYY-MM-DD`），不是 dayjs；清空为 `undefined` |
 | `Input.Password` / `Input.TextArea` | 同 `Input` 的对应变体 | 与 `Input` 一样写回字符串；Password 的阅读态是 `******` |
 

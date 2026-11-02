@@ -9,9 +9,9 @@ description: 四个入口、createForm 选项、引擎方法、React 组件与�
 
 | 要查什么 | 参考页 |
 |---|---|
-| `useForm`、`typed`、`useFormContext`、`useField`（无参即当前字段）、`useWatch`、`useArrayField`、`useArray`、`useIndex`、`useRecord`、`useArrayMove`、`useTreeField`、`useTreeNode`、`useTreeMove` | [React Hooks](/reference/react-hooks) |
+| `useForm`、`typed`、`useFormContext`、`useFormMessage`、`useField`（无参即当前字段）、`useWatch`、`useArrayField`、`useArray`、`useIndex`、`useRecord`、`useArrayMove`、`useTreeField`、`useTreeNode`、`useTreeMove` | [React Hooks](/reference/react-hooks) |
 | `connect`、`mapProps`、`mapReadPretty`、`mapFieldProps`、`FormItem`、`mapFormItemProps`、`FormLayout`、`useFormLayout`、`FormGrid`、`GridColumn`、`useFormGrid`、`FormButtonGroup`、`PreviewText`、接好的控件 | [Ant Design 适配层](/reference/antd-adapter) |
-| `Submit`、`Reset`、控件取值契约、`ArrayTable`、`MergedTable`、`groupRowSpan`、`ProQueryTable`、`QueryForm` | [Ant Design 参考](/reference/antd) |
+| `Submit`、`Reset`、控件取值契约、`ArrayItems`、`ArrayCards`、`useArrayEditable`、`ArrayTable`、`MergedTable`、`groupRowSpan`、`ProQueryTable`、`QueryForm` | [Ant Design 参考](/reference/antd) |
 | `useQueryTable`、`useBuiltinQuery` | [查询 Hooks](/reference/query-hooks) |
 | `useArrayTable`、`useColumnSettings`、`useShadowForm`、`useArrayShadow`、`useSuggestion`、`useLazyCascader`、`enumItems`、`ENUM_COLORS` | [Pro Hooks](/reference/pro-hooks) |
 | `ProArrayTable`、`QueryList`、`ShadowModal` / `ShadowDrawer` / `ShadowPopconfirm` / `ShadowForm`、`useShadow`、`EnumPretty`、`Suggestion`、`CascaderPlus` 及其 `…View` | [Pro 组件](/reference/pro-components) |
@@ -20,10 +20,10 @@ description: 四个入口、createForm 选项、引擎方法、React 组件与�
 
 | 入口 | 主要导出 |
 |---|---|
-| `shikiform` | `useForm`、`createForm`、`FormEngine`、`defineEffects`；`Form`、`Field`、`ObjectField`、`ArrayField`、`ArrayScope`、`RowScope`、`TreeField`、`Watch`、`VirtualRows`；上表的 React Hooks；类型 `Draft`、`FieldBinding`、`FieldProps`、`FormOptions`、`RowContext` … |
-| `shikiform/core` | `createForm`、`defineEffects`、`EnumSource`、`comboMatch`、`comboOptions`、`ShikiUsageError` 等错误类、Standard Schema 与树坐标工具；类型 `Pattern`、`Display`、`Rule`、`RulesInput`、`Pos` … |
+| `shikiform` | `useForm`、`createForm`、`FormEngine`、`defineEffects`；`Form`、`Field`、`ObjectField`、`ArrayField`、`ArrayScope`、`RowScope`、`TreeField`、`Watch`、`VirtualRows`；上表的 React Hooks；`EnumSource`、`ShikiUsageError` 等错误类、`zhCN` / `enUS` / `setDefaultMessages`；类型 `Draft`、`FieldBinding`、`FieldProps`、`FormOptions`、`Pattern`、`Display`、`Pos`、`MoveResult`、`FieldEnum` … |
+| `shikiform/core` | 不依赖 React 的引擎：`createForm`、`defineEffects`、`EnumSource`、`comboMatch`、`comboOptions`、错误类、Standard Schema 与树坐标工具（`pathOf`、`posOf` …）；类型 `ArrayPath`、`EnumInput`、`EnumValueOf` … 根入口已有的引擎名字两处是同一个对象 |
 | `shikiform/pro` | 上表的 Pro Hooks，不依赖 antd |
-| `shikiform/antd` | 适配层、接好的控件、`Submit` / `Reset`、表格与 Pro 组件 |
+| `shikiform/antd` | 适配层（`connect`、`FormItem`、`FormLayout`、`FormGrid`、`FormButtonGroup`）、接好的控件、`Submit` / `Reset`、数组容器 `ArrayItems` / `ArrayCards`、表格与 Pro 组件 |
 
 没有 `shikiform/ui`、`shikiform/zod` 入口：Zod 实现了 Standard Schema，直接传给 `rules` / `validate`。行上下文是 `useIndex()` / `useRecord()`（或 `ProArrayTable.useRow()`），没有独立的 `useRow` 导出。
 
@@ -139,7 +139,7 @@ const effects = defineEffects<Values>(({ reaction, watch, query }) => {
 | `reaction.walk(select, effect, opts?)` | 每个树节点一个实例 | `childrenKey` 默认 `'children'` |
 | `watch(source, effect)` | `source` 读到的状态变化后；首次不运行 | 多个来源返回数组 |
 | `watch.each(select, effect)` | 行级 watch：回调里读到的状态就是来源 | 只处理一层数组 |
-| `query(path, { ui? })` | — | 精确 path 的底层 handle，优先用 `d.a.b` |
+| `query(path)` | — | 精确 path 的底层 handle（动态路径用），平时写 `d.a.b` |
 
 行级回调都是 `(row, ctx)`，`ctx: RowContext = { d, path, index, pos }`。详见 [联动](/guide/linkage)；`$` 状态与显隐见 [核心概念](/guide/concepts)，规则见 [校验](/guide/validation)。
 

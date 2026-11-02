@@ -321,8 +321,7 @@ export default function App() {
 
 ```tsx preview play=pro-enum
 import { Button, Space } from 'antd';
-import { Field, Form, ObjectField, defineEffects, useForm } from 'shikiform';
-import { EnumSource } from 'shikiform/core';
+import { EnumSource, Field, Form, ObjectField, useForm } from 'shikiform';
 import { Checkbox, EnumPretty, FormItem, FormLayout, Radio, Select } from 'shikiform/antd';
 
 const LIST = [{ label: '啊', value: 'a', color: 'blue' }, { label: '哦', value: 'o', color: 'green' }, { label: '呃', value: 'e' }];
@@ -335,18 +334,9 @@ const remote = EnumSource.from(async () => {
 type Demo = { select: string; lazySelect: string[]; radio: string; lazyCheckbox: string[]; badge: string[]; tag: string[] };
 type Values = { demo: Demo };
 
-const effects = defineEffects<Values>(({ reaction }) => {
-  reaction((d) => {
-    d.demo.lazySelect.$enum = remote.with(null);
-    d.demo.lazyCheckbox.$enum = remote.with(null);
-  });
-});
-
 export default function App() {
   const form = useForm<Values>({
     initialValues: { demo: { select: 'a', lazySelect: ['o'], radio: 'e', lazyCheckbox: ['a'], badge: ['a', 'o'], tag: ['a', 'e'] } },
-    fields: { 'demo.select': { enum: LIST }, 'demo.radio': { enum: LIST }, 'demo.badge': { enum: LIST }, 'demo.tag': { enum: LIST } },
-    effects: [effects],
   });
   const setPattern = (pattern?: 'readPretty') => form.batch((d) => { d.demo.$pattern = pattern; });
   return (
@@ -357,12 +347,13 @@ export default function App() {
       </Space>
       <FormLayout labelCol={{ span: 6 }} wrapperCol={{ span: 18 }}>
         <ObjectField name="demo">
-          <Field name="select" title="Select（徽标）" decorator={[FormItem]} component={[Select, { prettyType: 'badge', style: { width: 200 } }]} />
-          <Field name="lazySelect" title="懒加载 Select" decorator={[FormItem]} component={[Select, { mode: 'multiple', prettyType: 'tag', style: { width: 200 } }]} />
-          <Field name="radio" title="Radio" decorator={[FormItem]} component={[Radio.Group]} />
-          <Field name="lazyCheckbox" title="懒加载 Checkbox" decorator={[FormItem]} component={[Checkbox.Group]} />
-          <Field name="badge" title="EnumPretty 徽标" decorator={[FormItem]} component={[EnumPretty, { showType: 'badge' }]} />
-          <Field name="tag" title="EnumPretty 标签" decorator={[FormItem]} component={[EnumPretty, { showType: 'tag' }]} />
+          <Field name="select" title="Select（徽标）" enum={LIST} decorator={[FormItem]} component={[Select, { prettyType: 'badge', style: { width: 200 } }]} />
+          <Field name="lazySelect" title="懒加载 Select" enum={remote.with(null)} decorator={[FormItem]}
+            component={[Select, { mode: 'multiple', prettyType: 'tag', style: { width: 200 } }]} />
+          <Field name="radio" title="Radio" enum={LIST} decorator={[FormItem]} component={[Radio]} />
+          <Field name="lazyCheckbox" title="懒加载 Checkbox" enum={remote.with(null)} decorator={[FormItem]} component={[Checkbox.Group]} />
+          <Field name="badge" title="EnumPretty 徽标" enum={LIST} decorator={[FormItem]} component={[EnumPretty, { showType: 'badge' }]} />
+          <Field name="tag" title="EnumPretty 标签" enum={LIST} decorator={[FormItem]} component={[EnumPretty, { showType: 'tag' }]} />
         </ObjectField>
       </FormLayout>
     </Form>
@@ -370,7 +361,7 @@ export default function App() {
 }
 ```
 
-- 静态选项写在 `fields.x.enum`；远程选项用 `EnumSource.from(loader)`，在 reaction 里赋 `$enum = source.with(params)`。参数变了会重新加载并作废旧请求。
+- 选项写在 `<Field enum>` 上：静态数组，或远程的 `EnumSource.from(loader).with(params)`（同一个 source 加载一次，所有字段共享）。随别的字段变化的参数写在 reaction 里：`d.city.$enum = Cities.with(d.province.$value)`，参数变了会重新加载并作废旧请求。
 - 选择类控件的 `options` 默认取字段枚举，加载中自动 `loading`；`prettyType` / `showType` 决定阅读态显示成文字、`badge` 还是 `tag`（颜色取选项的 `color`）。
 - `EnumPretty` 只负责显示，适合表格单元格。
 

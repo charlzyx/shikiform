@@ -27,14 +27,14 @@ export default function App() {
   const [result, setResult] = useState('');
   const form = useForm<Values>({
     initialValues: { kind: 'personal', email: '', company: '' },
-    fields: { kind: { enum: [{ label: '个人', value: 'personal' }, { label: '工作', value: 'work' }] } },
     effects: [effects],
   });
   const F = typed(form);
   return (
     <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
       <FormLayout labelCol={{ span: 5 }} wrapperCol={{ span: 19 }}>
-        <F.Field name="kind" title="账号类型" decorator={[FormItem]} component={[Radio.Group]} />
+        <F.Field name="kind" title="账号类型" enum={[{ label: '个人', value: 'personal' }, { label: '工作', value: 'work' }]}
+          decorator={[FormItem]} component={[Radio]} />
         <F.Field name="email" title="邮箱" rules={{ format: 'email' }} decorator={[FormItem]} component={[Input]} />
         <F.Field name="company" title="公司" required decorator={[FormItem]} component={[Input]} />
         <FormButtonGroup.FormItem>

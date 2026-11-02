@@ -23,7 +23,7 @@ description: 引擎、draft 与 handle、$ 状态、显隐与提交、fields 声
 | each / walk | `reaction.each` / `watch.each` 每个数组行一个实例，`reaction.walk` 每个树节点一个实例 |
 | virtual | `virtual: true` 的字段照常校验，但不进提交结果 |
 | display | `visible` 渲染；`hidden` 不渲染但仍校验、仍提交；`none` 不渲染、不校验、不提交 |
-| pattern | `editable` / `disabled` / `readOnly` / `readPretty`，从父级继承；整张表单写在根上：`form.batch((d) => { d.$pattern = 'readPretty' })` |
+| pattern | `editable` / `disabled` / `readOnly` / `readPretty`，从父级继承；整张表单写在根上：`form.batch((d) => { d.$pattern = 'readPretty' })`，或创建时 `useForm({ pattern: 'readPretty' })` |
 
 ## 一个引擎
 

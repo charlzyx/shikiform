@@ -1,9 +1,9 @@
 ---
-title: FormLayout
+title: 布局
 description: FormLayout 统一布局、标签宽度、尺寸和反馈方式；FormGrid 栅格；FormButtonGroup 对齐按钮；FormItem 单独当标签用。
 ---
 
-# FormLayout
+# 布局
 
 每个 `FormItem` 都写一遍 `labelCol`、`size` 太啰嗦。`FormLayout`（`shikiform/antd`）把这些设置交给里面所有的 `FormItem`；它不持有值，可以嵌套，嵌套时逐键合并，最近的一层优先。
 
@@ -20,10 +20,7 @@ export default function App() {
   const [layout, setLayout] = useState<Layout>('horizontal');
   const [size, setSize] = useState<Size>('middle');
   const [feedback, setFeedback] = useState<FeedbackLayout>('loose');
-  const form = useForm({
-    initialValues: { name: '', city: undefined, remark: '' },
-    fields: { city: { enum: [{ label: '上海', value: 'sh' }, { label: '北京', value: 'bj' }] } },
-  });
+  const form = useForm({ initialValues: { name: '', city: undefined, remark: '' } });
   return (
     <>
       <Space wrap style={{ marginBottom: 16 }}>
@@ -37,7 +34,8 @@ export default function App() {
       <Form form={form}>
         <FormLayout layout={layout} size={size} feedbackLayout={feedback} labelCol={{ span: 5 }} wrapperCol={{ span: 19 }}>
           <Field name="name" title="姓名" required decorator={[FormItem]} component={[Input]} />
-          <Field name="city" title="城市" required decorator={[FormItem]} component={[Select, { style: { minWidth: 120 } }]} />
+          <Field name="city" title="城市" required enum={[{ label: '上海', value: 'sh' }, { label: '北京', value: 'bj' }]}
+            decorator={[FormItem]} component={[Select, { style: { minWidth: 120 } }]} />
           {/* 局部覆盖：这一项的标签放到上方 */}
           <FormLayout layout="vertical" labelCol={{ span: 24 }} wrapperCol={{ span: 24 }}>
             <Field name="remark" title="备注（嵌套的 vertical 布局）" decorator={[FormItem]} component={[Input.TextArea]} />
