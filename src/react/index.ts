@@ -7,6 +7,8 @@ export type { FieldProps, FormDomProps, FormProps, FormSubmitHandlers } from './
 export { useArray, useArrayField, useArrayMove } from './hooks/use-array'
 export type { ArrayHandle, ArrayKey } from './hooks/use-array'
 export { useIndex, useRecord, useTreeNode } from './hooks/use-row'
+export { FieldGroup, useFieldGroup, useFieldGroupErrors } from './field-group'
+export type { FieldGroupHandle } from './field-group'
 export { useField } from './hooks/use-field'
 export type { FieldBinding, FieldSlot, UseFieldOptions } from './hooks/use-field'
 export { useForm } from './hooks/use-form'

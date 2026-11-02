@@ -140,6 +140,24 @@ const form = createForm({
   `feedbackLayout: 'popover'`, `addonBefore/After`, `labelWidth`, `requiredMark: 'optional'` are props or `FormLayout` keys.
 - Layout: `FormLayout` (responsive arrays for layout / labelCol / labelWidth …), `FormGrid` + `gridSpan` / `GridColumn`,
   buttons in `<FormButtonGroup.FormItem><Submit /><Reset /></FormButtonGroup.FormItem>` (aligned to the control column).
+- Tabs / collapse / steps (Formily `FormTab` / `FormCollapse` / `FormStep`): panes are direct children; every pane
+  stays mounted (inactive ones are only hidden), so values, JSX rules and errors survive and submit validates them.
+  Headers badge the number of fields with errors. Do not use bare antd `Tabs` / `Collapse` around fields (inactive
+  panes do not mount). They own no value path: name fields as usual; pattern inherits along field paths.
+
+```tsx
+<FormTab><FormTab.Pane name="base" tab="基本">…fields…</FormTab.Pane><FormTab.Pane name="more" tab="更多">…</FormTab.Pane></FormTab>
+<FormCollapse><FormCollapse.Panel name="a" header="基本">…</FormCollapse.Panel></FormCollapse>   // all open by default
+const step = useFormStep()   // in the component with the buttons; { current, count, isFirst, isLast, next, back, goTo }
+<FormStep step={step}><FormStep.Step title="账号">…</FormStep.Step><FormStep.Step title="资料">…</FormStep.Step></FormStep>
+<Button disabled={step.isFirst} onClick={step.back}>上一步</Button>
+{step.isLast ? <Submit /> : <Button onClick={step.next}>下一步</Button>}   // next validates the current step only
+```
+
+  `step.next()` validates the current step's editable fields in one pass (`form.validate(paths[])`) and resolves
+  `false` on errors; the last step is a plain `<Submit />` (validates every step). Controlled: `activeKey` + `onChange`
+  (`FormTab` / `FormCollapse`), `useFormStep({ current, onChange })`. Your own region: `const g = useFieldGroup()`,
+  `<FieldGroup value={g}>…</FieldGroup>`, `useFieldGroupErrors(g)`, `form.validate(g.paths())` (from `shikiform`).
 - Hooks are the complete API: `useField(name, options)`, `mapFieldProps(field, props)`, `mapFormItemProps(field, props)`.
   Components are thin sugar over them.
 - One field hook (Formily-style): `useField()` with no name returns the field the nearest `<Field>`

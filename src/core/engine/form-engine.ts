@@ -261,9 +261,10 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
    * JSX rules count only while mounted. Display `none` skips the field. `hidden` does not.
    * The form-level schema always runs. A scoped call replaces schema issues under `path` only.
    * A newer `validate` supersedes an in-flight form schema or resolver; the older pass does not write errors.
+   * Pass an array to validate several paths (and their descendants) in one pass: `validate(['name', 'address'])`.
    */
-  validate(path?: FieldPath<T>): Promise<FieldError[]> {
-    return this.validator.validate(path as string | undefined)
+  validate(path?: FieldPath<T> | readonly FieldPath<T>[]): Promise<FieldError[]> {
+    return this.validator.validate(path as string | readonly string[] | undefined)
   }
 
   /** Untyped handle for an exact path. Prefer {@link FormEngine.getValue} and {@link FormEngine.batch}. */

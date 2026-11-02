@@ -6,6 +6,8 @@
  * - components: `Input`, `InputNumber`, `Select`, `Switch`, `Checkbox`, `Radio`, `DatePicker` wired through `connect`;
  * - buttons: `Submit` / `Reset` for the surrounding form;
  * - arrays: `ArrayItems` / `ArrayCards`, containers for `<ArrayField component>` (add / remove / move / drag rows);
+ * - containers: `FormTab`, `FormCollapse`, `FormStep` / `useFormStep` (panes keep their fields mounted; error badges
+ *   and per-step validation come from `FieldGroup` in `shikiform`);
  * - tables: `ArrayTable`, `MergedTable`, `ProQueryTable` / `QueryForm` (over `useArrayField` / `useQueryTable`),
  *   `ProArrayTable` (over `useArrayTable` / `useColumnSettings`), `QueryList` (over `useQueryTable`);
  * - shadow forms: `ShadowForm`, `ShadowModal`, `ShadowDrawer`, `ShadowPopconfirm`, `useShadow` (over `useShadowForm`);
@@ -29,6 +31,12 @@ export { Checkbox, DatePicker, Input, InputNumber, Radio, Select, Switch } from 
 export { Reset, Submit } from './components/buttons'
 export type { ResetProps, SubmitProps } from './components/buttons'
 export { ArrayCards, ArrayItems, useArrayEditable } from './arrays/array-items'
+export { FormTab } from './containers/form-tab'
+export type { FormTabPaneProps, FormTabProps } from './containers/form-tab'
+export { FormCollapse } from './containers/form-collapse'
+export type { FormCollapsePanelProps, FormCollapseProps } from './containers/form-collapse'
+export { FormStep, useFormStep } from './containers/form-step'
+export type { FormStepHandle, FormStepProps, FormStepStepProps, UseFormStepOptions } from './containers/form-step'
 export { ArrayTable } from './tables/array-table'
 export { MergedTable, groupRowSpan } from './tables/merged-table'
 export type { MergedColumn } from './tables/merged-table'

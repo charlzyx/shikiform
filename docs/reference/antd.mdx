@@ -230,9 +230,74 @@ useArrayEditable(): boolean
 
 最近一层数组（`<ArrayField>` 的容器或行内）的有效 pattern 是否为 `editable`。有效 pattern 沿祖先继承到根：`useForm({ pattern: 'readPretty' })`、`d.$pattern = 'disabled'`、`d.contacts.$pattern = 'readOnly'` 都让它变成 `false`。`ArrayItems` / `ArrayCards` 的动作按钮靠它隐藏；自己写的行操作也用它。在数组外调用抛错。
 
+## FormTab
+
+```tsx
+<FormTab activeKey? defaultActiveKey? onChange?={(key: string) => …} {...TabsProps}>
+  <FormTab.Pane name?="base" tab="基本信息" disabled?>{/* 任意字段与布局 */}</FormTab.Pane>
+</FormTab>
+```
+
+标签页容器（Formily `FormTab`）。子元素必须是 `FormTab.Pane`（可包在 Fragment 里，`false` / `null` 跳过；其他元素抛错）。每个面板都渲染（antd `forceRender`），不活动的只是隐藏：字段的值、JSX 规则、错误都在，提交照常校验和提交。标签标题带错误数徽标：面板里有错（不含 display `none`）的字段数，`0` 时不显示。
+
+| 参数 | 行为 |
+|---|---|
+| `Pane.name` | 标签 key；默认下标字符串 |
+| `Pane.tab` / `Pane.disabled` | 标题 / 禁用 |
+| `activeKey` + `onChange` | 受控；`onChange(key)` 不改内部状态 |
+| `defaultActiveKey` | 不受控初始页；默认第一个 |
+| 其余 | 交给 antd `Tabs`（`items` 由面板生成） |
+
+只是布局：不占值路径，不写 `$display` / `$pattern`；字段的 pattern 照常沿字段路径继承（根 `$pattern = 'readPretty'` 时面板里的字段也是阅读态）。
+
+## FormCollapse
+
+```tsx
+<FormCollapse activeKey?={string[]} defaultActiveKey?={string[]} onChange?={(keys: string[]) => …} accordion? {...CollapseProps}>
+  <FormCollapse.Panel name?="base" header="基本信息" extra? collapsible?>{/* 字段 */}</FormCollapse.Panel>
+</FormCollapse>
+```
+
+折叠面板容器（Formily `FormCollapse`），子元素规则、挂载与错误徽标同 `FormTab`（收起的面板 `forceRender`）。默认全部展开；`accordion` 时默认只展开第一个。`onChange` 总是给 `string[]`。
+
+## FormStep
+
+```tsx
+const step = useFormStep()
+<FormStep step={step} {...StepsProps}>
+  <FormStep.Step name? title="账号" description? subTitle? icon?>{/* 字段 */}</FormStep.Step>
+</FormStep>
+{step.isLast ? <Submit /> : <Button onClick={step.next}>下一步</Button>}
+```
+
+分步容器（Formily `FormStep`）：antd `Steps` 条 + 每步一个主体。所有主体都挂载，非当前步加 HTML `hidden`，所以前面步的值一直在；最后一步用普通 `<Submit />` / `<Form onSubmit>`，校验并提交全部步骤。某一步里有字段有错时，它在步骤条上是 `error` 状态。`current` / `items` / `onChange` 由容器控制，其余 props 交给 antd `Steps`。
+
+## useFormStep
+
+```ts
+useFormStep(options?: { defaultCurrent?: number; current?: number; onChange?: (current: number) => void }): FormStepHandle
+
+interface FormStepHandle {
+  current: number      // 0 开始
+  count: number        // <FormStep> 挂载前为 0
+  isFirst: boolean
+  isLast: boolean      // count 为 0 时也是 true
+  next(): Promise<boolean>
+  back(): void
+  goTo(index: number): void
+}
+```
+
+分步状态（Formily `FormStep.createFormStep()`）。在渲染按钮的组件里调用，不需要在 `<Form>` 里面；交给 `<FormStep step>` 后它才知道步数和表单。
+
+- `next()`：取当前步里挂载的字段中**有效 pattern 为 `editable`** 的路径，`form.validate(paths)` 一次校验；无错前进一步并返回 `true`，有错停留返回 `false`。最后一步、`<FormStep>` 未挂载时返回 `false`。表单级 `validate` / `resolver` 抛错时 `console.error` 并返回 `false`，从不 reject。等待校验期间步数已被别处改变则不再前进（双击只前进一步）。
+- `back()` / `goTo(i)`：不校验；`goTo` 夹在 `[0, count - 1]`。
+- 受控（传 `current`）时三个方法只调用 `onChange`。
+
 ## 实现位置
 
 - 按钮：`src/antd/components/buttons.tsx`；控件接线：`src/antd/components/controls.tsx`。
 - 数组容器：`src/antd/arrays/array-items.tsx`。
+- 分组容器：`src/antd/containers/form-tab.tsx`、`form-collapse.tsx`、`form-step.tsx`（字段收集：`src/react/field-group.tsx`）。
 - 表格与网格：`src/antd/tables/array-table.tsx`、`tables/merged-table.tsx`、`tables/query-table.tsx`。
 - 本模块的真实导出清单：`src/antd/index.ts`；所有示例只使用这些公开入口。

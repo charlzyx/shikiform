@@ -611,8 +611,10 @@ export interface FormInstance<T, TSubmit = T> {
    * even when no `<Field>` is mounted. JSX `rules` / `required` count only while mounted.
    * Display `none` skips the field, and an ancestor `none` covers descendants. `hidden` still validates.
    * A form-level Standard Schema always runs. A scoped call refreshes schema issues under `path` only.
+   * An array validates several paths in ONE pass (`validate(['name', 'address'])`, what `FormStep` does for a step);
+   * two concurrent scoped calls would supersede each other.
    */
-  validate(path?: FieldPath<T>): Promise<FieldError[]>
+  validate(path?: FieldPath<T> | readonly FieldPath<T>[]): Promise<FieldError[]>
   /**
    * Clone of the values with `virtual` fields and display `none` removed.
    * `hidden` values are kept. The static type is `TSubmit` (default `T`): the form cannot know statically which
