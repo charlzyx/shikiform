@@ -139,7 +139,7 @@ describe('headless row context hooks (useArray / useIndex / useRecord / useTreeN
     expect(screen.getByTestId('node-undo').textContent).toBe('menu.0.children.0')
     // 拖拽属性也能移动：drop 「新建」(pos 0.1) onto 「撤销」(pos 0.0)
     fireEvent.drop(screen.getByTestId('node-undo'), {
-      dataTransfer: { getData: () => '0.1', dropEffect: 'move' },
+      dataTransfer: { getData: () => 'menu|0.1', dropEffect: 'move' },
     })
     expect(form.getValue('menu.0.children.0.id')).toBe('new')
     expect(form.getValue('menu.0.children.1.id')).toBe('undo')

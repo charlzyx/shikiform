@@ -57,7 +57,7 @@ export function useTreeNode<TNode = any>(): {
   /** HTML5 drag-and-drop props for the node at `pos` (default: this node). */
   dragProps: (pos?: Pos) => DragProps
 } {
-  const form = useFormContext()
+  // 先查 scope 再取 form：在 <Form> 外渲染时，错误要指向缺失的节点作用域
   const scope = useScope()
   if (!scope.pos) {
     if (process.env.NODE_ENV !== 'production') {
@@ -65,6 +65,7 @@ export function useTreeNode<TNode = any>(): {
     }
     throw new Error('useTreeNode() must render inside a tree node (<RowScope path pos>)')
   }
+  const form = useFormContext()
   const record = useRecord<TNode>()
   const pos = scope.pos as Pos
   const path = scope.path
