@@ -13,7 +13,7 @@ function option(flag, fallback) {
   if (!args[index + 1] || args[index + 1].startsWith('--')) throw new Error(`Missing ${flag} value`)
   return path.resolve(args[index + 1])
 }
-const docs = option('--docs-dir', path.join(root, 'docs'))
+const docs = option('--docs-dir', path.join(root, 'docs-site', 'src', 'content', 'docs'))
 const manifestFile = option('--manifest', path.join(docs, 'reference', 'exports.json'))
 for (const arg of args.filter((arg) => arg.startsWith('--'))) {
   if (!['--docs-dir', '--manifest', '--list'].includes(arg)) throw new Error(`Unknown option ${arg}`)

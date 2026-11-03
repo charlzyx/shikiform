@@ -1,0 +1,32 @@
+---
+title: 6. reaction
+description: 单价乘数量，金额自己变。
+tableOfContents: false
+---
+
+# reaction
+
+<div className="tutorial-step">
+<div className="tutorial-copy">
+
+单价是 10，数量是 2。金额还要自己填。改单价，金额不动。
+
+`reaction` 用来保持一份派生结果。它初始化就会跑。读到的 `$` 状态是依赖，同一轮里的写入不是依赖。所以乘法先放进局部变量，再写回 `$value`。
+
+`reaction` 写过 `$value` 的字段是计算值：阅读态，默认仍提交。它仍是普通 `Field`，不是新类型。不想提交就声明 `virtual`。
+
+**这一步：** 用 `defineEffects` 包一个 `reaction`：
+
+```ts
+const amount = (d.price.$value || 0) * (d.qty.$value || 0);
+d.amount.$value = amount;
+```
+
+把 `effects` 传给 `useForm`。改单价或数量，金额跟着变成乘积，而且不能手改。提交 JSON 里有 `amount`。
+
+
+</div>
+
+<TutorialPlay id="06-reaction" />
+
+</div>

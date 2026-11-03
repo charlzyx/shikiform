@@ -1,0 +1,32 @@
+---
+title: 2. 四种字段
+description: 用户资料里，姓名是值，地址是对象。
+tableOfContents: false
+---
+
+# 四种字段
+
+<div className="tutorial-step">
+<div className="tutorial-copy">
+
+右边是一份用户资料。姓名是一个值，地址是一个对象，里面现在只有城市。点提交，JSON 里会有 `name` 和 `address.city`。
+
+字段只按数据形状分成四种：
+
+| 类型 | 数据 |
+|---|---|
+| `Field` | 一个值，比如姓名 |
+| `ObjectField` | 对象，比如地址 |
+| `ArrayField` | 数组，后面的订单行 |
+| `TreeField` | 树，比如菜单 |
+
+标题、分组这些布局不是字段，它们没有 `name`。`virtual` 和计算值也不是新类型，只是普通字段上的两种属性。下一步看不提交，再后面看计算值。
+
+**这一步：** 在地址里面加上街道。提交之后，`address` 里同时有 `city` 和 `street`。
+
+
+</div>
+
+<TutorialPlay id="02-profile" />
+
+</div>

@@ -26,24 +26,28 @@ afterEach(() => {
 describe('packed docs contract inputs', () => {
   it('has no teaching store or special package alias left behind', () => {
     expect(existsSync('src/runtime')).toBe(false)
-    expect(readFileSync('site/config.ts', 'utf8')).not.toContain('src/runtime')
-    const component = readFileSync('docs/_components/TutorialStep.tsx', 'utf8')
-    expect(component).toContain("'App.tsx': answer ? solution : starter")
+    expect(readFileSync('docs-site/src/bridge/theme.tsx', 'utf8')).not.toContain('src/runtime')
+    const component = readFileSync('docs-site/src/components/TutorialPlay.tsx', 'utf8')
+    expect(component).toContain("answered ? tutorialFiles[id].solution : tutorialFiles[id].starter")
     expect(component).not.toContain('fields.tsx')
     expect(component).not.toContain('shikiform/ui')
     expect(component).not.toContain('shikiform/zod')
   })
 
   it('uses framework navigation only and keeps the tutorial sidebar in lesson order', () => {
-    for (const directory of ['docs/tutorial', 'docs/guide']) {
+    for (const directory of ['docs-site/src/content/docs/tutorial', 'docs-site/src/content/docs/guide']) {
       for (const file of readdirSync(directory).filter((file) => file.endsWith('.mdx'))) {
         expect(readFileSync(path.join(directory, file), 'utf8'), file).not.toMatch(/StepNav|tutorial-nav/)
       }
     }
-    expect(JSON.parse(readFileSync('docs/tutorial/_meta.json', 'utf8'))).toEqual([
-      'index', '1-start', '2-fields', '3-path', '4-state', '5-pattern', '6-reaction', '7-array', '8-watch', '9-rules', '10-next',
+    // Nimbus 用 astro.config.ts 里的手动侧边栏维护课序（index 独立条目在教程组之外）。
+    const config = readFileSync('docs-site/astro.config.ts', 'utf8')
+    const order = [...config.matchAll(/link: "\/tutorial\/([\w-]+)"/g)].map((match) => match[1])
+    expect(order).toEqual([
+      '1-start', '2-fields', '3-path', '4-state', '5-pattern', '6-reaction', '7-array', '8-watch', '9-rules', '10-next',
     ])
-    expect(readFileSync('docs/tutorial/2-fields.mdx', 'utf8')).toContain('这一步')
+    expect(config).toContain('link: "/tutorial"')
+    expect(readFileSync('docs-site/src/content/docs/tutorial/2-fields.mdx', 'utf8')).toContain('这一步')
   })
 
   it('includes each tutorial and its visible adapter plus both preview and live blocks', () => {

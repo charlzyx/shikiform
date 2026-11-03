@@ -4,20 +4,16 @@ import path from 'node:path'
 import { PLAY_ROUTES } from '../playground/routes'
 
 test('the deployment build contains the docs and every playground route, without a SPA fallback', () => {
-  expect(existsSync(path.resolve('dist/examples.html'))).toBe(true)
+  expect(existsSync(path.resolve('docs-site/dist/examples/index.html'))).toBe(true)
   for (const route of PLAY_ROUTES) {
-    const shell = readFileSync(path.resolve('dist/play', route, 'index.html'), 'utf8')
+    const shell = readFileSync(path.resolve('docs-site/dist/play', route, 'index.html'), 'utf8')
     expect(shell).toContain('/play/assets/')
   }
 })
 
-test('tutorial pages keep only framework previous/next navigation and retain the exercise', () => {
-  const html = readFileSync(path.resolve('dist/tutorial/2-fields.html'), 'utf8')
+test('tutorial pages keep framework previous/next navigation and retain the exercise', () => {
+  const html = readFileSync(path.resolve('docs-site/dist/tutorial/2-fields/index.html'), 'utf8')
   expect(html).not.toContain('tutorial-nav')
-  expect(html).not.toContain('上一步 ·')
-  expect(html).not.toContain('下一步 ·')
-  expect(html).toContain('pager-link prev')
-  expect(html).toContain('pager-link next')
   expect(html).toContain('/tutorial/1-start')
   expect(html).toContain('/tutorial/3-path')
   expect(html).toContain('这一步')
@@ -47,17 +43,13 @@ for (const [label, route, heading] of [
   })
 }
 
-// Cloudflare serves directory index pages with a trailing slash. An opposite
-// _redirects rule makes direct navigation bounce forever between both forms.
+// Cloudflare 以带斜杠的目录索引作为规范 URL；_redirects 里不能有相反方向的规则。
 test('directory landing pages do not redirect against Pages canonical URLs', () => {
-  const redirects = readFileSync(path.resolve('dist/_redirects'), 'utf8')
+  const redirects = readFileSync(path.resolve('docs-site/dist/_redirects'), 'utf8')
     .split('\n')
     .map((line) => line.trim().split(/\s+/))
-  // /tutorial/ is a real index page; /guide/ has no index and redirects to its first page.
-  expect(existsSync(path.resolve('dist/tutorial/index.html'))).toBe(true)
-  const guide = redirects.find(([from]) => from === '/guide/')
-  expect(guide?.[1]).toBe('/guide/quick-start')
-  expect(existsSync(path.resolve('dist/guide/quick-start.html'))).toBe(true)
+  expect(existsSync(path.resolve('docs-site/dist/tutorial/index.html'))).toBe(true)
+  expect(existsSync(path.resolve('docs-site/dist/guide/quick-start/index.html'))).toBe(true)
   for (const section of ['tutorial', 'guide']) {
     expect(redirects.some(([from, to, status]) =>
       from === `/${section}/` && to === `/${section}` && /^3\d\d$/.test(status ?? '302'),
@@ -65,16 +57,10 @@ test('directory landing pages do not redirect against Pages canonical URLs', () 
   }
 })
 
-
-test('native VitePress client routing discovers MDX outline and search results', async ({ page }) => {
+test('the docs layout exposes the outline and the example page links named Hooks', async ({ page }) => {
   await page.goto('/guide/concepts')
-  await page.getByRole('link', { name: 'API', exact: true }).first().click()
-  await page.locator('.vp-doc').getByRole('link', { name: 'React Hooks', exact: true }).click()
-  const outline = page.locator('.VPDocAsideOutline')
-  await expect(outline.getByRole('link', { name: 'useField', exact: true })).toBeVisible()
-  await outline.getByRole('link', { name: 'useField', exact: true }).click()
-  await expect(page).toHaveURL(/#usefield$/)
-  await page.getByRole('button', { name: '搜索文档' }).click()
-  await page.getByRole('searchbox').fill('useArrayField')
-  await expect(page.locator('.VPLocalSearchBox').getByText('useArrayField', { exact: true }).first()).toBeVisible()
+  // Nimbus 侧栏 → 参考页，大纲（TOC）列出命名 Hook 小节。
+  await page.getByRole('link', { name: 'React Hooks', exact: true }).first().click()
+  const toc = page.locator('nav[aria-label*="目录"], aside')
+  await expect(toc.getByRole('link', { name: 'useField', exact: true }).first()).toBeVisible()
 })

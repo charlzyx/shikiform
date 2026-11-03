@@ -11,7 +11,7 @@ import remarkParse from 'remark-parse'
 import { visit } from 'unist-util-visit'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const repoDocs = path.join(root, 'docs')
+const repoDocs = path.join(root, 'docs-site', 'src', 'content', 'docs')
 const args = process.argv.slice(2)
 function option(name, fallback) {
   const index = args.indexOf(name)
@@ -92,6 +92,7 @@ function run(command, parameters, cwd, log) {
 try {
   const packed = JSON.parse(run('npm', ['pack', '--ignore-scripts', '--json', '--pack-destination', work], root, 'pack.log'))
   if (packed.length !== 1 || path.basename(packed[0].filename) !== packed[0].filename) throw new Error('Unexpected npm pack result')
+  // macOS 的 os.tmpdir() 经 /var → /private/var 符号链接，先归一化再比对前缀。
   const packageDir = path.join(modules, 'shikiform')
   mkdirSync(packageDir)
   run('tar', ['-xzf', path.join(work, packed[0].filename), '-C', packageDir, '--strip-components=1'], root, 'unpack.log')

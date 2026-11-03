@@ -3,9 +3,9 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { EditorView } from '@codemirror/view'
-import starter from '../docs/tutorial/_files/07-array.tsx?raw'
-import solution from '../docs/tutorial/_files/07-array.solution.tsx?raw'
-import { SiteThemeContext } from '../site/bridge/theme'
+import starter from '../docs-site/src/content/docs/tutorial/_files/07-array.tsx?raw'
+import solution from '../docs-site/src/content/docs/tutorial/_files/07-array.solution.tsx?raw'
+import { SiteThemeProvider } from '../docs-site/src/bridge/theme'
 
 ;(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true
 let root: Root | undefined
@@ -18,9 +18,9 @@ it('runs the real array tutorial, preserves theme state, resets its answer and r
   vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} }))
   Object.defineProperty(Range.prototype, 'getClientRects', { configurable: true, value: () => [] })
   Object.defineProperty(Range.prototype, 'getBoundingClientRect', { configurable: true, value: () => ({ x: 0, y: 0, width: 0, height: 0, top: 0, left: 0, right: 0, bottom: 0 }) })
-  const { TutorialPlay } = await import('../docs/_components/TutorialStep')
+  const { default: TutorialPlay } = await import('../docs-site/src/components/TutorialPlay')
   const host = document.createElement('div'); document.body.append(host); root = createRoot(host)
-  const render = (dark: boolean) => root!.render(createElement(SiteThemeContext.Provider, { value: dark }, createElement(TutorialPlay, { starter, solution })))
+  const render = (dark: boolean) => root!.render(createElement(SiteThemeProvider, null, createElement(TutorialPlay, { id: '07-array' })))
   const ready = async (rows: number) => vi.waitFor(async () => {
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 60)) })
     expect(host.querySelectorAll('fieldset')).toHaveLength(rows)

@@ -1,0 +1,7 @@
+---
+// MDX 里不能直接写 client: 指令，用这个 Astro 包装层给 TutorialPlay 挂 island。
+import TutorialPlay from "./TutorialPlay";
+interface Props { id: string }
+---
+
+<TutorialPlay {...Astro.props} client:load />

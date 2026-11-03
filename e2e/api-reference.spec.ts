@@ -1,33 +1,27 @@
 import { readFileSync } from 'node:fs'
-import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { expect, test } from '@playwright/test'
 import { gotoHydrated } from './hydration'
 
 test('deployment includes named Hook references and the same executable adapter examples', () => {
-  const manifest = JSON.parse(readFileSync('docs/reference/exports.json', 'utf8')) as Record<string, Record<string, string>>
-  const landing = readFileSync('dist/api.html', 'utf8')
-  // Also executes real native MiniSearch queries against the emitted index.
-  execFileSync(process.execPath, ['scripts/check-site.mjs'], { stdio: 'pipe' })
+  const manifest = JSON.parse(readFileSync('docs-site/src/content/docs/reference/exports.json', 'utf8')) as Record<string, Record<string, string>>
+  const landing = readFileSync('docs-site/dist/index.html', 'utf8')
   for (const [module, symbols] of Object.entries(manifest)) {
     for (const [name, source] of Object.entries(symbols)) {
-      const html = readFileSync(path.join('dist', source.replace(/\.mdx$/, '.html')), 'utf8')
+      const html = readFileSync(path.join('docs-site/dist', source.replace(/\.mdx$/, ''), 'index.html'), 'utf8')
       expect(html, `${module}:${name}`).toContain(`id="${name.toLowerCase()}"`)
       expect(landing, `navigation: ${source}`).toContain(`href="/${source.replace(/\.mdx$/, '')}"`)
-
     }
   }
   expect(landing).toContain('href="/guide/field"')
-  const arrays = readFileSync('dist/guide/arrays.html', 'utf8')
+  const arrays = readFileSync('docs-site/dist/guide/arrays/index.html', 'utf8')
   expect(arrays).toContain('采购清单')
-  const adapters = readFileSync('dist/reference/antd.html', 'utf8')
+  const adapters = readFileSync('docs-site/dist/reference/antd/index.html', 'utf8')
   expect(adapters).toContain('adapter-event-counts')
 })
 
 test('API links to named Hooks and the quick-start example validates and submits', async ({ page }) => {
-  await page.goto('/api')
-  await page.locator('.vp-doc').getByRole('link', { name: 'React Hooks', exact: true }).click()
-  // VitePress headings carry a "Permalink to …" anchor in their accessible name.
+  await page.goto('/reference/react-hooks')
   await expect(page.getByRole('heading', { name: /^useField\b/ })).toBeVisible()
   await gotoHydrated(page, '/guide/quick-start')
   const demo = page.locator('.sf-demo').first()
@@ -48,7 +42,7 @@ test('the demo toolbar edits, recompiles, copies and resets the same example', a
   await gotoHydrated(page, '/guide/quick-start')
   const demo = page.locator('.sf-demo').first()
   await demo.getByRole('button', { name: '查看代码' }).click()
-  await expect(demo.locator('.sf-demo__highlighted')).toContainText('typed(form)')
+  await expect(demo.locator('.sf-demo__pre')).toContainText('typed(form)')
   await demo.getByRole('button', { name: '编辑代码', exact: true }).click()
   const editor = demo.locator('.cm-content')
   const source = await editor.innerText()

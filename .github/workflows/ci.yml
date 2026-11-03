@@ -27,6 +27,10 @@ jobs:
       - run: npm run check
       - run: npm run check:api
       - run: npm test
+      - name: Nimbus docs check + lint
+        run: |
+          npm run check:site
+          npx --prefix docs-site nimbus-docs check
 
   e2e:
     name: e2e (playwright)
@@ -39,11 +43,13 @@ jobs:
           node-version: lts/*
           cache: npm
       - run: npm ci
+      - name: Install docs-site dependencies
+        run: npm ci --prefix docs-site
       - name: Build site + playground
         run: npm run build
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
-      - name: Run Playwright (webServer = vitepress preview on :4321)
+      - name: Run Playwright (webServer = astro preview on :4321)
         run: npx playwright test
         env:
           CI: 'true'

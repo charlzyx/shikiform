@@ -9,7 +9,7 @@ const script = path.resolve('scripts/check-api-reference.mjs')
 function fixture() {
   const dir = mkdtempSync(path.join(os.tmpdir(), 'shikiform-reference-'))
   directories.push(dir)
-  cpSync('docs/reference', path.join(dir, 'reference'), { recursive: true })
+  cpSync('docs-site/src/content/docs/reference', path.join(dir, 'reference'), { recursive: true })
   return dir
 }
 function check(dir: string) {
@@ -22,7 +22,7 @@ afterEach(() => {
 // Each case spawns a full TypeScript program (~3s alone); under a loaded parallel run it can pass 5s.
 describe('public Hook and adapter reference coverage', { timeout: 30_000 }, () => {
   it('maps every real public Hook, typed, and pro/antd export to a named signature section', () => {
-    const result = check(path.resolve('docs'))
+    const result = check(path.resolve('docs-site/src/content/docs'))
     expect(result.status, result.stderr).toBe(0)
     // 计数从 exports.json 派生，不再硬编码；至少 79 个公开导出
     const manifest = JSON.parse(readFileSync(path.resolve('docs/reference/exports.json'), 'utf8'))

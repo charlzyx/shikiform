@@ -1,0 +1,31 @@
+---
+title: 4. $ 状态
+description: 用 $visible 控制邮箱出不出现。
+tableOfContents: false
+---
+
+# $ 状态
+
+<div className="tutorial-step">
+<div className="tutorial-copy">
+
+右边有一个「需要联系」开关，下面一直有邮箱。打开、关掉，邮箱都不动。
+
+字段上的状态都带 `$`。`$value` 是当前值，`$visible` 决定画不画出来，`$disabled` 是不能改。不带 `$` 的名字是子字段。
+
+起始代码的 `reaction` 读了开关，没有写邮箱的显隐。
+
+**这一步：** 在 `reaction` 里写上 `d.email.$visible = d.contact.$value`。
+
+关掉开关，邮箱消失。`$visible = false` 对应 `display: 'none'`（与 Formily 的 `visible` 一致）：不校验，也不进提交结果。打开、清空邮箱，再关掉并提交，表单照样通过，提交 JSON 里没有 `email`。值本身还留在表单里，重新打开开关，刚才的输入又回来了。
+
+如果只想藏起 UI、值仍要校验和提交（比如没切到的标签页），写 `d.email.$hidden = !d.contact.$value`，等价于 `$display = 'hidden'`。详见 [显隐](/guide/concepts)。
+
+`$disabled` 也是同一种写法。改省的时候会用它把市关掉。
+
+
+</div>
+
+<TutorialPlay id="04-state" />
+
+</div>
