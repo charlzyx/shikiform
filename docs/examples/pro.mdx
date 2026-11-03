@@ -456,6 +456,6 @@ export default function App() {
 
 - `loadData(path)` 收到已选值组成的路径（根是 `[]`），返回下一级选项；最后一级标 `isLeaf: true`。
 - 只有编码的值会通过同一个 `loadData` 解析出标签，编辑态和阅读态都能显示文字；`labelInValue` 的值自带标签。
-- 选项一开始就是整棵树时不需要它：把树给 `<Field enum>`，用 [`Cascader`](/guide/controls#cascader)。不绑字段的组件是 `CascaderPlusView`，无 UI 的逻辑是 `useLazyCascader` / `useCascaderLabels`。
+- 选项一开始就是整棵树时不需要它：把树给 `<Field enum>`，用 [`Cascader`](/guide/controls)。不绑字段的组件是 `CascaderPlusView`，无 UI 的逻辑是 `useLazyCascader` / `useCascaderLabels`。
 
 下一组：[业务场景](/examples/business)。
