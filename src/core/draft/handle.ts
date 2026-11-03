@@ -33,6 +33,7 @@ const STATE = new Set([
   '$pos',
   '$find',
   '$pathOf',
+  '$ui',
 ])
 
 /** `$` states a draft can write. The rest of {@link STATE} is read-only (derived, or owned by the engine). */
@@ -175,6 +176,32 @@ export function createHandle(host: DraftHost, path: string): any {
     getOwnPropertyDescriptor(target, prop) {
       if (prop === PATH || prop === 'then') return undefined
       return { configurable: true, enumerable: false, value: (target as any)[prop] }
+    },
+  })
+}
+
+/**
+ * `d.x.$ui('echo')` / `d.$ui('tip')`: a handle on one named UI node. Only UI state (`$visible`, `$pattern`,
+ * `$componentProps` …); the node has no value or children.
+ */
+export function createUiHandle(host: DraftHost, path: string, name: string): any {
+  if (process.env.NODE_ENV !== 'production' && (typeof name !== 'string' || !name)) {
+    throw new ShikiUsageError(`${showDraftPath(path)}.$ui(name) takes the UI's name: <Field ui="echo"> / <UI name="tip">.`)
+  }
+  return new Proxy(Object.create(null), {
+    get(_target, prop) {
+      if (typeof prop === 'symbol' || prop === 'then') return undefined
+      return host.readUi!(path, name, prop)
+    },
+    set(_target, prop, value) {
+      host.writeUi!(path, name, String(prop), value)
+      return true
+    },
+    has() {
+      return false
+    },
+    ownKeys() {
+      return []
     },
   })
 }

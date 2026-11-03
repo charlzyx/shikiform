@@ -1,7 +1,6 @@
 import { createPatchDraft, DELETE, isPatchable, setIn } from '../draft/patch'
 import type { Scheduler } from '../effects/scheduler'
 import { OBJECT_UI_KEYS, UI_KEYS, type FieldModel, type UiEffect, type UiKey } from '../state/field-model'
-import type { FieldStore } from '../state/field-store'
 import type { Notifier } from '../state/notifier'
 import type { FieldUiSpec, WriteOp } from '../types'
 
@@ -24,6 +23,15 @@ export interface FieldUiView {
 
 type Patch = (state: UiEffect | undefined) => UiEffect | undefined
 
+/** What carries UI layers: a field model, or a named UI node (`engine/ui-nodes.ts`). */
+export type UiHolder = Pick<FieldModel, 'uiDeclared' | 'uiEffect'>
+
+/** Where {@link FieldUi} finds holders by key (the field store, or the UI-node map). */
+export interface UiModels {
+  get(path: string): UiHolder | undefined
+  ensure(path: string): UiHolder
+}
+
 /**
  * Field UI state (Formily `field.title` / `setComponentProps` / `setDecoratorProps`).
  *
@@ -45,7 +53,7 @@ export class FieldUi {
   private readonly patches = new WeakMap<WriteOp, { path: string; key: UiKey; patch: Patch }>()
 
   constructor(
-    private readonly store: FieldStore<any>,
+    private readonly store: UiModels,
     private readonly notifier: Notifier,
     private readonly scheduler: Scheduler,
     private readonly write: (path: string, draftKey: string, value: unknown) => void,
@@ -183,7 +191,7 @@ export function deepMerge(lower: unknown, upper: unknown): unknown {
   return out
 }
 
-function resolve(field: FieldModel | undefined, key: UiKey, jsx: unknown, effect: UiEffect | undefined): unknown {
+function resolve(field: UiHolder | undefined, key: UiKey, jsx: unknown, effect: UiEffect | undefined): unknown {
   const declared = field?.uiDeclared?.[key]
   if (OBJECT_UI_KEYS.has(key)) {
     if (effect?.replace) return effect.value

@@ -60,5 +60,8 @@ export type {
   Pattern,
   SubmitResult,
   TypedEnumOption,
+  UiDraft,
+  UiName,
+  UiNames,
   ValidateTrigger,
 } from './types'

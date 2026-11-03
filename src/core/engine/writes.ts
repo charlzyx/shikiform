@@ -54,16 +54,23 @@ export class StateWriter {
 
   /** Draft write entry point (`DraftHost.writeState`). */
   writeState(path: string, key: string, value: unknown): void {
-    const scheduler = this.deps.scheduler
     // Development: `$value` reads in a reaction are read-only views; store plain data.
     if (process.env.NODE_ENV !== 'production') value = unwrapReadonly(value)
     const op = this.makeOp(path, key, value)
+    this.enqueue(op, !!this.deps.ui?.isUiOp(op))
+  }
+
+  /**
+   * Buffer `op` inside a reaction / watch / batch, or apply and flush it now. `patch`: UI patches apply on top of
+   * each other, so a second op with the same key moves to the end instead of replacing the first.
+   */
+  enqueue(op: WriteOp, patch: boolean): void {
+    const scheduler = this.deps.scheduler
     const tracker = scheduler.current()
     if (tracker) {
       if (!tracker.recordWrites) return
       const index = tracker.writes.findIndex((item) => item.key === op.key)
-      // UI patches apply on top of each other: keep them in write order.
-      if (index >= 0 && this.deps.ui?.isUiOp(op)) tracker.writes.splice(index, 1)
+      if (index >= 0 && patch) tracker.writes.splice(index, 1)
       else if (index >= 0) {
         tracker.writes[index] = op
         return
