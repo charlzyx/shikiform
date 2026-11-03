@@ -1,5 +1,5 @@
 import { createForm, defineEffects, Field, useForm } from 'shikiform'
-import { ProQueryTable } from 'shikiform/antd'
+import { QueryList } from 'shikiform/antd'
 import { FormEngine } from 'shikiform/core'
 import { useQueryTable } from 'shikiform/pro'
 
@@ -15,9 +15,9 @@ type Built = [
   typeof useForm,
   typeof FormEngine,
   typeof useQueryTable,
-  typeof ProQueryTable,
+  typeof QueryList,
 ]
 
-const built: Built = [createForm, defineEffects, Field, useForm, FormEngine, useQueryTable, ProQueryTable]
+const built: Built = [createForm, defineEffects, Field, useForm, FormEngine, useQueryTable, QueryList]
 void form
 void built

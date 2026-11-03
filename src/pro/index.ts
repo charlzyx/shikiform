@@ -1,7 +1,7 @@
 /**
  * Headless "pro" hooks. No Ant Design. The components in `shikiform/antd` render these:
- * - `useQueryTable` → `ProQueryTable` / `QueryList`;
- * - `useArrayTable` + `useColumnSettings` → `ProArrayTable`;
+ * - `useQueryTable` → `QueryList`;
+ * - `useArrayTable` + `useColumnSettings` → `ArrayTable`;
  * - `useShadowForm` / `useArrayShadow` → `ShadowForm`, `ShadowModal`, `ShadowDrawer`, `ShadowPopconfirm`;
  * - `useSuggestion` → `Suggestion`; `useLazyCascader` / `useCascaderLabels` → `CascaderPlus`; `enumItems` → `PreviewText.Select` (choice controls' `readPretty`).
  *

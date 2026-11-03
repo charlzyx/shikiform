@@ -2,8 +2,8 @@
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react'
 import { Button } from 'antd'
 import { afterEach, describe, expect, it } from 'vitest'
-import { createForm, Field, Form, RowScope, useField } from '../src'
-import { FormItem, Input, ProArrayTable, ShadowForm, ShadowModal, ShadowPopconfirm, useShadow } from '../src/antd'
+import { ArrayField, createForm, Field, Form, RowScope, useField } from '../src'
+import { FormItem, Input, ArrayTable, ShadowForm, ShadowModal, ShadowPopconfirm, useShadow } from '../src/antd'
 import { useArrayShadow, useShadowForm } from '../src/pro'
 import type { ReactNode } from 'react'
 
@@ -143,27 +143,23 @@ describe('Shadow components', () => {
   })
 })
 
-describe('useArrayShadow + ProArrayTable', () => {
+describe('useArrayShadow + ArrayTable', () => {
   it('edits the row it opened for and ProAddition appends and pages', async () => {
     const form = createForm({ initialValues: { list: [{ id: 1, domain: 'a.com' }, { id: 2, domain: 'b.com' }] } })
     function Page() {
       const editor = useArrayShadow<{ id: number; domain: string }>('list', { rowKey: 'id' })
       return (
         <>
-          <ProArrayTable
-            name="list"
-            rowKey="id"
-            pagination={{ pageSize: 2 }}
-            columns={[
+          <ArrayField name="list" rowKey="id" component={[ArrayTable, {
+            pagination: { pageSize: 2 },
+            columns: [
               { key: 'domain', title: '域名', render: () => <Field name="domain" pattern="readPretty" decorator={[FormItem]}><Input /></Field> },
               { key: 'edit', title: '编辑', render: ({ index }) => <Button data-testid={`edit-${index}`} onClick={() => void editor.edit(index)}>编辑</Button> },
-            ]}
-            extra={
-              <ProArrayTable.ProAddition title="添加条目">
+            ],
+            extra: <ArrayTable.ShadowAddition title="添加条目">
                 <Field name="domain" decorator={[FormItem]}><Input data-testid="add-domain" /></Field>
-              </ProArrayTable.ProAddition>
-            }
-          />
+              </ArrayTable.ShadowAddition>,
+          }]} />
           <ShadowModal shadow={editor} title="编辑行">
             <Field name="domain" decorator={[FormItem]}><Input data-testid="edit-domain" /></Field>
           </ShadowModal>

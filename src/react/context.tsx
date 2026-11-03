@@ -12,7 +12,7 @@ export interface ScopeValue {
   pos?: readonly number[]
 }
 
-/** The nearest enclosing array (`<ArrayField>`, `ArrayTable`, `ProArrayTable`): its absolute path and row key. */
+/** The nearest enclosing array (`<ArrayField>` and its container): its absolute path and row key. */
 export interface ArrayScopeValue {
   path: string
   rowKey?: string

@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createForm, enUS, Field, Form, setDefaultMessages, useForm, useFormMessage, zhCN } from '../src'
+import { ArrayField, createForm, enUS, Field, Form, setDefaultMessages, useForm, useFormMessage, zhCN } from '../src'
 import { moveNode } from '../src/core'
-import { PreviewText, ProArrayTable, ProQueryTable, QueryList, Reset, ShadowDrawer, ShadowPopconfirm, Submit } from '../src/antd'
+import { PreviewText, ArrayTable, QueryList, Reset, ShadowDrawer, ShadowPopconfirm, Submit } from '../src/antd'
 import { useQueryTable } from '../src/pro'
 
 afterEach(() => {
@@ -70,16 +70,15 @@ describe('built-in texts go through messages', () => {
     expect(screen.getByTestId('empty').textContent).toBe('—')
   })
 
-  it('ProArrayTable labels follow enUS; component props still win', () => {
+  it('ArrayTable labels follow enUS; component props still win', () => {
     const form = createForm({ initialValues: { list: [{ a: '1' }, { a: '2' }] }, messages: enUS })
     render(
       <Form form={form}>
-        <ProArrayTable
-          name="list"
-          rowSelection
-          columns={[{ key: 'act', title: 'Act', render: () => <><ProArrayTable.MoveUp /><ProArrayTable.Copy /><ProArrayTable.Remove title="Drop" /></> }]}
-          extra={<ProArrayTable.Addition />}
-        />
+        <ArrayField name="list" component={[ArrayTable, {
+          rowSelection: true,
+          columns: [{ key: 'act', title: 'Act', render: () => <><ArrayTable.MoveUp /><ArrayTable.Copy /><ArrayTable.Remove title="Drop" /></> }],
+          extra: <ArrayTable.Addition />,
+        }]} />
       </Form>,
     )
     expect(screen.getAllByTestId('row-up')[0]!.textContent).toBe('Move up')
@@ -90,28 +89,23 @@ describe('built-in texts go through messages', () => {
     expect(screen.getByTestId('selection-invert').textContent).toBe('Invert')
   })
 
-  it('QueryList / ProQueryTable buttons read the query form messages', async () => {
+  it('QueryList buttons read the query form messages', async () => {
     const request = vi.fn(async () => ({ data: [], total: 0 }))
     function Page() {
       const form = useForm({ initialValues: { query: { a: '', b: '', c: '', d: '' }, list: [] as { id: string }[] }, messages: enUS })
       const table = useQueryTable({ form, params: 'query', rows: 'list', request })
       return (
-        <>
-          <QueryList table={table} list="list" settings={false} columns={[]}>
-            <Field name="query.a" /><Field name="query.b" /><Field name="query.c" /><Field name="query.d" />
-          </QueryList>
-          <ProQueryTable table={table} columns={[]} />
-        </>
+        <QueryList table={table} settings={false} columns={[]}>
+          <Field name="query.a" /><Field name="query.b" /><Field name="query.c" /><Field name="query.d" />
+        </QueryList>
       )
     }
     render(<Page />)
     await waitFor(() => expect(request).toHaveBeenCalled())
     expect(screen.getByTestId('query-toggle').textContent).toBe('Expand')
-    expect(screen.getAllByTestId('query-submit').map((n) => n.textContent)).toEqual(['Search', 'Search'])
-    expect(screen.getAllByTestId('query-reset').map((n) => n.textContent)).toEqual(['Reset', 'Reset'])
-    const [listRefresh, tableRefresh] = screen.getAllByTestId('query-refresh')
-    expect(listRefresh!.getAttribute('title')).toBe('Refresh')
-    expect(tableRefresh!.textContent).toBe('Refresh')
+    expect(screen.getByTestId('query-submit').textContent).toBe('Search')
+    expect(screen.getByTestId('query-reset').textContent).toBe('Reset')
+    expect(screen.getByTestId('query-refresh').getAttribute('title')).toBe('Refresh')
   })
 
   it('shadow triggers and drawer footer use messages', async () => {

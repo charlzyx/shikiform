@@ -1,6 +1,5 @@
-import { createContext, memo, useContext, useMemo, useRef, type DragEvent, type RefObject } from 'react'
-import { Form, RowScope, useArrayField, useArrayMove, useField, useForm, useTreeField, useTreeMove } from 'shikiform'
-import type { Pos } from 'shikiform/core'
+import { createContext, memo, useContext, useRef } from 'react'
+import { Form, RowScope, useArrayField, useField, useForm, useTreeField } from 'shikiform'
 
 interface Item {
   id: string
@@ -13,13 +12,9 @@ interface Node {
   children: Node[]
 }
 
-interface DragBag<T> {
-  from: RefObject<T | null>
-  move: (from: T, to: T) => void
-}
-
-const ArrayDrag = createContext<DragBag<number> | null>(null)
-const TreeDrag = createContext<DragBag<Pos> | null>(null)
+/** `handle.dragProps` is stable per array / tree, so memoized rows read it from context without re-rendering. */
+const ArrayDrag = createContext<ReturnType<typeof useArrayField>['dragProps'] | null>(null)
+const TreeDrag = createContext<ReturnType<typeof useTreeField>['dragProps'] | null>(null)
 
 export function HeadlessPage() {
   const form = useForm<{ items: Item[]; nodes: Node[] }>({
@@ -46,11 +41,8 @@ export function HeadlessPage() {
 
 function ItemList() {
   const items = useArrayField('items')
-  const drag = useArrayMove('items')
-  const from = useRef<number | null>(null)
-  const bag = useMemo<DragBag<number>>(() => ({ from, move: drag.move }), [drag.move])
   return (
-    <ArrayDrag.Provider value={bag}>
+    <ArrayDrag.Provider value={items.dragProps}>
       <ul data-testid="items">
         {items.keys.map((row) => (
           <ItemRow key={row.key} index={row.index} id={row.key} />
@@ -61,26 +53,12 @@ function ItemList() {
 }
 
 const ItemRow = memo(function ItemRow({ index, id }: { index: number; id: string }) {
-  const drag = useContext(ArrayDrag)
+  const dragProps = useContext(ArrayDrag)
   const renders = useRef(0)
   renders.current += 1
   return (
     <RowScope path={`items.${index}`} index={index}>
-      <li
-        data-testid={`row-${index}`}
-        data-id={id}
-        data-renders={renders.current}
-        draggable
-        onDragStart={() => {
-          if (drag) drag.from.current = index
-        }}
-        onDragOver={(event) => event.preventDefault()}
-        onDrop={(event) => {
-          event.preventDefault()
-          const from = drag?.from.current
-          if (from != null && from !== index) drag?.move(from, index)
-        }}
-      >
+      <li data-testid={`row-${index}`} data-id={id} data-renders={renders.current} {...dragProps?.(index)}>
         <Name />
       </li>
     </RowScope>
@@ -94,12 +72,9 @@ function Name() {
 
 function NodeList() {
   const tree = useTreeField('nodes', { childrenKey: 'children', rowKey: 'id' })
-  const drag = useTreeMove('nodes')
-  const from = useRef<Pos | null>(null)
-  const bag = useMemo<DragBag<Pos>>(() => ({ from, move: (a, b) => void drag.move(a, b) }), [drag.move])
   const flat = flatten(tree.value as Node[])
   return (
-    <TreeDrag.Provider value={bag}>
+    <TreeDrag.Provider value={tree.dragProps}>
       <ul data-testid="tree">
         {flat.map((entry) => (
           <TreeNode key={entry.node.id} node={entry.node} pos={entry.pos} posKey={entry.posKey} />
@@ -119,7 +94,7 @@ function flatten(nodes: Node[], prefix: number[] = [], out: { node: Node; pos: n
 }
 
 const TreeNode = memo(function TreeNode({ node, pos, posKey }: { node: Node; pos: number[]; posKey: string }) {
-  const drag = useContext(TreeDrag)
+  const dragProps = useContext(TreeDrag)
   const renders = useRef(0)
   renders.current += 1
   return (
@@ -128,18 +103,7 @@ const TreeNode = memo(function TreeNode({ node, pos, posKey }: { node: Node; pos
       data-pos={posKey}
       data-renders={renders.current}
       style={{ marginLeft: pos.length * 12 }}
-      draggable
-      onDragStart={(event: DragEvent) => {
-        event.stopPropagation()
-        if (drag) drag.from.current = pos
-      }}
-      onDragOver={(event) => event.preventDefault()}
-      onDrop={(event) => {
-        event.preventDefault()
-        event.stopPropagation()
-        const from = drag?.from.current
-        if (from) drag?.move(from, pos)
-      }}
+      {...dragProps?.(pos)}
     >
       {node.name}
     </li>

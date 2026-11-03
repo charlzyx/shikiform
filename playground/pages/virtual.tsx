@@ -1,5 +1,4 @@
-import { ArrayTable } from 'shikiform/antd'
-import { Field, Form, useForm } from 'shikiform'
+import { ArrayField, Field, Form, useForm } from 'shikiform'
 
 interface Row {
   id: string
@@ -11,13 +10,13 @@ export function VirtualPage() {
   const form = useForm<{ rows: Row[] }>({ initialValues: { rows } })
   return (
     <Form form={form}>
-      <ArrayTable name="rows" virtualScroll={{ height: 200, rowHeight: 40, overscan: 2 }}>
+      <ArrayField name="rows" virtualScroll={{ height: 200, rowHeight: 40, overscan: 2 }}>
         {({ index }) => (
           <div data-testid={`virtual-row-${index}`}>
             <Field name="name">{(field) => <span>{field.value}</span>}</Field>
           </div>
         )}
-      </ArrayTable>
+      </ArrayField>
     </Form>
   )
 }

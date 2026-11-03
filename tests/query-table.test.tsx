@@ -2,7 +2,7 @@
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Field } from '../src'
-import { FormItem, Input, ProQueryTable, QueryList } from '../src/antd'
+import { FormItem, Input, QueryList } from '../src/antd'
 import { normalizeFilters, normalizeSort, useQueryTable, type QueryRequestArgs } from '../src/pro'
 
 afterEach(() => cleanup())
@@ -111,32 +111,7 @@ describe('useQueryTable sort and filter passthrough', () => {
 })
 
 describe('antd tables forward header sort / filter to the request', () => {
-  it('ProQueryTable: clicking a sortable header sends sorter and controls sortOrder', async () => {
-    const request = backend()
-    function Page() {
-      const table = useQueryTable({ initialValues: {} as Record<string, unknown>, request, defaultPageSize: 5 })
-      return (
-        <ProQueryTable
-          table={table}
-          columns={[
-            { key: 'id', dataIndex: 'id', title: 'ID' },
-            { key: 'n', dataIndex: 'n', title: 'N', sorter: true },
-          ]}
-        />
-      )
-    }
-    const { container } = render(<Page />)
-    await waitFor(() => expect(container.querySelectorAll('tbody tr.ant-table-row')).toHaveLength(5))
-    fireEvent.click(screen.getByText('N'))
-    await waitFor(() => expect(request.mock.calls.at(-1)![0]).toMatchObject({ page: 1, sorter: [{ field: 'n', order: 'ascend' }] }))
-    fireEvent.click(screen.getByText('N'))
-    await waitFor(() => expect(request.mock.calls.at(-1)![0]).toMatchObject({ sorter: [{ field: 'n', order: 'descend' }] }))
-    await waitFor(() => expect(container.querySelector('tbody tr.ant-table-row td:nth-child(2)')?.textContent).toBe('row-025'))
-    fireEvent.click(screen.getByTestId('query-reset'))
-    await waitFor(() => expect(request.mock.calls.at(-1)![0]).toMatchObject({ sorter: [] }))
-  })
-
-  it('QueryList: a sortable column header reaches the request through ProArrayTable', async () => {
+  it('QueryList: a sortable column header reaches the request through ArrayTable', async () => {
     const request = backend()
     function Page() {
       const table = useQueryTable({
@@ -149,7 +124,6 @@ describe('antd tables forward header sort / filter to the request', () => {
       return (
         <QueryList
           table={table}
-          list="list"
           settings={false}
           columns={[
             { key: 'id', title: 'ID', render: ({ record }) => <span data-testid="row-id">{record.id}</span> },
@@ -165,6 +139,9 @@ describe('antd tables forward header sort / filter to the request', () => {
     fireEvent.click(screen.getByText('N'))
     await waitFor(() => expect(request.mock.calls.at(-1)![0]).toMatchObject({ page: 1, sorter: [{ field: 'n', order: 'ascend' }] }))
     fireEvent.click(screen.getByText('N'))
+    await waitFor(() => expect(request.mock.calls.at(-1)![0]).toMatchObject({ sorter: [{ field: 'n', order: 'descend' }] }))
     await waitFor(() => expect(screen.getAllByTestId('row-id')[0]!.textContent).toBe('row-025'))
+    fireEvent.click(screen.getByTestId('query-reset'))
+    await waitFor(() => expect(request.mock.calls.at(-1)![0]).toMatchObject({ sorter: [] }))
   })
 })

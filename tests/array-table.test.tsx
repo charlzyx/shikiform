@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createForm, Field, Form } from '../src'
-import { FormItem, Input, ProArrayTable } from '../src/antd'
+import { ArrayField, createForm, Field, Form } from '../src'
+import { FormItem, Input, ArrayTable } from '../src/antd'
 
 afterEach(cleanup)
 
@@ -15,28 +15,27 @@ function rows(count: number): Row[] {
   return Array.from({ length: count }, (_, index) => ({ a1: `${index}.1`, subitems: index % 2 ? undefined : [{ a1: `c.${index}.1` }] }))
 }
 
-function mount(initial: Row[], extra: Partial<Parameters<typeof ProArrayTable>[0]> = {}) {
+function mount(initial: Row[], extra: Partial<Parameters<typeof ArrayTable>[0]> = {}) {
   const form = createForm({ initialValues: { list: initial } })
   const view = render(
     <Form form={form}>
-      <ProArrayTable
-        name="list"
-        pagination={{ pageSize: 5 }}
-        rowSelection
-        columns={[
-          { key: 'index', title: 'Index', render: () => <ProArrayTable.Index /> },
+      <ArrayField name="list" component={[ArrayTable, {
+        pagination: { pageSize: 5 },
+        rowSelection: true,
+        columns: [
+          { key: 'index', title: 'Index', render: () => <ArrayTable.Index /> },
           { key: 'a1', title: 'A1', render: (cell) => <Field name="a1" decorator={[FormItem]}><Input data-testid={`a1-${cell.index}`} /></Field> },
-          { key: 'act', title: '操作', render: () => <><ProArrayTable.MoveUp /><ProArrayTable.MoveDown /><ProArrayTable.Remove /></> },
-        ]}
-        extra={<ProArrayTable.Addition defaultValue={() => ({ a1: 'new' })} />}
-        {...extra}
-      />
+          { key: 'act', title: '操作', render: () => <><ArrayTable.MoveUp /><ArrayTable.MoveDown /><ArrayTable.Remove /></> },
+        ],
+        extra: <ArrayTable.Addition defaultValue={() => ({ a1: 'new' })} />,
+        ...extra,
+      }]} />
     </Form>,
   )
   return { form, view }
 }
 
-describe('ProArrayTable', () => {
+describe('ArrayTable', () => {
   it('slices pages, shows global positions, and binds cells to the row', async () => {
     const { form } = mount(rows(12))
     expect(screen.getAllByTestId('row-index').map((node) => node.textContent)).toEqual(['1', '2', '3', '4', '5'])
@@ -90,18 +89,22 @@ describe('ProArrayTable', () => {
     const form = createForm({ initialValues: { list: rows(3) } })
     render(
       <Form form={form}>
-        <ProArrayTable<Row>
-          name="list"
-          settings={false}
-          columns={[{ key: 'a1', title: 'A1', render: () => <Field name="a1" decorator={[FormItem]}><Input /></Field> }]}
-          expandable={{
+        <ArrayField name="list" component={[ArrayTable, {
+          settings: false,
+          columns: [{ key: 'a1', title: 'A1', render: () => <Field name="a1" decorator={[FormItem]}><Input /></Field> }],
+          expandable: {
             defaultExpandAll: true,
             rowExpandable: (record) => Array.isArray(record.subitems),
             render: () => (
-              <ProArrayTable name="subitems" pattern="readPretty" settings={false} showHeader={false} columns={[{ key: 'a1', render: () => <Field name="a1" decorator={[FormItem]}><Input /></Field> }]} />
+              <ArrayField name="subitems" component={[ArrayTable, {
+                pattern: 'readPretty',
+                settings: false,
+                showHeader: false,
+                columns: [{ key: 'a1', render: () => <Field name="a1" decorator={[FormItem]}><Input /></Field> }],
+              }]} />
             ),
-          }}
-        />
+          },
+        }]} />
       </Form>,
     )
     await waitFor(() => expect(screen.getByText('c.0.1')).toBeTruthy())
@@ -112,7 +115,7 @@ describe('ProArrayTable', () => {
   it('drag sort: handle starts the drag, dropping on a row moves it there', () => {
     const { form } = mount(rows(4), {
       columns: [
-        { key: 'sort', render: () => <ProArrayTable.SortHandle /> },
+        { key: 'sort', render: () => <ArrayTable.SortHandle /> },
         { key: 'a1', title: 'A1', render: () => <Field name="a1" decorator={[FormItem]}><Input /></Field> },
       ],
     })

@@ -2,7 +2,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { ArrayField, createForm, Form, RowScope, useArray, useIndex, useRecord, useTreeNode } from '../src'
-import { ProArrayTable } from '../src/antd'
+import { ArrayTable } from '../src/antd'
 
 afterEach(cleanup)
 
@@ -90,16 +90,20 @@ describe('headless row context hooks (useArray / useIndex / useRecord / useTreeN
     expect(screen.getByTestId('node').textContent).toBe('nodes.0.children.0|0.0|0|leaf')
   })
 
-  it('ProArrayTable cells get the same hooks; ProArrayTable.useRow is built on them', () => {
+  it('ArrayTable cells get the same hooks; ArrayTable.useRow is built on them', () => {
     const form = createForm({ initialValues: { list: [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }] as Row[] } })
     function Cell() {
-      const row = ProArrayTable.useRow()
+      const row = ArrayTable.useRow()
       const array = useArray()
       return <span data-testid={`cell-${row.index}`}>{`${row.key}|${row.position}|${row.record.name}|${array.path}`}</span>
     }
     render(
       <Form form={form}>
-        <ProArrayTable name="list" rowKey="id" settings={false} pagination={false} columns={[{ key: 'c', render: () => <Cell /> }]} />
+        <ArrayField name="list" rowKey="id" component={[ArrayTable, {
+          settings: false,
+          pagination: false,
+          columns: [{ key: 'c', render: () => <Cell /> }],
+        }]} />
       </Form>,
     )
     expect(screen.getByTestId('cell-1').textContent).toBe('b|2|B|list')

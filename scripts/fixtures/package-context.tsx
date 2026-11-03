@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { Field, Form, FormEngine, ObjectField, useField, useForm, useFormContext, useWatch, type Draft } from 'shikiform'
+import { ArrayField, Field, Form, FormEngine, ObjectField, useField, useForm, useFormContext, useWatch, type Draft } from 'shikiform'
 import { FormEngine as CoreFormEngine } from 'shikiform/core'
-import { ArrayTable, FormItem, Input, ProQueryTable, Submit } from 'shikiform/antd'
+import { ArrayTable, FormItem, Input, QueryList, Submit } from 'shikiform/antd'
 import { useQueryTable } from 'shikiform/pro'
 
 // Copied into the isolated npm-pack consumer, never resolved through TS paths.
@@ -29,18 +29,23 @@ function AntdProvider() {
 function RootProvider() {
   const form = useForm({ initialValues: { group: { rows: [{ id: 'a', email: 'row' }] } } })
   return <Form form={form}><ObjectField name="group">
-    <ArrayTable name="rows" rowKey="id">{() => <Probe form={form} expected="row" />}</ArrayTable>
+    <ArrayField name="rows" rowKey="id" component={[ArrayTable, {
+      settings: false,
+      pagination: false,
+      columns: [{ key: 'probe', render: () => <Probe form={form} expected="row" /> }],
+    }]} />
   </ObjectField></Form>
 }
 
 function QueryProvider() {
   const table = useQueryTable({
-    initialValues: { email: 'query', page: 1, pageSize: 10, selectedKeys: [] as string[] },
+    initialValues: { email: 'query', list: [] as Array<{ id: string }>, page: 1, pageSize: 10, selectedKeys: [] as string[] },
+    rows: 'list',
     request: async () => ({ data: [] as Array<{ id: string }>, total: 0 }),
   })
-  return <ProQueryTable table={table} columns={[]} search={
+  return <QueryList table={table} settings={false} columns={[]}>
     <Field name="email">{(field) => <span>{field.value}</span>}</Field>
-  } />
+  </QueryList>
 }
 
 export function verifyPackageContexts() {

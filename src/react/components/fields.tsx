@@ -1,4 +1,4 @@
-import { useMemo, type ComponentType, type FormEvent, type FormHTMLAttributes, type ReactNode } from 'react'
+import { useMemo, type ComponentProps, type ComponentType, type FormEvent, type FormHTMLAttributes, type ReactNode } from 'react'
 import type { FormEngine } from '../../core/engine/form-engine'
 import type { ArrayPath, Display, Draft, FieldEnum, FieldError, FieldPath, PathValue, Pattern, UiName } from '../../core/types'
 import type { RulesInput } from '../../core/validation/rules'
@@ -10,6 +10,8 @@ import { useField, type FieldBinding, type FieldSlot } from '../hooks/use-field'
 import { useTreeField } from '../hooks/use-tree'
 import { useWatch } from '../hooks/use-watch'
 import { resolveName } from '../hooks/resolve-name'
+import { ShikiUsageError } from '../../core/errors'
+import { VirtualRows } from './virtual-rows'
 
 const ROOT_SCOPE = { path: '', index: -1 }
 
@@ -196,40 +198,74 @@ export function ObjectField<TScope = any>({
 }
 
 /**
- * Repeat `children` once per row. The key is the row id when present (`rowKey`, else `id`), otherwise a stable
- * object identity, so rows without an id keep their state when they move.
+ * The owner of an array path. Repeats `children` once per row; the key is the row id when present (`rowKey`, else
+ * `id`), otherwise a stable object identity, so rows without an id keep their state when they move.
  * The parent subscribes to structure only. Put cell inputs in a child that calls `useField`.
  * Names inside a row are relative to the row (`name="price"`, not `items.0.price`).
- * `component` is the container around the rows (Formily `ArrayItems` / `ArrayCards` in `shikiform/antd`):
- * `component={[ArrayItems, { addition: <ArrayItems.Addition /> }]}` renders `<ArrayItems …>{rows}</ArrayItems>`
- * inside the array's scope, so its buttons reach the array through {@link useArray}.
+ * `component` is the container around the rows (Formily `ArrayItems` / `ArrayCards` / `ArrayTable` in
+ * `shikiform/antd`): `component={[ArrayItems, { addition: <ArrayItems.Addition /> }]}` renders
+ * `<ArrayItems …>{rows}</ArrayItems>` inside the array's scope, so its buttons reach the array through {@link useArray}.
+ * A container that renders its own cells (`ArrayTable` with `columns`) needs no `children`.
+ * `virtualScroll` windows the plain rows (TanStack Virtual); it does not combine with a container `component`.
  * `<ArrayField<Values> name="items">` checks the name; `typed(form).ArrayField` also types the row's fields.
  */
-export function ArrayField<TScope = any>({
+/**
+ * The `component` of an `<ArrayField>`: a container, or `[Container, props]`. The props are checked against the
+ * container (`[ArrayTable, { columns }]` requires `columns` and types each column's `render`); `children` is the rows.
+ */
+export type ArrayContainerSlot<C extends ComponentType<any> = ComponentType<any>> =
+  | C
+  | readonly [C]
+  | readonly [C, Omit<ComponentProps<C>, 'children'> | undefined]
+
+export function ArrayField<TScope = any, C extends ComponentType<any> = ComponentType<any>>({
   name,
   rowKey,
   component,
+  virtualScroll,
   children,
 }: {
   name: ArrayPath<TScope>
   rowKey?: string
   /** Container around the rows: the component, or `[Component, props]`. It receives the rows as `children`. */
-  component?: FieldSlot
-  children: (row: { index: number; key: string }) => ReactNode
+  component?: ArrayContainerSlot<C>
+  /** Window the rows: only those in view (plus `overscan`) mount. Plain rows only (no `component`). */
+  virtualScroll?: { height: number; rowHeight?: number; overscan?: number }
+  /** One row. Optional when `component` renders the rows itself (`ArrayTable` columns). */
+  children?: (row: { index: number; key: string }) => ReactNode
 }) {
   const array = useArrayField(String(name), rowKey)
-  const rows = array.keys.map((row) => (
-    <RowScope key={row.key} path={`${array.path}.${row.index}`} index={row.index} itemKey={row.key}>
-      {children(row)}
-    </RowScope>
-  ))
   const [Container, props] = Array.isArray(component) ? component : [component as ComponentType<any> | undefined, undefined]
+  if (virtualScroll && Container) {
+    throw new ShikiUsageError(
+      `<ArrayField name="${String(name)}"> takes \`virtualScroll\` or a container \`component\`, not both: ` +
+        'virtualScroll windows plain rows (`<ArrayField name virtualScroll>{(row) => …}</ArrayField>`).',
+    )
+  }
+  const row = (index: number, key: string) => (
+    <RowScope key={key} path={`${array.path}.${index}`} index={index} itemKey={key}>
+      {children!({ index, key })}
+    </RowScope>
+  )
+  let rows: ReactNode = null
+  if (children && virtualScroll) {
+    rows = (
+      <VirtualRows count={array.keys.length} height={virtualScroll.height} rowHeight={virtualScroll.rowHeight ?? 42} overscan={virtualScroll.overscan ?? 4}>
+        {(index) => {
+          const at = array.keys[index]
+          return at ? row(index, at.key) : null
+        }}
+      </VirtualRows>
+    )
+  } else if (children) {
+    rows = array.keys.map((at) => row(at.index, at.key))
+  }
   return <ArrayScope path={array.path} rowKey={rowKey}>{Container ? <Container {...props}>{rows}</Container> : rows}</ArrayScope>
 }
 
 /**
- * Mark the nearest array for {@link useArray} (`path` is absolute). `<ArrayField>`, `ArrayTable` and `ProArrayTable`
- * render it; use it in a custom array component built on `useArrayField`.
+ * Mark the nearest array for {@link useArray} (`path` is absolute). `<ArrayField>` renders it; use it in a custom
+ * array component built on `useArrayField`.
  */
 export function ArrayScope({ path, rowKey, children }: { path: string; rowKey?: string; children?: ReactNode }) {
   const value = useMemo(() => ({ path, rowKey }), [path, rowKey])

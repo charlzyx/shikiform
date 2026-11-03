@@ -5,7 +5,7 @@ description: useQueryTable、useBuiltinQuery、normalizeSort / normalizeFilters 
 
 # 查询 Hooks 参考
 
-从 `shikiform/pro` 导入。它们没有 antd 依赖：Hook 处理请求、分页和选择；[ProQueryTable](/reference/antd#proquerytable) 只是 UI。完整场景见 [查询表](/play/query)。
+从 `shikiform/pro` 导入。它们没有 antd 依赖：Hook 处理请求、分页和选择；[QueryList](/reference/pro-components#querylist) 只是 UI。完整场景见 [查询表](/play/query)。
 
 ## useQueryTable
 
@@ -43,7 +43,7 @@ useQueryTable<TValues, TRow = unknown>(
 | `selectedKeys` | `'selectedKeys'` | 选择字段路径；初始缺失时为 `[]`，读取时转换为 string[] |
 | `mode` | `'server'` | server 模式由服务端分页；client 模式对请求结果的整个 data 做切片 |
 | `request` | **必填** | 异步返回 `{ data, total }`，见协议 |
-| `rows` | 不写回 | 数组字段路径：每页 `data` 写进这个字段并作为它的初始值，单元格可直接编辑（`QueryList` 用它） |
+| `rows` | 不写回 | 数组字段路径：每页 `data` 写进这个字段并作为它的初始值，单元格可直接编辑；`QueryList` 必须有它 |
 | `useQuery` | `useBuiltinQuery` | 可接 TanStack Query 等兼容 Hook；每次渲染应传同一个 Hook，不要动态切换 Hook 实现 |
 
 初始化时，client 的 page、pageSize 都标记 virtual；server 中两者非 virtual；selectedKeys 总是 virtual。路径和模式等配置在同一实例生命周期内保持稳定。首次请求在 effect 中发起，SSR 不发送请求。
@@ -72,7 +72,7 @@ server 返回当前页 data 和未分页的 total；client 返回本次筛选下
 | 返回成员 | 类型 / 行为 |
 |---|---|
 | `form` | 原表单实例，可以用正式 Field/Hook 接搜索控件 |
-| `rows` | `rows` 选项的字段路径（没传为 `undefined`）；`QueryList` 默认渲染它 |
+| `rows` | `rows` 选项的字段路径（没传为 `undefined`）；`QueryList` 渲染的就是它 |
 | `data`、`total` | 当前页 `TRow[]`、总数；未取得数据时 `[]` / `0` |
 | `loading` | 请求中且还没有旧数据时 true |
 | `fetching` | 所有进行中的请求都为 true，包含保留旧结果的刷新 |
@@ -92,7 +92,7 @@ server 返回当前页 data 和未分页的 total；client 返回本次筛选下
 
 ### 表头排序与列筛选
 
-列上写 `sorter: true` / `filters`，表头的变化经 `onTableChange` 进入 Hook，再作为 `sorter` / `filters` 发给 `request`。`ProQueryTable` 和 `QueryList` 已经接好，并把列的 `sortOrder` / `filteredValue` 设为受控（列自己写了就用列的）。排序和列筛选都回到第 1 页；列筛选和查询按钮一样清空选择，只翻页或只排序保留选择。`submit()` 保留当前排序和列筛选，`reset()` 一并清空。client 模式下排序 / 列筛选变化同样重新请求，由 `request` 返回排好、筛好的完整数据。
+列上写 `sorter: true` / `filters`，表头的变化经 `onTableChange` 进入 Hook，再作为 `sorter` / `filters` 发给 `request`。`QueryList` 已经接好，并把列的 `sortOrder` / `filteredValue` 设为受控（列自己写了就用列的）。排序和列筛选都回到第 1 页；列筛选和查询按钮一样清空选择，只翻页或只排序保留选择。`submit()` 保留当前排序和列筛选，`reset()` 一并清空。client 模式下排序 / 列筛选变化同样重新请求，由 `request` 返回排好、筛好的完整数据。
 
 ```tsx
 const table = useQueryTable({
@@ -102,7 +102,7 @@ const table = useQueryTable({
   request: ({ params, page, pageSize, sorter, filters }) =>
     api.list({ ...params, page, pageSize, orderBy: sorter[0]?.field, order: sorter[0]?.order, status: filters.status }),
 })
-<QueryList table={table} list="list" columns={[
+<QueryList table={table} columns={[
   { key: 'id', title: 'ID', sorter: true, render: ({ record }) => record.id },
   { key: 'status', title: '状态', filters: [{ text: '运行中', value: 1 }], render: () => <Field name="status" /> },
 ]} />
@@ -120,10 +120,10 @@ const table = useQueryTable({
 import { Input } from 'antd';
 import { Field } from 'shikiform';
 import { useQueryTable } from 'shikiform/pro';
-import { ProQueryTable, QueryForm } from 'shikiform/antd';
+import { QueryList } from 'shikiform/antd';
 
 type Row = { id: string; name: string };
-type Values = { filters: { name: string }; page: number; pageSize: number; selectedKeys: string[] };
+type Values = { filters: { name: string }; list: Row[]; page: number; pageSize: number; selectedKeys: string[] };
 const rows: Row[] = [
   { id: '1', name: 'Ada' }, { id: '2', name: 'Grace' },
   { id: '3', name: 'Alan' }, { id: '4', name: 'Edsger' },
@@ -131,8 +131,9 @@ const rows: Row[] = [
 
 export default function App() {
   const table = useQueryTable({
-    initialValues: { filters: { name: '' }, page: 1, pageSize: 2, selectedKeys: [] as string[] },
+    initialValues: { filters: { name: '' }, list: [] as Row[], page: 1, pageSize: 2, selectedKeys: [] as string[] },
     params: 'filters',
+    rows: 'list',
     mode: 'client',
     request: async ({ params }) => {
       const data = rows.filter((row) => row.name.toLowerCase().includes(params.name.toLowerCase()));
@@ -140,15 +141,12 @@ export default function App() {
     },
   });
   return (
-    <ProQueryTable table={table} columns={[{ title: '名称', dataIndex: 'name' }]}
-      search={(
-        <QueryForm>
-          <Field<Values, 'filters.name'> name="filters.name">
-            {(field) => <Input aria-label="筛选名称" placeholder="输入后点查询" value={field.value}
-              onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} />}
-          </Field>
-        </QueryForm>
-      )} />
+    <QueryList table={table} settings={false} rowSelection={false} columns={[{ key: 'name', title: '名称', render: ({ record }) => record.name }]}>
+      <Field<Values, 'filters.name'> name="filters.name">
+        {(field) => <Input aria-label="筛选名称" placeholder="输入后点查询" value={field.value}
+          onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} />}
+      </Field>
+    </QueryList>
   );
 }
 ```
@@ -175,7 +173,7 @@ useBuiltinQuery<TRow>(args: QueryHookArgs<TRow>): QueryHookResult<TRow>
 
 ## 实现位置
 
-`src/pro/use-query-table.ts` 定义 `useQueryTable`、`useBuiltinQuery`、`normalizeSort`、`normalizeFilters` 和相关类型；导出入口在 `src/pro/index.ts`。UI 的分页/选择接线在 `src/antd/tables/query-table.tsx`，参阅 [Ant Design 表格参考](/reference/antd#proquerytable)。
+`src/pro/use-query-table.ts` 定义 `useQueryTable`、`useBuiltinQuery`、`normalizeSort`、`normalizeFilters` 和相关类型；导出入口在 `src/pro/index.ts`。UI 的分页/选择接线在 `src/antd/tables/query-list.tsx`，参阅 [QueryList](/reference/pro-components#querylist)。
 
 ## normalizeSort
 

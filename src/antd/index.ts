@@ -7,11 +7,11 @@
  *   `DatePicker`, `TimePicker`, `Slider`, `Rate`, `Transfer`, `Upload`, `ColorPicker` wired through `connect`, each with a
  *   `readPretty` view from `PreviewText.*`;
  * - buttons: `Submit` / `Reset` for the surrounding form;
- * - arrays: `ArrayItems` / `ArrayCards`, containers for `<ArrayField component>` (add / remove / move / drag rows);
+ * - arrays: `ArrayItems` / `ArrayCards` / `ArrayTable`, containers for `<ArrayField component>` (add / remove / move /
+ *   drag rows; `ArrayTable` adds paging, selection, expansion, column settings over `useArrayTable` / `useColumnSettings`);
  * - containers: `FormTab`, `FormCollapse`, `FormStep` / `useFormStep` (panes keep their fields mounted; error badges
  *   and per-step validation come from `FieldGroup` in `shikiform`);
- * - tables: `ArrayTable`, `MergedTable`, `ProQueryTable` / `QueryForm` (over `useArrayField` / `useQueryTable`),
- *   `ProArrayTable` (over `useArrayTable` / `useColumnSettings`), `QueryList` (over `useQueryTable`);
+ * - tables: `QueryList` (search grid + `ArrayTable` over `useQueryTable({ rows })`), `MergedTable` (read-only rowspan);
  * - shadow forms: `ShadowForm`, `ShadowModal`, `ShadowDrawer`, `ShadowPopconfirm`, `useShadow` (over `useShadowForm`);
  * - pro inputs: `Suggestion` (over `useSuggestion`), `CascaderPlus` (over `useLazyCascader`).
  *
@@ -58,11 +58,9 @@ export type { FormCollapsePanelProps, FormCollapseProps } from './containers/for
 export { FormStep, useFormStep } from './containers/form-step'
 export type { FormStepHandle, FormStepProps, FormStepStepProps, UseFormStepOptions } from './containers/form-step'
 export { ArrayTable } from './tables/array-table'
+export type { ArrayTableCell, ArrayTableColumn, ArrayTableProps } from './tables/array-table'
 export { MergedTable, groupRowSpan } from './tables/merged-table'
 export type { MergedColumn } from './tables/merged-table'
-export { ProQueryTable, QueryForm } from './tables/query-table'
-export { ProArrayTable } from './tables/pro-array-table'
-export type { ProArrayTableCell, ProArrayTableColumn, ProArrayTableProps } from './tables/pro-array-table'
 export { QueryList } from './tables/query-list'
 export type { QueryListProps } from './tables/query-list'
 export { ShadowDrawer, ShadowForm, ShadowModal, ShadowPopconfirm, useShadow } from './shadow/shadow'

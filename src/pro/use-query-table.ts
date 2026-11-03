@@ -102,7 +102,7 @@ export interface UseQueryTableOptions<TValues, TParams, TRow> {
   defaultPageSize?: number
   /**
    * Array field that receives each response's rows (`data`), so the page can be edited in place
-   * (`QueryList` / `ProArrayTable` in `shikiform/antd`). Each response also becomes the initial value of that path,
+   * (`QueryList` in `shikiform/antd`). Each response also becomes the initial value of that path,
    * so the form is not `dirty` (or `edited`) until the user changes a row.
    */
   rows?: FieldPath<TValues>
@@ -152,7 +152,7 @@ export interface QueryTableApi<TValues, TParams, TRow> {
 
 /**
  * Headless query form + table, in the shape of ProTable / ahooks `useAntdTable`, built on ShikiForm.
- * No UI dependency. `ProQueryTable` in `shikiform/antd` is a thin wrapper over this hook.
+ * No UI dependency. `QueryList` in `shikiform/antd` renders it (pass `rows`).
  *
  * `TValues` is inferred from `initialValues` or `form`. `TRow` is inferred from `request`'s `data`.
  * `params: 'filters'` types the request payload as that field's value.

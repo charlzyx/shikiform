@@ -15,8 +15,8 @@ import { SkuPage } from './pages/sku'
 import { TabsPage } from './pages/tabs'
 import { VirtualPage } from './pages/virtual'
 import { CascaderPlusPage } from './pages/cascader-plus'
-import { ProArrayTablePage } from './pages/pro-array-table'
-import { ProArrayTableShadowPage } from './pages/pro-array-table-shadow'
+import { ArrayTablePage } from './pages/array-table'
+import { ArrayTableShadowPage } from './pages/array-table-shadow'
 import { ProEnumPage } from './pages/pro-enum'
 import { QueryListAddPage, QueryListPage } from './pages/query-list'
 import { ShadowFormPage } from './pages/shadow-form'
@@ -39,8 +39,8 @@ const routes: Record<string, () => ReactElement> = {
   '/headless': HeadlessPage,
   '/row-edit': RowEditPage,
   // Pro.formily demos, one route each.
-  '/pro-array-table': ProArrayTablePage,
-  '/pro-array-table-shadow': ProArrayTableShadowPage,
+  '/array-table': ArrayTablePage,
+  '/array-table-shadow': ArrayTableShadowPage,
   '/shadow-form': ShadowFormPage,
   '/pro-enum': ProEnumPage,
   '/cascader-plus': CascaderPlusPage,

@@ -10,14 +10,13 @@ description: 带联动条件的查询表、不依赖 antd 的同一个查询 Hoo
 场景：日志查询页。条件超过一行时折叠（折叠不丢值），「供应商」决定「模型」的选项，表头还能按状态筛选；新的查询回到第 1 页，翻页保留勾选。
 
 ```tsx preview play=query
-import { useState } from 'react';
-import { Button } from 'antd';
 import { Field, defineEffects } from 'shikiform';
 import { useQueryTable } from 'shikiform/pro';
-import { FormItem, FormLayout, Input, ProQueryTable, QueryForm, Select } from 'shikiform/antd';
+import { FormItem, FormLayout, Input, QueryList, Select, type ArrayTableColumn } from 'shikiform/antd';
 
 type Log = { id: string; keyword: string; provider: string; model: string; status: string };
-type Values = { keyword: string; provider: string; model: string; user: string };
+type Query = { keyword: string; provider: string; model: string; user: string };
+type Values = { query: Query; list: Log[] };
 
 const LOGS: Log[] = Array.from({ length: 12 }, (_, i) => ({
   id: String(i + 1), keyword: `${i % 2 ? 'beta' : 'alpha'}-${i + 1}`,
@@ -28,21 +27,28 @@ const options = (values: string[]) => values.map((value) => ({ label: value, val
 
 const effects = defineEffects<Values>(({ reaction, watch }) => {
   reaction((d) => {
-    d.model.$enum = options(MODELS[d.provider.$value] ?? []);
+    d.query.model.$enum = options(MODELS[d.query.provider.$value] ?? []);
   });
-  watch((d) => d.provider.$value, (d) => {
-    if (!(MODELS[d.provider.$value] ?? []).includes(d.model.$value)) d.model.$value = '';
+  watch((d) => d.query.provider.$value, (d) => {
+    if (!(MODELS[d.query.provider.$value] ?? []).includes(d.query.model.$value)) d.query.model.$value = '';
   });
 });
 
+const columns: ArrayTableColumn<Log>[] = [
+  { key: 'keyword', title: '关键字', render: ({ record }) => record.keyword },
+  { key: 'provider', title: '供应商', render: ({ record }) => record.provider },
+  { key: 'model', title: '模型', render: ({ record }) => record.model },
+  { key: 'status', title: '状态', filters: [{ text: '成功', value: 'ok' }, { text: '失败', value: 'error' }], render: ({ record }) => record.status },
+];
+
 export default function App() {
-  const [collapsed, setCollapsed] = useState(true);
   const table = useQueryTable({
-    initialValues: { keyword: '', provider: '', model: '', user: '' } as Values,
-    fields: { provider: { enum: options(['openai', 'anthropic']) } },
+    initialValues: { query: { keyword: '', provider: '', model: '', user: '' }, list: [] } as Values,
+    fields: { 'query.provider': { enum: options(['openai', 'anthropic']) } },
     effects: [effects],
     defaultPageSize: 5,
-    params: (values: Values) => values,
+    params: 'query',
+    rows: 'list',
     request: async ({ params, page, pageSize, filters }) => {
       const rows = LOGS.filter((row) =>
         (!params.keyword || row.keyword.includes(params.keyword)) &&
@@ -54,32 +60,21 @@ export default function App() {
     },
   });
   return (
-    <ProQueryTable
-      table={table}
-      search={
-        <FormLayout layout="vertical">
-          <QueryForm collapsed={collapsed} collapseAfter={3}>
-            <Field name="keyword" title="关键字" decorator={[FormItem]} component={[Input]} />
-            <Field name="provider" title="供应商" decorator={[FormItem]} component={[Select, { allowClear: true }]} />
-            <Field name="model" title="模型" decorator={[FormItem]} component={[Select, { allowClear: true }]} />
-            <Field name="user" title="用户 ID" decorator={[FormItem]} component={[Input]} />
-          </QueryForm>
-        </FormLayout>
-      }
-      toolbar={<Button type="link" onClick={() => setCollapsed(!collapsed)}>{collapsed ? '展开条件' : '收起条件'}</Button>}
-      columns={[
-        { title: '关键字', dataIndex: 'keyword' },
-        { title: '供应商', dataIndex: 'provider' },
-        { title: '模型', dataIndex: 'model' },
-        { title: '状态', key: 'status', dataIndex: 'status', filters: [{ text: '成功', value: 'ok' }, { text: '失败', value: 'error' }] },
-      ]}
-    />
+    <FormLayout layout="vertical">
+      <QueryList table={table} columns={columns} collapseAfter={3} settings={false}>
+        <Field name="query.keyword" title="关键字" decorator={[FormItem]} component={[Input]} />
+        <Field name="query.provider" title="供应商" decorator={[FormItem]} component={[Select, { allowClear: true }]} />
+        <Field name="query.model" title="模型" decorator={[FormItem]} component={[Select, { allowClear: true }]} />
+        <Field name="query.user" title="用户 ID" decorator={[FormItem]} component={[Input]} />
+      </QueryList>
+    </FormLayout>
   );
 }
 ```
 
-- `useQueryTable`（`shikiform/pro`）管条件、分页、勾选、表头筛选和请求竞态；`ProQueryTable` 只负责摆放。它的 `form` 是普通引擎，所以条件之间照常写 `reaction` / `watch`。
-- `QueryForm` 折叠时只是隐藏多出来的格子，不卸载字段，值不丢。
+- `useQueryTable`（`shikiform/pro`）管条件、分页、勾选、表头筛选和请求竞态；`QueryList` 只负责摆放：条件栅格 + 重置 / 查询 + 一张受控分页的 `ArrayTable`。它的 `form` 是普通引擎，所以条件之间照常写 `reaction` / `watch`。
+- `rows: 'list'` 把每页结果写进 `list` 数组字段，表格显示的就是它（单元格也能放 `<Field>` 直接编辑）。
+- 超过 `collapseAfter` 个条件时出现「展开 / 收起」；收起只是隐藏多出来的格子，不卸载字段，值不丢。
 - 表头筛选随请求发给 `request` 的 `filters`，并回到第 1 页、清空勾选；只翻页时勾选保留。见 [查询 Hooks](/reference/query-hooks)。
 
 ## 不用 antd 的查询表

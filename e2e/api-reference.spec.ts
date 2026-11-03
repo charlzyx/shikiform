@@ -18,8 +18,8 @@ test('deployment includes named Hook references and the same executable adapter 
     }
   }
   expect(landing).toContain('href="/guide/field"')
-  const pro = readFileSync('dist/guide/pro.html', 'utf8')
-  expect(pro).toContain('采购清单')
+  const arrays = readFileSync('dist/guide/arrays.html', 'utf8')
+  expect(arrays).toContain('采购清单')
   const adapters = readFileSync('dist/reference/antd.html', 'utf8')
   expect(adapters).toContain('adapter-event-counts')
 })

@@ -1,7 +1,7 @@
 import { Button, ConfigProvider } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import { Field, Form, useWatch, type Draft } from 'shikiform'
-import { DatePicker, FormItem, Input, ProArrayTable, QueryList, Select, ShadowModal, type ProArrayTableColumn } from 'shikiform/antd'
+import { DatePicker, FormItem, Input, ArrayTable, QueryList, Select, ShadowModal, type ArrayTableColumn } from 'shikiform/antd'
 import { useArrayShadow, useQueryTable } from 'shikiform/pro'
 import { CLASSIFY_ENUM, domainService, STATUS_ENUM, type DomainQuery, type DomainRow } from '../pro-data'
 
@@ -46,7 +46,7 @@ function useDomainTable() {
 /** Table cells: the FormItem decorator only for its error status, without margins. */
 const cell = { style: { margin: 0 } }
 
-const columns: ProArrayTableColumn<DomainRow>[] = [
+const columns: ArrayTableColumn<DomainRow>[] = [
   { key: 'id', title: 'ID', width: 80, align: 'center', sorter: true, render: ({ record }) => <span data-testid="row-id">{record.id}</span> },
   { key: 'status', title: 'STATUS', width: 110, align: 'center', render: () => <Field name="status" pattern="readPretty" decorator={[FormItem, cell]}><Select prettyType="badge" /></Field> },
   { key: 'domain', title: 'DOMAIN', align: 'center', render: ({ index }) => <Field name="domain" decorator={[FormItem, cell]}><Input data-testid={`domain-${index}`} /></Field> },
@@ -73,7 +73,7 @@ export function QueryListPage() {
       <main style={{ padding: 16 }}>
         <h1>QueryList</h1>
         <p>查询表单（超过一行折叠，展开 / 收起）+ 服务端分页表格。每页结果写进表单的 list 数组，DOMAIN 可以直接改；翻页、刷新、列配置（「分类」默认隐藏）都在表头；点 ID 表头排序，排序随请求发给服务端并回到第 1 页。共 45 条模拟数据。</p>
-        <QueryList table={table} list="list" columns={columns} collapseAfter={2}>
+        <QueryList table={table} columns={columns} collapseAfter={2}>
           {SearchFields()}
         </QueryList>
         <Selection table={table} />
@@ -98,7 +98,6 @@ export function QueryListAddPage() {
         <p>在 QueryList 基础上：每行「编辑」打开影子表单，确定写回该行；「添加条目」追加一行到当前页数据。真实场景里 onOk 里调接口后 refresh。</p>
         <QueryList
           table={table}
-          list="list"
           collapseAfter={2}
           columns={[
             ...columns,
@@ -115,9 +114,9 @@ export function QueryListAddPage() {
             },
           ]}
           extra={
-            <ProArrayTable.ProAddition<DomainRow> title="添加条目" initialValues={{ id: 0, domain: '', desc: '' } as DomainRow}>
+            <ArrayTable.ShadowAddition<DomainRow> title="添加条目" initialValues={{ id: 0, domain: '', desc: '' } as DomainRow}>
               <RowFields prefix="add" />
-            </ProArrayTable.ProAddition>
+            </ArrayTable.ShadowAddition>
           }
         >
           {SearchFields()}

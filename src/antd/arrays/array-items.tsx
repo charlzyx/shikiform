@@ -11,7 +11,8 @@ import {
   type ReactNode,
 } from 'react'
 import { ArrayContext, useRequiredForm } from '../../react/context'
-import { useArray, useArrayMoveAt } from '../../react/hooks/use-array'
+import { useArray } from '../../react/hooks/use-array'
+import type { DragProps } from '../../react/hooks/drag'
 import { useFormMessage } from '../../react/hooks/use-form-message'
 import { useIndex } from '../../react/hooks/use-row'
 import { useWatch } from '../../react/hooks/use-watch'
@@ -28,8 +29,8 @@ import type { Draft } from '../../core/types'
  * as `children`, so every button here is `useArray()` + `useIndex()`: no state of their own.
  */
 
-type Mover = ReturnType<typeof useArrayMoveAt>
-const MoverContext = createContext<Mover | null>(null)
+/** The container's `array.dragProps`, so rows and handles need no structure subscription of their own. */
+const DragContext = createContext<((index: number) => DragProps) | null>(null)
 
 function useArrayPath(caller: string): string {
   const ctx = useContext(ArrayContext)
@@ -67,22 +68,21 @@ function EmptyRows({ empty }: { empty?: ReactNode | false }) {
 /** Rows stacked vertically; each row is usually an `ArrayItems.Item`. Drag sort works through `SortHandle`. */
 function ArrayItemsBase({ children, addition, empty, className, style }: ContainerProps) {
   const array = useArray()
-  const mover = useArrayMoveAt(array.path)
   return (
-    <MoverContext.Provider value={mover}>
+    <DragContext.Provider value={array.dragProps}>
       <div className={className} style={{ display: 'flex', flexDirection: 'column', gap: 8, ...style }} data-array-items={array.path}>
         {array.keys.length === 0 ? <EmptyRows empty={empty} /> : children}
         {addition}
       </div>
-    </MoverContext.Provider>
+    </DragContext.Provider>
   )
 }
 
 /** One row: a horizontal line of fields and actions, and the drop target for drag sort. */
 function Item({ children, style, className }: { children?: ReactNode; style?: CSSProperties; className?: string }) {
-  const mover = useContext(MoverContext)
+  const dragProps = useContext(DragContext)
   const index = useIndex()
-  const drop = mover ? mover.bind(index) : null
+  const drop = dragProps ? dragProps(index) : null
   return (
     <div
       className={className}
@@ -98,12 +98,12 @@ function Item({ children, style, className }: { children?: ReactNode; style?: CS
 
 /** Drag this row onto another row of the same array to move it there. Hidden when the array is not editable. */
 function SortHandle() {
-  const mover = useContext(MoverContext)
+  const dragProps = useContext(DragContext)
   const index = useIndex()
   const editable = useArrayEditable()
   const t = useFormMessage()
-  if (!editable || !mover) return null
-  const { draggable, onDragStart } = mover.bind(index)
+  if (!editable || !dragProps) return null
+  const { draggable, onDragStart } = dragProps(index)
   return (
     <span data-testid="sort-handle" draggable={draggable} onDragStart={onDragStart} title={t('dragSort')} style={{ cursor: 'move', userSelect: 'none', padding: '4px' }}>
       ⋮⋮
@@ -205,9 +205,9 @@ function CardActions() {
 }
 
 function CardRow({ title, extra, children }: { title?: ReactNode; extra?: ReactNode; children?: ReactNode }) {
-  const mover = useContext(MoverContext)
+  const dragProps = useContext(DragContext)
   const index = useIndex()
-  const drop = mover ? mover.bind(index) : null
+  const drop = dragProps ? dragProps(index) : null
   return (
     <div data-testid="array-card" onDragOver={drop?.onDragOver} onDrop={drop?.onDrop}>
       <Card size="small" title={<Space size={4}><SortHandle />{title}<Index /></Space>} extra={extra ?? <CardActions />}>

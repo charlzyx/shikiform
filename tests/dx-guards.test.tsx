@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ArrayField, Field, Form, ObjectField, createForm, defineEffects, useField, useForm } from '../src'
 import { ShikiUsageError } from '../src/core'
-import { FormItem, Input, ProArrayTable, Submit } from '../src/antd'
+import { FormItem, Input, ArrayTable, Submit } from '../src/antd'
 
 afterEach(cleanup)
 
@@ -56,7 +56,7 @@ describe('draft typos and read-only writes throw in development', () => {
 })
 
 describe('a missing <Form> names the caller and the fix', () => {
-  it('Field / useField / ObjectField / ArrayField / ProArrayTable', () => {
+  it('Field / useField / ObjectField / ArrayField / ArrayTable', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
       expect(() => render(<Field name="email" component={[Input]} />)).toThrow(/useField\('email'\) \/ <Field name="email"> has no form\. Render it inside <Form form=\{form\}> \(useForm \/ createForm\)/)
@@ -64,7 +64,8 @@ describe('a missing <Form> names the caller and the fix', () => {
       expect(() => render(<Hook />)).toThrow(/useField\('age'\)/)
       expect(() => render(<ObjectField name="addr" />)).toThrow(/<ObjectField name="addr"> has no form/)
       expect(() => render(<ArrayField name="items">{() => null}</ArrayField>)).toThrow(/items/)
-      expect(() => render(<ProArrayTable name="rows" columns={[]} />)).toThrow(/<ProArrayTable name="rows"> has no form/)
+      expect(() => render(<ArrayField name="rows" component={[ArrayTable, { columns: [] }]} />)).toThrow(/<ArrayField name="rows"> has no form/)
+      expect(() => render(<ArrayTable columns={[]} />)).toThrow(/ArrayTable is the container of an <ArrayField>/)
     } finally {
       spy.mockRestore()
     }

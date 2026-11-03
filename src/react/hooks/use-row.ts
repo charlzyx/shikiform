@@ -6,11 +6,11 @@ import { useWatch } from './use-watch'
 
 /**
  * Index of the row this component renders in (Formily `ArrayBase.useIndex`), from the surrounding `RowScope`
- * (`<ArrayField>`, `ArrayTable`, `ProArrayTable` rows). Throws outside a row.
+ * (`<ArrayField>` rows, `ArrayTable` cells included). Throws outside a row.
  */
 export function useIndex(): number {
   const scope = useScope()
-  if (scope.index < 0) throw new Error('useIndex() must render inside an array row (<ArrayField>, ArrayTable, ProArrayTable)')
+  if (scope.index < 0) throw new Error('useIndex() must render inside an array row (<ArrayField>, ArrayTable cells included)')
   return scope.index
 }
 

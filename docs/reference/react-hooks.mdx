@@ -15,11 +15,9 @@ description: useForm、useField、useWatch、数组与树 Hooks 的签名、返�
 | 跟随表单语言的内置文案 | [`useFormMessage`](#useformmessage) | 不订阅 |
 | 绑定一个输入；无参时读当前字段（自定义控件、装饰器、单元格） | [`useField`](#usefield) | `useField(name)` 订阅该路径；`useField()` 不另订阅（随外层 Field 渲染） |
 | 读取选中的值或状态 | [`useWatch`](#usewatch) | selector 实际读取的 `$` 依赖 |
-| 数组行增删和排序 | [`useArrayField`](#usearrayfield) | 数组结构，不是每个单元格 |
-| 数组拖动事件 | [`useArrayMove`](#usearraymove) | 不订阅 |
+| 数组行增删、排序和拖动（`dragProps`） | [`useArrayField`](#usearrayfield) | 数组结构，不是每个单元格 |
 | 行内取最近的数组 / 行号 / 行值（无需 name） | [`useArray`](#usearray)、[`useIndex`](#useindex)、[`useRecord`](#userecord) | 数组结构 / 不订阅 / 这一行的值 |
-| 树结构和节点移动 | [`useTreeField`](#usetreefield) | 树结构 |
-| 树拖动事件 | [`useTreeMove`](#usetreemove) | 不订阅 |
+| 树结构、节点移动和拖动（`dragProps`） | [`useTreeField`](#usetreefield) | 树结构 |
 | 当前树节点（无需 name） | [`useTreeNode`](#usetreenode) | 这个节点的值 |
 | 收集一块 JSX 里的字段、读它们的错误 | [`useFieldGroup`](#usefieldgroup)、[`useFieldGroupErrors`](#usefieldgrouperrors) | 组成员 / 组内错误 |
 
@@ -328,7 +326,7 @@ useArrayField<TScope, N extends ArrayPath<TScope>>(
 | `name` | 必填，相对当前 scope 的数组路径 |
 | `rowKey` | 可选行标识属性名；省略时使用行的 `id`，没有 ID 的对象行使用对象身份。业务数据建议明确提供唯一稳定 ID |
 
-返回 `{ path, keys, push, insert, remove, move, swap, replace }`：
+返回 `{ path, keys, push, insert, remove, move, swap, replace, dragProps }`：
 
 | 成员 | 签名 / 含义 |
 |---|---|
@@ -340,21 +338,65 @@ useArrayField<TScope, N extends ArrayPath<TScope>>(
 | `move(from, to)` | 移动到**最终下标** `to` → `void` |
 | `swap(a, b)` | 交换两个下标 → `void` |
 | `replace(index, row)` | 替换一行 → `void` |
+| `dragProps(index)` | 这一行的原生 HTML5 拖动属性 `{ draggable, onDragStart, onDragOver, onDrop }`：展开到行上（既是拖动源也是放置目标），或把 `onDragOver` / `onDrop` 给行、`draggable` / `onDragStart` 给把手。把 A 行放到 B 行上 = `move(A, B)` |
 
 写全 `useArrayField<Values, 'items'>('items')` 才能同时检查数组路径和行值类型；只写一个泛型时行操作参数为 `unknown`。
 
 它只订阅结构（长度/顺序/行身份），不会因为单元格编辑就更新整个列表。单元格另用 `useField`，汇总另用 `useWatch`。不要原地修改返回的数组或 `getValue` 引用来代替操作方法。嵌套行需用 `RowScope` 提供路径；`<ArrayField>` 已替你做这层重复渲染。
 
+`dragProps` 函数对同一数组路径保持同一个引用（拖动起点记在句柄内部），所以可以经 context 交给 `memo` 的行而不让它们重渲染；没有隐藏的拖拽库，把手、键盘和触屏交互由应用决定。事件没有 `dataTransfer` 时用句柄记下的起点。
+
 [实现：use-array.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-array.ts) · [数组教程](/tutorial/7-array)
+
+### 完整例子：拖动排序，键不变，路径随顺序变化
+
+```tsx preview
+import { Form, RowScope, useArrayField, useField, useForm } from 'shikiform';
+
+type Item = { id: string; label: string };
+type Values = { items: Item[] };
+
+function ItemInput() {
+  const field = useField<Item, 'label'>('label');
+  return <input aria-label="项目名称" value={field.value}
+    onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} />;
+}
+
+function Items() {
+  const array = useArrayField<Values, 'items'>('items', 'id');
+  return (
+    <section>
+      {array.keys.map((row) => (
+        <RowScope key={row.key} path={`${array.path}.${row.index}`} index={row.index}>
+          <div {...array.dragProps(row.index)}>
+            <ItemInput />
+            <button type="button" disabled={row.index === 0}
+              onClick={() => array.move(row.index, row.index - 1)}>上移</button>
+            <button type="button" onClick={() => array.remove(row.index)}>删除</button>
+          </div>
+        </RowScope>
+      ))}
+      <button type="button" onClick={() => array.push({ id: crypto.randomUUID(), label: '' })}>新增</button>
+    </section>
+  );
+}
+
+export default function ArrayHookExample() {
+  const form = useForm<Values>({ initialValues: { items: [
+    { id: 'a', label: '苹果' }, { id: 'b', label: '梨' },
+  ] } });
+  return <Form form={form}><Items /></Form>;
+}
+```
 
 ## useArray
 
 ```ts
 useArray<TRow = unknown>(): ArrayHandle<TRow>
-// ArrayHandle = useArrayField 的返回值：{ path, keys, push, insert, remove, move, swap, replace }
+// ArrayHandle = useArrayField 的返回值：{ path, keys, push, insert, remove, move, swap, replace, dragProps }
 ```
 
-最近一层数组（Formily `ArrayBase.useArray`），无需 name：在 `<ArrayField>`（含它的 `component` 容器，如 `ArrayItems`）、antd `ArrayTable`、`ProArrayTable` 的行、工具栏或展开行里，返回与 `useArrayField` 对同一数组相同的句柄（订阅数组结构）。嵌套数组取最近的一层。不在数组内时抛错。自定义数组组件用 `<ArrayScope path rowKey>` 提供它。
+最近一层数组（Formily `ArrayBase.useArray`），无需 name：在 `<ArrayField>` 的行、它的 `component` 容器（`ArrayItems` / `ArrayCards` / `ArrayTable`，含工具栏和展开行）里，返回与 `useArrayField` 对同一数组相同的句柄（订阅数组结构）。嵌套数组取最近的一层。不在数组内时抛错。自定义数组组件用 `<ArrayScope path rowKey>` 提供它。
 
 ```tsx
 function RemoveButton() {
@@ -371,7 +413,7 @@ function RemoveButton() {
 useIndex(): number
 ```
 
-当前行在数组中的下标（Formily `ArrayBase.useIndex`），来自外层 `RowScope`（`<ArrayField>`、`ArrayTable`、`ProArrayTable` 的每一行都会提供）。行移动后随新位置更新。不在行内时抛错。
+当前行在数组中的下标（Formily `ArrayBase.useIndex`），来自外层 `RowScope`（`<ArrayField>` 的每一行都会提供，`ArrayTable` 的单元格也是）。行移动后随新位置更新。不在行内时抛错。
 
 ```tsx
 function RowNo() {
@@ -395,69 +437,6 @@ function RowTitle() {
 ```
 
 
-## useArrayMove
-
-```ts
-useArrayMove(name: string): {
-  move(from: number, to: number): void
-  swap(indexA: number, indexB: number): void
-  bind(index: number): {
-    draggable: true
-    onDragStart(event: React.DragEvent): void
-    onDragOver(event: React.DragEvent): void
-    onDrop(event: React.DragEvent): void
-  }
-}
-```
-
-`name` 必填，相对当前 scope。没有第二个 options 参数，也没有隐藏的默认拖拽库。`bind(index)` 给出原生 HTML5 拖动事件，展开到行容器即可；把手、键盘操作和触屏交互由应用决定。
-
-它不订阅结构；移动后的列表重渲染依赖 `useArrayField` / `ArrayField`。`move` 和数组 handle 一样使用最终下标，不能传行 ID。事件对象没有 `dataTransfer` 时会使用同一 Hook 实例保存的拖动起点。
-
-[实现：use-array.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-array.ts)
-
-### 完整例子：键不变，路径随顺序变化
-
-```tsx preview
-import { Form, RowScope, useArrayField, useArrayMove, useField, useForm } from 'shikiform';
-
-type Item = { id: string; label: string };
-type Values = { items: Item[] };
-
-function ItemInput() {
-  const field = useField<Item, 'label'>('label');
-  return <input aria-label="项目名称" value={field.value}
-    onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} />;
-}
-
-function Items() {
-  const array = useArrayField<Values, 'items'>('items', 'id');
-  const drag = useArrayMove('items');
-  return (
-    <section>
-      {array.keys.map((row) => (
-        <RowScope key={row.key} path={`${array.path}.${row.index}`} index={row.index}>
-          <div {...drag.bind(row.index)}>
-            <ItemInput />
-            <button type="button" disabled={row.index === 0}
-              onClick={() => array.move(row.index, row.index - 1)}>上移</button>
-            <button type="button" onClick={() => array.remove(row.index)}>删除</button>
-          </div>
-        </RowScope>
-      ))}
-      <button type="button" onClick={() => array.push({ id: crypto.randomUUID(), label: '' })}>新增</button>
-    </section>
-  );
-}
-
-export default function ArrayHookExample() {
-  const form = useForm<Values>({ initialValues: { items: [
-    { id: 'a', label: '苹果' }, { id: 'b', label: '梨' },
-  ] } });
-  return <Form form={form}><Items /></Form>;
-}
-```
-
 ## useTreeField
 
 ```ts
@@ -468,6 +447,7 @@ useTreeField(name: string, options?: {
   path: string
   value: any[]
   move(from: Pos, to: Pos): MoveResult
+  dragProps(pos: Pos): { draggable: true; onDragStart; onDragOver; onDrop }
 }
 ```
 
@@ -481,6 +461,7 @@ useTreeField(name: string, options?: {
 | `path` | 完整树根路径 |
 | `value` | 当前根节点数组；当前值不是数组时返回 `[]`。不要原地修改 |
 | `move(from, to)` | 使用移动后的最终索引坐标；拒绝移到自己的后代，失败看 `reason` |
+| `dragProps(pos)` | 这个节点的原生 HTML5 拖动属性：拖到另一个节点上 = `move(源, 目标)`；拖动开始和放下都阻止冒泡，嵌套节点只处理自己。被拒绝的移动不提示，需要提示时自己调 `move` 看 `reason` |
 
 它只订阅树结构，不订阅每个节点的文字/勾选状态。节点编辑单独用 `useField`，读取选定值用 `useWatch`。要让 React 挂载前的树联动也认识自定义 `childrenKey`，在 `useForm({ trees: { ... } })` 里声明配置。
 
@@ -488,45 +469,24 @@ useTreeField(name: string, options?: {
 
 [实现：use-tree.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-tree.ts) · [结构与路径](/guide/concepts)
 
-## useTreeMove
-
-```ts
-useTreeMove(name: string): {
-  move(from: Pos, to: Pos): MoveResult
-  bind(pos: Pos): {
-    draggable: true
-    onDragStart(event: React.DragEvent): void
-    onDragOver(event: React.DragEvent): void
-    onDrop(event: React.DragEvent): void
-  }
-}
-```
-
-`name` 必填，相对当前 scope；树配置来自引擎已有注册。通常和同路径 `useTreeField` 一起使用。
-
-不订阅；`bind(pos)` 返回原生拖动处理器，drop 会阻止冒泡，使用本 Hook 记录的源坐标。这不是跨表单拖放协议。程序调用 `move` 可检查 `ok/reason`；`bind` 的 drop 本身不会替你显示失败提示。
-
-[实现：use-tree.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-tree.ts)
-
 ### 完整例子：同层拖动和显式移动结果
 
 ```tsx preview
 import { useState } from 'react';
-import { Form, useForm, useTreeField, useTreeMove } from 'shikiform';
+import { Form, useForm, useTreeField } from 'shikiform';
 
 type Node = { id: string; title: string; children: Node[] };
 type Values = { nodes: Node[] };
 
 function Nodes() {
   const tree = useTreeField('nodes');
-  const drag = useTreeMove('nodes');
   const [message, setMessage] = useState('拖动节点，或用按钮移动第一个根节点。');
   // 当前 useTreeField 没有节点泛型；这里的类型来自本例已知的初始数据。
   const nodes = tree.value as Node[];
   const renderNodes = (rows: Node[], parent: number[] = []) => (
     <ul>{rows.map((node, index) => {
       const pos = [...parent, index];
-      return <li key={node.id}><span {...drag.bind(pos)}>{node.title}</span>
+      return <li key={node.id}><span {...tree.dragProps(pos)}>{node.title}</span>
         {node.children.length > 0 ? renderNodes(node.children, pos) : null}</li>;
     })}</ul>
   );

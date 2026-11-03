@@ -3,9 +3,9 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as root from '../src'
-import { createForm, Field, Form, ShikiUsageError, useField, type FieldBinding } from '../src'
+import { ArrayField, createForm, Field, Form, ShikiUsageError, useField, type FieldBinding } from '../src'
 import * as antd from '../src/antd'
-import { FormItem, ProArrayTable } from '../src/antd'
+import { FormItem, ArrayTable } from '../src/antd'
 
 afterEach(cleanup)
 
@@ -34,14 +34,13 @@ describe('useField() with no name reads the current field', () => {
     expect(form.getValue('a')).toBe('edited')
   })
 
-  it('inside a ProArrayTable cell <Field>', () => {
+  it('inside a ArrayTable cell <Field>', () => {
     const form = createForm({ initialValues: { list: [{ a1: 'r0' }, { a1: 'r1' }] } })
     render(
       <Form form={form}>
-        <ProArrayTable
-          name="list"
-          columns={[{ key: 'a1', title: 'A1', render: (cell) => <Field name="a1"><TextInput testId={`cell-${cell.index}`} /></Field> }]}
-        />
+        <ArrayField name="list" component={[ArrayTable, {
+          columns: [{ key: 'a1', title: 'A1', render: (cell) => <Field name="a1"><TextInput testId={`cell-${cell.index}`} /></Field> }],
+        }]} />
       </Form>,
     )
     expect(screen.getByTestId('cell-1').getAttribute('data-path')).toBe('list.1.a1')

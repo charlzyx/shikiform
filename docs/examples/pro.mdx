@@ -1,20 +1,20 @@
 ---
 title: Pro.formily 复刻
-description: Pro.formily 的八个演示在 ShikiForm 上的对应写法：ProArrayTable、影子草稿、QueryList、枚举、联想与级联。
+description: Pro.formily 的八个演示在 ShikiForm 上的对应写法：ArrayTable、影子草稿、QueryList、枚举、联想与级联。
 ---
 
 # Pro.formily 复刻
 
 这一组对应 [Pro.formily](https://github.com/charlzyx/pro.formily) 的八个演示。组件来自 `shikiform/antd`，背后的 Hook 来自 `shikiform/pro`，概念见 [Pro 组件](/guide/pro)。
 
-## ProArrayTable 全功能
+## ArrayTable 全功能
 
 场景：可编辑的明细表，要分页、勾选、拖动排序、调列宽、列配置、带确认的异步删除，可展开的行里再放一张只读子表。
 
-```tsx preview play=pro-array-table
+```tsx preview play=array-table
 import { Button, Space, message } from 'antd';
-import { Field, Form, useForm } from 'shikiform';
-import { FormItem, Input, ProArrayTable, type ProArrayTableColumn } from 'shikiform/antd';
+import { ArrayField, Field, Form, useForm } from 'shikiform';
+import { ArrayTable, FormItem, Input, type ArrayTableColumn } from 'shikiform/antd';
 
 type Item = { a1: string; a2: string };
 type Row = Item & { id: string; subitems?: Item[] };
@@ -25,21 +25,21 @@ const rows: Row[] = Array.from({ length: 23 }, (_, i) => ({
 }));
 const cell = [FormItem, { style: { margin: 0 } }] as const; // 单元格：只要错误状态，不要外边距
 
-function itemColumns<T extends Item>(): ProArrayTableColumn<T>[] {
+function itemColumns<T extends Item>(): ArrayTableColumn<T>[] {
   return [
-    { key: 'index', title: '#', width: 60, render: () => <ProArrayTable.Index /> },
+    { key: 'index', title: '#', width: 60, render: () => <ArrayTable.Index /> },
     { key: 'a1', title: 'A1', width: 160, render: () => <Field name="a1" required decorator={cell} component={[Input]} /> },
     { key: 'a2', title: 'A2', width: 160, render: () => <Field name="a2" decorator={cell} component={[Input]} /> },
   ];
 }
 
 function Toolbar() {
-  const table = ProArrayTable.useTable();
+  const table = ArrayTable.useTable();
   return <Button size="small" onClick={() => message.info(`已选 ${table.selectedKeys.join(', ') || '无'}`)}>看看勾选了谁</Button>;
 }
 
 function Footer() {
-  const table = ProArrayTable.useTable();
+  const table = ArrayTable.useTable();
   return <span>第 {table.page}/{table.pageCount} 页，共 {table.total} 条</span>;
 }
 
@@ -47,31 +47,39 @@ export default function App() {
   const form = useForm<{ list: Row[] }>({ initialValues: { list: rows } });
   return (
     <Form form={form}>
-      <ProArrayTable<Row>
-        name="list" rowKey="id" title="明细" rowSelection resizeable
-        toolbar={<Toolbar />} footer={<Footer />}
-        extra={<ProArrayTable.Addition defaultValue={() => ({ id: crypto.randomUUID(), a1: '', a2: '' })} />}
-        onRemove={() => new Promise((resolve) => setTimeout(resolve, 600))}
-        expandable={{
+      <ArrayField name="list" rowKey="id" component={[ArrayTable, {
+        title: '明细',
+        rowSelection: true,
+        resizeable: true,
+        toolbar: <Toolbar />,
+        footer: <Footer />,
+        extra: <ArrayTable.Addition defaultValue={() => ({ id: crypto.randomUUID(), a1: '', a2: '' })} />,
+        onRemove: () => new Promise<void>((resolve) => setTimeout(resolve, 600)),
+        expandable: {
           rowExpandable: (row) => Array.isArray(row.subitems),
-          render: () => <ProArrayTable name="subitems" pattern="readPretty" showHeader={false} settings={false} columns={itemColumns<Item>()} />,
-        }}
-        columns={[
-          { key: 'sort', width: 48, render: () => <ProArrayTable.SortHandle /> },
+          render: () => <ArrayField name="subitems" component={[ArrayTable, {
+            pattern: 'readPretty',
+            showHeader: false,
+            settings: false,
+            columns: itemColumns<Item>(),
+          }]} />,
+        },
+        columns: [
+          { key: 'sort', width: 48, render: () => <ArrayTable.SortHandle /> },
           ...itemColumns<Row>(),
           {
             key: 'actions', title: '操作', width: 160,
-            render: () => <Space size={0}><ProArrayTable.Remove confirm /><ProArrayTable.MoveUp /><ProArrayTable.MoveDown /></Space>,
+            render: () => <Space size={0}><ArrayTable.Remove confirm /><ArrayTable.MoveUp /><ArrayTable.MoveDown /></Space>,
           },
-        ]}
-      />
+        ],
+      }]} />
     </Form>
   );
 }
 ```
 
-- 列的 `render` 运行在行作用域里：`<Field name="a1">` 就是 `list.N.a1`；展开区里的 `<ProArrayTable name="subitems">` 也相对这一行。
-- `ProArrayTable.useTable()` 在 `toolbar` / `footer` 里读同一张表的分页和勾选；行内用 `ProArrayTable.useRow()` 或 headless 的 `useIndex()` / `useRecord()`。
+- 列的 `render` 运行在行作用域里：`<Field name="a1">` 就是 `list.N.a1`；展开区里的 `<ArrayField name="subitems" component={[ArrayTable, …]}>` 也相对这一行。
+- `ArrayTable.useTable()` 在 `toolbar` / `footer` 里读同一张表的分页和勾选；行内用 `ArrayTable.useRow()` 或 headless 的 `useIndex()` / `useRecord()`。
 - `onRemove` 返回 Promise：删除按钮先转圈，resolve 才删，reject 保留这一行。
 - 表头右侧的齿轮是列配置：显隐、拖动排序、密度。完整版还有「加载 10 万行」。
 
@@ -79,11 +87,11 @@ export default function App() {
 
 场景：表格只读，每行「编辑」打开同一个弹窗；另有两个「添加」入口，一个弹窗、一个抽屉。确认才写回，取消什么都不动。
 
-```tsx preview play=pro-array-table-shadow
+```tsx preview play=array-table-shadow
 import { Button } from 'antd';
-import { Field, Form, useForm } from 'shikiform';
+import { ArrayField, Field, Form, useForm } from 'shikiform';
 import { useArrayShadow } from 'shikiform/pro';
-import { FormItem, Input, ProArrayTable, ShadowModal } from 'shikiform/antd';
+import { ArrayTable, FormItem, Input, ShadowModal } from 'shikiform/antd';
 
 type Row = { id: string; domain: string; desc: string };
 
@@ -102,20 +110,20 @@ function Domains() {
   const empty: Row = { id: '', domain: '', desc: '' };
   return (
     <>
-      <ProArrayTable<Row>
-        name="list" rowKey="id" pagination={{ pageSize: 5 }}
-        columns={[
+      <ArrayField name="list" rowKey="id" component={[ArrayTable, {
+        pagination: { pageSize: 5 },
+        columns: [
           { key: 'id', title: 'ID', width: 80, render: () => <Field name="id" pattern="readPretty" component={[Input]} /> },
           { key: 'domain', title: '域名', render: () => <Field name="domain" pattern="readPretty" component={[Input]} /> },
           { key: 'edit', title: '操作', width: 90, render: ({ index }) => <Button type="link" onClick={() => void editor.edit(index)}>编辑</Button> },
-        ]}
-        extra={
+        ],
+        extra: (
           <>
-            <ProArrayTable.ProAddition<Row> title="弹窗添加" initialValues={empty}><RowFields /></ProArrayTable.ProAddition>
-            <ProArrayTable.ProAddition<Row> title="抽屉添加" popType="drawer" initialValues={empty}><RowFields /></ProArrayTable.ProAddition>
+            <ArrayTable.ShadowAddition<Row> title="弹窗添加" initialValues={empty}><RowFields /></ArrayTable.ShadowAddition>
+            <ArrayTable.ShadowAddition<Row> title="抽屉添加" popType="drawer" initialValues={empty}><RowFields /></ArrayTable.ShadowAddition>
           </>
-        }
-      />
+        ),
+      }]} />
       <ShadowModal shadow={editor} title="编辑"><RowFields /></ShadowModal>
     </>
   );
@@ -130,7 +138,7 @@ export default function App() {
 ```
 
 - `useArrayShadow(name)` 是 `useShadowForm` 加上默认写回：`edit(index)` 拷贝这一行打开草稿，确认后写回同一行；可传 `edit(index, init)` 先映射或请求记录。
-- `ProAddition` 自带一个影子草稿：确认后追加一行，并翻到新行所在的页。
+- `ArrayTable.ShadowAddition`（Pro.formily `ProAddition`）自带一个影子草稿：确认后追加一行，并翻到新行所在的页。
 - 草稿是独立的引擎，字段名从草稿的根开始解析，不继承所在行的作用域。
 
 ## 影子表单的几种容器
@@ -203,7 +211,7 @@ export default function App() {
 ```tsx preview play=query-list
 import { Field } from 'shikiform';
 import { useQueryTable } from 'shikiform/pro';
-import { FormItem, Input, QueryList, Select, type ProArrayTableColumn } from 'shikiform/antd';
+import { FormItem, Input, QueryList, Select, type ArrayTableColumn } from 'shikiform/antd';
 
 type Row = { id: number; status: number; domain: string; classify: number[] };
 type Query = { domain?: string; status?: number };
@@ -223,7 +231,7 @@ async function service(query: Query, page: number, pageSize: number, desc: boole
 }
 
 const cell = [FormItem, { style: { margin: 0 } }] as const;
-const columns: ProArrayTableColumn<Row>[] = [
+const columns: ArrayTableColumn<Row>[] = [
   { key: 'id', title: 'ID', width: 80, sorter: true, render: ({ record }) => record.id },
   { key: 'status', title: '状态', width: 120, render: () => <Field name="status" pattern="readPretty" decorator={cell} component={[Select, { prettyType: 'badge' }]} /> },
   { key: 'domain', title: '域名', render: () => <Field name="domain" required decorator={cell} component={[Input]} /> },
@@ -244,7 +252,7 @@ export default function App() {
       service(params, page, pageSize, sorter.some((item) => item.field === 'id' && item.order === 'descend')),
   });
   return (
-    <QueryList table={table} list="list" columns={columns} collapseAfter={2}>
+    <QueryList table={table} columns={columns} collapseAfter={2}>
       <Field name="query.domain" title="域名" decorator={[FormItem, { layout: 'vertical' }]} component={[Input]} />
       <Field name="query.status" title="状态" decorator={[FormItem, { layout: 'vertical' }]} component={[Select, { allowClear: true }]} />
       <Field name="query.note" title="备注（折叠）" decorator={[FormItem, { layout: 'vertical' }]} component={[Input]} />
@@ -253,7 +261,7 @@ export default function App() {
 }
 ```
 
-- `QueryList` = 可折叠的条件栅格 + 受控分页的 `ProArrayTable` + 刷新按钮，状态全部在 `useQueryTable` 里。
+- `QueryList` = 可折叠的条件栅格 + 受控分页的 `ArrayTable` + 刷新按钮，状态全部在 `useQueryTable` 里。
 - `rows: 'list'` 让每一页结果成为表单数组，所以单元格可以编辑、校验；这类写入不算用户修改（不置脏）。
 - 列上写 `sorter: true`，表头排序随请求发给 `request` 的 `sorter` 并回到第 1 页；勾选保留。`hidden: true` 的列在列配置里可以再打开。
 - `params: 'query'` 让请求参数的类型就是 `query` 字段的类型。
@@ -266,7 +274,7 @@ export default function App() {
 import { Button } from 'antd';
 import { Field } from 'shikiform';
 import { useArrayShadow, useQueryTable } from 'shikiform/pro';
-import { FormItem, Input, ProArrayTable, QueryList, ShadowModal } from 'shikiform/antd';
+import { FormItem, Input, ArrayTable, QueryList, ShadowModal } from 'shikiform/antd';
 
 type Row = { id: string; domain: string };
 
@@ -296,13 +304,13 @@ export default function App() {
   return (
     <>
       <QueryList
-        table={table} list="list"
+        table={table}
         columns={[
           { key: 'id', title: 'ID', width: 80, render: ({ record }) => record.id },
           { key: 'domain', title: '域名', render: ({ record }) => record.domain },
           { key: 'edit', title: '操作', width: 90, render: ({ index }) => <Button type="link" onClick={() => void editor.edit(index)}>编辑</Button> },
         ]}
-        extra={<ProArrayTable.ProAddition<Row> title="添加条目" initialValues={{ id: '', domain: '' }}><RowFields /></ProArrayTable.ProAddition>}
+        extra={<ArrayTable.ShadowAddition<Row> title="添加条目" initialValues={{ id: '', domain: '' }}><RowFields /></ArrayTable.ShadowAddition>}
       >
         <Field name="query.domain" title="域名" decorator={[FormItem]} component={[Input]} />
       </QueryList>

@@ -1,6 +1,6 @@
 ---
 title: Ant Design 参考
-description: Submit / Reset 按钮、控件取值契约、数组容器（ArrayItems / ArrayCards）和表格组件的实际接口。
+description: Submit / Reset 按钮、控件取值契约、数组容器（ArrayItems / ArrayCards / ArrayTable）、分组容器和 MergedTable 的实际接口。
 ---
 
 # Ant Design 参考
@@ -115,23 +115,6 @@ export default function App() {
 }
 ```
 
-## ArrayTable
-
-```tsx
-<ArrayTable name="items" rowKey="id" virtualScroll={{ height: 320 }}>
-  {({ index, key }) => /* 当前行的字段 */}
-</ArrayTable>
-```
-
-| 参数 | 默认 / 类型 | 行为 |
-|---|---|---|
-| `name` | 必填 `string` | 相对当前 scope 的数组路径，需要外层表单 context |
-| `rowKey` | 可选 `string` | 交给 `useArrayField` 生成稳定 key |
-| `virtualScroll` | 默认不启用；`{ height, rowHeight?, overscan? }` | height 必填；rowHeight 默认 `42`，overscan 默认 `4` |
-| `children` | `({ index: number, key: string }) => ReactNode` | 在 `RowScope` 内渲染；子字段 name 相对当前行 |
-
-这是 `useArrayField` + 行 scope + 可选 `VirtualRows`，**不是 Ant Design Table**，不接收 columns/pagination，也不创建增删按钮。数组操作见 [useArrayField](/reference/react-hooks#usearrayfield)。虚拟滚动的未挂载规则见 [未挂载字段](/guide/validation)。
-
 ## MergedTable
 
 ```ts
@@ -149,32 +132,6 @@ groupRowSpan<T>(rows: readonly T[], groupOf: (row: T) => string): number[]
 ```
 
 返回与 rows 等长的数组：每个连续组首项为组长度，后续项为 0。空 rows 返回 `[]`，不修改输入。例如分组 `[A, A, B, A]` 返回 `[2, 0, 1, 1]`。合并列和过滤后的行必须使用同一份 rows。
-
-## ProQueryTable
-
-```tsx
-<ProQueryTable table={table} columns={columns} search={searchFields} />
-```
-
-| 参数 | 默认 / 类型 | 行为 |
-|---|---|---|
-| `table` | 必填 `QueryTableApi<TValues, TParams, TRow>` | 由 `useQueryTable` 返回，拥有请求/分页/选择状态 |
-| `columns` | 必填 `TableProps<TRow>['columns']` | 原样交给 antd Table |
-| `rowKey` | `'id'`，`string` | antd Table 的行标识；选择值转换为字符串 |
-| `search` | 可选 ReactNode | 在内部正式 `Form` 上下文里渲染 |
-| `toolbar` | 可选 ReactNode | 接在查询、重置、刷新按钮后面 |
-
-内部用正式 `Form` 提供 context，不要再嵌套一个原生表单。它开启受控行选择、`preserveSelectedRowKeys`，分页用 table 的 page/pageSize/total；页大小切换 UI 关闭。`loading` 使用 table.loading，后台刷新状态可另读 table.fetching。请求配置和查询动作见 [查询 Hooks](/reference/query-hooks)，完整示例见 [查询表](/play/query)。
-
-## QueryForm
-
-```ts
-QueryForm({ collapsed = false, collapseAfter = 3, children? })
-```
-
-纯布局组件：`children` 转为直接子项，每项用一个 div 包裹；默认 CSS 网格 `repeat(auto-fit, minmax(220px, 1fr))`，间距 `12`。collapsed 为 true 时，第 `collapseAfter` 项之后加 HTML hidden 属性。
-
-它**不卸载字段，不写 `$display`，不跳过校验，也不提供表单 context**。折叠搜索区仍可能有保留的字段状态；查询选择如何清空由 hook 控制。
 
 ## ArrayItems
 
@@ -221,6 +178,60 @@ QueryForm({ collapsed = false, collapseAfter = 3, children? })
 | `addition` / `empty` / `className` / `style` | 同 `ArrayItems` |
 
 静态成员 `SortHandle`、`Index`、`Remove`、`MoveUp`、`MoveDown`、`Addition` 与 `ArrayItems` 的是同一批组件。
+
+## ArrayTable
+
+```tsx
+<ArrayField name="list" rowKey="id" component={[ArrayTable, {
+  columns: [
+    { key: 'sort', width: 50, render: () => <ArrayTable.SortHandle /> },
+    { key: 'a1', title: 'A1', render: () => <Field name="a1" component={[Input]} /> },   // 单元格可以不要装饰器
+    { key: 'a2', title: 'A2', render: () => <Field name="a2" required decorator={[FormItem, { feedbackLayout: 'terse' }]} component={[Input]} /> },
+    { key: 'act', title: '操作', render: () => <ArrayTable.Remove confirm /> },
+  ],
+  pagination: { pageSize: 10 },
+  rowSelection: true,
+  expandable: {
+    rowExpandable: (record) => !!record.children,
+    render: () => <ArrayField name="children" component={[ArrayTable, { pattern: 'readPretty', columns: childColumns }]} />,
+  },
+  extra: <ArrayTable.Addition />,
+  onRemove: (index, record) => api.remove(record.id),
+}]} />
+```
+
+数组上的 antd 表格（Formily `ArrayTable`，带 Pro.formily `ProArrayTable` 的功能），是 `<ArrayField>` 的容器，和 `ArrayItems` / `ArrayCards` 同一种写法。数组路径和 `rowKey` 来自外层 `<ArrayField>`；单元格来自 `columns`，所以 `<ArrayField>` 不写行 children（写了开发期警告一次）。建立在 [`useArrayTable`](/reference/pro-hooks#usearraytable) + [`useColumnSettings`](/reference/pro-hooks#usecolumnsettings) 上，表格状态（分页、选择、展开、列配置）是 React 状态，不进表单值。
+
+列的 `render(cell)` 渲染在行作用域里：`<Field name="a1">` 就是 `list.N.a1`，展开区里的 `<ArrayField name="children">` 也相对这一行。`cell` 是 `{ key, index, position, record, table }`；`component` 的属性按 `ArrayTableProps` 检查（少写 `columns` 是类型错误），要让 `record` 有类型，写 `const columns: ArrayTableColumn<Row>[] = […]`。
+
+| 参数 | 行为 |
+|---|---|
+| `columns` | 必填。`{ key, title?, width?, align?, fixed?, ellipsis?, hidden?, sorter?, sortOrder?, filters?, filterMultiple?, filteredValue?, render(cell) }`；`hidden` 只是列配置里初始隐藏；`sorter: true` 只上报变化，比较函数在本页内排序 |
+| `pagination` | 默认每页 10 条的前端分页；`false` 关闭；带 `total` 时是受控服务端页（数组只放这一页） |
+| `rowSelection` | `true` 或 `{ type?, showPro?, selectedKeys?, onChange?, preserve? }`；多选默认带「选中 N 项 / 清空 / 全选 / 反选」条，`preserve` 翻页保留选择 |
+| `expandable` | `{ render(cell), rowExpandable?, defaultExpandAll? }`；`render` 在行作用域里 |
+| `onRemove` | `(index, record) => void \| Promise`；删除前执行，按钮转圈，reject 则保留这一行 |
+| `createRowKey` | 复制行（及没有 id 的新增行）的新 id，见 [useArrayTable](/reference/pro-hooks#usearraytable) |
+| `title` / `toolbar` / `extra` / `footer` | 表头左 / 中 / 右（列配置按钮之前）/ 表尾左（分页器之前） |
+| `settings` | 默认 `true`：列显隐、排序（拖动 ⋮⋮，↑ ↓ 给键盘）、密度 |
+| `resizeable` | 拖动表头右边缘改列宽 |
+| `onTableChange` | 表头排序 / 筛选变化，参数同 antd `Table` `onChange`（分页由底部分页器负责）；`useQueryTable().onTableChange` 可直接接 |
+| `pattern` | 整个数组的 pattern（如只读子表 `'readPretty'`） |
+| `loading` / `bordered` / `showHeader` / `scroll` / `size` / `testId` | 交给 antd `Table` / 外层容器 |
+
+| 成员 | 行为 |
+|---|---|
+| `ArrayTable.SortHandle` | `⋮⋮` 拖拽把手，放到另一行上移动过去 |
+| `ArrayTable.Index` | 跨页的 1 起序号 |
+| `ArrayTable.Remove` | `title?`、`confirm?: boolean \| string`；`onRemove` 执行时转圈 |
+| `ArrayTable.MoveUp` / `MoveDown` | 首行 / 末行禁用 |
+| `ArrayTable.Copy` | 在下方插入这一行的副本（id 由 `createRowKey` 生成，否则去掉） |
+| `ArrayTable.Addition` | `title?`、`defaultValue?: () => row`；追加后跳到它所在的页 |
+| `ArrayTable.ShadowAddition` | 用影子表单在弹窗（`popType="modal"`，默认）或抽屉里填一行，确定才追加；`onOk(values, table)` 返回 `false` 自己处理；其余参数同 [useShadowForm](/reference/pro-hooks#useshadowform) |
+| `ArrayTable.useTable()` | 在 `toolbar` / `footer` / 单元格里读表格状态 + 列配置（`useArrayTable` 的返回值加 `settings`） |
+| `ArrayTable.useRow()` | 单元格里的 `{ key, index, position, record }`，建立在 [`useIndex`](/reference/react-hooks#useindex) / [`useRecord`](/reference/react-hooks#userecord) 上，`record` 是响应式的 |
+
+单元格里同样可以直接用 [`useArray()`](/reference/react-hooks#usearray) / `useIndex()` / `useRecord()`。行操作按钮的文案走表单 `messages`（`add`、`remove`、`removeConfirm`、`moveUp`、`moveDown`、`copy`、`dragSort`、`selection*`、`density`、`columnSettings`）。可点的例子：[/play/array-table](/play/array-table)、[/play/array-table-shadow](/play/array-table-shadow)。
 
 ## useArrayEditable
 
@@ -299,5 +310,5 @@ interface FormStepHandle {
 - 按钮：`src/antd/components/buttons.tsx`；控件接线：`src/antd/components/controls.tsx`。
 - 数组容器：`src/antd/arrays/array-items.tsx`。
 - 分组容器：`src/antd/containers/form-tab.tsx`、`form-collapse.tsx`、`form-step.tsx`（字段收集：`src/react/field-group.tsx`）。
-- 表格与网格：`src/antd/tables/array-table.tsx`、`tables/merged-table.tsx`、`tables/query-table.tsx`。
+- 表格与网格：`src/antd/tables/array-table.tsx`、`tables/merged-table.tsx`、`tables/query-list.tsx`。
 - 本模块的真实导出清单：`src/antd/index.ts`；所有示例只使用这些公开入口。
