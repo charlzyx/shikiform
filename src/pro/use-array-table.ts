@@ -122,8 +122,16 @@ export function useArrayTable<TRow = any>(name: string, options: UseArrayTableOp
 
 /** {@link useArrayTable} for an absolute array path (internal: `ArrayTable` reads it from the surrounding `<ArrayField>`). */
 export function useArrayTableAt<TRow = any>(path: string, options: UseArrayTableOptions<TRow> = {}): ArrayTableApi<TRow> {
+  return useArrayTableOver<TRow>(path, useArrayAt(path, options.rowKey), options)
+}
+
+/** Internal: {@link useArrayTableAt} over an array subscription the caller already holds (`ArrayTable` also needs its `dragProps`). */
+export function useArrayTableOver<TRow = any>(
+  path: string,
+  array: Pick<ReturnType<typeof useArrayAt>, 'keys'>,
+  options: UseArrayTableOptions<TRow> = {},
+): ArrayTableApi<TRow> {
   const form = useRequiredForm(`useArrayTable('${path}') / <ArrayField component={[ArrayTable]}>`)
-  const array = useArrayAt(path, options.rowKey)
   const rows = array.keys
   const paging = options.pagination === false ? null : (options.pagination ?? {})
   const server = !!paging && paging.total !== undefined

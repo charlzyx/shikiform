@@ -145,13 +145,13 @@ description: 对照 Formily / pro.formily / ProComponents / SKU 表格编辑的�
 | P1-12 | `src/core/draft/handle.ts`、`src/core/types.ts`、`src/core/engine/form-engine.ts`、`docs/tutorial/_files/fields.tsx`、`src/react/components/fields.tsx` | 暂无专项测试 | 命名 UI（$ui / query(path,{ui})）2026-11-01 已从引擎删除，不再计划。 |
 | P1-13 | `src/react/factory/typed.tsx`、`playground/pages/schema.tsx`、`archive/usage/13-cross-module.tsx` | `tests/types.test.tsx` | 有typed field group复用；显式传handle/输入而不耦合root的跨模块规则仍只有归档草稿。 |
 | P1-14 | `docs/guide/unmounted.mdx`、`docs/guide/validation.mdx`、`playground/pages/tabs.tsx`、`src/core/engine/form-engine.ts` | `tests/declared.test.ts`、`tests/p2-validation.test.ts`、`tests/registration-regressions.test.ts`、`e2e/tabs.spec.ts`、`tests/tutorial-contract.test.tsx` | 声明vsJSX生命周期已有实现和回归源；不存在forceMount库prop，别为对齐旧草稿假装导出。本批使用正式React字段；SSR/模型验证不能代替浏览器生命周期实测。 |
-| P2-1 | `src/antd/tables/query-table.tsx`、`playground/pages/query.tsx` | `e2e/query.spec.ts` | QueryForm是auto-fit minmax(220px,1fr)，有折叠；已有 1280/480 两宽度断言源；缺多断点/列数/按钮占位比较页和更完整矩阵。 |
+| P2-1 | `src/antd/tables/query-list.tsx`、`playground/pages/query.tsx` | `e2e/query.spec.ts` | QueryList 查询条件区是auto-fit minmax(220px,1fr)，有折叠；已有 1280/480 两宽度断言源；缺多断点/列数/按钮占位比较页和更完整矩阵。 |
 | P2-2 | `playground/pages/row-edit.tsx`、`playground/pages/orders.tsx` | `tests/row-edit.test.ts`、`e2e/row-edit.spec.ts`、`e2e/orders.spec.ts` | 现row-edit只用一个virtual editor抽屉；orders直接写正式值。多行同时编辑、逐行验证互不阻挡未覆盖。 |
 | P2-3 | `src/antd/form-hook/form-hook.tsx`、`src/core/enum/enum-source.ts` | 暂无专项测试 | EnumOption支持color；FieldSelect readPretty仅String(value)，无label/color→Tag完整例子/封装。 |
 | P2-4 | `src/core/enum/enum-source.ts`、`archive/usage/11-validation-enum.tsx` | 暂无专项测试 | 只有EnumOption.children/async source基础；当前正式antd导出无CascaderPlus，可运行懒树选择器页亦无。新浮层按清单延后。 |
 | P2-5 | `archive/usage/DECISIONS.md`、`playground/pages/row-edit.tsx` | `tests/row-edit.test.ts`、`e2e/row-edit.spec.ts` | v1明确不做ShadowForm。现virtual editor手动复制/确认不能声称通用Shadow能力。 |
-| P2-6 | `src/antd/tables/array-table.tsx`、`src/antd/tables/query-table.tsx` | 暂无专项测试 | ArrayTable只有行/virtualScroll渲染；QueryTable的refresh/toolbar不能充作ArrayTable导出/列设置能力。 |
-| P2-7 | `src/pro/use-query-table.ts`、`src/antd/tables/query-table.tsx` | `e2e/query-native.spec.ts`、`e2e/query.spec.ts` | 清单延后要细化：当前同一查询内选择已跨页保留，submit/reset清空；跨查询/全选远端全集等不做。不要把已有同查询行为再实现一遍。 |
+| P2-6 | `src/antd/tables/array-table.tsx`、`src/antd/tables/query-list.tsx` | 暂无专项测试 | ArrayTable只有行/virtualScroll渲染；QueryTable的refresh/toolbar不能充作ArrayTable导出/列设置能力。 |
+| P2-7 | `src/pro/use-query-table.ts`、`src/antd/tables/query-list.tsx` | `e2e/query-native.spec.ts`、`e2e/query.spec.ts` | 清单延后要细化：当前同一查询内选择已跨页保留，submit/reset清空；跨查询/全选远端全集等不做。不要把已有同查询行为再实现一遍。 |
 | P2-8 | `playground/pages/headless.tsx`、`playground/pages/large.tsx`、`src/react/hooks/use-field.ts` | `e2e/headless.spec.ts`、`e2e/large.spec.ts` | 有原生DOM/useField绑定，headless页本身主要拖动/文本；缺从value/onChange/onBlur/errors逐步接入的独立教程。 |
 | P3-1 | `playground/pages/large.tsx`、`playground/pages/virtual.tsx`、`src/react/components/virtual-rows.tsx` | `e2e/large.spec.ts`、`e2e/virtual.spec.ts`、`tests/reaction.test.ts` | large实际40/200行(200/1000字段)，virtual40行；不是2000行。已有挂载窗口和data-renders断言源，但无2000行浏览器运行证据或性能专题。 |
 | P3-2 | `archive/QUALITY.md` | 暂无专项测试 | 无现成测量结果/基准脚本；只能标待实测，不能以模型计数代替。 |

@@ -14,7 +14,7 @@ import {
 } from 'antd'
 import { Children, createContext, useContext, useRef, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactElement, type ReactNode, type ThHTMLAttributes } from 'react'
 import type { Pattern } from '../../core/types'
-import { useArrayTableAt, type ArrayTableApi, type ArrayTablePagination, type ArrayTableRow } from '../../pro/use-array-table'
+import { useArrayTableOver, type ArrayTableApi, type ArrayTablePagination, type ArrayTableRow } from '../../pro/use-array-table'
 import { useColumnSettings, type ColumnSettingsApi, type TableDensity } from '../../pro/use-column-settings'
 import { useShadowForm, type UseShadowFormOptions } from '../../pro/use-shadow-form'
 import { RowScope } from '../../react/components/fields'
@@ -436,7 +436,8 @@ function warnRowChildren(path: string) {
 function ArrayTableBody<TRow = any>(props: ArrayTableProps<TRow> & { path: string; rowKey?: string }) {
   const form = useRequiredForm(`<ArrayField name="${props.path}" component={[ArrayTable]}>`)
   const selection = props.rowSelection === true ? {} : props.rowSelection || null
-  const table = useArrayTableAt<TRow>(props.path, {
+  const array = useArrayAt(props.path, props.rowKey)
+  const table = useArrayTableOver<TRow>(props.path, array, {
     rowKey: props.rowKey,
     createRowKey: props.createRowKey,
     pagination: props.pagination,
@@ -448,7 +449,7 @@ function ArrayTableBody<TRow = any>(props: ArrayTableProps<TRow> & { path: strin
     onRemove: props.onRemove,
   })
   const settings = useColumnSettings(props.columns.map((column) => ({ key: column.key, title: column.title, width: column.width, hidden: column.hidden })))
-  const dragProps = useArrayAt(props.path, props.rowKey).dragProps
+  const dragProps = array.dragProps
   const patternApplied = useRef<Pattern | undefined>(undefined)
   if (props.pattern && patternApplied.current !== props.pattern) {
     patternApplied.current = props.pattern

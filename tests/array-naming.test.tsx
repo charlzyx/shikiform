@@ -89,7 +89,8 @@ describe('<ArrayField> owns every array UI', () => {
       </Form>,
     )
     expect(screen.getByTestId('key').textContent).toBe('x1')
-    expect((document.getElementById('rows.0.name') as HTMLInputElement).value).toBe('A')
+    // the relative `name` cell binds to rows.0.name
+    expect(screen.getByDisplayValue('A')).toBeTruthy()
   })
 })
 
