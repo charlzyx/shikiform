@@ -83,8 +83,8 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     this.draft = createHandle(this, '') as Draft<T>
     this.baseline = new Baseline({ store, notifier, scheduler, validator, declarations })
     scheduler.onSettle = () => this.baseline.sync()
-    for (const [path, spec] of Object.entries(options.trees ?? {})) {
-      this.registerTree(path, spec)
+    for (const [path, spec] of Object.entries(options.trees ?? {}) as [string, { childrenKey?: string; rowKey?: string } | undefined][]) {
+      if (spec) this.registerTree(path, spec)
     }
     for (const [path, spec] of Object.entries(options.fields ?? {}) as [string, FieldSpec | undefined][]) {
       if (spec) this.registerField(path, spec)

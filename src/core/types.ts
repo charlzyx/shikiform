@@ -268,8 +268,8 @@ export interface FormOptions<T> {
   pattern?: Pattern
   /** Log each pass when true. */
   devtools?: boolean
-  /** Tree roots that effects address before React mounts. */
-  trees?: Record<string, { childrenKey?: string; rowKey?: string }>
+  /** Tree roots that effects address before React mounts. Keys are array paths (`ArrayPath<T>`). */
+  trees?: { [K in ArrayPath<T>]?: { childrenKey?: string; rowKey?: string } }
 }
 
 /**
@@ -642,7 +642,7 @@ export interface FormInstance<T, TSubmit = T> {
    * Move a tree node to its final `pos`.
    * Refuses a move into the node's own descendant. Field models follow `rowKey`.
    */
-  moveTree(path: string, from: Pos, to: Pos): MoveResult
+  moveTree<P extends ArrayPath<T>>(path: P, from: Pos, to: Pos): MoveResult
 
   /** Diagnostic counters: reaction id → run count. */
   getDebugStats(): { runs: Record<string, number> }
