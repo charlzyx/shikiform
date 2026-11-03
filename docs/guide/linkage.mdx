@@ -1,6 +1,6 @@
 ---
 title: 联动
-description: reaction 维持派生状态，watch 做一次性动作；reaction.each / watch.each 管每一行，reaction.walk 管每个树节点。
+description: reaction 维持派生状态，watch 做一次性动作；reaction.each / watch.each 管每一行，reaction.walk / watch.walk 管每个树节点。
 ---
 
 # 联动
@@ -88,7 +88,7 @@ reaction.each((d) => d.items, (row, { d, index, path, pos }) => { … })
 
 三个行级 API（`reaction.each`、`reaction.walk`、`watch.each`）的回调都是 `(row, ctx)`：`ctx.d` 是根 draft，`ctx.path` 是这一行此刻的路径（`items.2`），`ctx.index` 是行号，`ctx.pos` 是树坐标（数组行是 `[index]`）。插入、删除、移动之后，换了行的位置会用新的行重跑，所以写下的状态跟着行走。
 
-`watch.each` 是行级的 `watch`：回调里读到的 `$` 状态就是这一行的来源，来源变了才执行。
+`watch.each` 是行级的 `watch`：回调里读到的 `$` 状态就是这一行的来源，来源变了才执行。树对应的是 `watch.walk`（节点级的 `watch`）：回调里的 `$` 读只作为它自己这个节点的来源，某个节点变化只触发它自己，兄弟节点和别处的移动不触发；`opts.childrenKey` 与 `reaction.walk` 一致。适合「这个节点的 X 变了就做一次动作」（刷新子节点选项、同步远端）这类场景。
 
 ```tsx preview play=sku
 import { Button } from 'antd';

@@ -382,6 +382,18 @@ export interface WatchFn<T> {
    * One level of the array, same as {@link ReactionFn.each}.
    */
   each<A>(select: (d: Draft<T>) => Draft<A>, effect: (row: RowDraft<A>, ctx: RowContext<T>) => void): void
+  /**
+   * Edge-triggered per-node action on a tree, the node-level counterpart of {@link WatchFn.each}
+   * (same semantics, `ctx.pos` coordinates like {@link ReactionFn.walk}).
+   * The callback's `$` reads are the source: a node re-fires only when one of the keys its own
+   * scout read is dirty — a sibling or a structural move elsewhere does not run it.
+   * `opts.childrenKey` defaults to `'children'`.
+   */
+  walk<A>(
+    select: (d: Draft<T>) => Draft<A>,
+    effect: (node: RowDraft<A>, ctx: RowContext<T>) => void,
+    opts?: { childrenKey?: string },
+  ): void
 }
 
 /**
