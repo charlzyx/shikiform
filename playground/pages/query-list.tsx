@@ -73,7 +73,7 @@ export function QueryListPage() {
       <main style={{ padding: 16 }}>
         <h1>QueryList</h1>
         <p>查询表单（超过一行折叠，展开 / 收起）+ 服务端分页表格。每页结果写进表单的 list 数组，DOMAIN 可以直接改；翻页、刷新、列配置（「分类」默认隐藏）都在表头；点 ID 表头排序，排序随请求发给服务端并回到第 1 页。共 45 条模拟数据。</p>
-        <QueryList table={table} list="list" columns={columns} collapseAfter={2}>
+        <QueryList table={table} columns={columns} collapseAfter={2}>
           {SearchFields()}
         </QueryList>
         <Selection table={table} />
@@ -98,7 +98,6 @@ export function QueryListAddPage() {
         <p>在 QueryList 基础上：每行「编辑」打开影子表单，确定写回该行；「添加条目」追加一行到当前页数据。真实场景里 onOk 里调接口后 refresh。</p>
         <QueryList
           table={table}
-          list="list"
           collapseAfter={2}
           columns={[
             ...columns,

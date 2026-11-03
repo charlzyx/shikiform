@@ -64,14 +64,8 @@ describe('a missing <Form> names the caller and the fix', () => {
       expect(() => render(<Hook />)).toThrow(/useField\('age'\)/)
       expect(() => render(<ObjectField name="addr" />)).toThrow(/<ObjectField name="addr"> has no form/)
       expect(() => render(<ArrayField name="items">{() => null}</ArrayField>)).toThrow(/items/)
-      expect(() => render(<ArrayField name="rows"
-        component={[
-          ArrayTable,
-          {
-            columns: [],
-          },
-        ]}
-      />)).toThrow(/<ArrayTable name="rows"> has no form/)
+      expect(() => render(<ArrayField name="rows" component={[ArrayTable, { columns: [] }]} />)).toThrow(/<ArrayField name="rows"> has no form/)
+      expect(() => render(<ArrayTable columns={[]} />)).toThrow(/ArrayTable is the container of an <ArrayField>/)
     } finally {
       spy.mockRestore()
     }

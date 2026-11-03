@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { ProQueryTable, QueryForm } from 'shikiform/antd'
+import { QueryList } from 'shikiform/antd'
 import { defineEffects, Field, useFormContext, useWatch, type Draft } from 'shikiform'
 import { useQueryTable } from 'shikiform/pro'
-import { LOGS } from '../data'
+import { LOGS, type LogRow } from '../data'
 
 interface QueryParams {
   keyword?: string
@@ -19,6 +19,7 @@ interface QueryValues {
   model: string
   userId: string
   params: QueryParams
+  list: LogRow[]
   page: number
   pageSize: number
   selectedKeys: string[]
@@ -61,7 +62,6 @@ const effects = defineEffects<QueryValues>(({ reaction, watch }) => {
 })
 
 export function QueryPage() {
-  const [collapsed, setCollapsed] = useState(true)
   const [batch, setBatch] = useState('')
   const table = useQueryTable({
     initialValues: {
@@ -71,6 +71,7 @@ export function QueryPage() {
       model: '',
       userId: '',
       params: {},
+      list: [],
       page: 1,
       pageSize: 5,
       selectedKeys: [],
@@ -79,6 +80,7 @@ export function QueryPage() {
     fields: { params: { virtual: true } },
     defaultPageSize: 5,
     params: 'params',
+    rows: 'list',
     request: async ({ params, page, pageSize }) => {
       const filtered = LOGS.filter((row) => {
         if (params.keyword && !row.keyword.includes(params.keyword) && !row.id.includes(params.keyword)) return false
@@ -93,14 +95,13 @@ export function QueryPage() {
     },
   })
   return (
-    <ProQueryTable
+    <QueryList
       table={table}
       rowKey="id"
+      settings={false}
+      collapseAfter={3}
       toolbar={
         <>
-          <button type="button" data-testid="collapse" onClick={() => setCollapsed((value) => !value)}>
-            {collapsed ? '展开' : '收起'}
-          </button>
           <button
             type="button"
             data-testid="batch-mark"
@@ -113,75 +114,69 @@ export function QueryPage() {
           <ParamsPreview />
         </>
       }
-      search={
-        <QueryForm collapsed={collapsed} collapseAfter={3}>
-          <Field name="keyword">
-            {(field) => (
-              <label>
-                关键字
-                <input data-testid="keyword" value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value)} />
-              </label>
-            )}
-          </Field>
-          <Field name="status">
-            {(field) => (
-              <label>
-                状态
-                <select data-testid="status" value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value)}>
-                  <option value="">全部</option>
-                  <option value="ok">成功</option>
-                  <option value="error">失败</option>
-                </select>
-              </label>
-            )}
-          </Field>
-          <Field name="provider">
-            {(field) => (
-              <label>
-                供应商
-                <select data-testid="provider" value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value)}>
-                  <option value="">全部</option>
-                  <option value="openai">openai</option>
-                  <option value="anthropic">anthropic</option>
-                </select>
-              </label>
-            )}
-          </Field>
-          <Field name="model">
-            {(field) => (
-              <label>
-                模型
-                <select data-testid="model" value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value)}>
-                  <option value="">全部</option>
-                  {field.options.map((option) => (
-                    <option key={String(option.value)} value={String(option.value)}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-          </Field>
-          <Field name="userId">
-            {(field) => (
-              <label>
-                用户
-                <input data-testid="user-id" value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value)} />
-              </label>
-            )}
-          </Field>
-        </QueryForm>
-      }
       columns={[
-        { title: '关键字', dataIndex: 'keyword' },
-        { title: '供应商', dataIndex: 'provider' },
-        { title: '模型', dataIndex: 'model' },
-        {
-          title: <StatusColumnFilter onSearch={() => table.submit()} />,
-          dataIndex: 'status',
-        },
+        { key: 'keyword', title: '关键字', render: ({ record }) => record.keyword },
+        { key: 'provider', title: '供应商', render: ({ record }) => record.provider },
+        { key: 'model', title: '模型', render: ({ record }) => record.model },
+        { key: 'status', title: <StatusColumnFilter onSearch={() => table.submit()} />, render: ({ record }) => record.status },
       ]}
-    />
+    >
+      <Field name="keyword">
+        {(field) => (
+          <label>
+            关键字
+            <input data-testid="keyword" value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value)} />
+          </label>
+        )}
+      </Field>
+      <Field name="status">
+        {(field) => (
+          <label>
+            状态
+            <select data-testid="status" value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value)}>
+              <option value="">全部</option>
+              <option value="ok">成功</option>
+              <option value="error">失败</option>
+            </select>
+          </label>
+        )}
+      </Field>
+      <Field name="provider">
+        {(field) => (
+          <label>
+            供应商
+            <select data-testid="provider" value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value)}>
+              <option value="">全部</option>
+              <option value="openai">openai</option>
+              <option value="anthropic">anthropic</option>
+            </select>
+          </label>
+        )}
+      </Field>
+      <Field name="model">
+        {(field) => (
+          <label>
+            模型
+            <select data-testid="model" value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value)}>
+              <option value="">全部</option>
+              {field.options.map((option) => (
+                <option key={String(option.value)} value={String(option.value)}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </Field>
+      <Field name="userId">
+        {(field) => (
+          <label>
+            用户
+            <input data-testid="user-id" value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value)} />
+          </label>
+        )}
+      </Field>
+    </QueryList>
   )
 }
 

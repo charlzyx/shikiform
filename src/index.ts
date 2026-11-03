@@ -61,6 +61,7 @@ export type {
   FieldGroupHandle,
   FieldProps,
   FieldSlot,
+  ArrayContainerSlot,
   FieldSpec,
   FieldUiSpec,
   FormOptions,

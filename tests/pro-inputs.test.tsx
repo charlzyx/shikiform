@@ -168,7 +168,6 @@ describe('QueryList', () => {
       return (
         <QueryList
           table={table}
-          list="list"
           columns={[
             { key: 'id', title: 'ID', render: ({ record }) => record.id },
             { key: 'domain', title: 'DOMAIN', render: ({ index }) => <Field name="domain" decorator={[FormItem]}><Input data-testid={`domain-${index}`} /></Field> },

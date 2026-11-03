@@ -1,6 +1,6 @@
 import { Button, ConfigProvider } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
-import { Field, Form, useForm, useWatch, type Draft } from 'shikiform'
+import { ArrayField, Field, Form, useForm, useWatch, type Draft } from 'shikiform'
 import { FormItem, Input, ArrayTable, ShadowModal } from 'shikiform/antd'
 import { useArrayShadow } from 'shikiform/pro'
 

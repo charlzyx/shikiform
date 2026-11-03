@@ -12,7 +12,7 @@ import {
   Typography,
   type TableProps,
 } from 'antd'
-import { Children, createContext, useContext, useRef, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactNode, type ThHTMLAttributes } from 'react'
+import { Children, createContext, useContext, useRef, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactElement, type ReactNode, type ThHTMLAttributes } from 'react'
 import type { Pattern } from '../../core/types'
 import { useArrayTableAt, type ArrayTableApi, type ArrayTablePagination, type ArrayTableRow } from '../../pro/use-array-table'
 import { useColumnSettings, type ColumnSettingsApi, type TableDensity } from '../../pro/use-column-settings'
@@ -561,8 +561,11 @@ function ArrayTableBody<TRow = any>(props: ArrayTableProps<TRow> & { path: strin
   )
 }
 
-/** See {@link ArrayTableImpl}. Row actions and context hooks hang off it as statics. */
-export const ArrayTable = Object.assign(ArrayTableImpl, {
+/**
+ * See {@link ArrayTableImpl}. Row actions and context hooks hang off it as statics. Not generic, so
+ * `component={[ArrayTable, { columns }]}` types every column; annotate `columns: ArrayTableColumn<Row>[]` for typed records.
+ */
+export const ArrayTable = Object.assign(ArrayTableImpl as (props: ArrayTableProps) => ReactElement, {
   SortHandle,
   Index,
   Remove,

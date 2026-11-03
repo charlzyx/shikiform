@@ -1,4 +1,4 @@
-import { useMemo, type ComponentType, type FormEvent, type FormHTMLAttributes, type ReactNode } from 'react'
+import { useMemo, type ComponentProps, type ComponentType, type FormEvent, type FormHTMLAttributes, type ReactNode } from 'react'
 import type { FormEngine } from '../../core/engine/form-engine'
 import type { ArrayPath, Display, Draft, FieldEnum, FieldError, FieldPath, PathValue, Pattern, UiName } from '../../core/types'
 import type { RulesInput } from '../../core/validation/rules'
@@ -209,7 +209,16 @@ export function ObjectField<TScope = any>({
  * `virtualScroll` windows the plain rows (TanStack Virtual); it does not combine with a container `component`.
  * `<ArrayField<Values> name="items">` checks the name; `typed(form).ArrayField` also types the row's fields.
  */
-export function ArrayField<TScope = any>({
+/**
+ * The `component` of an `<ArrayField>`: a container, or `[Container, props]`. The props are checked against the
+ * container (`[ArrayTable, { columns }]` requires `columns` and types each column's `render`); `children` is the rows.
+ */
+export type ArrayContainerSlot<C extends ComponentType<any> = ComponentType<any>> =
+  | C
+  | readonly [C]
+  | readonly [C, Omit<ComponentProps<C>, 'children'> | undefined]
+
+export function ArrayField<TScope = any, C extends ComponentType<any> = ComponentType<any>>({
   name,
   rowKey,
   component,
@@ -219,7 +228,7 @@ export function ArrayField<TScope = any>({
   name: ArrayPath<TScope>
   rowKey?: string
   /** Container around the rows: the component, or `[Component, props]`. It receives the rows as `children`. */
-  component?: FieldSlot
+  component?: ArrayContainerSlot<C>
   /** Window the rows: only those in view (plus `overscan`) mount. Plain rows only (no `component`). */
   virtualScroll?: { height: number; rowHeight?: number; overscan?: number }
   /** One row. Optional when `component` renders the rows itself (`ArrayTable` columns). */

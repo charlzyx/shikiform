@@ -34,17 +34,6 @@ describe('QueryList reads the rows path from useQueryTable', () => {
       spy.mockRestore()
     }
   })
-
-  it('warns when `list` names a different array than `rows`', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    function Page() {
-      const table = useQueryTable({ initialValues: { query: {}, list: [], other: [] }, params: 'query', rows: 'list', request: async () => ({ data: [], total: 0 }) })
-      return <QueryList table={table} list="other" settings={false} columns={[]} />
-    }
-    render(<Page />)
-    expect(warn.mock.calls.some(([message]) => /list="other".*rows: 'list'/.test(String(message)))).toBe(true)
-    warn.mockRestore()
-  })
 })
 
 describe('root entry re-exports the engine names an app needs', () => {

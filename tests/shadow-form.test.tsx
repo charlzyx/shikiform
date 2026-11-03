@@ -2,7 +2,7 @@
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react'
 import { Button } from 'antd'
 import { afterEach, describe, expect, it } from 'vitest'
-import { createForm, Field, Form, RowScope, useField } from '../src'
+import { ArrayField, createForm, Field, Form, RowScope, useField } from '../src'
 import { FormItem, Input, ArrayTable, ShadowForm, ShadowModal, ShadowPopconfirm, useShadow } from '../src/antd'
 import { useArrayShadow, useShadowForm } from '../src/pro'
 import type { ReactNode } from 'react'
