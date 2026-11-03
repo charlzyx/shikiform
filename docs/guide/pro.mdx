@@ -77,6 +77,8 @@ const table = useQueryTable({ initialValues: { query: {}, list: [] }, params: 'q
 </QueryList>
 ```
 
+条件栅格就是 [`FormGrid`](/guide/layout#栅格formgrid)：列数随宽度变，收起时只留第一行，重置 / 查询排在行末（像 antd Pro 的 `QueryFilter`），放不下才出现「展开 / 收起」；`grid` 改列数，宽的条件用 `gridSpan`。
+
 列上写 `sorter: true` / `filters`，表头排序和列筛选会随请求发给服务端（`request` 的 `sorter` / `filters`）并回到第 1 页。列筛选和点「查询」一样会清空选择，免得批量操作碰到已经看不见的行；只翻页或排序时选择保留。
 
 请求协议和返回值见 [查询 Hooks](/reference/query-hooks)；完整页面见 [/play/query-list](/play/query-list) 和不依赖 antd 的 [/play/query-native](/play/query-native)。

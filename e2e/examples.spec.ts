@@ -225,6 +225,9 @@ test.describe('tables', () => {
     await scope.locator('.ant-pagination-item').filter({ hasText: /^3$/ }).click()
     await expect(rows).toHaveCount(2)
 
+    // collapsed shows only the first grid row (the docs column fits 2–3 columns), so 模型 starts hidden
+    await expect(item(scope, '模型')).toBeHidden()
+    await scope.getByRole('button', { name: /^展\s*开$/ }).click()
     await pickSelect(scope, '模型', 'gpt')
     await expect(item(scope, '模型').locator('.ant-select-selector')).toHaveText('gpt')
     await pickSelect(scope, '供应商', 'anthropic')
@@ -233,7 +236,6 @@ test.describe('tables', () => {
     await expect(page.locator('.ant-select-dropdown:visible .ant-select-item-option')).toHaveText(['claude'])
     await page.keyboard.press('Escape')
 
-    await scope.getByRole('button', { name: /^展\s*开$/ }).click()
     await input(scope, '用户 ID').fill('4')
     await scope.getByRole('button', { name: /^收\s*起$/ }).click()
     await scope.getByRole('button', { name: /^展\s*开$/ }).click()

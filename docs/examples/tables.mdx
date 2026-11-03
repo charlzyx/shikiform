@@ -74,7 +74,7 @@ export default function App() {
 
 - `useQueryTable`（`shikiform/pro`）管条件、分页、勾选、表头筛选和请求竞态；`QueryList` 只负责摆放：条件栅格 + 重置 / 查询 + 一张受控分页的 `ArrayTable`。它的 `form` 是普通引擎，所以条件之间照常写 `reaction` / `watch`。
 - `rows: 'list'` 把每页结果写进 `list` 数组字段，表格显示的就是它（单元格也能放 `<Field>` 直接编辑）。
-- 超过 `collapseAfter` 个条件时出现「展开 / 收起」；收起只是隐藏多出来的格子，不卸载字段，值不丢。
+- 条件排在 `FormGrid` 里，列数随容器宽度变（默认最多 4 列、每列至少 220px，`grid` 可改）。收起时只显示第一行，重置 / 查询排在这一行末尾；一行放不下时出现「展开 / 收起」，展开后按钮排在最后一行末尾。收起只是隐藏格子，不卸载字段，值不丢。
 - 表头筛选随请求发给 `request` 的 `filters`，并回到第 1 页、清空勾选；只翻页时勾选保留。见 [查询 Hooks](/reference/query-hooks)。
 
 ## 不用 antd 的查询表

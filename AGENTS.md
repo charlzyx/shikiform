@@ -86,6 +86,7 @@ pattern is `editable` (readPretty / readOnly / disabled anywhere above hides the
 }]} />
 // Long plain lists: <ArrayField name="rows" virtualScroll={{ height: 400 }}>{(row) => …}</ArrayField> (no container)
 // Query page: useQueryTable({ …, rows: 'list' }) + <QueryList table columns>{search fields}</QueryList> (one ArrayTable)
+// Search fields sit in a FormGrid (`grid` = its column props): collapsed = first row + buttons at its end, 展开 shows the rest
 ```
 
 ## 4. Nested values: per-path writes vs `$componentProps` patches

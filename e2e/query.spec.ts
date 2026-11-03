@@ -68,9 +68,35 @@ test('collapsed filters keep values, and a column filter refreshes from page 1',
 
 async function firstRowCount(page: import('@playwright/test').Page, width: number) {
   await page.setViewportSize({ width, height: 800 })
-  return page.locator('[data-query-field]').evaluateAll((nodes) => {
-    const visible = nodes.filter((node) => !(node as HTMLElement).hidden)
-    const top = Math.min(...visible.map((node) => (node as HTMLElement).offsetTop))
-    return visible.filter((node) => (node as HTMLElement).offsetTop === top).length
+  await page.waitForTimeout(100)
+  // cells are the children of the display: contents wrappers; hidden (collapsed) ones have no box
+  return page.locator('[data-query-field] > *').evaluateAll((nodes) => {
+    const boxes = nodes.map((node) => (node as HTMLElement).getBoundingClientRect()).filter((box) => box.width > 0)
+    const top = Math.min(...boxes.map((box) => box.top))
+    return boxes.filter((box) => Math.abs(box.top - top) < 2).length
   })
 }
+
+test('collapse keeps the buttons at the end of the first row; expanded they end the last row', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await page.goto('/play/query')
+  const actions = page.getByTestId('query-actions')
+  const grid = page.locator('[data-form-grid]')
+  await expect(grid).toHaveAttribute('data-form-grid', '4')
+  const cells = page.locator('[data-query-field] > *')
+  const first = await cells.first().boundingBox()
+  const box = await actions.boundingBox()
+  const gridBox = await grid.boundingBox()
+  // collapsed: same row as the first field, flush with the grid's right edge
+  expect(Math.abs(box!.y + box!.height - (first!.y + first!.height))).toBeLessThan(40)
+  expect(Math.abs(box!.x + box!.width - (gridBox!.x + gridBox!.width))).toBeLessThan(2)
+  await expect(actions).toHaveAttribute('data-collapsed', 'true')
+  await page.getByTestId('query-toggle').click()
+  await expect(actions).toHaveAttribute('data-collapsed', 'false')
+  // expanded: 5 fields in 4 columns → row 2 holds the 5th field and the buttons
+  const last = await page.getByTestId('user-id').boundingBox()
+  const after = await actions.boundingBox()
+  expect(after!.y).toBeGreaterThan(box!.y + 10)
+  expect(Math.abs(after!.y + after!.height - (last!.y + last!.height))).toBeLessThan(60)
+  expect(Math.abs(after!.x + after!.width - (gridBox!.x + gridBox!.width))).toBeLessThan(2)
+})
