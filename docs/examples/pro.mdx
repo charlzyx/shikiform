@@ -33,6 +33,14 @@ function itemColumns<T extends Item>(): ArrayTableColumn<T>[] {
   ];
 }
 
+// 子表是只读的：pattern 属于字段，逐个给 <Field> 标 readPretty
+function readonlyItemColumns<T extends Item>(): ArrayTableColumn<T>[] {
+  return itemColumns<T>().map((column) => column.key === 'index' ? column : {
+    ...column,
+    render: () => <Field name={column.key as keyof T & string} pattern="readPretty" decorator={cell} component={[Input]} />,
+  });
+}
+
 function Toolbar() {
   const table = ArrayTable.useTable();
   return <Button size="small" onClick={() => message.info(`已选 ${table.selectedKeys.join(', ') || '无'}`)}>看看勾选了谁</Button>;
@@ -58,10 +66,9 @@ export default function App() {
         expandable: {
           rowExpandable: (row) => Array.isArray(row.subitems),
           render: () => <ArrayField name="subitems" component={[ArrayTable, {
-            pattern: 'readPretty',
             showHeader: false,
             settings: false,
-            columns: itemColumns<Item>(),
+            columns: readonlyItemColumns<Item>(),
           }]} />,
         },
         columns: [

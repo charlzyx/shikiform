@@ -74,7 +74,7 @@ typed<T, TRoot = T>(): TypedForm<T, TRoot>          // 没有实例时（行组�
 type TypedForm<T> = {
   Field, ObjectField, ArrayField        // name 按 T 检查；行 / 对象拿到按自身类型检查的同一组组件
   useField(name: FieldPath<T>, options?): FieldBinding<PathValue<T, name>>
-  useArrayField(name: ArrayPath<T>, rowKey?): ArrayHandle<行类型>
+  useArrayField(name: ArrayPath<T>, opts?: { rowKey?: string }): ArrayHandle<行类型>
   useWatch<S>(select: (d: Draft<TRoot>) => S): S
   Watch: <S>(props: { select: (d: Draft<TRoot>) => S; children: (value: S) => ReactNode }) => ReactNode
 }
@@ -312,10 +312,10 @@ export default function HookExample() {
 ## useArrayField
 
 ```ts
-useArrayField(name: string, rowKey?: string): ArrayHandle<unknown>
-useArrayField<TScope>(name: ArrayPath<TScope>, rowKey?: string): ArrayHandle<unknown>
+useArrayField(name: string, opts?: { rowKey?: string }): ArrayHandle<unknown>
+useArrayField<TScope>(name: ArrayPath<TScope>, opts?: { rowKey?: string }): ArrayHandle<unknown>
 useArrayField<TScope, N extends ArrayPath<TScope>>(
-  name: N, rowKey?: string
+  name: N, opts?: { rowKey?: string }
 ): ArrayHandle<ArrayItemOf<TScope, N & string>>
 ```
 
@@ -324,7 +324,7 @@ useArrayField<TScope, N extends ArrayPath<TScope>>(
 | 参数 | 作用 / 默认 |
 |---|---|
 | `name` | 必填，相对当前 scope 的数组路径 |
-| `rowKey` | 可选行标识属性名；省略时使用行的 `id`，没有 ID 的对象行使用对象身份。业务数据建议明确提供唯一稳定 ID |
+| `opts.rowKey` | 可选行标识属性名；省略时使用行的 `id`，没有 ID 的对象行使用对象身份。业务数据建议明确提供唯一稳定 ID |
 
 返回 `{ path, keys, push, insert, remove, move, swap, replace, dragProps }`：
 
@@ -363,7 +363,7 @@ function ItemInput() {
 }
 
 function Items() {
-  const array = useArrayField<Values, 'items'>('items', 'id');
+  const array = useArrayField<Values, 'items'>('items', { rowKey: 'id' });
   return (
     <section>
       {array.keys.map((row) => (

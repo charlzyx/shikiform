@@ -73,7 +73,7 @@ const itemColumns = (prefix: string): ArrayTableColumn<Item>[] => [
 ]
 
 export function ArrayTablePage() {
-  const form = useForm<Values>({ initialValues: { array: range(23) } })
+  const form = useForm<Values>({ initialValues: { array: range(23) }, fields: { 'array.*.subitems.*.a1': { pattern: 'readPretty' }, 'array.*.subitems.*.a2': { pattern: 'readPretty' }, 'array.*.subitems.*.a3': { pattern: 'readPretty' } } })
   const [submitted, setSubmitted] = useState('')
   const [loadMs, setLoadMs] = useState<number | null>(null)
   return (
@@ -102,7 +102,6 @@ export function ArrayTablePage() {
                 <>
                   <RowSummary />
                   <ArrayField name="subitems" component={[ArrayTable, {
-                    pattern: 'readPretty',
                     showHeader: false,
                     settings: false,
                     bordered: false,

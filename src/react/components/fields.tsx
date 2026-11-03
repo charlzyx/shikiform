@@ -89,13 +89,17 @@ export function Form<T, TSubmit = T>({ form, children, onSubmit, onInvalid, onSu
     let timer: ReturnType<typeof setTimeout> | undefined
     const stop = form.subscribeValidateFailed((errors) => {
       clearTimeout(timer)
-      // Twice: a group can remount its option inputs (css-in-js, a new options array) after the first focus,
-      // which drops it. The second pass looks the id up again.
-      const run = () => focusFirstError(ref.current, errors, prefix)
-      timer = setTimeout(() => {
-        run()
+      // Retry for a few frames: switching a pane remounts its fields (antd css-in-js, a new options array),
+      // which drops a focus that landed just before the remount. Stop as soon as one landed.
+      let tries = 0
+      const run = () => {
+        focusFirstError(ref.current, errors, prefix)
+        const focused = document.activeElement
+        if (focused && focused !== document.body) return
+        if (++tries >= 5) return
         timer = setTimeout(run, 0)
-      }, 0)
+      }
+      timer = setTimeout(run, 0)
     })
     return () => {
       stop()
@@ -281,7 +285,7 @@ export function ArrayField<TScope = any, C extends ComponentType<any> = Componen
   /** One row. Optional when `component` renders the rows itself (`ArrayTable` columns). */
   children?: (row: { index: number; key: string }) => ReactNode
 }) {
-  const array = useArrayField(String(name), rowKey)
+  const array = useArrayField(String(name), { rowKey })
   const [Container, props] = Array.isArray(component) ? component : [component as ComponentType<any> | undefined, undefined]
   if (virtualScroll && Container) {
     throw new ShikiUsageError(

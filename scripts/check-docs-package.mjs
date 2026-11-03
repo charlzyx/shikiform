@@ -97,12 +97,15 @@ try {
   run('tar', ['-xzf', path.join(work, packed[0].filename), '-C', packageDir, '--strip-components=1'], root, 'unpack.log')
   const pkg = JSON.parse(readFileSync(path.join(packageDir, 'package.json'), 'utf8'))
   if (pkg.name !== 'shikiform') throw new Error(`Unexpected packed package: ${pkg.name}`)
+  // macOS 的 os.tmpdir() 返回 symlink 路径（/var/... → /private/var/...），realpath 会改写前缀，
+  // 前缀比较必须两边都先解析成真实路径。
+  const packageDirReal = realpathSync(packageDir)
   for (const key of ['.', './core', './pro', './antd']) {
     for (const condition of ['types', 'import']) {
       const target = pkg.exports?.[key]?.[condition]
       if (typeof target !== 'string') throw new Error(`Missing public ${key} ${condition} export`)
       const actual = realpathSync(path.resolve(packageDir, target))
-      if (!actual.startsWith(`${packageDir}${path.sep}`)) throw new Error(`Export escapes the package: ${key}`)
+      if (!actual.startsWith(`${packageDirReal}${path.sep}`)) throw new Error(`Export escapes the package: ${key}`)
     }
   }
   // Traverse emitted JS, including shared chunks: core/headless must not pull UI.
@@ -110,7 +113,7 @@ try {
     const visited = new Set()
     const visitModule = (file) => {
       const actual = realpathSync(file)
-      if (!actual.startsWith(`${packageDir}${path.sep}`)) throw new Error(`Chunk escapes package: ${file}`)
+      if (!actual.startsWith(`${packageDirReal}${path.sep}`)) throw new Error(`Chunk escapes package: ${file}`)
       if (visited.has(actual)) return
       visited.add(actual)
       const code = readFileSync(actual, 'utf8')
@@ -176,7 +179,7 @@ try {
   writeFileSync(path.join(consumer, 'vite.config.mjs'), "export default { esbuild: { jsx: 'automatic' }, build: { outDir: 'dist', emptyOutDir: true } }\n")
   summary.packageResolution = JSON.parse(run(process.execPath, ['--input-type=module', '-e',
     "console.log(JSON.stringify(Object.fromEntries(['shikiform','shikiform/core','shikiform/pro','shikiform/antd'].map(name => [name,import.meta.resolve(name)]))))"], consumer, 'resolution.log'))
-  const packedUrl = pathToFileURL(`${packageDir}${path.sep}`).href
+  const packedUrl = pathToFileURL(`${packageDirReal}${path.sep}`).href
   for (const resolved of Object.values(summary.packageResolution)) {
     if (!resolved.startsWith(packedUrl)) throw new Error(`Consumer resolved outside packed package: ${resolved}`)
   }

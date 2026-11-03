@@ -242,8 +242,8 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     this.validator.setExternalMany(errorEntries(errors as Record<string, string | string[] | null | undefined> | FieldError[]))
   }
 
-  /** One field's external messages. Same lifetime as {@link FormEngine.setErrors}. `''` is the form root. */
-  setFieldError(path: FieldPath<T> | '', messages: string | string[]): void {
+  /** One field's external messages. Same lifetime as {@link FormEngine.setErrors}. `''` is the form root. `null` clears the path's external messages. */
+  setFieldError(path: FieldPath<T> | '', messages: string | string[] | null): void {
     this.setErrors({ [path]: messages } as never)
   }
 

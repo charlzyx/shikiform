@@ -1,6 +1,7 @@
 import { Badge } from 'antd'
 import { Children, Fragment, isValidElement, useEffect, useRef, type ComponentType, type ReactElement, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
+import { ShikiUsageError } from '../../core/errors'
 import type { FormEngine } from '../../core/engine/form-engine'
 import { FieldGroupStore } from '../../react/field-group'
 
@@ -19,7 +20,7 @@ export function collectPanes<P>(children: ReactNode, marker: ComponentType<P>, m
         return
       }
       if (!isValidElement(child) || child.type !== marker) {
-        throw new Error(`[shikiform] <${markerName.split('.')[0]}> children must be <${markerName}> elements`)
+        throw new ShikiUsageError(`<${markerName.split('.')[0]}> children must be <${markerName}> elements.`)
       }
       const props = (child as ReactElement<P & { name?: string }>).props
       out.push({ key: props.name ?? String(out.length), props })
@@ -53,7 +54,7 @@ export function ErrorBadge({ count, children }: { count: number; children?: Reac
 
 /** Throws: a marker element rendered on its own. */
 export function markerOutside(owner: string, name: string): never {
-  throw new Error(`[shikiform] <${owner}.${name}> renders only as a direct child of <${owner}>`)
+  throw new ShikiUsageError(`<${owner}.${name}> renders only as a direct child of <${owner}>.`)
 }
 
 function inPaths(path: string, paths: readonly string[]): boolean {

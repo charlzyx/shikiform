@@ -13,12 +13,12 @@ import {
   type TableProps,
 } from 'antd'
 import { Children, createContext, useContext, useRef, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactElement, type ReactNode, type ThHTMLAttributes } from 'react'
-import type { Pattern } from '../../core/types'
+import { ShikiUsageError } from '../../core/errors'
 import { useArrayTableOver, type ArrayTableApi, type ArrayTablePagination, type ArrayTableRow } from '../../pro/use-array-table'
 import { useColumnSettings, type ColumnSettingsApi, type TableDensity } from '../../pro/use-column-settings'
 import { useShadowForm, type UseShadowFormOptions } from '../../pro/use-shadow-form'
 import { RowScope } from '../../react/components/fields'
-import { ArrayContext, useRequiredForm, useScope } from '../../react/context'
+import { ArrayContext, useScope } from '../../react/context'
 import type { DragProps } from '../../react/hooks/drag'
 import { useArrayAt } from '../../react/hooks/use-array'
 import { useFormMessage } from '../../react/hooks/use-form-message'
@@ -84,8 +84,6 @@ export interface ArrayTableProps<TRow = any> {
   resizeable?: boolean
   /** Runs before a row is removed; the remove button spins until it settles. Reject to keep the row. */
   onRemove?: (index: number, record: TRow) => void | Promise<void>
-  /** Explicit pattern for the whole array (e.g. a read-only nested table). */
-  pattern?: Pattern
   loading?: boolean
   bordered?: boolean
   showHeader?: boolean
@@ -111,7 +109,12 @@ const TableContext = createContext<ArrayTableContextValue | null>(null)
 /** The surrounding `ArrayTable`'s state (pagination, selection, expansion, row actions) and its column settings. */
 function useTable(): ArrayTableApi<any> & { settings: ColumnSettingsApi } {
   const ctx = useContext(TableContext)
-  if (!ctx) throw new Error('ArrayTable.useTable() must render inside an ArrayTable (its cells, toolbar, extra or footer)')
+  if (!ctx) {
+    if (process.env.NODE_ENV !== 'production') {
+      throw new ShikiUsageError('ArrayTable.useTable() must render inside an ArrayTable (its cells, toolbar, extra or footer).')
+    }
+    throw new Error('ArrayTable.useTable() must render inside an ArrayTable')
+  }
   return { ...ctx.table, settings: ctx.settings }
 }
 
@@ -121,7 +124,10 @@ function useTable(): ArrayTableApi<any> & { settings: ColumnSettingsApi } {
  */
 function useRow(): ArrayTableRow & { record: any } {
   const ctx = useContext(TableContext)
-  if (!ctx) throw new Error('ArrayTable.useRow() must render inside an ArrayTable cell')
+  if (!ctx) {
+    if (process.env.NODE_ENV !== 'production') throw new ShikiUsageError('ArrayTable.useRow() must render inside an ArrayTable cell.')
+    throw new Error('ArrayTable.useRow() must render inside an ArrayTable cell')
+  }
   const index = useIndex()
   const record = useRecord()
   const key = useScope().itemKey ?? String(index)
@@ -130,7 +136,10 @@ function useRow(): ArrayTableRow & { record: any } {
 
 function useCell() {
   const ctx = useContext(TableContext)
-  if (!ctx) throw new Error('ArrayTable row actions must render inside an ArrayTable cell')
+  if (!ctx) {
+    if (process.env.NODE_ENV !== 'production') throw new ShikiUsageError('ArrayTable row actions must render inside an ArrayTable cell.')
+    throw new Error('ArrayTable row actions must render inside an ArrayTable cell')
+  }
   const index = useIndex()
   const key = useScope().itemKey ?? String(index)
   return { ...ctx, row: { key, index, position: ctx.table.positionOf(index) } }
@@ -207,13 +216,24 @@ function Copy({ title }: { title?: ReactNode }) {
   )
 }
 
-/** Append a row (default `{}` or `defaultValue()`), then show the page it landed on. */
-function Addition({ title, defaultValue }: { title?: ReactNode; defaultValue?: () => any }) {
+/**
+ * Append a row, then show the page it landed on. `defaultValue` is a value (deep-cloned each time, like
+ * `ArrayItems.Addition`) or a function for a fresh object per click; default `{}`.
+ */
+function Addition({ title, defaultValue }: { title?: ReactNode; defaultValue?: unknown }) {
   const table = useTable()
   const t = useFormMessage()
   if (!useArrayEditable()) return null
   return (
-    <Button size="small" type="dashed" data-testid="row-add" onClick={() => table.add(defaultValue ? defaultValue() : {})}>
+    <Button
+      size="small"
+      type="dashed"
+      data-testid="row-add"
+      onClick={() => {
+        const value = typeof defaultValue === 'function' ? (defaultValue as () => unknown)() : defaultValue === undefined ? {} : structuredClone(defaultValue)
+        table.add(value as never)
+      }}
+    >
       {title ?? t('add')}
     </Button>
   )
@@ -427,9 +447,12 @@ function ResizableTitle({ onResize, width, ...rest }: ThHTMLAttributes<HTMLTable
 function ArrayTableImpl<TRow = any>(props: ArrayTableProps<TRow>) {
   const array = useContext(ArrayContext)
   if (!array) {
-    throw new Error(
-      '[shikiform] ArrayTable is the container of an <ArrayField>: <ArrayField name="list" component={[ArrayTable, { columns }]} />',
-    )
+    if (process.env.NODE_ENV !== 'production') {
+      throw new ShikiUsageError(
+        'ArrayTable is the container of an <ArrayField>: <ArrayField name="list" component={[ArrayTable, { columns }]} />.',
+      )
+    }
+    throw new Error('ArrayTable is the container of an <ArrayField>')
   }
   if (process.env.NODE_ENV !== 'production' && Children.count(props.children) > 0) warnRowChildren(array.path)
   return <ArrayTableBody<TRow> {...props} path={array.path} rowKey={array.rowKey} />
@@ -446,7 +469,6 @@ function warnRowChildren(path: string) {
 }
 
 function ArrayTableBody<TRow = any>(props: ArrayTableProps<TRow> & { path: string; rowKey?: string }) {
-  const form = useRequiredForm(`<ArrayField name="${props.path}" component={[ArrayTable]}>`)
   const selection = props.rowSelection === true ? {} : props.rowSelection || null
   const array = useArrayAt(props.path, props.rowKey)
   const table = useArrayTableOver<TRow>(props.path, array, {
@@ -462,12 +484,6 @@ function ArrayTableBody<TRow = any>(props: ArrayTableProps<TRow> & { path: strin
   })
   const settings = useColumnSettings(props.columns.map((column) => ({ key: column.key, title: column.title, width: column.width, hidden: column.hidden })))
   const dragProps = array.dragProps
-  const patternApplied = useRef<Pattern | undefined>(undefined)
-  if (props.pattern && patternApplied.current !== props.pattern) {
-    patternApplied.current = props.pattern
-    form.registerField(props.path, { pattern: props.pattern })
-  }
-
   const byKey = new Map(props.columns.map((column) => [column.key, column]))
   const cellOf = (row: ArrayTableRow): ArrayTableCell<TRow> => ({ ...row, record: table.record(row.index), table })
   const inRow = (row: ArrayTableRow, node: ReactNode) => (

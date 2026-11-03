@@ -588,8 +588,8 @@ export interface FormInstance<T, TSubmit = T> {
    * the field validates again (every `submit` does), or `reset` / `clearErrors`.
    */
   setErrors(errors: Partial<Record<FieldPath<T> | '', string | string[] | null | undefined>> | FieldError[]): void
-  /** One path's external messages. Same lifetime as `setErrors`. */
-  setFieldError(path: FieldPath<T> | '', messages: string | string[]): void
+  /** One path's external messages. Same lifetime as `setErrors`; `null` clears the path's external messages. */
+  setFieldError(path: FieldPath<T> | '', messages: string | string[] | null): void
   /** Clear rule, schema and external messages on `path` and its descendants, or everywhere. */
   clearErrors(path?: FieldPath<T>): void
   /**

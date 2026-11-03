@@ -45,6 +45,20 @@ describe('ArrayTable', () => {
     expect(form.getValue('list.5.a1' as never)).toBe('edited')
   })
 
+  it('Addition defaultValue: a value is deep-cloned each time, a function gives a fresh object', async () => {
+    const source = { a1: 'x', tags: ['a'] }
+    const { form } = mount(rows(1), { extra: <ArrayTable.Addition defaultValue={source} /> })
+    fireEvent.click(screen.getByTestId('row-add'))
+    await waitFor(() => expect(form.getValue('list').length).toBe(2))
+    const added = (form.getValue('list') as { a1: string; tags: string[] }[])[1]
+    expect(added).toEqual({ a1: 'x', tags: ['a'] })
+    expect(added.tags).not.toBe(source.tags)
+    // the source value itself is untouched by later clicks
+    fireEvent.click(screen.getByTestId('row-add'))
+    await waitFor(() => expect(form.getValue('list').length).toBe(3))
+    expect(source).toEqual({ a1: 'x', tags: ['a'] })
+  })
+
   it('add jumps to the page of the new row; remove and move act on the array', async () => {
     const { form } = mount(rows(5))
     fireEvent.click(screen.getByTestId('row-add'))
@@ -86,7 +100,7 @@ describe('ArrayTable', () => {
   })
 
   it('expandable rows render a nested read-only table in the row scope', async () => {
-    const form = createForm({ initialValues: { list: rows(3) } })
+    const form = createForm({ initialValues: { list: rows(3) }, pattern: 'readPretty' })
     render(
       <Form form={form}>
         <ArrayField name="list" component={[ArrayTable, {
@@ -97,7 +111,6 @@ describe('ArrayTable', () => {
             rowExpandable: (record) => Array.isArray(record.subitems),
             render: () => (
               <ArrayField name="subitems" component={[ArrayTable, {
-                pattern: 'readPretty',
                 settings: false,
                 showHeader: false,
                 columns: [{ key: 'a1', render: () => <Field name="a1" decorator={[FormItem]}><Input /></Field> }],

@@ -193,7 +193,7 @@ groupRowSpan<T>(rows: readonly T[], groupOf: (row: T) => string): number[]
   rowSelection: true,
   expandable: {
     rowExpandable: (record) => !!record.children,
-    render: () => <ArrayField name="children" component={[ArrayTable, { pattern: 'readPretty', columns: childColumns }]} />,
+    render: () => <ArrayField name="children" pattern="readPretty" component={[ArrayTable, { columns: childColumns }]} />,
   },
   extra: <ArrayTable.Addition />,
   onRemove: (index, record) => api.remove(record.id),
@@ -216,7 +216,6 @@ groupRowSpan<T>(rows: readonly T[], groupOf: (row: T) => string): number[]
 | `settings` | 默认 `true`：列显隐、排序（拖动 ⋮⋮，↑ ↓ 给键盘）、密度 |
 | `resizeable` | 拖动表头右边缘改列宽 |
 | `onTableChange` | 表头排序 / 筛选变化，参数同 antd `Table` `onChange`（分页由底部分页器负责）；`useQueryTable().onTableChange` 可直接接 |
-| `pattern` | 整个数组的 pattern（如只读子表 `'readPretty'`） |
 | `loading` / `bordered` / `showHeader` / `scroll` / `size` / `testId` | 交给 antd `Table` / 外层容器 |
 
 | 成员 | 行为 |
@@ -226,12 +225,12 @@ groupRowSpan<T>(rows: readonly T[], groupOf: (row: T) => string): number[]
 | `ArrayTable.Remove` | `title?`、`confirm?: boolean \| string`；`onRemove` 执行时转圈 |
 | `ArrayTable.MoveUp` / `MoveDown` | 首行 / 末行禁用 |
 | `ArrayTable.Copy` | 在下方插入这一行的副本（id 由 `createRowKey` 生成，否则去掉） |
-| `ArrayTable.Addition` | `title?`、`defaultValue?: () => row`；追加后跳到它所在的页 |
+| `ArrayTable.Addition` | `title?`、`defaultValue?`（值每次克隆，或函数；默认 `{}`，同 `ArrayItems.Addition`，没有 `method`）；追加后跳到它所在的页 |
 | `ArrayTable.ShadowAddition` | 用影子表单在弹窗（`popType="modal"`，默认）或抽屉里填一行，确定才追加；`onOk(values, table)` 返回 `false` 自己处理；其余参数同 [useShadowForm](/reference/pro-hooks#useshadowform) |
 | `ArrayTable.useTable()` | 在 `toolbar` / `footer` / 单元格里读表格状态 + 列配置（`useArrayTable` 的返回值加 `settings`） |
 | `ArrayTable.useRow()` | 单元格里的 `{ key, index, position, record }`，建立在 [`useIndex`](/reference/react-hooks#useindex) / [`useRecord`](/reference/react-hooks#userecord) 上，`record` 是响应式的 |
 
-行操作（`SortHandle`、`Remove`、`MoveUp`、`MoveDown`、`Copy`、`Addition`、`ShadowAddition`）和 `ArrayItems` 一样，只在数组的有效 pattern 为 `editable` 时渲染（`pattern` 参数、外层或根的 `readPretty` / `readOnly` / `disabled` 都会隐藏它们）；`Index` 一直显示。
+行操作（`SortHandle`、`Remove`、`MoveUp`、`MoveDown`、`Copy`、`Addition`、`ShadowAddition`）和 `ArrayItems` 一样，只在数组的有效 pattern 为 `editable` 时渲染（外层或根的 `readPretty` / `readOnly` / `disabled` 都会隐藏它们；给整个数组设 pattern 写在 `<ArrayField pattern>` 或 `d.list.$pattern` 上，`ArrayTable` 自己不再收 `pattern` 参数）；`Index` 一直显示。
 
 单元格里同样可以直接用 [`useArray()`](/reference/react-hooks#usearray) / `useIndex()` / `useRecord()`。行操作按钮的文案走表单 `messages`（`add`、`remove`、`removeConfirm`、`moveUp`、`moveDown`、`copy`、`dragSort`、`selection*`、`density`、`columnSettings`）。可点的例子：[/play/array-table](/play/array-table)、[/play/array-table-shadow](/play/array-table-shadow)。
 
