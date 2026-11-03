@@ -1,5 +1,5 @@
 import { createContext, useContext, type ComponentType, type ReactNode } from 'react'
-import type { Display, Pattern, UiName } from '../../core/types'
+import type { Display, FieldUiSpec, Pattern, UiName } from '../../core/types'
 import { useRequiredForm, useScope } from '../context'
 import { useUiNode, type FieldSlot } from '../hooks/use-field'
 import { normalizeUiSpec } from '../../core/state/field-model'
@@ -63,7 +63,7 @@ export function UI({ name, children, display, pattern, ...slots }: UIProps) {
   const form = useRequiredForm(`<UI name="${String(name)}">`)
   const path = useScope().path
   useUiNode(form, path, name, 'node')
-  const ui = form.uiBinding(path, name, { ...normalizeUiSpec(slots), display, pattern }, 'node') as UiBinding
+  const ui = form.uiBinding(path, name, { ...(normalizeUiSpec(slots) as FieldUiSpec), display, pattern }, 'node') as UiBinding
   if (ui.display !== 'visible') return null
   const Component = ui.component
   const Decorator = ui.decorator
