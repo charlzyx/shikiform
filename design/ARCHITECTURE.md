@@ -61,7 +61,7 @@ src/
     containers/            form-tab.tsx / form-collapse.tsx / form-step.tsx（FormTab / FormCollapse / FormStep + useFormStep）、panes.tsx（面板收集、每面板一个字段组、错误徽标）
     arrays/                array-items.tsx（ArrayItems / ArrayCards / useArrayEditable：<ArrayField component> 容器，按钮 = useArray + useIndex）
     shadow/                shadow.tsx（ShadowModal / ShadowDrawer / ShadowPopconfirm / ShadowForm / useShadow）
-    tables/                array-table.tsx（ArrayTable：<ArrayField> 的 antd 表格容器）、query-list.tsx（QueryList + 内部 QueryForm 栅格）、merged-table.tsx
+    tables/                array-table.tsx（ArrayTable：<ArrayField> 的 antd 表格容器）、query-list.tsx（QueryList：条件放在 `FormGrid` 里，收起只留第一行、按钮在行末）、merged-table.tsx
 ```
 
 依赖只能向下：
@@ -224,7 +224,7 @@ const Rate = connect(AntRate, mapProps({ status: false }))
 | ProEnum / ProEnumPretty | `EnumSource`（core）、`enumItems` | 选择类控件阅读态 + `prettyType`、`PreviewText.Select` | `/play/pro-enum` |
 | Suggestion | `useSuggestion` | `Suggestion` / `SuggestionSelect` | `/play/suggestion` |
 | CascaderPlus | `useLazyCascader` | `CascaderPlus` / `CascaderPlusView` | `/play/cascader-plus` |
-| QueryList / QueryForm / QueryTable | `useQueryTable({ rows })` | `QueryList`（`rows` 必填；栅格 `QueryForm` 是内部的） | `/play/query`、`/play/query-list` |
+| QueryList / QueryForm / QueryTable | `useQueryTable({ rows })` | `QueryList`（`rows` 必填；条件栅格就是 `FormGrid`） | `/play/query`、`/play/query-list` |
 
 - **影子表单不写宿主。** `useShadowForm` 每次 `open` 新建引擎（`initialValues` = 打开的记录），`confirm` 校验通过后只调用 `onOk`；写回由调用方（或 `useArrayShadow` 的默认写回）决定。草稿字段经 `ShadowBody` 提供 `FormContext` 并把 `ScopeContext` 重置为根，不渲染 `<form>`，可以嵌在宿主 `<Form>` 里或从行内打开。
 - **`<Form>` 同样把作用域重置为根，并阻止 submit 事件冒泡到宿主表单**（React 合成事件会穿过 portal）。

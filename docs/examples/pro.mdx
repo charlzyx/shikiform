@@ -252,7 +252,7 @@ export default function App() {
       service(params, page, pageSize, sorter.some((item) => item.field === 'id' && item.order === 'descend')),
   });
   return (
-    <QueryList table={table} columns={columns} collapseAfter={2}>
+    <QueryList table={table} columns={columns}>
       <Field name="query.domain" title="域名" decorator={[FormItem, { layout: 'vertical' }]} component={[Input]} />
       <Field name="query.status" title="状态" decorator={[FormItem, { layout: 'vertical' }]} component={[Select, { allowClear: true }]} />
       <Field name="query.note" title="备注（折叠）" decorator={[FormItem, { layout: 'vertical' }]} component={[Input]} />

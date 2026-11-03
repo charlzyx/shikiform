@@ -11,13 +11,13 @@ description: QueryList、ShadowModal / ShadowDrawer / ShadowPopconfirm / ShadowF
 
 ```tsx
 const table = useQueryTable({ initialValues: { query: {}, list: [] }, params: 'query', rows: 'list', request })
-<QueryList table={table} columns={columns} collapseAfter={3}>
+<QueryList table={table} columns={columns}>
   <Field name="query.domain" title="域名" decorator={[FormItem, { layout: 'vertical' }]} component={[Input]} />
   …
 </QueryList>
 ```
 
-Pro.formily `QueryList` + `QueryForm` + `QueryTable`：可折叠的查询栅格（展开 / 收起、重置、查询）加一张受控服务端分页的 [`ArrayTable`](/reference/antd#arraytable)，表头带刷新。状态全部在 `useQueryTable`；`rows` 选项必填，它把每页结果写进这个数组字段（单元格可以直接编辑），`QueryList` 渲染的就是它。children 是查询字段，每个占一格，超过 `collapseAfter`（默认 3）个时出现展开 / 收起，收起只隐藏不卸载。其余参数（`rowKey`、`columns`、`title`、`toolbar`、`extra`、`footer`、`expandable`、`rowSelection`、`settings`、`resizeable`）交给内部的 `ArrayTable`。选择存在 Hook 里，翻页保留、新查询清空。列上写 `sorter: true` / `filters`，表头排序和列筛选会作为 `sorter` / `filters` 发给 `request` 并回到第 1 页；列筛选和新查询一样清空选择，排序保留选择；表头状态受 Hook 控制，`重置` 一并清空（见 [表头排序与列筛选](/reference/query-hooks#表头排序与列筛选)）。
+Pro.formily `QueryList` + `QueryForm` + `QueryTable`：可折叠的查询栅格（展开 / 收起、重置、查询）加一张受控服务端分页的 [`ArrayTable`](/reference/antd#arraytable)，表头带刷新。状态全部在 `useQueryTable`；`rows` 选项必填，它把每页结果写进这个数组字段（单元格可以直接编辑），`QueryList` 渲染的就是它。children 是查询字段，放在一个 [`FormGrid`](/reference/antd-adapter#formgrid) 里，每个占一格（宽的用 `decorator={[FormItem, { gridSpan: 2 }]}` 或 `<GridColumn gridSpan>`）；列数随容器宽度变，`grid`（`maxColumns` / `minColumns` / `minWidth` / `breakpoints` / `columnGap`，默认 `{ maxColumns: 4, minWidth: 220 }`）可改。收起时只显示第一行，重置 / 查询在这一行末尾（antd Pro `QueryFilter` 的样子）；一行放不下才出现展开 / 收起，展开后按钮排在最后一行末尾。收起只隐藏不卸载，值照常参与查询。标签宽度等用外层 `FormLayout` 给。其余参数（`rowKey`、`columns`、`title`、`toolbar`、`extra`、`footer`、`expandable`、`rowSelection`、`settings`、`resizeable`）交给内部的 `ArrayTable`。选择存在 Hook 里，翻页保留、新查询清空。列上写 `sorter: true` / `filters`，表头排序和列筛选会作为 `sorter` / `filters` 发给 `request` 并回到第 1 页；列筛选和新查询一样清空选择，排序保留选择；表头状态受 Hook 控制，`重置` 一并清空（见 [表头排序与列筛选](/reference/query-hooks#表头排序与列筛选)）。
 
 ## ShadowModal
 
