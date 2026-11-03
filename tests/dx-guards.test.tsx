@@ -1,15 +1,12 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ArrayField, Field, Form, ObjectField, createForm, defineEffects, useField, useForm } from '../src'
+import { ArrayField, Field, Form, ObjectField, createForm, useField, useForm } from '../src'
 import { ShikiUsageError } from '../src/core'
 import { FormItem, Input, ArrayTable, Submit } from '../src/antd'
+import { withReaction } from './fixtures/reaction-utils'
 
 afterEach(cleanup)
-
-function withReaction(effect: (d: any) => void, initialValues: any = { kind: 'a', email: '' }) {
-  return () => createForm<any>({ initialValues, effects: [defineEffects<any>(({ reaction }) => reaction(effect))] })
-}
 
 describe('draft typos and read-only writes throw in development', () => {
   it('a misspelled $ state read throws with the suggestion instead of returning a truthy handle', () => {
