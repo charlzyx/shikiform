@@ -35,7 +35,7 @@ describe('form.subscribeValidateFailed', () => {
 
 function TabForm({ form, activeKey, onChange }: { form: FormEngine<Values>; activeKey?: string; onChange?: (key: string) => void }) {
   return (
-    <Form form={form}>
+    <Form form={form} id="tabs">
       <FormTab activeKey={activeKey} onChange={onChange}>
         <FormTab.Pane name="base" tab="基本">
           <Field name="name" decorator={[FormItem]} component={[Input]} />
@@ -63,7 +63,7 @@ describe('containers reveal the first error', () => {
     fireEvent.click(view.getByTestId('submit'))
     await settle()
     expect(activeTab(view)).toContain('联系')
-    expect(document.activeElement?.id).toBe('email')
+    expect(document.activeElement?.id).toBe('tabs-email')
     // form.validate() reveals too: fix email, the next error is on the third pane.
     act(() => form.setValue('email', 'a@b.c'))
     await act(async () => {
@@ -71,7 +71,7 @@ describe('containers reveal the first error', () => {
     })
     await settle()
     expect(activeTab(view)).toContain('更多')
-    expect(document.activeElement?.id).toBe('note')
+    expect(document.activeElement?.id).toBe('tabs-note')
   })
 
   it('FormTab controlled: only onChange is called', async () => {
@@ -142,7 +142,7 @@ describe('containers reveal the first error', () => {
     const step = useFormStep()
     handle = step
     return (
-      <Form form={form}>
+      <Form form={form} id="wizard">
         <FormStep step={step}>
           <FormStep.Step title="一">
             <Field name="name" required decorator={[FormItem]} component={[Input]} />
@@ -170,14 +170,14 @@ describe('containers reveal the first error', () => {
     await settle()
     expect(handle!.current).toBe(0)
     await settle()
-    expect(document.activeElement?.id).toBe('name')
+    expect(document.activeElement?.id).toBe('wizard-name')
   })
 })
 
 describe('pure-layout FormItem shows the errors inside it', () => {
   function Layout({ form, innerFeedback }: { form: FormEngine<Values>; innerFeedback?: 'none' }) {
     return (
-      <Form form={form}>
+      <Form form={form} id="layout">
         <FormItem label="日期" data-testid="range">
           <Space.Compact>
             <Field name="name" required component={[Input]} />
@@ -210,8 +210,8 @@ describe('pure-layout FormItem shows the errors inside it', () => {
     await settle()
     expect([...range.querySelectorAll('.ant-form-item-explain-error')].map((n) => n.textContent)).toHaveLength(1)
     // Only the errored control is red (its own field status), not the clean one.
-    expect(view.container.querySelector('#name')?.className).not.toContain('status-error')
-    expect(view.container.querySelector('#email')?.className).toContain('status-error')
+    expect(view.container.querySelector('#layout-name')?.className).not.toContain('status-error')
+    expect(view.container.querySelector('#layout-email')?.className).toContain('status-error')
   })
 
   it('does not repeat an error an inner decorated FormItem shows; shows it when that item hides feedback', async () => {

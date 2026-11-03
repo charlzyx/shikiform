@@ -52,7 +52,42 @@ function withPretty<C extends ComponentType<any>>(component: C): ComponentStatic
 }
 
 const choice = mapProps({ options: 'options', loading: 'loading', readOnly: 'disabled' }, stripPrettyType)
-const group = mapProps({ options: 'options', readOnly: 'disabled', status: false, id: false }, stripPrettyType)
+
+/**
+ * Ant Design puts a group `id` on the wrapper div, which `<label htmlFor>` cannot activate, so the group drops it.
+ * The field id goes on the first option that does not already have one: that option's `<input>` is what
+ * `FormItem`'s label points at, and what a failed submit focuses. Hand-written children (`Radio.Button`) are left
+ * alone — there is no option list to stamp.
+ */
+function labelFirstOption(props: Record<string, any>, field: { id?: string }): Record<string, any> {
+  const id = field.id
+  const options = props.options
+  if (!id || props.id === id || !Array.isArray(options) || options.length === 0) return props
+  let stamped = false
+  let changed = false
+  const next = options.map((option) => {
+    if (stamped || option == null) return option
+    if (typeof option !== 'object') {
+      stamped = true
+      changed = true
+      return { label: option, value: option, id }
+    }
+    if (option.id) {
+      if (option.id === id) stamped = true
+      return option
+    }
+    stamped = true
+    changed = true
+    return { ...option, id }
+  })
+  return changed ? { ...props, options: next } : props
+}
+
+const group = mapProps(
+  { options: 'options', readOnly: 'disabled', status: false, id: false },
+  stripPrettyType,
+  labelFirstOption,
+)
 
 function TextAreaPreview(props: PreviewTextProps) {
   if (isEmptyValue(props.value)) return <PreviewText.Empty empty={props.empty} />

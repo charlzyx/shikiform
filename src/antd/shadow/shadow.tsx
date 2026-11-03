@@ -3,6 +3,7 @@ import { cloneElement, createContext, isValidElement, useContext, useEffect, use
 import type { FormEngine } from '../../core/engine/form-engine'
 import { useShadowForm, type ShadowFormApi, type ShadowInit, type UseShadowFormOptions } from '../../pro/use-shadow-form'
 import { FormContext, ScopeContext } from '../../react/context'
+import { IdPrefixProvider, useAutoIdPrefix } from '../../react/id-prefix'
 import { useFormMessage } from '../../react/hooks/use-form-message'
 
 const ROOT = { path: '', index: -1 }
@@ -28,15 +29,19 @@ function idOf(form: FormEngine<any>): number {
  * No `<form>` element: a shadow may sit inside the host `<Form>`. Remounts on every `open()` (fresh engine).
  */
 function ShadowBody({ shadow, children }: { shadow: ShadowFormApi<any, any>; children?: ReactNode }) {
+  // A shadow has no `<form>` (it may sit inside the host form) but still needs its own id prefix.
+  const prefix = useAutoIdPrefix()
   return (
     <ShadowContext.Provider value={shadow}>
-      <FormContext.Provider value={shadow.form}>
-        <ScopeContext.Provider value={ROOT}>
-          <div key={idOf(shadow.form)} data-shadow-form>
-            {shadow.loading ? <Spin /> : children}
-          </div>
-        </ScopeContext.Provider>
-      </FormContext.Provider>
+      <IdPrefixProvider prefix={prefix}>
+        <FormContext.Provider value={shadow.form}>
+          <ScopeContext.Provider value={ROOT}>
+            <div key={idOf(shadow.form)} data-shadow-form>
+              {shadow.loading ? <Spin /> : children}
+            </div>
+          </ScopeContext.Provider>
+        </FormContext.Provider>
+      </IdPrefixProvider>
     </ShadowContext.Provider>
   )
 }
