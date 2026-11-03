@@ -65,7 +65,7 @@ move / swap / insert / remove it stays on `rows.0.x` and applies to whichever ro
 
 In React, a row component reads its row without names: `useArray()` (nearest array handle: `push`, `remove`,
 `move`, `swap`, `dragProps(index)`…), `useIndex()`, `useRecord()` (reactive row value), `useTreeNode()` (inside
-`<RowScope path pos>`). `useArrayField(name)` is the named version; `useTreeField(name)` is the tree handle (`move(from, to)`,
+`<RowScope path pos>`). `useArrayField(name, opts?: { rowKey })` is the named version; `useTreeField(name)` is the tree handle (`move(from, to)`,
 `dragProps(pos)`). Drag-and-drop is `{...handle.dragProps(i)}` on the row; there is no separate drag hook.
 Rows need no id: object rows without `rowKey` / `id` keep a stable object identity (state follows them on move).
 

@@ -8,6 +8,12 @@ import { ArrayItems, ArrayTable, FormCollapse, FormItem, FormStep, FormTab, Inpu
 
 afterEach(cleanup)
 const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 30)))
+/** The focus retry spans a few frames (a pane remount can drop the first focus); wait until it lands or gives up. */
+const settleFocus = async (id: string) => {
+  await act(async () => {
+    for (let i = 0; i < 20 && document.activeElement?.id !== id; i++) await new Promise((r) => setTimeout(r, 5))
+  })
+}
 
 type Values = { name: string; email: string; city: string; note: string }
 const initial: Values = { name: '', email: '', city: '', note: '' }
@@ -63,6 +69,7 @@ describe('containers reveal the first error', () => {
     fireEvent.click(view.getByTestId('submit'))
     await settle()
     expect(activeTab(view)).toContain('联系')
+    await settleFocus('tabs-email')
     expect(document.activeElement?.id).toBe('tabs-email')
     // form.validate() reveals too: fix email, the next error is on the third pane.
     act(() => form.setValue('email', 'a@b.c'))
@@ -71,6 +78,7 @@ describe('containers reveal the first error', () => {
     })
     await settle()
     expect(activeTab(view)).toContain('更多')
+    await settleFocus('tabs-note')
     expect(document.activeElement?.id).toBe('tabs-note')
   })
 
