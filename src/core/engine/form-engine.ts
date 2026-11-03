@@ -674,9 +674,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   }
 
   /** @internal A mounted `<Field ui>` / `<UI>`; returns the release. */
-  claimUi(path: string, name: string, kind: UiKind): () => void {
-    return this.uiNodes.claim(path, name, kind)
-  }
+  claimUi(path: string, name: string, kind: UiKind): () => void { return this.uiNodes.claim(path, name, kind) }
 
   /** @internal React has mounted: writes to UI names that never mount warn from now on (once each). */
   markUiReady(): void { this.uiNodes.markReady() }
