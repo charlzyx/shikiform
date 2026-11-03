@@ -82,63 +82,53 @@ export function ArrayTablePage() {
         <h1>ArrayTable</h1>
         <p>对照 Pro.formily ArrayTable：拖拽排序、序号、行内编辑、删除（确认 + 异步）、上下移、行选择、展开行（自定义 render + 只读子表）、列配置、列宽拖拽、分页、自定义 toolbar / footer。</p>
         <Form form={form} onSubmit={(values) => setSubmitted(JSON.stringify(values.array.slice(0, 3), null, 2))}>
-          <ArrayField name="array"
-            component={[
-              ArrayTable,
+          <ArrayField name="array" component={[ArrayTable, {
+            title: 'Array Table Pro Max',
+            resizeable: true,
+            rowSelection: true,
+            scroll: { x: '100%' },
+            toolbar: <CustomToolbar />,
+            footer: <CustomFooter />,
+            extra: <ArrayTable.Addition title="添加条目" defaultValue={() => ({ a1: '', a2: '', a3: '' })} />,
+            onRemove: async () => {
+              const close = message.loading({ key: 'rmLoading', content: '删除中...' })
+              await new Promise((resolve) => setTimeout(resolve, 1000))
+              close()
+              message.success({ key: 'rmLoading', content: 'DONE!' })
+            },
+            expandable: {
+              rowExpandable: (record) => Array.isArray(record.subitems),
+              render: () => (
+                <>
+                  <RowSummary />
+                  <ArrayField name="subitems" component={[ArrayTable, {
+                    pattern: 'readPretty',
+                    showHeader: false,
+                    settings: false,
+                    bordered: false,
+                    columns: itemColumns('sub-'),
+                  }]} />
+                </>
+              ),
+            },
+            columns: [
+              { key: 'sort', title: 'Sort', width: 60, align: 'center', render: () => <ArrayTable.SortHandle /> },
+              ...(itemColumns('') as ArrayTableColumn<Row>[]),
               {
-                title: 'Array Table Pro Max',
-                resizeable: true,
-                rowSelection: true,
-                scroll: { x: '100%' },
-                toolbar: <CustomToolbar />,
-                footer: <CustomFooter />,
-                extra: <ArrayTable.Addition title="添加条目" defaultValue={() => ({ a1: '', a2: '', a3: '' })} />,
-                onRemove: async () => {
-                  const close = message.loading({ key: 'rmLoading', content: '删除中...' })
-                  await new Promise((resolve) => setTimeout(resolve, 1000))
-                  close()
-                  message.success({ key: 'rmLoading', content: 'DONE!' })
-                },
-                expandable: {
-                  rowExpandable: (record) => Array.isArray(record.subitems),
-                  render: () => (
-                    <>
-                      <RowSummary />
-                      <ArrayField name="subitems"
-                        component={[
-                          ArrayTable,
-                          {
-                            pattern: 'readPretty',
-                            showHeader: false,
-                            settings: false,
-                            bordered: false,
-                            columns: itemColumns('sub-'),
-                          },
-                        ]}
-                      />
-                    </>
-                  ),
-                },
-                columns: [
-                  { key: 'sort', title: 'Sort', width: 60, align: 'center', render: () => <ArrayTable.SortHandle /> },
-                  ...(itemColumns('') as ArrayTableColumn<Row>[]),
-                  {
-                    key: 'action',
-                    title: 'Action',
-                    width: 200,
-                    fixed: 'right',
-                    render: () => (
-                      <Space size={0}>
-                        <ArrayTable.Remove confirm />
-                        <ArrayTable.MoveDown />
-                        <ArrayTable.MoveUp />
-                      </Space>
-                    ),
-                  },
-                ],
+                key: 'action',
+                title: 'Action',
+                width: 200,
+                fixed: 'right',
+                render: () => (
+                  <Space size={0}>
+                    <ArrayTable.Remove confirm />
+                    <ArrayTable.MoveDown />
+                    <ArrayTable.MoveUp />
+                  </Space>
+                ),
               },
-            ]}
-          />
+            ],
+          }]} />
           <Divider orientation="right">
             <Button type="primary" htmlType="submit" data-testid="submit">
               提交

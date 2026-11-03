@@ -150,21 +150,16 @@ describe('useArrayShadow + ArrayTable', () => {
       const editor = useArrayShadow<{ id: number; domain: string }>('list', { rowKey: 'id' })
       return (
         <>
-          <ArrayField name="list" rowKey="id"
-            component={[
-              ArrayTable,
-              {
-                pagination: { pageSize: 2 },
-                columns: [
-                  { key: 'domain', title: '域名', render: () => <Field name="domain" pattern="readPretty" decorator={[FormItem]}><Input /></Field> },
-                  { key: 'edit', title: '编辑', render: ({ index }) => <Button data-testid={`edit-${index}`} onClick={() => void editor.edit(index)}>编辑</Button> },
-                ],
-                extra: <ArrayTable.ShadowAddition title="添加条目">
-                    <Field name="domain" decorator={[FormItem]}><Input data-testid="add-domain" /></Field>
-                  </ArrayTable.ShadowAddition>,
-              },
-            ]}
-          />
+          <ArrayField name="list" rowKey="id" component={[ArrayTable, {
+            pagination: { pageSize: 2 },
+            columns: [
+              { key: 'domain', title: '域名', render: () => <Field name="domain" pattern="readPretty" decorator={[FormItem]}><Input /></Field> },
+              { key: 'edit', title: '编辑', render: ({ index }) => <Button data-testid={`edit-${index}`} onClick={() => void editor.edit(index)}>编辑</Button> },
+            ],
+            extra: <ArrayTable.ShadowAddition title="添加条目">
+                <Field name="domain" decorator={[FormItem]}><Input data-testid="add-domain" /></Field>
+              </ArrayTable.ShadowAddition>,
+          }]} />
           <ShadowModal shadow={editor} title="编辑行">
             <Field name="domain" decorator={[FormItem]}><Input data-testid="edit-domain" /></Field>
           </ShadowModal>

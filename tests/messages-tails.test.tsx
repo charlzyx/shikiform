@@ -74,16 +74,11 @@ describe('built-in texts go through messages', () => {
     const form = createForm({ initialValues: { list: [{ a: '1' }, { a: '2' }] }, messages: enUS })
     render(
       <Form form={form}>
-        <ArrayField name="list"
-          component={[
-            ArrayTable,
-            {
-              rowSelection: true,
-              columns: [{ key: 'act', title: 'Act', render: () => <><ArrayTable.MoveUp /><ArrayTable.Copy /><ArrayTable.Remove title="Drop" /></> }],
-              extra: <ArrayTable.Addition />,
-            },
-          ]}
-        />
+        <ArrayField name="list" component={[ArrayTable, {
+          rowSelection: true,
+          columns: [{ key: 'act', title: 'Act', render: () => <><ArrayTable.MoveUp /><ArrayTable.Copy /><ArrayTable.Remove title="Drop" /></> }],
+          extra: <ArrayTable.Addition />,
+        }]} />
       </Form>,
     )
     expect(screen.getAllByTestId('row-up')[0]!.textContent).toBe('Move up')

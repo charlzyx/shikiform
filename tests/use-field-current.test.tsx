@@ -38,14 +38,9 @@ describe('useField() with no name reads the current field', () => {
     const form = createForm({ initialValues: { list: [{ a1: 'r0' }, { a1: 'r1' }] } })
     render(
       <Form form={form}>
-        <ArrayField name="list"
-          component={[
-            ArrayTable,
-            {
-              columns: [{ key: 'a1', title: 'A1', render: (cell) => <Field name="a1"><TextInput testId={`cell-${cell.index}`} /></Field> }],
-            },
-          ]}
-        />
+        <ArrayField name="list" component={[ArrayTable, {
+          columns: [{ key: 'a1', title: 'A1', render: (cell) => <Field name="a1"><TextInput testId={`cell-${cell.index}`} /></Field> }],
+        }]} />
       </Form>,
     )
     expect(screen.getByTestId('cell-1').getAttribute('data-path')).toBe('list.1.a1')

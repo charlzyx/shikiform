@@ -61,45 +61,40 @@ function ShadowTable() {
   const list = useWatch((d: Draft<Values>) => d.list.$value) ?? []
   return (
     <>
-      <ArrayField name="list"
-        component={[
-          ArrayTable,
+      <ArrayField name="list" component={[ArrayTable, {
+        pagination: { pageSize: 5 },
+        columns: [
+          { key: 'id', title: 'ID', width: 80, align: 'center', render: () => <Field name="id" pattern="readPretty" component={[Input]} /> },
+          { key: 'domain', title: 'DOMAIN', width: 220, align: 'center', render: ({ index }) => <Field name="domain" pattern="readPretty" component={[Input, { 'data-testid': `domain-${index}` }]} /> },
           {
-            pagination: { pageSize: 5 },
-            columns: [
-              { key: 'id', title: 'ID', width: 80, align: 'center', render: () => <Field name="id" pattern="readPretty" component={[Input]} /> },
-              { key: 'domain', title: 'DOMAIN', width: 220, align: 'center', render: ({ index }) => <Field name="domain" pattern="readPretty" component={[Input, { 'data-testid': `domain-${index}` }]} /> },
-              {
-                key: 'edit',
-                title: '编辑',
-                align: 'center',
-                render: ({ index }) => (
-                  <Button
-                    type="link"
-                    data-testid={`edit-${index}`}
-                    onClick={() =>
-                      void editor.edit(index, (record) => {
-                        // Pro.formily initLoader: map (or fetch) the record before it enters the draft.
-                        return { ...record, desc: record.desc ?? '' }
-                      })
-                    }
-                  >
-                    编辑
-                  </Button>
-                ),
-              },
-            ],
-            extra: <>
-                <ArrayTable.ShadowAddition<Row> title="添加条目" initialValues={{ id: '', domain: '', desc: '' }}>
-                  <RowFields prefix="add" />
-                </ArrayTable.ShadowAddition>
-                <ArrayTable.ShadowAddition<Row> title="演示多个添加共存" popType="drawer" initialValues={{ id: '', domain: '', desc: '' }}>
-                  <RowFields prefix="add2" />
-                </ArrayTable.ShadowAddition>
-              </>,
+            key: 'edit',
+            title: '编辑',
+            align: 'center',
+            render: ({ index }) => (
+              <Button
+                type="link"
+                data-testid={`edit-${index}`}
+                onClick={() =>
+                  void editor.edit(index, (record) => {
+                    // Pro.formily initLoader: map (or fetch) the record before it enters the draft.
+                    return { ...record, desc: record.desc ?? '' }
+                  })
+                }
+              >
+                编辑
+              </Button>
+            ),
           },
-        ]}
-      />
+        ],
+        extra: <>
+            <ArrayTable.ShadowAddition<Row> title="添加条目" initialValues={{ id: '', domain: '', desc: '' }}>
+              <RowFields prefix="add" />
+            </ArrayTable.ShadowAddition>
+            <ArrayTable.ShadowAddition<Row> title="演示多个添加共存" popType="drawer" initialValues={{ id: '', domain: '', desc: '' }}>
+              <RowFields prefix="add2" />
+            </ArrayTable.ShadowAddition>
+          </>,
+      }]} />
       <ShadowModal shadow={editor} title="编辑">
         <RowFields prefix="edit" />
       </ShadowModal>

@@ -54,12 +54,14 @@ An exact-index declaration (`fields: { 'rows.0.x': … }`, `registerField('rows.
 move / swap / insert / remove it stays on `rows.0.x` and applies to whichever row sits there now.
 
 In React, a row component reads its row without names: `useArray()` (nearest array handle: `push`, `remove`,
-`move`…), `useIndex()`, `useRecord()` (reactive row value), `useTreeNode()` (inside `<RowScope path pos>`).
-`useArrayField(name)` is the named version. `ArrayTable.useRow()` is built on these.
+`move`, `swap`, `dragProps(index)`…), `useIndex()`, `useRecord()` (reactive row value), `useTreeNode()` (inside
+`<RowScope path pos>`). `useArrayField(name)` is the named version; `useTreeField(name)` is the tree handle (`move(from, to)`,
+`dragProps(pos)`). Drag-and-drop is `{...handle.dragProps(i)}` on the row; there is no separate drag hook.
 Rows need no id: object rows without `rowKey` / `id` keep a stable object identity (state follows them on move).
 
-Ready-made row buttons: give `<ArrayField>` a container `component` from `shikiform/antd` (Formily `ArrayItems` /
-`ArrayCards`) instead of writing `useArray()` buttons by hand. Action buttons render only while the array's effective
+Ready-made array UI: give `<ArrayField>` a container `component` from `shikiform/antd` (Formily `ArrayItems` /
+`ArrayCards` / `ArrayTable`) instead of writing `useArray()` buttons by hand. That is the only way to attach one: there
+is no `<ArrayTable name>`; the container's props are type-checked (`[ArrayTable, {}]` without `columns` is an error). Action buttons render only while the array's effective
 pattern is `editable` (readPretty / readOnly / disabled anywhere above hides them; `useArrayEditable()` for your own).
 
 ```tsx
@@ -74,6 +76,15 @@ pattern is `editable` (readPretty / readOnly / disabled anywhere above hides the
 </F.ArrayField>
 // ArrayCards: each row's fields become a card body, header `title #n`, default extra = up / down / remove
 <F.ArrayField name="items" component={[ArrayCards, { title: '商品' }]}>{(row) => <row.Field name="sku" … />}</F.ArrayField>
+// ArrayTable: an antd table; cells come from `columns` (render runs in the row scope), so no row children.
+// Paging, selection, expand, column settings, Copy / ShadowAddition (shadow-form add); headless state = useArrayTable.
+<F.ArrayField name="lines" rowKey="id" component={[ArrayTable, {
+  columns: [{ key: 'qty', title: '数量', render: () => <Field name="qty" component={[InputNumber]} /> },
+            { key: 'op', render: () => <ArrayTable.Remove confirm /> }],
+  extra: <ArrayTable.Addition />,
+}]} />
+// Long plain lists: <ArrayField name="rows" virtualScroll={{ height: 400 }}>{(row) => …}</ArrayField> (no container)
+// Query page: useQueryTable({ …, rows: 'list' }) + <QueryList table columns>{search fields}</QueryList> (one ArrayTable)
 ```
 
 ## 4. Nested values: per-path writes vs `$componentProps` patches

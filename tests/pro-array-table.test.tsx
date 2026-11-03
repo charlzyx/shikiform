@@ -19,22 +19,17 @@ function mount(initial: Row[], extra: Partial<Parameters<typeof ArrayTable>[0]> 
   const form = createForm({ initialValues: { list: initial } })
   const view = render(
     <Form form={form}>
-      <ArrayField name="list"
-        component={[
-          ArrayTable,
-          {
-            pagination: { pageSize: 5 },
-            rowSelection: true,
-            columns: [
-              { key: 'index', title: 'Index', render: () => <ArrayTable.Index /> },
-              { key: 'a1', title: 'A1', render: (cell) => <Field name="a1" decorator={[FormItem]}><Input data-testid={`a1-${cell.index}`} /></Field> },
-              { key: 'act', title: '操作', render: () => <><ArrayTable.MoveUp /><ArrayTable.MoveDown /><ArrayTable.Remove /></> },
-            ],
-            extra: <ArrayTable.Addition defaultValue={() => ({ a1: 'new' })} />,
-            ...extra,
-          },
-        ]}
-      />
+      <ArrayField name="list" component={[ArrayTable, {
+        pagination: { pageSize: 5 },
+        rowSelection: true,
+        columns: [
+          { key: 'index', title: 'Index', render: () => <ArrayTable.Index /> },
+          { key: 'a1', title: 'A1', render: (cell) => <Field name="a1" decorator={[FormItem]}><Input data-testid={`a1-${cell.index}`} /></Field> },
+          { key: 'act', title: '操作', render: () => <><ArrayTable.MoveUp /><ArrayTable.MoveDown /><ArrayTable.Remove /></> },
+        ],
+        extra: <ArrayTable.Addition defaultValue={() => ({ a1: 'new' })} />,
+        ...extra,
+      }]} />
     </Form>,
   )
   return { form, view }
@@ -94,32 +89,22 @@ describe('ArrayTable', () => {
     const form = createForm({ initialValues: { list: rows(3) } })
     render(
       <Form form={form}>
-        <ArrayField name="list"
-          component={[
-            ArrayTable,
-            {
-              settings: false,
-              columns: [{ key: 'a1', title: 'A1', render: () => <Field name="a1" decorator={[FormItem]}><Input /></Field> }],
-              expandable: {
-                defaultExpandAll: true,
-                rowExpandable: (record) => Array.isArray(record.subitems),
-                render: () => (
-                  <ArrayField name="subitems"
-                    component={[
-                      ArrayTable,
-                      {
-                        pattern: 'readPretty',
-                        settings: false,
-                        showHeader: false,
-                        columns: [{ key: 'a1', render: () => <Field name="a1" decorator={[FormItem]}><Input /></Field> }],
-                      },
-                    ]}
-                  />
-                ),
-              },
-            },
-          ]}
-        />
+        <ArrayField name="list" component={[ArrayTable, {
+          settings: false,
+          columns: [{ key: 'a1', title: 'A1', render: () => <Field name="a1" decorator={[FormItem]}><Input /></Field> }],
+          expandable: {
+            defaultExpandAll: true,
+            rowExpandable: (record) => Array.isArray(record.subitems),
+            render: () => (
+              <ArrayField name="subitems" component={[ArrayTable, {
+                pattern: 'readPretty',
+                settings: false,
+                showHeader: false,
+                columns: [{ key: 'a1', render: () => <Field name="a1" decorator={[FormItem]}><Input /></Field> }],
+              }]} />
+            ),
+          },
+        }]} />
       </Form>,
     )
     await waitFor(() => expect(screen.getByText('c.0.1')).toBeTruthy())

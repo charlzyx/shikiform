@@ -4,18 +4,17 @@
 
 ## 1. API 原则：Hooks 优先，组件是糖
 
-1. **Hooks 是完整的主 API。** `shikiform` 导出的 `useForm`、`useField`、`useArrayField` / `useArrayMove`、`useTreeField` / `useTreeMove`、`useWatch`，以及无需 name 的上下文 Hook：无参 `useField()`（当前字段，Formily `useField()`）、`useArray`、`useIndex`、`useRecord`、`useTreeNode`（Formily `ArrayBase.useArray/useIndex/useRecord`）能做到组件能做的一切。
+1. **Hooks 是完整的主 API。** `shikiform` 导出的 `useForm`、`useField`、`useArrayField`、`useTreeField`（两个句柄都带 `move` 和拖拽用的 `dragProps`）、`useWatch`，以及无需 name 的上下文 Hook：无参 `useField()`（当前字段，Formily `useField()`）、`useArray`、`useIndex`、`useRecord`、`useTreeNode`（Formily `ArrayBase.useArray/useIndex/useRecord`）能做到组件能做的一切。
 2. **组件只是 Hook 的薄封装，不得拥有 Hook 用户拿不到的逻辑。**
    - `<Field name rules required enum virtual display pattern title description decorator component>` = `useField(name, options)` + `display !== 'visible'` 时返回 `null` + 渲染 `decorator` 包住 `component`（或 children），并用内部 `FieldContext` 提供 binding（经无参 `useField()` 读取，不导出）。
    - `<Field name ui="echo">` = `useField(name, { ui })`：同一字段的另一个 UI 实例（值 / 错误 / 规则共享，UI 层独立，见 §3.2）；`<UI name>` = `useUiNode` + `form.uiBinding(作用域, name, props, 'node')` + 渲染 `decorator` / `component`（无值）。
    - `<FieldGroup value>` = 内部 `FieldGroupContext`（`react/field-group.tsx`）：其中挂载的 `useField(name)` / `useArrayField` 在 effect 里把绝对路径登记进最近的组及所有外层组（引用计数，卸载移除）；`useFieldGroup()` 建句柄，`useFieldGroupErrors(group)` = `useWatch`（依赖根 `:errors`）按组成员过滤 `form.errors`。
-   - `<ArrayField>` = `useArrayField` + `ArrayScope`（供 `useArray()`）+ 每行 `RowScope`（供 `useIndex()` / `useRecord()`）+ 可选的容器 `component`（`[C, props]`，在 `ArrayScope` 内以各行为 `children` 渲染）；`<TreeField>` = `useTreeField`；`<Watch>` = `useWatch`；`<Form>` = Context Provider + `form.submit()`。
+   - `<ArrayField>` = `useArrayField` + `ArrayScope`（供 `useArray()`）+ 每行 `RowScope`（供 `useIndex()` / `useRecord()`）+ 可选的容器 `component`（`[C, props]`，在 `ArrayScope` 内以各行为 `children` 渲染；类型 `ArrayContainerSlot<C>` 按容器检查 props）或可选的 `virtualScroll`（各行包进 `VirtualRows`；二者互斥，同用开发期抛 `ShikiUsageError`）。数组 UI 只有这一种接法：`ArrayItems` / `ArrayCards` / `ArrayTable` 都是容器，没有自带 `name` 的数组组件；`<TreeField>` = `useTreeField`；`<Watch>` = `useWatch`；`<Form>` = Context Provider + `form.submit()`。
    - `typed(form)` / `typed<T>()` = 同一批组件和 Hook 加上类型（名字按作用域检查），没有新的运行时。字段只有 `<Field>` 一种写法：没有预绑定工厂（2026-11-01 删除 `createFormHook` / `useAntdForm` / `AppField` 等）；片段复用是普通组件 + `<ObjectField>` + `typed<T>()`。
 3. **Ant Design 适配层是 `useField` 之上的 Formily 式 connect 层。** `<Field>` 是字段唯一的拥有者；装饰器和控件都从 `FieldContext` 读同一个 binding。
    - `connect(Control, mapProps(...), mapReadPretty(...))` 每次渲染只做一件事：`mapFieldProps(binding, props)`（binding 来自 `field` 属性 / `name` / 外层 `<Field>`）。`mapFieldProps` 本身是导出的纯函数，Hook 用户可直接 `<AntInput {...mapFieldProps(field, props)} />`。
    - `FormItem` 是纯装饰器：不拥有字段，`mapFormItemProps(binding, props, useFormLayout())` 是它的纯函数核心，Hook 用户可直接 `<Form.Item {...mapFormItemProps(field, {})}>`。
-   - 表格（`ArrayTable`、`ProQueryTable`）分别建立在 `useArrayField`、`useQueryTable`（`shikiform/pro`）之上。
-   - Pro 组件（复刻 Pro.formily）同样是 Hook 之上的薄封装，见 §10：`ArrayTable` = `useArrayTable` + `useColumnSettings`；`QueryList` = `useQueryTable({ rows })` + `ArrayTable`；`ShadowModal` / `ShadowDrawer` / `ShadowPopconfirm` / `ShadowForm` = `useShadowForm`（行编辑用 `useArrayShadow`）；`Suggestion` = `useSuggestion`；`CascaderPlus` = `useLazyCascader`；选择类控件阅读态 `PreviewText.Select` = `enumItems`。
+   - Pro 组件（复刻 Pro.formily）同样是 Hook 之上的薄封装，见 §10：`ArrayTable`（`<ArrayField>` 的容器）= `useArrayTable` + `useColumnSettings`；`QueryList` = `useQueryTable({ rows })` + `<ArrayField name={rows} component={[ArrayTable, …]}>`；`ShadowModal` / `ShadowDrawer` / `ShadowPopconfirm` / `ShadowForm` = `useShadowForm`（行编辑用 `useArrayShadow`）；`Suggestion` = `useSuggestion`；`CascaderPlus` = `useLazyCascader`；选择类控件阅读态 `PreviewText.Select` = `enumItems`。
 4. **公开导出。** 未发布前不留兼容别名，旧名字直接删除。`FormItem` 没有 `name` / `field` / `rules` / `required` 等属性，字段只由 `<Field>` 拥有（§8）。
 
 ## 2. 目录与依赖方向
@@ -40,7 +39,7 @@ src/
     context.tsx            FormContext / ScopeContext
     field-group.tsx        FieldGroup / useFieldGroup / useFieldGroupErrors（收集一块 JSX 里挂载的字段路径；分组容器的错误数与分步校验）
     field-context.ts       内部 FieldContext / useFieldContextOrNull（<Field> 提供；公开读取走无参 useField()）
-    hooks/                 use-form、use-field、use-array（useArrayField / useArray）、use-row（useIndex / useRecord / useTreeNode）、
+    hooks/                 use-form、use-field、use-array（useArrayField / useArray，句柄含 dragProps）、drag（句柄共用的 HTML5 拖放，内部）、use-row（useIndex / useRecord / useTreeNode）、
                            use-tree、use-watch、use-form-message、field-lifecycle（JSX lease）、resolve-name（相对名 → path，开发期查重复前缀）
     components/            fields.tsx（Form/Field/ObjectField/ArrayField/RowScope/TreeField/Watch）、ui.tsx（UI 节点 `<UI>`）、virtual-rows.tsx
     factory/               typed.tsx（typed(form) / typed<T>()：按类型检查名字的同一组组件 / Hooks，类型随作用域）
@@ -62,7 +61,7 @@ src/
     containers/            form-tab.tsx / form-collapse.tsx / form-step.tsx（FormTab / FormCollapse / FormStep + useFormStep）、panes.tsx（面板收集、每面板一个字段组、错误徽标）
     arrays/                array-items.tsx（ArrayItems / ArrayCards / useArrayEditable：<ArrayField component> 容器，按钮 = useArray + useIndex）
     shadow/                shadow.tsx（ShadowModal / ShadowDrawer / ShadowPopconfirm / ShadowForm / useShadow）
-    tables/                array-table.tsx、merged-table.tsx、query-table.tsx、array-table.tsx、query-list.tsx
+    tables/                array-table.tsx（ArrayTable：<ArrayField> 的 antd 表格容器）、query-list.tsx（QueryList + 内部 QueryForm 栅格）、merged-table.tsx
 ```
 
 依赖只能向下：
@@ -198,7 +197,7 @@ const Rate = connect(AntRate, mapProps({ status: false }))
 - **`FormItem`**（装饰器 / 纯布局）：没有 `name` / `field` / `rules` / `required` 属性。字段里：`mapFormItemProps(field, props, layout, env)`：合并 `layout`（`FormLayout`）← `field.decoratorProps` ← `props`；`label` ← `title`、`extra` ← `description`（显式优先）；必填星号 ← `required`（`readPretty` 隐藏，`asterisk` 强制；`requiredMark: false` 隐藏，`'optional'` 改为给非必填项标签加 `messages.optional`）；`validateStatus` 依次 error → validating → warning；`help` 是全部错误（否则全部警告），一条一行；`feedbackLayout`：`loose` / `terse`（无提示时去掉底部间距）/ `popover`（组件用 antd `Popover` 浮在控件上，不占行）/ `none`；`labelWidth` / `wrapperWidth` → `labelCol` / `wrapperCol` 的 `flex`；`labelWrap` → 给 label 列加 antd 自己的 `${prefixCls}-item-label-wrap` 类（antd 的 `labelWrap` 只能从 `Form` context 给，`labelCol.className` 是它读的公开入口）；`tooltipLayout: 'text'` 把 tooltip 拼进 label；`gridSpan` → `gridColumn`（按 `FormGrid` 当前列数截断）。`env`（类名前缀、可选文案、列数）由组件从 context 读，纯函数保持纯。字段外 `field = null`：纯布局，无状态。`addonBefore/After` 与 popover 是组件自己的标记。`hidden/none` 不渲染。
 - **`FormLayout`**：`layout`、`labelCol`、`wrapperCol`、`labelWidth`、`wrapperWidth`、`labelAlign`、`labelWrap`、`colon`、`requiredMark`、`tooltipLayout`、`size`、`feedbackLayout` 经 context 向下继承，嵌套时按键合并；前六个可按断点给数组，`FormLayout` 用 `ResizeObserver` 量**自身**宽度（`use-container-width.ts`；未测量时取最宽一档，SSR 一致）后解析成标量再下发；`size` 同时通过 antd `ConfigProvider componentSize` 作用于控件；`inline` 用一层 flex 容器排布。`useFormLayout()` 读当前合并结果。
 - **`FormGrid`**：CSS grid，列数 = 自身宽度能放下的 `minWidth` 列数，夹在 `[minColumns, maxColumns]`（均可按断点给数组），经 `useFormGrid()` 交给 `FormItem` / `GridColumn` 截断跨列。**`FormButtonGroup`**：flex 按钮行；`.FormItem` = 空标签（`label=" "`）的纯布局 `FormItem`，因此 `labelCol` / `labelWidth` 自动对齐；`.Sticky` = `position: sticky` 栏。
-- **数组容器**（`arrays/array-items.tsx`，Formily `ArrayItems` / `ArrayCards`）：是 `<ArrayField component>`，没有自己的状态。容器用 `useArray()` 拿数组、`useArrayMoveAt(path)`（`useArrayMove` 的绝对路径版，内部导出）做拖拽并经 context 给行；`Item` / 卡片是放置目标，`SortHandle` 是拖动源。`Addition` / `Remove` / `MoveUp` / `MoveDown` / `SortHandle` 由 `useArrayEditable()`（`useWatch(form.query(数组路径).$pattern === 'editable')`，沿祖先继承到根）决定是否渲染；`Index` 总是显示。`ArrayCards` 不要求行包装：它 `cloneElement` `<ArrayField>` 给的每个 `RowScope`，把行内容换成卡片，卡片仍在该行作用域里（依赖 `<ArrayField>` 的子节点就是 `RowScope` 这一内部约定）。空状态是 antd `Empty`。不新增行 id：无 `rowKey` / `id` 的对象行已有 WeakMap 对象身份（§6），所以 `Addition` 默认推 `{}`。
+- **数组容器**（`arrays/array-items.tsx`，Formily `ArrayItems` / `ArrayCards`；表格容器 `ArrayTable` 见 §10）：是 `<ArrayField component>`，没有自己的状态。容器用 `useArray()` 拿数组，把句柄的 `dragProps`（按路径稳定的函数，`react/hooks/drag.ts`）经 context 给行，所以行不必各自订阅结构；`Item` / 卡片是放置目标，`SortHandle` 是拖动源。`Addition` / `Remove` / `MoveUp` / `MoveDown` / `SortHandle` 由 `useArrayEditable()`（`useWatch(form.query(数组路径).$pattern === 'editable')`，沿祖先继承到根）决定是否渲染；`Index` 总是显示。`ArrayCards` 不要求行包装：它 `cloneElement` `<ArrayField>` 给的每个 `RowScope`，把行内容换成卡片，卡片仍在该行作用域里（依赖 `<ArrayField>` 的子节点就是 `RowScope` 这一内部约定）。空状态是 antd `Empty`。不新增行 id：无 `rowKey` / `id` 的对象行已有 WeakMap 对象身份（§6），所以 `Addition` 默认推 `{}`。
 - **分组容器**（`containers/`，Formily `FormTab` / `FormCollapse` / `FormStep`）：子元素是标记组件（`FormTab.Pane` / `FormCollapse.Panel` / `FormStep.Step`，本身渲染即抛错），`collectPanes` 当数据读（展开 Fragment，跳过 `false`/`null`，其他元素抛错）。每个面板一个 `FieldGroupStore`（按面板 key 稳定），面板内容包在 `<FieldGroup>` 里；`useGroupsErrors` 一次订阅算出各面板的错误字段数（徽标 / 步骤 `error` 状态）。**所有面板都挂载**：Tabs / Collapse 用 antd `forceRender`，FormStep 非当前步加 `hidden`——字段的 JSX 规则与值一直在，提交照常校验（裸 antd `Tabs` 的未激活面板不挂载，JSX 规则会缺席）。容器不占值路径、不写 `$display`/`$pattern`，pattern 继承仍沿字段路径。`useFormStep()` 是放按钮那层的 React 状态（`current`/`count`），`<FormStep>` 在 layout effect 里把 `{ form, groups }` 和步数交给句柄（句柄可以在 `<Form>` 外创建）；`next()` = 当前步组里有效 pattern 为 `editable` 的路径 → `form.validate(paths)` 一轮 → 无错才前进（不可编辑字段用户改不了，不拦；提交仍全量校验）。最后一步就是普通 `Submit`。未做：提交失败时自动切到第一个有错的面板；纯布局 `FormItem` 汇总子字段错误（可直接用 `FieldGroup`）。
 - **表格**：单元格就是行作用域里的 `<Field>`，可以不要装饰器（`component={[Input]}`），或用别的装饰器 / `FormItem` 的 `feedbackLayout: 'terse'`。
 - **按钮**（`components/buttons.tsx`）：`Submit` 订阅 `$canSubmit` / `$submitting`；不传 `onSubmit` 时是原生 submit（交给 `<Form onSubmit>`），传了则点击时 `runSubmit(form, handlers)`。`Reset` = `form.reset(values)`。文案走 `useFormMessage()`。
@@ -208,6 +207,8 @@ const Rate = connect(AntRate, mapProps({ status: false }))
 
 `FormOptions.commit` 与类型 `CommitMode`（`'change' | 'blur'`）在发布前删除，不实现。用户编辑一直走 `StateWriter.commitExternal`，在 change 时写入；删掉未实现的 `'blur'` 后只剩 `'change'`，所以整个选项一并移除，没有残留分支。
 
+数组 / 表格 / 查询命名收敛（2026-11-03，[array-naming.md](array-naming.md)）：旧的 `ArrayTable`（只是行作用域 + `virtualScroll`）删除，`virtualScroll` 移到 `<ArrayField>`；`ProArrayTable` 改名 `ArrayTable` 并改成 `<ArrayField>` 的容器（`ProAddition` → `ShadowAddition`）；`ProQueryTable` 和公开的 `QueryForm` 删除，查询页只有 `QueryList`（`list` 属性删除，总是渲染 `rows`）；`useArrayMove` / `useTreeMove` 删除，拖拽是句柄上的 `dragProps`。
+
 旧的命名 UI（`query(path, { ui })`、`releaseUi` / `uiVisible`、`ShikiUiError`、`core/ui/`）在 #60 删除：引擎有、React 层从未接入。#72 按 §3.2 重新实现并接入 React（`<Field ui>` / `<UI>`），只沿用了「每个 UI 自己的 display / pattern」这个思路。
 
 #1、#2、#6、#7 已由 `fix/validation-races` 修复，见第 5 节。#3、#8、#12 已由 `fix/pro-gaps` 解决：#3（列筛选清空选择，见 §10 查询表）、#8（精确声明是按路径的配置：`setValue`/`reset` 清掉行时由 `applyItemTemplates`、数组 / 树操作丢掉行时由 `onReindex` 转为休眠，行再出现时 `reviveDormant` 重新注册，`virtual`/`display`/`pattern`/UI 都恢复，见 §2 注入表）、#12（P0 示例与「文档构建含 playground」已在 main：`npm run build` = VitePress + `build:play` + `check-site`）。
@@ -216,24 +217,24 @@ const Rate = connect(AntRate, mapProps({ status: false }))
 
 | Pro.formily | ShikiForm Hook（`shikiform/pro`） | antd 组件（`shikiform/antd`） | Demo |
 |---|---|---|---|
-| ArrayTable（分页、选择、展开、列配置、列宽、拖拽、异步删除、Addition） | `useArrayTable`、`useColumnSettings` | `ArrayTable`（+ `SortHandle`/`Index`/`Remove`/`MoveUp`/`MoveDown`/`Copy`/`Addition`/`ProAddition`，`useTable`/`useRow`） | `/play/array-table` |
-| DelegateAction + ShadowModal + ProAddition | `useArrayShadow` | `ShadowModal` / `ShadowDrawer` + `ArrayTable.ProAddition` | `/play/array-table-shadow`、`/play/query-list-add` |
+| ProArrayTable（分页、选择、展开、列配置、列宽、拖拽、异步删除、Addition） | `useArrayTable`、`useColumnSettings` | `ArrayTable`，`<ArrayField component>` 容器（+ `SortHandle`/`Index`/`Remove`/`MoveUp`/`MoveDown`/`Copy`/`Addition`/`ShadowAddition`，`useTable`/`useRow`） | `/play/array-table` |
+| DelegateAction + ShadowModal + ProAddition | `useArrayShadow` | `ShadowModal` / `ShadowDrawer` + `ArrayTable.ShadowAddition` | `/play/array-table-shadow`、`/play/query-list-add` |
 | ShadowForm / ShadowModal / ShadowPopconfirm | `useShadowForm` | `ShadowForm`、`ShadowModal`、`ShadowDrawer`、`ShadowPopconfirm`、`useShadow` | `/play/shadow-form` |
 | ProEnum / ProEnumPretty | `EnumSource`（core）、`enumItems` | 选择类控件阅读态 + `prettyType`、`PreviewText.Select` | `/play/pro-enum` |
 | Suggestion | `useSuggestion` | `Suggestion` / `SuggestionSelect` | `/play/suggestion` |
 | CascaderPlus | `useLazyCascader` | `CascaderPlus` / `CascaderPlusView` | `/play/cascader-plus` |
-| QueryList / QueryForm / QueryTable | `useQueryTable({ rows })` | `QueryList`（+ 已有 `QueryForm`） | `/play/query-list` |
+| QueryList / QueryForm / QueryTable | `useQueryTable({ rows })` | `QueryList`（`rows` 必填；栅格 `QueryForm` 是内部的） | `/play/query`、`/play/query-list` |
 
 - **影子表单不写宿主。** `useShadowForm` 每次 `open` 新建引擎（`initialValues` = 打开的记录），`confirm` 校验通过后只调用 `onOk`；写回由调用方（或 `useArrayShadow` 的默认写回）决定。草稿字段经 `ShadowBody` 提供 `FormContext` 并把 `ScopeContext` 重置为根，不渲染 `<form>`，可以嵌在宿主 `<Form>` 里或从行内打开。
 - **`<Form>` 同样把作用域重置为根，并阻止 submit 事件冒泡到宿主表单**（React 合成事件会穿过 portal）。
-- **查询表的表头排序与列筛选在 `useQueryTable`。** `sorter: QuerySort[]`、`filters: QueryFilters` 是 Hook 的 React 状态（不进表单值），随 `queryKey` 与 `request` 参数一起发送。`onTableChange` 接 antd `Table onChange`（忽略 `paginate`，分页走 `onPageChange`），值没变不请求。排序变化：回第 1 页、保留选择（结果集不变）；列筛选变化：回第 1 页、清空选择（结果集变了，旧选择会让批量操作处理看不见的行，#3）；`submit` 保留二者，`reset` 清空。`ProQueryTable` / `QueryList` 只把列的 `sortOrder` / `filteredValue` 设为受控并转发 `onChange`。
+- **查询表的表头排序与列筛选在 `useQueryTable`。** `sorter: QuerySort[]`、`filters: QueryFilters` 是 Hook 的 React 状态（不进表单值），随 `queryKey` 与 `request` 参数一起发送。`onTableChange` 接 antd `Table onChange`（忽略 `paginate`，分页走 `onPageChange`），值没变不请求。排序变化：回第 1 页、保留选择（结果集不变）；列筛选变化：回第 1 页、清空选择（结果集变了，旧选择会让批量操作处理看不见的行，#3）；`submit` 保留二者，`reset` 清空。`QueryList` 只把列的 `sortOrder` / `filteredValue` 设为受控并转发 `onChange`。
 - **列配置拖拽在 `useColumnSettings`。** `dragProps(key)` 是无依赖的 HTML5 拖放属性（只接受从列表内开始的拖动），`moveKey(from, to)` 按 key 移动；antd 层只把它展开到每行并保留 ↑ ↓ 按钮（键盘可达）。
 - **级联阅读态在 `useCascaderLabels`。** `labelInValue` 值直接取标签、不加载；裸值复用 `useLazyCascader`（`enabled` 控制是否加载）逐级加载祖先后解析标签。`CascaderPlus` 的 `mapReadPretty` 视图只是它的渲染。
 - **表格状态不进表单值。** 分页、选择、展开、列配置是 React 状态（`useArrayTable` 可受控传入 `selectedKeys`）；查询表的选择仍是 `useQueryTable` 的 virtual 字段，`QueryList` 把它作为受控选择传给 `ArrayTable`。
 
 ## 11. 行上下文 Hook（`react/hooks/use-row.ts`、`use-array.ts`）
 
-- `ArrayContext`（`react/context.tsx`）记录最近一层数组的绝对路径与 `rowKey`，由 `ArrayScope` 提供；`<ArrayField>`（及其容器 `component`）、antd `ArrayTable`、`ArrayTable` 都渲染它。`useArray()` 读它，再走与 `useArrayField` 相同的 `useArrayAt(path, rowKey)`（订阅结构）。
+- `ArrayContext`（`react/context.tsx`）记录最近一层数组的绝对路径与 `rowKey`，由 `ArrayScope` 提供；只有 `<ArrayField>` 渲染它（容器 `component` 在它里面，`ArrayTable` 从这里读路径和 `rowKey`）。`useArray()` 读它，再走与 `useArrayField` 相同的 `useArrayAt(path, rowKey)`（订阅结构）。
 - `ScopeContext` 的值扩展为 `{ path, index, itemKey?, pos? }`；`RowScope` 接受 `itemKey`（行 id）与 `pos`（树坐标）。`useIndex()` 读 `index`；`useTreeNode()` 读 `pos`；二者在行 / 节点外抛错。
 - `useRecord()` = `useWatch(() => form.query(scope.path).$value)`：单元格写入会把祖先的 `:value` 依赖标脏，所以这一行任一单元格变化都会重渲染，其他行不会；行移动后 `RowScope` 的 path 变化，selector 跟着换。
 - `ArrayTable.useRow()` = `{ key: scope.itemKey, index: useIndex(), position: table.positionOf(index), record: useRecord() }`，antd 层不再有自己的行 Context；`useTable()` 只是表格状态（`useArrayTable` + `useColumnSettings`）的 Context。

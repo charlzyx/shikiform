@@ -9,12 +9,12 @@ description: 四个入口、createForm 选项、引擎方法、React 组件与�
 
 | 要查什么 | 参考页 |
 |---|---|
-| `useForm`、`typed`、`useFormContext`、`useFormMessage`、`useField`（无参即当前字段）、`useWatch`、`useArrayField`、`useArray`、`useIndex`、`useRecord`、`useArrayMove`、`useTreeField`、`useTreeNode`、`useTreeMove`、`useFieldGroup`、`useFieldGroupErrors`（+ `<FieldGroup>`） | [React Hooks](/reference/react-hooks) |
+| `useForm`、`typed`、`useFormContext`、`useFormMessage`、`useField`（无参即当前字段）、`useWatch`、`useArrayField`、`useArray`、`useIndex`、`useRecord`、`useTreeField`、`useTreeNode`、`useFieldGroup`、`useFieldGroupErrors`（+ `<FieldGroup>`） | [React Hooks](/reference/react-hooks) |
 | `connect`、`mapProps`、`mapReadPretty`、`mapFieldProps`、`FormItem`、`mapFormItemProps`、`FormLayout`、`useFormLayout`、`FormGrid`、`GridColumn`、`useFormGrid`、`FormButtonGroup`、`PreviewText`（及 `.Select` 等阅读态视图）、接好的控件（`Input` … `TimePicker`、`TreeSelect`、`Cascader`、`Upload`、`Slider`、`Rate`、`Transfer`、`AutoComplete`、`ColorPicker`） | [Ant Design 适配层](/reference/antd-adapter) |
-| `Submit`、`Reset`、控件取值契约、`ArrayItems`、`ArrayCards`、`useArrayEditable`、`FormTab`、`FormCollapse`、`FormStep`、`useFormStep`、`ArrayTable`、`MergedTable`、`groupRowSpan`、`ProQueryTable`、`QueryForm` | [Ant Design 参考](/reference/antd) |
+| `Submit`、`Reset`、控件取值契约、`ArrayItems`、`ArrayCards`、`ArrayTable`、`useArrayEditable`、`FormTab`、`FormCollapse`、`FormStep`、`useFormStep`、`MergedTable`、`groupRowSpan` | [Ant Design 参考](/reference/antd) |
 | `useQueryTable`、`useBuiltinQuery` | [查询 Hooks](/reference/query-hooks) |
 | `useArrayTable`、`useColumnSettings`、`useShadowForm`、`useArrayShadow`、`useSuggestion`、`useLazyCascader`、`enumItems`、`ENUM_COLORS` | [Pro Hooks](/reference/pro-hooks) |
-| `ArrayTable`、`QueryList`、`ShadowModal` / `ShadowDrawer` / `ShadowPopconfirm` / `ShadowForm`、`useShadow`、`Suggestion`、`CascaderPlus` 及其 `…View` | [Pro 组件](/reference/pro-components) |
+| `QueryList`、`ShadowModal` / `ShadowDrawer` / `ShadowPopconfirm` / `ShadowForm`、`useShadow`、`Suggestion`、`CascaderPlus` 及其 `…View` | [Pro 组件](/reference/pro-components) |
 
 ## 模块入口
 
@@ -23,7 +23,7 @@ description: 四个入口、createForm 选项、引擎方法、React 组件与�
 | `shikiform` | `useForm`、`createForm`、`FormEngine`、`defineEffects`；`Form`、`Field`、`ObjectField`、`ArrayField`、`ArrayScope`、`RowScope`、`TreeField`、`Watch`、`VirtualRows`、`FieldGroup`；上表的 React Hooks；`EnumSource`、`ShikiUsageError` 等错误类、`zhCN` / `enUS` / `setDefaultMessages`；类型 `Draft`、`FieldBinding`、`FieldProps`、`FormOptions`、`Pattern`、`Display`、`Pos`、`MoveResult`、`FieldEnum` … |
 | `shikiform/core` | 不依赖 React 的引擎：`createForm`、`defineEffects`、`EnumSource`、`comboMatch`、`comboOptions`、错误类、Standard Schema 与树坐标工具（`pathOf`、`posOf` …）；类型 `ArrayPath`、`EnumInput`、`EnumValueOf` … 根入口已有的引擎名字两处是同一个对象 |
 | `shikiform/pro` | 上表的 Pro Hooks，不依赖 antd |
-| `shikiform/antd` | 适配层（`connect`、`FormItem`、`FormLayout`、`FormGrid`、`FormButtonGroup`）、接好的控件、`Submit` / `Reset`、数组容器 `ArrayItems` / `ArrayCards`、分组容器 `FormTab` / `FormCollapse` / `FormStep`、表格与 Pro 组件 |
+| `shikiform/antd` | 适配层（`connect`、`FormItem`、`FormLayout`、`FormGrid`、`FormButtonGroup`）、接好的控件、`Submit` / `Reset`、数组容器 `ArrayItems` / `ArrayCards` / `ArrayTable`、分组容器 `FormTab` / `FormCollapse` / `FormStep`、`QueryList`、`MergedTable` 与 Pro 组件 |
 
 没有 `shikiform/ui`、`shikiform/zod` 入口：Zod 实现了 Standard Schema，直接传给 `rules` / `validate`。行上下文是 `useIndex()` / `useRecord()`（或 `ArrayTable.useRow()`），没有独立的 `useRow` 导出。
 

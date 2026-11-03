@@ -99,16 +99,11 @@ describe('headless row context hooks (useArray / useIndex / useRecord / useTreeN
     }
     render(
       <Form form={form}>
-        <ArrayField name="list" rowKey="id"
-          component={[
-            ArrayTable,
-            {
-              settings: false,
-              pagination: false,
-              columns: [{ key: 'c', render: () => <Cell /> }],
-            },
-          ]}
-        />
+        <ArrayField name="list" rowKey="id" component={[ArrayTable, {
+          settings: false,
+          pagination: false,
+          columns: [{ key: 'c', render: () => <Cell /> }],
+        }]} />
       </Form>,
     )
     expect(screen.getByTestId('cell-1').textContent).toBe('b|2|B|list')

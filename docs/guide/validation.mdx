@@ -141,14 +141,14 @@ setDefaultMessages(enUS)                              // 全应用默认，启�
 | `fallback` | validator 抛出没有 message 的错误，或 schema issue 的 `message` 为空 | `error` |
 | `superseded` | `submit` 结果 `reason: 'superseded'` 的 `message` | — |
 | `treeIntoSelf` / `treeSourceMissing` / `treeTargetMissing` / `treeEmptyPos` | `moveTree` 拒绝时的 `reason` | `from`、`to`（不含 `path`、`value`） |
-| `submit` / `reset` / `search` / `refresh` / `expand` / `collapse` | antd 按钮：`Submit` / `Reset`、QueryList、ProQueryTable | — |
+| `submit` / `reset` / `search` / `refresh` / `expand` / `collapse` | antd 按钮：`Submit` / `Reset`、QueryList | — |
 | `optional` | `requiredMark: 'optional'` 时非必填项标签后的文字（`（可选）`） | — |
-| `add` / `remove` / `removeConfirm` / `moveUp` / `moveDown` / `copy` / `dragSort` | ArrayTable 行操作；`ArrayItems` / `ArrayCards` 的按钮（没有 `copy`） | — |
+| `add` / `remove` / `removeConfirm` / `moveUp` / `moveDown` / `copy` / `dragSort` | `ArrayItems` / `ArrayCards` / `ArrayTable` 的行按钮（`copy` 只有 `ArrayTable`） | — |
 | `selectionCount` / `selectionClear` / `selectionAll` / `selectionInvert` / `density` / `columnSettings` | ArrayTable 选择栏、密度、列配置 | `selectionCount`：`count`；`density`：`density` |
 | `edit` / `ok` / `cancel` | Shadow 触发按钮、ShadowDrawer 底部 | — |
 | `yes` / `no` / `empty` | 阅读态（`PreviewText.*`，所有控件）的布尔值和空值，`empty` 默认 `-` | — |
 
-优先级：规则 `message` > 表单 `messages` > `setDefaultMessages` > 内置中文（`zhCN`）。组件读最近的 `<Form>` 的文案；QueryList / ProQueryTable 读 `table.form` 的，要英文就把 `useForm({ messages: enUS })` 作为 `form` 传给 `useQueryTable`，或者直接 `setDefaultMessages(enUS)`。自定义组件用 `useFormMessage()` 跟随同一套文案：`const t = useFormMessage(); t('submit')`；有实例时也可以 `form.message('submit')`。
+优先级：规则 `message` > 表单 `messages` > `setDefaultMessages` > 内置中文（`zhCN`）。组件读最近的 `<Form>` 的文案；QueryList 读 `table.form` 的，要英文就把 `useForm({ messages: enUS })` 作为 `form` 传给 `useQueryTable`，或者直接 `setDefaultMessages(enUS)`。自定义组件用 `useFormMessage()` 跟随同一套文案：`const t = useFormMessage(); t('submit')`；有实例时也可以 `form.message('submit')`。
 
 ## 服务端错误
 
