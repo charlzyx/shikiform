@@ -1,8 +1,9 @@
 import { useSyncExternalStore } from 'react'
-import { joinPath } from '../../core/shared/path'
 import type { MoveResult } from '../../core/types'
 import type { Pos } from '../../core/shared/tree-ops'
-import { useFormContext, useScope } from '../context'
+import { useRequiredForm, useScope } from '../context'
+import { useFieldGroupRegistration } from '../field-group'
+import { resolveName } from './resolve-name'
 import { useDragProps } from './drag'
 
 /**
@@ -12,9 +13,10 @@ import { useDragProps } from './drag'
  * Subscribes to structure only.
  */
 export function useTreeField(name: string, opts?: { childrenKey?: string; rowKey?: string }) {
-  const form = useFormContext()
+  const form = useRequiredForm(`useTreeField('${name}') / <TreeField name="${name}">`)
   const scope = useScope()
-  const path = joinPath(scope.path, name)
+  const path = resolveName(form, scope, name)
+  useFieldGroupRegistration(path)
   form.registerTree(path, opts)
   const version = useSyncExternalStore(
     (onStoreChange) => form.subscribeStructure(path, onStoreChange),

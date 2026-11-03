@@ -221,6 +221,18 @@ function groupUse() {
 }
 void ObjectField
 
+// 可空字段：$value 的类型保留 null（写回 null 是运行时合法操作，InputNumber 清空即写入 null）
+const nullableForm = createForm<{ qty: number | null; note?: string }>({ initialValues: { qty: 1 } })
+nullableForm.batch((d) => {
+  const qty = d.qty.$value
+  const _qty: Expect<Equal<typeof qty, number | null>> = true
+  void _qty
+  d.qty.$value = null
+  // 可选属性：写回 undefined（清空）类型也通过
+  d.note.$value = undefined
+  d.note.$value = 'hi'
+})
+
 it('checks paths at compile time', () => {
   expect(form.getValue('items.0.price')).toBe(1)
   expect(typeof hookTypes).toBe('function')
