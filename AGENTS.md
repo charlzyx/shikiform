@@ -57,9 +57,11 @@ move / swap / insert / remove it stays on `rows.0.x` and applies to whichever ro
 
 In React, a row component reads its row without names: `useArray()` (nearest array handle: `push`, `remove`,
 `move`, `swap`, `dragProps(index)`…), `useIndex()`, `useRecord()` (reactive row value), `useTreeNode()` (inside
-`<RowScope path pos>`). `useArrayField(name, opts?: { rowKey })` is the named version; `useTreeField(name)` is the tree handle (`move(from, to)`,
-`dragProps(pos)`); both resolve the name against the scope (a repeated scope prefix throws in dev) and register the path
-into the nearest `FieldGroup`, like `useField`. Drag-and-drop is `{...handle.dragProps(i)}` on the row; there is no separate drag hook.
+`<RowScope path pos>`; same handle shape with `move(from, to)` and `dragProps(pos?)` — defaulting to the node it
+renders in — read from the nearest registered tree). `useArrayField(name, opts?: { rowKey })` is the named version;
+`useTreeField(name, { childrenKey?, rowKey? })` is the tree handle (`move(from, to)`, `dragProps(pos)`); both resolve
+the name against the scope (a repeated scope prefix throws in dev) and register the path into the nearest `FieldGroup`,
+like `useField`. Drag-and-drop is `{...handle.dragProps(i)}` on the row; there is no separate drag hook.
 Rows need no id: object rows without `rowKey` / `id` keep a stable object identity (state follows them on move).
 
 Ready-made array UI: give `<ArrayField>` a container `component` from `shikiform/antd` (Formily `ArrayItems` /

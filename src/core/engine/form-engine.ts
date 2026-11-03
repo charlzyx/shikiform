@@ -340,6 +340,11 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     return this.trees.config(path)
   }
 
+  /** Longest registered tree root that contains `path` (used by anonymous node hooks). */
+  treeRoot(path: string): string | undefined {
+    return this.trees.root(path)
+  }
+
   // —— subscriptions ——
 
   /** Diagnostic counters: reaction id → run count. */

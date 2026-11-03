@@ -1,7 +1,9 @@
 import { useCallback } from 'react'
+import type { MoveResult } from '../../core/types'
 import type { Pos } from '../../core/shared/tree-ops'
 import type { Draft } from '../../core/types'
 import { useFormContext, useScope } from '../context'
+import { useDragProps, type DragProps } from './drag'
 import { useWatch } from './use-watch'
 import { ShikiUsageError } from '../../core/errors'
 
@@ -39,11 +41,23 @@ export function useRecord<TRow = any>(): TRow {
 }
 
 /**
- * The tree node this component renders in: `path`, `pos`, `index` (last segment of `pos`), and the reactive `record`.
+ * The tree node this component renders in: `path`, `pos`, `index` (last segment of `pos`), the reactive `record`,
+ * plus `move(from, to)` and `dragProps(pos)` — the same node operations the tree handle gives, bound to the tree the
+ * node belongs to (found by registering with the nearest tree, like `useArray()` does for arrays).
  * A tree's nodes are rendered by the caller; wrap each node in `<RowScope path pos>` to provide it.
  * Throws outside a node.
  */
-export function useTreeNode<TNode = any>(): { path: string; pos: Pos; index: number; record: TNode } {
+export function useTreeNode<TNode = any>(): {
+  path: string
+  pos: Pos
+  index: number
+  record: TNode
+  /** `to` is the final `pos`. Refuses a move into the node's own descendant. */
+  move: (from: Pos, to: Pos) => MoveResult
+  /** HTML5 drag-and-drop props for the node at `pos` (default: this node). */
+  dragProps: (pos?: Pos) => DragProps
+} {
+  const form = useFormContext()
   const scope = useScope()
   if (!scope.pos) {
     if (process.env.NODE_ENV !== 'production') {
@@ -53,5 +67,15 @@ export function useTreeNode<TNode = any>(): { path: string; pos: Pos; index: num
   }
   const record = useRecord<TNode>()
   const pos = scope.pos as Pos
-  return { path: scope.path, pos, index: pos[pos.length - 1] ?? -1, record }
+  const path = scope.path
+  // 最近的树根 = 向上找包含当前节点路径的最长已注册树（与 useArray() 对数组的处理对齐）
+  const treePath = form.treeRoot(path) ?? path
+  const move = useCallback((from: Pos, to: Pos) => form.moveTree(treePath, from, to), [form, treePath])
+  const baseProps = useDragProps<Pos>(treePath, move, (at) => at.join('.'), (raw) => {
+    const decoded = raw.split('.').map(Number)
+    return decoded.every(Number.isInteger) ? decoded : undefined
+  })
+  // 默认绑定当前节点；pos 变化时重建，保证拖拽落到当前节点
+  const dragProps = useCallback((at?: Pos) => baseProps(at ?? pos), [baseProps, pos.join('.')])
+  return { path, pos, index: pos[pos.length - 1] ?? -1, record, move, dragProps }
 }
