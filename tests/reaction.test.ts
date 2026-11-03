@@ -1,23 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { createForm, defineEffects, ShikiConflictError, ShikiCycleError } from '../src/core'
+import { runsFor, schedulerRuns } from './fixtures/reaction-utils'
 
 interface Row {
   cost: number
   markup: number
   suggested: number
-}
-
-function runsFor(stats: Record<string, number>, suffix: string) {
-  return Object.entries(stats)
-    .filter(([key]) => key.endsWith(suffix))
-    .reduce((sum, [, count]) => sum + count, 0)
-}
-
-/** `each` / `walk` schedulers, not the per-row or per-node instances. */
-function schedulerRuns(stats: Record<string, number>) {
-  return Object.entries(stats)
-    .filter(([key]) => /^(each|walk):\d+$/.test(key))
-    .reduce((sum, [, count]) => sum + count, 0)
 }
 
 describe('reaction', () => {

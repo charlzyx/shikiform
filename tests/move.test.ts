@@ -1,15 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { createForm, defineEffects } from '../src/core'
+import { runsFor } from './fixtures/reaction-utils'
 
 interface Item {
   id: string
   name: string
   note?: string
-}
-
-function runsFor(stats: Record<string, number>, suffix: string) {
-  const key = Object.keys(stats).find((item) => item.endsWith(suffix))
-  return key ? stats[key] : 0
 }
 
 describe('array move', () => {
