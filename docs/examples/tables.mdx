@@ -61,7 +61,7 @@ export default function App() {
   });
   return (
     <FormLayout layout="vertical">
-      <QueryList table={table} columns={columns} collapseAfter={3} settings={false}>
+      <QueryList table={table} columns={columns} settings={false}>
         <Field name="query.keyword" title="关键字" decorator={[FormItem]} component={[Input]} />
         <Field name="query.provider" title="供应商" decorator={[FormItem]} component={[Select, { allowClear: true }]} />
         <Field name="query.model" title="模型" decorator={[FormItem]} component={[Select, { allowClear: true }]} />

@@ -72,7 +72,7 @@ export default function App() {
 
 ```tsx
 const table = useQueryTable({ initialValues: { query: {}, list: [] }, params: 'query', rows: 'list', request })
-<QueryList table={table} columns={columns} collapseAfter={3}>
+<QueryList table={table} columns={columns}>
   <Field name="query.domain" title="域名" decorator={[FormItem]} component={[Input]} />
 </QueryList>
 ```

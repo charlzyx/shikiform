@@ -1,7 +1,8 @@
 import { Button, Space } from 'antd'
-import { Children, useState, type ReactNode } from 'react'
+import { Children, isValidElement, useState, type ReactNode } from 'react'
 import type { QueryTableApi } from '../../pro/use-query-table'
 import { ArrayField, Form } from '../../react/components/fields'
+import { FormGrid, GridColumn, useFormGrid, type FormGridProps } from '../adapter/form-grid'
 import { ArrayTable, type ArrayTableColumn, type ArrayTableProps } from './array-table'
 
 export interface QueryListProps<TValues, TParams, TRow> {
@@ -12,10 +13,13 @@ export interface QueryListProps<TValues, TParams, TRow> {
   table: QueryTableApi<TValues, TParams, TRow>
   rowKey?: string
   columns: ArrayTableColumn<TRow>[]
-  /** Search fields, one child per grid cell. */
+  /**
+   * Search fields, one child per {@link FormGrid} cell (a wider one: `decorator={[FormItem, { gridSpan: 2 }]}` or
+   * `<GridColumn gridSpan>`). Collapsed, only the first row shows, with the buttons at its end; 展开 shows every row.
+   */
   children?: ReactNode
-  /** Fields shown while collapsed. Default 3; the 展开 / 收起 toggle appears when there are more. */
-  collapseAfter?: number
+  /** The search grid's columns (a {@link FormGrid}): default `{ maxColumns: 4, minWidth: 220 }`, as many as fit. */
+  grid?: Pick<FormGridProps, 'maxColumns' | 'minColumns' | 'minWidth' | 'breakpoints' | 'columnGap'>
   title?: ReactNode
   toolbar?: ReactNode
   /** Header right, before the refresh button (e.g. `ArrayTable.ShadowAddition`). */
@@ -44,30 +48,14 @@ export function QueryList<TValues, TParams, TRow>(props: QueryListProps<TValues,
     )
   }
   const fields = Children.toArray(props.children)
-  const collapseAfter = props.collapseAfter ?? 3
-  const [collapsed, setCollapsed] = useState(true)
-  const foldable = fields.length > collapseAfter
   return (
     <Form form={table.form} onSubmit={() => table.submit()}>
       {fields.length ? (
-        <>
-          <QueryForm collapsed={foldable && collapsed} collapseAfter={collapseAfter}>
-            {fields}
-          </QueryForm>
-          <Space style={{ display: 'flex', justifyContent: 'flex-end', margin: '8px 0' }}>
-            {foldable ? (
-              <Button type="link" data-testid="query-toggle" onClick={() => setCollapsed((value) => !value)}>
-                {collapsed ? table.form.message('expand') : table.form.message('collapse')}
-              </Button>
-            ) : null}
-            <Button data-testid="query-reset" disabled={table.fetching} onClick={() => table.reset()}>
-              {table.form.message('reset')}
-            </Button>
-            <Button type="primary" data-testid="query-submit" disabled={table.fetching} onClick={() => table.submit()}>
-              {table.form.message('search')}
-            </Button>
-          </Space>
-        </>
+        <div data-testid="query-grid" style={{ marginBottom: 8 }}>
+          <FormGrid maxColumns={4} minWidth={220} {...props.grid}>
+            <QueryCells table={table}>{fields}</QueryCells>
+          </FormGrid>
+        </div>
       ) : null}
       <ArrayField
         name={list}
@@ -111,31 +99,63 @@ export function QueryList<TValues, TParams, TRow>(props: QueryListProps<TValues,
   )
 }
 
+/** Columns a search cell takes: `gridSpan` on its `FormItem` decorator or on a `GridColumn`; `-1` = the whole row. */
+function cellSpan(child: ReactNode, columns: number): number {
+  if (!isValidElement(child)) return 1
+  const props = child.props as { decorator?: unknown; gridSpan?: number }
+  let span: number | undefined
+  if (child.type === GridColumn) span = props.gridSpan
+  else if (Array.isArray(props.decorator) && props.decorator[1] && typeof props.decorator[1] === 'object') {
+    span = (props.decorator[1] as { gridSpan?: number }).gridSpan
+  }
+  if (span === undefined) return 1
+  return span < 0 ? columns : Math.max(1, Math.min(span, columns))
+}
+
 /**
- * Responsive query grid. `auto-fit` decides how many fields share the first row.
- * `collapsed` sets `hidden` on fields after `collapseAfter` without unmounting them.
+ * The cells of the search grid plus the button cell (antd Pro `QueryFilter`): collapsed, the fields that fit in the
+ * first row beside the buttons (at least one); expanded, all of them. The buttons always sit in the last column, on
+ * the last row when it has room. Hidden fields stay mounted (`display: none`), so their values still search.
  */
-function QueryForm({
-  collapsed = false,
-  collapseAfter = 3,
-  children,
-}: {
-  collapsed?: boolean
-  collapseAfter?: number
-  children?: ReactNode
-}) {
-  const items = Children.toArray(children)
+function QueryCells<TValues, TParams, TRow>({ table, children }: { table: QueryTableApi<TValues, TParams, TRow>; children: ReactNode[] }) {
+  const columns = useFormGrid()?.columns ?? 1
+  const [collapsed, setCollapsed] = useState(true)
+  let used = 0
+  let shown = 0
+  for (const child of children) {
+    const span = cellSpan(child, columns)
+    if (shown > 0 && used + span > columns - 1) break
+    used += span
+    shown += 1
+  }
+  const foldable = shown < children.length
+  const folded = foldable && collapsed
   return (
-    <div
-      data-testid="query-grid"
-      data-collapsed={collapsed ? 'true' : 'false'}
-      style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}
-    >
-      {items.map((child, index) => (
-        <div key={index} data-query-field hidden={collapsed && index >= collapseAfter}>
+    <>
+      {children.map((child, index) => (
+        <div
+          key={isValidElement(child) && child.key != null ? child.key : index}
+          data-query-field
+          style={{ display: folded && index >= shown ? 'none' : 'contents' }}
+        >
           {child}
         </div>
       ))}
-    </div>
+      <div data-testid="query-actions" data-collapsed={folded ? 'true' : 'false'} style={{ gridColumn: '-2 / -1', alignSelf: 'end', marginBottom: 24, minWidth: 0 }}>
+        <Space style={{ display: 'flex', justifyContent: 'flex-end' }} wrap>
+          {foldable ? (
+            <Button type="link" data-testid="query-toggle" onClick={() => setCollapsed((value) => !value)}>
+              {collapsed ? table.form.message('expand') : table.form.message('collapse')}
+            </Button>
+          ) : null}
+          <Button data-testid="query-reset" disabled={table.fetching} onClick={() => table.reset()}>
+            {table.form.message('reset')}
+          </Button>
+          <Button type="primary" data-testid="query-submit" disabled={table.fetching} onClick={() => table.submit()}>
+            {table.form.message('search')}
+          </Button>
+        </Space>
+      </div>
+    </>
   )
 }

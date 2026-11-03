@@ -99,7 +99,6 @@ export function QueryPage() {
       table={table}
       rowKey="id"
       settings={false}
-      collapseAfter={3}
       toolbar={
         <>
           <button
