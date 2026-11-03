@@ -21,7 +21,7 @@ export function ArrayDemo() {
   </Form>
 }
 function Rows() {
-  const array = useArrayField<Values, 'items'>('items', 'id')
+  const array = useArrayField<Values, 'items'>('items', { rowKey: 'id' })
   const form = useFormContext<Values>()
   const [sequence, setSequence] = useState(0)
   const total = useWatch((d: Draft<Values>) => d.items.$value.reduce((sum, row) => sum + row.total, 0))

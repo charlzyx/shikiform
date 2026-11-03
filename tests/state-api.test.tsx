@@ -125,6 +125,16 @@ describe('#34 setErrors / setFieldError / clearErrors', () => {
     expect(form.errors).toEqual([])
   })
 
+  it('setFieldError(path, null) clears that path\'s external messages', () => {
+    const form = createForm<V>({ initialValues: init })
+    form.setErrors({ username: '用户名已存在', email: '格式不对' })
+    form.setFieldError('username', null)
+    expect(form.errors).toEqual([{ path: 'email', messages: ['格式不对'] }])
+    form.setFieldError('email', null)
+    expect(form.errors).toEqual([])
+    expect(form.canSubmit).toBe(true)
+  })
+
   it('submit revalidates, so a resubmit is not stuck on the old server message', async () => {
     const form = createForm<V>({ initialValues: init })
     const first = await form.submit(async () => { form.setErrors({ username: '用户名已存在' }) })

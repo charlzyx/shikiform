@@ -1,4 +1,5 @@
 import { useCallback, useContext } from 'react'
+import { ShikiUsageError } from '../core/errors'
 import type { FormEngine } from '../core/engine/form-engine'
 import { joinPath } from '../core/shared/path'
 import { FormContext, useScope } from '../react/context'
@@ -42,7 +43,12 @@ export function useArrayShadow<TRow = Record<string, any>>(name: string, options
   const context = useContext(FormContext)
   const scope = useScope()
   const form = options.form ?? context
-  if (!form) throw new Error('useArrayShadow needs a surrounding <Form> or a `form` option')
+  if (!form) {
+    if (process.env.NODE_ENV !== 'production') {
+      throw new ShikiUsageError('useArrayShadow needs a surrounding <Form> or a `form` option.')
+    }
+    throw new Error('useArrayShadow needs a surrounding <Form> or a `form` option')
+  }
   const path = options.form ? name : joinPath(scope.path, name)
   const { onOk, merge, append, rowKey, form: _form, ...shadowOptions } = options
   const shadow = useShadowForm<TRow, ArrayShadowContext>({

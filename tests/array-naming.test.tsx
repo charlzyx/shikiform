@@ -97,7 +97,7 @@ describe('<ArrayField> owns every array UI', () => {
 describe('dragProps on the array and tree handles', () => {
   it('array: stable per path, dropping row A on row B moves A to B', () => {
     const form = createForm({ initialValues: { rows: [{ id: 'a' }, { id: 'b' }, { id: 'c' }] } })
-    const { result, rerender } = renderHook(() => useArrayField('rows', 'id'), { wrapper: wrap(form) })
+    const { result, rerender } = renderHook(() => useArrayField('rows', { rowKey: 'id' }), { wrapper: wrap(form) })
     const first = result.current.dragProps
     rerender()
     expect(result.current.dragProps).toBe(first)
@@ -112,15 +112,61 @@ describe('dragProps on the array and tree handles', () => {
     expect(form.values.rows.map((row: { id: string }) => row.id)).toEqual(['b', 'c', 'a'])
   })
 
-  it('array: falls back to dataTransfer text when the drag started elsewhere', () => {
+  it('array: falls back to dataTransfer text when the drag started elsewhere (another hook instance, same array)', () => {
     const form = createForm({ initialValues: { rows: [{ id: 'a' }, { id: 'b' }] } })
     const { result } = renderHook(() => useArrayField('rows'), { wrapper: wrap(form) })
+    const { result: again } = renderHook(() => useArrayField('rows'), { wrapper: wrap(form) })
     act(() => {
-      const data = new Map<string, string>([['text/plain', '1']])
-      const event = { preventDefault() {}, stopPropagation() {}, dataTransfer: { getData: (k: string) => data.get(k) ?? '' } } as never
+      const data = new Map<string, string>()
+      const event = {
+        preventDefault() {},
+        stopPropagation() {},
+        dataTransfer: {
+          setData: (k: string, v: string) => data.set(k, v),
+          getData: (k: string) => data.get(k) ?? '',
+        },
+      } as never
+      // the source instance encodes the payload; the drop lands on a second instance of the same array
+      again.current.dragProps(1).onDragStart(event)
       result.current.dragProps(0).onDrop(event)
     })
     expect(form.values.rows.map((row: { id: string }) => row.id)).toEqual(['b', 'a'])
+  })
+
+  it('cross-array drop is ignored: the payload carries the source array path', () => {
+    const form = createForm({ initialValues: { rows: [{ id: 'a' }, { id: 'b' }], other: [{ id: 'x' }, { id: 'y' }] } })
+    const { result } = renderHook(() => useArrayField('rows', { rowKey: 'id' }), { wrapper: wrap(form) })
+    const { result: other } = renderHook(() => useArrayField('other', { rowKey: 'id' }), { wrapper: wrap(form) })
+    act(() => {
+      const event = { preventDefault() {}, stopPropagation() {}, dataTransfer: null } as never
+      // drag row 0 of `rows` (via dataTransfer, as a real cross-array drop would) onto row 1 of `other`
+      result.current.dragProps(0).onDragStart(event)
+      other.current.dragProps(1).onDrop(event)
+    })
+    expect(form.values.rows.map((row: { id: string }) => row.id)).toEqual(['a', 'b'])
+    expect(form.values.other.map((row: { id: string }) => row.id)).toEqual(['x', 'y'])
+  })
+
+  it('same-array drop via dataTransfer still moves the row (payload decode)', () => {
+    const form = createForm({ initialValues: { rows: [{ id: 'a' }, { id: 'b' }, { id: 'c' }] } })
+    const { result } = renderHook(() => useArrayField('rows', { rowKey: 'id' }), { wrapper: wrap(form) })
+    act(() => {
+      const from = result.current.dragProps(0)
+      const to = result.current.dragProps(2)
+      const data = new Map<string, string>()
+      const event = {
+        preventDefault() {},
+        stopPropagation() {},
+        dataTransfer: {
+          setData: (k: string, v: string) => data.set(k, v),
+          getData: (k: string) => data.get(k) ?? '',
+        },
+      } as never
+      from.onDragStart(event)
+      to.onDragOver(event)
+      to.onDrop(event)
+    })
+    expect(form.values.rows.map((row: { id: string }) => row.id)).toEqual(['b', 'c', 'a'])
   })
 
   it('tree: dropping a node on another moves it there; a move into itself is refused', () => {

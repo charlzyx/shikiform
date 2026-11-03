@@ -1,5 +1,6 @@
 import { useContext, useSyncExternalStore } from 'react'
 import type { ArrayItemOf, ArrayPath } from '../../core/types'
+import { ShikiUsageError } from '../../core/errors'
 import { ArrayContext, useFormContext, useRequiredForm, useScope } from '../context'
 import { useFieldGroupRegistration } from '../field-group'
 import { resolveName } from './resolve-name'
@@ -35,17 +36,17 @@ export type ArrayHandle<TRow> = {
  * `useArrayField<Values, 'rows'>('rows')` checks the name and types `push` / `replace` as one row.
  * `useArrayField<Values>('rows')` only checks the name. A bare `useArrayField('rows')` accepts any row.
  */
-export function useArrayField(name: string, rowKey?: string): ArrayHandle<unknown>
-export function useArrayField<TScope>(name: ArrayPath<TScope>, rowKey?: string): ArrayHandle<unknown>
+export function useArrayField(name: string, opts?: { rowKey?: string }): ArrayHandle<unknown>
+export function useArrayField<TScope>(name: ArrayPath<TScope>, opts?: { rowKey?: string }): ArrayHandle<unknown>
 export function useArrayField<TScope, N extends ArrayPath<TScope>>(
   name: N,
-  rowKey?: string,
+  opts?: { rowKey?: string },
 ): ArrayHandle<ArrayItemOf<TScope, N & string>>
-export function useArrayField(name: string, rowKey?: string): ArrayHandle<unknown> {
+export function useArrayField(name: string, opts?: { rowKey?: string }): ArrayHandle<unknown> {
   const scope = useScope()
   const path = resolveName(useRequiredForm(`useArrayField('${name}') / <ArrayField name="${name}">`), scope, name)
   useFieldGroupRegistration(path)
-  return useArrayAt(path, rowKey)
+  return useArrayAt(path, opts?.rowKey)
 }
 
 /**
@@ -63,7 +64,12 @@ export function useArrayField(name: string, rowKey?: string): ArrayHandle<unknow
  */
 export function useArray<TRow = unknown>(): ArrayHandle<TRow> {
   const ctx = useContext(ArrayContext)
-  if (!ctx) throw new Error('useArray() must render inside <ArrayField> (a row or its container component)')
+  if (!ctx) {
+    if (process.env.NODE_ENV !== 'production') {
+      throw new ShikiUsageError('useArray() must render inside <ArrayField> (a row or its container component: ArrayItems / ArrayCards / ArrayTable).')
+    }
+    throw new Error('useArray() must render inside <ArrayField>')
+  }
   return useArrayAt(ctx.path, ctx.rowKey) as ArrayHandle<TRow>
 }
 

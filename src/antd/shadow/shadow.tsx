@@ -1,5 +1,6 @@
 import { Button, Drawer, Modal, Popconfirm, Space, Spin, type DrawerProps, type ModalProps, type PopconfirmProps } from 'antd'
 import { cloneElement, createContext, isValidElement, useContext, useEffect, useRef, type ReactElement, type ReactNode } from 'react'
+import { ShikiUsageError } from '../../core/errors'
 import type { FormEngine } from '../../core/engine/form-engine'
 import { useShadowForm, type ShadowFormApi, type ShadowInit, type UseShadowFormOptions } from '../../pro/use-shadow-form'
 import { FormContext, ScopeContext } from '../../react/context'
@@ -12,7 +13,12 @@ const ShadowContext = createContext<ShadowFormApi<any, any> | null>(null)
 /** The shadow form a `ShadowForm` / `ShadowModal` / `ShadowDrawer` / `ShadowPopconfirm` renders. */
 export function useShadow<TValues = any, TContext = unknown>(): ShadowFormApi<TValues, TContext> {
   const shadow = useContext(ShadowContext)
-  if (!shadow) throw new Error('useShadow must render inside ShadowForm, ShadowModal, ShadowDrawer, or ShadowPopconfirm')
+  if (!shadow) {
+    if (process.env.NODE_ENV !== 'production') {
+      throw new ShikiUsageError('useShadow() must render inside ShadowForm, ShadowModal, ShadowDrawer, or ShadowPopconfirm.')
+    }
+    throw new Error('useShadow() must render inside a shadow component')
+  }
   return shadow as ShadowFormApi<TValues, TContext>
 }
 

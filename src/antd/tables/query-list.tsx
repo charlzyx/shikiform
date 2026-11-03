@@ -1,6 +1,7 @@
 import { Button, Space } from 'antd'
 import { Children, isValidElement, useState, type ReactNode } from 'react'
 import type { QueryTableApi } from '../../pro/use-query-table'
+import { ShikiUsageError } from '../../core/errors'
 import { ArrayField, Form } from '../../react/components/fields'
 import { FormGrid, GridColumn, useFormGrid, type FormGridProps } from '../adapter/form-grid'
 import { ArrayTable, type ArrayTableColumn, type ArrayTableProps } from './array-table'
@@ -42,8 +43,8 @@ export function QueryList<TValues, TParams, TRow>(props: QueryListProps<TValues,
   const { table } = props
   const list = table.rows
   if (!list) {
-    throw new Error(
-      '[shikiform] QueryList has no rows to render: pass `rows` to useQueryTable (`useQueryTable({ …, rows: \'list\' })`), ' +
+    throw new ShikiUsageError(
+      'QueryList has no rows to render: pass `rows` to useQueryTable (`useQueryTable({ …, rows: \'list\' })`), ' +
         'the array field each page is written into.',
     )
   }

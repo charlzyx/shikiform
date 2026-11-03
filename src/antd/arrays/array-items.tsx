@@ -17,6 +17,7 @@ import { useFormMessage } from '../../react/hooks/use-form-message'
 import { useIndex } from '../../react/hooks/use-row'
 import { useWatch } from '../../react/hooks/use-watch'
 import type { Draft } from '../../core/types'
+import { ShikiUsageError } from '../../core/errors'
 
 /*
  * Array containers (Formily antd-v5 `ArrayItems` / `ArrayCards`). They are the `component` of an `<ArrayField>`:
@@ -34,7 +35,12 @@ const DragContext = createContext<((index: number) => DragProps) | null>(null)
 
 function useArrayPath(caller: string): string {
   const ctx = useContext(ArrayContext)
-  if (!ctx) throw new Error(`${caller} must render inside an <ArrayField> (as its component, or in a row)`)
+  if (!ctx) {
+    if (process.env.NODE_ENV !== 'production') {
+      throw new ShikiUsageError(`${caller} must render inside an <ArrayField> (as its component, or in a row).`)
+    }
+    throw new Error(`${caller} must render inside an <ArrayField>`)
+  }
   return ctx.path
 }
 

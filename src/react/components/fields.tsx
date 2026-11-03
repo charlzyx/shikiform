@@ -281,7 +281,7 @@ export function ArrayField<TScope = any, C extends ComponentType<any> = Componen
   /** One row. Optional when `component` renders the rows itself (`ArrayTable` columns). */
   children?: (row: { index: number; key: string }) => ReactNode
 }) {
-  const array = useArrayField(String(name), rowKey)
+  const array = useArrayField(String(name), { rowKey })
   const [Container, props] = Array.isArray(component) ? component : [component as ComponentType<any> | undefined, undefined]
   if (virtualScroll && Container) {
     throw new ShikiUsageError(
