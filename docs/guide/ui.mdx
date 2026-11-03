@@ -48,7 +48,7 @@ export default function App() {
   });
   const F = typed(form);
   return (
-    <Form form={form} data-ui-echo-demo="">
+    <Form form={form} id="echo" data-ui-echo-demo="">
       <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 16 }}>
         <F.Field name="nickname" title="昵称" decorator={[FormItem]} component={[Input, { placeholder: '超过 8 个字回显变红' }]} />
         <F.Field name="nickname" ui="echo" title="回显" decorator={[FormItem]} component={[Echo]} />
@@ -58,7 +58,7 @@ export default function App() {
 }
 ```
 
-- 输入框的 `id` 是 `nickname`，回显的是 `nickname--echo`：两个 label 各指各的。
+- 输入框的 `id` 是 `echo-nickname`，回显的是 `echo-nickname--echo`：两个 label 各指各的。前缀来自 `<Form id="echo">`；不传 `id` 时前缀是 React `useId()`，同一页上的另一张表单不会再撞上 `nickname`。
 - `$componentProps` / `$decoratorProps` 只属于这个实例（另一个组件的 props 不回退到字段的）。`title` / `description` 不写时回退到字段的（声明 + reaction）。
 - 不带 `ui` 的那个 `<Field>` 就是字段本身（`d.nickname.$componentProps`）。
 

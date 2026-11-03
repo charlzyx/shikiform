@@ -9,6 +9,7 @@ import { ShikiUsageError } from '../../core/errors'
 import { useRequiredForm, useScope } from '../context'
 import { useFieldGroupRegistration } from '../field-group'
 import { applyJsxField } from './field-lifecycle'
+import { useIdPrefix, withDomId } from '../id-prefix'
 import { resolveName } from './resolve-name'
 
 /**
@@ -52,7 +53,7 @@ export interface FieldBinding<TValue> {
   decoratorProps: Record<string, any>
   /**
    * The UI instance name when this binding comes from `<Field name ui="echo">` / `useField(name, { ui })`: value,
-   * errors and `onChange` are the field's; display, pattern, title, props and `id` (`<path>--<ui>`) are the instance's.
+   * errors and `onChange` are the field's; display, pattern, title, props and `id` (`<prefix>-<path>--<ui>`) are the instance's.
    */
   ui?: string
 }
@@ -74,7 +75,7 @@ export interface UseFieldOptions<TValue = any> {
   /**
    * A second (third …) UI of the same field: `<Field name="amount" ui="slider" component={[Slider]} />`.
    * Shares the value, errors and rules; has its own display / pattern / title / props, addressed in effects as
-   * `d.amount.$ui('slider')` (unset falls back to the field: pattern inherits). Own DOM id `<path>--<ui>`.
+   * `d.amount.$ui('slider')` (unset falls back to the field: pattern inherits). Own DOM id `<prefix>-<path>--<ui>`.
    * `rules` / `required` / `enum` / `virtual` belong on the field itself (the `<Field>` without `ui`).
    */
   ui?: UiName
@@ -130,6 +131,7 @@ export function useField(name?: string, options?: UseFieldOptions): FieldBinding
     return current
   }
   const form = useRequiredForm(`useField('${String(name)}') / <Field name="${String(name)}">`)
+  const prefix = useIdPrefix()
   const scope = useScope()
   const path = resolveName(form, scope, String(name))
   const ui = options?.ui
@@ -157,8 +159,8 @@ export function useField(name?: string, options?: UseFieldOptions): FieldBinding
   void version
   useUiNode(form, path, ui, 'field')
   form.registerField(path, {})
-  if (ui) return form.uiBinding(path, ui, uiJsx(options!), 'field') as unknown as FieldBinding<any>
-  return form.binding(path, options && uiLayer(options)) as FieldBinding<any>
+  if (ui) return withDomId(form.uiBinding(path, ui, uiJsx(options!), 'field') as unknown as FieldBinding<any>, prefix)
+  return withDomId(form.binding(path, options && uiLayer(options)) as FieldBinding<any>, prefix)
 }
 
 const NO_UI = () => () => {}

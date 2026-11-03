@@ -164,7 +164,7 @@ export default function App() {
 | `FormCollapse` | 展开**所有**含有这次错误的面板（已展开的不动）；`accordion` 只能开一个，开第一个 |
 | `FormStep` | 回到**最早**含有这次错误的那一步 |
 
-然后 `<Form>` 聚焦表单里第一个有错的字段（按页面顺序；控件的 `id` 就是字段路径，不能聚焦的元素就滚动到它）。
+然后 `<Form>` 聚焦表单里第一个有错的字段（按页面顺序）。控件 `id` 是 `<前缀>-<净化路径>`（前缀为 `<Form id>` 或 `useId()`，`user.name` 不会拿原始路径去找元素）；不能聚焦的元素就滚动到它。
 
 - 受控（`activeKey` / `useFormStep({ current })`）时只调用 `onChange`，切不切由你决定。
 - 输入、失焦触发的校验不会切换，只有提交和显式的 `form.validate()` 会。`step.next()` 只校验当前步，错误都在当前步里，所以它不会把你带走。

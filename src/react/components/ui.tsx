@@ -3,12 +3,13 @@ import type { Display, FieldUiSpec, Pattern, UiName } from '../../core/types'
 import { useRequiredForm, useScope } from '../context'
 import { useUiNode, type FieldSlot } from '../hooks/use-field'
 import { normalizeUiSpec } from '../../core/state/field-model'
+import { useIdPrefix, withDomId } from '../id-prefix'
 
 /** What `<UI>` renders with: the node's effective state (reaction > JSX props > the scope's display / pattern). */
 export interface UiBinding {
   /** The node name (`d.$ui(name)`). */
   ui: string
-  /** DOM id: `<scope>--<name>` (`ui--approvalTip` at the root). */
+  /** DOM id: `<prefix>-<scope>--<name>` (`<prefix>-ui--approvalTip` at the root). */
   id: string
   display: Display
   pattern: Pattern
@@ -62,8 +63,9 @@ export function useUiNodeOrNull(): UiBinding | null {
 export function UI({ name, children, display, pattern, ...slots }: UIProps) {
   const form = useRequiredForm(`<UI name="${String(name)}">`)
   const path = useScope().path
+  const prefix = useIdPrefix()
   useUiNode(form, path, name, 'node')
-  const ui = form.uiBinding(path, name, { ...(normalizeUiSpec(slots) as FieldUiSpec), display, pattern }, 'node') as UiBinding
+  const ui = withDomId(form.uiBinding(path, name, { ...(normalizeUiSpec(slots) as FieldUiSpec), display, pattern }, 'node') as UiBinding, prefix)
   if (ui.display !== 'visible') return null
   const Component = ui.component
   const Decorator = ui.decorator

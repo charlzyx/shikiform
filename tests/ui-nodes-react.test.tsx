@@ -31,7 +31,7 @@ describe('<Field ui> — several UIs of one field', () => {
         })],
       })
       return (
-        <Form form={form}>
+        <Form form={form} id="f">
           <Field name="name" title="姓名" decorator={[FormItem]} component={[Input]} />
           <Field name="name" ui="echo" component={[Echo]} />
         </Form>
@@ -45,9 +45,9 @@ describe('<Field ui> — several UIs of one field', () => {
     expect(echo.style.color).toBe('red')
     expect(input.style.color).toBe('')
     // distinct ids: the label points at the field, the echo has its own id
-    expect(input.id).toBe('name')
-    expect(echo.id).toBe('name--echo')
-    expect(view.container.querySelector('label')!.getAttribute('for')).toBe('name')
+    expect(input.id).toBe('f-name')
+    expect(echo.id).toBe('f-name--echo')
+    expect(view.container.querySelector('label')!.getAttribute('for')).toBe('f-name')
   })
 
   it('slider + input share a value; the slider has its own pattern', () => {

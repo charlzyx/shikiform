@@ -32,6 +32,7 @@ import type {
 import { Validator } from '../validation/validator'
 import { Baseline, errorEntries } from './baseline'
 import { FieldUi, uiKeyOf } from './field-ui'
+import { pathDomId, uiDomId } from './dom-id'
 import { UiNodes, type UiJsx, type UiKind, type UiNodeView } from './ui-nodes'
 import { StateWriter } from './writes'
 
@@ -646,7 +647,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
       validating: field?.validating ?? false,
       options: field?.enumOptions ?? [],
       loading: field?.enumLoading ?? false,
-      id: path.replace(/[^a-zA-Z0-9_-]/g, '-') || 'field',
+      id: pathDomId(path),
       ...this.fieldUi.view(path, ui),
     }
   }
@@ -656,13 +657,13 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
 
   /**
    * A named UI on `path`: `'field'` (`<Field ui>`) = the field binding with this instance's display / pattern / UI
-   * state and id `<path>--<ui>`; `'node'` (`<UI>`) = only UI state. Subscribe to `uiId(path, name)` and `path`.
+   * state and id `<path>--<ui>` (React then adds the `<Form>` prefix: `id` prop or `useId()`); `'node'` (`<UI>`) = only UI state. Subscribe to `uiId(path, name)` and `path`.
    */
   uiBinding(path: string, name: string, jsx: UiJsx | undefined, kind: 'field'): ReturnType<FormEngine['binding']> & { ui: string }
   uiBinding(path: string, name: string, jsx: UiJsx | undefined, kind: 'node'): UiNodeView & { id: string; ui: string }
   uiBinding(path: string, name: string, jsx: UiJsx | undefined, kind: UiKind): any {
     const view = this.uiNodes.view(path, name, jsx, kind)
-    const id = `${path.replace(/[^a-zA-Z0-9_-]/g, '-') || 'ui'}--${name.replace(/[^a-zA-Z0-9_-]/g, '-')}`
+    const id = uiDomId(path, name)
     if (kind === 'node') return { ...view, id, ui: name }
     return { ...this.binding(path), ...view, id, ui: name, disabled: view.pattern === 'disabled', readOnly: view.pattern === 'readOnly' }
   }

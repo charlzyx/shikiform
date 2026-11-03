@@ -11,6 +11,7 @@ import { useTreeField } from '../hooks/use-tree'
 import { useWatch } from '../hooks/use-watch'
 import { resolveName } from '../hooks/resolve-name'
 import { ShikiUsageError } from '../../core/errors'
+import { focusFieldDomId, IdPrefixProvider, useAutoIdPrefix } from '../id-prefix'
 import { VirtualRows } from './virtual-rows'
 
 const ROOT_SCOPE = { path: '', index: -1 }
@@ -74,45 +75,58 @@ export function runSubmit<T, TSubmit = T>(form: FormEngine<T, TSubmit>, handlers
  * `onInvalid` gets the errors when validation fails; `onSubmitError` gets what `onSubmit` threw.
  * When a submit or `form.validate()` fails, the first errored field inside (document order) is focused.
  * Other props go to the native `<form>`.
+ * Field DOM ids are prefixed with this form's `id`, or with React `useId()` when `id` is omitted, so two forms
+ * do not share `id="email"`. The engine's `binding().id` stays the sanitized path (`user.name` → `user-name`);
+ * the control's id is `<prefix>-user-name`.
  * `<Field>` returns null for display `hidden` and `none` after subscribing, so a mounted model stays registered.
  * A field declared on the form, or given `$rules` / `registerField`, still validates when this component is not rendered.
  */
-export function Form<T, TSubmit = T>({ form, children, onSubmit, onInvalid, onSubmitError, ...rest }: FormProps<T, TSubmit>) {
+export function Form<T, TSubmit = T>({ form, children, onSubmit, onInvalid, onSubmitError, id, ...rest }: FormProps<T, TSubmit>) {
   const ref = useRef<HTMLFormElement>(null)
+  const prefix = useAutoIdPrefix(id)
   // A failed submit / validate focuses the first errored field (after FormTab / FormCollapse / FormStep switched).
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined
     const stop = form.subscribeValidateFailed((errors) => {
       clearTimeout(timer)
-      timer = setTimeout(() => focusFirstError(ref.current, errors), 0)
+      // Twice: a group can remount its option inputs (css-in-js, a new options array) after the first focus,
+      // which drops it. The second pass looks the id up again.
+      const run = () => focusFirstError(ref.current, errors, prefix)
+      timer = setTimeout(() => {
+        run()
+        timer = setTimeout(run, 0)
+      }, 0)
     })
     return () => {
       stop()
       clearTimeout(timer)
     }
-  }, [form])
+  }, [form, prefix])
   return (
     <FormContext.Provider value={form}>
-      {/* A nested form (a shadow form in a row's modal) starts at its own root, not at the row's scope. */}
-      <ScopeContext.Provider value={ROOT_SCOPE}>
-        <form {...rest} ref={ref} onSubmit={(event) => handleFormSubmit(form, event, { onSubmit, onInvalid, onSubmitError })}>
-          {children}
-        </form>
-      </ScopeContext.Provider>
+      <IdPrefixProvider prefix={prefix}>
+        {/* A nested form (a shadow form in a row's modal) starts at its own root, not at the row's scope. */}
+        <ScopeContext.Provider value={ROOT_SCOPE}>
+          <form {...rest} id={id} ref={ref} onSubmit={(event) => handleFormSubmit(form, event, { onSubmit, onInvalid, onSubmitError })}>
+            {children}
+          </form>
+        </ScopeContext.Provider>
+      </IdPrefixProvider>
     </FormContext.Provider>
   )
 }
 
 /**
- * Focus (and scroll to) the first element, in document order inside `root`, whose id is an errored field's path
- * (`<Field>` gives its control `id = path`). Hidden elements are skipped; a non-focusable one is scrolled into view.
+ * Focus (and scroll to) the first element, in document order inside `root`, whose id is an errored field's DOM id
+ * (`<prefix>-<sanitized path>`, so `user.name` is `<prefix>-user-name`, not the raw path). Hidden elements are
+ * skipped; a non-focusable one is scrolled into view.
  */
-function focusFirstError(root: HTMLFormElement | null, errors: readonly FieldError[]): void {
+function focusFirstError(root: HTMLFormElement | null, errors: readonly FieldError[], prefix: string): void {
   if (!root) return
   let first: HTMLElement | null = null
   for (const { path } of errors) {
     if (!path) continue
-    const el = root.ownerDocument.getElementById(path)
+    const el = root.ownerDocument.getElementById(focusFieldDomId(prefix, path))
     if (!el || !root.contains(el)) continue
     if (typeof el.checkVisibility === 'function' && !el.checkVisibility()) continue
     if (!first || first.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_PRECEDING) first = el
@@ -128,7 +142,7 @@ export interface FieldProps<TScope = any, N extends FieldPath<TScope> = FieldPat
   name: N
   /**
    * Another UI of the same field (`d.name.$ui('echo')` in effects): shared value / errors / rules, its own display,
-   * pattern, title and props (unset falls back to the field's). Own DOM id `<path>--<ui>`. Leave rules / required /
+   * pattern, title and props (unset falls back to the field's). Own DOM id `<prefix>-<path>--<ui>`. Leave rules / required /
    * enum / virtual to the `<Field>` without `ui`.
    */
   ui?: UiName

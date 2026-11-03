@@ -412,7 +412,7 @@ const Checkbox: ConnectedComponent<antd.CheckboxProps> & {
 }
 ```
 
-单个 `Checkbox` 的字段值对应 `checked`，`readOnly` 渲染为禁用，`readPretty` 显示 是 / 否。`Checkbox.Group` 绑定数组值，未传 `options` 时使用字段枚举，`readPretty` 把所选项显示为标签（`prettyType` 可选）。
+单个 `Checkbox` 的字段值对应 `checked`，`readOnly` 渲染为禁用，`readPretty` 显示 是 / 否。`Checkbox.Group` 绑定数组值，未传 `options` 时使用字段枚举，`readPretty` 把所选项显示为标签（`prettyType` 可选）。字段 id 不放在组的外层 div 上（`label` 的 `htmlFor` 点不到 div）：`options` 或手写的 `Checkbox` 子项里，第一个没有自己 `id` 的选项 input 带上字段 id（`<前缀>-<路径>`），其余选项保持自己的 `id` 或留空。
 
 ## Radio
 
@@ -423,7 +423,7 @@ const Radio: ConnectedComponent<antd.RadioGroupProps & { prettyType?: 'text' | '
 }
 ```
 
-`Radio` 本身就是单选**组**（`component={[Radio]}` 与 `component={[Radio.Group]}` 相同）：`onChange(event)` 写入 `event.target.value`。未传 `options` 时使用字段枚举；`readOnly` 渲染为禁用；`readPretty` 显示所选标签。单独一个是/否单选用 `Checkbox` 或 `Switch`；`Radio.Button` 是 antd 原件，给 `optionType="button"` 以外的手写子项用。
+`Radio` 本身就是单选**组**（`component={[Radio]}` 与 `component={[Radio.Group]}` 相同）：`onChange(event)` 写入 `event.target.value`。未传 `options` 时使用字段枚举；`readOnly` 渲染为禁用；`readPretty` 显示所选标签。单独一个是/否单选用 `Checkbox` 或 `Switch`；`Radio.Button` 是 antd 原件，给 `optionType="button"` 以外的手写子项用。和 `Checkbox.Group` 一样，字段 id 在第一个没有自己 `id` 的选项 input 上（`options` 或手写的 `Radio.Button`），不在组的外层 div 上。
 
 ## DatePicker
 

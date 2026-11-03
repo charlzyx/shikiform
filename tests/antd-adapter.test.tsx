@@ -136,14 +136,14 @@ describe('connect', () => {
     })
     const form = createForm({ initialValues: { city: 'Paris' } })
     renderToStaticMarkup(
-      <Form form={form}>
+      <Form form={form} id="f">
         <Field name="city" title="城市" decorator={[FormItem]}>
           <Probe />
         </Field>
       </Form>,
     )
     expect(seen.at(-1)!.value).toBe('Paris')
-    expect(seen.at(-1)!.id).toBe('city')
+    expect(seen.at(-1)!.id).toBe('f-city')
   })
 
   it('renders the mapReadPretty view in readPretty and the control otherwise', () => {

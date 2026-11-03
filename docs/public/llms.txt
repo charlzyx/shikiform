@@ -213,7 +213,7 @@ const step = useFormStep()   // in the component with the buttons; { current, co
 
 - Named UI nodes (`/guide/ui`): a second UI of the **same field** is `<Field name="x" ui="echo" component={[Echo]} />`
   (shared value / errors / rules / options; its own display, pattern, title, componentProps, decoratorProps; DOM id
-  `x--echo`); in effects `d.x.$ui('echo').$pattern = 'disabled'`. Inside it `useField()` returns the shared field with
+  `<form id>-x--echo`, or a `useId()` prefix when `<Form>` has no `id`); in effects `d.x.$ui('echo').$pattern = 'disabled'`. Inside it `useField()` returns the shared field with
   the instance's UI state (`field.ui === 'echo'`). Put `rules` / `required` / `enum` / `virtual` on the `<Field>`
   without `ui` (an instance ignores them, dev warning). A UI with **no value** (a tip, a group box) is
   `<UI name="tip" component={[Alert, props]}>children</UI>` → `d.$ui('tip')` (in a row: `row.$ui('tip')`); never in
