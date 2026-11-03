@@ -48,7 +48,7 @@ export default async () => {
       // One reading path: start → fields → linkage → structures → pro → validation → reference.
       sidebar: [
         group('开始', ['index', 'guide/quick-start', 'guide/concepts']),
-        group('字段与组件', ['guide/field', 'guide/layout', 'guide/containers', 'guide/antd']),
+        group('字段与组件', ['guide/field', 'guide/layout', 'guide/containers', 'guide/antd', 'guide/controls']),
         group('联动', ['guide/linkage']),
         group('数据结构', ['guide/structures', 'guide/arrays', 'guide/headless']),
         group('Pro 组件', ['guide/pro']),

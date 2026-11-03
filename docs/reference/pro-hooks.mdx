@@ -92,16 +92,16 @@ useSuggestion({ fetch: (keyword, { signal }) => Promise<EnumOption[]>, debounce?
 ## useLazyCascader
 
 ```ts
-useLazyCascader({ load: (path: (string | number)[]) => Promise<CascaderOption[]>, all?: boolean, paths?: (string | number)[][], enabled?: boolean }): LazyCascaderApi
+useLazyCascader({ load: (path: (string | number)[]) => Promise<CascaderOption[]>, paths?: (string | number)[][], enabled?: boolean }): LazyCascaderApi
 // { options, loading, loadChildren(path), ensure(paths), labelsOf(path) }
 ```
 
-懒加载级联（Pro.formily `CascaderPlus`）：挂载时 `load([])` 取根，展开时 `load(path)` 取子级；同一路径并发只请求一次。`paths` 是已有值，打开时逐级加载每一层祖先，标签就能反显。`all` 表示 `load([])` 直接返回整棵树。`enabled: false` 时什么都不加载。
+懒加载级联（Pro.formily `CascaderPlus`）：挂载时 `load([])` 取根，展开时 `load(path)` 取子级；同一路径并发只请求一次。`paths` 是已有值，打开时逐级加载每一层祖先，标签就能反显。已带 `children` 的节点不再加载（`load([])` 直接返回整棵树也可以）。`enabled: false` 时什么都不加载。
 
 ## useCascaderLabels
 
 ```ts
-useCascaderLabels({ value: unknown, multiple?: boolean, load?: CascaderLoader, all?: boolean }): CascaderLabelsApi
+useCascaderLabels({ value: unknown, multiple?: boolean, load?: CascaderLoader }): CascaderLabelsApi
 // { labels: string[][], loading }
 ```
 
@@ -123,11 +123,11 @@ cascaderPaths(value: unknown, multiple?: boolean): (string | number)[][]
 ## enumItems
 
 ```ts
-enumItems(value: unknown, options?: EnumOption[], config?: { strict?: boolean; colorful?: boolean }): EnumDisplayItem[]
-// → [{ value, label, color }]
+enumItems(value: unknown, options?: EnumOption[], config?: { colorful?: boolean }): EnumDisplayItem[]
+// → [{ value, label, color, matched }]
 ```
 
-把字段值（单个或数组）按枚举解析成显示项：标签和颜色。默认宽松匹配（`1` 等于 `'1'`，与 Pro.formily 一致），`strict` 改为 `===`；选项没写 `color` 时按位置取调色板颜色，`colorful: false` 关闭。找不到的值被丢掉。
+把字段值（单个或数组，`{ label, value }` 项也行）按枚举解析成显示项：标签和颜色。宽松匹配（`1` 等于 `'1'`，与 Pro.formily 一致）；选项没写 `color` 时按位置取调色板颜色，`colorful: false` 关闭。找不到的值保留，`label` 是它自己（`labelInValue` 项用自己的 `label`），`matched: false`。`PreviewText.Select`（选择类控件的阅读态）就是它的渲染。
 
 ## ENUM_COLORS
 
@@ -135,4 +135,4 @@ enumItems(value: unknown, options?: EnumOption[], config?: { strict?: boolean; c
 const ENUM_COLORS: { success: 'green'; processing: 'blue'; error: 'red'; warning: 'gold'; default: '#d9d9d9'; … }
 ```
 
-枚举选项 `color` 可以写的语义色名（`success`、`processing`、`error`、`warning`、`default`）和 antd 预设色名；其他字符串（如 `#1677ff`）原样使用。`enumItems` 和 `EnumPretty` 都按这张表把名字换成颜色。
+枚举选项 `color` 可以写的语义色名（`success`、`processing`、`error`、`warning`、`default`）和 antd 预设色名；其他字符串（如 `#1677ff`）原样使用。`enumItems` 和 `PreviewText` 都按这张表把名字换成颜色。

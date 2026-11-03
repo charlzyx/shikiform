@@ -8,6 +8,7 @@ import {
   type ReactElement,
   type Ref,
 } from 'react'
+import type { EnumOption } from '../../core/enum/enum-source'
 import { useFieldContextOrNull } from '../../react/field-context'
 import { useField, type FieldBinding } from '../../react/hooks/use-field'
 
@@ -97,7 +98,7 @@ export function valueFromEvent(...args: any[]): unknown {
  *   with the original arguments; `onBlur` → `field.onBlur()`, then the caller's handler.
  * - `disabled` / `readOnly` are OR-ed with the caller's prop. Several keys may target one prop (`readOnly: 'disabled'`).
  * - `status` is `'error'` with errors, `'warning'` with only warnings; an explicit caller `status` wins.
- * - `options` (enum) and `loading` are passed only when mapped; an explicit caller prop wins.
+ * - `options` (enum, tree nodes keep `children`) and `loading` are passed only when mapped; an explicit caller prop wins.
  * - `readPretty` without a `mapReadPretty` view is treated as `readOnly`.
  * - `field.componentProps` (`fields` ← JSX ← `$componentProps`) are merged under `props`.
  */
@@ -113,6 +114,15 @@ export function mapFieldProps(
     else Object.assign(mapping, mapper)
   }
   return applyMapping(field, { ...field.componentProps, ...props }, mapping, transforms, false)
+}
+
+/** Enum options as a control takes them: `{ label, value, disabled }`, with `children` for tree / cascader nodes. */
+function controlOptions(options: readonly EnumOption[]): Array<Record<string, unknown>> {
+  return options.map((option) => {
+    const out: Record<string, unknown> = { label: option.label, value: option.value, disabled: option.disabled }
+    if (option.children) out.children = controlOptions(option.children)
+    return out
+  })
 }
 
 /** `title`, `componentProps.max` … read from the binding. */
@@ -150,8 +160,7 @@ function applyMapping(
   }
   const options = target('options')
   if (options) {
-    out[options] =
-      props[options] ?? field.options.map((option) => ({ label: option.label, value: option.value, disabled: option.disabled }))
+    out[options] = props[options] ?? controlOptions(field.options)
   }
   const loading = target('loading')
   if (loading) out[loading] = props[loading] ?? field.loading

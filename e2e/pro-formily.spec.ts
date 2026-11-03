@@ -54,12 +54,12 @@ test('pro-enum: lazy enums load and READ PRETTY shows tags', async ({ page }) =>
   await expect(page.getByRole('radio')).toHaveCount(6)
   await page.getByTestId('read-pretty').click()
   await expect(page.getByRole('radio')).toHaveCount(0)
-  await expect(page.locator('[data-enum-pretty="tag"] .ant-tag')).toHaveCount(2)
+  await expect(page.locator('[data-pretty="tag"] .ant-tag')).toHaveCount(2)
 })
 
 test('cascader-plus: echoes existing values', async ({ page }) => {
   await page.goto('/play/cascader-plus')
-  await expect(page.getByText('北京市/北京市/朝阳区').first()).toBeVisible()
+  await expect(page.getByText('北京市 / 北京市 / 朝阳区').first()).toBeVisible()
 })
 
 test('query-list: rows are editable and paging goes to the server', async ({ page }) => {

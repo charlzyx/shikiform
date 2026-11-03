@@ -74,7 +74,7 @@ describe('readPretty never shows the edit-time placeholder as a value', () => {
         <Field name="b" pattern="readPretty" component={[Select, { placeholder: '请选择', prettyType: 'tag' }]} />
       </Form>,
     )
-    expect(container.textContent).toBe('')
+    expect(container.textContent).toBe('--')
   })
 
   it('PreviewText takes the empty text as `empty`', () => {

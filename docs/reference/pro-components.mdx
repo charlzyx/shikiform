@@ -1,6 +1,6 @@
 ---
 title: Pro 组件参考
-description: ProArrayTable、QueryList、ShadowModal / ShadowDrawer / ShadowPopconfirm / ShadowForm、EnumPretty、Suggestion、CascaderPlus。
+description: ProArrayTable、QueryList、ShadowModal / ShadowDrawer / ShadowPopconfirm / ShadowForm、Suggestion、CascaderPlus。
 ---
 
 # Pro 组件参考
@@ -86,23 +86,6 @@ useShadow<TValues, TContext>(): ShadowFormApi<TValues, TContext>
 
 读取外层 `ShadowForm` / `ShadowModal` / `ShadowDrawer` / `ShadowPopconfirm` 正在渲染的草稿：`form`、`visible`、`submitting`、`confirm()`、`cancel()`。不在这些组件里调用会抛错，提示需要的外层组件。
 
-## EnumPretty
-
-```tsx
-<Field name="status" title="状态" decorator={[FormItem]} component={[EnumPretty, { showType: 'badge' }]} />
-<Field name="tags" decorator={[FormItem]}><EnumPretty showType="tag" strict colorful={false} empty="无" /></Field>
-```
-
-只读的枚举显示（Pro.formily `ProEnumPretty`）：读字段值和字段枚举（`<Field enum>`、`fields.x.enum`、`$enum`、`EnumSource`），按 `showType` 画成文字、徽标或标签；颜色来自选项的 `color`（可用 `success` / `processing` / `error` / `warning` 等语义名）或调色板。`Select`、`Radio`、`Checkbox.Group` 的阅读态同样接受 `prettyType="badge" | "tag"`。
-
-## EnumPrettyView
-
-```tsx
-<EnumPrettyView value={['a', 'o']} options={[{ label: '啊', value: 'a' }, { label: '哦', value: 'o', color: 'success' }]} showType="tag" />
-```
-
-`EnumPretty` 的纯视图版本，不绑定字段：直接传 `value` 和 `options`。适合表格单元格、详情页等不在表单里的地方，参数与 `EnumPretty` 相同（`showType`、`strict`、`colorful`、`empty`）。
-
 ## Suggestion
 
 ```tsx
@@ -125,7 +108,7 @@ useShadow<TValues, TContext>(): ShadowFormApi<TValues, TContext>
 <Field name="area" title="地区" decorator={[FormItem]} component={[CascaderPlus, { loadData: (path) => api.children(path), labelInValue: true }]} />
 ```
 
-字段绑定的懒加载级联（Pro.formily `CascaderPlus`），建立在 `useLazyCascader` 上：一个 `loadData(path)` 服务所有层级，已有值打开时逐级加载以反显标签；`all` 表示整棵树一次返回；支持 `multiple` 和 `labelInValue`（每一级 `{ label, value }`）。默认 `changeOnSelect`。阅读态（`readPretty`）显示标签：`labelInValue` 的值自带标签；裸值（`['410000', '410600']`）用同一个 `loadData` 逐级加载后显示标签而不是编码（[`useCascaderLabels`](/reference/pro-hooks#usecascaderlabels)）。
+字段绑定的懒加载级联（Pro.formily `CascaderPlus`），建立在 `useLazyCascader` 上：一个 `loadData(path)` 服务所有层级，已有值打开时逐级加载以反显标签（已带 `children` 的节点不再加载，所以 `loadData([])` 一次返回整棵树也行，但选项一开始就齐全时用 [`Cascader`](/reference/antd-adapter#cascader) + `<Field enum>`）；支持 `multiple` 和 `labelInValue`（每一级 `{ label, value }`）。默认 `changeOnSelect`。阅读态（`readPretty`）与 `Cascader` 一样显示 `省 / 市 / 区`：`labelInValue` 的值自带标签；裸值（`['410000', '410600']`）用同一个 `loadData` 逐级加载后显示标签而不是编码（[`useCascaderLabels`](/reference/pro-hooks#usecascaderlabels)）。
 
 ## CascaderPlusView
 
@@ -133,4 +116,4 @@ useShadow<TValues, TContext>(): ShadowFormApi<TValues, TContext>
 <CascaderPlusView value={['110000', '11000000', '110105']} onChange={setValue} loadData={loadArea} multiple={false} />
 ```
 
-`CascaderPlus` 的非字段版本：受控 `value` / `onChange`，其余属性透传 antd `Cascader`。`/play/cascader-plus` 的三个例子（全量 / 懒加载切换、反显、labelInValue 反显）都直接用它。
+`CascaderPlus` 的非字段版本：受控 `value` / `onChange`，其余属性透传 antd `Cascader`。`/play/cascader-plus` 的三个例子（整棵树 / 懒加载切换、反显、labelInValue 反显）都直接用它。

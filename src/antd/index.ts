@@ -3,7 +3,9 @@
  * - adapter: `connect` / `mapProps` / `mapReadPretty` / `mapFieldProps`, the `FormItem` decorator, `FormLayout`,
  *   `FormGrid` / `GridColumn` and `FormButtonGroup`
  *   (all reading the field a `<Field>` provides; Formily style: `<Field decorator={[FormItem]} component={[Input]} />`);
- * - components: `Input`, `InputNumber`, `Select`, `Switch`, `Checkbox`, `Radio`, `DatePicker` wired through `connect`;
+ * - components: `Input`, `InputNumber`, `Select`, `AutoComplete`, `TreeSelect`, `Cascader`, `Switch`, `Checkbox`, `Radio`,
+ *   `DatePicker`, `TimePicker`, `Slider`, `Rate`, `Transfer`, `Upload`, `ColorPicker` wired through `connect`, each with a
+ *   `readPretty` view from `PreviewText.*`;
  * - buttons: `Submit` / `Reset` for the surrounding form;
  * - arrays: `ArrayItems` / `ArrayCards`, containers for `<ArrayField component>` (add / remove / move / drag rows);
  * - containers: `FormTab`, `FormCollapse`, `FormStep` / `useFormStep` (panes keep their fields mounted; error badges
@@ -11,7 +13,7 @@
  * - tables: `ArrayTable`, `MergedTable`, `ProQueryTable` / `QueryForm` (over `useArrayField` / `useQueryTable`),
  *   `ProArrayTable` (over `useArrayTable` / `useColumnSettings`), `QueryList` (over `useQueryTable`);
  * - shadow forms: `ShadowForm`, `ShadowModal`, `ShadowDrawer`, `ShadowPopconfirm`, `useShadow` (over `useShadowForm`);
- * - pro inputs: `EnumPretty`, `Suggestion` (over `useSuggestion`), `CascaderPlus` (over `useLazyCascader`).
+ * - pro inputs: `Suggestion` (over `useSuggestion`), `CascaderPlus` (over `useLazyCascader`).
  *
  * @packageDocumentation
  */
@@ -26,8 +28,26 @@ export type { FormGridProps, FormGridValue } from './adapter/form-grid'
 export { FormButtonGroup } from './adapter/form-button-group'
 export type { FormButtonGroupProps, FormButtonGroupStickyProps } from './adapter/form-button-group'
 export { PreviewText } from './adapter/preview'
-export type { PreviewTextProps } from './adapter/preview'
-export { Checkbox, DatePicker, Input, InputNumber, Radio, Select, Switch } from './components/controls'
+export type { PreviewOption, PreviewSelectProps, PreviewTextProps, PrettyType } from './adapter/preview'
+export {
+  AutoComplete,
+  Cascader,
+  Checkbox,
+  ColorPicker,
+  DatePicker,
+  Input,
+  InputNumber,
+  Radio,
+  Rate,
+  Select,
+  Slider,
+  Switch,
+  TimePicker,
+  Transfer,
+  TreeSelect,
+  Upload,
+} from './components/controls'
+export type { PrettyTypeProps } from './components/controls'
 export { Reset, Submit } from './components/buttons'
 export type { ResetProps, SubmitProps } from './components/buttons'
 export { ArrayCards, ArrayItems, useArrayEditable } from './arrays/array-items'
@@ -47,8 +67,6 @@ export { QueryList } from './tables/query-list'
 export type { QueryListProps } from './tables/query-list'
 export { ShadowDrawer, ShadowForm, ShadowModal, ShadowPopconfirm, useShadow } from './shadow/shadow'
 export type { ShadowOwnProps } from './shadow/shadow'
-export { EnumPretty, EnumPrettyView } from './components/enum-pretty'
-export type { EnumPrettyProps, EnumPrettyViewProps, EnumShowType } from './components/enum-pretty'
 export { Suggestion, SuggestionSelect } from './components/suggestion'
 export type { SuggestionSelectProps } from './components/suggestion'
 export { CascaderPlus, CascaderPlusView } from './components/cascader-plus'

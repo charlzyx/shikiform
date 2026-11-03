@@ -185,7 +185,11 @@ test.describe('arrays', () => {
     await item(scope, '可编辑').locator('.ant-switch').click()
     await expect(input(scope, '姓名')).toHaveCount(0)
     await expect(item(scope, '姓名')).toContainText('Ada')
-    await expect(scope.locator('.ant-switch-disabled')).toHaveCount(2) // order switches are read-only too
+    // Order switches read too: readPretty shows messages.yes instead of a switch; only 可编辑 stays a switch.
+    await expect(scope.locator('.ant-switch')).toHaveCount(1)
+    await expect(item(scope, '已发货')).toHaveCount(2)
+    await expect(item(scope, '已发货').nth(0)).toContainText('是')
+    await expect(item(scope, '已发货').nth(1)).toContainText('是')
     await expect(item(scope, '可编辑').locator('.ant-switch-disabled')).toHaveCount(0)
   })
 
@@ -430,7 +434,7 @@ test.describe('pro', () => {
     await expect(item(scope, '懒加载 Checkbox')).toContainText('啊')
     await expect(item(scope, '懒加载 Select').locator('.ant-tag')).toHaveText(['哦'])
     await expect(item(scope, 'Select（徽标）').locator('.ant-badge')).toContainText('啊')
-    await expect(item(scope, 'EnumPretty 标签').locator('.ant-tag')).toHaveCount(2)
+    await expect(item(scope, '标签（阅读态）').locator('.ant-tag')).toHaveCount(2)
     await scope.getByRole('button', { name: /编辑态/ }).click()
     await expect(item(scope, 'Radio').getByRole('radio')).toHaveCount(3)
   })
@@ -457,12 +461,12 @@ test.describe('pro', () => {
 
   test('cascader-plus: codes echo as labels in edit and read-pretty; picking writes codes', async ({ page }) => {
     const scope = await demo(page, 'pro', 7)
-    await expect(item(scope, '编码')).toContainText('北京市/北京市/朝阳区', { timeout: 10_000 })
-    await expect(item(scope, 'labelInValue')).toContainText('浙江省/杭州市/西湖区')
+    await expect(item(scope, '编码')).toContainText('北京市 / 北京市 / 朝阳区', { timeout: 10_000 })
+    await expect(item(scope, 'labelInValue')).toContainText('浙江省 / 杭州市 / 西湖区')
     await scope.getByRole('button', { name: /阅读态/ }).click()
     await expect(scope.locator('.ant-select')).toHaveCount(0)
-    await expect(item(scope, '编码')).toContainText('北京市/北京市/朝阳区')
-    await expect(item(scope, 'labelInValue')).toContainText('浙江省/杭州市/西湖区')
+    await expect(item(scope, '编码')).toContainText('北京市 / 北京市 / 朝阳区')
+    await expect(item(scope, 'labelInValue')).toContainText('浙江省 / 杭州市 / 西湖区')
     await scope.getByRole('button', { name: /编辑态/ }).click()
     await item(scope, '编码').locator('.ant-select-selector').click()
     const menu = page.locator('.ant-cascader-dropdown:visible')

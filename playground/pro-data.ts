@@ -75,7 +75,7 @@ export async function loadArea(path: Array<string | number>): Promise<CascaderOp
   return childrenOf(path).map((node) => ({ label: node.name, value: node.code, isLeaf: path.length === 2 }))
 }
 
-/** `all` loader: the whole tree at once. */
+/** Whole-tree loader: `load([])` returns every level (nodes with `children` are never loaded again). */
 export async function loadAreaAll(): Promise<CascaderOption[]> {
   await wait(500)
   const build = (nodes: AreaNode[]): CascaderOption[] =>

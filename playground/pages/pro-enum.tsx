@@ -1,7 +1,7 @@
 import { Button, ConfigProvider, Space } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import { Field, defineEffects, Form, ObjectField, useForm, useWatch, type Draft } from 'shikiform'
-import { CascaderPlus, Checkbox, EnumPretty, FormItem, FormLayout, Radio, Select, Suggestion } from 'shikiform/antd'
+import { CascaderPlus, Checkbox, FormItem, FormLayout, Radio, Select, Suggestion } from 'shikiform/antd'
 import { EnumSource } from 'shikiform/core'
 import { loadArea, suggest, wait } from '../pro-data'
 
@@ -82,9 +82,9 @@ export function ProEnumPage() {
                 <Field name="lazyRadio" title="Lazy Radio" decorator={[FormItem]} component={[Radio.Group]} />
                 <Field name="checkbox" title="Checkbox" decorator={[FormItem]} component={[Checkbox.Group]} />
                 <Field name="lazyCheckbox" title="Lazy Checkbox" decorator={[FormItem]} component={[Checkbox.Group]} />
-                <Field name="pretty" title="EnumPretty" decorator={[FormItem]} component={[EnumPretty]} />
-                <Field name="prettybadge" title="EnumPretty Badge" decorator={[FormItem]} component={[EnumPretty, { showType: 'badge' }]} />
-                <Field name="prettytag" title="EnumPretty Tag" decorator={[FormItem]} component={[EnumPretty, { showType: 'tag' }]} />
+                <Field name="pretty" title="Pretty" pattern="readPretty" decorator={[FormItem]} component={[Select]} />
+                <Field name="prettybadge" title="Pretty Badge" pattern="readPretty" decorator={[FormItem]} component={[Select, { prettyType: 'badge' }]} />
+                <Field name="prettytag" title="Pretty Tag" pattern="readPretty" decorator={[FormItem]} component={[Select, { mode: 'multiple', prettyType: 'tag' }]} />
                 <Field name="suggest" title="Suggestion" decorator={[FormItem]} component={[Suggestion, { fetch: suggest, debounce: 200, multiple: true, placeholder: '查询商品..' }]} />
                 <Field name="linkage" title="Linkage" decorator={[FormItem]} component={[CascaderPlus, { loadData: loadArea, labelInValue: true, placeholder: '省 / 市 / 区' }]} />
               </div>

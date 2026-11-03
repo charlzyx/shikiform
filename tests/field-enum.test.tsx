@@ -4,7 +4,7 @@ import { StrictMode, useState } from 'react'
 import { afterEach, describe, expect, expectTypeOf, it } from 'vitest'
 import { ArrayField, defineEffects, EnumSource, Field, Form, typed, useField, useForm, type FieldEnum } from '../src'
 import type { FormEngine } from '../src/core'
-import { Checkbox, EnumPretty, Radio, Select } from '../src/antd'
+import { Checkbox, Radio, Select } from '../src/antd'
 
 afterEach(cleanup)
 const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 20)))
@@ -35,7 +35,7 @@ describe('<Field enum>', () => {
       const form = useForm<Values>({ initialValues: { level: '', tags: [], n: 2 } })
       return (
         <Form form={form}>
-          <Field name="n" enum={[1, 2, 3]} component={[EnumPretty]} />
+          <Field name="n" enum={[1, 2, 3]} pattern="readPretty" component={[Select]} />
         </Form>
       )
     }
@@ -51,7 +51,7 @@ describe('<Field enum>', () => {
       const [show, set] = useState(true)
       setShow = set
       form = useForm<Values>({ initialValues: { level: 'gold', tags: [], n: 1 }, fields: { level: { enum: [{ label: '声明', value: 'gold' }] } } })
-      return <Form form={form}>{show ? <Field name="level" enum={LEVELS} component={[EnumPretty]} /> : null}</Form>
+      return <Form form={form}>{show ? <Field name="level" enum={LEVELS} pattern="readPretty" component={[Select]} /> : null}</Form>
     }
     const view = render(<App />)
     expect(view.container.textContent).toBe('黄金')
@@ -156,7 +156,7 @@ describe('<Field enum>', () => {
       return (
         <Form form={form}>
           <ArrayField name="rows" rowKey="id">
-            {({ index }) => <Field name="s" enum={[{ label: index === 0 ? '首' : '次', value: 1 }]} component={[EnumPretty]} />}
+            {({ index }) => <Field name="s" enum={[{ label: index === 0 ? '首' : '次', value: 1 }]} pattern="readPretty" component={[Select]} />}
           </ArrayField>
         </Form>
       )

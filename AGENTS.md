@@ -124,7 +124,8 @@ const form = createForm({
 ```
 
 - Options inline: `<Field enum={[{ label, value }] | ['a', 'b'] | Source.with(params)}>` (Formily `enum`); Select /
-  Radio / Checkbox.Group and their readPretty views read it. Precedence: reaction `$enum` > JSX `enum` > `fields.x.enum`
+  Radio / Checkbox.Group / AutoComplete (`options`), TreeSelect (`treeData`), Cascader (`options`), Transfer (`dataSource`)
+  and their readPretty views read it; tree options are `{ label, value, children }`. Precedence: reaction `$enum` > JSX `enum` > `fields.x.enum`
   > `rows.*.x` template. The JSX layer is mount-scoped (unmount restores the declaration) and re-applied when the prop
   changes (deep compare, inline arrays are fine). With `typed(form).Field` / `row.Field` option values are checked
   against the field value (element type for arrays). Options that depend on another field stay in a reaction.
@@ -132,6 +133,22 @@ const form = createForm({
   `d.x.$enum = undefined` drops the reaction layer like `$title` / `$pattern = undefined`: back to the mounted JSX `enum`
   (an async source re-binds), else `fields.x.enum`, else the template, else no options; a reaction load in flight is
   aborted and `loading` resets; `enumPolicy` applies to the change. Clear explicitly with `$enum = []`.
+- Controls (`shikiform/antd`, Formily `@formily/antd`): Input (.TextArea .Password), InputNumber, Select, AutoComplete,
+  TreeSelect, Cascader (value = path), Switch, Checkbox (.Group), Radio, DatePicker / TimePicker (.RangePicker; the field
+  holds the formatted string, not dayjs), Slider, Rate, Transfer (value = target keys), Upload (.Dragger; value = antd
+  `fileList`), ColorPicker (value = color text). Lazy per-level cascader: `CascaderPlus`; remote-search select: `Suggestion`.
+- readPretty: every control has a read view (`PreviewText.*`): enum labels, several values as tags (`prettyType="badge" |
+  "tag"` on choice controls), dates as text, password `******`. Empty values show `messages.empty` (default `-`; set it once
+  per form `useForm({ messages: { empty } })` or app-wide `setDefaultMessages`). A display-only enum cell is
+  `<Field pattern="readPretty" component={[Select, { prettyType: 'badge' }]} />`; outside a form `<PreviewText.Select value options />`;
+  a custom control reuses a view: `connect(MyPicker, mapReadPretty(PreviewText.TreeSelect))`.
+
+```tsx
+<F.Field name="area" enum={[{ label: '浙江', value: 'zj', children: [{ label: '杭州', value: 'hz' }] }]}
+  decorator={[FormItem]} component={[Cascader]} />                       // value ['zj', 'hz'], readPretty '浙江 / 杭州'
+<F.Field name="files" decorator={[FormItem]} component={[Upload, { action: '/upload' }]} />   // value = fileList
+const form = useForm<Detail>({ initialValues, pattern: 'readPretty' })   // a detail page: every control reads
+```
 - Slots take a component or `[Component, props]`; children (`<Field …><Input /></Field>`) or a render prop also work.
 - Table cells can drop the decorator (`<Field name="qty" component={[InputNumber]} />`) or use another one.
 - `FormItem` outside a field is pure layout: `<FormItem label="地址" asterisk>…two Fields, each `decorator={[FormItem]}`…</FormItem>`.

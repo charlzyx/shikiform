@@ -105,7 +105,7 @@ export interface FormMessages {
   yes: MessageTemplate<NoParams>
   /** `PreviewText` for `false`. */
   no: MessageTemplate<NoParams>
-  /** `PreviewText` for an empty value when no `placeholder` is given. Default `''`. */
+  /** Read views (`PreviewText.*`, every control's `readPretty`) for an empty value. Default `-`. */
   empty: MessageTemplate<NoParams>
 }
 
@@ -163,7 +163,7 @@ export const zhCN: FormMessages = {
   cancel: '取消',
   yes: '是',
   no: '否',
-  empty: '',
+  empty: '-',
 }
 
 /** Built-in English messages. `createForm({ messages: enUS })` or `setDefaultMessages(enUS)`. */
@@ -209,7 +209,7 @@ export const enUS: FormMessages = {
   cancel: 'Cancel',
   yes: 'Yes',
   no: 'No',
-  empty: '',
+  empty: '-',
 }
 
 let defaults: FormMessages = { ...zhCN }

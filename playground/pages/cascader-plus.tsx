@@ -54,7 +54,6 @@ function Basic() {
         data-testid="basic"
         value={value}
         onChange={setValue}
-        all={mode.all}
         loadData={mode.all ? loadAreaAll : loadArea}
         multiple={mode.multiple}
         labelInValue={mode.labelInValue}

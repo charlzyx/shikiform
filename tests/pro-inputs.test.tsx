@@ -2,7 +2,7 @@
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createForm, Field, Form } from '../src'
-import { CascaderPlus, EnumPretty, FormItem, Input, QueryList, Select } from '../src/antd'
+import { CascaderPlus, FormItem, Input, PreviewText, QueryList, Select } from '../src/antd'
 import { cascaderPaths, enumItems, useCascaderLabels, useColumnSettings, useLazyCascader, useQueryTable, useSuggestion, type CascaderOption } from '../src/pro'
 
 afterEach(() => {
@@ -16,27 +16,29 @@ const LIST = [
   { label: '呃', value: 'e' },
 ]
 
-describe('enumItems / EnumPretty', () => {
-  it('resolves labels and colors, loosely by default', () => {
+describe('enumItems / prettyType', () => {
+  it('resolves labels and colors loosely; an unknown value keeps its own text', () => {
     expect(enumItems(['a', 'o'], LIST).map((item) => [item.label, item.color])).toEqual([
       ['啊', 'blue'],
       ['哦', 'green'],
     ])
-    expect(enumItems(1, [{ label: 'one', value: '1' }])).toHaveLength(1)
-    expect(enumItems(1, [{ label: 'one', value: '1' }], { strict: true })).toHaveLength(0)
-    expect(enumItems('x', LIST)).toEqual([])
+    expect(enumItems(1, [{ label: 'one', value: '1' }])[0]).toMatchObject({ label: 'one', matched: true })
+    expect(enumItems('x', LIST)).toEqual([{ value: 'x', label: 'x', color: '', matched: false }])
+    expect(enumItems({ label: '外', value: 'w' }, LIST)[0]).toMatchObject({ label: '外', value: 'w' })
   })
 
-  it('renders tags / badges from the field enum, and Select readPretty honours prettyType', () => {
-    const form = createForm({ initialValues: { tags: ['a', 'e'], one: 'o' }, fields: { tags: { enum: LIST }, one: { enum: LIST, pattern: 'readPretty' } } })
+  it('renders tags / badges from the field enum through the choice controls, and as a pure view', () => {
+    const form = createForm({ initialValues: { tags: ['a', 'e'], one: 'o' }, fields: { tags: { enum: LIST, pattern: 'readPretty' }, one: { enum: LIST, pattern: 'readPretty' } } })
     const { container } = render(
       <Form form={form}>
-        <Field name="tags" decorator={[FormItem]}><EnumPretty showType="tag" /></Field>
+        <Field name="tags" decorator={[FormItem]}><Select mode="multiple" prettyType="tag" /></Field>
         <Field name="one" decorator={[FormItem]}><Select prettyType="badge" /></Field>
       </Form>,
     )
     expect([...container.querySelectorAll('.ant-tag')].map((node) => node.textContent)).toEqual(['啊', '呃'])
-    expect(container.querySelector('[data-enum-pretty="badge"]')?.textContent).toBe('哦')
+    expect(container.querySelector('[data-pretty="badge"]')?.textContent).toBe('哦')
+    const cell = render(<PreviewText.Select value={1} options={[{ label: '运行中', value: 1, color: 'success' }]} prettyType="badge" />)
+    expect(cell.container.textContent).toBe('运行中')
   })
 })
 
@@ -123,12 +125,12 @@ describe('CascaderPlus readPretty labels', () => {
     )
     await waitFor(() =>
       expect([...container.querySelectorAll('[data-read-pretty]')].map((node) => node.textContent)).toEqual([
-        '北京市/北京市/朝阳区',
-        '北京市/北京市/朝阳区, 河南省/鹤壁市/浚县',
+        '北京市 / 北京市 / 朝阳区',
+        '北京市 / 北京市 / 朝阳区河南省 / 鹤壁市 / 浚县',
       ]),
     )
     act(() => form.setValue('one', ['410000', '410600']))
-    await waitFor(() => expect(container.querySelector('[data-read-pretty]')?.textContent).toBe('河南省/鹤壁市'))
+    await waitFor(() => expect(container.querySelector('[data-read-pretty]')?.textContent).toBe('河南省 / 鹤壁市'))
   })
 })
 
