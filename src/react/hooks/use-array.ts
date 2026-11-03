@@ -35,6 +35,7 @@ export type ArrayHandle<TRow> = {
  * `to` on `move` is the final index.
  * `useArrayField<Values, 'rows'>('rows')` checks the name and types `push` / `replace` as one row.
  * `useArrayField<Values>('rows')` only checks the name. A bare `useArrayField('rows')` accepts any row.
+ * Options are the second argument's object: `useArrayField('rows', { rowKey: 'id' })` (same shape as `useTreeField`).
  */
 export function useArrayField(name: string, opts?: { rowKey?: string }): ArrayHandle<unknown>
 export function useArrayField<TScope>(name: ArrayPath<TScope>, opts?: { rowKey?: string }): ArrayHandle<unknown>

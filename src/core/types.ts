@@ -268,8 +268,8 @@ export interface FormOptions<T> {
   pattern?: Pattern
   /** Log each pass when true. */
   devtools?: boolean
-  /** Tree roots that effects address before React mounts. */
-  trees?: Record<string, { childrenKey?: string; rowKey?: string }>
+  /** Tree roots that effects address before React mounts. Keys are array paths (`ArrayPath<T>`). */
+  trees?: { [K in ArrayPath<T>]?: { childrenKey?: string; rowKey?: string } }
 }
 
 /**
@@ -382,6 +382,18 @@ export interface WatchFn<T> {
    * One level of the array, same as {@link ReactionFn.each}.
    */
   each<A>(select: (d: Draft<T>) => Draft<A>, effect: (row: RowDraft<A>, ctx: RowContext<T>) => void): void
+  /**
+   * Edge-triggered per-node action on a tree, the node-level counterpart of {@link WatchFn.each}
+   * (same semantics, `ctx.pos` coordinates like {@link ReactionFn.walk}).
+   * The callback's `$` reads are the source: a node re-fires only when one of the keys its own
+   * scout read is dirty — a sibling or a structural move elsewhere does not run it.
+   * `opts.childrenKey` defaults to `'children'`.
+   */
+  walk<A>(
+    select: (d: Draft<T>) => Draft<A>,
+    effect: (node: RowDraft<A>, ctx: RowContext<T>) => void,
+    opts?: { childrenKey?: string },
+  ): void
 }
 
 /**
@@ -630,7 +642,7 @@ export interface FormInstance<T, TSubmit = T> {
    * Move a tree node to its final `pos`.
    * Refuses a move into the node's own descendant. Field models follow `rowKey`.
    */
-  moveTree(path: string, from: Pos, to: Pos): MoveResult
+  moveTree<P extends ArrayPath<T>>(path: P, from: Pos, to: Pos): MoveResult
 
   /** Diagnostic counters: reaction id → run count. */
   getDebugStats(): { runs: Record<string, number> }

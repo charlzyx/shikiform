@@ -12,7 +12,7 @@ AI 编程助手写 ShikiForm 时最常犯的错，集中在几条规则上。把
 1. **handle 不是 value。** `d.user.name` 只是 path；读写用 `$value`。不要修改 `$value` 返回的对象，写字段自己的 path。handle 不是数组，不能 `.map` / `.length`。
 2. **reaction 派生，watch 做动作。** reaction 立即运行、读到的都是依赖；watch 首次不运行、只认 `source`。派生值不要藏在 watch 里。
 3. **刚写的值不要在同一轮读回**，先放局部变量（UI 状态除外）。
-4. **行级回调是 `(row, ctx)`**，`ctx = { d, path, index, pos }`，适用于 `reaction.each`、`reaction.walk`、`watch.each`。组件里用 `useArray()` / `useIndex()` / `useRecord()` / `useTreeNode()`。
+4. **行级回调是 `(row, ctx)`**，`ctx = { d, path, index, pos }`，适用于 `reaction.each`、`reaction.walk`、`watch.each`、`watch.walk`。组件里用 `useArray()` / `useIndex()` / `useRecord()` / `useTreeNode()`。
 5. **值按 path 写，对象型 UI 状态按键打补丁**：`d.city.$componentProps.placeholder = '…'` 只改一个键；整体赋值会替换下层。
 6. **`<Field>` 拥有 path，`FormItem` 只是装饰器**：`<Field name title required decorator={[FormItem]} component={[Input]} />`。
 

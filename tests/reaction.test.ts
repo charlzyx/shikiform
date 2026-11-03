@@ -355,6 +355,83 @@ describe('reaction', () => {
     expect(rowRuns).toEqual([1])
   })
 
+  it('watch.walk fires per tree node and skips siblings (node-level source)', () => {
+    type V = { nodes: { label: string; echo: string; children: { label: string; echo: string; children: never[] }[] }[] }
+    const hits: string[] = []
+    const form = createForm<V>({
+      initialValues: {
+        nodes: [
+          { label: 'a', echo: '', children: [{ label: 'a1', echo: '', children: [] }] },
+          { label: 'b', echo: '', children: [] },
+        ],
+      },
+      effects: [
+        defineEffects<V>(({ watch }) => {
+          watch.walk(
+            (d) => d.nodes,
+            (node, { pos }) => {
+              hits.push(pos.join('.'))
+              // 回调里的 $ 读是来源：echo 跟随 label 变化（动作语义，非派生声明）
+              node.echo.$value = `seen:${node.label.$value}`
+            },
+          )
+        }),
+      ],
+    })
+    // 首轮 scout 会跑一遍（writes 丢弃，echo 不写入），与 watch.each 一致
+    expect(hits.length).toBe(3)
+    expect(form.getValue('nodes.1.echo')).toBe('')
+    hits.length = 0
+    // 兄弟节点变化不触发本节点
+    form.setValue('nodes.1.label', 'b2')
+    expect(hits).toEqual(['1'])
+    expect(form.getValue('nodes.1.echo')).toBe('seen:b2')
+    expect(form.getValue('nodes.0.echo')).toBe('')
+    // 深层节点只触发自己
+    hits.length = 0
+    form.setValue('nodes.0.children.0.label', 'leaf')
+    expect(hits).toEqual(['0.0'])
+    expect(form.getValue('nodes.0.children.0.echo')).toBe('seen:leaf')
+    // 不相关的字段不触发任何节点
+    hits.length = 0
+    form.setValue('nodes.0.echo', 'x')
+    expect(hits).toEqual([])
+  })
+
+  it('watch.walk follows structural moves like reaction.walk', () => {
+    type Node = { id: string; name: string; fired: string | number; children: Node[] }
+    type V = { menu: Node[] }
+    const form = createForm<V>({
+      initialValues: {
+        menu: [
+          { id: 'file', name: '文件', fired: 0, children: [{ id: 'new', name: '新建', fired: 0, children: [] }] },
+          { id: 'edit', name: '编辑', fired: 0, children: [{ id: 'undo', name: '撤销', fired: 0, children: [] }] },
+        ],
+      },
+      trees: { menu: { rowKey: 'id' } },
+      effects: [
+        defineEffects<V>(({ watch }) => {
+          watch.walk(
+            (d) => d.menu,
+            (node) => {
+              void node.name.$value
+              node.fired.$value = 'yes'
+            },
+          )
+        }),
+      ],
+    })
+    // watch 语义：首轮 scout 不写入
+    expect(form.getValue('menu.0.children.0.fired')).toBe(0)
+    // 树移动后，字段状态（fired）跟着 rowKey 走；移动本身不触发 watch
+    form.moveTree('menu', [1, 0], [0, 0])
+    expect(form.getValue('menu.0.children.0.id')).toBe('undo')
+    expect(form.getValue('menu.0.children.0.fired')).toBe(0)
+    // 移动后的节点在新坐标上照常触发
+    form.setValue('menu.0.children.0.name', '撤销2')
+    expect(form.getValue('menu.0.children.0.fired')).toBe('yes')
+  })
+
   it('creates a field lazily and validates it without React', async () => {
     const form = createForm<{ x?: string }>({ initialValues: {} })
     form.batch((d) => {

@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { ArrayField, createForm, Form, RowScope, useArray, useIndex, useRecord, useTreeNode } from '../src'
+import { ArrayField, createForm, Form, RowScope, TreeField, useArray, useIndex, useRecord, useTreeNode } from '../src'
 import { ArrayTable } from '../src/antd'
 
 afterEach(cleanup)
@@ -88,6 +88,61 @@ describe('headless row context hooks (useArray / useIndex / useRecord / useTreeN
       </Form>,
     )
     expect(screen.getByTestId('node').textContent).toBe('nodes.0.children.0|0.0|0|leaf')
+  })
+
+  it('useTreeNode moves nodes and exposes dragProps like the tree handle', () => {
+    type Node = { id: string; name: string; children: Node[] }
+    const form = createForm<{ menu: Node[] }>({
+      initialValues: {
+        menu: [
+          { id: 'file', name: '文件', children: [{ id: 'new', name: '新建', children: [] }] },
+          { id: 'edit', name: '编辑', children: [{ id: 'undo', name: '撤销', children: [] }] },
+        ],
+      },
+    })
+    function Node() {
+      const node = useTreeNode<Node>()
+      return (
+        <div>
+          <span data-testid={`node-${node.record.id}`} {...node.dragProps()}>{node.path}</span>
+          <button data-testid={`to-front-${node.record.id}`} type="button" onClick={() => node.move(node.pos, [0, 0])}>
+            to front
+          </button>
+          <span data-testid={`drag-${node.record.id}`}>{String(node.dragProps().draggable)}</span>
+        </div>
+      )
+    }
+    function Branch({ path, nodes, pos }: { path: string; nodes: Node[]; pos: number[] }) {
+      return (
+        <>
+          {nodes.map((node, index) => (
+            <RowScope key={node.id} path={`${path}.${index}`} pos={[...pos, index]}>
+              <Node />
+              <Branch path={`${path}.${index}.children`} nodes={node.children} pos={[...pos, index]} />
+            </RowScope>
+          ))}
+        </>
+      )
+    }
+    render(
+      <Form form={form}>
+        <TreeField name="menu" rowKey="id">
+          {(tree) => <Branch path={tree.path} nodes={tree.value as Node[]} pos={[]} />}
+        </TreeField>
+      </Form>,
+    )
+    expect(screen.getByTestId('node-undo').textContent).toBe('menu.1.children.0')
+    expect(screen.getByTestId('drag-undo').textContent).toBe('true')
+    // 节点自己的 move：把「撤销」移到「文件」前面
+    fireEvent.click(screen.getByTestId('to-front-undo'))
+    expect(form.getValue('menu.0.children.0.id')).toBe('undo')
+    expect(screen.getByTestId('node-undo').textContent).toBe('menu.0.children.0')
+    // 拖拽属性也能移动：drop 「新建」(pos 0.1) onto 「撤销」(pos 0.0)
+    fireEvent.drop(screen.getByTestId('node-undo'), {
+      dataTransfer: { getData: () => 'menu|0.1', dropEffect: 'move' },
+    })
+    expect(form.getValue('menu.0.children.0.id')).toBe('new')
+    expect(form.getValue('menu.0.children.1.id')).toBe('undo')
   })
 
   it('ArrayTable cells get the same hooks; ArrayTable.useRow is built on them', () => {

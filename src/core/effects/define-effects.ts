@@ -73,6 +73,9 @@ export function defineEffects<T>(factory: (api: EffectsAPI<T>) => void): EffectD
           each(select: (d: Draft<T>) => unknown, effect: Function) {
             installWatchEach(runtime, select as (d: Draft<any>) => unknown, effect)
           },
+          walk(select: (d: Draft<T>) => unknown, effect: Function, opts?: { childrenKey?: string }) {
+            installWatchEach(runtime, select as (d: Draft<any>) => unknown, effect, opts?.childrenKey ?? 'children', 'walk')
+          },
         },
       ) as EffectsAPI<T>['watch']
 
@@ -173,26 +176,45 @@ function runWalk(runtime: EachRuntime, rec: EachRec, id: string): void {
   dropUnseen(runtime, rec.instances, seen)
 }
 
-function installWatchEach(runtime: EffectsRuntime<any>, select: (d: Draft<any>) => unknown, effect: Function): void {
-  const id = runtime.nextId('watch-each')
+function installWatchEach(
+  runtime: EffectsRuntime<any>,
+  select: (d: Draft<any>) => unknown,
+  effect: Function,
+  childrenKey = 'children',
+  kind: 'each' | 'walk' = 'each',
+): void {
+  const id = runtime.nextId(kind === 'walk' ? 'watch-walk' : 'watch-each')
   const known = new Set<string>()
   const run = () => {
     const selected = runtime.trackOnly(() => select(runtime.draft))
     const arrayPath = runtime.readPath(selected.value)
-    if (!arrayPath) throw new Error('watch.each selector must return a draft handle')
-    const arr = (runtime.getValue(arrayPath) as unknown[]) ?? []
+    if (!arrayPath) throw new Error(`watch.${kind} selector must return a draft handle`)
+    if (kind === 'walk') runtime.noteTree(arrayPath, childrenKey)
+    const cfg = (runtime as EachRuntime).treeConfig(arrayPath)
+    const nodes =
+      kind === 'walk'
+        ? listPositions(runtime.getValue(arrayPath), arrayPath, childrenKey || cfg.childrenKey, cfg.rowKey).map((node) => ({
+            inst: `${id}@${posKey(node.pos)}`,
+            path: node.path,
+            pos: node.pos,
+          }))
+        : (((runtime.getValue(arrayPath) as unknown[]) ?? []).map((_, index) => ({
+            inst: `${id}#${index}`,
+            path: `${arrayPath}.${index}`,
+            pos: [index] as Pos,
+          })))
     const seen = new Set<string>()
-    for (let index = 0; index < arr.length; index++) {
-      const inst = `${id}#${index}`
+    for (const node of nodes) {
+      const { inst, path, pos } = node
       seen.add(inst)
       if (!known.has(inst)) {
         const scout = runtime.runWith({ id: inst, deps: true, writes: false }, () =>
-          effect(runtime.handle(`${arrayPath}.${index}`), rowContext(runtime, `${arrayPath}.${index}`, [index])),
+          effect(runtime.handle(path), rowContext(runtime, path, pos)),
         )
         runtime.setDeps(inst, scout.deps)
         runtime.registerWatch(inst, () => {
           const result = runtime.runWith({ id: inst, deps: false, writes: true }, () =>
-            effect(runtime.handle(`${arrayPath}.${index}`), rowContext(runtime, `${arrayPath}.${index}`, [index])),
+            effect(runtime.handle(path), rowContext(runtime, path, pos)),
           )
           runtime.applyWrites(inst, result.writes)
         }, scout.deps)

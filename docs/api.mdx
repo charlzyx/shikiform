@@ -130,6 +130,7 @@ const effects = defineEffects<Values>(({ reaction, watch, query }) => {
   reaction.walk((d) => d.nodes, (node, ctx) => { … }, { childrenKey: 'children' })
   watch((d) => d.a.$value, (d) => { … })
   watch.each((d) => d.items, (row, ctx) => { … })
+  watch.walk((d) => d.nodes, (node, ctx) => { … }, { childrenKey: 'children' })
 })
 ```
 
@@ -140,6 +141,7 @@ const effects = defineEffects<Values>(({ reaction, watch, query }) => {
 | `reaction.walk(select, effect, opts?)` | 每个树节点一个实例 | `childrenKey` 默认 `'children'` |
 | `watch(source, effect)` | `source` 读到的状态变化后；首次不运行 | 多个来源返回数组 |
 | `watch.each(select, effect)` | 行级 watch：回调里读到的状态就是来源 | 只处理一层数组 |
+| `watch.walk(select, effect, opts?)` | 节点级 watch：每个树节点一个实例，同 watch.each | `childrenKey` 默认 `'children'` |
 | `query(path)` | — | 精确 path 的底层 handle（动态路径用），平时写 `d.a.b` |
 
 行级回调都是 `(row, ctx)`，`ctx: RowContext = { d, path, index, pos }`。详见 [联动](/guide/linkage)；`$` 状态与显隐见 [核心概念](/guide/concepts)，规则见 [校验](/guide/validation)。
