@@ -8,6 +8,7 @@ export class Notifier {
   private depListeners = new Map<string, Set<() => void>>()
   private debugListeners = new Set<() => void>()
   private metaListeners = new Set<() => void>()
+  private failedListeners = new Set<(errors: readonly { path: string; messages: string[] }[]) => void>()
   private pathVersion = new Map<string, number>()
   private structVersion = new Map<string, number>()
   private depVersion = new Map<string, number>()
@@ -33,6 +34,23 @@ export class Notifier {
   subscribeMeta(listener: () => void): () => void {
     this.metaListeners.add(listener)
     return () => this.metaListeners.delete(listener)
+  }
+
+  /** Listeners of a `submit()` / `validate()` call that ended with errors (see `FormEngine.subscribeValidateFailed`). */
+  subscribeValidateFailed(listener: (errors: readonly { path: string; messages: string[] }[]) => void): () => void {
+    this.failedListeners.add(listener)
+    return () => this.failedListeners.delete(listener)
+  }
+
+  validateFailed(errors: readonly { path: string; messages: string[] }[]): void {
+    if (!errors.length) return
+    for (const listener of [...this.failedListeners]) {
+      try {
+        listener(errors)
+      } catch (error) {
+        console.error('[shikiform] a validate-failed listener threw', error)
+      }
+    }
   }
 
   subscribeDebug(listener: () => void): () => void {

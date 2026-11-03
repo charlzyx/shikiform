@@ -639,6 +639,8 @@ export interface FormInstance<T, TSubmit = T> {
   subscribeStructure(path: string, listener: () => void): () => void
   /** Notified when `canSubmit`, `submitting`, `submitCount`, `dirty`, or `validating` change. */
   subscribeMeta(listener: () => void): () => void
+  /** Called with the errors of a `submit()` that failed validation or a `validate()` that found errors. */
+  subscribeValidateFailed(listener: (errors: readonly FieldError[]) => void): () => void
   getMetaVersion(): number
   subscribeDebug(listener: () => void): () => void
   getPathVersion(path: string): number

@@ -41,10 +41,8 @@ import { StateWriter } from './writes'
  * A facade over the engine parts (see `design/ARCHITECTURE.md`): `FieldStore` (state), `Notifier` (versions),
  * `Scheduler` (reaction / watch), `Validator`, `Declarations`, `ArrayOps` / `TreeOps`, `StateWriter`.
  *
- * Field models exist by declaration: `fields`, `registerField`, `$rules` / `$required`, and `rows.*.name`
- * templates all join submit validation when the JSX `<Field>` is not mounted.
- * JSX `rules` and `required` apply only while that component is mounted and do not erase the sources above.
- * `hidden` still validates and submits. `none` drops the value and skips validation. An ancestor `none` covers descendants.
+ * Declared fields (`fields`, `registerField`, `$rules` / `$required`, `rows.*.x`) validate without a mounted `<Field>`;
+ * JSX `rules` / `required` apply only while mounted. `hidden` validates and submits; `none` (or an ancestor's) does neither.
  */
 export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit>, DraftHost, EffectsRuntime<T> {
   /** Root draft. Prefer {@link FormEngine.batch} so writes flush once. */
@@ -267,7 +265,8 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
    * Pass an array to validate several paths (and their descendants) in one pass: `validate(['name', 'address'])`.
    */
   validate(path?: FieldPath<T> | readonly FieldPath<T>[]): Promise<FieldError[]> {
-    return this.validator.validate(path as string | readonly string[] | undefined)
+    const run = this.validator.validate(path as string | readonly string[] | undefined)
+    return run.then((errors) => (this.notifier.validateFailed(errors), errors))
   }
 
   /** Untyped handle for an exact path. Prefer {@link FormEngine.getValue} and {@link FormEngine.batch}. */
@@ -363,8 +362,11 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   }
 
   /** Snapshot for {@link FormEngine.subscribeMeta}. */
-  getMetaVersion(): number {
-    return this.notifier.getMetaVersion()
+  getMetaVersion(): number { return this.notifier.getMetaVersion() }
+
+  /** After a `submit()` with `reason: 'invalid'` or a `validate()` that found errors (not change / blur runs): its errors. */
+  subscribeValidateFailed(listener: (errors: readonly FieldError[]) => void): () => void {
+    return this.notifier.subscribeValidateFailed(listener)
   }
 
   /** Notified after every flush. Used when a selector read nothing. */
@@ -378,24 +380,16 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   }
 
   /** Snapshot for {@link FormEngine.subscribePath}. */
-  getPathVersion(path: string): number {
-    return this.notifier.getPathVersion(path)
-  }
+  getPathVersion(path: string): number { return this.notifier.getPathVersion(path) }
 
   /** Snapshot for {@link FormEngine.subscribeStructure}. */
-  getStructureVersion(path: string): number {
-    return this.notifier.getStructureVersion(path)
-  }
+  getStructureVersion(path: string): number { return this.notifier.getStructureVersion(path) }
 
   /** Snapshot for {@link FormEngine.subscribeDebug}. */
-  getDebugVersion(): number {
-    return this.notifier.getDebugVersion()
-  }
+  getDebugVersion(): number { return this.notifier.getDebugVersion() }
 
   /** Snapshot for {@link FormEngine.subscribeDep}. */
-  getDepVersion(dep: string): number {
-    return this.notifier.getDepVersion(dep)
-  }
+  getDepVersion(dep: string): number { return this.notifier.getDepVersion(dep) }
 
   /** Run `selector` and return the `$` keys it read, without subscribing. */
   trackSelector<S>(selector: (d: Draft<T>) => S): { value: S; deps: string[] } {

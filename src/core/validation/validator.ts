@@ -184,7 +184,9 @@ export class Validator {
     await this.waitAsync()
     const errors = await this.runSettled()
     if (!errors) return { ok: false, reason: 'superseded', errors: [], message: this.message('superseded', { path: '', value: this.store.values }) }
-    return errors.length ? { ok: false, reason: 'invalid', errors } : null
+    if (!errors.length) return null
+    this.deps.notifier.validateFailed(errors)
+    return { ok: false, reason: 'invalid', errors }
   }
 
   /**
