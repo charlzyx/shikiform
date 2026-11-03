@@ -1,5 +1,5 @@
 import { Declarations, type RegisterSpec } from '../declarations/declarations'
-import { createHandle, handlePath } from '../draft/handle'
+import { createHandle, createUiHandle, handlePath } from '../draft/handle'
 import type { DraftHost } from '../draft/host'
 import { readonlyValue } from '../draft/readonly'
 import type { EachRec } from '../effects/scheduler'
@@ -32,6 +32,7 @@ import type {
 import { Validator } from '../validation/validator'
 import { Baseline, errorEntries } from './baseline'
 import { FieldUi, uiKeyOf } from './field-ui'
+import { UiNodes, type UiJsx, type UiKind, type UiNodeView } from './ui-nodes'
 import { StateWriter } from './writes'
 
 /**
@@ -60,6 +61,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   private readonly trees: TreeOps
   private readonly writer: StateWriter
   private readonly fieldUi: FieldUi
+  private readonly uiNodes: UiNodes
   private pendingSubmits = 0
   private readonly baseline: Baseline
 
@@ -78,6 +80,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
       carryRowIdentity: (path, before, after) => this.arrays.carryIdentity(path, before, after),
     })
     this.fieldUi = this.writer.attachUi(new FieldUi(store, notifier, scheduler, (path, key, value) => this.writeState(path, key, value)))
+    this.uiNodes = new UiNodes(store, notifier, scheduler, this.writer, this.fieldUi)
     this.draft = createHandle(this, '') as Draft<T>
     this.baseline = new Baseline({ store, notifier, scheduler, validator, declarations })
     scheduler.onSettle = () => this.baseline.sync()
@@ -491,6 +494,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     if (key === '$pathOf') {
       return (pos: Pos) => pathOf(path, pos, this.childrenKey(trees.root(path) ?? path))
     }
+    if (key === '$ui') return (name: string) => createUiHandle(this, path, name)
     if (process.env.NODE_ENV !== 'production') scheduler.assertNotWritten(path, key)
     if (key === '$value') {
       scheduler.track(path, 'value')
@@ -570,6 +574,9 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   peekValue(path: string): unknown {
     return getAt(this.store.values, path)
   }
+
+  readUi(path: string, name: string, key: string): unknown { return this.uiNodes.read(path, name, key) }
+  writeUi(path: string, name: string, key: string, value: unknown): void { this.uiNodes.write(path, name, key, value) }
 
   // —— field registration (React / tests) ——
 
@@ -651,10 +658,26 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   }
 
   /** Mark the field touched. Validates when the trigger list includes `onBlur`. */
-  blur(path: string): void {
-    this.writer.blur(path)
+  blur(path: string): void { this.writer.blur(path) }
+
+  /**
+   * A named UI on `path`: `'field'` (`<Field ui>`) = the field binding with this instance's display / pattern / UI
+   * state and id `<path>--<ui>`; `'node'` (`<UI>`) = only UI state. Subscribe to `uiId(path, name)` and `path`.
+   */
+  uiBinding(path: string, name: string, jsx: UiJsx | undefined, kind: 'field'): ReturnType<FormEngine['binding']> & { ui: string }
+  uiBinding(path: string, name: string, jsx: UiJsx | undefined, kind: 'node'): UiNodeView & { id: string; ui: string }
+  uiBinding(path: string, name: string, jsx: UiJsx | undefined, kind: UiKind): any {
+    const view = this.uiNodes.view(path, name, jsx, kind)
+    const id = `${path.replace(/[^a-zA-Z0-9_-]/g, '-') || 'ui'}--${name.replace(/[^a-zA-Z0-9_-]/g, '-')}`
+    if (kind === 'node') return { ...view, id, ui: name }
+    return { ...this.binding(path), ...view, id, ui: name, disabled: view.pattern === 'disabled', readOnly: view.pattern === 'readOnly' }
   }
 
+  /** @internal A mounted `<Field ui>` / `<UI>`; returns the release. */
+  claimUi(path: string, name: string, kind: UiKind): () => void { return this.uiNodes.claim(path, name, kind) }
+
+  /** @internal React has mounted: writes to UI names that never mount warn from now on (once each). */
+  markUiReady(): void { this.uiNodes.markReady() }
 }
 
 /**

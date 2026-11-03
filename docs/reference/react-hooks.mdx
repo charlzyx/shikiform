@@ -139,6 +139,7 @@ useField<TScope, N extends FieldPath<TScope>>(
 ): FieldBinding<PathValue<TScope, N & string>>
 
 interface UseFieldOptions<TValue = any> {
+  ui?: UiName                    // 同一字段的另一个 UI 实例：d.x.$ui(ui)，见下文「UI 实例」
   enum?: FieldEnum<TValue>       // [{ label, value }] | 原始值数组 | SomeEnum.with(params)；挂载期生效
   rules?: RulesInput
   required?: boolean
@@ -184,6 +185,7 @@ interface UseFieldOptions<TValue = any> {
 | `title` / `description` | 装饰器的标题 / 说明（`FormItem` → `label` / `extra`）：reaction > JSX > `fields` |
 | `component` / `decorator` | `<Field>` 渲染的控件 / 装饰器组件 |
 | `componentProps` / `decoratorProps` | 合并后的控件 / 装饰器 props（`fields` ← JSX ← `$componentProps` / `$decoratorProps`，深合并） |
+| `ui` | 仅 UI 实例有：实例名（`<Field ui="echo">`） |
 
 `useField` 订阅该路径并注册基础字段模型，但**不会替你渲染或隐藏输入**。自定义 UI 要处理 `display` / `pattern`；需要 JSX `rules`、`required` 生命周期时传 `options`（或用 `<Field>`）。`hidden`（`$hidden = true`）仍校验/提交，`none`（`$visible = false`）才跳过，见 [显隐](/guide/concepts) 和 [未挂载规则](/guide/validation)。
 
@@ -208,7 +210,49 @@ function MyDecorator({ children }: { children?: ReactNode }) {
 - 它不另外订阅：值随外层 `<Field>` 重新渲染。只想在 Hook 里绑定一个字段时，直接 `useField('email', options)`；要把这个 binding 交给 connect 控件，传 `field` 属性（`<Input field={field} />`）。
 - 同一调用处要么总带 `name`，要么总不带（两种形式使用不同的 Hooks）。
 
+### UI 实例：`useField(name, { ui })` / `<Field name ui>`
+
+同一个字段要显示成多个 UI（输入框 + 回显、滑块 + 数字框）时，第二个起带 `ui` 名。它们共享值、错误、规则、选项；各自有 `display` / `pattern` / `title` / `description` / `componentProps` / `decoratorProps`，在 effects 里是 `d.x.$ui(name)`。
+
+```tsx
+<Field name="amount" title="金额" decorator={[FormItem]} component={[InputNumber]} />
+<Field name="amount" ui="slider" component={[Slider]} />           // d.amount.$ui('slider').$pattern = 'disabled'
+const field = useField('amount', { ui: 'slider' })                  // 同上的 Hook 写法
+```
+
+- 返回的 binding：`value` / `onChange` / `errors` / `required` / `options` 是字段的；`display` / `pattern` / `disabled` / `readOnly` / UI 状态是实例的；`id` 是 `<path>--<ui>`（`amount--slider`），label 不会指错；`ui` 是实例名。实例里的无参 `useField()` 返回这份 binding。
+- 优先级：reaction（`$ui(name).$pattern`）> JSX（实例上的 `pattern` / `componentProps` …）> 回退。回退：`display` / `pattern` 取字段的有效值（字段继承根 `$pattern`，实例也跟着）；`title` / `description` 取字段的声明 + reaction 值；`componentProps` / `decoratorProps` 不回退（是另一个组件的）。
+- 实例**不**登记 JSX `rules` / `required` / `enum` / `virtual`（开发期警告一次）：这些写在不带 `ui` 的 `<Field>` 上。
+- 名字类型：默认任意字符串；在 `UiNames` 里登记后 `ui` / `<UI name>` / `$ui()` 都检查拼写（见 [UI 节点](/guide/ui#名字的类型)）。
+
 [实现：use-field.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-field.ts)
+
+## UI 组件（`<UI>`）
+
+不是 Hook，列在这里因为它和 `useField(name, { ui })` 是一套：没有值的 UI 节点，在 effects 里是 `d.$ui(name)`（在行 / `<ObjectField>` 里是该作用域的 `row.$ui(name)`）。
+
+```tsx
+interface UIProps {
+  name: UiName
+  component?: FieldSlot           // [Alert, { type: 'warning' }]；children 渲染在它里面
+  decorator?: FieldSlot           // [FormItem]：title → label，description → extra
+  componentProps?: Record<string, any>
+  decoratorProps?: Record<string, any>
+  title?: ReactNode
+  description?: ReactNode
+  display?: Display                // 初始显隐，reaction 优先
+  pattern?: Pattern
+  children?: ReactNode | ((ui: UiBinding) => ReactNode)
+}
+<UI name="approvalTip" component={[Alert, { type: 'warning', message: '需要审批' }]} />
+reaction((d) => { d.$ui('approvalTip').$visible = d.amount.$value >= 50000 })
+```
+
+- 永远不进 `values` / 提交 / 校验。`$visible` / `$hidden` / `$display` / `$pattern` / `$disabled` / `$title` / `$description` / `$componentProps` / `$decoratorProps`，读取是依赖。
+- **隐藏不级联**：`<UI>` 隐藏时不渲染子元素，但里面字段的 `$visible`、校验、提交都不变（字段只看自己的 display）。要连字段一起去掉，再写字段自己的 `$visible = false`。
+- reaction 写了一个从没挂载过的 `$ui(name)`（拼错、忘了渲染）：挂载稳定后开发期警告一次，列出这个路径上已挂载的名字。
+
+[实现：ui.tsx](https://github.com/charlzyx/shikiform/blob/main/src/react/components/ui.tsx)
 
 ## useWatch
 

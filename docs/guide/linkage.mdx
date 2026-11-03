@@ -214,8 +214,8 @@ export default function App() {
 
 ## UI 也是状态
 
-显隐、必填、选项、标签、占位符都是 `$` 状态，在 reaction 里赋值即可（完整例子见 [首页](/)）。条件显示的字段写 `$visible`：`false` 等于 `display: 'none'`，不校验、不提交（与 Formily 一致）；要「只藏 UI、仍校验仍提交」写 `$hidden = true`。见 [显隐、pattern 与提交](/guide/concepts#显隐pattern-与提交)。赋 `undefined` 撤销 reaction 写的这一层（`$title`、`$pattern`、`$enum` 都一样），`$enum = undefined` 回到 `<Field enum>` / `fields` 声明的选项，`$enum = []` 才是清空。不要在渲染时根据 `form.getValue(...)` 算 props：那不是响应式的。
+显隐、必填、选项、标签、占位符都是 `$` 状态，在 reaction 里赋值即可（完整例子见 [首页](/)）。条件显示的字段写 `$visible`：`false` 等于 `display: 'none'`，不校验、不提交（与 Formily 一致）；要「只藏 UI、仍校验仍提交」写 `$hidden = true`。见 [显隐、pattern 与提交](/guide/concepts#显隐pattern-与提交)。赋 `undefined` 撤销 reaction 写的这一层（`$title`、`$pattern`、`$enum` 都一样），`$enum = undefined` 回到 `<Field enum>` / `fields` 声明的选项，`$enum = []` 才是清空。不要在渲染时根据 `form.getValue(...)` 算 props：那不是响应式的。同一字段的第二个 UI（回显、滑块）和没有值的提示条用命名 UI 节点 `d.x.$ui('echo')` / `d.$ui('tip')`，见 [UI 节点](/guide/ui)。
 
 三个维度的 SKU 选择、冲突清理、价格与库存联动见 [SKU 选择器](/play/sku-picker)，更多场景在 [联动示例](/examples/linkage)。
 
-下一步：[数组、树与嵌套对象](/guide/structures)，给字段分组、按行渲染。
+下一步：[UI 节点](/guide/ui)，同一字段的多个 UI、没有值的提示和分组。

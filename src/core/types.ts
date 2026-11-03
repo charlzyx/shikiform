@@ -1,3 +1,4 @@
+import type { Display, Pattern, UiDraft, UiName } from './types-display'
 import type { EnumBinding, EnumOption, EnumSource } from './enum/enum-source'
 import type { StandardSchemaV1 } from './validation/schema'
 import type { Rule, RulesInput, ValidateCtx } from './validation/rules'
@@ -5,29 +6,9 @@ import type { FormMessages } from './validation/messages'
 import type { Pos } from './shared/tree-ops'
 
 export type { StandardSchemaV1, RulesInput }
+export type { Display, Pattern, UiDraft, UiName, UiNames } from './types-display'
 
 export type { EnumOption, EnumBinding, EnumSource, Rule, ValidateCtx, Pos }
-
-/**
- * Formily display.
- * - `visible` — show the field, validate it, include it in submit.
- * - `hidden` — no UI, keep the value, still validate, still submit. Use this for inactive tabs.
- * - `none` — no UI, drop the value from submit, skip validation.
- *
- * Display is inherited from ancestors: an ancestor `none` forces `none`, otherwise an ancestor
- * `hidden` forces `hidden`. Validation follows this effective display, not React mount.
- */
-export type Display = 'visible' | 'hidden' | 'none'
-
-/**
- * Formily pattern. A child with an explicit pattern wins. `$pattern = undefined` clears the
- * explicit value and restores inheritance.
- * - `editable` — normal input
- * - `disabled` — input disabled (`$disabled === true`)
- * - `readOnly` — input not editable, value still submitted
- * - `readPretty` — render the value, not the input. Computed fields default to this.
- */
-export type Pattern = 'editable' | 'disabled' | 'readOnly' | 'readPretty'
 
 /**
  * When a field validates.
@@ -512,6 +493,12 @@ export interface DraftState<T> {
   $find(pred: (node: any, pos: Pos) => boolean): Draft<any> | undefined
   /** Handle at `pos` under this tree or array root. */
   $pathOf(pos: Pos): string
+  /**
+   * One named UI on this path: `d.name.$ui('echo')` is `<Field name="name" ui="echo">` (another UI of the same
+   * field: shared value, errors and rules, its own display / pattern / props); `d.$ui('tip')` is `<UI name="tip">`
+   * (a UI with no value). Reads are dependencies. Unset state falls back to the path's own (pattern inherits).
+   */
+  $ui(name: UiName): UiDraft
 }
 
 export type DraftNav<T> = T extends readonly (infer E)[]

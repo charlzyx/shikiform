@@ -2,7 +2,8 @@ import { createContext, useContext, useEffect, useRef, useSyncExternalStore, typ
 import type { FormEngine } from '../../core/engine/form-engine'
 import type { EnumOption } from '../../core/enum/enum-source'
 import { normalizeUiSpec } from '../../core/state/field-model'
-import type { Display, FieldEnum, FieldPath, FieldUiSpec, PathValue, Pattern } from '../../core/types'
+import type { Display, FieldEnum, FieldPath, FieldUiSpec, PathValue, Pattern, UiName } from '../../core/types'
+import { uiId } from '../../core/engine/ui-nodes'
 import type { RulesInput } from '../../core/validation/rules'
 import { ShikiUsageError } from '../../core/errors'
 import { useRequiredForm, useScope } from '../context'
@@ -49,6 +50,11 @@ export interface FieldBinding<TValue> {
   componentProps: Record<string, any>
   /** Props for the decorator: `fields` ← JSX ← reaction (`$decoratorProps`), merged per key. */
   decoratorProps: Record<string, any>
+  /**
+   * The UI instance name when this binding comes from `<Field name ui="echo">` / `useField(name, { ui })`: value,
+   * errors and `onChange` are the field's; display, pattern, title, props and `id` (`<path>--<ui>`) are the instance's.
+   */
+  ui?: string
 }
 
 /**
@@ -65,6 +71,13 @@ export type FieldSlot = ComponentType<any> | readonly [ComponentType<any>] | rea
  * restoring a declaration, item template, or `$rules`). `virtual`, `display`, and `pattern` are persistent flags.
  */
 export interface UseFieldOptions<TValue = any> {
+  /**
+   * A second (third …) UI of the same field: `<Field name="amount" ui="slider" component={[Slider]} />`.
+   * Shares the value, errors and rules; has its own display / pattern / title / props, addressed in effects as
+   * `d.amount.$ui('slider')` (unset falls back to the field: pattern inherits). Own DOM id `<path>--<ui>`.
+   * `rules` / `required` / `enum` / `virtual` belong on the field itself (the `<Field>` without `ui`).
+   */
+  ui?: UiName
   /**
    * Options for this field, inline (Formily `enum`): `[{ label, value }]`, bare primitives, or `SomeEnum.with(params)`.
    * Wins over `fields.x.enum` / item templates while the component is mounted; a reaction's `$enum` wins over it.
@@ -119,7 +132,9 @@ export function useField(name?: string, options?: UseFieldOptions): FieldBinding
   const form = useRequiredForm(`useField('${String(name)}') / <Field name="${String(name)}">`)
   const scope = useScope()
   const path = resolveName(form, scope, String(name))
-  const spec = options
+  const ui = options?.ui
+  if (ui && process.env.NODE_ENV !== 'production') warnInstanceOptions(path, ui, options!)
+  const spec = options && !ui
     ? { rules: options.rules, virtual: options.virtual, required: options.required, display: options.display, pattern: options.pattern }
     : undefined
   const ownsValidation = !!spec && (spec.rules !== undefined || spec.required !== undefined)
@@ -132,7 +147,7 @@ export function useField(name?: string, options?: UseFieldOptions): FieldBinding
     const current = latestSpec.current
     return current ? applyJsxField(form, path, current) : undefined
   }, [form, path, ownsValidation])
-  useJsxEnum(form, path, options?.enum)
+  useJsxEnum(form, path, ui ? undefined : options?.enum)
   useFieldGroupRegistration(path)
   const version = useSyncExternalStore(
     (onStoreChange) => form.subscribePath(path, onStoreChange),
@@ -140,8 +155,44 @@ export function useField(name?: string, options?: UseFieldOptions): FieldBinding
     () => form.getPathVersion(path),
   )
   void version
+  useUiNode(form, path, ui, 'field')
   form.registerField(path, {})
+  if (ui) return form.uiBinding(path, ui, uiJsx(options!), 'field') as unknown as FieldBinding<any>
   return form.binding(path, options && uiLayer(options)) as FieldBinding<any>
+}
+
+const NO_UI = () => () => {}
+const ZERO = () => 0
+
+/**
+ * Internal: a mounted named UI (`<Field ui>` / `<UI>`): subscribes to its own state, claims (path, name) while
+ * mounted, and tells the form React has mounted (so `$ui` writes to names that never mount warn once).
+ */
+export function useUiNode(form: FormEngine<any, any>, path: string, ui: string | undefined, kind: 'field' | 'node'): void {
+  const id = ui ? uiId(path, ui) : ''
+  const version = useSyncExternalStore(
+    ui ? (onStoreChange) => form.subscribePath(id, onStoreChange) : NO_UI,
+    ui ? () => form.getPathVersion(id) : ZERO,
+    ui ? () => form.getPathVersion(id) : ZERO,
+  )
+  void version
+  useEffect(() => {
+    form.markUiReady()
+    return ui ? form.claimUi(path, ui, kind) : undefined
+  }, [form, path, ui, kind])
+}
+
+const warnedInstance = new Set<string>()
+
+function warnInstanceOptions(path: string, ui: string, options: UseFieldOptions): void {
+  const owned = (['rules', 'required', 'enum', 'virtual'] as const).filter((key) => options[key] !== undefined)
+  const key = `${path}#${ui}`
+  if (!owned.length || warnedInstance.has(key)) return
+  warnedInstance.add(key)
+  console.warn(
+    `[shikiform] <Field name="${path}" ui="${ui}"> ignores ${owned.join(', ')}: a UI instance shares the field's ` +
+      `value, rules and options. Put ${owned.join(' / ')} on the <Field name="${path}"> without ui (or in fields / a reaction).`,
+  )
 }
 
 /**
@@ -168,6 +219,10 @@ const NO_FIELD =
   '[shikiform] useField() without a name reads the surrounding <Field>, but this component is not inside one. ' +
   "Render it inside <Field name=\"…\"> (or as its component / decorator / children), " +
   "or pass a name: useField('email')."
+
+function uiJsx(options: UseFieldOptions) {
+  return { ...uiLayer(options), display: options.display, pattern: options.pattern }
+}
 
 function uiLayer(options: UseFieldOptions): FieldUiSpec | undefined {
   const { title, description, component, decorator, componentProps, decoratorProps } = options

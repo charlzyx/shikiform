@@ -1,0 +1,218 @@
+---
+title: UI 节点：同一字段多个 UI、无数据的 UI
+description: 一个字段显示成输入框 + 回显、滑块 + 数字框，各自控制样式和 pattern；一段提示、一个分组框没有值，也能在 reaction 里按名字控制显隐和 props。
+---
+
+# UI 节点：`<Field ui>` 与 `<UI>`
+
+两类需求，用字段本身都不好写：
+
+- **同一个值，两个 UI。** 输入框旁边一个回显，输入超长时回显变红；金额既能拖滑块也能输数字，锁定时只禁用滑块。写两个 `<Field name="amount">` 的话，两者共用一份 `$componentProps` / `$pattern`，改一个两个都变，`id` 也重复（label 指向第一个）。
+- **没有值的 UI。** 「金额 ≥ 5 万需要审批」的提示条、一个「发票信息」分组框。它们要随值显隐、改 props，但不是字段：不该进 `values`、不该参与校验。
+
+ShikiForm 给它们起名字：
+
+| 写法 | effects 里 | 是什么 |
+|---|---|---|
+| `<Field name="x" ui="echo" component={[Echo]} />` | `d.x.$ui('echo')` | 字段 `x` 的另一个 UI：值、错误、规则共享，UI 状态独立 |
+| `<UI name="tip" component={[Alert, props]} />` | `d.$ui('tip')` | 没有值的 UI 节点；在行 / `<ObjectField>` 里是该作用域的 `row.$ui('tip')` |
+
+两者都只有 UI 状态：`$visible` / `$hidden` / `$display` / `$pattern` / `$disabled` / `$title` / `$description` / `$componentProps` / `$decoratorProps`。优先级和字段的 UI 层一样：reaction > JSX > 回退；读取是依赖，和其他 `$` 读一样会让 reaction 重跑。
+
+## 回显变红：实例有自己的 props
+
+```tsx preview
+import type { CSSProperties } from 'react';
+import { defineEffects, Form, typed, useField, useForm } from 'shikiform';
+import { FormItem, FormLayout, Input } from 'shikiform/antd';
+
+type Values = { nickname: string };
+
+// 显示组件从无参 useField() 拿值：在 <Field ui> 里它是共享的字段 + 这个实例的 UI 状态
+function Echo({ style }: { style?: CSSProperties }) {
+  const field = useField<string>();
+  return <span id={field.id} data-echo="" style={style}>{field.value || '（空）'}</span>;
+}
+
+export default function App() {
+  const form = useForm<Values>({
+    initialValues: { nickname: '' },
+    effects: [
+      defineEffects<Values>(({ reaction }) => {
+        reaction((d) => {
+          d.nickname.$ui('echo').$componentProps.style =
+            d.nickname.$value.length > 8 ? { color: 'red' } : undefined;
+        });
+      }),
+    ],
+  });
+  const F = typed(form);
+  return (
+    <Form form={form} data-ui-echo-demo="">
+      <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 16 }}>
+        <F.Field name="nickname" title="昵称" decorator={[FormItem]} component={[Input, { placeholder: '超过 8 个字回显变红' }]} />
+        <F.Field name="nickname" ui="echo" title="回显" decorator={[FormItem]} component={[Echo]} />
+      </FormLayout>
+    </Form>
+  );
+}
+```
+
+- 输入框的 `id` 是 `nickname`，回显的是 `nickname--echo`：两个 label 各指各的。
+- `$componentProps` / `$decoratorProps` 只属于这个实例（另一个组件的 props 不回退到字段的）。`title` / `description` 不写时回退到字段的（声明 + reaction）。
+- 不带 `ui` 的那个 `<Field>` 就是字段本身（`d.nickname.$componentProps`）。
+
+## 滑块 + 数字框：共享值，各自 pattern
+
+```tsx preview
+import { defineEffects, Form, typed, useForm } from 'shikiform';
+import { FormItem, FormLayout, InputNumber, Slider, Switch } from 'shikiform/antd';
+
+type Values = { budget: number; locked: boolean };
+
+export default function App() {
+  const form = useForm<Values>({
+    initialValues: { budget: 30, locked: false },
+    effects: [
+      defineEffects<Values>(({ reaction }) => {
+        reaction((d) => {
+          d.budget.$ui('slider').$pattern = d.locked.$value ? 'disabled' : undefined;
+        });
+      }),
+    ],
+  });
+  const F = typed(form);
+  return (
+    <Form form={form} data-ui-slider-demo="">
+      <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 16 }}>
+        <F.Field name="locked" title="锁定滑块" decorator={[FormItem]} component={[Switch]} />
+        <F.Field name="budget" title="预算" required decorator={[FormItem]} component={[InputNumber, { min: 0, max: 100 }]} />
+        <F.Field name="budget" ui="slider" decorator={[FormItem, { label: ' ', colon: false }]} component={[Slider]} />
+      </FormLayout>
+    </Form>
+  );
+}
+```
+
+- 值、错误、`required` 是字段的，两个控件都显示同一份；拖滑块改的就是 `budget`。
+- `$ui('slider').$pattern = undefined` 回退到字段的有效 pattern：整张表 `d.$pattern = 'readPretty'` 时滑块也跟着变。
+- 规则、`required`、`enum`、`virtual` 写在不带 `ui` 的 `<Field>` 上；写在实例上不会生效（开发期警告一次），这样一个字段不会有两套 JSX 规则。
+
+## 没有值的提示：`<UI>`
+
+```tsx preview
+import { Alert } from 'antd';
+import { useState } from 'react';
+import { defineEffects, Form, typed, UI, useForm } from 'shikiform';
+import { FormButtonGroup, FormItem, FormLayout, InputNumber, Submit } from 'shikiform/antd';
+
+type Values = { amount: number | null };
+
+export default function App() {
+  const form = useForm<Values>({
+    initialValues: { amount: null },
+    effects: [
+      defineEffects<Values>(({ reaction }) => {
+        reaction((d) => {
+          d.$ui('approvalTip').$visible = (d.amount.$value ?? 0) >= 50000;
+        });
+      }),
+    ],
+  });
+  const F = typed(form);
+  const [saved, setSaved] = useState<Values>();
+  return (
+    <Form form={form} onSubmit={setSaved} data-ui-alert-demo="">
+      <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 16 }}>
+        <F.Field name="amount" title="报销金额" decorator={[FormItem]} component={[InputNumber, { style: { width: 200 } }]} />
+        <UI name="approvalTip" decorator={[FormItem, { label: ' ', colon: false }]}
+          component={[Alert, { type: 'warning', showIcon: true, message: '金额 ≥ 50000，提交后需要主管审批' }]} />
+        <FormButtonGroup.FormItem>
+          <Submit />
+        </FormButtonGroup.FormItem>
+      </FormLayout>
+      {saved && <pre>{JSON.stringify(saved)}</pre>}
+    </Form>
+  );
+}
+```
+
+- 提交的值里只有 `amount`：UI 节点永远不进 `values`、提交和校验。
+- `component` 的 props 也能由 reaction 改：`d.$ui('approvalTip').$componentProps.message = …`。`decorator={[FormItem]}` 时 `title` / `description` 成为 label / extra。
+- `children` 渲染在 `component` 里面（或单独渲染），也可以是 `(ui) => …`。
+
+## 隐藏 UI 不会隐藏里面的字段
+
+`<UI>` 可以包住字段做分组。隐藏它只是不渲染这块 UI：里面字段的 `$visible`、校验、提交都**不变**。字段的数据去留只看它自己的 `$visible` / display。
+
+```tsx preview
+import { Card } from 'antd';
+import { useState } from 'react';
+import { defineEffects, Form, typed, UI, useForm } from 'shikiform';
+import { FormButtonGroup, FormItem, FormLayout, Input, Submit, Switch } from 'shikiform/antd';
+
+type Values = { needInvoice: boolean; invoiceTitle: string; remark: string };
+
+export default function App() {
+  const form = useForm<Values>({
+    initialValues: { needInvoice: false, invoiceTitle: '', remark: '保留' },
+    effects: [
+      defineEffects<Values>(({ reaction }) => {
+        reaction((d) => {
+          const need = d.needInvoice.$value;
+          d.$ui('invoiceBox').$visible = need;   // 只藏这块 UI
+          d.invoiceTitle.$visible = need;        // 字段要不要提交 / 校验，写字段自己的 $visible
+        });
+      }),
+    ],
+  });
+  const F = typed(form);
+  const [saved, setSaved] = useState<Values>();
+  return (
+    <Form form={form} onSubmit={setSaved} data-ui-box-demo="">
+      <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 16 }}>
+        <F.Field name="needInvoice" title="开发票" decorator={[FormItem]} component={[Switch]} />
+        <UI name="invoiceBox" component={[Card, { size: 'small', title: '发票信息', style: { marginBottom: 16 } }]}>
+          <F.Field name="invoiceTitle" title="抬头" required decorator={[FormItem]} component={[Input]} />
+          <F.Field name="remark" title="备注" decorator={[FormItem]} component={[Input]} />
+        </UI>
+        <FormButtonGroup.FormItem>
+          <Submit />
+        </FormButtonGroup.FormItem>
+      </FormLayout>
+      {saved && <pre>{JSON.stringify(saved)}</pre>}
+    </Form>
+  );
+}
+```
+
+关掉「开发票」直接提交：`invoiceTitle` 因为自己的 `$visible = false` 不校验、不提交；`remark` 没写，所以照样在提交值里（`"remark":"保留"`），尽管它所在的框隐藏了。这是有意的：UI 的显隐和数据的去留分开，提交结果只由字段自己的状态决定，不受布局影响。
+
+## 回退规则
+
+| 状态 | 没写时（reaction 和 JSX 都没有） |
+|---|---|
+| `$display` / `$visible` / `$hidden` | 字段实例：字段的有效 display；`<UI>`：所在作用域的（根上就是 `visible`） |
+| `$pattern` / `$disabled` | 字段实例：字段的有效 pattern（继承根 `$pattern`）；`<UI>`：作用域的 |
+| `$title` / `$description` | 字段实例：字段的声明 + reaction 值；`<UI>`：无 |
+| `$componentProps` / `$decoratorProps` | 不回退：只有这个 UI 自己的 JSX + reaction |
+
+实例自己的 `$visible = true` 优先于字段：`d.x.$hidden = true; d.x.$ui('summary').$visible = true` 只显示摘要、字段照样校验和提交。
+
+## 名字的类型
+
+默认 `ui` / `<UI name>` / `$ui()` 接受任意字符串。reaction 写了一个**从没挂载过**的名字（拼错、忘了渲染）时，挂载稳定后开发期警告一次，并列出这个路径上已挂载的名字。
+
+要在编译期查拼写，登记一次名字（全应用共用，TypeScript 模块扩充）：
+
+```ts
+// src/shikiform.d.ts
+import 'shikiform'
+declare module 'shikiform' {
+  interface UiNames { echo: true; slider: true; approvalTip: true }
+}
+```
+
+之后 `ui="ecko"`、`<UI name="aprovalTip">`、`d.$ui('aprovalTip')` 都是类型错误。名字不按表单区分：一个应用里同名的 UI 都用这一份登记。
+
+下一步：[数组、树与嵌套对象](/guide/structures)，给字段分组、按行渲染。

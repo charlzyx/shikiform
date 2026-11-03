@@ -1,6 +1,6 @@
 import { useMemo, type ComponentType, type FormEvent, type FormHTMLAttributes, type ReactNode } from 'react'
 import type { FormEngine } from '../../core/engine/form-engine'
-import type { ArrayPath, Display, Draft, FieldEnum, FieldError, FieldPath, PathValue, Pattern } from '../../core/types'
+import type { ArrayPath, Display, Draft, FieldEnum, FieldError, FieldPath, PathValue, Pattern, UiName } from '../../core/types'
 import type { RulesInput } from '../../core/validation/rules'
 import type { Pos } from '../../core/shared/tree-ops'
 import { ArrayContext, FormContext, ScopeContext, useRequiredForm, useScope } from '../context'
@@ -91,6 +91,12 @@ export function Form<T, TSubmit = T>({ form, children, onSubmit, onInvalid, onSu
 export interface FieldProps<TScope = any, N extends FieldPath<TScope> = FieldPath<TScope>> {
   /** Name relative to the current `<ObjectField>` / `<ArrayField>` / `<TreeField>` scope. */
   name: N
+  /**
+   * Another UI of the same field (`d.name.$ui('echo')` in effects): shared value / errors / rules, its own display,
+   * pattern, title and props (unset falls back to the field's). Own DOM id `<path>--<ui>`. Leave rules / required /
+   * enum / virtual to the `<Field>` without `ui`.
+   */
+  ui?: UiName
   /**
    * Inline options (Formily `enum`): `[{ label, value }]`, bare primitives (`['a', 'b']`), or `SomeEnum.with(params)`.
    * Option values are typed against the field value (its element type for an array field) when the name is typed

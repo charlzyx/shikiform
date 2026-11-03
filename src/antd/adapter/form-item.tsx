@@ -1,6 +1,7 @@
 import { ConfigProvider, Form, Popover, theme, type ColProps, type FormItemProps as AntFormItemProps } from 'antd'
 import { useContext, type CSSProperties, type ReactNode } from 'react'
 import { useFieldContextOrNull } from '../../react/field-context'
+import { useUiNodeOrNull } from '../../react/components/ui'
 import type { FieldBinding } from '../../react/hooks/use-field'
 import { useFormMessage } from '../../react/hooks/use-form-message'
 import { useFormGrid } from './form-grid'
@@ -161,6 +162,9 @@ const ADDON_ROW: CSSProperties = { display: 'flex', alignItems: 'center', gap: 8
  */
 export function FormItem({ children, ...props }: FormItemProps) {
   const field = useFieldContextOrNull()
+  const node = useUiNodeOrNull()
+  // The decorator of a `<UI title description>`: label / extra come from the node (props win).
+  if (!field && node) props = { label: node.title, extra: node.description, ...props }
   const layout = useFormLayout()
   const grid = useFormGrid()
   const t = useFormMessage()
