@@ -54,7 +54,7 @@ export default function App() {
         toolbar: <Toolbar />,
         footer: <Footer />,
         extra: <ArrayTable.Addition defaultValue={() => ({ id: crypto.randomUUID(), a1: '', a2: '' })} />,
-        onRemove: () => new Promise((resolve) => setTimeout(resolve, 600)),
+        onRemove: () => new Promise<void>((resolve) => setTimeout(resolve, 600)),
         expandable: {
           rowExpandable: (row) => Array.isArray(row.subitems),
           render: () => <ArrayField name="subitems" component={[ArrayTable, {
