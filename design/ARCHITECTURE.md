@@ -7,6 +7,7 @@
 1. **Hooks 是完整的主 API。** `shikiform` 导出的 `useForm`、`useField`、`useArrayField` / `useArrayMove`、`useTreeField` / `useTreeMove`、`useWatch`，以及无需 name 的上下文 Hook：无参 `useField()`（当前字段，Formily `useField()`）、`useArray`、`useIndex`、`useRecord`、`useTreeNode`（Formily `ArrayBase.useArray/useIndex/useRecord`）能做到组件能做的一切。
 2. **组件只是 Hook 的薄封装，不得拥有 Hook 用户拿不到的逻辑。**
    - `<Field name rules required enum virtual display pattern title description decorator component>` = `useField(name, options)` + `display !== 'visible'` 时返回 `null` + 渲染 `decorator` 包住 `component`（或 children），并用内部 `FieldContext` 提供 binding（经无参 `useField()` 读取，不导出）。
+   - `<Field name ui="echo">` = `useField(name, { ui })`：同一字段的另一个 UI 实例（值 / 错误 / 规则共享，UI 层独立，见 §3.2）；`<UI name>` = `useUiNode` + `form.uiBinding(作用域, name, props, 'node')` + 渲染 `decorator` / `component`（无值）。
    - `<FieldGroup value>` = 内部 `FieldGroupContext`（`react/field-group.tsx`）：其中挂载的 `useField(name)` / `useArrayField` 在 effect 里把绝对路径登记进最近的组及所有外层组（引用计数，卸载移除）；`useFieldGroup()` 建句柄，`useFieldGroupErrors(group)` = `useWatch`（依赖根 `:errors`）按组成员过滤 `form.errors`。
    - `<ArrayField>` = `useArrayField` + `ArrayScope`（供 `useArray()`）+ 每行 `RowScope`（供 `useIndex()` / `useRecord()`）+ 可选的容器 `component`（`[C, props]`，在 `ArrayScope` 内以各行为 `children` 渲染）；`<TreeField>` = `useTreeField`；`<Watch>` = `useWatch`；`<Form>` = Context Provider + `form.submit()`。
    - `typed(form)` / `typed<T>()` = 同一批组件和 Hook 加上类型（名字按作用域检查），没有新的运行时。字段只有 `<Field>` 一种写法：没有预绑定工厂（2026-11-01 删除 `createFormHook` / `useAntdForm` / `AppField` 等）；片段复用是普通组件 + `<ObjectField>` + `typed<T>()`。
@@ -24,7 +25,7 @@ src/
   index.ts                 shikiform 入口（= react 层 + 引擎）
   core/                    无 React、无 UI 的引擎（shikiform/core）
     index.ts
-    types.ts  errors.ts    公开类型 / 错误类
+    types.ts  errors.ts    公开类型 / 错误类（`types-display.ts`：Display / Pattern / UiNames / UiDraft，由 types.ts 再导出）
     shared/                纯函数：path.ts、equal.ts、tree-ops.ts（pos、moveNode、listPositions…）
     draft/                 draft 代理：handle.ts（$ 读写 → DraftHost）、host.ts、patch.ts（对象型 $ 状态的 Immer 式嵌套写）、
                            readonly.ts（开发期 `$value` 只读视图）
@@ -34,14 +35,14 @@ src/
     validation/            ③ 校验：validator.ts（管线）、rules.ts、schema.ts、messages.ts（内置文案，纯函数）
     declarations/          ④ 声明：declarations.ts、templates.ts
     structure/             ⑤ 结构：arrays.ts、trees.ts、migrate.ts
-    engine/                ⑥ 门面：form-engine.ts（FormEngine/createForm）、writes.ts（StateWriter）、field-ui.ts（字段 UI 状态）、baseline.ts（初始值基线、派生 dirty、reset）
+    engine/                ⑥ 门面：form-engine.ts（FormEngine/createForm）、writes.ts（StateWriter）、field-ui.ts（字段 UI 状态）、ui-nodes.ts（命名 UI 节点 `$ui(name)`）、baseline.ts（初始值基线、派生 dirty、reset）
   react/                   headless React 绑定（只依赖 core）
     context.tsx            FormContext / ScopeContext
     field-group.tsx        FieldGroup / useFieldGroup / useFieldGroupErrors（收集一块 JSX 里挂载的字段路径；分组容器的错误数与分步校验）
     field-context.ts       内部 FieldContext / useFieldContextOrNull（<Field> 提供；公开读取走无参 useField()）
     hooks/                 use-form、use-field、use-array（useArrayField / useArray）、use-row（useIndex / useRecord / useTreeNode）、
                            use-tree、use-watch、use-form-message、field-lifecycle（JSX lease）、resolve-name（相对名 → path，开发期查重复前缀）
-    components/            fields.tsx（Form/Field/ObjectField/ArrayField/RowScope/TreeField/Watch）、virtual-rows.tsx
+    components/            fields.tsx（Form/Field/ObjectField/ArrayField/RowScope/TreeField/Watch）、ui.tsx（UI 节点 `<UI>`）、virtual-rows.tsx
     factory/               typed.tsx（typed(form) / typed<T>()：按类型检查名字的同一组组件 / Hooks，类型随作用域）
   pro/                     无 UI 的高级 Hook（依赖 react / core）
     use-query-table.ts       查询表（请求、分页、选择；`rows` 把每页写进数组字段）
@@ -103,6 +104,18 @@ Formily 的 `field.title` / `description` / `decorator` / `component` / `setComp
 - **同一轮可读到自己的写**：UI 写操作记在 `WeakMap<WriteOp, patch>` 里；在 reaction / batch 中读 UI 键时，把本轮缓冲的同字段同键写操作按顺序重放到有效值上，所以 `props.style ??= {}; props.style.color = 'red'` 在 reaction 内成立（其他 `$` 状态仍是「本轮写、下轮读」）。同键的 UI 写操作在缓冲区里移到末尾而不是原地替换，保证补丁按写入顺序叠加。
 - **依赖粒度**：`path:<UI 键>`（如 `city:componentProps`、`city:title`）。读写同一个 UI 键的 reaction 会自唤醒一次，第二次写入值不变即收敛。冲突检测按 op key：两个 reaction 补丁同一键路径会抛 `ShikiConflictError`，补不同叶子（如 `style.color` 与 `style.width`）不冲突。
 - **比较**：UI 值可能含函数与 React 元素，变化检测沿普通对象 / 数组递归、其余按 `Object.is`（`deepSame`），不用 `deepEqual`。
+
+### 3.2 命名 UI 节点（`engine/ui-nodes.ts`）
+
+一个字段可以有多个 UI（输入框 + 回显、滑块 + 数字框），表单里也有没有值的 UI（提示条、分组框）。二者统一成**按 (path, name) 命名的 UI 节点**：`<Field name="x" ui="echo">` 是路径 `x` 上的 `echo`，`<UI name="tip">` 是当前作用域路径（根为 `''`）上的 `tip`；effects 里都是 `d.<path>.$ui(name)`。
+
+- **只有 UI 层**：`UiNodes` 自己的 Map（不进 `FieldStore.fields`，所以不进校验 / `getSubmitValues` / `canSubmit`）。每个节点存 `display` / `pattern`（reaction 层）和 `uiEffect`（title、description、componentProps、decoratorProps 的 reaction 层）。UI 键复用 `FieldUi`（§3.1）：第二个 `FieldUi` 实例的模型来源是节点 Map（`UiModels` 接口），键是 `uiId(path, name) = "<path>#<name>"`，所以深合并、Immer 式补丁、同轮重放、冲突检测都一样。`#` 不是路径分隔符，依赖键 `x#echo:pattern` 不会被当成 `x` 的后代。
+- **优先级**：reaction > JSX（实例 / `<UI>` 的属性，渲染期传入 `uiBinding`，不存）> 回退。回退：display / pattern 取该路径的有效值（`effectiveDisplay` / `effectivePattern`，字段继承根 `$pattern`，实例也跟着）；字段实例的 title / description 取字段的声明 + reaction 值；componentProps / decoratorProps 不回退（是另一个组件的 props）。实例自己写的 display 胜过字段（`$hidden` 的字段可以只显示摘要实例）。
+- **读写**：`readState(path, '$ui')` 返回 `(name) => createUiHandle(host, path, name)`；句柄只接受九个 UI 键（`UI_NODE_STATE`），其他键开发期抛 `ShikiUsageError`。读登记 `uiId:display|pattern|<key>`，display / pattern 再沿 `path` 的祖先链登记（继承）。写入走 `StateWriter.enqueue`（与 `writeState` 同一套 reaction / batch 缓冲）。
+- **不级联**（2026-11-03 决定）：节点的 display 只影响它自己的渲染。`<UI>` 隐藏时不渲染子元素，但其中字段的 `$visible`、校验、提交只看字段自己的 display。理由：数据的去留不应被布局决定；要一起去掉就写字段的 `$visible`。
+- **React**（`useUiNode`，`react/hooks/use-field.ts`）：同时订阅 `path` 与 `uiId`（`claimUi` 时 `store.ensure(path)`，祖先的 display / pattern 写入会 bump 它）；effect 里 `claimUi`（同名重复挂载开发期警告：共享状态和 id）并 `markUiReady()`。实例 `useField(name, { ui })` 不调用 `applyJsxField` / `useJsxEnum`（规则、required、enum、virtual 写在实例上只警告），binding = `form.binding(path)` + 实例视图 + `id: <path>--<ui>`。`FormItem` 作为 `<UI>` 的装饰器时从内部 `UiNodeContext` 取 title / description（只给装饰器，子树重置为 null）。
+- **未挂载警告**：写入落地时若该节点从未挂载过，记入 pending；`markUiReady()`（第一个字段 / UI 的 effect）之后用 `setTimeout(0)` 检查（同一次提交里挂载的不算），每个名字只警告一次，并列出该路径上已挂载的名字。纯引擎使用（没有 React）不警告。
+- **名字类型**：`UiName` 读 `interface UiNames {}`（模块扩充登记，跨表单共用）；没登记时是 `string`。按表单区分需要把名字穿过 `Draft<T>` / `defineEffects<T>` / `FormEngine<T>` 三处泛型，代价大，没做。
 
 ## 4. 副作用调度（`core/effects`）
 
@@ -195,7 +208,7 @@ const Rate = connect(AntRate, mapProps({ status: false }))
 
 `FormOptions.commit` 与类型 `CommitMode`（`'change' | 'blur'`）在发布前删除，不实现。用户编辑一直走 `StateWriter.commitExternal`，在 change 时写入；删掉未实现的 `'blur'` 后只剩 `'change'`，所以整个选项一并移除，没有残留分支。
 
-命名 UI（`$ui(name)`、`query(path, { ui })`、`claimUi` / `releaseUi` / `uiVisible`、`ShikiUiError`、`core/ui/`）同样删除：引擎有、React 层从未接入。
+旧的命名 UI（`query(path, { ui })`、`releaseUi` / `uiVisible`、`ShikiUiError`、`core/ui/`）在 #60 删除：引擎有、React 层从未接入。#72 按 §3.2 重新实现并接入 React（`<Field ui>` / `<UI>`），只沿用了「每个 UI 自己的 display / pattern」这个思路。
 
 #1、#2、#6、#7 已由 `fix/validation-races` 修复，见第 5 节。#3、#8、#12 已由 `fix/pro-gaps` 解决：#3（列筛选清空选择，见 §10 查询表）、#8（精确声明是按路径的配置：`setValue`/`reset` 清掉行时由 `applyItemTemplates`、数组 / 树操作丢掉行时由 `onReindex` 转为休眠，行再出现时 `reviveDormant` 重新注册，`virtual`/`display`/`pattern`/UI 都恢复，见 §2 注入表）、#12（P0 示例与「文档构建含 playground」已在 main：`npm run build` = VitePress + `build:play` + `check-site`）。
 

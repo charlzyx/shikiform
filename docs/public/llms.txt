@@ -20,8 +20,8 @@ This page is the one-screen mental model plus the mistakes worth avoiding. Repo 
 
 `d.user.name` is a **handle**: a path, not data. Property access never reads values. `$` members are state:
 `$value`, `$display`, `$visible`, `$hidden`, `$pattern`, `$disabled`, `$required`, `$rules`, `$enum`, `$errors`, UI state
-(`$title`, `$description`, `$componentProps`, `$decoratorProps`, `$component`, `$decorator`), and form-level
-`d.$canSubmit` / `d.$submitting`. A field literally named `value` is `d.value.$value`.
+(`$title`, `$description`, `$componentProps`, `$decoratorProps`, `$component`, `$decorator`), named UI nodes
+`d.x.$ui('echo')` / `d.$ui('tip')` (§5), and form-level `d.$canSubmit` / `d.$submitting`. A field literally named `value` is `d.value.$value`.
 
 - `$pattern` / `$display` inherit from ancestors, the root included: `form.batch((d) => { d.$pattern = 'readPretty' })`
   switches the whole form (a field with its own pattern wins; `undefined` inherits again). To start that way (a detail
@@ -192,6 +192,29 @@ const step = useFormStep()   // in the component with the buttons; { current, co
   field it throws `ShikiUsageError`. It is the only way to read the current field: no separate context hook, and the
   field context itself is internal.
 
+- Named UI nodes (`/guide/ui`): a second UI of the **same field** is `<Field name="x" ui="echo" component={[Echo]} />`
+  (shared value / errors / rules / options; its own display, pattern, title, componentProps, decoratorProps; DOM id
+  `x--echo`); in effects `d.x.$ui('echo').$pattern = 'disabled'`. Inside it `useField()` returns the shared field with
+  the instance's UI state (`field.ui === 'echo'`). Put `rules` / `required` / `enum` / `virtual` on the `<Field>`
+  without `ui` (an instance ignores them, dev warning). A UI with **no value** (a tip, a group box) is
+  `<UI name="tip" component={[Alert, props]}>children</UI>` → `d.$ui('tip')` (in a row: `row.$ui('tip')`); never in
+  values / submit / validation. Priority reaction > JSX > fallback; unset display / pattern fall back to the field's
+  (a `<UI>`: its scope's), so a form-wide `$pattern` still reaches them; componentProps never inherit.
+  **Hiding a UI does not cascade**: a `<UI>` that hides unmounts its children, but each field inside keeps its own
+  `$visible`, validation and submit — hide the field too (`d.x.$visible = false`) if its data should go.
+  A `$ui(name)` written but never mounted warns once in development. Typo-checked names: register them once,
+  `declare module 'shikiform' { interface UiNames { echo: true; tip: true } }` (otherwise any string).
+
+```tsx
+<F.Field name="amount" title="金额" decorator={[FormItem]} component={[InputNumber]} />
+<F.Field name="amount" ui="slider" component={[Slider]} />
+<UI name="approvalTip" component={[Alert, { type: 'warning', message: '需要审批' }]} />
+reaction((d) => {
+  d.amount.$ui('slider').$pattern = d.locked.$value ? 'disabled' : undefined   // only the slider
+  d.$ui('approvalTip').$visible = d.amount.$value >= 50000                      // not a field: not submitted
+})
+```
+
 ## 6. Submit and messages
 
 - `form.submit(onValid?)` never rejects. It resolves `{ ok: true, values }` or `{ ok: false, reason }`:
@@ -267,7 +290,11 @@ reaction.each((d) => d.rows, (row, { d, index }) => {                   // ✓
 <Field name="city" component={[Select, { disabled: form.getValue('kind') === 'b' }]} />   // ✗ not reactive
 reaction((d) => { d.city.$componentProps.disabled = d.kind.$value === 'b' })             // ✓
 
-// 8. Inside a row the name is relative, and typed by the row
+// 8. Same field twice: name the second UI instead of a second <Field> with the same props layer
+<Field name="name" component={[Input]} /><Field name="name" component={[Echo]} />                    // ✗ one $componentProps, duplicate id
+<Field name="name" component={[Input]} /><Field name="name" ui="echo" component={[Echo]} />          // ✓ d.name.$ui('echo')
+
+// 9. Inside a row the name is relative, and typed by the row
 <ArrayField name="items">{({ index }) => <Field name={`items.${index}.name`} />}</ArrayField>  // ✗ items.0.items.0.name (dev error)
 <F.ArrayField name="items">{(row) => <row.Field name="name" decorator={[FormItem]} component={[Input]} />}</F.ArrayField>  // ✓ F = typed(form)
 ```
