@@ -63,7 +63,7 @@ Hooks 是主 API，JSX 是其结构与渲染封装；draft 和 `$` 描述状态�
 - `shikiform` — core 加 headless React（`<Field>` / `<ArrayField>` 等组件，`useForm`、`useField`、`useArrayField`、`useArray` / `useIndex` / `useRecord`、`useArrayMove`、`useTreeField`、`useTreeMove`、`useWatch`、`typed`）
 - `shikiform/core` — 表单引擎，没有 React
 - `shikiform/pro` — headless 查询、数组表格/列配置、影子草稿、联想与懒加载级联 Hooks，以及枚举显示工具（不依赖 antd）
-- `shikiform/antd` — `connect` / `FormItem` / `FormLayout` / `FormGrid` / `FormButtonGroup` 适配、已绑定控件、`Submit` / `Reset`、数组容器 `ArrayItems` / `ArrayCards`；`ProArrayTable`、`QueryList`、影子容器和高级输入，以及 `ProQueryTable`、`ArrayTable`、`MergedTable`
+- `shikiform/antd` — `connect` / `FormItem` / `FormLayout` / `FormGrid` / `FormButtonGroup` 适配、已绑定控件、`Submit` / `Reset`、数组容器 `ArrayItems` / `ArrayCards`；`ArrayTable`、`QueryList`、影子容器和高级输入，以及 `ProQueryTable`、`ArrayTable`、`MergedTable`
 
 `react` / `react-dom` 的 peer 是 `^18 || ^19`。`antd` 的 peer 是 `^5.18.0`（`Form.Item layout`）；运行时依赖只有 `@tanstack/react-virtual`，react / antd / dayjs 都是 peer，zod / immer 只用于文档和 playground。包是 `private`，`exports` 指向 `lib/`。仓库开发的 TypeScript paths 和 Vite alias 指向正式 `src/` 入口；教程不再有特殊运行时 alias。`check:docs` 从 `npm pack` 的 tarball 创建独立消费者，不继承仓库 paths/alias，检查真正复制出去的源码。
 

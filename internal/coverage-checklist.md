@@ -56,7 +56,7 @@ description: 对照 Formily / pro.formily / ProComponents / SKU 表格编辑的�
 | P2-2 | EditableProTable 风格批量行编辑 | ProComponents | ⚠️ row-edit 浅 | 多行同时编、行校验不挡他行 | |
 | P2-3 | ProEnumPretty / 查看态 Tag | pro.formily | ❌/弱 | 编辑 Select → readPretty Tag 色映射 | |
 | P2-4 | CascaderPlus（懒树） | pro.formily | ⚠️ 若仍是列式 select | 文档标明非浮层；或补浮层 ⏸️ | |
-| P2-5 | ShadowForm 弹窗编辑 | pro.formily | ✅ 已实现 | `useShadowForm` / `useArrayShadow`（`shikiform/pro`）+ `ShadowModal` / `ShadowDrawer` / `ShadowPopconfirm` / `ShadowForm`（`shikiform/antd`）；`/play/shadow-form`、`/play/pro-array-table-shadow` | `tests/shadow-form.test.tsx`、`tests/playground-pro.test.tsx` |
+| P2-5 | ShadowForm 弹窗编辑 | pro.formily | ✅ 已实现 | `useShadowForm` / `useArrayShadow`（`shikiform/pro`）+ `ShadowModal` / `ShadowDrawer` / `ShadowPopconfirm` / `ShadowForm`（`shikiform/antd`）；`/play/shadow-form`、`/play/array-table-shadow` | `tests/shadow-form.test.tsx`、`tests/playground-pro.test.tsx` |
 | P2-6 | ArrayTable 工具栏/列设置 | ProTable | ❌ | 刷新/导出/列设置不进表单值 | |
 | P2-7 | 跨页多选保留 | ProTable | ⏸️ | 先文档：当前查询内选择 | REVIEW |
 | P2-8 | headless 无 UI 适配 | Formily 无 UI | ⚠️ headless play | 教程一节：只接 value/onChange | |

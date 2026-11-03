@@ -62,7 +62,7 @@ for (const page of manifest.pages) {
 const previewFences = manifest.pages.reduce((sum, page) => sum + (readFileSync(path.join('docs', page.source), 'utf8').match(/^```[tj]sx preview\b/gm) ?? []).length, 0)
 assert(previewFences > 0, 'No executable previews found')
 assert.equal(previews, previewFences, 'Every executable preview must SSR its real component')
-for (const marker of ['采购清单', '钢笔']) assert(readFileSync(htmlFile('/guide/pro'), 'utf8').includes(marker), `ProArrayTable SSR missing ${marker}`)
+for (const marker of ['采购清单', '钢笔']) assert(readFileSync(htmlFile('/guide/pro'), 'utf8').includes(marker), `ArrayTable SSR missing ${marker}`)
 assert(readFileSync(htmlFile('/reference/antd'), 'utf8').includes('adapter-event-counts'))
 for (const file of readdirSync('docs/tutorial').filter((name) => /^\d.*\.mdx$/.test(name))) {
   const doc = documentFor(htmlFile(`/tutorial/${file.replace(/\.mdx$/, '')}`))

@@ -2,8 +2,8 @@ import { expect, test } from '@playwright/test'
 
 /** Browser checks for the Pro.formily demo pages. The same flows run in happy-dom in tests/playground-pro.test.tsx. */
 
-test('pro-array-table: edit, expand, page, add, 100k rows', async ({ page }) => {
-  await page.goto('/play/pro-array-table')
+test('array-table: edit, expand, page, add, 100k rows', async ({ page }) => {
+  await page.goto('/play/array-table')
   await expect(page.getByTestId('custom-footer')).toContainText('1/3')
   await page.getByTestId('a1-0').fill('hello')
   await page.locator('.ant-table-row-expand-icon-collapsed').first().click()
@@ -14,15 +14,15 @@ test('pro-array-table: edit, expand, page, add, 100k rows', async ({ page }) => 
   await expect(page.getByTestId('custom-footer')).toContainText('100000', { timeout: 15_000 })
 })
 
-test('pro-array-table: drag a row by its handle', async ({ page }) => {
-  await page.goto('/play/pro-array-table')
+test('array-table: drag a row by its handle', async ({ page }) => {
+  await page.goto('/play/array-table')
   await expect(page.getByTestId('a1-0')).toHaveValue('0.1')
   await page.getByTestId('sort-handle').nth(0).dragTo(page.getByTestId('row-2'))
   await expect(page.getByTestId('a1-2')).toHaveValue('0.1')
 })
 
-test('pro-array-table-shadow: edit writes back, cancel does not, addition appends', async ({ page }) => {
-  await page.goto('/play/pro-array-table-shadow')
+test('array-table-shadow: edit writes back, cancel does not, addition appends', async ({ page }) => {
+  await page.goto('/play/array-table-shadow')
   await page.getByTestId('edit-1').click()
   await expect(page.getByTestId('edit-domain')).toHaveValue('www.google.com')
   await page.getByTestId('edit-domain').fill('draft.dev')

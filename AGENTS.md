@@ -55,7 +55,7 @@ move / swap / insert / remove it stays on `rows.0.x` and applies to whichever ro
 
 In React, a row component reads its row without names: `useArray()` (nearest array handle: `push`, `remove`,
 `move`…), `useIndex()`, `useRecord()` (reactive row value), `useTreeNode()` (inside `<RowScope path pos>`).
-`useArrayField(name)` is the named version. `ProArrayTable.useRow()` is built on these.
+`useArrayField(name)` is the named version. `ArrayTable.useRow()` is built on these.
 Rows need no id: object rows without `rowKey` / `id` keep a stable object identity (state follows them on move).
 
 Ready-made row buttons: give `<ArrayField>` a container `component` from `shikiform/antd` (Formily `ArrayItems` /

@@ -288,7 +288,7 @@ test.describe('tables', () => {
 })
 
 test.describe('pro', () => {
-  test('pro-array-table: paging footer, add, move, async confirmed remove, expandable sub-table', async ({ page }) => {
+  test('array-table: paging footer, add, move, async confirmed remove, expandable sub-table', async ({ page }) => {
     const scope = await demo(page, 'pro', 0)
     const footer = scope.getByText(/^第 \d+\/\d+ 页，共 \d+ 条$/)
     await expect(footer).toHaveText('第 1/3 页，共 23 条')
@@ -311,7 +311,7 @@ test.describe('pro', () => {
     await expect(scope.locator('.ant-table-expanded-row').first()).toContainText('子 0.1')
   })
 
-  test('pro-array-table-shadow: edit cancel / confirm, modal addition appends', async ({ page }) => {
+  test('array-table-shadow: edit cancel / confirm, modal addition appends', async ({ page }) => {
     const scope = await demo(page, 'pro', 1)
     const modal = page.locator('.ant-modal-content:visible')
     await scope.getByRole('button', { name: /编\s*辑/ }).nth(1).click()

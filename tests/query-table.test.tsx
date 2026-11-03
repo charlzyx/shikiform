@@ -136,7 +136,7 @@ describe('antd tables forward header sort / filter to the request', () => {
     await waitFor(() => expect(request.mock.calls.at(-1)![0]).toMatchObject({ sorter: [] }))
   })
 
-  it('QueryList: a sortable column header reaches the request through ProArrayTable', async () => {
+  it('QueryList: a sortable column header reaches the request through ArrayTable', async () => {
     const request = backend()
     function Page() {
       const table = useQueryTable({

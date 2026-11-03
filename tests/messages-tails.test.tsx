@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@t
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createForm, enUS, Field, Form, setDefaultMessages, useForm, useFormMessage, zhCN } from '../src'
 import { moveNode } from '../src/core'
-import { PreviewText, ProArrayTable, ProQueryTable, QueryList, Reset, ShadowDrawer, ShadowPopconfirm, Submit } from '../src/antd'
+import { PreviewText, ArrayTable, ProQueryTable, QueryList, Reset, ShadowDrawer, ShadowPopconfirm, Submit } from '../src/antd'
 import { useQueryTable } from '../src/pro'
 
 afterEach(() => {
@@ -70,15 +70,19 @@ describe('built-in texts go through messages', () => {
     expect(screen.getByTestId('empty').textContent).toBe('—')
   })
 
-  it('ProArrayTable labels follow enUS; component props still win', () => {
+  it('ArrayTable labels follow enUS; component props still win', () => {
     const form = createForm({ initialValues: { list: [{ a: '1' }, { a: '2' }] }, messages: enUS })
     render(
       <Form form={form}>
-        <ProArrayTable
-          name="list"
-          rowSelection
-          columns={[{ key: 'act', title: 'Act', render: () => <><ProArrayTable.MoveUp /><ProArrayTable.Copy /><ProArrayTable.Remove title="Drop" /></> }]}
-          extra={<ProArrayTable.Addition />}
+        <ArrayField name="list"
+          component={[
+            ArrayTable,
+            {
+              rowSelection: true,
+              columns: [{ key: 'act', title: 'Act', render: () => <><ArrayTable.MoveUp /><ArrayTable.Copy /><ArrayTable.Remove title="Drop" /></> }],
+              extra: <ArrayTable.Addition />,
+            },
+          ]}
         />
       </Form>,
     )

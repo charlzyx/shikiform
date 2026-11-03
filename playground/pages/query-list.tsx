@@ -1,7 +1,7 @@
 import { Button, ConfigProvider } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import { Field, Form, useWatch, type Draft } from 'shikiform'
-import { DatePicker, FormItem, Input, ProArrayTable, QueryList, Select, ShadowModal, type ProArrayTableColumn } from 'shikiform/antd'
+import { DatePicker, FormItem, Input, ArrayTable, QueryList, Select, ShadowModal, type ArrayTableColumn } from 'shikiform/antd'
 import { useArrayShadow, useQueryTable } from 'shikiform/pro'
 import { CLASSIFY_ENUM, domainService, STATUS_ENUM, type DomainQuery, type DomainRow } from '../pro-data'
 
@@ -46,7 +46,7 @@ function useDomainTable() {
 /** Table cells: the FormItem decorator only for its error status, without margins. */
 const cell = { style: { margin: 0 } }
 
-const columns: ProArrayTableColumn<DomainRow>[] = [
+const columns: ArrayTableColumn<DomainRow>[] = [
   { key: 'id', title: 'ID', width: 80, align: 'center', sorter: true, render: ({ record }) => <span data-testid="row-id">{record.id}</span> },
   { key: 'status', title: 'STATUS', width: 110, align: 'center', render: () => <Field name="status" pattern="readPretty" decorator={[FormItem, cell]}><Select prettyType="badge" /></Field> },
   { key: 'domain', title: 'DOMAIN', align: 'center', render: ({ index }) => <Field name="domain" decorator={[FormItem, cell]}><Input data-testid={`domain-${index}`} /></Field> },
@@ -115,9 +115,9 @@ export function QueryListAddPage() {
             },
           ]}
           extra={
-            <ProArrayTable.ProAddition<DomainRow> title="添加条目" initialValues={{ id: 0, domain: '', desc: '' } as DomainRow}>
+            <ArrayTable.ShadowAddition<DomainRow> title="添加条目" initialValues={{ id: 0, domain: '', desc: '' } as DomainRow}>
               <RowFields prefix="add" />
-            </ProArrayTable.ProAddition>
+            </ArrayTable.ShadowAddition>
           }
         >
           {SearchFields()}

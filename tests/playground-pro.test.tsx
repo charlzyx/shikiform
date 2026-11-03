@@ -3,8 +3,8 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { afterEach, describe, expect, it } from 'vitest'
 import { CascaderPlusPage } from '../playground/pages/cascader-plus'
 import { MergedPage } from '../playground/pages/merged'
-import { ProArrayTablePage } from '../playground/pages/pro-array-table'
-import { ProArrayTableShadowPage } from '../playground/pages/pro-array-table-shadow'
+import { ArrayTablePage } from '../playground/pages/array-table'
+import { ArrayTableShadowPage } from '../playground/pages/array-table-shadow'
 import { ProEnumPage } from '../playground/pages/pro-enum'
 import { QueryListAddPage, QueryListPage } from '../playground/pages/query-list'
 import { ShadowFormPage } from '../playground/pages/shadow-form'
@@ -25,15 +25,15 @@ const value = (testId: string) => (screen.getByTestId(testId) as HTMLInputElemen
 
 describe('playground routes', () => {
   it('registers every Pro.formily demo route', () => {
-    for (const route of ['pro-array-table', 'pro-array-table-shadow', 'shadow-form', 'pro-enum', 'cascader-plus', 'suggestion', 'query-list', 'query-list-add']) {
+    for (const route of ['array-table', 'array-table-shadow', 'shadow-form', 'pro-enum', 'cascader-plus', 'suggestion', 'query-list', 'query-list-add']) {
       expect(PLAY_ROUTES).toContain(route)
     }
   })
 })
 
-describe('/play/pro-array-table', () => {
+describe('/play/array-table', () => {
   it('pages 23 rows, edits in place, expands a summary + read-only subtable, and loads 100k rows', async () => {
-    render(<ProArrayTablePage />)
+    render(<ArrayTablePage />)
     expect(screen.getByTestId('custom-footer').textContent).toContain('1/3')
     expect(screen.getByTestId('custom-footer').textContent).toContain('23')
     fireEvent.change(screen.getByTestId('a1-0'), { target: { value: 'hello' } })
@@ -52,9 +52,9 @@ describe('/play/pro-array-table', () => {
   }, 20_000)
 })
 
-describe('/play/pro-array-table-shadow', () => {
+describe('/play/array-table-shadow', () => {
   it('edits a row through the shared modal and appends through ProAddition', async () => {
-    render(<ProArrayTableShadowPage />)
+    render(<ArrayTableShadowPage />)
     fireEvent.click(screen.getByTestId('edit-1'))
     await waitFor(() => expect(value('edit-domain')).toBe('www.google.com'))
     fireEvent.change(screen.getByTestId('edit-domain'), { target: { value: 'www.bing.com' } })
