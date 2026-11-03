@@ -1,5 +1,7 @@
 import { Badge } from 'antd'
-import { Children, Fragment, isValidElement, useRef, type ComponentType, type ReactElement, type ReactNode } from 'react'
+import { Children, Fragment, isValidElement, useEffect, useRef, type ComponentType, type ReactElement, type ReactNode } from 'react'
+import { flushSync } from 'react-dom'
+import type { FormEngine } from '../../core/engine/form-engine'
 import { FieldGroupStore } from '../../react/field-group'
 
 /**
@@ -52,4 +54,32 @@ export function ErrorBadge({ count, children }: { count: number; children?: Reac
 /** Throws: a marker element rendered on its own. */
 export function markerOutside(owner: string, name: string): never {
   throw new Error(`[shikiform] <${owner}.${name}> renders only as a direct child of <${owner}>`)
+}
+
+function inPaths(path: string, paths: readonly string[]): boolean {
+  for (const one of paths) if (one === '' || path === one || path.startsWith(one + '.')) return true
+  return false
+}
+
+/**
+ * When a `submit()` / `validate()` call fails (`form.subscribeValidateFailed`), call `reveal` with the indexes of the
+ * panes that hold one of its errors, in pane order (nothing when none does). The switch is flushed synchronously, so
+ * `<Form>`'s focus of the first errored field (a task later) finds the pane shown.
+ */
+export function useRevealOnFail(form: FormEngine<any, any>, groups: readonly FieldGroupStore[], reveal: (indexes: number[]) => void): void {
+  const latest = useRef({ groups, reveal })
+  latest.current = { groups, reveal }
+  useEffect(
+    () =>
+      form.subscribeValidateFailed((errors) => {
+        const { groups: now, reveal: show } = latest.current
+        const hit: number[] = []
+        now.forEach((group, index) => {
+          const paths = group.paths()
+          if (paths.length && errors.some((error) => inPaths(error.path, paths))) hit.push(index)
+        })
+        if (hit.length) flushSync(() => show(hit))
+      }),
+    [form],
+  )
 }

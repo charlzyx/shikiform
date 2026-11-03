@@ -231,6 +231,8 @@ groupRowSpan<T>(rows: readonly T[], groupOf: (row: T) => string): number[]
 | `ArrayTable.useTable()` | 在 `toolbar` / `footer` / 单元格里读表格状态 + 列配置（`useArrayTable` 的返回值加 `settings`） |
 | `ArrayTable.useRow()` | 单元格里的 `{ key, index, position, record }`，建立在 [`useIndex`](/reference/react-hooks#useindex) / [`useRecord`](/reference/react-hooks#userecord) 上，`record` 是响应式的 |
 
+行操作（`SortHandle`、`Remove`、`MoveUp`、`MoveDown`、`Copy`、`Addition`、`ShadowAddition`）和 `ArrayItems` 一样，只在数组的有效 pattern 为 `editable` 时渲染（`pattern` 参数、外层或根的 `readPretty` / `readOnly` / `disabled` 都会隐藏它们）；`Index` 一直显示。
+
 单元格里同样可以直接用 [`useArray()`](/reference/react-hooks#usearray) / `useIndex()` / `useRecord()`。行操作按钮的文案走表单 `messages`（`add`、`remove`、`removeConfirm`、`moveUp`、`moveDown`、`copy`、`dragSort`、`selection*`、`density`、`columnSettings`）。可点的例子：[/play/array-table](/play/array-table)、[/play/array-table-shadow](/play/array-table-shadow)。
 
 ## useArrayEditable
@@ -239,7 +241,7 @@ groupRowSpan<T>(rows: readonly T[], groupOf: (row: T) => string): number[]
 useArrayEditable(): boolean
 ```
 
-最近一层数组（`<ArrayField>` 的容器或行内）的有效 pattern 是否为 `editable`。有效 pattern 沿祖先继承到根：`useForm({ pattern: 'readPretty' })`、`d.$pattern = 'disabled'`、`d.contacts.$pattern = 'readOnly'` 都让它变成 `false`。`ArrayItems` / `ArrayCards` 的动作按钮靠它隐藏；自己写的行操作也用它。在数组外调用抛错。
+最近一层数组（`<ArrayField>` 的容器或行内）的有效 pattern 是否为 `editable`。有效 pattern 沿祖先继承到根：`useForm({ pattern: 'readPretty' })`、`d.$pattern = 'disabled'`、`d.contacts.$pattern = 'readOnly'` 都让它变成 `false`。`ArrayItems` / `ArrayCards` / `ArrayTable` 的动作按钮靠它隐藏；自己写的行操作也用它。在数组外调用抛错。
 
 ## FormTab
 
@@ -249,7 +251,7 @@ useArrayEditable(): boolean
 </FormTab>
 ```
 
-标签页容器（Formily `FormTab`）。子元素必须是 `FormTab.Pane`（可包在 Fragment 里，`false` / `null` 跳过；其他元素抛错）。每个面板都渲染（antd `forceRender`），不活动的只是隐藏：字段的值、JSX 规则、错误都在，提交照常校验和提交。标签标题带错误数徽标：面板里有错（不含 display `none`）的字段数，`0` 时不显示。
+标签页容器（Formily `FormTab`）。子元素必须是 `FormTab.Pane`（可包在 Fragment 里，`false` / `null` 跳过；其他元素抛错）。每个面板都渲染（antd `forceRender`），不活动的只是隐藏：字段的值、JSX 规则、错误都在，提交照常校验和提交。标签标题带错误数徽标：面板里有错（不含 display `none`）的字段数，`0` 时不显示。`submit()` 校验失败或 `form.validate()` 发现错误时，切到**第一个**含有这次错误的面板（受控时只调用 `onChange`），随后 `<Form>` 聚焦第一个有错的字段。
 
 | 参数 | 行为 |
 |---|---|
@@ -269,7 +271,7 @@ useArrayEditable(): boolean
 </FormCollapse>
 ```
 
-折叠面板容器（Formily `FormCollapse`），子元素规则、挂载与错误徽标同 `FormTab`（收起的面板 `forceRender`）。默认全部展开；`accordion` 时默认只展开第一个。`onChange` 总是给 `string[]`。
+折叠面板容器（Formily `FormCollapse`），子元素规则、挂载与错误徽标同 `FormTab`（收起的面板 `forceRender`）。默认全部展开；`accordion` 时默认只展开第一个。`onChange` 总是给 `string[]`。提交 / `form.validate()` 失败时展开所有含有这次错误的面板（已展开的保持；`accordion` 时只展开第一个），受控时只调用 `onChange`。
 
 ## FormStep
 
@@ -281,7 +283,7 @@ const step = useFormStep()
 {step.isLast ? <Submit /> : <Button onClick={step.next}>下一步</Button>}
 ```
 
-分步容器（Formily `FormStep`）：antd `Steps` 条 + 每步一个主体。所有主体都挂载，非当前步加 HTML `hidden`，所以前面步的值一直在；最后一步用普通 `<Submit />` / `<Form onSubmit>`，校验并提交全部步骤。某一步里有字段有错时，它在步骤条上是 `error` 状态。`current` / `items` / `onChange` 由容器控制，其余 props 交给 antd `Steps`。
+分步容器（Formily `FormStep`）：antd `Steps` 条 + 每步一个主体。所有主体都挂载，非当前步加 HTML `hidden`，所以前面步的值一直在；最后一步用普通 `<Submit />` / `<Form onSubmit>`，校验并提交全部步骤。某一步里有字段有错时，它在步骤条上是 `error` 状态。提交 / `form.validate()` 失败时回到**最早**含有这次错误的那一步（`step.goTo`，受控时只调用 `onChange`）；`next()` 只校验当前步，所以它的错误不会让你离开当前步。`current` / `items` / `onChange` 由容器控制，其余 props 交给 antd `Steps`。
 
 ## useFormStep
 

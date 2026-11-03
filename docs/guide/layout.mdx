@@ -116,7 +116,50 @@ export default function App() {
 </FormItem>
 ```
 
-里面的字段各带一个没有标签的 `FormItem`，错误提示显示在各自控件下面。和 Formily 一样，**没有标签的 `FormItem` 不用 `FormLayout` 的 `labelCol` / `wrapperCol` / `labelWidth`**，所以不会在这一行里再缩一次；自己在 `FormItem` 上写的列宽照常生效。不给字段 `FormItem` 时只有控件变红、没有提示文字。
+里面的字段各带一个没有标签的 `FormItem`，错误提示显示在各自控件下面。和 Formily 一样，**没有标签的 `FormItem` 不用 `FormLayout` 的 `labelCol` / `wrapperCol` / `labelWidth`**，所以不会在这一行里再缩一次；自己在 `FormItem` 上写的列宽照常生效。
+
+### 不给里面的字段装饰器：错误汇总到外层
+
+日期区间、`Space.Compact` 拼起来的输入组，控件挨在一起，各自一行提示会把布局撑乱。这时里面的字段不写 `decorator`，外层的纯布局 `FormItem` 把它们的错误显示在自己的提示区：
+
+```tsx preview
+import { Space } from 'antd';
+import { Form, typed, useForm } from 'shikiform';
+import { FormButtonGroup, FormItem, FormLayout, Input, InputNumber, Submit } from 'shikiform/antd';
+
+type Values = { areaCode: string; phoneNumber: string; minAge: number | null; maxAge: number | null };
+
+export default function App() {
+  const form = useForm<Values>({ initialValues: { areaCode: '', phoneNumber: '', minAge: null, maxAge: null } });
+  const F = typed(form);
+  return (
+    <Form form={form} onSubmit={(values) => console.log(values)} data-layout-errors-demo="">
+      <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 16 }}>
+        <FormItem label="电话" asterisk>
+          <Space.Compact>
+            <F.Field name="areaCode" required component={[Input, { placeholder: '区号', style: { width: 80 } }]} />
+            <F.Field name="phoneNumber" required rules={{ pattern: /^\d{7,8}$/, message: '号码是 7–8 位数字' }} component={[Input, { placeholder: '号码' }]} />
+          </Space.Compact>
+        </FormItem>
+        <FormItem label="年龄段">
+          <Space>
+            <F.Field name="minAge" required decorator={[FormItem]} component={[InputNumber, { placeholder: '最小' }]} />
+            <F.Field name="maxAge" required decorator={[FormItem]} component={[InputNumber, { placeholder: '最大' }]} />
+          </Space>
+        </FormItem>
+        <FormButtonGroup.FormItem><Submit /></FormButtonGroup.FormItem>
+      </FormLayout>
+    </Form>
+  );
+}
+```
+
+规则：**纯布局 `FormItem` 显示它里面「没有别的 `FormItem` 在显示」的错误**。
+
+- 字段自己有 `FormItem` 装饰器（上例「年龄段」）：错误在字段自己的提示区，外层不重复。
+- 字段没有装饰器（上例「电话」），或它的 `FormItem` 设了 `feedbackLayout: 'none'`：错误汇总到外层，相同的文案只显示一次。
+- 嵌套的纯布局 `FormItem`：里层显示，外层不重复。
+- 外层的提示用错误色，项上加 `ant-form-item-has-error` 类；但**不**设 antd 的 `validateStatus`，所以只有出错的控件变红，没错的那个不会跟着变红。`feedbackLayout`（`terse` / `popover` / `none`）照常生效。
 
 ## 按钮对齐到控件列
 

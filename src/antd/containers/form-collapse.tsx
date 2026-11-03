@@ -2,7 +2,7 @@ import { Collapse, type CollapseProps } from 'antd'
 import { useState, type ReactNode } from 'react'
 import { FieldGroup, useGroupsErrors } from '../../react/field-group'
 import { useRequiredForm } from '../../react/context'
-import { collectPanes, ErrorBadge, markerOutside, usePaneGroups } from './panes'
+import { collectPanes, ErrorBadge, markerOutside, usePaneGroups, useRevealOnFail } from './panes'
 
 /** One panel of a {@link FormCollapse}. Read as data by `FormCollapse`; it renders nothing on its own. */
 export interface FormCollapsePanelProps {
@@ -41,6 +41,14 @@ function FormCollapseRoot({ activeKey, defaultActiveKey, onChange, accordion, ch
   const errors = useGroupsErrors(form, groups)
   const [inner, setInner] = useState<string[] | undefined>(defaultActiveKey)
   const open = activeKey ?? inner ?? (accordion ? keys.slice(0, 1) : keys)
+  // A failed submit / validate opens the panels with errors (accordion: the first one); controlled: `onChange` only.
+  useRevealOnFail(form, groups, (hit) => {
+    const wanted = hit.map((index) => keys[index]!)
+    const next = accordion ? wanted.slice(0, 1) : [...open, ...wanted.filter((key) => !open.includes(key))]
+    if (next.length === open.length && next.every((key) => open.includes(key))) return
+    if (activeKey === undefined) setInner(next)
+    onChange?.(next)
+  })
   return (
     <Collapse
       {...rest}
@@ -66,7 +74,8 @@ function FormCollapseRoot({ activeKey, defaultActiveKey, onChange, accordion, ch
 /**
  * Collapsible panels whose bodies hold fields (Formily `FormCollapse`). Every panel body is rendered (antd
  * `forceRender`), so fields in a collapsed panel keep their values and are validated / submitted. A panel header
- * shows a badge with the number of fields inside that have errors.
+ * shows a badge with the number of fields inside that have errors. When a submit (or `form.validate()`) fails, the
+ * collapsed panels holding errors open (`accordion`: the first one) and `<Form>` focuses the first errored field.
  *
  * ```tsx
  * <FormCollapse>

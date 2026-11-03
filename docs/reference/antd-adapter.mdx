@@ -109,7 +109,7 @@ interface FormItemProps
 Formily `FormItem`，**不拥有字段**：没有 `name` / `rules` / `required` / `field` 属性。
 
 - **字段里**（`<Field decorator={[FormItem, props]}>`，或放在 `<Field>` 的 children 里）：从上下文读字段，渲染 antd `Form.Item`（props 由 [mapFormItemProps](#mapformitemprops) 计算）。`label` 取字段 `title`，`extra` 取 `description`（显式传入优先）；必填星号跟随 `required`，`readPretty` 下隐藏；`validateStatus` 依次 `error` → `validating` → `warning`；`help` 是**全部**错误（没有错误时是全部警告），一条一行。`display` 为 `hidden` / `none` 时不渲染。
-- **字段外**：纯布局（Formily `FormItem.BaseItem`）。一个标签、同一套列宽包住任何内容，常用来给几个字段一个标签；没有状态和提示；里面的字段各带一个无标签的 `FormItem` 就能显示自己的错误。没有标签的 `FormItem`（字段内外都一样）不继承 `FormLayout` 的 `labelCol` / `wrapperCol` / `labelWidth` / `wrapperWidth`（Formily 同样），自己传的列宽照常生效。
+- **字段外**：纯布局（Formily `FormItem.BaseItem`）。一个标签、同一套列宽包住任何内容，常用来给几个字段一个标签。它显示里面字段的错误中**没有别的 `FormItem` 在显示**的那些：没有装饰器的字段、`FormItem` 设了 `feedbackLayout: 'none'` 的字段（嵌套的纯布局 `FormItem` 由里层显示）；相同文案只显示一次，用错误色并加 `ant-form-item-has-error` 类，不设 `validateStatus`（只有出错的控件变红）。里面的字段各带一个无标签的 `FormItem` 时，错误显示在各自控件下面，外层不重复。没有标签的 `FormItem`（字段内外都一样）不继承 `FormLayout` 的 `labelCol` / `wrapperCol` / `labelWidth` / `wrapperWidth`（Formily 同样），自己传的列宽照常生效。
 
 ```tsx
 <Field name="email" title="邮箱" description="用于登录" required decorator={[FormItem, { tooltip: '工作邮箱' }]} component={[Input]} />
@@ -174,7 +174,7 @@ mapFormItemProps(
 ): antd.FormItemProps
 ```
 
-`FormItem` 的纯函数核心。合并顺序（低 → 高）：`layout`（`FormLayout`）← `field.decoratorProps`（`fields` ← JSX ← `$decoratorProps`）← `props`。`field` 为 `null` 时是纯布局（没有状态和提示）。`env` 是组件自己从上下文读的部分：antd 表单类名前缀（`labelWrap` 用，默认 `ant-form`）、可选标记文案（默认 `(optional)`）、外层 `FormGrid` 的列数（`gridSpan` 用）。`addonBefore` / `addonAfter` 和 `popover` 的浮层是组件自己的标记，不在返回值里。Hook 用户不用组件也能得到同样的装饰：
+`FormItem` 的纯函数核心。合并顺序（低 → 高）：`layout`（`FormLayout`）← `field.decoratorProps`（`fields` ← JSX ← `$decoratorProps`）← `props`。`field` 为 `null` 时是纯布局（没有 `validateStatus`）。`env` 是组件自己从上下文读的部分：antd 表单类名前缀（`labelWrap` 和错误色类名用，默认 `ant-form`）、可选标记文案（默认 `(optional)`）、外层 `FormGrid` 的列数（`gridSpan` 用）、纯布局时要显示的错误 `errors`（组件自己从里面的字段收集；非空时作为错误色的 `help`，项上加 `has-error` 类）。`addonBefore` / `addonAfter` 和 `popover` 的浮层是组件自己的标记，不在返回值里。Hook 用户不用组件也能得到同样的装饰：
 
 ```tsx
 const field = useField('email', { required: true, title: '邮箱' })

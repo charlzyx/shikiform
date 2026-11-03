@@ -23,6 +23,7 @@ import type { DragProps } from '../../react/hooks/drag'
 import { useArrayAt } from '../../react/hooks/use-array'
 import { useFormMessage } from '../../react/hooks/use-form-message'
 import { useIndex, useRecord } from '../../react/hooks/use-row'
+import { useArrayEditable } from '../arrays/array-items'
 import { ShadowDrawer, ShadowModal } from '../shadow/shadow'
 
 /** What a column renderer receives. It already renders inside the row's scope: `<Field name="a1">` is `list.N.a1`. */
@@ -140,6 +141,7 @@ function SortHandle() {
   const { dragProps, row } = useCell()
   const { draggable, onDragStart } = dragProps(row.index)
   const t = useFormMessage()
+  if (!useArrayEditable()) return null
   return (
     <span data-testid="sort-handle" draggable={draggable} onDragStart={onDragStart} style={{ cursor: 'move', userSelect: 'none', padding: '0 4px' }} title={t('dragSort')}>
       ⋮⋮
@@ -158,6 +160,7 @@ function Remove({ confirm, title }: { confirm?: boolean | string; title?: ReactN
   const { table, row } = useCell()
   const busy = table.removing.includes(row.key)
   const t = useFormMessage()
+  if (!useArrayEditable()) return null
   const button = (
     <Button size="small" type="link" danger loading={busy} data-testid="row-remove" onClick={confirm ? undefined : () => void table.remove(row.index)}>
       {title ?? t('remove')}
@@ -174,6 +177,7 @@ function Remove({ confirm, title }: { confirm?: boolean | string; title?: ReactN
 function MoveUp({ title }: { title?: ReactNode }) {
   const { table, row } = useCell()
   const t = useFormMessage()
+  if (!useArrayEditable()) return null
   return (
     <Button size="small" type="link" data-testid="row-up" disabled={row.index === 0} onClick={() => table.moveUp(row.index)}>
       {title ?? t('moveUp')}
@@ -184,6 +188,7 @@ function MoveUp({ title }: { title?: ReactNode }) {
 function MoveDown({ title }: { title?: ReactNode }) {
   const { table, row } = useCell()
   const t = useFormMessage()
+  if (!useArrayEditable()) return null
   return (
     <Button size="small" type="link" data-testid="row-down" disabled={row.index >= table.rows.length - 1} onClick={() => table.moveDown(row.index)}>
       {title ?? t('moveDown')}
@@ -194,6 +199,7 @@ function MoveDown({ title }: { title?: ReactNode }) {
 function Copy({ title }: { title?: ReactNode }) {
   const { table, row } = useCell()
   const t = useFormMessage()
+  if (!useArrayEditable()) return null
   return (
     <Button size="small" type="link" data-testid="row-copy" onClick={() => table.copy(row.index)}>
       {title ?? t('copy')}
@@ -205,6 +211,7 @@ function Copy({ title }: { title?: ReactNode }) {
 function Addition({ title, defaultValue }: { title?: ReactNode; defaultValue?: () => any }) {
   const table = useTable()
   const t = useFormMessage()
+  if (!useArrayEditable()) return null
   return (
     <Button size="small" type="dashed" data-testid="row-add" onClick={() => table.add(defaultValue ? defaultValue() : {})}>
       {title ?? t('add')}
@@ -231,6 +238,7 @@ function ShadowAddition<TRow = any>({
 }) {
   const table = useTable()
   const t = useFormMessage()
+  const editable = useArrayEditable()
   const shadow = useShadowForm<TRow>({
     ...shadowOptions,
     onOk: async (values) => {
@@ -238,6 +246,7 @@ function ShadowAddition<TRow = any>({
       if (handled !== false) table.add(values)
     },
   })
+  if (!editable) return null
   const trigger = (
     <Button size="small" type="dashed" data-testid="pro-addition" onClick={() => void shadow.open(initialValues ?? ({} as TRow))}>
       {title ?? t('add')}
@@ -396,6 +405,9 @@ function ResizableTitle({ onResize, width, ...rest }: ThHTMLAttributes<HTMLTable
  * server page), row selection with a 全选 / 反选 bar, expandable rows rendered in the row scope (nested tables), column
  * settings and density, resizable headers, drag sort, async remove, and header / footer slots.
  * The array path and `rowKey` come from the surrounding `<ArrayField>`.
+ *
+ * Row actions (`SortHandle`, `Remove`, `MoveUp`, `MoveDown`, `Copy`, `Addition`, `ShadowAddition`) render only while
+ * the array's effective pattern is `editable` (readPretty / readOnly / disabled hide them), like `ArrayItems`.
  *
  * Cells are plain render functions in the row scope, so the field components are the usual ones:
  *

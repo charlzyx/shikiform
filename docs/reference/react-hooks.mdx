@@ -541,7 +541,7 @@ interface FieldGroupHandle {
 
 一块 JSX 区域里的字段集合。`<FieldGroup value={group}>` 不渲染 DOM；它里面每个 `<Field>` / `useField(name)` / `<ArrayField>` / `useArrayField` 挂载期间把自己的绝对路径登记进去，卸载时移除；嵌套的 `FieldGroup` 同时登记进所有外层组。句柄在组件生命周期内稳定。只收集**挂载**的字段：只在 `fields` 里声明、没渲染的字段不在组里。
 
-`form.validate(group.paths())` 只校验这一组（一次校验）。`FormTab` / `FormCollapse` 的错误徽标、`FormStep` 的「下一步」都是它；纯布局 `FormItem` 以后可以用它汇总里面字段的错误。
+`form.validate(group.paths())` 只校验这一组（一次校验）。`FormTab` / `FormCollapse` 的错误徽标和提交失败时切到有错的面板、`FormStep` 的「下一步」、纯布局 `FormItem` 汇总里面字段的错误，都建立在它上面。
 
 ## useFieldGroupErrors
 

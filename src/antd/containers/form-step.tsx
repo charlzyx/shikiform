@@ -3,7 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import type { FormEngine } from '../../core/engine/form-engine'
 import { FieldGroup, useGroupsErrors, type FieldGroupStore } from '../../react/field-group'
 import { useRequiredForm } from '../../react/context'
-import { collectPanes, markerOutside, usePaneGroups } from './panes'
+import { collectPanes, markerOutside, usePaneGroups, useRevealOnFail } from './panes'
 
 const useIsoLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 
@@ -158,6 +158,8 @@ function FormStepRoot({ step, children, ...rest }: FormStepProps) {
     [internal],
   )
   const current = step.current
+  // A failed submit / validate goes to the earliest step with an error (controlled: `onChange` only).
+  useRevealOnFail(form, groups, ([first]) => step.goTo(first!))
   return (
     <div data-form-step="">
       <Steps
@@ -183,7 +185,8 @@ function FormStepRoot({ step, children, ...rest }: FormStepProps) {
 /**
  * A step-by-step form (Formily `FormStep`): an antd `Steps` bar and one body per `<FormStep.Step>`. Every body is
  * mounted (others are `hidden`), so earlier answers stay and the final submit validates and submits every step.
- * `step.next()` validates only the current step's fields; a step with errors shows the `error` status.
+ * `step.next()` validates only the current step's fields; a step with errors shows the `error` status. When a
+ * submit (or `form.validate()`) fails, the earliest step with an error becomes current and `<Form>` focuses its field.
  * The last step submits with the usual `<Submit />` / `<Form onSubmit>`.
  *
  * ```tsx

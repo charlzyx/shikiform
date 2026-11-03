@@ -1,5 +1,8 @@
 import { ConfigProvider, Form, Popover, theme, type ColProps, type FormItemProps as AntFormItemProps } from 'antd'
-import { useContext, type CSSProperties, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from 'react'
+import type { FormEngine } from '../../core/engine/form-engine'
+import { FormContext } from '../../react/context'
+import { FieldGroup, FieldGroupStore, useGroupsErrors } from '../../react/field-group'
 import { useFieldContextOrNull } from '../../react/field-context'
 import { useUiNodeOrNull } from '../../react/components/ui'
 import type { FieldBinding } from '../../react/hooks/use-field'
@@ -42,6 +45,11 @@ export interface FormItemEnv {
   optionalText?: ReactNode
   /** Current column count of the surrounding `FormGrid`, if any (clamps `gridSpan`). */
   gridColumns?: number
+  /**
+   * Pure layout only (`field` is `null`): the errors of the fields inside that no inner `FormItem` shows. They are
+   * the item's help (error colour) unless `feedbackLayout` is `'none'` / `'popover'`. `FormItem` collects them itself.
+   */
+  errors?: readonly string[]
 }
 
 /** A `FieldBinding`-shaped stand-in for pure-layout use (no field around the item). */
@@ -98,7 +106,16 @@ export function mapFormItemProps(
   } = merged
   const status = binding.errors.length ? 'error' : binding.validating ? 'validating' : binding.warnings.length ? 'warning' : undefined
   const messages = binding.errors.length ? binding.errors : binding.warnings
-  const help = feedbackLayout === 'none' || feedbackLayout === 'popover' ? undefined : feedback(messages)
+  const quiet = feedbackLayout === 'none' || feedbackLayout === 'popover'
+  // A layout item's errors belong to the fields inside: no `validateStatus` (antd would turn every control inside red,
+  // the clean ones too); each errored control is red through its own field, the messages take antd's error colour.
+  const inner = !field && env.errors?.length ? env.errors : undefined
+  const errorCls = `${env.prefixCls ?? 'ant-form'}-item-explain-error`
+  const help = quiet
+    ? undefined
+    : inner
+      ? inner.map((message, index) => <div key={index} className={errorCls}>{message}</div>)
+      : feedback(messages)
   const isRequired = asterisk ?? (binding.required && binding.pattern !== 'readPretty')
   let text: ReactNode = label ?? (field?.title as ReactNode)
   if (tooltipLayout === 'text' && tooltip && text) {
@@ -123,6 +140,7 @@ export function mapFormItemProps(
     const span = gridSpan < 0 ? '1 / -1' : `span ${Math.max(1, Math.min(gridSpan, env.gridColumns))}`
     mergedStyle = { gridColumn: span, ...mergedStyle }
   }
+  if (inner) rest.className = [rest.className, `${env.prefixCls ?? 'ant-form'}-item-has-error`].filter(Boolean).join(' ')
   const out: AntFormItemProps = {
     ...(field ? { htmlFor: field.id } : {}),
     ...rest,
@@ -143,6 +161,40 @@ export function mapFormItemProps(
 const ADDON_ROW: CSSProperties = { display: 'flex', alignItems: 'center', gap: 8 }
 
 /**
+ * Who shows which field's errors, so a pure-layout item does not repeat them. A field item that shows feedback
+ * claims its path (exact) in every layout item around it; a layout item claims the paths of its group (with their
+ * descendants) in the layout items around it.
+ */
+class FeedbackClaims {
+  readonly exact = new FieldGroupStore()
+  readonly deep = new FieldGroupStore()
+  subscribe = (listener: () => void): (() => void) => {
+    const a = this.exact.subscribe(listener)
+    const b = this.deep.subscribe(listener)
+    return () => {
+      a()
+      b()
+    }
+  }
+  version = (): string => `${this.exact.version()},${this.deep.version()}`
+  covers(path: string): boolean {
+    if (this.exact.paths().includes(path)) return true
+    return this.deep.paths().some((one) => one === '' || path === one || path.startsWith(one + '.'))
+  }
+}
+
+interface ClaimRegistrar {
+  claim(path: string, deep: boolean): () => void
+}
+
+const ClaimContext = createContext<ClaimRegistrar | null>(null)
+
+function useClaim(path: string | undefined, deep: boolean): void {
+  const registrar = useContext(ClaimContext)
+  useEffect(() => (registrar && path !== undefined ? registrar.claim(path, deep) : undefined), [registrar, path, deep])
+}
+
+/**
  * Decorator for the current field (Formily `FormItem`). It owns nothing: use it as a `<Field>` decorator,
  *
  * ```tsx
@@ -154,14 +206,102 @@ const ADDON_ROW: CSSProperties = { display: 'flex', alignItems: 'center', gap: 8
  * the inherited {@link FormLayout}. Display `hidden` / `none` renders nothing.
  *
  * Outside a field it is pure layout (Formily `FormItem.BaseItem`): a label and the layout's columns around anything,
- * e.g. one label over two fields —
+ * e.g. one label over two fields. It shows the errors of the fields inside that no inner `FormItem` shows (a field
+ * without a decorator, or one whose item has `feedbackLayout: 'none'`), once per distinct message:
  *
  * ```tsx
- * <FormItem label="地址"><Space><Field name="province" component={[Select]} /><Field name="city" component={[Select]} /></Space></FormItem>
+ * <FormItem label="日期" asterisk>
+ *   <Space.Compact><Field name="start" component={[DatePicker]} /><Field name="end" component={[DatePicker]} /></Space.Compact>
+ * </FormItem>
  * ```
  */
-export function FormItem({ children, ...props }: FormItemProps) {
+export function FormItem(props: FormItemProps) {
   const field = useFieldContextOrNull()
+  const form = useContext(FormContext)
+  if (field) return <FieldFormItem field={field} props={props} />
+  if (form) return <LayoutFormItem form={form} props={props} />
+  return <FormItemView field={null} props={props} errors={undefined} />
+}
+
+function FieldFormItem({ field, props }: { field: FieldBinding<any>; props: FormItemProps }) {
+  const layout = useFormLayout()
+  const feedbackLayout = props.feedbackLayout ?? field.decoratorProps.feedbackLayout ?? layout.feedbackLayout
+  useClaim(field.display === 'visible' && feedbackLayout !== 'none' ? field.path : undefined, false)
+  if (field.display !== 'visible') return null
+  return <FormItemView field={field} props={props} errors={undefined} />
+}
+
+function LayoutFormItem({ form, props }: { form: FormEngine<any, any>; props: FormItemProps }) {
+  const parent = useContext(ClaimContext)
+  const layout = useFormLayout()
+  const [group] = useState(() => new FieldGroupStore())
+  const [claims] = useState(() => new FeedbackClaims())
+  const registrar = useMemo<ClaimRegistrar>(
+    () => ({
+      claim(path, deep) {
+        const own = (deep ? claims.deep : claims.exact).add(path)
+        const up = parent?.claim(path, deep)
+        return () => {
+          own()
+          up?.()
+        }
+      },
+    }),
+    [claims, parent],
+  )
+  const shows = (props.feedbackLayout ?? layout.feedbackLayout) !== 'none'
+  // This item shows the errors of its group, so the layout items around it must not show them again.
+  useEffect(() => {
+    if (!parent || !shows) return
+    const held = new Map<string, () => void>()
+    const sync = () => {
+      const now = new Set(group.paths())
+      for (const [path, release] of held) {
+        if (!now.has(path)) {
+          release()
+          held.delete(path)
+        }
+      }
+      for (const path of now) if (!held.has(path)) held.set(path, parent.claim(path, true))
+    }
+    sync()
+    const stop = group.subscribe(sync)
+    return () => {
+      stop()
+      for (const release of held.values()) release()
+    }
+  }, [parent, group, shows])
+  const errors = useGroupsErrors(form, [group])[0]!
+  const claimed = useSyncExternalStore(claims.subscribe, claims.version, claims.version)
+  const messages = useMemo(() => {
+    const out: string[] = []
+    for (const error of errors) {
+      if (claims.covers(error.path)) continue
+      for (const message of error.messages) if (!out.includes(message)) out.push(message)
+    }
+    return out
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [errors, claimed, claims])
+  return (
+    <FormItemView field={null} props={props} errors={messages}>
+      <ClaimContext.Provider value={registrar}>
+        <FieldGroup value={group}>{props.children}</FieldGroup>
+      </ClaimContext.Provider>
+    </FormItemView>
+  )
+}
+
+function FormItemView({
+  field,
+  props: { children: own, ...props },
+  errors,
+  children = own,
+}: {
+  field: FieldBinding<any> | null
+  props: FormItemProps
+  errors: readonly string[] | undefined
+  children?: ReactNode
+}) {
   const node = useUiNodeOrNull()
   // The decorator of a `<UI title description>`: label / extra come from the node (props win).
   if (!field && node) props = { label: node.title, extra: node.description, ...props }
@@ -170,7 +310,6 @@ export function FormItem({ children, ...props }: FormItemProps) {
   const t = useFormMessage()
   const { getPrefixCls } = useContext(ConfigProvider.ConfigContext)
   const { token } = theme.useToken()
-  if (field && field.display !== 'visible') return null
   const decorator = field?.decoratorProps ?? {}
   const pick = <K extends 'size' | 'feedbackLayout' | 'addonBefore' | 'addonAfter'>(key: K) => (props[key] ?? decorator[key]) as FormItemProps[K]
   const size = pick('size') ?? layout.size
@@ -181,6 +320,7 @@ export function FormItem({ children, ...props }: FormItemProps) {
     prefixCls: getPrefixCls('form'),
     optionalText: t('optional'),
     gridColumns: grid?.columns,
+    errors,
   })
   let content: ReactNode = children
   if (addonBefore !== undefined || addonAfter !== undefined) {
@@ -192,14 +332,16 @@ export function FormItem({ children, ...props }: FormItemProps) {
       </div>
     )
   }
-  if (feedbackLayout === 'popover' && field) {
-    const messages = field.errors.length ? field.errors : field.warnings
-    const color = field.errors.length ? token.colorError : token.colorWarning
-    content = (
-      <Popover open={messages.length > 0} placement="top" content={<div style={{ color }}>{feedback(messages)}</div>}>
-        <div data-feedback-popover>{content}</div>
-      </Popover>
-    )
+  if (feedbackLayout === 'popover') {
+    const failed = field ? field.errors.length > 0 : !!errors?.length
+    const messages = field ? (field.errors.length ? field.errors : field.warnings) : (errors ?? [])
+    if (field || messages.length || errors) {
+      content = (
+        <Popover open={messages.length > 0} placement="top" content={<div style={{ color: failed ? token.colorError : token.colorWarning }}>{feedback(messages)}</div>}>
+          <div data-feedback-popover>{content}</div>
+        </Popover>
+      )
+    }
   }
   const item = <Form.Item {...itemProps}>{content}</Form.Item>
   return size && size !== layout.size ? <ConfigProvider componentSize={size}>{item}</ConfigProvider> : item

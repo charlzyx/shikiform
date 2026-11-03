@@ -47,3 +47,24 @@ test('FormStep guide: next validates only the current step; values survive back;
   await demo.getByRole('button', { name: /提\s*交/ }).click()
   await expect(demo.locator('[data-step-result]')).toContainText('"nickname": "ada"')
 })
+
+test('FormTab guide: a failed submit switches to the first tab with an error and focuses its field', async ({ page }) => {
+  await gotoHydrated(page, '/guide/containers')
+  const demo = page.locator('[data-form-tab-demo]').first()
+  await demo.getByLabel('姓名').fill('Ada')
+  await demo.getByRole('button', { name: /提\s*交/ }).click()
+  await expect(demo.getByRole('tab', { name: /联系方式/ })).toHaveAttribute('aria-selected', 'true')
+  await expect(demo.getByLabel('邮箱')).toBeFocused()
+})
+
+test('Layout guide: a pure-layout FormItem shows the errors of undecorated fields inside it once', async ({ page }) => {
+  await gotoHydrated(page, '/guide/layout')
+  const demo = page.locator('[data-layout-errors-demo]').first()
+  await demo.getByRole('button', { name: /提\s*交/ }).click()
+  const phone = demo.locator('.ant-form-item').filter({ has: page.getByText('电话', { exact: true }) }).first()
+  await expect(phone).toHaveClass(/ant-form-item-has-error/)
+  await expect(phone.locator('.ant-form-item-explain-error')).toHaveCount(1)
+  // The age fields have their own FormItem: their messages are not repeated by the outer item.
+  const ages = demo.locator('.ant-form-item').filter({ has: page.getByText('年龄段', { exact: true }) }).first()
+  await expect(ages.locator('.ant-form-item-explain-error')).toHaveCount(2)
+})
