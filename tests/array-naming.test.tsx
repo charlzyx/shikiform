@@ -5,7 +5,14 @@ import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-li
 import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as root from '../src'
-import { ArrayField, createForm, Form, typed, useArrayField, useTreeField } from '../src'
+import { ArrayField, createForm, FieldGroup, Form, ObjectField, typed, useArrayField, useFieldGroup, useFieldGroupErrors, type FieldGroupHandle, useTreeField, TreeField } from '../src'
+
+// 测试辅助：把 Holder 里创建的组句柄共享给兄弟组件
+let sharedGroup: FieldGroupHandle | undefined
+function useSharedGroup(): FieldGroupHandle {
+  if (!sharedGroup) throw new Error('Holder has not run')
+  return sharedGroup
+}
 import { ShikiUsageError } from '../src/core'
 import * as antd from '../src/antd'
 import { ArrayItems, ArrayTable, Input, type ArrayTableColumn } from '../src/antd'
@@ -185,6 +192,62 @@ describe('dragProps on the array and tree handles', () => {
       result.current.dragProps([0, 0]).onDrop(event)
     })
     expect(form.values.nodes.map((node: { id: string }) => node.id)).toEqual(['a'])
+  })
+})
+
+describe('useTreeField aligns with useField / useArrayField', () => {
+  it('a name repeating the scope prefix throws ShikiUsageError in development with the fix', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const form = createForm({ initialValues: { form: { nodes: [{ id: 'a', children: [] }] } } })
+      function Inner() {
+        useTreeField('form.nodes')
+        return null
+      }
+      expect(() =>
+        render(
+          <Form form={form}>
+            <ObjectField name="form">
+              <Inner />
+            </ObjectField>
+          </Form>,
+        ),
+      ).toThrow(/Field name "form\.nodes" is inside the "form" scope.*write name="nodes"/s)
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
+  it('the tree root registers into the nearest FieldGroup (badges / step validation see the subtree)', async () => {
+    const form = createForm({ initialValues: { nodes: [{ id: 'a', label: '' }] }, fields: { 'nodes.*.label': { required: true } } })
+    function Probe() {
+      // 组句柄建在 Holder 里（useFieldGroup 绑定组件生命周期），共享同一 store
+      const group = useSharedGroup()
+      const errors = useFieldGroupErrors(group)
+      return <span data-testid="errors">{errors.map((e) => e.path).join(',')}</span>
+    }
+    let captured: FieldGroupHandle | undefined
+    function Holder() {
+      const group = useFieldGroup()
+      sharedGroup = group
+      captured = group
+      return (
+        <FieldGroup value={group}>
+          <Probe />
+          <TreeField name="nodes">{() => null}</TreeField>
+        </FieldGroup>
+      )
+    }
+    const view = render(
+      <Form form={form}>
+        <Holder />
+      </Form>,
+    )
+    await act(async () => {
+      await form.validate()
+    })
+    expect(captured!.paths()).toContain('nodes')
+    expect(view.getByTestId('errors').textContent).toContain('nodes')
   })
 })
 

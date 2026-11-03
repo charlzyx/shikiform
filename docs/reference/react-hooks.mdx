@@ -463,7 +463,7 @@ useTreeField(name: string, options?: {
 | `move(from, to)` | 使用移动后的最终索引坐标；拒绝移到自己的后代，失败看 `reason` |
 | `dragProps(pos)` | 这个节点的原生 HTML5 拖动属性：拖到另一个节点上 = `move(源, 目标)`；拖动开始和放下都阻止冒泡，嵌套节点只处理自己。被拒绝的移动不提示，需要提示时自己调 `move` 看 `reason` |
 
-它只订阅树结构，不订阅每个节点的文字/勾选状态。节点编辑单独用 `useField`，读取选定值用 `useWatch`。要让 React 挂载前的树联动也认识自定义 `childrenKey`，在 `useForm({ trees: { ... } })` 里声明配置。
+`useTreeField` 与 `useField` / `useArrayField` 一致：名字按当前 scope 解析（开发期名字重复 scope 前缀会抛 `ShikiUsageError` 并提示修法），树根路径登记进最近的 `FieldGroup`（FormTab 徽标、FormStep 分步校验会包含树内字段）。它只订阅树结构，不订阅每个节点的文字/勾选状态。节点编辑单独用 `useField`，读取选定值用 `useWatch`。要让 React 挂载前的树联动也认识自定义 `childrenKey`，在 `useForm({ trees: { ... } })` 里声明配置。
 
 `[0, 2]` 表示第一个根节点的第三个孩子，不是节点 ID。稳定 ID 用于移动时保持字段状态；不要用当前坐标代替业务 ID。
 
@@ -539,7 +539,7 @@ interface FieldGroupHandle {
 }
 ```
 
-一块 JSX 区域里的字段集合。`<FieldGroup value={group}>` 不渲染 DOM；它里面每个 `<Field>` / `useField(name)` / `<ArrayField>` / `useArrayField` 挂载期间把自己的绝对路径登记进去，卸载时移除；嵌套的 `FieldGroup` 同时登记进所有外层组。句柄在组件生命周期内稳定。只收集**挂载**的字段：只在 `fields` 里声明、没渲染的字段不在组里。
+一块 JSX 区域里的字段集合。`<FieldGroup value={group}>` 不渲染 DOM；它里面每个 `<Field>` / `useField(name)` / `<ArrayField>` / `useArrayField` / `useTreeField` 挂载期间把自己的绝对路径登记进去，卸载时移除；嵌套的 `FieldGroup` 同时登记进所有外层组。句柄在组件生命周期内稳定。只收集**挂载**的字段：只在 `fields` 里声明、没渲染的字段不在组里。
 
 `form.validate(group.paths())` 只校验这一组（一次校验）。`FormTab` / `FormCollapse` 的错误徽标和提交失败时切到有错的面板、`FormStep` 的「下一步」、纯布局 `FormItem` 汇总里面字段的错误，都建立在它上面。
 

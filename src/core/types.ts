@@ -504,7 +504,7 @@ export interface DraftState<T> {
 export type DraftNav<T> = T extends readonly (infer E)[]
   ? { [index: number]: Draft<E> }
   : T extends object
-    ? { [K in keyof T]-?: Draft<NonNullable<T[K]>> }
+    ? { [K in keyof T]-?: Draft<T[K]> }
     : Record<string, never>
 
 /** One field's messages. `path` is the exact index path (`items.0.name`). */
