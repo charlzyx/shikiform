@@ -8,11 +8,11 @@ test('UI guide: an echo instance turns red; a pure UI alert follows the amount a
   await echoDemo.getByLabel('昵称').fill('abc')
   const echo = echoDemo.locator('[data-echo]')
   await expect(echo).toHaveText('abc')
-  await expect(echo).toHaveAttribute('id', 'nickname--echo')
+  await expect(echo).toHaveAttribute('id', 'echo-nickname--echo')
   await expect(echo).not.toHaveCSS('color', 'rgb(255, 0, 0)')
   await echoDemo.getByLabel('昵称').fill('abcdefghij')
   await expect(echo).toHaveCSS('color', 'rgb(255, 0, 0)')
-  await expect(echoDemo.getByLabel('昵称')).toHaveAttribute('id', 'nickname')
+  await expect(echoDemo.getByLabel('昵称')).toHaveAttribute('id', 'echo-nickname')
 
   const alertDemo = page.locator('[data-ui-alert-demo]').first()
   await expect(alertDemo.getByRole('alert')).toHaveCount(0)

@@ -170,7 +170,7 @@ interface UseFieldOptions<TValue = any> {
 
 | 属性 | 类型与用途 |
 |---|---|
-| `path` / `id` | `string`；完整数据路径 / label 关联 ID |
+| `path` / `id` | `string`；完整数据路径 / 给 label 的 DOM id。在 `<Form>` 里 id 带表单前缀（`<Form id>`，没传则 React `useId()`）加净化路径：`user.name` → `<前缀>-user-name`。引擎 `binding().id` 不含前缀 |
 | `value` | 当前路径值，类型由上述泛型决定 |
 | `onChange(value)` | `(value: TValue) => void`；写入值，不接收 DOM event |
 | `onBlur()` | `() => void`；标记 touched，并按配置触发校验 |
@@ -218,7 +218,7 @@ function MyDecorator({ children }: { children?: ReactNode }) {
 const field = useField('amount', { ui: 'slider' })                  // 同上的 Hook 写法
 ```
 
-- 返回的 binding：`value` / `onChange` / `errors` / `required` / `options` 是字段的；`display` / `pattern` / `disabled` / `readOnly` / UI 状态是实例的；`id` 是 `<path>--<ui>`（`amount--slider`），label 不会指错；`ui` 是实例名。实例里的无参 `useField()` 返回这份 binding。
+- 返回的 binding：`value` / `onChange` / `errors` / `required` / `options` 是字段的；`display` / `pattern` / `disabled` / `readOnly` / UI 状态是实例的；`id` 是带表单前缀的 `<前缀>-<净化路径>--<ui>`（`<Form id="edit">` 下的 `amount` / `slider` 为 `edit-amount--slider`），label 不会指错；`ui` 是实例名。实例里的无参 `useField()` 返回这份 binding。
 - 优先级：reaction（`$ui(name).$pattern`）> JSX（实例上的 `pattern` / `componentProps` …）> 回退。回退：`display` / `pattern` 取字段的有效值（字段继承根 `$pattern`，实例也跟着）；`title` / `description` 取字段的声明 + reaction 值；`componentProps` / `decoratorProps` 不回退（是另一个组件的）。
 - 实例**不**登记 JSX `rules` / `required` / `enum` / `virtual`（开发期警告一次）：这些写在不带 `ui` 的 `<Field>` 上。
 - 名字类型：默认任意字符串；在 `UiNames` 里登记后 `ui` / `<UI name>` / `$ui()` 都检查拼写（见 [UI 节点](/guide/ui#名字的类型)）。

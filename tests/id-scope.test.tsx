@@ -164,4 +164,40 @@ describe('Radio / Checkbox group htmlFor', () => {
     await settle()
     expect(document.activeElement).toBe(view.container.querySelector('#choice-kind'))
   })
+
+  it('puts the field id on the first hand-written Radio.Button / Checkbox, and not on the rest', async () => {
+    const form = createForm({ initialValues: { kind: undefined, agree: [] as string[] } })
+    const view = render(
+      <Form form={form} id="choice">
+        <Field name="kind" title="类型" required decorator={[FormItem]}>
+          <Radio.Group>
+            <Radio.Button value="p">个人</Radio.Button>
+            <Radio.Button value="c">公司</Radio.Button>
+          </Radio.Group>
+        </Field>
+        <Field name="agree" title="同意" required decorator={[FormItem]}>
+          <Checkbox.Group>
+            <>
+              <Checkbox value="a">甲</Checkbox>
+              <Checkbox value="b" id="custom-b">乙</Checkbox>
+            </>
+          </Checkbox.Group>
+        </Field>
+        <button type="submit">保存</button>
+      </Form>,
+    )
+    const radios = [...view.container.querySelectorAll('input[type="radio"]')]
+    expect(radios.map((el) => el.id)).toEqual(['choice-kind', ''])
+    expect(view.container.querySelector('.ant-radio-group')!.id).not.toBe('choice-kind')
+    const boxes = [...view.container.querySelectorAll('input[type="checkbox"]')]
+    expect(boxes.map((el) => el.id)).toEqual(['choice-agree', 'custom-b'])
+    expect(view.container.querySelector('.ant-checkbox-group')!.id).not.toBe('choice-agree')
+    expect([...view.container.querySelectorAll('.ant-form-item-label label')].map((label) => label.getAttribute('for'))).toEqual([
+      'choice-kind',
+      'choice-agree',
+    ])
+    fireEvent.click(view.getByText('保存'))
+    await settle()
+    expect(document.activeElement).toBe(view.container.querySelector('#choice-kind'))
+  })
 })

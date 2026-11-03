@@ -20,7 +20,7 @@ import {
 import type { UploadFile } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
 import customParseFormat from 'dayjs/plugin/customParseFormat.js'
-import type { ComponentProps, ComponentType, FocusEventHandler } from 'react'
+import { Children, cloneElement, Fragment, isValidElement, type ComponentProps, type ComponentType, type FocusEventHandler, type ReactElement, type ReactNode } from 'react'
 import { useFormMessage } from '../../react/hooks/use-form-message'
 import { connect, mapProps, mapReadPretty, type ComponentStatics } from '../adapter/connect'
 import { isEmptyValue, PreviewText, type PreviewTextProps, type PrettyType } from '../adapter/preview'
@@ -53,34 +53,82 @@ function withPretty<C extends ComponentType<any>>(component: C): ComponentStatic
 
 const choice = mapProps({ options: 'options', loading: 'loading', readOnly: 'disabled' }, stripPrettyType)
 
+/** Marks a grouped `Checkbox` so it does not copy the field id onto every option. */
+const OPTION_KEEP = Symbol('shiki-option-keep')
+const OPTION_DROP = Symbol('shiki-option-drop')
+
 /**
  * Ant Design puts a group `id` on the wrapper div, which `<label htmlFor>` cannot activate, so the group drops it.
- * The field id goes on the first option that does not already have one: that option's `<input>` is what
- * `FormItem`'s label points at, and what a failed submit focuses. Hand-written children (`Radio.Button`) are left
- * alone — there is no option list to stamp.
+ * The field id goes on the first option that does not already have one — an `options` entry, or a hand-written
+ * child (`Radio.Button`, `Checkbox`). That option's `<input>` is what `FormItem`'s label points at, and what a
+ * failed submit focuses.
  */
 function labelFirstOption(props: Record<string, any>, field: { id?: string }): Record<string, any> {
   const id = field.id
+  if (!id || props.id === id) return props
   const options = props.options
-  if (!id || props.id === id || !Array.isArray(options) || options.length === 0) return props
-  let stamped = false
-  let changed = false
-  const next = options.map((option) => {
-    if (stamped || option == null) return option
-    if (typeof option !== 'object') {
+  if (Array.isArray(options) && options.length > 0) {
+    let stamped = false
+    let changed = false
+    const next = options.map((option) => {
+      if (stamped || option == null) return option
+      if (typeof option !== 'object') {
+        stamped = true
+        changed = true
+        return { label: option, value: option, id }
+      }
+      if (option.id) {
+        if (option.id === id) stamped = true
+        return option
+      }
       stamped = true
       changed = true
-      return { label: option, value: option, id }
+      return { ...option, id }
+    })
+    return changed ? { ...props, options: next } : props
+  }
+  if (props.children == null) return props
+  const children = stampOptionChildren(props.children, id)
+  return children === props.children ? props : { ...props, children }
+}
+
+/**
+ * `Checkbox` reads the surrounding field and would put the field id on every option. The group stamps the field
+ * id on the first option that has none; the rest drop that copied id and keep an id they already had.
+ */
+function dropGroupedCheckboxId(props: Record<string, any>, field: { id?: string }): Record<string, any> {
+  if (OPTION_KEEP in props) {
+    const next = { ...props }
+    delete next[OPTION_KEEP]
+    return next
+  }
+  if (!(OPTION_DROP in props)) return props
+  const next = { ...props }
+  delete next[OPTION_DROP]
+  if (next.id === field.id) delete next.id
+  return next
+}
+
+/** The connected `Checkbox`, set after it is created. Compared by identity when stamping group children. */
+let checkboxType: ComponentType<any> | undefined
+
+function stampOptionChildren(children: ReactNode, id: string): ReactNode {
+  let stamped = false
+  const visit = (nodes: ReactNode): ReactNode => Children.map(nodes, (child) => {
+    if (!isValidElement(child)) return child
+    if (child.type === Fragment) return cloneElement(child, {}, visit((child.props as { children?: ReactNode }).children))
+    const props = child.props as { id?: string }
+    const box = checkboxType != null && child.type === checkboxType
+    if (!stamped && (!props.id || props.id === id)) {
+      stamped = true
+      const extra: { id: string; [OPTION_KEEP]?: true } = { id }
+      if (box) extra[OPTION_KEEP] = true
+      return cloneElement(child as ReactElement<{ id?: string }>, extra)
     }
-    if (option.id) {
-      if (option.id === id) stamped = true
-      return option
-    }
-    stamped = true
-    changed = true
-    return { ...option, id }
+    if (box) return cloneElement(child as ReactElement<Record<string, unknown>>, { [OPTION_DROP]: true })
+    return child
   })
-  return changed ? { ...props, options: next } : props
+  return visit(children)
 }
 
 const group = mapProps(
@@ -148,9 +196,11 @@ export const Switch = connect(AntSwitch as SwitchWithBlur, mapProps({ value: 'ch
  * Single checkbox: field value ↔ `checked`; `readPretty` shows `messages.yes` / `no`.
  * `Checkbox.Group` binds an array with enum `options`; `readPretty` shows the labels as tags.
  */
-export const Checkbox = Object.assign(connect(AntCheckbox, mapProps({ value: 'checked', readOnly: 'disabled', status: false }), mapReadPretty(BooleanPreview)), {
-  Group: connect(withPretty(AntCheckbox.Group), group, mapReadPretty(PreviewText.Select)),
-})
+export const Checkbox = Object.assign(
+  connect(AntCheckbox, mapProps({ value: 'checked', readOnly: 'disabled', status: false }, dropGroupedCheckboxId), mapReadPretty(BooleanPreview)),
+  { Group: connect(withPretty(AntCheckbox.Group), group, mapReadPretty(PreviewText.Select)) },
+)
+checkboxType = Checkbox
 
 const RadioGroup = connect(withPretty(AntRadio.Group), group, mapReadPretty(PreviewText.Select))
 

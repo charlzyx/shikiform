@@ -89,7 +89,13 @@ export function Form<T, TSubmit = T>({ form, children, onSubmit, onInvalid, onSu
     let timer: ReturnType<typeof setTimeout> | undefined
     const stop = form.subscribeValidateFailed((errors) => {
       clearTimeout(timer)
-      timer = setTimeout(() => focusFirstError(ref.current, errors, prefix), 0)
+      // Twice: a group can remount its option inputs (css-in-js, a new options array) after the first focus,
+      // which drops it. The second pass looks the id up again.
+      const run = () => focusFirstError(ref.current, errors, prefix)
+      timer = setTimeout(() => {
+        run()
+        timer = setTimeout(run, 0)
+      }, 0)
     })
     return () => {
       stop()
