@@ -62,7 +62,8 @@ Rows need no id: object rows without `rowKey` / `id` keep a stable object identi
 Ready-made array UI: give `<ArrayField>` a container `component` from `shikiform/antd` (Formily `ArrayItems` /
 `ArrayCards` / `ArrayTable`) instead of writing `useArray()` buttons by hand. That is the only way to attach one: there
 is no `<ArrayTable name>`; the container's props are type-checked (`[ArrayTable, {}]` without `columns` is an error). Action buttons render only while the array's effective
-pattern is `editable` (readPretty / readOnly / disabled anywhere above hides them; `useArrayEditable()` for your own).
+pattern is `editable` (readPretty / readOnly / disabled anywhere above hides them; same for every `ArrayTable` row action and
+`Addition`; `useArrayEditable()` for your own).
 
 ```tsx
 <F.ArrayField name="contacts" component={[ArrayItems, { addition: <ArrayItems.Addition /> }]}>
@@ -164,14 +165,19 @@ const form = useForm<Detail>({ initialValues, pattern: 'readPretty' })   // a de
 - Table cells can drop the decorator (`<Field name="qty" component={[InputNumber]} />`) or use another one.
 - `FormItem` outside a field is pure layout: `<FormItem label="地址" asterisk>…two Fields, each `decorator={[FormItem]}`…</FormItem>`.
   A label-less `FormItem` takes no `labelCol` / `wrapperCol` / `labelWidth` from `FormLayout` (Formily), so the inner
-  items fill the row and show their own errors. A field `FormItem` shows all errors;
+  items fill the row and show their own errors. It shows the errors inside it that **no inner `FormItem` shows**: give
+  the inner fields no decorator (a date range, `Space.Compact`) and their messages appear under the outer label, once
+  per distinct text, in error colour (no `validateStatus`: only the errored control turns red). Do not decorate inner
+  fields just to see their errors there. A field `FormItem` shows all errors;
   `feedbackLayout: 'popover'`, `addonBefore/After`, `labelWidth`, `requiredMark: 'optional'` are props or `FormLayout` keys.
 - Layout: `FormLayout` (responsive arrays for layout / labelCol / labelWidth …), `FormGrid` + `gridSpan` / `GridColumn`,
   buttons in `<FormButtonGroup.FormItem><Submit /><Reset /></FormButtonGroup.FormItem>` (aligned to the control column).
 - Tabs / collapse / steps (Formily `FormTab` / `FormCollapse` / `FormStep`): panes are direct children; every pane
   stays mounted (inactive ones are only hidden), so values, JSX rules and errors survive and submit validates them.
-  Headers badge the number of fields with errors. Do not use bare antd `Tabs` / `Collapse` around fields (inactive
-  panes do not mount). They own no value path: name fields as usual; pattern inherits along field paths.
+  Headers badge the number of fields with errors. A failed `submit()` / `form.validate()` shows the error by itself:
+  FormTab activates the first pane holding one, FormCollapse opens those panels, FormStep goes to the earliest such
+  step, then `<Form>` focuses the first errored field (no prop; controlled containers get `onChange`). Do not write an
+  `onInvalid` that switches tabs. Do not use bare antd `Tabs` / `Collapse` around fields (inactive panes do not mount). They own no value path: name fields as usual; pattern inherits along field paths.
 
 ```tsx
 <FormTab><FormTab.Pane name="base" tab="基本">…fields…</FormTab.Pane><FormTab.Pane name="more" tab="更多">…</FormTab.Pane></FormTab>
@@ -185,7 +191,8 @@ const step = useFormStep()   // in the component with the buttons; { current, co
   `step.next()` validates the current step's editable fields in one pass (`form.validate(paths[])`) and resolves
   `false` on errors; the last step is a plain `<Submit />` (validates every step). Controlled: `activeKey` + `onChange`
   (`FormTab` / `FormCollapse`), `useFormStep({ current, onChange })`. Your own region: `const g = useFieldGroup()`,
-  `<FieldGroup value={g}>…</FieldGroup>`, `useFieldGroupErrors(g)`, `form.validate(g.paths())` (from `shikiform`).
+  `<FieldGroup value={g}>…</FieldGroup>`, `useFieldGroupErrors(g)`, `form.validate(g.paths())` (from `shikiform`);
+  `form.subscribeValidateFailed((errors) => …)` is the hook the containers reveal from.
 - Hooks are the complete API: `useField(name, options)`, `mapFieldProps(field, props)`, `mapFormItemProps(field, props)`.
   Components are thin sugar over them.
 - One field hook (Formily-style): `useField()` with no name returns the field the nearest `<Field>`

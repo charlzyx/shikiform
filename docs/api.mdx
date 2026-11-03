@@ -66,6 +66,7 @@ createForm<T, TSubmit = T>(options?: FormOptions<T>): FormEngine<T, TSubmit>  //
 | `setInitialValues(values)` | 只换基线、不改当前值。保存成功后 `form.setInitialValues(form.values)` |
 | `setErrors(errors)` / `setFieldError(path, msg)` | 回填外部（服务端）错误，见 [校验 · 服务端错误](/guide/validation#服务端错误) |
 | `clearErrors(path?)` | 清掉全表或子树上的所有错误（规则、schema、外部），值不变 |
+| `subscribeValidateFailed((errors) => …)` | `submit()` 校验失败（`reason: 'invalid'`）或 `validate()` 发现错误时调用，参数是这次的错误；change / blur 触发的校验不调用。返回取消订阅。`FormTab` / `FormCollapse` / `FormStep` 切到有错的面板、`<Form>` 聚焦第一个错误字段都靠它 |
 | `message(key, params?)` | 按本表单的 `messages` → `setDefaultMessages` → `zhCN` 解析一条内置文案 |
 
 实例属性（`values`、`initial`、`errors`、`canSubmit`、`submitting`、`validating`、`submitCount`、`dirty`、`edited`）都是**只读**的，赋值是 TS 错误、运行时抛 `TypeError`；写值走上面的方法。它们不会触发渲染；在 React 里用 `useWatch((d) => d.$canSubmit)` 之类订阅。
@@ -108,7 +109,7 @@ await form.submit((values) => {
 
 | 组件 | 说明 |
 |---|---|
-| `<Form form onSubmit onInvalid onSubmitError …>` | 提供引擎，渲染原生 `<form>`，提交时调用 `form.submit(onSubmit)`；校验失败调 `onInvalid(errors)`，`onSubmit` 抛错调 `onSubmitError(error)`（不传则 `console.error`）；其余属性（`id`、`className`、`noValidate`、`aria-*`）透传给 `<form>` |
+| `<Form form onSubmit onInvalid onSubmitError …>` | 提供引擎，渲染原生 `<form>`，提交时调用 `form.submit(onSubmit)`；校验失败调 `onInvalid(errors)`，`onSubmit` 抛错调 `onSubmitError(error)`（不传则 `console.error`）；提交或 `form.validate()` 失败时聚焦表单里第一个有错的字段（按文档顺序；控件的 `id` 就是字段路径）；其余属性（`id`、`className`、`noValidate`、`aria-*`）透传给 `<form>` |
 | `<Field name …>` | 拥有一个 path，渲染 decorator + component，属性见 [Field](/guide/field) |
 | `<ObjectField name virtual?>` | 对象作用域 |
 | `<ArrayField name rowKey? component?>{({ index, key }) => …}` | 每行一个作用域；父组件只订阅结构。`component` 是包住各行的容器（`ArrayItems` / `ArrayCards`，见 [数组容器](/guide/arrays)） |

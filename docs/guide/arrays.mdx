@@ -71,7 +71,7 @@ form.batch((d) => { d.$pattern = 'disabled' })            // 运行时切整张�
 form.batch((d) => { d.contacts.$pattern = 'readOnly' })   // 只锁这个数组
 ```
 
-自己写的行操作用 `useArrayEditable()` 做同样的判断。
+`ArrayTable` 的行操作（`SortHandle`、`Remove`、`MoveUp`、`MoveDown`、`Copy`、`Addition`、`ShadowAddition`）遵守同一条规则。自己写的行操作用 `useArrayEditable()` 做同样的判断。
 
 ## ArrayCards
 
