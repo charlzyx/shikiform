@@ -23,7 +23,8 @@ export type ScopeFields<T> = {
     name: N
     rowKey?: string
     component?: FieldSlot
-    children: (row: ArrayKey & ScopeFields<ArrayItemOf<T, N & string>>) => ReactNode
+    virtualScroll?: { height: number; rowHeight?: number; overscan?: number }
+    children?: (row: ArrayKey & ScopeFields<ArrayItemOf<T, N & string>>) => ReactNode
   }) => ReactNode
 }
 
@@ -66,8 +67,8 @@ export function typed(_form?: FormEngine<any, any>): TypedForm<any> {
   return handles
 }
 
-function TypedArrayField({ children, ...props }: { name: string; rowKey?: string; component?: FieldSlot; children: (row: any) => ReactNode }) {
-  return <ArrayField {...props}>{(row) => children({ ...row, ...scope })}</ArrayField>
+function TypedArrayField({ children, ...props }: { name: string; rowKey?: string; component?: FieldSlot; virtualScroll?: { height: number; rowHeight?: number; overscan?: number }; children?: (row: any) => ReactNode }) {
+  return <ArrayField {...props}>{children ? (row) => children({ ...row, ...scope }) : undefined}</ArrayField>
 }
 function TypedObjectField({ children, ...props }: { name: string; virtual?: boolean; children?: ReactNode | ((scope: any) => ReactNode) }) {
   return <ObjectField {...props}>{typeof children === 'function' ? children(scope) : children}</ObjectField>

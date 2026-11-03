@@ -25,7 +25,6 @@ export {
   typed,
   useArray,
   useArrayField,
-  useArrayMove,
   useField,
   useFieldGroup,
   useFieldGroupErrors,
@@ -36,7 +35,6 @@ export {
   useRecord,
   useTreeField,
   useTreeNode,
-  useTreeMove,
   useWatch,
   zhCN,
 } from './react'

@@ -22,7 +22,7 @@ export interface UseArrayShadowOptions<TRow> extends Omit<UseShadowFormOptions<T
   onOk?: (values: TRow, context: ArrayShadowContext | undefined) => void | false | Promise<void | false>
   /** How an edit lands on the row. Default: `{ ...row, ...values }`. */
   merge?: (row: TRow, values: TRow) => TRow
-  /** How an added row lands. Default: `pushArray`. `ProArrayTable` passes its `add` so the pager follows. */
+  /** How an added row lands. Default: `pushArray`. `ArrayTable.ShadowAddition` passes the table's `add` so the pager follows. */
   append?: (row: TRow) => void
 }
 

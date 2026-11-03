@@ -44,7 +44,7 @@ export interface FormMessages {
   /** `submit()` result `message` when it gives up with `reason: 'superseded'` (values never settled). */
   superseded: MessageTemplate<{ path: ''; value: unknown }>
 
-  // Tree moves (`moveTree`, `useTreeMove`, `moveNode`): the refused `MoveResult.reason`.
+  // Tree moves (`moveTree`, tree `dragProps`, `moveNode`): the refused `MoveResult.reason`.
   /** `from` or `to` is an empty position. */
   treeEmptyPos: MessageTemplate<TreeMoveParams>
   /** Moving a node into itself or one of its descendants. */
@@ -57,29 +57,29 @@ export interface FormMessages {
   // Component labels (`shikiform/antd`), read through `useFormMessage()` from the nearest form.
   /** Submit button (`Submit` in `shikiform/antd`). */
   submit: MessageTemplate<NoParams>
-  /** Reset button (`Reset`, QueryList, ProQueryTable, column settings). */
+  /** Reset button (`Reset`, QueryList, column settings). */
   reset: MessageTemplate<NoParams>
   /** After an optional field's label with `requiredMark: 'optional'` (`FormItem` / `FormLayout`). */
   optional: MessageTemplate<NoParams>
-  /** Search button (QueryList, ProQueryTable). */
+  /** Search button (QueryList). */
   search: MessageTemplate<NoParams>
-  /** Refresh button (ProQueryTable). */
+  /** Refresh button (QueryList). */
   refresh: MessageTemplate<NoParams>
   /** QueryList toggle while collapsed. */
   expand: MessageTemplate<NoParams>
   /** QueryList toggle while expanded. */
   collapse: MessageTemplate<NoParams>
-  /** Append a row (`ProArrayTable.Addition` / `ProAddition`). */
+  /** Append a row (`ArrayItems.Addition` / `ArrayTable.Addition` / `ShadowAddition`). */
   add: MessageTemplate<NoParams>
-  /** Remove a row (`ProArrayTable.Remove`). */
+  /** Remove a row (`ArrayTable.Remove`). */
   remove: MessageTemplate<NoParams>
-  /** `ProArrayTable.Remove confirm` without its own text. */
+  /** `ArrayTable.Remove confirm` without its own text. */
   removeConfirm: MessageTemplate<NoParams>
   /** Move a row or column up. */
   moveUp: MessageTemplate<NoParams>
   /** Move a row or column down. */
   moveDown: MessageTemplate<NoParams>
-  /** Copy a row (`ProArrayTable.Copy`). */
+  /** Copy a row (`ArrayTable.Copy`). */
   copy: MessageTemplate<NoParams>
   /** Drag handle tooltip. */
   dragSort: MessageTemplate<NoParams>

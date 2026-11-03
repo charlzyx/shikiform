@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { joinPath } from '../core/shared/path'
 import { useRequiredForm, useScope } from '../react/context'
-import { useArrayField, type ArrayKey } from '../react/hooks/use-array'
+import { useArrayAt, type ArrayKey } from '../react/hooks/use-array'
+import { useFieldGroupRegistration } from '../react/field-group'
 
 /** Client pagination (slice the array) or, when `total` is given, a controlled server page. */
 export interface ArrayTablePagination {
@@ -54,8 +55,8 @@ export interface ArrayTableRow extends ArrayKey {
 }
 
 /**
- * Headless state for a Pro.formily-style array table (`ProArrayTable`): page slice, row selection,
- * expansion, and row actions over {@link useArrayField}. No UI. `ProArrayTable` in `shikiform/antd` renders it.
+ * Headless state for an array table (`ArrayTable`): page slice, row selection,
+ * expansion, and row actions over {@link useArrayField}. No UI. `ArrayTable` in `shikiform/antd` renders it.
  */
 export interface ArrayTableApi<TRow = any> {
   path: string
@@ -106,7 +107,7 @@ export interface ArrayTableApi<TRow = any> {
 }
 
 /**
- * Array table state: Pro.formily `ProArrayTable` features without the table.
+ * Array table state: what `ArrayTable` (Pro.formily `ProArrayTable`) does, without the table.
  *
  * ```tsx
  * const table = useArrayTable<Row>('list', { rowKey: 'id', pagination: { pageSize: 5 } })
@@ -114,10 +115,15 @@ export interface ArrayTableApi<TRow = any> {
  * ```
  */
 export function useArrayTable<TRow = any>(name: string, options: UseArrayTableOptions<TRow> = {}): ArrayTableApi<TRow> {
-  const form = useRequiredForm(`useArrayTable('${name}') / <ProArrayTable name="${name}">`)
-  const scope = useScope()
-  const path = joinPath(scope.path, name)
-  const array = useArrayField(name, options.rowKey)
+  const path = joinPath(useScope().path, name)
+  useFieldGroupRegistration(path)
+  return useArrayTableAt<TRow>(path, options)
+}
+
+/** {@link useArrayTable} for an absolute array path (internal: `ArrayTable` reads it from the surrounding `<ArrayField>`). */
+export function useArrayTableAt<TRow = any>(path: string, options: UseArrayTableOptions<TRow> = {}): ArrayTableApi<TRow> {
+  const form = useRequiredForm(`useArrayTable('${path}') / <ArrayField component={[ArrayTable]}>`)
+  const array = useArrayAt(path, options.rowKey)
   const rows = array.keys
   const paging = options.pagination === false ? null : (options.pagination ?? {})
   const server = !!paging && paging.total !== undefined

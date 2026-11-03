@@ -1,9 +1,9 @@
-import { useCallback, useContext, useRef, useSyncExternalStore, type DragEvent } from 'react'
-import { joinPath } from '../../core/shared/path'
+import { useContext, useSyncExternalStore } from 'react'
 import type { ArrayItemOf, ArrayPath } from '../../core/types'
 import { ArrayContext, useFormContext, useRequiredForm, useScope } from '../context'
 import { useFieldGroupRegistration } from '../field-group'
 import { resolveName } from './resolve-name'
+import { useDragProps, type DragProps } from './drag'
 
 /** One rendered row. `key` is the row id, or a stable identity when the row has none. */
 export interface ArrayKey {
@@ -21,6 +21,11 @@ export type ArrayHandle<TRow> = {
   move: (from: number, to: number) => void
   swap: (indexA: number, indexB: number) => void
   replace: (index: number, row: TRow) => void
+  /**
+   * HTML5 drag-and-drop props for row `index`: spread them on the row (drop target) and on its handle (drag source).
+   * Dropping row A on row B moves A to B's index. Stable per path; dragging does not re-render.
+   */
+  dragProps: (index: number) => DragProps
 }
 
 /**
@@ -44,8 +49,8 @@ export function useArrayField(name: string, rowKey?: string): ArrayHandle<unknow
 }
 
 /**
- * The nearest enclosing array, no name needed (Formily `ArrayBase.useArray`): inside an `<ArrayField>`, `ArrayTable`
- * or `ProArrayTable` row (or its toolbar), the same handle {@link useArrayField} returns for that array.
+ * The nearest enclosing array, no name needed (Formily `ArrayBase.useArray`): inside an `<ArrayField>` row or its container
+ * (`ArrayItems` / `ArrayCards` / `ArrayTable`, toolbar included), the same handle {@link useArrayField} returns for that array.
  * Throws outside an array.
  *
  * ```tsx
@@ -58,11 +63,12 @@ export function useArrayField(name: string, rowKey?: string): ArrayHandle<unknow
  */
 export function useArray<TRow = unknown>(): ArrayHandle<TRow> {
   const ctx = useContext(ArrayContext)
-  if (!ctx) throw new Error('useArray() must render inside <ArrayField>, ArrayTable, or ProArrayTable')
+  if (!ctx) throw new Error('useArray() must render inside <ArrayField> (a row or its container component)')
   return useArrayAt(ctx.path, ctx.rowKey) as ArrayHandle<TRow>
 }
 
-function useArrayAt(path: string, rowKey?: string): ArrayHandle<unknown> {
+/** {@link useArrayField} for an absolute path, without field-group registration (internal: containers, `useArrayTable`). */
+export function useArrayAt(path: string, rowKey?: string): ArrayHandle<unknown> {
   const form = useRequiredForm(`the array '${path}'`)
   const version = useSyncExternalStore(
     (onStoreChange) => form.subscribeStructure(path, onStoreChange),
@@ -71,6 +77,7 @@ function useArrayAt(path: string, rowKey?: string): ArrayHandle<unknown> {
   )
   void version
   form.registerArray(path, rowKey)
+  const dragProps = useDragProps<number>(path, (from, to) => form.moveArray(path, from, to), String, toIndex)
   return {
     path,
     keys: form.structureKeys(path, rowKey) as ArrayKey[],
@@ -81,47 +88,11 @@ function useArrayAt(path: string, rowKey?: string): ArrayHandle<unknown> {
     move: (from: number, to: number) => form.moveArray(path, from, to),
     swap: (indexA: number, indexB: number) => form.swapArray(path, indexA, indexB),
     replace: (index: number, row: unknown) => form.replaceArray(path, index, row),
+    dragProps,
   }
 }
 
-/**
- * Drag-and-drop move for an array. Does not subscribe, so a move does not re-render the caller.
- * Row components re-render from the structure subscription in {@link useArrayField}.
- * The drag source is stored on a ref (Playwright's drag does not always keep `dataTransfer`).
- * `to` is the final index.
- */
-export function useArrayMove(name: string) {
-  const scope = useScope()
-  return useArrayMoveAt(joinPath(scope.path, name))
-}
-
-/** {@link useArrayMove} for an absolute array path (internal: array containers read it from `ArrayContext`). */
-export function useArrayMoveAt(path: string) {
-  const form = useFormContext()
-  const fromRef = useRef<number | null>(null)
-  const move = useCallback((from: number, to: number) => form.moveArray(path, from, to), [form, path])
-  const swap = useCallback((indexA: number, indexB: number) => form.swapArray(path, indexA, indexB), [form, path])
-  const bind = useCallback(
-    (index: number) => ({
-      draggable: true as const,
-      onDragStart: (event: DragEvent) => {
-        fromRef.current = index
-        event.dataTransfer?.setData('text/plain', String(index))
-        if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
-      },
-      onDragOver: (event: DragEvent) => {
-        event.preventDefault()
-        if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
-      },
-      onDrop: (event: DragEvent) => {
-        event.preventDefault()
-        const raw = event.dataTransfer?.getData('text/plain')
-        const from = fromRef.current ?? (raw ? Number(raw) : NaN)
-        if (Number.isInteger(from) && from !== index) move(from, index)
-        fromRef.current = null
-      },
-    }),
-    [move],
-  )
-  return { move, swap, bind }
+function toIndex(raw: string): number | undefined {
+  const index = Number(raw)
+  return Number.isInteger(index) ? index : undefined
 }
