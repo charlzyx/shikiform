@@ -2,7 +2,7 @@ import { Tabs, type TabsProps } from 'antd'
 import { useState, type ReactNode } from 'react'
 import { FieldGroup, useGroupsErrors } from '../../react/field-group'
 import { useRequiredForm } from '../../react/context'
-import { collectPanes, ErrorBadge, markerOutside, usePaneGroups } from './panes'
+import { collectPanes, ErrorBadge, markerOutside, usePaneGroups, useRevealOnFail } from './panes'
 
 /** One tab of a {@link FormTab}. Read as data by `FormTab`; it renders nothing on its own. */
 export interface FormTabPaneProps {
@@ -38,6 +38,13 @@ function FormTabRoot({ activeKey, defaultActiveKey, onChange, children, ...rest 
   const errors = useGroupsErrors(form, groups)
   const [inner, setInner] = useState<string | undefined>(defaultActiveKey)
   const active = activeKey ?? (inner !== undefined && keys.includes(inner) ? inner : keys[0])
+  // A failed submit / validate shows the first pane with an error (controlled: `onChange` only).
+  useRevealOnFail(form, groups, ([first]) => {
+    const key = keys[first!]!
+    if (key === active) return
+    if (activeKey === undefined) setInner(key)
+    onChange?.(key)
+  })
   return (
     <Tabs
       {...rest}
@@ -60,7 +67,8 @@ function FormTabRoot({ activeKey, defaultActiveKey, onChange, children, ...rest 
 /**
  * Tabs whose panes hold fields (Formily `FormTab`). Every pane is rendered (antd `forceRender`), so fields in an
  * inactive tab keep their values and are validated / submitted like any other field. A tab title shows a badge
- * with the number of fields inside that have errors.
+ * with the number of fields inside that have errors. When a submit (or `form.validate()`) fails, the first pane
+ * holding an error becomes active (controlled: `onChange` is called) and `<Form>` focuses the first errored field.
  *
  * ```tsx
  * <FormTab>

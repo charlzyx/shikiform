@@ -1,4 +1,4 @@
-import { useMemo, type ComponentProps, type ComponentType, type FormEvent, type FormHTMLAttributes, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, type ComponentProps, type ComponentType, type FormEvent, type FormHTMLAttributes, type ReactNode } from 'react'
 import type { FormEngine } from '../../core/engine/form-engine'
 import type { ArrayPath, Display, Draft, FieldEnum, FieldError, FieldPath, PathValue, Pattern, UiName } from '../../core/types'
 import type { RulesInput } from '../../core/validation/rules'
@@ -72,21 +72,54 @@ export function runSubmit<T, TSubmit = T>(form: FormEngine<T, TSubmit>, handlers
 /**
  * Provide `form` and submit on Enter / the submit button.
  * `onInvalid` gets the errors when validation fails; `onSubmitError` gets what `onSubmit` threw.
+ * When a submit or `form.validate()` fails, the first errored field inside (document order) is focused.
  * Other props go to the native `<form>`.
  * `<Field>` returns null for display `hidden` and `none` after subscribing, so a mounted model stays registered.
  * A field declared on the form, or given `$rules` / `registerField`, still validates when this component is not rendered.
  */
 export function Form<T, TSubmit = T>({ form, children, onSubmit, onInvalid, onSubmitError, ...rest }: FormProps<T, TSubmit>) {
+  const ref = useRef<HTMLFormElement>(null)
+  // A failed submit / validate focuses the first errored field (after FormTab / FormCollapse / FormStep switched).
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const stop = form.subscribeValidateFailed((errors) => {
+      clearTimeout(timer)
+      timer = setTimeout(() => focusFirstError(ref.current, errors), 0)
+    })
+    return () => {
+      stop()
+      clearTimeout(timer)
+    }
+  }, [form])
   return (
     <FormContext.Provider value={form}>
       {/* A nested form (a shadow form in a row's modal) starts at its own root, not at the row's scope. */}
       <ScopeContext.Provider value={ROOT_SCOPE}>
-        <form {...rest} onSubmit={(event) => handleFormSubmit(form, event, { onSubmit, onInvalid, onSubmitError })}>
+        <form {...rest} ref={ref} onSubmit={(event) => handleFormSubmit(form, event, { onSubmit, onInvalid, onSubmitError })}>
           {children}
         </form>
       </ScopeContext.Provider>
     </FormContext.Provider>
   )
+}
+
+/**
+ * Focus (and scroll to) the first element, in document order inside `root`, whose id is an errored field's path
+ * (`<Field>` gives its control `id = path`). Hidden elements are skipped; a non-focusable one is scrolled into view.
+ */
+function focusFirstError(root: HTMLFormElement | null, errors: readonly FieldError[]): void {
+  if (!root) return
+  let first: HTMLElement | null = null
+  for (const { path } of errors) {
+    if (!path) continue
+    const el = root.ownerDocument.getElementById(path)
+    if (!el || !root.contains(el)) continue
+    if (typeof el.checkVisibility === 'function' && !el.checkVisibility()) continue
+    if (!first || first.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_PRECEDING) first = el
+  }
+  if (!first) return
+  first.focus()
+  if (root.ownerDocument.activeElement !== first) first.scrollIntoView?.({ block: 'center' })
 }
 
 /** `<Field>` props. Every prop except `name` / `children` is a {@link useField} option of the same name. */
