@@ -363,7 +363,7 @@ function ItemInput() {
 }
 
 function Items() {
-  const array = useArrayField<Values, 'items'>('items', 'id');
+  const array = useArrayField<Values, 'items'>('items', { rowKey: 'id' });
   return (
     <section>
       {array.keys.map((row) => (

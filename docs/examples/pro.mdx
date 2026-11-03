@@ -58,7 +58,6 @@ export default function App() {
         expandable: {
           rowExpandable: (row) => Array.isArray(row.subitems),
           render: () => <ArrayField name="subitems" component={[ArrayTable, {
-            pattern: 'readPretty',
             showHeader: false,
             settings: false,
             columns: itemColumns<Item>(),
