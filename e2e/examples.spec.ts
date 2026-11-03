@@ -233,10 +233,10 @@ test.describe('tables', () => {
     await expect(page.locator('.ant-select-dropdown:visible .ant-select-item-option')).toHaveText(['claude'])
     await page.keyboard.press('Escape')
 
-    await scope.getByRole('button', { name: '展开条件' }).click()
+    await scope.getByRole('button', { name: /^展\s*开$/ }).click()
     await input(scope, '用户 ID').fill('4')
-    await scope.getByRole('button', { name: '收起条件' }).click()
-    await scope.getByRole('button', { name: '展开条件' }).click()
+    await scope.getByRole('button', { name: /^收\s*起$/ }).click()
+    await scope.getByRole('button', { name: /^展\s*开$/ }).click()
     await expect(input(scope, '用户 ID')).toHaveValue('4')
     await scope.getByRole('button', { name: /查\s*询/ }).click()
     await expect(rows).toHaveCount(1)
