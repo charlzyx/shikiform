@@ -5,7 +5,7 @@ description: useArrayTable、useColumnSettings、useShadowForm、useArrayShadow�
 
 # Pro Hooks 参考
 
-从 `shikiform/pro` 导入，没有 antd 依赖。`shikiform/antd` 里的 [ArrayTable、ShadowModal、Suggestion、CascaderPlus](/reference/pro-components) 是它们的渲染层。可点的例子：[/play/array-table](/play/array-table)、[/play/shadow-form](/play/shadow-form)、[/play/pro-enum](/play/pro-enum)。
+从 `shikiform/pro` 导入，没有 antd 依赖。`shikiform/antd` 里的 [ArrayTable](/reference/antd#arraytable) 和 [ShadowModal、Suggestion、CascaderPlus](/reference/pro-components) 是它们的渲染层。可点的例子：[/play/array-table](/play/array-table)、[/play/shadow-form](/play/shadow-form)、[/play/pro-enum](/play/pro-enum)。
 
 ## useArrayTable
 
@@ -31,7 +31,7 @@ table.copy(0)                                                   // { id: 1001, s
 table.copy(0, (row, source) => ({ ...row, sku: `${source.sku} (副本)` }))
 ```
 
-`ArrayTable` 同样接受 `createRowKey`，`ArrayTable.Copy` 按钮会用它。
+`ArrayTable` 同样接受 `createRowKey`（`rowKey` 来自外层 `<ArrayField rowKey>`），`ArrayTable.Copy` 按钮会用它。
 
 ## useColumnSettings
 
@@ -78,7 +78,7 @@ useArrayShadow<TRow>(name: string, options?: UseShadowFormOptions & {
 }): ShadowFormApi<TRow, ArrayShadowContext> & { edit(index, loader?), add(init?) }
 ```
 
-一份草稿服务整张表的行编辑（Pro.formily `DelegateAction` + `ShadowModal` + `ProAddition`）：`edit(index, loader)` 打开这一行（`loader` 即 `initLoader`），确认后按行 id 找回该行并 `{ ...row, ...values }` 写回；`add()` 打开空草稿，确认后追加。`onOk` 返回 `false` 可以跳过默认写入自己处理。不在 `<Form>` 里调用时传 `form`，`name` 视为绝对路径。
+一份草稿服务整张表的行编辑（Pro.formily `DelegateAction` + `ShadowModal` + `ProAddition`，后者即 `ArrayTable.ShadowAddition`）：`edit(index, loader)` 打开这一行（`loader` 即 `initLoader`），确认后按行 id 找回该行并 `{ ...row, ...values }` 写回；`add()` 打开空草稿，确认后追加。`onOk` 返回 `false` 可以跳过默认写入自己处理。不在 `<Form>` 里调用时传 `form`，`name` 视为绝对路径。
 
 ## useSuggestion
 

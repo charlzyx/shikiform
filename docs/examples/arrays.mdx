@@ -83,16 +83,16 @@ export default function App() {
 
 ```tsx preview play=headless
 import { useState } from 'react';
-import { Form, RowScope, TreeField, useField, useForm, useTreeMove, useTreeNode } from 'shikiform';
+import { Form, RowScope, TreeField, useField, useForm, useTreeField, useTreeNode } from 'shikiform';
 
 type Node = { id: string; name: string; children: Node[] };
-type Bind = ReturnType<typeof useTreeMove>['bind'];
+type DragProps = ReturnType<typeof useTreeField>['dragProps'];
 
-function NodeRow({ bind }: { bind: Bind }) {
+function NodeRow({ dragProps }: { dragProps: DragProps }) {
   const { pos, path, record } = useTreeNode<Node>();
   const name = useField<Node, 'name'>('name', { required: true });
   return (
-    <div {...bind(pos)} style={{ cursor: 'grab', padding: '2px 0' }}>
+    <div {...dragProps(pos)} style={{ cursor: 'grab', padding: '2px 0' }}>
       ⠿ <input aria-label="名称" value={name.value} onChange={(event) => name.onChange(event.target.value)} onBlur={name.onBlur} />
       <small> id {record.id} · pos [{pos.join(',')}] · {path}</small>
       {name.errors[0] && <small style={{ color: 'crimson' }}> {name.errors[0]}</small>}
@@ -100,14 +100,14 @@ function NodeRow({ bind }: { bind: Bind }) {
   );
 }
 
-function Branch({ path, nodes, pos, bind }: { path: string; nodes: Node[]; pos: number[]; bind: Bind }) {
+function Branch({ path, nodes, pos, dragProps }: { path: string; nodes: Node[]; pos: number[]; dragProps: DragProps }) {
   return (
     <ul style={{ paddingLeft: pos.length ? 20 : 0, listStyle: 'none', margin: 0 }}>
       {nodes.map((node, index) => (
         <li key={node.id}>
           <RowScope path={`${path}.${index}`} pos={[...pos, index]}>
-            <NodeRow bind={bind} />
-            <Branch path={`${path}.${index}.children`} nodes={node.children} pos={[...pos, index]} bind={bind} />
+            <NodeRow dragProps={dragProps} />
+            <Branch path={`${path}.${index}.children`} nodes={node.children} pos={[...pos, index]} dragProps={dragProps} />
           </RowScope>
         </li>
       ))}
@@ -117,12 +117,11 @@ function Branch({ path, nodes, pos, bind }: { path: string; nodes: Node[]; pos: 
 
 function Menu() {
   const [result, setResult] = useState('');
-  const { bind } = useTreeMove('menu');
   return (
     <TreeField name="menu" rowKey="id">
       {(tree) => (
         <>
-          <Branch path={tree.path} nodes={tree.value as Node[]} pos={[]} bind={bind} />
+          <Branch path={tree.path} nodes={tree.value as Node[]} pos={[]} dragProps={tree.dragProps} />
           <button type="button" onClick={() => setResult(JSON.stringify(tree.move([1, 0], [0, 0])))}>「撤销」移到「文件」最前</button>{' '}
           <button type="button" onClick={() => setResult(JSON.stringify(tree.move([0], [0, 0])))}>「文件」移进自己的子节点</button>
           <pre>{result}</pre>
@@ -161,8 +160,8 @@ export default function App() {
 
 ```tsx preview play=virtual
 import { useState } from 'react';
-import { Field, Form, useForm } from 'shikiform';
-import { ArrayTable, Input } from 'shikiform/antd';
+import { ArrayField, Field, Form, useForm } from 'shikiform';
+import { Input } from 'shikiform/antd';
 
 type Row = { id: string; name: string };
 
@@ -178,14 +177,14 @@ export default function App() {
   };
   return (
     <Form form={form}>
-      <ArrayTable name="rows" rowKey="id" virtualScroll={{ height: 240, rowHeight: 40, overscan: 4 }}>
+      <ArrayField name="rows" rowKey="id" virtualScroll={{ height: 240, rowHeight: 40, overscan: 4 }}>
         {({ index }) => (
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', height: 40 }}>
             <code style={{ width: 48 }}>#{index}</code>
             <Field name="name" component={[Input, { style: { width: 200 } }]} />
           </div>
         )}
-      </ArrayTable>
+      </ArrayField>
       <button type="button" onClick={validate}>校验全部 2000 行</button>
       <p>错误：{errors}</p>
     </Form>
@@ -194,6 +193,6 @@ export default function App() {
 ```
 
 - 第 499、999、1499、1999 行是空的，它们都不在可见区域，校验照样报出来：规则在 `fields` 的行模板 `rows.*.name` 上，不在组件上。
-- `ArrayTable` 的 `virtualScroll` 和 `<VirtualRows>` 是同一个虚拟滚动；只是把行作用域也一并提供了。
+- `<ArrayField virtualScroll>` 和 `<VirtualRows>` 是同一个虚拟滚动，只是把行作用域也一并提供了；它只用于普通行，不和容器 `component` 一起用。
 
 下一组：[表格与查询](/examples/tables)。

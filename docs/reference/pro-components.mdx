@@ -1,47 +1,11 @@
 ---
 title: Pro 组件参考
-description: ArrayTable、QueryList、ShadowModal / ShadowDrawer / ShadowPopconfirm / ShadowForm、Suggestion、CascaderPlus。
+description: QueryList、ShadowModal / ShadowDrawer / ShadowPopconfirm / ShadowForm、Suggestion、CascaderPlus。
 ---
 
 # Pro 组件参考
 
 从 `shikiform/antd` 导入。每个组件都是 [Pro Hooks](/reference/pro-hooks) 之上的薄封装。用法见 [Pro 组件](/guide/pro)，例子见 [Pro 示例](/examples/pro)。
-
-## ArrayTable
-
-```tsx
-<ArrayField name="list" rowKey="id"
-  component={[
-    ArrayTable,
-    {
-      pagination: { pageSize: 10 },
-      rowSelection: true,
-      resizeable: true,
-      columns: [
-        { key: 'sort', width: 50, render: () => <ArrayTable.SortHandle /> },
-        { key: 'a1', title: 'A1', render: () => <Field name="a1" component={[Input]} /> },   // 单元格可以不要装饰器
-        { key: 'a2', title: 'A2', render: () => <Field name="a2" required decorator={[FormItem, { feedbackLayout: 'terse' }]} component={[Input]} /> },
-        { key: 'act', title: '操作', render: () => <ArrayTable.Remove confirm /> },
-      ],
-      expandable: { rowExpandable: (r) => !!r.children, render: () => <ArrayField name="children"
-        component={[
-          ArrayTable,
-          {
-            pattern: 'readPretty',
-            columns: …,
-          },
-        ]}
-      /> },
-      toolbar: <MyToolbar />,
-      extra: <ArrayTable.Addition />,
-      footer: <MyFooter />,
-      onRemove: (index, record) => api.remove(record.id),
-    },
-  ]}
-/>
-```
-
-Pro.formily `ArrayTable`：数组字段上的 antd 表格，建立在 `useArrayTable` + `useColumnSettings` 上。列是普通的 render 函数，渲染在行作用域里（`<Field name="a1">` 就是 `list.N.a1`；单元格可用不同的装饰器，或不要装饰器），所以展开行里可以再放一张子表。自带分页、选择条（选中 N 项 / 清空 / 全选 / 反选）、列配置和密度、表头拖拽改列宽、拖拽排序、异步删除。列配置弹层里拖动 ⋮⋮ 调整列顺序，↑ ↓ 按钮留给键盘操作。列可以写 `sorter`（`true` 只上报变化，比较函数则在本页内排序）、`sortOrder`、`filters`、`filterMultiple`、`filteredValue`，表头的排序 / 筛选变化经 `onTableChange(pagination, filters, sorter, extra)` 上报，参数与 antd `Table` `onChange` 一致（分页由底部分页器负责）。行操作：`SortHandle`、`Index`、`Remove`、`MoveUp`、`MoveDown`、`Copy`（复制行的新 id 由 `createRowKey` 生成，见 [useArrayTable](/reference/pro-hooks#usearraytable)）、`Addition`、`ProAddition`（影子表单添加，弹窗或抽屉）；上下文：`ArrayTable.useTable()`（表格状态 + 列配置）、`ArrayTable.useRow()`（`{ key, index, position, record }`，建立在无头的 [`useIndex`](/reference/react-hooks#useindex) / [`useRecord`](/reference/react-hooks#userecord) 之上，`record` 是响应式的）。单元格里同样可以直接用 [`useArray()`](/reference/react-hooks#usearray) / `useIndex()` / `useRecord()`。
 
 ## QueryList
 
@@ -53,7 +17,7 @@ const table = useQueryTable({ initialValues: { query: {}, list: [] }, params: 'q
 </QueryList>
 ```
 
-Pro.formily `QueryList` + `QueryForm` + `QueryTable`：可折叠的查询栅格（展开 / 收起、重置、查询）加一张受控服务端分页的 `ArrayTable`，表头带刷新。状态全部在 `useQueryTable`；它的 `rows` 选项把每页结果写进 `list` 数组字段，单元格可以直接编辑；`QueryList` 默认渲染这个字段，只有要显示别的数组时才传 `list`。选择存在 Hook 里，翻页保留、新查询清空。列上写 `sorter: true` / `filters`，表头排序和列筛选会作为 `sorter` / `filters` 发给 `request` 并回到第 1 页；列筛选和新查询一样清空选择，排序保留选择；表头状态受 Hook 控制，`重置` 一并清空（见 [表头排序与列筛选](/reference/query-hooks#表头排序与列筛选)）。`ProQueryTable` 对普通 antd 列做同样的接线。
+Pro.formily `QueryList` + `QueryForm` + `QueryTable`：可折叠的查询栅格（展开 / 收起、重置、查询）加一张受控服务端分页的 [`ArrayTable`](/reference/antd#arraytable)，表头带刷新。状态全部在 `useQueryTable`；`rows` 选项必填，它把每页结果写进这个数组字段（单元格可以直接编辑），`QueryList` 渲染的就是它。children 是查询字段，每个占一格，超过 `collapseAfter`（默认 3）个时出现展开 / 收起，收起只隐藏不卸载。其余参数（`rowKey`、`columns`、`title`、`toolbar`、`extra`、`footer`、`expandable`、`rowSelection`、`settings`、`resizeable`）交给内部的 `ArrayTable`。选择存在 Hook 里，翻页保留、新查询清空。列上写 `sorter: true` / `filters`，表头排序和列筛选会作为 `sorter` / `filters` 发给 `request` 并回到第 1 页；列筛选和新查询一样清空选择，排序保留选择；表头状态受 Hook 控制，`重置` 一并清空（见 [表头排序与列筛选](/reference/query-hooks#表头排序与列筛选)）。
 
 ## ShadowModal
 

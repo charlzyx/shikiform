@@ -1,78 +1,17 @@
 ---
 title: Pro 组件
-description: ArrayTable、影子草稿（ShadowModal / ShadowDrawer / ShadowForm）、QueryList，以及枚举、联想与级联输入。
+description: 影子草稿（ShadowModal / ShadowDrawer / ShadowForm）、QueryList，以及枚举、联想与级联输入。
 ---
 
 # Pro 组件
 
-后台表单常见的可编辑表格、弹窗编辑、查询列表，不必每次从 `ArrayField` 搭起。`shikiform/pro` 提供无 UI 的 Hooks，`shikiform/antd` 里的同名组件是它们的薄封装。
+后台表单常见的弹窗编辑、查询列表，不必每次从头搭起（可编辑表格 `ArrayTable` 是数组容器，见 [数组容器](/guide/arrays#arraytable)）。`shikiform/pro` 提供无 UI 的 Hooks，`shikiform/antd` 里的同名组件是它们的薄封装。
 
 | 组件（`shikiform/antd`） | Hook（`shikiform/pro`） | 用途 |
 |---|---|---|
-| `ArrayTable` | `useArrayTable` + `useColumnSettings` | 可编辑的数组表格：分页、选择、拖拽排序、列配置、展开子表 |
 | `ShadowModal` / `ShadowDrawer` / `ShadowPopconfirm` / `ShadowForm` | `useShadowForm` / `useArrayShadow` | 影子草稿：在独立引擎里编辑，确认后才写回 |
-| `QueryList` / `ProQueryTable` | `useQueryTable` | 查询条件 + 服务端分页列表 |
+| `QueryList` | `useQueryTable` | 查询条件 + 服务端分页列表（一张 `ArrayTable`） |
 | 选择控件 `prettyType` / `Suggestion` / `CascaderPlus` | `enumItems` / `useSuggestion` / `useLazyCascader` + `useCascaderLabels` | 枚举阅读态（徽标 / 标签）、远程联想、懒加载级联 |
-
-## ArrayTable
-
-列的 `render` 运行在**行作用域**里：`<Field name="name">` 就是 `list.N.name`，单元格可以不要装饰器。行内用 `ArrayTable.useRow()`（`{ key, index, position, record }`），或直接用 headless 的 `useArray()` / `useIndex()` / `useRecord()`。
-
-```tsx preview play=array-table
-import { Field, Form, useForm } from 'shikiform';
-import { FormItem, Input, InputNumber, ArrayTable } from 'shikiform/antd';
-
-type Row = { id: string; name: string; price: number; qty: number };
-let nextId = 4;
-const createRow = (): Row => ({ id: String(nextId++), name: '', price: 0, qty: 1 });
-
-function Subtotal() {
-  const { record } = ArrayTable.useRow();
-  return <span>{((record.price ?? 0) * (record.qty ?? 0)).toFixed(2)}</span>;
-}
-
-export default function App() {
-  const form = useForm<{ list: Row[] }>({
-    initialValues: { list: [
-      { id: '1', name: '钢笔', price: 12, qty: 2 },
-      { id: '2', name: '笔记本', price: 8.5, qty: 3 },
-      { id: '3', name: '墨水', price: 20, qty: 1 },
-    ] },
-  });
-  return (
-    <Form form={form}>
-      <ArrayField name="list" rowKey="id"
-        component={[
-          ArrayTable,
-          {
-            title: '采购清单',
-            rowSelection: true,
-            pagination: { pageSize: 5 },
-            columns: [
-              { key: 'sort', width: 48, render: () => <ArrayTable.SortHandle /> },
-              { key: 'index', title: '#', width: 48, render: () => <ArrayTable.Index /> },
-              { key: 'name', title: '名称', width: 200, render: () => <Field name="name" required decorator={[FormItem, { feedbackLayout: 'terse' }]} component={[Input]} /> },
-              { key: 'price', title: '单价', width: 120, render: () => <Field name="price" component={[InputNumber, { min: 0 }]} /> },
-              { key: 'qty', title: '数量', width: 100, render: () => <Field name="qty" component={[InputNumber, { min: 1 }]} /> },
-              { key: 'subtotal', title: '小计', width: 100, align: 'right', render: () => <Subtotal /> },
-              { key: 'actions', title: '操作', width: 140, render: () => <><ArrayTable.Copy /><ArrayTable.Remove confirm /></> },
-            ],
-            extra: <>
-                <ArrayTable.Addition defaultValue={createRow} />
-                <ArrayTable.ShadowAddition<Row> title="弹窗添加" popType="modal" onOk={(values, table) => { table.add({ ...createRow(), ...values }); return false; }}>
-                  <Field name="name" title="名称" required decorator={[FormItem]} component={[Input]} />
-                  <Field name="price" title="单价" decorator={[FormItem]} component={[InputNumber, { min: 0 }]} />
-                </ArrayTable.ShadowAddition>
-              </>,
-          },
-        ]}
-      />
-    </Form>
-  );
-}
-```
-
-拖动 ⋮⋮ 排序、勾选行、在弹窗里添加（先校验再写回）、复制和删除。展开子表、列宽拖拽、异步删除、10 万行见 [/play/array-table](/play/array-table)。
 
 ## 影子草稿
 
@@ -133,7 +72,7 @@ export default function App() {
 
 ```tsx
 const table = useQueryTable({ initialValues: { query: {}, list: [] }, params: 'query', rows: 'list', request })
-<QueryList table={table} list="list" columns={columns} collapseAfter={3}>
+<QueryList table={table} columns={columns} collapseAfter={3}>
   <Field name="query.domain" title="域名" decorator={[FormItem]} component={[Input]} />
 </QueryList>
 ```
