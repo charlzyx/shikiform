@@ -6,12 +6,14 @@ const dropdownOptions = (page: Page) => page.locator('.ant-select-dropdown:visib
 async function pick(page: Page, scope: ReturnType<Page['locator']>, option: string) {
   await scope.locator('.ant-select').first().click()
   await dropdownOptions(page).filter({ hasText: new RegExp(`^${option}$`) }).click()
+  await expect(page.locator('.ant-select-dropdown:visible')).toHaveCount(0)
 }
 async function optionsOf(page: Page, label: string) {
   await item(page, label).locator('.ant-select').click()
   await expect(dropdownOptions(page).first()).toBeVisible()
   const texts = await dropdownOptions(page).allTextContents()
   await page.keyboard.press('Escape')
+  await expect(page.locator('.ant-select-dropdown:visible')).toHaveCount(0)
   return texts
 }
 
