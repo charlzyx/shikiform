@@ -1,0 +1,219 @@
+---
+title: 联动
+description: reaction 维持派生状态，watch 做一次性动作；reaction.each / watch.each 管每一行，reaction.walk / watch.walk 管每个树节点。
+---
+
+「金额 = 单价 × 数量」「省份变了清空城市」这类规则写在 `defineEffects` 里，交给 `useForm({ effects })`。它们直接读写引擎，字段有没有挂载都生效。
+
+```ts
+const effects = defineEffects<Values>(({ reaction, watch }) => {
+  reaction((d) => { /* 派生：读到的 $ 状态就是依赖 */ })
+  watch((d) => d.province.$value, (d) => { /* 动作：来源变了才执行 */ })
+})
+```
+
+## reaction 与 watch
+
+```tsx preview
+import { Field, Form, defineEffects, useForm } from 'shikiform';
+import { FormItem, FormLayout, InputNumber, Select } from 'shikiform/antd';
+
+type Values = { price: number; qty: number; amount: number; province: string; city: string };
+
+const CITIES: Record<string, { label: string; value: string }[]> = {
+  zj: [{ label: '杭州', value: 'hz' }, { label: '宁波', value: 'nb' }],
+  js: [{ label: '南京', value: 'nj' }, { label: '苏州', value: 'sz' }],
+};
+
+const effects = defineEffects<Values>(({ reaction, watch }) => {
+  // 派生：一开始就运行，price / qty 变化时重算
+  reaction((d) => {
+    d.amount.$value = d.price.$value * d.qty.$value;
+  });
+  // 派生 UI：城市选项跟着省份
+  reaction((d) => {
+    // 没选省份时写 undefined 会回到 <Field enum> / fields 声明的选项；这里要空列表，所以写 []
+    d.city.$enum = CITIES[d.province.$value] ?? [];
+    d.city.$disabled = !d.province.$value;
+  });
+  // 动作：省份变了才清空城市；第一次不执行，初始的「杭州」保留
+  watch((d) => d.province.$value, (d) => {
+    d.city.$value = '';
+  });
+});
+
+export default function App() {
+  const form = useForm<Values>({
+    initialValues: { price: 10, qty: 2, amount: 0, province: 'zj', city: 'hz' },
+    effects: [effects],
+  });
+  return (
+    <Form form={form} onSubmit={(values) => alert(JSON.stringify(values))}>
+      <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }}>
+        <Field name="price" title="单价" decorator={[FormItem]} component={[InputNumber]} />
+        <Field name="qty" title="数量" decorator={[FormItem]} component={[InputNumber]} />
+        <Field name="amount" title="金额" decorator={[FormItem]} component={[InputNumber]} />
+        <Field name="province" title="省" enum={[{ label: '浙江', value: 'zj' }, { label: '江苏', value: 'js' }]}
+          decorator={[FormItem]} component={[Select, { style: { width: 160 } }]} />
+        <Field name="city" title="市" decorator={[FormItem]} component={[Select, { style: { width: 160 } }]} />
+      </FormLayout>
+    </Form>
+  );
+}
+```
+
+| | `reaction(effect)` | `watch(source, effect)` |
+|---|---|---|
+| 用途 | **派生**：维持一份结果 | **动作**：X 变了就做一次 Y |
+| 首次 | 立即运行 | 不运行 |
+| 依赖 | `effect` 里读到的所有 `$` 状态 | 只有 `source` 读到的；`effect` 里的读取不算 |
+| 写 `$value` | 字段成为[计算字段](/guide/concepts#显隐pattern-与提交)，默认仍提交；不想提交就声明 `virtual: true` | 普通写入 |
+
+规则：
+
+- 写入在本轮结束才生效。刚写的值不要在同一轮读回，先放进局部变量：`const total = …; d.total.$value = total; d.tax.$value = total * 0.1`。
+- 一个 `$` 状态只能由一个 reaction 写；两个 reaction 写同一个状态会报错。
+- reaction 必须同步；请求放在 `watch` 里，结果用 `form.batch` 写回。
+- 只有读过的键变了，reaction 才重跑；相等的写入不会唤醒下游。
+
+## reaction.each：每一行一个实例
+
+数组的每一行各自一个 reaction 实例，单元格改了只重算那一行（包括没有渲染出来的行）。选择器返回数组的 **handle**：
+
+```ts
+reaction.each((d) => d.items, (row, { d, index, path, pos }) => { … })
+```
+
+三个行级 API（`reaction.each`、`reaction.walk`、`watch.each`）的回调都是 `(row, ctx)`：`ctx.d` 是根 draft，`ctx.path` 是这一行此刻的路径（`items.2`），`ctx.index` 是行号，`ctx.pos` 是树坐标（数组行是 `[index]`）。插入、删除、移动之后，换了行的位置会用新的行重跑，所以写下的状态跟着行走。
+
+`watch.each` 是行级的 `watch`：回调里读到的 `$` 状态就是这一行的来源，来源变了才执行。树对应的是 `watch.walk`（节点级的 `watch`）：回调里的 `$` 读只作为它自己这个节点的来源，某个节点变化只触发它自己，兄弟节点和别处的移动不触发；`opts.childrenKey` 与 `reaction.walk` 一致。适合「这个节点的 X 变了就做一次动作」（刷新子节点选项、同步远端）这类场景。
+
+```tsx preview play=sku
+import { Button } from 'antd';
+import { ArrayField, Field, Form, defineEffects, useForm } from 'shikiform';
+import { FormItem, FormLayout, InputNumber, Select } from 'shikiform/antd';
+
+type Item = { id: number; sku: string; price: number; qty: number; total: number };
+type Values = { discount: number; items: Item[] };
+
+const PRICES: Record<string, number> = { pen: 3, book: 25, bag: 80 };
+let nextId = 3;
+
+const effects = defineEffects<Values>(({ reaction, watch }) => {
+  reaction.each((d) => d.items, (row, { d, index }) => {
+    const price = PRICES[row.sku.$value] ?? 0;
+    row.price.$value = price;
+    row.total.$value = price * row.qty.$value * (1 - d.discount.$value / 100);
+    row.sku.$required = index === 0; // 第一行必须选商品
+  });
+  // 换了商品，数量回到 1
+  watch.each((d) => d.items, (row) => {
+    if (row.sku.$value) row.qty.$value = 1;
+  });
+});
+
+export default function App() {
+  const form = useForm<Values>({
+    initialValues: { discount: 10, items: [{ id: 1, sku: 'pen', price: 0, qty: 4, total: 0 }, { id: 2, sku: 'book', price: 0, qty: 1, total: 0 }] },
+    fields: { 'items.*.sku': { enum: Object.keys(PRICES).map((value) => ({ label: value, value })) } },
+    effects: [effects],
+  });
+  return (
+    <Form form={form} onSubmit={(values) => alert(JSON.stringify(values))}>
+      <FormLayout layout="inline" feedbackLayout="terse">
+        <Field name="discount" title="折扣 %" decorator={[FormItem]} component={[InputNumber, { min: 0, max: 100 }]} />
+      </FormLayout>
+      <ArrayField name="items" rowKey="id">
+        {({ index }) => (
+          <FormLayout layout="inline" feedbackLayout="terse" style={{ marginTop: 12 }}>
+            <Field name="sku" title="商品" decorator={[FormItem]} component={[Select, { style: { width: 100 } }]} />
+            <Field name="price" title="单价" decorator={[FormItem]} component={[InputNumber]} />
+            <Field name="qty" title="数量" decorator={[FormItem]} component={[InputNumber, { min: 1 }]} />
+            <Field name="total" title="小计" decorator={[FormItem]} component={[InputNumber]} />
+            <Button danger onClick={() => form.removeArray('items', index)}>删除</Button>
+          </FormLayout>
+        )}
+      </ArrayField>
+      <Button style={{ marginTop: 12 }} onClick={() => form.pushArray('items', { id: nextId++, sku: '', price: 0, qty: 1, total: 0 })}>添加一行</Button>
+      <Button style={{ marginTop: 12, marginLeft: 8 }} type="primary" htmlType="submit">提交</Button>
+    </Form>
+  );
+}
+```
+
+改某一行的数量，只有那一行重算；改折扣，所有行重算（它们都读了 `d.discount`）。`price` 和 `total` 是计算字段，仍在提交结果里。
+
+## reaction.walk：每个树节点一个实例
+
+树用 `reaction.walk`，选项 `childrenKey` 默认 `'children'`。`ctx.pos` 是节点坐标（`[0, 1]`），会随移动变化；稳定身份用 `rowKey`。
+
+```tsx preview
+import { Button, Space } from 'antd';
+import { Field, Form, RowScope, TreeField, defineEffects, useForm } from 'shikiform';
+import { Input } from 'shikiform/antd';
+
+type Node = { id: string; code: string; name: string; children?: Node[] };
+type Values = { nodes: Node[] };
+
+const effects = defineEffects<Values>(({ reaction }) => {
+  reaction.walk((d) => d.nodes, (node, { pos }) => {
+    node.code.$value = pos.map((index) => index + 1).join('.'); // 大纲编号随位置变化
+    node.name.$required = pos.length === 1; // 只有顶层节点必填
+  });
+});
+
+function Nodes({ path, nodes, pos }: { path: string; nodes: Node[]; pos: number[] }) {
+  return (
+    <ul style={{ paddingLeft: pos.length ? 24 : 0, listStyle: 'none' }}>
+      {nodes.map((node, index) => {
+        const at = [...pos, index];
+        return (
+          <li key={node.id} style={{ margin: '6px 0' }}>
+            <RowScope path={`${path}.${index}`} pos={at}>
+              <Space.Compact>
+                <Field name="code" component={[Input, { style: { width: 64 } }]} />
+                <Field name="name" component={[Input, { style: { width: 200 } }]} />
+              </Space.Compact>
+              {node.children?.length ? <Nodes path={`${path}.${index}.children`} nodes={node.children} pos={at} /> : null}
+            </RowScope>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+export default function App() {
+  const form = useForm<Values>({
+    initialValues: {
+      nodes: [
+        { id: 'a', code: '', name: '准备', children: [{ id: 'a1', code: '', name: '买菜' }, { id: 'a2', code: '', name: '洗菜' }] },
+        { id: 'b', code: '', name: '下厨', children: [{ id: 'b1', code: '', name: '炒菜' }] },
+      ],
+    },
+    trees: { nodes: { rowKey: 'id' } },
+    effects: [effects],
+  });
+  return (
+    <Form form={form}>
+      <TreeField name="nodes" rowKey="id">
+        {(tree) => (
+          <>
+            <Nodes path={tree.path} nodes={tree.value as Node[]} pos={[]} />
+            <Button onClick={() => tree.move([0, 1], [0, 0])}>把「洗菜」移到最前</Button>{' '}
+            <Button onClick={() => tree.move([0, 0], [1, 0])}>把第一个子节点移到「下厨」下</Button>
+          </>
+        )}
+      </TreeField>
+    </Form>
+  );
+}
+```
+
+## UI 也是状态
+
+显隐、必填、选项、标签、占位符都是 `$` 状态，在 reaction 里赋值即可（完整例子见 [首页](/)）。条件显示的字段写 `$visible`：`false` 等于 `display: 'none'`，不校验、不提交（与 Formily 一致）；要「只藏 UI、仍校验仍提交」写 `$hidden = true`。见 [显隐、pattern 与提交](/guide/concepts#显隐pattern-与提交)。赋 `undefined` 撤销 reaction 写的这一层（`$title`、`$pattern`、`$enum` 都一样），`$enum = undefined` 回到 `<Field enum>` / `fields` 声明的选项，`$enum = []` 才是清空。不要在渲染时根据 `form.getValue(...)` 算 props：那不是响应式的。同一字段的第二个 UI（回显、滑块）和没有值的提示条用命名 UI 节点 `d.x.$ui('echo')` / `d.$ui('tip')`，见 [UI 节点](/guide/ui)。
+
+三个维度的 SKU 选择、冲突清理、价格与库存联动见 [SKU 选择器](/play/sku-picker)，更多场景在 [联动示例](/examples/linkage)。
+
+下一步：[UI 节点](/guide/ui)，同一字段的多个 UI、没有值的提示和分组。

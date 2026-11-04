@@ -5,6 +5,9 @@ import { gotoHydrated } from './hydration'
  * The inline `tsx preview` demos on /examples/* are separate code from playground/pages/*. Each test opens one
  * page, scopes to one demo by its position on the page, performs what the surrounding prose claims, and fails on
  * any console error or uncaught exception.
+ *
+ * 文档站用 antd 6（/play 仍是根的 antd 5）：选择器只用两版都有的类——`.ant-select`（根）、
+ * `.ant-drawer-content-wrapper`、`.ant-modal`。
  */
 
 let errors: string[] = []
@@ -33,7 +36,7 @@ const dialogText = (page: Page) => new Promise<string>((resolve) => page.once('d
 const ok = (page: Page) => page.getByRole('button', { name: /^确\s*定$|^OK$/ })
 const cancel = (page: Page) => page.getByRole('button', { name: /^取\s*消$|^Cancel$/ })
 async function pickSelect(scope: Locator, label: string, option: string) {
-  await item(scope, label).locator('.ant-select-selector').click()
+  await item(scope, label).locator('.ant-select').click()
   await scope.page().locator('.ant-select-dropdown:visible .ant-select-item-option').filter({ hasText: new RegExp(`^${option}$`) }).click()
 }
 
@@ -174,7 +177,7 @@ test.describe('arrays', () => {
     await expect(qty.nth(0).locator('input')).toHaveCount(1)
     await expect(qty.nth(1).locator('input')).toHaveCount(0)
     await scope.getByRole('button', { name: /编\s*辑/ }).click()
-    const drawer = page.locator('.ant-drawer-content')
+    const drawer = page.locator('.ant-drawer-content-wrapper')
     await expect(input(drawer, '城市')).toHaveValue('伦敦')
     await input(drawer, '城市').fill('巴黎')
     await page.locator('.ant-drawer-close').click()
@@ -229,10 +232,10 @@ test.describe('tables', () => {
     await expect(item(scope, '模型')).toBeHidden()
     await scope.getByRole('button', { name: /^展\s*开$/ }).click()
     await pickSelect(scope, '模型', 'gpt')
-    await expect(item(scope, '模型').locator('.ant-select-selector')).toHaveText('gpt')
+    await expect(item(scope, '模型').locator('.ant-select')).toHaveText('gpt')
     await pickSelect(scope, '供应商', 'anthropic')
-    await expect(item(scope, '模型').locator('.ant-select-selector')).toHaveText('')
-    await item(scope, '模型').locator('.ant-select-selector').click()
+    await expect(item(scope, '模型').locator('.ant-select')).toHaveText('')
+    await item(scope, '模型').locator('.ant-select').click()
     await expect(page.locator('.ant-select-dropdown:visible .ant-select-item-option')).toHaveText(['claude'])
     await page.keyboard.press('Escape')
 
@@ -267,7 +270,7 @@ test.describe('tables', () => {
   test('row-edit: cancel does not write back, confirm writes by id, editor stays out of submit', async ({ page }) => {
     const scope = await demo(page, 'tables', 2)
     const edit = (index: number) => scope.getByRole('button', { name: /编\s*辑/ }).nth(index)
-    const drawer = page.locator('.ant-drawer-content')
+    const drawer = page.locator('.ant-drawer-content-wrapper')
     await edit(0).click()
     await expect(input(drawer, '名称')).toHaveValue('钢笔')
     await input(drawer, '名称').fill('草稿')
@@ -315,7 +318,7 @@ test.describe('pro', () => {
 
   test('array-table-shadow: edit cancel / confirm, modal addition appends', async ({ page }) => {
     const scope = await demo(page, 'pro', 1)
-    const modal = page.locator('.ant-modal-content:visible')
+    const modal = page.locator('.ant-modal:visible')
     await scope.getByRole('button', { name: /编\s*辑/ }).nth(1).click()
     await expect(input(modal, '域名')).toHaveValue('example.com')
     await input(modal, '域名').fill('draft.dev')
@@ -331,7 +334,7 @@ test.describe('pro', () => {
     await ok(page).click()
     await expect(scope.locator('tr.ant-table-row').nth(2)).toContainText('shiki.dev')
     await scope.getByRole('button', { name: '抽屉添加' }).click()
-    const drawer = page.locator('.ant-drawer-content')
+    const drawer = page.locator('.ant-drawer-content-wrapper')
     await input(drawer, 'ID').fill('4')
     await input(drawer, '域名').fill('drawer.dev')
     await ok(page).click()
@@ -406,7 +409,7 @@ test.describe('pro', () => {
     const scope = await demo(page, 'pro', 4)
     const rows = scope.locator('tr.ant-table-row')
     await expect(rows).toHaveCount(10)
-    const modal = page.locator('.ant-modal-content:visible')
+    const modal = page.locator('.ant-modal:visible')
     await rows.nth(0).getByRole('button', { name: /编\s*辑/ }).click()
     await expect(input(modal, '域名')).toHaveValue('site1.dev')
     await input(modal, '域名').fill('draft.dev')
@@ -444,7 +447,7 @@ test.describe('pro', () => {
   test('suggestion: string, labelInValue and multiple values fill from remote options', async ({ page }) => {
     const scope = await demo(page, 'pro', 6)
     const choose = async (label: string, keyword: string, option: string) => {
-      await item(scope, label).locator('.ant-select-selector').click()
+      await item(scope, label).locator('.ant-select').click()
       await page.keyboard.type(keyword)
       await page.locator('.ant-select-dropdown:visible .ant-select-item-option').filter({ hasText: new RegExp(`^${option}$`) }).click()
       await page.keyboard.press('Escape')
@@ -470,7 +473,7 @@ test.describe('pro', () => {
     await expect(item(scope, '编码')).toContainText('北京市 / 北京市 / 朝阳区')
     await expect(item(scope, 'labelInValue')).toContainText('浙江省 / 杭州市 / 西湖区')
     await scope.getByRole('button', { name: /编辑态/ }).click()
-    await item(scope, '编码').locator('.ant-select-selector').click()
+    await item(scope, '编码').locator('.ant-select').click()
     const menu = page.locator('.ant-cascader-dropdown:visible')
     await menu.getByText('浙江省', { exact: true }).click()
     await menu.getByText('杭州市', { exact: true }).click()
@@ -533,7 +536,7 @@ test.describe('business', () => {
     await order(1).locator('.ant-table-row-expand-icon').click()
     const shipped = scope.locator('.ant-table-expanded-row').nth(1)
     await expect(shipped.locator('input')).toHaveCount(0)
-    await order(1).locator('.ant-select-selector').click()
+    await order(1).locator('.ant-select').click()
     await page.locator('.ant-select-dropdown:visible .ant-select-item-option').filter({ hasText: '已付款' }).click()
     await expect(shipped.locator('input').first()).toBeVisible()
 

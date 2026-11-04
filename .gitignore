@@ -1,6 +1,7 @@
 node_modules/
 dist/
-lib/
+# 包构建产物在仓库根。不要用 `lib/`，否则会忽略 docs-site/src/lib（nimbus 的 cn / variants）。
+/lib/
 .astro/
 .rspress/
 test-results/

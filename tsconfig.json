@@ -26,6 +26,11 @@
     "types": [
       "node",
       "vite/client"
+    ],
+    // vitest.config / 测试从 docs-site 引插件和源码，virtual 模块声明在站点里。
+    "rootDirs": [
+      ".",
+      "docs-site"
     ]
   },
   "exclude": [
@@ -35,8 +40,8 @@
     ".astro",
     "archive",
     "docs",
-    "site/generated",
-    "site/.vitepress/cache"
+    // 站点有自己的 astro check（根 tsc 不认识 .astro / virtual 模块）。
+    "docs-site"
   ],
   "include": [
     "src/**/*",
@@ -45,7 +50,6 @@
     "e2e/**/*",
     "vitest.config.ts",
     "playwright.config.ts",
-    "site/**/*.ts",
-    "site/**/*.tsx"
+    "virtual.d.ts"
   ]
 }

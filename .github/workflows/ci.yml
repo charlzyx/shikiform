@@ -24,9 +24,17 @@ jobs:
           node-version: lts/*
           cache: npm
       - run: npm ci
+      # vitest 会转换 docs-site 下的教程/bridge 源码，最近的 tsconfig 继承
+      # astro/tsconfigs/strict；nimbus-docs lint/check 也走这里的本地依赖。
+      - name: Install docs-site dependencies
+        run: npm ci --prefix docs-site
       - run: npm run check
       - run: npm run check:api
       - run: npm test
+      # 免构建预检；lint 的 internal-link 规则要 astro build 写出的 .nimbus/routes.json，放在 e2e 的构建之后。
+      - name: Nimbus docs check
+        working-directory: docs-site
+        run: npx nimbus-docs check
 
   e2e:
     name: e2e (playwright)
@@ -39,11 +47,16 @@ jobs:
           node-version: lts/*
           cache: npm
       - run: npm ci
+      - name: Install docs-site dependencies
+        run: npm ci --prefix docs-site
       - name: Build site + playground
         run: npm run build
+      - name: Nimbus docs lint (needs the build's .nimbus/routes.json)
+        working-directory: docs-site
+        run: npm run lint:docs
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
-      - name: Run Playwright (webServer = vitepress preview on :4321)
+      - name: Run Playwright (webServer = astro preview on :4321)
         run: npx playwright test
         env:
           CI: 'true'

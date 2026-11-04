@@ -1,0 +1,219 @@
+---
+title: 业务场景
+description: SKU 价格表、供应商与产品的合并单元格、可展开的订单明细。
+---
+
+这三个场景的共同点：**数据保持原来的形状**（平铺的 SKU、嵌套的供应商与订单），表格的合并、展开只是显示方式，字段永远按真实 path 读写。
+
+## SKU 价格表
+
+场景：按颜色合并单元格的 SKU 表。改合并格里的颜色，等于改这一组的每一行；临时加一列「渠道」，已经改过的价格和库存不受影响。
+
+```tsx preview play=sku-editor
+import { Input as AntInput, Switch as AntSwitch } from 'antd';
+import { Field, Form, useForm, useFormContext, useWatch, type Draft } from 'shikiform';
+import { Input, InputNumber, MergedTable } from 'shikiform/antd';
+
+type Sku = { skuId: string; color: string; storage: string; price: number; stock: number; channel: string };
+type Values = { rows: Sku[]; channel: boolean };
+
+const SKUS: Sku[] = [
+  { skuId: 'B-128', color: '黑色', storage: '128G', price: 999, stock: 12, channel: '' },
+  { skuId: 'B-256', color: '黑色', storage: '256G', price: 1499, stock: 3, channel: '' },
+  { skuId: 'W-128', color: '白色', storage: '128G', price: 999, stock: 0, channel: '' },
+  { skuId: 'W-256', color: '白色', storage: '256G', price: 1499, stock: 8, channel: '' },
+];
+
+function SkuTable() {
+  const form = useFormContext<Values>();
+  const rows = useWatch((d: Draft<Values>) => d.rows.$value);
+  const channel = useWatch((d: Draft<Values>) => d.channel.$value);
+  const paint = (from: string, to: string) => form.setValue('rows', rows.map((row) => (row.color === from ? { ...row, color: to } : row)));
+  return (
+    <>
+      <label>渠道列 <AntSwitch size="small" checked={channel} onChange={(on) => form.setValue('channel', on)} /></label>
+      <MergedTable
+        rows={rows.map((row) => ({ ...row, id: row.skuId }))}
+        groupOf={(row) => row.color}
+        columns={[
+          { title: '颜色', key: 'color', merge: true, render: (row) => <AntInput value={row.color} onChange={(event) => paint(row.color, event.target.value)} /> },
+          { title: '容量', key: 'storage', render: (row) => row.storage },
+          { title: '价格', key: 'price', render: (_, index) => <Field name={`rows.${index}.price`} component={[InputNumber, { min: 0 }]} /> },
+          { title: '库存', key: 'stock', render: (_, index) => <Field name={`rows.${index}.stock`} component={[InputNumber, { min: 0 }]} /> },
+          ...(channel ? [{ title: '渠道', key: 'channel', render: (_: unknown, index: number) => <Field name={`rows.${index}.channel`} component={[Input]} /> }] : []),
+        ]}
+      />
+    </>
+  );
+}
+
+export default function App() {
+  const form = useForm<Values>({ initialValues: { rows: SKUS, channel: false }, fields: { channel: { virtual: true } } });
+  return <Form form={form} onSubmit={(values) => alert(JSON.stringify(values))}><SkuTable /><button type="submit">提交</button></Form>;
+}
+```
+
+- 值是平铺的 SKU 数组；`MergedTable` 用 `groupOf` 计算 `rowSpan`，合并只发生在显示层。
+- 改价格、加渠道列都不重建行：价格和库存一直挂在原来那一行上（`skuId` 不变）。
+- 「改合并格 = 改整组」是一次整体写入 `rows`；单个单元格仍按 `rows.N.price` 这样的 path 写。
+
+## 供应商与产品：合并单元格
+
+场景：供应商下挂多个产品，表格按供应商合并单元格；C 级供应商的产品单价不能超过 1000，供应商不能重名。
+
+```tsx preview play=merged
+import { Button, Space } from 'antd';
+import { Field, Form, useForm, useFormContext, useWatch, type Draft } from 'shikiform';
+import { FormItem, Input, InputNumber, MergedTable, Select } from 'shikiform/antd';
+
+type Product = { id: string; name: string; price: number };
+type Supplier = { id: string; name: string; level: 'A' | 'B' | 'C'; products: Product[] };
+type Values = { suppliers: Supplier[] };
+/** 表格的一行 = 一个产品；记下它在嵌套数据里的位置。 */
+type Line = { id: string; s: number; p: number };
+
+const cell = [FormItem, { style: { margin: 0 } }] as const;
+
+function Suppliers() {
+  const form = useFormContext<Values>();
+  const suppliers = useWatch((d: Draft<Values>) => d.suppliers.$value);
+  const lines: Line[] = suppliers.flatMap((supplier, s) => supplier.products.map((product, p) => ({ id: product.id, s, p })));
+  return (
+    <>
+      <MergedTable
+        rows={lines}
+        groupOf={(line) => suppliers[line.s]!.id}
+        columns={[
+          {
+            title: '供应商', key: 'supplier', merge: true,
+            render: (line) => (
+              <Space direction="vertical">
+                <Field name={`suppliers.${line.s}.name`} decorator={cell} component={[Input]}
+                  rules={[{ required: true }, { validator: (value, ctx) => (ctx.array?.filter((item: Supplier) => item.name === value).length ?? 0) > 1 ? '供应商重名' : null }]} />
+                <Field name={`suppliers.${line.s}.level`} component={[Select, { options: ['A', 'B', 'C'].map((value) => ({ label: `${value} 级`, value })) }]} />
+                <Button size="small" onClick={() => form.pushArray(`suppliers.${line.s}.products` as 'suppliers.0.products', { id: crypto.randomUUID(), name: '新产品', price: 1 })}>加产品</Button>
+              </Space>
+            ),
+          },
+          { title: '产品', key: 'name', render: (line) => <Field name={`suppliers.${line.s}.products.${line.p}.name`} decorator={cell} component={[Input]} /> },
+          {
+            title: '单价', key: 'price',
+            render: (line) => (
+              <Field name={`suppliers.${line.s}.products.${line.p}.price`} decorator={cell} component={[InputNumber]}
+                rules={{ validator: (value, ctx) => (ctx.parent?.level === 'C' && Number(value) > 1000 ? 'C 级供应商单价不能超过 1000' : null) }} />
+            ),
+          },
+        ]}
+      />
+      <Button style={{ marginTop: 8 }} onClick={() => void form.validate()}>校验</Button>
+    </>
+  );
+}
+
+export default function App() {
+  const form = useForm<Values>({
+    initialValues: {
+      suppliers: [
+        { id: 'a', name: '供应商 A', level: 'C', products: [{ id: 'p1', name: '螺丝', price: 1200 }, { id: 'p2', name: '螺母', price: 20 }] },
+        { id: 'b', name: '供应商 A', level: 'A', products: [{ id: 'p3', name: '垫片', price: 5000 }] },
+      ],
+    },
+  });
+  return <Form form={form}><Suppliers /></Form>;
+}
+```
+
+- 点「校验」：螺丝报单价超限（它的供应商是 C 级），两个「供应商 A」都报重名；垫片 5000 不报，因为它的供应商是 A 级。
+- `validator(value, ctx)` 里，`ctx.record` 是字段所在的对象（产品），`ctx.parent` 跳过数组再上一层（供应商），`ctx.array` 是所在的数组。见 [校验](/guide/validation)。
+- 值保持嵌套（`suppliers.N.products.M`），合并单元格的行只记录 path 坐标，不复制数据。完整版还有「只看在售」筛选、空供应商占位行和组排序。
+
+## 订单与可展开明细
+
+场景：订单列表，展开一行编辑它的明细；行金额和订单合计实时计算；已发货的订单整单只读；待付款订单的单行数量不能超过 99。
+
+```tsx preview play=orders
+import { Table } from 'antd';
+import { ArrayField, Field, Form, defineEffects, useForm, useWatch, type Draft } from 'shikiform';
+import { FormItem, FormLayout, InputNumber, Select, Switch } from 'shikiform/antd';
+
+type Item = { id: string; sku: string; qty: number; price: number; line: number };
+type Order = { id: string; no: string; status: string; amount: number; items: Item[] };
+type Values = { editable: boolean; orders: Order[] };
+
+const STATUS = [{ label: '待付款', value: 'pending' }, { label: '已付款', value: 'paid' }, { label: '已发货', value: 'shipped' }];
+
+const effects = defineEffects<Values>(({ reaction }) => {
+  reaction((d) => {
+    d.orders.$pattern = d.editable.$value ? undefined : 'readPretty';
+  });
+  reaction.each((d) => d.orders, (order, { d }) => {
+    order.$pattern = order.status.$value === 'shipped' ? 'readPretty' : undefined; // 已发货：整单只读
+    order.status.$pattern = d.editable.$value ? 'editable' : 'readPretty'; // 状态本身始终跟随总开关
+    let amount = 0;
+    order.items.$value.forEach((item, index) => {
+      const line = item.qty * item.price;
+      order.items[index].line.$value = line;
+      amount += line;
+    });
+    order.amount.$value = amount;
+  });
+});
+
+function Items({ index }: { index: number }) {
+  return (
+    <ArrayField name={`orders.${index}.items`} rowKey="id">
+      {() => (
+        <FormLayout layout="inline" feedbackLayout="terse">
+          <Field name="sku" title="商品" decorator={[FormItem]}>{(field) => <code>{field.value}</code>}</Field>
+          <Field name="qty" title="数量" decorator={[FormItem]} component={[InputNumber, { min: 1 }]}
+            rules={{ validator: (value, ctx) => (ctx.parent?.status === 'pending' && Number(value) > 99 ? '待付款单行不能超过 99' : null) }} />
+          <Field name="price" title="单价" decorator={[FormItem]} component={[InputNumber, { min: 0 }]} />
+          <Field name="line" title="行金额" decorator={[FormItem]} component={[InputNumber]} />
+        </FormLayout>
+      )}
+    </ArrayField>
+  );
+}
+
+function Orders() {
+  const orders = useWatch((d: Draft<Values>) => d.orders.$value);
+  return (
+    <Table<Order>
+      rowKey="id" pagination={false} dataSource={orders}
+      expandable={{ expandedRowRender: (_, index) => <Items index={index} /> }}
+      columns={[
+        { title: '订单号', dataIndex: 'no' },
+        { title: '状态', render: (_, __, index) => <Field name={`orders.${index}.status`} component={[Select, { options: STATUS, style: { width: 110 } }]} /> },
+        { title: '合计', render: (_, __, index) => <Field name={`orders.${index}.amount`} component={[InputNumber]} /> },
+      ]}
+    />
+  );
+}
+
+export default function App() {
+  const form = useForm<Values>({
+    initialValues: {
+      editable: true,
+      orders: [
+        { id: 'o1', no: 'A001', status: 'pending', amount: 0, items: [{ id: 'i1', sku: 'pen', qty: 1, price: 10, line: 0 }, { id: 'i2', sku: 'ink', qty: 2, price: 8, line: 0 }] },
+        { id: 'o2', no: 'A002', status: 'shipped', amount: 0, items: [{ id: 'i3', sku: 'box', qty: 1, price: 20, line: 0 }] },
+      ],
+    },
+    fields: { editable: { virtual: true } },
+    effects: [effects],
+  });
+  return (
+    <Form form={form}>
+      <Field name="editable" title="可编辑" decorator={[FormItem]} component={[Switch]} />
+      <Orders />
+    </Form>
+  );
+}
+```
+
+- 一个 `reaction.each` 管一张订单：状态决定整单 `$pattern`，明细决定行金额和合计。只有改动的那张订单会重算。
+- 展开区里用 `<ArrayField name="orders.N.items">` 给明细一个行作用域，明细的字段写相对名字。
+- 「已发货」整单只读，是因为子字段继承了 `order.$pattern`；状态字段自己写了 `$pattern`，所以仍能改回「已付款」，明细随即可编辑。
+- 直接写入正式值，没有草稿和取消回滚；需要「确认才写回」时用 [影子表单](/examples/pro#用影子表单编辑行)。
+
+回到 [示例库](/examples)。

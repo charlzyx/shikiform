@@ -1,0 +1,147 @@
+---
+title: API 总览
+description: 四个入口、createForm 选项、引擎方法、React 组件与联动 API；每个 Hook 的签名在参考页。
+---
+
+按名字找 API。`createForm` 选项、引擎方法、组件和联动 API 列在本页；每个 Hook / 组件的签名、默认值和例子在参考页：
+
+| 要查什么 | 参考页 |
+|---|---|
+| `useForm`、`typed`、`useFormContext`、`useFormMessage`、`useField`（无参即当前字段）、`useWatch`、`useArrayField`、`useArray`、`useIndex`、`useRecord`、`useTreeField`、`useTreeNode`、`useFieldGroup`、`useFieldGroupErrors`（+ `<FieldGroup>`） | [React Hooks](/reference/react-hooks) |
+| `connect`、`mapProps`、`mapReadPretty`、`mapFieldProps`、`FormItem`、`mapFormItemProps`、`FormLayout`、`useFormLayout`、`FormGrid`、`GridColumn`、`useFormGrid`、`FormButtonGroup`、`PreviewText`（及 `.Select` 等阅读态视图）、接好的控件（`Input` … `TimePicker`、`TreeSelect`、`Cascader`、`Upload`、`Slider`、`Rate`、`Transfer`、`AutoComplete`、`ColorPicker`） | [Ant Design 适配层](/reference/antd-adapter) |
+| `Submit`、`Reset`、控件取值契约、`ArrayItems`、`ArrayCards`、`ArrayTable`、`useArrayEditable`、`FormTab`、`FormCollapse`、`FormStep`、`useFormStep`、`MergedTable`、`groupRowSpan` | [Ant Design 参考](/reference/antd) |
+| `useQueryTable`、`useBuiltinQuery` | [查询 Hooks](/reference/query-hooks) |
+| `useArrayTable`、`useColumnSettings`、`useShadowForm`、`useArrayShadow`、`useSuggestion`、`useLazyCascader`、`enumItems`、`ENUM_COLORS` | [Pro Hooks](/reference/pro-hooks) |
+| `QueryList`、`ShadowModal` / `ShadowDrawer` / `ShadowPopconfirm` / `ShadowForm`、`useShadow`、`Suggestion`、`CascaderPlus` 及其 `…View` | [Pro 组件](/reference/pro-components) |
+
+## 模块入口
+
+| 入口 | 主要导出 |
+|---|---|
+| `shikiform` | `useForm`、`createForm`、`FormEngine`、`defineEffects`；`Form`、`Field`、`ObjectField`、`ArrayField`、`ArrayScope`、`RowScope`、`TreeField`、`Watch`、`VirtualRows`、`FieldGroup`；上表的 React Hooks；`EnumSource`、`ShikiUsageError` 等错误类、`zhCN` / `enUS` / `setDefaultMessages`；类型 `Draft`、`FieldBinding`、`FieldProps`、`FormOptions`、`Pattern`、`Display`、`Pos`、`MoveResult`、`FieldEnum` … |
+| `shikiform/core` | 不依赖 React 的引擎：`createForm`、`defineEffects`、`EnumSource`、`comboMatch`、`comboOptions`、错误类、Standard Schema 与树坐标工具（`pathOf`、`posOf` …）；类型 `ArrayPath`、`EnumInput`、`EnumValueOf` … 根入口已有的引擎名字两处是同一个对象 |
+| `shikiform/pro` | 上表的 Pro Hooks，不依赖 antd |
+| `shikiform/antd` | 适配层（`connect`、`FormItem`、`FormLayout`、`FormGrid`、`FormButtonGroup`）、接好的控件、`Submit` / `Reset`、数组容器 `ArrayItems` / `ArrayCards` / `ArrayTable`、分组容器 `FormTab` / `FormCollapse` / `FormStep`、`QueryList`、`MergedTable` 与 Pro 组件 |
+
+没有 `shikiform/ui`、`shikiform/zod` 入口：Zod 实现了 Standard Schema，直接传给 `rules` / `validate`。行上下文是 `useIndex()` / `useRecord()`（或 `ArrayTable.useRow()`），没有独立的 `useRow` 导出。
+
+## 创建表单
+
+```ts
+useForm<T, TSubmit = T>(options?: UseFormOptions<T>): FormEngine<T, TSubmit>  // 组件里，实例稳定；UseFormOptions = FormOptions + values
+createForm<T, TSubmit = T>(options?: FormOptions<T>): FormEngine<T, TSubmit>  // 组件外
+```
+
+选项只在创建时读取，之后改值用写入 API 或 `reset`。`TSubmit` 是提交值的类型，见下面的 [提交值类型](#提交值类型)。
+
+| 选项 | 默认 | 作用 |
+|---|---|---|
+| `initialValues` | `{}` | 初始值，`reset` 的目标；写全形状以便推断 `T` |
+| `effects` | — | `defineEffects` 模块数组，按顺序安装 |
+| `fields` | — | `{ [path]: FieldSpec }`：不依赖挂载的字段模型（规则、`required`、`enum`、`virtual`、`display`、`pattern`、`title`、`decorator`、`component`、`componentProps` …）。`items.*.name` 跟着每一行；`items.0.name` 留在路径上，见 [数组](/guide/structures) |
+| `validate` | — | 整表 Standard Schema，或返回 path → 文案的（异步）函数 |
+| `validateTrigger` | `['onBlur', 'onSubmit']` | 可加 `'onChange'` |
+| `asyncDebounceMs` | `0` | 异步规则的防抖，字段可单独设置 |
+| `enumPolicy` | `'none'` | 值不在 `$enum` 里时：`'clear'` 清掉，`'error'` 报错 |
+| `pattern` | — | 整张表的初始 pattern（根上的 `$pattern`），没有自己 pattern 的字段都继承：`'readPretty'` 做详情页。之后用 `d.$pattern = …` 改，`undefined` 恢复可编辑 |
+| `trees` | — | `{ [path]: { childrenKey?, rowKey? } }`：让联动在挂载前就认识树根 |
+| `resolver` | — | 额外的 path → 文案校验函数 |
+| `messages` | 中文 | 覆盖内置文案（校验、提交重试、树移动拒绝、antd 组件按钮），可部分覆盖，值可以是函数，见 [内置文案](/guide/validation#内置文案) |
+
+### 读写和提交
+
+| 方法 | 说明 |
+|---|---|
+| `getValue(path)` / `setValue(path, value)` | 读 / 写一个有类型的 path；拿到的对象不要原地修改 |
+| `batch((d) => { … })` | 用一个 draft 做多次写入，一轮联动、一次通知 |
+| `pushArray` / `insertArray` / `removeArray` / `moveArray` / `swapArray` / `replaceArray` | 数组行操作，字段状态跟着 `rowKey` 走 |
+| `moveTree(path, from, to)` | 移动树节点到最终坐标，拒绝移进自己的子孙，返回 `{ ok, reason? }` |
+| `validate(path?)` | 校验全表、一棵子树，或一组路径（`validate(['a', 'b'])`，一次校验，`FormStep` 的「下一步」就是它）→ `Promise<FieldError[]>` |
+| `submit(onValid?)` | 等异步规则、校验，通过才调用 `onValid` → `SubmitResult`：`{ ok: true, values }`，或 `ok: false` 带 `reason`：`'invalid'`（`errors`）/ `'error'`（`onValid` 抛错，`error`）/ `'superseded'`（值一直在变，`message`）。从不 reject |
+| `getSubmitValues()` | 去掉 `virtual: true` 和 `display: 'none'` 后的值。reaction 写过的字段默认留下 |
+| `reset(path?)` | 恢复初始值（全表或子树），计算字段重新算；touched、edited、错误清空 |
+| `reset(values)` | 编辑页回填：`values` 同时成为新的初始值，之后 `reset()` 回到它，`dirty` 以它为基线 |
+| `setInitialValues(values)` | 只换基线、不改当前值。保存成功后 `form.setInitialValues(form.values)` |
+| `setErrors(errors)` / `setFieldError(path, msg)` | 回填外部（服务端）错误，见 [校验 · 服务端错误](/guide/validation#服务端错误) |
+| `clearErrors(path?)` | 清掉全表或子树上的所有错误（规则、schema、外部），值不变 |
+| `subscribeValidateFailed((errors) => …)` | `submit()` 校验失败（`reason: 'invalid'`）或 `validate()` 发现错误时调用，参数是这次的错误；change / blur 触发的校验不调用。返回取消订阅。`FormTab` / `FormCollapse` / `FormStep` 切到有错的面板、`<Form>` 聚焦第一个错误字段都靠它 |
+| `message(key, params?)` | 按本表单的 `messages` → `setDefaultMessages` → `zhCN` 解析一条内置文案 |
+
+实例属性（`values`、`initial`、`errors`、`canSubmit`、`submitting`、`validating`、`submitCount`、`dirty`、`edited`）都是**只读**的，赋值是 TS 错误、运行时抛 `TypeError`；写值走上面的方法。它们不会触发渲染；在 React 里用 `useWatch((d) => d.$canSubmit)` 之类订阅。
+
+- `dirty`：当前值和初始值**不同**（深比较），改回原值就变回 `false`；表单级不算 `virtual` 和计算字段。适合「没改动时禁用保存」「离开前提示未保存」。
+- `edited`：粘滞标记，用户编辑过（`setValue` / 控件 `onChange`）就为 `true`，直到 `reset`。reaction 写值不算。
+
+### 编辑页回填
+
+```ts
+const form = useForm<Values>({ values: query.data })            // 记录到达 / 重新加载 → reset(记录)
+const dirty = useWatch((d: Draft<Values>) => d.$dirty)          // 改回原值也会变回 false
+
+<Button disabled={!dirty} onClick={() => form.submit(save)}>保存</Button>
+```
+
+`initialValues` 只在创建时读取；`values` 是外部拥有的数据：第一次渲染当作初始值，之后换成**内容不同**的新对象时自动 `reset(values)`——成为新基线，丢弃未保存的编辑，`dirty` 为 `false`。内容相同的新对象（每次渲染新建的字面量）什么也不做。没有 React 时自己调 `form.reset(record)`；不要用 `key` 重挂整个表单。
+
+### 提交值类型
+
+`submit` / `getSubmitValues` / `<Form onSubmit>` 的值类型是表单的第二个泛型 `TSubmit`，默认等于 `T`。运行时会删掉 `virtual` 和 `display: 'none'` 的字段，而哪些字段被 reaction 隐藏只有运行时才知道，所以默认类型不会替你猜。表单里有会被删掉的字段时，用 `SubmitValues<T, 路径>` 把它们声明成可选：
+
+```ts
+import { createForm, type SubmitValues } from 'shikiform'
+
+type V = { a: string; tmp: string; b: string; rows: { qty: number; total: number }[] }
+const form = createForm<V, SubmitValues<V, 'tmp' | 'b' | 'rows.*.total'>>({
+  initialValues: { a: '1', tmp: 'x', b: '', rows: [] },
+  fields: { tmp: { virtual: true }, 'rows.*.total': { virtual: true } },
+})
+await form.submit((values) => {
+  values.tmp   // string | undefined
+  values.rows[0]?.total // number | undefined
+})
+```
+
+路径写法与 `fields` 相同：`rows.*.total` 对每一行生效，数字下标也会让每一行的该字段变成可选。不传路径时 `SubmitValues<T>` 就是 `T`。提交类型与后端 DTO 完全不同时，直接写 `createForm<V, SaveDto>()`，`onSubmit` 里自己转换。
+
+## React 组件
+
+| 组件 | 说明 |
+|---|---|
+| `<Form form onSubmit onInvalid onSubmitError …>` | 提供引擎，渲染原生 `<form>`，提交时调用 `form.submit(onSubmit)`；校验失败调 `onInvalid(errors)`，`onSubmit` 抛错调 `onSubmitError(error)`（不传则 `console.error`）；提交或 `form.validate()` 失败时聚焦表单里第一个有错的字段（按文档顺序）。控件 `id` 是 `<前缀>-<净化路径>`（`user.name` → `<前缀>-user-name`；前缀是 `<Form id>`，没传则是 React `useId()`）。`<form>` 自身的 `id` 只在传入 `id` 时设置。其余属性（`className`、`noValidate`、`aria-*`）透传给 `<form>` |
+| `<Field name …>` | 拥有一个 path，渲染 decorator + component，属性见 [Field](/guide/field) |
+| `<ObjectField name virtual?>` | 对象作用域 |
+| `<ArrayField name rowKey? component?>{({ index, key }) => …}` | 每行一个作用域；父组件只订阅结构。`component` 是包住各行的容器（`ArrayItems` / `ArrayCards`，见 [数组容器](/guide/arrays)） |
+| `<TreeField name childrenKey? rowKey?>{(tree) => …}` | 注册树根，节点由你渲染 |
+| `<RowScope path index? itemKey? pos?>` | 行 / 树节点作用域，`useIndex` / `useRecord` / `useTreeNode` 从这里读 |
+| `<ArrayScope path rowKey?>` | 自己实现的数组组件里，标记 `useArray()` 的目标 |
+| `<Watch select>{(value) => …}` | `useWatch` 的渲染形式 |
+| `<VirtualRows>` | 只挂载可见行的容器 |
+
+`<Field>`、`<ObjectField>`、`<ArrayField>`、`useField` 不写泛型时接受任意字符串（动态路径的出口）。要按表单类型检查名字，用 [`typed(form)`](/reference/react-hooks#typed) 拿到同一组组件的有类型版本：`<F.Field name="emial">` 编译不过，`ArrayField` 的每一行再给一组按行类型检查的 `row.Field`。可复用的字段片段是普通组件，放在 `<ObjectField>` 里，用 `typed<Address>()` 按片段自己的类型检查。名字在运行时始终相对当前作用域。
+
+## 联动
+
+```ts
+const effects = defineEffects<Values>(({ reaction, watch, query }) => {
+  reaction((d) => { … })
+  reaction.each((d) => d.items, (row, ctx) => { … })
+  reaction.walk((d) => d.nodes, (node, ctx) => { … }, { childrenKey: 'children' })
+  watch((d) => d.a.$value, (d) => { … })
+  watch.each((d) => d.items, (row, ctx) => { … })
+  watch.walk((d) => d.nodes, (node, ctx) => { … }, { childrenKey: 'children' })
+})
+```
+
+| API | 触发 | 说明 |
+|---|---|---|
+| `reaction(effect)` | 立即运行；之后读到的 `$` 状态变化时 | 同步派生；写 `$value` 的字段成为计算字段，默认仍提交 |
+| `reaction.each(select, effect)` | 每行一个实例 | 只处理一层数组 |
+| `reaction.walk(select, effect, opts?)` | 每个树节点一个实例 | `childrenKey` 默认 `'children'` |
+| `watch(source, effect)` | `source` 读到的状态变化后；首次不运行 | 多个来源返回数组 |
+| `watch.each(select, effect)` | 行级 watch：回调里读到的状态就是来源 | 只处理一层数组 |
+| `watch.walk(select, effect, opts?)` | 节点级 watch：每个树节点一个实例，同 watch.each | `childrenKey` 默认 `'children'` |
+| `query(path)` | — | 精确 path 的底层 handle（动态路径用），平时写 `d.a.b` |
+
+行级回调都是 `(row, ctx)`，`ctx: RowContext = { d, path, index, pos }`。详见 [联动](/guide/linkage)；`$` 状态与显隐见 [核心概念](/guide/concepts)，规则见 [校验](/guide/validation)。
+
+下一步：[React Hooks 参考](/reference/react-hooks)，`useForm`、`useField`、`useWatch` 等的签名。

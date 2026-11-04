@@ -1,0 +1,173 @@
+---
+title: 布局
+description: FormLayout 统一布局、标签宽度、尺寸和反馈方式；FormGrid 栅格；FormButtonGroup 对齐按钮；FormItem 单独当标签用。
+---
+
+每个 `FormItem` 都写一遍 `labelCol`、`size` 太啰嗦。`FormLayout`（`shikiform/antd`）把这些设置交给里面所有的 `FormItem`；它不持有值，可以嵌套，嵌套时逐键合并，最近的一层优先。
+
+```tsx preview
+import { useState } from 'react';
+import { Radio as AntRadio, Space } from 'antd';
+import { Field, Form, useForm } from 'shikiform';
+import { FormItem, FormLayout, Input, Select, type FeedbackLayout } from 'shikiform/antd';
+
+type Layout = 'horizontal' | 'vertical' | 'inline';
+type Size = 'small' | 'middle' | 'large';
+
+export default function App() {
+  const [layout, setLayout] = useState<Layout>('horizontal');
+  const [size, setSize] = useState<Size>('middle');
+  const [feedback, setFeedback] = useState<FeedbackLayout>('loose');
+  const form = useForm({ initialValues: { name: '', city: undefined, remark: '' } });
+  return (
+    <>
+      <Space wrap style={{ marginBottom: 16 }}>
+        <AntRadio.Group size="small" value={layout} onChange={(event) => setLayout(event.target.value)}
+          options={['horizontal', 'vertical', 'inline']} optionType="button" />
+        <AntRadio.Group size="small" value={size} onChange={(event) => setSize(event.target.value)}
+          options={['small', 'middle', 'large']} optionType="button" />
+        <AntRadio.Group size="small" value={feedback} onChange={(event) => setFeedback(event.target.value)}
+          options={['loose', 'terse', 'popover', 'none']} optionType="button" />
+      </Space>
+      <Form form={form}>
+        <FormLayout layout={layout} size={size} feedbackLayout={feedback} labelCol={{ span: 5 }} wrapperCol={{ span: 19 }}>
+          <Field name="name" title="姓名" required decorator={[FormItem]} component={[Input]} />
+          <Field name="city" title="城市" required enum={[{ label: '上海', value: 'sh' }, { label: '北京', value: 'bj' }]}
+            decorator={[FormItem]} component={[Select, { style: { minWidth: 120 } }]} />
+          {/* 局部覆盖：这一项的标签放到上方 */}
+          <FormLayout layout="vertical" labelCol={{ span: 24 }} wrapperCol={{ span: 24 }}>
+            <Field name="remark" title="备注（嵌套的 vertical 布局）" decorator={[FormItem]} component={[Input.TextArea]} />
+          </FormLayout>
+          <button type="button" onClick={() => void form.validate()}>校验，看反馈方式</button>
+        </FormLayout>
+      </Form>
+    </>
+  );
+}
+```
+
+| 属性 | 作用 |
+|---|---|
+| `layout` | `horizontal`（标签在左）/ `vertical`（标签在上）/ `inline`（同一行流式排列） |
+| `labelCol` / `wrapperCol` / `labelAlign` / `colon` | 与 antd `Form.Item` 相同 |
+| `labelWidth` / `wrapperWidth` | 固定列宽（数字是 px），优先于 `labelCol` / `wrapperCol` |
+| `labelWrap` | 长标签换行，不截断 |
+| `requiredMark` | `true` 星号 / `false` 不显示 / `'optional'` 改为给非必填项加「（可选）」 |
+| `tooltipLayout` | `icon`（ⓘ 图标）/ `text`（提示文字跟在标签后） |
+| `size` | 同时决定里面控件的尺寸（antd `componentSize`） |
+| `feedbackLayout` | `loose`（默认，错误占一行）/ `terse`（没有提示时不留底部间距，适合密集栅格和表格）/ `popover`（错误浮在控件上方）/ `none`（不显示文字，只保留状态颜色） |
+| `breakpoints` | 列相关的键给数组时，按容器宽度分档（默认 `[720, 1280, 1920]`） |
+| `className` / `style` | 包裹层样式 |
+
+优先级（低 → 高）：`FormLayout` → 字段的 `decoratorProps`（`fields` ← JSX ← `$decoratorProps`）→ `FormItem` 自己的 props。读当前继承到的布局用 `useFormLayout()`。
+
+表格单元格通常不要装饰器，或用 `decorator={[FormItem, { feedbackLayout: 'terse' }]}`。完整签名见 [FormLayout 参考](/reference/antd-adapter#formlayout)。
+
+## 窄屏改成标签在上
+
+`layout`、`labelCol`、`wrapperCol`、`labelWidth`、`wrapperWidth`、`labelAlign` 可以按断点给数组，量的是 `FormLayout` 自己的宽度（放进抽屉、侧栏时也对）：
+
+```tsx
+<FormLayout layout={['vertical', 'horizontal']} labelWidth={[undefined, 96]} breakpoints={[600]}>
+  …
+</FormLayout>
+```
+
+## 栅格：FormGrid
+
+多列表单用 `FormGrid`：能放下几个 `minWidth` 宽的列就放几列（夹在 `minColumns` 和 `maxColumns` 之间），列数跟着容器变。字段用 `decorator={[FormItem, { gridSpan: 2 }]}` 跨列，其他内容用 `GridColumn`。
+
+```tsx preview
+import { Field, Form, useForm } from 'shikiform';
+import { FormButtonGroup, FormGrid, FormItem, FormLayout, GridColumn, Input, Reset, Submit } from 'shikiform/antd';
+
+export default function App() {
+  const form = useForm({ initialValues: { keyword: '', owner: '', status: '', from: '', to: '', note: '' } });
+  return (
+    <Form form={form} onSubmit={(values) => alert(JSON.stringify(values))}>
+      <FormLayout labelWidth={72}>
+        <FormGrid maxColumns={3} minWidth={220}>
+          <Field name="keyword" title="关键词" decorator={[FormItem]} component={[Input]} />
+          <Field name="owner" title="负责人" decorator={[FormItem]} component={[Input]} />
+          <Field name="status" title="状态" decorator={[FormItem]} component={[Input]} />
+          <Field name="note" title="备注" decorator={[FormItem, { gridSpan: 2 }]} component={[Input]} />
+          <GridColumn>
+            <FormButtonGroup align="right"><Submit>查询</Submit><Reset /></FormButtonGroup>
+          </GridColumn>
+        </FormGrid>
+      </FormLayout>
+    </Form>
+  );
+}
+```
+
+## 一个标签放几个字段
+
+`FormItem` 不在字段里时就是纯布局：一个标签、同一套列宽，里面放什么都行。
+
+```tsx
+<FormItem label="地址" asterisk>
+  <Space>
+    <Field name="province" required decorator={[FormItem]} component={[Select]} />
+    <Field name="city" required decorator={[FormItem]} component={[Select]} />
+  </Space>
+</FormItem>
+```
+
+里面的字段各带一个没有标签的 `FormItem`，错误提示显示在各自控件下面。和 Formily 一样，**没有标签的 `FormItem` 不用 `FormLayout` 的 `labelCol` / `wrapperCol` / `labelWidth`**，所以不会在这一行里再缩一次；自己在 `FormItem` 上写的列宽照常生效。
+
+### 不给里面的字段装饰器：错误汇总到外层
+
+日期区间、`Space.Compact` 拼起来的输入组，控件挨在一起，各自一行提示会把布局撑乱。这时里面的字段不写 `decorator`，外层的纯布局 `FormItem` 把它们的错误显示在自己的提示区：
+
+```tsx preview
+import { Space } from 'antd';
+import { Form, typed, useForm } from 'shikiform';
+import { FormButtonGroup, FormItem, FormLayout, Input, InputNumber, Submit } from 'shikiform/antd';
+
+type Values = { areaCode: string; phoneNumber: string; minAge: number | null; maxAge: number | null };
+
+export default function App() {
+  const form = useForm<Values>({ initialValues: { areaCode: '', phoneNumber: '', minAge: null, maxAge: null } });
+  const F = typed(form);
+  return (
+    <Form form={form} onSubmit={(values) => console.log(values)} data-layout-errors-demo="">
+      <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 16 }}>
+        <FormItem label="电话" asterisk>
+          <Space.Compact>
+            <F.Field name="areaCode" required component={[Input, { placeholder: '区号', style: { width: 80 } }]} />
+            <F.Field name="phoneNumber" required rules={{ pattern: /^\d{7,8}$/, message: '号码是 7–8 位数字' }} component={[Input, { placeholder: '号码' }]} />
+          </Space.Compact>
+        </FormItem>
+        <FormItem label="年龄段">
+          <Space>
+            <F.Field name="minAge" required decorator={[FormItem]} component={[InputNumber, { placeholder: '最小' }]} />
+            <F.Field name="maxAge" required decorator={[FormItem]} component={[InputNumber, { placeholder: '最大' }]} />
+          </Space>
+        </FormItem>
+        <FormButtonGroup.FormItem><Submit /></FormButtonGroup.FormItem>
+      </FormLayout>
+    </Form>
+  );
+}
+```
+
+规则：**纯布局 `FormItem` 显示它里面「没有别的 `FormItem` 在显示」的错误**。
+
+- 字段自己有 `FormItem` 装饰器（上例「年龄段」）：错误在字段自己的提示区，外层不重复。
+- 字段没有装饰器（上例「电话」），或它的 `FormItem` 设了 `feedbackLayout: 'none'`：错误汇总到外层，相同的文案只显示一次。
+- 嵌套的纯布局 `FormItem`：里层显示，外层不重复。
+- 外层的提示用错误色，项上加 `ant-form-item-has-error` 类；但**不**设 antd 的 `validateStatus`，所以只有出错的控件变红，没错的那个不会跟着变红。`feedbackLayout`（`terse` / `popover` / `none`）照常生效。
+
+## 按钮对齐到控件列
+
+`FormButtonGroup.FormItem` 用一个空标签占住标签列，按钮自动和上面的控件对齐，`labelCol` 和 `labelWidth` 都适用；长表单用 `FormButtonGroup.Sticky` 让按钮栏贴在底部。
+
+```tsx
+<FormLayout labelWidth={96}>
+  …
+  <FormButtonGroup.FormItem><Submit /><Reset /></FormButtonGroup.FormItem>
+</FormLayout>
+```
+
+下一步：[分组容器](/guide/containers)，标签页、折叠面板和分步表单。

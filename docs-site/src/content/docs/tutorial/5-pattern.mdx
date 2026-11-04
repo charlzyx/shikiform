@@ -1,0 +1,25 @@
+---
+title: 5. pattern
+description: 同一个字段在四种 pattern 之间切换。
+tableOfContents: false
+---
+
+<div className="tutorial-step">
+<div className="tutorial-copy">
+
+右边有一个模式下拉，还有姓名。现在换模式，姓名一直能改。
+
+下拉的选项直接写在 `Field` 的 `enum` 上：`[{ label, value }]`，`Select` 自己读它当 `options`。
+
+`pattern` 有四种：`editable`、`disabled`、`readOnly`、`readPretty`。写在父级上，子级跟着走。子级自己写了 `$pattern`，就用自己的。这一步只改姓名。
+
+**这一步：** 在 `reaction` 里，当 `mode` 有值时执行 `d.name.$pattern = mode`。
+
+可编辑能打字。禁用不能改。只读能选中文字，不能改。阅读态变成纯文本。
+
+
+</div>
+
+<TutorialPlay id="05-pattern" />
+
+</div>

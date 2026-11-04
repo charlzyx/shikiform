@@ -1,0 +1,486 @@
+---
+title: Ant Design 适配层
+description: Formily 式适配：Field 的 decorator / component 槽位、FormItem 装饰器、FormLayout / FormGrid / FormButtonGroup、connect / mapProps / mapReadPretty，以及接好的 antd 控件。
+---
+
+从 `shikiform/antd` 导入。`<Field>` 拥有字段（`name`、`rules`、`title`、`decorator`、`component`），`FormItem` 只是装饰器，控件经 `connect` + `mapProps` + `mapReadPretty` 接线。适配层把 [useField](/reference/react-hooks#usefield) 的 `FieldBinding` 映射成 antd props，不保存自己的状态。用法见 [Ant Design 适配](/guide/antd)。
+
+```tsx
+import { createForm, Field, Form } from 'shikiform'
+import { FormItem, FormLayout, Input, Select, Switch } from 'shikiform/antd'
+
+const form = createForm({
+  initialValues: { email: '', city: 'sh', vip: false },
+  fields: {
+    // 也可以在 fields 里声明 UI：<Field name="city" /> 就会渲染出来
+    city: { title: '城市', decorator: [FormItem], component: [Select], enum: [{ label: '上海', value: 'sh' }, { label: '北京', value: 'bj' }] },
+  },
+})
+
+export default function Profile() {
+  return (
+    <Form form={form} onSubmit={(values) => console.log(values)}>
+      <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }}>
+        <Field name="email" title="邮箱" required rules={{ format: 'email' }}
+          decorator={[FormItem, { tooltip: '工作邮箱' }]} component={[Input, { placeholder: 'name@example.com' }]} />
+        <Field name="city" />
+        <Field name="vip" title="会员" decorator={[FormItem]} component={[Switch]} />
+      </FormLayout>
+    </Form>
+  )
+}
+```
+
+- **`<Field>` 渲染 `decorator` 包住 `component`**（或包住 `children`），并把字段提供给子树（不带参数的 `useField()` 读到它），所以 `FormItem` 与 connect 控件都不需要 `name`。`children` 也可以是控件本身：`<Field name="x" decorator={[FormItem]}><Input /></Field>`；render prop `(field) => …` 照常可用。
+- **UI 状态在字段模型上**：`title` → `label`，`description` → `extra`，`componentProps` 合并进控件 props，`decoratorProps` 合并进 `FormItem`。来源从低到高：`fields` 声明 → JSX（`title`、元组里的 props）→ reaction（`$title`、`$componentProps.placeholder = …`），对象深合并（数组、函数、React 元素整值替换）。
+- **联动改 UI**：`reaction((d) => { d.city.$componentProps.disabled = d.vip.$value; d.city.$decoratorProps.tooltip = '…' })`。嵌套写 `d.x.$componentProps.style.color = 'red'` 只补这一处，JSX / 声明里 `style` 的其他键保留；缺失的中间对象不会自动创建，先 `style ??= {}`（只开一层，不清空下层）。整键赋值 `style = {...}` 替换这个键，整体赋值 `d.x.$componentProps = {...}` 替换所有下层，赋 `undefined` 撤销 reaction 层。
+- **表格单元格**可以不要装饰器（`<Field name="a1" component={[Input]} />`），或换一个（`decorator={[FormItem, { feedbackLayout: 'terse' }]}`）。
+
+控件找字段的顺序：`field` 属性 → `name` 属性（内部调用 `useField(name)`）→ 外层 `<Field>` 提供的字段（即不带参数的 `useField()`）。
+
+## connect
+
+```ts
+connect<C extends ComponentType<any>>(target: C, ...enhancers: ConnectEnhancer[]): ConnectedComponent<ComponentProps<C>> & ComponentStatics<C>
+// ConnectedComponent<P> = ComponentType<Partial<P> & { name?: string; field?: FieldBinding<any>; ref?: Ref<any> }>
+// ComponentStatics<C> = C 的静态成员（Select.Option、Input.Search …）
+```
+
+把任意 value/onChange 控件变成字段控件。`enhancers` 由 [mapProps](#mapprops) 与 [mapReadPretty](#mapreadpretty) 生成。返回的组件没有自己的状态：每次渲染都是对当前 `FieldBinding` 调一次 [mapFieldProps](#mapfieldprops)。字段的 `componentProps` 合并在调用方 props 之下（reaction 写的 `$componentProps` 因此能到达控件）。
+
+和 Formily 一样：`ref` 转发给原控件（React 18 也能拿到）；原控件的静态成员拷到返回值上（`Select.Option`、`Input.Search`，是原始的、未接字段的成员；类型也带上）。既没有 `name` / `field`、又不在 `<Field>` 里时，按普通控件渲染调用方 props，开发环境警告一次。
+
+```tsx
+const Rate = connect(AntRate, mapProps({ status: false }))
+<Field name="score" title="评分" decorator={[FormItem]} component={[Rate, { count: 10 }]} />
+```
+
+## mapProps
+
+```ts
+mapProps(...args: Array<PropsMapping | PropsTransform>): ConnectEnhancer
+type PropsMapping = Partial<Record<FieldPropKey | FieldStateKey, string | false>> & { getValueFromEvent?: (...args: any[]) => unknown }
+type FieldPropKey = 'value' | 'onChange' | 'onBlur' | 'disabled' | 'readOnly' | 'status' | 'id' | 'options' | 'loading'
+type FieldStateKey = 'title' | 'description' | 'required' | 'validating' | 'touched' | 'dirty' | 'edited' | 'pattern' | 'display' | 'path'
+  | 'errors' | 'warnings' | `componentProps.${string}` | `decoratorProps.${string}`
+type PropsTransform = (props: Record<string, any>, field: FieldBinding<any>) => Record<string, any>
+```
+
+对象参数重命名（`{ value: 'checked' }`）、合并（`{ readOnly: 'disabled' }`，与 `disabled` OR）或丢弃（`{ status: false }`）绑定属性；`options` / `loading` 默认不传，映射后才把字段枚举与加载状态交给控件。其他字段状态也能用对象写法交给某个 prop（Formily 的对象键）：`mapProps({ title: 'placeholder', required: 'aria-required', 'componentProps.max': 'count' })`，调用方显式传了该 prop 时以调用方为准。函数参数在最后变换 props。`getValueFromEvent` 把控件 `onChange` 的参数换成字段值，默认读取事件的 `target.checked`（checkbox）或 `target.value`，否则取第一个参数本身。
+
+## mapReadPretty
+
+```ts
+mapReadPretty(component: ComponentType<any>, props?: Record<string, unknown>): ConnectEnhancer
+```
+
+字段 `pattern` 为 `readPretty`（自己的，或从祖先 / 根继承的）时渲染 `component` 而不是控件。它收到调用方 props，加上 `value` 与 `options`（字段枚举）。没有 `mapReadPretty` 的控件在 `readPretty` 下按 `readOnly` 处理。内置控件都有阅读态视图，见 [PreviewText](#previewtext)。
+
+## mapFieldProps
+
+```ts
+mapFieldProps(field: FieldBinding<any>, props: Record<string, any>, ...mappers: Array<PropsMapping | PropsTransform>): Record<string, any>
+```
+
+`connect` 的纯函数核心，给 Hook 用户直接使用：`value` 取字段值；`onChange` 先写字段再以原始参数调用调用方的 `onChange`，各一次；`onBlur` 先标记 touched 再调调用方；`disabled` / `readOnly` 与调用方 props 取 OR；`status` 有错误时为 `'error'`、只有警告时为 `'warning'`，调用方显式传入时以调用方为准；`id` 默认是字段 id；`field.componentProps` 合并在 `props` 之下。
+
+```tsx
+const field = useField('email', { required: true })
+return <AntInput {...mapFieldProps(field, { placeholder: 'Email' })} />
+```
+
+## FormItem
+
+```ts
+FormItem(props: FormItemProps): ReactElement | null
+interface FormItemProps
+  extends Omit<antd.FormItemProps, 'name' | 'rules' | 'required' | 'children' | 'validateStatus' | 'help' | 'hidden' | 'layout' | …>,
+    Omit<FormLayoutValue, 'labelCol' | 'wrapperCol' | 'labelAlign' | 'colon'> {  // layout、labelWidth、requiredMark、feedbackLayout…
+  asterisk?: boolean         // 强制显示 / 隐藏必填星号
+  addonBefore?: ReactNode    // 控件同一行的前缀（单位、前置选择…）
+  addonAfter?: ReactNode     // 控件同一行的后缀
+  gridSpan?: number          // 在 FormGrid 里占几列（按当前列数截断），-1 占满一行
+  children?: ReactNode
+}
+```
+
+Formily `FormItem`，**不拥有字段**：没有 `name` / `rules` / `required` / `field` 属性。
+
+- **字段里**（`<Field decorator={[FormItem, props]}>`，或放在 `<Field>` 的 children 里）：从上下文读字段，渲染 antd `Form.Item`（props 由 [mapFormItemProps](#mapformitemprops) 计算）。`label` 取字段 `title`，`extra` 取 `description`（显式传入优先）；必填星号跟随 `required`，`readPretty` 下隐藏；`validateStatus` 依次 `error` → `validating` → `warning`；`help` 是**全部**错误（没有错误时是全部警告），一条一行。`display` 为 `hidden` / `none` 时不渲染。
+- **字段外**：纯布局（Formily `FormItem.BaseItem`）。一个标签、同一套列宽包住任何内容，常用来给几个字段一个标签。它显示里面字段的错误中**没有别的 `FormItem` 在显示**的那些：没有装饰器的字段、`FormItem` 设了 `feedbackLayout: 'none'` 的字段（嵌套的纯布局 `FormItem` 由里层显示）；相同文案只显示一次，用错误色并加 `ant-form-item-has-error` 类，不设 `validateStatus`（只有出错的控件变红）。里面的字段各带一个无标签的 `FormItem` 时，错误显示在各自控件下面，外层不重复。没有标签的 `FormItem`（字段内外都一样）不继承 `FormLayout` 的 `labelCol` / `wrapperCol` / `labelWidth` / `wrapperWidth`（Formily 同样），自己传的列宽照常生效。
+
+```tsx
+<Field name="email" title="邮箱" description="用于登录" required decorator={[FormItem, { tooltip: '工作邮箱' }]} component={[Input]} />
+<Field name="price" title="价格" decorator={[FormItem, { addonBefore: '¥', addonAfter: '元', feedbackLayout: 'popover' }]} component={[InputNumber]} />
+<FormItem label="地址">
+  <Space><Field name="province" component={[Select]} /><Field name="city" component={[Select]} /></Space>
+</FormItem>
+```
+
+| 属性 | 行为 |
+|---|---|
+| `feedbackLayout` | `loose`（默认，提示占一行）/ `terse`（没有提示时去掉底部间距）/ `popover`（提示浮在控件上方，不占行）/ `none`（只保留状态颜色） |
+| `labelWidth` / `wrapperWidth` | 固定宽度（数字是 px），变成 `labelCol` / `wrapperCol` 的 `flex`，优先于 `span`；只给 `labelWidth` 时控件列占满剩余宽度 |
+| `labelWrap` | 长标签换行，不截断（antd 自带的换行样式） |
+| `tooltipLayout` | `icon`（默认，ⓘ 图标）/ `text`（tooltip 文字直接跟在标签后面） |
+| `requiredMark` | `true`（默认）显示星号；`false` 不显示；`'optional'` 不显示星号，改在非必填项标签后加 `messages.optional`（`（可选）`） |
+| `asterisk` | 强制显示 / 隐藏星号，优先于上面两项 |
+| `addonBefore` / `addonAfter` | 与控件同一行的前后缀 |
+| `gridSpan` | 只在 [FormGrid](#formgrid) 里生效 |
+
+这些键都能写在 `FormItem` props、字段 `decoratorProps` 或外层 `FormLayout` 上，优先级 props > `decoratorProps` > 布局。
+
+```tsx preview
+import { Space } from 'antd';
+import { Field, Form, useForm } from 'shikiform';
+import { FormItem, FormLayout, Input, InputNumber } from 'shikiform/antd';
+
+export default function App() {
+  const form = useForm({ initialValues: { code: 'a', price: null, province: '', city: '', note: '' } });
+  return (
+    <Form form={form}>
+      <FormLayout labelWidth={110} requiredMark="optional" labelWrap>
+        <Field name="code" title="编码" required
+          rules={[{ minLength: 3, message: '至少 3 位' }, { pattern: /^\d+$/, message: '只能是数字' }]}
+          decorator={[FormItem, { tooltip: '供应商内部编码', tooltipLayout: 'text' }]} component={[Input]} />
+        <Field name="price" title="价格" required rules={{ min: 1, message: '至少 1 元' }}
+          decorator={[FormItem, { addonBefore: '¥', addonAfter: '元', feedbackLayout: 'popover' }]} component={[InputNumber]} />
+        <FormItem label="所在地区（省 / 市，可以只填省）">
+          <Space>
+            <Field name="province" component={[Input, { placeholder: '省' }]} />
+            <Field name="city" component={[Input, { placeholder: '市' }]} />
+          </Space>
+        </FormItem>
+        <Field name="note" title="备注" decorator={[FormItem]} component={[Input]} />
+        <FormItem label=" " colon={false}>
+          <button type="button" onClick={() => void form.validate()}>校验</button>
+        </FormItem>
+      </FormLayout>
+    </Form>
+  );
+}
+```
+
+## mapFormItemProps
+
+```ts
+mapFormItemProps(
+  field: FieldBinding<any> | null,
+  props: Omit<FormItemProps, 'children'>,
+  layout?: FormLayoutValue,
+  env?: { prefixCls?: string; optionalText?: ReactNode; gridColumns?: number },
+): antd.FormItemProps
+```
+
+`FormItem` 的纯函数核心。合并顺序（低 → 高）：`layout`（`FormLayout`）← `field.decoratorProps`（`fields` ← JSX ← `$decoratorProps`）← `props`。`field` 为 `null` 时是纯布局（没有 `validateStatus`）。`env` 是组件自己从上下文读的部分：antd 表单类名前缀（`labelWrap` 和错误色类名用，默认 `ant-form`）、可选标记文案（默认 `(optional)`）、外层 `FormGrid` 的列数（`gridSpan` 用）、纯布局时要显示的错误 `errors`（组件自己从里面的字段收集；非空时作为错误色的 `help`，项上加 `has-error` 类）。`addonBefore` / `addonAfter` 和 `popover` 的浮层是组件自己的标记，不在返回值里。Hook 用户不用组件也能得到同样的装饰：
+
+```tsx
+const field = useField('email', { required: true, title: '邮箱' })
+return <Form.Item {...mapFormItemProps(field, {})}><AntInput {...mapFieldProps(field, {})} /></Form.Item>
+```
+
+## FormLayout
+
+```ts
+FormLayout(props: FormLayoutProps): ReactElement
+interface FormLayoutValue {
+  layout?: 'horizontal' | 'vertical' | 'inline'
+  labelCol?: ColProps
+  wrapperCol?: ColProps
+  labelWidth?: number | string
+  wrapperWidth?: number | string
+  labelAlign?: 'left' | 'right'
+  labelWrap?: boolean
+  colon?: boolean
+  requiredMark?: boolean | 'optional'
+  tooltipLayout?: 'icon' | 'text'
+  size?: 'small' | 'middle' | 'large'
+  feedbackLayout?: 'loose' | 'terse' | 'popover' | 'none'
+}
+type FormLayoutProps = FormLayoutValue & {
+  // 这六个键可以按断点给数组：layout、labelCol、wrapperCol、labelWidth、wrapperWidth、labelAlign
+  breakpoints?: number[]   // 默认 [720, 1280, 1920]
+  className?: string
+  style?: CSSProperties
+  children?: ReactNode
+}
+```
+
+Formily `FormLayout`：给内部所有 `FormItem` 一份布局。嵌套的 `FormLayout` 按键合并，近的优先；`FormItem` 自己的 props 与字段 `decoratorProps` 优先于布局。`size` 同时作用于内部控件（antd `componentSize`）；`inline` 让条目横向排布。
+
+**响应式**：`layout={['vertical', 'horizontal']}` 这样的数组按 `FormLayout` **自身容器**的宽度取值（不是窗口）：宽度 < `breakpoints[0]` 取第 0 项，< `breakpoints[1]` 取第 1 项……数组比断点短时沿用最后一项。有数组时会多渲染一层测量用的 `<div>`；首次渲染（含 SSR）还没量到宽度，按最宽的一档。
+
+```tsx
+<FormLayout layout={['vertical', 'horizontal']} labelWidth={[undefined, 96]} breakpoints={[600]}>
+  <Field name="a" title="A" decorator={[FormItem]} component={[Input]} />
+  <FormLayout layout="horizontal" labelCol={{ span: 6 }}>
+    <Field name="b" title="B" decorator={[FormItem]} component={[Input]} />
+  </FormLayout>
+</FormLayout>
+```
+
+## useFormLayout
+
+```ts
+useFormLayout(): FormLayoutValue
+```
+
+读取当前位置合并后的布局（所有外层 `FormLayout` 的合并结果，响应式数组已按宽度取值）。自定义装饰器用它继承同一套布局，例如 `mapFormItemProps(field, props, useFormLayout())`；在任何 `FormLayout` 之外返回 `{}`。
+
+## FormGrid
+
+```ts
+FormGrid(props: {
+  maxColumns?: number | number[]   // 默认 4；可按断点给数组
+  minColumns?: number | number[]   // 默认 1
+  minWidth?: number | number[]     // 每列最窄宽度（px），默认 200
+  columnGap?: number               // 默认 16
+  rowGap?: number                  // 默认 0（FormItem 自带底部间距）
+  breakpoints?: number[]           // 默认 [720, 1280, 1920]
+  className?: string
+  style?: CSSProperties
+  children?: ReactNode
+}): ReactElement
+```
+
+Formily `FormGrid`：CSS grid，列数跟随**自身宽度**——能放下几个 `minWidth` 宽的列就放几列，夹在 `minColumns` 与 `maxColumns` 之间；没量到宽度前（SSR）按 `maxColumns`。每个直接子元素占一格；`FormItem` 用 `gridSpan` 多占几格（超过当前列数时截断，`-1` 占满一行），其他内容用 [GridColumn](#gridcolumn)。
+
+```tsx preview
+import { Field, Form, useForm } from 'shikiform';
+import { FormGrid, FormItem, FormLayout, GridColumn, Input } from 'shikiform/antd';
+
+export default function App() {
+  const form = useForm({ initialValues: { name: '', phone: '', email: '', city: '', address: '' } });
+  return (
+    <Form form={form}>
+      <FormLayout layout="vertical">
+        <FormGrid maxColumns={3} minWidth={180}>
+          <Field name="name" title="姓名" decorator={[FormItem]} component={[Input]} />
+          <Field name="phone" title="电话" decorator={[FormItem]} component={[Input]} />
+          <Field name="email" title="邮箱" decorator={[FormItem]} component={[Input]} />
+          <Field name="city" title="城市" decorator={[FormItem]} component={[Input]} />
+          <Field name="address" title="详细地址（占两列）" decorator={[FormItem, { gridSpan: 2 }]} component={[Input]} />
+          <GridColumn gridSpan={-1}><small>改变窗口宽度，列数在 1–3 之间变化。</small></GridColumn>
+        </FormGrid>
+      </FormLayout>
+    </Form>
+  );
+}
+```
+
+## GridColumn
+
+```ts
+GridColumn(props: { gridSpan?: number; style?: CSSProperties; children?: ReactNode }): ReactElement
+```
+
+`FormGrid` 里不是 `FormItem` 的一格（一段说明、一组按钮），占 `gridSpan` 列（默认 1，按当前列数截断，`-1` 占满一行）。
+
+## useFormGrid
+
+```ts
+useFormGrid(): { columns: number } | null
+```
+
+外层 `FormGrid` 当前的列数（随容器宽度变化，未测量前是 `maxColumns`）；不在 `FormGrid` 里时返回 `null`。自定义装饰器用它把自己的跨列截断到当前列数：`Math.min(span, grid?.columns ?? span)`。
+
+## FormButtonGroup
+
+```ts
+FormButtonGroup(props: { align?: 'left' | 'center' | 'right'; gap?: number; className?: string; style?: CSSProperties; children?: ReactNode }): ReactElement
+FormButtonGroup.FormItem(props: 同上 & Omit<FormItemProps, 'children'>): ReactElement
+FormButtonGroup.Sticky(props: { position?: 'top' | 'bottom'; offset?: number; className?: string; style?: CSSProperties; children?: ReactNode }): ReactElement
+```
+
+Formily `FormButtonGroup`：一行按钮，`gap` 默认 8，可换行。
+
+- **`.FormItem`**：放在一个空标签的纯布局 `FormItem` 里，所以按钮自动对齐到 `FormLayout` 的控件列——`labelCol` 和 `labelWidth` 都不用再写一遍偏移；`vertical` / `inline` 布局下没有空标签。
+- **`.Sticky`**：`position: sticky` 的底栏（或顶栏），长表单滚动时按钮一直可见；背景和分隔线取 antd 主题。
+
+```tsx preview
+import { Field, Form, useForm } from 'shikiform';
+import { FormButtonGroup, FormItem, FormLayout, Input, Reset, Submit } from 'shikiform/antd';
+
+export default function App() {
+  const form = useForm({ initialValues: { name: '', email: '' } });
+  return (
+    <Form form={form} onSubmit={(values) => alert(JSON.stringify(values))}>
+      <FormLayout labelWidth={88}>
+        <Field name="name" title="姓名" required decorator={[FormItem]} component={[Input]} />
+        <Field name="email" title="邮箱" decorator={[FormItem]} component={[Input]} />
+        <FormButtonGroup.FormItem>
+          <Submit />
+          <Reset />
+        </FormButtonGroup.FormItem>
+      </FormLayout>
+    </Form>
+  );
+}
+```
+
+## PreviewText
+
+```ts
+PreviewText(props: PreviewTextProps): ReactElement                    // 通用：枚举 label、数组 `, `、布尔 是/否
+PreviewText.Input / .Password / .Select / .TreeSelect / .Cascader     // 一族控件一个视图（Formily PreviewText.*）
+PreviewText.DatePicker / .DateRangePicker / .TimePicker / .TimeRangePicker
+PreviewText.Empty                                                      // 空值文字，给自定义视图用
+interface PreviewTextProps { value?: unknown; options?: PreviewOption[]; empty?: ReactNode; format?: unknown; [prop: string]: unknown }
+```
+
+阅读态视图（Formily `PreviewText`）。每个接好的控件都用 `mapReadPretty` 挂了其中一个，收到控件自己的 props 加 `value` / `options`（字段枚举）。也能单独当纯组件用，例如表格单元格：
+
+```tsx
+<PreviewText.Select value={row.status} options={STATUS} prettyType="badge" />
+connect(MyTreePicker, mapReadPretty(PreviewText.TreeSelect))   // 自定义控件复用
+```
+
+- `Input`：`addonBefore` `prefix` 文本 `suffix` `addonAfter`；有 `formatter`（`InputNumber`）时先格式化。`Password` 显示 `******`。
+- `Select`：值显示选项的 `label`（`labelInValue` 的项用自己的 `label`；匹配不到的值显示它自己；`1` 与 `'1'` 视为相同）；一个值是文字，多个值（数组）是标签。`prettyType: 'badge' | 'tag'` 画成徽标 / 彩色标签，颜色来自选项 `color`（`success` / `processing` / `error` / `warning` / antd 色名 / `#hex`）或按位置取调色板。`fieldNames` 生效。
+- `TreeSelect`：在整棵树（`treeData` 或字段枚举，`fieldNames` 生效）里找 label；多个值是标签。
+- `Cascader`：路径显示成 `浙江 / 杭州 / 西湖`；`multiple` 时每条路径一个标签。
+- `DatePicker` / `TimePicker`：字段里已是格式化好的字符串就原样显示；dayjs / `Date` 按 `format` 格式化（默认 `YYYY-MM-DD` / `HH:mm:ss`）。区间显示 `start ~ end`。
+- 空值（`undefined` / `null` / `''` / `[]`）显示 `empty` 属性，否则 `messages.empty`（默认 `-`）。整张表或整个应用改一次即可：`useForm({ messages: { empty: '—' } })` 或 `setDefaultMessages({ empty: '—' })`。控件编辑态的 `placeholder`（「请输入…」）不会出现在阅读态里。
+- 输出带 `data-read-pretty` 的元素（写了 `prettyType` 时另有 `data-pretty`）。
+
+## Input
+
+```ts
+const Input: ConnectedComponent<antd.InputProps> & {
+  TextArea: ConnectedComponent<antd.TextAreaProps>
+  Password: ConnectedComponent<antd.PasswordProps>
+}
+```
+
+`connect(antd.Input, mapReadPretty(PreviewText.Input))`。`onChange(event)` 写入 `event.target.value`。`readOnly` 字段传 `readOnly`；`readPretty` 显示文本和前后缀。`Input.TextArea` 阅读态保留换行；`Input.Password` 阅读态显示 `******`。
+
+## InputNumber
+
+```ts
+const InputNumber: ConnectedComponent<antd.InputNumberProps>
+```
+
+`connect(antd.InputNumber, mapReadPretty(PreviewText.Input))`。写入 antd 给出的原始值：数字，清空时为 `null`。`readPretty` 显示数字，`formatter`、`prefix`、`addonBefore/After` 生效。
+
+## Select
+
+```ts
+const Select: ConnectedComponent<antd.SelectProps & { prettyType?: 'text' | 'badge' | 'tag' }>
+```
+
+`connect(antd.Select, mapProps({ options: 'options', loading: 'loading', readOnly: 'disabled' }), mapReadPretty(PreviewText.Select))`。未传 `options` 时使用字段枚举（`<Field enum>`、`fields.x.enum`、`$enum`，含 `EnumSource` 异步加载的 `loading`）。`readOnly` 渲染为禁用；`readPretty` 显示选项的 `label`，多选显示为标签，`prettyType` 画成徽标 / 彩色标签。只显示、不编辑的枚举字段（如表格里的状态列）就是 `pattern="readPretty"` 的 `Select`。
+
+## AutoComplete
+
+```ts
+const AutoComplete: ConnectedComponent<antd.AutoCompleteProps>
+```
+
+自由文本输入 + 联想（值不必是选项之一）。未传 `options` 时字段枚举就是联想项（`enum={['杭州', '南京']}`）。`readPretty` 显示文本。要从服务端搜、值必须是选项之一时用 [`Suggestion`](/reference/pro-components#suggestion)。
+
+## TreeSelect
+
+```ts
+const TreeSelect: ConnectedComponent<antd.TreeSelectProps & { prettyType?: 'text' | 'badge' | 'tag' }>
+```
+
+`connect(antd.TreeSelect, mapProps({ options: 'treeData', loading: 'loading', readOnly: 'disabled' }), mapReadPretty(PreviewText.TreeSelect))`。未传 `treeData` 时使用字段枚举，节点是 `{ label, value, children }`（`<Field enum={TREE}>`，`children` 原样保留）。`multiple` / `treeCheckable` 时值是数组。`readPretty` 在整棵树里找 label。
+
+## Cascader
+
+```ts
+const Cascader: ConnectedComponent<antd.CascaderProps>
+```
+
+`connect(antd.Cascader, mapProps({ options: 'options', loading: 'loading', readOnly: 'disabled' }), mapReadPretty(PreviewText.Cascader))`。值是路径 `['zj', 'hz', 'xh']`（`multiple` 时是路径数组）。未传 `options` 时使用字段枚举（`{ label, value, children }` 树）；`typed(form).Field` 下选项的 `value` 按路径元素类型检查。`readPretty` 显示 `浙江 / 杭州 / 西湖`。每一级要按需从服务端加载时用 [`CascaderPlus`](/reference/pro-components#cascaderplus)。
+
+## Switch
+
+```ts
+const Switch: ConnectedComponent<antd.SwitchProps>
+```
+
+`connect(antd.Switch, mapProps({ value: 'checked', readOnly: 'disabled', status: false }), mapReadPretty(…))`。字段值对应 `checked`，`onChange(checked)` 写入布尔值。`readOnly` 渲染为禁用开关；`readPretty` 显示 `checkedChildren` / `unCheckedChildren`，没写时显示 `messages.yes` / `messages.no`（是 / 否）。
+
+## Checkbox
+
+```ts
+const Checkbox: ConnectedComponent<antd.CheckboxProps> & {
+  Group: ConnectedComponent<antd.CheckboxGroupProps & { prettyType?: 'text' | 'badge' | 'tag' }>
+}
+```
+
+单个 `Checkbox` 的字段值对应 `checked`，`readOnly` 渲染为禁用，`readPretty` 显示 是 / 否。`Checkbox.Group` 绑定数组值，未传 `options` 时使用字段枚举，`readPretty` 把所选项显示为标签（`prettyType` 可选）。字段 id 不放在组的外层 div 上（`label` 的 `htmlFor` 点不到 div）：`options` 或手写的 `Checkbox` 子项里，第一个没有自己 `id` 的选项 input 带上字段 id（`<前缀>-<路径>`），其余选项保持自己的 `id` 或留空。
+
+## Radio
+
+```ts
+const Radio: ConnectedComponent<antd.RadioGroupProps & { prettyType?: 'text' | 'badge' | 'tag' }> & {
+  Group: typeof Radio          // 同一个控件
+  Button: typeof antd.Radio.Button
+}
+```
+
+`Radio` 本身就是单选**组**（`component={[Radio]}` 与 `component={[Radio.Group]}` 相同）：`onChange(event)` 写入 `event.target.value`。未传 `options` 时使用字段枚举；`readOnly` 渲染为禁用；`readPretty` 显示所选标签。单独一个是/否单选用 `Checkbox` 或 `Switch`；`Radio.Button` 是 antd 原件，给 `optionType="button"` 以外的手写子项用。和 `Checkbox.Group` 一样，字段 id 在第一个没有自己 `id` 的选项 input 上（`options` 或手写的 `Radio.Button`），不在组的外层 div 上。
+
+## DatePicker
+
+```ts
+const DatePicker: ConnectedComponent<antd.DatePickerProps> & {
+  RangePicker: ConnectedComponent<antd.RangePickerProps>
+}
+```
+
+与 Formily 一致，字段保存**格式化后的字符串**（按控件 `format`，默认 `YYYY-MM-DD`），只在交给 antd 时转成 dayjs，所以值能经受 `initialValues` 克隆、`reset` 和提交（核心用 `structuredClone`，会丢掉 dayjs 原型）。清空写入 `undefined`。`RangePicker` 保存 `[start, end]` 字符串元组，阅读态显示 `start ~ end`。需要 `dayjs`（antd 自带依赖）作为 peer dependency。
+
+## TimePicker
+
+```ts
+const TimePicker: ConnectedComponent<antd.TimePickerProps> & {
+  RangePicker: ConnectedComponent<antd.TimeRangePickerProps>
+}
+```
+
+与 `DatePicker` 相同：字段保存格式化后的字符串（`format`，默认 `HH:mm:ss`），清空写 `undefined`；`TimePicker.RangePicker` 保存 `[start, end]`。`readPretty` 显示文本，区间为 `start ~ end`。
+
+## Slider
+
+```ts
+const Slider: ConnectedComponent<antd.SliderSingleProps | antd.SliderRangeProps>
+```
+
+值是数字，`range` 时是 `[from, to]`。`readOnly` 渲染为禁用；`readPretty` 显示数字（区间 `from ~ to`）。
+
+## Rate
+
+```ts
+const Rate: ConnectedComponent<antd.RateProps>
+```
+
+值是数字。`readOnly` 渲染为禁用；`readPretty` 显示不可编辑的星星（`count`、`allowHalf`、`character` 生效），没有值时显示空值文字。
+
+## Transfer
+
+```ts
+const Transfer: ConnectedComponent<antd.TransferProps>
+```
+
+值是目标列的 key 数组（`targetKeys`，初始 `undefined` 也当作 `[]`）。未传 `dataSource` 时使用字段枚举，`{ label, value }` 变成 `{ key: value, title: label }`，默认 `render` 显示 `title`。`readPretty` 把已选项的标题显示为标签。
+
+## Upload
+
+```ts
+const Upload: ConnectedComponent<antd.UploadProps> & {
+  Dragger: ConnectedComponent<antd.DraggerProps>
+}
+```
+
+值是文件列表（antd `UploadFile[]`，`fileList` ↔ 字段值，`undefined` 当作 `[]`）。`onChange({ file, fileList })` 写入 `fileList`：去掉 `xhr`（不能克隆，会让提交失败），上传完成且没有 `url` 时取响应里的 `response.url`。其余（`action`、`beforeUpload`、`listType`、`maxCount`…）都是 antd 的 props；`beforeUpload` 返回 `false` 时文件留在 `originFileObj` 里随表单提交。`Upload.Dragger` 是拖拽区。`readPretty` 把文件列成链接（`picture` / `picture-card` 显示缩略图），没有上传按钮和删除按钮。
+
+## ColorPicker
+
+```ts
+const ColorPicker: ConnectedComponent<antd.ColorPickerProps>
+```
+
+值是颜色文本（按 `format`，默认 hex，如 `#1677ff`），不是 antd 的 `Color` 对象；`allowClear` 清空写 `undefined`。`readPretty` 显示色块和文本。

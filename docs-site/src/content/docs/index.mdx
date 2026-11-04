@@ -1,0 +1,56 @@
+---
+title: ShikiForm
+description: 一个无 UI 的表单引擎，用 draft + $ 状态写联动，用 Field + FormItem 接 Ant Design。
+---
+
+表单一复杂，「这个字段什么时候必填、什么时候隐藏、隐藏了还交不交」就散落在组件的 `if` 里。ShikiForm 把值、字段状态、校验和联动都放进一个引擎：联动用 `reaction` 写成对字段状态的赋值，组件只负责渲染。
+
+```tsx preview
+import { useState } from 'react';
+import { defineEffects, Form, typed, useForm } from 'shikiform';
+import { FormButtonGroup, FormItem, FormLayout, Input, Radio, Submit } from 'shikiform/antd';
+
+type Values = { kind: 'personal' | 'work'; email: string; company: string };
+
+const effects = defineEffects<Values>(({ reaction }) => {
+  reaction((d) => {
+    const work = d.kind.$value === 'work';
+    d.email.$required = work;
+    d.email.$componentProps.placeholder = work ? 'name@company.com' : 'name@example.com';
+    d.company.$display = work ? 'visible' : 'none';
+  });
+});
+
+export default function App() {
+  const [result, setResult] = useState('');
+  const form = useForm<Values>({
+    initialValues: { kind: 'personal', email: '', company: '' },
+    effects: [effects],
+  });
+  const F = typed(form);
+  return (
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
+      <FormLayout labelCol={{ span: 5 }} wrapperCol={{ span: 19 }}>
+        <F.Field name="kind" title="账号类型" enum={[{ label: '个人', value: 'personal' }, { label: '工作', value: 'work' }]}
+          decorator={[FormItem]} component={[Radio]} />
+        <F.Field name="email" title="邮箱" rules={{ format: 'email' }} decorator={[FormItem]} component={[Input]} />
+        <F.Field name="company" title="公司" required decorator={[FormItem]} component={[Input]} />
+        <FormButtonGroup.FormItem>
+          <Submit>提交</Submit>
+        </FormButtonGroup.FormItem>
+      </FormLayout>
+      <pre aria-live="polite">{result}</pre>
+    </Form>
+  );
+}
+```
+
+切到「工作」：邮箱变成必填、占位符换掉、公司出现；切回「个人」，公司既不显示、也不校验、不进提交结果。规则都在 `reaction` 里，组件里没有分支。每个字段都是同一种写法：`<Field>` 拥有路径，`FormItem` 装饰器显示标签和错误，`component` 是控件，见 [快速开始](/guide/quick-start)。`d.email.$required` 这类写法在 [核心概念](/guide/concepts) 里解释。
+
+## 四个入口
+
+`shikiform/core` 是不依赖 React 的引擎；`shikiform` 加上 React 组件与 Hooks；`shikiform/pro` 是无 UI 的表格、查询、草稿 Hooks；`shikiform/antd` 是 Ant Design 控件和 Pro 组件。依赖方向是 `antd → pro → react → core`，不用 antd 时只用前两个。各入口的导出见 [模块入口](/api#模块入口)。
+
+用 AI 写代码时，把 [/llms.txt](/llms.txt) 交给它，或看 [Agent 指南](/agents)。想边改边学，走 [分步教程](/tutorial/)。
+
+下一步：[快速开始](/guide/quick-start)，写出第一张能校验、能提交的表单。

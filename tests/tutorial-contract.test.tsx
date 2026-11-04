@@ -3,8 +3,8 @@ import { renderToString } from 'react-dom/server'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
-const tutorials = import.meta.glob<{ default: ComponentType }>('../docs/tutorial/_files/*.tsx', { eager: true })
-const sources = import.meta.glob<string>('../docs/tutorial/_files/*.tsx', { eager: true, query: '?raw', import: 'default' })
+const tutorials = import.meta.glob<{ default: ComponentType }>('../docs-site/src/content/docs/tutorial/_files/*.tsx', { eager: true })
+const sources = import.meta.glob<string>('../docs-site/src/content/docs/tutorial/_files/*.tsx', { eager: true, query: '?raw', import: 'default' })
 
 describe('the editable tutorials use the public FormEngine and the one Field style', () => {
   const examples = Object.entries(tutorials)
@@ -17,9 +17,9 @@ describe('the editable tutorials use the public FormEngine and the one Field sty
 
   it('every lesson page imports a starter and solution that exist', () => {
     for (const page of ['1-start', '2-fields', '3-path', '4-state', '5-pattern', '6-reaction', '7-array', '8-watch', '9-rules']) {
-      const mdx = readFileSync(`docs/tutorial/${page}.mdx`, 'utf8')
+      const mdx = readFileSync(`docs-site/src/content/docs/tutorial/${page}.mdx`, 'utf8')
       for (const [, file] of mdx.matchAll(/from '\.\/_files\/([\w.-]+\.tsx)\?raw'/g)) {
-        expect(Object.keys(tutorials), `${page} → ${file}`).toContain(`../docs/tutorial/_files/${file}`)
+        expect(Object.keys(tutorials), `${page} → ${file}`).toContain(`../docs-site/src/content/docs/tutorial/_files/${file}`)
       }
     }
   })

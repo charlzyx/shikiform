@@ -1,0 +1,27 @@
+---
+title: 9. 规则和提交
+description: 姓名用 rules，邮箱和年龄用 Zod。离开输入框就校验。
+tableOfContents: false
+---
+
+<div className="tutorial-step">
+<div className="tutorial-copy">
+
+右边有姓名、邮箱和年龄。现在先不改数据，离开输入框，没有提示。
+
+字段自己的规则写在 `rules` 上。整张表的形状可以用 Zod：Zod 支持 Standard Schema，直接把 schema 交给 `useForm` 的 `validate`，不需要 `shikiform/zod` 或适配器。离开输入框会校验，是因为 `validateTrigger` 里有 `onBlur`；提交时会再查一遍。
+
+起始代码写了 schema，但没有传进 `useForm`。姓名也没有规则。
+
+**这一步：** `useForm` 加上 `validate: schema`。姓名加上 `required`，`rules` 写 `{ minLength: 2, message: '至少 2 个字' }`。
+
+姓名空着失焦：只提示「必填」（空值只由 `required` 判断，`minLength` 不管空值）。姓名一个字：失焦看到「至少 2 个字」。邮箱格式不对、年龄小于 18：看到 Zod 的文案。都合法之后，提交 JSON 里有三项。
+
+JSX 的 `rules` 只在字段挂载期间生效；整表 `validate` 和声明规则仍在。下一步从 [没挂载的字段](/guide/validation) 继续看这个边界。
+
+
+</div>
+
+<TutorialPlay id="09-rules" />
+
+</div>

@@ -1,0 +1,13 @@
+{
+  "extends": "astro/tsconfigs/strict",
+  "compilerOptions": {
+    // astro/tsconfigs/base 用 jsx: preserve（Astro 自己处理 JSX）；
+    // vitest/esbuild 直接转换这些 tsx 时需要自动 runtime。
+    "jsx": "react-jsx",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": [".astro/types.d.ts", "**/*"],
+  "exclude": ["dist"]
+}

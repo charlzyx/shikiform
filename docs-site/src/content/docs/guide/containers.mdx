@@ -1,0 +1,196 @@
+---
+title: 分组容器 FormTab / FormCollapse / FormStep
+description: 长表单分到标签页、折叠面板或分步里：字段一直挂载、值不丢、提交时照常校验；标签头显示错误数；下一步只校验当前步。
+---
+
+长表单要分组展示。直接用 antd `Tabs` / `Collapse` 有两个坑：没打开过的标签页不渲染，里面 `<Field>` 的 JSX 规则就不生效；切走后看不出哪个标签页里有错。`shikiform/antd` 的三个容器（对应 Formily `FormTab`、`FormCollapse`、`FormStep`）处理这些：
+
+- **字段一直挂载**：所有面板都渲染（不活动的只是隐藏），值、规则、错误都在，提交时照常校验和提交。
+- **错误数**：标签页 / 面板标题上显示里面有错的字段数；分步条上有错的那一步显示错误状态。
+- **提交失败时带你去错误那里**：切到第一个有错的标签页 / 展开有错的面板 / 回到最早有错的那一步，再聚焦第一个有错的字段。
+- **只是布局**：容器不占值路径，字段名照常写；`$pattern` / `$display` 照常按字段路径继承（整张表阅读态，面板里的字段也是阅读态）。
+
+面板是容器的直接子元素（可以包在 Fragment 里，也可以 `cond && <FormTab.Pane>`），里面放任意 `<Field>` 和布局。
+
+## FormTab
+
+```tsx preview
+import { useState } from 'react';
+import { Form, typed, useForm } from 'shikiform';
+import { FormButtonGroup, FormItem, FormLayout, FormTab, Input, Submit } from 'shikiform/antd';
+
+type Values = { name: string; email: string; phone: string; note: string };
+
+export default function App() {
+  const form = useForm<Values>({ initialValues: { name: '', email: '', phone: '', note: '' } });
+  const F = typed(form);
+  const [saved, setSaved] = useState<Values>();
+  return (
+    <Form form={form} onSubmit={setSaved} data-form-tab-demo="">
+      <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 16 }}>
+        <FormTab>
+          <FormTab.Pane name="base" tab="基本信息">
+            <F.Field name="name" title="姓名" required decorator={[FormItem]} component={[Input]} />
+          </FormTab.Pane>
+          <FormTab.Pane name="contact" tab="联系方式">
+            <F.Field name="email" title="邮箱" required rules={{ format: 'email' }} decorator={[FormItem]} component={[Input]} />
+            <F.Field name="phone" title="电话" required decorator={[FormItem]} component={[Input]} />
+          </FormTab.Pane>
+          <FormTab.Pane name="more" tab="其他">
+            <F.Field name="note" title="备注" decorator={[FormItem]} component={[Input.TextArea]} />
+          </FormTab.Pane>
+        </FormTab>
+        <FormButtonGroup.FormItem>
+          <Submit />
+        </FormButtonGroup.FormItem>
+      </FormLayout>
+      {saved && <pre>{JSON.stringify(saved, null, 2)}</pre>}
+    </Form>
+  );
+}
+```
+
+直接点「提交」：「联系方式」没打开过，它的两个必填字段照样校验，标签上出现 `2`。填好「姓名」再提交：自动切到「联系方式」，光标停在「邮箱」上。
+
+- `FormTab` 的其余 props 交给 antd `Tabs`（`type`、`size`、`tabPosition`…）。
+- 当前页：不受控用 `defaultActiveKey`；受控用 `activeKey` + `onChange(key)`，`key` 是 `Pane` 的 `name`（不写 `name` 时是下标字符串）。
+- `Pane`：`name?`、`tab`、`disabled?`。
+
+## FormCollapse
+
+```tsx preview
+import { useState } from 'react';
+import { Form, typed, useForm } from 'shikiform';
+import { FormButtonGroup, FormCollapse, FormItem, FormLayout, Input, InputNumber, Submit } from 'shikiform/antd';
+
+type Values = { title: string; price: number | null; stock: number | null };
+
+export default function App() {
+  const form = useForm<Values>({ initialValues: { title: '', price: null, stock: null } });
+  const F = typed(form);
+  const [saved, setSaved] = useState<Values>();
+  return (
+    <Form form={form} onSubmit={setSaved}>
+      <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 16 }}>
+        <FormCollapse defaultActiveKey={['base']}>
+          <FormCollapse.Panel name="base" header="商品">
+            <F.Field name="title" title="标题" required decorator={[FormItem]} component={[Input]} />
+          </FormCollapse.Panel>
+          <FormCollapse.Panel name="sale" header="价格与库存">
+            <F.Field name="price" title="价格" required decorator={[FormItem]} component={[InputNumber, { min: 0 }]} />
+            <F.Field name="stock" title="库存" required decorator={[FormItem]} component={[InputNumber, { min: 0 }]} />
+          </FormCollapse.Panel>
+        </FormCollapse>
+        <FormButtonGroup.FormItem>
+          <Submit />
+        </FormButtonGroup.FormItem>
+      </FormLayout>
+      {saved && <pre>{JSON.stringify(saved, null, 2)}</pre>}
+    </Form>
+  );
+}
+```
+
+- 默认全部展开（`accordion` 时只展开第一个）；`defaultActiveKey` / 受控 `activeKey` + `onChange(keys)` 都是 `string[]`。
+- `Panel`：`name?`、`header`、`extra?`、`collapsible?`。其余 props 交给 antd `Collapse`。
+
+## FormStep
+
+`useFormStep()` 是分步的状态，在放按钮的组件里创建，交给 `<FormStep step={step}>`：
+
+| 成员 | 含义 |
+|---|---|
+| `current` / `count` | 当前步（从 0 开始）/ 步数 |
+| `isFirst` / `isLast` | 第一步 / 最后一步 |
+| `next(): Promise<boolean>` | **只校验当前步**的可编辑字段（一次 `form.validate(paths)`），有错停在这一步并返回 `false` |
+| `back()` / `goTo(i)` | 不校验 |
+
+最后一步用普通的 `<Submit />`：提交校验**所有**步，任何一步有错都不会提交，有错的那一步在步骤条上标红。
+
+```tsx preview
+import { Button } from 'antd';
+import { useState } from 'react';
+import { Form, typed, useForm } from 'shikiform';
+import { FormButtonGroup, FormItem, FormLayout, FormStep, Input, Submit, useFormStep } from 'shikiform/antd';
+
+type Values = { account: string; password: string; nickname: string; bio: string };
+
+export default function App() {
+  const form = useForm<Values>({ initialValues: { account: '', password: '', nickname: '', bio: '' } });
+  const step = useFormStep();
+  const F = typed(form);
+  const [saved, setSaved] = useState<Values>();
+  return (
+    <Form form={form} onSubmit={setSaved} data-form-step-demo="">
+      <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 16 }}>
+        <FormStep step={step}>
+          <FormStep.Step title="账号">
+            <F.Field name="account" title="账号邮箱" required rules={{ format: 'email' }} decorator={[FormItem]} component={[Input]} />
+            <F.Field name="password" title="密码" required rules={{ minLength: 6 }} decorator={[FormItem]} component={[Input.Password]} />
+          </FormStep.Step>
+          <FormStep.Step title="资料">
+            <F.Field name="nickname" title="昵称" required decorator={[FormItem]} component={[Input]} />
+          </FormStep.Step>
+          <FormStep.Step title="完成">
+            <F.Field name="bio" title="简介" decorator={[FormItem]} component={[Input.TextArea]} />
+          </FormStep.Step>
+        </FormStep>
+        <FormButtonGroup.FormItem>
+          <Button disabled={step.isFirst} onClick={step.back}>上一步</Button>
+          {step.isLast ? <Submit /> : <Button type="primary" onClick={step.next}>下一步</Button>}
+        </FormButtonGroup.FormItem>
+      </FormLayout>
+      {saved && <pre data-step-result="">{JSON.stringify(saved, null, 2)}</pre>}
+    </Form>
+  );
+}
+```
+
+- 每一步的字段一直挂载（其他步 `hidden`），回到上一步时值还在。
+- `next()` 跳过不可编辑的字段（自身或继承的 `readPretty` / `readOnly` / `disabled`）：用户在这一步改不了它们，详情页（`useForm({ pattern: 'readPretty' })`）可以一路点下一步。提交仍然校验全部字段。
+- 受控：`useFormStep({ current, onChange })`，这时 `next` / `back` / `goTo` 只调用 `onChange`；不受控时 `defaultCurrent` 给初始步。
+- `next()` 从不 reject：表单级 `validate` / `resolver` 抛错时停在原步，报 `console.error`。
+- `FormStep` 的其余 props 交给 antd `Steps`（`size`、`direction`、`labelPlacement`…）；`Step`：`name?`、`title`、`description?`、`subTitle?`、`icon?`。
+
+## 提交失败时
+
+`submit()` 校验失败（`<Submit />`、回车、`form.submit()`），或你调用的 `form.validate()` 发现错误时，三个容器自动把错误摆到眼前，不用配置、没有开关：
+
+| 容器 | 行为 |
+|---|---|
+| `FormTab` | 切到**第一个**含有这次错误的标签页 |
+| `FormCollapse` | 展开**所有**含有这次错误的面板（已展开的不动）；`accordion` 只能开一个，开第一个 |
+| `FormStep` | 回到**最早**含有这次错误的那一步 |
+
+然后 `<Form>` 聚焦表单里第一个有错的字段（按页面顺序）。控件 `id` 是 `<前缀>-<净化路径>`（前缀为 `<Form id>` 或 `useId()`，`user.name` 不会拿原始路径去找元素）；不能聚焦的元素就滚动到它。
+
+- 受控（`activeKey` / `useFormStep({ current })`）时只调用 `onChange`，切不切由你决定。
+- 输入、失焦触发的校验不会切换，只有提交和显式的 `form.validate()` 会。`step.next()` 只校验当前步，错误都在当前步里，所以它不会把你带走。
+- 嵌套容器（折叠面板里的标签页）各自切到含有错误的那一格。
+- 自己做的分组也能接：`form.subscribeValidateFailed((errors) => …)` 在同样的时机拿到这次的错误。
+
+## 自己做分组：FieldGroup
+
+三个容器的错误数和「只校验这一步」都建立在 `shikiform` 的无 UI 原语上：`<FieldGroup>` 收集它里面挂载的字段路径（嵌套的组也计入外层组）。
+
+```tsx
+import type { ReactNode } from 'react';
+import { FieldGroup, useFieldGroup, useFieldGroupErrors, useFormContext } from 'shikiform';
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  const form = useFormContext();
+  const group = useFieldGroup();
+  const errors = useFieldGroupErrors(group);   // [{ path, messages }]，每个有错的字段一项
+  return (
+    <section>
+      <h3>{title} {errors.length > 0 && `(${errors.length})`}</h3>
+      <button type="button" onClick={() => form.validate(group.paths())}>校验本节</button>
+      <FieldGroup value={group}>{children}</FieldGroup>
+    </section>
+  );
+}
+```
+
+`form.validate(paths[])` 一次校验多个路径（及其后代）；分别调用 `validate(path)` 会互相取代。
+
+下一步：[Ant Design 适配](/guide/antd)，接好的控件和自己的控件。

@@ -1,0 +1,147 @@
+---
+title: 核心概念
+description: 引擎、draft 与 handle、$ 状态、显隐与提交、fields 声明，以及一次输入怎样流过引擎。
+---
+
+联动、校验和渲染读写的是同一个引擎。这一页解释引擎里的几个基本单位，后面各页都用这些词。
+
+## 术语
+
+| 术语 | 含义 |
+|---|---|
+| 引擎 | `useForm`、`createForm` 返回的 `FormEngine`，持有值和每个 path 的字段状态 |
+| draft | 联动和 `form.batch` 回调收到的 `d`，用来读写引擎 |
+| handle | draft 上的一个 path，例如 `d.user.name`；访问它不读数据 |
+| `$` 状态 | handle 上以 `$` 开头的成员：`$value`、`$required`、`$display` … |
+| value | 字段的值，读写 `$value` |
+| decorator | 包在控件外的组件，负责标签、星号、错误，例如 `FormItem` |
+| component | 真正接收输入的控件，例如 `Input` |
+| reaction | 派生：立即运行，读到的 `$` 状态变了就重跑 |
+| watch | 动作：来源变了才执行一次，首次不运行 |
+| each / walk | `reaction.each` / `watch.each` 每个数组行一个实例，`reaction.walk` / `watch.walk` 每个树节点一个实例 |
+| virtual | `virtual: true` 的字段照常校验，但不进提交结果 |
+| display | `visible` 渲染；`hidden` 不渲染但仍校验、仍提交；`none` 不渲染、不校验、不提交 |
+| pattern | `editable` / `disabled` / `readOnly` / `readPretty`，从父级继承；整张表单写在根上：`form.batch((d) => { d.$pattern = 'readPretty' })`，或创建时 `useForm({ pattern: 'readPretty' })` |
+
+## 一个引擎
+
+值（`initialValues` 那棵树）和字段状态（显隐、pattern、规则、错误、UI 属性）都在引擎里。React 层只订阅 path 并提供作用域，antd 适配层只把字段映射成控件 props，二者都不另存一份值。
+
+## handle 与 value
+
+`d.user.name` 只是 path，以 `$` 开头的成员才是状态：
+
+```ts
+d.user.name.$value            // 读值（在 reaction 里会成为依赖）
+d.user.name.$value = 'Ada'    // 写这个字段
+d.user.name.$required = true  // 写字段状态
+d.items.$value                // 整个数组的值；d.items 本身不是数组
+```
+
+- 写字段就赋值它自己的 path。`$value` 读到的是不可变快照：`d.user.$value.name = 'x'` 在开发构建的 reaction / watch / `form.batch` 里直接抛错，别处也不会通知任何人。
+- handle 不是数组：`d.items.map`、`d.items.length`、`for…of` 都不对。读 `d.items.$value`，或者用 [`reaction.each`](/guide/linkage)。
+- 名为 `value` 的字段写作 `d.value.$value`。
+
+开发构建遇到这几类错误会抛 `ShikiUsageError`，信息里写着正确写法；生产构建不检查。
+
+```tsx preview
+import { Button, Space } from 'antd';
+import { Field, Form, Watch, useForm, type Draft } from 'shikiform';
+import { FormItem, Input } from 'shikiform/antd';
+
+type Values = { user: { name: string; email: string } };
+
+export default function App() {
+  const form = useForm<Values>({ initialValues: { user: { name: 'Ada', email: '' } } });
+  return (
+    <Form form={form}>
+      <Field name="user.name" title="姓名" decorator={[FormItem]} component={[Input]} />
+      <Field name="user.email" title="邮箱" decorator={[FormItem]} component={[Input]} />
+      <Space wrap>
+        <Button onClick={() => form.batch((d) => { d.user.name.$value = 'Grace'; })}>写 user.name</Button>
+        <Button onClick={() => form.batch((d) => { d.user.email.$required = !d.user.email.$required; })}>切换邮箱必填</Button>
+        <Button onClick={() => form.batch((d) => { d.user.email.$pattern = d.user.email.$pattern === 'readPretty' ? undefined : 'readPretty'; })}>切换阅读态</Button>
+      </Space>
+      <Watch select={(d: Draft<Values>) => d.user.$value}>{(user) => <pre>{JSON.stringify(user)}</pre>}</Watch>
+    </Form>
+  );
+}
+```
+
+`form.batch(fn)` 用同一个 draft 做一组写入，只触发一轮联动和一次通知。单个值也可以 `form.setValue('user.name', 'Grace')`。
+
+## `$` 状态
+
+| 状态 | 含义 |
+|---|---|
+| `$value` | 值。reaction 写它时，字段成为**计算字段**：显示为 `readPretty`、不校验，默认仍提交 |
+| `$display` / `$visible` / `$hidden` | `visible` / `hidden` / `none`；与 Formily 相同，`$visible = false` 等于 `none`（不校验、不提交），`$hidden = true` 等于 `hidden`（只藏 UI，仍校验、仍提交） |
+| `$pattern` / `$disabled` | `$pattern = undefined` 恢复继承；`$disabled = true` 写 `disabled`，`$disabled = false` 撤销它并恢复继承 |
+| `$required` / `$rules` | 必填与规则；reaction 写的规则不随组件卸载 |
+| `$enum` | 选项（静态数组或 `EnumSource.with(params)`）；优先于 `<Field enum>` 和 `fields.x.enum`。`$enum = undefined` 撤销 reaction 层、回到 JSX / 声明 / 模板的选项，`$enum = []` 才是清空 |
+| `$title` / `$description` | 装饰器的标签 / 说明（`FormItem` → `label` / `extra`） |
+| `$component` / `$decorator` | `<Field>` 渲染的控件 / 装饰器 |
+| `$componentProps` / `$decoratorProps` | 控件 / 装饰器 props，按键打补丁，见 [UI 状态三层叠加](/guide/field#ui-状态三层叠加) |
+| `$errors` `$warnings` `$validating` `$touched` | 只读 |
+| `$dirty` / `$edited` | 只读。`$dirty`：值和初始值不同（深比较，改回原值即 `false`；根上 `d.$dirty` 不算 `virtual` 和计算字段）。`$edited`：用户编辑过，直到 `reset` |
+| `d.$canSubmit` `d.$submitting` `d.$submitCount` | 表单级只读状态，在根 draft 上读 |
+
+## 显隐、pattern 与提交
+
+| 设置 | UI | 校验 | 提交 |
+|---|---|---|---|
+| `display: 'visible'` | 渲染 | 查 | 带上 |
+| `display: 'hidden'`（含 `$hidden = true`） | 不渲染 | **仍查** | **仍带上** |
+| `display: 'none'`（含 `$visible = false`） | 不渲染 | 跳过 | 拿掉（值留在表单里，重新显示时还在） |
+| `virtual: true` | 不影响 | 查 | 拿掉 |
+| reaction 写过 `$value` | `readPretty` | 跳过 | 带上（除非 `virtual: true`） |
+
+「类型 = 公司才显示必填的税号」这类条件字段写 `d.taxId.$visible = d.kind.$value === 'company'`：切走后税号不挡提交、也不被提交。只有「藏起来但值仍要校验和提交」（例如没切到的标签页）才用 `$hidden = true` / `$display = 'hidden'`。
+
+`display` 和 `pattern` 都从父级往下传：父级 `none`，子级都是 `none`；子级显式写了 `$pattern` 就用自己的。`$disabled = false` 只撤销 `$disabled = true` 写下的 `disabled`，显式写的 `$pattern` 不动。`disabled` / `readOnly` 只限制用户交互，不阻止程序写入。
+
+## `fields` 声明
+
+写在 `useForm({ fields })` 里的字段不等组件挂载就存在：没渲染（标签页没打开、折叠、虚拟滚动之外）也照样校验。UI 也可以一起声明，之后 `<Field name="city" />` 就能渲染出来：
+
+```tsx preview play=tabs
+import { Field, Form, Watch, useForm, type Draft } from 'shikiform';
+import { FormItem, Input, Select } from 'shikiform/antd';
+
+type Values = { city: string; note: string; items: { name: string }[] };
+
+export default function App() {
+  const form = useForm<Values>({
+    initialValues: { city: 'sh', note: '', items: [{ name: '' }, { name: '' }] },
+    fields: {
+      city: {
+        title: '城市', decorator: [FormItem], component: [Select, { style: { width: 160 } }],
+        enum: [{ label: '上海', value: 'sh' }, { label: '北京', value: 'bj' }],
+      },
+      note: { title: '备注', description: '声明在 fields 里的说明', decorator: [FormItem], component: [Input.TextArea] },
+      // 模板：作用于 items 的每一行（包括以后 push 的行）
+      'items.*.name': { required: true },
+    },
+  });
+  return (
+    <Form form={form}>
+      <Field name="city" />
+      <Field name="note" />
+      <button type="button" onClick={() => void form.validate()}>校验（items 没有渲染）</button>
+      <Watch select={(d: Draft<Values>) => d.items.$errors}>{(errors) => <small> 错误：{errors.join('；') || '无'}</small>}</Watch>
+    </Form>
+  );
+}
+```
+
+`items.*.name` 是行模板，作用于每一行，包括以后添加的行。
+
+## 一次输入的路径
+
+1. 控件调用 `field.onChange(value)`。
+2. 引擎写入并标记变化；读过这些状态的 `reaction` 重跑，它写下的状态再唤醒下游，直到稳定。`watch` 在来源变化后执行。
+3. 订阅了相关 path 的组件重新渲染。
+4. 失焦或提交时校验（可配置为输入时）。
+5. `submit` 等待异步规则并校验，通过才调用回调；结果里去掉 `virtual: true` 和 `display: 'none'` 的字段。
+
+下一步：[Field、装饰器与组件](/guide/field)，把字段渲染出来。

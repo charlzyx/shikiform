@@ -52,7 +52,7 @@ export default function App() {
 
 ## 开发这个仓库
 
-Hooks 是主 API，JSX 是其结构与渲染封装；draft 和 `$` 描述状态，`reaction` / `reaction.each` / `watch` 描述联动。文档站（https://shikiform.pages.dev）用 [VitePress](https://vitepress.dev/)。教程在浏览器里改代码。
+Hooks 是主 API，JSX 是其结构与渲染封装；draft 和 `$` 描述状态，`reaction` / `reaction.each` / `watch` 描述联动。文档站（https://shikiform.pages.dev）用 [Nimbus](https://github.com/cloudflare/nimbus-docs)（Astro），源码在 `docs-site/`。教程在浏览器里改代码。
 
 教程和库使用同一个 FormEngine：`src/core`、`src/react`、`src/pro`、`src/antd`，包入口在构建后的 `lib/`。没有替换核心行为的教学 store。
 
@@ -71,12 +71,12 @@ Hooks 是主 API，JSX 是其结构与渲染封装；draft 和 `$` 描述状态�
 
 ```bash
 npm ci
-npm run dev         # VitePress 文档站
+npm run dev         # 文档站（docs-site/，Astro；首次自动装站点依赖）
 npm test            # 正式库 + 同源教程的 vitest
 npm run check       # 库、playground、测试的 tsc --noEmit（教程另有 check:docs）
 npm run check:api   # 真实 Hook 与 pro/antd 导出对应的参考章节覆盖
 npm run check:docs  # npm pack 隔离消费者：同份教程/执行 MDX 的类型、bundle、SSR
-npm run build       # 文档 + playground，输出 dist/。Cloudflare Pages 跑的就是这条
+npm run build       # 文档 + playground，输出根 dist/。Cloudflare Pages 跑的就是这条
 npm run preview     # 本地预览 dist/
 npm run build:lib   # tsup → lib/，不随文档一起发布
 npm run build:play  # 单独重建 Vite playground → dist/play/
@@ -96,10 +96,11 @@ VitePress 的 `@docsearch/js` 所带 React 适配器有可选 `React <19` peers�
 
 构建按这条路线配好，可直接被 CF Pages 的 GitHub 联动部署：
 
-- 静态输出：`site/config.ts` 把 `outDir` 写成 `dist/`。
+- 静态输出：`docs-site/astro.config.ts` 把 `outDir` 写成仓库根 `dist/`（playground 同在 `dist/play/`）。
+- 站点依赖：`docs-site/` 有自己的 lock，根 `npm ci` 不装它；`npm run build` 先跑 `scripts/ensure-site-deps.mjs`，缺失或过期时 `npm ci --prefix docs-site`。
 - base 路径：`base: '/'`。
-- 路由是 clean URLs（`/reference/react-hooks`，没有尾斜杠）。`docs/public/_redirects` 把旧的尾斜杠地址和旧教程地址 301 到新地址。
-- 构建命令：`npm run build`（`npm run build:cf-pages` 等价；先构建 VitePress，再构建 playground）
+- 路由以带尾斜杠的目录索引为规范（`/guide/quick-start/`，Astro 目录输出 + Pages 默认行为）。`docs-site/public/_redirects` 只把旧教程地址和旧草稿地址 301 到新地址，不能有「去掉尾斜杠」的规则（会与 Pages 的 308 死循环，e2e 检查）。
+- 构建命令：`npm run build`（`npm run build:cf-pages` 等价；先构建 Nimbus/Astro 站点，再构建 playground）
 - 输出目录：`dist`
 - Framework preset：`None`。不要留着 Astro。
 - Node 版本过低时加环境变量 `NODE_VERSION=22`。
@@ -122,7 +123,6 @@ ESM 入口共享内部 chunks，避免 `shikiform` 与 `shikiform/antd` 各自�
 
 ### 排障
 
-- 资源 404 且路径带 `/shiki/` 前缀：把 `site/config.ts` 里的 `base` 改回 `'/'` 再推一次。
 - 构建报 Node 版本过低：在 CF 的 Environment variables 里加 `NODE_VERSION=22`。
 - 页面 404 但构建成功：确认 Build output directory 是 `dist`，不是 `doc_build`。
 

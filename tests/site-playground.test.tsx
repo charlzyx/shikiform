@@ -5,9 +5,9 @@ import { createRoot, type Root } from 'react-dom/client'
 import { renderToString } from 'react-dom/server'
 import { theme } from 'antd'
 import { EditorView } from '@codemirror/view'
-import { compileDemo, resolveFile } from '../site/bridge/playground/runtime'
-import { Playground } from '../site/bridge/playground/Playground'
-import { SiteThemeContext } from '../site/bridge/theme'
+import { compileDemo, resolveFile } from '../docs-site/src/bridge/playground/runtime'
+import { Playground } from '../docs-site/src/bridge/playground/Playground'
+import { SiteThemeProvider } from '../docs-site/src/bridge/theme'
 
 ;(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true
 let root: Root | undefined
@@ -81,15 +81,20 @@ describe('Playground', () => {
     Object.defineProperty(Range.prototype, 'getBoundingClientRect', { configurable: true, value: () => ({ x: 0, y: 0, width: 0, height: 0, top: 0, left: 0, right: 0, bottom: 0 }) })
     let dark = false
     const source = "export default function App() { return <i>prebuilt</i> }"
-    const { host, render } = mount(() => createElement(SiteThemeContext.Provider, { value: dark },
+    document.documentElement.setAttribute('data-mode', 'light')
+    const { host, render } = mount(() => createElement(SiteThemeProvider, null,
       createElement(Playground, { files: { 'App.tsx': source }, component: Probe, codeHtml: '<pre class="hl">hl</pre>' })))
     await act(async () => render())
 
     const probe = () => host.querySelector('[data-bg]')!
     await act(async () => { (probe() as HTMLButtonElement).click() })
     const light = probe().getAttribute('data-bg')
+    // 主题跟随 documentElement 的 data-mode（Nimbus 的换肤机制），原地重渲染不重置状态。
     dark = true
-    await act(async () => render())
+    await act(async () => {
+      document.documentElement.setAttribute('data-mode', 'dark')
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    })
     expect(probe().textContent).toBe('count:1')
     expect(probe().getAttribute('data-bg')).not.toBe(light)
 

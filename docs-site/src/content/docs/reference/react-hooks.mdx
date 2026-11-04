@@ -1,0 +1,560 @@
+---
+title: React Hooks
+description: useForm、useField、useWatch、数组与树 Hooks 的签名、返回值、订阅和完整示例。
+---
+
+从 `shikiform` 导入，不依赖 antd。用法见 [Headless Hooks](/guide/headless)。
+
+| 要做什么 | Hook | 是否订阅 |
+|---|---|---|
+| 创建并保留表单 | [`useForm`](#useform) | 不自动订阅值 |
+| 按表单类型检查字段名 | [`typed`](#typed) | 不订阅（返回有类型的组件和 Hooks） |
+| 取得上层表单 | [`useFormContext`](#useformcontext) | 不自动订阅值 |
+| 跟随表单语言的内置文案 | [`useFormMessage`](#useformmessage) | 不订阅 |
+| 绑定一个输入；无参时读当前字段（自定义控件、装饰器、单元格） | [`useField`](#usefield) | `useField(name)` 订阅该路径；`useField()` 不另订阅（随外层 Field 渲染） |
+| 读取选中的值或状态 | [`useWatch`](#usewatch) | selector 实际读取的 `$` 依赖 |
+| 数组行增删、排序和拖动（`dragProps`） | [`useArrayField`](#usearrayfield) | 数组结构，不是每个单元格 |
+| 行内取最近的数组 / 行号 / 行值（无需 name） | [`useArray`](#usearray)、[`useIndex`](#useindex)、[`useRecord`](#userecord) | 数组结构 / 不订阅 / 这一行的值 |
+| 树结构、节点移动和拖动（`dragProps`） | [`useTreeField`](#usetreefield) | 树结构 |
+| 当前树节点（无需 name） | [`useTreeNode`](#usetreenode) | 这个节点的值 |
+| 收集一块 JSX 里的字段、读它们的错误 | [`useFieldGroup`](#usefieldgroup)、[`useFieldGroupErrors`](#usefieldgrouperrors) | 组成员 / 组内错误 |
+
+除 `useForm` 外，本页 Hooks 都必须在 `<Form form={form}>` 后代中调用。**在一个组件中先调用 `useField`、再从它返回 `<Form>` 不算在 Provider 内**；把读字段的组件放到 Form 里面。
+
+名字也有区别：`useField(name)` / `useArrayField(name)` 需要名字，返回输入绑定 / 行操作；对应 Formily `ArrayBase.useArray / useIndex / useRecord` 的无名上下文 Hook 是 [`useArray()`](#usearray)、[`useIndex()`](#useindex)、[`useRecord()`](#userecord)，当前字段是不带参数的 [`useField()`](#usefield)（与 Formily `useField()` 相同）。`<Field>`、表格单元格里的 `<Field>` 都用它，只有这一种写法。
+
+## useForm
+
+```ts
+useForm<T, TSubmit = T>(options?: UseFormOptions<T>): FormEngine<T, TSubmit>
+
+interface UseFormOptions<T> extends FormOptions<T> { values?: T }
+```
+
+| 参数 / 返回 | 含义与默认 |
+|---|---|
+| `options` | 省略等同 `{}`；除 `values` 外仅第一次渲染读取 |
+| `options.initialValues` | 省略时以空对象开始；建议完整写出值形状，让 `T` 可推断 |
+| `options.values` | 外部拥有的数据（加载的记录、查询缓存）。第一次渲染当作初始值；之后内容变化时调 `reset(values)`（新基线，不 dirty）。内容相同的新对象不触发 |
+| `TSubmit` | `submit` / `getSubmitValues` / `<Form onSubmit>` 的值类型，默认 `T`；有 `virtual` / `display: 'none'` 字段时用 `SubmitValues<T, 'tmp'>`，见 [提交值类型](/api#提交值类型) |
+| 返回值 | 稳定的 `FormEngine<T, TSubmit>` 实例，提供 `getValue`、`setValue`、`reset`、`validate`、`submit` 等方法 |
+
+`useForm` 本身不要求父级 Provider。后续渲染传入新 `initialValues` 不会重建实例，也不会生效；会变的数据用 `values`，或自己调 `reset(record)`。渲染需要实时值时用 `useField` / `useWatch`，不要期待读取 `form.values` 就自动重渲染。
+
+完整选项、校验默认触发器和提交返回值见 [创建表单](/api#创建表单)。非 React 环境用 `createForm`。
+
+[实现：use-form.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-form.ts)
+
+## useFormMessage
+
+```ts
+useFormMessage(): (key: FormMessageKey, params?) => string
+```
+
+返回一个函数，按最近 `<Form>` 的 `messages` → `setDefaultMessages` → `zhCN` 解析内置文案；没有表单时只用应用默认值。`shikiform/antd` 的按钮文案都经过它，自定义组件用它就能跟着同一套语言：
+
+```tsx
+const t = useFormMessage()
+<Button>{t('submit')}</Button>
+<span>{t('selectionCount', { count: 3 })}</span>
+```
+
+key 列表见 [内置文案](/guide/validation#内置文案)。有实例时等价于 `form.message(key, params)`。
+
+[实现：use-form-message.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-form-message.ts)
+
+## typed
+
+```ts
+typed<T>(form: FormEngine<T>): TypedForm<T>       // 一张表单
+typed<T, TRoot = T>(): TypedForm<T, TRoot>          // 没有实例时（行组件、可复用片段）
+
+type TypedForm<T> = {
+  Field, ObjectField, ArrayField        // name 按 T 检查；行 / 对象拿到按自身类型检查的同一组组件
+  useField(name: FieldPath<T>, options?): FieldBinding<PathValue<T, name>>
+  useArrayField(name: ArrayPath<T>, opts?: { rowKey?: string }): ArrayHandle<行类型>
+  useWatch<S>(select: (d: Draft<TRoot>) => S): S
+  Watch: <S>(props: { select: (d: Draft<TRoot>) => S; children: (value: S) => ReactNode }) => ReactNode
+}
+```
+
+普通的 `<Field>` / `useField` / `<ArrayField>` / `<ObjectField>` 读的是 React 上下文，拿不到表单的类型，所以不写泛型时 `name` 是任意字符串。`typed(form)` 返回**同一批组件和 Hooks**，只是带上了表单的类型：拼错的名字编译不过，`value` 有具体类型，`useWatch` 不用注解 `d`。
+
+```tsx
+const form = useForm({ initialValues: { email: '', items: [{ id: 1, name: '' }] } })
+const F = typed(form)
+
+<Form form={form}>
+  <F.Field name="email" />                       {/* 'emial' 编译不过 */}
+  <F.ArrayField name="items" rowKey="id">
+    {(row) => <row.Field name="name" />}         {/* 按一行检查，绑定 items.<i>.name */}
+  </F.ArrayField>
+  <F.ObjectField name="profile">
+    {(obj) => <obj.Field name="city" />}         {/* 按 profile 检查 */}
+  </F.ObjectField>
+  <F.Watch select={(d) => d.$canSubmit}>{(ok) => <button disabled={!ok}>提交</button>}</F.Watch>
+</Form>
+```
+
+规则只有一条：**名字相对当前作用域**，类型也跟着作用域走。根上用 `F.*`，`ArrayField` 的行里用 `row.*`，`ObjectField` 的函数子节点里用 `obj.*`。在 `items.0` 行里写 `items.0.name` 会在开发环境抛 `ShikiUsageError`（它会被拼成 `items.0.items.0.name`）。
+
+- 行组件里没有表单实例：`const Row = typed<RowValue>()`，`Row.useField('price')` 按行检查。它的 `useWatch` 仍读根 draft，需要类型时写 `typed<RowValue, Values>()`。
+- 可复用片段（地址块、联系人块）就是普通组件：`const A = typed<Address>()`，组件里写 `<A.Field name="city" …/>`，用的地方 `<ObjectField name="home"><AddressFields /></ObjectField>`。同一个片段放在不同的 `ObjectField` 里就绑定不同的路径；需要额外参数就是普通 props。
+- 需要动态字符串（列定义、后端下发的路径）时继续用普通组件，`useField(name)` 返回 `FieldBinding<any>`。
+- `<F.Field enum>` / `row.Field` 的 `enum` 按字段值检查选项的 `value`（数组字段按元素类型）。
+- `typed` 没有新的运行时：同一个表单多次调用返回同一个对象。
+
+[实现：typed.tsx](https://github.com/charlzyx/shikiform/blob/main/src/react/factory/typed.tsx)
+
+## useFormContext
+
+```ts
+useFormContext<T = any>(): FormEngine<T>
+```
+
+无参数。返回最近 `<Form>` 提供的同一个引擎；缺少 Provider 时抛错，不会偷偷创建表单。
+
+`T` 是调用者对已有实例的类型说明，不做运行时转换。它不订阅字段值或 `submitting`，适合按钮事件里调用 `reset`、`submit`。要显示实时提交状态，配合 `useWatch`。
+
+这是顶层公开 Hook；`useScope` 只是内部实现，不是 `shikiform` 顶层导出。
+
+[实现：context.tsx](https://github.com/charlzyx/shikiform/blob/main/src/react/context.tsx)
+
+## useField
+
+```ts
+useField<TValue = any>(): FieldBinding<TValue>        // 无参：当前字段
+useField(name: string, options?: UseFieldOptions): FieldBinding<any>
+useField<TScope>(
+  name: FieldPath<TScope>,
+  options?: UseFieldOptions
+): FieldBinding<PathValue<TScope, FieldPath<TScope> & string>>
+useField<TScope, N extends FieldPath<TScope>>(
+  name: N,
+  options?: UseFieldOptions
+): FieldBinding<PathValue<TScope, N & string>>
+
+interface UseFieldOptions<TValue = any> {
+  ui?: UiName                    // 同一字段的另一个 UI 实例：d.x.$ui(ui)，见下文「UI 实例」
+  enum?: FieldEnum<TValue>       // [{ label, value }] | 原始值数组 | SomeEnum.with(params)；挂载期生效
+  rules?: RulesInput
+  required?: boolean
+  virtual?: boolean
+  display?: Display
+  pattern?: Pattern
+  // UI 状态（渲染期的 JSX 层，不写进模型；reaction 的 $title / $componentProps 优先，fields 声明在下）
+  title?: ReactNode
+  description?: ReactNode
+  component?: FieldSlot          // Component 或 [Component, props]
+  decorator?: FieldSlot          // Decorator 或 [Decorator, props]
+  componentProps?: Record<string, any>
+  decoratorProps?: Record<string, any>
+}
+```
+
+`options` 与 `<Field>` 同名属性语义相同：`rules` / `required` / `enum` 是挂载期 lease（调用组件卸载时释放；`enum` 的优先级是 reaction `$enum` > JSX > `fields` > 条目模板，reaction 写 `$enum = undefined` 回到 JSX 这一层，属性变化（深比较）会重新应用），`virtual` / `display` / `pattern` 是持久字段标记，UI 选项合并进返回的 binding。`<Field>` 就是 `useField(name, options)` 加上「非 visible 返回 null」，再渲染 `decorator` 包住的 `component`，并把 binding 提供给子树里不带参数的 `useField()`。
+
+带 `name` 时，它是当前对象 / 行作用域下的**相对路径**。例如在 `items.0` 的 `RowScope` 下，`useField('price')` 绑定 `items.0.price`。在行里再写 `items.0.price` 会重复前缀；稳定行 ID 也不是路径。
+
+| 写法 | 类型效果 |
+|---|---|
+| `useField('price')` | 动态路径可用，值是 `any` |
+| `useField<Row>('price')` | 检查路径存在，但值类型是各可选路径值的联合 |
+| `useField<Row, 'price'>('price')` | 检查路径，值精确为 `Row['price']` |
+
+`FieldBinding`、`FieldPath`、`PathValue` 都可从 `shikiform` 导入（`FieldPath` / `PathValue` 在 `shikiform/core` 里是同一个类型）。
+
+### 返回的 FieldBinding
+
+| 属性 | 类型与用途 |
+|---|---|
+| `path` / `id` | `string`；完整数据路径 / 给 label 的 DOM id。在 `<Form>` 里 id 带表单前缀（`<Form id>`，没传则 React `useId()`）加净化路径：`user.name` → `<前缀>-user-name`。引擎 `binding().id` 不含前缀 |
+| `value` | 当前路径值，类型由上述泛型决定 |
+| `onChange(value)` | `(value: TValue) => void`；写入值，不接收 DOM event |
+| `onBlur()` | `() => void`；标记 touched，并按配置触发校验 |
+| `errors` / `warnings` | `string[]`；交给 UI 展示 |
+| `display` | `'visible' \| 'hidden' \| 'none'` |
+| `pattern` | `'editable' \| 'disabled' \| 'readOnly' \| 'readPretty'` |
+| `required` / `disabled` / `readOnly` | `boolean`；有效字段状态 |
+| `touched` / `dirty` / `edited` / `validating` | `boolean`；失焦过、值与初始值不同（改回即 `false`）、用户编辑过（粘滞）、异步校验中 |
+| `options` / `loading` | 枚举选项数组 / 枚举加载状态 |
+| `title` / `description` | 装饰器的标题 / 说明（`FormItem` → `label` / `extra`）：reaction > JSX > `fields` |
+| `component` / `decorator` | `<Field>` 渲染的控件 / 装饰器组件 |
+| `componentProps` / `decoratorProps` | 合并后的控件 / 装饰器 props（`fields` ← JSX ← `$componentProps` / `$decoratorProps`，深合并） |
+| `ui` | 仅 UI 实例有：实例名（`<Field ui="echo">`） |
+
+`useField` 订阅该路径并注册基础字段模型，但**不会替你渲染或隐藏输入**。自定义 UI 要处理 `display` / `pattern`；需要 JSX `rules`、`required` 生命周期时传 `options`（或用 `<Field>`）。`hidden`（`$hidden = true`）仍校验/提交，`none`（`$visible = false`）才跳过，见 [显隐](/guide/concepts) 和 [未挂载规则](/guide/validation)。
+
+### 无参 useField：当前字段
+
+`useField()` 不带参数时，返回最近的 `<Field>` 正在渲染的字段 binding，与 Formily 的 `useField()` 一样。自定义控件、装饰器、表格单元格里的输入都用它，不用重复写 `name`；`useField<string>()` 给 `field.value` 定类型。
+
+```tsx
+function TextInput() {
+  const field = useField<string>()
+  return <input value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />
+}
+function MyDecorator({ children }: { children?: ReactNode }) {
+  const field = useField()
+  return <label>{field.title}{field.required ? ' *' : ''}{children}<small>{field.errors[0]}</small></label>
+}
+<Field name="email" title="邮箱" decorator={[MyDecorator]} component={[TextInput]} />
+<Field name="phone"><TextInput /></Field>   {/* 作为子元素也一样 */}
+```
+
+- 不在任何 `<Field>` 内调用时抛出 `ShikiUsageError`，消息写明修法：放进 `<Field name="…">`，或改成 `useField('email')`。
+- 它不另外订阅：值随外层 `<Field>` 重新渲染。只想在 Hook 里绑定一个字段时，直接 `useField('email', options)`；要把这个 binding 交给 connect 控件，传 `field` 属性（`<Input field={field} />`）。
+- 同一调用处要么总带 `name`，要么总不带（两种形式使用不同的 Hooks）。
+
+### UI 实例：`useField(name, { ui })` / `<Field name ui>`
+
+同一个字段要显示成多个 UI（输入框 + 回显、滑块 + 数字框）时，第二个起带 `ui` 名。它们共享值、错误、规则、选项；各自有 `display` / `pattern` / `title` / `description` / `componentProps` / `decoratorProps`，在 effects 里是 `d.x.$ui(name)`。
+
+```tsx
+<Field name="amount" title="金额" decorator={[FormItem]} component={[InputNumber]} />
+<Field name="amount" ui="slider" component={[Slider]} />           // d.amount.$ui('slider').$pattern = 'disabled'
+const field = useField('amount', { ui: 'slider' })                  // 同上的 Hook 写法
+```
+
+- 返回的 binding：`value` / `onChange` / `errors` / `required` / `options` 是字段的；`display` / `pattern` / `disabled` / `readOnly` / UI 状态是实例的；`id` 是带表单前缀的 `<前缀>-<净化路径>--<ui>`（`<Form id="edit">` 下的 `amount` / `slider` 为 `edit-amount--slider`），label 不会指错；`ui` 是实例名。实例里的无参 `useField()` 返回这份 binding。
+- 优先级：reaction（`$ui(name).$pattern`）> JSX（实例上的 `pattern` / `componentProps` …）> 回退。回退：`display` / `pattern` 取字段的有效值（字段继承根 `$pattern`，实例也跟着）；`title` / `description` 取字段的声明 + reaction 值；`componentProps` / `decoratorProps` 不回退（是另一个组件的）。
+- 实例**不**登记 JSX `rules` / `required` / `enum` / `virtual`（开发期警告一次）：这些写在不带 `ui` 的 `<Field>` 上。
+- 名字类型：默认任意字符串；在 `UiNames` 里登记后 `ui` / `<UI name>` / `$ui()` 都检查拼写（见 [UI 节点](/guide/ui#名字的类型)）。
+
+[实现：use-field.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-field.ts)
+
+## UI 组件（`<UI>`）
+
+不是 Hook，列在这里因为它和 `useField(name, { ui })` 是一套：没有值的 UI 节点，在 effects 里是 `d.$ui(name)`（在行 / `<ObjectField>` 里是该作用域的 `row.$ui(name)`）。
+
+```tsx
+interface UIProps {
+  name: UiName
+  component?: FieldSlot           // [Alert, { type: 'warning' }]；children 渲染在它里面
+  decorator?: FieldSlot           // [FormItem]：title → label，description → extra
+  componentProps?: Record<string, any>
+  decoratorProps?: Record<string, any>
+  title?: ReactNode
+  description?: ReactNode
+  display?: Display                // 初始显隐，reaction 优先
+  pattern?: Pattern
+  children?: ReactNode | ((ui: UiBinding) => ReactNode)
+}
+<UI name="approvalTip" component={[Alert, { type: 'warning', message: '需要审批' }]} />
+reaction((d) => { d.$ui('approvalTip').$visible = d.amount.$value >= 50000 })
+```
+
+- 永远不进 `values` / 提交 / 校验。`$visible` / `$hidden` / `$display` / `$pattern` / `$disabled` / `$title` / `$description` / `$componentProps` / `$decoratorProps`，读取是依赖。
+- **隐藏不级联**：`<UI>` 隐藏时不渲染子元素，但里面字段的 `$visible`、校验、提交都不变（字段只看自己的 display）。要连字段一起去掉，再写字段自己的 `$visible = false`。
+- reaction 写了一个从没挂载过的 `$ui(name)`（拼错、忘了渲染）：挂载稳定后开发期警告一次，列出这个路径上已挂载的名字。
+
+[实现：ui.tsx](https://github.com/charlzyx/shikiform/blob/main/src/react/components/ui.tsx)
+
+## useWatch
+
+```ts
+useWatch<T = any, S = unknown>(select: (draft: Draft<T>) => S): S
+```
+
+| 参数 / 返回 | 契约 |
+|---|---|
+| `select` | 必填同步 selector；读取 `$value`、`$errors`、`$submitting` 等状态并返回数据，不在里面写值或执行副作用 |
+| 返回值 | selector 的结果 `S`；没有额外包装对象 |
+| 依赖 | 自动跟踪本轮读到的 `$` 状态；分支变化后调整订阅 |
+
+不注解时 `useWatch((d) => d.$submitting)` 可以编译，`d` 是 `any`，返回值也是 `any`。要类型就用 [`typed(form).useWatch((d) => d.name.$value)`](#typed)（`string`），或注解 `useWatch((d: Draft<Values>) => d.name.$value)`。只写一个泛型 `useWatch<Values>(...)` 时 TypeScript 不再推断 `S`（它是 `unknown`），不要这样写。
+
+返回对象/数组可用，快照通过 `Object.is` / 深比较复用；不要返回每次新建的函数。没有读到任何 `$` 依赖时会退回整表通知，因此它不适合作为“零订阅”的替代品。
+
+`useWatch` 是 React 中的读取/渲染；effects 里的 `watch(source, effect)` 是值变化后的动作，两者不是同一 API。参见 [联动](/guide/linkage)。
+
+[实现：use-watch.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-watch.ts)
+
+### 完整例子：一个绑定、一个 selector、一个操作按钮
+
+```tsx preview
+import { Form, useField, useForm, useFormContext, useWatch, type Draft } from 'shikiform';
+
+type Values = { name: string };
+
+function NameInput() {
+  const field = useField<Values, 'name'>('name');
+  if (field.display !== 'visible') return null;
+  if (field.pattern === 'readPretty') return <p>姓名：{field.value}</p>;
+  return (
+    <label htmlFor={field.id}>
+      姓名
+      <input id={field.id} value={field.value} disabled={field.disabled} readOnly={field.readOnly}
+        onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} />
+      <span role="status">{field.errors.join('；')}</span>
+    </label>
+  );
+}
+
+function Greeting() {
+  const name = useWatch((d: Draft<Values>) => d.name.$value);
+  return <p>你好，{name || '还没有填写姓名'}</p>;
+}
+
+function ResetName() {
+  const form = useFormContext<Values>();
+  return <button type="button" onClick={() => form.reset('name')}>恢复初值</button>;
+}
+
+export default function HookExample() {
+  const form = useForm({ initialValues: { name: 'Ada' }, fields: { name: { required: true } } });
+  return <Form form={form}><NameInput /><Greeting /><ResetName /></Form>;
+}
+```
+
+## useArrayField
+
+```ts
+useArrayField(name: string, opts?: { rowKey?: string }): ArrayHandle<unknown>
+useArrayField<TScope>(name: ArrayPath<TScope>, opts?: { rowKey?: string }): ArrayHandle<unknown>
+useArrayField<TScope, N extends ArrayPath<TScope>>(
+  name: N, opts?: { rowKey?: string }
+): ArrayHandle<ArrayItemOf<TScope, N & string>>
+```
+
+`ArrayHandle` 类型可从 `shikiform` 导入，调用方通常直接用返回值推断。`ArrayPath` 从 `shikiform/core` 导入，`ArrayItemOf` 也可从 `shikiform` 导入。
+
+| 参数 | 作用 / 默认 |
+|---|---|
+| `name` | 必填，相对当前 scope 的数组路径 |
+| `opts.rowKey` | 可选行标识属性名；省略时使用行的 `id`，没有 ID 的对象行使用对象身份。业务数据建议明确提供唯一稳定 ID |
+
+返回 `{ path, keys, push, insert, remove, move, swap, replace, dragProps }`：
+
+| 成员 | 签名 / 含义 |
+|---|---|
+| `path` | `string`，完整数组路径 |
+| `keys` | `{ key: string; index: number }[]`；`key` 给 React，`index` 用于路径 |
+| `push(row)` | 追加一行 → `void` |
+| `insert(index, row)` | 在指定下标插入 → `void` |
+| `remove(index)` | 删除一行 → `void` |
+| `move(from, to)` | 移动到**最终下标** `to` → `void` |
+| `swap(a, b)` | 交换两个下标 → `void` |
+| `replace(index, row)` | 替换一行 → `void` |
+| `dragProps(index)` | 这一行的原生 HTML5 拖动属性 `{ draggable, onDragStart, onDragOver, onDrop }`：展开到行上（既是拖动源也是放置目标），或把 `onDragOver` / `onDrop` 给行、`draggable` / `onDragStart` 给把手。把 A 行放到 B 行上 = `move(A, B)` |
+
+写全 `useArrayField<Values, 'items'>('items')` 才能同时检查数组路径和行值类型；只写一个泛型时行操作参数为 `unknown`。
+
+它只订阅结构（长度/顺序/行身份），不会因为单元格编辑就更新整个列表。单元格另用 `useField`，汇总另用 `useWatch`。不要原地修改返回的数组或 `getValue` 引用来代替操作方法。嵌套行需用 `RowScope` 提供路径；`<ArrayField>` 已替你做这层重复渲染。
+
+`dragProps` 函数对同一数组路径保持同一个引用（拖动起点记在句柄内部），所以可以经 context 交给 `memo` 的行而不让它们重渲染；没有隐藏的拖拽库，把手、键盘和触屏交互由应用决定。事件没有 `dataTransfer` 时用句柄记下的起点。
+
+[实现：use-array.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-array.ts) · [数组教程](/tutorial/7-array)
+
+### 完整例子：拖动排序，键不变，路径随顺序变化
+
+```tsx preview
+import { Form, RowScope, useArrayField, useField, useForm } from 'shikiform';
+
+type Item = { id: string; label: string };
+type Values = { items: Item[] };
+
+function ItemInput() {
+  const field = useField<Item, 'label'>('label');
+  return <input aria-label="项目名称" value={field.value}
+    onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} />;
+}
+
+function Items() {
+  const array = useArrayField<Values, 'items'>('items', { rowKey: 'id' });
+  return (
+    <section>
+      {array.keys.map((row) => (
+        <RowScope key={row.key} path={`${array.path}.${row.index}`} index={row.index}>
+          <div {...array.dragProps(row.index)}>
+            <ItemInput />
+            <button type="button" disabled={row.index === 0}
+              onClick={() => array.move(row.index, row.index - 1)}>上移</button>
+            <button type="button" onClick={() => array.remove(row.index)}>删除</button>
+          </div>
+        </RowScope>
+      ))}
+      <button type="button" onClick={() => array.push({ id: crypto.randomUUID(), label: '' })}>新增</button>
+    </section>
+  );
+}
+
+export default function ArrayHookExample() {
+  const form = useForm<Values>({ initialValues: { items: [
+    { id: 'a', label: '苹果' }, { id: 'b', label: '梨' },
+  ] } });
+  return <Form form={form}><Items /></Form>;
+}
+```
+
+## useArray
+
+```ts
+useArray<TRow = unknown>(): ArrayHandle<TRow>
+// ArrayHandle = useArrayField 的返回值：{ path, keys, push, insert, remove, move, swap, replace, dragProps }
+```
+
+最近一层数组（Formily `ArrayBase.useArray`），无需 name：在 `<ArrayField>` 的行、它的 `component` 容器（`ArrayItems` / `ArrayCards` / `ArrayTable`，含工具栏和展开行）里，返回与 `useArrayField` 对同一数组相同的句柄（订阅数组结构）。嵌套数组取最近的一层。不在数组内时抛错。自定义数组组件用 `<ArrayScope path rowKey>` 提供它。
+
+```tsx
+function RemoveButton() {
+  const array = useArray()
+  const index = useIndex()
+  return <button type="button" onClick={() => array.remove(index)}>删除</button>
+}
+<ArrayField name="list" rowKey="id">{() => <><Field name="name" component={[Input]} /><RemoveButton /></>}</ArrayField>
+```
+
+## useIndex
+
+```ts
+useIndex(): number
+```
+
+当前行在数组中的下标（Formily `ArrayBase.useIndex`），来自外层 `RowScope`（`<ArrayField>` 的每一行都会提供，`ArrayTable` 的单元格也是）。行移动后随新位置更新。不在行内时抛错。
+
+```tsx
+function RowNo() {
+  return <span>第 {useIndex() + 1} 行</span>
+}
+```
+
+## useRecord
+
+```ts
+useRecord<TRow = any>(): TRow
+```
+
+当前行的值（Formily `ArrayBase.useRecord`），**响应式**：这一行任一单元格变化都会重渲染，行移动后跟着行走；其他行的编辑不会唤醒它。不在行（或树节点）内时抛错。只读：要改值用 `useField` / 字段写入，不要修改返回的对象。
+
+```tsx
+function RowTitle() {
+  const row = useRecord<{ name: string; qty: number }>()
+  return <b>{row.name} × {row.qty}</b>
+}
+```
+
+
+## useTreeField
+
+```ts
+useTreeField(name: string, options?: {
+  childrenKey?: string
+  rowKey?: string
+}): {
+  path: string
+  value: any[]
+  move(from: Pos, to: Pos): MoveResult
+  dragProps(pos: Pos): { draggable: true; onDragStart; onDragOver; onDrop }
+}
+```
+
+`Pos` 是 `readonly number[]`，`MoveResult` 是 `{ ok: boolean; reason?: string }`，两者都从 `shikiform` 导入。当前 Hook 没有节点泛型；返回的 `value` 不是自动获得业务节点类型的数组。
+
+| 参数 / 返回 | 含义 / 默认 |
+|---|---|
+| `name` | 必填，相对当前 scope 的树根数组路径 |
+| `options.childrenKey` | 优先使用传入值；否则继承已有树配置，再默认 `'children'` |
+| `options.rowKey` | 优先使用传入值；否则继承已有树配置，再默认 `'id'` |
+| `path` | 完整树根路径 |
+| `value` | 当前根节点数组；当前值不是数组时返回 `[]`。不要原地修改 |
+| `move(from, to)` | 使用移动后的最终索引坐标；拒绝移到自己的后代，失败看 `reason` |
+| `dragProps(pos)` | 这个节点的原生 HTML5 拖动属性：拖到另一个节点上 = `move(源, 目标)`；拖动开始和放下都阻止冒泡，嵌套节点只处理自己。被拒绝的移动不提示，需要提示时自己调 `move` 看 `reason` |
+
+`useTreeField` 与 `useField` / `useArrayField` 一致：名字按当前 scope 解析（开发期名字重复 scope 前缀会抛 `ShikiUsageError` 并提示修法），树根路径登记进最近的 `FieldGroup`（FormTab 徽标、FormStep 分步校验会包含树内字段）。它只订阅树结构，不订阅每个节点的文字/勾选状态。节点编辑单独用 `useField`，读取选定值用 `useWatch`。要让 React 挂载前的树联动也认识自定义 `childrenKey`，在 `useForm({ trees: { ... } })` 里声明配置。
+
+`[0, 2]` 表示第一个根节点的第三个孩子，不是节点 ID。稳定 ID 用于移动时保持字段状态；不要用当前坐标代替业务 ID。
+
+[实现：use-tree.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-tree.ts) · [结构与路径](/guide/concepts)
+
+### 完整例子：同层拖动和显式移动结果
+
+```tsx preview
+import { useState } from 'react';
+import { Form, useForm, useTreeField } from 'shikiform';
+
+type Node = { id: string; title: string; children: Node[] };
+type Values = { nodes: Node[] };
+
+function Nodes() {
+  const tree = useTreeField('nodes');
+  const [message, setMessage] = useState('拖动节点，或用按钮移动第一个根节点。');
+  // 当前 useTreeField 没有节点泛型；这里的类型来自本例已知的初始数据。
+  const nodes = tree.value as Node[];
+  const renderNodes = (rows: Node[], parent: number[] = []) => (
+    <ul>{rows.map((node, index) => {
+      const pos = [...parent, index];
+      return <li key={node.id}><span {...tree.dragProps(pos)}>{node.title}</span>
+        {node.children.length > 0 ? renderNodes(node.children, pos) : null}</li>;
+    })}</ul>
+  );
+  return <section>{renderNodes(nodes)}
+    <button type="button" disabled={nodes.length < 2} onClick={() => {
+      const result = tree.move([0], [nodes.length - 1]);
+      setMessage(result.ok ? '已移动' : result.reason ?? '没有移动');
+    }}>第一个根节点移到最后</button>
+    <p role="status">{message}</p>
+  </section>;
+}
+
+export default function TreeHookExample() {
+  const form = useForm<Values>({ initialValues: { nodes: [
+    { id: 'a', title: '内容', children: [{ id: 'a1', title: '文章', children: [] }] },
+    { id: 'b', title: '设置', children: [] },
+  ] } });
+  return <Form form={form}><Nodes /></Form>;
+}
+```
+
+需要 JSX 结构组件时看 [Field、ArrayField、TreeField](/api#react-组件)；需要把绑定封装成项目自己的输入组件时看 [connect](/reference/antd-adapter#connect) 和上面的无参 `useField()`。
+
+## useTreeNode
+
+```ts
+useTreeNode<TNode = any>(): { path: string; pos: Pos; index: number; record: TNode }
+```
+
+当前树节点：`path`、`pos`（树坐标）、`index`（`pos` 的最后一段）和响应式 `record`。树节点由调用方渲染，用 `<RowScope path={…} pos={pos}>` 包住每个节点即可提供；不在节点内时抛错。
+
+```tsx
+function NodeLabel() {
+  const node = useTreeNode<{ label: string }>()
+  return <span>{node.pos.join('.')} {node.record.label}</span>
+}
+<RowScope path={pathOf('nodes', pos)} pos={pos}><NodeLabel /></RowScope>
+```
+
+## useFieldGroup
+
+```ts
+useFieldGroup(): FieldGroupHandle
+<FieldGroup value={group}>{children}</FieldGroup>
+
+interface FieldGroupHandle {
+  paths(): string[]                               // 组内挂载的字段绝对路径，按挂载顺序，去重
+  subscribe(listener: () => void): () => void     // 成员增减时调用
+  version(): number
+}
+```
+
+一块 JSX 区域里的字段集合。`<FieldGroup value={group}>` 不渲染 DOM；它里面每个 `<Field>` / `useField(name)` / `<ArrayField>` / `useArrayField` / `useTreeField` 挂载期间把自己的绝对路径登记进去，卸载时移除；嵌套的 `FieldGroup` 同时登记进所有外层组。句柄在组件生命周期内稳定。只收集**挂载**的字段：只在 `fields` 里声明、没渲染的字段不在组里。
+
+`form.validate(group.paths())` 只校验这一组（一次校验）。`FormTab` / `FormCollapse` 的错误徽标和提交失败时切到有错的面板、`FormStep` 的「下一步」、纯布局 `FormItem` 汇总里面字段的错误，都建立在它上面。
+
+## useFieldGroupErrors
+
+```ts
+useFieldGroupErrors(group: FieldGroupHandle): FieldError[]
+```
+
+组内字段当前显示的错误，每个有错的字段一项 `{ path, messages }`（display `none` 的不算），路径在组成员之下的错误（如对象下表单级 schema 的错误）也算。只在这份列表变化时重渲染。`errors.length` 就是标签页徽标上的数字。必须在 `<Form>` 里调用。
+
+```tsx
+function Section({ children }: { children: ReactNode }) {
+  const group = useFieldGroup()
+  const errors = useFieldGroupErrors(group)
+  return <fieldset><legend>资料 {errors.length || ''}</legend><FieldGroup value={group}>{children}</FieldGroup></fieldset>
+}
+```
+
+[实现：field-group.tsx](https://github.com/charlzyx/shikiform/blob/main/src/react/field-group.tsx) · [分组容器](/guide/containers)

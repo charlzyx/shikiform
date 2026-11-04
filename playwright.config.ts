@@ -6,10 +6,11 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   expect: { timeout: 8_000 },
-  use: { baseURL: 'http://127.0.0.1:4321' },
+  use: { baseURL: 'http://localhost:4321' },
   webServer: {
-    command: 'npm run preview -- --host 127.0.0.1 --port 4321',
-    url: 'http://127.0.0.1:4321/play/query',
+    // astro preview 只监听 IPv6 localhost；host 参数由 npm script 透传。
+    command: 'npm run preview -- --host localhost --port 4321',
+    url: 'http://localhost:4321/play/query',
     reuseExistingServer: true,
     timeout: 60_000,
   },
