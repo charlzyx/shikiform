@@ -10,6 +10,7 @@ description: SKU 价格表、供应商与产品的合并单元格、可展开的
 场景：按颜色合并单元格的 SKU 表。改合并格里的颜色，等于改这一组的每一行；临时加一列「渠道」，已经改过的价格和库存不受影响。
 
 ```tsx preview play=sku-editor
+import { useState } from 'react';
 import { Input as AntInput, Switch as AntSwitch } from 'antd';
 import { Field, Form, useForm, useFormContext, useWatch, type Draft } from 'shikiform';
 import { Input, InputNumber, MergedTable } from 'shikiform/antd';
@@ -48,8 +49,9 @@ function SkuTable() {
 }
 
 export default function App() {
+  const [result, setResult] = useState('');
   const form = useForm<Values>({ initialValues: { rows: SKUS, channel: false }, fields: { channel: { virtual: true } } });
-  return <Form form={form} onSubmit={(values) => alert(JSON.stringify(values))}><SkuTable /><button type="submit">提交</button></Form>;
+  return <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}><SkuTable /><button type="submit">提交</button><pre>{result}</pre></Form>;
 }
 ```
 

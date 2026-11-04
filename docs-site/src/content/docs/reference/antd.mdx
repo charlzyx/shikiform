@@ -116,12 +116,12 @@ export default function App() {
 ## MergedTable
 
 ```ts
-MergedTable<T extends { id: string }>({ rows, groupOf, columns })
+MergedTable<T extends { id: string }>({ rows, groupOf, columns, rowKey? })
 ```
 
-三个参数都必填：`rows: readonly T[]`，`groupOf(row): string`，`columns: { title: string; key: string; merge?: boolean; render(row, index): ReactNode }[]`。
+`rows: readonly T[]`，`groupOf(row): string`，`columns: { title: string; key: string; merge?: boolean; render(row, index): ReactNode }[]` 必填；`rowKey` 默认 `'id'`，也可以是 `(row) => string`（组的首行换了 id 时传稳定的 key，合并单元格里的字段才不会重新挂载）。
 
-使用 antd Table，固定 `rowKey="id"`、`pagination={false}`。列 `merge` 默认 false；true 时以 `groupOf` 的**连续相邻分组**计算 rowSpan，非连续同名组不会跨行合并。它不排序、不扁平化嵌套对象、不维护编辑值；示例中的行模型由调用方准备。见 [供应商和产品](/play/merged)。
+使用 antd Table，`pagination={false}`。列 `merge` 默认 false；true 时以 `groupOf` 的**连续相邻分组**计算 rowSpan，非连续同名组不会跨行合并。它不排序、不扁平化嵌套对象、不维护编辑值；行模型由调用方准备。表格的行不是一个数组字段，单元格里的字段用 `<RowScope path>`（见 [API 总览](/api#react-组件)）指到它对应的路径，里面写相对名字，例如 `RowScope` 的 `path` 为 `suppliers.0.products.1` 时，`<Field name="price">` 绑定 `suppliers.0.products.1.price`。见 [供应商和产品](/play/merged)。
 
 ## groupRowSpan
 

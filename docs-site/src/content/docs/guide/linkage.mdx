@@ -15,6 +15,7 @@ const effects = defineEffects<Values>(({ reaction, watch }) => {
 ## reaction 与 watch
 
 ```tsx preview
+import { useState } from 'react';
 import { Field, Form, defineEffects, useForm } from 'shikiform';
 import { FormItem, FormLayout, InputNumber, Select } from 'shikiform/antd';
 
@@ -43,12 +44,13 @@ const effects = defineEffects<Values>(({ reaction, watch }) => {
 });
 
 export default function App() {
+  const [result, setResult] = useState('');
   const form = useForm<Values>({
     initialValues: { price: 10, qty: 2, amount: 0, province: 'zj', city: 'hz' },
     effects: [effects],
   });
   return (
-    <Form form={form} onSubmit={(values) => alert(JSON.stringify(values))}>
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
       <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }}>
         <Field name="price" title="单价" decorator={[FormItem]} component={[InputNumber]} />
         <Field name="qty" title="数量" decorator={[FormItem]} component={[InputNumber]} />
@@ -57,6 +59,7 @@ export default function App() {
           decorator={[FormItem]} component={[Select, { style: { width: 160 } }]} />
         <Field name="city" title="市" decorator={[FormItem]} component={[Select, { style: { width: 160 } }]} />
       </FormLayout>
+      <pre>{result}</pre>
     </Form>
   );
 }
@@ -84,11 +87,12 @@ export default function App() {
 reaction.each((d) => d.items, (row, { d, index, path, pos }) => { … })
 ```
 
-三个行级 API（`reaction.each`、`reaction.walk`、`watch.each`）的回调都是 `(row, ctx)`：`ctx.d` 是根 draft，`ctx.path` 是这一行此刻的路径（`items.2`），`ctx.index` 是行号，`ctx.pos` 是树坐标（数组行是 `[index]`）。插入、删除、移动之后，换了行的位置会用新的行重跑，所以写下的状态跟着行走。
+按行 / 按节点运行的 API（`reaction.each`、`watch.each`、`reaction.walk`、`watch.walk`）回调都是 `(row, ctx)`：`ctx.d` 是根 draft，`ctx.path` 是这一行此刻的路径（`items.2`），`ctx.index` 是行号，`ctx.pos` 是树坐标（数组行是 `[index]`）。插入、删除、移动之后，换了行的位置会用新的行重跑，所以写下的状态跟着行走。
 
 `watch.each` 是行级的 `watch`：回调里读到的 `$` 状态就是这一行的来源，来源变了才执行。树对应的是 `watch.walk`（节点级的 `watch`）：回调里的 `$` 读只作为它自己这个节点的来源，某个节点变化只触发它自己，兄弟节点和别处的移动不触发；`opts.childrenKey` 与 `reaction.walk` 一致。适合「这个节点的 X 变了就做一次动作」（刷新子节点选项、同步远端）这类场景。
 
 ```tsx preview play=sku
+import { useState } from 'react';
 import { Button } from 'antd';
 import { ArrayField, Field, Form, defineEffects, useForm } from 'shikiform';
 import { FormItem, FormLayout, InputNumber, Select } from 'shikiform/antd';
@@ -113,13 +117,14 @@ const effects = defineEffects<Values>(({ reaction, watch }) => {
 });
 
 export default function App() {
+  const [result, setResult] = useState('');
   const form = useForm<Values>({
     initialValues: { discount: 10, items: [{ id: 1, sku: 'pen', price: 0, qty: 4, total: 0 }, { id: 2, sku: 'book', price: 0, qty: 1, total: 0 }] },
     fields: { 'items.*.sku': { enum: Object.keys(PRICES).map((value) => ({ label: value, value })) } },
     effects: [effects],
   });
   return (
-    <Form form={form} onSubmit={(values) => alert(JSON.stringify(values))}>
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
       <FormLayout layout="inline" feedbackLayout="terse">
         <Field name="discount" title="折扣 %" decorator={[FormItem]} component={[InputNumber, { min: 0, max: 100 }]} />
       </FormLayout>
@@ -136,6 +141,7 @@ export default function App() {
       </ArrayField>
       <Button style={{ marginTop: 12 }} onClick={() => form.pushArray('items', { id: nextId++, sku: '', price: 0, qty: 1, total: 0 })}>添加一行</Button>
       <Button style={{ marginTop: 12, marginLeft: 8 }} type="primary" htmlType="submit">提交</Button>
+      <pre>{result}</pre>
     </Form>
   );
 }

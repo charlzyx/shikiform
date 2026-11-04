@@ -9,6 +9,9 @@ import {
   type ReactNode,
 } from 'react'
 import { ConfigProvider, theme as antdTheme, type ThemeConfig } from 'antd'
+import zhCN from 'antd/locale/zh_CN'
+import dayjs from 'dayjs'
+import 'dayjs/locale/zh-cn'
 import type { EditorView } from '@codemirror/view'
 import { useSiteDark } from '../theme'
 import type { DemoFiles } from './runtime'
@@ -51,7 +54,9 @@ function sameFiles(a: DemoFiles, b: DemoFiles) {
   return keys.length === Object.keys(b).length && keys.every((key) => a[key] === b[key])
 }
 
-/** Antd follows the Nimbus appearance (data-mode). A theme change re-renders the preview; it never remounts it. */
+dayjs.locale('zh-cn')
+
+/** Antd follows the Nimbus appearance (data-mode); its built-in texts are Chinese like the site. A theme change re-renders the preview; it never remounts it. */
 function DemoTheme({ children }: { children: ReactNode }) {
   const dark = useSiteDark()
   const config = useMemo<ThemeConfig>(() => ({
@@ -59,7 +64,7 @@ function DemoTheme({ children }: { children: ReactNode }) {
     // Nimbus 的品牌色和正文字体。
     token: { colorPrimary: dark ? '#5c73e7' : '#3451b2', fontFamily: 'var(--nb-font-sans, system-ui)' },
   }), [dark])
-  return <ConfigProvider theme={config}>{children}</ConfigProvider>
+  return <ConfigProvider locale={zhCN} theme={config}>{children}</ConfigProvider>
 }
 
 /** Runtime errors of an edited demo stay inside its preview. */

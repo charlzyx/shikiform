@@ -95,7 +95,7 @@ export default function App() {
 - 树形选项（`TreeSelect` / `Cascader`）就是带 `children` 的 `<Field enum>`；`typed(form).Field` 下选项的 `value` 按字段值检查（`Cascader` 按路径元素，`TreeSelect` / `Transfer` 多选按数组元素）。随别的字段变化的选项照常写在 reaction 里：`d.city.$enum = …`。
 - `Upload` 的字段值就是 antd 的 `fileList`；有 `action` 时上传完成的文件取响应里的 `url`。上面的例子 `beforeUpload: () => false`，文件留在本地（`originFileObj`），随表单提交。
 - 日期 / 时间存格式化后的字符串（`format`），所以 `reset`、`initialValues`、提交都不碰 dayjs 对象。
-- 每一级都要从服务端按需加载的级联用 [`CascaderPlus`](/guide/pro)；值必须是远程选项之一的搜索下拉用 `Suggestion`。
+- 每一级都要从服务端按需加载的级联用 [`CascaderPlus`](/reference/pro-components#cascaderplus)；值必须是远程选项之一的搜索下拉用 [`Suggestion`](/reference/pro-components#suggestion)。
 
 ## 详情页：整张表只读、空值文字
 
