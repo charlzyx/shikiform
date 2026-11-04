@@ -10,7 +10,7 @@ test('an unmounted declared field still fails submit and display none does not',
   await expect(page.getByTestId('tabs-errors')).toContainText('code')
   await expect(page.getByTestId('tabs-errors')).not.toContainText('ghost')
   await expect(page.getByTestId('tabs-errors')).not.toContainText('note')
-  await page.getByTestId('tab-extra').click()
+  await page.locator('label.ant-radio-button-wrapper').filter({ hasText: '附加' }).click()
   await expect(page.getByTestId('name')).toHaveCount(0)
   await page.getByTestId('code').fill('c1')
   await page.getByTestId('tabs-submit').click()

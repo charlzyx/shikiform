@@ -48,8 +48,8 @@ const cell = { style: { margin: 0 } }
 
 const columns: ArrayTableColumn<DomainRow>[] = [
   { key: 'id', title: 'ID', width: 80, align: 'center', sorter: true, render: ({ record }) => <span data-testid="row-id">{record.id}</span> },
-  { key: 'status', title: 'STATUS', width: 110, align: 'center', render: () => <Field name="status" pattern="readPretty" decorator={[FormItem, cell]}><Select prettyType="badge" /></Field> },
-  { key: 'domain', title: 'DOMAIN', align: 'center', render: ({ index }) => <Field name="domain" decorator={[FormItem, cell]}><Input data-testid={`domain-${index}`} /></Field> },
+  { key: 'status', title: '状态', width: 110, align: 'center', render: () => <Field name="status" pattern="readPretty" decorator={[FormItem, cell]}><Select prettyType="badge" /></Field> },
+  { key: 'domain', title: '域名', align: 'center', render: ({ index }) => <Field name="domain" decorator={[FormItem, cell]}><Input data-testid={`domain-${index}`} /></Field> },
   { key: 'classify', title: '分类', width: 160, hidden: true, render: () => <Field name="classify" pattern="readPretty" decorator={[FormItem, cell]}><Select mode="multiple" prettyType="tag" /></Field> },
   { key: 'date', title: '日期', width: 120, render: ({ record }) => record.date },
 ]
@@ -72,7 +72,7 @@ export function QueryListPage() {
     <ConfigProvider locale={zhCN}>
       <main style={{ padding: 16 }}>
         <h1>QueryList</h1>
-        <p>查询表单（超过一行折叠，展开 / 收起）+ 服务端分页表格。每页结果写进表单的 list 数组，DOMAIN 可以直接改；翻页、刷新、列配置（「分类」默认隐藏）都在表头；点 ID 表头排序，排序随请求发给服务端并回到第 1 页。共 45 条模拟数据。</p>
+        <p>查询表单（超过一行折叠，展开 / 收起）+ 服务端分页表格。每页结果写进表单的 list 数组，域名可以直接改；翻页、刷新、列配置（「分类」默认隐藏）都在表头；点 ID 表头排序，排序随请求发给服务端并回到第 1 页。共 45 条模拟数据；模拟服务按「域名」条件生成结果（把关键字拼进返回的域名），不是真的过滤。</p>
         <QueryList table={table} columns={columns}>
           {SearchFields()}
         </QueryList>

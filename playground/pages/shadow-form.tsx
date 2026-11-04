@@ -43,7 +43,7 @@ export function ShadowFormPage() {
         <h1>ShadowForm</h1>
         <p>影子表单：打开时复制一份记录到独立的表单里编辑，确定才写回（这里写回 info），取消什么都不动。弹窗 / 气泡 / 抽屉 / 内联四种容器，同一个 useShadowForm。</p>
         <Form form={form}>
-          <ShadowModal<Info> title="Void 内置的 Modal" onOk={(values) => note('void modal', values)} trigger={<Button data-testid="open-void-modal">Void 内置的 Modal</Button>}>
+          <ShadowModal<Info> title="内置的 Modal" onOk={(values) => note('void modal', values)} trigger={<Button data-testid="open-void-modal">内置的 Modal</Button>}>
             <ShadowFields prefix="void" />
           </ShadowModal>
           <Divider />

@@ -1,5 +1,6 @@
 import { useRef, useState, type HTMLAttributes, type MouseEvent } from 'react'
-import { Button, Drawer, Table } from 'antd'
+import { Button, Drawer, Spin, Table } from 'antd'
+import { FormItem, FormLayout, Input, InputNumber } from 'shikiform/antd'
 import { defineEffects, Field, Form, ObjectField, useForm, useFormContext, useWatch, type Draft } from 'shikiform'
 
 interface Row {
@@ -133,7 +134,11 @@ function RowEditBody() {
 
   return (
     <main>
-      <h1>行内编辑</h1>
+      <h1>抽屉里编辑一行</h1>
+      <p>
+        编辑区是同一个引擎里的一个 <code>virtual</code> 对象（<code>editor</code>，不进提交值）。打开时异步加载这一行，较新的打开会作废旧的加载；
+        「确定」用 <code>form.batch</code> 按 id 找到原行写回；「详情」把同一组字段切成阅读态。
+      </p>
       <div data-testid="row-table" onClick={onTableClick}>
         <Table<Row>
           rowKey="id"
@@ -211,33 +216,15 @@ function RowEditBody() {
 
 function EditorFields() {
   const loading = useWatch((d: Draft<Values>) => d.editor.loading.$value === true)
-  if (loading) return <p data-testid="editor-loading">加载中</p>
+  if (loading) return <Spin data-testid="editor-loading" />
+  // Detail = the same fields with `$pattern = 'readPretty'` (see the reaction); FormItem / Input render the text view.
   return (
     <ObjectField name="editor" virtual>
-      <EditorInput name="name" label="名称" testId="editor-name" />
-      <EditorInput name="price" label="价格" testId="editor-price" numeric />
-      <EditorInput name="note" label="备注" testId="editor-note" />
+      <FormLayout layout="vertical">
+        <Field name="name" title="名称" decorator={[FormItem]} component={[Input, { 'data-testid': 'editor-name' }]} />
+        <Field name="price" title="价格" decorator={[FormItem]} component={[InputNumber, { 'data-testid': 'editor-price', min: 0 }]} />
+        <Field name="note" title="备注" decorator={[FormItem]} component={[Input, { 'data-testid': 'editor-note' }]} />
+      </FormLayout>
     </ObjectField>
-  )
-}
-
-function EditorInput({ name, label, testId, numeric }: { name: 'name' | 'price' | 'note'; label: string; testId: string; numeric?: boolean }) {
-  return (
-    <Field name={name}>
-      {(field) => (
-        <label style={{ display: 'block', marginBottom: 8 }}>
-          {label}
-          {field.pattern === 'readPretty' ? (
-            <span data-testid={testId}>{field.value ?? ''}</span>
-          ) : (
-            <input
-              data-testid={testId}
-              value={field.value ?? ''}
-              onChange={(event) => field.onChange(numeric ? Number(event.target.value) : event.target.value)}
-            />
-          )}
-        </label>
-      )}
-    </Field>
   )
 }

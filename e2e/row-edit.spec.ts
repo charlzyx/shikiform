@@ -27,7 +27,8 @@ test('a delegated row action fills one virtual editor and confirm writes back by
 
   await page.getByTestId('detail-b').click()
   await expect(page.locator('.ant-drawer-open')).toHaveCount(1)
-  await expect(page.getByTestId('editor-note')).toHaveText('蓝黑')
+  await expect(page.locator('.ant-drawer-open .ant-form-item').filter({ hasText: '备注' })).toContainText('蓝黑')
+  await expect(page.locator('.ant-drawer-open input')).toHaveCount(0)
   await expect(page.getByTestId('editor-confirm')).toHaveCount(0)
   await page.getByTestId('editor-close').click()
   await expect(page.getByTestId('row-name-b')).toHaveText('墨水')
