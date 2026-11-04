@@ -159,10 +159,12 @@ describe('/play/query-list', () => {
 describe('SKU and merged pages on the current APIs', () => {
   it('/play/sku-editor keeps merged color groups and prices by skuId', async () => {
     render(<SkuEditorPage />)
-    expect(screen.getByTestId('colors').textContent).toBe('黑色,黑色,白色,白色,红色')
+    expect(screen.getByTestId('color-B-128-STD').closest('td')!.getAttribute('rowspan')).toBe('2')
     fireEvent.change(screen.getByTestId('price-B-128-STD'), { target: { value: '888' } })
     fireEvent.change(screen.getByTestId('color-B-128-STD'), { target: { value: '曜石' } })
-    expect(screen.getByTestId('colors').textContent).toBe('曜石,曜石,白色,白色,红色')
+    await waitFor(() => expect(value('color-B-128-STD')).toBe('曜石'))
+    expect(screen.getByTestId('color-B-128-STD').closest('td')!.getAttribute('rowspan')).toBe('2')
+    expect(value('color-W-256-PRO')).toBe('白色')
     fireEvent.click(screen.getByTestId('add-dim'))
     await waitFor(() => expect(screen.getByTestId('channel-B-128-STD')).toBeTruthy())
     expect(value('price-B-128-STD')).toBe('888')

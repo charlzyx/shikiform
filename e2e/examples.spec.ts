@@ -32,7 +32,6 @@ const item = (scope: Locator, label: string) =>
   scope.locator('.ant-form-item').filter({ has: scope.page().locator('.ant-form-item-label').getByText(label, { exact: true }) })
 const input = (scope: Locator, label: string) => item(scope, label).locator('input, textarea').first()
 const pre = (scope: Locator) => scope.locator('pre').last()
-const dialogText = (page: Page) => new Promise<string>((resolve) => page.once('dialog', (dialog) => { resolve(dialog.message()); void dialog.accept() }))
 const ok = (page: Page) => page.getByRole('button', { name: /^确\s*定$|^OK$/ })
 const cancel = (page: Page) => page.getByRole('button', { name: /^取\s*消$|^Cancel$/ })
 async function pickSelect(scope: Locator, label: string, option: string) {
@@ -147,9 +146,10 @@ test.describe('linkage', () => {
     await box('黑色/256G').click()
     await expect(item(scope, '单价')).toHaveCount(1)
     await expect(input(scope, '单价')).toHaveValue('15')
-    const alerted = dialogText(page)
     await scope.getByRole('button', { name: '提交' }).click()
-    expect(JSON.parse(await alerted)).toEqual([{ id: '黑色/128G', price: 15, qty: 1, total: 15 }])
+    await expect(pre(scope)).toHaveText(/^[\[{]/)
+    const alerted = (await pre(scope).textContent())!
+    expect(JSON.parse(alerted)).toEqual([{ id: '黑色/128G', price: 15, qty: 1, total: 15 }])
   })
 
   test('large: editing row 3 re-renders only that row; only visible rows mount', async ({ page }) => {
@@ -286,9 +286,10 @@ test.describe('tables', () => {
     await drawer.getByRole('button', { name: /确\s*定/ }).click()
     await expect(drawer).toBeHidden()
     await expect(scope.locator('tr.ant-table-row').nth(1)).toContainText('蓝墨水9')
-    const alerted = dialogText(page)
     await scope.getByRole('button', { name: /提交/ }).click()
-    expect(JSON.parse(await alerted)).toEqual({ rows: [{ id: 'a', name: '钢笔', price: 12 }, { id: 'b', name: '蓝墨水', price: 9 }] })
+    await expect(pre(scope)).toHaveText(/^[\[{]/)
+    const alerted = (await pre(scope).textContent())!
+    expect(JSON.parse(alerted)).toEqual({ rows: [{ id: 'a', name: '钢笔', price: 12 }, { id: 'b', name: '蓝墨水', price: 9 }] })
   })
 })
 
@@ -494,9 +495,10 @@ test.describe('business', () => {
     await item(scope, '渠道列').or(scope.locator('label').filter({ hasText: '渠道列' })).locator('.ant-switch').click()
     await expect(scope.locator('th').filter({ hasText: '渠道' })).toHaveCount(1)
     await expect(price(0)).toHaveValue('888')
-    const alerted = dialogText(page)
     await scope.getByRole('button', { name: '提交' }).click()
-    const values = JSON.parse(await alerted)
+    await expect(pre(scope)).toHaveText(/^[\[{]/)
+    const alerted = (await pre(scope).textContent())!
+    const values = JSON.parse(alerted)
     expect(values).not.toHaveProperty('channel')
     expect(values.rows.map((row: { color: string }) => row.color)).toEqual(['曜石黑', '曜石黑', '白色', '白色'])
     expect(values.rows[0].price).toBe(888)

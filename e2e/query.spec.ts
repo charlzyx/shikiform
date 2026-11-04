@@ -1,4 +1,21 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
+
+const item = (page: Page, label: string) =>
+  page.locator('.ant-form-item').filter({ has: page.locator('.ant-form-item-label').getByText(label, { exact: true }) })
+const dropdownOptions = (page: Page) => page.locator('.ant-select-dropdown:visible .ant-select-item-option')
+async function pick(page: Page, scope: ReturnType<Page['locator']>, option: string) {
+  await scope.locator('.ant-select').first().click()
+  await dropdownOptions(page).filter({ hasText: new RegExp(`^${option}$`) }).click()
+  await expect(page.locator('.ant-select-dropdown:visible')).toHaveCount(0)
+}
+async function optionsOf(page: Page, label: string) {
+  await item(page, label).locator('.ant-select').click()
+  await expect(dropdownOptions(page).first()).toBeVisible()
+  const texts = await dropdownOptions(page).allTextContents()
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.ant-select-dropdown:visible')).toHaveCount(0)
+  return texts
+}
 
 test('query table searches, resets, pages, and keeps selection', async ({ page }) => {
   await page.goto('/play/query')
@@ -32,10 +49,10 @@ test('query table searches, resets, pages, and keeps selection', async ({ page }
   const narrow = await firstRowCount(page, 480)
   expect(wide).toBeGreaterThan(narrow)
 
-  await page.getByTestId('provider').selectOption('anthropic')
-  await expect(page.getByTestId('model').locator('option')).toHaveText(['全部', 'claude'])
-  await page.getByTestId('provider').selectOption('openai')
-  await expect(page.getByTestId('model').locator('option')).toHaveText(['全部', 'gpt'])
+  await pick(page, item(page, '供应商'), 'anthropic')
+  expect(await optionsOf(page, '模型')).toEqual(['claude'])
+  await pick(page, item(page, '供应商'), 'openai')
+  expect(await optionsOf(page, '模型')).toEqual(['gpt'])
 })
 
 test('collapsed filters keep values, and a column filter refreshes from page 1', async ({ page }) => {
@@ -55,12 +72,12 @@ test('collapsed filters keep values, and a column filter refreshes from page 1',
   await page.locator('.ant-pagination-item-2').click()
   await page.locator('.ant-table-row').first().locator('.ant-checkbox-input').check()
   await expect(page.getByTestId('selection-count')).toHaveText('选中 1 项')
-  await page.getByTestId('col-status').selectOption('error')
+  await pick(page, page.locator('th').filter({ hasText: '状态' }), '失败')
   await expect(page.locator('.ant-pagination-item-active')).toHaveText('1')
   await expect(page.getByTestId('selection-count')).toHaveText('选中 0 项')
   await expect(page.getByText('alpha-1')).toBeVisible()
   await expect(page.getByText('beta-2')).toHaveCount(0)
-  await expect(page.getByTestId('status')).toHaveValue('error')
+  await expect(item(page, '状态').locator('.ant-select')).toContainText('失败')
   await page.locator('.ant-table-row').first().locator('.ant-checkbox-input').check()
   await page.getByTestId('batch-mark').click()
   await expect(page.getByTestId('batch-result')).toHaveText('1')

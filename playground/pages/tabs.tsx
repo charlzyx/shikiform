@@ -1,4 +1,6 @@
+import { Button } from 'antd'
 import { defineEffects, Field, Form, useForm, useWatch, type Draft } from 'shikiform'
+import { FormButtonGroup, FormItem, FormLayout, Input, Radio } from 'shikiform/antd'
 
 interface Values {
   tab: 'base' | 'extra'
@@ -7,6 +9,8 @@ interface Values {
   ghost: string
   note: string
 }
+
+const TABS = [{ label: '基本', value: 'base' }, { label: '附加', value: 'extra' }]
 
 const effects = defineEffects<Values>(({ reaction }) => {
   reaction((d) => {
@@ -17,10 +21,16 @@ const effects = defineEffects<Values>(({ reaction }) => {
   })
 })
 
+/**
+ * Engine behaviour, on purpose without FormTab (FormTab keeps every pane mounted): here the inactive "tab" is really
+ * unmounted. Rules declared in `fields` belong to the path and still run (`code` while on 基本); a rule written in JSX
+ * (`note`) lives only while its `<Field>` is mounted; display `none` (`ghost`) is never validated.
+ */
 export function TabsPage() {
   const form = useForm<Values>({
     initialValues: { tab: 'base', name: '', code: '', ghost: '', note: '' },
     fields: {
+      tab: { virtual: true },
       name: { required: true },
       code: { required: true },
       ghost: { required: true },
@@ -35,60 +45,44 @@ export function TabsPage() {
         if (node) node.textContent = 'ok'
       }}
     >
-      <TabBody />
-      <button type="button" data-testid="tab-base" onClick={() => form.setValue('tab', 'base')}>
-        基本
-      </button>
-      <button type="button" data-testid="tab-extra" onClick={() => form.setValue('tab', 'extra')}>
-        附加
-      </button>
-      <ActiveFields />
-      <button type="submit" data-testid="tabs-submit">
-        提交
-      </button>
-      <ErrorLine />
-      <div id="tabs-result" data-testid="tabs-result" />
+      <h1>未挂载字段的校验</h1>
+      <p>
+        这不是 FormTab 用法（FormTab 的面板一直挂载）。这里切换时另一组字段真的卸载：在 <code>fields</code> 里声明的规则属于路径，卸载了照样校验（在「基本」提交，<code>code</code> 报错）；
+        写在 JSX 上的 <code>required</code>（备注）随组件卸载失效；<code>display: none</code> 的 <code>ghost</code> 从不校验。真实的分页表单用 <a href="/guide/containers">FormTab</a>。
+      </p>
+      <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 12 }}>
+        <Field name="tab" title="当前" enum={TABS} decorator={[FormItem]} component={[Radio, { optionType: 'button' }]} />
+        <ActiveFields />
+        <FormButtonGroup.FormItem>
+          {/* Not <Submit />: it is disabled while errors are shown, and this page submits again with errors on purpose. */}
+          <Button type="primary" htmlType="submit" data-testid="tabs-submit">提交</Button>
+        </FormButtonGroup.FormItem>
+      </FormLayout>
+      <p>
+        有错误的路径：<code data-testid="tabs-errors"><ErrorLine /></code>
+      </p>
+      <p>
+        提交结果：<span id="tabs-result" data-testid="tabs-result" />
+      </p>
     </Form>
   )
 }
 
 function ActiveFields() {
   const tab = useWatch<Values, string>((d) => d.tab.$value ?? 'base')
-  return (
+  return tab === 'base' ? (
+    <Field name="name" title="名称" decorator={[FormItem]} component={[Input, { 'data-testid': 'name' }]} />
+  ) : (
     <>
-      {tab === 'base' ? (
-        <Field name="name">
-          {(field) => (
-            <input data-testid="name" value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value)} />
-          )}
-        </Field>
-      ) : null}
-      {tab === 'extra' ? (
-        <Field name="code">
-          {(field) => (
-            <input data-testid="code" value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value)} />
-          )}
-        </Field>
-      ) : null}
-      {tab === 'extra' ? (
-        <Field name="note" required>
-          {(field) => (
-            <input data-testid="note" value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value)} />
-          )}
-        </Field>
-      ) : null}
+      <Field name="code" title="编码" decorator={[FormItem]} component={[Input, { 'data-testid': 'code' }]} />
+      <Field name="note" title="备注" required decorator={[FormItem]} component={[Input, { 'data-testid': 'note' }]} />
     </>
   )
-}
-
-function TabBody() {
-  const tab = useWatch<Values, string>((d) => d.tab.$value ?? 'base')
-  return <div data-testid="current-tab">{tab}</div>
 }
 
 function ErrorLine() {
   const errors = useWatch((d: Draft<Values>) =>
     (['name', 'code', 'ghost', 'note'] as const).filter((path) => d[path].$errors.length).join(','),
   )
-  return <pre data-testid="tabs-errors">{errors}</pre>
+  return <>{errors || '无'}</>
 }

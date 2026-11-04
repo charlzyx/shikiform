@@ -78,13 +78,15 @@ export default function App() {
 多列表单用 `FormGrid`：能放下几个 `minWidth` 宽的列就放几列（夹在 `minColumns` 和 `maxColumns` 之间），列数跟着容器变。字段用 `decorator={[FormItem, { gridSpan: 2 }]}` 跨列，其他内容用 `GridColumn`。
 
 ```tsx preview
+import { useState } from 'react';
 import { Field, Form, useForm } from 'shikiform';
 import { FormButtonGroup, FormGrid, FormItem, FormLayout, GridColumn, Input, Reset, Submit } from 'shikiform/antd';
 
 export default function App() {
+  const [result, setResult] = useState('');
   const form = useForm({ initialValues: { keyword: '', owner: '', status: '', from: '', to: '', note: '' } });
   return (
-    <Form form={form} onSubmit={(values) => alert(JSON.stringify(values))}>
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
       <FormLayout labelWidth={72}>
         <FormGrid maxColumns={3} minWidth={220}>
           <Field name="keyword" title="关键词" decorator={[FormItem]} component={[Input]} />
@@ -96,6 +98,7 @@ export default function App() {
           </GridColumn>
         </FormGrid>
       </FormLayout>
+      <pre>{result}</pre>
     </Form>
   );
 }

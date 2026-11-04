@@ -99,6 +99,7 @@ export default function App() {
 场景：勾选颜色 × 容量的组合，每个组合生成一行价格表；取消勾选删掉那一行，已经改过的价格不能因为勾选变化而丢失。
 
 ```tsx preview play=sku
+import { useState } from 'react';
 import { ArrayField, Field, Form, defineEffects, useForm } from 'shikiform';
 import { Checkbox, FormItem, FormLayout, Input, InputNumber } from 'shikiform/antd';
 
@@ -126,12 +127,13 @@ const effects = defineEffects<Values>(({ reaction, watch }) => {
 });
 
 export default function App() {
+  const [result, setResult] = useState('');
   const form = useForm<Values>({
     initialValues: { picked: [], rows: [] },
     effects: [effects],
   });
   return (
-    <Form form={form} onSubmit={(values) => alert(JSON.stringify(values.rows))}>
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values.rows))}>
       <Field name="picked" title="组合" enum={PICKS} decorator={[FormItem]} component={[Checkbox.Group]} />
       <ArrayField name="rows" rowKey="id">
         {() => (
@@ -144,6 +146,7 @@ export default function App() {
         )}
       </ArrayField>
       <button type="submit">提交</button>
+      <pre>{result}</pre>
     </Form>
   );
 }

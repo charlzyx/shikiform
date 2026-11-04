@@ -298,13 +298,15 @@ Formily `FormButtonGroup`：一行按钮，`gap` 默认 8，可换行。
 - **`.Sticky`**：`position: sticky` 的底栏（或顶栏），长表单滚动时按钮一直可见；背景和分隔线取 antd 主题。
 
 ```tsx preview
+import { useState } from 'react';
 import { Field, Form, useForm } from 'shikiform';
 import { FormButtonGroup, FormItem, FormLayout, Input, Reset, Submit } from 'shikiform/antd';
 
 export default function App() {
+  const [result, setResult] = useState('');
   const form = useForm({ initialValues: { name: '', email: '' } });
   return (
-    <Form form={form} onSubmit={(values) => alert(JSON.stringify(values))}>
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
       <FormLayout labelWidth={88}>
         <Field name="name" title="姓名" required decorator={[FormItem]} component={[Input]} />
         <Field name="email" title="邮箱" decorator={[FormItem]} component={[Input]} />
@@ -313,6 +315,7 @@ export default function App() {
           <Reset />
         </FormButtonGroup.FormItem>
       </FormLayout>
+      <pre>{result}</pre>
     </Form>
   );
 }

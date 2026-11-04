@@ -20,7 +20,7 @@ description: 内置规则、Standard Schema（Zod）、跨字段与异步校验�
 | `validator(value, ctx)` | 返回错误文案、空值或它们的 Promise；`ctx` 有 `record`（最近的对象）、`parent`（跳过数组的上一层）、`root`、`get(path)`、`signal`，它们和 `value` 读的是同一轮校验开始时的值。抛错或 reject 时，错误的 `message` 就是这个字段的提示 |
 | `message` | 覆盖这条规则的文案 |
 
-空值（`''`、`null`、`undefined`）只由 `required` 判断：`minLength`、`pattern`、`min`、`format` 等对空值直接通过（与 Formily、antd 相同），所以选填字段不会因为没填而报「至少 3 个字符」，必填字段没填时也只显示「必填」一条。
+空值（`''`、`null`、`undefined`）只由 `required` 判断：`minLength`、`pattern`、`min`、`format` 等对空值直接通过（与 Formily、antd 相同），所以选填字段不会因为没填而报「至少 3 个字符」，必填字段没填时也只显示「必填」一条。Standard Schema 不在此列：空值过不过由 schema 自己决定（`z.string().min(3)` 对 `''` 也报错），选填就写成 `.optional()` 或 `.or(z.literal(''))`。
 
 ```tsx preview play=schema
 import { useState } from 'react';
@@ -48,13 +48,13 @@ export default function App() {
       <FormLayout labelCol={{ span: 5 }} wrapperCol={{ span: 19 }}>
         <Field name="username" title="用户名" required decorator={[FormItem]} component={[Input]}
           rules={[
-            z.string().min(3, '至少 3 个字符'),
+            { minLength: 3, message: '至少 3 个字符' },
             { validator: (value, { signal }) => new Promise<string | null>((resolve) => {
               const timer = setTimeout(() => resolve(TAKEN.includes(String(value)) ? '用户名已被占用' : null), 400);
               signal?.addEventListener('abort', () => clearTimeout(timer));
             }) },
           ]} />
-        <Field name="email" title="邮箱" required rules={{ format: 'email' }} decorator={[FormItem]} component={[Input]} />
+        <Field name="email" title="邮箱" required rules={z.string().email('邮箱格式不对').or(z.literal(''))} decorator={[FormItem]} component={[Input]} />
         <Field name="password" title="密码" required rules={{ minLength: 6, message: '至少 6 位' }} decorator={[FormItem]} component={[Input.Password]} />
         <Field name="confirm" title="确认密码" required decorator={[FormItem]} component={[Input.Password]} />
         <Field name="agree" rules={{ isTrue: true, message: '请先同意条款' }} decorator={[FormItem, { wrapperCol: { offset: 5, span: 19 } }]}>
