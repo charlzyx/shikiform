@@ -90,7 +90,7 @@ npm run test:e2e    # 文档构建 + playground 构建，再跑 Playwright
 
 部署兼容门使用 Cloudflare 当前的 **Node 22.23.4 / npm 10.9.9**：从空 `node_modules` 运行 `npm clean-install --progress=false`，再跑测试、类型检查和完整构建。更新依赖后，用该 npm 版本生成并提交 `package-lock.json`；不要用 `--legacy-peer-deps` 绕过锁校验，也不要只凭 npm 11 安装通过就判断 CF 可部署。
 
-VitePress 的 `@docsearch/js` 所带 React 适配器有可选 `React <19` peers；锁内嵌套的 React 18 仅供该依赖，本站使用本地搜索。正式库、React 岛、教程编辑器和 AntD 仍共用根 React 19，不降级、不套额外 Provider。`react-runtime-identity` 单测核真实安装的解析身份，pack 门继续核公开包跨入口 context/类身份。
+文档站 `docs-site/` 用自己的 React 19 + antd 6（`astro.config.ts` 的 `resolve.dedupe` 让 `file:..` 链进来的 `shikiform` 也用站点这一份 React / antd，否则 SSR 与客户端版本不一致、island 水合失败）。库本身的 peer 仍是 antd `^5.18.0`；根目录的测试、playground 用根 `node_modules`。`react-runtime-identity` 单测核真实安装的解析身份，pack 门继续核公开包跨入口 context/类身份。
 
 ## 部署：Cloudflare Pages（GitHub 联动）
 
@@ -109,17 +109,17 @@ Playground 随 `npm run build` 一起进入 `dist/play/`。每个 `/play/...` �
 
 默认构建先运行 `check:docs`：从本次 `npm pack` 解包创建消费者，复制原样教程与可执行 MDX，严格类型检查、生产打包，并以该包执行 SSR。这个检查不访问注册表安装依赖，不代表浏览器交互/水合通过；真实浏览器仍由 `test:e2e` 覆盖。
 
-`check:docs` 同时运行 `check:api`：从实际 TypeScript 公开入口解析 React Hooks 与 `typed`，以及全部 pro/antd 运行时导出，核对 `docs/reference/exports.json`、命名章节和签名代码。它防止已有 Hook 再次只剩空索引或假导出，不自动证明每句话的语义；文案仍需与源码复核，页面里的 `tsx preview` 示例进入同一 pack 消费者门。
+`check:docs` 同时运行 `check:api`：从实际 TypeScript 公开入口解析 React Hooks 与 `typed`，以及全部 pro/antd 运行时导出，核对 `docs-site/src/content/docs/reference/exports.json`、命名章节和签名代码。它防止已有 Hook 再次只剩空索引或假导出，不自动证明每句话的语义；文案仍需与源码复核，页面里的 `tsx preview` 示例进入同一 pack 消费者门。
 
 ESM 入口共享内部 chunks，避免 `shikiform` 与 `shikiform/antd` 各自创建一份 React context。pack 门还验证跨入口 Provider/Hook/行 scope 和 core 类身份，并递归检查打包后的 core 不引入 React、headless 入口不引入 antd；`lib` 中的共享 chunks 必须随包一起交付，不能只复制四个入口文件。这些执行检查仍是 SSR，不是浏览器挂载/事件测试。
 
 ### 验证部署成功
 
-- 首页、`/guide/*` 指南（快速开始 → 核心概念 → 字段 → 布局 → antd → 联动 → 结构 → 数组容器 → Headless → Pro → 校验）、`/tutorial/`、十节教程、`/examples`、`/api`、七个参考页与 `/agents` 存在真实 SSR 正文，每个 `tsx preview` 示例都 SSR 出真实组件。
+- 首页、`/guide/*` 指南（快速开始 → 核心概念 → 字段 → 布局 → 容器 → Ant Design → 控件 → 联动 → 命名 UI 节点 → 数据结构 → 数组字段 → Headless → Pro 组件 → 校验）、`/tutorial/` 与十节教程、`/examples` 与六个分类页、`/api`、六个参考页、`/agents` 都有 SSR 正文，每个 `tsx preview` 示例都 SSR 出真实组件并在浏览器里水合。
 - `/examples` 能进入全部 23 个 `/play/...` 场景，静态入口不依赖 SPA fallback。
-- MDX 整页进入 VitePress 原生侧栏、上一页/下一页、本页目录和本地搜索；React 负责岛内节点，Vue 路由卸载时清理 React root。
-- 原内部草稿 `/usage/*`、`/OUTLINE`、`/coverage-checklist` 不再进入公共构建或搜索；旧链接显式重定向到正式教程/指南/示例。
-- `npm run check:site` 校验产物、内部链接、资源、搜索和重定向；它不等价于浏览器验收。
+- 侧栏、上一页 / 下一页、本页目录、Pagefind 搜索来自 Nimbus；`/llms.txt`（头部 + AGENTS.md + 页面索引）、`/llms-full.txt`、每页的 `index.md` 可访问。
+- 旧教程地址、旧草稿地址按 `_redirects` 301 到新页面，没有重定向循环（e2e `site-navigation` 检查）。
+- `npm run check:site`（`nimbus-docs lint`：frontmatter 与站内链接）通过；它不等价于浏览器验收，浏览器由 `test:e2e` 覆盖。
 
 ### 排障
 
@@ -135,6 +135,12 @@ ESM 入口共享内部 chunks，避免 `shikiform` 与 `shikiform/antd` 各自�
 
 ## 文档架构
 
-`docs/` 是公开内容的单一来源。`site/mdx/` 在构建前为 `.mdx` 自动生成原生 VitePress `.md` 路由壳，使用官方 MDX 编译器；正文仍由原文件编译，没有第二份手写页面。标题、目录锚点与搜索来自同一正文 AST。静态 preview 在构建时编译原样 TSX，并 SSR 真实正式库组件。示例外壳是 `site/bridge/playground/`（样式 `site/.vitepress/theme/demo.css`，只用 VitePress 变量）：预览在上、源码可折叠，工具栏可编辑（按需加载 CodeMirror 与 Sucrase，在浏览器里重新编译同一份源码）、复制、重新运行、重置、打开 `/play`、全屏；antd 跟随 VitePress 明暗主题，切换不丢表单状态。预览区带 `.vp-raw`，经 `postcssIsolateStyles` 隔离 VitePress 的重置与正文样式。编辑器运行可信示例，不是任意代码沙箱，运行时需要 CSP `unsafe-eval`。
+文档站是 `docs-site/`（[Nimbus](https://nimbus-docs.com) = Astro + MDX），页面在 `docs-site/src/content/docs/`，侧栏顺序在 `docs-site/astro.config.ts`。`npm run build` 把站点和 playground 一起输出到根 `dist/`。
+
+- 示例：MDX 里的 ```` ```tsx preview ```` 围栏由 `src/mdx/shikiform-demo-satteri.mjs` 换成 `<Demo>` island；`src/mdx/shikiform-vite.mjs` 在构建时用 esbuild 编译同一份源码，服务端直出、浏览器水合。`play=<route>` 给示例加「打开 /play」链接。
+- 示例外壳 `src/bridge/playground/`：预览在上、源码在下，工具栏可编辑（按需加载 CodeMirror 与 Sucrase，在浏览器里重新编译同一份源码）、复制、重新运行、重置、全屏；antd 跟随站点明暗（`src/bridge/theme.tsx` 读 Nimbus 的 `data-mode`），切换不丢表单状态。编辑器运行可信示例，不是任意代码沙箱，需要 CSP `unsafe-eval`。
+- 教程：`tutorial/_files/NN-name.tsx` + `.solution.tsx` 是练习的起始代码和参考答案，`<TutorialIsland>` 左边说明、右边可改代码。
+- 给 Agent：`/llms.txt` 是一段头部 + 仓库根 `AGENTS.md` + Nimbus 生成的页面索引（`src/pages/llms.txt.ts`），`/llms-full.txt` 是全部页面正文。改 `AGENTS.md` 就是改 `/llms.txt`。
+- `/play/*` 是 `playground/` 的独立 Vite 应用（`playground/routes.ts`），`docs-site/scripts/add-play-routes.mjs` 把这些路由登记给 Nimbus 的链接检查。
 
 归档和排期放在 `archive/`、`internal/`；实现分层说明在 [design/ARCHITECTURE.md](design/ARCHITECTURE.md)，都不在站点 source tree。源码测试与 JSDOM 生命周期验证不能替代真实浏览器布局、键盘/拖动、导航验收；受限环境下未执行的浏览器项必须单独记录。

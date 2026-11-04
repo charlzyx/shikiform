@@ -1,8 +1,7 @@
 import { Button, ConfigProvider, Space } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
-import { Field, defineEffects, Form, ObjectField, useForm, useWatch, type Draft } from 'shikiform'
+import { EnumSource, Field, Form, ObjectField, useForm, useWatch, type Draft } from 'shikiform'
 import { CascaderPlus, Checkbox, FormItem, FormLayout, Radio, Select, Suggestion } from 'shikiform/antd'
-import { EnumSource } from 'shikiform/core'
 import { loadArea, suggest, wait } from '../pro-data'
 
 /** Pro.formily `ProEnum.tsx` demo: one enum source per field, lazy enums, pretty read view, suggestion, linkage. */
@@ -12,7 +11,7 @@ const LIST = [
   { label: '呃', value: 'e' },
 ]
 
-/** `ProEnumSource.from(() => Promise)`: loaded once, shared by every field that uses it. */
+/** `EnumSource.from(() => Promise)` (Pro.formily `ProEnumSource.from`): loaded once, shared by every field that uses it. */
 const lazyList = EnumSource.from<unknown>(async () => {
   await wait(1000)
   return LIST
@@ -35,30 +34,16 @@ interface Values {
   demo: Demo
 }
 
-const effects = defineEffects<Values>(({ reaction }) => {
-  reaction((d) => {
-    d.demo.lazySelect.$enum = lazyList.with(null)
-    d.demo.lazyRadio.$enum = lazyList.with(null)
-    d.demo.lazyCheckbox.$enum = lazyList.with(null)
-  })
-})
-
 const grid = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', columnGap: 24 } as const
 
 export function ProEnumPage() {
   const form = useForm<Values>({
     initialValues: { demo: { pretty: ['a', 'o'], prettybadge: ['a', 'o'], prettytag: ['a', 'e'] } },
-    fields: {
-      'demo.select': { enum: LIST },
-      'demo.radio': { enum: LIST },
-      'demo.checkbox': { enum: LIST },
-      'demo.pretty': { enum: LIST },
-      'demo.prettybadge': { enum: LIST },
-      'demo.prettytag': { enum: LIST },
-    },
-    effects: [effects],
   })
-  const setPattern = (pattern: 'readPretty' | undefined) => form.batch(() => void (form.query('demo').$pattern = pattern))
+  const setPattern = (pattern: 'readPretty' | undefined) =>
+    form.batch((d) => {
+      d.demo.$pattern = pattern
+    })
   return (
     <ConfigProvider locale={zhCN}>
       <main style={{ padding: 16, maxWidth: 960 }}>
@@ -76,15 +61,15 @@ export function ProEnumPage() {
           <ObjectField name="demo">
             <FormLayout layout="vertical">
               <div style={grid} data-testid="enum-grid">
-                <Field name="select" title="Select" decorator={[FormItem]} component={[Select, { prettyType: 'badge', 'data-testid': 'select', allowClear: true }]} />
-                <Field name="lazySelect" title="Lazy Select" decorator={[FormItem]} component={[Select, { mode: 'multiple', prettyType: 'tag', 'data-testid': 'lazy-select' }]} />
-                <Field name="radio" title="Radio" decorator={[FormItem]} component={[Radio.Group]} />
-                <Field name="lazyRadio" title="Lazy Radio" decorator={[FormItem]} component={[Radio.Group]} />
-                <Field name="checkbox" title="Checkbox" decorator={[FormItem]} component={[Checkbox.Group]} />
-                <Field name="lazyCheckbox" title="Lazy Checkbox" decorator={[FormItem]} component={[Checkbox.Group]} />
-                <Field name="pretty" title="Pretty" pattern="readPretty" decorator={[FormItem]} component={[Select]} />
-                <Field name="prettybadge" title="Pretty Badge" pattern="readPretty" decorator={[FormItem]} component={[Select, { prettyType: 'badge' }]} />
-                <Field name="prettytag" title="Pretty Tag" pattern="readPretty" decorator={[FormItem]} component={[Select, { mode: 'multiple', prettyType: 'tag' }]} />
+                <Field name="select" enum={LIST} title="Select" decorator={[FormItem]} component={[Select, { prettyType: 'badge', 'data-testid': 'select', allowClear: true }]} />
+                <Field name="lazySelect" enum={lazyList.with(null)} title="Lazy Select" decorator={[FormItem]} component={[Select, { mode: 'multiple', prettyType: 'tag', 'data-testid': 'lazy-select' }]} />
+                <Field name="radio" enum={LIST} title="Radio" decorator={[FormItem]} component={[Radio]} />
+                <Field name="lazyRadio" enum={lazyList.with(null)} title="Lazy Radio" decorator={[FormItem]} component={[Radio]} />
+                <Field name="checkbox" enum={LIST} title="Checkbox" decorator={[FormItem]} component={[Checkbox.Group]} />
+                <Field name="lazyCheckbox" enum={lazyList.with(null)} title="Lazy Checkbox" decorator={[FormItem]} component={[Checkbox.Group]} />
+                <Field name="pretty" enum={LIST} title="Pretty" pattern="readPretty" decorator={[FormItem]} component={[Select]} />
+                <Field name="prettybadge" enum={LIST} title="Pretty Badge" pattern="readPretty" decorator={[FormItem]} component={[Select, { prettyType: 'badge' }]} />
+                <Field name="prettytag" enum={LIST} title="Pretty Tag" pattern="readPretty" decorator={[FormItem]} component={[Select, { mode: 'multiple', prettyType: 'tag' }]} />
                 <Field name="suggest" title="Suggestion" decorator={[FormItem]} component={[Suggestion, { fetch: suggest, debounce: 200, multiple: true, placeholder: '查询商品..' }]} />
                 <Field name="linkage" title="Linkage" decorator={[FormItem]} component={[CascaderPlus, { loadData: loadArea, labelInValue: true, placeholder: '省 / 市 / 区' }]} />
               </div>

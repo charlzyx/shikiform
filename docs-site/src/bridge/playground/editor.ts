@@ -6,7 +6,7 @@ import { drawSelection, EditorView, keymap } from '@codemirror/view'
 import { tagHighlighter, tags } from '@lezer/highlight'
 
 /**
- * Token classes instead of inline colors: demo.css colors them from the same palette VitePress' Shiki blocks use,
+ * Token classes instead of inline colors: the stylesheet colors them from the same palette the site's code blocks use,
  * per `html.dark`, so a theme switch restyles the editor without reconfiguring it.
  */
 const highlighter = tagHighlighter([
@@ -20,7 +20,7 @@ const highlighter = tagHighlighter([
   { tag: [tags.attributeName, tags.propertyName], class: 'tok-property' },
 ])
 
-/** Layout only, all from VitePress' code-block variables; colors live in demo.css. */
+/** Layout only; colors live in the stylesheet. */
 const theme = EditorView.theme({
   '&': { backgroundColor: 'var(--vp-code-block-bg)', color: 'var(--vp-code-block-color, var(--vp-c-text-1))', fontSize: 'var(--sf-demo-code-size)' },
   '&.cm-focused': { outline: 'none' },

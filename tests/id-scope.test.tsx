@@ -91,7 +91,7 @@ describe('failed submit focuses nested paths', () => {
     expect(view.container.querySelector('input')!.id).toBe('edit-user-name')
     fireEvent.click(view.getByText('保存'))
     await settle()
-    expect(document.activeElement).toBe(view.container.querySelector('#edit-user-name'))
+    await waitFor(() => expect(document.activeElement).toBe(view.container.querySelector('#edit-user-name')))
   })
 
   it('focuses a nested field when the form id comes from useId()', async () => {
@@ -107,7 +107,7 @@ describe('failed submit focuses nested paths', () => {
     expect(city.id.endsWith('-profile-city')).toBe(true)
     fireEvent.click(view.getByText('保存'))
     await settle()
-    expect(document.activeElement).toBe(city)
+    await waitFor(() => expect(document.activeElement).toBe(city))
   })
 
   it('focuses an array row path such as rows.0.name', async () => {
@@ -122,7 +122,7 @@ describe('failed submit focuses nested paths', () => {
     )
     fireEvent.click(view.getByText('保存'))
     await settle()
-    expect(document.activeElement).toBe(view.container.querySelector('#grid-rows-0-name'))
+    await waitFor(() => expect(document.activeElement).toBe(view.container.querySelector('#grid-rows-0-name')))
   })
 })
 
@@ -162,7 +162,7 @@ describe('Radio / Checkbox group htmlFor', () => {
     ])
     fireEvent.click(view.getByText('保存'))
     await settle()
-    expect(document.activeElement).toBe(view.container.querySelector('#choice-kind'))
+    await waitFor(() => expect(document.activeElement).toBe(view.container.querySelector('#choice-kind')))
   })
 
   it('puts the field id on the first hand-written Radio.Button / Checkbox, and not on the rest', async () => {
@@ -198,6 +198,6 @@ describe('Radio / Checkbox group htmlFor', () => {
     ])
     fireEvent.click(view.getByText('保存'))
     await settle()
-    expect(document.activeElement).toBe(view.container.querySelector('#choice-kind'))
+    await waitFor(() => expect(document.activeElement).toBe(view.container.querySelector('#choice-kind')))
   })
 })

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Button, Drawer } from 'antd'
-import { defineEffects, Field, Form, useForm, useFormContext, useWatch, type Draft } from 'shikiform'
+import { ArrayField, defineEffects, Field, Form, useForm, useFormContext, useRecord, useWatch, type Draft } from 'shikiform'
+import { FormItem, FormLayout, Input, InputNumber, Switch } from 'shikiform/antd'
 
 interface Order {
   id: string
@@ -18,17 +19,21 @@ interface Values {
 
 const effects = defineEffects<Values>(({ reaction }) => {
   reaction((d) => {
-    d.orders.$pattern = d.editMode.$value ? 'editable' : 'readPretty'
+    d.orders.$pattern = d.editMode.$value ? undefined : 'readPretty'
   })
+  // One instance per row: a locked row's qty reads, the others inherit the array's pattern.
   reaction.each(
     (d) => d.orders,
     (row) => {
-      if (row.locked.$value) row.qty.$pattern = 'readPretty'
-      else row.qty.$pattern = undefined
+      row.qty.$pattern = row.locked.$value ? 'readPretty' : undefined
     },
   )
 })
 
+/**
+ * Collapsing the list unmounts its fields and a drawer holds another one; values live in the form, so both come back
+ * unchanged. Rows use relative names inside `<ArrayField>`.
+ */
 export function NestedPage() {
   const form = useForm<Values>({
     initialValues: {
@@ -41,7 +46,7 @@ export function NestedPage() {
       ],
     },
     effects: [effects],
-    fields: { open: { virtual: true } },
+    fields: { open: { virtual: true }, editMode: { virtual: true } },
   })
   return (
     <Form form={form}>
@@ -55,41 +60,16 @@ function NestedBody() {
   const open = useWatch((d: Draft<Values>) => d.open.$value)
   const [expanded, setExpanded] = useState(true)
   return (
-    <>
-      <Field name="editMode">
-        {(field) => (
-          <label>
-            <input
-              data-testid="edit-mode"
-              type="checkbox"
-              checked={!!field.value}
-              onChange={(event) => field.onChange(event.target.checked)}
-            />
-            可编辑
-          </label>
-        )}
-      </Field>
-      <button type="button" data-testid="toggle-orders" onClick={() => setExpanded((value) => !value)}>
+    <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }}>
+      <Field name="editMode" title="可编辑" decorator={[FormItem]} component={[Switch, { 'data-testid': 'edit-mode' }]} />
+      <Button data-testid="toggle-orders" onClick={() => setExpanded((value) => !value)}>
         {expanded ? '收起' : '展开'}
-      </button>
+      </Button>
       {expanded ? (
         <div data-testid="orders">
-          <Field name="orders.0.qty">
-            {(field) =>
-              field.pattern === 'readPretty' ? (
-                <span data-testid="qty-0">{field.value}</span>
-              ) : (
-                <input
-                  data-testid="qty-0"
-                  value={field.value ?? ''}
-                  onChange={(event) => field.onChange(Number(event.target.value))}
-                />
-              )
-            }
-          </Field>
-          <Field name="orders.1.qty">
-            {(field) => <span data-testid="qty-1">{field.pattern === 'readPretty' ? field.value : 'editable'}</span>}
-          </Field>
+          <ArrayField name="orders" rowKey="id">
+            {({ index }) => <OrderRow index={index} />}
+          </ArrayField>
         </div>
       ) : (
         <div data-testid="orders-collapsed">已收起</div>
@@ -98,12 +78,17 @@ function NestedBody() {
         地址
       </Button>
       <Drawer open={!!open} onClose={() => form.setValue('open', false)} title="地址">
-        <Field name="city">
-          {(field) => (
-            <input data-testid="city" value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value)} />
-          )}
-        </Field>
+        <Field name="city" title="城市" decorator={[FormItem]} component={[Input, { 'data-testid': 'city' }]} />
       </Drawer>
-    </>
+    </FormLayout>
+  )
+}
+
+function OrderRow({ index }: { index: number }) {
+  const order = useRecord<Order>()
+  return (
+    <div data-testid={`order-${index}`}>
+      <Field name="qty" title={order.title} decorator={[FormItem]} component={[InputNumber]} />
+    </div>
   )
 }

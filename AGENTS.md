@@ -4,7 +4,9 @@ ShikiForm is a TypeScript form library: a React-free engine (`shikiform/core`), 
 (`shikiform`), headless pro hooks (`shikiform/pro`), and an Ant Design adapter (`shikiform/antd`).
 State lives in one engine per form; linkage is written as `reaction` / `watch` over a **draft**.
 This page is the one-screen mental model plus the mistakes worth avoiding. Repo layout and module rules:
-`design/ARCHITECTURE.md`. Checks before a PR: `npm test`, `npm run check`, `npm run check:api`, `npm run build:lib`, `npm run build`.
+`design/ARCHITECTURE.md`. Docs: `docs-site/src/content/docs/` (Nimbus / Astro MDX; `tsx preview` fences are type-checked
+and SSR-rendered against the packed library); the site's `/llms.txt` serves this file. Checks before a PR: `npm test`,
+`npm run check`, `npm run build` (runs `check:api` + `build:lib` + `check:docs` first), `npm run check:site`, `npm run test:e2e`.
 
 ## 1. Handle vs value
 

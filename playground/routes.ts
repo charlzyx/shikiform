@@ -1,2 +1,2 @@
-/** Routes built by Vite alongside VitePress. Keep static shells and the site output contract in sync. */
+/** /play routes: a separate Vite app built into dist/play next to the Nimbus site. Keep docs-site/scripts/add-play-routes.mjs in sync. */
 export const PLAY_ROUTES = ['query', 'query-native', 'schema', 'sku', 'sku-picker', 'sku-editor', 'merged', 'nested', 'orders', 'tabs', 'large', 'virtual', 'headless', 'row-edit', 'display', 'array-table', 'array-table-shadow', 'shadow-form', 'pro-enum', 'cascader-plus', 'suggestion', 'query-list', 'query-list-add'] as const
