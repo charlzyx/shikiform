@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build && node scripts/add-play-routes.mjs && npm run build:play",
-    "build:play": "cd .. && vite build --config playground/vite.config.ts",
+    "build:play": "npm run build:play --prefix ..",
     "preview": "astro preview",
     "typecheck": "astro check",
     "lint:docs": "nimbus-docs lint",
