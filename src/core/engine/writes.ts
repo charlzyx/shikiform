@@ -120,17 +120,15 @@ export class StateWriter {
 
   commitValue(path: string, value: unknown, fromReaction: boolean): boolean {
     const { store, notifier, scheduler, declarations } = this.deps
+    // A reaction write marks the field computed (`readPretty` when no pattern is set), also when the derived
+    // value already equals the current one (an initial value that is already right). It stays in the submit
+    // payload unless `virtual: true`.
+    if (fromReaction) store.ensure(path).computed = true
     const old = getAt(store.values, path)
     if (deepEqual(old, value)) return false
     const before = store.values
     store.values = setAt(store.values, path, value)
     this.deps.carryRowIdentity?.(path, before, store.values)
-    // A reaction write that changes the value marks the field computed (`readPretty`
-    // when no pattern is set). It stays in the submit payload unless `virtual: true`.
-    if (fromReaction) {
-      const field = store.ensure(path)
-      field.computed = true
-    }
     notifier.bumpPath(path)
     // A changed value invalidates external (`setErrors`) messages on this path, its ancestors and descendants.
     this.deps.validator.clearExternalAround(path)

@@ -168,11 +168,11 @@ mapFormItemProps(
   field: FieldBinding<any> | null,
   props: Omit<FormItemProps, 'children'>,
   layout?: FormLayoutValue,
-  env?: { prefixCls?: string; optionalText?: ReactNode; gridColumns?: number },
+  env?: { prefixCls?: string; optionalText?: ReactNode; gridColumns?: number; errors?: readonly string[]; labelFor?: boolean },
 ): antd.FormItemProps
 ```
 
-`FormItem` 的纯函数核心。合并顺序（低 → 高）：`layout`（`FormLayout`）← `field.decoratorProps`（`fields` ← JSX ← `$decoratorProps`）← `props`。`field` 为 `null` 时是纯布局（没有 `validateStatus`）。`env` 是组件自己从上下文读的部分：antd 表单类名前缀（`labelWrap` 和错误色类名用，默认 `ant-form`）、可选标记文案（默认 `(optional)`）、外层 `FormGrid` 的列数（`gridSpan` 用）、纯布局时要显示的错误 `errors`（组件自己从里面的字段收集；非空时作为错误色的 `help`，项上加 `has-error` 类）。`addonBefore` / `addonAfter` 和 `popover` 的浮层是组件自己的标记，不在返回值里。Hook 用户不用组件也能得到同样的装饰：
+`FormItem` 的纯函数核心。合并顺序（低 → 高）：`layout`（`FormLayout`）← `field.decoratorProps`（`fields` ← JSX ← `$decoratorProps`）← `props`。`field` 为 `null` 时是纯布局（没有 `validateStatus`）。`env` 是组件自己从上下文读的部分：antd 表单类名前缀（`labelWrap` 和错误色类名用，默认 `ant-form`）、可选标记文案（默认 `(optional)`）、外层 `FormGrid` 的列数（`gridSpan` 用）、纯布局时要显示的错误 `errors`（组件自己从里面的字段收集；非空时作为错误色的 `help`，项上加 `has-error` 类）、`labelFor`（字段 id 是否落在可被 label 指向的元素上）。`htmlFor` 是字段 id；`readPretty` 下（阅读态是文字）或 `labelFor: false` 时不设。`FormItem` 每次渲染后检查一次 DOM：Transfer、Upload、以 div 为根的自定义控件、选项还没加载的 `Checkbox.Group` 都没有带这个 id 的 input，label 就不带 `for`。`addonBefore` / `addonAfter` 和 `popover` 的浮层是组件自己的标记，不在返回值里。Hook 用户不用组件也能得到同样的装饰：
 
 ```tsx
 const field = useField('email', { required: true, title: '邮箱' })

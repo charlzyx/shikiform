@@ -177,7 +177,7 @@ function Remove({ confirm, title }: { confirm?: boolean | string; title?: ReactN
   )
   if (!confirm) return button
   return (
-    <Popconfirm title={typeof confirm === 'string' ? confirm : t('removeConfirm')} onConfirm={() => table.remove(row.index).then(() => undefined)}>
+    <Popconfirm title={typeof confirm === 'string' ? confirm : t('removeConfirm')} okText={t('ok')} cancelText={t('cancel')} onConfirm={() => table.remove(row.index).then(() => undefined)}>
       {button}
     </Popconfirm>
   )

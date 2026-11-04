@@ -64,8 +64,8 @@ describe('tutorial effects use the published FormEngine contract', () => {
       effects: [arrayEffects],
     })
     expect(same.getValue('items.0.total')).toBe(0)
-    // An equal reaction write returns before `computed` is set, so readPretty is unchanged.
-    expect(same.binding('items.0.total').pattern).toBe('editable')
+    // A reaction-written field is computed even when the derived value equals the initial one.
+    expect(same.binding('items.0.total').pattern).toBe('readPretty')
     expect(same.getSubmitValues()).toEqual({ items: [{ id: 'row-2', name: '新行', price: 0, qty: 1, total: 0 }] })
     form.binding('items.0.price').onChange(undefined)
     expect(form.getValue('items.0.total')).toBe(0)

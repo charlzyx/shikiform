@@ -137,7 +137,7 @@ function Remove({ title, confirm }: { title?: ReactNode; confirm?: boolean | str
   )
   if (!confirm) return button
   return (
-    <Popconfirm title={typeof confirm === 'string' ? confirm : t('removeConfirm')} onConfirm={() => array.remove(index)}>
+    <Popconfirm title={typeof confirm === 'string' ? confirm : t('removeConfirm')} okText={t('ok')} cancelText={t('cancel')} onConfirm={() => array.remove(index)}>
       {button}
     </Popconfirm>
   )

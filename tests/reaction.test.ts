@@ -76,6 +76,22 @@ describe('reaction', () => {
     ).toThrow(ShikiCycleError)
   })
 
+  it('marks a reaction target computed even when its initial value already equals the derived one', () => {
+    const form = createForm<{ price: number; qty: number; line: number; other: number }>({
+      initialValues: { price: 12, qty: 1, line: 12, other: 0 },
+      effects: [
+        defineEffects<{ price: number; qty: number; line: number; other: number }>(({ reaction }) => {
+          reaction((d) => {
+            d.line.$value = d.price.$value * d.qty.$value
+          })
+        }),
+      ],
+    })
+    expect(form.getValue('line')).toBe(12)
+    expect(form.binding('line').pattern).toBe('readPretty')
+    expect(form.binding('other').pattern).toBe('editable')
+  })
+
   it('does not run watch on init and does not mark the target computed', () => {
     let runs = 0
     const form = createForm<{ a: number; b: number }>({

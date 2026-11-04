@@ -25,7 +25,7 @@ Pro.formily `QueryList` + `QueryForm` + `QueryTable`：可折叠的查询栅格�
 </ShadowModal>
 ```
 
-在 antd `Modal` 里编辑影子草稿（Pro.formily `ShadowModal`）。点 `trigger` 用 `record` 打开（值或加载函数）；确定先校验，再调 `onOk`，成功后关闭；取消什么都不写。传 `shadow`（来自 `useShadowForm` / `useArrayShadow`）时用外部草稿，否则组件自己持有一个。草稿字段从草稿的根开始解析，不继承所在行的作用域。
+在 antd `Modal` 里编辑影子草稿（Pro.formily `ShadowModal`）。点 `trigger` 用 `record` 打开（值或加载函数）；确定先校验，再调 `onOk`，成功后关闭；取消什么都不写。传 `shadow`（来自 `useShadowForm` / `useArrayShadow`）时用外部草稿，否则组件自己持有一个。草稿字段从草稿的根开始解析，不继承所在行的作用域。按钮文字取 `messages.ok` / `messages.cancel`（确定 / 取消），`okText` / `cancelText` 覆盖。
 
 ## ShadowDrawer
 

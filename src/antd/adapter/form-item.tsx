@@ -1,5 +1,5 @@
 import { ConfigProvider, Form, Popover, theme, type ColProps, type FormItemProps as AntFormItemProps } from 'antd'
-import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from 'react'
 import type { FormEngine } from '../../core/engine/form-engine'
 import { FormContext } from '../../react/context'
 import { FieldGroup, FieldGroupStore, useGroupsErrors } from '../../react/field-group'
@@ -50,6 +50,11 @@ export interface FormItemEnv {
    * the item's help (error colour) unless `feedbackLayout` is `'none'` / `'popover'`. `FormItem` collects them itself.
    */
   errors?: readonly string[]
+  /**
+   * Whether the field's `id` is on a labelable element (`input`, `select`, `textarea`, `button`…). `false` drops
+   * `htmlFor`, so the label does not point at nothing. `FormItem` checks the DOM after each render; default `true`.
+   */
+  labelFor?: boolean
 }
 
 /** A `FieldBinding`-shaped stand-in for pure-layout use (no field around the item). */
@@ -80,7 +85,7 @@ function feedback(messages: readonly string[]): ReactNode {
  *   (`feedbackLayout: 'none'` / `'popover'` drop the help row, `'terse'` drops the bottom margin while there is none);
  * - `labelWidth` / `wrapperWidth` become `labelCol` / `wrapperCol` `flex`; `labelWrap` adds Ant Design's wrap class;
  *   `tooltipLayout: 'text'` puts `tooltip` after the label as text; `gridSpan` sets `gridColumn`;
- * - `htmlFor` ← `field.id`;
+ * - `htmlFor` ← `field.id`, except in `readPretty` (the view is text) or when `env.labelFor` is `false`;
  * - an item with no label ignores the layout's `labelCol` / `wrapperCol` / `labelWidth` / `wrapperWidth` (Formily).
  *
  * `field` may be `null`: pure layout, no status. A hook user renders the same item without the component:
@@ -142,7 +147,7 @@ export function mapFormItemProps(
   }
   if (inner) rest.className = [rest.className, `${env.prefixCls ?? 'ant-form'}-item-has-error`].filter(Boolean).join(' ')
   const out: AntFormItemProps = {
-    ...(field ? { htmlFor: field.id } : {}),
+    ...(field && field.pattern !== 'readPretty' && env.labelFor !== false ? { htmlFor: field.id } : {}),
     ...rest,
     label: text,
     extra: extra ?? (field?.description as ReactNode),
@@ -156,6 +161,25 @@ export function mapFormItemProps(
   if (mergedWrapperCol) out.wrapperCol = mergedWrapperCol
   if (direction === 'horizontal' || direction === 'vertical') out.layout = direction
   return out
+}
+
+const useIsoLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
+const LABELABLE = 'input:not([type="hidden"]),select,textarea,button,meter,output,progress'
+
+/**
+ * Whether `id` is on a labelable element after this commit. Controls that render no element with the field id
+ * (Transfer, Upload, a `div`-based custom control, a group whose options have not loaded) would otherwise leave
+ * `<label for>` pointing at nothing. Server render and the first client render assume `true`.
+ */
+function useLabelTarget(id: string | undefined): boolean {
+  const [ok, setOk] = useState(true)
+  useIsoLayoutEffect(() => {
+    if (!id) return
+    const target = document.getElementById(id)
+    const next = !!target && target.matches(LABELABLE)
+    if (next !== ok) setOk(next)
+  })
+  return ok
 }
 
 const ADDON_ROW: CSSProperties = { display: 'flex', alignItems: 'center', gap: 8 }
@@ -316,7 +340,9 @@ function FormItemView({
   const feedbackLayout = pick('feedbackLayout') ?? layout.feedbackLayout
   const addonBefore = pick('addonBefore')
   const addonAfter = pick('addonAfter')
+  const labelFor = useLabelTarget(field && field.pattern !== 'readPretty' ? field.id : undefined)
   const itemProps = mapFormItemProps(field, props, layout, {
+    labelFor,
     prefixCls: getPrefixCls('form'),
     optionalText: t('optional'),
     gridColumns: grid?.columns,
