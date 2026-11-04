@@ -25,7 +25,7 @@ export interface PlaygroundProps {
   language?: string
   /** The entry compiled at build time: rendered on the server and until the code is edited. */
   component?: ComponentType
-  /** The entry highlighted by VitePress (same markup as a Markdown code block). */
+  /** The entry, highlighted (same markup as a Markdown code block). */
   codeHtml?: string
   /** Start with the editor open. */
   editing?: boolean
@@ -152,7 +152,7 @@ function ToolButton({ label, pressed, onClick, children }: {
 }
 
 /**
- * A documentation example in the VitePress idiom: the running preview, a toolbar, and the source below it as a
+ * A documentation example: the running preview, a toolbar, and the source below it as a
  * collapsible code block that turns into an editor. Theme changes keep form state; only a source change (edit,
  * reset) or "re-run" remounts the preview.
  */

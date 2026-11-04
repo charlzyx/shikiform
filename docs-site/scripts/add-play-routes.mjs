@@ -3,7 +3,7 @@
  * build 后把 playground 的 /play/* 路由补进 .nimbus/routes.json。
  * playground 是独立 Vite SPA（playground/vite.config.ts 产物并入 dist/play），
  * Astro 的 route truth 不认识它；internal-link 规则因此会误报。
- * PLAY_ROUTES 与 /Users/chao/shikiform/playground/routes.ts 保持一致。
+ * PLAY_ROUTES 与 playground/routes.ts 保持一致。
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 

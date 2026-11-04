@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-// Array / table / query naming (design/array-naming.md): one name and one way per job.
+// Array / table / query naming (archive/design/array-naming-2026-11-03.md): one name and one way per job.
 // Type assertions run under `npm run check`; runtime cases under vitest.
 import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
