@@ -30,16 +30,16 @@
     }
   },
   "scripts": {
-    "build": "npm run check:docs && npm run build --prefix docs-site",
+    "build": "npm run check:docs && node scripts/ensure-site-deps.mjs && npm run build --prefix docs-site",
     "build:cf-pages": "npm run build",
     "build:lib": "tsup && tsc -p tsconfig.emit.json --noEmit",
     "build:play": "vite build --config playground/vite.config.ts",
     "check": "tsc --noEmit",
     "check:docs": "npm run check:api && npm run build:lib && node scripts/check-docs-package.mjs",
     "check:api": "node scripts/check-api-reference.mjs",
-    "dev": "npm run build:lib && npm run dev --prefix docs-site",
+    "dev": "npm run build:lib && node scripts/ensure-site-deps.mjs && npm run dev --prefix docs-site",
     "dev:e2e": "vite --config playground/vite.config.ts",
-    "preview": "npm run preview --prefix docs-site",
+    "preview": "npm run preview --prefix docs-site --",
     "test": "vitest run",
     "test:e2e": "npm run build && playwright test",
     "check:site": "npm run lint:docs --prefix docs-site"

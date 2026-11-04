@@ -4,15 +4,15 @@ import path from 'node:path'
 import { PLAY_ROUTES } from '../playground/routes'
 
 test('the deployment build contains the docs and every playground route, without a SPA fallback', () => {
-  expect(existsSync(path.resolve('docs-site/dist/examples/index.html'))).toBe(true)
+  expect(existsSync(path.resolve('dist/examples/index.html'))).toBe(true)
   for (const route of PLAY_ROUTES) {
-    const shell = readFileSync(path.resolve('docs-site/dist/play', route, 'index.html'), 'utf8')
+    const shell = readFileSync(path.resolve('dist/play', route, 'index.html'), 'utf8')
     expect(shell).toContain('/play/assets/')
   }
 })
 
 test('tutorial pages keep framework previous/next navigation and retain the exercise', () => {
-  const html = readFileSync(path.resolve('docs-site/dist/tutorial/2-fields/index.html'), 'utf8')
+  const html = readFileSync(path.resolve('dist/tutorial/2-fields/index.html'), 'utf8')
   expect(html).not.toContain('tutorial-nav')
   expect(html).toContain('/tutorial/1-start')
   expect(html).toContain('/tutorial/3-path')
@@ -45,11 +45,11 @@ for (const [label, route, heading] of [
 
 // Cloudflare 以带斜杠的目录索引作为规范 URL；_redirects 里不能有相反方向的规则。
 test('directory landing pages do not redirect against Pages canonical URLs', () => {
-  const redirects = readFileSync(path.resolve('docs-site/dist/_redirects'), 'utf8')
+  const redirects = readFileSync(path.resolve('dist/_redirects'), 'utf8')
     .split('\n')
     .map((line) => line.trim().split(/\s+/))
-  expect(existsSync(path.resolve('docs-site/dist/tutorial/index.html'))).toBe(true)
-  expect(existsSync(path.resolve('docs-site/dist/guide/quick-start/index.html'))).toBe(true)
+  expect(existsSync(path.resolve('dist/tutorial/index.html'))).toBe(true)
+  expect(existsSync(path.resolve('dist/guide/quick-start/index.html'))).toBe(true)
   for (const section of ['tutorial', 'guide']) {
     expect(redirects.some(([from, to, status]) =>
       from === `/${section}/` && to === `/${section}` && /^3\d\d$/.test(status ?? '302'),

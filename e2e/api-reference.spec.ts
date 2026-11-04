@@ -5,18 +5,18 @@ import { gotoHydrated } from './hydration'
 
 test('deployment includes named Hook references and the same executable adapter examples', () => {
   const manifest = JSON.parse(readFileSync('docs-site/src/content/docs/reference/exports.json', 'utf8')) as Record<string, Record<string, string>>
-  const landing = readFileSync('docs-site/dist/index.html', 'utf8')
+  const landing = readFileSync('dist/index.html', 'utf8')
   for (const [module, symbols] of Object.entries(manifest)) {
     for (const [name, source] of Object.entries(symbols)) {
-      const html = readFileSync(path.join('docs-site/dist', source.replace(/\.mdx$/, ''), 'index.html'), 'utf8')
+      const html = readFileSync(path.join('dist', source.replace(/\.mdx$/, ''), 'index.html'), 'utf8')
       expect(html, `${module}:${name}`).toContain(`id="${name.toLowerCase()}"`)
       expect(landing, `navigation: ${source}`).toContain(`href="/${source.replace(/\.mdx$/, '')}"`)
     }
   }
   expect(landing).toContain('href="/guide/field"')
-  const arrays = readFileSync('docs-site/dist/guide/arrays/index.html', 'utf8')
+  const arrays = readFileSync('dist/guide/arrays/index.html', 'utf8')
   expect(arrays).toContain('采购清单')
-  const adapters = readFileSync('docs-site/dist/reference/antd/index.html', 'utf8')
+  const adapters = readFileSync('dist/reference/antd/index.html', 'utf8')
   expect(adapters).toContain('adapter-event-counts')
 })
 
