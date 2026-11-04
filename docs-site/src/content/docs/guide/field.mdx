@@ -3,8 +3,6 @@ title: Field、装饰器与组件
 description: Field 拥有一个 path，decorator 包住 component；UI 属性分三层叠加，按键深合并。
 ---
 
-# Field、装饰器与组件
-
 一个字段要有标签、控件、错误提示，还要知道自己的值和状态。`<Field>` 把这些收在一处：它拥有一个 path，渲染 `decorator` 包住 `component`，并通过上下文把字段交给二者，所以 `FormItem` 和接好的控件都不需要 `name`。
 
 ```tsx

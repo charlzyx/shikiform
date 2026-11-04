@@ -3,8 +3,6 @@ title: Ant Design 适配
 description: 接好的 antd 控件、阅读态、connect / mapProps / mapReadPretty 接自己的控件，以及提交 / 重置按钮。
 ---
 
-# Ant Design 适配
-
 antd 控件要的是 `value`、`onChange`、`status`、`disabled` 这些 props。`shikiform/antd` 把字段绑定映射成这些 props，值仍在 ShikiForm 引擎里，所以**不要再把同一份值交给 antd `Form` 的 `name` / `rules` / `initialValues`**。
 
 ## 接好的控件

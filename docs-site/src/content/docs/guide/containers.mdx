@@ -3,8 +3,6 @@ title: 分组容器 FormTab / FormCollapse / FormStep
 description: 长表单分到标签页、折叠面板或分步里：字段一直挂载、值不丢、提交时照常校验；标签头显示错误数；下一步只校验当前步。
 ---
 
-# 分组容器：FormTab / FormCollapse / FormStep
-
 长表单要分组展示。直接用 antd `Tabs` / `Collapse` 有两个坑：没打开过的标签页不渲染，里面 `<Field>` 的 JSX 规则就不生效；切走后看不出哪个标签页里有错。`shikiform/antd` 的三个容器（对应 Formily `FormTab`、`FormCollapse`、`FormStep`）处理这些：
 
 - **字段一直挂载**：所有面板都渲染（不活动的只是隐藏），值、规则、错误都在，提交时照常校验和提交。

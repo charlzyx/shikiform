@@ -10,10 +10,10 @@ test('deployment includes named Hook references and the same executable adapter 
     for (const [name, source] of Object.entries(symbols)) {
       const html = readFileSync(path.join('dist', source.replace(/\.mdx$/, ''), 'index.html'), 'utf8')
       expect(html, `${module}:${name}`).toContain(`id="${name.toLowerCase()}"`)
-      expect(landing, `navigation: ${source}`).toContain(`href="/${source.replace(/\.mdx$/, '')}"`)
+      expect(landing, `navigation: ${source}`).toContain(`href="/${source.replace(/\.mdx$/, '')}/"`)
     }
   }
-  expect(landing).toContain('href="/guide/field"')
+  expect(landing).toContain('href="/guide/field/"')
   const arrays = readFileSync('dist/guide/arrays/index.html', 'utf8')
   expect(arrays).toContain('采购清单')
   const adapters = readFileSync('dist/reference/antd/index.html', 'utf8')
@@ -22,7 +22,8 @@ test('deployment includes named Hook references and the same executable adapter 
 
 test('API links to named Hooks and the quick-start example validates and submits', async ({ page }) => {
   await page.goto('/reference/react-hooks')
-  await expect(page.getByRole('heading', { name: /^useField\b/ })).toBeVisible()
+  // Nimbus 给每个标题追加「Copy link to …」锚点按钮，可访问名不再以 useField 单独结尾。
+  await expect(page.locator('h2#usefield')).toHaveText(/^useField/)
   await gotoHydrated(page, '/guide/quick-start')
   const demo = page.locator('.sf-demo').first()
   const form = demo.locator('form')

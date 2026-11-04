@@ -3,8 +3,6 @@ title: UI 节点：同一字段多个 UI、无数据的 UI
 description: 一个字段显示成输入框 + 回显、滑块 + 数字框，各自控制样式和 pattern；一段提示、一个分组框没有值，也能在 reaction 里按名字控制显隐和 props。
 ---
 
-# UI 节点：`<Field ui>` 与 `<UI>`
-
 两类需求，用字段本身都不好写：
 
 - **同一个值，两个 UI。** 输入框旁边一个回显，输入超长时回显变红；金额既能拖滑块也能输数字，锁定时只禁用滑块。写两个 `<Field name="amount">` 的话，两者共用一份 `$componentProps` / `$pattern`，改一个两个都变，`id` 也重复（label 指向第一个）。
