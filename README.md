@@ -99,7 +99,7 @@ VitePress 的 `@docsearch/js` 所带 React 适配器有可选 `React <19` peers�
 - 静态输出：`docs-site/astro.config.ts` 把 `outDir` 写成仓库根 `dist/`（playground 同在 `dist/play/`）。
 - 站点依赖：`docs-site/` 有自己的 lock，根 `npm ci` 不装它；`npm run build` 先跑 `scripts/ensure-site-deps.mjs`，缺失或过期时 `npm ci --prefix docs-site`。
 - base 路径：`base: '/'`。
-- 路由是 clean URLs（`/reference/react-hooks`，没有尾斜杠）。`docs-site/public/_redirects` 把旧的尾斜杠地址和旧教程地址 301 到新地址。
+- 路由以带尾斜杠的目录索引为规范（`/guide/quick-start/`，Astro 目录输出 + Pages 默认行为）。`docs-site/public/_redirects` 只把旧教程地址和旧草稿地址 301 到新地址，不能有「去掉尾斜杠」的规则（会与 Pages 的 308 死循环，e2e 检查）。
 - 构建命令：`npm run build`（`npm run build:cf-pages` 等价；先构建 Nimbus/Astro 站点，再构建 playground）
 - 输出目录：`dist`
 - Framework preset：`None`。不要留着 Astro。

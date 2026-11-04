@@ -1,6 +1,3 @@
-/api/ /api 301
-/tutorial/:name/ /tutorial/:name 301
-/guide/:name/ /guide/:name 301
 /tutorial/1-fields /tutorial/2-fields 301
 /tutorial/2-effects /tutorial/6-reaction 301
 /tutorial/2-blur /tutorial/9-rules 301

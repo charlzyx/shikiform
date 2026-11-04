@@ -50,11 +50,10 @@ test('directory landing pages do not redirect against Pages canonical URLs', () 
     .map((line) => line.trim().split(/\s+/))
   expect(existsSync(path.resolve('dist/tutorial/index.html'))).toBe(true)
   expect(existsSync(path.resolve('dist/guide/quick-start/index.html'))).toBe(true)
-  for (const section of ['tutorial', 'guide']) {
-    expect(redirects.some(([from, to, status]) =>
-      from === `/${section}/` && to === `/${section}` && /^3\d\d$/.test(status ?? '302'),
-    )).toBe(false)
-  }
+  // Astro 输出目录索引（guide/x/index.html），Pages 会把 /guide/x 308 到 /guide/x/；
+  // 任何「去掉尾斜杠」的规则（含 /guide/:name/ → /guide/:name）都会和它打成死循环。
+  const stripsSlash = redirects.filter(([from, to]) => from && to && from.endsWith('/') && from.length > 1 && to === from.slice(0, -1))
+  expect(stripsSlash).toEqual([])
 })
 
 test('the docs layout exposes the outline and the example page links named Hooks', async ({ page }) => {
