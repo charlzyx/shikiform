@@ -132,9 +132,8 @@ export default function App() {
 场景：订单列表，展开一行编辑它的明细；行金额和订单合计实时计算；已发货的订单整单只读；待付款订单的单行数量不能超过 99。
 
 ```tsx preview play=orders
-import { Table } from 'antd';
-import { ArrayField, Field, Form, defineEffects, useForm, useWatch, type Draft } from 'shikiform';
-import { FormItem, FormLayout, InputNumber, Select, Switch } from 'shikiform/antd';
+import { ArrayField, Field, Form, defineEffects, useForm } from 'shikiform';
+import { ArrayTable, FormItem, InputNumber, Select, Switch, type ArrayTableColumn } from 'shikiform/antd';
 
 type Item = { id: string; sku: string; qty: number; price: number; line: number };
 type Order = { id: string; no: string; status: string; amount: number; items: Item[] };
@@ -159,36 +158,25 @@ const effects = defineEffects<Values>(({ reaction }) => {
   });
 });
 
-function Items({ index }: { index: number }) {
-  return (
-    <ArrayField name={`orders.${index}.items`} rowKey="id">
-      {() => (
-        <FormLayout layout="inline" feedbackLayout="terse">
-          <Field name="sku" title="商品" decorator={[FormItem]}>{(field) => <code>{field.value}</code>}</Field>
-          <Field name="qty" title="数量" decorator={[FormItem]} component={[InputNumber, { min: 1 }]}
-            rules={{ validator: (value, ctx) => (ctx.parent?.status === 'pending' && Number(value) > 99 ? '待付款单行不能超过 99' : null) }} />
-          <Field name="price" title="单价" decorator={[FormItem]} component={[InputNumber, { min: 0 }]} />
-          <Field name="line" title="行金额" decorator={[FormItem]} component={[InputNumber]} />
-        </FormLayout>
-      )}
-    </ArrayField>
-  );
-}
+// 单元格渲染在行作用域里：name 相对这一行
+const itemColumns: ArrayTableColumn<Item>[] = [
+  { key: 'sku', title: '商品', render: ({ record }) => <code>{record.sku}</code> },
+  {
+    key: 'qty', title: '数量',
+    render: () => (
+      <Field name="qty" decorator={[FormItem, { feedbackLayout: 'terse', style: { margin: 0 } }]} component={[InputNumber, { min: 1 }]}
+        rules={{ validator: (value, ctx) => (ctx.parent?.status === 'pending' && Number(value) > 99 ? '待付款单行不能超过 99' : null) }} />
+    ),
+  },
+  { key: 'price', title: '单价', render: () => <Field name="price" component={[InputNumber, { min: 0 }]} /> },
+  { key: 'line', title: '行金额', render: () => <Field name="line" component={[InputNumber]} /> },
+];
 
-function Orders() {
-  const orders = useWatch((d: Draft<Values>) => d.orders.$value);
-  return (
-    <Table<Order>
-      rowKey="id" pagination={false} dataSource={orders}
-      expandable={{ expandedRowRender: (_, index) => <Items index={index} /> }}
-      columns={[
-        { title: '订单号', dataIndex: 'no' },
-        { title: '状态', render: (_, __, index) => <Field name={`orders.${index}.status`} component={[Select, { options: STATUS, style: { width: 110 } }]} /> },
-        { title: '合计', render: (_, __, index) => <Field name={`orders.${index}.amount`} component={[InputNumber]} /> },
-      ]}
-    />
-  );
-}
+const orderColumns: ArrayTableColumn<Order>[] = [
+  { key: 'no', title: '订单号', render: ({ record }) => record.no },
+  { key: 'status', title: '状态', render: () => <Field name="status" enum={STATUS} component={[Select, { style: { width: 110 } }]} /> },
+  { key: 'amount', title: '合计', render: () => <Field name="amount" component={[InputNumber]} /> },
+];
 
 export default function App() {
   const form = useForm<Values>({
@@ -205,14 +193,18 @@ export default function App() {
   return (
     <Form form={form}>
       <Field name="editable" title="可编辑" decorator={[FormItem]} component={[Switch]} />
-      <Orders />
+      <ArrayField name="orders" rowKey="id" component={[ArrayTable, {
+        columns: orderColumns, pagination: false, settings: false,
+        // 展开区也在订单行的作用域里：<ArrayField name="items"> 就是 orders.N.items
+        expandable: { render: () => <ArrayField name="items" rowKey="id" component={[ArrayTable, { columns: itemColumns, pagination: false, settings: false, size: 'small' }]} /> },
+      }]} />
     </Form>
   );
 }
 ```
 
 - 一个 `reaction.each` 管一张订单：状态决定整单 `$pattern`，明细决定行金额和合计。只有改动的那张订单会重算。
-- 展开区里用 `<ArrayField name="orders.N.items">` 给明细一个行作用域，明细的字段写相对名字。
+- 订单和明细都是 `<ArrayField component={[ArrayTable, { columns }]}>`：单元格和展开区都渲染在行作用域里，所以明细是 `<ArrayField name="items">`、字段写 `name="qty"`，不用拼 `orders.${index}.items.${i}.qty`。
 - 「已发货」整单只读，是因为子字段继承了 `order.$pattern`；状态字段自己写了 `$pattern`，所以仍能改回「已付款」，明细随即可编辑。
 - 直接写入正式值，没有草稿和取消回滚；需要「确认才写回」时用 [影子表单](/examples/pro#用影子表单编辑行)。
 
