@@ -89,7 +89,7 @@ function Trigger({ trigger, onOpen }: { trigger?: ReactNode; onOpen: () => void 
 
 /**
  * Edit a draft in an Ant Design `Modal` (Pro.formily `ShadowModal`). OK validates the draft, runs `onOk`, and closes;
- * Cancel discards it. The host form is never written unless `onOk` writes it.
+ * Cancel discards it. The buttons say `messages.ok` / `messages.cancel` (确定 / 取消) unless `okText` / `cancelText` is given. The host form is never written unless `onOk` writes it.
  *
  * ```tsx
  * <ShadowModal title="编辑" record={() => form.getValue('info')} onOk={(v) => form.setValue('info', v)} trigger={<Button>编辑</Button>}>
@@ -98,14 +98,17 @@ function Trigger({ trigger, onOpen }: { trigger?: ReactNode; onOpen: () => void 
  * ```
  */
 export function ShadowModal<TValues = any, TContext = unknown>(
-  props: ShadowOwnProps<TValues, TContext> & { modalProps?: Omit<ModalProps, 'open' | 'onOk' | 'onCancel'>; title?: ReactNode },
+  props: ShadowOwnProps<TValues, TContext> & { modalProps?: Omit<ModalProps, 'open' | 'onOk' | 'onCancel'>; title?: ReactNode; okText?: ReactNode; cancelText?: ReactNode },
 ) {
   const shadow = useOwnedShadow(props)
+  const t = useFormMessage()
   return (
     <>
       <Trigger trigger={props.trigger} onOpen={() => void shadow.open(props.record)} />
       <Modal
         destroyOnHidden
+        okText={props.okText ?? t('ok')}
+        cancelText={props.cancelText ?? t('cancel')}
         {...props.modalProps}
         title={props.title}
         open={shadow.visible}
@@ -168,6 +171,8 @@ export function ShadowPopconfirm<TValues = any, TContext = unknown>(
   return (
     <Popconfirm
       icon={null}
+      okText={t('ok')}
+      cancelText={t('cancel')}
       {...props.popconfirmProps}
       open={shadow.visible}
       title={<ShadowBody shadow={shadow}>{props.children}</ShadowBody>}

@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { ArrayField, createForm, Field, Form, useForm } from '../src'
-import { Checkbox, FormItem, Input, Radio, ShadowForm } from '../src/antd'
+import { ArrayField, createForm, Field, Form, useField, useForm } from '../src'
+import { Checkbox, FormItem, Input, Radio, ShadowForm, Transfer } from '../src/antd'
 
 afterEach(cleanup)
 
@@ -199,5 +199,41 @@ describe('Radio / Checkbox group htmlFor', () => {
     fireEvent.click(view.getByText('保存'))
     await settle()
     await waitFor(() => expect(document.activeElement).toBe(view.container.querySelector('#choice-kind')))
+  })
+})
+
+describe('FormItem label for', () => {
+  const labelFors = (root: HTMLElement) => [...root.querySelectorAll('.ant-form-item-label label')].map((label) => label.getAttribute('for'))
+
+  it('points at the control only while an element with the field id is labelable', async () => {
+    const form = createForm({ initialValues: { name: 'Ada', team: [] as string[], size: 'm' } })
+    function DivControl() {
+      return <div id={useField().id} role="radiogroup">custom</div>
+    }
+    const view = render(
+      <Form form={form} id="lf">
+        <Field name="name" title="姓名" decorator={[FormItem]} component={[Input]} />
+        <Field name="team" title="组员" enum={[{ label: '甲', value: 'a' }]} decorator={[FormItem]} component={[Transfer]} />
+        <Field name="size" title="尺寸" decorator={[FormItem]} component={[DivControl]} />
+      </Form>,
+    )
+    await settle()
+    expect(labelFors(view.container)).toEqual(['lf-name', null, null])
+  })
+
+  it('drops for in readPretty and restores it when editable again', async () => {
+    const form = createForm({ initialValues: { name: 'Ada' } })
+    const view = render(
+      <Form form={form} id="rp">
+        <Field name="name" title="姓名" decorator={[FormItem]} component={[Input]} />
+      </Form>,
+    )
+    expect(labelFors(view.container)).toEqual(['rp-name'])
+    act(() => form.batch((d: any) => { d.$pattern = 'readPretty' }))
+    await settle()
+    expect(labelFors(view.container)).toEqual([null])
+    act(() => form.batch((d: any) => { d.$pattern = undefined }))
+    await settle()
+    expect(labelFors(view.container)).toEqual(['rp-name'])
   })
 })
