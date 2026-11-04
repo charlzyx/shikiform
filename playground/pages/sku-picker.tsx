@@ -1,75 +1,32 @@
-import { Field, Form, useForm } from 'shikiform'
-import { DIM_LABEL, DIMS, skuPickerEffects, type Dim, type SkuSelection } from '../skus'
+import { Form, typed, useForm } from 'shikiform'
+import { FormItem, FormLayout, Input, InputNumber, Radio } from 'shikiform/antd'
+import { DIM_LABEL, DIMS, skuPickerEffects, type SkuSelection } from '../skus'
 
+/**
+ * Options and their `disabled` come from a reaction (`$enum`); a `watch` clears the dimensions that conflict with
+ * the one just picked. Price, stock and SKU are computed fields, so they render as text (readPretty) by themselves.
+ */
 export function SkuPickerPage() {
   const form = useForm<SkuSelection>({
     initialValues: { qty: 1, skuId: '', priceText: '—', stock: null },
     effects: [skuPickerEffects],
   })
+  const F = typed(form)
   return (
     <Form form={form}>
       <h1>SKU 选择器</h1>
-      <p>可以随时切换任一维度；与新选择冲突的维度会清空，缺货组合仍不可选。</p>
-      {DIMS.map((dim) => (
-        <DimRadios key={dim} dim={dim} />
-      ))}
       <p>
-        价格 <span data-testid="price-text"><Field name="priceText">{(field) => <>{field.value}</>}</Field></span>
+        任意顺序选维度；与新选择冲突的维度会清空，缺货组合不可选。只剩一个 SKU 时直接显示它，剩下的维度不用再点。
       </p>
-      <p>
-        库存 <span data-testid="stock"><Field name="stock">{(field) => <>{field.value ?? '—'}</>}</Field></span>
-      </p>
-      <p>
-        SKU <span data-testid="sku-id"><Field name="skuId">{(field) => <>{field.value || '—'}</>}</Field></span>
-      </p>
-      <Field name="qty">
-        {(field) => (
-          <label>
-            数量
-            <input
-              data-testid="qty"
-              type="number"
-              min={1}
-              disabled={field.disabled}
-              value={field.value ?? ''}
-              onChange={(event) => field.onChange(event.target.value === '' ? 0 : Number(event.target.value))}
-              onBlur={field.onBlur}
-            />
-            <span data-testid="qty-error">{field.errors[0] ?? ''}</span>
-          </label>
-        )}
-      </Field>
+      <FormLayout labelCol={{ span: 3 }} wrapperCol={{ span: 12 }}>
+        {DIMS.map((dim) => (
+          <F.Field key={dim} name={dim} title={DIM_LABEL[dim]} decorator={[FormItem]} component={[Radio, { optionType: 'button' }]} />
+        ))}
+        <F.Field name="priceText" title="价格" decorator={[FormItem]} component={[Input]} />
+        <F.Field name="stock" title="库存" decorator={[FormItem]} component={[InputNumber]} />
+        <F.Field name="skuId" title="SKU" decorator={[FormItem]} component={[Input]} />
+        <F.Field name="qty" title="数量" decorator={[FormItem]} component={[InputNumber, { min: 1 }]} />
+      </FormLayout>
     </Form>
-  )
-}
-
-function DimRadios({ dim }: { dim: Dim }) {
-  return (
-    <fieldset>
-      <legend>{DIM_LABEL[dim]}</legend>
-      <Field name={dim}>
-        {(field) => (
-          <div data-testid={`dim-${dim}`}>
-            {field.options.map((option) => {
-              const value = String(option.value)
-              const disabled = !!option.disabled || field.disabled
-              return (
-                <label key={value} data-testid={`opt-${dim}-${value}`} data-disabled={disabled ? 'true' : 'false'}>
-                  <input
-                    type="radio"
-                    name={dim}
-                    value={value}
-                    disabled={disabled}
-                    checked={field.value === value}
-                    onChange={() => field.onChange(value)}
-                  />
-                  {option.label}
-                </label>
-              )
-            })}
-          </div>
-        )}
-      </Field>
-    </fieldset>
   )
 }

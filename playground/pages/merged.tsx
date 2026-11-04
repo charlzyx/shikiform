@@ -1,6 +1,8 @@
-import { MergedTable } from 'shikiform/antd'
+import { Button, Space } from 'antd'
 import { Field, Form, useForm, useFormContext, useWatch, type Draft } from 'shikiform'
+import { Checkbox, FormItem, Input, InputNumber, MergedTable, Select, Switch } from 'shikiform/antd'
 import { newProduct, newSupplier, supplierRows, type FlatRow, type Supplier } from '../merged-model'
+import { tid } from '../testid'
 
 interface Values {
   onlyActive: boolean
@@ -25,6 +27,15 @@ const INITIAL: Supplier[] = [
   },
 ]
 
+const LEVELS = ['A', 'B', 'C'].map((value) => ({ label: `${value} 级`, value }))
+/** A table cell: no label, errors right under the control. */
+const cell = [FormItem, { style: { margin: 0 } }] as const
+
+/**
+ * Values stay nested (`suppliers.N.products.M`); the table is a flat display model from `supplierRows`. A row only
+ * records the path coordinates, so every cell writes its real path. `MergedTable` is not an array field: the cell
+ * names are full paths built from those coordinates.
+ */
 export function MergedPage() {
   const form = useForm<Values>({
     initialValues: { onlyActive: false, suppliers: INITIAL },
@@ -45,21 +56,13 @@ function MergedBody() {
   return (
     <main>
       <h1>供应商和产品</h1>
-      <Field name="onlyActive">
-        {(field) => (
-          <label>
-            <input
-              data-testid="only-active"
-              type="checkbox"
-              checked={!!field.value}
-              onChange={(event) => field.onChange(event.target.checked)}
-            />
-            只看在售
-          </label>
-        )}
-      </Field>
-      <p>空供应商和没有在售产品的组仍保留供应商编辑入口；占位行不创建产品。</p>
-      <pre data-testid="names">{suppliers.map((supplier) => supplier.name).join(',')}</pre>
+      <p>
+        按供应商合并单元格。C 级供应商的产品单价不能超过 1000，供应商不能重名。没有产品（或筛选后没有在售产品）的供应商仍保留一行，用来改名、加产品；这一行不创建产品。
+      </p>
+      <Field name="onlyActive" title="只看在售" decorator={[FormItem]} component={[Switch, tid('only-active')]} />
+      <p>
+        供应商顺序：<span data-testid="names">{suppliers.map((supplier) => supplier.name).join(',')}</span>
+      </p>
       <MergedTable
         rows={rows}
         groupOf={(row) => row.supplierId}
@@ -69,74 +72,50 @@ function MergedBody() {
             title: '供应商',
             key: 'supplier',
             merge: true,
-            render: (row) =>
-              row.lead ? <SupplierCell supplierIndex={row.supplierIndex} rowId={row.id} /> : null,
+            render: (row) => (row.lead ? <SupplierCell supplierIndex={row.supplierIndex} rowId={row.id} /> : null),
           },
           {
             title: '产品',
             key: 'name',
-            render: (row) => row.productIndex === null ? (
-              <span data-testid={`empty-supplier-${row.supplierId}`}>
-                {suppliers[row.supplierIndex]!.products.length ? '没有在售产品' : '暂无产品'}
-              </span>
-            ) : (
-              <Field name={`suppliers.${row.supplierIndex}.products.${row.productIndex}.name`}>
-                {(field) => <span data-testid={`name-${row.id}`}>{field.value}</span>}
-              </Field>
-            ),
+            render: (row) =>
+              row.productIndex === null ? (
+                <span data-testid={`empty-supplier-${row.supplierId}`}>
+                  {suppliers[row.supplierIndex]!.products.length ? '没有在售产品' : '暂无产品'}
+                </span>
+              ) : (
+                <span data-testid={`name-${row.id}`}>
+                  <Field name={`suppliers.${row.supplierIndex}.products.${row.productIndex}.name`} pattern="readPretty" component={[Input]} />
+                </span>
+              ),
           },
           {
-            title: '价格',
+            title: '单价',
             key: 'price',
-            render: (row) => row.productIndex === null ? null : (
-              <Field
-                name={`suppliers.${row.supplierIndex}.products.${row.productIndex}.price`}
-                rules={[
-                  {
-                    validator: (value, ctx) =>
-                      ctx.parent?.level === 'C' && Number(value) > 1000 ? 'C 级供应商单价不能超过 1000' : null,
-                  },
-                ]}
-              >
-                {(field) => (
-                  <span>
-                    <input
-                      data-testid={`price-${row.id}`}
-                      value={field.value ?? ''}
-                      onChange={(event) => field.onChange(Number(event.target.value))}
-                      onBlur={field.onBlur}
-                    />
-                    <span data-testid={`price-error-${row.id}`}>{field.errors[0] ?? ''}</span>
-                  </span>
-                )}
-              </Field>
-            ),
+            render: (row) =>
+              row.productIndex === null ? null : (
+                <div data-testid={`price-error-${row.id}`}>
+                  <Field
+                    name={`suppliers.${row.supplierIndex}.products.${row.productIndex}.price`}
+                    decorator={cell}
+                    component={[InputNumber, tid(`price-${row.id}`)]}
+                    rules={{ validator: (value, ctx) => (ctx.parent?.level === 'C' && Number(value) > 1000 ? 'C 级供应商单价不能超过 1000' : null) }}
+                  />
+                </div>
+              ),
           },
           {
             title: '在售',
             key: 'active',
-            render: (row) => row.productIndex === null ? null : (
-              <Field name={`suppliers.${row.supplierIndex}.products.${row.productIndex}.active`}>
-                {(field) => (
-                  <input
-                    data-testid={`active-${row.id}`}
-                    type="checkbox"
-                    checked={!!field.value}
-                    onChange={(event) => field.onChange(event.target.checked)}
-                  />
-                )}
-              </Field>
-            ),
+            render: (row) =>
+              row.productIndex === null ? null : (
+                <Field name={`suppliers.${row.supplierIndex}.products.${row.productIndex}.active`} component={[Checkbox, tid(`active-${row.id}`)]} />
+              ),
           },
         ]}
       />
-      <button
-        type="button"
-        data-testid="add-supplier"
-        onClick={() => form.pushArray('suppliers', newSupplier())}
-      >
+      <Button style={{ marginTop: 8 }} data-testid="add-supplier" onClick={() => form.pushArray('suppliers', newSupplier())}>
         加供应商
-      </button>
+      </Button>
     </main>
   )
 }
@@ -148,68 +127,37 @@ function mergedRowKey(row: FlatRow) {
 
 function SupplierCell({ supplierIndex, rowId }: { supplierIndex: number; rowId: string }) {
   const form = useFormContext<Values>()
-  const suppliers = useWatch((d: Draft<Values>) => d.suppliers.$value) ?? []
-  const supplier = suppliers[supplierIndex]
+  const supplier = useWatch((d: Draft<Values>) => d.suppliers.$value)?.[supplierIndex]
   if (!supplier) return null
   return (
-    <div data-testid={`supplier-cell-${supplier.id}`}>
-      <Field
-        name={`suppliers.${supplierIndex}.name`}
-        rules={[
-          { required: true, message: '供应商必填' },
-          {
-            validator: (value, ctx) => {
-              const names = (ctx.array ?? [])
-                .map((item: { name?: string }) => item?.name)
-                .filter((name) => name && name === value)
-              return names.length > 1 ? '供应商重名' : null
+    <Space direction="vertical" data-testid={`supplier-cell-${supplier.id}`}>
+      <div data-testid={`supplier-error-${supplier.id}`}>
+        <Field
+          name={`suppliers.${supplierIndex}.name`}
+          decorator={cell}
+          component={[Input, { ...tid(`supplier-${rowId}`), 'aria-label': '供应商名称', placeholder: '供应商名称' }]}
+          rules={[
+            { required: true, message: '供应商必填' },
+            {
+              validator: (value, ctx) =>
+                (ctx.array ?? []).filter((item: { name?: string }) => item?.name && item.name === value).length > 1 ? '供应商重名' : null,
             },
-          },
-        ]}
-      >
-        {(field) => (
-          <span>
-            <input
-              data-testid={`supplier-${rowId}`}
-              aria-label="供应商名称"
-              value={field.value ?? ''}
-              onChange={(event) => field.onChange(event.target.value)}
-              onBlur={field.onBlur}
-            />
-            <span data-testid={`supplier-error-${supplier.id}`}>{field.errors[0] ?? ''}</span>
-          </span>
-        )}
-      </Field>
-      <Field name={`suppliers.${supplierIndex}.level`}>
-        {(field) => (
-          <select
-            data-testid={`level-${supplier.id}`}
-            value={field.value ?? 'B'}
-            onChange={(event) => field.onChange(event.target.value as Supplier['level'])}
-          >
-            <option value="A">A</option>
-            <option value="B">B</option>
-            <option value="C">C</option>
-          </select>
-        )}
-      </Field>
-      <button
-        type="button"
-        data-testid={`up-${supplier.id}`}
-        disabled={supplierIndex === 0}
-        onClick={() => form.moveArray('suppliers', supplierIndex, supplierIndex - 1)}
-      >
-        组上移
-      </button>
-      <button
-        type="button"
-        data-testid={`add-product-${supplier.id}`}
-        onClick={() =>
-          form.pushArray(`suppliers.${supplierIndex}.products` as 'suppliers.0.products', newProduct())
-        }
-      >
-        加产品
-      </button>
-    </div>
+          ]}
+        />
+      </div>
+      <Field name={`suppliers.${supplierIndex}.level`} enum={LEVELS} component={[Select, { ...tid(`level-${supplier.id}`), style: { width: 90 } }]} />
+      <Space>
+        <Button size="small" data-testid={`up-${supplier.id}`} disabled={supplierIndex === 0} onClick={() => form.moveArray('suppliers', supplierIndex, supplierIndex - 1)}>
+          组上移
+        </Button>
+        <Button
+          size="small"
+          data-testid={`add-product-${supplier.id}`}
+          onClick={() => form.pushArray(`suppliers.${supplierIndex}.products` as 'suppliers.0.products', newProduct())}
+        >
+          加产品
+        </Button>
+      </Space>
+    </Space>
   )
 }
