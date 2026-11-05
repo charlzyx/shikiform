@@ -166,7 +166,8 @@ comboOptions(table, selection, dim, { disabledWhen? }?): ComboOption[]    // 其
 ## 错误类与文案
 
 ```ts
-class ShikiUsageError extends Error      // 开发期写法错误：改 $value 对象、同一轮读回刚写的值、把 handle 当数组、拼错 $ 状态…；消息里写了正确写法
+class ShikiUsageError extends Error      // 开发期写法错误：改 $value 对象、同一轮读回刚写的值、把 handle 当数组、拼错 $ 状态、
+                                         // 未知规则键（minLenght）、component={[undefined]}、<ArrayField> 用在非数组上…；消息里写了正确写法
 class ShikiCycleError extends Error      // reaction / watch 10 轮仍未收敛；cycle: readonly string[] 是互相触发的链
 class ShikiConflictError extends Error   // 开发期：两个 reaction 写了同一个 $ 状态；state、first、second 指出是谁
 
@@ -175,7 +176,7 @@ setDefaultMessages(messages: Partial<FormMessages>): void   // 全应用默认�
 getDefaultMessages(): FormMessages       // 当前的全应用默认（setDefaultMessages 之后的结果）
 ```
 
-三个错误类都从 `shikiform` 和 `shikiform/core` 导出，可以 `instanceof` 判断。`ShikiCycleError` 在生产构建里也会抛（联动循环触发）；`ShikiUsageError` 和 `ShikiConflictError` 只在开发构建检查。两个写者的冲突改成一个写者，或把动作移到 `watch`。文案的优先级是规则自己的 `message` > 表单 `messages` > `setDefaultMessages` > `zhCN`，见 [内置文案](/guide/validation#内置文案)。
+三个错误类都从 `shikiform` 和 `shikiform/core` 导出，可以 `instanceof` 判断。`ShikiCycleError` 在生产构建里也会抛（联动循环触发）；`ShikiUsageError` 和 `ShikiConflictError` 只在开发构建检查。开发构建里，冲突和循环的消息逐个列出涉及的 reaction：声明位置（`文件:行:列`）、它读了哪些状态、写了哪些状态。两个写者的冲突改成一个写者，或把动作移到 `watch`。文案的优先级是规则自己的 `message` > 表单 `messages` > `setDefaultMessages` > `zhCN`，见 [内置文案](/guide/validation#内置文案)。
 
 ## 类型索引
 

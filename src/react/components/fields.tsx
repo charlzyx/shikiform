@@ -11,6 +11,7 @@ import { useTreeField } from '../hooks/use-tree'
 import { useWatch } from '../hooks/use-watch'
 import { resolveName } from '../hooks/resolve-name'
 import { ShikiUsageError } from '../../core/errors'
+import { emptySlot } from '../../core/state/field-model'
 import { focusFieldDomId, IdPrefixProvider, useAutoIdPrefix } from '../id-prefix'
 import { VirtualRows } from './virtual-rows'
 
@@ -289,6 +290,9 @@ export function ArrayField<TScope = any, C extends ComponentType<any> = Componen
 }) {
   const array = useArrayField(String(name), { rowKey })
   const [Container, props] = Array.isArray(component) ? component : [component as ComponentType<any> | undefined, undefined]
+  if (Array.isArray(component) && Container == null && process.env.NODE_ENV !== 'production') {
+    throw emptySlot(`<ArrayField name="${String(name)}">`, 'component', Container)
+  }
   if (virtualScroll && Container) {
     throw new ShikiUsageError(
       `<ArrayField name="${String(name)}"> takes \`virtualScroll\` or a container \`component\`, not both: ` +

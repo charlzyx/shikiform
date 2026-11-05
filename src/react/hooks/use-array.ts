@@ -1,6 +1,6 @@
 import { useContext, useSyncExternalStore } from 'react'
 import type { ArrayItemOf, ArrayPath } from '../../core/types'
-import { ShikiUsageError } from '../../core/errors'
+import { ShikiUsageError, showDraftPath } from '../../core/errors'
 import { ArrayContext, useRequiredForm, useScope } from '../context'
 import { useFieldGroupRegistration } from '../field-group'
 import { resolveName } from './resolve-name'
@@ -45,7 +45,9 @@ export function useArrayField<TScope, N extends ArrayPath<TScope>>(
 ): ArrayHandle<ArrayItemOf<TScope, N & string>>
 export function useArrayField(name: string, opts?: { rowKey?: string }): ArrayHandle<unknown> {
   const scope = useScope()
-  const path = resolveName(useRequiredForm(`useArrayField('${name}') / <ArrayField name="${name}">`), scope, name)
+  const form = useRequiredForm(`useArrayField('${name}') / <ArrayField name="${name}">`)
+  const path = resolveName(form, scope, name)
+  if (process.env.NODE_ENV !== 'production') assertArrayValue(path, form.getValue(path))
   useFieldGroupRegistration(path)
   return useArrayAt(path, opts?.rowKey)
 }
@@ -72,6 +74,16 @@ export function useArray<TRow = unknown>(): ArrayHandle<TRow> {
     throw new Error('useArray() must render inside <ArrayField>')
   }
   return useArrayAt(ctx.path, ctx.rowKey) as ArrayHandle<TRow>
+}
+
+/** `<ArrayField name="title">` on a string renders no rows and no error: say so in development. */
+function assertArrayValue(path: string, value: unknown): void {
+  if (value == null || Array.isArray(value)) return
+  const shown = typeof value === 'object' ? 'an object' : `${typeof value} ${JSON.stringify(value)?.slice(0, 40)}`
+  throw new ShikiUsageError(
+    `<ArrayField name="${path}"> / useArrayField('${path}'): ${showDraftPath(path)}.$value is ${shown}, not an array. ` +
+      `Start it as an array in initialValues (\`${path.split('.').pop()}: []\`), or use <Field> / <ObjectField> for a non-array value.`,
+  )
 }
 
 /** {@link useArrayField} for an absolute path, without field-group registration (internal: containers, `useArrayTable`). */

@@ -47,9 +47,10 @@ export function expandTemplate(pattern: string, root: unknown): string[] {
 export function rulesFromSpec(
   spec: { rules?: RulesInput; validator?: Rule['validator']; warning?: Rule['validator'] },
   existing: Rule[],
+  where?: string,
 ): Rule[] | undefined {
   if (spec.rules === undefined && !spec.validator && !spec.warning) return undefined
-  const rules = spec.rules !== undefined ? normalizeRules(spec.rules) : existing.filter((rule) => !rule.validator)
+  const rules = spec.rules !== undefined ? normalizeRules(spec.rules, where) : existing.filter((rule) => !rule.validator)
   if (spec.validator) rules.push({ validator: spec.validator })
   if (spec.warning) rules.push({ validator: spec.warning })
   return rules

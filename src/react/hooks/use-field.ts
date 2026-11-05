@@ -159,8 +159,8 @@ export function useField(name?: string, options?: UseFieldOptions): FieldBinding
   void version
   useUiNode(form, path, ui, 'field')
   form.registerField(path, {})
-  if (ui) return withDomId(form.uiBinding(path, ui, uiJsx(options!), 'field') as unknown as FieldBinding<any>, prefix)
-  return withDomId(form.binding(path, options && uiLayer(options)) as FieldBinding<any>, prefix)
+  if (ui) return withDomId(form.uiBinding(path, ui, uiJsx(options!, path), 'field') as unknown as FieldBinding<any>, prefix)
+  return withDomId(form.binding(path, options && uiLayer(options, path)) as FieldBinding<any>, prefix)
 }
 
 const NO_UI = () => () => {}
@@ -222,12 +222,12 @@ const NO_FIELD =
   "Render it inside <Field name=\"…\"> (or as its component / decorator / children), " +
   "or pass a name: useField('email')."
 
-function uiJsx(options: UseFieldOptions) {
-  return { ...uiLayer(options), display: options.display, pattern: options.pattern }
+function uiJsx(options: UseFieldOptions, path: string) {
+  return { ...uiLayer(options, path), display: options.display, pattern: options.pattern }
 }
 
-function uiLayer(options: UseFieldOptions): FieldUiSpec | undefined {
+function uiLayer(options: UseFieldOptions, path: string): FieldUiSpec | undefined {
   const { title, description, component, decorator } = options
   if (title === undefined && description === undefined && component === undefined && decorator === undefined) return undefined
-  return normalizeUiSpec({ title, description, component, decorator }) as FieldUiSpec
+  return normalizeUiSpec({ title, description, component, decorator }, `<Field name="${path}"${options.ui ? ` ui="${options.ui}"` : ''}>`) as FieldUiSpec
 }

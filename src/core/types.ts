@@ -663,7 +663,8 @@ export interface EffectsRuntime<T> {
   registerReaction(id: string, run: () => void, deps: Set<string>): void
   registerWatch(id: string, run: () => void, deps: Set<string>): void
   queue(id: string): void
-  nextId(prefix: string): string
+  /** `site` (development): where the effect was declared, shown in conflict / cycle errors. */
+  nextId(prefix: string, site?: string): string
   handle(path: string): Draft<any>
   readPath(handle: unknown): string | undefined
   childrenKey(path: string): string

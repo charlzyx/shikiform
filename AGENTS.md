@@ -32,7 +32,10 @@ and SSR-rendered against the packed library); the site's `/llms.txt` serves this
 
 Development builds throw `ShikiUsageError` with the fix for all three mistakes (mutating `$value`, using a handle
 as an array, and reading back a `$` state you wrote in the same pass), and for a misspelled state (`$valeu`,
-`$requird`), a write to a read-only state (`$errors`, `$touched`), or `d.x.value = …` without `$`. Production skips the checks.
+`$requird`), a write to a read-only state (`$errors`, `$touched`), `d.x.value = …` without `$`, an unknown rule key
+(`minLenght` → "Did you mean minLength?"), `component={[undefined]}` (an import that resolves to nothing) and
+`<ArrayField>` over a non-array value. `ShikiConflictError` / `ShikiCycleError` list each reaction involved with its
+call site, the states it reads and the states it writes. Production skips the checks (a cycle still throws).
 
 ## 2. reaction vs watch
 

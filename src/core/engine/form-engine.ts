@@ -436,8 +436,8 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     this.scheduler.eachRecs.set(id, rec)
   }
 
-  nextId(prefix: string): string {
-    return this.scheduler.nextId(prefix)
+  nextId(prefix: string, site?: string): string {
+    return this.scheduler.nextId(prefix, site)
   }
 
   trackOnly<S>(fn: () => S): { value: S; deps: Set<string> } {

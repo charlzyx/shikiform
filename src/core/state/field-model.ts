@@ -1,3 +1,4 @@
+import { ShikiUsageError } from '../errors'
 import type { EnumBinding, EnumOption } from '../enum/enum-source'
 import type { Display, FieldSpec, FieldUiSpec, Pattern, ValidateTrigger } from '../types'
 import type { Rule } from '../validation/rules'
@@ -82,17 +83,27 @@ export const OBJECT_UI_KEYS: ReadonlySet<UiKey> = new Set<UiKey>(['componentProp
  * A declaration's UI keys. A `[Component, props]` slot tuple becomes `component` + `componentProps`
  * (`decorator` likewise); tuple props merge under an explicit `componentProps`.
  */
-export function normalizeUiSpec(spec: FieldUiSpec): Partial<Record<UiKey, unknown>> {
+export function normalizeUiSpec(spec: FieldUiSpec, where?: string): Partial<Record<UiKey, unknown>> {
   const out: Partial<Record<UiKey, unknown>> = {}
   for (const key of UI_KEYS) if (spec[key] !== undefined) out[key] = spec[key]
   for (const [slot, props] of [['component', 'componentProps'], ['decorator', 'decoratorProps']] as const) {
     const value = out[slot]
     if (Array.isArray(value)) {
+      if (value[0] == null && process.env.NODE_ENV !== 'production') throw emptySlot(where, slot, value[0])
       out[slot] = value[0]
       if (value[1] !== undefined || out[props] !== undefined) out[props] = { ...value[1], ...(out[props] as object) }
     }
   }
   return out
+}
+
+/** `component={[undefined]}`: almost always an import that resolves to nothing. */
+export function emptySlot(where: string | undefined, slot: string, value: unknown): ShikiUsageError {
+  return new ShikiUsageError(
+    `${where ?? 'A field'}: ${slot}={[${String(value)}, …]} has no component. The first item is ${String(value)}, ` +
+      `usually an import that does not exist (a misspelled name, or a default import of a named export). ` +
+      `Check where it is imported from.`,
+  )
 }
 
 export function createFieldModel(path: string): FieldModel {
