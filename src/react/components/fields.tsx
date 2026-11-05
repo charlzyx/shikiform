@@ -1,9 +1,9 @@
-import { memo, useEffect, useMemo, useRef, type ComponentProps, type ComponentType, type FormEvent, type FormHTMLAttributes, type ReactNode } from 'react'
+import { memo, useContext, useEffect, useMemo, useRef, type ComponentProps, type ComponentType, type FormEvent, type FormHTMLAttributes, type ReactNode } from 'react'
 import { engineOf } from '../../core/engine/create'
 import type { ArrayPath, Display, Draft, FieldEnum, FieldError, FieldPath, FormInstance, PathValue, Pattern, UiName } from '../../core/types'
 import type { RulesInput } from '../../core/validation/rules'
 import type { Pos } from '../../core/shared/tree-ops'
-import { ArrayContext, FormContext, ScopeContext, useRequiredForm, useScope } from '../context'
+import { ArrayContext, FormContext, RowWrapContext, ScopeContext, useRequiredForm, useScope } from '../context'
 import { useArrayField } from '../hooks/use-array'
 import { FieldContext } from '../field-context'
 import { useField, type FieldBinding, type FieldSlot } from '../hooks/use-field'
@@ -328,9 +328,11 @@ const ArrayRow = memo(function ArrayRow({ path, index, itemKey, render }: {
   itemKey: string
   render: (row: { index: number; key: string }) => ReactNode
 }) {
+  const wrap = useContext(RowWrapContext)
+  const content = render({ index, key: itemKey })
   return (
     <RowScope path={path} index={index} itemKey={itemKey}>
-      {render({ index, key: itemKey })}
+      {wrap ? wrap(<RowWrapContext.Provider value={null}>{content}</RowWrapContext.Provider>) : content}
     </RowScope>
   )
 })

@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react'
+import { createContext, useContext, type ReactNode } from 'react'
 import type { FormEngine } from '../core/engine/form-engine'
 import type { FormInstance } from '../core/types'
 
@@ -22,6 +22,12 @@ export interface ArrayScopeValue {
 export const FormContext = createContext<FormEngine<any> | null>(null)
 export const ScopeContext = createContext<ScopeValue>({ path: '', index: -1 })
 export const ArrayContext = createContext<ArrayScopeValue | null>(null)
+
+/**
+ * Internal: a container's per-row wrapper (`ArrayCards` puts each row in a card). `<ArrayField>` rows are memoized,
+ * so a container cannot rewrite them; it provides this and every row renders `wrap(rowContent)` inside its scope.
+ */
+export const RowWrapContext = createContext<((content: ReactNode) => ReactNode) | null>(null)
 
 /** The form provided by `<Form>` (the same object `useForm()` returned). */
 export function useFormContext<T = any>(): FormInstance<T> {

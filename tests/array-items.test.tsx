@@ -170,3 +170,29 @@ describe('useForm({ pattern })', () => {
     expect(view.container.querySelectorAll('input')).toHaveLength(0)
   })
 })
+
+describe('ArrayCards with memoized rows', () => {
+  it('push renders a card for the new row; a plain nested ArrayField inside a card is not carded', async () => {
+    type N = { rows: { name: string; tags: string[] }[] }
+    const form = createEngine<N>({ initialValues: { rows: [{ name: 'a', tags: ['x', 'y'] }] } })
+    const F = typed(form)
+    const view = render(
+      <Form form={form}>
+        <F.ArrayField name="rows" component={[ArrayCards, { title: '联系人' }]}>
+          {(row) => (
+            <>
+              <row.Field name="name" component={[Input]} />
+              <row.ArrayField name="tags">{() => <span data-testid="tag" />}</row.ArrayField>
+            </>
+          )}
+        </F.ArrayField>
+      </Form>,
+    )
+    expect(all(view, 'array-card')).toHaveLength(1)
+    expect(all(view, 'tag')).toHaveLength(2)
+    act(() => { form.pushArray('rows', { name: 'b', tags: [] }) })
+    await settle()
+    expect(all(view, 'array-card')).toHaveLength(2)
+    expect(all(view, 'array-card')[1]!.textContent).toContain('联系人#2')
+  })
+})

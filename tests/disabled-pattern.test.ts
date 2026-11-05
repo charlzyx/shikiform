@@ -187,7 +187,7 @@ describe('$disabled pattern shortcut', () => {
           }),
         ],
       }),
-    ).toThrow(/child:pattern/)
+    ).toThrow(/d\.child\.\$pattern is written by two reactions/)
   })
 
   it('does not conflict with itself when one reaction toggles $disabled', () => {
