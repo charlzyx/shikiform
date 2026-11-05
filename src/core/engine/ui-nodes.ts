@@ -7,6 +7,7 @@ import type { Notifier } from '../state/notifier'
 import type { Display, FieldUiSpec, Pattern, WriteOp } from '../types'
 import { FieldUi, type FieldUiView, type UiHolder } from './field-ui'
 import type { StateWriter } from './writes'
+import { reindexKeyed } from '../structure/migrate'
 
 /** `field`: `<Field name ui>`, a second UI of a field. `node`: `<UI name>`, a UI with no value. */
 export type UiKind = 'field' | 'node'
@@ -46,6 +47,9 @@ export const UI_NODE_STATE = new Set([
   '$componentProps',
   '$decoratorProps',
 ])
+
+/** Dep keys a UI node's reads track (`<id>:<state>`). */
+const UI_DEPS = ['display', 'pattern', 'title', 'description', 'componentProps', 'decoratorProps', 'component', 'decorator']
 
 /** Model / dep / notifier key of the UI `name` on `path` (`''` is the root). Never a data path: `#` separates. */
 export function uiId(path: string, name: string): string {
@@ -90,6 +94,27 @@ export class UiNodes {
         if (model) this.write(model.path, model.name, draftKey, value)
       },
     )
+    store.onReindexIds = (oldIds, newIds) => this.reindex(oldIds, newIds)
+  }
+
+  /**
+   * Rows moved / were inserted / removed: a node's runtime state follows its row like a field's (`rows.0#tip` moves
+   * to `rows.1#tip`); a removed row's nodes are dropped, so a new row at that index starts fresh.
+   */
+  private reindex(oldIds: ReadonlyMap<string, string>, newIds: ReadonlyMap<string, string>): void {
+    const { dropped, moved } = reindexKeyed(this.models, (model) => uiId(model.path, model.name), oldIds, newIds)
+    if (!dropped.length && !moved.length) return
+    const touched = new Set<string>()
+    for (const model of dropped) touched.add(uiId(model.path, model.name))
+    for (const { from, model } of moved) {
+      touched.add(uiId(from, model.name))
+      touched.add(uiId(model.path, model.name))
+    }
+    for (const id of touched) {
+      // The key held a model and now holds another one or none: readers and renders of it must re-run.
+      this.notifier.bumpPath(id)
+      for (const state of UI_DEPS) this.scheduler.markDirty(`${id}:${state}`)
+    }
   }
 
   /** Draft read of `d.<path>.$ui(name).<key>`. Every read is a dependency, like a field's `$` reads. */

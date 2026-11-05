@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type ComponentProps, type ComponentType, type FormEvent, type FormHTMLAttributes, type ReactNode } from 'react'
+import { memo, useEffect, useMemo, useRef, type ComponentProps, type ComponentType, type FormEvent, type FormHTMLAttributes, type ReactNode } from 'react'
 import { engineOf } from '../../core/engine/create'
 import type { ArrayPath, Display, Draft, FieldEnum, FieldError, FieldPath, FormInstance, PathValue, Pattern, UiName } from '../../core/types'
 import type { RulesInput } from '../../core/validation/rules'
@@ -295,10 +295,11 @@ export function ArrayField<TScope = any, C extends ComponentType<any> = Componen
         'virtualScroll windows plain rows (`<ArrayField name virtualScroll>{(row) => …}</ArrayField>`).',
     )
   }
+  // Memoized rows: a push / insert renders only the new row (and rows whose index changed), not every row.
+  // `children` keeps its identity while the ArrayField's parent does not re-render; when it does, every row
+  // re-renders with the new closure.
   const row = (index: number, key: string) => (
-    <RowScope key={key} path={`${array.path}.${index}`} index={index} itemKey={key}>
-      {children!({ index, key })}
-    </RowScope>
+    <ArrayRow key={key} path={`${array.path}.${index}`} index={index} itemKey={key} render={children!} />
   )
   let rows: ReactNode = null
   if (children && virtualScroll) {
@@ -315,6 +316,20 @@ export function ArrayField<TScope = any, C extends ComponentType<any> = Componen
   }
   return <ArrayScope path={array.path} rowKey={rowKey}>{Container ? <Container {...props}>{rows}</Container> : rows}</ArrayScope>
 }
+
+/** One `<ArrayField>` row: re-renders only when its path / index / key or the row render function changes. */
+const ArrayRow = memo(function ArrayRow({ path, index, itemKey, render }: {
+  path: string
+  index: number
+  itemKey: string
+  render: (row: { index: number; key: string }) => ReactNode
+}) {
+  return (
+    <RowScope path={path} index={index} itemKey={itemKey}>
+      {render({ index, key: itemKey })}
+    </RowScope>
+  )
+})
 
 /**
  * Mark the nearest array for {@link useArray} (`path` is absolute). `<ArrayField>` renders it; use it in a custom

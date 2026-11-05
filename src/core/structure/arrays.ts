@@ -130,6 +130,7 @@ export class ArrayOps {
     const newIds = new Map<string, string>()
     next.forEach((row, index) => newIds.set(this.rowIdent(row, index, rowKey), joinPath(path, String(index))))
     store.onReindex?.(reindexById(store.fields, oldIds, newIds))
+    store.onReindexIds?.(oldIds, newIds)
     store.values = setAt(store.values, path, next)
     scheduler.dirtyRows.set(path, dirty)
     scheduler.markStructure(path)
