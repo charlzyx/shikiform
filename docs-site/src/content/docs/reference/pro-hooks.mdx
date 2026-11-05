@@ -1,6 +1,6 @@
 ---
 title: Pro Hooks 参考
-description: useArrayTable、useColumnSettings、useShadowForm、useArrayShadow、useSuggestion、useLazyCascader、useCascaderLabels、cascaderPaths、enumItems。
+description: useArrayTable、useColumnSettings、useShadowForm、useArrayShadow、useSuggestion、useLazyCascader、useCascaderLabels、enumItems。
 ---
 
 从 `shikiform/pro` 导入，没有 antd 依赖。`shikiform/antd` 里的 [ArrayTable](/reference/antd#arraytable) 和 [ShadowModal、Suggestion、CascaderPlus](/reference/pro-components) 是它们的渲染层。可点的例子：[/play/array-table](/play/array-table)、[/play/shadow-form](/play/shadow-form)、[/play/pro-enum](/play/pro-enum)。
@@ -70,7 +70,7 @@ useShadowForm<TValues, TContext>(options?: {
 
 ```ts
 useArrayShadow<TRow>(name: string, options?: UseShadowFormOptions & {
-  form?: FormEngine, rowKey?: string,
+  form?: FormInstance, rowKey?: string,
   onOk?: (values, context) => void | false | Promise<void | false>,
   merge?: (row, values) => TRow, append?: (row) => void,
 }): ShadowFormApi<TRow, ArrayShadowContext> & { edit(index, loader?), add(init?) }
@@ -109,14 +109,6 @@ useCascaderLabels({ value: unknown, multiple?: boolean, load?: CascaderLoader })
 const { labels } = useCascaderLabels({ value: ['410000', '410600', '410621'], load: loadArea })
 labels[0].join('/') // '河南省/鹤壁市/浚县'
 ```
-
-## cascaderPaths
-
-```ts
-cascaderPaths(value: unknown, multiple?: boolean): (string | number)[][]
-```
-
-把级联字段的值规整成值路径的列表：单选是一条，`multiple` 是多条；`labelInValue` 的层级 `{ label, value }` 取 `value`，不是数组的条目被丢掉。`CascaderPlus` 用它把字段值交给 antd `Cascader`，自己写级联视图时也能直接用。
 
 ## enumItems
 

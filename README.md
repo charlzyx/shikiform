@@ -54,7 +54,7 @@ export default function App() {
 
 Hooks 是主 API，JSX 是其结构与渲染封装；draft 和 `$` 描述状态，`reaction` / `reaction.each` / `watch` 描述联动。文档站（https://shikiform.pages.dev）用 [Nimbus](https://github.com/cloudflare/nimbus-docs)（Astro），源码在 `docs-site/`。教程在浏览器里改代码。
 
-教程和库使用同一个 FormEngine：`src/core`、`src/react`、`src/pro`、`src/antd`，包入口在构建后的 `lib/`。没有替换核心行为的教学 store。
+教程和库使用同一个引擎：`src/core`、`src/react`、`src/pro`、`src/antd`，包入口在构建后的 `lib/`。没有替换核心行为的教学 store。
 
 教程编辑器只有一个可修改的 `App.tsx`，字段写法和文档其余部分相同（`<Field decorator={[FormItem]} component={[Input]}>`，控件来自 `shikiform/antd`），可以整段复制。公开包没有 `shikiform/ui` 或 `shikiform/zod`；Standard Schema（如 Zod）直接传给 `rules` / `validate`。
 

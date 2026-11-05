@@ -26,7 +26,7 @@ description: useForm、useField、useWatch、数组与树 Hooks 的签名、返�
 ## useForm
 
 ```ts
-useForm<T, TSubmit = T>(options?: UseFormOptions<T>): FormEngine<T, TSubmit>
+useForm<T, TSubmit = T>(options?: UseFormOptions<T>): FormInstance<T, TSubmit>
 
 interface UseFormOptions<T> extends FormOptions<T> { values?: T }
 ```
@@ -37,7 +37,7 @@ interface UseFormOptions<T> extends FormOptions<T> { values?: T }
 | `options.initialValues` | 省略时以空对象开始；建议完整写出值形状，让 `T` 可推断 |
 | `options.values` | 外部拥有的数据（加载的记录、查询缓存）。第一次渲染当作初始值；之后内容变化时调 `reset(values)`（新基线，不 dirty）。内容相同的新对象不触发 |
 | `TSubmit` | `submit` / `getSubmitValues` / `<Form onSubmit>` 的值类型，默认 `T`；有 `virtual` / `display: 'none'` 字段时用 `SubmitValues<T, 'tmp'>`，见 [提交值类型](/api#提交值类型) |
-| 返回值 | 稳定的 `FormEngine<T, TSubmit>` 实例，提供 `getValue`、`setValue`、`reset`、`validate`、`submit` 等方法 |
+| 返回值 | 稳定的 `FormInstance<T, TSubmit>`：状态 getter、`getValue` / `setValue` / `batch`、`submit` / `validate` / `reset`、`setErrors`、数组 / 树操作和订阅，见 [API 总览](/api#读写和提交) |
 
 `useForm` 本身不要求父级 Provider。后续渲染传入新 `initialValues` 不会重建实例，也不会生效；会变的数据用 `values`，或自己调 `reset(record)`。渲染需要实时值时用 `useField` / `useWatch`，不要期待读取 `form.values` 就自动重渲染。
 
@@ -66,7 +66,7 @@ key 列表见 [内置文案](/guide/validation#内置文案)。有实例时等�
 ## typed
 
 ```ts
-typed<T>(form: FormEngine<T>): TypedForm<T>       // 一张表单
+typed<T>(form: FormInstance<T>): TypedForm<T>       // 一张表单
 typed<T, TRoot = T>(): TypedForm<T, TRoot>          // 没有实例时（行组件、可复用片段）
 
 type TypedForm<T> = {
@@ -109,7 +109,7 @@ const F = typed(form)
 ## useFormContext
 
 ```ts
-useFormContext<T = any>(): FormEngine<T>
+useFormContext<T = any>(): FormInstance<T>
 ```
 
 无参数。返回最近 `<Form>` 提供的同一个引擎；缺少 Provider 时抛错，不会偷偷创建表单。
@@ -145,10 +145,8 @@ interface UseFieldOptions<TValue = any> {
   // UI 状态（渲染期的 JSX 层，不写进模型；reaction 的 $title / $componentProps 优先，fields 声明在下）
   title?: ReactNode
   description?: ReactNode
-  component?: FieldSlot          // Component 或 [Component, props]
-  decorator?: FieldSlot          // Decorator 或 [Decorator, props]
-  componentProps?: Record<string, any>
-  decoratorProps?: Record<string, any>
+  component?: FieldSlot          // Component 或 [Component, props]：props 是 JSX 层的 componentProps
+  decorator?: FieldSlot          // Decorator 或 [Decorator, props]：props 是 JSX 层的 decoratorProps
 }
 ```
 

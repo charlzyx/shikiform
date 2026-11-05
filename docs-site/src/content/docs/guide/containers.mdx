@@ -149,7 +149,7 @@ export default function App() {
 - 每一步的字段一直挂载（其他步 `hidden`），回到上一步时值还在。
 - `next()` 跳过不可编辑的字段（自身或继承的 `readPretty` / `readOnly` / `disabled`）：用户在这一步改不了它们，详情页（`useForm({ pattern: 'readPretty' })`）可以一路点下一步。提交仍然校验全部字段。
 - 受控：`useFormStep({ current, onChange })`，这时 `next` / `back` / `goTo` 只调用 `onChange`；不受控时 `defaultCurrent` 给初始步。
-- `next()` 从不 reject：表单级 `validate` / `resolver` 抛错时停在原步，报 `console.error`。
+- `next()` 从不 reject：表单级 `validate` 抛错时停在原步，报 `console.error`。
 - `FormStep` 的其余 props 交给 antd `Steps`（`size`、`direction`、`labelPlacement`…）；`Step`：`name?`、`title`、`description?`、`subTitle?`、`icon?`。
 
 ## 提交失败时
