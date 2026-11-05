@@ -7,7 +7,7 @@ import type { Notifier } from '../state/notifier'
 import { scopeOf, type Pos } from '../shared/tree-ops'
 import type { FieldError, FormOptions, SubmitResult, ValidateTrigger } from '../types'
 import { formatMessage, type FormMessageKey, type MessageArgs, type MessageParams } from './messages'
-import { fieldSchemaIssues, optionIncludes, runRules, type ValidateCtx } from './rules'
+import { fieldSchemaIssues, optionIncludes, runRules, type Rule, type ValidateCtx } from './rules'
 import { collectSchemaIssues, groupSchemaIssues, isStandardSchema, schemaIssuePath, type SchemaIssue, type StandardSchemaV1 } from './schema'
 
 export interface ValidatorDeps {
@@ -213,6 +213,7 @@ export class Validator {
     if (!field) return { stale: false, issues: [] }
     if (store.effectiveDisplay(path) === 'none' || field.computed) {
       this.setErrors(path, [])
+      this.setWarnings(path, [])
       return { stale: false, issues: [] }
     }
     field.abort?.abort()
@@ -221,7 +222,10 @@ export class Validator {
     const seq = ++field.asyncSeq
     const value = getAt(values, path)
     const ctx = this.buildCtx(path, value, this.deps.readPos(path) ?? undefined, values, ac.signal)
-    const rules = field.rules.slice()
+    const all = field.rules.slice()
+    // `level: 'warning'` rules report to `$warnings` / `binding.warnings`: shown, never blocking submit.
+    const rules = all.filter((rule) => rule.level !== 'warning')
+    const warnRules = all.filter((rule) => rule.level === 'warning')
     if (options.enumPolicy === 'error' && field.enumOptions && !optionIncludes(field.enumOptions, value)) {
       const enumMessage = this.message('enum', { path, value, options: field.enumOptions })
       rules.push({ validator: () => enumMessage })
@@ -230,6 +234,7 @@ export class Validator {
     const { messages, pending } = runRules(value, plain, ctx, field.required, options.messages)
     const fallback = (issuePath: string) =>
       this.message('fallback', { path: issuePath ? `${path}.${issuePath}` : path, value: issuePath ? getAt(value, issuePath) : value, error: undefined })
+    const warned = this.runWarnings(path, value, warnRules, ctx, fallback)
     const issues: SchemaIssue[] = []
     const schemaPending: Promise<SchemaIssue[]>[] = []
     for (const rule of rules) {
@@ -266,15 +271,16 @@ export class Validator {
         )
       }
     }
-    const apply = (extra: string[]) => {
+    const apply = (extra: string[], extraWarnings: string[] = []) => {
       if (field.asyncSeq !== seq || ac.signal.aborted) return { stale: true as const, issues: [] as SchemaIssue[] }
       const was = field.validating
       field.validating = false
+      this.setWarnings(path, [...warned.messages, ...extraWarnings])
       this.setErrors(path, [...messages, ...extra])
       if (was) scheduler.bumpMeta()
       return { stale: false as const, issues }
     }
-    if (!pending.length && !schemaPending.length) return apply([])
+    if (!pending.length && !schemaPending.length && !warned.pending.length) return apply([])
     field.validating = true
     notifier.bumpPath(path)
     scheduler.bumpMeta()
@@ -283,7 +289,9 @@ export class Validator {
       // A validator we stop awaiting (abort mid-list) must not reject unhandled.
       for (const item of pending) ignoreRejection(item)
       for (const item of schemaPending) ignoreRejection(item)
+      for (const item of warned.pending) ignoreRejection(item)
       const extra: string[] = []
+      const extraWarnings: string[] = []
       for (const item of pending) {
         const outcome = await settleUnlessAborted(item, ac.signal)
         if (outcome.status === 'aborted' || field.asyncSeq !== seq || ac.signal.aborted) return stale()
@@ -296,10 +304,46 @@ export class Validator {
         if (outcome.status === 'rejected') issues.push({ path, message: this.errorMessage(outcome.reason, path, value) })
         else issues.push(...outcome.value)
       }
-      return apply(extra)
+      for (const item of warned.pending) {
+        const outcome = await settleUnlessAborted(item, ac.signal)
+        if (outcome.status === 'aborted' || field.asyncSeq !== seq || ac.signal.aborted) return stale()
+        if (outcome.status === 'fulfilled') extraWarnings.push(...outcome.value)
+      }
+      return apply(extra, extraWarnings)
     })()
     this.trackInflight(task, ac.signal)
     return task
+  }
+
+  /**
+   * `level: 'warning'` rules: the same checks (built-ins, `validator`, `schema`), reported as warnings. A throwing or
+   * rejecting warning validator becomes a warning too (it never blocks submit).
+   */
+  private runWarnings(
+    path: string,
+    value: unknown,
+    rules: readonly Rule[],
+    ctx: ValidateCtx,
+    fallback: (issuePath: string) => string,
+  ): { messages: string[]; pending: Promise<string[]>[] } {
+    if (!rules.length) return { messages: [], pending: [] }
+    const run = runRules(value, rules.filter((rule) => !rule.schema), ctx, false, this.deps.options.messages)
+    const messages = [...run.messages]
+    const asText = (err: unknown) => [this.errorMessage(err, path, value)]
+    const pending: Promise<string[]>[] = run.pending.map((item) => Promise.resolve(item).then((m) => (m ? [m] : []), asText))
+    const issueText = (issues: readonly StandardSchemaV1.Issue[] | undefined) =>
+      (issues ?? []).map((issue) => issue.message || fallback(schemaIssuePath(issue.path)))
+    for (const rule of rules) {
+      if (!rule.schema) continue
+      try {
+        const result = rule.schema['~standard'].validate(value)
+        if (isPromise(result)) pending.push(Promise.resolve(result).then((resolved) => issueText(resolved.issues), asText))
+        else messages.push(...issueText(result.issues))
+      } catch (err) {
+        messages.push(...asText(err))
+      }
+    }
+    return { messages, pending }
   }
 
   /**
@@ -377,18 +421,16 @@ export class Validator {
     if (!field) return
     if (this.store.effectiveDisplay(path) === 'none' || field.computed) {
       this.setErrors(path, [])
+      this.setWarnings(path, [])
       return
     }
     const values = this.store.values
     const value = getAt(values, path)
     const ctx = this.buildCtx(path, value, this.deps.readPos(path), values)
-    const { messages } = runRules(
-      value,
-      field.rules.filter((rule) => !rule.schema).map((rule) => ({ ...rule, validator: undefined })),
-      ctx,
-      field.required,
-      this.deps.options.messages,
-    )
+    const builtins = field.rules.filter((rule) => !rule.schema).map((rule) => ({ ...rule, validator: undefined }))
+    const { messages } = runRules(value, builtins.filter((rule) => rule.level !== 'warning'), ctx, field.required, this.deps.options.messages)
+    const warnings = runRules(value, builtins.filter((rule) => rule.level === 'warning'), ctx, false, this.deps.options.messages)
+    this.setWarnings(path, warnings.messages)
     this.setErrors(path, messages)
   }
 
@@ -474,11 +516,30 @@ export class Validator {
       if (fieldPath !== path && !fieldPath.startsWith(path + '.')) continue
       if (this.store.effectiveDisplay(fieldPath) !== 'none') continue
       this.setErrors(fieldPath, [])
+      this.setWarnings(fieldPath, [])
       field.schemaErrors = []
       this.schemaByPath.delete(fieldPath)
       this.deps.notifier.bumpPath(fieldPath)
     }
     this.deps.scheduler.bumpMeta()
+  }
+
+  /** `level: 'warning'` messages of one field (`$warnings`, `binding.warnings`). They never block `canSubmit`. */
+  setWarnings(path: string, messages: string[]): void {
+    const field = this.store.get(path)
+    if (!field || deepEqual(field.warnings, messages)) return
+    field.warnings = messages
+    this.deps.notifier.bumpPath(path)
+    let cursor: string | null = path
+    while (cursor) {
+      this.deps.scheduler.markDirty(`${cursor}:warnings`)
+      cursor = parentPath(cursor)
+    }
+    this.deps.scheduler.markDirty(':warnings')
+    if (!this.deps.scheduler.flushing) {
+      this.deps.scheduler.enqueueFromDirty()
+      this.deps.scheduler.flush()
+    }
   }
 
   setErrors(path: string, messages: string[]): void {
@@ -541,6 +602,7 @@ export class Validator {
     this.clearSchemaMessages(path)
     for (const [fieldPath] of this.store.fields) {
       if (path && fieldPath !== path && !fieldPath.startsWith(path + '.')) continue
+      this.setWarnings(fieldPath, [])
       this.setErrors(fieldPath, [])
     }
     const { scheduler } = this.deps

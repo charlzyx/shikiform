@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { createForm, defineEffects } from '../src/core'
+import { defineEffects } from '../src/core'
+import { createEngine } from '../src/core/engine/form-engine'
 
 describe('display and pattern', () => {
   it('keeps hidden values and drops none values', async () => {
-    const form = createForm<{ a: string; b: string; c: string }>({
+    const form = createEngine<{ a: string; b: string; c: string }>({
       initialValues: { a: 'keep', b: 'drop', c: '' },
     })
     form.batch((d) => {
@@ -24,7 +25,7 @@ describe('display and pattern', () => {
   })
 
   it('treats $visible false as none (Formily visible): not validated, not submitted, value kept', async () => {
-    const form = createForm<{ a: string; b: string }>({ initialValues: { a: 'x', b: '' } })
+    const form = createEngine<{ a: string; b: string }>({ initialValues: { a: 'x', b: '' } })
     form.batch((d) => {
       d.a.$visible = false
       d.b.$visible = false
@@ -43,7 +44,7 @@ describe('display and pattern', () => {
   })
 
   it('treats $hidden true as hidden (Formily hidden): still validated and submitted', async () => {
-    const form = createForm<{ a: string; b: string }>({ initialValues: { a: 'x', b: '' } })
+    const form = createEngine<{ a: string; b: string }>({ initialValues: { a: 'x', b: '' } })
     form.batch((d) => {
       d.a.$hidden = true
       d.b.$hidden = true
@@ -59,7 +60,7 @@ describe('display and pattern', () => {
   })
 
   it('reads $visible / $hidden from the effective (inherited) display', () => {
-    const form = createForm<{ box: { child: string }; other: string }>({ initialValues: { box: { child: 'v' }, other: '' } })
+    const form = createEngine<{ box: { child: string }; other: string }>({ initialValues: { box: { child: 'v' }, other: '' } })
     const seen: unknown[] = []
     form.batch((d) => {
       d.box.$hidden = true
@@ -78,7 +79,7 @@ describe('display and pattern', () => {
 
   it('issue #31: a conditionally visible required field neither blocks submit nor leaks its value', async () => {
     type V = { kind: 'person' | 'company'; name: string; taxId: string }
-    const form = createForm<V>({
+    const form = createEngine<V>({
       initialValues: { kind: 'company', name: 'x', taxId: '' },
       effects: [
         defineEffects<V>(({ reaction }) => {
@@ -98,7 +99,7 @@ describe('display and pattern', () => {
   })
 
   it('inherits pattern and restores it when cleared', () => {
-    const form = createForm<{ box: { child: string } }>({ initialValues: { box: { child: 'v' } } })
+    const form = createEngine<{ box: { child: string } }>({ initialValues: { box: { child: 'v' } } })
     form.batch((d) => {
       d.box.$pattern = 'readOnly'
     })

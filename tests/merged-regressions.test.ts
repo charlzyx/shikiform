@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { createForm } from '../src/core'
 import { newProduct, newSupplier, supplierRows, type Supplier } from '../playground/merged-model'
+import { createEngine } from '../src/core/engine/form-engine'
 
 const suppliers = (): Supplier[] => [
   { id: 'sA', name: 'A', level: 'C', products: [
@@ -53,7 +53,7 @@ describe('merged supplier rows', () => {
   })
 
   it('does not move an invalid product error to a newly added product in the same or another group', async () => {
-    const form = createForm({ initialValues: { suppliers: suppliers() } })
+    const form = createEngine({ initialValues: { suppliers: suppliers() } })
     const first = newProduct()
     form.pushArray('suppliers.0.products', first)
     form.setValue('suppliers.0.products.2.price', 1001)

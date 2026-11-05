@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { Field, Form, typed, useForm, type FormEngine } from '../src'
+import { Field, Form, typed, useForm } from '../src'
 import {
   AutoComplete,
   Cascader,
@@ -21,6 +21,7 @@ import {
   TreeSelect,
   Upload,
 } from '../src/antd'
+import type { FormInstance } from '../src'
 
 afterEach(cleanup)
 
@@ -91,7 +92,7 @@ const VALUES: Values = {
 }
 
 function mount(values: Partial<Values> = VALUES, messages?: { empty: string }) {
-  let form!: FormEngine<Values>
+  let form!: FormInstance<Values>
   function App() {
     form = useForm<Values>({ initialValues: values as Values, pattern: 'readPretty', messages })
     const F = typed(form)

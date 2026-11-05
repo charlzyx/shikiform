@@ -1,10 +1,11 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ArrayField, createForm, enUS, Field, Form, setDefaultMessages, useForm, useFormMessage, zhCN } from '../src'
+import { ArrayField, enUS, Field, Form, setDefaultMessages, useForm, useFormMessage, zhCN } from '../src'
 import { moveNode } from '../src/core'
 import { PreviewText, ArrayTable, QueryList, Reset, ShadowDrawer, ShadowPopconfirm, Submit } from '../src/antd'
 import { useQueryTable } from '../src/pro'
+import { createEngine } from '../src/core/engine/form-engine'
 
 afterEach(() => {
   cleanup()
@@ -18,14 +19,14 @@ describe('built-in texts go through messages', () => {
 
   it('tree-move refusals: Chinese by default, per-form messages, enUS', () => {
     const nodes = () => [{ id: 'a', children: [{ id: 'a1', children: [] }] }]
-    const zh = createForm({ initialValues: { nodes: nodes() } })
+    const zh = createEngine({ initialValues: { nodes: nodes() } })
     zh.registerTree('nodes')
     expect(zh.moveTree('nodes', [0], [0, 0])).toEqual({ ok: false, reason: '不能移入自身或其后代' })
-    const en = createForm({ initialValues: { nodes: nodes() }, messages: enUS })
+    const en = createEngine({ initialValues: { nodes: nodes() }, messages: enUS })
     en.registerTree('nodes')
     expect(en.moveTree('nodes', [0], [0, 0]).reason).toBe('Cannot move a node into itself or its descendants')
     expect(en.moveTree('nodes', [5], [0]).reason).toBe('Source node not found')
-    const custom = createForm({ initialValues: { nodes: nodes() }, messages: { treeIntoSelf: ({ from }) => `no ${from.join('.')}` } })
+    const custom = createEngine({ initialValues: { nodes: nodes() }, messages: { treeIntoSelf: ({ from }) => `no ${from.join('.')}` } })
     custom.registerTree('nodes')
     expect(custom.moveTree('nodes', [0], [0, 0]).reason).toBe('no 0')
     expect(moveNode(nodes(), [], [0]).reason).toBe('pos 不能为空')
@@ -33,7 +34,7 @@ describe('built-in texts go through messages', () => {
   })
 
   it('form.message and useFormMessage resolve form → app defaults', () => {
-    const form = createForm({ messages: { submit: 'Save' } })
+    const form = createEngine({ messages: { submit: 'Save' } })
     expect(form.message('submit')).toBe('Save')
     expect(form.message('reset')).toBe('重置')
     expect(form.message('selectionCount', { count: 2 })).toBe('选中 2 项')
@@ -71,7 +72,7 @@ describe('built-in texts go through messages', () => {
   })
 
   it('ArrayTable labels follow enUS; component props still win', () => {
-    const form = createForm({ initialValues: { list: [{ a: '1' }, { a: '2' }] }, messages: enUS })
+    const form = createEngine({ initialValues: { list: [{ a: '1' }, { a: '2' }] }, messages: enUS })
     render(
       <Form form={form}>
         <ArrayField name="list" component={[ArrayTable, {

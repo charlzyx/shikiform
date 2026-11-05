@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { createForm } from '../src/core'
+import { createEngine } from '../src/core/engine/form-engine'
 
 describe('field and form meta', () => {
   it('tracks touched, dirty, canSubmit, and submitCount', async () => {
-    const form = createForm<{ name: string }>({ initialValues: { name: '' } })
+    const form = createEngine<{ name: string }>({ initialValues: { name: '' } })
     form.registerField('name', { required: true })
     expect(form.canSubmit).toBe(true)
     expect(form.binding('name').dirty).toBe(false)
@@ -25,7 +25,7 @@ describe('field and form meta', () => {
 
   it('exposes validating while an async rule is in flight', async () => {
     let release: (message: string | null) => void = () => {}
-    const form = createForm<{ name: string }>({
+    const form = createEngine<{ name: string }>({
       initialValues: { name: '' },
       validateTrigger: ['onChange'],
     })
@@ -49,7 +49,7 @@ describe('field and form meta', () => {
 
   it('debounces async rules and drops a stale result', async () => {
     const calls: string[] = []
-    const form = createForm<{ name: string }>({
+    const form = createEngine<{ name: string }>({
       initialValues: { name: '' },
       asyncDebounceMs: 40,
       validateTrigger: ['onChange'],
@@ -77,7 +77,7 @@ describe('field and form meta', () => {
   })
 
   it('notifies root $errors when a top-level field fails', async () => {
-    const form = createForm<{ code: string }>({ initialValues: { code: '' } })
+    const form = createEngine<{ code: string }>({ initialValues: { code: '' } })
     form.registerField('code', { required: true })
     const hits: string[] = []
     form.subscribeDep(':errors', () => hits.push('root'))
@@ -87,7 +87,7 @@ describe('field and form meta', () => {
   })
 
   it('passes the draft into a selector', () => {
-    const form = createForm<{ email: string }>({ initialValues: { email: 'ada@example.com' } })
+    const form = createEngine<{ email: string }>({ initialValues: { email: 'ada@example.com' } })
     const selected = form.trackSelector((d) => ({ email: d.email.$value, can: d.$canSubmit }))
     expect(selected.value).toEqual({ email: 'ada@example.com', can: true })
     expect(selected.deps).toContain('email:value')

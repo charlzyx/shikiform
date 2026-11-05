@@ -3,8 +3,9 @@ import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { Button } from 'antd'
 import { useState } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { createForm, Field, FieldGroup, Form, typed, useFieldGroup, useFieldGroupErrors, type FormEngine } from '../src'
+import { createForm, Field, FieldGroup, Form, typed, useFieldGroup, useFieldGroupErrors } from '../src'
 import { FormCollapse, FormItem, FormStep, FormTab, Input, Submit, useFormStep, type FormStepHandle } from '../src/antd'
+import type { FormInstance } from '../src'
 
 afterEach(cleanup)
 const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 20)))
@@ -46,7 +47,7 @@ describe('validate(paths[])', () => {
 })
 
 describe('FieldGroup', () => {
-  function Probe({ form }: { form: FormEngine<Values> }) {
+  function Probe({ form }: { form: FormInstance<Values> }) {
     const outer = useFieldGroup()
     const inner = useFieldGroup()
     const outerErrors = useFieldGroupErrors(outer)
@@ -94,7 +95,7 @@ describe('FieldGroup', () => {
   })
 })
 
-function TabForm({ form, onChange, activeKey }: { form: FormEngine<Values>; onChange?: (key: string) => void; activeKey?: string }) {
+function TabForm({ form, onChange, activeKey }: { form: FormInstance<Values>; onChange?: (key: string) => void; activeKey?: string }) {
   const F = typed(form)
   return (
     <Form form={form}>
@@ -238,7 +239,7 @@ describe('FormCollapse', () => {
 })
 
 let handle: FormStepHandle | undefined
-function Wizard({ form, onSubmit, current, onChange }: { form: FormEngine<Values>; onSubmit?: (v: Values) => void; current?: number; onChange?: (n: number) => void }) {
+function Wizard({ form, onSubmit, current, onChange }: { form: FormInstance<Values>; onSubmit?: (v: Values) => void; current?: number; onChange?: (n: number) => void }) {
   const step = useFormStep({ current, onChange })
   handle = step
   const F = typed(form)

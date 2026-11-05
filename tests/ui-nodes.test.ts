@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createForm, defineEffects, ShikiUsageError } from '../src/core'
+import { defineEffects, ShikiUsageError } from '../src/core'
+import { createEngine } from '../src/core/engine/form-engine'
 
 describe('named UI nodes (core)', () => {
   afterEach(() => vi.restoreAllMocks())
 
   it('a field instance has its own UI layer; unset state falls back to the field', () => {
-    const form = createForm({
+    const form = createEngine({
       initialValues: { name: '' },
       fields: { name: { title: '姓名' } },
       effects: [
@@ -35,7 +36,7 @@ describe('named UI nodes (core)', () => {
 
   it('reaction > JSX > fallback for display / pattern, and $ui reads are dependencies', () => {
     const seen: unknown[] = []
-    const form = createForm({
+    const form = createEngine({
       initialValues: { amount: 0, flag: false },
       effects: [
         defineEffects<{ amount: number; flag: boolean }>(({ reaction }) => {
@@ -54,7 +55,7 @@ describe('named UI nodes (core)', () => {
   })
 
   it('a pure UI node is never in values / submit / validation', async () => {
-    const form = createForm({
+    const form = createEngine({
       initialValues: { amount: 0 },
       effects: [
         defineEffects<{ amount: number }>(({ reaction }) => {
@@ -71,7 +72,7 @@ describe('named UI nodes (core)', () => {
   })
 
   it('hiding a UI node does not change any field', async () => {
-    const form = createForm({ initialValues: { a: '' }, fields: { a: { required: true } } })
+    const form = createEngine({ initialValues: { a: '' }, fields: { a: { required: true } } })
     form.batch((d) => { d.$ui('box').$visible = false; d.a.$ui('echo').$visible = false })
     expect(form.binding('a').display).toBe('visible')
     const result = await form.submit()
@@ -79,20 +80,20 @@ describe('named UI nodes (core)', () => {
   })
 
   it('ids differ from the field id', () => {
-    const form = createForm({ initialValues: { user: { name: '' } } })
+    const form = createEngine({ initialValues: { user: { name: '' } } })
     expect(form.binding('user.name').id).toBe('user-name')
     expect(form.uiBinding('user.name', 'echo', undefined, 'field').id).toBe('user-name--echo')
   })
 
   it('a $ui handle only has UI state (dev)', () => {
-    const form = createForm({ initialValues: { a: '' } })
+    const form = createEngine({ initialValues: { a: '' } })
     expect(() => form.batch((d) => { (d.a.$ui('echo') as any).$value = 'x' })).toThrow(ShikiUsageError)
     expect(() => form.batch((d) => { (d.a.$ui('echo') as any).$requird = true })).toThrow(/not UI-node state/)
   })
 
   it('warns once after mount settles when a written UI never mounts', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const form = createForm({
+    const form = createEngine({
       initialValues: { a: 1 },
       effects: [defineEffects<{ a: number }>(({ reaction }) => {
         reaction((d) => {

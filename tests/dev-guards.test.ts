@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createForm, defineEffects, ShikiUsageError } from '../src/core'
+import { defineEffects, ShikiUsageError } from '../src/core'
 import { withReaction as withReactionFixture } from './fixtures/reaction-utils'
+import { createEngine, engineOf } from '../src/core/engine/form-engine'
 
 type V = { user: { name: string; tags: string[] }; items: { n: number }[]; total: number; copy: { name: string; tags: string[] } | null; count: number }
 const initialValues = (): V => ({ user: { name: 'a', tags: ['x'] }, items: [{ n: 1 }, { n: 2 }], total: 0, copy: null, count: 1 })
@@ -68,7 +69,7 @@ describe('development usage errors (with the fix in the message)', () => {
   })
 
   it('a field literally named length is still a path when the value is not an array', () => {
-    const form = createForm({ initialValues: { box: { length: 3 } } })
+    const form = createEngine({ initialValues: { box: { length: 3 } } })
     expect((form.draft as any).box.length.$value).toBe(3)
   })
 })
@@ -129,7 +130,7 @@ describe('production builds skip the guards', () => {
 
   it('writing read-only states ($errors / $canSubmit) is silently ignored', () => {
     const form = prod((d) => { d.total.$errors = ['x'] })
-    expect(form.query('total').$errors).toEqual([])
+    expect(engineOf(form).query('total').$errors).toEqual([])
   })
 
   it('a bare property write (d.x.value = …) is a silent no-op: the proxy rejects it without a guide', () => {

@@ -3,7 +3,8 @@ import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@t
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Field } from '../src'
 import { FormItem, Input, QueryList } from '../src/antd'
-import { normalizeFilters, normalizeSort, useQueryTable, type QueryRequestArgs } from '../src/pro'
+import { useQueryTable, type QueryRequestArgs } from '../src/pro'
+import { normalizeFilters, normalizeSort } from '../src/pro/use-query-table'
 
 afterEach(() => cleanup())
 

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { createForm } from '../src/core'
 import { applyJsxField } from '../src/react/hooks/field-lifecycle'
+import { createEngine } from '../src/core/engine/form-engine'
 
 describe('React JSX lease sequences over the real engine (not a browser effect test)', () => {
   it.each(['owner-first', 'consumer-first'])('%s: disposing a pure consumer preserves the remaining JSX owner', async (order) => {
-    const form = createForm({ initialValues: { email: '' } })
+    const form = createEngine({ initialValues: { email: '' } })
     let consumer: (() => void) | undefined
     if (order === 'consumer-first') consumer = applyJsxField(form, 'email', {})
     form.mountJsxField('email', { required: true, rules: [{ minLength: 3 }] })
@@ -19,7 +19,7 @@ describe('React JSX lease sequences over the real engine (not a browser effect t
   })
 
   it('a flags-only view applies display/virtual without acquiring or releasing validation', async () => {
-    const form = createForm({ initialValues: { email: '' } })
+    const form = createEngine({ initialValues: { email: '' } })
     form.mountJsxField('email', { required: true })
     const cleanup = applyJsxField(form, 'email', { display: 'hidden', virtual: true })
     cleanup?.()
@@ -30,7 +30,7 @@ describe('React JSX lease sequences over the real engine (not a browser effect t
   })
 
   it('explicit required=false still owns a lease and restores the declaration when released', async () => {
-    const form = createForm({ initialValues: { email: '' }, fields: { email: { required: true } } })
+    const form = createEngine({ initialValues: { email: '' }, fields: { email: { required: true } } })
     const cleanup = applyJsxField(form, 'email', { required: false })
     expect(form.binding('email').required).toBe(false)
     expect(cleanup).toBeTypeOf('function')
@@ -40,7 +40,7 @@ describe('React JSX lease sequences over the real engine (not a browser effect t
   })
 
   it('an explicit empty rules array is an owner, not an absent declaration', async () => {
-    const form = createForm({ initialValues: { email: 'ab' }, fields: { email: { rules: [{ minLength: 3 }] } } })
+    const form = createEngine({ initialValues: { email: 'ab' }, fields: { email: { rules: [{ minLength: 3 }] } } })
     const cleanup = applyJsxField(form, 'email', { rules: [] })
     expect(await form.validate()).toEqual([])
     cleanup?.()
@@ -48,7 +48,7 @@ describe('React JSX lease sequences over the real engine (not a browser effect t
   })
 
   it('setup after cleanup re-applies JSX rules and final cleanup restores declared validation', async () => {
-    const form = createForm({ initialValues: { email: '' } })
+    const form = createEngine({ initialValues: { email: '' } })
     const spec = { required: true, rules: [{ minLength: 3 }] }
     const first = applyJsxField(form, 'email', spec)
     first?.()

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { createForm, defineEffects } from 'shikiform'
+import { defineEffects } from 'shikiform'
 import type { Draft } from 'shikiform'
+import { createEngine } from '../src/core/engine/form-engine'
 
 type V = { city: string; kind: string; rows: { name: string }[] }
 const initialValues: V = { city: '', kind: 'a', rows: [{ name: 'x' }, { name: 'y' }] }
@@ -8,7 +9,7 @@ const initialValues: V = { city: '', kind: 'a', rows: [{ name: 'x' }, { name: 'y
 describe('field UI state ($title, $componentProps, …)', () => {
   it('declares UI state in fields, including [Component, props] tuples and item templates', () => {
     const Comp = () => null
-    const form = createForm({
+    const form = createEngine({
       initialValues,
       fields: {
         city: { title: '城市', description: '选择城市', component: [Comp, { placeholder: 'p' }], decoratorProps: { colon: false } },
@@ -33,7 +34,7 @@ describe('field UI state ($title, $componentProps, …)', () => {
         if (d.kind.$value === 'b') d.city.$title = '城市（B）'
       })
     })
-    const form = createForm({ initialValues, fields: { city: { title: '城市', componentProps: { placeholder: 'decl', allowClear: true } } }, effects: [effects] })
+    const form = createEngine({ initialValues, fields: { city: { title: '城市', componentProps: { placeholder: 'decl', allowClear: true } } }, effects: [effects] })
     const jsx = { title: 'JSX 城市', componentProps: { placeholder: 'jsx' } }
     expect(form.binding('city', jsx).title).toBe('JSX 城市')
     expect(form.binding('city', jsx).componentProps).toEqual({ placeholder: 'jsx', allowClear: true, disabled: false })
@@ -53,7 +54,7 @@ describe('field UI state ($title, $componentProps, …)', () => {
         seen.push(d.city.$componentProps.style.color)
       })
     })
-    const form = createForm({ initialValues, fields: { city: { componentProps: { placeholder: 'p', style: { width: 100 } } } }, effects: [effects] })
+    const form = createEngine({ initialValues, fields: { city: { componentProps: { placeholder: 'p', style: { width: 100 } } } }, effects: [effects] })
     const first = form.binding('city').componentProps
     expect(first).toEqual({ placeholder: 'p', style: { width: 100, color: 'blue' } })
     form.setValue('kind', 'b')
@@ -66,7 +67,7 @@ describe('field UI state ($title, $componentProps, …)', () => {
   })
 
   it('reads behave like plain JS: missing keys are undefined, missing intermediates throw', () => {
-    const form = createForm({ initialValues })
+    const form = createEngine({ initialValues })
     const d = form.draft as Draft<V>
     expect(d.city.$componentProps.placeholder).toBeUndefined()
     expect(d.city.$componentProps.style).toBeUndefined()
@@ -77,7 +78,7 @@ describe('field UI state ($title, $componentProps, …)', () => {
   })
 
   it('whole-object assignment replaces lower layers; undefined restores them', () => {
-    const form = createForm({ initialValues, fields: { city: { componentProps: { placeholder: 'decl' }, title: 'T' } } })
+    const form = createEngine({ initialValues, fields: { city: { componentProps: { placeholder: 'decl' }, title: 'T' } } })
     form.batch((d) => {
       d.city.$componentProps = { maxLength: 3 }
     })
@@ -99,7 +100,7 @@ describe('field UI state ($title, $componentProps, …)', () => {
   })
 
   it('delete removes a patched key; arrays inside props patch by index', () => {
-    const form = createForm({ initialValues, fields: { city: { componentProps: { options: [{ v: 1 }, { v: 2 }], extra: 1 } } } })
+    const form = createEngine({ initialValues, fields: { city: { componentProps: { options: [{ v: 1 }, { v: 2 }], extra: 1 } } } })
     form.batch((d) => {
       d.city.$componentProps.options[1].v = 3
       delete d.city.$componentProps.extra
@@ -118,7 +119,7 @@ describe('field UI state ($title, $componentProps, …)', () => {
         d.kind.$value = d.city.$title === 'go' ? 'b' : 'a'
       })
     })
-    const form = createForm({ initialValues, effects: [effects] })
+    const form = createEngine({ initialValues, effects: [effects] })
     expect(runs).toBe(1)
     form.batch((d) => {
       d.city.$componentProps.placeholder = 'x'
@@ -136,7 +137,7 @@ describe('field UI state ($title, $componentProps, …)', () => {
   })
 
   it('notifies path subscribers when UI state changes', () => {
-    const form = createForm({ initialValues })
+    const form = createEngine({ initialValues })
     let calls = 0
     form.subscribePath('city', () => calls++)
     form.batch((d) => {
@@ -158,14 +159,14 @@ describe('field UI state ($title, $componentProps, …)', () => {
           props.style.color = d.kind.$value === 'b' ? 'red' : 'blue'
         })
       })
-      const form = createForm({ initialValues, effects: [effects] })
+      const form = createEngine({ initialValues, effects: [effects] })
       expect(form.binding('city', jsx).componentProps).toEqual({ placeholder: 'jsx', style: { width: 120, fontSize: 12, color: 'blue' } })
       form.setValue('kind', 'b')
       expect(form.binding('city', jsx).componentProps).toEqual({ placeholder: 'jsx', style: { width: 120, fontSize: 12, color: 'red' } })
     })
 
     it('JSX deep-merges over the declaration', () => {
-      const form = createForm({
+      const form = createEngine({
         initialValues,
         fields: { city: { componentProps: { style: { width: 100, margin: 4 }, allowClear: true }, decoratorProps: { labelCol: { span: 4 } } } },
       })
@@ -181,7 +182,7 @@ describe('field UI state ($title, $componentProps, …)', () => {
       const fnA = () => 'a'
       const fnB = () => 'b'
       const el = { $$typeof: Symbol.for('react.element'), type: 'b', props: {} }
-      const form = createForm({
+      const form = createEngine({
         initialValues,
         fields: { city: { componentProps: { options: [1, 2, 3], render: fnA, icon: { a: 1 }, box: new Box(1) } } },
       })
@@ -194,7 +195,7 @@ describe('field UI state ($title, $componentProps, …)', () => {
     })
 
     it('whole-key assignment still replaces that key on every lower layer', () => {
-      const form = createForm({ initialValues, fields: { city: { componentProps: { style: { margin: 4 } } } } })
+      const form = createEngine({ initialValues, fields: { city: { componentProps: { style: { margin: 4 } } } } })
       form.batch((d) => {
         d.city.$componentProps.style = { color: 'red' }
       })
@@ -202,7 +203,7 @@ describe('field UI state ($title, $componentProps, …)', () => {
     })
 
     it('deep writes merge at every depth; two keys of one nested object both survive', () => {
-      const form = createForm({ initialValues, fields: { city: { decoratorProps: { wrapperCol: { style: { padding: 1 } } } } } })
+      const form = createEngine({ initialValues, fields: { city: { decoratorProps: { wrapperCol: { style: { padding: 1 } } } } } })
       form.batch((d) => {
         d.city.$decoratorProps.wrapperCol.style.color = 'red'
         d.city.$decoratorProps.wrapperCol.style.margin = 2

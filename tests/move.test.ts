@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { createForm, defineEffects } from '../src/core'
+import { defineEffects } from '../src/core'
 import { runsFor } from './fixtures/reaction-utils'
+import { createEngine } from '../src/core/engine/form-engine'
 
 interface Item {
   id: string
@@ -12,7 +13,7 @@ describe('array move', () => {
   // Row state (errors, touched) follows the row; per-row rules that follow it are wildcard declarations.
   // An exact `rows.1.name` declaration stays on its path (see exact-declarations.test.ts).
   it('moves values and field errors with the row id', async () => {
-    const form = createForm<{ rows: Item[] }>({
+    const form = createEngine<{ rows: Item[] }>({
       initialValues: {
         rows: [
           { id: 'a', name: 'A' },
@@ -32,7 +33,7 @@ describe('array move', () => {
   })
 
   it('swaps two rows and keeps each row error', async () => {
-    const form = createForm<{ rows: Item[] }>({
+    const form = createEngine<{ rows: Item[] }>({
       initialValues: {
         rows: [
           { id: 'a', name: '' },
@@ -49,7 +50,7 @@ describe('array move', () => {
   })
 
   it('re-runs reactions only for indexes whose occupant changed', () => {
-    const form = createForm<{ rows: Item[] }>({
+    const form = createEngine<{ rows: Item[] }>({
       initialValues: {
         rows: [
           { id: 'a', name: 'A' },
@@ -80,7 +81,7 @@ describe('array move', () => {
   })
 
   it('replaces a row and drops the previous field model', async () => {
-    const form = createForm<{ rows: Item[] }>({
+    const form = createEngine<{ rows: Item[] }>({
       initialValues: { rows: [{ id: 'a', name: '' }] },
     })
     form.registerField('rows.*.name', { required: true })

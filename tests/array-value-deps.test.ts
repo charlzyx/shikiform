@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { createForm, defineEffects } from '../src'
+import { defineEffects } from '../src'
+import { createEngine } from '../src/core/engine/form-engine'
 
 describe('array ops wake readers of the array value', () => {
   it('a reaction reading d.rows.$value reruns on push / remove / move, and each instances still skip', () => {
@@ -17,7 +18,7 @@ describe('array ops wake readers of the array value', () => {
         },
       )
     })
-    const form = createForm({ initialValues: { rows: [{ n: 1 }, { n: 2 }], count: 0 }, effects: [effects] })
+    const form = createEngine({ initialValues: { rows: [{ n: 1 }, { n: 2 }], count: 0 }, effects: [effects] })
     const before = eachRuns
     form.pushArray('rows', { n: 3 })
     form.moveArray('rows', 2, 0)
@@ -30,7 +31,7 @@ describe('array ops wake readers of the array value', () => {
 
 describe('id-less rows keep their key across a cell edit', () => {
   it('structureKeys is stable after setValue inside a row', () => {
-    const form = createForm({ initialValues: { rows: [{ a: '1' }, { a: '2' }] } })
+    const form = createEngine({ initialValues: { rows: [{ a: '1' }, { a: '2' }] } })
     form.registerArray('rows')
     const before = form.structureKeys('rows').map((row) => row.key)
     form.setValue('rows.0.a', 'x')

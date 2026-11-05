@@ -693,8 +693,14 @@ export function createForm<T, TSubmit = T>(options: FormOptions<T> = {}): FormIn
   return new FormEngine<T, TSubmit>(options)
 }
 
-/** @internal The engine with its plumbing (React bindings, tests). Not exported from a package entry. */
-export function createEngine<T, TSubmit = T>(options: FormOptions<T> = {}): FormEngine<T, TSubmit> {
+/**
+ * @internal The engine with its plumbing (React bindings, tests). Not exported from a package entry.
+ * Typed as `FormEngine & FormInstance` so `<Form form={engine}>` infers `T` from the public interface directly.
+ */
+export type Engine<T = any, TSubmit = T> = FormEngine<T, TSubmit> & FormInstance<T, TSubmit>
+
+/** @internal See {@link Engine}. */
+export function createEngine<T, TSubmit = T>(options: FormOptions<T> = {}): Engine<T, TSubmit> {
   return new FormEngine<T, TSubmit>(options)
 }
 

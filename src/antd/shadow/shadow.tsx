@@ -1,7 +1,8 @@
 import { Button, Drawer, Modal, Popconfirm, Space, Spin, type DrawerProps, type ModalProps, type PopconfirmProps } from 'antd'
 import { cloneElement, createContext, isValidElement, useContext, useEffect, useRef, type ReactElement, type ReactNode } from 'react'
 import { ShikiUsageError } from '../../core/errors'
-import type { FormEngine } from '../../core/engine/form-engine'
+import { engineOf } from '../../core/engine/form-engine'
+import type { FormInstance } from '../../core/types'
 import { useShadowForm, type ShadowFormApi, type ShadowInit, type UseShadowFormOptions } from '../../pro/use-shadow-form'
 import { FormContext, ScopeContext } from '../../react/context'
 import { IdPrefixProvider, useAutoIdPrefix } from '../../react/id-prefix'
@@ -24,7 +25,7 @@ export function useShadow<TValues = any, TContext = unknown>(): ShadowFormApi<TV
 
 const ids = new WeakMap<object, number>()
 let nextId = 0
-function idOf(form: FormEngine<any>): number {
+function idOf(form: FormInstance<any>): number {
   let id = ids.get(form)
   if (id === undefined) ids.set(form, (id = ++nextId))
   return id
@@ -40,7 +41,7 @@ function ShadowBody({ shadow, children }: { shadow: ShadowFormApi<any, any>; chi
   return (
     <ShadowContext.Provider value={shadow}>
       <IdPrefixProvider prefix={prefix}>
-        <FormContext.Provider value={shadow.form}>
+        <FormContext.Provider value={engineOf(shadow.form)}>
           <ScopeContext.Provider value={ROOT}>
             <div key={idOf(shadow.form)} data-shadow-form>
               {shadow.loading ? <Spin /> : children}

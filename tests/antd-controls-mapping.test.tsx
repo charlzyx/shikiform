@@ -24,8 +24,9 @@ vi.mock('antd', async (importOriginal) => {
     Upload: Object.assign(spy('Upload'), { Dragger: spy('Dragger') }),
   }
 })
-import { Field, Form, typed, useForm, type FormEngine } from '../src'
+import { Field, Form, typed, useForm } from '../src'
 import { AutoComplete, Cascader, ColorPicker, FormItem, Rate, Slider, TimePicker, Transfer, TreeSelect, Upload } from '../src/antd'
+import type { FormInstance } from '../src'
 
 afterEach(() => {
   cleanup()
@@ -38,7 +39,7 @@ const AREA = [
 ]
 
 function mount<T extends object>(initialValues: T, field: (F: ReturnType<typeof typed<T>>) => React.ReactNode) {
-  let form!: FormEngine<T>
+  let form!: FormInstance<T>
   function App() {
     form = useForm<T>({ initialValues })
     return <Form form={form}>{field(typed(form))}</Form>

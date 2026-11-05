@@ -1,7 +1,7 @@
 import { useContext, useSyncExternalStore } from 'react'
 import type { ArrayItemOf, ArrayPath } from '../../core/types'
 import { ShikiUsageError } from '../../core/errors'
-import { ArrayContext, useFormContext, useRequiredForm, useScope } from '../context'
+import { ArrayContext, useRequiredForm, useScope } from '../context'
 import { useFieldGroupRegistration } from '../field-group'
 import { resolveName } from './resolve-name'
 import { useDragProps, type DragProps } from './drag'

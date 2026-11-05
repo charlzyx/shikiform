@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { createForm } from '../src/core'
+import { createEngine } from '../src/core/engine/form-engine'
 
 /** #8: exact declarations on template paths survive their row leaving and coming back. */
 const row = () => ({ token: 'example-only', note: 'n', extra: 1 })
 
 function make() {
-  return createForm({
+  return createEngine({
     initialValues: { rows: [row()] },
     fields: {
       'rows.*.token': { required: true },
@@ -68,7 +68,7 @@ describe('exact declarations stay on their path on move / swap / insert', () => 
     { id: 'c', token: 'C', note: 'nc' },
   ]
   function make3() {
-    return createForm({
+    return createEngine({
       initialValues: { rows: rows() },
       fields: {
         'rows.0.token': { virtual: true },
@@ -104,7 +104,7 @@ describe('exact declarations stay on their path on move / swap / insert', () => 
   })
 
   it('exact rules stay on the path; the moved row keeps only the template rules', async () => {
-    const form = createForm({
+    const form = createEngine({
       initialValues: { rows: [{ id: 'a', token: '' }, { id: 'b', token: '' }] },
       fields: { 'rows.0.token': { required: true } },
     })
@@ -114,13 +114,13 @@ describe('exact declarations stay on their path on move / swap / insert', () => 
   })
 
   it('wildcard declarations still apply to every row after a move', () => {
-    const form = createForm({ initialValues: { rows: rows() }, fields: { 'rows.*.token': { virtual: true } } })
+    const form = createEngine({ initialValues: { rows: rows() }, fields: { 'rows.*.token': { virtual: true } } })
     form.moveArray('rows', 0, 2)
     expect(form.getSubmitValues()).toEqual({ rows: [{ id: 'b', note: 'nb' }, { id: 'c', note: 'nc' }, { id: 'a', note: 'na' }] })
   })
 
   it('moveTree: a declaration on an exact node path stays there', () => {
-    const form = createForm({
+    const form = createEngine({
       initialValues: { menus: [{ id: 'm1', name: 'one', children: [] }, { id: 'm2', name: 'two', children: [] }] },
       fields: { 'menus.0.name': { virtual: true } },
     })

@@ -2,7 +2,8 @@
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, expectTypeOf, it } from 'vitest'
 import { Field, Form, useForm, useWatch } from '../src'
-import { createForm, defineEffects, ShikiUsageError, type Draft, type FormEngine } from '../src/core'
+import { defineEffects, ShikiUsageError, type Draft } from '../src/core'
+import { createEngine, type Engine, engineOf } from '../src/core/engine/form-engine'
 
 type Rec = { name: string; addr: { city: string }; rows: { id: string; qty: number }[] }
 const EMPTY: Rec = { name: '', addr: { city: '' }, rows: [] }
@@ -12,7 +13,7 @@ const RECORD: Rec = { name: 'Ada', addr: { city: '杭州' }, rows: [{ id: 'a', q
 
 describe('#33 reset(values) / setInitialValues', () => {
   it('reset(record) replaces values and the baseline; a later reset() returns to the record', () => {
-    const form = createForm<Rec>({ initialValues: EMPTY })
+    const form = createEngine<Rec>({ initialValues: EMPTY })
     form.reset(RECORD)
     expect(form.values).toEqual(RECORD)
     expect(form.initial).toEqual(RECORD)
@@ -26,7 +27,7 @@ describe('#33 reset(values) / setInitialValues', () => {
   })
 
   it('reset(record) clears touched, edited and messages, and does not alias the caller object', async () => {
-    const form = createForm<Rec>({ initialValues: EMPTY, fields: { name: { required: true } } })
+    const form = createEngine<Rec>({ initialValues: EMPTY, fields: { name: { required: true } } })
     form.binding('name').onBlur()
     await form.validate()
     expect(form.errors.length).toBe(1)
@@ -39,7 +40,7 @@ describe('#33 reset(values) / setInitialValues', () => {
   })
 
   it('reset(path) still restores one subtree', () => {
-    const form = createForm<Rec>({ initialValues: RECORD })
+    const form = createEngine<Rec>({ initialValues: RECORD })
     form.setValue('name', 'x')
     form.setValue('addr.city', 'y')
     form.reset('addr')
@@ -48,7 +49,7 @@ describe('#33 reset(values) / setInitialValues', () => {
   })
 
   it('setInitialValues moves the baseline without touching values', () => {
-    const form = createForm<Rec>({ initialValues: EMPTY })
+    const form = createEngine<Rec>({ initialValues: EMPTY })
     form.setValue('name', 'Ada')
     expect(form.dirty).toBe(true)
     form.setInitialValues(form.values)
@@ -60,14 +61,14 @@ describe('#33 reset(values) / setInitialValues', () => {
   })
 
   it('React: inputs, arrays and useWatch follow reset(record)', () => {
-    let api!: FormEngine<Rec>
+    let api!: Engine<Rec>
     function Rows() {
       const n = useWatch((d: Draft<Rec>) => d.rows.$value.length)
       const dirty = useWatch((d: Draft<Rec>) => d.$dirty)
       return <span data-testid="rows">{`${n}:${dirty}`}</span>
     }
     function Edit() {
-      api = useForm<Rec>({ initialValues: EMPTY })
+      api = engineOf(useForm<Rec>({ initialValues: EMPTY }))
       return (
         <Form form={api}>
           <Field<Rec> name="name">{(f) => <input aria-label="name" value={String(f.value)} onChange={(e) => f.onChange(e.target.value)} />}</Field>
@@ -87,12 +88,12 @@ describe('#33 reset(values) / setInitialValues', () => {
   })
 })
 
-describe('#34 setErrors / setFieldError / clearErrors', () => {
+describe('#34 setErrors / clearErrors', () => {
   type V = { username: string; email: string; addr: { city: string } }
   const init: V = { username: 'ada', email: '', addr: { city: '' } }
 
   it('shows server messages, blocks canSubmit, and clears when that field changes', () => {
-    const form = createForm<V>({ initialValues: init })
+    const form = createEngine<V>({ initialValues: init })
     form.setErrors({ username: '用户名已存在', email: ['格式不对', '已被占用'] })
     expect(form.errors).toEqual([
       { path: 'username', messages: ['用户名已存在'] },
@@ -108,16 +109,16 @@ describe('#34 setErrors / setFieldError / clearErrors', () => {
   })
 
   it('an edit below or above the path clears it; the root message clears on any edit', () => {
-    const form = createForm<V>({ initialValues: init })
+    const form = createEngine<V>({ initialValues: init })
     form.setErrors([{ path: 'addr', messages: ['地址无效'] }, { path: '', messages: ['服务器繁忙'] }])
     expect(form.errors.map((e) => e.path).sort()).toEqual(['', 'addr'])
     form.setValue('addr.city', '杭州')
     expect(form.errors).toEqual([])
   })
 
-  it('setFieldError + $errors; revalidating the field replaces the server message', async () => {
-    const form = createForm<V>({ initialValues: init })
-    form.setFieldError('username', '用户名已存在')
+  it('setErrors + $errors; revalidating the field replaces the server message', async () => {
+    const form = createEngine<V>({ initialValues: init })
+    form.setErrors({ username: '用户名已存在' })
     let seen: string[] = []
     form.batch((d) => { seen = d.username.$errors })
     expect(seen).toEqual(['用户名已存在'])
@@ -125,18 +126,18 @@ describe('#34 setErrors / setFieldError / clearErrors', () => {
     expect(form.errors).toEqual([])
   })
 
-  it('setFieldError(path, null) clears that path\'s external messages', () => {
-    const form = createForm<V>({ initialValues: init })
+  it('setErrors({ path: null }) clears that path\'s external messages', () => {
+    const form = createEngine<V>({ initialValues: init })
     form.setErrors({ username: '用户名已存在', email: '格式不对' })
-    form.setFieldError('username', null)
+    form.setErrors({ username: null })
     expect(form.errors).toEqual([{ path: 'email', messages: ['格式不对'] }])
-    form.setFieldError('email', null)
+    form.setErrors({ email: null })
     expect(form.errors).toEqual([])
     expect(form.canSubmit).toBe(true)
   })
 
   it('submit revalidates, so a resubmit is not stuck on the old server message', async () => {
-    const form = createForm<V>({ initialValues: init })
+    const form = createEngine<V>({ initialValues: init })
     const first = await form.submit(async () => { form.setErrors({ username: '用户名已存在' }) })
     expect(first.ok).toBe(true)
     expect(form.errors).toEqual([{ path: 'username', messages: ['用户名已存在'] }])
@@ -145,16 +146,16 @@ describe('#34 setErrors / setFieldError / clearErrors', () => {
   })
 
   it('clearErrors(path?) and an empty entry clear messages; React shows them', () => {
-    const form = createForm<V>({ initialValues: init })
+    const form = createEngine<V>({ initialValues: init })
     form.setErrors({ username: 'x', email: 'y' })
     form.setErrors({ email: [] })
     expect(form.errors.map((e) => e.path)).toEqual(['username'])
     form.clearErrors('username')
     expect(form.errors).toEqual([])
 
-    let api!: FormEngine<V>
+    let api!: Engine<V>
     function F() {
-      api = useForm<V>({ initialValues: init })
+      api = engineOf(useForm<V>({ initialValues: init }))
       return <Form form={api}><Field<V> name="username">{(f) => <span data-testid="err">{f.errors.join(',')}</span>}</Field></Form>
     }
     render(<F />)
@@ -170,7 +171,7 @@ describe('#35 $value snapshots are read-only inside form.batch (development)', (
   const init: V = { profile: { name: 'Ada', city: '杭州' }, tags: ['a'] }
 
   it('in-place mutation throws ShikiUsageError and leaves the store untouched', () => {
-    const form = createForm<V>({ initialValues: structuredClone(init) })
+    const form = createEngine<V>({ initialValues: structuredClone(init) })
     let notified = 0
     form.subscribePath('profile.name', () => notified++)
     expect(() => form.batch((d) => { (d.profile.$value as any).name = 'x' })).toThrow(ShikiUsageError)
@@ -180,7 +181,7 @@ describe('#35 $value snapshots are read-only inside form.batch (development)', (
   })
 
   it('reading and re-assigning snapshots in batch still works and stores plain data', () => {
-    const form = createForm<V>({ initialValues: structuredClone(init) })
+    const form = createEngine<V>({ initialValues: structuredClone(init) })
     form.batch((d) => {
       d.tags.$value = [...d.tags.$value, 'b']
       d.profile.$value = { ...d.profile.$value, name: 'x' }
@@ -192,14 +193,14 @@ describe('#35 $value snapshots are read-only inside form.batch (development)', (
 
 describe('#36 FormEngine state is read-only', () => {
   it('values / submitting / dirty / submitCount / validating have no setter', () => {
-    const form = createForm<{ name: string }>({ initialValues: { name: '' } })
+    const form = createEngine<{ name: string }>({ initialValues: { name: '' } })
     for (const key of ['values', 'submitting', 'dirty', 'edited', 'submitCount', 'validating', 'initial'] as const) {
       const desc = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(form), key)
       expect(desc?.get, key).toBeTypeOf('function')
       expect(desc?.set, key).toBeUndefined()
     }
     expect(() => { (form as any).values = { name: 'x' } }).toThrow(TypeError)
-    expectTypeOf<FormEngine<{ name: string }>>().toHaveProperty('values')
+    expectTypeOf<Engine<{ name: string }>>().toHaveProperty('values')
     const typeOnly = () => {
       // @ts-expect-error values is read-only
       form.values = { name: 'x' }
@@ -214,7 +215,7 @@ describe('#36 FormEngine state is read-only', () => {
 
 describe('#39 dirty = differs from initial; edited = sticky', () => {
   it('reverting a field clears dirty (form and field); edited stays', () => {
-    const form = createForm<{ name: string }>({ initialValues: { name: 'Ada' } })
+    const form = createEngine<{ name: string }>({ initialValues: { name: 'Ada' } })
     form.binding('name').onChange('Adaa')
     expect(form.dirty).toBe(true)
     expect(form.binding('name').dirty).toBe(true)
@@ -228,7 +229,7 @@ describe('#39 dirty = differs from initial; edited = sticky', () => {
   })
 
   it('deep compares objects and arrays; array ops count', () => {
-    const form = createForm<Rec>({ initialValues: RECORD })
+    const form = createEngine<Rec>({ initialValues: RECORD })
     form.setValue('addr', { city: '杭州' })
     expect(form.dirty).toBe(false)
     form.pushArray('rows', { id: 'c', qty: 3 })
@@ -241,7 +242,7 @@ describe('#39 dirty = differs from initial; edited = sticky', () => {
   it('virtual and computed fields do not make the form dirty', () => {
     type V = { price: number; qty: number; total: number; confirm: string }
     const effects = defineEffects<V>(({ reaction }) => reaction((d) => { d.total.$value = d.price.$value * d.qty.$value }))
-    const form = createForm<V>({ initialValues: { price: 2, qty: 1, total: 0, confirm: '' }, fields: { confirm: { virtual: true } }, effects: [effects] })
+    const form = createEngine<V>({ initialValues: { price: 2, qty: 1, total: 0, confirm: '' }, fields: { confirm: { virtual: true } }, effects: [effects] })
     expect(form.values.total).toBe(2)
     expect(form.dirty).toBe(false)
     form.setValue('confirm', 'yes')
@@ -255,7 +256,7 @@ describe('#39 dirty = differs from initial; edited = sticky', () => {
   it('a reaction and useWatch reading $dirty follow edits, reverts and setInitialValues', () => {
     type V = { name: string; saveDisabled: boolean }
     const effects = defineEffects<V>(({ reaction }) => reaction((d) => { d.saveDisabled.$value = !d.$dirty }))
-    const form = createForm<V>({ initialValues: { name: 'Ada', saveDisabled: true }, fields: { saveDisabled: { virtual: true } }, effects: [effects] })
+    const form = createEngine<V>({ initialValues: { name: 'Ada', saveDisabled: true }, fields: { saveDisabled: { virtual: true } }, effects: [effects] })
     expect(form.values.saveDisabled).toBe(true)
     form.setValue('name', 'B')
     expect(form.values.saveDisabled).toBe(false)
@@ -265,9 +266,9 @@ describe('#39 dirty = differs from initial; edited = sticky', () => {
     form.setInitialValues({ ...form.values })
     expect(form.values.saveDisabled).toBe(true)
 
-    let api!: FormEngine<{ name: string }>
+    let api!: Engine<{ name: string }>
     function F() {
-      api = useForm({ initialValues: { name: 'Ada' } })
+      api = engineOf(useForm({ initialValues: { name: 'Ada' } }))
       return <Form form={api}><DirtyLabel /></Form>
     }
     function DirtyLabel() {
@@ -284,7 +285,7 @@ describe('#39 dirty = differs from initial; edited = sticky', () => {
   })
 
   it('subscribeMeta fires when form-level dirty flips', () => {
-    const form = createForm<{ name: string }>({ initialValues: { name: 'Ada' } })
+    const form = createEngine<{ name: string }>({ initialValues: { name: 'Ada' } })
     let calls = 0
     form.subscribeMeta(() => calls++)
     form.batch((d) => { d.name.$value = 'x' })

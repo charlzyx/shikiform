@@ -163,9 +163,13 @@ export interface FieldUiSpec {
   component?: unknown
   /** The wrapper `<Field>` renders around the control, or a `[Decorator, props]` tuple. */
   decorator?: unknown
-  /** Props merged into the control. Shallow-merged with lower layers per key. */
+  /**
+   * Props for the control (`fields` declarations only; in JSX use the `component` tuple's props).
+   * Deep-merged across layers (declaration < JSX < reaction): plain objects merge at every depth; arrays, functions,
+   * React elements and class instances are replaced whole.
+   */
   componentProps?: Record<string, any>
-  /** Props merged into the decorator. Shallow-merged with lower layers per key. */
+  /** Props for the decorator. Same layering and deep merge as `componentProps`. */
   decoratorProps?: Record<string, any>
 }
 

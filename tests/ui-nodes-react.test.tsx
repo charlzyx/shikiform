@@ -3,8 +3,9 @@ import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { StrictMode } from 'react'
 import { afterEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
 import { defineEffects, Field, Form, typed, UI, useField, useForm, type FieldBinding, type UiName } from '../src'
-import type { FormEngine } from '../src/core'
+
 import { FormItem, Input, InputNumber, Slider } from '../src/antd'
+import type { FormInstance } from '../src'
 
 afterEach(() => {
   cleanup()
@@ -20,7 +21,7 @@ function Echo(props: { style?: React.CSSProperties }) {
 describe('<Field ui> — several UIs of one field', () => {
   it('echo turns red: the instance has its own componentProps, the value is shared', () => {
     type V = { name: string }
-    let form!: FormEngine<V>
+    let form!: FormInstance<V>
     function App() {
       form = useForm<V>({
         initialValues: { name: '' },
@@ -52,7 +53,7 @@ describe('<Field ui> — several UIs of one field', () => {
 
   it('slider + input share a value; the slider has its own pattern', () => {
     type V = { amount: number; lock: boolean }
-    let form!: FormEngine<V>
+    let form!: FormInstance<V>
     function App() {
       form = useForm<V>({
         initialValues: { amount: 10, lock: false },
@@ -107,7 +108,7 @@ describe('<Field ui> — several UIs of one field', () => {
 
   it('an instance does not lease rules / enum (warns instead)', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    let form!: FormEngine<{ a: string }>
+    let form!: FormInstance<{ a: string }>
     function App() {
       form = useForm({ initialValues: { a: '' } })
       return (
@@ -125,7 +126,7 @@ describe('<Field ui> — several UIs of one field', () => {
 
 describe('<UI> — a UI with no data', () => {
   type V = { amount: number }
-  function App({ onForm }: { onForm: (f: FormEngine<V>) => void }) {
+  function App({ onForm }: { onForm: (f: FormInstance<V>) => void }) {
     const form = useForm<V>({
       initialValues: { amount: 0 },
       effects: [defineEffects<V>(({ reaction }) => {
@@ -142,7 +143,7 @@ describe('<UI> — a UI with no data', () => {
   }
 
   it('Alert toggles with amount ≥ 50000 and never enters values / submit', async () => {
-    let form!: FormEngine<V>
+    let form!: FormInstance<V>
     const view = render(<App onForm={(f) => (form = f)} />)
     expect(view.queryByRole('alert')).toBeNull()
     act(() => form.setValue('amount', 60000))
@@ -153,7 +154,7 @@ describe('<UI> — a UI with no data', () => {
   })
 
   it('hiding a UI does not cascade to the fields inside it', async () => {
-    let form!: FormEngine<{ note: string }>
+    let form!: FormInstance<{ note: string }>
     function Box() {
       form = useForm({ initialValues: { note: 'kept' } })
       return (

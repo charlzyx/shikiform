@@ -2,8 +2,9 @@
 import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { ArrayField, Field, Form, useForm } from '../src'
-import type { FormEngine } from '../src/core'
+
 import { Select } from '../src/antd'
+import type { FormInstance } from '../src'
 
 afterEach(cleanup)
 
@@ -12,7 +13,7 @@ type Values = { rows: { id: string; status: number }[] }
 
 describe('item templates declare enum', () => {
   it('`rows.*.status: { enum }` reaches rows present at start and rows written later', async () => {
-    let form!: FormEngine<Values>
+    let form!: FormInstance<Values>
     function App() {
       form = useForm<Values>({
         initialValues: { rows: [{ id: 'a', status: 1 }] },
@@ -33,7 +34,7 @@ describe('item templates declare enum', () => {
   })
 
   it('an exact declaration still wins over the template', () => {
-    let form!: FormEngine<Values>
+    let form!: FormInstance<Values>
     function App() {
       form = useForm<Values>({
         initialValues: { rows: [{ id: 'a', status: 1 }] },

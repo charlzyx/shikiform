@@ -172,14 +172,16 @@ export interface FieldProps<TScope = any, N extends FieldPath<TScope> = FieldPat
   title?: ReactNode
   /** Decorator help text (`FormItem` shows it as `extra`). A reaction's `$description` wins. */
   description?: ReactNode
-  /** Wrapper around the control: `decorator={[FormItem, { tooltip: '…' }]}`. Reads the field from context. */
+  /**
+   * Wrapper around the control: `decorator={[FormItem, { tooltip: '…' }]}`. Reads the field from context.
+   * The tuple's props are the JSX layer of `decoratorProps` (under a reaction's `$decoratorProps`).
+   */
   decorator?: FieldSlot
-  /** The control: `component={[Input, { placeholder: '…' }]}`. A `connect()`ed control reads the field from context. */
+  /**
+   * The control: `component={[Input, { placeholder: '…' }]}`. A `connect()`ed control reads the field from context.
+   * The tuple's props are the JSX layer of `componentProps` (under a reaction's `$componentProps`).
+   */
   component?: FieldSlot
-  /** Extra decorator props, merged under a reaction's `$decoratorProps` (same as the decorator tuple's props). */
-  decoratorProps?: Record<string, any>
-  /** Extra control props, merged under a reaction's `$componentProps` (same as the component tuple's props). */
-  componentProps?: Record<string, any>
   /** A render prop (`(field) => …`), or field-aware children (`<Input />`) rendered instead of `component`. */
   children?: ReactNode | ((field: FieldBinding<PathValue<TScope, N & string>>) => ReactNode)
 }

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { createForm, isPosPrefix, pathOf, posOf } from '../src/core'
+import { pathOf, posOf } from '../src/core'
+import { isPosPrefix } from '../src/core/shared/tree-ops'
+import { createEngine } from '../src/core/engine/form-engine'
 
 interface Node {
   id: string
@@ -21,7 +23,7 @@ describe('tree move', () => {
   })
 
   it('moves a node across parents and keeps its error', async () => {
-    const form = createForm<{ nodes: Node[] }>({ initialValues: { nodes: initial() } })
+    const form = createEngine<{ nodes: Node[] }>({ initialValues: { nodes: initial() } })
     form.registerTree('nodes', { childrenKey: 'children', rowKey: 'id' })
     form.registerField('nodes.*.children.*.name', { required: true })
     await form.validate('nodes.0.children.0.name')
@@ -35,7 +37,7 @@ describe('tree move', () => {
   })
 
   it('refuses a move into a descendant', () => {
-    const form = createForm<{ nodes: Node[] }>({ initialValues: { nodes: initial() } })
+    const form = createEngine<{ nodes: Node[] }>({ initialValues: { nodes: initial() } })
     form.registerTree('nodes', { childrenKey: 'children', rowKey: 'id' })
     const refused = form.moveTree('nodes', [0], [0, 0])
     expect(refused.ok).toBe(false)

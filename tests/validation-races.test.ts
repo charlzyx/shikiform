@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createForm, defineEffects, type StandardSchemaV1, type ValidateCtx } from '../src/core'
+import { defineEffects, type StandardSchemaV1, type ValidateCtx } from '../src/core'
+import { createEngine } from '../src/core/engine/form-engine'
 
 function gate() {
   let open!: () => void
@@ -25,7 +26,7 @@ describe('one pass validates one immutable snapshot (#1)', () => {
   it('value, record, root, parent (skips the array) and get() agree while an edit lands mid-pass', async () => {
     const held = gate()
     const seen: unknown[] = []
-    const form = createForm({
+    const form = createEngine({
       initialValues: { rows: [{ min: 0, max: 10 }] },
       fields: {
         'rows.*.max': {
@@ -55,7 +56,7 @@ describe('one pass validates one immutable snapshot (#1)', () => {
     const held = gate()
     let fieldSaw: unknown
     let formSaw: unknown
-    const form = createForm({
+    const form = createEngine({
       initialValues: { min: 0, max: 10 },
       fields: { max: { rules: { validator: async (_value: unknown, ctx: ValidateCtx) => { fieldSaw = ctx.get('min'); await held.promise; return null } } } },
       validate: (values) => {
@@ -76,7 +77,7 @@ describe('a throwing field validator settles every caller (#2)', () => {
   for (const kind of ['sync throw', 'async reject'] as const) {
     it(`debounced window + ${kind}: no unhandled rejection, a managed message, then recovery`, async () => {
       let calls = 0
-      const form = createForm({
+      const form = createEngine({
         initialValues: { name: 'ok' },
         asyncDebounceMs: 1,
         validateTrigger: ['onChange'],
@@ -111,7 +112,7 @@ describe('a throwing field validator settles every caller (#2)', () => {
   }
 
   it('an awaited validate()/submit() resolves with the message instead of rejecting', async () => {
-    const form = createForm({
+    const form = createEngine({
       initialValues: { name: 'x' },
       fields: { name: { rules: { validator: () => { throw new Error('sync boom') } } } },
     })
@@ -127,7 +128,7 @@ describe('a throwing field validator settles every caller (#2)', () => {
     const schema: StandardSchemaV1<string> = {
       '~standard': { version: 1, vendor: 'test', validate: () => { throw new Error('schema boom') } },
     }
-    const form = createForm({ initialValues: { name: 'x' }, validateTrigger: ['onChange'], fields: { name: { rules: schema } } })
+    const form = createEngine({ initialValues: { name: 'x' }, validateTrigger: ['onChange'], fields: { name: { rules: schema } } })
     form.setValue('name', 'y')
     await sleep(10)
     expect(unhandled).toEqual([])
@@ -139,7 +140,7 @@ describe('submit returns only values its pass validated (#6)', () => {
   it('re-validates after an edit while waiting and reports the real error', async () => {
     const entered = gate()
     const held = gate()
-    const form = createForm({
+    const form = createEngine({
       initialValues: { name: 'valid' },
       validate: async (values) => {
         if (values.name !== 'valid') return { name: 'invalid current name' }
@@ -161,7 +162,7 @@ describe('submit returns only values its pass validated (#6)', () => {
     const entered = gate()
     const held = gate()
     const seen: string[] = []
-    const form = createForm({
+    const form = createEngine({
       initialValues: { name: 'first' },
       validate: async (values) => {
         seen.push(values.name)
@@ -183,7 +184,7 @@ describe('submit returns only values its pass validated (#6)', () => {
   })
 
   it('a reaction derived from errors does not turn submit into a retry message', async () => {
-    const form = createForm({
+    const form = createEngine({
       initialValues: { name: '', hasError: false },
       fields: { name: { required: true } },
       effects: [defineEffects<{ name: string; hasError: boolean }>(({ reaction }) => {
@@ -197,7 +198,7 @@ describe('submit returns only values its pass validated (#6)', () => {
 
   it('gives up with the retry message when values never settle (bounded)', async () => {
     let calls = 0
-    const form = createForm({
+    const form = createEngine({
       initialValues: { n: 0 },
       validate: async () => {
         calls += 1
@@ -231,7 +232,7 @@ describe('an aborted async validator leaves the in-flight set', () => {
   it('submit finishes when the aborted validator never settles', async () => {
     const started = gate()
     let calls = 0
-    const form = createForm<{ name: string }>({
+    const form = createEngine<{ name: string }>({
       initialValues: { name: 'old' },
       asyncDebounceMs: 1000,
       validateTrigger: ['onChange'],
@@ -271,7 +272,7 @@ describe('an aborted async validator leaves the in-flight set', () => {
     const started = gate()
     const live = gate()
     let calls = 0
-    const form = createForm<{ name: string }>({
+    const form = createEngine<{ name: string }>({
       initialValues: { name: 'a' },
       asyncDebounceMs: 1000,
       validateTrigger: ['onChange'],
@@ -316,7 +317,7 @@ describe('an aborted async validator leaves the in-flight set', () => {
     let late!: (message: string | null) => void
     const started = gate()
     let calls = 0
-    const form = createForm<{ name: string }>({
+    const form = createEngine<{ name: string }>({
       initialValues: { name: 'first' },
       fields: {
         name: {
@@ -349,7 +350,7 @@ describe('an aborted async validator leaves the in-flight set', () => {
   it('ignores an error resolved from the abort listener itself', async () => {
     const started = gate()
     let calls = 0
-    const form = createForm<{ name: string }>({
+    const form = createEngine<{ name: string }>({
       initialValues: { name: 'first' },
       fields: {
         name: {
@@ -381,7 +382,7 @@ describe('an aborted async validator leaves the in-flight set', () => {
     let late!: (reason: unknown) => void
     const started = gate()
     let calls = 0
-    const form = createForm<{ name: string }>({
+    const form = createEngine<{ name: string }>({
       initialValues: { name: 'first' },
       fields: {
         name: {
@@ -427,7 +428,7 @@ describe('an aborted async validator leaves the in-flight set', () => {
         },
       },
     }
-    const form = createForm<{ name: string }>({
+    const form = createEngine<{ name: string }>({
       initialValues: { name: 'old' },
       asyncDebounceMs: 1000,
       validateTrigger: ['onChange'],
@@ -445,7 +446,7 @@ describe('an aborted async validator leaves the in-flight set', () => {
     const pendingResult = gate()
     const later = gate()
     let calls = 0
-    const form = createForm<{ name: string }>({
+    const form = createEngine<{ name: string }>({
       initialValues: { name: 'x' },
       fields: {
         name: {
@@ -484,7 +485,7 @@ describe('an aborted async validator leaves the in-flight set', () => {
 describe('restoring a declared validator after JSX unmount (#7)', () => {
   it('a synchronously throwing declared validator runs once and lands as a message', async () => {
     let calls = 0
-    const form = createForm({
+    const form = createEngine({
       initialValues: { name: 'x' },
       fields: { name: { rules: { validator: () => { calls += 1; throw new Error('declared failure') } } } },
     })

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { createForm } from '../src/core'
 import { cloneSkus, DIMS, paintGroupColor, skuPickerEffects, type Dim, type SkuSelection } from '../playground/skus'
+import { createEngine } from '../src/core/engine/form-engine'
 
 function picker() {
-  return createForm<SkuSelection>({
+  return createEngine<SkuSelection>({
     initialValues: { qty: 1, skuId: '', priceText: '—', stock: null },
     effects: [skuPickerEffects],
   })
