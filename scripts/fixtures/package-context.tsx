@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { ArrayField, Field, Form, FormEngine, ObjectField, useField, useForm, useFormContext, useWatch, type Draft } from 'shikiform'
-import { FormEngine as CoreFormEngine } from 'shikiform/core'
+import { ArrayField, EnumSource, Field, Form, ObjectField, createForm, useField, useForm, useFormContext, useWatch, type Draft, type FormInstance } from 'shikiform'
+import { EnumSource as CoreEnumSource, createForm as createCoreForm } from 'shikiform/core'
 import { ArrayTable, FormItem, Input, QueryList, Submit } from 'shikiform/antd'
 import { useQueryTable } from 'shikiform/pro'
 
 // Copied into the isolated npm-pack consumer, never resolved through TS paths.
 // These are SSR/provider identity assertions, not mounted effects or browser tests.
-function Probe({ form, expected }: { form: FormEngine<any>; expected: string }) {
+function Probe({ form, expected }: { form: FormInstance<any>; expected: string }) {
   assert.equal(useFormContext(), form)
   const field = useField('email')
   assert.equal(field.value, expected)
@@ -49,7 +49,8 @@ function QueryProvider() {
 }
 
 export function verifyPackageContexts() {
-  assert.equal(FormEngine, CoreFormEngine, 'root/core must export the same class')
+  assert.equal(createForm, createCoreForm, 'root/core must export the same createForm')
+  assert.equal(EnumSource, CoreEnumSource, 'root/core must export the same class')
   const antd = renderToStaticMarkup(<AntdProvider />)
   assert.match(antd, /profile\.email/)
   const rows = renderToStaticMarkup(<RootProvider />)
