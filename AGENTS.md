@@ -173,7 +173,10 @@ const form = createForm({
 const form = useForm<Detail>({ initialValues, pattern: 'readPretty' })   // a detail page: every control reads
 ```
 - Slots take a component or `[Component, props]`; the tuple's props are the JSX layer of `componentProps` / `decoratorProps`
-  (there are no separate `componentProps` / `decoratorProps` JSX props). Children (`<Field …><Input /></Field>`) or a render prop also work.
+  and are type-checked against the component on `<Field>` / `typed(form).Field` / `row.Field` / `<UI>` (all optional,
+  `data-*` allowed): `[InputNumber, { precision: 'x' }]` and unknown keys do not compile. A generic control in a tuple
+  takes its widest type (`InputNumber`'s `formatter` gets `string | number`), so leave callback parameters unannotated.
+  There are no separate `componentProps` / `decoratorProps` JSX props. Children (`<Field …><Input /></Field>`) or a render prop also work.
 - Table cells can drop the decorator (`<Field name="qty" component={[InputNumber]} />`) or use another one.
 - `FormItem` outside a field is pure layout: `<FormItem label="地址" asterisk>…two Fields, each `decorator={[FormItem]}`…</FormItem>`.
   A label-less `FormItem` takes no `labelCol` / `wrapperCol` / `labelWidth` from `FormLayout` (Formily), so the inner
