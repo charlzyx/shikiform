@@ -2,7 +2,7 @@ import type { Display, Pattern, UiDraft, UiName } from './types-display'
 import type { EnumBinding, EnumOption, EnumSource } from './enum/enum-source'
 import type { StandardSchemaV1 } from './validation/schema'
 import type { Rule, RulesInput, ValidateCtx } from './validation/rules'
-import type { FormMessages } from './validation/messages'
+import type { FormMessageKey, FormMessages, MessageArgs } from './validation/messages'
 import type { Pos } from './shared/tree-ops'
 
 export type { StandardSchemaV1, RulesInput }
@@ -252,8 +252,6 @@ export interface FormOptions<T> {
    * Default `'none'` (leave the value; clear it yourself in a `watch` if you need to keep the last edit).
    */
   enumPolicy?: EnumPolicy
-  /** Optional external schema. Its path→message map is merged with field rules. */
-  resolver?: (values: T) => Partial<Record<string, string>> | Promise<Partial<Record<string, string>>>
   /**
    * Override built-in messages for this form (#44): `required`, `email`, `minLength`, `enum`, `fallback`,
    * `superseded` … A key is a string or a function of the check's parameters (`({ minLength }) => …`).
@@ -529,7 +527,7 @@ export interface FieldError {
  * What `submit()` resolves to. It never rejects.
  * - `ok: true` — validation passed and `onValid` (if any) finished; `values` are the submitted values.
  * - `reason: 'invalid'` — validation failed; `errors` lists them. `onValid` was not called.
- * - `reason: 'error'` — `onValid` (or a form-level `validate` / `resolver`) threw or rejected; `error` is what was thrown.
+ * - `reason: 'error'` — `onValid` (or a form-level `validate`) threw or rejected; `error` is what was thrown.
  * - `reason: 'superseded'` — the values kept changing while validating (bounded retries); `message` is
  *   `messages.superseded`. Not a validation error, `errors` is empty. Submit again.
  */
@@ -600,8 +598,6 @@ export interface FormInstance<T, TSubmit = T> {
    * the field validates again (every `submit` does), or `reset` / `clearErrors`.
    */
   setErrors(errors: Partial<Record<FieldPath<T> | '', string | string[] | null | undefined>> | FieldError[]): void
-  /** One path's external messages. Same lifetime as `setErrors`; `null` clears the path's external messages. */
-  setFieldError(path: FieldPath<T> | '', messages: string | string[] | null): void
   /** Clear rule, schema and external messages on `path` and its descendants, or everywhere. */
   clearErrors(path?: FieldPath<T>): void
   /**
@@ -620,10 +616,6 @@ export interface FormInstance<T, TSubmit = T> {
    * fields a reaction hides, so declare the droppable paths with `createForm<T, SubmitValues<T, 'tmp'>>()`.
    */
   getSubmitValues(): TSubmit
-  /**
-   * Escape hatch for an exact path. Prefer `getValue` / `batch`. The return is untyped.
-   */
-  query(path: string): any
 
   /** Move an array row. `to` is the final index. Field models follow the row id. */
   moveArray<P extends ArrayPath<T>>(path: P, from: number, to: number): void
@@ -644,27 +636,23 @@ export interface FormInstance<T, TSubmit = T> {
    */
   moveTree<P extends ArrayPath<T>>(path: P, from: Pos, to: Pos): MoveResult
 
-  /** Diagnostic counters: reaction id → run count. */
-  getDebugStats(): { runs: Record<string, number> }
+  /** One built-in text resolved for this form: `options.messages` → `setDefaultMessages` → `zhCN` (`form.message('submit')`). */
+  message<K extends FormMessageKey>(key: K, ...params: MessageArgs<K>): string
 
+  /** Called after this path's value or field state changes (a cell edit notifies only its own path). Returns the unsubscribe. */
   subscribePath(path: string, listener: () => void): () => void
+  /** Called after this array or tree changes length or order. Cell edits do not notify. */
   subscribeStructure(path: string, listener: () => void): () => void
   /** Notified when `canSubmit`, `submitting`, `submitCount`, `dirty`, or `validating` change. */
   subscribeMeta(listener: () => void): () => void
   /** Called with the errors of a `submit()` that failed validation or a `validate()` that found errors. */
   subscribeValidateFailed(listener: (errors: readonly FieldError[]) => void): () => void
-  getMetaVersion(): number
-  subscribeDebug(listener: () => void): () => void
-  getPathVersion(path: string): number
-  getStructureVersion(path: string): number
-  getDebugVersion(): number
-  /** Run `selector` and return the `$` keys it read, without subscribing. */
-  trackSelector<S>(selector: (d: Draft<T>) => S): { value: S; deps: string[] }
-  subscribeDep(dep: string, listener: () => void): () => void
-  getDepVersion(dep: string): number
 }
 
-/** Implemented by the form engine and passed to effect factories. */
+/**
+ * @internal Implemented by the form engine and passed to effect factories (`defineEffects`). Not part of the form
+ * users hold: `createForm` / `useForm` return {@link FormInstance}.
+ */
 export interface EffectsRuntime<T> {
   draft: Draft<T>
   trackOnly<S>(fn: () => S): { value: S; deps: Set<string> }

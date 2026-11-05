@@ -20,13 +20,13 @@ export interface ValidatorDeps {
 }
 
 /**
- * The validation pipeline: per-field rules (sync, async, Standard Schema), form-level schema / resolver,
+ * The validation pipeline: per-field rules (sync, async, Standard Schema), form-level `validate`,
  * debounce, stale-result dropping, and where messages land (`errors` vs `schemaErrors`).
  *
  * Per field: `rules` + `required` → `runRules` (sync messages + pending promises) and field schemas.
  * A pass is generation-stamped (`validateGen`); only the newest pass commits form-level issues.
  * A pass reads ONE immutable snapshot of `store.values` (writes replace the object), taken after `prepare`:
- * every field rule (value, ctx.record/root/parent/array/get) and the form-level schema / resolver see it (#1).
+ * every field rule (value, ctx.record/root/parent/array/get) and the form-level `validate` see it (#1).
  * A field's async result is stamped with `asyncSeq` and its `AbortController`; a newer edit aborts it.
  * Abort removes that attempt from {@link Validator.inflight} immediately, so `waitAsync` / `submit` do not
  * wait for a validator that only clears a timer. A later resolve or reject does not write field errors.
@@ -34,7 +34,7 @@ export interface ValidatorDeps {
  * Built-in messages (enum, fallback) resolve through `options.messages`, then the app defaults (#44).
  */
 export class Validator {
-  /** Form-level schema / resolver / field-schema messages by path. */
+  /** Form-level `validate` / field-schema messages by path. */
   schemaByPath = new Map<string, string[]>()
   /** Bumped at the start of each {@link Validator.validate}. Only the latest pass may commit. */
   validateGen = 0
@@ -135,11 +135,6 @@ export class Validator {
         collected.push(...issues)
       } else if (typeof validate === 'function') {
         const extra = await validate(values)
-        if (gen !== this.validateGen) return scoped()
-        collected.push(...recordToIssues(extra))
-      }
-      if (options.resolver) {
-        const extra = await options.resolver(values)
         if (gen !== this.validateGen) return scoped()
         collected.push(...recordToIssues(extra))
       }
@@ -349,7 +344,7 @@ export class Validator {
 
   /**
    * A pass nobody awaits (trigger, debounce timer, JSX release). Field rules never reject a pass; a throwing
-   * form-level `validate` / `resolver` or a reaction error still could, so it is reported instead of being
+   * form-level `validate` or a reaction error still could, so it is reported instead of being
    * left as an unhandled rejection. Awaited `validate()` / `submit()` pass those errors to the caller.
    */
   validateDetached(path: string): void {

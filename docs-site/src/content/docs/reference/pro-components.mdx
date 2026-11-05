@@ -73,10 +73,10 @@ useShadow<TValues, TContext>(): ShadowFormApi<TValues, TContext>
 
 字段绑定的远程联想下拉（Pro.formily `Suggestion`），建立在 `useSuggestion` 上。值有四种形状：`string`、`{ label, value }`（`labelInValue`）、`string[]`（`multiple`）、`{ label, value }[]`（两者都开）。阅读态显示标签。
 
-## SuggestionSelect
+## SuggestionView
 
 ```tsx
-<SuggestionSelect value={value} onChange={setValue} fetch={search} multiple />
+<SuggestionView value={value} onChange={setValue} fetch={search} multiple />
 ```
 
 `Suggestion` 的非字段版本：普通的受控 `value` / `onChange` 组件，其余属性透传给 antd `Select`。防抖、中止旧请求、记住已选标签的行为与 `Suggestion` 完全一样，可以在表单外单独使用。

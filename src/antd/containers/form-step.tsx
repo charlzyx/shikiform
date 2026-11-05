@@ -89,7 +89,7 @@ export function useFormStep(options: UseFormStepOptions = {}): FormStepHandle {
     try {
       errors = await attached.form.validate(paths)
     } catch (error) {
-      // A form-level validate / resolver threw: stay, like submit's `reason: 'error'`.
+      // A form-level validate threw: stay, like submit's `reason: 'error'`.
       console.error('[shikiform] FormStep next() validation failed', error)
       return false
     }

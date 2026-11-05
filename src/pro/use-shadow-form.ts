@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
-import { createForm, type FormEngine } from '../core/engine/form-engine'
+import { createForm } from '../core/engine/form-engine'
+import type { FormInstance } from '../core/types'
 import type { FieldError, FormOptions } from '../core/types'
 
 /** Where a shadow form's values come from when it opens: a value, or a (possibly async) loader. */
@@ -31,7 +32,7 @@ export interface UseShadowFormOptions<TValues, TContext = unknown> {
  */
 export interface ShadowFormApi<TValues, TContext = unknown> {
   /** The current draft engine. Replaced on every `open()`. */
-  form: FormEngine<TValues>
+  form: FormInstance<TValues>
   /** True between `open()` and `confirm()` success / `cancel()`. */
   visible: boolean
   /** True while an async `open()` loader runs. */
@@ -76,7 +77,7 @@ export function useShadowForm<TValues = Record<string, any>, TContext = unknown>
     })
   }, [])
   const [state, setState] = useState<{
-    form: FormEngine<TValues>
+    form: FormInstance<TValues>
     visible: boolean
     loading: boolean
     submitting: boolean

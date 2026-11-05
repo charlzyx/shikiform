@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from 'react'
-import { createForm, type FormEngine } from '../../core/engine/form-engine'
+import { createForm } from '../../core/engine/form-engine'
 import { deepEqual } from '../../core/shared/equal'
-import type { FormOptions } from '../../core/types'
+import type { FormInstance, FormOptions } from '../../core/types'
 
 const useIsoLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 
@@ -20,7 +20,7 @@ export interface UseFormOptions<T> extends FormOptions<T> {
  * Create a form and keep the same instance for the lifetime of the component.
  * Options are read on the first render. Later renders ignore a new options object, except `values`,
  * which resets the form when its content changes.
- * The returned engine is headless: nothing here imports a UI kit.
+ * The returned form is headless: nothing here imports a UI kit.
  *
  * `T` is inferred from `initialValues` / `values`. `getValue` / `setValue` / `batch` use that type.
  * `TSubmit` (default `T`) types `submit` / `getSubmitValues` / `<Form onSubmit>`; see `SubmitValues`.
@@ -34,8 +34,8 @@ export interface UseFormOptions<T> extends FormOptions<T> {
  * })
  * const edit = useForm({ values: query.data }) // resets whenever the record reloads with new content
  */
-export function useForm<T, TSubmit = T>(options?: UseFormOptions<T>): FormEngine<T, TSubmit> {
-  const ref = useRef<FormEngine<T, TSubmit> | null>(null)
+export function useForm<T, TSubmit = T>(options?: UseFormOptions<T>): FormInstance<T, TSubmit> {
+  const ref = useRef<FormInstance<T, TSubmit> | null>(null)
   const values = options?.values
   const last = useRef(values)
   if (!ref.current) {

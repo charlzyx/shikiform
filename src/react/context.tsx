@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react'
 import type { FormEngine } from '../core/engine/form-engine'
+import type { FormInstance } from '../core/types'
 
 /** React scope for relative field names. `path` is the index path of the parent object or row. */
 export interface ScopeValue {
@@ -22,13 +23,13 @@ export const FormContext = createContext<FormEngine<any> | null>(null)
 export const ScopeContext = createContext<ScopeValue>({ path: '', index: -1 })
 export const ArrayContext = createContext<ArrayScopeValue | null>(null)
 
-/** The form provided by `<Form>`. */
-export function useFormContext<T = any>(): FormEngine<T> {
+/** The form provided by `<Form>` (the same object `useForm()` returned). */
+export function useFormContext<T = any>(): FormInstance<T> {
   return useRequiredForm<T>('useFormContext()')
 }
 
 /**
- * The provided form, or an error naming the caller (`useField('email')`, `<ArrayField name="items">`) and the fix.
+ * Internal: the provided form's engine, or an error naming the caller (`useField('email')`, `<ArrayField name="items">`) and the fix.
  * `useForm()` / `createForm()` only create the engine; it reaches fields through `<Form form={form}>`.
  */
 export function useRequiredForm<T = any>(caller: string): FormEngine<T> {

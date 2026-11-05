@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import type { FormEngine } from '../core/engine/form-engine'
+import { engineOf } from '../core/engine/form-engine'
 import { setAt } from '../core/shared/path'
-import type { EffectDef, FieldPath, FormOptions, PathValue } from '../core/types'
+import type { EffectDef, FieldPath, FormInstance, FormOptions, PathValue } from '../core/types'
 import { useForm } from '../react/hooks/use-form'
 
 /**
@@ -67,7 +67,7 @@ export interface QueryHookResult<TRow> {
 
 export interface UseQueryTableOptions<TValues, TParams, TRow> {
   /** Existing form. When omitted, one is created from `initialValues`. */
-  form?: FormEngine<TValues>
+  form?: FormInstance<TValues>
   initialValues?: TValues
   effects?: EffectDef<TValues>[]
   fields?: FormOptions<TValues>['fields']
@@ -109,7 +109,7 @@ export interface UseQueryTableOptions<TValues, TParams, TRow> {
 }
 
 export interface QueryTableApi<TValues, TParams, TRow> {
-  form: FormEngine<TValues>
+  form: FormInstance<TValues>
   /** The `rows` option: the array field each page is written into (`undefined` without it). `QueryList` renders it. */
   rows?: string
   /** Rows for the current page. The previous page stays up while the next request is in flight. */
@@ -176,7 +176,7 @@ export function useQueryTable<TValues, TParams = TValues, TRow = unknown>(
       ? undefined
       : { initialValues: options.initialValues, effects: options.effects, fields: options.fields },
   )
-  const form = options.form ?? created
+  const form = engineOf(options.form ?? created)
   const mode = options.mode ?? 'server'
   const pagePath = String(options.page ?? 'page')
   const sizePath = String(options.pageSize ?? 'pageSize')

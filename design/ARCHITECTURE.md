@@ -213,7 +213,7 @@ const Rate = connect(AntRate, mapProps({ status: false }))
 | DelegateAction + ShadowModal + ProAddition | `useArrayShadow` | `ShadowModal` / `ShadowDrawer` + `ArrayTable.ShadowAddition` | `/play/array-table-shadow`、`/play/query-list-add` |
 | ShadowForm / ShadowModal / ShadowPopconfirm | `useShadowForm` | `ShadowForm`、`ShadowModal`、`ShadowDrawer`、`ShadowPopconfirm`、`useShadow` | `/play/shadow-form` |
 | ProEnum / ProEnumPretty | `EnumSource`（core）、`enumItems` | 选择类控件阅读态 + `prettyType`、`PreviewText.Select` | `/play/pro-enum` |
-| Suggestion | `useSuggestion` | `Suggestion` / `SuggestionSelect` | `/play/suggestion` |
+| Suggestion | `useSuggestion` | `Suggestion` / `SuggestionView` | `/play/suggestion` |
 | CascaderPlus | `useLazyCascader` | `CascaderPlus` / `CascaderPlusView` | `/play/cascader-plus` |
 | QueryList（含 Pro.formily QueryForm / QueryTable） | `useQueryTable({ rows })` | `QueryList`（`rows` 必填；条件栅格就是 `FormGrid`） | `/play/query`、`/play/query-list` |
 

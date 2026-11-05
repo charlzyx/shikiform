@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, type ComponentProps, type ComponentType, type FormEvent, type FormHTMLAttributes, type ReactNode } from 'react'
-import type { FormEngine } from '../../core/engine/form-engine'
-import type { ArrayPath, Display, Draft, FieldEnum, FieldError, FieldPath, PathValue, Pattern, UiName } from '../../core/types'
+import { engineOf } from '../../core/engine/form-engine'
+import type { ArrayPath, Display, Draft, FieldEnum, FieldError, FieldPath, FormInstance, PathValue, Pattern, UiName } from '../../core/types'
 import type { RulesInput } from '../../core/validation/rules'
 import type { Pos } from '../../core/shared/tree-ops'
 import { ArrayContext, FormContext, ScopeContext, useRequiredForm, useScope } from '../context'
@@ -23,7 +23,7 @@ export interface FormSubmitHandlers<T> {
   /** Called with the errors when validation fails (`reason: 'invalid'`). Scroll to the first error, show a toast … */
   onInvalid?: (errors: FieldError[]) => void
   /**
-   * Called when `onSubmit` (or a form-level `validate` / `resolver`) throws or rejects (`reason: 'error'`).
+   * Called when `onSubmit` (or a form-level `validate`) throws or rejects (`reason: 'error'`).
    * Without it the error is reported with `console.error`; it never becomes an unhandled rejection.
    */
   onSubmitError?: (error: unknown) => void
@@ -34,7 +34,7 @@ export type FormDomProps = Omit<FormHTMLAttributes<HTMLFormElement>, 'onSubmit' 
 
 /** `<Form>` props. `onSubmit` receives the form's `TSubmit` (default `T`, see `SubmitValues`). */
 export type FormProps<T, TSubmit = T> = FormSubmitHandlers<TSubmit> & FormDomProps & {
-  form: FormEngine<T, TSubmit>
+  form: FormInstance<T, TSubmit>
   children?: ReactNode
 }
 
@@ -43,7 +43,7 @@ export type FormProps<T, TSubmit = T> = FormSubmitHandlers<TSubmit> & FormDomPro
  * `<button form={id}>` all run `form.submit(onSubmit)` and route the result to `onInvalid` / `onSubmitError`.
  */
 export function handleFormSubmit<T, TSubmit = T>(
-  form: FormEngine<T, TSubmit>,
+  form: FormInstance<T, TSubmit>,
   event: FormEvent<HTMLFormElement>,
   handlers: FormSubmitHandlers<TSubmit>,
 ): void {
@@ -54,7 +54,7 @@ export function handleFormSubmit<T, TSubmit = T>(
 }
 
 /** `form.submit(onSubmit)` with the result routed to `onInvalid` / `onSubmitError` (shared by `<Form>` and `Submit`). */
-export function runSubmit<T, TSubmit = T>(form: FormEngine<T, TSubmit>, handlers: FormSubmitHandlers<TSubmit>): void {
+export function runSubmit<T, TSubmit = T>(form: FormInstance<T, TSubmit>, handlers: FormSubmitHandlers<TSubmit>): void {
   void form
     .submit(handlers.onSubmit)
     .then((result) => {
@@ -107,7 +107,7 @@ export function Form<T, TSubmit = T>({ form, children, onSubmit, onInvalid, onSu
     }
   }, [form, prefix])
   return (
-    <FormContext.Provider value={form}>
+    <FormContext.Provider value={engineOf(form)}>
       <IdPrefixProvider prefix={prefix}>
         {/* A nested form (a shadow form in a row's modal) starts at its own root, not at the row's scope. */}
         <ScopeContext.Provider value={ROOT_SCOPE}>

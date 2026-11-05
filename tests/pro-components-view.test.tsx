@@ -1,18 +1,18 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { CascaderPlusView, SuggestionSelect } from '../src/antd'
+import { CascaderPlusView, SuggestionView } from '../src/antd'
 
 afterEach(() => {
   cleanup()
   vi.useRealTimers()
 })
 
-describe('SuggestionSelect', () => {
+describe('SuggestionView', () => {
   it('renders the current value and searches remotely on input', async () => {
     const fetch = vi.fn(async (keyword: string) => [{ label: `${keyword}-1`, value: `${keyword}-1` }])
     const onChange = vi.fn()
-    render(<SuggestionSelect value="a" onChange={onChange} fetch={fetch} debounce={10} />)
+    render(<SuggestionView value="a" onChange={onChange} fetch={fetch} debounce={10} />)
     // 已选值作为单选项渲染（antd Select 的选中回显）
     expect(screen.queryAllByText('a').length).toBeGreaterThan(0)
     // 打开下拉输入触发远程搜索
@@ -27,7 +27,7 @@ describe('SuggestionSelect', () => {
   it('multiple + labelInValue holds { label, value } lists', async () => {
     const onChange = vi.fn()
     render(
-      <SuggestionSelect
+      <SuggestionView
         value={[{ label: '甲', value: 'jia' }]}
         onChange={onChange}
         fetch={async () => []}
@@ -41,7 +41,7 @@ describe('SuggestionSelect', () => {
   it('shows a spinner while loading (notFoundContent)', async () => {
     let resolve!: (rows: { label: string; value: string }[]) => void
     const fetch = vi.fn(() => new Promise<{ label: string; value: string }[]>((r) => (resolve = r)))
-    render(<SuggestionSelect value="" fetch={fetch} debounce={0} />)
+    render(<SuggestionView value="" fetch={fetch} debounce={0} />)
     fireEvent.mouseDown(screen.getByRole('combobox'))
     // 输入才触发远程搜索（打开下拉不会）；搜索进行中下拉的 notFoundContent 是一个 Spin
     fireEvent.change(document.querySelector('input.ant-select-selection-search-input')!, { target: { value: 'x' } })
