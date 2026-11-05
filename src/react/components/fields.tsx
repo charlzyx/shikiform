@@ -142,7 +142,12 @@ function focusFirstError(root: HTMLFormElement | null, errors: readonly FieldErr
 }
 
 /** `<Field>` props. Every prop except `name` / `children` is a {@link useField} option of the same name. */
-export interface FieldProps<TScope = any, N extends FieldPath<TScope> = FieldPath<TScope>> {
+export interface FieldProps<
+  TScope = any,
+  N extends FieldPath<TScope> = FieldPath<TScope>,
+  C extends ComponentType<any> = ComponentType<any>,
+  D extends ComponentType<any> = ComponentType<any>,
+> {
   /** Name relative to the current `<ObjectField>` / `<ArrayField>` / `<TreeField>` scope. */
   name: N
   /**
@@ -177,12 +182,12 @@ export interface FieldProps<TScope = any, N extends FieldPath<TScope> = FieldPat
    * Wrapper around the control: `decorator={[FormItem, { tooltip: '…' }]}`. Reads the field from context.
    * The tuple's props are the JSX layer of `decoratorProps` (under a reaction's `$decoratorProps`).
    */
-  decorator?: FieldSlot
+  decorator?: FieldSlot<D>
   /**
    * The control: `component={[Input, { placeholder: '…' }]}`. A `connect()`ed control reads the field from context.
    * The tuple's props are the JSX layer of `componentProps` (under a reaction's `$componentProps`).
    */
-  component?: FieldSlot
+  component?: FieldSlot<C>
   /** A render prop (`(field) => …`), or field-aware children (`<Input />`) rendered instead of `component`. */
   children?: ReactNode | ((field: FieldBinding<PathValue<TScope, N & string>>) => ReactNode)
 }
@@ -207,7 +212,12 @@ export interface FieldProps<TScope = any, N extends FieldPath<TScope> = FieldPat
  * `<Field>` is a thin wrapper around {@link useField}: `useField(name, options)` + `display !== 'visible'` → `null`
  * + the two slots.
  */
-export function Field<TScope = any, N extends FieldPath<TScope> = FieldPath<TScope>>({ name, children, ...options }: FieldProps<TScope, N>) {
+export function Field<
+  TScope = any,
+  N extends FieldPath<TScope> = FieldPath<TScope>,
+  C extends ComponentType<any> = ComponentType<any>,
+  D extends ComponentType<any> = ComponentType<any>,
+>({ name, children, ...options }: FieldProps<TScope, N, C, D>) {
   // Sugar over the hook: everything <Field> does is reachable through useField(name, options).
   const field = useField<TScope, N>(name, options)
   if (field.display !== 'visible') return null

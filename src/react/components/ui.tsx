@@ -22,13 +22,13 @@ export interface UiBinding {
 }
 
 /** `<UI>` props. A UI node has no value: nothing here is submitted or validated. */
-export interface UIProps {
+export interface UIProps<C extends ComponentType<any> = ComponentType<any>, D extends ComponentType<any> = ComponentType<any>> {
   /** Addressed in effects as `d.$ui(name)` (inside a row / `<ObjectField>`: that scope's `row.$ui(name)`). */
   name: UiName
   /** The component: `component={[Alert, { type: 'warning' }]}`. Children render inside it. */
-  component?: FieldSlot
+  component?: FieldSlot<C>
   /** Wrapper (`decorator={[FormItem]}`: `title` → label, `description` → extra). */
-  decorator?: FieldSlot
+  decorator?: FieldSlot<D>
   title?: ReactNode
   description?: ReactNode
   /** Initial display when no reaction wrote `$visible` / `$display` (default: the scope's). */
@@ -58,7 +58,13 @@ export function useUiNodeOrNull(): UiBinding | null {
  * priority as a field's UI layer (reaction > these props). Hiding it unmounts its children but does **not** hide,
  * skip or drop the fields inside: a field's validation and submit depend only on its own `$visible` / display.
  */
-export function UI({ name, children, display, pattern, ...slots }: UIProps) {
+export function UI<C extends ComponentType<any> = ComponentType<any>, D extends ComponentType<any> = ComponentType<any>>({
+  name,
+  children,
+  display,
+  pattern,
+  ...slots
+}: UIProps<C, D>) {
   const form = useRequiredForm(`<UI name="${String(name)}">`)
   const path = useScope().path
   const prefix = useIdPrefix()

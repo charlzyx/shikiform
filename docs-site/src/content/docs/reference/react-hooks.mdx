@@ -148,6 +148,13 @@ interface UseFieldOptions<TValue = any> {
   component?: FieldSlot          // Component 或 [Component, props]：props 是 JSX 层的 componentProps
   decorator?: FieldSlot          // Decorator 或 [Decorator, props]：props 是 JSX 层的 decoratorProps
 }
+
+// <Field> / typed(form).Field / row.Field / <UI> 上，元组的 props 按组件检查（全部可选，字段会给 value / onChange；
+// 允许 data-* 属性）。hook 的 options 和 fields 声明里是不带参数的 FieldSlot，不检查。
+type FieldSlot<C extends ComponentType<any> = ComponentType<any>> =
+  | C
+  | readonly [C]
+  | readonly [C, (Partial<ComponentProps<C>> & { [key: `data-${string}`]: unknown }) | undefined]
 ```
 
 `options` 与 `<Field>` 同名属性语义相同：`rules` / `required` / `enum` 是挂载期 lease（调用组件卸载时释放；`enum` 的优先级是 reaction `$enum` > JSX > `fields` > 条目模板，reaction 写 `$enum = undefined` 回到 JSX 这一层，属性变化（深比较）会重新应用），`virtual` / `display` / `pattern` 是持久字段标记，UI 选项合并进返回的 binding。`<Field>` 就是 `useField(name, options)` 加上「非 visible 返回 null」，再渲染 `decorator` 包住的 `component`，并把 binding 提供给子树里不带参数的 `useField()`。
@@ -226,12 +233,10 @@ const field = useField('amount', { ui: 'slider' })                  // 同上的
 不是 Hook，列在这里因为它和 `useField(name, { ui })` 是一套：没有值的 UI 节点，在 effects 里是 `d.$ui(name)`（在行 / `<ObjectField>` 里是该作用域的 `row.$ui(name)`）。
 
 ```tsx
-interface UIProps {
+interface UIProps<C, D> {
   name: UiName
-  component?: FieldSlot           // [Alert, { type: 'warning' }]；children 渲染在它里面
-  decorator?: FieldSlot           // [FormItem]：title → label，description → extra
-  componentProps?: Record<string, any>
-  decoratorProps?: Record<string, any>
+  component?: FieldSlot<C>        // [Alert, { type: 'warning' }]；children 渲染在它里面；props 按 Alert 检查
+  decorator?: FieldSlot<D>        // [FormItem]：title → label，description → extra
   title?: ReactNode
   description?: ReactNode
   display?: Display                // 初始显隐，reaction 优先
