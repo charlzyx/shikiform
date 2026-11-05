@@ -2,7 +2,7 @@
 import { act, cleanup, render } from '@testing-library/react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it } from 'vitest'
-import { createForm, Field, Form, enUS, type FieldBinding } from '../src'
+import { Field, Form, enUS, type FieldBinding } from '../src'
 import {
   FormButtonGroup,
   FormGrid,
@@ -16,11 +16,12 @@ import {
 } from '../src/antd'
 import { breakpointIndex } from '../src/antd/adapter/form-layout'
 import { gridColumns } from '../src/antd/adapter/form-grid'
+import { createEngine } from '../src/core/engine/create'
 
 afterEach(cleanup)
 
 async function failing(rules: Record<string, unknown>, value = '') {
-  const form = createForm({ initialValues: { a: value } })
+  const form = createEngine({ initialValues: { a: value } })
   form.registerField('a', { rules: rules as never })
   await form.validate()
   return { form, field: form.binding('a') as FieldBinding<any> }
@@ -47,7 +48,7 @@ describe('FormItem feedback', () => {
   })
 
   it('addonBefore / addonAfter sit on the control line', () => {
-    const form = createForm({ initialValues: { price: '' } })
+    const form = createEngine({ initialValues: { price: '' } })
     const view = render(
       <Form form={form}>
         <Field name="price" title="价格" decorator={[FormItem, { addonBefore: '¥', addonAfter: '元' }]} component={[Input]} />
@@ -60,7 +61,7 @@ describe('FormItem feedback', () => {
 })
 
 describe('FormItem layout keys', () => {
-  const field = createForm({ initialValues: { a: '' } }).binding('a') as FieldBinding<any>
+  const field = createEngine({ initialValues: { a: '' } }).binding('a') as FieldBinding<any>
 
   it('labelWidth / wrapperWidth become flex columns and win over span', () => {
     const props = mapFormItemProps(field, { label: '名称' }, { labelCol: { span: 6 }, labelWidth: 120 })
@@ -81,7 +82,7 @@ describe('FormItem layout keys', () => {
   it('labelWrap adds Ant Design\u2019s wrap class to the label column', () => {
     expect(mapFormItemProps(field, { labelWrap: true }).labelCol?.className).toBe('ant-form-item-label-wrap')
     const html = renderToStaticMarkup(
-      <Form form={createForm({ initialValues: { a: '' } })}>
+      <Form form={createEngine({ initialValues: { a: '' } })}>
         <FormLayout labelWrap labelCol={{ span: 4 }}>
           <Field name="a" title="很长很长的标签" decorator={[FormItem]} component={[Input]} />
         </FormLayout>
@@ -97,7 +98,7 @@ describe('FormItem layout keys', () => {
   })
 
   it('requiredMark optional marks the optional fields; false hides the asterisk', () => {
-    const required = createForm({ initialValues: { a: '' }, fields: { a: { required: true } } }).binding('a') as FieldBinding<any>
+    const required = createEngine({ initialValues: { a: '' }, fields: { a: { required: true } } }).binding('a') as FieldBinding<any>
     const optional = mapFormItemProps(field, { label: '备注' }, { requiredMark: 'optional' }, { optionalText: '（可选）' })
     expect(renderToStaticMarkup(<>{optional.label}</>)).toContain('（可选）')
     const req = mapFormItemProps(required, { label: '名称' }, { requiredMark: 'optional' })
@@ -108,7 +109,7 @@ describe('FormItem layout keys', () => {
   })
 
   it('the optional text follows the form messages', () => {
-    const form = createForm({ initialValues: { a: '' }, messages: enUS })
+    const form = createEngine({ initialValues: { a: '' }, messages: enUS })
     const html = renderToStaticMarkup(
       <Form form={form}>
         <FormLayout requiredMark="optional">
@@ -137,7 +138,7 @@ describe('FormGrid', () => {
   })
 
   it('renders a CSS grid; FormItem gridSpan and GridColumn span cells', () => {
-    const form = createForm({ initialValues: { a: '', b: '' } })
+    const form = createEngine({ initialValues: { a: '', b: '' } })
     const html = renderToStaticMarkup(
       <Form form={form}>
         <FormGrid maxColumns={3}>
@@ -161,7 +162,7 @@ describe('FormLayout breakpoints', () => {
   })
 
   it('resolves responsive layout / labelCol for the items (wide before the first measure)', async () => {
-    const form = createForm({ initialValues: { a: '' } })
+    const form = createEngine({ initialValues: { a: '' } })
     const wide = renderToStaticMarkup(
       <Form form={form}>
         <FormLayout layout={['vertical', 'horizontal']} labelCol={[{ span: 24 }, { span: 6 }]}>
@@ -189,7 +190,7 @@ describe('FormLayout breakpoints', () => {
 
 describe('FormButtonGroup', () => {
   it('.FormItem lines the buttons up with the control column (span and labelWidth)', () => {
-    const form = createForm({ initialValues: {} })
+    const form = createEngine({ initialValues: {} })
     const span = renderToStaticMarkup(
       <Form form={form}>
         <FormLayout labelCol={{ span: 6 }} wrapperCol={{ span: 18 }}>

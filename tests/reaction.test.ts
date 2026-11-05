@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { createForm, defineEffects, ShikiConflictError, ShikiCycleError } from '../src/core'
+import { defineEffects, ShikiConflictError, ShikiCycleError } from '../src/core'
 import { runsFor, schedulerRuns } from './fixtures/reaction-utils'
+import { createEngine } from '../src/core/engine/create'
 
 interface Row {
   cost: number
@@ -10,7 +11,7 @@ interface Row {
 
 describe('reaction', () => {
   it('recomputes only the dirty row', () => {
-    const form = createForm<{ rows: Row[] }>({
+    const form = createEngine<{ rows: Row[] }>({
       initialValues: {
         rows: [
           { cost: 1, markup: 2, suggested: 0 },
@@ -45,7 +46,7 @@ describe('reaction', () => {
 
   it('rejects two reactions writing the same state', () => {
     expect(() =>
-      createForm({
+      createEngine({
         initialValues: { a: 0 },
         effects: [
           defineEffects<{ a: number }>(({ reaction }) => {
@@ -63,7 +64,7 @@ describe('reaction', () => {
 
   it('rejects a reaction that reads its own write', () => {
     expect(() =>
-      createForm({
+      createEngine({
         initialValues: { a: 0 },
         effects: [
           defineEffects<{ a: number }>(({ reaction }) => {
@@ -77,7 +78,7 @@ describe('reaction', () => {
   })
 
   it('marks a reaction target computed even when its initial value already equals the derived one', () => {
-    const form = createForm<{ price: number; qty: number; line: number; other: number }>({
+    const form = createEngine<{ price: number; qty: number; line: number; other: number }>({
       initialValues: { price: 12, qty: 1, line: 12, other: 0 },
       effects: [
         defineEffects<{ price: number; qty: number; line: number; other: number }>(({ reaction }) => {
@@ -94,7 +95,7 @@ describe('reaction', () => {
 
   it('does not run watch on init and does not mark the target computed', () => {
     let runs = 0
-    const form = createForm<{ a: number; b: number }>({
+    const form = createEngine<{ a: number; b: number }>({
       initialValues: { a: 1, b: 5 },
       effects: [
         defineEffects<{ a: number; b: number }>(({ watch }) => {
@@ -120,7 +121,7 @@ describe('reaction', () => {
     let priceRuns = 0
     let noteRuns = 0
     let idleRuns = 0
-    const form = createForm<{ price: number; note: string; idle: string }>({
+    const form = createEngine<{ price: number; note: string; idle: string }>({
       initialValues: { price: 1, note: 'n', idle: '' },
       effects: [
         defineEffects<{ price: number; note: string; idle: string }>(({ reaction }) => {
@@ -153,7 +154,7 @@ describe('reaction', () => {
     let aRuns = 0
     let bRuns = 0
     let idleRuns = 0
-    const form = createForm<{ a: number; b: number; c: number; note: string }>({
+    const form = createEngine<{ a: number; b: number; c: number; note: string }>({
       initialValues: { a: 0, b: 0, c: 0, note: 'keep' },
       effects: [
         defineEffects<{ a: number; b: number; c: number; note: string }>(({ reaction }) => {
@@ -189,7 +190,7 @@ describe('reaction', () => {
   it('re-runs a parent value reader and not a sibling field', () => {
     let objectRuns = 0
     let ageRuns = 0
-    const form = createForm<{ user: { name: string; age: number } }>({
+    const form = createEngine<{ user: { name: string; age: number } }>({
       initialValues: { user: { name: 'a', age: 1 } },
       effects: [
         defineEffects<{ user: { name: string; age: number } }>(({ reaction }) => {
@@ -214,7 +215,7 @@ describe('reaction', () => {
   it('re-runs only each rows and walk nodes whose reads changed', () => {
     const rowsHit: number[] = []
     const walkHit: string[] = []
-    const form = createForm<{
+    const form = createEngine<{
       tax: number
       rows: { sku: string; cost: number; suggested: number }[]
       nodes: { label: string; echo: string; children: { label: string; echo: string; children: never[] }[] }[]
@@ -276,7 +277,7 @@ describe('reaction', () => {
   it('does not run row reactions for other cells in a large table', () => {
     const count = 400
     const hit: number[] = []
-    const form = createForm<{ rows: { sku: string; cost: number; markup: number; suggested: number }[] }>({
+    const form = createEngine<{ rows: { sku: string; cost: number; markup: number; suggested: number }[] }>({
       initialValues: {
         rows: Array.from({ length: count }, (_, index) => ({
           sku: `sku-${index}`,
@@ -320,7 +321,7 @@ describe('reaction', () => {
   it('re-fires watch only when its source changes', () => {
     let runs = 0
     const rowRuns: number[] = []
-    const form = createForm<{ a: number; b: number; rows: { name: string; extra: number }[] }>({
+    const form = createEngine<{ a: number; b: number; rows: { name: string; extra: number }[] }>({
       initialValues: {
         a: 1,
         b: 1,
@@ -362,7 +363,7 @@ describe('reaction', () => {
   it('watch.walk fires per tree node and skips siblings (node-level source)', () => {
     type V = { nodes: { label: string; echo: string; children: { label: string; echo: string; children: never[] }[] }[] }
     const hits: string[] = []
-    const form = createForm<V>({
+    const form = createEngine<V>({
       initialValues: {
         nodes: [
           { label: 'a', echo: '', children: [{ label: 'a1', echo: '', children: [] }] },
@@ -405,7 +406,7 @@ describe('reaction', () => {
   it('watch.walk follows structural moves like reaction.walk', () => {
     type Node = { id: string; name: string; fired: string | number; children: Node[] }
     type V = { menu: Node[] }
-    const form = createForm<V>({
+    const form = createEngine<V>({
       initialValues: {
         menu: [
           { id: 'file', name: '文件', fired: 0, children: [{ id: 'new', name: '新建', fired: 0, children: [] }] },
@@ -437,7 +438,7 @@ describe('reaction', () => {
   })
 
   it('creates a field lazily and validates it without React', async () => {
-    const form = createForm<{ x?: string }>({ initialValues: {} })
+    const form = createEngine<{ x?: string }>({ initialValues: {} })
     form.batch((d) => {
       d.x.$required = true
     })
@@ -450,7 +451,7 @@ describe('row-level effects share one (row, ctx) shape', () => {
   it('passes { d, path, index, pos } to each / walk / watch.each', () => {
     type V = { rows: { n: number }[]; nodes: { label: string; children: { label: string; children: never[] }[] }[]; flag: boolean }
     const seen: string[] = []
-    const form = createForm<V>({
+    const form = createEngine<V>({
       initialValues: { rows: [{ n: 1 }, { n: 2 }], nodes: [{ label: 'a', children: [{ label: 'b', children: [] }] }], flag: true },
       effects: [
         defineEffects<V>(({ reaction, watch }) => {

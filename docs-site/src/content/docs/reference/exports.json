@@ -18,8 +18,6 @@
   "shikiform/pro": {
     "useQueryTable": "reference/query-hooks.mdx",
     "useBuiltinQuery": "reference/query-hooks.mdx",
-    "normalizeSort": "reference/query-hooks.mdx",
-    "normalizeFilters": "reference/query-hooks.mdx",
     "useArrayTable": "reference/pro-hooks.mdx",
     "useColumnSettings": "reference/pro-hooks.mdx",
     "useShadowForm": "reference/pro-hooks.mdx",
@@ -27,7 +25,6 @@
     "useSuggestion": "reference/pro-hooks.mdx",
     "useLazyCascader": "reference/pro-hooks.mdx",
     "useCascaderLabels": "reference/pro-hooks.mdx",
-    "cascaderPaths": "reference/pro-hooks.mdx",
     "enumItems": "reference/pro-hooks.mdx",
     "ENUM_COLORS": "reference/pro-hooks.mdx"
   },
@@ -66,7 +63,7 @@
     "ShadowForm": "reference/pro-components.mdx",
     "useShadow": "reference/pro-components.mdx",
     "Suggestion": "reference/pro-components.mdx",
-    "SuggestionSelect": "reference/pro-components.mdx",
+    "SuggestionView": "reference/pro-components.mdx",
     "CascaderPlus": "reference/pro-components.mdx",
     "CascaderPlusView": "reference/pro-components.mdx",
     "FormLayout": "reference/antd-adapter.mdx",

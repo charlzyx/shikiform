@@ -2,7 +2,7 @@ import dayjs from 'dayjs'
 import { createRef, forwardRef, type ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
-import { createForm, defineEffects, Field, Form, useField, type FieldBinding } from '../src'
+import { defineEffects, Field, Form, useField, type FieldBinding } from '../src'
 import { FieldContext } from '../src/react/field-context'
 import { zhCN } from '../src/core/validation/messages'
 import {
@@ -22,11 +22,12 @@ import {
   Select,
   Switch,
 } from '../src/antd'
+import { createEngine } from '../src/core/engine/create'
 
 type Pattern = 'editable' | 'disabled' | 'readOnly' | 'readPretty'
 
 function binding(value: unknown, extra: { pattern?: Pattern; enum?: { label: string; value: unknown }[] } = {}) {
-  const form = createForm({ initialValues: { x: value }, fields: { x: { pattern: extra.pattern, enum: extra.enum } } })
+  const form = createEngine({ initialValues: { x: value }, fields: { x: { pattern: extra.pattern, enum: extra.enum } } })
   return { form, field: form.binding('x') as FieldBinding<any> }
 }
 
@@ -81,7 +82,7 @@ describe('mapFieldProps (the pure core of connect)', () => {
   })
 
   it('ORs disabled/readOnly with caller props and lets an explicit status win', async () => {
-    const form = createForm({ initialValues: { x: '' }, fields: { x: { required: true } } })
+    const form = createEngine({ initialValues: { x: '' }, fields: { x: { required: true } } })
     await form.validate()
     const field = form.binding('x') as FieldBinding<any>
     expect(mapFieldProps(field, { disabled: true }).disabled).toBe(true)
@@ -117,7 +118,7 @@ describe('connect', () => {
       seen.push(props)
       return null
     })
-    const form = createForm({ initialValues: { a: { b: 'v' } } })
+    const form = createEngine({ initialValues: { a: { b: 'v' } } })
     renderToStaticMarkup(
       <Form form={form}>
         <Probe name="a.b" />
@@ -134,7 +135,7 @@ describe('connect', () => {
       seen.push(props)
       return null
     })
-    const form = createForm({ initialValues: { city: 'Paris' } })
+    const form = createEngine({ initialValues: { city: 'Paris' } })
     renderToStaticMarkup(
       <Form form={form} id="f">
         <Field name="city" title="城市" decorator={[FormItem]}>
@@ -148,8 +149,8 @@ describe('connect', () => {
 
   it('renders the mapReadPretty view in readPretty and the control otherwise', () => {
     const Control = connect((props: { value?: string }) => <input data-control value={props.value} readOnly />, mapReadPretty(PreviewText))
-    const editable = createForm({ initialValues: { x: 'hi' } })
-    const pretty = createForm({ initialValues: { x: 'hi' }, fields: { x: { pattern: 'readPretty' } } })
+    const editable = createEngine({ initialValues: { x: 'hi' } })
+    const pretty = createEngine({ initialValues: { x: 'hi' }, fields: { x: { pattern: 'readPretty' } } })
     expect(renderToStaticMarkup(<Form form={editable}><Control name="x" /></Form>)).toContain('data-control')
     const html = renderToStaticMarkup(<Form form={pretty}><Control name="x" /></Form>)
     expect(html).toContain('data-read-pretty')
@@ -159,7 +160,7 @@ describe('connect', () => {
   it('outside a field renders the plain control and warns once in development', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const Bare = connect(function BareControl(props: { label?: string }) { return <i>{props.label}</i> })
-    const form = createForm({ initialValues: {} })
+    const form = createEngine({ initialValues: {} })
     expect(renderToStaticMarkup(<Form form={form}><Bare label="plain" /><Bare label="again" /></Form>)).toBe('<form><i>plain</i><i>again</i></form>')
     expect(renderToStaticMarkup(<Bare label="no form" />)).toBe('<i>no form</i>')
     expect(warn).toHaveBeenCalledTimes(1)
@@ -178,7 +179,7 @@ describe('connect', () => {
     const _typed: 'x' = Connected.Extra
     void _typed
     const ref = createRef<HTMLInputElement>()
-    const form = createForm({ initialValues: { a: 'v' } })
+    const form = createEngine({ initialValues: { a: 'v' } })
     renderToStaticMarkup(<Form form={form}><Connected name="a" ref={ref} /></Form>)
     expect(seen).toBe(ref)
     expect(Connected.Extra).toBe('x')
@@ -189,7 +190,7 @@ describe('connect', () => {
   it('mapProps object keys take any field state: title, required, componentProps.x', () => {
     const Probe = vi.fn((_props: Record<string, unknown>) => null)
     const Connected = connect(Probe, mapProps({ title: 'placeholder', required: 'aria-required', 'componentProps.max': 'count' }))
-    const form = createForm({ initialValues: { a: '' }, fields: { a: { title: '名称', required: true, componentProps: { max: 5 } } } })
+    const form = createEngine({ initialValues: { a: '' }, fields: { a: { title: '名称', required: true, componentProps: { max: 5 } } } })
     renderToStaticMarkup(<Form form={form}><Connected name="a" /></Form>)
     expect(Probe.mock.calls[0]![0]).toMatchObject({ placeholder: '名称', 'aria-required': true, count: 5 })
     renderToStaticMarkup(<Form form={form}><Connected name="a" placeholder="explicit" /></Form>)
@@ -197,7 +198,7 @@ describe('connect', () => {
   })
 
   it('Radio is usable as a component itself (the group), with Radio.Group and Radio.Button', () => {
-    const form = createForm({ initialValues: { r: 'b' }, fields: { r: { enum: [{ label: '甲', value: 'a' }, { label: '乙', value: 'b' }] } } })
+    const form = createEngine({ initialValues: { r: 'b' }, fields: { r: { enum: [{ label: '甲', value: 'a' }, { label: '乙', value: 'b' }] } } })
     const html = renderToStaticMarkup(<Form form={form}><Field name="r" component={[Radio]} /></Form>)
     expect(html).toContain('ant-radio-group')
     expect(html).toContain('乙')
@@ -208,7 +209,7 @@ describe('connect', () => {
 
 describe('FormItem', () => {
   it('shows label, required mark, and the first error after validation', async () => {
-    const form = createForm({ initialValues: { email: '' } })
+    const form = createEngine({ initialValues: { email: '' } })
     const view = () =>
       renderToStaticMarkup(
         <Form form={form}>
@@ -229,7 +230,7 @@ describe('FormItem', () => {
   })
 
   it('is a pure decorator: the <Field> owns the rules as a mount lease', async () => {
-    const form = createForm({ initialValues: { code: 'x' } })
+    const form = createEngine({ initialValues: { code: 'x' } })
     renderToStaticMarkup(
       <Form form={form}>
         <Field name="code" rules={{ minLength: 3 }} decorator={[FormItem]}>
@@ -241,16 +242,16 @@ describe('FormItem', () => {
   })
 
   it('renders nothing for display hidden / none and hides the required mark in readPretty', () => {
-    const hidden = createForm({ initialValues: { a: 1 }, fields: { a: { display: 'hidden' } } })
+    const hidden = createEngine({ initialValues: { a: 1 }, fields: { a: { display: 'hidden' } } })
     expect(renderToStaticMarkup(<Form form={hidden}><Field name="a" title="A" decorator={[FormItem]}><InputNumber /></Field></Form>)).not.toContain('A')
-    const pretty = createForm({ initialValues: { a: 1 }, fields: { a: { pattern: 'readPretty', required: true } } })
+    const pretty = createEngine({ initialValues: { a: 1 }, fields: { a: { pattern: 'readPretty', required: true } } })
     const html = renderToStaticMarkup(<Form form={pretty}><Field name="a" title="A" decorator={[FormItem]}><InputNumber /></Field></Form>)
     expect(html).not.toContain('ant-form-item-required')
     expect(html).toContain('data-read-pretty')
   })
 
   it('accepts a binding from useField (hooks first, component as sugar)', async () => {
-    const form = createForm({ initialValues: { name: '' } })
+    const form = createEngine({ initialValues: { name: '' } })
     function Hooked() {
       const field = useField('name', { required: true, title: '姓名' })
       return (
@@ -269,7 +270,7 @@ describe('FormItem', () => {
   })
 
   it('outside a field is pure layout: a label around several fields, no status', () => {
-    const form = createForm({ initialValues: { province: 'zj', city: 'hz' } })
+    const form = createEngine({ initialValues: { province: 'zj', city: 'hz' } })
     const html = renderToStaticMarkup(
       <Form form={form}>
         <FormItem label="地址">
@@ -287,7 +288,7 @@ describe('FormItem', () => {
   })
 
   it('maps title → label, description → extra, decoratorProps, and feedbackLayout', () => {
-    const form = createForm({ initialValues: { a: '' }, fields: { a: { title: '声明标题', description: '说明', decoratorProps: { tooltip: 'tip' } } } })
+    const form = createEngine({ initialValues: { a: '' }, fields: { a: { title: '声明标题', description: '说明', decoratorProps: { tooltip: 'tip' } } } })
     const field = form.binding('a') as FieldBinding<any>
     expect(mapFormItemProps(field, {})).toMatchObject({ label: '声明标题', extra: '说明', tooltip: 'tip' })
     expect(mapFormItemProps(field, { label: '显式', extra: 'x' })).toMatchObject({ label: '显式', extra: 'x' })
@@ -303,7 +304,7 @@ describe('FormItem', () => {
 
 describe('<Field decorator component> (Formily style)', () => {
   it('renders the decorator around the component and passes tuple props', () => {
-    const form = createForm({ initialValues: { email: 'a@b.c' } })
+    const form = createEngine({ initialValues: { email: 'a@b.c' } })
     const html = renderToStaticMarkup(
       <Form form={form}>
         <Field name="email" title="邮箱" description="工作邮箱" required decorator={[FormItem, { tooltip: '提示' }]} component={[Input, { placeholder: 'name@example.com' }]} />
@@ -317,7 +318,7 @@ describe('<Field decorator component> (Formily style)', () => {
   })
 
   it('declares the slots in fields: <Field name /> alone renders them', () => {
-    const form = createForm({
+    const form = createEngine({
       initialValues: { city: 'sh' },
       fields: { city: { title: '城市', decorator: [FormItem], component: [Select, { allowClear: true }], enum: [{ label: '上海', value: 'sh' }] } },
     })
@@ -336,7 +337,7 @@ describe('<Field decorator component> (Formily style)', () => {
         if (vip) d.city.$title = 'VIP 城市'
       })
     })
-    const form = createForm<V>({ initialValues: { kind: 'normal', city: '' }, effects: [effects] })
+    const form = createEngine<V>({ initialValues: { kind: 'normal', city: '' }, effects: [effects] })
     const view = () =>
       renderToStaticMarkup(
         <Form form={form}>
@@ -354,7 +355,7 @@ describe('<Field decorator component> (Formily style)', () => {
   })
 
   it('table cells can use no decorator, or a different one', () => {
-    const form = createForm({ initialValues: { a: 'x', b: 'y' } })
+    const form = createEngine({ initialValues: { a: 'x', b: 'y' } })
     function Cell({ children }: { children?: React.ReactNode }) {
       return <td data-cell>{children}</td>
     }
@@ -370,7 +371,7 @@ describe('<Field decorator component> (Formily style)', () => {
   })
 
   it('keeps the render-prop <Field> working, now with a field context', () => {
-    const form = createForm({ initialValues: { a: 'x' } })
+    const form = createEngine({ initialValues: { a: 'x' } })
     const html = renderToStaticMarkup(
       <Form form={form}>
         <Field name="a" title="A">
@@ -389,7 +390,7 @@ describe('<Field decorator component> (Formily style)', () => {
 
 describe('FormLayout', () => {
   it('is inherited by FormItem; nested layouts and decoratorProps win', () => {
-    const form = createForm({ initialValues: { a: '', b: '' } })
+    const form = createEngine({ initialValues: { a: '', b: '' } })
     const html = renderToStaticMarkup(
       <Form form={form}>
         <FormLayout layout="vertical" colon={false}>
@@ -406,7 +407,7 @@ describe('FormLayout', () => {
   })
 
   it('inline layout and size', () => {
-    const form = createForm({ initialValues: { a: '' } })
+    const form = createEngine({ initialValues: { a: '' } })
     const html = renderToStaticMarkup(
       <Form form={form}>
         <FormLayout layout="inline" size="small">
@@ -450,7 +451,7 @@ describe('connected Ant Design controls', () => {
     expect(el.props.disabled).toBe(true)
     el.props.onChange('blue', options[1])
     expect(form.getValue('x')).toBe('blue')
-    const pretty = createForm({ initialValues: { x: 'blue' }, fields: { x: { enum: options, pattern: 'readPretty' } } })
+    const pretty = createEngine({ initialValues: { x: 'blue' }, fields: { x: { enum: options, pattern: 'readPretty' } } })
     const html = renderToStaticMarkup(<Form form={pretty}><Select name="x" /></Form>)
     expect(html).toContain('蓝')
     expect(html).not.toContain('blue')
@@ -464,7 +465,7 @@ describe('connected Ant Design controls', () => {
       expect(el.props.status).toBeUndefined()
       el.props.onChange(Control === Switch ? true : { target: { type: 'checkbox', checked: true } })
       expect(form.getValue('x')).toBe(true)
-      const pretty = createForm({ initialValues: { x: true, y: false }, fields: { x: { pattern: 'readPretty' }, y: { pattern: 'readPretty' } } })
+      const pretty = createEngine({ initialValues: { x: true, y: false }, fields: { x: { pattern: 'readPretty' }, y: { pattern: 'readPretty' } } })
       const html = renderToStaticMarkup(<Form form={pretty}><Control name="x" /><Control name="y" /></Form>)
       expect(html).toContain(zhCN.yes)
       expect(html).toContain(zhCN.no)
@@ -483,7 +484,7 @@ describe('connected Ant Design controls', () => {
     const r = target(Radio.Group, { field: radio.field })
     r.props.onChange({ target: { type: 'radio', value: 'blue', checked: true } })
     expect(radio.form.getValue('x')).toBe('blue')
-    const pretty = createForm({ initialValues: { x: ['red', 'blue'] }, fields: { x: { enum: options, pattern: 'readPretty' } } })
+    const pretty = createEngine({ initialValues: { x: ['red', 'blue'] }, fields: { x: { enum: options, pattern: 'readPretty' } } })
     const groupHtml = renderToStaticMarkup(<Form form={pretty}><Checkbox.Group name="x" /></Form>)
     expect(groupHtml).toContain('ant-tag')
     expect(groupHtml).toContain('红')
@@ -504,14 +505,14 @@ describe('connected Ant Design controls', () => {
     expect(r.props.value.map((d: any) => d.format('YYYY-MM-DD'))).toEqual(['2026-01-01', '2026-01-31'])
     r.props.onChange([dayjs('2026-02-01'), dayjs('2026-02-02')], ['2026-02-01', '2026-02-02'])
     expect(range.form.getValue('x')).toEqual(['2026-02-01', '2026-02-02'])
-    const pretty = createForm({ initialValues: { x: '2026-10-29', y: ['2026-01-01', '2026-01-31'] }, fields: { x: { pattern: 'readPretty' }, y: { pattern: 'readPretty' } } })
+    const pretty = createEngine({ initialValues: { x: '2026-10-29', y: ['2026-01-01', '2026-01-31'] }, fields: { x: { pattern: 'readPretty' }, y: { pattern: 'readPretty' } } })
     const html = renderToStaticMarkup(<Form form={pretty}><DatePicker name="x" /><DatePicker.RangePicker name="y" /></Form>)
     expect(html).toContain('2026-10-29')
     expect(html).toContain('2026-01-01 ~ 2026-01-31')
   })
 
   it('server-renders every control in a FormItem-decorated <Field>', () => {
-    const form = createForm({
+    const form = createEngine({
       initialValues: { a: 'x', b: 2, c: 'red', d: true, e: true, f: ['red'], g: 'blue', h: '2026-10-29' },
       fields: { c: { enum: options }, f: { enum: options }, g: { enum: options } },
     })

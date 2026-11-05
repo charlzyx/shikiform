@@ -4,36 +4,17 @@
  *
  * @packageDocumentation
  */
-export { createForm, FormEngine } from './engine/form-engine'
+export { createForm } from './engine/create'
 export { defineEffects } from './effects/define-effects'
 export { comboMatch, comboOptions } from './enum/combo'
-export { EnumSource, asOptions, isEnumBinding } from './enum/enum-source'
+export { EnumSource } from './enum/enum-source'
 export type { EnumBinding, EnumConfig, EnumLoadContext, EnumOption } from './enum/enum-source'
 export { ShikiConflictError, ShikiCycleError, ShikiUsageError } from './errors'
-export {
-  collectSchemaIssues,
-  groupSchemaIssues,
-  isStandardSchema,
-  schemaIssuePath,
-} from './validation/schema'
-export type { SchemaIssue, StandardSchemaV1 } from './validation/schema'
-export {
-  findPos,
-  getNode,
-  isPosPrefix,
-  listPositions,
-  locateIds,
-  mapMoveIndex,
-  moveNode,
-  pathOf,
-  posKey,
-  posOf,
-  samePos,
-} from './shared/tree-ops'
+export type { StandardSchemaV1 } from './validation/schema'
+export { moveNode, pathOf, posOf } from './shared/tree-ops'
 export type { Pos, TreeMoveResult } from './shared/tree-ops'
 export { enUS, getDefaultMessages, setDefaultMessages, zhCN } from './validation/messages'
 export type { FormMessageKey, FormMessages, MessageArgs, MessageBase, MessageParams, MessageTemplate, NoParams, TreeMoveParams } from './validation/messages'
-export { normalizeRules, runRules } from './validation/rules'
 export type { Rule, RulesInput, ValidateCtx } from './validation/rules'
 export type {
   ArrayItemOf,

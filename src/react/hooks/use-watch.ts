@@ -1,7 +1,7 @@
 import { useRef, useSyncExternalStore } from 'react'
 import { deepEqual } from '../../core/shared/equal'
 import type { Draft } from '../../core/types'
-import { useFormContext } from '../context'
+import { useRequiredForm } from '../context'
 
 /**
  * Subscribe to the `$` reads inside `select`.
@@ -21,7 +21,7 @@ import { useFormContext } from '../context'
  * Return data, not a new function. The snapshot is cached with {@link deepEqual}.
  */
 export function useWatch<T = any, S = unknown>(select: (d: Draft<T>) => S): S {
-  const form = useFormContext<T>()
+  const form = useRequiredForm<T>('useWatch()')
   const selectRef = useRef(select)
   selectRef.current = select
   const cache = useRef<{ value: S } | null>(null)

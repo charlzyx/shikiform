@@ -1,6 +1,6 @@
 ---
 title: 查询 Hooks 参考
-description: useQueryTable、useBuiltinQuery、normalizeSort / normalizeFilters 的参数、请求协议、分页选择、表头排序筛选和错误边界。
+description: useQueryTable、useBuiltinQuery 的参数、请求协议、分页选择、表头排序筛选和错误边界。
 ---
 
 从 `shikiform/pro` 导入。它们没有 antd 依赖：Hook 处理请求、分页和选择；[QueryList](/reference/pro-components#querylist) 只是 UI。完整场景见 [查询表](/play/query)。
@@ -32,7 +32,7 @@ useQueryTable<TValues, TRow = unknown>(
 
 | 选项 | 默认 | 作用 / 边界 |
 |---|---|---|
-| `form` | 不传则创建表单 | 传入现有 `FormEngine<TValues>`；这时不再用下面三项初始化它 |
+| `form` | 不传则创建表单 | 传入现有表单（`useForm` / `createForm` 的返回值）；这时不再用下面三项初始化它 |
 | `initialValues`、`effects`、`fields` | 同表单创建选项 | 仅用于创建内部表单；后续渲染不重新初始化 |
 | `params` | 整个 `form.values` | 字段路径，或把 values 映射为请求参数的函数；不是 `getSubmitValues()`，不要假定自动排除 virtual |
 | `page` | `'page'` | 页码字段路径；值不存在时初始化为 `1` |
@@ -169,24 +169,6 @@ useBuiltinQuery<TRow>(args: QueryHookArgs<TRow>): QueryHookResult<TRow>
 
 兼容 Hook 接收同样的 `QueryHookArgs`，返回同样的三个属性；库没有安装或导入 `@tanstack/react-query`，也不替应用创建它的 Provider。
 
-## normalizeSort
-
-```ts
-normalizeSort(sorter: TableSorterLike | TableSorterLike[] | null | undefined): QuerySort[]
-// TableSorterLike = { columnKey?, field?, order?: 'ascend' | 'descend' | null }
-```
-
-把 antd `Table` `onChange` 的排序结果（单个或多列）转成 `{ field, order }[]`：`columnKey` 优先，否则用 `field`（`dataIndex`，数组用 `.` 连接）；没有方向的列被丢掉。`onTableChange` / `setSorter` 内部就用它，自己接别的表格时也可以直接调用。
-
-## normalizeFilters
-
-```ts
-normalizeFilters(filters: Record<string, unknown> | null | undefined): QueryFilters
-// QueryFilters = Record<string, (string | number | boolean)[]>
-```
-
-把 antd 的列筛选（`{ status: ['1'], name: null }`）转成只含有选中值的列：`null`、空数组被丢掉，单个值包成数组。`setFilters` 用它判断筛选是否真的变了，没变就不清空选择、不请求。
-
 ## 实现位置
 
-`src/pro/use-query-table.ts` 定义 `useQueryTable`、`useBuiltinQuery`、`normalizeSort`、`normalizeFilters` 和相关类型；导出入口在 `src/pro/index.ts`。UI 的分页/选择接线在 `src/antd/tables/query-list.tsx`，参阅 [QueryList](/reference/pro-components#querylist)。
+`src/pro/use-query-table.ts` 定义 `useQueryTable`、`useBuiltinQuery` 和相关类型；导出入口在 `src/pro/index.ts`。UI 的分页/选择接线在 `src/antd/tables/query-list.tsx`，参阅 [QueryList](/reference/pro-components#querylist)。

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { createForm, type StandardSchemaV1 } from '../src/core'
+import { type StandardSchemaV1 } from '../src/core'
+import { createEngine } from '../src/core/engine/create'
 
 function gate() {
   let open!: () => void
@@ -43,15 +44,14 @@ function deferredSchema(
   }
 }
 
-describe('form schema and resolver generations', () => {
-  for (const kind of ['schema', 'resolver'] as const) {
+describe('form-level validate generations (schema and function)', () => {
+  for (const kind of ['schema', 'function'] as const) {
     it(`${kind}: a slow failure does not overwrite a newer success`, async () => {
       const held = gate()
       const check = deferredCheck(held.promise, 'old-error', null)
-      const form = createForm<{ name: string }>({
+      const form = createEngine<{ name: string }>({
         initialValues: { name: 'old' },
-        validate: kind === 'schema' ? deferredSchema(held.promise, 'old-error', null) : undefined,
-        resolver: kind === 'resolver' ? check : undefined,
+        validate: kind === 'schema' ? deferredSchema(held.promise, 'old-error', null) : check,
       })
       const first = form.validate()
       form.setValue('name', 'new')
@@ -68,10 +68,9 @@ describe('form schema and resolver generations', () => {
     it(`${kind}: a slow success does not clear a newer failure`, async () => {
       const held = gate()
       const check = deferredCheck(held.promise, null, 'new-error')
-      const form = createForm<{ name: string }>({
+      const form = createEngine<{ name: string }>({
         initialValues: { name: 'old' },
-        validate: kind === 'schema' ? deferredSchema(held.promise, null, 'new-error') : undefined,
-        resolver: kind === 'resolver' ? check : undefined,
+        validate: kind === 'schema' ? deferredSchema(held.promise, null, 'new-error') : check,
       })
       const first = form.validate()
       form.setValue('name', 'new')
@@ -87,11 +86,11 @@ describe('form schema and resolver generations', () => {
 
 describe('rules that combine required with other constraints', () => {
   it('reports minLength from the same rule object as required', async () => {
-    const combined = createForm<{ name: string }>({
+    const combined = createEngine<{ name: string }>({
       initialValues: { name: 'x' },
       fields: { name: { rules: [{ required: true, minLength: 6 }] } },
     })
-    const split = createForm<{ name: string }>({
+    const split = createEngine<{ name: string }>({
       initialValues: { name: 'x' },
       fields: { name: { rules: [{ required: true }, { minLength: 6 }] } },
     })
@@ -100,11 +99,11 @@ describe('rules that combine required with other constraints', () => {
   })
 
   it('reports only required when the value is empty (other rules skip empty values)', async () => {
-    const combined = createForm<{ name: string }>({
+    const combined = createEngine<{ name: string }>({
       initialValues: { name: '' },
       fields: { name: { rules: [{ required: true, minLength: 6 }] } },
     })
-    const split = createForm<{ name: string }>({
+    const split = createEngine<{ name: string }>({
       initialValues: { name: '' },
       fields: { name: { rules: [{ required: true }, { minLength: 6 }] } },
     })
@@ -116,7 +115,7 @@ describe('rules that combine required with other constraints', () => {
 
   it('runs a validator that shares a rule with required', async () => {
     let calls = 0
-    const form = createForm<{ name: string }>({
+    const form = createEngine<{ name: string }>({
       initialValues: { name: 'hello' },
       fields: {
         name: {
@@ -140,7 +139,7 @@ describe('rules that combine required with other constraints', () => {
 
 describe('JSX unmount', () => {
   it('clears a JSX-only required error as soon as the field unmounts', async () => {
-    const form = createForm<{ note: string }>({ initialValues: { note: '' } })
+    const form = createEngine<{ note: string }>({ initialValues: { note: '' } })
     form.mountJsxField('note', { required: true })
     await form.validate()
     expect(form.canSubmit).toBe(false)
@@ -151,7 +150,7 @@ describe('JSX unmount', () => {
   })
 
   it('keeps a declared required error when JSX rules unmount', async () => {
-    const form = createForm<{ name: string }>({
+    const form = createEngine<{ name: string }>({
       initialValues: { name: '' },
       fields: { name: { required: true } },
     })
@@ -168,7 +167,7 @@ describe('JSX unmount', () => {
   it('does not let a JSX validator write after unmount', async () => {
     const held = gate()
     let calls = 0
-    const form = createForm<{ note: string }>({ initialValues: { note: 'x' } })
+    const form = createEngine<{ note: string }>({ initialValues: { note: 'x' } })
     form.mountJsxField('note', {
       rules: [
         {
@@ -192,7 +191,7 @@ describe('JSX unmount', () => {
   })
 
   it('leaves an effect rule error in place when JSX unmounts', async () => {
-    const form = createForm<{ title: string }>({ initialValues: { title: 'abc' } })
+    const form = createEngine<{ title: string }>({ initialValues: { title: 'abc' } })
     form.batch((d) => {
       d.title.$rules = [{ minLength: 4, message: '至少四字' }]
     })
@@ -206,7 +205,7 @@ describe('JSX unmount', () => {
 
 describe('wildcard templates after reset and replace', () => {
   it('drops a template instance that reset removed', async () => {
-    const form = createForm<{ rows: { name: string }[] }>({
+    const form = createEngine<{ rows: { name: string }[] }>({
       initialValues: { rows: [] },
       fields: { 'rows.*.name': { required: true } },
     })
@@ -221,7 +220,7 @@ describe('wildcard templates after reset and replace', () => {
   })
 
   it('drops a template instance when the array is replaced with []', async () => {
-    const form = createForm<{ rows: { name: string }[] }>({
+    const form = createEngine<{ rows: { name: string }[] }>({
       initialValues: { rows: [] },
       fields: { 'rows.*.name': { required: true } },
     })
@@ -233,7 +232,7 @@ describe('wildcard templates after reset and replace', () => {
   })
 
   it('still validates rows that reset restored', async () => {
-    const form = createForm<{ rows: { name: string }[] }>({
+    const form = createEngine<{ rows: { name: string }[] }>({
       initialValues: { rows: [{ name: '' }] },
       fields: { 'rows.*.name': { required: true } },
     })
@@ -245,7 +244,7 @@ describe('wildcard templates after reset and replace', () => {
   })
 
   it('keeps removeArray from reporting the removed row', async () => {
-    const form = createForm<{ rows: { name: string }[] }>({
+    const form = createEngine<{ rows: { name: string }[] }>({
       initialValues: { rows: [] },
       fields: { 'rows.*.name': { required: true } },
     })
@@ -255,7 +254,7 @@ describe('wildcard templates after reset and replace', () => {
   })
 
   it('keeps an exact declaration when the array is cleared', async () => {
-    const form = createForm<{ rows: { name: string }[] }>({
+    const form = createEngine<{ rows: { name: string }[] }>({
       initialValues: { rows: [{ name: '' }] },
       fields: {
         'rows.*.name': { required: true },
@@ -268,7 +267,7 @@ describe('wildcard templates after reset and replace', () => {
 
   it('does not write a template error after the row disappears', async () => {
     const held = gate()
-    const form = createForm<{ rows: { name: string }[] }>({
+    const form = createEngine<{ rows: { name: string }[] }>({
       initialValues: { rows: [] },
       fields: {
         'rows.*.name': {

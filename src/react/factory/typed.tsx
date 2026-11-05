@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode } from 'react'
-import type { FormEngine } from '../../core/engine/form-engine'
+import type { FormInstance } from '../../core/types'
 import type { ArrayItemOf, ArrayPath, Draft, FieldPath, PathValue } from '../../core/types'
 import { ArrayField, Field, ObjectField, Watch, type ArrayContainerSlot, type FieldProps } from '../components/fields'
 import { useArrayField, type ArrayHandle, type ArrayKey } from '../hooks/use-array'
@@ -62,8 +62,8 @@ export type TypedForm<T, TRoot = T> = ScopeFields<T> & {
  * root as the second argument (`typed<Row, Values>()`) to type it.
  */
 export function typed<T, TRoot = T>(): TypedForm<T, TRoot>
-export function typed<T>(form: FormEngine<T, any>): TypedForm<T>
-export function typed(_form?: FormEngine<any, any>): TypedForm<any> {
+export function typed<T>(form: FormInstance<T, any>): TypedForm<T>
+export function typed(_form?: FormInstance<any, any>): TypedForm<any> {
   return handles
 }
 

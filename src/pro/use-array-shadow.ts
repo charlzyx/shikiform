@@ -1,6 +1,7 @@
 import { useCallback, useContext } from 'react'
 import { ShikiUsageError } from '../core/errors'
-import type { FormEngine } from '../core/engine/form-engine'
+import { engineOf } from '../core/engine/create'
+import type { FormInstance } from '../core/types'
 import { joinPath } from '../core/shared/path'
 import { FormContext, useScope } from '../react/context'
 import { useShadowForm, type ShadowFormApi, type UseShadowFormOptions } from './use-shadow-form'
@@ -13,7 +14,7 @@ export interface UseArrayShadowOptions<TRow> extends Omit<UseShadowFormOptions<T
    * The host form, for a caller outside `<Form>` (e.g. next to a `QueryList`, which renders its own).
    * `name` is then an absolute path. Default: the surrounding form, `name` relative to the current scope.
    */
-  form?: FormEngine<any>
+  form?: FormInstance<any>
   /** Row id property, as on the array. Used to find the edited row again if it moved while the draft was open. */
   rowKey?: string
   /**
@@ -42,7 +43,7 @@ export interface ArrayShadowApi<TRow> extends ShadowFormApi<TRow, ArrayShadowCon
 export function useArrayShadow<TRow = Record<string, any>>(name: string, options: UseArrayShadowOptions<TRow> = {}): ArrayShadowApi<TRow> {
   const context = useContext(FormContext)
   const scope = useScope()
-  const form = options.form ?? context
+  const form = options.form ? engineOf(options.form) : context
   if (!form) {
     if (process.env.NODE_ENV !== 'production') {
       throw new ShikiUsageError('useArrayShadow needs a surrounding <Form> or a `form` option.')

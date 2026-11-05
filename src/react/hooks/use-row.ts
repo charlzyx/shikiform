@@ -2,7 +2,7 @@ import { useCallback } from 'react'
 import type { MoveResult } from '../../core/types'
 import type { Pos } from '../../core/shared/tree-ops'
 import type { Draft } from '../../core/types'
-import { useFormContext, useScope } from '../context'
+import { useRequiredForm, useScope } from '../context'
 import { useDragProps, type DragProps } from './drag'
 import { useWatch } from './use-watch'
 import { ShikiUsageError } from '../../core/errors'
@@ -27,7 +27,7 @@ export function useIndex(): number {
  * this row changes, and follows the row when it moves. Throws outside a row (or tree node).
  */
 export function useRecord<TRow = any>(): TRow {
-  const form = useFormContext()
+  const form = useRequiredForm('useRecord() / useTreeNode()')
   const scope = useScope()
   if (scope.index < 0 && !scope.pos) {
     if (process.env.NODE_ENV !== 'production') {
@@ -65,7 +65,7 @@ export function useTreeNode<TNode = any>(): {
     }
     throw new Error('useTreeNode() must render inside a tree node (<RowScope path pos>)')
   }
-  const form = useFormContext()
+  const form = useRequiredForm('useRecord() / useTreeNode()')
   const record = useRecord<TNode>()
   const pos = scope.pos as Pos
   const path = scope.path

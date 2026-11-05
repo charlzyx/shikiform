@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { createForm, defineEffects } from '../src/core'
+import { defineEffects } from '../src/core'
+import { createEngine } from '../src/core/engine/create'
 
 describe('declared fields and unmounted rules', () => {
   it('validates a declared field that was never mounted', async () => {
-    const form = createForm<{ name: string; code: string }>({
+    const form = createEngine<{ name: string; code: string }>({
       initialValues: { name: 'ada', code: '' },
       fields: {
         name: { required: true },
@@ -15,7 +16,7 @@ describe('declared fields and unmounted rules', () => {
   })
 
   it('keeps registerField rules after a JSX rule is released', async () => {
-    const form = createForm<{ code: string }>({ initialValues: { code: 'ab' } })
+    const form = createEngine<{ code: string }>({ initialValues: { code: 'ab' } })
     form.registerField('code', { required: true })
     form.mountJsxField('code', { rules: [{ minLength: 3, message: '太短' }] })
     expect((await form.validate()).map((error) => error.messages).flat()).toContain('太短')
@@ -26,7 +27,7 @@ describe('declared fields and unmounted rules', () => {
   })
 
   it('drops JSX-only rules on release', async () => {
-    const form = createForm<{ note: string }>({ initialValues: { note: '' } })
+    const form = createEngine<{ note: string }>({ initialValues: { note: '' } })
     form.mountJsxField('note', { required: true })
     expect((await form.validate()).map((error) => error.path)).toEqual(['note'])
     form.releaseJsxField('note')
@@ -34,7 +35,7 @@ describe('declared fields and unmounted rules', () => {
   })
 
   it('does not let JSX rules or unmount replace $rules', async () => {
-    const form = createForm<{ title: string }>({ initialValues: { title: 'abcd' } })
+    const form = createEngine<{ title: string }>({ initialValues: { title: 'abcd' } })
     form.batch((d) => {
       d.title.$rules = [{ minLength: 4, message: '至少四字' }]
     })
@@ -46,7 +47,7 @@ describe('declared fields and unmounted rules', () => {
   })
 
   it('applies an item template to every row, including ones that are not mounted', async () => {
-    const form = createForm<{ rows: { name: string }[] }>({
+    const form = createEngine<{ rows: { name: string }[] }>({
       initialValues: { rows: [{ name: '' }, { name: 'ada' }, { name: '' }] },
       fields: { 'rows.*.name': { required: true } },
     })
@@ -55,7 +56,7 @@ describe('declared fields and unmounted rules', () => {
   })
 
   it('gives a pushed row the item template', async () => {
-    const form = createForm<{ rows: { name: string }[] }>({
+    const form = createEngine<{ rows: { name: string }[] }>({
       initialValues: { rows: [] },
       fields: { 'rows.*.name': { required: true } },
     })
@@ -64,7 +65,7 @@ describe('declared fields and unmounted rules', () => {
   })
 
   it('lets an exact path and $rules win over the item template', async () => {
-    const form = createForm<{ rows: { name: string }[] }>({
+    const form = createEngine<{ rows: { name: string }[] }>({
       initialValues: { rows: [{ name: '' }, { name: 'abc' }] },
       fields: {
         'rows.*.name': { required: true, rules: [{ minLength: 4, message: '太短' }] },
@@ -85,7 +86,7 @@ describe('declared fields and unmounted rules', () => {
   })
 
   it('restores the item template when a JSX rule unmounts', async () => {
-    const form = createForm<{ rows: { qty: string }[] }>({
+    const form = createEngine<{ rows: { qty: string }[] }>({
       initialValues: { rows: [{ qty: '' }, { qty: '' }] },
       fields: { 'rows.*.qty': { required: true } },
     })
@@ -101,7 +102,7 @@ describe('declared fields and unmounted rules', () => {
   })
 
   it('covers every row when reaction.each writes $rules', async () => {
-    const form = createForm<{ rows: { name: string }[] }>({
+    const form = createEngine<{ rows: { name: string }[] }>({
       initialValues: { rows: [{ name: '' }, { name: '' }, { name: 'ok' }] },
       effects: [
         defineEffects<{ rows: { name: string }[] }>(({ reaction }) => {
@@ -118,7 +119,7 @@ describe('declared fields and unmounted rules', () => {
   })
 
   it('still validates hidden declared fields and skips none, including descendants', async () => {
-    const form = createForm<{
+    const form = createEngine<{
       nick: string
       ghost: string
       box: { items: { name: string }[] }

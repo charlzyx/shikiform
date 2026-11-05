@@ -8,6 +8,7 @@ import { scopeOf, type Pos } from '../shared/tree-ops'
 import type { FieldError, FormOptions, SubmitResult, ValidateTrigger } from '../types'
 import { formatMessage, type FormMessageKey, type MessageArgs, type MessageParams } from './messages'
 import { fieldSchemaIssues, optionIncludes, runRules, type ValidateCtx } from './rules'
+import { runWarningRules } from './warnings'
 import { collectSchemaIssues, groupSchemaIssues, isStandardSchema, schemaIssuePath, type SchemaIssue, type StandardSchemaV1 } from './schema'
 
 export interface ValidatorDeps {
@@ -20,13 +21,13 @@ export interface ValidatorDeps {
 }
 
 /**
- * The validation pipeline: per-field rules (sync, async, Standard Schema), form-level schema / resolver,
+ * The validation pipeline: per-field rules (sync, async, Standard Schema), form-level `validate`,
  * debounce, stale-result dropping, and where messages land (`errors` vs `schemaErrors`).
  *
  * Per field: `rules` + `required` → `runRules` (sync messages + pending promises) and field schemas.
  * A pass is generation-stamped (`validateGen`); only the newest pass commits form-level issues.
  * A pass reads ONE immutable snapshot of `store.values` (writes replace the object), taken after `prepare`:
- * every field rule (value, ctx.record/root/parent/array/get) and the form-level schema / resolver see it (#1).
+ * every field rule (value, ctx.record/root/parent/array/get) and the form-level `validate` see it (#1).
  * A field's async result is stamped with `asyncSeq` and its `AbortController`; a newer edit aborts it.
  * Abort removes that attempt from {@link Validator.inflight} immediately, so `waitAsync` / `submit` do not
  * wait for a validator that only clears a timer. A later resolve or reject does not write field errors.
@@ -34,7 +35,7 @@ export interface ValidatorDeps {
  * Built-in messages (enum, fallback) resolve through `options.messages`, then the app defaults (#44).
  */
 export class Validator {
-  /** Form-level schema / resolver / field-schema messages by path. */
+  /** Form-level `validate` / field-schema messages by path. */
   schemaByPath = new Map<string, string[]>()
   /** Bumped at the start of each {@link Validator.validate}. Only the latest pass may commit. */
   validateGen = 0
@@ -138,11 +139,6 @@ export class Validator {
         if (gen !== this.validateGen) return scoped()
         collected.push(...recordToIssues(extra))
       }
-      if (options.resolver) {
-        const extra = await options.resolver(values)
-        if (gen !== this.validateGen) return scoped()
-        collected.push(...recordToIssues(extra))
-      }
       if (gen !== this.validateGen) return scoped()
       this.commitSchemaIssues(path, collected, preserve)
       await this.waitAsync()
@@ -218,6 +214,7 @@ export class Validator {
     if (!field) return { stale: false, issues: [] }
     if (store.effectiveDisplay(path) === 'none' || field.computed) {
       this.setErrors(path, [])
+      this.setWarnings(path, [])
       return { stale: false, issues: [] }
     }
     field.abort?.abort()
@@ -226,7 +223,9 @@ export class Validator {
     const seq = ++field.asyncSeq
     const value = getAt(values, path)
     const ctx = this.buildCtx(path, value, this.deps.readPos(path) ?? undefined, values, ac.signal)
-    const rules = field.rules.slice()
+    // `level: 'warning'` rules report to `$warnings` / `binding.warnings`: shown, never blocking submit.
+    const rules = field.rules.filter((rule) => rule.level !== 'warning')
+    const warnRules = field.rules.filter((rule) => rule.level === 'warning')
     if (options.enumPolicy === 'error' && field.enumOptions && !optionIncludes(field.enumOptions, value)) {
       const enumMessage = this.message('enum', { path, value, options: field.enumOptions })
       rules.push({ validator: () => enumMessage })
@@ -235,6 +234,7 @@ export class Validator {
     const { messages, pending } = runRules(value, plain, ctx, field.required, options.messages)
     const fallback = (issuePath: string) =>
       this.message('fallback', { path: issuePath ? `${path}.${issuePath}` : path, value: issuePath ? getAt(value, issuePath) : value, error: undefined })
+    const warned = runWarningRules(value, warnRules, ctx, options.messages, (err) => this.errorMessage(err, path, value), fallback)
     const issues: SchemaIssue[] = []
     const schemaPending: Promise<SchemaIssue[]>[] = []
     for (const rule of rules) {
@@ -271,15 +271,16 @@ export class Validator {
         )
       }
     }
-    const apply = (extra: string[]) => {
+    const apply = (extra: string[], extraWarnings: string[] = []) => {
       if (field.asyncSeq !== seq || ac.signal.aborted) return { stale: true as const, issues: [] as SchemaIssue[] }
       const was = field.validating
       field.validating = false
+      this.setWarnings(path, [...warned.messages, ...extraWarnings])
       this.setErrors(path, [...messages, ...extra])
       if (was) scheduler.bumpMeta()
       return { stale: false as const, issues }
     }
-    if (!pending.length && !schemaPending.length) return apply([])
+    if (!pending.length && !schemaPending.length && !warned.pending.length) return apply([])
     field.validating = true
     notifier.bumpPath(path)
     scheduler.bumpMeta()
@@ -288,7 +289,9 @@ export class Validator {
       // A validator we stop awaiting (abort mid-list) must not reject unhandled.
       for (const item of pending) ignoreRejection(item)
       for (const item of schemaPending) ignoreRejection(item)
+      for (const item of warned.pending) ignoreRejection(item)
       const extra: string[] = []
+      const extraWarnings: string[] = []
       for (const item of pending) {
         const outcome = await settleUnlessAborted(item, ac.signal)
         if (outcome.status === 'aborted' || field.asyncSeq !== seq || ac.signal.aborted) return stale()
@@ -301,7 +304,12 @@ export class Validator {
         if (outcome.status === 'rejected') issues.push({ path, message: this.errorMessage(outcome.reason, path, value) })
         else issues.push(...outcome.value)
       }
-      return apply(extra)
+      for (const item of warned.pending) {
+        const outcome = await settleUnlessAborted(item, ac.signal)
+        if (outcome.status === 'aborted' || field.asyncSeq !== seq || ac.signal.aborted) return stale()
+        if (outcome.status === 'fulfilled') extraWarnings.push(...outcome.value)
+      }
+      return apply(extra, extraWarnings)
     })()
     this.trackInflight(task, ac.signal)
     return task
@@ -349,7 +357,7 @@ export class Validator {
 
   /**
    * A pass nobody awaits (trigger, debounce timer, JSX release). Field rules never reject a pass; a throwing
-   * form-level `validate` / `resolver` or a reaction error still could, so it is reported instead of being
+   * form-level `validate` or a reaction error still could, so it is reported instead of being
    * left as an unhandled rejection. Awaited `validate()` / `submit()` pass those errors to the caller.
    */
   validateDetached(path: string): void {
@@ -382,18 +390,16 @@ export class Validator {
     if (!field) return
     if (this.store.effectiveDisplay(path) === 'none' || field.computed) {
       this.setErrors(path, [])
+      this.setWarnings(path, [])
       return
     }
     const values = this.store.values
     const value = getAt(values, path)
     const ctx = this.buildCtx(path, value, this.deps.readPos(path), values)
-    const { messages } = runRules(
-      value,
-      field.rules.filter((rule) => !rule.schema).map((rule) => ({ ...rule, validator: undefined })),
-      ctx,
-      field.required,
-      this.deps.options.messages,
-    )
+    const builtins = field.rules.filter((rule) => !rule.schema).map((rule) => ({ ...rule, validator: undefined }))
+    const { messages } = runRules(value, builtins.filter((rule) => rule.level !== 'warning'), ctx, field.required, this.deps.options.messages)
+    const warnings = runRules(value, builtins.filter((rule) => rule.level === 'warning'), ctx, false, this.deps.options.messages)
+    this.setWarnings(path, warnings.messages)
     this.setErrors(path, messages)
   }
 
@@ -462,7 +468,7 @@ export class Validator {
       if (deepEqual(field.schemaErrors, messages)) continue
       field.schemaErrors = messages.slice()
       notifier.bumpPath(path)
-      this.markErrorDeps(path)
+      this.markChain(path, 'errors')
       changed = true
     }
     if (!changed) return
@@ -479,11 +485,25 @@ export class Validator {
       if (fieldPath !== path && !fieldPath.startsWith(path + '.')) continue
       if (this.store.effectiveDisplay(fieldPath) !== 'none') continue
       this.setErrors(fieldPath, [])
+      this.setWarnings(fieldPath, [])
       field.schemaErrors = []
       this.schemaByPath.delete(fieldPath)
       this.deps.notifier.bumpPath(fieldPath)
     }
     this.deps.scheduler.bumpMeta()
+  }
+
+  /** `level: 'warning'` messages of one field (`$warnings`, `binding.warnings`). They never block `canSubmit`. */
+  setWarnings(path: string, messages: string[]): void {
+    const field = this.store.get(path)
+    if (!field || deepEqual(field.warnings, messages)) return
+    field.warnings = messages
+    this.deps.notifier.bumpPath(path)
+    this.markChain(path, 'warnings')
+    if (!this.deps.scheduler.flushing) {
+      this.deps.scheduler.enqueueFromDirty()
+      this.deps.scheduler.flush()
+    }
   }
 
   setErrors(path: string, messages: string[]): void {
@@ -492,7 +512,7 @@ export class Validator {
     if (deepEqual(field.errors, messages)) return
     field.errors = messages
     notifier.bumpPath(path)
-    this.markErrorDeps(path)
+    this.markChain(path, 'errors')
     scheduler.bumpMeta()
     if (!scheduler.flushing) {
       scheduler.enqueueFromDirty()
@@ -546,6 +566,7 @@ export class Validator {
     this.clearSchemaMessages(path)
     for (const [fieldPath] of this.store.fields) {
       if (path && fieldPath !== path && !fieldPath.startsWith(path + '.')) continue
+      this.setWarnings(fieldPath, [])
       this.setErrors(fieldPath, [])
     }
     const { scheduler } = this.deps
@@ -564,7 +585,7 @@ export class Validator {
   private afterErrorChange(path: string, flush = true): void {
     const { notifier, scheduler } = this.deps
     notifier.bumpPath(path)
-    this.markErrorDeps(path)
+    this.markChain(path, 'errors')
     scheduler.bumpMeta()
     if (flush && !scheduler.flushing) {
       scheduler.enqueueFromDirty()
@@ -586,14 +607,11 @@ export class Validator {
   }
 
   /** Field errors plus the root `:errors` dep, so `d.$errors` updates for a top-level field too. */
-  private markErrorDeps(path: string): void {
+  /** Mark `<path>:<kind>` on the path, its ancestors and the root (`$errors` / `$warnings` aggregate descendants). */
+  private markChain(path: string, kind: 'errors' | 'warnings'): void {
     const scheduler = this.deps.scheduler
-    let cursor: string | null = path
-    while (cursor) {
-      scheduler.markDirty(`${cursor}:errors`)
-      cursor = parentPath(cursor)
-    }
-    scheduler.markDirty(':errors')
+    for (let cursor: string | null = path; cursor; cursor = parentPath(cursor)) scheduler.markDirty(`${cursor}:${kind}`)
+    scheduler.markDirty(`:${kind}`)
   }
 }
 

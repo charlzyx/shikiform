@@ -3,7 +3,8 @@ import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@t
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createForm, Field, Form } from '../src'
 import { CascaderPlus, FormItem, Input, PreviewText, QueryList, Select } from '../src/antd'
-import { cascaderPaths, enumItems, useCascaderLabels, useColumnSettings, useLazyCascader, useQueryTable, useSuggestion, type CascaderOption } from '../src/pro'
+import { enumItems, useCascaderLabels, useColumnSettings, useLazyCascader, useQueryTable, useSuggestion, type CascaderOption } from '../src/pro'
+import { cascaderPaths } from '../src/pro/use-lazy-cascader'
 
 afterEach(() => {
   cleanup()

@@ -29,8 +29,6 @@ export interface UIProps {
   component?: FieldSlot
   /** Wrapper (`decorator={[FormItem]}`: `title` → label, `description` → extra). */
   decorator?: FieldSlot
-  componentProps?: Record<string, any>
-  decoratorProps?: Record<string, any>
   title?: ReactNode
   description?: ReactNode
   /** Initial display when no reaction wrote `$visible` / `$display` (default: the scope's). */

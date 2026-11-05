@@ -169,7 +169,8 @@ const form = createForm({
 <F.Field name="files" decorator={[FormItem]} component={[Upload, { action: '/upload' }]} />   // value = fileList
 const form = useForm<Detail>({ initialValues, pattern: 'readPretty' })   // a detail page: every control reads
 ```
-- Slots take a component or `[Component, props]`; children (`<Field …><Input /></Field>`) or a render prop also work.
+- Slots take a component or `[Component, props]`; the tuple's props are the JSX layer of `componentProps` / `decoratorProps`
+  (there are no separate `componentProps` / `decoratorProps` JSX props). Children (`<Field …><Input /></Field>`) or a render prop also work.
 - Table cells can drop the decorator (`<Field name="qty" component={[InputNumber]} />`) or use another one.
 - `FormItem` outside a field is pure layout: `<FormItem label="地址" asterisk>…two Fields, each `decorator={[FormItem]}`…</FormItem>`.
   A label-less `FormItem` takes no `labelCol` / `wrapperCol` / `labelWidth` from `FormLayout` (Formily), so the inner
@@ -241,6 +242,8 @@ reaction((d) => {
   Enter, `type="submit"`, and `form.submit(onValid)` behave the same; do not add a second `<form>`.
 - Buttons (`shikiform/antd`): `<Submit />` (native submit for `<Form onSubmit>`; disabled while `$canSubmit` is false,
   loading while submitting) and `<Reset />` (`form.reset()`). `<Submit onSubmit={fn}>` submits on click by itself.
+- A rule with `level: 'warning'` (`{ validator: weak, level: 'warning' }`) reports to `$warnings` / `field.warnings`
+  (FormItem shows it in the warning colour) and never blocks `submit` / `canSubmit` (antd `warningOnly`).
 - Built-in messages default to Chinese. Override per form with `messages` (partial; functions get params:
   `minLength: ({ minLength }) => …`), app-wide with `setDefaultMessages(enUS)`. A rule's own `message` wins. The same `messages` cover `moveTree` refusal reasons
   and every `shikiform/antd` label (提交 / 重置 / 查询 / 删除 …); a component's own prop (`title`, `okText`) wins.
@@ -317,6 +320,10 @@ reaction((d) => { d.city.$componentProps.disabled = d.kind.$value === 'b' })    
 
 ## 9. Form state: dirty, backfill, server errors
 
+- `useForm()` / `createForm()` return a `FormInstance`: state getters, `getValue` / `setValue` / `batch`, `submit` /
+  `validate` / `reset` / `setInitialValues` / `getSubmitValues`, `setErrors` / `clearErrors`, array / tree ops, `message`,
+  `subscribe*`. Nothing else: there is no `binding()` / `query()` / `registerField()` on it (declare in `fields`, read in a
+  reaction or `useWatch`).
 - `form.values`, `submitting`, `dirty`, `submitCount`, `validating` are read-only getters. Write values with
   `setValue` / `batch` / array ops, never `form.values = x` (a TS error, and a `TypeError` at runtime).
 - `dirty` / `$dirty` / `binding.dirty` = the value differs from `initial` (deep compare; changing it back clears it;
@@ -324,7 +331,7 @@ reaction((d) => { d.city.$componentProps.disabled = d.kind.$value === 'b' })    
 - Edit page: `useForm({ values: record })` resets to `record` whenever its content changes (new baseline, not dirty;
   `initialValues` is read once). Without React, `form.reset(record)` does the same; a later `reset()` returns to it.
   After a save, `form.setInitialValues(form.values)` moves the baseline without changing values.
-- Server errors: `form.setErrors({ username: '已存在', '': '服务器繁忙' })` (or `setFieldError(path, msg)`). They show
+- Server errors: `form.setErrors({ username: '已存在', '': '服务器繁忙' })` (`{ username: null }` clears one). They show
   with rule errors and block `canSubmit` until that value (or one above / below it) changes, the field validates again
   (every `submit` does), or `reset` / `clearErrors(path?)`.
 

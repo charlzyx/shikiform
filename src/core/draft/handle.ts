@@ -57,8 +57,8 @@ const WRITABLE = new Set([
 
 /** How to change a read-only state instead. */
 const READ_ONLY_HINT: Record<string, string> = {
-  $errors: 'Use rules / $rules, or form.setErrors(path, messages) for server errors.',
-  $warnings: 'Use a rule with level: "warning".',
+  $errors: "Use rules / $rules, or form.setErrors({ [path]: message }) for server errors.",
+  $warnings: "Use a rule with level: 'warning' (rules={{ validator, level: 'warning' }}).",
   $touched: 'It follows blur; form.reset() clears it.',
   $dirty: 'It compares the value with the initial value; form.reset(values) moves the baseline.',
   $edited: 'It follows user edits; form.reset() clears it.',

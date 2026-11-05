@@ -2,7 +2,8 @@
 import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { Form, RowScope, TreeField, useField, useForm, useTreeNode } from '../src'
-import type { FormEngine } from '../src/core'
+import type { FormInstance } from '../src'
+
 
 afterEach(cleanup)
 
@@ -31,7 +32,7 @@ function Branch({ path, nodes, pos }: { path: string; nodes: Node[]; pos: number
 /** arrays example「树：跨层移动」: a node's error follows its id when another node is moved in front of it. */
 describe('JSX validation lease across a tree move', () => {
   it('a sibling shifting onto the old path does not release the moved node rules', async () => {
-    let form!: FormEngine<Values>
+    let form!: FormInstance<Values>
     let move!: (from: number[], to: number[]) => unknown
     function App() {
       form = useForm<Values>({

@@ -3,8 +3,9 @@ import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { Button, Space } from 'antd'
 import { useState } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { ArrayField, createForm, Field, Form, type FormEngine } from '../src'
+import { ArrayField, createForm, Field, Form } from '../src'
 import { ArrayItems, ArrayTable, FormCollapse, FormItem, FormStep, FormTab, Input, Submit, useFormStep, type FormStepHandle } from '../src/antd'
+import type { FormInstance } from '../src'
 
 afterEach(cleanup)
 const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 30)))
@@ -39,7 +40,7 @@ describe('form.subscribeValidateFailed', () => {
   })
 })
 
-function TabForm({ form, activeKey, onChange }: { form: FormEngine<Values>; activeKey?: string; onChange?: (key: string) => void }) {
+function TabForm({ form, activeKey, onChange }: { form: FormInstance<Values>; activeKey?: string; onChange?: (key: string) => void }) {
   return (
     <Form form={form} id="tabs">
       <FormTab activeKey={activeKey} onChange={onChange}>
@@ -146,7 +147,7 @@ describe('containers reveal the first error', () => {
   })
 
   let handle: FormStepHandle | undefined
-  function Wizard({ form }: { form: FormEngine<Values> }) {
+  function Wizard({ form }: { form: FormInstance<Values> }) {
     const step = useFormStep()
     handle = step
     return (
@@ -183,7 +184,7 @@ describe('containers reveal the first error', () => {
 })
 
 describe('pure-layout FormItem shows the errors inside it', () => {
-  function Layout({ form, innerFeedback }: { form: FormEngine<Values>; innerFeedback?: 'none' }) {
+  function Layout({ form, innerFeedback }: { form: FormInstance<Values>; innerFeedback?: 'none' }) {
     return (
       <Form form={form} id="layout">
         <FormItem label="日期" data-testid="range">
@@ -271,7 +272,7 @@ describe('pure-layout FormItem shows the errors inside it', () => {
 })
 
 describe('array row actions follow the pattern', () => {
-  function Table({ form }: { form: FormEngine<{ list: { a: string }[] }> }) {
+  function Table({ form }: { form: FormInstance<{ list: { a: string }[] }> }) {
     const [pattern, setPattern] = useState<'editable' | 'readPretty'>('editable')
     return (
       <Form form={form}>

@@ -3,7 +3,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { Field, Form, ObjectField } from '../src/react/components/fields'
 import { useForm } from '../src/react/hooks/use-form'
 import { useField } from '../src/react/hooks/use-field'
-import type { FormEngine } from '../src/core/engine/form-engine'
+import type { FormInstance } from '../src/core/types'
+import { engineOf } from '../src/core/engine/create'
 
 function Input() {
   const field = useField<string>()
@@ -12,7 +13,7 @@ function Input() {
 
 describe('<Field> as the one field controller', () => {
   it.each(['hidden', 'none'] as const)('does not render a %s field but preserves declared validation', async (display) => {
-    let engine!: FormEngine<{ email: string }>
+    let engine!: FormInstance<{ email: string }>
     function App() {
       const form = useForm({ initialValues: { email: '' }, fields: { email: { required: true, display } } })
       engine = form
@@ -30,7 +31,7 @@ describe('<Field> as the one field controller', () => {
     }
     function App() {
       const form = useForm({ initialValues: { address: { city: 'Shanghai' } } })
-      mount = vi.spyOn(form, 'mountJsxField')
+      mount = vi.spyOn(engineOf(form), 'mountJsxField')
       return <Form form={form}><ObjectField name="address"><Address /></ObjectField></Form>
     }
     const html = renderToStaticMarkup(<App />)

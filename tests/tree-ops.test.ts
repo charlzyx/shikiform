@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { findPos, getNode, listPositions, locateIds, mapMoveIndex, posKey, samePos } from '../src/core'
+import { findPos, getNode, listPositions, locateIds, mapMoveIndex, posKey, samePos } from '../src/core/shared/tree-ops'
+
 
 type Node = { id: string; name?: string; children?: Node[] }
 

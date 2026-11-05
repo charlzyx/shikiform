@@ -242,11 +242,6 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     this.validator.setExternalMany(errorEntries(errors as Record<string, string | string[] | null | undefined> | FieldError[]))
   }
 
-  /** One field's external messages. Same lifetime as {@link FormEngine.setErrors}. `''` is the form root. `null` clears the path's external messages. */
-  setFieldError(path: FieldPath<T> | '', messages: string | string[] | null): void {
-    this.setErrors({ [path]: messages } as never)
-  }
-
   /** Clear every message (rule, schema, external) on `path` and its descendants, or on the whole form. Values are untouched. */
   clearErrors(path?: FieldPath<T>): void {
     this.validator.clearAll(path ? String(path) : undefined)
@@ -262,7 +257,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
    * Declared fields, `registerField`, `$rules`, and item templates are included even if no `<Field>` is mounted.
    * JSX rules count only while mounted. Display `none` skips the field. `hidden` does not.
    * The form-level schema always runs. A scoped call replaces schema issues under `path` only.
-   * A newer `validate` supersedes an in-flight form schema or resolver; the older pass does not write errors.
+   * A newer `validate` supersedes an in-flight form-level `validate`; the older pass does not write errors.
    * Pass an array to validate several paths (and their descendants) in one pass: `validate(['name', 'address'])`.
    */
   validate(path?: FieldPath<T> | readonly FieldPath<T>[]): Promise<FieldError[]> {
@@ -678,21 +673,4 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
 
   /** @internal React has mounted: writes to UI names that never mount warn from now on (once each). */
   markUiReady(): void { this.uiNodes.markReady() }
-}
-
-/**
- * Create a form engine. No React.
- *
- * `T` is inferred from `initialValues`. `getValue`, `setValue`, and `batch` then use that type.
- * `fields` declares models that validate even when no `<Field>` is mounted.
- * A key such as `rows.*.name` is an item template copied onto every current index.
- *
- * @example
- * const form = createForm({
- *   initialValues: { code: '', rows: [{ name: '' }] },
- *   fields: { code: { required: true }, 'rows.*.name': { required: true } },
- * })
- */
-export function createForm<T, TSubmit = T>(options: FormOptions<T> = {}): FormEngine<T, TSubmit> {
-  return new FormEngine<T, TSubmit>(options)
 }

@@ -50,6 +50,12 @@ export interface Rule {
    * A newer edit aborts the previous `AbortSignal` and drops a late result when `asyncDebounceMs` is set.
    */
   validator?: (value: unknown, ctx: ValidateCtx) => RuleMessage
+  /**
+   * `'warning'`: this rule's messages go to `$warnings` / `binding.warnings` (FormItem shows them in the warning
+   * colour) instead of `$errors`. A warning never blocks `submit` or `canSubmit` (antd `warningOnly`), e.g. a weak
+   * password: `{ validator: weak, level: 'warning' }`. Default `'error'`.
+   */
+  level?: 'error' | 'warning'
 }
 
 /**

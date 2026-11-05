@@ -5,6 +5,7 @@ import { ArrayField, Field, Form, ObjectField, createForm, useField, useForm } f
 import { ShikiUsageError } from '../src/core'
 import { FormItem, Input, ArrayTable, Submit } from '../src/antd'
 import { withReaction } from './fixtures/reaction-utils'
+import { createEngine, engineOf } from '../src/core/engine/create'
 
 afterEach(cleanup)
 
@@ -47,8 +48,8 @@ describe('draft typos and read-only writes throw in development', () => {
       d.email.$componentProps.placeholder = 'p'
     })()
     expect(form.getValue('email')).toBe('x')
-    expect(form.query('email').$required).toBe(true)
-    expect(form.query('email').$title).toBe('Email')
+    expect(engineOf(form).query('email').$required).toBe(true)
+    expect(engineOf(form).query('email').$title).toBe('Email')
   })
 })
 
@@ -95,15 +96,15 @@ describe('an error on screen is re-checked on change', () => {
   })
 
   it('a field without errors still waits for its trigger (no validation while typing the first time)', async () => {
-    const form = createForm<any>({ initialValues: { name: '' } })
+    const form = createEngine<any>({ initialValues: { name: '' } })
     form.registerField('name', { rules: [{ minLength: 3 }] })
     form.setValue('name', 'a')
     await new Promise((r) => setTimeout(r, 10))
-    expect(form.query('name').$errors).toEqual([])
+    expect(engineOf(form).query('name').$errors).toEqual([])
     await form.validate('name')
-    expect(form.query('name').$errors.length).toBe(1)
+    expect(engineOf(form).query('name').$errors.length).toBe(1)
     form.setValue('name', 'abcd')
     await new Promise((r) => setTimeout(r, 10))
-    expect(form.query('name').$errors).toEqual([])
+    expect(engineOf(form).query('name').$errors).toEqual([])
   })
 })

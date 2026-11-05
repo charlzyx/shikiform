@@ -1,8 +1,9 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createForm, defineEffects } from '../src'
+import { defineEffects } from '../src'
 import { SignupForm, type Signup } from './fixtures/signup-form'
+import { createEngine } from '../src/core/engine/create'
 
 afterEach(cleanup)
 const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 30)))
@@ -51,7 +52,7 @@ describe('self-review: realistic signup form', () => {
 
 describe('root draft pattern / display', () => {
   it('d.$pattern on the root is inherited by every field; a field with its own pattern wins; undefined clears', () => {
-    const form = createForm({ initialValues: { a: '', b: { c: '' } }, fields: { a: { pattern: 'editable' } } })
+    const form = createEngine({ initialValues: { a: '', b: { c: '' } }, fields: { a: { pattern: 'editable' } } })
     form.batch((d) => { d.$pattern = 'disabled' })
     expect(form.binding('b.c').pattern).toBe('disabled')
     expect(form.binding('a').pattern).toBe('editable')
@@ -62,13 +63,13 @@ describe('root draft pattern / display', () => {
   it('a reaction reading a field pattern re-runs when the root pattern changes', () => {
     const seen: string[] = []
     const effects = defineEffects<{ a: string }>(({ reaction }) => reaction((d) => { seen.push(d.a.$pattern ?? '') }))
-    const form = createForm({ initialValues: { a: '' }, effects: [effects] })
+    const form = createEngine({ initialValues: { a: '' }, effects: [effects] })
     form.batch((d) => { d.$pattern = 'readPretty' })
     expect(seen.at(-1)).toBe('readPretty')
   })
 
   it('empty values pass length / pattern / range constraints; required still reports them', async () => {
-    const form = createForm({ initialValues: { a: '', b: '' } })
+    const form = createEngine({ initialValues: { a: '', b: '' } })
     form.registerField('a', { rules: [{ minLength: 3 }, { pattern: /^\d+$/ }] })
     form.registerField('b', { rules: [{ required: true, minLength: 3 }] })
     await form.validate()

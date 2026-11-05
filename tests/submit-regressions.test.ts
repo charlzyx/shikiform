@@ -8,7 +8,7 @@ function gate() {
 }
 
 describe('submit validates the values it returns (#6)', () => {
-  for (const kind of ['schema', 'resolver', 'function'] as const) {
+  for (const kind of ['schema', 'function'] as const) {
     it(`${kind}: re-validates an edit made during validation instead of submitting unvalidated values`, async () => {
       const entered = gate()
       const held = gate()
@@ -34,7 +34,6 @@ describe('submit validates the values it returns (#6)', () => {
       const form = createForm<{ name: string }>({
         initialValues: { name: 'valid' },
         validate: kind === 'schema' ? schema : kind === 'function' ? check : undefined,
-        resolver: kind === 'resolver' ? check : undefined,
       })
       const onValid = vi.fn()
       const pending = form.submit(onValid)

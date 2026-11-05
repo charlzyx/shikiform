@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createForm } from '../src/core'
+import { createEngine } from '../src/core/engine/create'
 
 // Let the queued restoration and its promises finish, including Node's
 // unhandled-rejection checkpoint. No real request or browser mount is involved.
@@ -16,7 +16,7 @@ describe('restoring declared validators after JSX unmount (#7)', () => {
       const onUnhandled = (reason: unknown) => { unhandled.push(reason) }
       process.on('unhandledRejection', onUnhandled)
       try {
-        const form = createForm({
+        const form = createEngine({
           initialValues: { name: 'x' },
           fields: {
             name: {
@@ -52,7 +52,7 @@ describe('restoring declared validators after JSX unmount (#7)', () => {
 
   it('also runs an async function only once', async () => {
     let calls = 0
-    const form = createForm({
+    const form = createEngine({
       initialValues: { name: 'x' },
       fields: { name: { rules: { validator: async () => {
         calls += 1
@@ -68,7 +68,7 @@ describe('restoring declared validators after JSX unmount (#7)', () => {
 
   it('keeps built-in constraints on a rule that also has a custom callback', async () => {
     let calls = 0
-    const form = createForm({
+    const form = createEngine({
       initialValues: { name: 'x' },
       fields: { name: { rules: {
         minLength: 3,
@@ -90,7 +90,7 @@ describe('restoring declared validators after JSX unmount (#7)', () => {
     let calls = 0
     let release!: () => void
     const held = new Promise<void>((resolve) => { release = resolve })
-    const form = createForm({
+    const form = createEngine({
       initialValues: { name: 'x' },
       fields: { name: { rules: {
         minLength: 3,
@@ -125,7 +125,7 @@ describe('exact declarations alongside wildcard templates (#8)', () => {
   for (const source of ['fields', 'registerField'] as const) {
     for (const restore of ['setValue', 'reset'] as const) {
       it(`keeps virtual from ${source} after clearing and ${restore}`, async () => {
-        const form = createForm<{ rows: { token: string }[] }>({
+        const form = createEngine<{ rows: { token: string }[] }>({
           initialValues: { rows: [{ token: 'example-only' }] },
           fields: {
             'rows.*.token': { required: true },
@@ -148,7 +148,7 @@ describe('exact declarations alongside wildcard templates (#8)', () => {
   }
 
   it('keeps an explicit virtual false override of a virtual template', () => {
-    const form = createForm({
+    const form = createEngine({
       initialValues: { rows: [{ token: 'keep' }] },
       fields: {
         'rows.*.token': { virtual: true },
@@ -163,7 +163,7 @@ describe('exact declarations alongside wildcard templates (#8)', () => {
   })
 
   it('keeps undefined declaration updates as no-ops across instance recreation', () => {
-    const form = createForm({
+    const form = createEngine({
       initialValues: { rows: [{ token: 'example-only' }] },
       fields: {
         'rows.*.token': { required: true },
@@ -180,7 +180,7 @@ describe('exact declarations alongside wildcard templates (#8)', () => {
 
   for (const display of ['hidden', 'none'] as const) {
     it(`keeps exact display ${display} and its validation/submission behavior`, async () => {
-      const form = createForm({
+      const form = createEngine({
         initialValues: { rows: [{ name: '' }] },
         fields: {
           'rows.*.name': { required: true },
@@ -196,7 +196,7 @@ describe('exact declarations alongside wildcard templates (#8)', () => {
   }
 
   it('keeps an exact pattern without rules or required', () => {
-    const form = createForm({
+    const form = createEngine({
       initialValues: { rows: [{ name: 'kept' }] },
       fields: {
         'rows.*.name': { required: true },
@@ -209,7 +209,7 @@ describe('exact declarations alongside wildcard templates (#8)', () => {
   })
 
   it('does not grow empty arrays or absent objects when omitting declared fields', () => {
-    const form = createForm<{ rows: { token: string }[]; editor?: { token: string } }>({
+    const form = createEngine<{ rows: { token: string }[]; editor?: { token: string } }>({
       initialValues: { rows: [] },
       fields: { 'rows.0.token': { virtual: true }, 'editor.token': { display: 'none' } },
     })
@@ -218,7 +218,7 @@ describe('exact declarations alongside wildcard templates (#8)', () => {
   })
 
   it('keeps declarations but not template validators while reset leaves rows empty', async () => {
-    const form = createForm<{ rows: { token: string }[] }>({
+    const form = createEngine<{ rows: { token: string }[] }>({
       initialValues: { rows: [] },
       fields: { 'rows.*.token': { required: true }, 'rows.0.token': { virtual: true } },
     })

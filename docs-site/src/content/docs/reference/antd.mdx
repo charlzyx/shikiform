@@ -300,7 +300,7 @@ interface FormStepHandle {
 
 分步状态（Formily `FormStep.createFormStep()`）。在渲染按钮的组件里调用，不需要在 `<Form>` 里面；交给 `<FormStep step>` 后它才知道步数和表单。
 
-- `next()`：取当前步里挂载的字段中**有效 pattern 为 `editable`** 的路径，`form.validate(paths)` 一次校验；无错前进一步并返回 `true`，有错停留返回 `false`。最后一步、`<FormStep>` 未挂载时返回 `false`。表单级 `validate` / `resolver` 抛错时 `console.error` 并返回 `false`，从不 reject。等待校验期间步数已被别处改变则不再前进（双击只前进一步）。
+- `next()`：取当前步里挂载的字段中**有效 pattern 为 `editable`** 的路径，`form.validate(paths)` 一次校验；无错前进一步并返回 `true`，有错停留返回 `false`。最后一步、`<FormStep>` 未挂载时返回 `false`。表单级 `validate` 抛错时 `console.error` 并返回 `false`，从不 reject。等待校验期间步数已被别处改变则不再前进（双击只前进一步）。
 - `back()` / `goTo(i)`：不校验；`goTo` 夹在 `[0, count - 1]`。
 - 受控（传 `current`）时三个方法只调用 `onChange`。
 

@@ -47,9 +47,9 @@ export interface FieldBinding<TValue> {
   component: ComponentType<any> | undefined
   /** The wrapper `<Field>` renders (from the `decorator` slot). */
   decorator: ComponentType<any> | undefined
-  /** Props for the control: `fields` ← JSX ← reaction (`$componentProps`), merged per key. */
+  /** Props for the control: `fields` ← JSX ← reaction (`$componentProps`), deep-merged. */
   componentProps: Record<string, any>
-  /** Props for the decorator: `fields` ← JSX ← reaction (`$decoratorProps`), merged per key. */
+  /** Props for the decorator: `fields` ← JSX ← reaction (`$decoratorProps`), deep-merged. */
   decoratorProps: Record<string, any>
   /**
    * The UI instance name when this binding comes from `<Field name ui="echo">` / `useField(name, { ui })`: value,
@@ -96,10 +96,10 @@ export interface UseFieldOptions<TValue = any> {
    */
   title?: ReactNode
   description?: ReactNode
+  /** The control, or `[Control, props]`: the tuple's props are the JSX layer of `componentProps`. */
   component?: FieldSlot
+  /** The wrapper, or `[Decorator, props]`: the tuple's props are the JSX layer of `decoratorProps`. */
   decorator?: FieldSlot
-  componentProps?: Record<string, any>
-  decoratorProps?: Record<string, any>
 }
 
 /**
@@ -108,7 +108,7 @@ export interface UseFieldOptions<TValue = any> {
  * Inside a row whose scope is `items.0`, `useField('price')` is `items.0.price`.
  *
  * Pass `options` to own the field's JSX-level config from a hook: `useField('email', { rules: z.string().email() })`
- * behaves exactly like `<Field name="email" rules={z.string().email()}>`. UI options (`title`, `componentProps`,
+ * behaves exactly like `<Field name="email" rules={z.string().email()}>`. UI options (`title`, `component`,
  * `decorator`, …) are merged into the returned binding the same way `<Field>` merges them.
  *
  * A dynamic `string` name returns `FieldBinding<any>` so a column renderer can share one component.
@@ -227,7 +227,7 @@ function uiJsx(options: UseFieldOptions) {
 }
 
 function uiLayer(options: UseFieldOptions): FieldUiSpec | undefined {
-  const { title, description, component, decorator, componentProps, decoratorProps } = options
-  if (title === undefined && description === undefined && component === undefined && decorator === undefined && componentProps === undefined && decoratorProps === undefined) return undefined
-  return normalizeUiSpec({ title, description, component, decorator, componentProps, decoratorProps }) as FieldUiSpec
+  const { title, description, component, decorator } = options
+  if (title === undefined && description === undefined && component === undefined && decorator === undefined) return undefined
+  return normalizeUiSpec({ title, description, component, decorator }) as FieldUiSpec
 }

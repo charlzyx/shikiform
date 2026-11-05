@@ -6,7 +6,7 @@ import { PreviewText } from '../adapter/preview'
 
 type Labeled = { label: string; value: unknown }
 
-export interface SuggestionSelectProps extends Omit<SelectProps, 'value' | 'onChange' | 'options' | 'mode' | 'labelInValue' | 'onSearch' | 'filterOption'> {
+export interface SuggestionViewProps extends Omit<SelectProps, 'value' | 'onChange' | 'options' | 'mode' | 'labelInValue' | 'onSearch' | 'filterOption'> {
   value?: unknown
   onChange?: (value: unknown) => void
   /** Remote search: keyword → options. Aborted when a newer keyword supersedes it. */
@@ -23,7 +23,7 @@ export interface SuggestionSelectProps extends Omit<SelectProps, 'value' | 'onCh
  * Searchable select over {@link useSuggestion} (Pro.formily `Suggestion`). Value shapes:
  * `string` · `{ label, value }` (`labelInValue`) · `string[]` (`multiple`) · `{ label, value }[]` (both).
  */
-export function SuggestionSelect({ value, onChange, fetch, debounce, multiple, labelInValue, ...rest }: SuggestionSelectProps) {
+export function SuggestionView({ value, onChange, fetch, debounce, multiple, labelInValue, ...rest }: SuggestionViewProps) {
   const suggest = useSuggestion({ fetch, debounce })
   const list = value == null || value === '' ? [] : Array.isArray(value) ? value : [value]
   const held: EnumOption[] = labelInValue
@@ -69,10 +69,10 @@ function SuggestionPreview({ value }: { value?: unknown }) {
 }
 
 /**
- * Field-bound {@link SuggestionSelect}.
+ * Field-bound {@link SuggestionView}.
  *
  * ```tsx
  * <Field name="keyword" title="淘宝搜索" decorator={[FormItem]} component={[Suggestion, { fetch: search, multiple: true, labelInValue: true }]} />
  * ```
  */
-export const Suggestion = connect(SuggestionSelect, mapReadPretty(SuggestionPreview))
+export const Suggestion = connect(SuggestionView, mapReadPretty(SuggestionPreview))

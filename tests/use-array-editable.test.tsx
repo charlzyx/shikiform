@@ -1,8 +1,9 @@
 // @vitest-environment happy-dom
 import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { ArrayField, Form, createForm, type FormEngine } from '../src'
+import { ArrayField, Form, createForm } from '../src'
 import { useArrayEditable } from '../src/antd'
+import type { FormInstance } from '../src'
 
 afterEach(cleanup)
 
@@ -14,7 +15,7 @@ function Probe() {
   return <span data-testid="editable">{String(editable)}</span>
 }
 
-function View({ form }: { form: FormEngine<Values> }) {
+function View({ form }: { form: FormInstance<Values> }) {
   return (
     <Form form={form}>
       <ArrayField name="rows">
@@ -28,7 +29,7 @@ function View({ form }: { form: FormEngine<Values> }) {
   )
 }
 
-const text = (form: FormEngine<Values>) => {
+const text = (form: FormInstance<Values>) => {
   const view = render(<View form={form} />)
   const value = view.getByTestId('editable').textContent
   view.unmount()

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { asOptions, comboMatch, comboOptions, isEnumBinding } from '../src/core'
+import { comboMatch, comboOptions } from '../src/core'
+import { asOptions, isEnumBinding } from '../src/core/enum/enum-source'
 
 type Row = { color: string; storage: string; stock: number }
 

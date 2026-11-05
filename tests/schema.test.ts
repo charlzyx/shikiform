@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import * as v from 'valibot'
 import { z } from 'zod'
-import { createForm, type StandardSchemaV1 } from '../src/core'
+import { type StandardSchemaV1 } from '../src/core'
+import { createEngine } from '../src/core/engine/create'
 
 describe('standard schema', () => {
   it('maps zod issues onto fields, including array and tree paths', async () => {
@@ -25,7 +26,7 @@ describe('standard schema', () => {
           ctx.addIssue({ code: 'custom', path: ['confirm'], message: '两次密码不一致' })
         }
       })
-    const form = createForm({
+    const form = createEngine({
       initialValues: {
         email: 'nope',
         nick: '',
@@ -57,7 +58,7 @@ describe('standard schema', () => {
   })
 
   it('mixes a field schema with a built-in rule', async () => {
-    const form = createForm({ initialValues: { email: 'ab', code: 'nope' } })
+    const form = createEngine({ initialValues: { email: 'ab', code: 'nope' } })
     form.registerField('email', {
       rules: [z.string().email('邮箱格式不对'), { minLength: 5, message: '太短' }],
     })
@@ -73,7 +74,7 @@ describe('standard schema', () => {
   })
 
   it('joins a field schema path onto that field, including array indexes', async () => {
-    const form = createForm({
+    const form = createEngine({
       initialValues: {
         address: { city: '', street: '湖滨' },
         items: [{ name: '' }],
@@ -119,7 +120,7 @@ describe('standard schema', () => {
         },
       },
     } as StandardSchemaV1<TreeValues>
-    const form = createForm<TreeValues>({
+    const form = createEngine<TreeValues>({
       initialValues: { nodes: [{ name: 'a', children: [{ name: 'ok' }, { name: '' }] }] },
       validate: schema,
     })
@@ -147,7 +148,7 @@ describe('standard schema', () => {
       .superRefine((value, ctx) => {
         if (value.password !== value.confirm) ctx.addIssue({ code: 'custom', path: ['confirm'], message: '两次密码不一致' })
       })
-    const form = createForm({
+    const form = createEngine({
       initialValues: { password: 'a', confirm: 'b', nick: '' },
       validate: schema,
     })
@@ -159,7 +160,7 @@ describe('standard schema', () => {
   })
 
   it('skips a field schema when display is none and still checks hidden', async () => {
-    const form = createForm({ initialValues: { ghost: '', nick: '' } })
+    const form = createEngine({ initialValues: { ghost: '', nick: '' } })
     form.registerField('ghost', { rules: z.string().min(1, '幽灵必填') })
     form.registerField('nick', { rules: z.string().min(1, '昵称必填') })
     form.batch((d) => {
@@ -185,7 +186,7 @@ describe('standard schema', () => {
         ['confirm'],
       ),
     )
-    const form = createForm({
+    const form = createEngine({
       initialValues: { password: 'secret', confirm: 'other' },
       validate: schema,
     })

@@ -1,9 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createForm, defineEffects, ShikiConflictError, ShikiUsageError } from '../src/core'
+import { defineEffects, ShikiConflictError, ShikiUsageError } from '../src/core'
+import { createEngine } from '../src/core/engine/create'
 
 describe('$disabled pattern shortcut', () => {
   it('returns to the parent pattern after $disabled turns off', () => {
-    const form = createForm<{ box: { child: string }; on: boolean }>({
+    const form = createEngine<{ box: { child: string }; on: boolean }>({
       initialValues: { box: { child: 'v' }, on: true },
       effects: [
         defineEffects<{ box: { child: string }; on: boolean }>(({ reaction }) => {
@@ -28,7 +29,7 @@ describe('$disabled pattern shortcut', () => {
   })
 
   it('restores inheritance from batch and query writes', () => {
-    const form = createForm<{ box: { child: string } }>({ initialValues: { box: { child: 'v' } } })
+    const form = createEngine<{ box: { child: string } }>({ initialValues: { box: { child: 'v' } } })
     form.batch((d) => {
       d.box.$pattern = 'readPretty'
       d.box.child.$disabled = true
@@ -40,7 +41,7 @@ describe('$disabled pattern shortcut', () => {
   })
 
   it('does not pin editable when $disabled is false and the shortcut never installed a pattern', () => {
-    const form = createForm<{ box: { child: string } }>({ initialValues: { box: { child: 'v' } } })
+    const form = createEngine<{ box: { child: string } }>({ initialValues: { box: { child: 'v' } } })
     form.batch((d) => {
       d.box.$pattern = 'readPretty'
       d.box.child.$disabled = false
@@ -49,7 +50,7 @@ describe('$disabled pattern shortcut', () => {
   })
 
   it('leaves an explicit pattern in place when $disabled is false', () => {
-    const form = createForm<{ box: { child: string } }>({ initialValues: { box: { child: 'v' } } })
+    const form = createEngine<{ box: { child: string } }>({ initialValues: { box: { child: 'v' } } })
     form.batch((d) => {
       d.box.$pattern = 'editable'
       d.box.child.$pattern = 'readPretty'
@@ -65,7 +66,7 @@ describe('$disabled pattern shortcut', () => {
   })
 
   it('does not clear an explicit disabled pattern', () => {
-    const form = createForm<{ child: string }>({ initialValues: { child: 'v' } })
+    const form = createEngine<{ child: string }>({ initialValues: { child: 'v' } })
     form.batch((d) => {
       d.child.$pattern = 'disabled'
       d.child.$disabled = true
@@ -74,7 +75,7 @@ describe('$disabled pattern shortcut', () => {
     expect(form.binding('child').pattern).toBe('disabled')
     expect(form.binding('child').disabled).toBe(true)
 
-    const owned = createForm<{ child: string }>({ initialValues: { child: 'v' } })
+    const owned = createEngine<{ child: string }>({ initialValues: { child: 'v' } })
     owned.batch((d) => {
       d.child.$disabled = true
     })
@@ -88,7 +89,7 @@ describe('$disabled pattern shortcut', () => {
   })
 
   it('does not revive a field declaration shadowed by the shortcut', () => {
-    const form = createForm<{ box: { child: string } }>({
+    const form = createEngine<{ box: { child: string } }>({
       initialValues: { box: { child: 'v' } },
       fields: { box: { pattern: 'readPretty' }, 'box.child': { pattern: 'readOnly' } },
     })
@@ -104,7 +105,7 @@ describe('$disabled pattern shortcut', () => {
   })
 
   it('inherits again when $disabled = true had replaced an explicit pattern', () => {
-    const form = createForm<{ box: { child: string } }>({ initialValues: { box: { child: 'v' } } })
+    const form = createEngine<{ box: { child: string } }>({ initialValues: { box: { child: 'v' } } })
     form.batch((d) => {
       d.box.$pattern = 'readPretty'
       d.box.child.$pattern = 'readOnly'
@@ -121,7 +122,7 @@ describe('$disabled pattern shortcut', () => {
   })
 
   it('follows the parent again after the shortcut releases, including a parent that changed', () => {
-    const form = createForm<{ box: { child: string } }>({ initialValues: { box: { child: 'v' } } })
+    const form = createEngine<{ box: { child: string } }>({ initialValues: { box: { child: 'v' } } })
     form.batch((d) => {
       d.box.$pattern = 'disabled'
       d.box.child.$disabled = true
@@ -137,7 +138,7 @@ describe('$disabled pattern shortcut', () => {
   })
 
   it('returns a computed field to readPretty when the shortcut releases', () => {
-    const form = createForm<{ amount: number; lock: boolean }>({
+    const form = createEngine<{ amount: number; lock: boolean }>({
       initialValues: { amount: 0, lock: true },
       effects: [
         defineEffects<{ amount: number; lock: boolean }>(({ reaction }) => {
@@ -158,7 +159,7 @@ describe('$disabled pattern shortcut', () => {
 
   it('still conflicts when another reaction writes $pattern, including a $disabled = false that would not change state', () => {
     expect(() =>
-      createForm({
+      createEngine({
         initialValues: { child: '' },
         effects: [
           defineEffects<{ child: string }>(({ reaction }) => {
@@ -173,7 +174,7 @@ describe('$disabled pattern shortcut', () => {
       }),
     ).toThrow(ShikiConflictError)
     expect(() =>
-      createForm({
+      createEngine({
         initialValues: { child: '' },
         effects: [
           defineEffects<{ child: string }>(({ reaction }) => {
@@ -190,7 +191,7 @@ describe('$disabled pattern shortcut', () => {
   })
 
   it('does not conflict with itself when one reaction toggles $disabled', () => {
-    const form = createForm<{ on: boolean; child: string }>({
+    const form = createEngine<{ on: boolean; child: string }>({
       initialValues: { on: true, child: '' },
       effects: [
         defineEffects<{ on: boolean; child: string }>(({ reaction }) => {
@@ -209,7 +210,7 @@ describe('$disabled pattern shortcut', () => {
 
   it('still treats $disabled and $pattern as one write when read back in the same pass', () => {
     expect(() =>
-      createForm({
+      createEngine({
         initialValues: { child: '' },
         effects: [
           defineEffects<{ child: string }>(({ reaction }) => {
@@ -226,7 +227,7 @@ describe('$disabled pattern shortcut', () => {
   it('keeps production last-write-wins and does not throw', () => {
     vi.stubEnv('NODE_ENV', 'production')
     try {
-      const overridden = createForm({
+      const overridden = createEngine({
         initialValues: { child: '' },
         effects: [
           defineEffects<{ child: string }>(({ reaction }) => {
@@ -241,7 +242,7 @@ describe('$disabled pattern shortcut', () => {
       })
       expect(overridden.binding('child').pattern).toBe('readOnly')
 
-      const disabled = createForm({
+      const disabled = createEngine({
         initialValues: { child: '' },
         effects: [
           defineEffects<{ child: string }>(({ reaction }) => {
@@ -256,7 +257,7 @@ describe('$disabled pattern shortcut', () => {
       })
       expect(disabled.binding('child').pattern).toBe('disabled')
 
-      const explicit = createForm({
+      const explicit = createEngine({
         initialValues: { child: '' },
         effects: [
           defineEffects<{ child: string }>(({ reaction }) => {

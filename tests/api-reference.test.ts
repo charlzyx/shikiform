@@ -27,7 +27,7 @@ describe('public Hook and adapter reference coverage', { timeout: 30_000 }, () =
     // 计数从 exports.json 派生，不再硬编码；至少 79 个公开导出
     const manifest = JSON.parse(readFileSync(path.resolve('docs-site/src/content/docs/reference/exports.json'), 'utf8'))
     const count = Object.values(manifest).reduce((sum: number, scope) => sum + Object.keys(scope as object).length, 0)
-    expect(count).toBeGreaterThanOrEqual(79)
+    expect(count).toBeGreaterThanOrEqual(76)
     expect(result.stdout).toContain(`${count} public`)
   })
   it('fails when an existing Hook disappears from the reference map', () => {

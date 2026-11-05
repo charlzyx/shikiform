@@ -2,7 +2,8 @@
 import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { Form, Watch, defineEffects, useForm, type Draft } from '../src'
-import type { FormEngine } from '../src/core'
+import type { FormInstance } from '../src'
+
 
 afterEach(cleanup)
 
@@ -12,7 +13,7 @@ type Values = { editor: { id: string; open: boolean } | null }
 describe('Watch on a descendant of a replaced object', () => {
   for (const virtual of [false, true]) {
     it(`re-renders when the parent is written whole (virtual: ${virtual})`, async () => {
-      let form!: FormEngine<Values>
+      let form!: FormInstance<Values>
       function App() {
         form = useForm<Values>({ initialValues: { editor: { id: '', open: false } }, fields: virtual ? { editor: { virtual: true } } : {} })
         return <Form form={form}><Watch select={(d: Draft<Values>) => d.editor.open.$value}>{(open) => <i>{String(open)}</i>}</Watch></Form>
@@ -33,7 +34,7 @@ describe('Watch on a descendant of a replaced object', () => {
 describe('the root `d.$value`', () => {
   it('notifies Watch and reactions on a leaf write, a new key, and an array op', async () => {
     type Root = { a: number; text?: string; list: number[]; snapshot?: string }
-    let form!: FormEngine<Root>
+    let form!: FormInstance<Root>
     const effects = defineEffects<Root>(({ reaction }) => {
       reaction((d) => { d.snapshot.$value = JSON.stringify({ a: d.$value.a, text: d.$value.text, list: d.$value.list }) })
     })

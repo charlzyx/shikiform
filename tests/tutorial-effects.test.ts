@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { createForm } from 'shikiform'
 import { effects as visibleEffects } from '../docs-site/src/content/docs/tutorial/_files/04-state.solution'
 import { effects as computedEffects } from '../docs-site/src/content/docs/tutorial/_files/06-reaction.solution'
 import { effects as watchStarter } from '../docs-site/src/content/docs/tutorial/_files/08-watch'
@@ -7,13 +6,14 @@ import { effects as watchSolution } from '../docs-site/src/content/docs/tutorial
 import { effects as arrayEffects } from '../docs-site/src/content/docs/tutorial/_files/07-array.solution'
 import { schema } from '../docs-site/src/content/docs/tutorial/_files/09-rules.solution'
 import { effects as declaredEffects } from '../docs-site/src/content/docs/tutorial/_files/10-declared.solution'
+import { createEngine } from '../src/core/engine/create'
 
 // Reuse the actual editable tutorial sources, not a second copy of their logic.
 describe('tutorial effects use the published FormEngine contract', () => {
   it('keeps the watch exercise distinct from its solution', () => {
     const initialValues = { province: '浙江', city: '杭州' }
-    const starter = createForm({ initialValues, effects: [watchStarter] })
-    const solution = createForm({ initialValues, effects: [watchSolution] })
+    const starter = createEngine({ initialValues, effects: [watchStarter] })
+    const solution = createEngine({ initialValues, effects: [watchSolution] })
     expect(starter.getValue('city')).toBe('')
     expect(solution.getValue('city')).toBe('杭州')
     solution.setValue('province', '广东')
@@ -26,7 +26,7 @@ describe('tutorial effects use the published FormEngine contract', () => {
   })
 
   it('derives a read-pretty amount and still submits it', () => {
-    const form = createForm({ initialValues: { price: 10, qty: 2, amount: 0 }, effects: [computedEffects] })
+    const form = createEngine({ initialValues: { price: 10, qty: 2, amount: 0 }, effects: [computedEffects] })
     expect(form.getValue('amount')).toBe(20)
     expect(form.binding('amount').pattern).toBe('readPretty')
     form.setValue('price', 30)
@@ -35,7 +35,7 @@ describe('tutorial effects use the published FormEngine contract', () => {
   })
 
   it('omits a computed amount only when virtual is declared', () => {
-    const form = createForm({
+    const form = createEngine({
       initialValues: { price: 10, qty: 2, amount: 0 },
       effects: [computedEffects],
       fields: { amount: { virtual: true } },
@@ -45,7 +45,7 @@ describe('tutorial effects use the published FormEngine contract', () => {
   })
 
   it('calculates each array row after adding/removing and submits every derived total', () => {
-    const form = createForm({
+    const form = createEngine({
       initialValues: { items: [{ id: 'row-1', name: '贴纸', price: 2, qty: 4, total: 0 }] },
       effects: [arrayEffects],
     })
@@ -59,7 +59,7 @@ describe('tutorial effects use the published FormEngine contract', () => {
     expect(form.getValue('items.0.id')).toBe('row-2')
     expect(form.getValue('items.0.total')).toBe(15)
     expect(form.getSubmitValues()).toEqual({ items: [{ id: 'row-2', name: '卡片', price: 3, qty: 5, total: 15 }] })
-    const same = createForm({
+    const same = createEngine({
       initialValues: { items: [{ id: 'row-2', name: '新行', price: 0, qty: 1, total: 0 }] },
       effects: [arrayEffects],
     })
@@ -72,7 +72,7 @@ describe('tutorial effects use the published FormEngine contract', () => {
   })
 
   it('runs the actual Zod tutorial schema directly, without a resolver adapter', async () => {
-    const form = createForm({ initialValues: { name: 'Ada', email: 'bad', age: 17 }, validate: schema })
+    const form = createEngine({ initialValues: { name: 'Ada', email: 'bad', age: 17 }, validate: schema })
     expect(await form.validate()).toEqual(expect.arrayContaining([
       { path: 'email', messages: ['邮箱格式不对'] },
       { path: 'age', messages: ['需要年满 18'] },
@@ -83,7 +83,7 @@ describe('tutorial effects use the published FormEngine contract', () => {
   })
 
   it('$visible = false drops the email from validation and submit, and keeps the value for later', async () => {
-    const form = createForm({
+    const form = createEngine({
       initialValues: { contact: false, email: '' },
       effects: [visibleEffects],
       fields: { email: { required: true } },
@@ -97,7 +97,7 @@ describe('tutorial effects use the published FormEngine contract', () => {
   })
 
   it('validates the invitation rule even before its input is mounted', async () => {
-    const form = createForm({ initialValues: { more: false, nickname: '', code: '' }, effects: [declaredEffects] })
+    const form = createEngine({ initialValues: { more: false, nickname: '', code: '' }, effects: [declaredEffects] })
     expect(await form.validate()).toEqual([{ path: 'code', messages: ['邀请码必填'] }])
     form.setValue('code', 'INVITE')
     expect(await form.validate()).toEqual([])

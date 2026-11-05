@@ -1,8 +1,9 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { createForm, Form, typed, useForm, useRecord, type FormEngine, type Pattern } from '../src'
+import { Form, typed, useForm, useRecord, type Pattern, type FormInstance } from '../src'
 import { ArrayCards, ArrayItems, FormItem, Input } from '../src/antd'
+import { createEngine, type Engine } from '../src/core/engine/create'
 
 afterEach(cleanup)
 const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 20)))
@@ -15,7 +16,7 @@ function Name() {
   return <span data-testid="record">{row.name}</span>
 }
 
-function Items({ form }: { form: FormEngine<Values> }) {
+function Items({ form }: { form: FormInstance<Values> }) {
   const F = typed(form)
   return (
     <Form form={form}>
@@ -36,12 +37,12 @@ function Items({ form }: { form: FormEngine<Values> }) {
   )
 }
 
-const names = (form: FormEngine<Values>) => form.values.rows.map((row) => row.name)
+const names = (form: Engine<Values>) => form.values.rows.map((row) => row.name)
 const all = (view: ReturnType<typeof render>, id: string) => view.queryAllByTestId(id)
 
 describe('ArrayItems', () => {
   it('adds, removes and moves rows through the array handle; Index is 1-based', async () => {
-    const form = createForm<Values>({ initialValues: { rows: [{ name: 'a' }, { name: 'b' }] } })
+    const form = createEngine<Values>({ initialValues: { rows: [{ name: 'a' }, { name: 'b' }] } })
     const view = render(<Items form={form} />)
     expect(all(view, 'row-index').map((n) => n.textContent)).toEqual(['#1', '#2'])
     expect(all(view, 'record').map((n) => n.textContent)).toEqual(['a', 'b'])
@@ -67,7 +68,7 @@ describe('ArrayItems', () => {
   })
 
   it('rows without an id keep their field state when they move', async () => {
-    const form = createForm<Values>({ initialValues: { rows: [{ name: '' }, { name: 'b' }] } })
+    const form = createEngine<Values>({ initialValues: { rows: [{ name: '' }, { name: 'b' }] } })
     const view = render(<Items form={form} />)
     await act(() => form.validate())
     expect(form.binding('rows.0.name').errors).toEqual(['必填'])
@@ -78,7 +79,7 @@ describe('ArrayItems', () => {
   })
 
   it('drag sort: drop a row on another row moves it there', async () => {
-    const form = createForm<Values>({ initialValues: { rows: [{ name: 'a' }, { name: 'b' }, { name: 'c' }] } })
+    const form = createEngine<Values>({ initialValues: { rows: [{ name: 'a' }, { name: 'b' }, { name: 'c' }] } })
     const view = render(<Items form={form} />)
     fireEvent.dragStart(all(view, 'sort-handle')[0]!)
     fireEvent.dragOver(all(view, 'array-item')[2]!)
@@ -88,7 +89,7 @@ describe('ArrayItems', () => {
   })
 
   it('shows the empty state when there are no rows; `empty={false}` shows nothing', async () => {
-    const form = createForm<Values>({ initialValues: { rows: [] } })
+    const form = createEngine<Values>({ initialValues: { rows: [] } })
     const view = render(<Items form={form} />)
     expect(view.queryByTestId('array-empty')).not.toBeNull()
     fireEvent.click(view.getByTestId('row-add'))
@@ -96,7 +97,7 @@ describe('ArrayItems', () => {
     expect(view.queryByTestId('array-empty')).toBeNull()
 
     cleanup()
-    const bare = createForm<Values>({ initialValues: { rows: [] } })
+    const bare = createEngine<Values>({ initialValues: { rows: [] } })
     const F = typed(bare)
     const other = render(
       <Form form={bare}>
@@ -107,7 +108,7 @@ describe('ArrayItems', () => {
   })
 
   it.each<Pattern>(['readPretty', 'disabled', 'readOnly'])('hides every action when the array is %s; Index stays', async (pattern) => {
-    const form = createForm<Values>({ initialValues: { rows: [{ name: 'a' }, { name: 'b' }] } })
+    const form = createEngine<Values>({ initialValues: { rows: [{ name: 'a' }, { name: 'b' }] } })
     const view = render(<Items form={form} />)
     expect(all(view, 'row-remove')).toHaveLength(2)
     act(() => form.batch((d) => { d.rows.$pattern = pattern }))
@@ -122,7 +123,7 @@ describe('ArrayItems', () => {
 
 describe('ArrayCards', () => {
   it('wraps each row in a card with title, #index and default move / remove actions', async () => {
-    const form = createForm<Values>({ initialValues: { rows: [{ name: 'a' }, { name: 'b' }] } })
+    const form = createEngine<Values>({ initialValues: { rows: [{ name: 'a' }, { name: 'b' }] } })
     const F = typed(form)
     const view = render(
       <Form form={form}>
@@ -149,7 +150,7 @@ describe('ArrayCards', () => {
 
 describe('useForm({ pattern })', () => {
   it('starts the whole form in that pattern (root $pattern); undefined makes it editable again', () => {
-    const form = createForm({ initialValues: { a: '', rows: [{ name: '' }] }, pattern: 'readPretty' })
+    const form = createEngine({ initialValues: { a: '', rows: [{ name: '' }] }, pattern: 'readPretty' })
     expect(form.binding('a').pattern).toBe('readPretty')
     expect(form.binding('rows.0.name').pattern).toBe('readPretty')
     form.reset()

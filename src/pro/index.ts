@@ -7,7 +7,7 @@
  *
  * @packageDocumentation
  */
-export { normalizeFilters, normalizeSort, useBuiltinQuery, useQueryTable } from './use-query-table'
+export { useBuiltinQuery, useQueryTable } from './use-query-table'
 export type {
   QueryHookArgs,
   QueryFilters,
@@ -29,7 +29,7 @@ export { useArrayShadow } from './use-array-shadow'
 export type { ArrayShadowApi, ArrayShadowContext, UseArrayShadowOptions } from './use-array-shadow'
 export { useSuggestion } from './use-suggestion'
 export type { SuggestFetcher, SuggestionApi, UseSuggestionOptions } from './use-suggestion'
-export { cascaderPaths, useCascaderLabels, useLazyCascader } from './use-lazy-cascader'
+export { useCascaderLabels, useLazyCascader } from './use-lazy-cascader'
 export type {
   CascaderLabelsApi,
   CascaderLoader,
