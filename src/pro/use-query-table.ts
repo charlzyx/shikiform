@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { engineOf } from '../core/engine/form-engine'
+import { engineOf } from '../core/engine/create'
 import { setAt } from '../core/shared/path'
 import type { EffectDef, FieldPath, FormInstance, FormOptions, PathValue } from '../core/types'
 import { useForm } from '../react/hooks/use-form'

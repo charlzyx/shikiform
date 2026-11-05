@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { defineEffects, ShikiConflictError, ShikiCycleError } from '../src/core'
 import { runsFor, schedulerRuns } from './fixtures/reaction-utils'
-import { createEngine } from '../src/core/engine/form-engine'
+import { createEngine } from '../src/core/engine/create'
 
 interface Row {
   cost: number

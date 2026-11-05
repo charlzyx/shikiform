@@ -1,7 +1,7 @@
 import { Button, Drawer, Modal, Popconfirm, Space, Spin, type DrawerProps, type ModalProps, type PopconfirmProps } from 'antd'
 import { cloneElement, createContext, isValidElement, useContext, useEffect, useRef, type ReactElement, type ReactNode } from 'react'
 import { ShikiUsageError } from '../../core/errors'
-import { engineOf } from '../../core/engine/form-engine'
+import { engineOf } from '../../core/engine/create'
 import type { FormInstance } from '../../core/types'
 import { useShadowForm, type ShadowFormApi, type ShadowInit, type UseShadowFormOptions } from '../../pro/use-shadow-form'
 import { FormContext, ScopeContext } from '../../react/context'

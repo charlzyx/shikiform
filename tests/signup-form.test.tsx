@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineEffects } from '../src'
 import { SignupForm, type Signup } from './fixtures/signup-form'
-import { createEngine } from '../src/core/engine/form-engine'
+import { createEngine } from '../src/core/engine/create'
 
 afterEach(cleanup)
 const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 30)))

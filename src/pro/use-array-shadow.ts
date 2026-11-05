@@ -1,6 +1,6 @@
 import { useCallback, useContext } from 'react'
 import { ShikiUsageError } from '../core/errors'
-import { engineOf } from '../core/engine/form-engine'
+import { engineOf } from '../core/engine/create'
 import type { FormInstance } from '../core/types'
 import { joinPath } from '../core/shared/path'
 import { FormContext, useScope } from '../react/context'

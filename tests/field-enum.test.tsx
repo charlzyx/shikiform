@@ -6,7 +6,7 @@ import { ArrayField, defineEffects, EnumSource, Field, Form, typed, useField, us
 
 import { Checkbox, Radio, Select } from '../src/antd'
 import type { FormInstance } from '../src'
-import { engineOf } from '../src/core/engine/form-engine'
+import { engineOf } from '../src/core/engine/create'
 
 afterEach(cleanup)
 const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 20)))

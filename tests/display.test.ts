@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { defineEffects } from '../src/core'
-import { createEngine } from '../src/core/engine/form-engine'
+import { createEngine } from '../src/core/engine/create'
 
 describe('display and pattern', () => {
   it('keeps hidden values and drops none values', async () => {

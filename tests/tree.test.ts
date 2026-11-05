@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { pathOf, posOf } from '../src/core'
 import { isPosPrefix } from '../src/core/shared/tree-ops'
-import { createEngine } from '../src/core/engine/form-engine'
+import { createEngine } from '../src/core/engine/create'
 
 interface Node {
   id: string

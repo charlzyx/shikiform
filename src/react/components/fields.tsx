@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, type ComponentProps, type ComponentType, type FormEvent, type FormHTMLAttributes, type ReactNode } from 'react'
-import { engineOf } from '../../core/engine/form-engine'
+import { engineOf } from '../../core/engine/create'
 import type { ArrayPath, Display, Draft, FieldEnum, FieldError, FieldPath, FormInstance, PathValue, Pattern, UiName } from '../../core/types'
 import type { RulesInput } from '../../core/validation/rules'
 import type { Pos } from '../../core/shared/tree-ops'

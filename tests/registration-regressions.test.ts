@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createEngine } from '../src/core/engine/form-engine'
+import { createEngine } from '../src/core/engine/create'
 
 // Let the queued restoration and its promises finish, including Node's
 // unhandled-rejection checkpoint. No real request or browser mount is involved.

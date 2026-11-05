@@ -16,7 +16,7 @@ import {
 } from '../src/antd'
 import { breakpointIndex } from '../src/antd/adapter/form-layout'
 import { gridColumns } from '../src/antd/adapter/form-grid'
-import { createEngine } from '../src/core/engine/form-engine'
+import { createEngine } from '../src/core/engine/create'
 
 afterEach(cleanup)
 

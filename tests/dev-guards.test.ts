@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { defineEffects, ShikiUsageError } from '../src/core'
 import { withReaction as withReactionFixture } from './fixtures/reaction-utils'
-import { createEngine, engineOf } from '../src/core/engine/form-engine'
+import { createEngine, engineOf } from '../src/core/engine/create'
 
 type V = { user: { name: string; tags: string[] }; items: { n: number }[]; total: number; copy: { name: string; tags: string[] } | null; count: number }
 const initialValues = (): V => ({ user: { name: 'a', tags: ['x'] }, items: [{ n: 1 }, { n: 2 }], total: 0, copy: null, count: 1 })

@@ -7,7 +7,8 @@ import type { Notifier } from '../state/notifier'
 import { scopeOf, type Pos } from '../shared/tree-ops'
 import type { FieldError, FormOptions, SubmitResult, ValidateTrigger } from '../types'
 import { formatMessage, type FormMessageKey, type MessageArgs, type MessageParams } from './messages'
-import { fieldSchemaIssues, optionIncludes, runRules, type Rule, type ValidateCtx } from './rules'
+import { fieldSchemaIssues, optionIncludes, runRules, type ValidateCtx } from './rules'
+import { runWarningRules } from './warnings'
 import { collectSchemaIssues, groupSchemaIssues, isStandardSchema, schemaIssuePath, type SchemaIssue, type StandardSchemaV1 } from './schema'
 
 export interface ValidatorDeps {
@@ -222,10 +223,9 @@ export class Validator {
     const seq = ++field.asyncSeq
     const value = getAt(values, path)
     const ctx = this.buildCtx(path, value, this.deps.readPos(path) ?? undefined, values, ac.signal)
-    const all = field.rules.slice()
     // `level: 'warning'` rules report to `$warnings` / `binding.warnings`: shown, never blocking submit.
-    const rules = all.filter((rule) => rule.level !== 'warning')
-    const warnRules = all.filter((rule) => rule.level === 'warning')
+    const rules = field.rules.filter((rule) => rule.level !== 'warning')
+    const warnRules = field.rules.filter((rule) => rule.level === 'warning')
     if (options.enumPolicy === 'error' && field.enumOptions && !optionIncludes(field.enumOptions, value)) {
       const enumMessage = this.message('enum', { path, value, options: field.enumOptions })
       rules.push({ validator: () => enumMessage })
@@ -234,7 +234,7 @@ export class Validator {
     const { messages, pending } = runRules(value, plain, ctx, field.required, options.messages)
     const fallback = (issuePath: string) =>
       this.message('fallback', { path: issuePath ? `${path}.${issuePath}` : path, value: issuePath ? getAt(value, issuePath) : value, error: undefined })
-    const warned = this.runWarnings(path, value, warnRules, ctx, fallback)
+    const warned = runWarningRules(value, warnRules, ctx, options.messages, (err) => this.errorMessage(err, path, value), fallback)
     const issues: SchemaIssue[] = []
     const schemaPending: Promise<SchemaIssue[]>[] = []
     for (const rule of rules) {
@@ -313,37 +313,6 @@ export class Validator {
     })()
     this.trackInflight(task, ac.signal)
     return task
-  }
-
-  /**
-   * `level: 'warning'` rules: the same checks (built-ins, `validator`, `schema`), reported as warnings. A throwing or
-   * rejecting warning validator becomes a warning too (it never blocks submit).
-   */
-  private runWarnings(
-    path: string,
-    value: unknown,
-    rules: readonly Rule[],
-    ctx: ValidateCtx,
-    fallback: (issuePath: string) => string,
-  ): { messages: string[]; pending: Promise<string[]>[] } {
-    if (!rules.length) return { messages: [], pending: [] }
-    const run = runRules(value, rules.filter((rule) => !rule.schema), ctx, false, this.deps.options.messages)
-    const messages = [...run.messages]
-    const asText = (err: unknown) => [this.errorMessage(err, path, value)]
-    const pending: Promise<string[]>[] = run.pending.map((item) => Promise.resolve(item).then((m) => (m ? [m] : []), asText))
-    const issueText = (issues: readonly StandardSchemaV1.Issue[] | undefined) =>
-      (issues ?? []).map((issue) => issue.message || fallback(schemaIssuePath(issue.path)))
-    for (const rule of rules) {
-      if (!rule.schema) continue
-      try {
-        const result = rule.schema['~standard'].validate(value)
-        if (isPromise(result)) pending.push(Promise.resolve(result).then((resolved) => issueText(resolved.issues), asText))
-        else messages.push(...issueText(result.issues))
-      } catch (err) {
-        messages.push(...asText(err))
-      }
-    }
-    return { messages, pending }
   }
 
   /**
@@ -499,7 +468,7 @@ export class Validator {
       if (deepEqual(field.schemaErrors, messages)) continue
       field.schemaErrors = messages.slice()
       notifier.bumpPath(path)
-      this.markErrorDeps(path)
+      this.markChain(path, 'errors')
       changed = true
     }
     if (!changed) return
@@ -530,12 +499,7 @@ export class Validator {
     if (!field || deepEqual(field.warnings, messages)) return
     field.warnings = messages
     this.deps.notifier.bumpPath(path)
-    let cursor: string | null = path
-    while (cursor) {
-      this.deps.scheduler.markDirty(`${cursor}:warnings`)
-      cursor = parentPath(cursor)
-    }
-    this.deps.scheduler.markDirty(':warnings')
+    this.markChain(path, 'warnings')
     if (!this.deps.scheduler.flushing) {
       this.deps.scheduler.enqueueFromDirty()
       this.deps.scheduler.flush()
@@ -548,7 +512,7 @@ export class Validator {
     if (deepEqual(field.errors, messages)) return
     field.errors = messages
     notifier.bumpPath(path)
-    this.markErrorDeps(path)
+    this.markChain(path, 'errors')
     scheduler.bumpMeta()
     if (!scheduler.flushing) {
       scheduler.enqueueFromDirty()
@@ -621,7 +585,7 @@ export class Validator {
   private afterErrorChange(path: string, flush = true): void {
     const { notifier, scheduler } = this.deps
     notifier.bumpPath(path)
-    this.markErrorDeps(path)
+    this.markChain(path, 'errors')
     scheduler.bumpMeta()
     if (flush && !scheduler.flushing) {
       scheduler.enqueueFromDirty()
@@ -643,14 +607,11 @@ export class Validator {
   }
 
   /** Field errors plus the root `:errors` dep, so `d.$errors` updates for a top-level field too. */
-  private markErrorDeps(path: string): void {
+  /** Mark `<path>:<kind>` on the path, its ancestors and the root (`$errors` / `$warnings` aggregate descendants). */
+  private markChain(path: string, kind: 'errors' | 'warnings'): void {
     const scheduler = this.deps.scheduler
-    let cursor: string | null = path
-    while (cursor) {
-      scheduler.markDirty(`${cursor}:errors`)
-      cursor = parentPath(cursor)
-    }
-    scheduler.markDirty(':errors')
+    for (let cursor: string | null = path; cursor; cursor = parentPath(cursor)) scheduler.markDirty(`${cursor}:${kind}`)
+    scheduler.markDirty(`:${kind}`)
   }
 }
 

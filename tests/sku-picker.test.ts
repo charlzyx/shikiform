@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { cloneSkus, DIMS, paintGroupColor, skuPickerEffects, type Dim, type SkuSelection } from '../playground/skus'
-import { createEngine } from '../src/core/engine/form-engine'
+import { createEngine } from '../src/core/engine/create'
 
 function picker() {
   return createEngine<SkuSelection>({

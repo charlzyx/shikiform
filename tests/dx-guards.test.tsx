@@ -5,7 +5,7 @@ import { ArrayField, Field, Form, ObjectField, createForm, useField, useForm } f
 import { ShikiUsageError } from '../src/core'
 import { FormItem, Input, ArrayTable, Submit } from '../src/antd'
 import { withReaction } from './fixtures/reaction-utils'
-import { createEngine, engineOf } from '../src/core/engine/form-engine'
+import { createEngine, engineOf } from '../src/core/engine/create'
 
 afterEach(cleanup)
 

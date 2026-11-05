@@ -4,7 +4,7 @@ import { Field, Form, ObjectField } from '../src/react/components/fields'
 import { useForm } from '../src/react/hooks/use-form'
 import { useField } from '../src/react/hooks/use-field'
 import type { FormInstance } from '../src/core/types'
-import { engineOf } from '../src/core/engine/form-engine'
+import { engineOf } from '../src/core/engine/create'
 
 function Input() {
   const field = useField<string>()

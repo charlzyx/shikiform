@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import * as v from 'valibot'
 import { z } from 'zod'
 import { type StandardSchemaV1 } from '../src/core'
-import { createEngine } from '../src/core/engine/form-engine'
+import { createEngine } from '../src/core/engine/create'
 
 describe('standard schema', () => {
   it('maps zod issues onto fields, including array and tree paths', async () => {

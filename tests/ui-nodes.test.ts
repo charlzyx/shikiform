@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineEffects, ShikiUsageError } from '../src/core'
-import { createEngine } from '../src/core/engine/form-engine'
+import { createEngine } from '../src/core/engine/create'
 
 describe('named UI nodes (core)', () => {
   afterEach(() => vi.restoreAllMocks())
