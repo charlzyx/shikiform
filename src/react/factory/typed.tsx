@@ -13,7 +13,9 @@ import { useWatch } from '../hooks/use-watch'
  * typed as that object.
  */
 export type ScopeFields<T> = {
-  Field: <N extends FieldPath<T>>(props: FieldProps<T, N>) => ReactNode
+  Field: <N extends FieldPath<T>, C extends ComponentType<any> = ComponentType<any>, D extends ComponentType<any> = ComponentType<any>>(
+    props: FieldProps<T, N, C, D>,
+  ) => ReactNode
   ObjectField: <N extends FieldPath<T>>(props: {
     name: N
     virtual?: boolean

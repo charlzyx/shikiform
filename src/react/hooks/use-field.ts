@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useSyncExternalStore, type ComponentType, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useRef, useSyncExternalStore, type ComponentProps, type ComponentType, type ReactNode } from 'react'
 import type { FormEngine } from '../../core/engine/form-engine'
 import type { EnumOption } from '../../core/enum/enum-source'
 import { normalizeUiSpec } from '../../core/state/field-model'
@@ -63,8 +63,18 @@ export interface FieldBinding<TValue> {
  */
 export const FieldContext = createContext<FieldBinding<any> | null>(null)
 
-/** A `component` / `decorator` slot: the component, or `[Component, props]` (Formily style). */
-export type FieldSlot = ComponentType<any> | readonly [ComponentType<any>] | readonly [ComponentType<any>, Record<string, any> | undefined]
+/**
+ * A `component` / `decorator` slot: the component, or `[Component, props]` (Formily style). On `<Field>` / `typed().Field`
+ * / `row.Field` / `<UI>`, `C` is inferred from the component and the props are checked against it (all optional: the field
+ * supplies value / onChange); `[InputNumber, { min: 'zero' }]` does not compile.
+ */
+export type FieldSlot<C extends ComponentType<any> = ComponentType<any>> =
+  | C
+  | readonly [C]
+  | readonly [C, SlotProps<C> | undefined]
+
+/** The props half of a slot tuple: the component's own props, all optional, plus `data-*` attributes (as in JSX). */
+export type SlotProps<C extends ComponentType<any>> = Partial<ComponentProps<C>> & { [key: `data-${string}`]: unknown }
 
 /**
  * Field options a hook caller can pass. Same semantics as the `<Field>` props of the same name:

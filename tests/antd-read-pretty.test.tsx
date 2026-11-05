@@ -101,7 +101,7 @@ function mount(values: Partial<Values> = VALUES, messages?: { empty: string }) {
         <F.Field name="text" component={[Input, { addonBefore: 'Name:', placeholder: '请输入' }]} />
         <F.Field name="note" component={[Input.TextArea]} />
         <F.Field name="secret" component={[Input.Password]} />
-        <F.Field name="amount" component={[InputNumber, { formatter: (v: string | undefined) => `¥ ${v}` }]} />
+        <F.Field name="amount" component={[InputNumber, { formatter: (v) => `¥ ${v}` }]} />
         <F.Field name="one" enum={COLORS} component={[Select]} />
         <F.Field name="many" enum={COLORS} component={[Select, { mode: 'multiple' }]} />
         <F.Field name="on" component={[Switch]} />
