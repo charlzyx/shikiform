@@ -27,6 +27,8 @@ export class FieldStore<T = any> {
   onCreate?: (path: string) => void
   /** Called with the models an array / tree change dropped or moved, before the new value is written. */
   onReindex?: (result: ReindexResult) => void
+  /** Called with the row id → path maps of an array / tree change (named UI nodes follow their rows). */
+  onReindexIds?: (oldIds: ReadonlyMap<string, string>, newIds: ReadonlyMap<string, string>) => void
   /** Called after an array / tree change wrote its new value. */
   onRestructure?: () => void
 

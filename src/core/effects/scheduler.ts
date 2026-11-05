@@ -1,4 +1,4 @@
-import { ShikiConflictError, ShikiCycleError, ShikiUsageError, showDraftPath } from '../errors'
+import { ShikiConflictError, ShikiCycleError, ShikiUsageError, showDraftPath, showStateKey } from '../errors'
 import { parentPath, selfAndAncestors } from '../shared/path'
 import type { Notifier } from '../state/notifier'
 import type { Pos } from '../shared/tree-ops'
@@ -84,6 +84,10 @@ export class Scheduler {
   readonly batchOps: WriteOp[] = []
   private seq = 0
   private trace: string[] = []
+  /** Development: runner id → where it was declared (`file:line:col`), for error messages. */
+  private readonly sites = new Map<string, string>()
+  /** Development: runner id → keys its last pass wrote, for error messages. */
+  private readonly lastWrites = new Map<string, string[]>()
   /** Runs once a flush settles, before notifications go out. The engine re-derives `dirty` here. */
   onSettle?: () => void
 
@@ -91,9 +95,25 @@ export class Scheduler {
     this.devtools = devtools
   }
 
-  nextId(prefix: string): string {
+  nextId(prefix: string, site?: string): string {
     this.seq += 1
-    return `${prefix}:${this.seq}`
+    const id = `${prefix}:${this.seq}`
+    if (site) this.sites.set(id, site)
+    return id
+  }
+
+  /** `reaction:2 at src/x.ts:12:5: reads d.a.$value; writes d.b.$value`; row / node instances name their row. */
+  describe(id: string): string {
+    const base = id.replace(/[#@].*$/, '')
+    const kind = base.replace(/:\d+$/, '')
+    const row = id.length > base.length ? ` [${id[base.length] === '#' ? 'row' : 'node'} ${id.slice(base.length + 1)}]` : ''
+    const site = this.sites.get(base)
+    const reads = [...(this.reactionDeps.get(id) ?? [])].map(showStateKey)
+    const writes = (this.lastWrites.get(id) ?? []).map(showStateKey)
+    const parts = [`reads ${reads.length ? list(reads) : 'nothing'}`]
+    if (writes.length) parts.push(`writes ${list(writes)}`)
+    const name = kind === 'reaction' ? base : `reaction.${base}`
+    return `${name}${row}${site ? ` at ${site}` : ''}: ${parts.join('; ')}`
   }
 
   current(): Tracker | undefined {
@@ -190,6 +210,7 @@ export class Scheduler {
   }
 
   applyWrites(id: string, writes: WriteOp[]): void {
+    if (process.env.NODE_ENV !== 'production' && isReactionId(id)) this.lastWrites.set(id, writes.map((op) => op.key))
     for (const op of writes) {
       op.apply()
       this.claimOwner(id, op.key)
@@ -202,7 +223,14 @@ export class Scheduler {
     if (!isReactionId(id)) return
     const owner = this.writeOwners.get(key)
     if (owner && owner !== id && process.env.NODE_ENV !== 'production') {
-      throw new ShikiConflictError(key, owner, id)
+      throw new ShikiConflictError(
+        key,
+        owner,
+        id,
+        `${showStateKey(key)} is written by two reactions:\n  1. ${this.describe(owner)}\n  2. ${this.describe(id)}\n` +
+          `A derived state has one writer: compute it in one reaction from both inputs, ` +
+          `or move the write that is an action ("when X changes, set Y") into watch.`,
+      )
     }
     this.writeOwners.set(key, id)
   }
@@ -238,6 +266,20 @@ export class Scheduler {
     this.dirtyDeps.clear()
   }
 
+  private cycleError(): ShikiCycleError {
+    const tail = this.trace.slice(-12)
+    if (process.env.NODE_ENV === 'production') return new ShikiCycleError(tail)
+    const loop: string[] = []
+    for (const id of tail) if (!loop.includes(id)) loop.push(id)
+    const chain = loop.map((id) => `  ${this.describe(id)}`).join('\n')
+    return new ShikiCycleError(
+      tail,
+      `Reactions did not settle after 10 passes; these keep re-running each other:\n${chain}\n` +
+        `A reaction must not write a state that (through other reactions) feeds back into what it reads. ` +
+        `Derive one direction only, or use watch for the reverse edit.`,
+    )
+  }
+
   flush(): void {
     if (this.flushing) return
     this.flushing = true
@@ -246,7 +288,7 @@ export class Scheduler {
       let wave = 0
       while (this.queued.size) {
         wave += 1
-        if (wave > 10) throw new ShikiCycleError(this.trace.slice(-12))
+        if (wave > 10) throw this.cycleError()
         const ids = [...this.queued]
         this.queued.clear()
         for (const id of ids) {
@@ -262,4 +304,8 @@ export class Scheduler {
       this.notifier.emit()
     }
   }
+}
+
+function list(items: string[]): string {
+  return items.length > 4 ? `${items.slice(0, 4).join(', ')} +${items.length - 4} more` : items.join(', ')
 }

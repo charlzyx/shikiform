@@ -13,12 +13,26 @@ export interface Reindexed {
   moved: { from: string; model: FieldModel }[]
 }
 
-export function reindexById(fields: Map<string, FieldModel>, oldIds: Map<string, string>, newIds: Map<string, string>): Reindexed {
+export function reindexById(fields: Map<string, FieldModel>, oldIds: ReadonlyMap<string, string>, newIds: ReadonlyMap<string, string>): Reindexed {
+  return reindexKeyed(fields, (model) => model.path, oldIds, newIds)
+}
+
+/**
+ * {@link reindexById} for any map of path-carrying models whose key is derived from the path (`keyOf`): named UI
+ * nodes are keyed `<path>#<name>`. A model under a removed row is dropped; under a moved row it gets the new path.
+ */
+export function reindexKeyed<M extends { path: string }>(
+  models: Map<string, M>,
+  keyOf: (model: M) => string,
+  oldIds: ReadonlyMap<string, string>,
+  newIds: ReadonlyMap<string, string>,
+): { dropped: M[]; moved: { from: string; model: M }[] } {
   const owned: string[] = []
-  const dropped: FieldModel[] = []
-  const moves: { to: string; model: FieldModel }[] = []
-  const moved: Reindexed['moved'] = []
-  for (const [fieldPath, model] of fields) {
+  const dropped: M[] = []
+  const moves: { to: string; model: M }[] = []
+  const moved: { from: string; model: M }[] = []
+  for (const [key, model] of models) {
+    const fieldPath = model.path
     let best = ''
     let bestId = ''
     for (const [id, nodePath] of oldIds) {
@@ -28,7 +42,7 @@ export function reindexById(fields: Map<string, FieldModel>, oldIds: Map<string,
       }
     }
     if (!best) continue
-    owned.push(fieldPath)
+    owned.push(key)
     const target = newIds.get(bestId)
     if (!target) {
       dropped.push(model)
@@ -36,11 +50,11 @@ export function reindexById(fields: Map<string, FieldModel>, oldIds: Map<string,
     }
     moves.push({ to: target + fieldPath.slice(best.length), model })
   }
-  for (const path of owned) fields.delete(path)
+  for (const key of owned) models.delete(key)
   for (const move of moves) {
     if (move.model.path !== move.to) moved.push({ from: move.model.path, model: move.model })
     move.model.path = move.to
-    fields.set(move.to, move.model)
+    models.set(keyOf(move.model), move.model)
   }
   return { dropped, moved }
 }

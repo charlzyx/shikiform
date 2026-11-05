@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, type ComponentProps, type ComponentType, type FormEvent, type FormHTMLAttributes, type ReactNode } from 'react'
+import { memo, useContext, useEffect, useMemo, useRef, type ComponentProps, type ComponentType, type FormEvent, type FormHTMLAttributes, type ReactNode } from 'react'
 import { engineOf } from '../../core/engine/create'
 import type { ArrayPath, Display, Draft, FieldEnum, FieldError, FieldPath, FormInstance, PathValue, Pattern, UiName } from '../../core/types'
 import type { RulesInput } from '../../core/validation/rules'
 import type { Pos } from '../../core/shared/tree-ops'
-import { ArrayContext, FormContext, ScopeContext, useRequiredForm, useScope } from '../context'
+import { ArrayContext, FormContext, RowWrapContext, ScopeContext, useRequiredForm, useScope } from '../context'
 import { useArrayField } from '../hooks/use-array'
 import { FieldContext } from '../field-context'
 import { useField, type FieldBinding, type FieldSlot } from '../hooks/use-field'
@@ -11,6 +11,7 @@ import { useTreeField } from '../hooks/use-tree'
 import { useWatch } from '../hooks/use-watch'
 import { resolveName } from '../hooks/resolve-name'
 import { ShikiUsageError } from '../../core/errors'
+import { emptySlot } from '../../core/state/field-model'
 import { focusFieldDomId, IdPrefixProvider, useAutoIdPrefix } from '../id-prefix'
 import { VirtualRows } from './virtual-rows'
 
@@ -289,16 +290,20 @@ export function ArrayField<TScope = any, C extends ComponentType<any> = Componen
 }) {
   const array = useArrayField(String(name), { rowKey })
   const [Container, props] = Array.isArray(component) ? component : [component as ComponentType<any> | undefined, undefined]
+  if (Array.isArray(component) && Container == null && process.env.NODE_ENV !== 'production') {
+    throw emptySlot(`<ArrayField name="${String(name)}">`, 'component', Container)
+  }
   if (virtualScroll && Container) {
     throw new ShikiUsageError(
       `<ArrayField name="${String(name)}"> takes \`virtualScroll\` or a container \`component\`, not both: ` +
         'virtualScroll windows plain rows (`<ArrayField name virtualScroll>{(row) => …}</ArrayField>`).',
     )
   }
+  // Memoized rows: a push / insert renders only the new row (and rows whose index changed), not every row.
+  // `children` keeps its identity while the ArrayField's parent does not re-render; when it does, every row
+  // re-renders with the new closure.
   const row = (index: number, key: string) => (
-    <RowScope key={key} path={`${array.path}.${index}`} index={index} itemKey={key}>
-      {children!({ index, key })}
-    </RowScope>
+    <ArrayRow key={key} path={`${array.path}.${index}`} index={index} itemKey={key} render={children!} />
   )
   let rows: ReactNode = null
   if (children && virtualScroll) {
@@ -315,6 +320,22 @@ export function ArrayField<TScope = any, C extends ComponentType<any> = Componen
   }
   return <ArrayScope path={array.path} rowKey={rowKey}>{Container ? <Container {...props}>{rows}</Container> : rows}</ArrayScope>
 }
+
+/** One `<ArrayField>` row: re-renders only when its path / index / key or the row render function changes. */
+const ArrayRow = memo(function ArrayRow({ path, index, itemKey, render }: {
+  path: string
+  index: number
+  itemKey: string
+  render: (row: { index: number; key: string }) => ReactNode
+}) {
+  const wrap = useContext(RowWrapContext)
+  const content = render({ index, key: itemKey })
+  return (
+    <RowScope path={path} index={index} itemKey={itemKey}>
+      {wrap ? wrap(<RowWrapContext.Provider value={null}>{content}</RowWrapContext.Provider>) : content}
+    </RowScope>
+  )
+})
 
 /**
  * Mark the nearest array for {@link useArray} (`path` is absolute). `<ArrayField>` renders it; use it in a custom

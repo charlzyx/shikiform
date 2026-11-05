@@ -1,5 +1,7 @@
 import type { EnumOption } from '../enum/enum-source'
 import { formatMessage, type FormMessages } from './messages'
+import { ShikiUsageError } from '../errors'
+import { nearestName } from '../shared/near'
 import { isStandardSchema, schemaIssuePath, type SchemaIssue, type StandardSchemaV1 } from './schema'
 
 /** Cross-field context. `record` is the nearest object. `parent` skips the enclosing array. */
@@ -64,11 +66,39 @@ export interface Rule {
  */
 export type RulesInput = Rule | StandardSchemaV1 | ReadonlyArray<Rule | StandardSchemaV1>
 
-/** Turn `rules={…}` into the internal list. Schemas become `{ schema }`. */
-export function normalizeRules(input: RulesInput | undefined): Rule[] {
+/** Turn `rules={…}` into the internal list. Schemas become `{ schema }`. `where` names the field in dev errors. */
+export function normalizeRules(input: RulesInput | undefined, where?: string): Rule[] {
   if (input == null) return []
   const list = Array.isArray(input) ? input : [input]
-  return list.map((item) => (isStandardSchema(item) ? { schema: item } : item))
+  const rules = list.map((item) => (isStandardSchema(item) ? { schema: item } : item))
+  if (process.env.NODE_ENV !== 'production') assertRuleKeys(rules, where)
+  return rules
+}
+
+const RULE_KEY_MAP: Record<keyof Rule, true> = {
+  required: true, min: true, max: true, minLength: true, maxLength: true, pattern: true, format: true,
+  isTrue: true, message: true, schema: true, validator: true, level: true,
+}
+const RULE_KEYS = new Set(Object.keys(RULE_KEY_MAP))
+const checkedRules = new WeakSet<object>()
+
+/**
+ * Development: a rule key the validator does not know (`minLenght`) would silently pass. Throw with the fix instead.
+ */
+export function assertRuleKeys(rules: readonly unknown[], where?: string): void {
+  for (const rule of rules) {
+    if (!rule || typeof rule !== 'object' || checkedRules.has(rule)) continue
+    for (const key of Object.keys(rule)) {
+      if (RULE_KEYS.has(key)) continue
+      const near = nearestName(key, RULE_KEYS)
+      throw new ShikiUsageError(
+        `${where ? `${where}: ` : ''}rule key "${key}" is not a rule. ` +
+          (near ? `Did you mean "${near}"? ` : '') +
+          `Rule keys: ${[...RULE_KEYS].join(', ')}. A custom check is \`validator: (value) => message | undefined\`.`,
+      )
+    }
+    checkedRules.add(rule)
+  }
 }
 
 /** Issues from a field schema, with paths joined onto `fieldPath`. */

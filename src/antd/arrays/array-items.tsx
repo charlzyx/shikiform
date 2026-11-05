@@ -1,16 +1,12 @@
 import { Button, Card, Empty, Popconfirm, Space } from 'antd'
 import {
-  Children,
-  cloneElement,
   createContext,
-  isValidElement,
   useCallback,
   useContext,
   type CSSProperties,
-  type ReactElement,
   type ReactNode,
 } from 'react'
-import { ArrayContext, useRequiredForm } from '../../react/context'
+import { ArrayContext, RowWrapContext, useRequiredForm } from '../../react/context'
 import { useArray } from '../../react/hooks/use-array'
 import type { DragProps } from '../../react/hooks/drag'
 import { useFormMessage } from '../../react/hooks/use-form-message'
@@ -229,13 +225,13 @@ function CardRow({ title, extra, children }: { title?: ReactNode; extra?: ReactN
  * move up / move down / remove. No per-row wrapper is needed.
  */
 function ArrayCardsBase({ title, extra, ...props }: ContainerProps & { title?: ReactNode; extra?: ReactNode }) {
-  // Each child is the RowScope `<ArrayField>` rendered; wrap its content so the card sits inside the row's scope.
-  const rows = Children.map(props.children, (row) => {
-    if (!isValidElement(row)) return row
-    const element = row as ReactElement<{ children?: ReactNode }>
-    return cloneElement(element, undefined, <CardRow title={title} extra={extra}>{element.props.children}</CardRow>)
-  })
-  return <ArrayItemsBase {...props}>{rows}</ArrayItemsBase>
+  // `<ArrayField>` rows are memoized; each row wraps its own content (inside its scope) through RowWrapContext.
+  const wrap = useCallback((content: ReactNode) => <CardRow title={title} extra={extra}>{content}</CardRow>, [title, extra])
+  return (
+    <RowWrapContext.Provider value={wrap}>
+      <ArrayItemsBase {...props} />
+    </RowWrapContext.Provider>
+  )
 }
 
 export const ArrayCards = Object.assign(ArrayCardsBase, { SortHandle, Index, Remove, MoveUp, MoveDown, Addition })

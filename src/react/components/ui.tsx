@@ -63,7 +63,7 @@ export function UI({ name, children, display, pattern, ...slots }: UIProps) {
   const path = useScope().path
   const prefix = useIdPrefix()
   useUiNode(form, path, name, 'node')
-  const ui = withDomId(form.uiBinding(path, name, { ...(normalizeUiSpec(slots) as FieldUiSpec), display, pattern }, 'node') as UiBinding, prefix)
+  const ui = withDomId(form.uiBinding(path, name, { ...(normalizeUiSpec(slots, `<UI name="${String(name)}">`) as FieldUiSpec), display, pattern }, 'node') as UiBinding, prefix)
   if (ui.display !== 'visible') return null
   const Component = ui.component
   const Decorator = ui.decorator

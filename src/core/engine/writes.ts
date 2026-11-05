@@ -2,13 +2,14 @@ import type { Declarations } from '../declarations/declarations'
 import { isReactionId, type Scheduler } from '../effects/scheduler'
 import { asOptions, isEnumBinding, type EnumBinding, type EnumOption } from '../enum/enum-source'
 import { unwrapReadonly } from '../draft/readonly'
+import { showDraftPath } from '../errors'
 import { deepEqual } from '../shared/equal'
 import { getAt, parentPath, setAt } from '../shared/path'
 import { shownErrors, type FieldModel } from '../state/field-model'
 import type { FieldStore } from '../state/field-store'
 import type { Notifier } from '../state/notifier'
 import type { Display, FormOptions, Pattern, WriteOp } from '../types'
-import { isEmpty, optionIncludes, type Rule } from '../validation/rules'
+import { assertRuleKeys, isEmpty, optionIncludes, type Rule } from '../validation/rules'
 import type { Validator } from '../validation/validator'
 import { uiKeyOf, type FieldUi } from './field-ui'
 
@@ -271,6 +272,7 @@ export class StateWriter {
   }
 
   private setRules(path: string, rules: Rule[]): boolean {
+    if (process.env.NODE_ENV !== 'production') assertRuleKeys(rules, `${showDraftPath(path)}.$rules`)
     const field = this.deps.store.ensure(path)
     field.rulesFromEffect = true
     if (deepEqual(field.rules, rules)) return false

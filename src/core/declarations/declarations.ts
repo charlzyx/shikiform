@@ -127,7 +127,7 @@ export class Declarations {
     }
     this.applyFieldFlags(field, spec, 'explicit')
     this.applyUi(field, spec, 'explicit')
-    const rules = rulesFromSpec(spec, field.declaredRules ?? field.rules)
+    const rules = rulesFromSpec(spec, field.declaredRules ?? field.rules, `fields['${path}']`)
     if (rules) {
       field.declaredRules = rules.slice()
       if (!field.rulesFromEffect && field.jsxRules === undefined && !deepEqual(field.rules, rules)) {
@@ -148,7 +148,7 @@ export class Declarations {
     const field = this.store.ensure(path)
     field.jsxActive = true
     this.applyFieldFlags(field, spec, 'explicit')
-    const rules = rulesFromSpec(spec, field.rules)
+    const rules = rulesFromSpec(spec, field.rules, `<Field name="${path}">`)
     if (rules && !field.rulesFromEffect) {
       field.jsxRules = rules.slice()
       if (!deepEqual(field.rules, rules)) {
@@ -190,7 +190,7 @@ export class Declarations {
         field.declaredRules !== undefined
           ? field.declaredRules.slice()
           : template?.rules !== undefined
-            ? normalizeRules(template.rules)
+            ? normalizeRules(template.rules, `fields['${path}']`)
             : []
       if (!deepEqual(field.rules, next)) {
         field.rules = next
@@ -218,7 +218,7 @@ export class Declarations {
 
   /** Declared UI state. An exact declaration replaces per key; a template only fills keys nobody declared. */
   private applyUi(field: FieldModel, spec: FieldSpec, mode: 'explicit' | 'template'): void {
-    const ui = normalizeUiSpec(spec)
+    const ui = normalizeUiSpec(spec, `fields['${field.path}']`)
     const keys = Object.keys(ui) as (keyof typeof ui)[]
     if (!keys.length) return
     const next = { ...field.uiDeclared }
@@ -308,7 +308,7 @@ export class Declarations {
     this.applyFieldFlags(field, spec, 'template')
     this.applyUi(field, spec, 'template')
     if (spec.rules !== undefined && !field.rulesFromEffect && field.declaredRules === undefined && field.jsxRules === undefined) {
-      const rules = normalizeRules(spec.rules)
+      const rules = normalizeRules(spec.rules, `fields['${path}']`)
       if (!deepEqual(field.rules, rules)) {
         field.rules = rules
         this.notifier.bumpPath(path)

@@ -1,3 +1,4 @@
+import { callSite } from '../errors'
 import { listPositions, posKey, type Pos } from '../shared/tree-ops'
 import type { Draft, EffectDef, EffectsAPI, EffectsRuntime, RowContext } from '../types'
 import type { EachRec } from './scheduler'
@@ -40,7 +41,7 @@ export function defineEffects<T>(factory: (api: EffectsAPI<T>) => void): EffectD
       const runtime = form as EffectsRuntime<T>
       const reaction = Object.assign(
         (effect: (d: Draft<T>) => void) => {
-          const id = runtime.nextId('reaction')
+          const id = runtime.nextId('reaction', dev() ? callSite() : undefined)
           const run = () => {
             const result = runtime.runWith({ id, deps: true, writes: true }, () => effect(runtime.draft))
             runtime.setDeps(id, result.deps)
@@ -51,10 +52,10 @@ export function defineEffects<T>(factory: (api: EffectsAPI<T>) => void): EffectD
         },
         {
           each(select: (d: Draft<T>) => unknown, effect: Function) {
-            installEach(runtime as EachRuntime, 'each', select as (d: Draft<any>) => unknown, effect)
+            installEach(runtime as EachRuntime, 'each', select as (d: Draft<any>) => unknown, effect, 'children', dev() ? callSite() : undefined)
           },
           walk(select: (d: Draft<T>) => unknown, effect: Function, opts?: { childrenKey?: string }) {
-            installEach(runtime as EachRuntime, 'walk', select as (d: Draft<any>) => unknown, effect, opts?.childrenKey ?? 'children')
+            installEach(runtime as EachRuntime, 'walk', select as (d: Draft<any>) => unknown, effect, opts?.childrenKey ?? 'children', dev() ? callSite() : undefined)
           },
         },
       ) as EffectsAPI<T>['reaction']
@@ -88,14 +89,17 @@ export function defineEffects<T>(factory: (api: EffectsAPI<T>) => void): EffectD
   }
 }
 
+const dev = () => process.env.NODE_ENV !== 'production'
+
 function installEach(
   runtime: EachRuntime,
   kind: 'each' | 'walk',
   select: (d: Draft<any>) => unknown,
   effect: Function,
   childrenKey = 'children',
+  site?: string,
 ): void {
-  const id = runtime.nextId(kind)
+  const id = runtime.nextId(kind, site)
   const rec: EachRec = { kind, select, effect, arrayPath: '', childrenKey, instances: new Set(), first: true }
   runtime.holdEach(id, rec)
   const run = () => {

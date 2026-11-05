@@ -17,7 +17,7 @@ const effects = defineEffects<Values>(({ reaction }) => {
     const work = d.kind.$value === 'work';
     d.email.$required = work;
     d.email.$componentProps.placeholder = work ? 'name@company.com' : 'name@example.com';
-    d.company.$display = work ? 'visible' : 'none';
+    d.company.$visible = work;
   });
 });
 
