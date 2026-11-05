@@ -124,6 +124,7 @@ export default function App() {
 日期区间、`Space.Compact` 拼起来的输入组，控件挨在一起，各自一行提示会把布局撑乱。这时里面的字段不写 `decorator`，外层的纯布局 `FormItem` 把它们的错误显示在自己的提示区：
 
 ```tsx preview
+import { useState } from 'react';
 import { Space } from 'antd';
 import { Form, typed, useForm } from 'shikiform';
 import { FormButtonGroup, FormItem, FormLayout, Input, InputNumber, Submit } from 'shikiform/antd';
@@ -133,8 +134,9 @@ type Values = { areaCode: string; phoneNumber: string; minAge: number | null; ma
 export default function App() {
   const form = useForm<Values>({ initialValues: { areaCode: '', phoneNumber: '', minAge: null, maxAge: null } });
   const F = typed(form);
+  const [result, setResult] = useState('');
   return (
-    <Form form={form} onSubmit={(values) => console.log(values)} data-layout-errors-demo="">
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))} data-layout-errors-demo="">
       <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 16 }}>
         <FormItem label="电话" asterisk>
           <Space.Compact>
@@ -150,6 +152,7 @@ export default function App() {
         </FormItem>
         <FormButtonGroup.FormItem><Submit /></FormButtonGroup.FormItem>
       </FormLayout>
+      <pre>{result}</pre>
     </Form>
   );
 }

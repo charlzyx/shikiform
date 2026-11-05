@@ -68,3 +68,15 @@ test('Layout guide: a pure-layout FormItem shows the errors of undecorated field
   const ages = demo.locator('.ant-form-item').filter({ has: page.getByText('年龄段', { exact: true }) }).first()
   await expect(ages.locator('.ant-form-item-explain-error')).toHaveCount(2)
 })
+
+test('Layout guide: a valid submit of the error-aggregation demo prints its values inline', async ({ page }) => {
+  await gotoHydrated(page, '/guide/layout')
+  const demo = page.locator('[data-layout-errors-demo]').first()
+  await demo.getByPlaceholder('区号').fill('010')
+  await demo.getByPlaceholder('号码').fill('12345678')
+  await demo.getByPlaceholder('最小').fill('18')
+  await demo.getByPlaceholder('最大').fill('30')
+  await demo.getByRole('button', { name: /提\s*交/ }).click()
+  await expect(demo.locator('pre')).toContainText('"phoneNumber":"12345678"')
+  await expect(demo.locator('pre')).toContainText('"maxAge":30')
+})
