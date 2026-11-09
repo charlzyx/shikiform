@@ -81,13 +81,14 @@ describe('mapFieldProps (the pure core of connect)', () => {
     expect('value' in props).toBe(false)
   })
 
-  it('ORs disabled/readOnly with caller props and lets an explicit status win', async () => {
+  it('ORs disabled/readOnly with caller props and derives status only when mapped', async () => {
     const form = createEngine({ initialValues: { x: '' }, fields: { x: { required: true } } })
     await form.validate()
     const field = form.binding('x') as FieldBinding<any>
     expect(mapFieldProps(field, { disabled: true }).disabled).toBe(true)
-    expect(mapFieldProps(field, {}).status).toBe('error')
-    expect(mapFieldProps(field, { status: 'warning' }).status).toBe('warning')
+    expect('status' in mapFieldProps(field, {})).toBe(false)
+    expect(mapFieldProps(field, {}, { status: 'status' }).status).toBe('error')
+    expect(mapFieldProps(field, { status: 'warning' }, { status: 'status' }).status).toBe('warning')
   })
 
   it('maps the field enum to options only when asked, and a caller list wins', () => {
@@ -114,7 +115,7 @@ describe('mapFieldProps (the pure core of connect)', () => {
 describe('connect', () => {
   it('binds by name through useField (hook-first) and writes back to the form', () => {
     const seen: Record<string, any>[] = []
-    const Probe = connect((props: { value?: string; onChange?: (v: string) => void }) => {
+    const Probe = connect((props: { value?: string; onChange?: (v: string) => void; onBlur?: () => void }) => {
       seen.push(props)
       return null
     })
@@ -131,7 +132,7 @@ describe('connect', () => {
 
   it('binds from the surrounding <Field> without its own name', () => {
     const seen: Record<string, any>[] = []
-    const Probe = connect((props: { value?: unknown }) => {
+    const Probe = connect((props: { value?: unknown; onBlur?: () => void }) => {
       seen.push(props)
       return null
     })
@@ -148,7 +149,7 @@ describe('connect', () => {
   })
 
   it('renders the mapReadPretty view in readPretty and the control otherwise', () => {
-    const Control = connect((props: { value?: string }) => <input data-control value={props.value} readOnly />, mapReadPretty(PreviewText))
+    const Control = connect((props: { value?: string; onBlur?: () => void }) => <input data-control value={props.value} readOnly />, mapReadPretty(PreviewText))
     const editable = createEngine({ initialValues: { x: 'hi' } })
     const pretty = createEngine({ initialValues: { x: 'hi' }, fields: { x: { pattern: 'readPretty' } } })
     expect(renderToStaticMarkup(<Form form={editable}><Control name="x" /></Form>)).toContain('data-control')
@@ -159,7 +160,7 @@ describe('connect', () => {
 
   it('outside a field renders the plain control and warns once in development', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const Bare = connect(function BareControl(props: { label?: string }) { return <i>{props.label}</i> })
+    const Bare = connect(function BareControl(props: { label?: string; onBlur?: () => void }) { return <i>{props.label}</i> })
     const form = createEngine({ initialValues: {} })
     expect(renderToStaticMarkup(<Form form={form}><Bare label="plain" /><Bare label="again" /></Form>)).toBe('<form><i>plain</i><i>again</i></form>')
     expect(renderToStaticMarkup(<Bare label="no form" />)).toBe('<i>no form</i>')
@@ -170,7 +171,7 @@ describe('connect', () => {
 
   it('forwards ref and hoists statics (Select.Option, Input.Search)', () => {
     let seen: unknown
-    const Target = forwardRef<HTMLInputElement, { value?: string }>(function Target(props, ref) {
+    const Target = forwardRef<HTMLInputElement, { value?: string; onBlur?: () => void }>(function Target(props, ref) {
       seen = ref
       return <input ref={ref} readOnly value={props.value ?? ''} />
     })
@@ -538,7 +539,7 @@ describe('connected Ant Design controls', () => {
 
   it('mapProps composes with a custom control', () => {
     const { form, field } = binding(0)
-    const Stars = connect((_: { score?: number; onPick?: (n: number) => void }) => null, mapProps({ value: 'score', onChange: 'onPick', status: false }))
+    const Stars = connect((_: { score?: number; onPick?: (n: number) => void }) => null, mapProps({ value: 'score', onChange: 'onPick', onBlur: false }))
     const el = target(Stars, { field })
     expect(el.props.score).toBe(0)
     el.props.onPick(4)

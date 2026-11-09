@@ -1,7 +1,7 @@
 import { Select as AntSelect, Spin, type SelectProps } from 'antd'
 import type { EnumOption } from '../../core/enum/enum-source'
 import { useSuggestion, type SuggestFetcher } from '../../pro/use-suggestion'
-import { connect, mapReadPretty } from '../adapter/connect'
+import { connect, mapProps, mapReadPretty } from '../adapter/connect'
 import { PreviewText } from '../adapter/preview'
 
 type Labeled = { label: string; value: unknown }
@@ -75,4 +75,4 @@ function SuggestionPreview({ value }: { value?: unknown }) {
  * <Field name="keyword" title="淘宝搜索" decorator={[FormItem]} component={[Suggestion, { fetch: search, multiple: true, labelInValue: true }]} />
  * ```
  */
-export const Suggestion = connect(SuggestionView, mapReadPretty(SuggestionPreview))
+export const Suggestion = connect(SuggestionView, mapProps({ status: 'status' }), mapReadPretty(SuggestionPreview))

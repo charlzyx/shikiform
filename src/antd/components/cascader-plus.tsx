@@ -1,7 +1,7 @@
 import { Cascader as AntCascader, type CascaderProps } from 'antd'
 import { useEffect, useRef } from 'react'
 import { cascaderPaths, useCascaderLabels, useLazyCascader, type CascaderLoader, type CascaderOption } from '../../pro/use-lazy-cascader'
-import { connect, mapReadPretty } from '../adapter/connect'
+import { connect, mapProps, mapReadPretty } from '../adapter/connect'
 import { PreviewText } from '../adapter/preview'
 
 type Key = string | number
@@ -88,4 +88,4 @@ function CascaderPlusPreview({ value, multiple, loadData, empty }: { value?: unk
  * <Field name="area" title="地区" decorator={[FormItem]} component={[CascaderPlus, { loadData: loadArea, labelInValue: true }]} />
  * ```
  */
-export const CascaderPlus = connect(CascaderPlusView, mapReadPretty(CascaderPlusPreview))
+export const CascaderPlus = connect(CascaderPlusView, mapProps({ status: 'status' }), mapReadPretty(CascaderPlusPreview))

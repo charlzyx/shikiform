@@ -51,7 +51,10 @@ function withPretty<C extends ComponentType<any>>(component: C): ComponentStatic
   return component as unknown as ComponentStatics<C> & ComponentType<ComponentProps<C> & PrettyTypeProps>
 }
 
-const choice = mapProps({ options: 'options', loading: 'loading', readOnly: 'disabled' }, stripPrettyType)
+/** Ant Design `status` ('error' | 'warning'). Headless connect does not pass this. */
+const antdStatus = { status: 'status' as const }
+
+const choice = mapProps({ options: 'options', loading: 'loading', readOnly: 'disabled', ...antdStatus }, stripPrettyType)
 
 /** Marks a grouped `Checkbox` so it does not copy the field id onto every option. */
 const OPTION_KEEP = Symbol('shiki-option-keep')
@@ -143,13 +146,13 @@ function TextAreaPreview(props: PreviewTextProps) {
 }
 
 /** Text input; `readPretty` shows the text with `addonBefore` / `prefix` / `suffix` / `addonAfter`. `.TextArea` keeps line breaks; `.Password` is masked. */
-export const Input = Object.assign(connect(AntInput, mapReadPretty(PreviewText.Input)), {
-  TextArea: connect(AntInput.TextArea, mapReadPretty(TextAreaPreview)),
-  Password: connect(AntInput.Password, mapReadPretty(PreviewText.Password)),
+export const Input = Object.assign(connect(AntInput, mapProps(antdStatus), mapReadPretty(PreviewText.Input)), {
+  TextArea: connect(AntInput.TextArea, mapProps(antdStatus), mapReadPretty(TextAreaPreview)),
+  Password: connect(AntInput.Password, mapProps(antdStatus), mapReadPretty(PreviewText.Password)),
 })
 
 /** Number input. Clearing writes `null` (the raw Ant Design value). `readPretty` applies `formatter` and the addons. */
-export const InputNumber = connect(AntInputNumber, mapReadPretty(PreviewText.Input))
+export const InputNumber = connect(AntInputNumber, mapProps(antdStatus), mapReadPretty(PreviewText.Input))
 
 /**
  * Select. `options` default to the field enum; `loading` follows an async enum.
@@ -158,7 +161,7 @@ export const InputNumber = connect(AntInputNumber, mapReadPretty(PreviewText.Inp
 export const Select = connect(withPretty(AntSelect), choice, mapReadPretty(PreviewText.Select))
 
 /** Text input with suggestions (free text; the value need not be an option). `options` default to the field enum. */
-export const AutoComplete = connect(AntAutoComplete, mapProps({ options: 'options', readOnly: 'disabled' }), mapReadPretty(PreviewText.Input))
+export const AutoComplete = connect(AntAutoComplete, mapProps({ options: 'options', readOnly: 'disabled', ...antdStatus }), mapReadPretty(PreviewText.Input))
 
 /**
  * Tree select. `treeData` defaults to the field enum (`{ label, value, children }` nodes); `multiple` /
@@ -166,7 +169,7 @@ export const AutoComplete = connect(AntAutoComplete, mapProps({ options: 'option
  */
 export const TreeSelect = connect(
   withPretty(AntTreeSelect),
-  mapProps({ options: 'treeData', loading: 'loading', readOnly: 'disabled' }, stripPrettyType),
+  mapProps({ options: 'treeData', loading: 'loading', readOnly: 'disabled', ...antdStatus }, stripPrettyType),
   mapReadPretty(PreviewText.TreeSelect),
 )
 
@@ -174,7 +177,7 @@ export const TreeSelect = connect(
  * Cascader: the value is the path (`['zj', 'hz']`; `multiple`: a list of paths). `options` default to the field enum
  * (`{ label, value, children }`). `readPretty` shows `label / label`. For children loaded level by level use `CascaderPlus`.
  */
-export const Cascader = connect(AntCascader, mapProps({ options: 'options', loading: 'loading', readOnly: 'disabled' }), mapReadPretty(PreviewText.Cascader))
+export const Cascader = connect(AntCascader, mapProps({ options: 'options', loading: 'loading', readOnly: 'disabled', ...antdStatus }), mapReadPretty(PreviewText.Cascader))
 
 /**
  * Ant Design forwards `onBlur` to rc-switch's button although the public `SwitchProps` omit it.
@@ -231,14 +234,14 @@ function toDayjs(value: unknown, format: unknown): Dayjs | null {
  */
 function pickerProps(defaultFormat: string) {
   return mapProps(
-    { readOnly: 'disabled', getValueFromEvent: (_date: unknown, text: unknown) => (text ? text : undefined) },
+    { readOnly: 'disabled', ...antdStatus, getValueFromEvent: (_date: unknown, text: unknown) => (text ? text : undefined) },
     (props) => ({ ...props, value: toDayjs(props.value, props.format ?? defaultFormat) }),
   )
 }
 
 function rangeProps(defaultFormat: string) {
   return mapProps(
-    { readOnly: 'disabled', getValueFromEvent: (dates: unknown, texts: unknown) => (dates ? texts : undefined) },
+    { readOnly: 'disabled', ...antdStatus, getValueFromEvent: (dates: unknown, texts: unknown) => (dates ? texts : undefined) },
     (props) => {
       const format = props.format ?? defaultFormat
       return { ...props, value: Array.isArray(props.value) ? [toDayjs(props.value[0], format), toDayjs(props.value[1], format)] : null }
@@ -366,7 +369,8 @@ export const ColorPicker = connect(
   mapProps({
     readOnly: 'disabled',
     status: false,
-    onBlur: false,
+    // The picker has no `onBlur`; closing the popover is the blur (so `validateTrigger: 'onBlur'` still runs).
+    blurOn: 'onOpenChange',
     getValueFromEvent: (color: { cleared?: unknown } | undefined, text: unknown) => (!color || color.cleared ? undefined : text),
   }),
   mapReadPretty(function ColorPreview({ value, empty }: PreviewTextProps) {

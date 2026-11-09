@@ -58,9 +58,10 @@ export default function App() {
 
 | enhancer | 作用 |
 |---|---|
-| `mapProps({ value: 'checked' })` | 重命名绑定属性；`false` 丢弃（`{ status: false }`）；`getValueFromEvent` 自定义取值 |
+| `mapProps({ value: 'checked' })` | 重命名绑定属性；`false` 丢弃（`{ onBlur: false }`）。`status` 默认不传，antd 要红框时写 `{ status: 'status' }` |
 | `mapProps({ title: 'placeholder' })` | 把其他字段状态交给某个 prop：`title`、`description`、`required`、`validating`、`componentProps.x` …；调用方显式传的 prop 优先 |
 | `mapProps((props, field) => props)` | 最后一步变换 props |
+| `mapProps({ blurOn: 'onOpenChange' })` / `mapBlur('onChange')` | 控件没有 `onBlur` 时，用弹出层关闭或 `onChange` 触发失焦校验 |
 | `mapReadPretty(View)` | `readPretty` 时渲染 `View`（收到 `value` 和 `options`）；没有它时按 `readOnly` 处理 |
 
 ```tsx preview
@@ -68,10 +69,11 @@ import { Segmented as AntSegmented } from 'antd';
 import { Field, Form, useForm } from 'shikiform';
 import { FormItem, FormLayout, Switch, connect, mapProps, mapReadPretty } from 'shikiform/antd';
 
-// Segmented 的 onChange 直接给值，默认取值逻辑就能处理；没有 status / id；阅读态显示带圆点的文字
+// Segmented 的 onChange 直接给值。headless connect 默认不传 status；这里再丢掉 id。阅读态显示带圆点的文字。
+// connect 也从 'shikiform' 导入，不必经过 antd。
 const Segmented = connect(
   AntSegmented,
-  mapProps({ status: false, id: false, readOnly: 'disabled' }),
+  mapProps({ id: false, readOnly: 'disabled' }),
   mapReadPretty(({ value }: { value?: string }) => <span>● {value}</span>),
 );
 
@@ -110,7 +112,7 @@ function Percent() {
 
 ## 提交与重置按钮
 
-`Submit` / `Reset` 读最近的 `<Form>`：`Submit` 在 `$canSubmit` 为 false 时不可点、提交中显示 loading；`Reset` 调 `form.reset()`。按钮文字跟随表单的 `messages`。
+`Submit` / `Reset` 读最近的 `<Form>`：`Submit` 在 `$canSubmit` 为 false 时不可点、提交中显示 loading；`Reset` 调 `form.reset()`。`afterReset` 在重置之后拿到新值（查询后再查一次）。按钮文字跟随表单的 `messages`。不装 antd 时用 `shikiform` 的同名组件（`asChild` / render prop）或 `useSubmit()` / `useReset()`。
 
 ```tsx
 <Form form={form} onSubmit={save}>

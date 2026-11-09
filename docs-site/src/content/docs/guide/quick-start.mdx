@@ -86,7 +86,7 @@ export default function App() {
 }
 ```
 
-不带参数的 `useField()` 必须写在 `<Field>` 的 `component` / `decorator` / 子元素里，否则抛错并提示修法。输入组件自己把 `value` / `onChange` / `onBlur` 接到控件上；要套用 antd 那样的映射，用 [`connect`](/reference/antd-adapter#connect)。
+不带参数的 `useField()` 必须写在 `<Field>` 的 `component` / `decorator` / 子元素里，否则抛错并提示修法。输入组件自己把 `value` / `onChange` / `onBlur` 接到控件上；要套用同一套映射，用 [`connect`](/reference/antd-adapter#connect)（从 `shikiform` 导入，不必装 antd）。标签、错误和提交按钮见 [接自己的组件库](/guide/headless#接自己的组件库)。
 
 ## 复用一段字段
 

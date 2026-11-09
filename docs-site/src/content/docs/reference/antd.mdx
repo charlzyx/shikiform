@@ -27,10 +27,13 @@ Submit<T = any>(props: Omit<ButtonProps, 'onSubmit'> & {
 ## Reset
 
 ```ts
-Reset<T = any>(props: ButtonProps & { values?: T })
+Reset<T = any>(props: ButtonProps & {
+  values?: T
+  afterReset?: (values: T) => void
+})
 ```
 
-点击调用 `form.reset(values)`：不传 `values` 回到初始值；传了则把它设为新的初始值再重置（编辑页回填）。touched、edited 和全部消息一并清空。文字取 `messages.reset`（`重置` / `Reset`），`htmlType="button"`，不会触发原生 reset。`onClick` 先执行，`event.preventDefault()` 跳过重置。
+点击调用 `form.reset(values)`：不传 `values` 回到初始值；传了则把它设为新的初始值再重置（编辑页回填）。touched、edited 和全部消息一并清空。文字取 `messages.reset`（`重置` / `Reset`），`htmlType="button"`，不会触发原生 reset。`onClick` 先执行（读到的仍是旧值），`event.preventDefault()` 跳过重置。`afterReset` 在重置之后调用，参数已是恢复后的值，查询页用它再查一次，不必 `queueMicrotask`。不装 antd 时用 `shikiform` 的 `<Reset afterReset>` / `useReset()`。
 
 ```tsx preview
 import { useState } from 'react';
