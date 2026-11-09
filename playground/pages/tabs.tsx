@@ -30,7 +30,7 @@ export function TabsPage() {
   const form = useForm<Values>({
     initialValues: { tab: 'base', name: '', code: '', ghost: '', note: '' },
     fields: {
-      tab: { virtual: true },
+      tab: { display: 'virtual' },
       name: { required: true },
       code: { required: true },
       ghost: { required: true },

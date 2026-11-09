@@ -18,7 +18,7 @@ interface Values {
 export function SkuEditorPage() {
   const form = useForm<Values>({
     initialValues: { rows: cloneSkus(), channelOn: false },
-    fields: { channelOn: { virtual: true } },
+    fields: { channelOn: { display: 'virtual' } },
   })
   const [result, setResult] = useState('')
   return (

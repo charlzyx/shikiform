@@ -67,7 +67,7 @@ const columns: ArrayTableColumn<SkuRow>[] = [
 export function SkuPage() {
   const form = useForm<Values>({
     initialValues: { picked: [], overrides: {}, skuRows: [] },
-    fields: { overrides: { virtual: true } },
+    fields: { overrides: { display: 'virtual' } },
     effects: [effects],
   })
   const [result, setResult] = useState('')

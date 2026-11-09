@@ -94,7 +94,7 @@ export default function App() {
 
 - 值、错误、`required` 是字段的，两个控件都显示同一份；拖滑块改的就是 `budget`。
 - `$ui('slider').$pattern = undefined` 回退到字段的有效 pattern：整张表 `d.$pattern = 'readPretty'` 时滑块也跟着变。
-- 规则、`required`、`enum`、`virtual` 写在不带 `ui` 的 `<Field>` 上；写在实例上不会生效（开发期警告一次），这样一个字段不会有两套 JSX 规则。
+- 规则、`required`、`enum` 写在不带 `ui` 的 `<Field>` 上；写在实例上不会生效（开发期警告一次），这样一个字段不会有两套 JSX 规则。实例的 `$display` 没有 `virtual`（字段要不要提交写在字段自己的 `display` 上）。
 
 ## 没有值的提示：`<UI>`
 
@@ -190,7 +190,7 @@ export default function App() {
 
 | 状态 | 没写时（reaction 和 JSX 都没有） |
 |---|---|
-| `$display` / `$visible` / `$hidden` | 字段实例：字段的有效 display；`<UI>`：所在作用域的（根上就是 `visible`） |
+| `$display` / `$visible` / `$hidden` | 字段实例：字段的有效 display（`virtual` 读成 `visible`，UI 没有 `virtual`）；`<UI>`：所在作用域的（根上就是 `visible`） |
 | `$pattern` / `$disabled` | 字段实例：字段的有效 pattern（继承根 `$pattern`）；`<UI>`：作用域的 |
 | `$title` / `$description` | 字段实例：字段的声明 + reaction 值；`<UI>`：无 |
 | `$componentProps` / `$decoratorProps` | 不回退：只有这个 UI 自己的 JSX + reaction |

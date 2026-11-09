@@ -1,6 +1,6 @@
 # ShikiForm
 
-表单一复杂，字段何时必填、何时隐藏、隐藏后还交不交，容易散落在组件的 `if` 里。ShikiForm 把值、字段状态、校验和联动放进一个引擎：联动写成对 draft 上 `$` 状态的赋值，组件只负责渲染。
+表单一复杂，字段何时必填、何时隐藏、隐藏后还交不交，容易散落在组件的 `if` 里。ShikiForm 把值、字段状态、校验和联动放进一个引擎：联动写成对 draft 上 `$` 状态的赋值，组件只负责渲染。显隐只有 `display`：`visible`（渲染、校验、提交）、`hidden`（不渲染，仍校验仍提交）、`virtual`（渲染并校验，但不提交、不计入 dirty）、`none`（不渲染、不校验、不提交，值留在 store）。和 Formily 的差别是 `hidden` 仍校验、多了 `virtual`、`none` 不删 store 里的值。
 
 文档站：<https://shikiform.pages.dev>（[快速开始](https://shikiform.pages.dev/guide/quick-start) · [核心概念](https://shikiform.pages.dev/guide/concepts) · [示例库](https://shikiform.pages.dev/examples) · [分步教程](https://shikiform.pages.dev/tutorial/)）
 

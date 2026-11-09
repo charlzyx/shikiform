@@ -40,7 +40,7 @@ function submitTypes() {
     const _v: Expect<Equal<typeof values, V>> = true
     void _v
   })
-  const form = createForm<V, SubmitValues<V, 'email'>>({ initialValues: init, fields: { email: { virtual: true } } })
+  const form = createForm<V, SubmitValues<V, 'email'>>({ initialValues: init, fields: { email: { display: 'virtual' } } })
   const sv = form.getSubmitValues()
   const _sv: Expect<Equal<typeof sv['email'], string | undefined>> = true
   void form.submit((values) => {
@@ -264,7 +264,7 @@ describe('typed handles (runtime)', () => {
   })
 
   it('getSubmitValues drops virtual fields that SubmitValues marks optional (#43)', () => {
-    const form = createForm<V, SubmitValues<V, 'email'>>({ initialValues: init, fields: { email: { virtual: true } } })
+    const form = createForm<V, SubmitValues<V, 'email'>>({ initialValues: init, fields: { email: { display: 'virtual' } } })
     const values = form.getSubmitValues()
     expect('email' in values).toBe(false)
     expect(values.email?.length).toBeUndefined()

@@ -57,7 +57,7 @@ export function OrdersPage() {
         { id: 'o2', no: 'A002', status: 'shipped', amount: 0, items: [{ id: 'i3', sku: 'box', qty: 1, price: 20, line: 0 }] },
       ],
     },
-    fields: { editable: { virtual: true } },
+    fields: { editable: { display: 'virtual' } },
     effects: [effects],
   })
   return (

@@ -1,5 +1,5 @@
 import { createContext, useContext, type ComponentType, type ReactNode } from 'react'
-import type { Display, FieldUiSpec, Pattern, UiName } from '../../core/types'
+import type { FieldUiSpec, Pattern, UiDisplay, UiName } from '../../core/types'
 import { useRequiredForm, useScope } from '../context'
 import { useUiNode, type FieldSlot } from '../hooks/use-field'
 import { normalizeUiSpec } from '../../core/state/field-model'
@@ -11,7 +11,7 @@ export interface UiBinding {
   ui: string
   /** DOM id: `<prefix>-<scope>--<name>` (`<prefix>-ui--approvalTip` at the root). */
   id: string
-  display: Display
+  display: UiDisplay
   pattern: Pattern
   title: ReactNode
   description: ReactNode
@@ -32,7 +32,7 @@ export interface UIProps<C extends ComponentType<any> = ComponentType<any>, D ex
   title?: ReactNode
   description?: ReactNode
   /** Initial display when no reaction wrote `$visible` / `$display` (default: the scope's). */
-  display?: Display
+  display?: UiDisplay
   /** Initial pattern when no reaction wrote `$pattern` (default: inherited from the scope / form). */
   pattern?: Pattern
   /** Rendered inside `component` (or alone), or a render prop `(ui) => …`. */

@@ -47,7 +47,7 @@ export function RowEditPage() {
   const form = useForm<Values>({
     initialValues: { rows: ROWS, editor: EMPTY_EDITOR },
     effects: [effects],
-    fields: { editor: { virtual: true } },
+    fields: { editor: { display: 'virtual' } },
   })
   return (
     <Form form={form}>
@@ -136,7 +136,7 @@ function RowEditBody() {
     <main>
       <h1>抽屉里编辑一行</h1>
       <p>
-        编辑区是同一个引擎里的一个 <code>virtual</code> 对象（<code>editor</code>，不进提交值）。打开时异步加载这一行，较新的打开会作废旧的加载；
+        编辑区是同一个引擎里的一个 <code>display: virtual</code> 对象（<code>editor</code>，不进提交值）。打开时异步加载这一行，较新的打开会作废旧的加载；
         「确定」用 <code>form.batch</code> 按 id 找到原行写回；「详情」把同一组字段切成阅读态。
       </p>
       <div data-testid="row-table" onClick={onTableClick}>
@@ -219,7 +219,7 @@ function EditorFields() {
   if (loading) return <Spin data-testid="editor-loading" />
   // Detail = the same fields with `$pattern = 'readPretty'` (see the reaction); FormItem / Input render the text view.
   return (
-    <ObjectField name="editor" virtual>
+    <ObjectField name="editor" display="virtual">
       <FormLayout layout="vertical">
         <Field name="name" title="名称" decorator={[FormItem]} component={[Input, { 'data-testid': 'editor-name' }]} />
         <Field name="price" title="价格" decorator={[FormItem]} component={[InputNumber, { 'data-testid': 'editor-price', min: 0 }]} />

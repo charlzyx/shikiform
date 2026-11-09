@@ -18,7 +18,7 @@ tableOfContents: false
 | `ArrayField` | 数组，后面的订单行 |
 | `TreeField` | 树，比如菜单 |
 
-标题、分组这些布局不是字段，它们没有 `name`。`virtual` 和计算值也不是新类型，只是普通字段上的两种属性。下一步看不提交，再后面看计算值。
+标题、分组这些布局不是字段，它们没有 `name`。不提交是 `display: 'virtual'`，计算值是 reaction 写过 `$value` 的普通字段，都不是新类型。下一步看不提交，再后面看计算值。
 
 **这一步：** 在地址里面加上街道。提交之后，`address` 里同时有 `city` 和 `street`。
 

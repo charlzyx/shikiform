@@ -9,9 +9,9 @@ function make() {
     initialValues: { rows: [row()] },
     fields: {
       'rows.*.token': { required: true },
-      'rows.0.token': { virtual: true },
+      'rows.0.token': { display: 'virtual' },
       'rows.0.note': { display: 'none' },
-      'rows.0.extra': { virtual: true },
+      'rows.0.extra': { display: 'virtual' },
     },
   })
 }
@@ -71,7 +71,7 @@ describe('exact declarations stay on their path on move / swap / insert', () => 
     return createEngine({
       initialValues: { rows: rows() },
       fields: {
-        'rows.0.token': { virtual: true },
+        'rows.0.token': { display: 'virtual' },
         'rows.0.note': { display: 'none', title: 'First note' },
       },
     })
@@ -114,7 +114,7 @@ describe('exact declarations stay on their path on move / swap / insert', () => 
   })
 
   it('wildcard declarations still apply to every row after a move', () => {
-    const form = createEngine({ initialValues: { rows: rows() }, fields: { 'rows.*.token': { virtual: true } } })
+    const form = createEngine({ initialValues: { rows: rows() }, fields: { 'rows.*.token': { display: 'virtual' } } })
     form.moveArray('rows', 0, 2)
     expect(form.getSubmitValues()).toEqual({ rows: [{ id: 'b', note: 'nb' }, { id: 'c', note: 'nc' }, { id: 'a', note: 'na' }] })
   })
@@ -122,7 +122,7 @@ describe('exact declarations stay on their path on move / swap / insert', () => 
   it('moveTree: a declaration on an exact node path stays there', () => {
     const form = createEngine({
       initialValues: { menus: [{ id: 'm1', name: 'one', children: [] }, { id: 'm2', name: 'two', children: [] }] },
-      fields: { 'menus.0.name': { virtual: true } },
+      fields: { 'menus.0.name': { display: 'virtual' } },
     })
     form.registerTree('menus')
     form.moveTree('menus', [0], [1])

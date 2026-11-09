@@ -13,7 +13,8 @@ interface Values {
 const MODES = [
   { label: '显示 visible', value: 'visible' },
   { label: '隐藏 hidden', value: 'hidden' },
-  { label: '不提交 none', value: 'none' },
+  { label: '不提交 virtual', value: 'virtual' },
+  { label: '不参与 none', value: 'none' },
 ]
 
 const effects = defineEffects<Values>(({ reaction }) => {
@@ -22,12 +23,12 @@ const effects = defineEffects<Values>(({ reaction }) => {
   })
 })
 
-/** `hidden` keeps and validates. `none` drops the value and skips validation. The child follows the parent. */
+/** `hidden` keeps and validates. `virtual` renders and validates but drops the subtree. `none` skips validation and drops submit; the value stays. The child follows the parent. */
 export function DisplayPage() {
   const form = useForm<Values>({
     initialValues: { mode: 'visible', box: { email: 'a@b.co' } },
     fields: {
-      mode: { virtual: true },
+      mode: { display: 'virtual' },
       'box.email': { rules: [{ required: true, message: '邮箱必填' }] },
     },
     effects: [effects],
@@ -49,6 +50,7 @@ export function DisplayPage() {
       <h1>显隐</h1>
       <p>
         reaction 写 <code>d.box.$display</code>，里面的邮箱跟着父级。<b>hidden</b>：不渲染，值保留、照样校验和提交；
+        <b>virtual</b>：仍渲染、仍校验，整棵子树不提交；
         <b>none</b>：不渲染、不校验、不提交（值还在，切回显示时回来）。清空邮箱再切到「隐藏」提交，会看到「邮箱必填」。
       </p>
       <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 14 }}>

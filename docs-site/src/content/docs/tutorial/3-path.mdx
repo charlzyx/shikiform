@@ -11,11 +11,11 @@ tableOfContents: false
 
 JSON 里昵称在 `profile` 对象的 `name` 属性中；它的字段 path 是 `profile.name`。写在 `ObjectField` 里面的 `name`，会接到外面的名字后面。你在 JSX 里写的是相对名，引擎拼出来的是 path。
 
-确认密码也出现在 JSON 里。它只是用来比对，不该被提交。这种字段加 `virtual`：校验还在，`getSubmitValues` 会把它拿掉。`virtual` 不是一种新字段。
+确认密码也出现在 JSON 里。它只是用来比对，不该被提交。这种字段写 `display="virtual"`：照样渲染、校验还在（对不上会挡住提交），`getSubmitValues` 会把它拿掉。这不是一种新字段。
 
 密码已经要求必填，并且至少 8 位。
 
-**这一步：** 给 `confirmPassword` 加上 `virtual`，并在 `rules` 中写 `{ validator: ... }`。值不等于 `ctx.record.password` 时，返回 `两次密码不一致`。
+**这一步：** 给 `confirmPassword` 加上 `display="virtual"`，并在 `rules` 中写 `{ validator: ... }`。值不等于 `ctx.record.password` 时，返回 `两次密码不一致`。
 
 两次输入一致再提交。JSON 里有 `profile` 和 `password`，没有 `confirmPassword`。
 

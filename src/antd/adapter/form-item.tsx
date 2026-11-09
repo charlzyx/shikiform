@@ -227,7 +227,7 @@ function useClaim(path: string | undefined, deep: boolean): void {
  *
  * or inside a `<Field>`. It reads the field from context and renders an Ant Design `Form.Item` from
  * {@link mapFormItemProps}: label (`title`), extra (`description`), the required mark, status and every message, plus
- * the inherited {@link FormLayout}. Display `hidden` / `none` renders nothing.
+ * the inherited {@link FormLayout}. Display `hidden` / `none` renders nothing. `virtual` still renders (it validates and shows errors).
  *
  * Outside a field it is pure layout (Formily `FormItem.BaseItem`): a label and the layout's columns around anything,
  * e.g. one label over two fields. It shows the errors of the fields inside that no inner `FormItem` shows (a field
@@ -250,8 +250,9 @@ export function FormItem(props: FormItemProps) {
 function FieldFormItem({ field, props }: { field: FieldBinding<any>; props: FormItemProps }) {
   const layout = useFormLayout()
   const feedbackLayout = props.feedbackLayout ?? field.decoratorProps.feedbackLayout ?? layout.feedbackLayout
-  useClaim(field.display === 'visible' && feedbackLayout !== 'none' ? field.path : undefined, false)
-  if (field.display !== 'visible') return null
+  const shown = field.display === 'visible' || field.display === 'virtual'
+  useClaim(shown && feedbackLayout !== 'none' ? field.path : undefined, false)
+  if (!shown) return null
   return <FormItemView field={field} props={props} errors={undefined} />
 }
 

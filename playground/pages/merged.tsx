@@ -39,7 +39,7 @@ const cell = [FormItem, { style: { margin: 0 } }] as const
 export function MergedPage() {
   const form = useForm<Values>({
     initialValues: { onlyActive: false, suppliers: INITIAL },
-    fields: { onlyActive: { virtual: true } },
+    fields: { onlyActive: { display: 'virtual' } },
   })
   return (
     <Form form={form}>

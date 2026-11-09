@@ -46,7 +46,7 @@ export function NestedPage() {
       ],
     },
     effects: [effects],
-    fields: { open: { virtual: true }, editMode: { virtual: true } },
+    fields: { open: { display: 'virtual' }, editMode: { display: 'virtual' } },
   })
   return (
     <Form form={form}>

@@ -38,7 +38,7 @@ describe('tutorial effects use the published FormEngine contract', () => {
     const form = createEngine({
       initialValues: { price: 10, qty: 2, amount: 0 },
       effects: [computedEffects],
-      fields: { amount: { virtual: true } },
+      fields: { amount: { display: 'virtual' } },
     })
     expect(form.binding('amount').pattern).toBe('readPretty')
     expect(form.getSubmitValues()).toEqual({ price: 10, qty: 2 })

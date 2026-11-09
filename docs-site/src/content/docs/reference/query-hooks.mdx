@@ -34,7 +34,7 @@ useQueryTable<TValues, TRow = unknown>(
 |---|---|---|
 | `form` | 不传则创建表单 | 传入现有表单（`useForm` / `createForm` 的返回值）；这时不再用下面三项初始化它 |
 | `initialValues`、`effects`、`fields` | 同表单创建选项 | 仅用于创建内部表单；后续渲染不重新初始化 |
-| `params` | 整个 `form.values` | 字段路径，或把 values 映射为请求参数的函数；不是 `getSubmitValues()`，不要假定自动排除 virtual |
+| `params` | 整个 `form.values` | 字段路径，或把 values 映射为请求参数的函数；不是 `getSubmitValues()`，不要假定自动排除 `display: 'virtual'` |
 | `page` | `'page'` | 页码字段路径；值不存在时初始化为 `1` |
 | `pageSize` | `'pageSize'` | 页大小字段路径；值不存在时用 defaultPageSize |
 | `defaultPageSize` | `10` | 缺失页大小时的默认值；已有字段值优先 |
@@ -44,7 +44,7 @@ useQueryTable<TValues, TRow = unknown>(
 | `rows` | 不写回 | 数组字段路径：每页 `data` 写进这个字段并作为它的初始值，单元格可直接编辑；`QueryList` 必须有它 |
 | `useQuery` | `useBuiltinQuery` | 可接 TanStack Query 等兼容 Hook；每次渲染应传同一个 Hook，不要动态切换 Hook 实现 |
 
-初始化时，client 的 page、pageSize 都标记 virtual；server 中两者非 virtual；selectedKeys 总是 virtual。路径和模式等配置在同一实例生命周期内保持稳定。首次请求在 effect 中发起，SSR 不发送请求。
+初始化时，client 的 page、pageSize 都是 `display: 'virtual'`；server 中两者是 `visible`（会提交）；selectedKeys 总是 `display: 'virtual'`。路径和模式等配置在同一实例生命周期内保持稳定。首次请求在 effect 中发起，SSR 不发送请求。
 
 ### 请求协议
 

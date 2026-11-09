@@ -167,7 +167,7 @@ describe('submit validates the values it returns (#6)', () => {
     const date = new Date('2026-01-01T00:00:00Z')
     const form = createForm({
       initialValues: { name: 'valid', secret: 'omit', none: 'omit', hidden: 'keep', date },
-      fields: { secret: { virtual: true }, none: { display: 'none' }, hidden: { display: 'hidden' } },
+      fields: { secret: { display: 'virtual' }, none: { display: 'none' }, hidden: { display: 'hidden' } },
       validate: async () => {
         entered.open()
         await held.promise

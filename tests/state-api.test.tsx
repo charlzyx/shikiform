@@ -242,7 +242,7 @@ describe('#39 dirty = differs from initial; edited = sticky', () => {
   it('virtual and computed fields do not make the form dirty', () => {
     type V = { price: number; qty: number; total: number; confirm: string }
     const effects = defineEffects<V>(({ reaction }) => reaction((d) => { d.total.$value = d.price.$value * d.qty.$value }))
-    const form = createEngine<V>({ initialValues: { price: 2, qty: 1, total: 0, confirm: '' }, fields: { confirm: { virtual: true } }, effects: [effects] })
+    const form = createEngine<V>({ initialValues: { price: 2, qty: 1, total: 0, confirm: '' }, fields: { confirm: { display: 'virtual' } }, effects: [effects] })
     expect(form.values.total).toBe(2)
     expect(form.dirty).toBe(false)
     form.setValue('confirm', 'yes')
@@ -256,7 +256,7 @@ describe('#39 dirty = differs from initial; edited = sticky', () => {
   it('a reaction and useWatch reading $dirty follow edits, reverts and setInitialValues', () => {
     type V = { name: string; saveDisabled: boolean }
     const effects = defineEffects<V>(({ reaction }) => reaction((d) => { d.saveDisabled.$value = !d.$dirty }))
-    const form = createEngine<V>({ initialValues: { name: 'Ada', saveDisabled: true }, fields: { saveDisabled: { virtual: true } }, effects: [effects] })
+    const form = createEngine<V>({ initialValues: { name: 'Ada', saveDisabled: true }, fields: { saveDisabled: { display: 'virtual' } }, effects: [effects] })
     expect(form.values.saveDisabled).toBe(true)
     form.setValue('name', 'B')
     expect(form.values.saveDisabled).toBe(false)

@@ -1,0 +1,35 @@
+// @vitest-environment happy-dom
+import { cleanup, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it } from 'vitest'
+import { Field, Form, useForm } from '../src'
+import { FormItem, Input } from '../src/antd'
+
+afterEach(cleanup)
+
+describe('display virtual still renders', () => {
+  it('mounts virtual fields and skips hidden and none', () => {
+    function Page() {
+      const form = useForm({
+        initialValues: { shown: 'a', confirm: 'b', secret: 'c', gone: 'd' },
+        fields: {
+          confirm: { display: 'virtual' },
+          secret: { display: 'hidden' },
+          gone: { display: 'none' },
+        },
+      })
+      return (
+        <Form form={form}>
+          <Field name="shown" decorator={[FormItem]} component={[Input, { 'data-testid': 'shown' }]} />
+          <Field name="confirm" decorator={[FormItem]} component={[Input, { 'data-testid': 'confirm' }]} />
+          <Field name="secret" decorator={[FormItem]} component={[Input, { 'data-testid': 'secret' }]} />
+          <Field name="gone" decorator={[FormItem]} component={[Input, { 'data-testid': 'gone' }]} />
+        </Form>
+      )
+    }
+    render(<Page />)
+    expect(screen.getByTestId('shown')).toBeTruthy()
+    expect(screen.getByTestId('confirm')).toBeTruthy()
+    expect(screen.queryByTestId('secret')).toBeNull()
+    expect(screen.queryByTestId('gone')).toBeNull()
+  })
+})

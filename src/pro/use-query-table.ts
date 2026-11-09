@@ -7,7 +7,7 @@ import { useForm } from '../react/hooks/use-form'
 /**
  * Arguments passed to {@link UseQueryTableOptions.request}.
  * `params` is the submitted filter value. `page` / `pageSize` are the form fields.
- * In client mode `page` is virtual and a page change does not call `request` again.
+ * In client mode `page` is `display: 'virtual'` and a page change does not call `request` again.
  */
 export interface QueryRequestArgs<TParams> {
   params: TParams
@@ -76,15 +76,15 @@ export interface UseQueryTableOptions<TValues, TParams, TRow> {
    * Omit to use the whole form value. `TParams` is that payload; `TRow` is one element of `request`'s `data`.
    */
   params?: FieldPath<TValues> | ((values: TValues) => TParams)
-  /** Page field. Default `'page'`. Virtual in client mode, submitted in server mode. */
+  /** Page field. Default `'page'`. `display: 'virtual'` in client mode, submitted (`visible`) in server mode. */
   page?: FieldPath<TValues>
   /** Page size field. Default `'pageSize'`. */
   pageSize?: FieldPath<TValues>
-  /** Virtual selection. Default `'selectedKeys'`. Survives page changes. Cleared by submit and reset. */
+  /** Selection field, `display: 'virtual'`. Default `'selectedKeys'`. Survives page changes. Cleared by submit and reset. */
   selectedKeys?: FieldPath<TValues>
   /**
    * `server` (default) refetches on submit, reset, refresh, and page change.
-   * `client` refetches when filters are submitted and slices the cached rows. `page` is virtual.
+   * `client` refetches when filters are submitted and slices the cached rows. `page` is `display: 'virtual'`.
    */
   mode?: 'server' | 'client'
   request: (args: QueryRequestArgs<TParams>) => Promise<QueryRequestResult<TRow>>
@@ -157,7 +157,7 @@ export interface QueryTableApi<TValues, TParams, TRow> {
  * `TValues` is inferred from `initialValues` or `form`. `TRow` is inferred from `request`'s `data`.
  * `params: 'filters'` types the request payload as that field's value.
  * `params: (values) => ...` types it as the function's return. Omit `params` to send the whole form value.
- * `page` is virtual in `client` mode and submitted in `server` mode. `selectedKeys` is always virtual.
+ * `page` is `display: 'virtual'` in `client` mode and `visible` (submitted) in `server` mode. `selectedKeys` is always `virtual`.
  */
 export function useQueryTable<TValues, TRow, const P extends FieldPath<TValues>>(
   options: UseQueryTableOptions<TValues, PathValue<TValues, P & string>, TRow> & { params: P },
@@ -186,9 +186,10 @@ export function useQueryTable<TValues, TParams = TValues, TRow = unknown>(
   const ready = useRef(false)
   if (!ready.current) {
     ready.current = true
-    form.registerField(pagePath, { virtual: mode === 'client' })
-    form.registerField(sizePath, { virtual: mode === 'client' })
-    form.registerField(selectedPath, { virtual: true })
+    // The hook owns these fields' display: client paging must not be submitted, server paging must be.
+    form.registerField(pagePath, { display: mode === 'client' ? 'virtual' : 'visible' })
+    form.registerField(sizePath, { display: mode === 'client' ? 'virtual' : 'visible' })
+    form.registerField(selectedPath, { display: 'virtual' })
     if (form.getValue(pagePath as never) == null) form.setValue(pagePath as never, 1 as never)
     if (form.getValue(sizePath as never) == null) form.setValue(sizePath as never, sizeDefault as never)
     if (form.getValue(selectedPath as never) == null) form.setValue(selectedPath as never, [] as never)

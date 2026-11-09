@@ -147,7 +147,7 @@ export default function App() {
       rows: [{ id: 'a', name: '钢笔', price: 12 }, { id: 'b', name: '墨水', price: 8 }],
       editor: { open: false, id: '', name: '', price: 0 },
     },
-    fields: { editor: { virtual: true } }, // 编辑区不进提交结果
+    fields: { editor: { display: 'virtual' } }, // 编辑区不进提交结果
   });
   const open = (row: Row) => form.setValue('editor', { ...row, open: true });
   const close = () => form.setValue('editor.open', false);
@@ -190,7 +190,7 @@ export default function App() {
 }
 ```
 
-- 编辑区是同一个引擎里的一个 `virtual` 对象：参与校验（`form.validate('editor')` 只查这棵子树），不进提交结果。
+- 编辑区是同一个引擎里的一个 `display: 'virtual'` 对象：参与校验（`form.validate('editor')` 只查这棵子树），不进提交结果。
 - 写回用 `form.batch` 按 path 写到原行，一轮联动、一次通知。
 - 只有一个编辑器、要打开就拷贝、确认才写回，这正是 [影子草稿](/examples/pro#影子表单的几种容器) 的形状；需要独立引擎、弹窗 / 抽屉容器时用 `ShadowModal` / `useArrayShadow`。完整版还演示了异步加载和「旧请求不能覆盖新打开的行」。
 

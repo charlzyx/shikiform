@@ -75,17 +75,17 @@ export class Declarations {
       field.declaredRequired = undefined
       if (!field.requiredFromEffect && field.jsxRequired === undefined) field.required = false
     }
-    if (spec.virtual !== undefined) {
-      field.virtual = false
-      field.virtualExplicit = false
-    }
     if (spec.pattern !== undefined && !field.patternFromEffect) {
       field.pattern = undefined
       field.hasPattern = false
     }
-    if (spec.display !== undefined && !field.displayFromEffect) {
-      field.display = undefined
-      field.hasDisplay = false
+    if (spec.display !== undefined) {
+      field.baseDisplay = undefined
+      field.hasBaseDisplay = false
+      if (!field.displayFromEffect) {
+        field.display = undefined
+        field.hasDisplay = false
+      }
     }
     if ((spec as RegisterSpec).trigger) field.triggers = undefined
     if (spec.asyncDebounceMs !== undefined) field.asyncDebounceMs = undefined
@@ -235,10 +235,6 @@ export class Declarations {
   }
 
   private applyFieldFlags(field: FieldModel, spec: FieldSpec & { trigger?: ValidateTrigger[] }, mode: 'explicit' | 'template'): void {
-    if (spec.virtual !== undefined && (mode === 'explicit' || !field.virtualExplicit)) {
-      field.virtual = spec.virtual
-      if (mode === 'explicit') field.virtualExplicit = true
-    }
     if (mode === 'explicit') {
       if (spec.trigger) field.triggers = spec.trigger
       if (spec.asyncDebounceMs !== undefined) field.asyncDebounceMs = spec.asyncDebounceMs
@@ -252,6 +248,11 @@ export class Declarations {
       field.pattern = spec.pattern
       field.hasPattern = true
     }
+    if (spec.display !== undefined && (mode === 'explicit' || !field.hasBaseDisplay)) {
+      field.baseDisplay = spec.display
+      field.hasBaseDisplay = true
+    }
+    // A reaction overlay (`displayFromEffect`) keeps the live display; the base above is what `$visible = true` restores.
     if (spec.display !== undefined && !field.displayFromEffect && (mode === 'explicit' || !field.hasDisplay)) {
       field.display = spec.display
       field.hasDisplay = true
@@ -260,7 +261,7 @@ export class Declarations {
 
   /**
    * Copy item templates onto indexes that exist right now, and drop template instances that no longer do.
-   * Exact rules/required keep their models. Other exact declarations (`virtual`, `display`, `pattern`, UI) go dormant
+   * Exact rules/required keep their models. Other exact declarations (`display`, `pattern`, UI) go dormant
    * with their row and are re-registered when it exists again, whether the row left through `setValue` / `reset` or
    * an array operation (#8).
    */

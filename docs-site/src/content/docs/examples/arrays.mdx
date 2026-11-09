@@ -35,7 +35,7 @@ export default function App() {
       profile: { name: 'Ada', address: { city: '伦敦', street: '贝克街 221B' } },
       orders: [{ id: 'o1', title: '未发货', qty: 1, shipped: false }, { id: 'o2', title: '已发货', qty: 2, shipped: true }],
     },
-    fields: { editable: { virtual: true } },
+    fields: { editable: { display: 'virtual' } },
     effects: [effects],
   });
   return (
