@@ -100,6 +100,24 @@ const F = typed(form)
 
 规则只有一条：**名字相对当前作用域**，类型也跟着作用域走。根上用 `F.*`，`ArrayField` 的行里用 `row.*`，`ObjectField` 的函数子节点里用 `obj.*`。在 `items.0` 行里写 `items.0.name` 会在开发环境抛 `ShikiUsageError`（它会被拼成 `items.0.items.0.name`）。
 
+`<ObjectField name="group">` 里写 `F.Field name="group.inner"` 是同一个坑，而且类型检查能过：`F.Field` 按整张表的类型看，`group.inner` 确实存在。运行时名字相对 `group` 再拼一次，变成 `group.group.inner`。开发环境在拼出来的路径没有值、而从根上读 `group.inner` 有值时抛 `ShikiUsageError`。
+
+```tsx
+const F = typed(form)
+
+// ✗ 类型能过，运行时 ShikiUsageError：解析成 group.group.inner
+<F.ObjectField name="group">
+  <F.Field name="group.inner" />
+</F.ObjectField>
+
+// ✓ 函数子节点拿到按这一层对象检查的 obj.Field，名字相对 group
+<F.ObjectField name="group">
+  {(obj) => <obj.Field name="inner" />}
+</F.ObjectField>
+```
+
+普通 `<Field name="inner">` 也是相对路径。见 [数据结构](/guide/structures#作用域里的名字不要带前缀)。
+
 - 行组件里没有表单实例：`const Row = typed<RowValue>()`，`Row.useField('price')` 按行检查。它的 `useWatch` 仍读根 draft，需要类型时写 `typed<RowValue, Values>()`。
 - 可复用片段（地址块、联系人块）就是普通组件：`const A = typed<Address>()`，组件里写 `<A.Field name="city" …/>`，用的地方 `<ObjectField name="home"><AddressFields /></ObjectField>`。同一个片段放在不同的 `ObjectField` 里就绑定不同的路径；需要额外参数就是普通 props。
 - 需要动态字符串（列定义、后端下发的路径）时继续用普通组件，`useField(name)` 返回 `FieldBinding<any>`。
@@ -158,7 +176,7 @@ type FieldSlot<C extends ComponentType<any> = ComponentType<any>> =
   | readonly [C, (Partial<ComponentProps<C>> & { [key: `data-${string}`]: unknown }) | undefined]
 ```
 
-`options` 与 `<Field>` 同名属性语义相同：`rules` / `required` / `enum` 是挂载期 lease（调用组件卸载时释放；`enum` 的优先级是 reaction `$enum` > JSX > `fields` > 条目模板，reaction 写 `$enum = undefined` 回到 JSX 这一层，属性变化（深比较）会重新应用），`display` / `pattern` 是持久字段标记，UI 选项合并进返回的 binding。`<Field>` 就是 `useField(name, options)` 加上「`hidden` / `none` 返回 null」（`virtual` 仍渲染），再渲染 `decorator` 包住的 `component`，并把 binding 提供给子树里不带参数的 `useField()`。
+`options` 与 `<Field>` 同名属性语义相同：`rules` / `required` / `enum` 是挂载期 lease（调用组件卸载时释放；`enum` 的优先级是 reaction `$enum` > JSX > `fields` > 条目模板，reaction 写 `$enum = undefined` 回到 JSX 这一层，属性变化（深比较）会重新应用），`display` / `pattern` 是持久字段标记，UI 选项合并进返回的 binding。`<Field>` 就是 `useField(name, options)` 加上「display 为 `hidden` / `none` 时返回 null」。`virtual` 会渲染，不提交，`$visible` 读出来是 true。再渲染 `decorator` 包住的 `component`，并把 binding 提供给子树里不带参数的 `useField()`。
 
 带 `name` 时，它是当前对象 / 行作用域下的**相对路径**。例如在 `items.0` 的 `RowScope` 下，`useField('price')` 绑定 `items.0.price`。在行里再写 `items.0.price` 会重复前缀；稳定行 ID 也不是路径。
 
@@ -179,7 +197,7 @@ type FieldSlot<C extends ComponentType<any> = ComponentType<any>> =
 | `onChange(value)` | `(value: TValue) => void`；写入值，不接收 DOM event |
 | `onBlur()` | `() => void`；标记 touched，并按配置触发校验 |
 | `errors` / `warnings` | `string[]`；交给 UI 展示 |
-| `display` | `'visible' \| 'hidden' \| 'none'` |
+| `display` | `Display`（`'visible' \| 'hidden' \| 'virtual' \| 'none'`） |
 | `pattern` | `'editable' \| 'disabled' \| 'readOnly' \| 'readPretty'` |
 | `required` / `disabled` / `readOnly` | `boolean`；有效字段状态 |
 | `touched` / `dirty` / `edited` / `validating` | `boolean`；失焦过、值与初始值不同（改回即 `false`）、用户编辑过（粘滞）、异步校验中 |
@@ -189,7 +207,7 @@ type FieldSlot<C extends ComponentType<any> = ComponentType<any>> =
 | `componentProps` / `decoratorProps` | 合并后的控件 / 装饰器 props（`fields` ← JSX ← `$componentProps` / `$decoratorProps`，深合并） |
 | `ui` | 仅 UI 实例有：实例名（`<Field ui="echo">`） |
 
-`useField` 订阅该路径并注册基础字段模型，但**不会替你渲染或隐藏输入**。自定义 UI 要处理 `display` / `pattern`：`visible` 和 `virtual` 要画出来，`hidden` / `none` 不画。需要 JSX `rules`、`required` 生命周期时传 `options`（或用 `<Field>`）。`hidden` 仍校验/提交，`virtual` 仍校验但不提交（`$visible` 仍为真，因为它在渲染），`none`（`$visible = false`）才跳过，见 [显隐](/guide/concepts) 和 [未挂载规则](/guide/validation)。
+`useField` 订阅该路径并注册基础字段模型，但**不会替你渲染或隐藏输入**。自定义 UI 要处理 `display` / `pattern`：`visible` 和 `virtual` 要画出来，`hidden` / `none` 不画。需要 JSX `rules`、`required` 生命周期时传 `options`（或用 `<Field>`）。`hidden` 仍校验、仍提交。`virtual` 会渲染，不提交，`$visible` 读出来是 true（仍校验，错误会挡住提交）。`none`（`$visible = false`，不是 `hidden`）才跳过校验、不提交。见 [显隐](/guide/concepts) 和 [未挂载规则](/guide/validation)。
 
 ### 无参 useField：当前字段
 

@@ -1,6 +1,6 @@
 ---
 title: Headless Hooks
-description: 不依赖任何 UI 库：useField、useWatch，行内的 useArray / useIndex / useRecord，树节点的 useTreeNode。
+description: 不依赖任何 UI 库：useField、useWatch，行内的 useArray / useIndex / useRecord，树节点的 useTreeNode，以及接入 shadcn、MUI、Mantine。
 ---
 
 不用 antd、或者要自己做表格和树组件时，直接用 Hook。`<Field>`、`<ArrayField>` 都是它们的薄封装；下面的例子只用原生 HTML。
@@ -95,11 +95,176 @@ function NodeLabel({ dragProps }: { dragProps: TreeHandle['dragProps'] }) {   //
 
 ## 接自己的组件库
 
-`connect` / `mapProps` / `mapBlur` / `mapFieldProps` 在 `shikiform` 里，不需要 `shikiform/antd`，也不需要安装 antd。默认不传 antd 的 `status`。控件类型里没有 `onBlur` 时（弹出层 Select），用 `blurOn: 'onOpenChange'`（关闭时失焦）或 `blurOn: 'onChange'`，否则失焦校验不会跑，类型会报错。
+`connect` / `mapProps` / `mapBlur` / `mapFieldProps` 在 `shikiform` 里，不需要 `shikiform/antd`，也不需要安装 antd。默认不传 antd 的 `status`。标签和错误用 [`useFieldDecorator`](/reference/react-hooks#usefielddecorator)，按钮用 [`Submit` / `Reset`](/reference/react-hooks#usesubmit)（`asChild` 或 render prop）。`Reset` 的 `afterReset` 在重置之后拿到新值。
 
-标签和错误用 [`useFieldDecorator`](/reference/react-hooks#usefielddecorator)，按钮用 [`Submit` / `Reset`](/reference/react-hooks#usesubmit)（`asChild` 或 render prop）。`Reset` 的 `afterReset` 在重置之后拿到新值。
+下面用 shadcn 写完整的 Input、Select、Checkbox、DatePicker 和 FormItem。MUI、Mantine 只列和 shadcn 不同的几点。本仓库没有安装这些库，那些示例是代码块，不会参与 `check:docs` 的类型检查和 SSR。可运行的是同一套接线换成原生元素的那一节。
 
-下面是一套 shadcn 风格的最小适配（原生 input / select 代替 shadcn 组件，不增加依赖）。`FormItem` 只展开 hook 的数据；Select 没有 `onBlur`，关闭（这里是选中后）走 `blurOn`。
+### `control` 里没有值
+
+`useFieldDecorator().control` 给的是标签、说明、错误文案、`id`、`onBlur` 和 `aria-*`。**没有 `value`，也没有 `onChange`。** 把 `control` 摊开，字段值接不上。
+
+```tsx
+import { Field, connect, useField, useFieldDecorator } from 'shikiform'
+
+// ✗ control 没有 value / onChange
+function Bad() {
+  const { control } = useFieldDecorator()
+  return <TextInput {...control} />
+}
+
+// ✓ 控件自己画 label（Mantine）：control 管标签和错误，值用 useField
+function NameInput() {
+  const field = useField<string>()
+  const { control } = useFieldDecorator()
+  return (
+    <TextInput
+      {...control}
+      value={field.value ?? ''}
+      onChange={(event) => field.onChange(event.currentTarget.value)}
+    />
+  )
+}
+
+// ✓ 不画 label：connect 接 value / onChange / onBlur，外面再用 FormItem
+const Input = connect(ShadcnInput)
+<Field name="name" title="姓名" decorator={[FormItem]} component={[Input]} />
+```
+
+`NameInput` 这种自己画标签的控件不要再套 decorator，否则标签和错误出两遍。也不要把 `control` 摊到已经 `connect()` 过的控件上：`connect` 已经写了 `id`、`disabled`、`readOnly`、`onBlur`。
+
+### 没有 `onBlur` 的 Select
+
+控件的 props 类型里没有 `onBlur` 时，`connect(...)` 是类型错误：传下去的 `onBlur` 会被丢掉，`validateTrigger: 'onBlur'` 永远不跑。三种写法都满足类型检查：
+
+| 写法 | 何时 `field.onBlur()` |
+|---|---|
+| `mapProps({ blurOn: 'onOpenChange' })` 或 `mapBlur('onOpenChange')` | 弹出层关闭（回调的第一个参数是 `false`）。不再把 `onBlur` 传给控件 |
+| `mapProps({ blurOn: 'onChange' })` 或 `mapBlur('onChange')` | 每次写入之后（值已经写进字段） |
+| `mapProps({ blurOn: { prop, when? } })` 或 `mapBlur({ prop, when? })` | `prop` 触发，且 `when(...args)` 不为 false（`when` 默认恒真）。MUI DatePicker 的 `onClose` 用这个：它没有参数 `false`，不能写 `'onOpenChange'` |
+| `mapProps({ onBlur: false })` | 明确不在失焦时校验 |
+
+```tsx
+connect(SelectControl, mapProps({ options: 'options', onChange: 'onValueChange', blurOn: 'onOpenChange' }))
+connect(SelectControl, mapBlur('onOpenChange'), mapProps({ options: 'options', onChange: 'onValueChange' }))
+connect(Picker, mapProps({ onBlur: false }))
+```
+
+`blurOn` 和 `mapBlur` 是同一件事，`mapBlur` 可以单独放在 enhancer 列表里。签名见 [mapProps](/reference/antd-adapter#mapprops) / [mapBlur](/reference/antd-adapter#mapblur)。
+
+### shadcn
+
+shadcn 的 Input 就是 `value` / `onChange` / `onBlur`，直接 `connect`。Select 的选项是 `SelectItem`，回调是 `onValueChange`，没有 `onBlur`。Checkbox 用 `checked` / `onCheckedChange`（参数是布尔或 `'indeterminate'`，不是 DOM 事件）。DatePicker 是 Popover + Calendar 拼出来的，字段里存 `yyyy-MM-dd` 字符串。FormItem 只读 `useFieldDecorator()`，不读 `control`。
+
+```tsx
+import { format, parseISO } from 'date-fns'
+import type { ReactNode } from 'react'
+import { Field, Form, Reset, Submit, connect, mapProps, mapReadPretty, useFieldDecorator, useForm } from 'shikiform'
+import { Button } from '@/components/ui/button'
+import { Calendar } from '@/components/ui/calendar'
+import { Checkbox as ShadcnCheckbox } from '@/components/ui/checkbox'
+import { Input as ShadcnInput } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Select as ShadcnSelect, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+
+const Input = connect(ShadcnInput, mapReadPretty(({ value }: { value?: string }) => <span>{value || '—'}</span>))
+
+function SelectControl(props: {
+  id?: string
+  value?: string
+  disabled?: boolean
+  options?: { label: string; value: string; disabled?: boolean }[]
+  onValueChange?: (value: string) => void
+  onOpenChange?: (open: boolean) => void
+}) {
+  return (
+    <ShadcnSelect value={props.value || undefined} disabled={props.disabled} onValueChange={props.onValueChange} onOpenChange={props.onOpenChange}>
+      <SelectTrigger id={props.id}><SelectValue /></SelectTrigger>
+      <SelectContent>
+        {(props.options ?? []).map((option) => (
+          <SelectItem key={option.value} value={option.value} disabled={option.disabled}>{option.label}</SelectItem>
+        ))}
+      </SelectContent>
+    </ShadcnSelect>
+  )
+}
+
+const Select = connect(SelectControl, mapProps({ options: 'options', onChange: 'onValueChange', blurOn: 'onOpenChange' }))
+
+function CheckboxControl(props: {
+  id?: string
+  checked?: boolean
+  disabled?: boolean
+  onCheckedChange?: (checked: boolean | 'indeterminate') => void
+  onBlur?: () => void
+}) {
+  return <ShadcnCheckbox id={props.id} checked={!!props.checked} disabled={props.disabled} onCheckedChange={props.onCheckedChange} onBlur={props.onBlur} />
+}
+
+const Checkbox = connect(CheckboxControl, mapProps({
+  value: 'checked',
+  onChange: 'onCheckedChange',
+  getValueFromEvent: (checked: boolean | 'indeterminate') => checked === true,
+}))
+
+function DatePickerControl(props: {
+  id?: string
+  value?: string
+  disabled?: boolean
+  onChange?: (value: string | undefined) => void
+  onOpenChange?: (open: boolean) => void
+}) {
+  const date = props.value ? parseISO(props.value) : undefined
+  return (
+    <Popover onOpenChange={props.onOpenChange}>
+      <PopoverTrigger asChild>
+        <Button type="button" id={props.id} variant="outline" disabled={props.disabled}>
+          {date ? format(date, 'yyyy-MM-dd') : '选择日期'}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent>
+        <Calendar mode="single" selected={date} onSelect={(next) => props.onChange?.(next ? format(next, 'yyyy-MM-dd') : undefined)} />
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+const DatePicker = connect(DatePickerControl, mapProps({ blurOn: 'onOpenChange' }))
+
+function FormItem({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator()
+  return (
+    <div className="grid gap-2" data-invalid={d.invalid || undefined}>
+      {d.label ? <Label {...d.labelProps}>{d.label}{d.required ? <span aria-hidden="true"> *</span> : null}</Label> : null}
+      {children}
+      {d.descriptionProps ? <p {...d.descriptionProps} className="text-sm text-muted-foreground">{d.description}</p> : null}
+      {d.errorProps ? <p {...d.errorProps} className="text-sm text-destructive">{d.errors.join('、')}</p> : null}
+    </div>
+  )
+}
+
+export default function App() {
+  const form = useForm({ initialValues: { name: '', city: '', agree: false, birthday: '' } })
+  return (
+    <Form form={form} onSubmit={(values) => console.log(values)}>
+      <Field name="name" title="姓名" required decorator={[FormItem]} component={[Input, { placeholder: 'Ada' }]} />
+      <Field name="city" title="城市" required enum={[{ label: '杭州', value: 'hz' }, { label: '南京', value: 'nj' }]} decorator={[FormItem]} component={[Select]} />
+      <Field name="agree" title="同意协议" rules={{ isTrue: true }} decorator={[FormItem]} component={[Checkbox]} />
+      <Field name="birthday" title="生日" decorator={[FormItem]} component={[DatePicker]} />
+      <Submit asChild><button type="submit">提交</button></Submit>{' '}
+      <Reset asChild><button type="button">重置</button></Reset>
+    </Form>
+  )
+}
+```
+
+- Radix Select 不接受空字符串，所以没选时传 `undefined`。`options` 来自 `<Field enum>`。
+- Checkbox 的包装组件带 `onBlur`，失焦校验走它，不必再写 `blurOn`。`onCheckedChange` 的参数不是事件，用 `getValueFromEvent` 收成布尔。`required` 把 `false` 当成已填写；「必须勾选」用 `rules={{ isTrue: true }}`。
+- DatePicker 的包装组件没有 `onBlur`，所以必须写 `blurOn`。关掉弹层（`onOpenChange(false)`）时失焦。字段里是 `yyyy-MM-dd` 字符串，Calendar 要 `Date`：传进去用 `parseISO`，选中后再 `format` 回字符串。`getValueFromEvent` 只替换写入字段的参数，改不了回传给控件的 `value`。
+
+### 可运行的最小版
+
+同一套 FormItem 和 `blurOn`，用原生 input / select 代替 shadcn，页面上能直接提交。Select 没有 `onBlur`，选中后调用 `onOpenChange(false)`。
 
 ```tsx preview
 import { useState, type ReactNode } from 'react';
@@ -183,10 +348,16 @@ export default function App() {
 }
 ```
 
-控件自己带 label / error（Mantine）时不再套 decorator：`control` 只给标签、错误、`id` 和 `onBlur`，**不含** `value` / `onChange`。值用 `useField()` 接上，不要把 `control` 摊到 `connect()` 过的控件上（两边都会写 `id` / `onBlur`）。
+### Mantine
+
+TextInput、Select、Checkbox 的 props 里带 `onBlur`，`connect` 不必再写 `blurOn`。某个版本的类型里没有 `onBlur` 时，补上面三种写法里的一种。`control.error` 是字符串，和 Mantine 的 `error`（ReactNode）对得上，所以自带 label 的控件可以直接摊开 `control`，再自己接值。Select 的选项 prop 叫 `data`，`onChange` 的第一个参数就是值，默认会收下。
+
+DatePickerInput 的 `value` 是 `Date | null`，不是字符串。字段里存 `YYYY-MM-DD` 时不要直接 `connect(DatePickerInput)`，也不要只写 `getValueFromEvent`：那只改写回字段的方向，控件拿到的仍是字符串。包一层，传进去转成 `Date`，`onChange` 再转回字符串。日期按本地日历日拆开，避免 `new Date('YYYY-MM-DD')` 被当成 UTC。`valueFormat` 只影响输入框里的文字。
 
 ```tsx
-import { Field, useField, useFieldDecorator } from 'shikiform'
+import { Checkbox, Select, TextInput } from '@mantine/core'
+import { DatePickerInput } from '@mantine/dates'
+import { Field, connect, mapProps, useField, useFieldDecorator } from 'shikiform'
 
 function MantineInput() {
   const field = useField<string>()
@@ -200,8 +371,121 @@ function MantineInput() {
   )
 }
 
+const City = connect(Select, mapProps({ options: 'data' }))
+const Agree = connect(Checkbox, mapProps({ value: 'checked' }))
+
+function MantineDate(props: {
+  id?: string
+  value?: string
+  disabled?: boolean
+  onChange?: (value: string | undefined) => void
+  onBlur?: () => void
+}) {
+  const match = props.value && /^(\d{4})-(\d{2})-(\d{2})$/.exec(props.value)
+  const date = match ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : null
+  return (
+    <DatePickerInput
+      id={props.id}
+      disabled={props.disabled}
+      value={date}
+      valueFormat="YYYY-MM-DD"
+      onBlur={props.onBlur}
+      onChange={(next) => {
+        if (!next) props.onChange?.(undefined)
+        else {
+          const month = String(next.getMonth() + 1).padStart(2, '0')
+          const day = String(next.getDate()).padStart(2, '0')
+          props.onChange?.(`${next.getFullYear()}-${month}-${day}`)
+        }
+      }}
+    />
+  )
+}
+
+const Birthday = connect(MantineDate)
+
 <Field name="name" title="姓名" required component={[MantineInput]} />
+<Field name="city" enum={[{ label: '杭州', value: 'hz' }]} component={[City]} />
+<Field name="agree" rules={{ isTrue: true }} component={[Agree]} />
+<Field name="birthday" component={[Birthday]} />
 ```
+
+### MUI
+
+不要把 `control` 摊到 `TextField` 上。除了没有 `value` / `onChange`，MUI 的 `error` 是布尔，`control.error` 是文案，摊开会把类型和含义都弄错。标签和错误从 `useFieldDecorator()` 逐项拿，值用 `useField()`。
+
+DatePicker（dayjs 适配器）的 `value` 是 Dayjs，字段仍存 `YYYY-MM-DD`。只写 `getValueFromEvent` 不够：它只改写回字段的方向，回传给控件的还是字符串，DatePicker 会报错或不显示。和 shadcn 一样包一层，传进去转成 Dayjs，`onChange` 再 `format` 回字符串。
+
+```tsx
+import dayjs, { type Dayjs } from 'dayjs'
+import Checkbox from '@mui/material/Checkbox'
+import TextField from '@mui/material/TextField'
+import { DatePicker } from '@mui/x-date-pickers/DatePicker'
+import { Field, connect, mapBlur, mapProps, useField, useFieldDecorator } from 'shikiform'
+
+// ✗ control 没有 value / onChange，而且 error 是文案不是布尔
+function Bad() {
+  const { control } = useFieldDecorator()
+  return <TextField {...control} />
+}
+
+function MuiText() {
+  const field = useField<string>()
+  const d = useFieldDecorator()
+  return (
+    <TextField
+      id={d.id}
+      label={d.label}
+      required={d.required}
+      error={d.invalid}
+      helperText={d.error ?? d.description}
+      disabled={d.disabled}
+      value={field.value ?? ''}
+      onChange={(event) => field.onChange(event.target.value)}
+      onBlur={field.onBlur}
+    />
+  )
+}
+
+const Agree = connect(Checkbox, mapProps({ value: 'checked' }))
+
+function toDayjs(value: string | undefined): Dayjs | null {
+  const match = value && /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (!match) return null
+  return dayjs(new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])))
+}
+
+// 字段是 YYYY-MM-DD 字符串，DatePicker（dayjs 适配器）的 value 是 Dayjs。
+// getValueFromEvent 只改 onChange 写回字段的方向，回传的 value 仍是字符串，所以在这一层转换。
+function DateControl(props: {
+  id?: string
+  value?: string
+  disabled?: boolean
+  readOnly?: boolean
+  onChange?: (value: string | undefined) => void
+  onClose?: () => void
+}) {
+  return (
+    <DatePicker
+      value={toDayjs(props.value)}
+      disabled={props.disabled}
+      readOnly={props.readOnly}
+      onChange={(next: Dayjs | null) => props.onChange?.(next?.isValid() ? next.format('YYYY-MM-DD') : undefined)}
+      onClose={props.onClose}
+      slotProps={{ textField: { id: props.id } }}
+    />
+  )
+}
+
+// 包装组件没有 onBlur。onClose 没有参数 false，不能写 blurOn: 'onOpenChange'。
+const Birthday = connect(DateControl, mapBlur({ prop: 'onClose' }))
+
+<Field name="name" title="姓名" required component={[MuiText]} />
+<Field name="agree" rules={{ isTrue: true }} component={[Agree]} />
+<Field name="birthday" component={[Birthday]} />
+```
+
+MUI Select 自己有 `onBlur`，`onChange` 是 DOM 事件，不必 `blurOn`。选项是 `MenuItem` 而不是 `options`，要接 `<Field enum>` 就照 shadcn 那样包一层。
 
 签名见 [React Hooks](/reference/react-hooks#usefielddecorator)。组件注册表（默认 decorator、按名字登记控件）和按控件的值转换（日期 format / parse）不在这一层。
 

@@ -7,7 +7,31 @@ description: 准备依赖，用 Field + FormItem + Submit 写出第一张能校�
 
 ## 准备
 
-ShikiForm 还没有发布到 npm。在仓库里运行 `npm ci && npm run build:lib` 生成 `lib/`，再以 workspace 或 `file:` 依赖接进项目。
+ShikiForm 还没有发布到 npm。在仓库里先打出 tarball，再在你的项目里用 `file:` 装上。入口解析的是 `lib/`，所以要先 `build:lib` 再 `npm pack`。拉到新提交后重新打包，`file:` 不会跟着源码变。
+
+```bash
+# 在 shikiform 仓库。当前 version 是 0.1.0，产物是 shikiform-0.1.0.tgz
+npm ci
+npm run build:lib
+npm pack
+```
+
+```bash
+# 在你的项目
+npm install ../shikiform/shikiform-0.1.0.tgz
+```
+
+`package.json` 里会写成 `"shikiform": "file:../shikiform/shikiform-0.1.0.tgz"`。路径按两边目录的相对位置改。
+
+同一仓库用 workspace 时，把 shikiform 列进 workspace，依赖写协议，并且同样先跑过 `npm run build:lib`。
+
+pnpm（`pnpm-workspace.yaml` 的 `packages` 包含这个目录）：
+
+```json
+{ "dependencies": { "shikiform": "workspace:*" } }
+```
+
+Yarn Berry（v2 及以上，根 `package.json` 的 `workspaces` 包含这个目录）同样写 `"shikiform": "workspace:*"`。Yarn Classic（v1）不认识 `workspace:`，写 `"shikiform": "*"`，由 workspaces 按包名链到仓库里的那一份。
 
 | peer 依赖 | 版本 | 什么时候需要 |
 |---|---|---|

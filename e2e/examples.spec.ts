@@ -58,7 +58,18 @@ test.describe('forms', () => {
     await submit.click()
     await expect(pre(scope)).toContainText('提交：{"email":"a@b.co","password":"123456","confirm":"123456","nick":"ada"')
 
+    await scope.getByRole('button', { name: '昵称 virtual' }).click()
+    await expect(item(scope, '昵称')).toBeVisible()
+    await submit.click()
+    await expect(pre(scope)).toHaveText(/^提交：/)
+    await expect(pre(scope)).not.toContainText('"nick"')
+    await scope.getByRole('button', { name: '昵称 visible' }).click()
     await input(scope, '昵称').fill('')
+    await scope.getByRole('button', { name: '昵称 virtual' }).click()
+    await expect(item(scope, '昵称')).toBeVisible()
+    await submit.click()
+    await expect(pre(scope)).toHaveText('错误：nick')
+
     await scope.getByRole('button', { name: '昵称 hidden' }).click()
     await expect(item(scope, '昵称')).toHaveCount(0)
     await submit.click()
@@ -85,6 +96,10 @@ test.describe('forms', () => {
     await input(scope, '邮箱').fill('a@b.co')
     await submit.click()
     await expect(pre(scope)).toHaveText('提交：{"contact":{"email":"a@b.co","phone":"13800000000"}}')
+    await scope.getByText('virtual', { exact: true }).click()
+    await expect(item(scope, '邮箱')).toBeVisible()
+    await submit.click()
+    await expect(pre(scope)).toHaveText('提交：{}')
   })
 
   test('tabs: declared rules block while unmounted, JSX rules only while mounted', async ({ page }) => {

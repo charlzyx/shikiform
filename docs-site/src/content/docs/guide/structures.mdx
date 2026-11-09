@@ -75,7 +75,27 @@ export default function App() {
 - 写死下标的声明（`fields: { 'contacts.0.name': { display: 'virtual' } }`、`registerField('contacts.0.name', …)`）属于**这个路径**，不属于行：移动、交换、插入、删除后，它留在 `contacts.0.name`，作用于此刻占着第 0 行的那一行。要让设置跟着行走，用 `contacts.*.name` 或 [`reaction.each`](/guide/linkage#reactioneach每一行一个实例)。
 - 增删改行走 `form.*Array` 或 `useArray()`，不要原地 `push` 到 `getValue` 拿到的数组。`ArrayField` 的父组件只订阅结构（行数、行 id），不订阅单元格的值。
 - 行没有 `rowKey` / `id` 时用对象身份当 key，同样跟着行走；`rowKey` 只在行里本来就有业务 id 时传。
-- 现成的添加 / 删除 / 移动 / 拖拽按钮（不可编辑时自动隐藏）：[数组容器 ArrayItems / ArrayCards](/guide/arrays)。
+- 现成的添加 / 删除 / 移动 / 拖拽按钮（不可编辑时自动隐藏）：[数组容器 ArrayItems / ArrayCards](/guide/arrays）。
+
+### 作用域里的名字不要带前缀
+
+`<ObjectField name="group">` 里面的 `name` 会接到 `group.` 后面。用根上的 `F = typed(form)` 写 `F.Field name="group.inner"`，**类型检查能过**（`F.Field` 按整张表的类型看，`group.inner` 确实存在），运行时却再拼一次，变成 `group.group.inner`。开发环境在拼出来的路径没有值、而从根上读 `group.inner` 有值时抛 `ShikiUsageError`。
+
+```tsx
+const F = typed(form)
+
+// ✗ 类型能过，运行时 ShikiUsageError：解析成 group.group.inner
+<F.ObjectField name="group">
+  <F.Field name="group.inner" />
+</F.ObjectField>
+
+// ✓ 函数子节点拿到按这一层对象检查的 obj.Field，名字相对 group
+<F.ObjectField name="group">
+  {(obj) => <obj.Field name="inner" />}
+</F.ObjectField>
+```
+
+普通 `<Field name="inner">`（不经 `typed`）同样是相对路径，写 `group.inner` 也会拼成 `group.group.inner`。数组行里写 `items.0.name` 是同一个错误。`typed` 的说明见 [typed](/reference/react-hooks#typed)。
 
 树的节点由你渲染，每个节点包一层 `<RowScope path pos>`；`trees` 选项让联动在组件挂载前就认识树根。例子见 [联动 · reaction.walk](/guide/linkage#reactionwalk每个树节点一个实例) 和 [Headless Hooks](/guide/headless)。
 
