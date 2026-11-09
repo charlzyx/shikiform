@@ -74,7 +74,7 @@ export default function App() {
 | 状态 | 含义 |
 |---|---|
 | `$value` | 值。reaction 写它时，字段成为**计算字段**：显示为 `readPretty`、不校验，默认仍提交 |
-| `$display` / `$visible` / `$hidden` | `visible` / `hidden` / `virtual` / `none`。`$visible = false` 等于 `none`；`$visible = true` 清掉 reaction 写的 display，回到声明值，不强制 `visible`。`$hidden = true` 等于 `hidden`；`$hidden = false` 只清掉 hidden（`none` / `virtual` 不动）。读 `$display` 时 `none` > `hidden` > `virtual` > `visible` |
+| `$display` / `$visible` / `$hidden` | `visible` / `hidden` / `virtual` / `none`。`$visible = false` 等于 `none`；`$visible = true` 清掉 reaction 写的 display，回到声明值，不强制 `visible`。读 `$visible` 在字段实际渲染时为真（`visible` 或 `virtual`，且祖先没有 `hidden` / `none`）。`$hidden = true` 等于 `hidden`；`$hidden = false` 只清掉 hidden（`none` / `virtual` 不动）。读 `$display` 时 `none` > `hidden` > `virtual` > `visible` |
 | `$pattern` / `$disabled` | `$pattern = undefined` 恢复继承；`$disabled = true` 写 `disabled`，`$disabled = false` 撤销它并恢复继承 |
 | `$required` / `$rules` | 必填与规则；reaction 写的规则不随组件卸载 |
 | `$enum` | 选项（静态数组或 `EnumSource.with(params)`）；优先于 `<Field enum>` 和 `fields.x.enum`。`$enum = undefined` 撤销 reaction 层、回到 JSX / 声明 / 模板的选项，`$enum = []` 才是清空 |

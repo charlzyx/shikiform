@@ -223,7 +223,7 @@ const Rate = connect(AntRate, mapProps({ status: false }))
 - **查询表的表头排序与列筛选在 `useQueryTable`。** `sorter: QuerySort[]`、`filters: QueryFilters` 是 Hook 的 React 状态（不进表单值），随 `queryKey` 与 `request` 参数一起发送。`onTableChange` 接 antd `Table onChange`（忽略 `paginate`，分页走 `onPageChange`），值没变不请求。排序变化：回第 1 页、保留选择（结果集不变）；列筛选变化：回第 1 页、清空选择（结果集变了，旧选择会让批量操作处理看不见的行，#3）；`submit` 保留二者，`reset` 清空。`QueryList` 只把列的 `sortOrder` / `filteredValue` 设为受控并转发 `onChange`。
 - **列配置拖拽在 `useColumnSettings`。** `dragProps(key)` 是无依赖的 HTML5 拖放属性（只接受从列表内开始的拖动），`moveKey(from, to)` 按 key 移动；antd 层只把它展开到每行并保留 ↑ ↓ 按钮（键盘可达）。
 - **级联阅读态在 `useCascaderLabels`。** `labelInValue` 值直接取标签、不加载；裸值复用 `useLazyCascader`（`enabled` 控制是否加载）逐级加载祖先后解析标签。`CascaderPlus` 的 `mapReadPretty` 视图只是它的渲染。
-- **表格状态不进表单值。** 分页、选择、展开、列配置是 React 状态（`useArrayTable` 可受控传入 `selectedKeys`）；查询表的选择仍是 `useQueryTable` 的 `display: 'virtual'` 字段，`QueryList` 把它作为受控选择传给 `ArrayTable`。
+- **表格状态不进表单值。** 分页、选择、展开、列配置是 React 状态（`useArrayTable` 可受控传入 `selectedKeys`）；查询表的选择仍由 `useQueryTable` 从提交里拿掉（不改字段自己的 display），`QueryList` 把它作为受控选择传给 `ArrayTable`。
 
 ## 10. 行上下文 Hook（`react/hooks/use-row.ts`、`use-array.ts`）
 

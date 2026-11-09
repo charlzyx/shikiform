@@ -104,7 +104,7 @@ export class FieldStore<T = any> {
 export interface DisplayFlags {
   /** False when this node or an ancestor is `hidden` or `none`. */
   render: boolean
-  /** False when this node or an ancestor is `virtual` or `none`. The whole subtree is then omitted from submit. */
+  /** False when this node or an ancestor is `virtual`, `none`, or `omitSubmit`. The whole subtree is then omitted from submit. */
   submit: boolean
 }
 
@@ -113,7 +113,10 @@ function walkDisplay(store: FieldStore, path: string): DisplayFlags & { none: bo
   let submit = true
   for (const cursor of selfAndAncestors(path)) {
     const field = store.fields.get(cursor)
-    const display = field?.hasDisplay ? field.display : undefined
+    if (!field) continue
+    // Submit-off without a display write (`omitSubmit`) must not flip render.
+    if (field.omitSubmit) submit = false
+    const display = field.hasDisplay ? field.display : undefined
     if (!display || display === 'visible') continue
     if (display === 'none') return { render: false, submit: false, none: true }
     if (display === 'hidden') render = false

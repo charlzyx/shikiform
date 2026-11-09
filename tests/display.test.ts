@@ -59,6 +59,27 @@ describe('display and pattern', () => {
     expect(form.binding('b').display).toBe('visible')
   })
 
+  it('$visible is true whenever the field renders, including virtual', () => {
+    const form = createEngine<{ shown: string; confirm: string; box: { child: string } }>({
+      initialValues: { shown: '', confirm: '', box: { child: '' } },
+      fields: { confirm: { display: 'virtual' } },
+    })
+    form.batch((d) => {
+      expect(d.shown.$visible).toBe(true)
+      expect(d.confirm.$visible).toBe(true)
+      expect(d.confirm.$display).toBe('virtual')
+    })
+    form.batch((d) => { d.box.$display = 'virtual' })
+    form.batch((d) => {
+      expect(d.box.child.$visible).toBe(true)
+      expect(d.box.child.$display).toBe('virtual')
+    })
+    form.batch((d) => { d.box.$display = 'hidden' })
+    form.batch((d) => { expect(d.box.child.$visible).toBe(false) })
+    form.batch((d) => { d.box.$display = 'none' })
+    form.batch((d) => { expect(d.box.child.$visible).toBe(false) })
+  })
+
   it('reads $visible / $hidden from the effective (inherited) display', () => {
     const form = createEngine<{ box: { child: string }; other: string }>({ initialValues: { box: { child: 'v' }, other: '' } })
     const seen: unknown[] = []
@@ -118,7 +139,7 @@ describe('display and pattern', () => {
     expect(form.binding('box.email').display).toBe('virtual')
     form.batch((d) => {
       expect(d.box.email.$display).toBe('virtual')
-      expect(d.box.email.$visible).toBe(false)
+      expect(d.box.email.$visible).toBe(true)
       expect(d.box.email.$hidden).toBe(false)
     })
     expect(form.getSubmitValues()).toEqual({ note: 'n' })

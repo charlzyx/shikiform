@@ -84,7 +84,7 @@ export class Baseline {
   private skipPaths(): string[] {
     const out: string[] = []
     for (const [path, field] of this.store.fields) {
-      if (path && (field.computed || (field.hasDisplay && field.display === 'virtual'))) out.push(path)
+      if (path && (field.computed || field.omitSubmit || (field.hasDisplay && field.display === 'virtual'))) out.push(path)
     }
     return out.sort()
   }

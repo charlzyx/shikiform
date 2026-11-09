@@ -34,6 +34,11 @@ export interface FieldModel {
   required: boolean
   requiredFromEffect: boolean
   computed: boolean
+  /**
+   * Omit this node (and its subtree) from submit without changing its display.
+   * `useQueryTable` uses it for client paging and `selectedKeys`, so a caller's `hidden` / `none` stays.
+   */
+  omitSubmit: boolean
   rules: Rule[]
   /** Exact configuration, kept separately from a disappearing template instance. */
   declaration?: FieldSpec
@@ -126,6 +131,7 @@ export function createFieldModel(path: string): FieldModel {
     required: false,
     requiredFromEffect: false,
     computed: false,
+    omitSubmit: false,
     rules: [],
     jsxActive: false,
     rulesFromEffect: false,

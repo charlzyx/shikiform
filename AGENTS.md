@@ -32,7 +32,8 @@ and SSR-rendered against the packed library); the site's `/llms.txt` serves this
   confirm password) but is not submitted (the whole subtree) and does not count as dirty. `none` does not render, skips
   validation (errors clear), and is not submitted; the value stays in the store and comes back when shown, and it still
   counts as dirty (Formily drops the value). `$visible = false` is `none`. `$visible = true` clears a reaction's display
-  and restores the declaration (it does not force `visible`). `$hidden = true` is `hidden`. `$hidden = false` only clears
+  and restores the declaration (it does not force `visible`). Reading `$visible` is true whenever the field renders
+  (`visible` or `virtual`, and no ancestor `hidden` / `none`). `$hidden = true` is `hidden`. `$hidden = false` only clears
   hidden (`none` and `virtual` stay). `$display = 'virtual'` switches at runtime. Inheritance keeps two switches: an
   ancestor `none` wins; otherwise `hidden` only turns render off and `virtual` only turns submit off, so they stack
   (parent hidden + child virtual = no render, still validated, not submitted). Reading `$display` collapses

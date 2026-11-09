@@ -14,6 +14,11 @@ export type RegisterSpec = FieldSpec & {
   validator?: Rule['validator']
   warning?: Rule['validator']
   rules?: RulesInput
+  /**
+   * Internal. Drop this field from submit without changing `display` (the render switch and a caller's
+   * `hidden` / `none` stay). Not part of the public `FieldSpec`.
+   */
+  omitSubmit?: boolean
 }
 
 /**
@@ -75,6 +80,7 @@ export class Declarations {
       field.declaredRequired = undefined
       if (!field.requiredFromEffect && field.jsxRequired === undefined) field.required = false
     }
+    if ((spec as RegisterSpec).omitSubmit) field.omitSubmit = false
     if (spec.pattern !== undefined && !field.patternFromEffect) {
       field.pattern = undefined
       field.hasPattern = false
@@ -234,7 +240,8 @@ export class Declarations {
     this.notifier.bumpPath(field.path)
   }
 
-  private applyFieldFlags(field: FieldModel, spec: FieldSpec & { trigger?: ValidateTrigger[] }, mode: 'explicit' | 'template'): void {
+  private applyFieldFlags(field: FieldModel, spec: FieldSpec & { trigger?: ValidateTrigger[]; omitSubmit?: boolean }, mode: 'explicit' | 'template'): void {
+    if (spec.omitSubmit) field.omitSubmit = true
     if (mode === 'explicit') {
       if (spec.trigger) field.triggers = spec.trigger
       if (spec.asyncDebounceMs !== undefined) field.asyncDebounceMs = spec.asyncDebounceMs

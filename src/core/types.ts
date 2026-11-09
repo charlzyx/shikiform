@@ -413,9 +413,9 @@ export interface DraftState<T> {
   /**
    * Convenience for display. `false` sets `none` (no UI, not validated, not submitted; the value stays
    * in the form and comes back when shown again). `true` clears a reaction's display and restores the
-   * declaration — it does not force `visible`. Reading is true only when the effective display is `visible`
-   * (`virtual` renders, but this read is false). To hide the UI but keep validating and submitting, use
-   * `$hidden = true` / `$display = 'hidden'`.
+   * declaration — it does not force `visible`. Reading is true whenever the field renders: effective
+   * display `visible` or `virtual`, and no ancestor `hidden` / `none`. To hide the UI but keep validating
+   * and submitting, use `$hidden = true` / `$display = 'hidden'`.
    */
   $visible: boolean
   /**

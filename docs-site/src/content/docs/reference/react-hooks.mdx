@@ -187,7 +187,7 @@ type FieldSlot<C extends ComponentType<any> = ComponentType<any>> =
 | `componentProps` / `decoratorProps` | 合并后的控件 / 装饰器 props（`fields` ← JSX ← `$componentProps` / `$decoratorProps`，深合并） |
 | `ui` | 仅 UI 实例有：实例名（`<Field ui="echo">`） |
 
-`useField` 订阅该路径并注册基础字段模型，但**不会替你渲染或隐藏输入**。自定义 UI 要处理 `display` / `pattern`：`visible` 和 `virtual` 要画出来，`hidden` / `none` 不画。需要 JSX `rules`、`required` 生命周期时传 `options`（或用 `<Field>`）。`hidden` 仍校验/提交，`virtual` 仍校验但不提交，`none`（`$visible = false`）才跳过，见 [显隐](/guide/concepts) 和 [未挂载规则](/guide/validation)。
+`useField` 订阅该路径并注册基础字段模型，但**不会替你渲染或隐藏输入**。自定义 UI 要处理 `display` / `pattern`：`visible` 和 `virtual` 要画出来，`hidden` / `none` 不画。需要 JSX `rules`、`required` 生命周期时传 `options`（或用 `<Field>`）。`hidden` 仍校验/提交，`virtual` 仍校验但不提交（`$visible` 仍为真，因为它在渲染），`none`（`$visible = false`）才跳过，见 [显隐](/guide/concepts) 和 [未挂载规则](/guide/validation)。
 
 ### 无参 useField：当前字段
 

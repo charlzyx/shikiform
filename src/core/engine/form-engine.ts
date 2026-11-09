@@ -508,7 +508,8 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     const field = store.ensure(path)
     if (key === '$visible') {
       scheduler.trackChain(path, 'display')
-      return store.effectiveDisplay(path) === 'visible'
+      // True whenever the field renders: `visible` or `virtual`, and no ancestor `hidden` / `none`.
+      return store.displayFlags(path).render
     }
     if (key === '$hidden') {
       scheduler.trackChain(path, 'display')
