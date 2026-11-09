@@ -125,9 +125,18 @@ pattern is `editable` (readPretty / readOnly / disabled anywhere above hides the
 
 `<Field>` is the single owner of a path (Formily style). It renders `decorator` around `component` and provides the
 field through context; `FormItem` is a pure decorator and `connect()`ed controls need no `name`.
+`connect` / `mapProps` / `mapBlur` / `mapReadPretty` / `mapFieldProps` are exported from `shikiform` (no antd).
+`shikiform/antd` re-exports them. Headless `connect` does not pass Ant Design `status`; the antd controls opt in with
+`mapProps({ status: 'status' })`. A control whose props omit `onBlur` must pass `blurOn` / `mapBlur` (or `onBlur: false`):
+`blurOn: 'onOpenChange'` blurs when the popup closes, `blurOn: 'onChange'` blurs after each change. Otherwise blur
+validation never runs and TypeScript reports it.
 A `connect()`ed control forwards `ref` and keeps the target's statics (`Select.Option`). Outside a field with no
 `name` / `field` prop it renders as the plain control with only your props (dev warning once) — it is not bound.
 `mapProps` object keys also take field state: `mapProps({ title: 'placeholder' })`.
+`useFieldDecorator()` returns library-agnostic label / required / description / errors (`labelProps`, `errorProps`,
+and `control` for a widget that draws its own label). Headless `<Submit>` / `<Reset>` (`asChild` or a render prop)
+and `useSubmit()` / `useReset()` cover buttons; `afterReset` runs after `form.reset` with the restored values
+(antd `<Reset>` takes the same callback).
 
 ```tsx
 import { createForm, defineEffects, Field, Form } from 'shikiform'
@@ -218,7 +227,8 @@ const step = useFormStep()   // in the component with the buttons; { current, co
   (`FormTab` / `FormCollapse`), `useFormStep({ current, onChange })`. Your own region: `const g = useFieldGroup()`,
   `<FieldGroup value={g}>…</FieldGroup>`, `useFieldGroupErrors(g)`, `form.validate(g.paths())` (from `shikiform`);
   `form.subscribeValidateFailed((errors) => …)` is the hook the containers reveal from.
-- Hooks are the complete API: `useField(name, options)`, `mapFieldProps(field, props)`, `mapFormItemProps(field, props)`.
+- Hooks are the complete API: `useField(name, options)`, `useFieldDecorator()`, `mapFieldProps(field, props)`,
+  `mapFormItemProps(field, props)`, `useSubmit()` / `useReset()`.
   Components are thin sugar over them.
 - One field hook (Formily-style): `useField()` with no name returns the field the nearest `<Field>`
   renders — use it in custom inputs, decorators, and table cells (`useField<string>()` types the value). Outside a
@@ -256,8 +266,11 @@ reaction((d) => {
 - `<Form>` takes the submit callbacks: `onSubmit(values)`, `onInvalid(errors)`,
   `onSubmitError(error)` (default `console.error`); other props go to the native `<form>` (`id`, `className`, `noValidate`).
   Enter, `type="submit"`, and `form.submit(onValid)` behave the same; do not add a second `<form>`.
-- Buttons (`shikiform/antd`): `<Submit />` (native submit for `<Form onSubmit>`; disabled while `$canSubmit` is false,
-  loading while submitting) and `<Reset />` (`form.reset()`). `<Submit onSubmit={fn}>` submits on click by itself.
+- Buttons: headless `<Submit>` / `<Reset>` from `shikiform` (`asChild` or a render prop; `useSubmit()` / `useReset()`
+  for the same state). antd `<Submit>` / `<Reset>` are the Ant Design buttons on those hooks. `<Submit>` is a native
+  submit for `<Form onSubmit>` (disabled while `$canSubmit` is false, loading while submitting); `<Submit onSubmit={fn}>`
+  submits on click by itself. `<Reset>` calls `form.reset()`. `onClick` runs first (`preventDefault` skips the reset);
+  `afterReset(values)` runs after, with the restored values.
 - A rule with `level: 'warning'` (`{ validator: weak, level: 'warning' }`) reports to `$warnings` / `field.warnings`
   (FormItem shows it in the warning colour) and never blocks `submit` / `canSubmit` (antd `warningOnly`).
 - Built-in messages default to Chinese. Override per form with `messages` (partial; functions get params:

@@ -12,6 +12,8 @@ description: useForm、useField、useWatch、数组与树 Hooks 的签名、返�
 | 取得上层表单 | [`useFormContext`](#useformcontext) | 不自动订阅值 |
 | 跟随表单语言的内置文案 | [`useFormMessage`](#useformmessage) | 不订阅 |
 | 绑定一个输入；无参时读当前字段（自定义控件、装饰器、单元格） | [`useField`](#usefield) | `useField(name)` 订阅该路径；`useField()` 不另订阅（随外层 Field 渲染） |
+| 标签、必填、描述、错误（自己的 UI 库） | [`useFieldDecorator`](#usefielddecorator) | 不另订阅（随外层 Field，或随传入的 binding） |
+| 提交 / 重置按钮的状态 | [`useSubmit`](#usesubmit)、[`useReset`](#usereset) | 只订阅 `$canSubmit` / `$submitting`（Reset 不订阅值） |
 | 读取选中的值或状态 | [`useWatch`](#usewatch) | selector 实际读取的 `$` 依赖 |
 | 数组行增删、排序和拖动（`dragProps`） | [`useArrayField`](#usearrayfield) | 数组结构，不是每个单元格 |
 | 行内取最近的数组 / 行号 / 行值（无需 name） | [`useArray`](#usearray)、[`useIndex`](#useindex)、[`useRecord`](#userecord) | 数组结构 / 不订阅 / 这一行的值 |
@@ -560,3 +562,97 @@ function Section({ children }: { children: ReactNode }) {
 ```
 
 [实现：field-group.tsx](https://github.com/charlzyx/shikiform/blob/main/src/react/field-group.tsx) · [分组容器](/guide/containers)
+
+## useFieldDecorator
+
+```ts
+useFieldDecorator(options?: {
+  field?: FieldBinding        // 默认：外层 <Field>
+  label?: ReactNode           // 覆盖 field.title
+  description?: ReactNode     // 覆盖 field.description
+  asterisk?: boolean          // 强制星号；默认 field.required，readPretty 不显示
+}): FieldDecorator
+```
+
+给自己的 UI 库画标签和错误，返回的是数据，不是 antd 的 `Form.Item` props。必须写在 `<Field>` 里，或传入 `useField(name)` 的 binding。`shikiform/antd` 的 `FormItem` 仍走 `mapFormItemProps`。
+
+| 字段 | 含义 |
+|---|---|
+| `id` / `label` / `description` | 控件 id、标题、说明 |
+| `required` | 要不要画星号（`readPretty` 默认不画） |
+| `errors` / `warnings` / `error` | 全部错误、全部警告、第一条错误（Mantine 的 `error`） |
+| `invalid` | `errors` 非空。只有警告不算 |
+| `describedBy` | `aria-describedby` 用的 id，没有可指向的节点时是 `undefined` |
+| `labelProps` | `{ id, htmlFor? }`。`readPretty` 不带 `htmlFor` |
+| `descriptionProps` / `errorProps` / `warningProps` | 有内容才有。错误元素带 `role="alert"` |
+| `control` | 控件自己画 label / error 时整包展开（`id`、`label`、`required`、`error`、`disabled`、`onBlur`、`aria-*`）。不要再叠到 `connect()` 过的控件上 |
+
+```tsx
+function FormItem({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator()
+  return (
+    <div data-invalid={d.invalid || undefined}>
+      <label {...d.labelProps}>{d.label}{d.required && <span>*</span>}</label>
+      {children}
+      {d.descriptionProps && <p {...d.descriptionProps}>{d.description}</p>}
+      {d.errorProps && <p {...d.errorProps}>{d.errors.join('、')}</p>}
+    </div>
+  )
+}
+
+function MantineInput() {
+  const { control } = useFieldDecorator()
+  return <TextInput {...control} />
+}
+```
+
+[实现：use-field-decorator.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-field-decorator.ts) · [Headless · 接自己的组件库](/guide/headless#接自己的组件库)
+
+## useSubmit
+
+```ts
+useSubmit<T, E = ClickEvent>(options?: {
+  onSubmit?: (values: T) => void | Promise<void>
+  onInvalid?: (errors: FieldError[]) => void
+  onSubmitError?: (error: unknown) => void
+  disabled?: boolean          // 覆盖 !$canSubmit；false 表示无效时仍可点
+  onClick?: (event: E) => void
+}): {
+  canSubmit, submitting, loading, disabled,
+  type: 'submit' | 'button',
+  'aria-busy'?: true, 'data-loading'?: '',
+  onClick: (event: E) => void,
+}
+```
+
+当前表单的提交状态，不订阅字段值。不传 `onSubmit` 时 `type` 是 `'submit'`，交给外层 `<Form onSubmit>`（回车同样提交）。传了 `onSubmit` 时 `type` 是 `'button'`，点击自己跑 `form.submit`。`onClick` 先执行，`preventDefault` 会跳过这次自带的提交。
+
+`<Submit>` 是这个 Hook 的三种外壳：默认 `<button>`（文案 `messages.submit`）、`asChild`（行为合并到唯一子元素）、render prop（参数就是这份状态）。`shikiform/antd` 的 `<Submit>` 是 antd `Button`，走同一个 Hook。
+
+```tsx
+const submit = useSubmit()
+<button type={submit.type} disabled={submit.disabled} aria-busy={submit['aria-busy']} onClick={submit.onClick}>保存</button>
+
+<Submit asChild><button>保存</button></Submit>
+<Submit onSubmit={saveDraft}>{(state) => <button type="button" disabled={state.disabled} onClick={state.onClick}>存草稿</button>}</Submit>
+```
+
+[实现：use-submit.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-submit.ts)
+
+## useReset
+
+```ts
+useReset<T, E = ClickEvent>(options?: {
+  values?: T
+  afterReset?: (values: T) => void   // form.reset 之后，参数已是重置后的值
+  onClick?: (event: E) => void       // 先执行；preventDefault 跳过重置和 afterReset
+}): { type: 'button'; onClick: (event: E) => void }
+```
+
+`type` 固定 `'button'`，避免浏览器原生 reset 绕过 store。`onClick` 在重置前（读到的仍是旧值）；`afterReset` 在 `form.reset` 之后，查询页用它按清空后的条件再查。`<Reset afterReset={…}>` / `asChild` / render prop 与 `<Submit>` 同一套外壳，antd 的 `<Reset>` 也接受 `afterReset`。
+
+```tsx
+<Reset afterReset={(values) => search(values)} asChild><button>重置</button></Reset>
+```
+
+[实现：use-submit.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-submit.ts) · [antd Reset](/reference/antd#reset)

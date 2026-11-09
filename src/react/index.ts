@@ -1,3 +1,18 @@
+export { Reset, Submit } from './components/buttons'
+export type { ResetProps, SubmitProps } from './components/buttons'
+export { connect, mapBlur, mapFieldProps, mapProps, mapReadPretty } from './adapter/connect'
+export type {
+  BlurFlag,
+  BlurOn,
+  ComponentStatics,
+  ConnectEnhancer,
+  ConnectFieldProps,
+  ConnectedComponent,
+  FieldPropKey,
+  FieldStateKey,
+  PropsMapping,
+  PropsTransform,
+} from './adapter/connect'
 export { typed } from './factory/typed'
 export type { ScopeFields, TypedForm } from './factory/typed'
 export { ArrayContext, FormContext, ScopeContext, useFormContext, useScope } from './context'
@@ -13,6 +28,10 @@ export { FieldGroup, useFieldGroup, useFieldGroupErrors } from './field-group'
 export type { FieldGroupHandle } from './field-group'
 export { useField } from './hooks/use-field'
 export type { FieldBinding, FieldSlot, UseFieldOptions } from './hooks/use-field'
+export { useFieldDecorator } from './hooks/use-field-decorator'
+export type { FieldDecorator, FieldDecoratorOptions } from './hooks/use-field-decorator'
+export { useReset, useSubmit } from './hooks/use-submit'
+export type { ClickEvent, ResetState, SubmitState, UseResetOptions, UseSubmitOptions } from './hooks/use-submit'
 export { useForm } from './hooks/use-form'
 export type { UseFormOptions } from './hooks/use-form'
 export { useFormMessage } from './hooks/use-form-message'

@@ -1,6 +1,7 @@
 /**
  * Headless ShikiForm: the form engine plus React fields and hooks.
- * `shikiform/core` is the engine alone. `shikiform/pro` is `useQueryTable`. `shikiform/antd` is Ant Design.
+ * `connect` / `mapProps` / `mapFieldProps` live here (no Ant Design). `shikiform/antd` re-exports them and
+ * opts its controls into `status`. `shikiform/core` is the engine alone. `shikiform/pro` is `useQueryTable`.
  *
  * @packageDocumentation
  */
@@ -11,11 +12,18 @@ export {
   FieldGroup,
   Form,
   ObjectField,
+  Reset,
   RowScope,
+  Submit,
   TreeField,
   UI,
   VirtualRows,
   Watch,
+  connect,
+  mapBlur,
+  mapFieldProps,
+  mapProps,
+  mapReadPretty,
   createForm,
   defineEffects,
   enUS,
@@ -25,6 +33,7 @@ export {
   useArray,
   useArrayField,
   useField,
+  useFieldDecorator,
   useFieldGroup,
   useFieldGroupErrors,
   useForm,
@@ -32,13 +41,26 @@ export {
   useFormMessage,
   useIndex,
   useRecord,
+  useReset,
+  useSubmit,
   useTreeField,
   useTreeNode,
   useWatch,
   zhCN,
 } from './react'
 export type {
+  BlurFlag,
+  BlurOn,
+  ClickEvent,
+  ComponentStatics,
+  ConnectEnhancer,
+  ConnectFieldProps,
+  ConnectedComponent,
+  FieldDecorator,
+  FieldDecoratorOptions,
   FieldError,
+  FieldPropKey,
+  FieldStateKey,
   FormDomProps,
   FormMessageKey,
   FormMessages,
@@ -49,6 +71,12 @@ export type {
   MessageParams,
   MessageTemplate,
   NoParams,
+  PropsMapping,
+  PropsTransform,
+  ResetProps,
+  ResetState,
+  SubmitProps,
+  SubmitState,
   TreeMoveParams,
   SubmitResult,
   ArrayHandle,
@@ -75,6 +103,8 @@ export type {
   UiNames,
   UseFieldOptions,
   UseFormOptions,
+  UseResetOptions,
+  UseSubmitOptions,
 } from './react'
 // Engine names a React app needs without a second import line (`shikiform/core` exports the same objects).
 export { EnumSource, ShikiConflictError, ShikiCycleError, ShikiUsageError } from './core'

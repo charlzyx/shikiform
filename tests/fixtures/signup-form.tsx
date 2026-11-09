@@ -24,7 +24,7 @@ const CITIES: Record<string, { label: string; value: string }[]> = {
 // A third-party control: onChange(color, hex) → store the hex; readPretty shows a swatch.
 const ColorPicker = connect(
   AntColorPicker,
-  mapProps({ status: false, getValueFromEvent: (_color: unknown, hex: string) => hex }),
+  mapProps({ status: false, blurOn: 'onOpenChange', getValueFromEvent: (_color: unknown, hex: string) => hex }),
   mapReadPretty(({ value }: { value?: string }) => <span style={{ color: value }}>■ {value}</span>),
 )
 
