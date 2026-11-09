@@ -1,15 +1,28 @@
 /** Display / pattern and named-UI types (split from `types.ts` to keep files small; re-exported there). */
 
 /**
- * Formily display.
- * - `visible` — show the field, validate it, include it in submit.
- * - `hidden` — no UI, keep the value, still validate, still submit. Use this for inactive tabs.
- * - `none` — no UI, drop the value from submit, skip validation.
+ * Field display. Four states, not Formily's three (`virtual` is ShikiForm's):
+ * - `visible` — render, validate, submit, and count toward `dirty`.
+ * - `hidden` — no UI (the field stays registered), still validate, still submit, still `dirty`.
+ *   Inactive tabs. Formily `hidden` does not validate; this one does.
+ * - `virtual` — render, validate (errors block submit, e.g. a confirm-password), do not submit
+ *   (the whole subtree), do not count toward `dirty`.
+ * - `none` — no UI, skip validation (errors clear), do not submit. The value stays in the store
+ *   and comes back when the field is shown again, and it still counts toward `dirty`.
  *
- * Display is inherited from ancestors: an ancestor `none` forces `none`, otherwise an ancestor
- * `hidden` forces `hidden`. Validation follows this effective display, not React mount.
+ * Inheritance keeps two switches, render and submit; it does not collapse them into one value.
+ * An ancestor `none` wins (both switches off, validation skipped). Otherwise `hidden` only turns
+ * render off and `virtual` only turns submit off, so they stack: a hidden parent with a virtual
+ * child does not render, still validates, and is not submitted. Reading `$display` collapses that
+ * with priority `none` > `hidden` > `virtual` > `visible`.
  */
-export type Display = 'visible' | 'hidden' | 'none'
+export type Display = 'visible' | 'hidden' | 'virtual' | 'none'
+
+/**
+ * Display of a named UI node (`$ui`). UI nodes do not submit, so they have no `virtual`.
+ * A field whose effective display is `virtual` is rendered, and a UI that falls back to it reads `visible`.
+ */
+export type UiDisplay = Exclude<Display, 'virtual'>
 
 /**
  * Formily pattern. A child with an explicit pattern wins. `$pattern = undefined` clears the
@@ -50,8 +63,8 @@ export interface UiDraft {
   /** `true` hides this UI. For a UI node the same as `$visible = false`. */
   get $hidden(): boolean
   set $hidden(value: boolean | undefined)
-  get $display(): Display
-  set $display(value: Display | undefined)
+  get $display(): UiDisplay
+  set $display(value: UiDisplay | undefined)
   /** This UI's effective pattern (`readPretty` echo). Assign `undefined` to inherit the field's / scope's again. */
   get $pattern(): Pattern
   set $pattern(value: Pattern | undefined)

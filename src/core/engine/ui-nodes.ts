@@ -4,7 +4,12 @@ import { unwrapReadonly } from '../draft/readonly'
 import type { UiEffect, UiKey } from '../state/field-model'
 import type { FieldStore } from '../state/field-store'
 import type { Notifier } from '../state/notifier'
-import type { Display, FieldUiSpec, Pattern, WriteOp } from '../types'
+import type { Display, FieldUiSpec, Pattern, UiDisplay, WriteOp } from '../types'
+
+/** UI nodes have no submit switch. A field that reads as `virtual` still renders, so the fallback is `visible`. */
+function asUiDisplay(display: Display): UiDisplay {
+  return display === 'virtual' ? 'visible' : display
+}
 import { FieldUi, type FieldUiView, type UiHolder } from './field-ui'
 import type { StateWriter } from './writes'
 import { reindexKeyed } from '../structure/migrate'
@@ -14,13 +19,13 @@ export type UiKind = 'field' | 'node'
 
 /** The render-time JSX layer of a UI node: the field UI keys plus its own initial display / pattern. */
 export interface UiJsx extends FieldUiSpec {
-  display?: Display
+  display?: UiDisplay
   pattern?: Pattern
 }
 
-/** Effective state of one UI node. */
+/** Effective state of one UI node. UI nodes have no `virtual` (a virtual field falls back as `visible`). */
 export interface UiNodeView extends FieldUiView {
-  display: Display
+  display: UiDisplay
   pattern: Pattern
 }
 
@@ -28,7 +33,7 @@ interface UiModel extends UiHolder {
   path: string
   name: string
   kind?: UiKind
-  display?: Display
+  display?: UiDisplay
   pattern?: Pattern
   /** `$disabled = true` installed the current pattern (`false` then clears it, like a field). */
   patternFromDisabled?: boolean
@@ -126,7 +131,7 @@ export class UiNodes {
     if (key === '$visible' || key === '$hidden' || key === '$display') {
       scheduler.track(id, 'display')
       scheduler.trackChain(path, 'display')
-      const display = model.display ?? store.effectiveDisplay(path)
+      const display = model.display ?? asUiDisplay(store.effectiveDisplay(path))
       return key === '$display' ? display : key === '$visible' ? display === 'visible' : display === 'hidden'
     }
     if (key === '$pattern' || key === '$disabled') {
@@ -153,11 +158,21 @@ export class UiNodes {
     const model = this.ensure(path, name)
     let op: WriteOp
     if (key === '$visible' || key === '$hidden' || key === '$display') {
-      const display: Display | undefined =
-        key === '$display' ? (value as Display | undefined)
-          : value === undefined ? undefined
-            : key === '$visible' ? (value ? 'visible' : 'none') : value ? 'hidden' : 'visible'
-      op = { key: `${id}:display`, apply: () => this.set(model, 'display', display) }
+      op = {
+        key: `${id}:display`,
+        apply: () => {
+          // `$hidden = false` only clears an explicit hidden. `none` stays none (it is not hidden).
+          if (key === '$hidden' && value === false) {
+            if (model.display !== 'hidden') return false
+            return this.set(model, 'display', 'visible')
+          }
+          const display: UiDisplay | undefined =
+            key === '$display' ? (value as UiDisplay | undefined)
+              : value === undefined ? undefined
+                : key === '$visible' ? (value ? 'visible' : 'none') : 'hidden'
+          return this.set(model, 'display', display)
+        },
+      }
     } else if (key === '$pattern') {
       op = {
         key: `${id}:pattern`,
@@ -195,7 +210,7 @@ export class UiNodes {
     const id = uiId(path, name)
     const model = this.models.get(id)
     const out = this.ui.view(id, jsx) as UiNodeView
-    out.display = model?.display ?? jsx?.display ?? this.store.effectiveDisplay(path)
+    out.display = model?.display ?? jsx?.display ?? asUiDisplay(this.store.effectiveDisplay(path))
     out.pattern = model?.pattern ?? jsx?.pattern ?? this.store.effectivePattern(path)
     if (kind === 'field') {
       if (out.title === undefined || out.description === undefined) {

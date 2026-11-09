@@ -11,7 +11,7 @@ tableOfContents: false
 
 `reaction` 用来保持一份派生结果。它初始化就会跑。读到的 `$` 状态是依赖，同一轮里的写入不是依赖。所以乘法先放进局部变量，再写回 `$value`。
 
-`reaction` 写过 `$value` 的字段是计算值：阅读态，默认仍提交。它仍是普通 `Field`，不是新类型。不想提交就声明 `virtual`。
+`reaction` 写过 `$value` 的字段是计算值：阅读态，默认仍提交。它仍是普通 `Field`，不是新类型。不想提交就声明 `display: 'virtual'`。
 
 **这一步：** 用 `defineEffects` 包一个 `reaction`：
 

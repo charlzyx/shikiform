@@ -26,9 +26,19 @@ and SSR-rendered against the packed library); the site's `/llms.txt` serves this
 - A `$value` object is a snapshot of immutable data. Never mutate it; assign a new value or write the child path.
   Inside `reaction`, `watch` and `form.batch` the snapshot is read-only in development (mutation throws).
 - A handle is not an array: no `.map`, `.length`, `for…of` on `d.items`. Use `d.items.$value` or `reaction.each`.
-- Display follows Formily: `$visible = false` is `display: 'none'` (no UI, not validated, not submitted; the value
-  stays and returns when shown again). `$hidden = true` is `display: 'hidden'` (no UI, still validated and submitted).
-  A conditional field ("tax id only for companies") is `$visible`; an inactive tab whose values must still submit is `$hidden`.
+- Display is `visible` | `hidden` | `virtual` | `none` (no separate `virtual` flag). `visible` renders, validates,
+  submits, and counts as dirty. `hidden` does not render (stays registered) but still validates, submits, and counts as
+  dirty — unlike Formily, whose `hidden` skips validation. `virtual` renders and validates (errors block submit, e.g. a
+  confirm password) but is not submitted (the whole subtree) and does not count as dirty. `none` does not render, skips
+  validation (errors clear), and is not submitted; the value stays in the store and comes back when shown, and it still
+  counts as dirty (Formily drops the value). `$visible = false` is `none`. `$visible = true` clears a reaction's display
+  and restores the declaration (it does not force `visible`). Reading `$visible` is true whenever the field renders
+  (`visible` or `virtual`, and no ancestor `hidden` / `none`). `$hidden = true` is `hidden`. `$hidden = false` only clears
+  hidden (`none` and `virtual` stay). `$display = 'virtual'` switches at runtime. Inheritance keeps two switches: an
+  ancestor `none` wins; otherwise `hidden` only turns render off and `virtual` only turns submit off, so they stack
+  (parent hidden + child virtual = no render, still validated, not submitted). Reading `$display` collapses
+  `none` > `hidden` > `virtual` > `visible`. A conditional field is `$visible`; an inactive tab is `$hidden`; a confirm
+  password or client-paging `page` is `display: 'virtual'`. Named UI `$display` has no `'virtual'`.
 
 Development builds throw `ShikiUsageError` with the fix for all three mistakes (mutating `$value`, using a handle
 as an array, and reading back a `$` state you wrote in the same pass), and for a misspelled state (`$valeu`,
@@ -41,7 +51,7 @@ call site, the states it reads and the states it writes. Production skips the ch
 
 - `reaction((d) => …)` **derives** state. Every `$` read is a dependency; writes are not. It re-runs only when a key
   it read changes, and its writes wake downstream reactions in the same flush. A field whose `$value` a reaction
-  writes becomes computed (`readPretty` by default, still submitted). Declare `virtual: true` to omit it. Two reactions writing the same state is an error.
+  writes becomes computed (`readPretty` by default, still submitted). Declare `display: 'virtual'` to omit it. Two reactions writing the same state is an error.
 - `watch(source, effect)` is an **action**: it runs after `source`'s reads change, never on the first pass; reads
   inside `effect` are not dependencies. Use it for "when X changes, do Y once" (reset a dependent field, fetch).
 - Writes are buffered until the pass returns: keep a new value in a local instead of reading it back. UI state is
@@ -218,7 +228,7 @@ const step = useFormStep()   // in the component with the buttons; { current, co
 - Named UI nodes (`/guide/ui`): a second UI of the **same field** is `<Field name="x" ui="echo" component={[Echo]} />`
   (shared value / errors / rules / options; its own display, pattern, title, componentProps, decoratorProps; DOM id
   `<form id>-x--echo`, or a `useId()` prefix when `<Form>` has no `id`); in effects `d.x.$ui('echo').$pattern = 'disabled'`. Inside it `useField()` returns the shared field with
-  the instance's UI state (`field.ui === 'echo'`). Put `rules` / `required` / `enum` / `virtual` on the `<Field>`
+  the instance's UI state (`field.ui === 'echo'`). Put `rules` / `required` / `enum` / `display` on the `<Field>`
   without `ui` (an instance ignores them, dev warning). A UI with **no value** (a tip, a group box) is
   `<UI name="tip" component={[Alert, props]}>children</UI>` → `d.$ui('tip')` (in a row: `row.$ui('tip')`); never in
   values / submit / validation. Priority reaction > JSX > fallback; unset display / pattern fall back to the field's
@@ -269,7 +279,7 @@ reaction((d) => {
   mount it under `<ObjectField name="home"><AddressFields /></ObjectField>`.
 - `useWatch((d) => …)` without annotation compiles with an untyped `d`; `F.useWatch((d) => d.email.$value)` is typed.
 - `submit` / `getSubmitValues` / `onSubmit` values are the form's second type argument `TSubmit` (default `T`).
-  Fields dropped at runtime (`virtual`, `display: 'none'`) are not in the default type: declare them with
+  Fields dropped at runtime (`display: 'virtual'`, `display: 'none'`) are not in the default type: declare them with
   `createForm<V, SubmitValues<V, 'tmp' | 'rows.*.total'>>()` (those paths become optional).
 
 ## 8. Correct vs incorrect
@@ -333,7 +343,7 @@ reaction((d) => { d.city.$componentProps.disabled = d.kind.$value === 'b' })    
 - `form.values`, `submitting`, `dirty`, `submitCount`, `validating` are read-only getters. Write values with
   `setValue` / `batch` / array ops, never `form.values = x` (a TS error, and a `TypeError` at runtime).
 - `dirty` / `$dirty` / `binding.dirty` = the value differs from `initial` (deep compare; changing it back clears it;
-  `virtual` and computed fields do not count at form level). `edited` / `$edited` is the sticky "a user edited it" flag.
+  `display: 'virtual'` and computed fields do not count at form level; `none` does). `edited` / `$edited` is the sticky "a user edited it" flag.
 - Edit page: `useForm({ values: record })` resets to `record` whenever its content changes (new baseline, not dirty;
   `initialValues` is read once). Without React, `form.reset(record)` does the same; a later `reset()` returns to it.
   After a save, `form.setInitialValues(form.values)` moves the baseline without changing values.

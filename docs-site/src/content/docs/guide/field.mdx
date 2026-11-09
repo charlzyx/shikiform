@@ -21,12 +21,12 @@ description: Field 拥有一个 path，decorator 包住 component；UI 属性分
 | `name` | 相对路径。`profile.name`，或在 `<ObjectField name="profile">` 里写 `name` |
 | `rules` / `required` | 挂载期规则，组件卸载时释放，见 [规则写在哪](/guide/validation#规则写在哪) |
 | `enum` | 选项：`[{ label, value }]`、原始值数组 `['a', 'b']` 或 `SomeEnum.with(params)`，见 [选项写在 JSX 里](#选项写在-jsx-里) |
-| `display` / `pattern` / `virtual` | 初始显隐 / 编辑态 / 不进提交；reaction 写的值优先 |
+| `display` / `pattern` | 初始显隐（`visible` / `hidden` / `virtual` / `none`）/ 编辑态；reaction 写的值优先。`virtual` 渲染并校验，但不提交 |
 | `title` / `description` | 装饰器的标签 / 说明 |
 | `decorator` / `component` | 组件，或 `[组件, props]`：元组里的 props 就是 JSX 这一层的 `decoratorProps` / `componentProps`，按组件检查类型（都可选；写错键或类型不通过编译） |
 | `children` | 控件元素（`<Input />`）或 render prop `(field) => …`，代替 `component` |
 
-`display` 不是 `visible` 时 `<Field>` 不渲染，字段模型仍在：`hidden`（`$hidden = true`）仍校验、仍提交，`none`（`$visible = false`）跳过校验、不提交；详见 [显隐、pattern 与提交](/guide/concepts#显隐pattern-与提交)。
+`<Field>` 在 `hidden` / `none` 时不渲染，`visible` 和 `virtual` 仍渲染（`$visible` 此时为真）。字段模型仍在：`hidden`（`$hidden = true`）仍校验、仍提交，`virtual` 仍校验但不提交，`none`（`$visible = false`）跳过校验、不提交；详见 [显隐、pattern 与提交](/guide/concepts#显隐pattern-与提交)。
 
 ## 四种写法
 

@@ -50,7 +50,7 @@ function SkuTable() {
 
 export default function App() {
   const [result, setResult] = useState('');
-  const form = useForm<Values>({ initialValues: { rows: SKUS, channel: false }, fields: { channel: { virtual: true } } });
+  const form = useForm<Values>({ initialValues: { rows: SKUS, channel: false }, fields: { channel: { display: 'virtual' } } });
   return <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}><SkuTable /><button type="submit">提交</button><pre>{result}</pre></Form>;
 }
 ```
@@ -189,7 +189,7 @@ export default function App() {
         { id: 'o2', no: 'A002', status: 'shipped', amount: 0, items: [{ id: 'i3', sku: 'box', qty: 1, price: 20, line: 0 }] },
       ],
     },
-    fields: { editable: { virtual: true } },
+    fields: { editable: { display: 'virtual' } },
     effects: [effects],
   });
   return (

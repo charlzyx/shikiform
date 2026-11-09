@@ -70,7 +70,7 @@ const effects = defineEffects<Values>(({ reaction, watch }) => {
 
 export default function App() {
   const form = useForm<Values>({ initialValues: { color: '', storage: '', edition: '', qty: 1, skuId: '', price: '', stock: '' },
-    fields: { skuId: { virtual: true }, price: { virtual: true }, stock: { virtual: true } }, // 展示用，不进提交结果
+    fields: { skuId: { display: 'virtual' }, price: { display: 'virtual' }, stock: { display: 'virtual' } }, // 展示用，不进提交结果
     effects: [effects],
   });
   return (
@@ -91,7 +91,7 @@ export default function App() {
 
 - 三种联动各司其职：`reaction` 维持选项和价格（[派生](/guide/linkage#reaction-与-watch)），`watch` 在维度变化时清理冲突（动作），`$rules` 让数量上限跟着库存。
 - `comboOptions` / `comboMatch`（`shikiform/core`）只做组合表查询，组合表由你提供。
-- 价格、库存、SKU 被 reaction 写了 `$value`，自动成为阅读态；它们只是展示文字，所以声明了 `virtual: true`，不进提交结果。reaction 写入的值默认是会提交的。
+- 价格、库存、SKU 被 reaction 写了 `$value`，自动成为阅读态；它们只是展示文字，所以声明了 `display: 'virtual'`，不进提交结果。reaction 写入的值默认是会提交的。
 - 先选「白色」再选「128G」：白色 128G 缺货，所以「128G」是禁用的；先选「128G」再点「白色」也一样。
 
 ## 按勾选生成行

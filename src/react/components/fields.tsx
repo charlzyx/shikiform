@@ -80,6 +80,7 @@ export function runSubmit<T, TSubmit = T>(form: FormInstance<T, TSubmit>, handle
  * do not share `id="email"`. The engine's `binding().id` stays the sanitized path (`user.name` → `user-name`);
  * the control's id is `<prefix>-user-name`.
  * `<Field>` returns null for display `hidden` and `none` after subscribing, so a mounted model stays registered.
+ * `virtual` stays mounted: it renders and validates, and is omitted from submit.
  * A field declared on the form, or given `$rules` / `registerField`, still validates when this component is not rendered.
  */
 export function Form<T, TSubmit = T>({ form, children, onSubmit, onInvalid, onSubmitError, id, ...rest }: FormProps<T, TSubmit>) {
@@ -153,7 +154,7 @@ export interface FieldProps<
   /**
    * Another UI of the same field (`d.name.$ui('echo')` in effects): shared value / errors / rules, its own display,
    * pattern, title and props (unset falls back to the field's). Own DOM id `<prefix>-<path>--<ui>`. Leave rules / required /
-   * enum / virtual to the `<Field>` without `ui`.
+   * enum to the `<Field>` without `ui`. `display` here is this instance's, not the field's.
    */
   ui?: UiName
   /**
@@ -166,11 +167,12 @@ export interface FieldProps<
   enum?: FieldEnum<PathValue<TScope, N & string>>
   /** Mount-scoped rules. Cleared on unmount. Does not erase a declaration, a template, or `$rules`. */
   rules?: RulesInput
-  /** Omit this value from submit. Effects can still read it. */
-  virtual?: boolean
   /** Mount-scoped required flag. Cleared on unmount. A declared or `$required` flag stays. */
   required?: boolean
-  /** Initial display when no reaction has written `$display`. */
+  /**
+   * Initial display when no reaction has written `$display`. `virtual` renders and validates but is not submitted.
+   * On `<Field ui>` this is the instance's display (`visible` | `hidden` | `none`); `virtual` belongs on the field.
+   */
   display?: Display
   /** Initial pattern when no reaction has written `$pattern`. `$pattern = undefined` inherits again. */
   pattern?: Pattern
@@ -207,10 +209,11 @@ export interface FieldProps<
  *
  * `rules` may be a built-in rule, a Standard Schema, or a mix. JSX `rules` and `required` apply only while this
  * component is mounted; unmount restores rules from `useForm({ fields })`, `registerField`, an item template, or `$rules`.
- * `virtual` omits the value from submit. `display="hidden"` still validates. `display="none"` skips validation.
- * `<Field<Row> name="price">` checks the name. `<Field<Row, 'price'> name="price">` types the value.
- * `<Field>` is a thin wrapper around {@link useField}: `useField(name, options)` + `display !== 'visible'` → `null`
- * + the two slots.
+ * `display="virtual"` renders and validates but omits the value from submit. `display="hidden"` still validates.
+ * `display="none"` skips validation. `<Field<Row> name="price">` checks the name.
+ * `<Field<Row, 'price'> name="price">` types the value.
+ * `<Field>` is a thin wrapper around {@link useField}: `useField(name, options)` + not rendered (`hidden` / `none`) → `null`
+ * + the two slots. `virtual` still renders.
  */
 export function Field<
   TScope = any,
@@ -220,7 +223,7 @@ export function Field<
 >({ name, children, ...options }: FieldProps<TScope, N, C, D>) {
   // Sugar over the hook: everything <Field> does is reachable through useField(name, options).
   const field = useField<TScope, N>(name, options)
-  if (field.display !== 'visible') return null
+  if (field.display !== 'visible' && field.display !== 'virtual') return null
   const Component = field.component
   const Decorator = field.decorator
   const content =
@@ -240,23 +243,24 @@ export function Field<
 
 /**
  * Scope child names under an object path. Does not subscribe to child values.
- * `virtual` omits this object from submit (`getSubmitValues`).
+ * `display="virtual"` omits this object (and its subtree) from submit (`getSubmitValues`).
  * Also list it in `useForm({ fields })` so the omission holds before this component mounts.
  * `<ObjectField<Values> name="address">` checks the name; `typed(form).ObjectField` also types the children.
  */
 export function ObjectField<TScope = any>({
   name,
-  virtual,
+  display,
   children,
 }: {
   name: FieldPath<TScope>
-  virtual?: boolean
+  /** `virtual` omits this object from submit. `hidden` / `none` are inherited by the fields inside. */
+  display?: Display
   children?: ReactNode
 }) {
   const form = useRequiredForm(`<ObjectField name="${String(name)}">`)
   const scope = useScope()
   const path = resolveName(form, scope, String(name))
-  if (virtual !== undefined) form.registerField(path, { virtual })
+  if (display !== undefined) form.registerField(path, { display })
   const next = useMemo(() => ({ path, index: -1 }), [path])
   return <ScopeContext.Provider value={next}>{children}</ScopeContext.Provider>
 }

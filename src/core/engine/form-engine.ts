@@ -111,7 +111,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   /** True while a validate pass is running, including the async rules it waits for. */
   get validating(): boolean { return this.store.validating }
 
-  /** Values differ from {@link FormEngine.initial} (deep; reverting clears it). `virtual` / computed fields are ignored. */
+  /** Values differ from {@link FormEngine.initial} (deep; reverting clears it). `display: 'virtual'` / computed fields are ignored. `none` counts. */
   get dirty(): boolean { return this.baseline.formDirty() }
 
   /** Sticky: a user edit (`setValue`, `binding().onChange`) happened since `reset`. A reaction write does not count. */
@@ -177,12 +177,15 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     }
   }
 
-  /** Values with `virtual` and display `none` removed. `hidden` is kept. Typed `TSubmit` (default `T`, see `SubmitValues`). */
+  /**
+   * Values with the submit switch off removed (`virtual`, `none`, and everything under them).
+   * `hidden` is kept. A node that reads as `hidden` because a hidden ancestor outranks its own `virtual`
+   * is still omitted. Typed `TSubmit` (default `T`, see `SubmitValues`).
+   */
   getSubmitValues(): TSubmit {
     let out = clone(this.store.values)
-    const omit = [...this.store.fields.entries()]
-      .filter(([, field]) => field.virtual || this.store.effectiveDisplay(field.path) === 'none')
-      .map(([path]) => path)
+    const omit = [...this.store.fields.keys()]
+      .filter((path) => path && !this.store.displayFlags(path).submit)
       .sort((a, b) => b.length - a.length)
     for (const path of omit) out = deleteAt(out, path)
     return out as unknown as TSubmit
@@ -192,8 +195,8 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
 
   /**
    * Bump `submitCount`, wait for in-flight async rules, validate, then call `onValid` with {@link FormEngine.getSubmitValues}.
-   * `virtual` and display `none` are omitted. `hidden` is kept. A computed field is omitted only when
-   * it was declared `virtual: true`.
+   * `display: 'virtual'` and `none` are omitted, including their subtrees. `hidden` is kept.
+   * A computed field is omitted only when its display (or an ancestor's) turns submit off.
    *
    * Only values its own pass validated are submitted (#6, #41; see `Validator.submitVerdict`). Never rejects (#38).
    */
@@ -505,7 +508,8 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     const field = store.ensure(path)
     if (key === '$visible') {
       scheduler.trackChain(path, 'display')
-      return store.effectiveDisplay(path) === 'visible'
+      // True whenever the field renders: `visible` or `virtual`, and no ancestor `hidden` / `none`.
+      return store.displayFlags(path).render
     }
     if (key === '$hidden') {
       scheduler.trackChain(path, 'display')

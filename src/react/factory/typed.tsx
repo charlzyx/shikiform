@@ -18,7 +18,7 @@ export type ScopeFields<T> = {
   ) => ReactNode
   ObjectField: <N extends FieldPath<T>>(props: {
     name: N
-    virtual?: boolean
+    display?: FieldProps['display']
     children?: ReactNode | ((scope: ScopeFields<NonNullable<PathValue<T, N & string>>>) => ReactNode)
   }) => ReactNode
   ArrayField: <N extends ArrayPath<T>, C extends ComponentType<any> = ComponentType<any>>(props: {
@@ -72,7 +72,7 @@ export function typed(_form?: FormInstance<any, any>): TypedForm<any> {
 function TypedArrayField({ children, ...props }: { name: string; rowKey?: string; component?: ArrayContainerSlot; virtualScroll?: { height: number; rowHeight?: number; overscan?: number }; children?: (row: any) => ReactNode }) {
   return <ArrayField {...props}>{children ? (row) => children({ ...row, ...scope }) : undefined}</ArrayField>
 }
-function TypedObjectField({ children, ...props }: { name: string; virtual?: boolean; children?: ReactNode | ((scope: any) => ReactNode) }) {
+function TypedObjectField({ children, ...props }: { name: string; display?: FieldProps['display']; children?: ReactNode | ((scope: any) => ReactNode) }) {
   return <ObjectField {...props}>{typeof children === 'function' ? children(scope) : children}</ObjectField>
 }
 

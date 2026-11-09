@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { Field } from '../src'
+import { Field, Form } from '../src'
+import { engineOf } from '../src/core/engine/create'
 import { FormItem, Input, QueryList } from '../src/antd'
 import { useQueryTable, type QueryRequestArgs } from '../src/pro'
 import { normalizeFilters, normalizeSort } from '../src/pro/use-query-table'
@@ -37,6 +38,62 @@ function setup() {
   )
   return { request, hook }
 }
+
+describe('useQueryTable paging display', () => {
+  it('server paging leaves a caller hidden page and none pageSize unrendered', async () => {
+    const request = backend()
+    const hook = renderHook(() =>
+      useQueryTable({
+        initialValues: { q: '', page: 1, pageSize: 10 } as { q: string; page: number; pageSize: number },
+        fields: { page: { display: 'hidden' }, pageSize: { display: 'none' } },
+        request,
+      }),
+    )
+    await waitFor(() => expect(hook.result.current.data.length).toBeGreaterThan(0))
+    const form = engineOf(hook.result.current.form)
+    expect(form.binding('page').display).toBe('hidden')
+    expect(form.binding('pageSize').display).toBe('none')
+    const values = form.getSubmitValues() as { page?: number; pageSize?: number }
+    expect(values.page).toBe(1)
+    expect(values).not.toHaveProperty('pageSize')
+
+    function Probe() {
+      const table = useQueryTable({
+        initialValues: { q: '', page: 1, pageSize: 10 } as { q: string; page: number; pageSize: number },
+        fields: { page: { display: 'hidden' }, pageSize: { display: 'none' } },
+        request,
+      })
+      return (
+        <Form form={table.form}>
+          <Field name="page" component={[Input, { 'data-testid': 'page-field' }]} />
+          <Field name="pageSize" component={[Input, { 'data-testid': 'size-field' }]} />
+        </Form>
+      )
+    }
+    render(<Probe />)
+    expect(screen.queryByTestId('page-field')).toBeNull()
+    expect(screen.queryByTestId('size-field')).toBeNull()
+  })
+
+  it('client paging omits page from submit without painting over hidden or none', async () => {
+    const request = backend()
+    const hook = renderHook(() =>
+      useQueryTable({
+        mode: 'client',
+        initialValues: { q: '', page: 1, pageSize: 10 } as { q: string; page: number; pageSize: number },
+        fields: { page: { display: 'hidden' }, pageSize: { display: 'none' } },
+        request,
+      }),
+    )
+    await waitFor(() => expect(hook.result.current.data.length).toBeGreaterThan(0))
+    const form = engineOf(hook.result.current.form)
+    expect(form.binding('page').display).toBe('hidden')
+    expect(form.binding('pageSize').display).toBe('none')
+    const values = form.getSubmitValues() as { page?: number; pageSize?: number }
+    expect(values).not.toHaveProperty('page')
+    expect(values).not.toHaveProperty('pageSize')
+  })
+})
 
 describe('useQueryTable column filters keep the selection inside the result (#3)', () => {
   it('a column filter change clears the old selection, so a batch action cannot touch hidden rows', async () => {

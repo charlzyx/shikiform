@@ -12,7 +12,7 @@ export type ShadowConfirmResult<TValues> = { ok: true; values: TValues } | { ok:
 export interface UseShadowFormOptions<TValues, TContext = unknown> {
   /** Values the shadow opens with when `open()` gets none. */
   initialValues?: TValues
-  /** Field declarations for the shadow form (rules, enum, virtual…), as in `useForm({ fields })`. */
+  /** Field declarations for the shadow form (rules, enum, display…), as in `useForm({ fields })`. */
   fields?: FormOptions<TValues>['fields']
   /** Effects for the shadow form. They run again on every open (a fresh engine). */
   effects?: FormOptions<TValues>['effects']

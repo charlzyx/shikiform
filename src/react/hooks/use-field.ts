@@ -79,14 +79,14 @@ export type SlotProps<C extends ComponentType<any>> = Partial<ComponentProps<C>>
 /**
  * Field options a hook caller can pass. Same semantics as the `<Field>` props of the same name:
  * `rules` / `required` are a mount-scoped lease (applied while the calling component is mounted, released on unmount,
- * restoring a declaration, item template, or `$rules`). `virtual`, `display`, and `pattern` are persistent flags.
+ * restoring a declaration, item template, or `$rules`). `display` and `pattern` are persistent flags.
  */
 export interface UseFieldOptions<TValue = any> {
   /**
    * A second (third …) UI of the same field: `<Field name="amount" ui="slider" component={[Slider]} />`.
    * Shares the value, errors and rules; has its own display / pattern / title / props, addressed in effects as
    * `d.amount.$ui('slider')` (unset falls back to the field: pattern inherits). Own DOM id `<prefix>-<path>--<ui>`.
-   * `rules` / `required` / `enum` / `virtual` belong on the field itself (the `<Field>` without `ui`).
+   * `rules` / `required` / `enum` belong on the field itself (the `<Field>` without `ui`). `display` is this instance's.
    */
   ui?: UiName
   /**
@@ -97,7 +97,7 @@ export interface UseFieldOptions<TValue = any> {
   enum?: FieldEnum<TValue>
   rules?: RulesInput
   required?: boolean
-  virtual?: boolean
+  /** `virtual` renders and validates but is not submitted. `hidden` / `none` do not render. */
   display?: Display
   pattern?: Pattern
   /**
@@ -147,7 +147,7 @@ export function useField(name?: string, options?: UseFieldOptions): FieldBinding
   const ui = options?.ui
   if (ui && process.env.NODE_ENV !== 'production') warnInstanceOptions(path, ui, options!)
   const spec = options && !ui
-    ? { rules: options.rules, virtual: options.virtual, required: options.required, display: options.display, pattern: options.pattern }
+    ? { rules: options.rules, required: options.required, display: options.display, pattern: options.pattern }
     : undefined
   const ownsValidation = !!spec && (spec.rules !== undefined || spec.required !== undefined)
   const latestSpec = useRef(spec)
@@ -197,7 +197,7 @@ export function useUiNode(form: FormEngine<any, any>, path: string, ui: string |
 const warnedInstance = new Set<string>()
 
 function warnInstanceOptions(path: string, ui: string, options: UseFieldOptions): void {
-  const owned = (['rules', 'required', 'enum', 'virtual'] as const).filter((key) => options[key] !== undefined)
+  const owned = (['rules', 'required', 'enum'] as const).filter((key) => options[key] !== undefined)
   const key = `${path}#${ui}`
   if (!owned.length || warnedInstance.has(key)) return
   warnedInstance.add(key)
@@ -233,7 +233,9 @@ const NO_FIELD =
   "or pass a name: useField('email')."
 
 function uiJsx(options: UseFieldOptions, path: string) {
-  return { ...uiLayer(options, path), display: options.display, pattern: options.pattern }
+  // A UI instance has no submit switch. `virtual` is the field's display; on an instance it means "shown".
+  const display = options.display === 'virtual' ? 'visible' : options.display
+  return { ...uiLayer(options, path), display, pattern: options.pattern }
 }
 
 function uiLayer(options: UseFieldOptions, path: string): FieldUiSpec | undefined {

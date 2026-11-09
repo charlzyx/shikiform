@@ -10,9 +10,19 @@ import type { Rule } from '../validation/rules'
  */
 export interface FieldModel {
   path: string
+  /**
+   * This node's own display. Effective render / submit are derived by walking ancestors
+   * ({@link FieldStore.displayFlags}); do not treat this as the collapsed `$display` read.
+   */
   display?: Display
   hasDisplay: boolean
   displayFromEffect: boolean
+  /**
+   * Display from `fields` / JSX / a template. A reaction overlay replaces `display` but leaves this,
+   * so `$visible = true` can put the declaration back.
+   */
+  baseDisplay?: Display
+  hasBaseDisplay: boolean
   pattern?: Pattern
   hasPattern: boolean
   patternFromEffect: boolean
@@ -23,9 +33,12 @@ export interface FieldModel {
   patternFromDisabled: boolean
   required: boolean
   requiredFromEffect: boolean
-  virtual: boolean
-  virtualExplicit: boolean
   computed: boolean
+  /**
+   * Omit this node (and its subtree) from submit without changing its display.
+   * `useQueryTable` uses it for client paging and `selectedKeys`, so a caller's `hidden` / `none` stays.
+   */
+  omitSubmit: boolean
   rules: Rule[]
   /** Exact configuration, kept separately from a disappearing template instance. */
   declaration?: FieldSpec
@@ -111,14 +124,14 @@ export function createFieldModel(path: string): FieldModel {
     path,
     hasDisplay: false,
     displayFromEffect: false,
+    hasBaseDisplay: false,
     hasPattern: false,
     patternFromEffect: false,
     patternFromDisabled: false,
     required: false,
     requiredFromEffect: false,
-    virtual: false,
-    virtualExplicit: false,
     computed: false,
+    omitSubmit: false,
     rules: [],
     jsxActive: false,
     rulesFromEffect: false,

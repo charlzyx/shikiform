@@ -72,7 +72,7 @@ const TITLES: Record<string, string> = {
   '/large': '引擎行为：大表单只重渲染改动的行',
   '/virtual': '虚拟滚动',
   '/headless': 'Headless：只用原生 HTML 的数组与树',
-  '/row-edit': '抽屉里编辑一行（同引擎 virtual 编辑区）',
+  '/row-edit': '抽屉里编辑一行（同引擎 display: virtual 编辑区）',
   '/array-table': 'ArrayTable 全功能',
   '/array-table-shadow': 'ArrayTable + 影子表单编辑行',
   '/shadow-form': '影子草稿：Modal / Drawer / Popconfirm / 内联',

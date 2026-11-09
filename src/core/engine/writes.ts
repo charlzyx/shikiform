@@ -123,7 +123,7 @@ export class StateWriter {
     const { store, notifier, scheduler, declarations } = this.deps
     // A reaction write marks the field computed (`readPretty` when no pattern is set), also when the derived
     // value already equals the current one (an initial value that is already right). It stays in the submit
-    // payload unless `virtual: true`.
+    // payload unless its display is `virtual` (or an ancestor omits the subtree).
     if (fromReaction) store.ensure(path).computed = true
     const old = getAt(store.values, path)
     if (deepEqual(old, value)) return false
@@ -179,10 +179,12 @@ export class StateWriter {
       return { key: `${path}:value`, apply: () => this.commitValue(path, value, fromReaction) }
     }
     if (key === '$visible') {
-      return { key: `${path}:display`, apply: () => this.setDisplay(path, value ? 'visible' : 'none', true) }
+      // `false` is `none`. `true` drops the reaction overlay and restores the declaration — it does not force `visible`.
+      return { key: `${path}:display`, apply: () => (value ? this.restoreDisplay(path) : this.setDisplay(path, 'none', true)) }
     }
     if (key === '$hidden') {
-      return { key: `${path}:display`, apply: () => this.setDisplay(path, value ? 'hidden' : 'visible', true) }
+      // Alias of hidden. `false` only clears a hidden display; `none` and `virtual` stay as they are.
+      return { key: `${path}:display`, apply: () => (value ? this.setDisplay(path, 'hidden', true) : this.clearHidden(path)) }
     }
     if (key === '$display') {
       return { key: `${path}:display`, apply: () => this.setDisplay(path, value as Display, true) }
@@ -215,17 +217,52 @@ export class StateWriter {
   }
 
   private setDisplay(path: string, display: Display, fromEffect: boolean): boolean {
-    const { store, notifier, scheduler, validator } = this.deps
-    const field = store.ensure(path)
-    if (field.hasDisplay && field.display === display) return false
+    const field = this.deps.store.ensure(path)
+    if (field.hasDisplay && field.display === display) {
+      if (fromEffect) field.displayFromEffect = true
+      return false
+    }
     field.hasDisplay = true
     field.display = display
     if (fromEffect) field.displayFromEffect = true
+    this.afterDisplay(path)
+    return true
+  }
+
+  /**
+   * `$visible = true`: drop the reaction's display and put the declaration (`fields` / JSX / template) back.
+   * Does nothing when no reaction owns the display, so a declared `hidden` stays hidden.
+   */
+  private restoreDisplay(path: string): boolean {
+    const field = this.deps.store.get(path)
+    if (!field?.displayFromEffect) return false
+    field.displayFromEffect = false
+    const has = field.hasBaseDisplay
+    const next = has ? field.baseDisplay : undefined
+    if (field.hasDisplay === has && field.display === next) return false
+    field.hasDisplay = has
+    field.display = next
+    this.afterDisplay(path)
+    return true
+  }
+
+  /**
+   * `$hidden = false` only removes `hidden`. `none` and `virtual` are left alone (they are not hidden).
+   * A reaction's hidden restores the declaration; a declared hidden with no reaction becomes `visible`.
+   */
+  private clearHidden(path: string): boolean {
+    const field = this.deps.store.get(path)
+    if (!field?.hasDisplay || field.display !== 'hidden') return false
+    if (field.displayFromEffect) return this.restoreDisplay(path)
+    return this.setDisplay(path, 'visible', true)
+  }
+
+  private afterDisplay(path: string): void {
+    const { store, notifier, scheduler, validator } = this.deps
     notifier.bumpPath(path)
     this.bumpDescendants(path)
     scheduler.markDirty(`${path}:display`)
-    if (display === 'none' || store.effectiveDisplay(path) === 'none') validator.clearHiddenErrors(path)
-    return true
+    if (store.effectiveDisplay(path) === 'none') validator.clearHiddenErrors(path)
   }
 
   /**

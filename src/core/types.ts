@@ -6,7 +6,7 @@ import type { FormMessageKey, FormMessages, MessageArgs } from './validation/mes
 import type { Pos } from './shared/tree-ops'
 
 export type { StandardSchemaV1, RulesInput }
-export type { Display, Pattern, UiDraft, UiName, UiNames } from './types-display'
+export type { Display, Pattern, UiDisplay, UiDraft, UiName, UiNames } from './types-display'
 
 export type { EnumOption, EnumBinding, EnumSource, Rule, ValidateCtx, Pos }
 
@@ -102,7 +102,7 @@ export type ArrayPath<T> = IsAny<T> extends true
 /**
  * The submitted shape of `T` when the paths in `P` may be dropped from submit: each listed path becomes optional
  * (`?:`), at any depth. An array index may be `*` (or a number, which also makes it optional on every row).
- * Use it as the form's second type argument for `virtual`, `display: 'none'` and computed fields:
+ * Use it as the form's second type argument for `display: 'virtual'`, `display: 'none'` and computed fields:
  *
  * ```ts
  * const form = createForm<V, SubmitValues<V, 'tmp' | 'rows.*.total'>>({ … })
@@ -175,21 +175,16 @@ export interface FieldUiSpec {
 
 export interface FieldSpec extends FieldUiSpec {
   /**
-   * Omit this field from {@link FormInstance.getSubmitValues}. Effects can still read and write it.
-   * A reaction writing `$value` does not set this. Declare `virtual: true` to drop a field,
-   * including a computed one. Client-paging `page` and `selectedKeys` are virtual.
-   * The value stays on the form either way.
-   */
-  virtual?: boolean
-  /**
    * Initial explicit pattern. A child with its own pattern wins over an ancestor.
    * `$pattern = undefined` clears the explicit value and inherits again.
    */
   pattern?: Pattern
   /**
-   * Initial display. Prefer a reaction for linkage.
-   * `hidden` still validates and submits. `none` drops the value and skips validation.
-   * An ancestor `none` forces `none` on descendants. Otherwise an ancestor `hidden` forces `hidden`.
+   * Initial display. Prefer a reaction for linkage (`$display`, including `'virtual'`).
+   * `hidden` still validates and submits. `virtual` renders and validates but is not submitted
+   * (the whole subtree) and does not count as `dirty`. `none` skips validation and submit; the value
+   * stays in the store. An ancestor `none` wins. Otherwise `hidden` only turns render off and
+   * `virtual` only turns submit off, so a hidden parent and a virtual child stack.
    */
   display?: Display
   /**
@@ -231,7 +226,7 @@ export interface FormOptions<T> {
    * A key such as `rows.*.name` is an item template: the spec is applied to every current index.
    * An exact path, `registerField`, and `$rules` / `$required` win over the template.
    * JSX `rules` and `required` apply only while that `<Field>` is mounted and do not erase this spec on unmount.
-   * `selectedKeys` and client-paging `page` are usually `{ virtual: true }`.
+   * `selectedKeys` and client-paging `page` are usually `{ display: 'virtual' }`.
    */
   fields?: { [K in FieldPath<T> | TemplatePath<T>]?: FieldSpec }
   /**
@@ -412,22 +407,30 @@ export type Draft<T> = IsAny<T> extends true ? any : DraftState<T> & DraftNav<T>
 export interface DraftState<T> {
   /**
    * Current value. Reading tracks a dependency. A reaction write marks the field computed
-   * (`readPretty`). The value is still submitted unless the field is `virtual`.
+   * (`readPretty`). The value is still submitted unless the field's display is `virtual` (or an ancestor omits it).
    */
   $value: T
   /**
-   * Convenience for display, same as Formily `visible`: `false` sets `none` (no UI, not validated,
-   * not submitted; the value stays in the form and comes back when shown again). `true` sets `visible`.
-   * Reading is true only when the effective display is `visible`.
-   * To hide the UI but keep validating and submitting, use `$hidden = true` / `$display = 'hidden'`.
+   * Convenience for display. `false` sets `none` (no UI, not validated, not submitted; the value stays
+   * in the form and comes back when shown again). `true` clears a reaction's display and restores the
+   * declaration — it does not force `visible`. Reading is true whenever the field renders: effective
+   * display `visible` or `virtual`, and no ancestor `hidden` / `none`. To hide the UI but keep validating
+   * and submitting, use `$hidden = true` / `$display = 'hidden'`.
    */
   $visible: boolean
   /**
-   * Convenience for display, same as Formily `hidden`: `true` sets `hidden` (no UI, still validated,
-   * still submitted). `false` sets `visible`. Reading is true only when the effective display is `hidden`.
+   * Convenience for display. `true` sets `hidden` (no UI, still validated, still submitted).
+   * `false` clears `hidden` only: a reaction's hidden restores the declaration, a declared hidden
+   * becomes `visible`, and `none` / `virtual` are left unchanged. Reading is true only when the
+   * effective display is `hidden` (a hidden ancestor outranks a virtual child, so this can be true
+   * while the child is still omitted from submit).
    */
   $hidden: boolean
-  /** `visible` | `hidden` | `none`. See {@link Display}. */
+  /**
+   * `visible` | `hidden` | `virtual` | `none`. See {@link Display}.
+   * The read collapses inherited switches: `none` > `hidden` > `virtual` > `visible`.
+   * Assign `'virtual'` to omit the field (and its subtree) from submit without hiding it.
+   */
   $display: Display
   /** When true, empty values fail validation even without a `required` rule. */
   $required: boolean
@@ -481,7 +484,8 @@ export interface DraftState<T> {
   readonly $touched: boolean
   /**
    * The value differs from its initial value (deep compare); changing it back clears it.
-   * On the root (`d.$dirty`): any non-`virtual`, non-computed value differs. Follows `reset(values)` / `setInitialValues`.
+   * On the root (`d.$dirty`): any non-`virtual`-display, non-computed value differs. `none` counts.
+   * Follows `reset(values)` / `setInitialValues`.
    */
   readonly $dirty: boolean
   /** Sticky: a user edit (`setValue`, input `onChange`) happened since the last reset. A reaction write does not set it. */
@@ -561,7 +565,7 @@ export interface FormInstance<T, TSubmit = T> {
   readonly initial: T
   /**
    * Values differ from `initial` (deep compare). Changing a value back clears it.
-   * `virtual` and computed (reaction-written) fields do not count.
+   * `display: 'virtual'` and computed (reaction-written) fields do not count. `none` does.
    */
   readonly dirty: boolean
   /** Sticky: true after a user edit (`setValue`, input `onChange`) until `reset`. */
@@ -582,8 +586,8 @@ export interface FormInstance<T, TSubmit = T> {
   /** One draft, one reaction pass, one notification. */
   batch(fn: (d: Draft<T>) => void): void
   /**
-   * Wait for in-flight async rules, validate, drop `virtual` and `display: 'none'` values.
-   * `hidden` values are kept. A reaction-written value is kept unless `virtual` is true.
+   * Wait for in-flight async rules, validate, drop `display: 'virtual'` and `display: 'none'` values
+   * (and their subtrees). `hidden` values are kept. A reaction-written value is kept unless its display is `virtual`.
    * Values changed during validation are validated again (bounded); two submits on the same values both pass.
    * Never rejects: see {@link SubmitResult} for `invalid` / `error` / `superseded`.
    * `values` is `TSubmit` (the form's second type argument, default `T`); see {@link SubmitValues}.
@@ -608,14 +612,14 @@ export interface FormInstance<T, TSubmit = T> {
    * Validate `path` and its descendants, or the whole form when `path` is omitted.
    * Fields from `fields`, `registerField`, `$rules`, and `rows.*.name` templates are included
    * even when no `<Field>` is mounted. JSX `rules` / `required` count only while mounted.
-   * Display `none` skips the field, and an ancestor `none` covers descendants. `hidden` still validates.
+   * Display `none` skips the field, and an ancestor `none` covers descendants. `hidden` and `virtual` still validate.
    * A form-level Standard Schema always runs. A scoped call refreshes schema issues under `path` only.
    * An array validates several paths in ONE pass (`validate(['name', 'address'])`, what `FormStep` does for a step);
    * two concurrent scoped calls would supersede each other.
    */
   validate(path?: FieldPath<T> | readonly FieldPath<T>[]): Promise<FieldError[]>
   /**
-   * Clone of the values with `virtual` fields and display `none` removed.
+   * Clone of the values with `display: 'virtual'` and `display: 'none'` removed (whole subtrees).
    * `hidden` values are kept. The static type is `TSubmit` (default `T`): the form cannot know statically which
    * fields a reaction hides, so declare the droppable paths with `createForm<T, SubmitValues<T, 'tmp'>>()`.
    */

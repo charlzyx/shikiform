@@ -80,6 +80,7 @@ export type {
 export { EnumSource, ShikiConflictError, ShikiCycleError, ShikiUsageError } from './core'
 export type {
   Display,
+  UiDisplay,
   EffectDef,
   EnumBinding,
   EnumOption,

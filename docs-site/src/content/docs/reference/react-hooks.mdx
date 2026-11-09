@@ -36,7 +36,7 @@ interface UseFormOptions<T> extends FormOptions<T> { values?: T }
 | `options` | 省略等同 `{}`；除 `values` 外仅第一次渲染读取 |
 | `options.initialValues` | 省略时以空对象开始；建议完整写出值形状，让 `T` 可推断 |
 | `options.values` | 外部拥有的数据（加载的记录、查询缓存）。第一次渲染当作初始值；之后内容变化时调 `reset(values)`（新基线，不 dirty）。内容相同的新对象不触发 |
-| `TSubmit` | `submit` / `getSubmitValues` / `<Form onSubmit>` 的值类型，默认 `T`；有 `virtual` / `display: 'none'` 字段时用 `SubmitValues<T, 'tmp'>`，见 [提交值类型](/api#提交值类型) |
+| `TSubmit` | `submit` / `getSubmitValues` / `<Form onSubmit>` 的值类型，默认 `T`；有 `display: 'virtual'` / `display: 'none'` 字段时用 `SubmitValues<T, 'tmp'>`，见 [提交值类型](/api#提交值类型) |
 | 返回值 | 稳定的 `FormInstance<T, TSubmit>`：状态 getter、`getValue` / `setValue` / `batch`、`submit` / `validate` / `reset`、`setErrors`、数组 / 树操作和订阅，见 [API 总览](/api#读写和提交) |
 
 `useForm` 本身不要求父级 Provider。后续渲染传入新 `initialValues` 不会重建实例，也不会生效；会变的数据用 `values`，或自己调 `reset(record)`。渲染需要实时值时用 `useField` / `useWatch`，不要期待读取 `form.values` 就自动重渲染。
@@ -139,8 +139,7 @@ interface UseFieldOptions<TValue = any> {
   enum?: FieldEnum<TValue>       // [{ label, value }] | 原始值数组 | SomeEnum.with(params)；挂载期生效
   rules?: RulesInput
   required?: boolean
-  virtual?: boolean
-  display?: Display
+  display?: Display              // 'visible' | 'hidden' | 'virtual' | 'none'；virtual 渲染并校验，不提交
   pattern?: Pattern
   // UI 状态（渲染期的 JSX 层，不写进模型；reaction 的 $title / $componentProps 优先，fields 声明在下）
   title?: ReactNode
@@ -157,7 +156,7 @@ type FieldSlot<C extends ComponentType<any> = ComponentType<any>> =
   | readonly [C, (Partial<ComponentProps<C>> & { [key: `data-${string}`]: unknown }) | undefined]
 ```
 
-`options` 与 `<Field>` 同名属性语义相同：`rules` / `required` / `enum` 是挂载期 lease（调用组件卸载时释放；`enum` 的优先级是 reaction `$enum` > JSX > `fields` > 条目模板，reaction 写 `$enum = undefined` 回到 JSX 这一层，属性变化（深比较）会重新应用），`virtual` / `display` / `pattern` 是持久字段标记，UI 选项合并进返回的 binding。`<Field>` 就是 `useField(name, options)` 加上「非 visible 返回 null」，再渲染 `decorator` 包住的 `component`，并把 binding 提供给子树里不带参数的 `useField()`。
+`options` 与 `<Field>` 同名属性语义相同：`rules` / `required` / `enum` 是挂载期 lease（调用组件卸载时释放；`enum` 的优先级是 reaction `$enum` > JSX > `fields` > 条目模板，reaction 写 `$enum = undefined` 回到 JSX 这一层，属性变化（深比较）会重新应用），`display` / `pattern` 是持久字段标记，UI 选项合并进返回的 binding。`<Field>` 就是 `useField(name, options)` 加上「`hidden` / `none` 返回 null」（`virtual` 仍渲染），再渲染 `decorator` 包住的 `component`，并把 binding 提供给子树里不带参数的 `useField()`。
 
 带 `name` 时，它是当前对象 / 行作用域下的**相对路径**。例如在 `items.0` 的 `RowScope` 下，`useField('price')` 绑定 `items.0.price`。在行里再写 `items.0.price` 会重复前缀；稳定行 ID 也不是路径。
 
@@ -188,7 +187,7 @@ type FieldSlot<C extends ComponentType<any> = ComponentType<any>> =
 | `componentProps` / `decoratorProps` | 合并后的控件 / 装饰器 props（`fields` ← JSX ← `$componentProps` / `$decoratorProps`，深合并） |
 | `ui` | 仅 UI 实例有：实例名（`<Field ui="echo">`） |
 
-`useField` 订阅该路径并注册基础字段模型，但**不会替你渲染或隐藏输入**。自定义 UI 要处理 `display` / `pattern`；需要 JSX `rules`、`required` 生命周期时传 `options`（或用 `<Field>`）。`hidden`（`$hidden = true`）仍校验/提交，`none`（`$visible = false`）才跳过，见 [显隐](/guide/concepts) 和 [未挂载规则](/guide/validation)。
+`useField` 订阅该路径并注册基础字段模型，但**不会替你渲染或隐藏输入**。自定义 UI 要处理 `display` / `pattern`：`visible` 和 `virtual` 要画出来，`hidden` / `none` 不画。需要 JSX `rules`、`required` 生命周期时传 `options`（或用 `<Field>`）。`hidden` 仍校验/提交，`virtual` 仍校验但不提交（`$visible` 仍为真，因为它在渲染），`none`（`$visible = false`）才跳过，见 [显隐](/guide/concepts) 和 [未挂载规则](/guide/validation)。
 
 ### 无参 useField：当前字段
 
@@ -223,7 +222,7 @@ const field = useField('amount', { ui: 'slider' })                  // 同上的
 
 - 返回的 binding：`value` / `onChange` / `errors` / `required` / `options` 是字段的；`display` / `pattern` / `disabled` / `readOnly` / UI 状态是实例的；`id` 是带表单前缀的 `<前缀>-<净化路径>--<ui>`（`<Form id="edit">` 下的 `amount` / `slider` 为 `edit-amount--slider`），label 不会指错；`ui` 是实例名。实例里的无参 `useField()` 返回这份 binding。
 - 优先级：reaction（`$ui(name).$pattern`）> JSX（实例上的 `pattern` / `componentProps` …）> 回退。回退：`display` / `pattern` 取字段的有效值（字段继承根 `$pattern`，实例也跟着）；`title` / `description` 取字段的声明 + reaction 值；`componentProps` / `decoratorProps` 不回退（是另一个组件的）。
-- 实例**不**登记 JSX `rules` / `required` / `enum` / `virtual`（开发期警告一次）：这些写在不带 `ui` 的 `<Field>` 上。
+- 实例**不**登记 JSX `rules` / `required` / `enum`（开发期警告一次）：这些写在不带 `ui` 的 `<Field>` 上。实例的 `display` 没有 `virtual`。
 - 名字类型：默认任意字符串；在 `UiNames` 里登记后 `ui` / `<UI name>` / `$ui()` 都检查拼写（见 [UI 节点](/guide/ui#名字的类型)）。
 
 [实现：use-field.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-field.ts)

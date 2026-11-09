@@ -20,6 +20,7 @@ export type {
   ArrayItemOf,
   ArrayPath,
   Display,
+  UiDisplay,
   Draft,
   RowContext,
   RowDraft,

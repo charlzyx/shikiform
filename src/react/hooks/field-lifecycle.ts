@@ -5,12 +5,12 @@ import type { FieldSpec } from '../../core/types'
 export function applyJsxField(
   form: FormEngine<any>,
   path: string,
-  spec: Pick<FieldSpec, 'rules' | 'required' | 'virtual' | 'display' | 'pattern'>,
+  spec: Pick<FieldSpec, 'rules' | 'required' | 'display' | 'pattern'>,
 ): (() => void) | undefined {
   if (spec.rules === undefined && spec.required === undefined) {
-    // Display/pattern/virtual are persistent field flags, not JSX validation.
+    // Display and pattern are persistent field flags, not JSX validation.
     // In particular a <Field> with only name/children owns no rules to release.
-    form.registerField(path, { virtual: spec.virtual, display: spec.display, pattern: spec.pattern })
+    form.registerField(path, { display: spec.display, pattern: spec.pattern })
     return undefined
   }
   const lease = form.mountJsxField(path, spec)

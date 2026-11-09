@@ -129,10 +129,10 @@ describe('exact declarations alongside wildcard templates (#8)', () => {
           initialValues: { rows: [{ token: 'example-only' }] },
           fields: {
             'rows.*.token': { required: true },
-            ...(source === 'fields' ? { 'rows.0.token': { virtual: true } } : {}),
+            ...(source === 'fields' ? { 'rows.0.token': { display: 'virtual' } } : {}),
           },
         })
-        if (source === 'registerField') form.registerField('rows.0.token', { virtual: true })
+        if (source === 'registerField') form.registerField('rows.0.token', { display: 'virtual' })
         expect(form.getSubmitValues()).toEqual({ rows: [{}] })
         form.setValue('rows', [])
         expect(form.getSubmitValues()).toEqual({ rows: [] })
@@ -151,8 +151,8 @@ describe('exact declarations alongside wildcard templates (#8)', () => {
     const form = createEngine({
       initialValues: { rows: [{ token: 'keep' }] },
       fields: {
-        'rows.*.token': { virtual: true },
-        'rows.0.token': { virtual: false },
+        'rows.*.token': { display: 'virtual' },
+        'rows.0.token': { display: 'visible' },
       },
     })
     expect(form.getSubmitValues()).toEqual({ rows: [{ token: 'keep' }] })
@@ -167,10 +167,10 @@ describe('exact declarations alongside wildcard templates (#8)', () => {
       initialValues: { rows: [{ token: 'example-only' }] },
       fields: {
         'rows.*.token': { required: true },
-        'rows.0.token': { virtual: true, pattern: 'readOnly' },
+        'rows.0.token': { display: 'virtual', pattern: 'readOnly' },
       },
     })
-    form.registerField('rows.0.token', { virtual: undefined, pattern: undefined })
+    form.registerField('rows.0.token', { display: undefined, pattern: undefined })
     expect(form.getSubmitValues()).toEqual({ rows: [{}] })
     form.setValue('rows', [])
     form.setValue('rows', [{ token: 'example-only' }])
@@ -211,7 +211,7 @@ describe('exact declarations alongside wildcard templates (#8)', () => {
   it('does not grow empty arrays or absent objects when omitting declared fields', () => {
     const form = createEngine<{ rows: { token: string }[]; editor?: { token: string } }>({
       initialValues: { rows: [] },
-      fields: { 'rows.0.token': { virtual: true }, 'editor.token': { display: 'none' } },
+      fields: { 'rows.0.token': { display: 'virtual' }, 'editor.token': { display: 'none' } },
     })
     expect(form.getSubmitValues()).toEqual({ rows: [] })
     expect(form.getValue('rows')).toEqual([])
@@ -220,7 +220,7 @@ describe('exact declarations alongside wildcard templates (#8)', () => {
   it('keeps declarations but not template validators while reset leaves rows empty', async () => {
     const form = createEngine<{ rows: { token: string }[] }>({
       initialValues: { rows: [] },
-      fields: { 'rows.*.token': { required: true }, 'rows.0.token': { virtual: true } },
+      fields: { 'rows.*.token': { required: true }, 'rows.0.token': { display: 'virtual' } },
     })
     form.setValue('rows', [{ token: 'example-only' }])
     expect(form.getSubmitValues()).toEqual({ rows: [{}] })

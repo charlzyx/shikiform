@@ -70,7 +70,7 @@ export default function App() {
 | 用途 | **派生**：维持一份结果 | **动作**：X 变了就做一次 Y |
 | 首次 | 立即运行 | 不运行 |
 | 依赖 | `effect` 里读到的所有 `$` 状态 | 只有 `source` 读到的；`effect` 里的读取不算 |
-| 写 `$value` | 字段成为[计算字段](/guide/concepts#显隐pattern-与提交)，默认仍提交；不想提交就声明 `virtual: true` | 普通写入 |
+| 写 `$value` | 字段成为[计算字段](/guide/concepts#显隐pattern-与提交)，默认仍提交；不想提交就声明 `display: 'virtual'` | 普通写入 |
 
 规则：
 
