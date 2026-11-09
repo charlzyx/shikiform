@@ -260,7 +260,7 @@ export default function App() {
 
 - Radix Select 不接受空字符串，所以没选时传 `undefined`。`options` 来自 `<Field enum>`。
 - Checkbox 的包装组件带 `onBlur`，失焦校验走它，不必再写 `blurOn`。`onCheckedChange` 的参数不是事件，用 `getValueFromEvent` 收成布尔。`required` 把 `false` 当成已填写；「必须勾选」用 `rules={{ isTrue: true }}`。
-- DatePicker 的包装组件没有 `onBlur`，所以必须写 `blurOn`。关掉弹层（`onOpenChange(false)`）时失焦。
+- DatePicker 的包装组件没有 `onBlur`，所以必须写 `blurOn`。关掉弹层（`onOpenChange(false)`）时失焦。字段里是 `yyyy-MM-dd` 字符串，Calendar 要 `Date`：传进去用 `parseISO`，选中后再 `format` 回字符串。`getValueFromEvent` 只替换写入字段的参数，改不了回传给控件的 `value`。
 
 ### 可运行的最小版
 
@@ -350,10 +350,13 @@ export default function App() {
 
 ### Mantine
 
-TextInput、Select、Checkbox、DatePickerInput 的 props 里带 `onBlur`，`connect` 不必再写 `blurOn`。某个版本的类型里没有 `onBlur` 时，补上面三种写法里的一种。`control.error` 是字符串，和 Mantine 的 `error`（ReactNode）对得上，所以自带 label 的控件可以直接摊开 `control`，再自己接值。Select 的选项 prop 叫 `data`，`onChange` 的第一个参数就是值，默认会收下。
+TextInput、Select、Checkbox 的 props 里带 `onBlur`，`connect` 不必再写 `blurOn`。某个版本的类型里没有 `onBlur` 时，补上面三种写法里的一种。`control.error` 是字符串，和 Mantine 的 `error`（ReactNode）对得上，所以自带 label 的控件可以直接摊开 `control`，再自己接值。Select 的选项 prop 叫 `data`，`onChange` 的第一个参数就是值，默认会收下。
+
+DatePickerInput 的 `value` 是 `Date | null`，不是字符串。字段里存 `YYYY-MM-DD` 时不要直接 `connect(DatePickerInput)`，也不要只写 `getValueFromEvent`：那只改写回字段的方向，控件拿到的仍是字符串。包一层，传进去转成 `Date`，`onChange` 再转回字符串。日期按本地日历日拆开，避免 `new Date('YYYY-MM-DD')` 被当成 UTC。`valueFormat` 只影响输入框里的文字。
 
 ```tsx
 import { Checkbox, Select, TextInput } from '@mantine/core'
+import { DatePickerInput } from '@mantine/dates'
 import { Field, connect, mapProps, useField, useFieldDecorator } from 'shikiform'
 
 function MantineInput() {
@@ -371,16 +374,50 @@ function MantineInput() {
 const City = connect(Select, mapProps({ options: 'data' }))
 const Agree = connect(Checkbox, mapProps({ value: 'checked' }))
 
+function MantineDate(props: {
+  id?: string
+  value?: string
+  disabled?: boolean
+  onChange?: (value: string | undefined) => void
+  onBlur?: () => void
+}) {
+  const match = props.value && /^(\d{4})-(\d{2})-(\d{2})$/.exec(props.value)
+  const date = match ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : null
+  return (
+    <DatePickerInput
+      id={props.id}
+      disabled={props.disabled}
+      value={date}
+      valueFormat="YYYY-MM-DD"
+      onBlur={props.onBlur}
+      onChange={(next) => {
+        if (!next) props.onChange?.(undefined)
+        else {
+          const month = String(next.getMonth() + 1).padStart(2, '0')
+          const day = String(next.getDate()).padStart(2, '0')
+          props.onChange?.(`${next.getFullYear()}-${month}-${day}`)
+        }
+      }}
+    />
+  )
+}
+
+const Birthday = connect(MantineDate)
+
 <Field name="name" title="姓名" required component={[MantineInput]} />
 <Field name="city" enum={[{ label: '杭州', value: 'hz' }]} component={[City]} />
 <Field name="agree" rules={{ isTrue: true }} component={[Agree]} />
+<Field name="birthday" component={[Birthday]} />
 ```
 
 ### MUI
 
 不要把 `control` 摊到 `TextField` 上。除了没有 `value` / `onChange`，MUI 的 `error` 是布尔，`control.error` 是文案，摊开会把类型和含义都弄错。标签和错误从 `useFieldDecorator()` 逐项拿，值用 `useField()`。
 
+DatePicker（dayjs 适配器）的 `value` 是 Dayjs，字段仍存 `YYYY-MM-DD`。只写 `getValueFromEvent` 不够：它只改写回字段的方向，回传给控件的还是字符串，DatePicker 会报错或不显示。和 shadcn 一样包一层，传进去转成 Dayjs，`onChange` 再 `format` 回字符串。
+
 ```tsx
+import dayjs, { type Dayjs } from 'dayjs'
 import Checkbox from '@mui/material/Checkbox'
 import TextField from '@mui/material/TextField'
 import { DatePicker } from '@mui/x-date-pickers/DatePicker'
@@ -411,10 +448,37 @@ function MuiText() {
 }
 
 const Agree = connect(Checkbox, mapProps({ value: 'checked' }))
-// onClose 没有参数 false，不能写 blurOn: 'onOpenChange'。dayjs 适配器时字段存 YYYY-MM-DD。
-const Birthday = connect(DatePicker, mapBlur({ prop: 'onClose' }), mapProps({
-  getValueFromEvent: (value: { format: (pattern: string) => string } | null) => (value ? value.format('YYYY-MM-DD') : undefined),
-}))
+
+function toDayjs(value: string | undefined): Dayjs | null {
+  const match = value && /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (!match) return null
+  return dayjs(new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])))
+}
+
+// 字段是 YYYY-MM-DD 字符串，DatePicker（dayjs 适配器）的 value 是 Dayjs。
+// getValueFromEvent 只改 onChange 写回字段的方向，回传的 value 仍是字符串，所以在这一层转换。
+function DateControl(props: {
+  id?: string
+  value?: string
+  disabled?: boolean
+  readOnly?: boolean
+  onChange?: (value: string | undefined) => void
+  onClose?: () => void
+}) {
+  return (
+    <DatePicker
+      value={toDayjs(props.value)}
+      disabled={props.disabled}
+      readOnly={props.readOnly}
+      onChange={(next: Dayjs | null) => props.onChange?.(next?.isValid() ? next.format('YYYY-MM-DD') : undefined)}
+      onClose={props.onClose}
+      slotProps={{ textField: { id: props.id } }}
+    />
+  )
+}
+
+// 包装组件没有 onBlur。onClose 没有参数 false，不能写 blurOn: 'onOpenChange'。
+const Birthday = connect(DateControl, mapBlur({ prop: 'onClose' }))
 
 <Field name="name" title="姓名" required component={[MuiText]} />
 <Field name="agree" rules={{ isTrue: true }} component={[Agree]} />
