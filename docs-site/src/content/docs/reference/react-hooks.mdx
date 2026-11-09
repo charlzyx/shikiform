@@ -585,7 +585,7 @@ useFieldDecorator(options?: {
 | `describedBy` | `aria-describedby` 用的 id，没有可指向的节点时是 `undefined` |
 | `labelProps` | `{ id, htmlFor? }`。`readPretty` 不带 `htmlFor` |
 | `descriptionProps` / `errorProps` / `warningProps` | 有内容才有。错误元素带 `role="alert"` |
-| `control` | 控件自己画 label / error 时整包展开（`id`、`label`、`required`、`error`、`disabled`、`onBlur`、`aria-*`）。不要再叠到 `connect()` 过的控件上 |
+| `control` | 控件自己画 label / error 时整包展开（`id`、`label`、`required`、`error`、`disabled`、`onBlur`、`aria-*`）。没有 `value` / `onChange`，这两项用 `useField()`。不要再叠到 `connect()` 过的控件上 |
 
 ```tsx
 function FormItem({ children }: { children?: ReactNode }) {
@@ -601,8 +601,15 @@ function FormItem({ children }: { children?: ReactNode }) {
 }
 
 function MantineInput() {
+  const field = useField<string>()
   const { control } = useFieldDecorator()
-  return <TextInput {...control} />
+  return (
+    <TextInput
+      {...control}
+      value={field.value ?? ''}
+      onChange={(event) => field.onChange(event.currentTarget.value)}
+    />
+  )
 }
 ```
 

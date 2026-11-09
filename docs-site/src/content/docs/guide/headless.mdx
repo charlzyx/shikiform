@@ -183,13 +183,24 @@ export default function App() {
 }
 ```
 
-控件自己带 label / error（Mantine）时展开 `control`，不再套一层 decorator：
+控件自己带 label / error（Mantine）时不再套 decorator：`control` 只给标签、错误、`id` 和 `onBlur`，**不含** `value` / `onChange`。值用 `useField()` 接上，不要把 `control` 摊到 `connect()` 过的控件上（两边都会写 `id` / `onBlur`）。
 
 ```tsx
+import { Field, useField, useFieldDecorator } from 'shikiform'
+
 function MantineInput() {
+  const field = useField<string>()
   const { control } = useFieldDecorator()
-  return <TextInput {...control} />
+  return (
+    <TextInput
+      {...control}
+      value={field.value ?? ''}
+      onChange={(event) => field.onChange(event.currentTarget.value)}
+    />
+  )
 }
+
+<Field name="name" title="姓名" required component={[MantineInput]} />
 ```
 
 签名见 [React Hooks](/reference/react-hooks#usefielddecorator)。组件注册表（默认 decorator、按名字登记控件）和按控件的值转换（日期 format / parse）不在这一层。
