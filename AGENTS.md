@@ -27,6 +27,7 @@ and SSR-rendered against the packed library); the site's `/llms.txt` serves this
   Inside `reaction`, `watch` and `form.batch` the snapshot is read-only in development (mutation throws).
 - A handle is not an array: no `.map`, `.length`, `for…of`, or `const [row] = d.items`. Use `d.items.$value` or `reaction.each`.
 - Destructuring takes child field handles only (`const { name } = d.user`, then `name.$value`). `$` state is always read and written on the handle. Object rest, object spread, and `Object.keys(handle)` throw in development.
+- `get` / `set` (`@shikiform/core`, re-exported by `@shikiform/react`) read and copy plain data with lodash-style paths (`a.b[0].c`, `a['name']`). `set` returns a new tree. `form.getValue` / `form.setValue` use the same syntax. On a draft, `get` returns a child handle: `get(d, 'user.name').$value` typechecks; an indexed path such as `get(d, 'items[0].qty')` does not (`FieldPath` does not walk indexes on `Draft`). Use `d.items[0].qty.$value` or `form.getValue('items[0].qty')`. Do not `set` a draft.
 - Display is `visible` | `hidden` | `virtual` | `none` (no separate `virtual` flag). `visible` renders, validates,
   submits, and counts as dirty. `hidden` does not render (stays registered) but still validates, submits, and counts as
   dirty — unlike Formily, whose `hidden` skips validation. `virtual` renders and validates (errors block submit, e.g. a
@@ -64,8 +65,10 @@ call site, the states it reads and the states it writes. Production skips the ch
 `fn` is `(row, ctx)`. `ctx` has `key`, `index`, `depth`, `parent`, `path`, `pos`, and the root draft `d`.
 
 `each` visits every element of the selected array, then every nested array whose elements are objects.
-Arrays of primitives are not entered. Filter in the callback (`ctx.depth`, `ctx.key`), the way `JSON.stringify`'s
-replacer does. There is no `reaction.walk` / `watch.walk`.
+A primitive array nested on an object (a row's `tags: string[]`) is not entered. Calling `each` on that array
+itself (`reaction.each((d) => d.tags, fn)`) still visits each element at `depth === 0`. Filter in the callback
+(`ctx.depth`, `ctx.key`). A callback that returns before reading any `$` state does not re-run when that node's
+data changes. There is no `reaction.walk` / `watch.walk`.
 
 - `reaction.each((d) => d.items, (row, { d, index, depth }) => …)`: one instance per element; a cell edit re-runs that element only.
 - `watch.each((d) => d.items, (row, ctx) => …)`: the same traversal as a watch; the `$` reads in the callback are its source.

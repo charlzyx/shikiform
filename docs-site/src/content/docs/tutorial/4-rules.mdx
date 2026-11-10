@@ -1,0 +1,24 @@
+---
+title: 4. 校验
+description: 字段规则和整表 Zod。空值只由 required 判断。
+tableOfContents: false
+---
+
+<div className="tutorial-step">
+<div className="tutorial-copy">
+
+右边有姓名、邮箱和年龄。现在离开输入框，没有提示。
+
+字段自己的规则写在 `rules` 上。整张表可以交给实现了 Standard Schema 的库，例如 Zod：把 schema 传给 `useForm` 的 `validate`，不需要单独的适配包。`validateTrigger` 里有 `onBlur` 时，离开输入框就会校验；提交时再查一遍。
+
+空字符串、`null`、`undefined` 只由 `required` 判断。`minLength`、`format`、`min` 遇到空值直接通过。
+
+**这一步：** `useForm` 加上 `validate: schema`。姓名加上 `required`，`rules` 写 `{ minLength: 2, message: '至少 2 个字' }`。
+
+姓名空着失焦，只提示「必填」。姓名一个字，提示「至少 2 个字」。邮箱格式不对、年龄小于 18，看到 Zod 的文案。都合法之后，提交 JSON 里有三项。
+
+</div>
+
+<TutorialPlay id="09-rules" />
+
+</div>

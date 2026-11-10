@@ -83,7 +83,7 @@ export default function App() {
 
 `reaction.each(select, effect)` 只有两个参数。选择器返回数组的 **handle**。每一行一个 reaction 实例，单元格改了只重算那一行（包括没有渲染出来的行）。
 
-遇到**元素是对象的数组**会继续走进去（嵌套 `items`、树的 `children`）。**基本类型数组**（`tags: string[]`）不进。没有第三个参数，也没有 `childrenKey`：回调自己按 `ctx` 过滤，和 `JSON.stringify` 的 replacer 一样。
+遇到**元素是对象的数组**会继续走进去（嵌套 `lines`、树的 `children`）。嵌套在对象上的**基本类型数组**（行里的 `tags: string[]`）不进。直接对这个数组调用 `each` 是例外：`reaction.each((d) => d.tags, fn)` 会在 `depth === 0` 访问每个元素。没有第三个参数。回调自己按 `ctx` 过滤。
 
 ```ts
 reaction.each((d) => d.items, (row, ctx) => { … })
@@ -97,7 +97,46 @@ reaction.each((d) => d.items, (row, ctx) => { … })
 - `path`：此刻的路径（`items.2`、`nodes.0.children.1`）
 - `pos`：从选中数组数下来的下标链（`[0, 1]`）；普通行是 `[index]`
 
-只要某一层的逻辑不一样，在回调里返回：`if (ctx.depth !== 0) return`，或 `if (ctx.key !== 'children') return`。插入、删除、移动之后，换了元素的位置会用新的元素重跑，所以写下的状态跟着走。
+只要某一层的逻辑不一样，在回调里返回。插入、删除、移动之后，换了元素的位置会用新的元素重跑，所以写下的状态跟着走。
+
+<Aside type="caution" title="提前 return 且什么都没读">
+这样的实例跑过一次之后就停着。那个节点的数据再变，也不会重跑。要跟着变，就在 return 之前读到相关的 `$` 状态，或者不要在那一层 return。
+</Aside>
+
+## 用 ctx 过滤
+
+数据是 `orders: [{ lines: [{ sku, qty }] }]`。只取一个位置时不要用 `each`，直接写路径。细节见 [按路径读写](/basics/path)。
+
+```ts
+d.orders[0].lines[2].qty.$value
+form.getValue('orders[0].lines[2].qty')
+```
+
+没有下标时，`get(d, 'user.name').$value` 也行：draft 上 `get` 返回子 handle。带下标的 `get(d, 'orders[0].lines[2].qty')` 过不了类型检查，用上面两种写法。
+
+每个外层元素都取里面的同一项：
+
+```ts
+reaction.each((d) => d.orders, (order, ctx) => {
+  if (ctx.depth !== 0) return
+  const qty = order.lines[2].qty.$value
+})
+```
+
+要改里面某一项，仍在外层回调里走 handle。`depth === 0` 时 `order` 的类型就是订单，`order.lines[2].qty` 能过类型检查：
+
+```ts
+reaction.each((d) => d.orders, (order, ctx) => {
+  if (ctx.depth !== 0) return
+  order.lines[2].qty.$required = true
+})
+```
+
+<Aside type="caution" title="回调参数的类型停在选中的那一层">
+`each` 把回调的第一个参数类型定成选择器选中的元素（这里是 `{ lines }`）。运行时走进 `lines` 仍会调用它，但类型不会变成行。用 `ctx.key !== 'lines' || ctx.index !== 2` 可以在运行时只处理最里层的第 2 项，接着写 `node.qty` 却是 `TS2339`。那样运行时会把 `orders.0.lines.2` 设成必填，只是不能当能过 tsc 的写法。要改这个字段，用上面的 `order.lines[2].qty`。
+</Aside>
+
+平铺表格的回调里不用这些判断。树的子节点如果和当前节点是同一个类型（`children?: Node[]`），`ctx.key` / `ctx.depth` 滤完之后仍可以写 `node.name`。子元素是另一种形状时，用上面的外层 handle。
 
 `watch.each` 是同样的遍历，语义是 `watch`：回调里读到的 `$` 状态就是来源，来源变了才执行，首次不写入。某个元素变化只触发它自己，兄弟和别处的移动不触发。适合「这个节点的 X 变了就做一次动作」。
 

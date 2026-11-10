@@ -1,6 +1,6 @@
 ---
-title: 7. reaction.each
-description: 每一行自己算小计。
+title: 6. 数组
+description: reaction.each 给每一行算小计。改一行只重算那一行。
 tableOfContents: false
 ---
 
@@ -9,9 +9,9 @@ tableOfContents: false
 
 右边是一行订单：贴纸，单价 2，数量 4。小计还是 0。可以再添加一行，也可以删掉。
 
-`ArrayField` 的 children 是一个函数，收到当前 `{ index, key }`。函数里渲染的字段名相对当前行，`rowKey="id"` 保持行身份。添加按钮调用 `form.pushArray('items', createRow())`；删除按钮调用 `form.removeArray('items', index)`。这里的 `createRow` 是示例自己的函数，不是 `ArrayField` 的属性。现成的添加 / 删除 / 排序按钮见 [数组容器](/guide/arrays)。
+`ArrayField` 的 children 是一个函数，字段名相对当前行。`rowKey="id"` 保持行身份。添加调用 `form.pushArray`，删除调用 `form.removeArray`。
 
-数组用 `reaction.each`：每一行一个实例。选择器要返回这一列的 handle。
+数组用 `reaction.each`，只有两个参数。每一行一个实例。选择器返回这一列的 handle。
 
 **这一步：** 加上 effects：
 
@@ -26,7 +26,6 @@ reaction.each(
 ```
 
 贴纸的小计变成 8。改某一行，只有这一行的小计变。提交时每一行带上算好的 `total`。不想提交，给这个字段声明 `display: 'virtual'`。
-
 
 </div>
 

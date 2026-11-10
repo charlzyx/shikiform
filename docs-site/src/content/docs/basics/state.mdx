@@ -1,0 +1,77 @@
+---
+title: 字段状态
+description: value、四种 display，以及 pattern。字段默认提交；virtual 和 none 不进提交结果。
+---
+
+字段状态都挂在 handle 上，以 `$` 开头。最常用的是 `$value`、`$display` 和 `$pattern`。
+
+reaction 写过 `$value` 的字段是计算字段：显示成 `readPretty`，默认仍会提交。要把它排除在提交之外，声明 `display: 'virtual'`。
+
+## 四种 display
+
+| 值 | 渲染 | 校验 | 提交 | 计入 dirty |
+|---|---|---|---|---|
+| `visible` | 是 | 是 | 是 | 是 |
+| `hidden` | 否，仍注册 | 是 | 是 | 是 |
+| `virtual` | 是 | 是，错误会挡住提交 | 否，整棵子树 | 否 |
+| `none` | 否 | 否，已有错误会清掉 | 否 | 是 |
+
+值不会因为 `none` 从 store 里消失。重新显示时，原来的输入还在。
+
+`$visible = false` 就是 `none`。`$visible = true` 清掉 reaction 写的 display，回到声明，不会强制成 `visible`。读 `$visible` 时，只要字段画得出来就是 true：`visible` 或 `virtual`，并且祖先不是 `hidden` / `none`。
+
+`$hidden = true` 是 `hidden`。`$hidden = false` 只取消 hidden，`none` 和 `virtual` 保持不动。
+
+读 `$display` 时，越靠前越优先：`none`，然后 `hidden`，然后 `virtual`，最后 `visible`。祖先的 `none` 盖过子级。除此之外，`hidden` 只关渲染，`virtual` 只关提交，两样可以叠在一起：父级 hidden、子级 virtual 时，不渲染、仍校验、不提交。
+
+条件字段用 `$visible`。还没点开的标签页用 `$hidden`。确认密码、只在前端用的页码用 `display: 'virtual'`。
+
+```tsx preview
+import { useState } from 'react';
+import { defineEffects, Form, typed, useForm, Watch, type Draft } from '@shikiform/react';
+import { FormItem, Input, Select, Submit } from '@shikiform/antd';
+
+type Mode = 'visible' | 'hidden' | 'virtual' | 'none';
+type Values = { mode: Mode; nick: string };
+
+const effects = defineEffects<Values>(({ reaction }) => {
+  reaction((d) => {
+    d.nick.$display = d.mode.$value;
+  });
+});
+
+export default function App() {
+  const [result, setResult] = useState('');
+  const form = useForm<Values>({ initialValues: { mode: 'visible', nick: 'ada' }, effects: [effects] });
+  const F = typed(form);
+  return (
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
+      <F.Field
+        name="mode"
+        title="display"
+        enum={['visible', 'hidden', 'virtual', 'none']}
+        decorator={[FormItem]}
+        component={[Select, { style: { width: 160 } }]}
+      />
+      <F.Field name="nick" title="昵称" required decorator={[FormItem]} component={[Input]} />
+      <Watch select={(d: Draft<Values>) => d.nick.$visible}>{(shown) => <p>读 $visible：{String(shown)}</p>}</Watch>
+      <Submit>提交</Submit>
+      <pre>{result}</pre>
+    </Form>
+  );
+}
+```
+
+选 `hidden`：输入框消失，空着提交仍会失败，填过之后 JSON 里有 `nick`。选 `virtual`：输入框还在，`$visible` 是 true，JSON 里没有 `nick`。选 `none`：不校验，JSON 里也没有 `nick`。
+
+<Aside type="caution" title="$visible = false 不是 hidden">
+它等于 `none`：不渲染、不校验、不提交。只想藏起来、值仍要校验和提交，写 `$hidden = true` 或 `$display = 'hidden'`。
+</Aside>
+
+## pattern
+
+`pattern` 是 `editable`、`disabled`、`readOnly`、`readPretty`。写在父级上，子级跟着继承，包括表单根。子级自己写了就用自己的；写成 `undefined` 又回到继承。
+
+详情页可以在创建时设好：`useForm({ initialValues, pattern: 'readPretty' })`。运行中切换整张表：`form.batch((d) => { d.$pattern = 'readPretty' })`。
+
+`$disabled = true` 写成 `disabled`。`$disabled = false` 撤销它，恢复继承。

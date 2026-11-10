@@ -1,0 +1,57 @@
+---
+title: 5. 联动
+description: reaction 维持金额，watch 在省变化之后才清空市。
+tableOfContents: false
+---
+
+<div className="tutorial-step">
+<div className="tutorial-copy">
+
+单价是 10，数量是 2。金额还要自己填。改单价，金额不动。
+
+`reaction` 用来维持一份派生结果。它一开始就会跑。读到的 `$` 状态是依赖，同一轮里的写入不是依赖。乘法先放进局部变量，再写回 `$value`。
+
+`reaction` 写过 `$value` 的字段是计算字段：阅读态，默认仍会提交。不想提交就声明 `display: 'virtual'`。
+
+**这一步：** 用 `defineEffects` 包一个 `reaction`：
+
+```ts
+const amount = (d.price.$value || 0) * (d.qty.$value || 0);
+d.amount.$value = amount;
+```
+
+把 `effects` 传给 `useForm`。改单价或数量，金额变成乘积，而且不能手改。提交 JSON 里有 `amount`。
+
+</div>
+
+<TutorialPlay id="06-reaction" />
+
+</div>
+
+<div className="tutorial-step">
+<div className="tutorial-copy">
+
+省是浙江，市本来该是杭州。现在一打开，市是空的。
+
+清空市是一个动作，应该等省变了再做。这种用 `watch`：初始化不跑，来源变化之后才跑。起始代码把清空写在 `reaction` 里，所以杭州一进来就被清掉了。
+
+这一步的字段用 `typed(form)` 的 `F.Field`：字段名按表单类型检查。
+
+**这一步：** `reaction` 只留 `d.city.$disabled = !d.province.$value`。清空改成：
+
+```ts
+watch(
+  (d) => d.province.$value,
+  (d) => {
+    d.city.$value = '';
+  },
+);
+```
+
+一进来市仍是杭州。切换省之后，市被清空。没有省的时候，市是禁用的。
+
+</div>
+
+<TutorialPlay id="08-watch" />
+
+</div>

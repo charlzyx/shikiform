@@ -44,10 +44,10 @@ describe('packed docs contract inputs', () => {
     const config = readFileSync('docs-site/astro.config.ts', 'utf8')
     const order = [...config.matchAll(/link: "\/tutorial\/([\w-]+)"/g)].map((match) => match[1])
     expect(order).toEqual([
-      '1-start', '2-fields', '3-path', '4-state', '5-pattern', '6-reaction', '7-array', '8-watch', '9-rules', '10-next',
+      '1-start', '2-path', '3-state', '4-rules', '5-linkage', '6-array', '7-submit', '8-next',
     ])
     expect(config).toContain('link: "/tutorial"')
-    expect(readFileSync('docs-site/src/content/docs/tutorial/2-fields.mdx', 'utf8')).toContain('这一步')
+    expect(readFileSync('docs-site/src/content/docs/tutorial/2-path.mdx', 'utf8')).toContain('这一步')
   })
 
   it('includes each tutorial and its visible adapter plus both preview and live blocks', () => {

@@ -1,0 +1,64 @@
+---
+title: 提交与重置
+description: Submit、Reset 和 afterReset。校验失败时焦点落到第一个出错的字段。
+---
+
+`<Form onSubmit>` 收到的是校验通过之后的值。Enter、`type="submit"` 和 `form.submit()` 走同一条路。不要再套一层 `<form>`。
+
+`form.submit()` 不会 reject。它 resolve 成 `{ ok: true, values }`，或者 `{ ok: false, reason }`：
+
+| reason | 什么时候 |
+|---|---|
+| `invalid` | 有校验错误，结果里有 `errors` |
+| `error` | `onValid` 抛了，结果里有 `error` |
+| `superseded` | 值还没稳定下来，结果里有 `message` |
+
+按 `reason` 分支，不要去比错误文案。同一份没改过的值，提交两次都会成功。
+
+校验失败时，`<Form>` 把焦点放到文档顺序里第一个出错的字段。`FormTab`、`FormCollapse`、`FormStep` 会先打开那一块，再聚焦。不要自己在 `onInvalid` 里切标签。
+
+## 按钮
+
+`@shikiform/antd` 的 `Submit` / `Reset` 是 Ant Design 按钮。`@shikiform/react` 里有不带样式的同名组件（`asChild` 或 render prop），状态用 `useSubmit()` / `useReset()`。
+
+`Submit` 在 `$canSubmit` 为 false 时不可点，提交过程中是 loading。已经出现的错误会让它禁用；还没校验过的空必填项不挡住第一次点击。
+
+`Reset` 调用 `form.reset()`。`onClick` 先跑，`preventDefault` 就不再重置。`afterReset(values)` 在重置完成之后拿到恢复后的值。
+
+```tsx preview
+import { useState } from 'react';
+import { Form, typed, useForm } from '@shikiform/react';
+import { FormButtonGroup, FormItem, FormLayout, Input, Reset, Submit } from '@shikiform/antd';
+
+type Values = { name: string };
+
+export default function App() {
+  const [log, setLog] = useState('');
+  const form = useForm<Values>({ initialValues: { name: 'Ada' } });
+  const F = typed(form);
+  return (
+    <Form
+      form={form}
+      onSubmit={(values) => setLog(`提交 ${JSON.stringify(values)}`)}
+      onInvalid={() => setLog('没有通过校验')}
+    >
+      <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }}>
+        <F.Field name="name" title="姓名" required decorator={[FormItem]} component={[Input]} />
+        <FormButtonGroup.FormItem>
+          <Submit>提交</Submit>
+          <Reset afterReset={(values) => setLog(`重置 ${JSON.stringify(values)}`)} />
+        </FormButtonGroup.FormItem>
+      </FormLayout>
+      <pre aria-live="polite">{log}</pre>
+    </Form>
+  );
+}
+```
+
+把姓名清空再提交，焦点在姓名上，下面是「没有通过校验」。点重置，姓名回到 Ada，日志是重置后的值。
+
+<Aside type="tip" title="保存成功之后">
+`form.setInitialValues(form.values)` 把当前值设成新的基线，表单不再是 dirty。`form.reset(record)` 则同时换掉值和基线。
+</Aside>
+
+服务端错误用 `form.setErrors({ username: '已存在' })`。它们和规则错误一起显示，并挡住提交，直到这个值变了、再次校验，或 `clearErrors`。见 [校验](/guide/validation#服务端错误)。

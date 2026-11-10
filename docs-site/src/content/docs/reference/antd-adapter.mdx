@@ -50,7 +50,7 @@ connect<C extends ComponentType<any>>(target: C, ...enhancers: ConnectEnhancer[]
 
 默认传 `value` / `onChange` / `onBlur` / `disabled` / `readOnly` / `id`。**不传** antd 的 `status`；要红框的 antd 控件自己 `mapProps({ status: 'status' })`（本库接好的 Input、Select 等已经做了）。
 
-控件的 props 类型里没有 `onBlur` 时（Lobe Select、弹出层），TypeScript 要求说明 blur 校验去哪：`blurOn` / `mapBlur`，或 `onBlur: false` 明确放弃。否则 `validateTrigger: 'onBlur'` 不会跑，而类型以前不报错。
+控件的 props 类型里没有 `onBlur` 时（弹出层选择器），TypeScript 要求说明 blur 校验去哪：`blurOn` / `mapBlur`，或 `onBlur: false` 明确放弃。否则 `validateTrigger: 'onBlur'` 不会跑。
 
 和 Formily 一样：`ref` 转发给原控件（React 18 也能拿到）；原控件的静态成员拷到返回值上（`Select.Option`、`Input.Search`，是原始的、未接字段的成员；类型也带上）。既没有 `name` / `field`、又不在 `<Field>` 里时，按普通控件渲染调用方 props，开发环境警告一次。
 

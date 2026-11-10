@@ -13,7 +13,7 @@ npm i @shikiform/antd    # 用 Ant Design 时
 npm i @shikiform/hooks   # 查询列表、影子表单等
 ```
 
-`@shikiform/react` 再导出引擎 `@shikiform/core`。只要引擎、不要 React 时单独装 `@shikiform/core`。
+`@shikiform/react` 再导出引擎 `@shikiform/core`。只要引擎、不要 React 时单独装 `@shikiform/core`。这四个包还没有发布到 npm，`npm run release` 只做 `npm publish --dry-run`。
 
 | peer 依赖 | 版本 | 哪些包 |
 |---|---|---|
@@ -62,7 +62,7 @@ export default function App() {
 
 ## 不用 antd
 
-自己的输入组件用不带参数的 `useField()` 读当前字段，放进 `component`（或作为 `<Field>` 的子元素）。
+自己的输入组件用不带参数的 `useField()` 读当前字段，放进 `component`（或作为 `<Field>` 的子元素）。完整的一页在 [不用 UI 库](/start/native)。
 
 ```tsx preview
 import { useState } from 'react';
@@ -127,4 +127,4 @@ export default function App() {
 
 装饰器和控件的四种写法、UI 属性分层见 [Field、装饰器与组件](/guide/field)。只要绑定、不要组件时用 `useField`，见 [Headless Hooks](/guide/headless)。
 
-下一步：[核心概念](/guide/concepts)，引擎、draft 和 `$` 状态。
+下一步：[教程](/tutorial/)，或者先看 [核心概念](/guide/concepts) 里的 handle。

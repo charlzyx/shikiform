@@ -1,0 +1,62 @@
+---
+title: TypeScript
+description: typed(form) 检查字段名，FieldKit 登记控件，SubmitValues 描述提交时可以缺的路径。
+---
+
+普通 `Field` 的 `name` 是任意字符串，方便动态路径。要让写错的名字编译不过，用 `typed(form)`。它没有新的运行时，返回的仍是同一组组件和 hook。
+
+```tsx
+const form = useForm<Values>({ initialValues })
+const F = typed(form)
+
+<F.Field name="email" decorator={[FormItem]} component={[Input]} />
+<F.useWatch((d) => d.email.$value)
+```
+
+`F.ArrayField` 的每一行拿到按这一行检查的 `row.Field`。`F.ObjectField` 的函数子节点拿到 `obj.Field`。名字相对当前作用域。在地址对象里面写 `address.city`，运行时会再拼一次。
+
+可复用的片段是普通组件：`const A = typed<Address>()`，渲染 `A.Field`，再挂到 `<ObjectField name="home">` 下面。
+
+## 登记控件
+
+`<FieldKit>` 或 `<Form kit>` 登记控件和默认装饰器。省略 `decorator` 时用这份默认值。`decorator={false}` 不要装饰器，例如表格单元格。
+
+```tsx
+import { Field, FieldKit, Form } from '@shikiform/react'
+
+declare module '@shikiform/react' {
+  interface FieldComponents {
+    Input: typeof Input
+  }
+  interface FieldDecorators {
+    FormItem: typeof FormItem
+  }
+}
+
+<FieldKit components={{ Input }} decorator={FormItem}>
+  <Form form={form}>
+    <Field name="name" title="姓名" component="Input" />
+    <Field name="qty" component={[Input, { placeholder: '数量' }]} decorator={false} />
+  </Form>
+</FieldKit>
+```
+
+字符串名字在模块扩充之后才有提示，并按那个组件检查元组里的 props。没登记时任何字符串都能写。组件引用（`component={Input}`、`component={[Input, props]}`）不必再登记，也会用到默认装饰器。
+
+元组 props 对不上组件时编译失败。`data-*` 可以写。泛型控件在元组里取最宽的参数，回调参数先不要自己标类型。
+
+## 提交值
+
+`submit` / `getSubmitValues` / `onSubmit` 的值类型是表单的第二个类型参数，默认和值类型相同。`virtual` 和 `none` 在运行时不出现在提交结果里，默认类型却还在。把这些路径标出来：
+
+```ts
+import { createForm, type SubmitValues } from '@shikiform/react'
+
+type Values = { name: string; confirm: string; rows: { total: number }[] }
+
+createForm<Values, SubmitValues<Values, 'confirm' | 'rows.*.total'>>({
+  initialValues: { name: '', confirm: '', rows: [] },
+})
+```
+
+`confirm` 和每一行的 `total` 在提交类型里变成可选。

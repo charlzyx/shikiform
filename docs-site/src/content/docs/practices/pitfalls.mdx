@@ -1,0 +1,175 @@
+---
+title: 常见的坑
+description: 解构、路径、显隐和 control 的错误写法，以及对应的正确写法。
+---
+
+下面每节都是同一件事的两种写法。开发环境会把左边抛成 `ShikiUsageError` 的，信息里带有修法。生产构建不做这些检查。
+
+## 解构
+
+解构只用来取子字段。`$` 状态通过 handle 读写。
+
+### 解构 $ 状态再赋值
+
+```ts
+const { $value } = d.user
+$value = 'Ada'
+```
+
+`$value` 是当前值的副本。接着赋值只改这个局部变量，表单不变。
+
+```ts
+const { name } = d.user
+name.$value = 'Ada'
+```
+
+`name` 仍是 handle。也可以直接写 `d.user.name.$value = 'Ada'`。
+
+### rest、展开和 Object.keys
+
+```ts
+const { name, ...rest } = d.user
+const copy = { ...d.user }
+Object.keys(d.user)
+```
+
+开发环境抛错，大意是：这是 draft handle，不是数据对象；`Object.keys`、对象展开和 rest 都不支持。正确形式写在同一条信息里：只解构子字段 handle，然后在那个 handle 上读写 `$` 状态；要复制数据，用 `d.user.$value`。
+
+```ts
+const { name } = d.user
+name.$value
+const copy = d.user.$value
+```
+
+### 数组解构
+
+```ts
+const [first] = d.items
+```
+
+开发环境抛错：handle 不是数组，不能 `for…of`、不能 `const [row] = d.items`、不能展开。信息里的正确形式是 `d.items.$value`、`const { name } = d.items[0]` 再读 `name.$value`，以及 `reaction.each((d) => d.items, (row, ctx) => …)`。
+
+```ts
+const { name } = d.items[0]
+name.$value
+d.items.$value
+reaction.each((d) => d.items, (row) => {
+  row.name.$value
+})
+```
+
+报错原文没有写 `get`。带下标的 `get(d, 'items[0]')` 也过不了类型检查。没有下标的对象路径可以 `get(d, 'user.name').$value`。
+
+## 改 $value 上的对象
+
+```ts
+d.user.$value.name = 'Ada'
+d.items.$value.push(row)
+```
+
+`$value` 是快照。在 `reaction`、`watch`、`form.batch` 里这样改会抛错，别处也不会通知读者。
+
+```ts
+d.user.name.$value = 'Ada'
+d.items.$value = [...d.items.$value, row]
+```
+
+组件外面追加一行，用 `form.pushArray('items', row)`。
+
+## 同一轮读回刚写的值
+
+```ts
+d.total.$value = d.price.$value * d.qty.$value
+d.tax.$value = d.total.$value * 0.1
+```
+
+写入要等这一轮结束才生效。这里读到的还是旧的 total。
+
+```ts
+const total = d.price.$value * d.qty.$value
+d.total.$value = total
+d.tax.$value = total * 0.1
+```
+
+`$componentProps` 这类 UI 状态例外：同一轮的写入会重放，所以可以先 `props.style ??= {}` 再改颜色。
+
+## ObjectField 的路径
+
+```tsx
+<ObjectField name="address">
+  <Field name="address.city" />
+</ObjectField>
+```
+
+作用域里的名字是相对的。这样会拼成 `address.address.city`。用 `typed(form)` 的根 `F.Field` 写 `address.city`，类型检查能过，运行时仍会再拼一次。开发环境在拼出来的路径没有值、而从根上读得到时抛错。
+
+```tsx
+<F.ObjectField name="address">
+  {(obj) => <obj.Field name="city" decorator={[FormItem]} component={[Input]} />}
+</F.ObjectField>
+```
+
+数组行里写 `items.0.name` 是同一个问题。写 `name`。
+
+## $visible = false
+
+```ts
+d.taxId.$visible = false
+```
+
+这是 `none`：不渲染、不校验、不提交。值留在 store 里。它不是 `hidden`。
+
+```ts
+d.taxId.$hidden = true       // 不渲染，仍校验，仍提交
+d.taxId.$display = 'virtual' // 渲染，仍校验，不提交，$visible 为 true
+d.taxId.$visible = false     // none
+```
+
+## control 和 connect
+
+```tsx
+function Bad() {
+  const { control } = useFieldDecorator()
+  return <input {...control} />
+}
+```
+
+`control` 里是标签、说明、错误、`id` 和 `aria-*`，没有 `value`，也没有 `onChange`。摊开它，字段值接不上。
+
+```tsx
+function NameInput() {
+  const field = useField<string>()
+  return (
+    <input
+      id={field.id}
+      value={field.value ?? ''}
+      onChange={(event) => field.onChange(event.target.value)}
+      onBlur={field.onBlur}
+    />
+  )
+}
+```
+
+要一套现成的映射（含 `format` / `parse`），用 `connect`。`useFieldDecorator()` 留给自己画标签的控件。见 [接入组件库](/guide/headless#接自己的组件库)。
+
+## 把派生写进 watch
+
+```ts
+watch((d) => d.price.$value, (d) => {
+  d.total.$value = d.price.$value * 2
+})
+```
+
+这是派生，应该用 `reaction`，初始化就会跑，之后只在读过的状态变化时重跑。
+
+```ts
+reaction((d) => {
+  d.total.$value = (d.price.$value ?? 0) * 2
+})
+
+watch((d) => d.province.$value, (d) => {
+  d.city.$value = undefined
+})
+```
+
+`watch` 用来做动作：省变了就清空市。它首次不跑。

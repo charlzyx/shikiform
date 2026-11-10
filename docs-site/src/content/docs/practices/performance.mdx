@@ -1,0 +1,32 @@
+---
+title: 性能与 SSR
+description: 一行的改动只重跑那一行。服务端渲染时 effect 保持同步，异步校验在 abort 时结束。
+---
+
+一个输入框的改动，应该只让读过它的 reaction 和那一个字段重渲染。
+
+## 少订一整棵数组
+
+`d.items.$value` 依赖整个数组。单元格一改，所有读过它的 reaction 都要重跑。行上的计算用 `reaction.each`：每一行一个实例，只在自己读过的键变了时重跑。
+
+父组件不要为了画每一行去 `useWatch` 整棵数组。`ArrayField` 只订阅结构（长度、顺序、行身份）。单元格用自己的 `Field`。
+
+长列表可以只挂载看得见的行：
+
+```tsx
+<ArrayField name="rows" virtualScroll={{ height: 400 }}>
+  {() => <Field name="name" component={[Input]} />}
+</ArrayField>
+```
+
+没挂载的行，`reaction.each` 写下的规则仍然生效。
+
+## 服务端渲染
+
+`useForm` 可以在服务端执行的组件里创建。文档站的示例就是这样渲染出 HTML 的。
+
+`reaction` 必须同步。请求放在 `watch` 里，回来之后用 `form.batch` 写回。effect 里不要读 `window`。
+
+异步校验如果在请求中途被 abort，引擎不再等那个结果。校验函数里的 Promise 仍要结束，见 [跨字段与异步校验](/examples/async-rules)。
+
+提交出去的值是普通 JSON 能表达的数据。日期、颜色这类控件把字段存成字符串，控件要的对象只在 `format` / `parse` 里出现。

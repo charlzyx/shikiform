@@ -1,0 +1,84 @@
+---
+title: 跨字段与异步校验
+description: 确认密码对照同一条记录。用户名的请求在 abort 时结束，不把过期结果写回。
+---
+
+确认密码要看同一行的密码。用户名要问一次服务端。更新的输入会 abort 上一次，过期结果不会写进错误列表。你的 Promise 在 abort 时也要结束，不要一直挂着。
+
+```tsx preview
+import { useState } from 'react';
+import { Form, typed, useForm } from '@shikiform/react';
+import { FormButtonGroup, FormItem, FormLayout, Input, Submit } from '@shikiform/antd';
+
+type Values = { username: string; password: string; confirm: string };
+
+function lookupName(username: string, signal?: AbortSignal): Promise<string | undefined> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      resolve(username.trim().toLowerCase() === 'admin' ? '已被占用' : undefined);
+    }, 400);
+    signal?.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(timer);
+        resolve(undefined);
+      },
+      { once: true },
+    );
+  });
+}
+
+export default function App() {
+  const [result, setResult] = useState('');
+  const form = useForm<Values>({
+    initialValues: { username: '', password: '', confirm: '' },
+    asyncDebounceMs: 300,
+  });
+  const F = typed(form);
+  return (
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
+      <FormLayout labelCol={{ span: 5 }} wrapperCol={{ span: 19 }}>
+        <F.Field
+          name="username"
+          title="用户名"
+          required
+          rules={{ validator: (value, ctx) => lookupName(String(value ?? ''), ctx.signal) }}
+          decorator={[FormItem]}
+          component={[Input]}
+        />
+        <F.Field
+          name="password"
+          title="密码"
+          required
+          rules={{ minLength: 8, message: '至少 8 位' }}
+          decorator={[FormItem]}
+          component={[Input.Password]}
+        />
+        <F.Field
+          name="confirm"
+          title="确认密码"
+          required
+          display="virtual"
+          rules={{
+            validator: (value, ctx) => (value && value !== ctx.record?.password ? '两次密码不一致' : undefined),
+          }}
+          decorator={[FormItem]}
+          component={[Input.Password]}
+        />
+        <FormButtonGroup.FormItem>
+          <Submit>注册</Submit>
+        </FormButtonGroup.FormItem>
+      </FormLayout>
+      <pre aria-live="polite">{result}</pre>
+    </Form>
+  );
+}
+```
+
+用户名写成 `admin`，停一下，出现「已被占用」。改成 `ada` 时，上一次请求被 abort，`lookupName` 立刻 resolve，占用的提示不会留在 `ada` 上。
+
+两次密码不一致时，确认密码报错，提交失败。对齐之后再提交，JSON 里有 `username` 和 `password`，没有 `confirm`：它是 `virtual`，会渲染、会校验、不提交。
+
+<Aside type="caution" title="abort 之后要结束 Promise">
+引擎会丢掉这次结果，不再等它。Promise 自己仍应 resolve（这里 resolve `undefined`），这样它不会一直挂着。不要在 abort 之后 reject 到没人接。
+</Aside>

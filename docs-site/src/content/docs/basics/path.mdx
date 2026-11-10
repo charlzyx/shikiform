@@ -1,0 +1,73 @@
+---
+title: 按路径读写
+description: 用 handle 链、get / set，以及 form.getValue / form.setValue 读写带下标的路径。
+---
+
+一个嵌套位置有两种读法：顺着 handle 走，或者用 lodash 风格的路径字符串。`get` 和 `set` 从 `@shikiform/core` 导出，`@shikiform/react` 也重新导出它们。
+
+路径写法是 `a.b.c`、`a.b[0].c`、`a.b.0.c` 或 `a['b-c']`。缺一段时 `get` 得到 `undefined`。`set` 不改入参，返回一棵新的普通对象；中间缺的对象和数组会补上。
+
+## 只取一个值
+
+不要为了这一个位置去 `each`。直接写路径。
+
+```ts
+d.orders[0].lines[2].qty.$value
+get(d, 'user.name').$value
+form.getValue('orders[0].lines[2].qty')
+form.setValue('orders[0].lines[2].qty', 4)
+```
+
+`d.orders[0].lines[2].qty` 是 handle。`$value` 才是数字，在 `reaction` 里也会成为依赖。
+
+`get` 在普通对象上返回值：`get(order, 'lines[0].qty')`。在 draft 上它只沿属性走，拿到的是子 handle，再读 `$value`。没有下标时可以写 `get(d, 'user.name').$value`。带下标的路径，`FieldPath` 走不到 draft 上的数组下标，所以 `get(d, 'orders[0].lines[2].qty')` 和 `get(d, 'orders.0.lines.2.qty')` 都过不了类型检查。这种位置用 handle 链，或 `form.getValue` / `form.setValue`。这两条接受同样的路径，读写的是值本身。
+
+```tsx preview
+import { useState } from 'react';
+import { Button, Space } from 'antd';
+import { Field, Form, get, set, useForm } from '@shikiform/react';
+import { FormItem, InputNumber } from '@shikiform/antd';
+
+type Values = { orders: { lines: { sku: string; qty: number }[] }[] };
+
+export default function App() {
+  const [copy, setCopy] = useState('');
+  const form = useForm<Values>({
+    initialValues: { orders: [{ lines: [{ sku: 'pen', qty: 1 }, { sku: 'book', qty: 2 }] }] },
+  });
+  return (
+    <Form form={form}>
+      <Field name="orders.0.lines.0.qty" title="第一行数量" decorator={[FormItem]} component={[InputNumber]} />
+      <Space wrap>
+        <Button
+          htmlType="button"
+          onClick={() => {
+            const qty = form.getValue('orders[0].lines[0].qty');
+            form.setValue('orders[0].lines[0].qty', (qty ?? 0) + 1);
+          }}
+        >
+          路径加一
+        </Button>
+        <Button
+          htmlType="button"
+          onClick={() => {
+            const next = set(form.values, 'orders[0].lines[1].qty', 9);
+            setCopy(JSON.stringify(get(next, 'orders[0].lines')));
+          }}
+        >
+          set 出一棵新树
+        </Button>
+      </Space>
+      <pre>{copy}</pre>
+    </Form>
+  );
+}
+```
+
+点「路径加一」走的是 `form.setValue`：表单换成新的值树，输入框变成 2、3、4。点「set 出一棵新树」时，`set` 只复制当时的 `form.values`，不写回表单，所以输入框保持不动，第二行数量只出现在下面的 JSON 里。
+
+<Aside type="caution" title="set 不写 draft">
+`set` 复制的是普通数据。对 draft 做展开，开发环境会抛 `ShikiUsageError`。在 `reaction` 里写字段，用 `d.orders[0].lines[2].qty.$value = 4`。
+</Aside>
+
+多层里「每一项的某一个下标」才用 `reaction.each`，见 [用 ctx 过滤](/guide/linkage#用-ctx-过滤)。

@@ -1,11 +1,19 @@
 ---
 title: 示例库
-description: 23 个完整场景：表单、联动、数组与树、表格与查询、业务场景和 Pro 组件。
+description: 五个可以直接跑的场景，以及查询表、数组、业务页和 Pro 组件。
 ---
 
-23 个场景，按主题分在六页里。每个示例都能在页内「编辑代码」直接改；「完整页面」是独立构建的 `/play/...`，可以直接打开、刷新，源码在仓库 `playground/pages/`。
+先看五个完整场景。每个都能在页内改代码、提交。
 
-数据都是本地模拟，写回只改当前表单，不代表接好了后端。
+| 场景 | 你会用到 |
+|---|---|
+| [登录校验](/examples/login) | `required`、`format`、`minLength` |
+| [联动计算](/examples/computed) | `reaction` 写金额，结果仍会提交 |
+| [条件显隐](/examples/visibility) | `$visible = false` 就是 `none` |
+| [动态表格](/examples/dynamic-table) | `reaction.each` 给每一行算小计 |
+| [跨字段与异步校验](/examples/async-rules) | 确认密码；异步校验在 abort 时结束 |
+
+下面这些页面是更长的业务例子。每个示例都能在页内改代码；「完整页面」是独立的 `/play/...`。数据是本地模拟，写回只改当前表单。
 
 ## 基础表单
 

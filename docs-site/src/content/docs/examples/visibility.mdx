@@ -1,0 +1,51 @@
+---
+title: 条件显隐
+description: 不需要发票时，税号不渲染、不校验、也不提交。
+---
+
+只有勾了「需要发票」，税号才出现，并且必填。关掉之后，税号既不挡提交，也不进 JSON。
+
+`$visible = false` 是 `display: 'none'`，不是 `hidden`。
+
+```tsx preview
+import { useState } from 'react';
+import { defineEffects, Form, typed, useForm } from '@shikiform/react';
+import { FormButtonGroup, FormItem, FormLayout, Input, Submit, Switch } from '@shikiform/antd';
+
+type Values = { invoice: boolean; taxId: string };
+
+const effects = defineEffects<Values>(({ reaction }) => {
+  reaction((d) => {
+    const need = d.invoice.$value;
+    d.taxId.$visible = need;
+    d.taxId.$required = need;
+  });
+});
+
+export default function App() {
+  const [result, setResult] = useState('');
+  const form = useForm<Values>({
+    initialValues: { invoice: false, taxId: '' },
+    effects: [effects],
+  });
+  const F = typed(form);
+  return (
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
+      <FormLayout labelCol={{ span: 5 }} wrapperCol={{ span: 19 }}>
+        <F.Field name="invoice" title="需要发票" decorator={[FormItem]} component={[Switch]} />
+        <F.Field name="taxId" title="税号" decorator={[FormItem]} component={[Input]} />
+        <FormButtonGroup.FormItem>
+          <Submit>提交</Submit>
+        </FormButtonGroup.FormItem>
+      </FormLayout>
+      <pre aria-live="polite">{result}</pre>
+    </Form>
+  );
+}
+```
+
+不开开关，直接提交，JSON 里只有 `invoice: false`。打开开关，税号为空时提交失败。填上 `91310000` 再提交，JSON 里有税号。关掉开关，税号从界面消失，再提交又没有 `taxId`。重新打开，刚才填的税号还在。
+
+<Aside type="caution" title="只藏界面时用 hidden">
+没点开的标签页仍要校验、仍要提交。那种情况写 `$hidden = true`，不要写 `$visible = false`。
+</Aside>

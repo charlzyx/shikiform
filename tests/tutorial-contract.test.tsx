@@ -1,6 +1,6 @@
 import { createElement, type ComponentType } from 'react'
 import { renderToString } from 'react-dom/server'
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 const tutorials = import.meta.glob<{ default: ComponentType }>('../docs-site/src/content/docs/tutorial/_files/*.tsx', { eager: true })
@@ -15,13 +15,19 @@ describe('the editable tutorials use the public FormEngine and the one Field sty
     for (const name of new Set(names)) expect(names.filter((other) => other === name), name).toHaveLength(2)
   })
 
-  it('every lesson page imports a starter and solution that exist', () => {
-    for (const page of ['1-start', '2-fields', '3-path', '4-state', '5-pattern', '6-reaction', '7-array', '8-watch', '9-rules']) {
-      const mdx = readFileSync(`docs-site/src/content/docs/tutorial/${page}.mdx`, 'utf8')
-      for (const [, file] of mdx.matchAll(/from '\.\/_files\/([\w.-]+\.tsx)\?raw'/g)) {
-        expect(Object.keys(tutorials), `${page} → ${file}`).toContain(`../docs-site/src/content/docs/tutorial/_files/${file}`)
+  it('every lesson page points at a starter and solution that exist', () => {
+    const keys = Object.keys(tutorials)
+    const pages = readdirSync('docs-site/src/content/docs/tutorial').filter((name) => name.endsWith('.mdx'))
+    let plays = 0
+    for (const page of pages) {
+      const mdx = readFileSync(`docs-site/src/content/docs/tutorial/${page}`, 'utf8')
+      for (const [, id] of mdx.matchAll(/<TutorialPlay id="([^"]+)"/g)) {
+        plays += 1
+        expect(keys, `${page} → ${id}`).toContain(`../docs-site/src/content/docs/tutorial/_files/${id}.tsx`)
+        expect(keys, `${page} → ${id}`).toContain(`../docs-site/src/content/docs/tutorial/_files/${id}.solution.tsx`)
       }
     }
+    expect(plays).toBeGreaterThan(0)
   })
 
   it.each(examples)('renders the actual %s source', (_file, module) => {

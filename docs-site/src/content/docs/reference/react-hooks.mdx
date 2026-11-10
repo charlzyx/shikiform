@@ -45,7 +45,6 @@ interface UseFormOptions<T> extends FormOptions<T> { values?: T }
 
 完整选项、校验默认触发器和提交返回值见 [创建表单](/api#创建表单)。非 React 环境用 `createForm`。
 
-[实现：use-form.ts](https://github.com/charlzyx/shikiform/blob/main/packages/react/src/hooks/use-form.ts)
 
 ## useFormMessage
 
@@ -63,7 +62,6 @@ const t = useFormMessage()
 
 key 列表见 [内置文案](/guide/validation#内置文案)。有实例时等价于 `form.message(key, params)`。
 
-[实现：use-form-message.ts](https://github.com/charlzyx/shikiform/blob/main/packages/react/src/hooks/use-form-message.ts)
 
 ## typed
 
@@ -124,7 +122,6 @@ const F = typed(form)
 - `<F.Field enum>` / `row.Field` 的 `enum` 按字段值检查选项的 `value`（数组字段按元素类型）。
 - `typed` 没有新的运行时：同一个表单多次调用返回同一个对象。
 
-[实现：typed.tsx](https://github.com/charlzyx/shikiform/blob/main/packages/react/src/factory/typed.tsx)
 
 ## useFormContext
 
@@ -138,7 +135,6 @@ useFormContext<T = any>(): FormInstance<T>
 
 这是顶层公开 Hook；`useScope` 只是内部实现，不是 `@shikiform/react` 顶层导出。
 
-[实现：context.tsx](https://github.com/charlzyx/shikiform/blob/main/packages/react/src/context.tsx)
 
 ## useField
 
@@ -247,7 +243,6 @@ const field = useField('amount', { ui: 'slider' })                  // 同上的
 - 实例**不**登记 JSX `rules` / `required` / `enum`（开发期警告一次）：这些写在不带 `ui` 的 `<Field>` 上。实例的 `display` 没有 `virtual`。
 - 名字类型：默认任意字符串；在 `UiNames` 里登记后 `ui` / `<UI name>` / `$ui()` 都检查拼写（见 [UI 节点](/guide/ui#名字的类型)）。
 
-[实现：use-field.ts](https://github.com/charlzyx/shikiform/blob/main/packages/react/src/hooks/use-field.ts)
 
 ## UI 组件（`<UI>`）
 
@@ -272,7 +267,6 @@ reaction((d) => { d.$ui('approvalTip').$visible = d.amount.$value >= 50000 })
 - **隐藏不级联**：`<UI>` 隐藏时不渲染子元素，但里面字段的 `$visible`、校验、提交都不变（字段只看自己的 display）。要连字段一起去掉，再写字段自己的 `$visible = false`。
 - reaction 写了一个从没挂载过的 `$ui(name)`（拼错、忘了渲染）：挂载稳定后开发期警告一次，列出这个路径上已挂载的名字。
 
-[实现：ui.tsx](https://github.com/charlzyx/shikiform/blob/main/packages/react/src/components/ui.tsx)
 
 ## useWatch
 
@@ -292,7 +286,6 @@ useWatch<T = any, S = unknown>(select: (draft: Draft<T>) => S): S
 
 `useWatch` 是 React 中的读取/渲染；effects 里的 `watch(source, effect)` 是值变化后的动作，两者不是同一 API。参见 [联动](/guide/linkage)。
 
-[实现：use-watch.ts](https://github.com/charlzyx/shikiform/blob/main/packages/react/src/hooks/use-watch.ts)
 
 ### 完整例子：一个绑定、一个 selector、一个操作按钮
 
@@ -368,7 +361,7 @@ useArrayField<TScope, N extends ArrayPath<TScope>>(
 
 `dragProps` 函数对同一数组路径保持同一个引用（拖动起点记在句柄内部），所以可以经 context 交给 `memo` 的行而不让它们重渲染；没有隐藏的拖拽库，把手、键盘和触屏交互由应用决定。事件没有 `dataTransfer` 时用句柄记下的起点。
 
-[实现：use-array.ts](https://github.com/charlzyx/shikiform/blob/main/packages/react/src/hooks/use-array.ts) · [数组教程](/tutorial/7-array)
+[数组教程](/tutorial/6-array)
 
 ### 完整例子：拖动排序，键不变，路径随顺序变化
 
@@ -489,7 +482,7 @@ useTreeField(name: string, options?: {
 
 `[0, 2]` 表示第一个根节点的第三个孩子，不是节点 ID。稳定 ID 用于移动时保持字段状态；不要用当前坐标代替业务 ID。
 
-[实现：use-tree.ts](https://github.com/charlzyx/shikiform/blob/main/packages/react/src/hooks/use-tree.ts) · [结构与路径](/guide/concepts)
+[结构与路径](/guide/concepts)
 
 ### 完整例子：同层拖动和显式移动结果
 
@@ -581,7 +574,7 @@ function Section({ children }: { children: ReactNode }) {
 }
 ```
 
-[实现：field-group.tsx](https://github.com/charlzyx/shikiform/blob/main/packages/react/src/field-group.tsx) · [分组容器](/guide/containers)
+[分组容器](/guide/containers)
 
 ## useFieldDecorator
 
@@ -633,7 +626,7 @@ function MantineInput() {
 }
 ```
 
-[实现：use-field-decorator.ts](https://github.com/charlzyx/shikiform/blob/main/packages/react/src/hooks/use-field-decorator.ts) · [Headless · 接自己的组件库](/guide/headless#接自己的组件库)
+[Headless · 接自己的组件库](/guide/headless#接自己的组件库)
 
 ## useSubmit
 
@@ -664,7 +657,6 @@ const submit = useSubmit()
 <Submit onSubmit={saveDraft}>{(state) => <button type="button" disabled={state.disabled} onClick={state.onClick}>存草稿</button>}</Submit>
 ```
 
-[实现：use-submit.ts](https://github.com/charlzyx/shikiform/blob/main/packages/react/src/hooks/use-submit.ts)
 
 ## useReset
 
@@ -682,4 +674,4 @@ useReset<T, E = ClickEvent>(options?: {
 <Reset afterReset={(values) => search(values)} asChild><button>重置</button></Reset>
 ```
 
-[实现：use-submit.ts](https://github.com/charlzyx/shikiform/blob/main/packages/react/src/hooks/use-submit.ts) · [antd Reset](/reference/antd#reset)
+[antd Reset](/reference/antd#reset)

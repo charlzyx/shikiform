@@ -7,6 +7,7 @@ description: 四个入口、createForm 选项、引擎方法、React 组件与�
 
 | 要查什么 | 参考页 |
 |---|---|
+| `createForm`、`get`、`set`、`defineEffects`、`EnumSource`、错误类、文案 | [Core](/reference/core) |
 | `useForm`、`typed`、`useFormContext`、`useFormMessage`、`useField`（无参即当前字段）、`useFieldDecorator`、`useSubmit`、`useReset`（+ headless `<Submit>` / `<Reset>`）、`useWatch`、`useArrayField`、`useArray`、`useIndex`、`useRecord`、`useTreeField`、`useTreeNode`、`useFieldGroup`、`useFieldGroupErrors`（+ `<FieldGroup>`） | [React Hooks](/reference/react-hooks) |
 | `connect`、`mapProps`、`mapBlur`、`mapReadPretty`、`mapFieldProps`（定义在 `@shikiform/react`，antd 再导出）、`FormItem`、`mapFormItemProps`、`FormLayout`、`useFormLayout`、`FormGrid`、`GridColumn`、`useFormGrid`、`FormButtonGroup`、`PreviewText`（及 `.Select` 等阅读态视图）、接好的控件（`Input` … `TimePicker`、`TreeSelect`、`Cascader`、`Upload`、`Slider`、`Rate`、`Transfer`、`AutoComplete`、`ColorPicker`） | [Ant Design 适配层](/reference/antd-adapter) |
 | `Submit`、`Reset`、控件取值契约、`ArrayItems`、`ArrayCards`、`ArrayTable`、`useArrayEditable`、`FormTab`、`FormCollapse`、`FormStep`、`useFormStep`、`MergedTable`、`groupRowSpan` | [Ant Design 参考](/reference/antd) |
@@ -135,7 +136,7 @@ const effects = defineEffects<Values>(({ reaction, watch, query }) => {
 | API | 触发 | 说明 |
 |---|---|---|
 | `reaction(effect)` | 立即运行；之后读到的 `$` 状态变化时 | 同步派生；写 `$value` 的字段成为计算字段，默认仍提交 |
-| `reaction.each(select, effect)` | 每个元素一个实例，并进入嵌套的对象数组 | 只有两个参数。基本类型数组不进。用 `ctx.key` / `ctx.depth` 过滤 |
+| `reaction.each(select, effect)` | 每个元素一个实例，并进入嵌套的对象数组 | 只有两个参数。嵌套的基本类型数组不进；对基本类型数组本身调用时，`depth === 0` 仍会访问。用 `ctx.key` / `ctx.depth` 过滤 |
 | `watch(source, effect)` | `source` 读到的状态变化后；首次不运行 | 多个来源返回数组 |
 | `watch.each(select, effect)` | 与 `reaction.each` 同一层遍历；回调里读到的状态就是来源 | 某个元素变化只触发它自己 |
 | `query(path)` | — | 精确 path 的底层 handle（动态路径用），平时写 `d.a.b` |
