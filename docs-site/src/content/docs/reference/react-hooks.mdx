@@ -164,8 +164,10 @@ interface UseFieldOptions<TValue = any> {
   // UI 状态（渲染期的 JSX 层，不写进模型；reaction 的 $title / $componentProps 优先，fields 声明在下）
   title?: ReactNode
   description?: ReactNode
-  component?: FieldSlot          // Component 或 [Component, props]：props 是 JSX 层的 componentProps
-  decorator?: FieldSlot          // Decorator 或 [Decorator, props]：props 是 JSX 层的 decoratorProps
+  component?: FieldSlot | RegisteredComponentSlot
+  // Component、[Component, props]，或登记名 "Input" / ["Input", props]。props 是 JSX 层的 componentProps
+  decorator?: FieldSlot | RegisteredDecoratorSlot | false
+  // 同上。false 不用 <Form kit> / <FieldKit> 的默认装饰器
 }
 
 // <Field> / typed(form).Field / row.Field / <UI> 上，元组的 props 按组件检查（全部可选，字段会给 value / onChange；

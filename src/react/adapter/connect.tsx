@@ -45,14 +45,59 @@ export type BlurOn =
 /**
  * Rename (`{ value: 'checked' }`), merge (`{ readOnly: 'disabled' }`), drop (`{ onBlur: false }`) binding props, or pass
  * more field state to a prop (`{ title: 'placeholder' }`; an explicit caller prop wins).
- * `getValueFromEvent` turns the control's `onChange` arguments into the field value.
+ * `format` / `parse` convert between the field value and the control value (a `'YYYY-MM-DD'` string in the field,
+ * a `Date` / Dayjs in the control). `parse` replaces the default {@link valueFromEvent}. `format` runs after prop
+ * transforms, so it sees the control's own props (`props.format`, …). `readPretty` is not converted: the view gets
+ * the field value.
  * `blurOn` is the blur fallback for a control that does not call `onBlur` ({@link BlurOn}). It replaces the default
  * `onBlur` prop so the unused handler is not passed through.
+ *
+ * Inside `connect(Control, mapProps({ … }))`, `parse`'s parameters are the control's `onChange` arguments and
+ * `format`'s `props` are the control's props, so a date converter does not annotate Dayjs / Date. Annotate
+ * `format`'s value parameter when you want that callback to name the field type.
  */
-export type PropsMapping = Partial<Record<FieldPropKey | FieldStateKey, string | false>> & {
-  getValueFromEvent?: (...args: any[]) => unknown
+export type PropsMapping<P = any, F = any> = Partial<Record<FieldPropKey | FieldStateKey, string | false>> & {
+  /** Field value → the value the control receives (the prop named by `value`, default `'value'`). */
+  format?: (value: F, props: FormatProps<P>) => ValueOf<P>
+  /** Control `onChange` arguments → the value stored on the field. Default: {@link valueFromEvent}. */
+  parse?: ParseFn<P, F>
   blurOn?: BlurOn
 }
+
+/** `true` when `P` is `any` (not a concrete props type). `unknown` is not `any`. */
+type IsAny<T> = 0 extends 1 & T ? true : false
+
+/** `P['value']` when the control has one, otherwise unchecked. */
+type ValueOf<P> = IsAny<P> extends true ? unknown : P extends { value?: infer V } ? V : unknown
+
+/**
+ * Parameter list of `P['onChange']`. `any` / `unknown` (mapProps outside `connect`, or a control with no
+ * `onChange`) stay loose: a fixed-arity `parse` must still be assignable. A concrete list is what `connect`
+ * uses to type `parse`'s parameters.
+ */
+type ChangeArgs<P> = IsAny<P> extends true
+  ? any[]
+  : [unknown] extends [P]
+    ? any[]
+    : P extends { onChange?: (...args: infer A) => any }
+      ? A
+      : any[]
+
+/**
+ * `parse`. Concrete `onChange` parameters stay strict (a `string` callback is not a `Date` callback).
+ * When the props type is not known, the callback is bivariant so `(a, b) => field` still assigns to a rest `any[]`.
+ */
+type ParseFn<P, F> = IsAny<P> extends true
+  ? { bivarianceHack(...args: any[]): F }['bivarianceHack']
+  : [unknown] extends [P]
+    ? { bivarianceHack(...args: any[]): F }['bivarianceHack']
+    : (...args: ChangeArgs<P>) => F
+
+/** `format`'s props parameter. `any` when the control props are not known yet, so an annotation is allowed. */
+type FormatProps<P> = IsAny<P> extends true ? any : [unknown] extends [P] ? any : P
+
+/** A props enhancer whose `format` / `parse` are checked against the control `connect` wraps. */
+export type CodecEnhancer<P, F> = PropsEnhancer & { __codec: { props: P; field: F } }
 
 /** Last-step transform: receives the mapped props and the field, returns the props the control gets. */
 export type PropsTransform = (props: Record<string, any>, field: FieldBinding<any>) => Record<string, any>
@@ -107,7 +152,7 @@ const DEFAULT_TARGETS: Record<FieldPropKey, string | false> = {
 }
 
 /** Keys of {@link PropsMapping} that are not "copy this field state onto a prop". */
-const MAPPING_META = new Set(['getValueFromEvent', 'blurOn'])
+const MAPPING_META = new Set(['format', 'parse', 'blurOn'])
 
 /**
  * Default `onChange` → value: a DOM change event yields `target.checked` for checkboxes and
@@ -133,7 +178,8 @@ export function valueFromEvent(...args: any[]): unknown {
  * return <input {...mapFieldProps(field, { placeholder: 'Email' })} />
  * ```
  *
- * - `value` → the field value; `onChange` → `field.onChange(getValueFromEvent(...args))`, then the caller's handler
+ * - `value` → the field value (`format`, when set, turns it into the control's value after the other mapping);
+ *   `onChange` → `field.onChange(parse(...args))` (default {@link valueFromEvent}), then the caller's handler
  *   with the original arguments; `onBlur` → `field.onBlur()`, then the caller's handler.
  * - `disabled` / `readOnly` are OR-ed with the caller's prop. Several keys may target one prop (`readOnly: 'disabled'`).
  * - `status` is not passed unless mapped (`{ status: 'status' }`): then `'error'` with errors, `'warning'` with only
@@ -207,7 +253,7 @@ function applyMapping(
   hasReadPretty: boolean,
 ): Record<string, any> {
   const target = (key: FieldPropKey): string | false => (mapping[key] === undefined ? DEFAULT_TARGETS[key] : mapping[key]!)
-  const getValue = mapping.getValueFromEvent ?? valueFromEvent
+  const parseValue = mapping.parse ?? valueFromEvent
   const out: Record<string, any> = { ...props }
   const value = target('value')
   if (value) out[value] = field.value
@@ -232,7 +278,7 @@ function applyMapping(
   if (changeProp) {
     const caller = props[changeProp]
     out[changeProp] = (...args: any[]) => {
-      field.onChange(getValue(...args))
+      field.onChange(parseValue(...args))
       caller?.(...args)
     }
   }
@@ -251,11 +297,15 @@ function applyMapping(
   }
   let result = out
   for (const transform of transforms) result = transform(result, field) ?? result
+  // After transforms, so `format` sees the control's own props (a date `format` string the transform just set).
+  // The input is the field value, not `result[value]`: a transform cannot pre-convert it.
+  if (value && mapping.format) result = { ...result, [value]: mapping.format(field.value, result) }
   if (mapping.blurOn) result = withBlur(result, field, mapping.blurOn, changeProp)
   return result
 }
 
-type MapArg = PropsMapping | PropsTransform
+/** A mapping that does not convert values. `format` / `parse` take the codec overload so `connect` can check them. */
+type MapArg = Omit<PropsMapping, 'format' | 'parse'> | PropsTransform
 
 type BlurFrom<A extends readonly unknown[]> = A extends readonly [infer H, ...infer R]
   ? H extends { blurOn: infer B }
@@ -273,16 +323,32 @@ type MapPropsResult<A extends readonly unknown[]> =
 /**
  * Describe how a control's props come from the field (Formily `mapProps`).
  * Objects rename / merge / drop binding props; functions transform the final props.
+ * `format` / `parse` on the first object convert the field value both ways ({@link PropsMapping}).
  *
  * ```ts
  * connect(Switch, mapProps({ value: 'checked', readOnly: 'disabled' }))
  * connect(LobeSelect, mapProps({ options: 'options', blurOn: 'onOpenChange' }))
+ * connect(DatePicker, mapProps({
+ *   format: (value: string | undefined) => (value ? parseISO(value) : null),
+ *   parse: (next: Date | null) => (next ? format(next, 'yyyy-MM-dd') : undefined),
+ * }))
  * ```
  *
  * `blurOn` keeps `validateTrigger: 'onBlur'` alive when the control never calls `onBlur`.
  * `mapBlur('onOpenChange')` is the same decision as its own enhancer.
+ * Put `format` / `parse` on the first object so `connect` can check them against the control.
  */
-export function mapProps<const A extends readonly MapArg[]>(...args: A): MapPropsResult<A> {
+type CodecMapping<P, F> = PropsMapping<P, F> & (
+  | { format: (value: F, props: FormatProps<P>) => ValueOf<P> }
+  | { parse: ParseFn<P, F> }
+)
+
+export function mapProps<P, F>(
+  mapping: CodecMapping<P, F>,
+  ...rest: Array<PropsMapping<P, F> | PropsTransform>
+): CodecEnhancer<P, F>
+export function mapProps<const A extends readonly MapArg[]>(...args: A): MapPropsResult<A>
+export function mapProps(...args: ReadonlyArray<PropsMapping | PropsTransform>): PropsEnhancer {
   const mapping: PropsMapping = {}
   const transforms: PropsTransform[] = []
   for (const arg of args) {
@@ -294,7 +360,7 @@ export function mapProps<const A extends readonly MapArg[]>(...args: A): MapProp
   else if (mapping.onBlur === false) blur = 'drop'
   else if (typeof mapping.onBlur === 'string') blur = 'rename'
   const enhancer: PropsEnhancer = blur ? { kind: 'props', mapping, transforms, blur } : { kind: 'props', mapping, transforms }
-  return enhancer as MapPropsResult<A>
+  return enhancer
 }
 
 /**
@@ -360,6 +426,9 @@ type BlurTarget<C, E extends readonly unknown[]> =
 
 type ConnectedOf<C extends ComponentType<any>> = ConnectedComponent<ComponentProps<C>> & ComponentStatics<C>
 
+/** A plain enhancer: `format` / `parse` go through {@link CodecEnhancer}, so a mismatch is not swallowed by this overload. */
+type NoCodec<E> = E extends { __codec: any } ? never : E
+
 /**
  * Turn any value/onChange control into a ShikiForm field control (Formily `connect`).
  * Lives in `shikiform` (no Ant Design). `shikiform/antd` re-exports it and opts its controls into `status`.
@@ -381,20 +450,36 @@ type ConnectedOf<C extends ComponentType<any>> = ConnectedComponent<ComponentPro
  * ```tsx
  * const Rate = connect(Stars, mapProps({ value: 'score', onChange: 'onPick', onBlur: false }))
  * const City = connect(LobeSelect, mapProps({ options: 'options', blurOn: 'onOpenChange' }))
+ * const Birthday = connect(DateInput, mapProps({
+ *   format: (value: string | undefined) => (value ? new Date(value) : null),
+ *   parse: (next: Date | null) => (next ? next.toISOString().slice(0, 10) : undefined),
+ * }))
  * ```
  */
+export function connect<C extends ComponentType<any>, F, E extends readonly ConnectEnhancer[]>(
+  target: C,
+  e1: CodecEnhancer<ComponentProps<C>, F>,
+  ...rest: E
+): BlurTarget<C, [CodecEnhancer<ComponentProps<C>, F>, ...E]> extends C ? ConnectedOf<C> : DemandBlur<C>
+export function connect<C extends ComponentType<any>, F, E1 extends ConnectEnhancer, E extends readonly ConnectEnhancer[]>(
+  target: C,
+  e1: E1,
+  e2: CodecEnhancer<ComponentProps<C>, F>,
+  ...rest: E
+): BlurTarget<C, [E1, CodecEnhancer<ComponentProps<C>, F>, ...E]> extends C ? ConnectedOf<C> : DemandBlur<C>
 export function connect<C extends ComponentType<any>>(target: BlurTarget<C, []>): ConnectedOf<C>
 export function connect<C extends ComponentType<any>, E1 extends ConnectEnhancer>(
-  target: BlurTarget<C, [E1]>, e1: E1,
+  target: BlurTarget<C, [NoCodec<E1>]>, e1: NoCodec<E1>,
 ): ConnectedOf<C>
 export function connect<C extends ComponentType<any>, E1 extends ConnectEnhancer, E2 extends ConnectEnhancer>(
-  target: BlurTarget<C, [E1, E2]>, e1: E1, e2: E2,
+  target: BlurTarget<C, [NoCodec<E1>, NoCodec<E2>]>, e1: NoCodec<E1>, e2: NoCodec<E2>,
 ): ConnectedOf<C>
 export function connect<C extends ComponentType<any>, E1 extends ConnectEnhancer, E2 extends ConnectEnhancer, E3 extends ConnectEnhancer>(
-  target: BlurTarget<C, [E1, E2, E3]>, e1: E1, e2: E2, e3: E3,
+  target: BlurTarget<C, [NoCodec<E1>, NoCodec<E2>, NoCodec<E3>]>, e1: NoCodec<E1>, e2: NoCodec<E2>, e3: NoCodec<E3>,
 ): ConnectedOf<C>
 export function connect<C extends ComponentType<any>, E1 extends ConnectEnhancer, E2 extends ConnectEnhancer, E3 extends ConnectEnhancer, E4 extends ConnectEnhancer>(
-  target: BlurTarget<C, [E1, E2, E3, E4]>, e1: E1, e2: E2, e3: E3, e4: E4,
+  target: BlurTarget<C, [NoCodec<E1>, NoCodec<E2>, NoCodec<E3>, NoCodec<E4>]>,
+  e1: NoCodec<E1>, e2: NoCodec<E2>, e3: NoCodec<E3>, e4: NoCodec<E4>,
 ): ConnectedOf<C>
 export function connect(target: ComponentType<any>, ...enhancers: ConnectEnhancer[]): any {
   const mapping: PropsMapping = {}

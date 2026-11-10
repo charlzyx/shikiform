@@ -1,7 +1,8 @@
 import { createContext, useContext, type ComponentType, type ReactNode } from 'react'
 import type { FieldUiSpec, Pattern, UiDisplay, UiName } from '../../core/types'
 import { useRequiredForm, useScope } from '../context'
-import { useUiNode, type FieldSlot } from '../hooks/use-field'
+import { useFieldKit, withResolvedSlots } from '../field-kit'
+import { useUiNode, type FieldSlot, type RegisteredComponentSlot, type RegisteredDecoratorSlot } from '../hooks/use-field'
 import { normalizeUiSpec } from '../../core/state/field-model'
 import { useIdPrefix, withDomId } from '../id-prefix'
 
@@ -25,10 +26,10 @@ export interface UiBinding {
 export interface UIProps<C extends ComponentType<any> = ComponentType<any>, D extends ComponentType<any> = ComponentType<any>> {
   /** Addressed in effects as `d.$ui(name)` (inside a row / `<ObjectField>`: that scope's `row.$ui(name)`). */
   name: UiName
-  /** The component: `component={[Alert, { type: 'warning' }]}`. Children render inside it. */
-  component?: FieldSlot<C>
-  /** Wrapper (`decorator={[FormItem]}`: `title` → label, `description` → extra). */
-  decorator?: FieldSlot<D>
+  /** The component: `component={[Alert, { type: 'warning' }]}`, or a name registered on `<FieldKit>` / `<Form kit>`. Children render inside it. */
+  component?: FieldSlot<C> | RegisteredComponentSlot
+  /** Wrapper (`decorator={[FormItem]}`: `title` → label, `description` → extra), or a registered decorator name. */
+  decorator?: FieldSlot<D> | RegisteredDecoratorSlot | false
   title?: ReactNode
   description?: ReactNode
   /** Initial display when no reaction wrote `$visible` / `$display` (default: the scope's). */
@@ -69,7 +70,9 @@ export function UI<C extends ComponentType<any> = ComponentType<any>, D extends 
   const path = useScope().path
   const prefix = useIdPrefix()
   useUiNode(form, path, name, 'node')
-  const ui = withDomId(form.uiBinding(path, name, { ...(normalizeUiSpec(slots, `<UI name="${String(name)}">`) as FieldUiSpec), display, pattern }, 'node') as UiBinding, prefix)
+  const kit = useFieldKit()
+  // No default decorator: a `<UI>` is not a field, and the kit's FormItem would wrap a tip.
+  const ui = withResolvedSlots(withDomId(form.uiBinding(path, name, { ...(normalizeUiSpec(slots, `<UI name="${String(name)}">`) as FieldUiSpec), display, pattern }, 'node') as UiBinding, prefix), kit, false)
   if (ui.display !== 'visible') return null
   const Component = ui.component
   const Decorator = ui.decorator

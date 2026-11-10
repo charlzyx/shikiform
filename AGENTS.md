@@ -127,7 +127,10 @@ pattern is `editable` (readPretty / readOnly / disabled anywhere above hides the
 field through context; `FormItem` is a pure decorator and `connect()`ed controls need no `name`.
 `connect` / `mapProps` / `mapBlur` / `mapReadPretty` / `mapFieldProps` are exported from `shikiform` (no antd).
 `shikiform/antd` re-exports them. Headless `connect` does not pass Ant Design `status`; the antd controls opt in with
-`mapProps({ status: 'status' })`. A control whose props omit `onBlur` must pass `blurOn` / `mapBlur` (or `onBlur: false`):
+`mapProps({ status: 'status' })`. `mapProps({ format, parse })` converts both ways: the field keeps a serializable
+value, `format(value, props)` is what the control receives, `parse(...onChangeArgs)` is what gets stored (`parse`
+replaces the old `getValueFromEvent`). `readPretty` is not formatted. antd `DatePicker` / `TimePicker` / `Upload` /
+`ColorPicker` use this. A control whose props omit `onBlur` must pass `blurOn` / `mapBlur` (or `onBlur: false`):
 `blurOn: 'onOpenChange'` blurs when the popup closes, `blurOn: 'onChange'` blurs after each change. Otherwise blur
 validation never runs and TypeScript reports it.
 A `connect()`ed control forwards `ref` and keeps the target's statics (`Select.Option`). Outside a field with no
@@ -191,6 +194,11 @@ const form = createForm({
 <F.Field name="files" decorator={[FormItem]} component={[Upload, { action: '/upload' }]} />   // value = fileList
 const form = useForm<Detail>({ initialValues, pattern: 'readPretty' })   // a detail page: every control reads
 ```
+- Register controls once with `<FieldKit components={{ Input }} decorator={FormItem}>` or `<Form kit={{ … }}>`, then
+  `<Field component="Input" />` / `component={["Input", props]}` (string) or `component={Input}` / `component={[Input, props]}`
+  (the same slot, a component reference). Omitting `decorator` uses the kit default; `decorator={false}` opts out.
+  Names autocomplete after `declare module 'shikiform' { interface FieldComponents { Input: typeof Input } }`
+  (and `FieldDecorators`). There is still one `<Field>`, not a second factory.
 - Slots take a component or `[Component, props]`; the tuple's props are the JSX layer of `componentProps` / `decoratorProps`
   and are type-checked against the component on `<Field>` / `typed(form).Field` / `row.Field` / `<UI>` (all optional,
   `data-*` allowed): `[InputNumber, { precision: 'x' }]` and unknown keys do not compile. A generic control in a tuple

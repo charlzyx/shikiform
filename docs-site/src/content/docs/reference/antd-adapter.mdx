@@ -63,8 +63,9 @@ const City = connect(LobeSelect, mapProps({ options: 'options', blurOn: 'onOpenC
 
 ```ts
 mapProps(...args: Array<PropsMapping | PropsTransform>): ConnectEnhancer
-type PropsMapping = Partial<Record<FieldPropKey | FieldStateKey, string | false>> & {
-  getValueFromEvent?: (...args: any[]) => unknown
+type PropsMapping<P = any, F = any> = Partial<Record<FieldPropKey | FieldStateKey, string | false>> & {
+  format?: (value: F, props: P) => P extends { value?: infer V } ? V : unknown
+  parse?: (...args: /* P 的 onChange 参数 */) => F
   blurOn?: 'onChange' | 'onOpenChange' | { prop: string; when?: (...args: any[]) => boolean }
 }
 type FieldPropKey = 'value' | 'onChange' | 'onBlur' | 'disabled' | 'readOnly' | 'status' | 'id' | 'options' | 'loading'
@@ -83,7 +84,21 @@ type PropsTransform = (props: Record<string, any>, field: FieldBinding<any>) => 
 | `'onOpenChange'` | 第一个参数是 `false`（弹出层关闭） |
 | `{ prop, when? }` | `prop` 触发且 `when(...args)` 不为 false（`when` 默认恒真） |
 
-其他字段状态也能用对象写法交给某个 prop（Formily 的对象键）：`mapProps({ title: 'placeholder', required: 'aria-required', 'componentProps.max': 'count' })`，调用方显式传了该 prop 时以调用方为准。函数参数在最后变换 props，`blurOn` 包在变换之后，所以变换里写的同名回调仍会先执行。`getValueFromEvent` 把控件 `onChange` 的参数换成字段值，默认读取事件的 `target.checked`（checkbox）或 `target.value`，否则取第一个参数本身。
+其他字段状态也能用对象写法交给某个 prop（Formily 的对象键）：`mapProps({ title: 'placeholder', required: 'aria-required', 'componentProps.max': 'count' })`，调用方显式传了该 prop 时以调用方为准。函数参数在最后变换 props，然后才跑 `format`，`blurOn` 包在最后，所以变换里写的同名回调仍会先执行。
+
+`format` / `parse` 是一对。字段里留可序列化的值，控件看到它自己的类型：
+
+- `format(value, props)` 在传给控件之前把字段值转成控件的 `value`（`value: 'checked'` 时写到 `checked`）。`props` 是映射完的控件 props，所以日期控件能读到自己的 `props.format`。`readPretty` 不走 `format`，阅读态拿到的是字段值。
+- `parse(...onChangeArgs)` 把控件 `onChange` 的参数写回字段，代替默认的 `valueFromEvent`（checkbox 取 `checked`，事件取 `target.value`，否则取第一个参数）。参数类型是控件 `onChange` 的参数；`format` 的 `props` 是控件 props。写在 `connect(Control, mapProps({ ... }))` 里时由控件推导，不必先标 Dayjs / Date。
+
+```tsx
+const Birthday = connect(DatePicker, mapProps({
+  format: (value, props) => (value ? dayjs(value, props.format ?? 'YYYY-MM-DD') : null),
+  parse: (_date, text) => (text ? text : undefined),
+}))
+```
+
+`antd` 的 `DatePicker` / `TimePicker` / `Upload` / `ColorPicker` 走的就是这组钩子。`format` / `parse` 写在第一个对象参数上。
 
 ## mapBlur
 
@@ -111,7 +126,7 @@ mapReadPretty(component: ComponentType<any>, props?: Record<string, unknown>): C
 mapFieldProps(field: FieldBinding<any>, props: Record<string, any>, ...mappers: Array<PropsMapping | PropsTransform>): Record<string, any>
 ```
 
-`connect` 的纯函数核心，从 `shikiform` 导入即可，不必装 antd。`value` 取字段值；`onChange` 先写字段再以原始参数调用调用方的 `onChange`，各一次；`onBlur` 先标记 touched 再调调用方；`disabled` / `readOnly` 与调用方 props 取 OR；`id` 默认是字段 id；`field.componentProps` 合并在 `props` 之下。`status` 只有第三个参数写了 `{ status: 'status' }` 才出现（有错误 `'error'`，只有警告 `'warning'`）。`blurOn` 与 `mapProps` 相同。
+`connect` 的纯函数核心，从 `shikiform` 导入即可，不必装 antd。`value` 取字段值（有 `format` 时先转成控件要的值）；`onChange` 先 `parse`（默认 `valueFromEvent`）写字段，再以原始参数调用调用方的 `onChange`，各一次；`onBlur` 先标记 touched 再调调用方；`disabled` / `readOnly` 与调用方 props 取 OR；`id` 默认是字段 id；`field.componentProps` 合并在 `props` 之下。`status` 只有第三个参数写了 `{ status: 'status' }` 才出现（有错误 `'error'`，只有警告 `'warning'`）。`blurOn` 与 `mapProps` 相同。
 
 ```tsx
 const field = useField('email', { required: true })
@@ -465,7 +480,7 @@ const DatePicker: ConnectedComponent<antd.DatePickerProps> & {
 }
 ```
 
-与 Formily 一致，字段保存**格式化后的字符串**（按控件 `format`，默认 `YYYY-MM-DD`），只在交给 antd 时转成 dayjs，所以值能经受 `initialValues` 克隆、`reset` 和提交（核心用 `structuredClone`，会丢掉 dayjs 原型）。清空写入 `undefined`。`RangePicker` 保存 `[start, end]` 字符串元组，阅读态显示 `start ~ end`。需要 `dayjs`（antd 自带依赖）作为 peer dependency。
+与 Formily 一致，字段保存**格式化后的字符串**（按控件 `format`，默认 `YYYY-MM-DD`），只在交给 antd 时用 [mapProps 的 `format` / `parse`](#mapprops) 转成 dayjs，所以值能经受 `initialValues` 克隆、`reset` 和提交（核心用 `structuredClone`，会丢掉 dayjs 原型）。清空写入 `undefined`。`RangePicker` 保存 `[start, end]` 字符串元组，阅读态显示 `start ~ end`（阅读态不走 `format`，直接拿字段里的字符串）。需要 `dayjs`（antd 自带依赖）作为 peer dependency。
 
 ## TimePicker
 

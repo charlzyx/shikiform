@@ -204,32 +204,36 @@ function CheckboxControl(props: {
 const Checkbox = connect(CheckboxControl, mapProps({
   value: 'checked',
   onChange: 'onCheckedChange',
-  getValueFromEvent: (checked: boolean | 'indeterminate') => checked === true,
+  parse: (checked: boolean | 'indeterminate') => checked === true,
 }))
 
 function DatePickerControl(props: {
   id?: string
-  value?: string
+  value?: Date | null
   disabled?: boolean
-  onChange?: (value: string | undefined) => void
+  onChange?: (value: Date | null) => void
   onOpenChange?: (open: boolean) => void
 }) {
-  const date = props.value ? parseISO(props.value) : undefined
   return (
     <Popover onOpenChange={props.onOpenChange}>
       <PopoverTrigger asChild>
         <Button type="button" id={props.id} variant="outline" disabled={props.disabled}>
-          {date ? format(date, 'yyyy-MM-dd') : '选择日期'}
+          {props.value ? format(props.value, 'yyyy-MM-dd') : '选择日期'}
         </Button>
       </PopoverTrigger>
       <PopoverContent>
-        <Calendar mode="single" selected={date} onSelect={(next) => props.onChange?.(next ? format(next, 'yyyy-MM-dd') : undefined)} />
+        <Calendar mode="single" selected={props.value ?? undefined} onSelect={(next) => props.onChange?.(next ?? null)} />
       </PopoverContent>
     </Popover>
   )
 }
 
-const DatePicker = connect(DatePickerControl, mapProps({ blurOn: 'onOpenChange' }))
+// 字段存 yyyy-MM-dd。format 传给 Calendar 的是 Date，parse 把选中的 Date 写回字符串。
+const DatePicker = connect(DatePickerControl, mapProps({
+  blurOn: 'onOpenChange',
+  format: (value: string | undefined) => (value ? parseISO(value) : null),
+  parse: (next: Date | null) => (next ? format(next, 'yyyy-MM-dd') : undefined),
+}))
 
 function FormItem({ children }: { children?: ReactNode }) {
   const d = useFieldDecorator()
@@ -259,12 +263,12 @@ export default function App() {
 ```
 
 - Radix Select 不接受空字符串，所以没选时传 `undefined`。`options` 来自 `<Field enum>`。
-- Checkbox 的包装组件带 `onBlur`，失焦校验走它，不必再写 `blurOn`。`onCheckedChange` 的参数不是事件，用 `getValueFromEvent` 收成布尔。`required` 把 `false` 当成已填写；「必须勾选」用 `rules={{ isTrue: true }}`。
-- DatePicker 的包装组件没有 `onBlur`，所以必须写 `blurOn`。关掉弹层（`onOpenChange(false)`）时失焦。字段里是 `yyyy-MM-dd` 字符串，Calendar 要 `Date`：传进去用 `parseISO`，选中后再 `format` 回字符串。`getValueFromEvent` 只替换写入字段的参数，改不了回传给控件的 `value`。
+- Checkbox 的包装组件带 `onBlur`，失焦校验走它，不必再写 `blurOn`。`onCheckedChange` 的参数不是事件，用 `parse` 收成布尔。`required` 把 `false` 当成已填写；「必须勾选」用 `rules={{ isTrue: true }}`。
+- DatePicker 的包装组件没有 `onBlur`，所以必须写 `blurOn`。关掉弹层（`onOpenChange(false)`）时失焦。字段里是 `yyyy-MM-dd` 字符串，Calendar 要 `Date`：`format` 用 `parseISO` 传进去，`parse` 在选中后 `format` 回字符串。控件自己只接 `Date`，不再包一层做转换。
 
 ### 可运行的最小版
 
-同一套 FormItem 和 `blurOn`，用原生 input / select 代替 shadcn，页面上能直接提交。Select 没有 `onBlur`，选中后调用 `onOpenChange(false)`。
+同一套 FormItem 和 `blurOn`，用原生 input / select / `type="date"` 代替 shadcn，页面上能直接提交。Select 没有 `onBlur`，选中后调用 `onOpenChange(false)`。日期字段存 `YYYY-MM-DD`，`format` / `parse` 和控件的 `Date` 对转。`kit` 登记默认装饰器和控件名字，字段不必再写 `decorator={[FormItem]}`。
 
 ```tsx preview
 import { useState, type ReactNode } from 'react';
@@ -321,6 +325,43 @@ function PopoverSelect(props: {
 const Input = connect(TextControl, mapReadPretty(({ value }: { value?: string }) => <span>{value || '—'}</span>));
 const Select = connect(PopoverSelect, mapProps({ options: 'options', blurOn: 'onOpenChange' }));
 
+function DateControl(props: {
+  id?: string;
+  value?: Date | null;
+  onChange?: (value: Date | null) => void;
+  onBlur?: () => void;
+}) {
+  const text = props.value && !Number.isNaN(props.value.getTime())
+    ? `${props.value.getFullYear()}-${String(props.value.getMonth() + 1).padStart(2, '0')}-${String(props.value.getDate()).padStart(2, '0')}`
+    : '';
+  return (
+    <input
+      type="date"
+      id={props.id}
+      aria-label="生日"
+      value={text}
+      onChange={(event) => {
+        const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(event.target.value);
+        props.onChange?.(match ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : null);
+      }}
+      onBlur={props.onBlur}
+    />
+  );
+}
+
+const DatePicker = connect(DateControl, mapProps({
+  format: (value: string | undefined) => {
+    const match = value && /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    return match ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : null;
+  },
+  parse: (next: Date | null) => {
+    if (!next || Number.isNaN(next.getTime())) return undefined;
+    const month = String(next.getMonth() + 1).padStart(2, '0');
+    const day = String(next.getDate()).padStart(2, '0');
+    return `${next.getFullYear()}-${month}-${day}`;
+  },
+}));
+
 function FormItem({ children }: { children?: ReactNode }) {
   const d = useFieldDecorator();
   return (
@@ -335,11 +376,12 @@ function FormItem({ children }: { children?: ReactNode }) {
 
 export default function App() {
   const [saved, setSaved] = useState('还没有提交');
-  const form = useForm({ initialValues: { name: '', city: '' } });
+  const form = useForm({ initialValues: { name: '', city: '', birthday: '' } });
   return (
-    <Form form={form} onSubmit={(values) => setSaved(JSON.stringify(values))}>
-      <Field name="name" title="姓名" description="对外显示" required decorator={[FormItem]} component={[Input, { placeholder: 'Ada' }]} />
-      <Field name="city" title="城市" required enum={[{ label: '杭州', value: 'hz' }, { label: '南京', value: 'nj' }]} decorator={[FormItem]} component={[Select]} />
+    <Form form={form} kit={{ decorator: FormItem, components: { Input, Select, DatePicker } }} onSubmit={(values) => setSaved(JSON.stringify(values))}>
+      <Field name="name" title="姓名" description="对外显示" required component={['Input', { placeholder: 'Ada' }]} />
+      <Field name="city" title="城市" required enum={[{ label: '杭州', value: 'hz' }, { label: '南京', value: 'nj' }]} component="Select" />
+      <Field name="birthday" title="生日" component="DatePicker" />
       <Submit asChild><button>提交</button></Submit>{' '}
       <Reset afterReset={() => setSaved('已重置')} asChild><button>重置</button></Reset>
       <pre aria-live="polite">{saved}</pre>
@@ -352,7 +394,7 @@ export default function App() {
 
 TextInput、Select、Checkbox 的 props 里带 `onBlur`，`connect` 不必再写 `blurOn`。某个版本的类型里没有 `onBlur` 时，补上面三种写法里的一种。`control.error` 是字符串，和 Mantine 的 `error`（ReactNode）对得上，所以自带 label 的控件可以直接摊开 `control`，再自己接值。Select 的选项 prop 叫 `data`，`onChange` 的第一个参数就是值，默认会收下。
 
-DatePickerInput 的 `value` 是 `Date | null`，不是字符串。字段里存 `YYYY-MM-DD` 时不要直接 `connect(DatePickerInput)`，也不要只写 `getValueFromEvent`：那只改写回字段的方向，控件拿到的仍是字符串。包一层，传进去转成 `Date`，`onChange` 再转回字符串。日期按本地日历日拆开，避免 `new Date('YYYY-MM-DD')` 被当成 UTC。`valueFormat` 只影响输入框里的文字。
+DatePickerInput 的 `value` 是 `Date | null`，不是字符串。字段里存 `YYYY-MM-DD` 时直接 `connect`，用 `format` / `parse` 双向转：传进去是本地日历日的 `Date`（避免 `new Date('YYYY-MM-DD')` 被当成 UTC），写回是字符串。`valueFormat` 只影响输入框里的文字。
 
 ```tsx
 import { Checkbox, Select, TextInput } from '@mantine/core'
@@ -374,35 +416,20 @@ function MantineInput() {
 const City = connect(Select, mapProps({ options: 'data' }))
 const Agree = connect(Checkbox, mapProps({ value: 'checked' }))
 
-function MantineDate(props: {
-  id?: string
-  value?: string
-  disabled?: boolean
-  onChange?: (value: string | undefined) => void
-  onBlur?: () => void
-}) {
-  const match = props.value && /^(\d{4})-(\d{2})-(\d{2})$/.exec(props.value)
-  const date = match ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : null
-  return (
-    <DatePickerInput
-      id={props.id}
-      disabled={props.disabled}
-      value={date}
-      valueFormat="YYYY-MM-DD"
-      onBlur={props.onBlur}
-      onChange={(next) => {
-        if (!next) props.onChange?.(undefined)
-        else {
-          const month = String(next.getMonth() + 1).padStart(2, '0')
-          const day = String(next.getDate()).padStart(2, '0')
-          props.onChange?.(`${next.getFullYear()}-${month}-${day}`)
-        }
-      }}
-    />
-  )
+function calendarDay(value: string | undefined): Date | null {
+  const match = value && /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  return match ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : null
 }
 
-const Birthday = connect(MantineDate)
+const Birthday = connect(DatePickerInput, mapProps({
+  format: (value: string | undefined) => calendarDay(value),
+  parse: (next: Date | null) => {
+    if (!next) return undefined
+    const month = String(next.getMonth() + 1).padStart(2, '0')
+    const day = String(next.getDate()).padStart(2, '0')
+    return `${next.getFullYear()}-${month}-${day}`
+  },
+}))
 
 <Field name="name" title="姓名" required component={[MantineInput]} />
 <Field name="city" enum={[{ label: '杭州', value: 'hz' }]} component={[City]} />
@@ -414,7 +441,7 @@ const Birthday = connect(MantineDate)
 
 不要把 `control` 摊到 `TextField` 上。除了没有 `value` / `onChange`，MUI 的 `error` 是布尔，`control.error` 是文案，摊开会把类型和含义都弄错。标签和错误从 `useFieldDecorator()` 逐项拿，值用 `useField()`。
 
-DatePicker（dayjs 适配器）的 `value` 是 Dayjs，字段仍存 `YYYY-MM-DD`。只写 `getValueFromEvent` 不够：它只改写回字段的方向，回传给控件的还是字符串，DatePicker 会报错或不显示。和 shadcn 一样包一层，传进去转成 Dayjs，`onChange` 再 `format` 回字符串。
+DatePicker（dayjs 适配器）的 `value` 是 Dayjs，字段仍存 `YYYY-MM-DD`。`format` 传进去，`parse` 写回来，不必再包一层。`onClose` 没有参数 `false`，失焦用 `mapBlur({ prop: 'onClose' })`，不能写 `blurOn: 'onOpenChange'`。
 
 ```tsx
 import dayjs, { type Dayjs } from 'dayjs'
@@ -455,30 +482,16 @@ function toDayjs(value: string | undefined): Dayjs | null {
   return dayjs(new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])))
 }
 
-// 字段是 YYYY-MM-DD 字符串，DatePicker（dayjs 适配器）的 value 是 Dayjs。
-// getValueFromEvent 只改 onChange 写回字段的方向，回传的 value 仍是字符串，所以在这一层转换。
-function DateControl(props: {
-  id?: string
-  value?: string
-  disabled?: boolean
-  readOnly?: boolean
-  onChange?: (value: string | undefined) => void
-  onClose?: () => void
-}) {
-  return (
-    <DatePicker
-      value={toDayjs(props.value)}
-      disabled={props.disabled}
-      readOnly={props.readOnly}
-      onChange={(next: Dayjs | null) => props.onChange?.(next?.isValid() ? next.format('YYYY-MM-DD') : undefined)}
-      onClose={props.onClose}
-      slotProps={{ textField: { id: props.id } }}
-    />
-  )
-}
-
-// 包装组件没有 onBlur。onClose 没有参数 false，不能写 blurOn: 'onOpenChange'。
-const Birthday = connect(DateControl, mapBlur({ prop: 'onClose' }))
+// 字段是 YYYY-MM-DD 字符串，DatePicker 的 value 是 Dayjs。
+// DatePicker 自己没有 id，标签的 htmlFor 要落到内部 TextField 上。
+const Birthday = connect(DatePicker, mapProps({
+  id: false,
+  format: (value: string | undefined) => toDayjs(value),
+  parse: (next: Dayjs | null) => (next?.isValid() ? next.format('YYYY-MM-DD') : undefined),
+}, (props, field) => ({
+  ...props,
+  slotProps: { textField: { id: field.id } },
+})), mapBlur({ prop: 'onClose' }))
 
 <Field name="name" title="姓名" required component={[MuiText]} />
 <Field name="agree" rules={{ isTrue: true }} component={[Agree]} />
@@ -487,7 +500,28 @@ const Birthday = connect(DateControl, mapBlur({ prop: 'onClose' }))
 
 MUI Select 自己有 `onBlur`，`onChange` 是 DOM 事件，不必 `blurOn`。选项是 `MenuItem` 而不是 `options`，要接 `<Field enum>` 就照 shadcn 那样包一层。
 
-签名见 [React Hooks](/reference/react-hooks#usefielddecorator)。组件注册表（默认 decorator、按名字登记控件）和按控件的值转换（日期 format / parse）不在这一层。
+## 登记一次
+
+每个字段都写 `decorator={[FormItem]}` 是样板。把装饰器和控件登记一次，`<Field>` 的 `component` / `decorator` 槽位就能写字符串名字，或继续写已经 `connect` 过的组件引用。还是这一个 `<Field>`，没有第二套字段组件。
+
+```tsx
+import { Field, FieldKit, Form } from 'shikiform'
+
+declare module 'shikiform' {
+  interface FieldComponents { Input: typeof Input; Select: typeof Select; DatePicker: typeof DatePicker }
+  interface FieldDecorators { FormItem: typeof FormItem }
+}
+
+<FieldKit components={{ Input, Select, DatePicker }} decorator={FormItem}>
+  <Form form={form}>
+    <Field name="name" title="姓名" component={['Input', { placeholder: 'Ada' }]} />
+    <Field name="city" component="Select" />
+    <Field name="qty" component={Input} decorator={false} />
+  </Form>
+</FieldKit>
+```
+
+`<Form kit={{ decorator: FormItem, components: { Input, Select } }}>` 是同一份登记，只作用于这一张表。没写 `decorator` 的字段用这份默认装饰器；`decorator={false}` 不要装饰器（表格单元格）。字符串名字在 `declare module 'shikiform'` 里登记之后才有提示，并按那个组件检查元组 props；没登记时任何字符串都能写。组件引用（`component={Input}`、`component={[Input, props]}`）和字符串是同一个槽位，引用不必再登记也能用到默认装饰器。
 
 签名、订阅边界和更多例子见 [React Hooks 参考](/reference/react-hooks)。
 

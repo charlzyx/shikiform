@@ -60,7 +60,8 @@ export default function App() {
 |---|---|
 | `mapProps({ value: 'checked' })` | 重命名绑定属性；`false` 丢弃（`{ onBlur: false }`）。`status` 默认不传，antd 要红框时写 `{ status: 'status' }` |
 | `mapProps({ title: 'placeholder' })` | 把其他字段状态交给某个 prop：`title`、`description`、`required`、`validating`、`componentProps.x` …；调用方显式传的 prop 优先 |
-| `mapProps((props, field) => props)` | 最后一步变换 props |
+| `mapProps({ format, parse })` | 字段值 ↔ 控件值。`format` 传进去（字符串 → Date / Dayjs），`parse` 写回来。`parse` 的参数是控件 `onChange` 的参数 |
+| `mapProps((props, field) => props)` | 最后一步变换 props，在 `format` 之前 |
 | `mapProps({ blurOn: 'onOpenChange' })` / `mapBlur('onChange')` | 控件没有 `onBlur` 时，用弹出层关闭或 `onChange` 触发失焦校验 |
 | `mapReadPretty(View)` | `readPretty` 时渲染 `View`（收到 `value` 和 `options`）；没有它时按 `readOnly` 处理 |
 
