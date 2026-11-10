@@ -149,11 +149,16 @@ export function createHandle(host: DraftHost, path: string): any {
     has(_target, prop) {
       return prop === PATH || STATE.has(String(prop))
     },
-    ownKeys() {
-      return []
+    ownKeys(target) {
+      // Development: Object.keys, object spread and rest are mistakes. Production returns the function
+      // target's own keys (`prototype` is non-configurable, so the trap must list it) and nothing else.
+      if (process.env.NODE_ENV !== 'production') throw misuseEnum(path)
+      return Reflect.ownKeys(target)
     },
     getOwnPropertyDescriptor(target, prop) {
       if (prop === PATH || prop === 'then') return undefined
+      const real = Reflect.getOwnPropertyDescriptor(target, prop)
+      if (real) return real
       return { configurable: true, enumerable: false, value: (target as any)[prop] }
     },
   })
@@ -169,6 +174,9 @@ export function createUiHandle(host: DraftHost, path: string, name: string): any
   }
   return new Proxy(Object.create(null), {
     get(_target, prop) {
+      if (process.env.NODE_ENV !== 'production' && (prop === Symbol.iterator || prop === Symbol.toPrimitive)) {
+        throw misuseSymbol(path, prop)
+      }
       if (typeof prop === 'symbol' || prop === 'then') return undefined
       return host.readUi!(path, name, prop)
     },
@@ -179,8 +187,9 @@ export function createUiHandle(host: DraftHost, path: string, name: string): any
     has() {
       return false
     },
-    ownKeys() {
-      return []
+    ownKeys(target) {
+      if (process.env.NODE_ENV !== 'production') throw misuseEnum(path)
+      return Reflect.ownKeys(target)
     },
   })
 }
@@ -200,11 +209,26 @@ function misuseSymbol(path: string, symbol: symbol): ShikiUsageError {
   const shown = showDraftPath(path)
   if (symbol === Symbol.iterator) {
     return new ShikiUsageError(
-      `${shown} is a draft handle, not an array: it cannot be iterated (for…of, spread, Array.from). ` +
-        `Iterate the value with ${shown}.$value, or run per-row logic with reaction.each((d) => ${shown}, (row, ctx) => …).`,
+      `${shown} is a draft handle, not an array: it cannot be iterated (for…of, const [row] = ${shown}, spread, Array.from). ` +
+        `Iterate the value with ${shown}.$value, or run per-row logic with reaction.each((d) => ${shown}, (row, ctx) => …). ` +
+        `Child fields are handles: const { name } = ${shown}[0], then name.$value.`,
     )
   }
   return new ShikiUsageError(`${shown} is a draft handle, not a value. Read ${shown}.$value.`)
+}
+
+/**
+ * Object rest, object spread and `Object.keys` all enumerate the handle. That is not a list of child fields:
+ * destructuring is only `const { name } = handle`, and `$` state is read on the handle (`name.$value`).
+ */
+function misuseEnum(path: string): ShikiUsageError {
+  const shown = showDraftPath(path)
+  return new ShikiUsageError(
+    `${shown} is a draft handle, not a data object: Object.keys(${shown}), object spread ({ ...${shown} }) and rest ` +
+      `({ name, ...rest } = ${shown}) are not supported. ` +
+      `Destructure only child field handles (const { name } = ${shown}), then read or write $ state on that handle (name.$value). ` +
+      `To copy the data, use ${shown}.$value.`,
+  )
 }
 
 export type { Pos }

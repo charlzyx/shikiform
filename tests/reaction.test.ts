@@ -212,7 +212,7 @@ describe('reaction', () => {
     expect(ageRuns).toBe(0)
   })
 
-  it('re-runs only each rows and walk nodes whose reads changed', () => {
+  it('re-runs only each rows and nested nodes whose reads changed', () => {
     const rowsHit: number[] = []
     const walkHit: string[] = []
     const form = createEngine<{
@@ -244,7 +244,7 @@ describe('reaction', () => {
               row.suggested.$value = (row.cost.$value ?? 0) + (d.tax.$value ?? 0)
             },
           )
-          reaction.walk(
+          reaction.each(
             (d) => d.nodes,
             (node, { pos }) => {
               walkHit.push(pos.join('.'))
@@ -360,7 +360,7 @@ describe('reaction', () => {
     expect(rowRuns).toEqual([1])
   })
 
-  it('watch.walk fires per tree node and skips siblings (node-level source)', () => {
+  it('watch.each fires per nested node and skips siblings (node-level source)', () => {
     type V = { nodes: { label: string; echo: string; children: { label: string; echo: string; children: never[] }[] }[] }
     const hits: string[] = []
     const form = createEngine<V>({
@@ -372,7 +372,7 @@ describe('reaction', () => {
       },
       effects: [
         defineEffects<V>(({ watch }) => {
-          watch.walk(
+          watch.each(
             (d) => d.nodes,
             (node, { pos }) => {
               hits.push(pos.join('.'))
@@ -403,7 +403,7 @@ describe('reaction', () => {
     expect(hits).toEqual([])
   })
 
-  it('watch.walk follows structural moves like reaction.walk', () => {
+  it('watch.each follows structural moves without re-firing', () => {
     type Node = { id: string; name: string; fired: string | number; children: Node[] }
     type V = { menu: Node[] }
     const form = createEngine<V>({
@@ -416,7 +416,7 @@ describe('reaction', () => {
       trees: { menu: { rowKey: 'id' } },
       effects: [
         defineEffects<V>(({ watch }) => {
-          watch.walk(
+          watch.each(
             (d) => d.menu,
             (node) => {
               void node.name.$value
@@ -448,7 +448,7 @@ describe('reaction', () => {
 })
 
 describe('row-level effects share one (row, ctx) shape', () => {
-  it('passes { d, path, index, pos } to each / walk / watch.each', () => {
+  it('passes key, index, depth, parent, path and pos to each', () => {
     type V = { rows: { n: number }[]; nodes: { label: string; children: { label: string; children: never[] }[] }[]; flag: boolean }
     const seen: string[] = []
     const form = createEngine<V>({
@@ -457,35 +457,66 @@ describe('row-level effects share one (row, ctx) shape', () => {
         defineEffects<V>(({ reaction, watch }) => {
           reaction.each(
             (d) => d.rows,
-            (row, { d, path, index, pos }) => {
+            (row, { d, path, index, pos, depth, key }) => {
               void row.n.$value
-              seen.push(`each ${path} ${index} ${pos.join('.')} ${d.flag.$value}`)
+              seen.push(`each ${path} ${index} ${pos.join('.')} ${depth} ${key} ${d.flag.$value}`)
             },
           )
-          reaction.walk(
+          reaction.each(
             (d) => d.nodes,
-            (node, { path, index, pos }) => {
+            (node, { path, index, pos, depth, key, parent }) => {
               void node.label.$value
-              seen.push(`walk ${path} ${index} ${pos.join('.')}`)
+              seen.push(`node ${path} ${index} ${pos.join('.')} ${depth} ${key} ${parent?.$path ?? '-'}`)
             },
           )
           watch.each(
             (d) => d.rows,
-            (row, { path, index }) => {
+            (row, { path, index, depth }) => {
               void row.n.$value
-              seen.push(`watch ${path} ${index}`)
+              seen.push(`watch ${path} ${index} ${depth}`)
             },
           )
         }),
       ],
     })
-    expect(seen).toContain('each rows.0 0 0 true')
-    expect(seen).toContain('each rows.1 1 1 true')
-    expect(seen).toContain('walk nodes.0 0 0')
-    expect(seen).toContain('walk nodes.0.children.0 0 0.0')
+    expect(seen).toContain('each rows.0 0 0 0 rows true')
+    expect(seen).toContain('each rows.1 1 1 0 rows true')
+    expect(seen).toContain('node nodes.0 0 0 0 nodes -')
+    expect(seen).toContain('node nodes.0.children.0 0 0.0 1 children nodes.0')
     seen.length = 0
     form.setValue('rows.1.n' as any, 5)
-    expect(seen).toContain('each rows.1 1 1 true')
-    expect(seen).toContain('watch rows.1 1')
+    expect(seen).toContain('each rows.1 1 1 0 rows true')
+    expect(seen).toContain('watch rows.1 1 0')
+  })
+
+  it('enters nested object arrays, skips primitive arrays, and recomputes moved tree nodes', () => {
+    type Node = { id: string; code: string; tags: string[]; children: Node[] }
+    const seen: string[] = []
+    const form = createEngine<{ nodes: Node[] }>({
+      initialValues: {
+        nodes: [
+          { id: 'a', code: '', tags: ['x'], children: [{ id: 'a1', code: '', tags: ['y'], children: [] }] },
+          { id: 'b', code: '', tags: [], children: [] },
+        ],
+      },
+      trees: { nodes: { rowKey: 'id' } },
+      effects: [
+        defineEffects<{ nodes: Node[] }>(({ reaction }) => {
+          reaction.each((d) => d.nodes, (node, ctx) => {
+            seen.push(ctx.path)
+            if (ctx.depth > 0 && ctx.key !== 'children') return
+            node.code.$value = ctx.pos.map((index) => index + 1).join('.')
+          })
+        }),
+      ],
+    })
+    expect(seen.slice().sort()).toEqual(['nodes.0', 'nodes.0.children.0', 'nodes.1'])
+    expect(form.getValue('nodes.0.code')).toBe('1')
+    expect(form.getValue('nodes.0.children.0.code')).toBe('1.1')
+    expect(form.getValue('nodes[0].children[0].id')).toBe('a1')
+    form.moveTree('nodes', [0, 0], [1, 0])
+    expect(form.getValue('nodes.1.children.0.id')).toBe('a1')
+    expect(form.getValue('nodes.1.children.0.code')).toBe('2.1')
+    expect(form.getValue('nodes.0.code')).toBe('1')
   })
 })

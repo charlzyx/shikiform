@@ -31,7 +31,7 @@ export class TreeOps {
     })
   }
 
-  /** `reaction.walk` saw this root with this children key. */
+  /** A tree root addressed before React mounts, or seen with this children key. */
   note(path: string, childrenKey: string): void {
     const prev = this.trees.get(path)
     this.trees.set(path, { childrenKey, rowKey: prev?.rowKey ?? 'id', canMove: prev?.canMove })

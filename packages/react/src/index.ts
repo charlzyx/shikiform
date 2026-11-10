@@ -47,7 +47,7 @@ export { useFormMessage } from './hooks/use-form-message'
 export { useTreeField } from './hooks/use-tree'
 export { useWatch } from './hooks/use-watch'
 export { VirtualRows } from './components/virtual-rows'
-export { createForm, defineEffects, enUS, getDefaultMessages, setDefaultMessages, zhCN, EnumSource, ShikiConflictError, ShikiCycleError, ShikiUsageError } from '@shikiform/core'
+export { createForm, defineEffects, enUS, get, getDefaultMessages, set, setDefaultMessages, zhCN, EnumSource, ShikiConflictError, ShikiCycleError, ShikiUsageError } from '@shikiform/core'
 export type {
   FormMessageKey,
   FormMessages,
@@ -66,6 +66,8 @@ export type {
   FieldSpec,
   FieldUiSpec,
   PathValue,
+  NormalizePath,
+  ValuePath,
   ArrayItemOf,
   TemplatePath,
   SubmitValues,

@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { createForm, defineEffects, EnumSource, type Draft, type EnumOption } from '@shikiform/core'
+import { createForm, defineEffects, get, set, EnumSource, type Draft, type EnumOption } from '@shikiform/core'
 import { useQueryTable } from '../packages/hooks/src/use-query-table'
 import { Field, ObjectField, typed, useArrayField, useField, useForm, useWatch } from '@shikiform/react'
 
@@ -12,11 +12,14 @@ const form = createForm({
 })
 const createdName = form.getValue('name')
 const createdPrice = form.getValue('items.0.price')
+const bracketPrice = form.getValue('items[0].price')
 const _name: Expect<Equal<typeof createdName, string>> = true
 const _price: Expect<Equal<typeof createdPrice, number>> = true
+const _bracket: Expect<Equal<typeof bracketPrice, number>> = true
 form.setValue('name', 'ada')
 // @ts-expect-error name is a string
 form.setValue('name', 1)
+void rejectBadBracket
 // @ts-expect-error name is not on the form value
 form.getValue('nope')
 // @ts-expect-error not a field of this form
@@ -63,16 +66,35 @@ const effects = defineEffects<{ rows: { name: string }[]; nodes: { label: string
     // @ts-expect-error a number is not an enum input
     d.nodes.$enum = 1
   })
-  reaction.walk(
+  reaction.each(
     (d) => d.nodes,
-    (node) => {
+    (node, ctx) => {
       const label = node.label.$value
       const _label: Expect<Equal<typeof label, string>> = true
+      const _depth: Expect<Equal<typeof ctx.depth, number>> = true
+      const _key: Expect<Equal<typeof ctx.key, string>> = true
       void label
       void _label
+      void _depth
+      void _key
+      void ctx.parent
     },
   )
 })
+
+const readSku = get({ items: [{ sku: 'pen' }] }, 'items[0].sku')
+const _sku: Expect<Equal<typeof readSku, string>> = true
+void _sku
+const nextItems = set({ items: [{ sku: 'pen' }] }, 'items[0].sku', 'book')
+const _next: Expect<Equal<typeof nextItems.items[0]['sku'], string>> = true
+void _next
+// @ts-expect-error sku is a string
+set({ items: [{ sku: 'pen' }] }, 'items[0].sku', 1)
+
+function rejectBadBracket(target: typeof form) {
+  // @ts-expect-error price is a number
+  target.setValue('items[0].price', 'x')
+}
 
 function hookTypes() {
   const hooked = useForm({ initialValues: { name: '', items: [{ price: 1 as number }] } })

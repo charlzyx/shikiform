@@ -2,10 +2,10 @@ import { Declarations, type RegisterSpec } from '../declarations/declarations'
 import { createHandle, createUiHandle, handlePath } from '../draft/handle'
 import type { DraftHost } from '../draft/host'
 import { readonlyValue } from '../draft/readonly'
-import type { EachRec } from '../effects/scheduler'
+import type { EachDirty, EachRec } from '../effects/scheduler'
 import { Scheduler } from '../effects/scheduler'
 import { clone } from '../shared/equal'
-import { deleteAt, getAt, setAt } from '../shared/path'
+import { deleteAt, getAt, normalizePath, setAt } from '../shared/path'
 import { shownErrors } from '../state/field-model'
 import { FieldStore } from '../state/field-store'
 import { Notifier } from '../state/notifier'
@@ -26,6 +26,7 @@ import type {
   FormOptions,
   MoveResult,
   PathValue,
+  ValuePath,
   SubmitResult,
   WriteOp,
 } from '../types'
@@ -150,14 +151,18 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
 
   // —— values ——
 
-  /** Read one typed path. Object/array results are live references; use the write APIs instead of mutating them in place. */
-  getValue<P extends FieldPath<T>>(path: P): PathValue<T, P> {
-    return getAt(this.store.values, String(path)) as PathValue<T, P>
+  /** Read one typed path (`a.b.0` or `a.b[0]`). Object/array results are live references; use the write APIs instead of mutating them in place. */
+  getValue<P extends FieldPath<T>>(path: P): PathValue<T, P>
+  getValue<P extends string>(path: ValuePath<T, P>): PathValue<T, P>
+  getValue(path: string): unknown {
+    return getAt(this.store.values, String(path))
   }
 
-  /** Write one path from outside a reaction. Marks the field dirty and runs `onChange` validation when configured. */
-  setValue<P extends FieldPath<T>>(path: P, value: PathValue<T, P>): void {
-    this.writer.commitExternal(String(path), value)
+  /** Write one path from outside a reaction (`a.b.0` or `a.b[0]`). Marks the field dirty and runs `onChange` validation when configured. */
+  setValue<P extends FieldPath<T>>(path: P, value: PathValue<T, P>): void
+  setValue<P extends string>(path: ValuePath<T, P>, value: PathValue<T, P>): void
+  setValue(path: string, value: unknown): void {
+    this.writer.commitExternal(normalizePath(String(path)), value)
   }
 
   /** One draft, one reaction pass, one notification. */
@@ -429,10 +434,18 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     return value
   }
 
-  takeDirtyPos(path: string): Set<string> | 'all' | undefined {
-    const value = this.scheduler.dirtyPos.get(path)
-    this.scheduler.dirtyPos.delete(path)
-    return value
+  /** Dirty row indexes under `root` (the array and nested arrays) plus tree positions at `root`. */
+  takeEachDirty(root: string): EachDirty {
+    const rows = new Map<string, Set<number> | 'all'>()
+    for (const path of [...this.scheduler.dirtyRows.keys()]) {
+      if (path === root || path.startsWith(`${root}.`)) {
+        rows.set(path, this.scheduler.dirtyRows.get(path)!)
+        this.scheduler.dirtyRows.delete(path)
+      }
+    }
+    const pos = this.scheduler.dirtyPos.get(root)
+    if (pos !== undefined) this.scheduler.dirtyPos.delete(root)
+    return { rows, pos }
   }
 
   holdEach(id: string, rec: EachRec): void {

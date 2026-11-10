@@ -97,7 +97,7 @@ const F = typed(form)
 
 普通 `<Field name="inner">`（不经 `typed`）同样是相对路径，写 `group.inner` 也会拼成 `group.group.inner`。数组行里写 `items.0.name` 是同一个错误。`typed` 的说明见 [typed](/reference/react-hooks#typed)。
 
-树的节点由你渲染，每个节点包一层 `<RowScope path pos>`；`trees` 选项让联动在组件挂载前就认识树根。例子见 [联动 · reaction.walk](/guide/linkage#reactionwalk每个树节点一个实例) 和 [Headless Hooks](/guide/headless)。
+树的节点由你渲染，每个节点包一层 `<RowScope path pos>`；`trees` 选项让联动在组件挂载前就认识树根。例子见 [联动 · 嵌套对象数组与树](/guide/linkage#嵌套对象数组与树) 和 [Headless Hooks](/guide/headless)。
 
 ## 嵌套值：按 path 写
 

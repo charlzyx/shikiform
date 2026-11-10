@@ -4,6 +4,9 @@ import type { StandardSchemaV1 } from './validation/schema'
 import type { Rule, RulesInput, ValidateCtx } from './validation/rules'
 import type { FormMessageKey, FormMessages, MessageArgs } from './validation/messages'
 import type { Pos } from './shared/tree-ops'
+import type { NormalizePath } from './types-path'
+
+export type { NormalizePath } from './types-path'
 
 export type { StandardSchemaV1, RulesInput }
 export type { Display, Pattern, UiDisplay, UiDraft, UiName, UiNames } from './types-display'
@@ -130,12 +133,19 @@ type OptionalPaths<T, P extends string> = T extends readonly (infer E)[]
       >
     : T
 
-/** Value type at `P`. */
-export type PathValue<T, P extends string> = IsAny<T> extends true
+/** A {@link FieldPath}, or the same path with `[0]` / `['key']`. An unknown path is `never`. */
+export type ValuePath<T, P extends string> = [P] extends [FieldPath<T>] ? P : NormalizePath<P> extends FieldPath<T> ? P : never
+
+/** Value at `P` (`items.0.price` or `items[0].price`). `P` is unconstrained so an `any` path stays `any`. */
+export type PathValue<T, P> = IsAny<T> extends true
   ? any
-  : P extends `${infer H}.${infer R}`
-    ? PathValue<IndexValue<T, H>, R>
-    : IndexValue<T, P>
+  : IsAny<P> extends true
+    ? any
+    : P extends string
+      ? NormalizePath<P> extends `${infer H}.${infer R}`
+        ? PathValue<IndexValue<T, H>, R>
+        : IndexValue<T, NormalizePath<P>>
+      : any
 
 /** One element of the array at `P`. `never` when that path is not an array. */
 export type ArrayItemOf<T, P extends string> = PathValue<T, P> extends readonly (infer E)[] ? E : never
@@ -304,17 +314,19 @@ export interface EffectsAPI<T> {
 }
 
 /**
- * Second argument of every row-level effect (`reaction.each`, `reaction.walk`, `watch.each`). One shape for all three.
- *
- * - `d`: the root draft.
- * - `path`: exact data path of this row / node (`items.2`, `nodes.0.children.1`).
- * - `index`: index in its own array (the last segment of `pos`).
- * - `pos`: tree coordinate (`[0, 1]`); for an array row it is `[index]`.
+ * Second argument of `reaction.each` / `watch.each` (two arguments, no `childrenKey`).
+ * `each` visits the selected array, then every nested array of objects. Primitive arrays are not entered.
+ * Filter with `key` / `depth` (like `JSON.stringify`'s replacer).
+ * `key` is the array's property name, `depth` is 0 on the selected array, `parent` is absent there,
+ * `pos` is the index chain (`[index]` for a flat row).
  */
 export interface RowContext<T> {
   d: Draft<T>
-  path: string
+  key: string
   index: number
+  depth: number
+  parent?: Draft<any>
+  path: string
   pos: Pos
 }
 
@@ -334,33 +346,23 @@ export interface ReactionFn<T> {
    */
   (effect: (d: Draft<T>) => void): void
   /**
-   * One reaction instance per direct child of the selected array.
-   * Each instance records its own reads. A cell edit re-runs that row only, including rows that are not mounted.
-   * A row that did not read the dirty key stays idle, even if it sits in the same array.
+   * One reaction instance per element of the selected array, and per element of every nested array of objects.
+   * Arrays of primitives are not entered. Two arguments only: filter with `ctx.key` / `ctx.depth` / `ctx.pos`.
+   * Each instance records its own reads. A cell edit re-runs that element only, including rows that are not mounted.
+   * An element that did not read the dirty key stays idle, even if it sits in the same array.
    * A structural edit (insert, remove, move) re-runs the indexes whose occupant changed.
-   * `$rules` / `$required` set here apply to every index, including virtualized rows.
-   * This does not walk nested arrays or trees; use {@link ReactionFn.walk} for trees.
+   * `$rules` / `$required` set here apply to every visited index, including virtualized rows.
    *
    * @example
    * reaction.each(
    *   (d) => d.rows,
-   *   (row, { d, index }) => {
+   *   (row, { d, index, depth }) => {
+   *     if (depth !== 0) return
    *     row.name.$required = index === 0 || d.strict.$value
    *   },
    * )
    */
   each<A>(select: (d: Draft<T>) => Draft<A>, effect: (row: RowDraft<A>, ctx: RowContext<T>) => void): void
-  /**
-   * One reaction instance per tree node. `ctx.pos` is the index path after the walk (`[0, 2, 1]`).
-   * Same skipping as {@link ReactionFn.each}: only a node whose reads intersect the dirty keys runs again.
-   * Kept separate from `each` so array reactions stay one level deep.
-   * `opts.childrenKey` defaults to `'children'`.
-   */
-  walk<A>(
-    select: (d: Draft<T>) => Draft<A>,
-    effect: (node: RowDraft<A>, ctx: RowContext<T>) => void,
-    opts?: { childrenKey?: string },
-  ): void
 }
 
 export interface WatchFn<T> {
@@ -373,24 +375,13 @@ export interface WatchFn<T> {
    */
   (source: (d: Draft<T>) => unknown, effect: (d: Draft<T>) => void): void
   /**
-   * Edge-triggered row action. The callback's `$` reads are the source.
-   * Scouted once per row (writes discarded) and applied only after those reads change.
-   * An edit re-fires the rows whose source keys are dirty, not the rest of the array.
-   * One level of the array, same as {@link ReactionFn.each}.
+   * Edge-triggered action, one instance per element {@link ReactionFn.each} would visit.
+   * The callback's `$` reads are the source.
+   * Scouted once per element (writes discarded) and applied only after those reads change.
+   * An edit re-fires the elements whose source keys are dirty, not their siblings.
+   * A structural move does not re-fire; the next edit at the new path does.
    */
   each<A>(select: (d: Draft<T>) => Draft<A>, effect: (row: RowDraft<A>, ctx: RowContext<T>) => void): void
-  /**
-   * Edge-triggered per-node action on a tree, the node-level counterpart of {@link WatchFn.each}
-   * (same semantics, `ctx.pos` coordinates like {@link ReactionFn.walk}).
-   * The callback's `$` reads are the source: a node re-fires only when one of the keys its own
-   * scout read is dirty — a sibling or a structural move elsewhere does not run it.
-   * `opts.childrenKey` defaults to `'children'`.
-   */
-  walk<A>(
-    select: (d: Draft<T>) => Draft<A>,
-    effect: (node: RowDraft<A>, ctx: RowContext<T>) => void,
-    opts?: { childrenKey?: string },
-  ): void
 }
 
 /**
@@ -580,9 +571,15 @@ export interface FormInstance<T, TSubmit = T> {
   /** Path-keyed errors, including descendants when you filter by prefix. */
   readonly errors: FieldError[]
 
-  /** Read one typed path. Object/array results are live references; use the write APIs instead of mutating them in place. */
+  /**
+   * Read one typed path (`items.0.price` or `items[0].price`).
+   * Object/array results are live references; use the write APIs instead of mutating them in place.
+   */
   getValue<P extends FieldPath<T>>(path: P): PathValue<T, P>
+  getValue<P extends string>(path: ValuePath<T, P>): PathValue<T, P>
+  /** Write one path from outside a reaction (`items.0.price` or `items[0].price`). Marks the field dirty and runs `onChange` validation when configured. */
   setValue<P extends FieldPath<T>>(path: P, value: PathValue<T, P>): void
+  setValue<P extends string>(path: ValuePath<T, P>, value: PathValue<T, P>): void
   /** One draft, one reaction pass, one notification. */
   batch(fn: (d: Draft<T>) => void): void
   /**

@@ -1,14 +1,22 @@
 import { callSite } from '../errors'
-import { listPositions, posKey, type Pos } from '../shared/tree-ops'
 import type { Draft, EffectDef, EffectsAPI, EffectsRuntime, RowContext } from '../types'
-import type { EachRec } from './scheduler'
+import type { EachDirty, EachRec } from './scheduler'
 
-/** What `reaction.each` / `reaction.walk` / `watch.each` need beyond the public runtime. */
+/** What `reaction.each` / `watch.each` need beyond the public runtime. */
 interface EachRuntime extends EffectsRuntime<any> {
   holdEach(id: string, rec: EachRec): void
-  takeDirtyRows(path: string): Set<number> | 'all' | undefined
-  takeDirtyPos(path: string): Set<string> | 'all' | undefined
-  treeConfig(path: string): { childrenKey: string; rowKey: string }
+  takeEachDirty(root: string): EachDirty
+}
+
+/** One element `each` visits. `rel` is the path under the selected array (`0`, `0.children.1`). */
+interface EachNode {
+  path: string
+  rel: string
+  key: string
+  index: number
+  depth: number
+  pos: number[]
+  parentPath?: string
 }
 
 /**
@@ -16,9 +24,9 @@ interface EachRuntime extends EffectsRuntime<any> {
  *
  * `reaction` derives `$` state. Reads are dependencies. Writes are not.
  * A flush re-runs a reaction only when a dirty key intersects those reads. Writes wake downstream reactions in that same flush.
- * `reaction.each` is one instance per array row. `reaction.walk` is one instance per tree node (`pos`).
- * Only the row or node whose own reads are dirty runs again.
- * `watch` runs after its source changes, not on the first pass. `watch.each` is the row-scoped watch.
+ * `reaction.each` is one instance per array element, and per element of every nested array of objects.
+ * Arrays of primitives are not entered. Only the element whose own reads are dirty runs again.
+ * `watch` runs after its source changes, not on the first pass. `watch.each` is the element-scoped watch.
  * `$rules` and `$required` written here validate even when the JSX field is unmounted.
  * Two reactions writing the same `$` state throw {@link ShikiConflictError}.
  *
@@ -29,7 +37,8 @@ interface EachRuntime extends EffectsRuntime<any> {
  *   })
  *   reaction.each(
  *     (d) => d.rows,
- *     (row, { index }) => {
+ *     (row, { index, depth }) => {
+ *       if (depth !== 0) return
  *       row.name.$required = index > 0
  *     },
  *   )
@@ -52,10 +61,7 @@ export function defineEffects<T>(factory: (api: EffectsAPI<T>) => void): EffectD
         },
         {
           each(select: (d: Draft<T>) => unknown, effect: Function) {
-            installEach(runtime as EachRuntime, 'each', select as (d: Draft<any>) => unknown, effect, 'children', dev() ? callSite() : undefined)
-          },
-          walk(select: (d: Draft<T>) => unknown, effect: Function, opts?: { childrenKey?: string }) {
-            installEach(runtime as EachRuntime, 'walk', select as (d: Draft<any>) => unknown, effect, opts?.childrenKey ?? 'children', dev() ? callSite() : undefined)
+            installEach(runtime as EachRuntime, select as (d: Draft<any>) => unknown, effect, dev() ? callSite() : undefined)
           },
         },
       ) as EffectsAPI<T>['reaction']
@@ -74,9 +80,6 @@ export function defineEffects<T>(factory: (api: EffectsAPI<T>) => void): EffectD
           each(select: (d: Draft<T>) => unknown, effect: Function) {
             installWatchEach(runtime, select as (d: Draft<any>) => unknown, effect)
           },
-          walk(select: (d: Draft<T>) => unknown, effect: Function, opts?: { childrenKey?: string }) {
-            installWatchEach(runtime, select as (d: Draft<any>) => unknown, effect, opts?.childrenKey ?? 'children', 'walk')
-          },
         },
       ) as EffectsAPI<T>['watch']
 
@@ -91,25 +94,16 @@ export function defineEffects<T>(factory: (api: EffectsAPI<T>) => void): EffectD
 
 const dev = () => process.env.NODE_ENV !== 'production'
 
-function installEach(
-  runtime: EachRuntime,
-  kind: 'each' | 'walk',
-  select: (d: Draft<any>) => unknown,
-  effect: Function,
-  childrenKey = 'children',
-  site?: string,
-): void {
-  const id = runtime.nextId(kind, site)
-  const rec: EachRec = { kind, select, effect, arrayPath: '', childrenKey, instances: new Set(), first: true }
+function installEach(runtime: EachRuntime, select: (d: Draft<any>) => unknown, effect: Function, site?: string): void {
+  const id = runtime.nextId('each', site)
+  const rec: EachRec = { select, effect, arrayPath: '', instances: new Set(), first: true }
   runtime.holdEach(id, rec)
   const run = () => {
     const selected = runtime.trackOnly(() => select(runtime.draft))
     const arrayPath = runtime.readPath(selected.value)
-    if (!arrayPath) throw new Error(`${kind}() selector must return a draft handle`)
+    if (!arrayPath) throw new Error('each() selector must return a draft handle')
     rec.arrayPath = arrayPath
-    if (kind === 'walk') runtime.noteTree(arrayPath, childrenKey)
-    if (kind === 'each') runArrayEach(runtime, rec, id)
-    else runWalk(runtime, rec, id)
+    runEach(runtime, rec, id)
     rec.first = false
     const deps = new Set(selected.deps)
     deps.add(`${arrayPath}:structure`)
@@ -119,43 +113,13 @@ function installEach(
   runtime.queue(id)
 }
 
-function runArrayEach(runtime: EachRuntime, rec: EachRec, id: string): void {
-  const arr = (runtime.getValue(rec.arrayPath) as unknown[]) ?? []
-  const dirty = rec.first ? 'all' : runtime.takeDirtyRows(rec.arrayPath)
-  const seen = new Set<string>()
-  for (let index = 0; index < arr.length; index++) {
-    const inst = `${id}#${index}`
-    seen.add(inst)
-    const fresh = !rec.instances.has(inst)
-    if (fresh) {
-      const captured = index
-      runtime.registerReaction(
-        inst,
-        () => {
-          const result = runtime.runWith({ id: inst, deps: true, writes: true }, () =>
-            rec.effect(runtime.handle(`${rec.arrayPath}.${captured}`), rowContext(runtime, `${rec.arrayPath}.${captured}`, [captured])),
-          )
-          runtime.setDeps(inst, result.deps)
-          runtime.applyWrites(inst, result.writes)
-        },
-        new Set(),
-      )
-      rec.instances.add(inst)
-    }
-    const should = dirty === 'all' || (dirty instanceof Set && dirty.has(index))
-    if (fresh || should) runtime.queue(inst)
-  }
-  dropUnseen(runtime, rec.instances, seen)
-}
-
-function runWalk(runtime: EachRuntime, rec: EachRec, id: string): void {
-  const cfg = runtime.treeConfig(rec.arrayPath)
-  const nodes = listPositions(runtime.getValue(rec.arrayPath), rec.arrayPath, rec.childrenKey || cfg.childrenKey, cfg.rowKey)
-  const dirty = rec.first ? 'all' : runtime.takeDirtyPos(rec.arrayPath)
+function runEach(runtime: EachRuntime, rec: EachRec, id: string): void {
+  const nodes = listEachNodes(runtime.getValue(rec.arrayPath), rec.arrayPath)
+  const dirty = runtime.takeEachDirty(rec.arrayPath)
+  const all = rec.first || dirty.rows.get(rec.arrayPath) === 'all' || dirty.pos === 'all'
   const seen = new Set<string>()
   for (const node of nodes) {
-    const key = posKey(node.pos)
-    const inst = `${id}@${key}`
+    const inst = `${id}#${node.rel}`
     seen.add(inst)
     const fresh = !rec.instances.has(inst)
     if (fresh) {
@@ -163,9 +127,8 @@ function runWalk(runtime: EachRuntime, rec: EachRec, id: string): void {
       runtime.registerReaction(
         inst,
         () => {
-          const result = runtime.runWith(
-            { id: inst, deps: true, writes: true, pos: captured.pos, nodePath: captured.path },
-            () => rec.effect(runtime.handle(captured.path), rowContext(runtime, captured.path, captured.pos)),
+          const result = runtime.runWith({ id: inst, deps: true, writes: true, pos: captured.pos, nodePath: captured.path }, () =>
+            rec.effect(runtime.handle(captured.path), rowContext(runtime, captured)),
           )
           runtime.setDeps(inst, result.deps)
           runtime.applyWrites(inst, result.writes)
@@ -174,54 +137,39 @@ function runWalk(runtime: EachRuntime, rec: EachRec, id: string): void {
       )
       rec.instances.add(inst)
     }
-    const should = dirty === 'all' || (dirty instanceof Set && dirty.has(key))
-    if (fresh || should) runtime.queue(inst)
+    if (fresh || all || nodeDirty(node, rec.arrayPath, dirty)) runtime.queue(inst)
   }
   dropUnseen(runtime, rec.instances, seen)
 }
 
-function installWatchEach(
-  runtime: EffectsRuntime<any>,
-  select: (d: Draft<any>) => unknown,
-  effect: Function,
-  childrenKey = 'children',
-  kind: 'each' | 'walk' = 'each',
-): void {
-  const id = runtime.nextId(kind === 'walk' ? 'watch-walk' : 'watch-each')
+function installWatchEach(runtime: EffectsRuntime<any>, select: (d: Draft<any>) => unknown, effect: Function): void {
+  const id = runtime.nextId('watch-each')
   const known = new Set<string>()
   const run = () => {
     const selected = runtime.trackOnly(() => select(runtime.draft))
     const arrayPath = runtime.readPath(selected.value)
-    if (!arrayPath) throw new Error(`watch.${kind} selector must return a draft handle`)
-    if (kind === 'walk') runtime.noteTree(arrayPath, childrenKey)
-    const cfg = (runtime as EachRuntime).treeConfig(arrayPath)
-    const nodes =
-      kind === 'walk'
-        ? listPositions(runtime.getValue(arrayPath), arrayPath, childrenKey || cfg.childrenKey, cfg.rowKey).map((node) => ({
-            inst: `${id}@${posKey(node.pos)}`,
-            path: node.path,
-            pos: node.pos,
-          }))
-        : (((runtime.getValue(arrayPath) as unknown[]) ?? []).map((_, index) => ({
-            inst: `${id}#${index}`,
-            path: `${arrayPath}.${index}`,
-            pos: [index] as Pos,
-          })))
+    if (!arrayPath) throw new Error('watch.each selector must return a draft handle')
+    const nodes = listEachNodes(runtime.getValue(arrayPath), arrayPath)
     const seen = new Set<string>()
     for (const node of nodes) {
-      const { inst, path, pos } = node
+      const inst = `${id}#${node.rel}`
       seen.add(inst)
       if (!known.has(inst)) {
-        const scout = runtime.runWith({ id: inst, deps: true, writes: false }, () =>
-          effect(runtime.handle(path), rowContext(runtime, path, pos)),
+        const captured = node
+        const scout = runtime.runWith({ id: inst, deps: true, writes: false, pos: captured.pos, nodePath: captured.path }, () =>
+          effect(runtime.handle(captured.path), rowContext(runtime, captured)),
         )
         runtime.setDeps(inst, scout.deps)
-        runtime.registerWatch(inst, () => {
-          const result = runtime.runWith({ id: inst, deps: false, writes: true }, () =>
-            effect(runtime.handle(path), rowContext(runtime, path, pos)),
-          )
-          runtime.applyWrites(inst, result.writes)
-        }, scout.deps)
+        runtime.registerWatch(
+          inst,
+          () => {
+            const result = runtime.runWith({ id: inst, deps: false, writes: true, pos: captured.pos, nodePath: captured.path }, () =>
+              effect(runtime.handle(captured.path), rowContext(runtime, captured)),
+            )
+            runtime.applyWrites(inst, result.writes)
+          },
+          scout.deps,
+        )
         known.add(inst)
       }
     }
@@ -232,9 +180,17 @@ function installWatchEach(
   runtime.queue(id)
 }
 
-/** The one `ctx` shape every row-level effect receives (see `RowContext`). */
-function rowContext(runtime: EffectsRuntime<any>, path: string, pos: Pos): RowContext<any> {
-  return { d: runtime.draft, path, index: pos[pos.length - 1] ?? -1, pos }
+/** The one `ctx` shape every `each` callback receives (see `RowContext`). */
+function rowContext(runtime: EffectsRuntime<any>, node: EachNode): RowContext<any> {
+  return {
+    d: runtime.draft,
+    key: node.key,
+    index: node.index,
+    depth: node.depth,
+    parent: node.parentPath ? runtime.handle(node.parentPath) : undefined,
+    path: node.path,
+    pos: node.pos,
+  }
 }
 
 function dropUnseen(runtime: EffectsRuntime<any>, instances: Set<string>, seen: Set<string>): void {
@@ -244,4 +200,54 @@ function dropUnseen(runtime: EffectsRuntime<any>, instances: Set<string>, seen: 
       instances.delete(inst)
     }
   }
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return value != null && typeof value === 'object' && !Array.isArray(value)
+}
+
+/** An array that contains at least one object element. Primitive arrays (and empty ones) are not entered. */
+function isObjectArray(value: unknown): value is unknown[] {
+  if (!Array.isArray(value)) return false
+  for (let i = 0; i < value.length; i++) if (isPlainRecord(value[i])) return true
+  return false
+}
+
+/**
+ * Elements of `arrayPath`, then every nested array of objects, depth-first.
+ * The selected array is always entered, even when its elements are primitives.
+ */
+function listEachNodes(value: unknown, arrayPath: string): EachNode[] {
+  const out: EachNode[] = []
+  if (!Array.isArray(value)) return out
+  const rootKey = arrayPath ? arrayPath.slice(arrayPath.lastIndexOf('.') + 1) : ''
+  const visit = (arr: unknown[], base: string, depth: number, key: string, posPrefix: number[], parentPath?: string) => {
+    for (let index = 0; index < arr.length; index++) {
+      const path = base ? `${base}.${index}` : String(index)
+      const rel = arrayPath && path.startsWith(`${arrayPath}.`) ? path.slice(arrayPath.length + 1) : path
+      const pos = [...posPrefix, index]
+      out.push({ path, rel, key, index, depth, pos, parentPath })
+      const item = arr[index]
+      if (!isPlainRecord(item)) continue
+      for (const childKey of Object.keys(item)) {
+        const child = item[childKey]
+        if (isObjectArray(child)) visit(child, `${path}.${childKey}`, depth + 1, childKey, pos, path)
+      }
+    }
+  }
+  visit(value, arrayPath, 0, rootKey, [])
+  return out
+}
+
+function nodeDirty(node: EachNode, arrayPath: string, dirty: EachDirty): boolean {
+  if (dirty.pos instanceof Set && dirty.pos.has(node.pos.join('.'))) return true
+  let acc = arrayPath
+  for (const part of node.rel.split('.')) {
+    if (/^\d+$/.test(part)) {
+      const at = dirty.rows.get(acc)
+      if (at === 'all' || (at instanceof Set && at.has(Number(part)))) return true
+    }
+    acc = acc ? `${acc}.${part}` : part
+  }
+  return false
 }

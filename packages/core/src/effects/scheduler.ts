@@ -15,15 +15,21 @@ export interface Tracker {
   nodePath?: string
 }
 
-/** Bookkeeping for one `reaction.each` / `reaction.walk` installation. */
+/** Bookkeeping for one `reaction.each` installation. */
 export interface EachRec {
-  kind: 'each' | 'walk' | 'watch-each'
   select: (d: Draft<any>) => unknown
   effect: Function
   arrayPath: string
-  childrenKey: string
   instances: Set<string>
   first: boolean
+}
+
+/** Occupant changes under one `each` root. Consumed when that `each` re-lists. */
+export interface EachDirty {
+  /** Array path → indexes whose occupant changed, or `'all'`. Includes nested arrays under the root. */
+  rows: Map<string, Set<number> | 'all'>
+  /** Tree `posKey`s (`0.1`) whose occupant changed at the selected root. */
+  pos: Set<string> | 'all' | undefined
 }
 
 export interface RunOptions {
@@ -47,9 +53,9 @@ const WRITTEN_STATE: Record<string, string> = {
   $rules: 'rules',
 }
 
-const REACTION_PREFIX = /^(reaction|each|walk):/
+const REACTION_PREFIX = /^(reaction|each):/
 
-/** Ids of derivations (`reaction`, `each`, `walk`). Watches and selectors are not derivations. */
+/** Ids of derivations (`reaction`, `each`). Watches and selectors are not derivations. */
 export function isReactionId(id: string): boolean {
   return REACTION_PREFIX.test(id)
 }
@@ -73,9 +79,9 @@ export class Scheduler {
   private queued = new Set<string>()
   /** Keys changed since the last enqueue. */
   readonly dirtyDeps = new Set<string>()
-  /** Array path → row indexes whose occupant changed. Consumed by `reaction.each`. */
+  /** Array path → row indexes whose occupant changed. Consumed by `reaction.each` (the root and nested arrays). */
   readonly dirtyRows = new Map<string, Set<number> | 'all'>()
-  /** Tree path → `posKey`s whose occupant changed. Consumed by `reaction.walk`. */
+  /** Tree path → `posKey`s whose occupant changed. Consumed by `reaction.each` on that root. */
   readonly dirtyPos = new Map<string, Set<string> | 'all'>()
   readonly eachRecs = new Map<string, EachRec>()
   readonly stack: Tracker[] = []

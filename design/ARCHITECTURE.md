@@ -124,7 +124,7 @@ Formily 的 `field.title` / `description` / `decorator` / `component` / `setComp
 - **依赖键**：`path:state`，如 `rows.0.cost:value`、`a:display`、`:meta`。`$display/$pattern` 的读取会沿祖先链记录（继承语义）。
 - **`Scheduler`**：`runWith` 压栈 Tracker，读记为 deps、写缓冲为 `WriteOp`；`setDeps` 维护反向索引；写入把键放进 `dirtyDeps`；`enqueueFromDirty` 把读过这些键的 runner 入队并 bump dep 版本；`flush` 按波次运行直到队列为空，超过 10 波抛 `ShikiCycleError`，结束时 `emit()`。两个不同 reaction 写同一键抛 `ShikiConflictError`（watch 不受限）。
 - **`reaction`**：读即依赖、写不是依赖；只在依赖键变脏时重跑；同一 flush 内写入会唤醒下游。**`watch`**：只在 source 变化后执行，首轮不跑，effect 内读取不计依赖。
-- **`each` / `walk` / `watch.each`**（`define-effects.ts`）：每行（或每个树节点 `pos`）一个实例。三者回调形状统一为 `(row, ctx)`，`ctx: RowContext<T> = { d, path, index, pos }`（数组行的 `pos` 为 `[index]`，树节点的 `index` 为 `pos` 末段）。数组操作记录 `dirtyRows`（`ArrayOps`），树移动记录 `dirtyPos`（`TreeOps`），只有占用者变化的行/节点实例重跑。`define-effects.ts` 只依赖 `EffectsRuntime` 接口，不依赖引擎类。
+- **`each` / `watch.each`**（`define-effects.ts`）：两个参数，没有 `walk`，没有 `childrenKey`。选中数组的每个元素一个实例，并自动进入元素为对象的嵌套数组；基本类型数组不进。回调 `(row, ctx)`，`ctx` 含 `d`、`key`、`index`、`depth`、`parent`、`path`、`pos`。调用方按 `ctx.key` / `ctx.depth` 过滤。数组操作记录 `dirtyRows`（`ArrayOps`，含嵌套数组路径），树移动记录 `dirtyPos`（`TreeOps`），只有占用者变化的元素实例重跑。`define-effects.ts` 只依赖 `EffectsRuntime` 接口，不依赖引擎类。
 - **batch**：`form.batch(fn)` 期间写入进入 `batchOps`，结束时一次 apply + 一次 flush。
 
 ### 4.1 开发期用法错误（`ShikiUsageError`）
@@ -135,7 +135,8 @@ Formily 的 `field.title` / `description` / `decorator` / `component` / `setComp
 |---|---|---|
 | 修改 `$value` 返回的对象 / 数组（`d.user.$value.name = 'x'`、`d.items.$value.push(row)`） | `readState('$value')` 在 reaction / watch 执行中（tracker `recordWrites`）返回 `draft/readonly.ts` 的只读视图：`set` / `delete` / `defineProperty` / 数组变更方法抛错。selector（`useWatch`）与引擎外读取不包装。 | 写子路径 `d.user.name.$value = …`，或整体替换；数组赋新数组 / `form.pushArray` |
 | 同一轮读回刚写的 `$` 状态 | `Scheduler.assertNotWritten`：读键映射到写操作键（`$value`→`value`，`$visible`/`$hidden`/`$display`→`display`，`$pattern`/`$disabled`→`pattern`，`$required`/`$enum`/`$rules`），若本 tracker 已缓冲同键写操作则抛错。UI 状态不检查（会重放）。 | `const next = …; d.x.$value = next;` 之后用 `next` |
-| 把 handle 当数组 / 值（`d.items.map(…)`、`for…of d.items`、`d.items.length`、`d.count + 1`） | `draft/handle.ts`：调用 handle（`apply` 陷阱，始终抛错——调用 handle 没有合法用途）；开发期读 `Symbol.iterator` / `Symbol.toPrimitive`；开发期读 `length` 且该路径当前值是数组（经 `DraftHost.peekValue`，不登记依赖；值不是数组时 `length` 仍是普通子字段）。 | `d.items.$value.map(…)` 或 `reaction.each((d) => d.items, (row, ctx) => …)` |
+| 把 handle 当数组 / 值（`d.items.map(…)`、`for…of d.items`、`const [row] = d.items`、`d.items.length`、`d.count + 1`） | `draft/handle.ts`：调用 handle（`apply` 陷阱，始终抛错——调用 handle 没有合法用途）；开发期读 `Symbol.iterator` / `Symbol.toPrimitive`；开发期读 `length` 且该路径当前值是数组（经 `DraftHost.peekValue`，不登记依赖；值不是数组时 `length` 仍是普通子字段）。 | `d.items.$value.map(…)` 或 `reaction.each((d) => d.items, (row, ctx) => …)` |
+| 枚举 handle（`Object.keys(d.user)`、`{ ...d.user }`、`{ name, ...rest } = d.user`） | 开发期 `ownKeys` 抛 `ShikiUsageError`。生产环境 `ownKeys` 返回函数目标自身的键（`prototype` 不可配置，陷阱必须列出）；这些键不可枚举，所以 `Object.keys` 是 `[]`，对象展开是 `{}`，不抛错。数组解构走 `Symbol.iterator`：开发期有提示，生产环境是原生 `TypeError`。 | 只解构子字段 handle：`const { name } = d.user`，然后 `name.$value`。`$` 状态一律经 handle 读写。复制数据用 `d.user.$value`。 |
 
 写入侧（`StateWriter.writeState` / `commitExternal`、`ArrayOps.commit`）在开发期用 `unwrapReadonly` 把只读视图还原成原始数据，所以 `d.a.$value = d.b.$value` 或 `.filter(…)` 的结果存进去的是普通对象（可 `structuredClone`）；没有创建过视图时直接跳过。
 
@@ -159,7 +160,7 @@ Formily 的 `field.title` / `description` / `decorator` / `component` / `setComp
 
 - **`ArrayOps`**：`push/insert/remove/move/swap/replace` 都走同一 `commit`：计算新数组 → 按行 id（`rowKey`/`id`，否则对象身份 WeakMap）用 `reindexById` 迁移字段模型（错误、touched、模板规则跟着行走；精确声明留在原路径，见 `migrate.ts`）→ 记录 `dirtyRows` → bump structure，并把数组及祖先的 `:value` 标脏（读 `d.rows.$value` 的 reaction / useWatch 会重跑；行级 `each` 仍只看 `dirtyRows`）→ 重新展开条目模板 → flush。
 - **无 id 行的身份**：单元格写入经 `setAt` 重建了行对象；`carryIdentity` 把旧对象在 WeakMap 里的身份交给新对象，所以渲染 key、选择、展开在编辑后不变。
-- **`TreeOps`**：注册树根（`childrenKey`、`rowKey`、`canMove`）、`readPos`（优先当前 `walk` 实例的 pos）、`move(from, to)`（拒绝移入自身后代，按节点 id 迁移模型，记录 `dirtyPos`）。
+- **`TreeOps`**：注册树根（`childrenKey`、`rowKey`、`canMove`）、`readPos`（优先当前 `each` 实例的 pos）、`move(from, to)`（拒绝移入自身后代，按节点 id 迁移模型，记录 `dirtyPos`，`reaction.each` 用它重跑换了占用者的节点）。
 - **`migrate.ts`**：`reindexById` —— 以最深的所属行为准，删除消失行下的模型，重键移动行下的模型；返回 `{ dropped, moved }`，`ArrayOps` / `TreeOps` 交给 `FieldStore.onReindex`。**精确声明（`fields` / `registerField` 写死下标）属于路径，不属于行**（2026-10-30 决定）：被删除模型的声明停在原路径休眠（#8）；被移走模型的声明也停在原路径，`Declarations.stripDeclaration` 把它从模型上剥掉（规则、required、display、pattern、trigger、enum、UI 键，下层的模板 / JSX / reaction 再补回）；结构写入后 `applyItemTemplates` → `reviveDormant` 把声明重新注册到此刻占着该路径的行，并对剥掉规则且有错误的模型重算内置规则消息。要跟着行走的配置用 `rows.*.x` 模板或 `reaction.each`。错误、touched、dirty 等运行态仍跟着行走。
 - **`shared/tree-ops.ts`**：无状态的 pos / path 算法（`posOf`、`pathOf`、`moveNode`、`listPositions`、`scopeOf`…）。
 

@@ -1,6 +1,6 @@
 ---
 title: 联动
-description: reaction 维持派生状态，watch 做一次性动作；reaction.each / watch.each 管每一行，reaction.walk / watch.walk 管每个树节点。
+description: reaction 维持派生状态，watch 做一次性动作；reaction.each / watch.each 走进每一层对象数组。
 ---
 
 「金额 = 单价 × 数量」「省份变了清空城市」这类规则写在 `defineEffects` 里，交给 `useForm({ effects })`。它们直接读写引擎，字段有没有挂载都生效。
@@ -81,15 +81,25 @@ export default function App() {
 
 ## reaction.each：每一行一个实例
 
-数组的每一行各自一个 reaction 实例，单元格改了只重算那一行（包括没有渲染出来的行）。选择器返回数组的 **handle**：
+`reaction.each(select, effect)` 只有两个参数。选择器返回数组的 **handle**。每一行一个 reaction 实例，单元格改了只重算那一行（包括没有渲染出来的行）。
+
+遇到**元素是对象的数组**会继续走进去（嵌套 `items`、树的 `children`）。**基本类型数组**（`tags: string[]`）不进。没有第三个参数，也没有 `childrenKey`：回调自己按 `ctx` 过滤，和 `JSON.stringify` 的 replacer 一样。
 
 ```ts
-reaction.each((d) => d.items, (row, { d, index, path, pos }) => { … })
+reaction.each((d) => d.items, (row, ctx) => { … })
+// ctx：key、index、depth、parent、path、pos，外加根 draft `d`
 ```
 
-按行 / 按节点运行的 API（`reaction.each`、`watch.each`、`reaction.walk`、`watch.walk`）回调都是 `(row, ctx)`：`ctx.d` 是根 draft，`ctx.path` 是这一行此刻的路径（`items.2`），`ctx.index` 是行号，`ctx.pos` 是树坐标（数组行是 `[index]`）。插入、删除、移动之后，换了行的位置会用新的行重跑，所以写下的状态跟着行走。
+- `key`：这一元素所在数组的字段名（`items`、`children`）
+- `index`：它在那个数组里的下标
+- `depth`：选中数组的直接元素是 `0`，每进一层对象数组加 1
+- `parent`：父元素的 handle；`depth === 0` 时没有
+- `path`：此刻的路径（`items.2`、`nodes.0.children.1`）
+- `pos`：从选中数组数下来的下标链（`[0, 1]`）；普通行是 `[index]`
 
-`watch.each` 是行级的 `watch`：回调里读到的 `$` 状态就是这一行的来源，来源变了才执行。树对应的是 `watch.walk`（节点级的 `watch`）：回调里的 `$` 读只作为它自己这个节点的来源，某个节点变化只触发它自己，兄弟节点和别处的移动不触发；`opts.childrenKey` 与 `reaction.walk` 一致。适合「这个节点的 X 变了就做一次动作」（刷新子节点选项、同步远端）这类场景。
+只要某一层的逻辑不一样，在回调里返回：`if (ctx.depth !== 0) return`，或 `if (ctx.key !== 'children') return`。插入、删除、移动之后，换了元素的位置会用新的元素重跑，所以写下的状态跟着走。
+
+`watch.each` 是同样的遍历，语义是 `watch`：回调里读到的 `$` 状态就是来源，来源变了才执行，首次不写入。某个元素变化只触发它自己，兄弟和别处的移动不触发。适合「这个节点的 X 变了就做一次动作」。
 
 ```tsx preview play=sku
 import { useState } from 'react';
@@ -149,9 +159,9 @@ export default function App() {
 
 改某一行的数量，只有那一行重算；改折扣，所有行重算（它们都读了 `d.discount`）。`price` 和 `total` 是计算字段，仍在提交结果里。
 
-## reaction.walk：每个树节点一个实例
+## 嵌套对象数组与树
 
-树用 `reaction.walk`，选项 `childrenKey` 默认 `'children'`。`ctx.pos` 是节点坐标（`[0, 1]`），会随移动变化；稳定身份用 `rowKey`。
+`children` 是对象数组，所以同一个 `reaction.each` 会走到每个节点。`ctx.pos` 是下标链（`[0, 1]`），移动后变；稳定身份用 `rowKey`。节点上如果还有别的对象数组，用 `ctx.key === 'children'` 滤掉。
 
 ```tsx preview
 import { Button, Space } from 'antd';
@@ -162,7 +172,8 @@ type Node = { id: string; code: string; name: string; children?: Node[] };
 type Values = { nodes: Node[] };
 
 const effects = defineEffects<Values>(({ reaction }) => {
-  reaction.walk((d) => d.nodes, (node, { pos }) => {
+  reaction.each((d) => d.nodes, (node, { pos, key, depth }) => {
+    if (depth > 0 && key !== 'children') return;
     node.code.$value = pos.map((index) => index + 1).join('.'); // 大纲编号随位置变化
     node.name.$required = pos.length === 1; // 只有顶层节点必填
   });

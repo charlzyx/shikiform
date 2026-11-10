@@ -10,7 +10,7 @@ AI 编程助手写 ShikiForm 时最常犯的错，集中在几条规则上。把
 1. **handle 不是 value。** `d.user.name` 只是 path；读写用 `$value`。不要修改 `$value` 返回的对象，写字段自己的 path。handle 不是数组，不能 `.map` / `.length`。
 2. **reaction 派生，watch 做动作。** reaction 立即运行、读到的都是依赖；watch 首次不运行、只认 `source`。派生值不要藏在 watch 里。
 3. **刚写的值不要在同一轮读回**，先放局部变量（UI 状态除外）。
-4. **行级回调是 `(row, ctx)`**，`ctx = { d, path, index, pos }`，适用于 `reaction.each`、`reaction.walk`、`watch.each`、`watch.walk`。组件里用 `useArray()` / `useIndex()` / `useRecord()` / `useTreeNode()`。
+4. **`reaction.each` / `watch.each` 只有两个参数**，回调是 `(row, ctx)`。`ctx` 含 `key`、`index`、`depth`、`parent`、`path`、`pos`（以及根 draft `d`）。对象数组会自动往下走，基本类型数组不进；按 `ctx.key` / `ctx.depth` 自己过滤。组件里用 `useArray()` / `useIndex()` / `useRecord()` / `useTreeNode()`。
 5. **值按 path 写，对象型 UI 状态按键打补丁**：`d.city.$componentProps.placeholder = '…'` 只改一个键；整体赋值会替换下层。
 6. **`<Field>` 拥有 path，`FormItem` 只是装饰器**：`<Field name title required decorator={[FormItem]} component={[Input]} />`。
 
@@ -33,8 +33,8 @@ const total = d.price.$value * d.qty.$value               // ✓
 d.total.$value = total
 d.tax.$value = total * 0.1
 
-reaction.each((d) => d.rows, (row, d, index) => {})       // ✗ 旧签名
-reaction.each((d) => d.rows, (row, { d, index }) => {})   // ✓
+reaction.each((d) => d.rows, (row) => {}, { childrenKey: 'children' }) // ✗ 没有第三参，也没有 walk
+reaction.each((d) => d.rows, (row, { depth, key }) => { if (depth !== 0) return }) // ✓
 ```
 
 ```tsx

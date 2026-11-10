@@ -51,7 +51,7 @@ createForm<T, TSubmit = T>(options?: FormOptions<T>): FormInstance<T, TSubmit>  
 
 | 方法 | 说明 |
 |---|---|
-| `getValue(path)` / `setValue(path, value)` | 读 / 写一个有类型的 path；拿到的对象不要原地修改 |
+| `getValue(path)` / `setValue(path, value)` | 读 / 写一个有类型的 path，`a.b.c` 与 `a.b[0].c` 都可以；拿到的对象不要原地修改 |
 | `batch((d) => { … })` | 用一个 draft 做多次写入，一轮联动、一次通知 |
 | `pushArray` / `insertArray` / `removeArray` / `moveArray` / `swapArray` / `replaceArray` | 数组行操作，字段状态跟着 `rowKey` 走 |
 | `moveTree(path, from, to)` | 移动树节点到最终坐标，拒绝移进自己的子孙，返回 `{ ok, reason? }` |
@@ -126,31 +126,31 @@ await form.submit((values) => {
 ```ts
 const effects = defineEffects<Values>(({ reaction, watch, query }) => {
   reaction((d) => { … })
-  reaction.each((d) => d.items, (row, ctx) => { … })
-  reaction.walk((d) => d.nodes, (node, ctx) => { … }, { childrenKey: 'children' })
+  reaction.each((d) => d.items, (row, ctx) => { … }) // 两个参数；对象数组会继续往下走
   watch((d) => d.a.$value, (d) => { … })
   watch.each((d) => d.items, (row, ctx) => { … })
-  watch.walk((d) => d.nodes, (node, ctx) => { … }, { childrenKey: 'children' })
 })
 ```
 
 | API | 触发 | 说明 |
 |---|---|---|
 | `reaction(effect)` | 立即运行；之后读到的 `$` 状态变化时 | 同步派生；写 `$value` 的字段成为计算字段，默认仍提交 |
-| `reaction.each(select, effect)` | 每行一个实例 | 只处理一层数组 |
-| `reaction.walk(select, effect, opts?)` | 每个树节点一个实例 | `childrenKey` 默认 `'children'` |
+| `reaction.each(select, effect)` | 每个元素一个实例，并进入嵌套的对象数组 | 只有两个参数。基本类型数组不进。用 `ctx.key` / `ctx.depth` 过滤 |
 | `watch(source, effect)` | `source` 读到的状态变化后；首次不运行 | 多个来源返回数组 |
-| `watch.each(select, effect)` | 行级 watch：回调里读到的状态就是来源 | 只处理一层数组 |
-| `watch.walk(select, effect, opts?)` | 节点级 watch：每个树节点一个实例，同 watch.each | `childrenKey` 默认 `'children'` |
+| `watch.each(select, effect)` | 与 `reaction.each` 同一层遍历；回调里读到的状态就是来源 | 某个元素变化只触发它自己 |
 | `query(path)` | — | 精确 path 的底层 handle（动态路径用），平时写 `d.a.b` |
 
-行级回调都是 `(row, ctx)`，`ctx: RowContext = { d, path, index, pos }`。详见 [联动](/guide/linkage)；`$` 状态与显隐见 [核心概念](/guide/concepts)，规则见 [校验](/guide/validation)。
+行级回调都是 `(row, ctx)`，`ctx` 含 `d`、`key`、`index`、`depth`、`parent`、`path`、`pos`。详见 [联动](/guide/linkage)；`$` 状态与显隐见 [核心概念](/guide/concepts)，规则见 [校验](/guide/validation)。
 
 ## 引擎工具（`@shikiform/core`）
 
 联动、组件都用不到它们；写自己的树组件或做组合选择时才需要。全部是纯函数，不依赖 React。
 
 ```ts
+// 普通数据上的 lodash 风格路径。不改入参，set 返回新对象。
+get(data, 'a.b[0].c')
+set(data, 'a.b[0].c', value)
+
 // 树坐标：pos 是下标路径（[0, 2] = 第 1 个节点的第 3 个子节点）
 pathOf(root: string, pos: Pos, childrenKey = 'children'): string          // pathOf('menus', [0, 2]) → 'menus.0.children.2'
 posOf(root: string, path: string, childrenKey = 'children'): Pos | undefined
