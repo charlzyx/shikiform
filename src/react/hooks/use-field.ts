@@ -10,6 +10,7 @@ import { useRequiredForm, useScope } from '../context'
 import { useFieldGroupRegistration } from '../field-group'
 import { applyJsxField } from './field-lifecycle'
 import { useIdPrefix, withDomId } from '../id-prefix'
+import { useFieldKit, withResolvedSlots, type FieldComponents, type FieldDecorators } from '../field-kit'
 import { resolveName } from './resolve-name'
 
 /**
@@ -77,6 +78,25 @@ export type FieldSlot<C extends ComponentType<any> = ComponentType<any>> =
 export type SlotProps<C extends ComponentType<any>> = Partial<ComponentProps<C>> & { [key: `data-${string}`]: unknown }
 
 /**
+ * A `component` / `decorator` slot addressed by a name from {@link FieldComponents} / {@link FieldDecorators}.
+ * With nothing registered, any string (and a loose props object) is accepted — the same escape hatch as an untyped
+ * field name. Register the map (`declare module 'shikiform' { interface FieldComponents { Input: typeof Input } }`)
+ * and `"Input"` / `["Input", props]` are checked, including the props.
+ */
+export type RegisteredSlot<Registry> = [keyof Registry] extends [never]
+  ? string | readonly [string] | readonly [string, Record<string, any> | undefined]
+  : {
+      [K in keyof Registry & string]: Registry[K] extends ComponentType<any>
+        ? K | readonly [K] | readonly [K, SlotProps<Registry[K]> | undefined]
+        : never
+    }[keyof Registry & string]
+
+/** `<Field component="Input">` when {@link FieldComponents} is augmented; any string otherwise. */
+export type RegisteredComponentSlot = RegisteredSlot<FieldComponents>
+/** `<Field decorator="FormItem">` when {@link FieldDecorators} is augmented; any string otherwise. */
+export type RegisteredDecoratorSlot = RegisteredSlot<FieldDecorators>
+
+/**
  * Field options a hook caller can pass. Same semantics as the `<Field>` props of the same name:
  * `rules` / `required` are a mount-scoped lease (applied while the calling component is mounted, released on unmount,
  * restoring a declaration, item template, or `$rules`). `display` and `pattern` are persistent flags.
@@ -106,10 +126,13 @@ export interface UseFieldOptions<TValue = any> {
    */
   title?: ReactNode
   description?: ReactNode
-  /** The control, or `[Control, props]`: the tuple's props are the JSX layer of `componentProps`. */
-  component?: FieldSlot
-  /** The wrapper, or `[Decorator, props]`: the tuple's props are the JSX layer of `decoratorProps`. */
-  decorator?: FieldSlot
+  /** The control, `[Control, props]`, or a name from {@link FieldComponents} (`"Input"`, `["Input", props]`). */
+  component?: FieldSlot | RegisteredComponentSlot
+  /**
+   * The wrapper, `[Decorator, props]`, a name from {@link FieldDecorators}, or `false` to opt out of the
+   * default decorator from `<FieldKit>` / `<Form kit>`.
+   */
+  decorator?: FieldSlot | RegisteredDecoratorSlot | false
 }
 
 /**
@@ -140,6 +163,7 @@ export function useField(name?: string, options?: UseFieldOptions): FieldBinding
     if (!current) throw new ShikiUsageError(NO_FIELD)
     return current
   }
+  const kit = useFieldKit()
   const form = useRequiredForm(`useField('${String(name)}') / <Field name="${String(name)}">`)
   const prefix = useIdPrefix()
   const scope = useScope()
@@ -169,8 +193,11 @@ export function useField(name?: string, options?: UseFieldOptions): FieldBinding
   void version
   useUiNode(form, path, ui, 'field')
   form.registerField(path, {})
-  if (ui) return withDomId(form.uiBinding(path, ui, uiJsx(options!, path), 'field') as unknown as FieldBinding<any>, prefix)
-  return withDomId(form.binding(path, options && uiLayer(options, path)) as FieldBinding<any>, prefix)
+  if (ui) {
+    // A second UI of a field brings its own decorator; the kit default is for the field itself.
+    return withResolvedSlots(withDomId(form.uiBinding(path, ui, uiJsx(options!, path), 'field') as unknown as FieldBinding<any>, prefix), kit, false)
+  }
+  return withResolvedSlots(withDomId(form.binding(path, options && uiLayer(options, path)) as FieldBinding<any>, prefix), kit, true)
 }
 
 const NO_UI = () => () => {}

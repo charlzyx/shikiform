@@ -6,13 +6,14 @@ import type { Pos } from '../../core/shared/tree-ops'
 import { ArrayContext, FormContext, RowWrapContext, ScopeContext, useRequiredForm, useScope } from '../context'
 import { useArrayField } from '../hooks/use-array'
 import { FieldContext } from '../field-context'
-import { useField, type FieldBinding, type FieldSlot } from '../hooks/use-field'
+import { useField, type FieldBinding, type FieldSlot, type RegisteredComponentSlot, type RegisteredDecoratorSlot } from '../hooks/use-field'
 import { useTreeField } from '../hooks/use-tree'
 import { useWatch } from '../hooks/use-watch'
 import { resolveName } from '../hooks/resolve-name'
 import { ShikiUsageError } from '../../core/errors'
 import { emptySlot } from '../../core/state/field-model'
 import { focusFieldDomId, IdPrefixProvider, useAutoIdPrefix } from '../id-prefix'
+import { FieldKit, type FieldKitSpec } from '../field-kit'
 import { VirtualRows } from './virtual-rows'
 
 const ROOT_SCOPE = { path: '', index: -1 }
@@ -37,6 +38,12 @@ export type FormDomProps = Omit<FormHTMLAttributes<HTMLFormElement>, 'onSubmit' 
 export type FormProps<T, TSubmit = T> = FormSubmitHandlers<TSubmit> & FormDomProps & {
   form: FormInstance<T, TSubmit>
   children?: ReactNode
+  /**
+   * Controls and the default decorator for fields in this form ({@link FieldKit}).
+   * A field omits `decorator` to use `kit.decorator`; `decorator={false}` opts out.
+   * `component="Input"` / `component={["Input", props]}` look up `kit.components`.
+   */
+  kit?: FieldKitSpec
 }
 
 /**
@@ -83,7 +90,7 @@ export function runSubmit<T, TSubmit = T>(form: FormInstance<T, TSubmit>, handle
  * `virtual` stays mounted: it renders and validates, and is omitted from submit.
  * A field declared on the form, or given `$rules` / `registerField`, still validates when this component is not rendered.
  */
-export function Form<T, TSubmit = T>({ form, children, onSubmit, onInvalid, onSubmitError, id, ...rest }: FormProps<T, TSubmit>) {
+export function Form<T, TSubmit = T>({ form, children, onSubmit, onInvalid, onSubmitError, id, kit, ...rest }: FormProps<T, TSubmit>) {
   const ref = useRef<HTMLFormElement>(null)
   const prefix = useAutoIdPrefix(id)
   // A failed submit / validate focuses the first errored field (after FormTab / FormCollapse / FormStep switched).
@@ -114,7 +121,7 @@ export function Form<T, TSubmit = T>({ form, children, onSubmit, onInvalid, onSu
         {/* A nested form (a shadow form in a row's modal) starts at its own root, not at the row's scope. */}
         <ScopeContext.Provider value={ROOT_SCOPE}>
           <form {...rest} id={id} ref={ref} onSubmit={(event) => handleFormSubmit(form, event, { onSubmit, onInvalid, onSubmitError })}>
-            {children}
+            {kit ? <FieldKit {...kit}>{children}</FieldKit> : children}
           </form>
         </ScopeContext.Provider>
       </IdPrefixProvider>
@@ -181,15 +188,17 @@ export interface FieldProps<
   /** Decorator help text (`FormItem` shows it as `extra`). A reaction's `$description` wins. */
   description?: ReactNode
   /**
-   * Wrapper around the control: `decorator={[FormItem, { tooltip: '…' }]}`. Reads the field from context.
-   * The tuple's props are the JSX layer of `decoratorProps` (under a reaction's `$decoratorProps`).
+   * Wrapper around the control: `decorator={[FormItem, { tooltip: '…' }]}`, or a registered name (`"FormItem"`,
+   * `["FormItem", props]`). Reads the field from context. The tuple's props are the JSX layer of `decoratorProps`
+   * (under a reaction's `$decoratorProps`). `false` opts out of the `<Form kit>` / `<FieldKit>` default decorator.
    */
-  decorator?: FieldSlot<D>
+  decorator?: FieldSlot<D> | RegisteredDecoratorSlot | false
   /**
-   * The control: `component={[Input, { placeholder: '…' }]}`. A `connect()`ed control reads the field from context.
-   * The tuple's props are the JSX layer of `componentProps` (under a reaction's `$componentProps`).
+   * The control: `component={[Input, { placeholder: '…' }]}`, or a registered name (`"Input"`, `["Input", props]`).
+   * A `connect()`ed control reads the field from context. The tuple's props are the JSX layer of `componentProps`
+   * (under a reaction's `$componentProps`). A component reference and a string name are the same slot.
    */
-  component?: FieldSlot<C>
+  component?: FieldSlot<C> | RegisteredComponentSlot
   /** A render prop (`(field) => …`), or field-aware children (`<Input />`) rendered instead of `component`. */
   children?: ReactNode | ((field: FieldBinding<PathValue<TScope, N & string>>) => ReactNode)
 }

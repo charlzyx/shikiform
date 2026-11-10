@@ -98,9 +98,9 @@ describe('mapFieldProps (the pure core of connect)', () => {
     expect(mapFieldProps(field, { options: [] }, { options: 'options' }).options).toEqual([])
   })
 
-  it('runs transforms last and uses a custom getValueFromEvent', () => {
+  it('runs transforms last and uses a custom parse', () => {
     const { form, field } = binding(0)
-    const props = mapFieldProps(field, {}, { getValueFromEvent: (v: string) => Number(v) }, (p) => ({ ...p, extra: 1 }))
+    const props = mapFieldProps(field, {}, { parse: (v: string) => Number(v) }, (p) => ({ ...p, extra: 1 }))
     props.onChange('42')
     expect(form.getValue('x')).toBe(42)
     expect(props.extra).toBe(1)

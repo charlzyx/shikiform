@@ -22,7 +22,7 @@ import dayjs, { type Dayjs } from 'dayjs'
 import customParseFormat from 'dayjs/plugin/customParseFormat.js'
 import { Children, cloneElement, Fragment, isValidElement, type ComponentProps, type ComponentType, type FocusEventHandler, type ReactElement, type ReactNode } from 'react'
 import { useFormMessage } from '../../react/hooks/use-form-message'
-import { connect, mapProps, mapReadPretty, type ComponentStatics } from '../adapter/connect'
+import { connect, mapBlur, mapProps, mapReadPretty, type ComponentStatics } from '../adapter/connect'
 import { isEmptyValue, PreviewText, type PreviewTextProps, type PrettyType } from '../adapter/preview'
 
 dayjs.extend(customParseFormat)
@@ -232,37 +232,47 @@ function toDayjs(value: unknown, format: unknown): Dayjs | null {
  * A picker that holds text: the field value is the formatted string (`format`), never a dayjs object, so values
  * survive `initialValues` cloning, `reset`, and submit. Clearing writes `undefined`.
  */
-function pickerProps(defaultFormat: string) {
-  return mapProps(
-    { readOnly: 'disabled', ...antdStatus, getValueFromEvent: (_date: unknown, text: unknown) => (text ? text : undefined) },
-    (props) => ({ ...props, value: toDayjs(props.value, props.format ?? defaultFormat) }),
-  )
-}
-
-function rangeProps(defaultFormat: string) {
-  return mapProps(
-    { readOnly: 'disabled', ...antdStatus, getValueFromEvent: (dates: unknown, texts: unknown) => (dates ? texts : undefined) },
-    (props) => {
-      const format = props.format ?? defaultFormat
-      return { ...props, value: Array.isArray(props.value) ? [toDayjs(props.value[0], format), toDayjs(props.value[1], format)] : null }
-    },
-  )
-}
-
 /**
  * Date picker. Like Formily, the field holds the formatted string (`format`, default `YYYY-MM-DD`), not a dayjs
- * object. `DatePicker.RangePicker` holds a `[start, end]` string tuple. `readPretty` shows the text.
+ * object. `format` / `parse` on `mapProps` do the conversion. `DatePicker.RangePicker` holds a `[start, end]`
+ * string tuple. `readPretty` shows the text (the field value, not a dayjs).
  */
-export const DatePicker = Object.assign(connect(AntDatePicker, pickerProps('YYYY-MM-DD'), mapReadPretty(PreviewText.DatePicker)), {
-  RangePicker: connect(AntDatePicker.RangePicker, rangeProps('YYYY-MM-DD'), mapReadPretty(PreviewText.DateRangePicker)),
+export const DatePicker = Object.assign(connect(AntDatePicker, mapProps({
+  readOnly: 'disabled',
+  ...antdStatus,
+  format: (value, props) => toDayjs(value, props.format ?? 'YYYY-MM-DD'),
+  parse: (_date, text) => (text ? text : undefined),
+}), mapReadPretty(PreviewText.DatePicker)), {
+  RangePicker: connect(AntDatePicker.RangePicker, mapProps({
+    readOnly: 'disabled',
+    ...antdStatus,
+    format: (value, props) => {
+      const format = props.format ?? 'YYYY-MM-DD'
+      return Array.isArray(value) ? [toDayjs(value[0], format), toDayjs(value[1], format)] : null
+    },
+    parse: (dates, texts) => (dates ? texts : undefined),
+  }), mapReadPretty(PreviewText.DateRangePicker)),
 })
 
 /**
  * Time picker: the field holds the formatted string (`format`, default `HH:mm:ss`). `TimePicker.RangePicker` holds a
  * `[start, end]` tuple. `readPretty` shows the text.
  */
-export const TimePicker = Object.assign(connect(AntTimePicker, pickerProps('HH:mm:ss'), mapReadPretty(PreviewText.TimePicker)), {
-  RangePicker: connect(AntTimePicker.RangePicker, rangeProps('HH:mm:ss'), mapReadPretty(PreviewText.TimeRangePicker)),
+export const TimePicker = Object.assign(connect(AntTimePicker, mapProps({
+  readOnly: 'disabled',
+  ...antdStatus,
+  format: (value, props) => toDayjs(value, props.format ?? 'HH:mm:ss'),
+  parse: (_date, text) => (text ? text : undefined),
+}), mapReadPretty(PreviewText.TimePicker)), {
+  RangePicker: connect(AntTimePicker.RangePicker, mapProps({
+    readOnly: 'disabled',
+    ...antdStatus,
+    format: (value, props) => {
+      const format = props.format ?? 'HH:mm:ss'
+      return Array.isArray(value) ? [toDayjs(value[0], format), toDayjs(value[1], format)] : null
+    },
+    parse: (dates, texts) => (dates ? texts : undefined),
+  }), mapReadPretty(PreviewText.TimeRangePicker)),
 })
 
 /** Slider: a number, or `[from, to]` with `range`. `readPretty` shows the number(s). */
@@ -328,10 +338,8 @@ function fileListFromEvent(info: unknown): UploadFile[] {
   })
 }
 
-const uploadProps = mapProps(
-  { value: 'fileList', getValueFromEvent: fileListFromEvent, readOnly: 'disabled', status: false, id: false, onBlur: false },
-  (props) => ({ ...props, fileList: Array.isArray(props.fileList) ? props.fileList : [] }),
-)
+/** Upload has no `onBlur`. Kept off the value mapping so the blur decision stays visible to `connect`. */
+const uploadBlur = mapProps({ onBlur: false })
 
 function UploadPreview({ value, empty, listType }: PreviewTextProps) {
   if (!Array.isArray(value) || !value.length) return <PreviewText.Empty empty={empty} />
@@ -359,8 +367,22 @@ function UploadPreview({ value, empty, listType }: PreviewTextProps) {
  * Upload: the value is the file list (Ant Design `UploadFile[]`, `fileList` ↔ value). `Upload.Dragger` is the drop
  * zone. `readPretty` lists the files as links (thumbnails for the picture list types), without trigger or remove buttons.
  */
-export const Upload = Object.assign(connect(AntUpload, uploadProps, mapReadPretty(UploadPreview)), {
-  Dragger: connect(AntUpload.Dragger, uploadProps, mapReadPretty(UploadPreview)),
+export const Upload = Object.assign(connect(AntUpload, mapProps({
+  value: 'fileList',
+  parse: fileListFromEvent,
+  format: (value) => (Array.isArray(value) ? value : []),
+  readOnly: 'disabled',
+  status: false,
+  id: false,
+}), uploadBlur, mapReadPretty(UploadPreview)), {
+  Dragger: connect(AntUpload.Dragger, mapProps({
+    value: 'fileList',
+    parse: fileListFromEvent,
+    format: (value) => (Array.isArray(value) ? value : []),
+    readOnly: 'disabled',
+    status: false,
+    id: false,
+  }), uploadBlur, mapReadPretty(UploadPreview)),
 })
 
 /** Color picker: the value is the color text (`format`: hex by default; cleared → `undefined`). `readPretty` shows a swatch and the text. */
@@ -369,10 +391,10 @@ export const ColorPicker = connect(
   mapProps({
     readOnly: 'disabled',
     status: false,
-    // The picker has no `onBlur`; closing the popover is the blur (so `validateTrigger: 'onBlur'` still runs).
-    blurOn: 'onOpenChange',
-    getValueFromEvent: (color: { cleared?: unknown } | undefined, text: unknown) => (!color || color.cleared ? undefined : text),
+    parse: (color, text) => (!color || color.cleared ? undefined : text),
   }),
+  // The picker has no `onBlur`; closing the popover is the blur (so `validateTrigger: 'onBlur'` still runs).
+  mapBlur('onOpenChange'),
   mapReadPretty(function ColorPreview({ value, empty }: PreviewTextProps) {
     if (isEmptyValue(value)) return <PreviewText.Empty empty={empty} />
     const text = typeof value === 'string' ? value : String((value as { toHexString?: () => string }).toHexString?.() ?? value)
