@@ -1,9 +1,9 @@
 import { Button, Card, ConfigProvider, Divider, Space } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import { useState } from 'react'
-import { Field, Form, useForm, useWatch, type Draft } from 'shikiform'
-import { FormItem, Input, ShadowDrawer, ShadowForm, ShadowModal, ShadowPopconfirm, useShadow } from 'shikiform/antd'
-import { useShadowForm } from 'shikiform/pro'
+import { Field, Form, useForm, useWatch, type Draft } from '@shikiform/react'
+import { FormItem, Input, ShadowDrawer, ShadowForm, ShadowModal, ShadowPopconfirm, useShadow } from '@shikiform/antd'
+import { useShadowForm } from '@shikiform/hooks'
 
 /** Pro.formily `ShadowFormAll.tsx` demo. */
 interface Info {

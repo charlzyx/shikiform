@@ -1,5 +1,5 @@
-import { Field, Form, defineEffects, useForm, type Pattern } from 'shikiform';
-import { FormItem, Input, Select } from 'shikiform/antd';
+import { Field, Form, defineEffects, useForm, type Pattern } from '@shikiform/react';
+import { FormItem, Input, Select } from '@shikiform/antd';
 
 type Values = { mode: Pattern; name: string };
 

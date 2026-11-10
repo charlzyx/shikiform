@@ -24,9 +24,9 @@ vi.mock('antd', async (importOriginal) => {
     Upload: Object.assign(spy('Upload'), { Dragger: spy('Dragger') }),
   }
 })
-import { Field, Form, typed, useForm } from '../src'
-import { AutoComplete, Cascader, ColorPicker, FormItem, Rate, Slider, TimePicker, Transfer, TreeSelect, Upload } from '../src/antd'
-import type { FormInstance } from '../src'
+import { Field, Form, typed, useForm } from '@shikiform/react'
+import { AutoComplete, Cascader, ColorPicker, FormItem, Rate, Slider, TimePicker, Transfer, TreeSelect, Upload } from '@shikiform/antd'
+import type { FormInstance } from '@shikiform/react'
 
 afterEach(() => {
   cleanup()

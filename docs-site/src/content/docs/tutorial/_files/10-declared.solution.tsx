@@ -1,5 +1,5 @@
-import { Field, Form, Watch, defineEffects, useForm, type Draft } from 'shikiform';
-import { FormItem, Input, Submit, Switch } from 'shikiform/antd';
+import { Field, Form, Watch, defineEffects, useForm, type Draft } from '@shikiform/react';
+import { FormItem, Input, Submit, Switch } from '@shikiform/antd';
 
 type Values = { more: boolean; nickname: string; code: string };
 

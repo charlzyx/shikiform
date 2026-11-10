@@ -21,8 +21,8 @@ ShikiForm 给它们起名字：
 
 ```tsx preview
 import type { CSSProperties } from 'react';
-import { defineEffects, Form, typed, useField, useForm } from 'shikiform';
-import { FormItem, FormLayout, Input } from 'shikiform/antd';
+import { defineEffects, Form, typed, useField, useForm } from '@shikiform/react';
+import { FormItem, FormLayout, Input } from '@shikiform/antd';
 
 type Values = { nickname: string };
 
@@ -63,8 +63,8 @@ export default function App() {
 ## 滑块 + 数字框：共享值，各自 pattern
 
 ```tsx preview
-import { defineEffects, Form, typed, useForm } from 'shikiform';
-import { FormItem, FormLayout, InputNumber, Slider, Switch } from 'shikiform/antd';
+import { defineEffects, Form, typed, useForm } from '@shikiform/react';
+import { FormItem, FormLayout, InputNumber, Slider, Switch } from '@shikiform/antd';
 
 type Values = { budget: number; locked: boolean };
 
@@ -101,8 +101,8 @@ export default function App() {
 ```tsx preview
 import { Alert } from 'antd';
 import { useState } from 'react';
-import { defineEffects, Form, typed, UI, useForm } from 'shikiform';
-import { FormButtonGroup, FormItem, FormLayout, InputNumber, Submit } from 'shikiform/antd';
+import { defineEffects, Form, typed, UI, useForm } from '@shikiform/react';
+import { FormButtonGroup, FormItem, FormLayout, InputNumber, Submit } from '@shikiform/antd';
 
 type Values = { amount: number | null };
 
@@ -146,8 +146,8 @@ export default function App() {
 ```tsx preview
 import { Card } from 'antd';
 import { useState } from 'react';
-import { defineEffects, Form, typed, UI, useForm } from 'shikiform';
-import { FormButtonGroup, FormItem, FormLayout, Input, Submit, Switch } from 'shikiform/antd';
+import { defineEffects, Form, typed, UI, useForm } from '@shikiform/react';
+import { FormButtonGroup, FormItem, FormLayout, Input, Submit, Switch } from '@shikiform/antd';
 
 type Values = { needInvoice: boolean; invoiceTitle: string; remark: string };
 
@@ -205,8 +205,8 @@ export default function App() {
 
 ```ts
 // src/shikiform.d.ts
-import 'shikiform'
-declare module 'shikiform' {
+import '@shikiform/core'
+declare module '@shikiform/core' {
   interface UiNames { echo: true; slider: true; approvalTip: true }
 }
 ```

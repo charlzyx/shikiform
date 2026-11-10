@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from 'antd';
-import { ArrayField, Field, Form, useForm } from 'shikiform';
-import { FormItem, FormLayout, Input, InputNumber, Submit } from 'shikiform/antd';
+import { ArrayField, Field, Form, useForm } from '@shikiform/react';
+import { FormItem, FormLayout, Input, InputNumber, Submit } from '@shikiform/antd';
 
 type Row = { id: string; name: string; price: number; qty: number; total: number };
 type Values = { items: Row[] };

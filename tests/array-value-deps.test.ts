@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { defineEffects } from '../src'
-import { createEngine } from '../src/core/engine/create'
+import { defineEffects } from '@shikiform/react'
+import { createEngine } from '../packages/core/src/engine/create'
 
 describe('array ops wake readers of the array value', () => {
   it('a reaction reading d.rows.$value reruns on push / remove / move, and each instances still skip', () => {

@@ -1,10 +1,10 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
-import { Field, Form, ObjectField } from '../src/react/components/fields'
-import { useForm } from '../src/react/hooks/use-form'
-import { useField } from '../src/react/hooks/use-field'
-import type { FormInstance } from '../src/core/types'
-import { engineOf } from '../src/core/engine/create'
+import { Field, Form, ObjectField } from '../packages/react/src/components/fields'
+import { useForm } from '../packages/react/src/hooks/use-form'
+import { useField } from '../packages/react/src/hooks/use-field'
+import type { FormInstance } from '../packages/core/src/types'
+import { engineOf } from '../packages/core/src/engine/create'
 
 function Input() {
   const field = useField<string>()

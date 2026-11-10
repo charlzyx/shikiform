@@ -14,9 +14,9 @@ import {
   useFieldDecorator,
   useForm,
   type FieldBinding,
-} from '../src'
-import { Reset as AntReset } from '../src/antd'
-import { createEngine } from '../src/core/engine/create'
+} from '@shikiform/react'
+import { Reset as AntReset } from '@shikiform/antd'
+import { createEngine } from '../packages/core/src/engine/create'
 
 afterEach(() => cleanup())
 

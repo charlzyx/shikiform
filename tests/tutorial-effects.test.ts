@@ -6,7 +6,7 @@ import { effects as watchSolution } from '../docs-site/src/content/docs/tutorial
 import { effects as arrayEffects } from '../docs-site/src/content/docs/tutorial/_files/07-array.solution'
 import { schema } from '../docs-site/src/content/docs/tutorial/_files/09-rules.solution'
 import { effects as declaredEffects } from '../docs-site/src/content/docs/tutorial/_files/10-declared.solution'
-import { createEngine } from '../src/core/engine/create'
+import { createEngine } from '../packages/core/src/engine/create'
 
 // Reuse the actual editable tutorial sources, not a second copy of their logic.
 describe('tutorial effects use the published FormEngine contract', () => {

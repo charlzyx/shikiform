@@ -1,7 +1,7 @@
 # ShikiForm for coding agents
 
-ShikiForm is a TypeScript form library: a React-free engine (`shikiform/core`), headless React hooks and fields
-(`shikiform`), headless pro hooks (`shikiform/pro`), and an Ant Design adapter (`shikiform/antd`).
+ShikiForm is a TypeScript form library: a React-free engine (`@shikiform/core`), headless React hooks and fields
+(`@shikiform/react`), headless pro hooks (`@shikiform/hooks`), and an Ant Design adapter (`@shikiform/antd`).
 State lives in one engine per form; linkage is written as `reaction` / `watch` over a **draft**.
 This page is the one-screen mental model plus the mistakes worth avoiding. Repo layout and module rules:
 `design/ARCHITECTURE.md`. Docs: `docs-site/src/content/docs/` (Nimbus / Astro MDX; `tsx preview` fences are type-checked
@@ -79,7 +79,7 @@ the name against the scope (a repeated scope prefix throws in dev) and register 
 like `useField`. Drag-and-drop is `{...handle.dragProps(i)}` on the row; there is no separate drag hook.
 Rows need no id: object rows without `rowKey` / `id` keep a stable object identity (state follows them on move).
 
-Ready-made array UI: give `<ArrayField>` a container `component` from `shikiform/antd` (Formily `ArrayItems` /
+Ready-made array UI: give `<ArrayField>` a container `component` from `@shikiform/antd` (Formily `ArrayItems` /
 `ArrayCards` / `ArrayTable`) instead of writing `useArray()` buttons by hand. That is the only way to attach one: there
 is no `<ArrayTable name>`; the container's props are type-checked (`[ArrayTable, {}]` without `columns` is an error). Action buttons render only while the array's effective
 pattern is `editable` (readPretty / readOnly / disabled anywhere above hides them; same for every `ArrayTable` row action and
@@ -125,8 +125,8 @@ pattern is `editable` (readPretty / readOnly / disabled anywhere above hides the
 
 `<Field>` is the single owner of a path (Formily style). It renders `decorator` around `component` and provides the
 field through context; `FormItem` is a pure decorator and `connect()`ed controls need no `name`.
-`connect` / `mapProps` / `mapBlur` / `mapReadPretty` / `mapFieldProps` are exported from `shikiform` (no antd).
-`shikiform/antd` re-exports them. Headless `connect` does not pass Ant Design `status`; the antd controls opt in with
+`connect` / `mapProps` / `mapBlur` / `mapReadPretty` / `mapFieldProps` are exported from `@shikiform/react` (no antd).
+`@shikiform/antd` re-exports them. Headless `connect` does not pass Ant Design `status`; the antd controls opt in with
 `mapProps({ status: 'status' })`. `mapProps({ format, parse })` converts both ways: the field keeps a serializable
 value, `format(value, props)` is what the control receives, `parse(...onChangeArgs)` is what gets stored (`parse`
 replaces the old `getValueFromEvent`). `readPretty` is not formatted. antd `DatePicker` / `TimePicker` / `Upload` /
@@ -142,8 +142,8 @@ and `useSubmit()` / `useReset()` cover buttons; `afterReset` runs after `form.re
 (antd `<Reset>` takes the same callback).
 
 ```tsx
-import { createForm, defineEffects, Field, Form } from 'shikiform'
-import { FormItem, FormLayout, Input, Select } from 'shikiform/antd'
+import { createForm, defineEffects, Field, Form } from '@shikiform/react'
+import { FormItem, FormLayout, Input, Select } from '@shikiform/antd'
 
 const form = createForm({
   initialValues: { kind: 'personal', email: '', city: '' },
@@ -178,7 +178,7 @@ const form = createForm({
   `d.x.$enum = undefined` drops the reaction layer like `$title` / `$pattern = undefined`: back to the mounted JSX `enum`
   (an async source re-binds), else `fields.x.enum`, else the template, else no options; a reaction load in flight is
   aborted and `loading` resets; `enumPolicy` applies to the change. Clear explicitly with `$enum = []`.
-- Controls (`shikiform/antd`, Formily `@formily/antd`): Input (.TextArea .Password), InputNumber, Select, AutoComplete,
+- Controls (`@shikiform/antd`, Formily `@formily/antd`): Input (.TextArea .Password), InputNumber, Select, AutoComplete,
   TreeSelect, Cascader (value = path), Switch, Checkbox (.Group), Radio, DatePicker / TimePicker (.RangePicker; the field
   holds the formatted string, not dayjs), Slider, Rate, Transfer (value = target keys), Upload (.Dragger; value = antd
   `fileList`), ColorPicker (value = color text). Lazy per-level cascader: `CascaderPlus`; remote-search select: `Suggestion`.
@@ -197,7 +197,7 @@ const form = useForm<Detail>({ initialValues, pattern: 'readPretty' })   // a de
 - Register controls once with `<FieldKit components={{ Input }} decorator={FormItem}>` or `<Form kit={{ … }}>`, then
   `<Field component="Input" />` / `component={["Input", props]}` (string) or `component={Input}` / `component={[Input, props]}`
   (the same slot, a component reference). Omitting `decorator` uses the kit default; `decorator={false}` opts out.
-  Names autocomplete after `declare module 'shikiform' { interface FieldComponents { Input: typeof Input } }`
+  Names autocomplete after `declare module '@shikiform/react' { interface FieldComponents { Input: typeof Input } }`
   (and `FieldDecorators`). There is still one `<Field>`, not a second factory.
 - Slots take a component or `[Component, props]`; the tuple's props are the JSX layer of `componentProps` / `decoratorProps`
   and are type-checked against the component on `<Field>` / `typed(form).Field` / `row.Field` / `<UI>` (all optional,
@@ -233,7 +233,7 @@ const step = useFormStep()   // in the component with the buttons; { current, co
   `step.next()` validates the current step's editable fields in one pass (`form.validate(paths[])`) and resolves
   `false` on errors; the last step is a plain `<Submit />` (validates every step). Controlled: `activeKey` + `onChange`
   (`FormTab` / `FormCollapse`), `useFormStep({ current, onChange })`. Your own region: `const g = useFieldGroup()`,
-  `<FieldGroup value={g}>…</FieldGroup>`, `useFieldGroupErrors(g)`, `form.validate(g.paths())` (from `shikiform`);
+  `<FieldGroup value={g}>…</FieldGroup>`, `useFieldGroupErrors(g)`, `form.validate(g.paths())` (from `@shikiform/react`);
   `form.subscribeValidateFailed((errors) => …)` is the hook the containers reveal from.
 - Hooks are the complete API: `useField(name, options)`, `useFieldDecorator()`, `mapFieldProps(field, props)`,
   `mapFormItemProps(field, props)`, `useSubmit()` / `useReset()`.
@@ -254,7 +254,7 @@ const step = useFormStep()   // in the component with the buttons; { current, co
   **Hiding a UI does not cascade**: a `<UI>` that hides unmounts its children, but each field inside keeps its own
   `$visible`, validation and submit — hide the field too (`d.x.$visible = false`) if its data should go.
   A `$ui(name)` written but never mounted warns once in development. Typo-checked names: register them once,
-  `declare module 'shikiform' { interface UiNames { echo: true; tip: true } }` (otherwise any string).
+  `declare module '@shikiform/core' { interface UiNames { echo: true; tip: true } }` (otherwise any string).
 
 ```tsx
 <F.Field name="amount" title="金额" decorator={[FormItem]} component={[InputNumber]} />
@@ -274,7 +274,7 @@ reaction((d) => {
 - `<Form>` takes the submit callbacks: `onSubmit(values)`, `onInvalid(errors)`,
   `onSubmitError(error)` (default `console.error`); other props go to the native `<form>` (`id`, `className`, `noValidate`).
   Enter, `type="submit"`, and `form.submit(onValid)` behave the same; do not add a second `<form>`.
-- Buttons: headless `<Submit>` / `<Reset>` from `shikiform` (`asChild` or a render prop; `useSubmit()` / `useReset()`
+- Buttons: headless `<Submit>` / `<Reset>` from `@shikiform/react` (`asChild` or a render prop; `useSubmit()` / `useReset()`
   for the same state). antd `<Submit>` / `<Reset>` are the Ant Design buttons on those hooks. `<Submit>` is a native
   submit for `<Form onSubmit>` (disabled while `$canSubmit` is false, loading while submitting); `<Submit onSubmit={fn}>`
   submits on click by itself. `<Reset>` calls `form.reset()`. `onClick` runs first (`preventDefault` skips the reset);
@@ -283,7 +283,7 @@ reaction((d) => {
   (FormItem shows it in the warning colour) and never blocks `submit` / `canSubmit` (antd `warningOnly`).
 - Built-in messages default to Chinese. Override per form with `messages` (partial; functions get params:
   `minLength: ({ minLength }) => …`), app-wide with `setDefaultMessages(enUS)`. A rule's own `message` wins. The same `messages` cover `moveTree` refusal reasons
-  and every `shikiform/antd` label (提交 / 重置 / 查询 / 删除 …); a component's own prop (`title`, `okText`) wins.
+  and every `@shikiform/antd` label (提交 / 重置 / 查询 / 删除 …); a component's own prop (`title`, `okText`) wins.
   Custom components read them with `useFormMessage()` (`t('submit')`) or `form.message('submit')`.
 
 ## 7. Types: names, watch, submit

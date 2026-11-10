@@ -3,7 +3,8 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 /** Guard the one-way module layout described in design/ARCHITECTURE.md. */
-const SRC = path.resolve('src')
+const PACKAGES = ['core', 'react', 'hooks', 'antd'] as const
+const ROOTS = PACKAGES.map((name) => ({ name, dir: path.resolve('packages', name, 'src') }))
 
 function files(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -24,14 +25,20 @@ function resolve(from: string, spec: string): string | undefined {
 }
 
 const graph = new Map<string, string[]>()
-for (const file of files(SRC)) {
+for (const file of ROOTS.flatMap(({ dir }) => files(dir))) {
   const code = readFileSync(file, 'utf8')
   const deps = [...code.matchAll(/(?:from|import)\s*'(\.[^']+)'/g)]
     .map((match) => resolve(file, match[1]!))
     .filter((dep): dep is string => !!dep)
   graph.set(file, deps)
 }
-const rel = (file: string) => path.relative(SRC, file).split(path.sep).join('/')
+const rel = (file: string) => {
+  for (const { name, dir } of ROOTS) {
+    const inner = path.relative(dir, file)
+    if (!inner.startsWith('..') && !path.isAbsolute(inner)) return `${name}/${inner.split(path.sep).join('/')}`
+  }
+  return path.relative(path.resolve('packages'), file).split(path.sep).join('/')
+}
 
 /** Rank of each stateful core part. A part may only import parts of a lower rank (or pure modules). */
 const CORE_RANK: Record<string, number> = {
@@ -78,16 +85,19 @@ describe('module layering', () => {
     expect(violations).toEqual([])
   })
 
-  it('core imports no React, react imports no antd, pure modules import no stateful part', () => {
+  it('core imports no React, react and hooks import no antd, pure modules import no stateful part', () => {
+    const rank: Record<string, number> = { core: 0, react: 1, hooks: 2, antd: 3 }
     const violations: string[] = []
     for (const [file, deps] of graph) {
       const from = rel(file)
       const code = readFileSync(file, 'utf8')
-      if (from.startsWith('core/') && /from '(react|react-dom|antd)/.test(code)) violations.push(`${from} imports a UI package`)
-      if ((from.startsWith('core/') || from.startsWith('react/')) && deps.some((dep) => rel(dep).startsWith('antd/'))) {
-        violations.push(`${from} imports antd/`)
+      const fromPkg = from.split('/')[0]!
+      if (fromPkg === 'core' && /from '(react|react-dom|antd|dayjs)/.test(code)) violations.push(`${from} imports a UI package`)
+      if ((fromPkg === 'react' || fromPkg === 'hooks') && /from '(antd|dayjs)/.test(code)) violations.push(`${from} imports antd or dayjs`)
+      for (const match of code.matchAll(/from '(@shikiform\/[a-z]+)/g)) {
+        const dep = match[1]!.slice('@shikiform/'.length)
+        if (!(dep in rank) || rank[dep]! >= rank[fromPkg]!) violations.push(`${from} imports ${match[1]}`)
       }
-      if (from.startsWith('core/') && deps.some((dep) => /^(react|pro)\//.test(rel(dep)))) violations.push(`${from} imports react/ or pro/`)
       if (PURE.some((p) => from.startsWith(p))) {
         for (const dep of deps.map(rel)) {
           const part = dep.split('/')[1]!

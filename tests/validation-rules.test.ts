@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { isStandardSchema, schemaIssuePath, type StandardSchemaV1 } from '../src/core/validation/schema'
+import { isStandardSchema, schemaIssuePath, type StandardSchemaV1 } from '../packages/core/src/validation/schema'
 import {
   normalizeRules,
   runRules,
   fieldSchemaIssues,
   type Rule,
   type ValidateCtx,
-} from '../src/core/validation/rules'
-import { collectSchemaIssues, groupSchemaIssues } from '../src/core/validation/schema'
+} from '../packages/core/src/validation/rules'
+import { collectSchemaIssues, groupSchemaIssues } from '../packages/core/src/validation/schema'
 
 const CTX: ValidateCtx = {
   path: 'a', value: undefined, record: {}, root: {}, parent: {}, array: undefined, index: -1,

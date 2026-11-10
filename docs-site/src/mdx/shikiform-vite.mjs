@@ -50,7 +50,7 @@ export function shikiformTutorials() {
 
 const DEMO_IMPORTS = [
   'react', 'react/jsx-runtime',
-  'shikiform', 'shikiform/core', 'shikiform/pro', 'shikiform/antd',
+  '@shikiform/react', '@shikiform/core', '@shikiform/hooks', '@shikiform/antd',
   'antd', 'zod',
 ]
 

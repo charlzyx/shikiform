@@ -1,11 +1,11 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { Field, Form } from '../src'
-import { engineOf } from '../src/core/engine/create'
-import { FormItem, Input, QueryList } from '../src/antd'
-import { useQueryTable, type QueryRequestArgs } from '../src/pro'
-import { normalizeFilters, normalizeSort } from '../src/pro/use-query-table'
+import { Field, Form } from '@shikiform/react'
+import { engineOf } from '../packages/core/src/engine/create'
+import { FormItem, Input, QueryList } from '@shikiform/antd'
+import { useQueryTable, type QueryRequestArgs } from '@shikiform/hooks'
+import { normalizeFilters, normalizeSort } from '../packages/hooks/src/use-query-table'
 
 afterEach(() => cleanup())
 

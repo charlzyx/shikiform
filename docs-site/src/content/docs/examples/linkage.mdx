@@ -8,9 +8,9 @@ description: SKU 选择器的选项与冲突清理、按勾选生成数组行、
 场景：商品有颜色、容量、版本三个维度，用户可以按任意顺序选；选项要跟着已选维度禁用缺货组合，冲突的选择要自动清掉，价格和库存随选择变化。
 
 ```tsx preview play=sku-picker
-import { Field, Form, defineEffects, useForm, type Draft } from 'shikiform';
-import { comboMatch, comboOptions } from 'shikiform/core';
-import { FormItem, FormLayout, Input, InputNumber, Radio } from 'shikiform/antd';
+import { Field, Form, defineEffects, useForm, type Draft } from '@shikiform/react';
+import { comboMatch, comboOptions } from '@shikiform/core';
+import { FormItem, FormLayout, Input, InputNumber, Radio } from '@shikiform/antd';
 
 const SKUS = [
   { skuId: 'B-128-STD', color: '黑色', storage: '128G', edition: '标准版', price: 999, stock: 12 },
@@ -90,7 +90,7 @@ export default function App() {
 ```
 
 - 三种联动各司其职：`reaction` 维持选项和价格（[派生](/guide/linkage#reaction-与-watch)），`watch` 在维度变化时清理冲突（动作），`$rules` 让数量上限跟着库存。
-- `comboOptions` / `comboMatch`（`shikiform/core`）只做组合表查询，组合表由你提供。
+- `comboOptions` / `comboMatch`（`@shikiform/core`）只做组合表查询，组合表由你提供。
 - 价格、库存、SKU 被 reaction 写了 `$value`，自动成为阅读态；它们只是展示文字，所以声明了 `display: 'virtual'`，不进提交结果。reaction 写入的值默认是会提交的。
 - 先选「白色」再选「128G」：白色 128G 缺货，所以「128G」是禁用的；先选「128G」再点「白色」也一样。
 
@@ -100,8 +100,8 @@ export default function App() {
 
 ```tsx preview play=sku
 import { useState } from 'react';
-import { ArrayField, Field, Form, defineEffects, useForm } from 'shikiform';
-import { Checkbox, FormItem, FormLayout, Input, InputNumber } from 'shikiform/antd';
+import { ArrayField, Field, Form, defineEffects, useForm } from '@shikiform/react';
+import { Checkbox, FormItem, FormLayout, Input, InputNumber } from '@shikiform/antd';
 
 const CATALOG = [
   { id: '白色/128G', price: 10, stock: 0 },
@@ -163,7 +163,7 @@ export default function App() {
 
 ```tsx preview play=large
 import { memo, useRef } from 'react';
-import { Form, RowScope, VirtualRows, defineEffects, useArrayField, useField, useForm } from 'shikiform';
+import { Form, RowScope, VirtualRows, defineEffects, useArrayField, useField, useForm } from '@shikiform/react';
 
 type Row = { id: string; cost: number; markup: number; suggested: number };
 type Values = { rows: Row[] };

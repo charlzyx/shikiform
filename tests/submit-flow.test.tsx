@@ -12,9 +12,9 @@ import {
   useForm,
   zhCN,
   type FieldError,
-} from '../src'
-import type { StandardSchemaV1 } from '../src/core'
-import { Reset, Submit } from '../src/antd'
+} from '@shikiform/react'
+import type { StandardSchemaV1 } from '@shikiform/core'
+import { Reset, Submit } from '@shikiform/antd'
 
 afterEach(() => {
   cleanup()

@@ -1,4 +1,4 @@
-import { comboMatch, comboOptions, defineEffects } from 'shikiform/core'
+import { comboMatch, comboOptions, defineEffects } from '@shikiform/core'
 
 /** Legal combinations. Shared by the picker and the table editor. Core does not own this table. */
 export interface SkuRow {

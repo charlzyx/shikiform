@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { type StandardSchemaV1 } from '../src/core'
-import { createEngine } from '../src/core/engine/create'
+import { type StandardSchemaV1 } from '@shikiform/core'
+import { createEngine } from '../packages/core/src/engine/create'
 
 function gate() {
   let open!: () => void

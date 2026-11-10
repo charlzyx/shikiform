@@ -2,10 +2,10 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import * as root from '../src'
-import { ArrayField, createForm, Field, Form, ShikiUsageError, useField, type FieldBinding } from '../src'
-import * as antd from '../src/antd'
-import { FormItem, ArrayTable } from '../src/antd'
+import * as root from '@shikiform/react'
+import { ArrayField, createForm, Field, Form, ShikiUsageError, useField, type FieldBinding } from '@shikiform/react'
+import * as antd from '@shikiform/antd'
+import { FormItem, ArrayTable } from '@shikiform/antd'
 
 afterEach(cleanup)
 

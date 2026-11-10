@@ -1,7 +1,7 @@
 import { Button, ConfigProvider, Space } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
-import { EnumSource, Field, Form, ObjectField, useForm, useWatch, type Draft } from 'shikiform'
-import { CascaderPlus, Checkbox, FormItem, FormLayout, Radio, Select, Suggestion } from 'shikiform/antd'
+import { EnumSource, Field, Form, ObjectField, useForm, useWatch, type Draft } from '@shikiform/react'
+import { CascaderPlus, Checkbox, FormItem, FormLayout, Radio, Select, Suggestion } from '@shikiform/antd'
 import { loadArea, suggest, wait } from '../pro-data'
 
 /** Pro.formily `ProEnum.tsx` demo: one enum source per field, lazy enums, pretty read view, suggestion, linkage. */

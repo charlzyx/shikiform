@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { CascaderPlusView, SuggestionView } from '../src/antd'
+import { CascaderPlusView, SuggestionView } from '@shikiform/antd'
 
 afterEach(() => {
   cleanup()

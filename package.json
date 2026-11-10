@@ -1,41 +1,15 @@
 {
-  "name": "shikiform",
-  "version": "0.1.0",
+  "name": "shikiform-monorepo",
   "private": true,
-  "description": "ShikiForm — one headless form engine, React bindings and Ant Design adapters. Nimbus documentation with same-source React examples.",
+  "description": "ShikiForm workspace. Publishable packages: @shikiform/core, @shikiform/react, @shikiform/hooks, @shikiform/antd.",
   "type": "module",
-  "files": [
-    "lib"
+  "workspaces": [
+    "packages/*"
   ],
-  "sideEffects": [
-    "*.css"
-  ],
-  "exports": {
-    ".": {
-      "types": "./lib/index.d.ts",
-      "import": "./lib/index.js",
-      "default": "./lib/index.js"
-    },
-    "./core": {
-      "types": "./lib/core/index.d.ts",
-      "import": "./lib/core/index.js",
-      "default": "./lib/core/index.js"
-    },
-    "./pro": {
-      "types": "./lib/pro/index.d.ts",
-      "import": "./lib/pro/index.js",
-      "default": "./lib/pro/index.js"
-    },
-    "./antd": {
-      "types": "./lib/antd/index.d.ts",
-      "import": "./lib/antd/index.js",
-      "default": "./lib/antd/index.js"
-    }
-  },
   "scripts": {
     "build": "npm run check:docs && node scripts/ensure-site-deps.mjs && npm run build --prefix docs-site",
     "build:cf-pages": "npm run build",
-    "build:lib": "tsup && tsc -p tsconfig.emit.json --noEmit",
+    "build:lib": "npm run build -w @shikiform/core && npm run build -w @shikiform/react && npm run build -w @shikiform/hooks && npm run build -w @shikiform/antd && tsc -p tsconfig.emit.json --noEmit",
     "build:play": "vite build --config playground/vite.config.ts",
     "check": "tsc --noEmit",
     "check:docs": "npm run check:api && npm run build:lib && node scripts/check-docs-package.mjs",
@@ -43,12 +17,10 @@
     "dev": "npm run build:lib && node scripts/ensure-site-deps.mjs && npm run dev --prefix docs-site",
     "dev:e2e": "vite --config playground/vite.config.ts",
     "preview": "npm run preview --prefix docs-site --",
+    "release": "node scripts/release.mjs",
     "test": "vitest run",
     "test:e2e": "npm run build && playwright test",
     "check:site": "npm run lint:docs --prefix docs-site"
-  },
-  "dependencies": {
-    "@tanstack/react-virtual": "^3.13.12"
   },
   "devDependencies": {
     "@codemirror/commands": "^6.11.1",
@@ -58,6 +30,7 @@
     "@codemirror/view": "^6.43.15",
     "@lezer/highlight": "^1.2.5",
     "@playwright/test": "^1.56.1",
+    "@tanstack/react-virtual": "^3.13.12",
     "@testing-library/react": "^16.3.3",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
@@ -81,11 +54,5 @@
     "vite": "^6.4.1",
     "vitest": "^5.0.5",
     "zod": "^4.1.12"
-  },
-  "peerDependencies": {
-    "antd": "^5.18.0",
-    "dayjs": "^1",
-    "react": "^18 || ^19",
-    "react-dom": "^18 || ^19"
   }
 }

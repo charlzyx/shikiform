@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { Field, FieldKit, Form, UI, createForm, useField, type RegisteredSlot } from '../src'
-import { ShikiUsageError } from '../src/core/errors'
+import { Field, FieldKit, Form, UI, createForm, useField, type RegisteredSlot } from '@shikiform/react'
+import { ShikiUsageError } from '../packages/core/src/errors'
 
 afterEach(() => cleanup())
 

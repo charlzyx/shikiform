@@ -3,7 +3,7 @@ title: Pro.formily 复刻
 description: Pro.formily 的八个演示在 ShikiForm 上的对应写法：ArrayTable、影子草稿、QueryList、枚举、联想与级联。
 ---
 
-这一组对应 [Pro.formily](https://github.com/charlzyx/pro.formily) 的八个演示。组件来自 `shikiform/antd`，背后的 Hook 来自 `shikiform/pro`，概念见 [Pro 组件](/guide/pro)。
+这一组对应 [Pro.formily](https://github.com/charlzyx/pro.formily) 的八个演示。组件来自 `@shikiform/antd`，背后的 Hook 来自 `@shikiform/hooks`，概念见 [Pro 组件](/guide/pro)。
 
 ## ArrayTable 全功能
 
@@ -11,8 +11,8 @@ description: Pro.formily 的八个演示在 ShikiForm 上的对应写法：Array
 
 ```tsx preview play=array-table
 import { Button, Space, message } from 'antd';
-import { ArrayField, Field, Form, useForm } from 'shikiform';
-import { ArrayTable, FormItem, Input, type ArrayTableColumn } from 'shikiform/antd';
+import { ArrayField, Field, Form, useForm } from '@shikiform/react';
+import { ArrayTable, FormItem, Input, type ArrayTableColumn } from '@shikiform/antd';
 
 type Item = { a1: string; a2: string };
 type Row = Item & { id: string; subitems?: Item[] };
@@ -94,9 +94,9 @@ export default function App() {
 
 ```tsx preview play=array-table-shadow
 import { Button } from 'antd';
-import { ArrayField, Field, Form, useForm } from 'shikiform';
-import { useArrayShadow } from 'shikiform/pro';
-import { ArrayTable, FormItem, Input, ShadowModal } from 'shikiform/antd';
+import { ArrayField, Field, Form, useForm } from '@shikiform/react';
+import { useArrayShadow } from '@shikiform/hooks';
+import { ArrayTable, FormItem, Input, ShadowModal } from '@shikiform/antd';
 
 type Row = { id: string; domain: string; desc: string };
 
@@ -153,9 +153,9 @@ export default function App() {
 ```tsx preview play=shadow-form
 import { useState } from 'react';
 import { Button, Card, Space } from 'antd';
-import { Field, Form, Watch, useForm, type Draft } from 'shikiform';
-import { useShadowForm } from 'shikiform/pro';
-import { FormItem, Input, ShadowForm, ShadowPopconfirm, useShadow } from 'shikiform/antd';
+import { Field, Form, Watch, useForm, type Draft } from '@shikiform/react';
+import { useShadowForm } from '@shikiform/hooks';
+import { FormItem, Input, ShadowForm, ShadowPopconfirm, useShadow } from '@shikiform/antd';
 
 type Info = { domain: string; desc: string };
 
@@ -214,9 +214,9 @@ export default function App() {
 场景：域名列表页。条件栅格超过两格时折叠，服务端分页，ID 表头排序发给服务端，「分类」列默认隐藏，状态显示成徽标，列表里的域名可以直接改。
 
 ```tsx preview play=query-list
-import { Field } from 'shikiform';
-import { useQueryTable } from 'shikiform/pro';
-import { FormItem, Input, QueryList, Select, type ArrayTableColumn } from 'shikiform/antd';
+import { Field } from '@shikiform/react';
+import { useQueryTable } from '@shikiform/hooks';
+import { FormItem, Input, QueryList, Select, type ArrayTableColumn } from '@shikiform/antd';
 
 type Row = { id: number; status: number; domain: string; classify: number[] };
 type Query = { domain?: string; status?: number };
@@ -277,9 +277,9 @@ export default function App() {
 
 ```tsx preview play=query-list-add
 import { Button } from 'antd';
-import { Field } from 'shikiform';
-import { useArrayShadow, useQueryTable } from 'shikiform/pro';
-import { FormItem, Input, ArrayTable, QueryList, ShadowModal } from 'shikiform/antd';
+import { Field } from '@shikiform/react';
+import { useArrayShadow, useQueryTable } from '@shikiform/hooks';
+import { FormItem, Input, ArrayTable, QueryList, ShadowModal } from '@shikiform/antd';
 
 type Row = { id: string; domain: string };
 
@@ -334,8 +334,8 @@ export default function App() {
 
 ```tsx preview play=pro-enum
 import { Button, Space } from 'antd';
-import { EnumSource, Field, Form, ObjectField, useForm } from 'shikiform';
-import { Checkbox, FormItem, FormLayout, Radio, Select } from 'shikiform/antd';
+import { EnumSource, Field, Form, ObjectField, useForm } from '@shikiform/react';
+import { Checkbox, FormItem, FormLayout, Radio, Select } from '@shikiform/antd';
 
 const LIST = [{ label: '啊', value: 'a', color: 'blue' }, { label: '哦', value: 'o', color: 'green' }, { label: '呃', value: 'e' }];
 /** 懒加载枚举：加载一次，所有用它的字段共享。 */
@@ -385,8 +385,8 @@ export default function App() {
 场景：输入关键字后联想商品名；值可以是字符串、`{ label, value }`，也可以多选。
 
 ```tsx preview play=suggestion
-import { Field, Form, Watch, useForm, type Draft } from 'shikiform';
-import { FormItem, FormLayout, Suggestion } from 'shikiform/antd';
+import { Field, Form, Watch, useForm, type Draft } from '@shikiform/react';
+import { FormItem, FormLayout, Suggestion } from '@shikiform/antd';
 
 const WORDS = ['手机壳', '手机支架', '手表', '书包', '鼠标', '鼠标垫', '水杯', '耳机', '咖啡机', '咖啡豆'];
 /** 模拟远程接口：300ms 后返回匹配的词；新的输入会 abort 旧请求。 */
@@ -416,7 +416,7 @@ export default function App() {
 ```
 
 - `fetch(keyword, { signal })` 返回选项；组件负责防抖（`debounce`，默认 300ms）、中止旧请求、丢弃迟到的结果。
-- 无 UI 的同一套逻辑是 `useSuggestion`（`shikiform/pro`），不绑字段的组件是 `SuggestionView`。
+- 无 UI 的同一套逻辑是 `useSuggestion`（`@shikiform/hooks`），不绑字段的组件是 `SuggestionView`。
 
 ## CascaderPlus：懒加载级联
 
@@ -424,9 +424,9 @@ export default function App() {
 
 ```tsx preview play=cascader-plus
 import { Button, Space } from 'antd';
-import { Field, Form, Watch, useForm, type Draft } from 'shikiform';
-import type { CascaderOption } from 'shikiform/pro';
-import { CascaderPlus, FormItem, FormLayout } from 'shikiform/antd';
+import { Field, Form, Watch, useForm, type Draft } from '@shikiform/react';
+import type { CascaderOption } from '@shikiform/hooks';
+import { CascaderPlus, FormItem, FormLayout } from '@shikiform/antd';
 
 type Area = { code: string; name: string; children?: Area[] };
 const AREA: Area[] = [

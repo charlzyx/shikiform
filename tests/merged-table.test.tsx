@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { MergedTable, groupRowSpan } from '../src/antd/tables/merged-table'
+import { MergedTable, groupRowSpan } from '../packages/antd/src/tables/merged-table'
 
 afterEach(cleanup)
 

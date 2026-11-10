@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { ArrayField, EnumSource, Field, Form, ObjectField, createForm, useField, useForm, useFormContext, useWatch, type Draft, type FormInstance } from 'shikiform'
-import { EnumSource as CoreEnumSource, createForm as createCoreForm } from 'shikiform/core'
-import { ArrayTable, FormItem, Input, QueryList, Submit } from 'shikiform/antd'
-import { useQueryTable } from 'shikiform/pro'
+import { ArrayField, EnumSource, Field, Form, ObjectField, createForm, useField, useForm, useFormContext, useWatch, type Draft, type FormInstance } from '@shikiform/react'
+import { EnumSource as CoreEnumSource, createForm as createCoreForm } from '@shikiform/core'
+import { ArrayTable, FormItem, Input, QueryList, Submit } from '@shikiform/antd'
+import { useQueryTable } from '@shikiform/hooks'
 
 // Copied into the isolated npm-pack consumer, never resolved through TS paths.
 // These are SSR/provider identity assertions, not mounted effects or browser tests.

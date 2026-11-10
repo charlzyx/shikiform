@@ -11,8 +11,8 @@ description: 整表 schema 校验、显隐对提交的影响、标签页里没�
 import { useState } from 'react';
 import { Button, Space } from 'antd';
 import { z } from 'zod';
-import { Field, Form, ObjectField, useForm } from 'shikiform';
-import { FormItem, FormLayout, Input } from 'shikiform/antd';
+import { Field, Form, ObjectField, useForm } from '@shikiform/react';
+import { FormItem, FormLayout, Input } from '@shikiform/antd';
 
 const schema = z
   .object({
@@ -73,8 +73,8 @@ export default function App() {
 ```tsx preview play=display
 import { useState } from 'react';
 import { Button } from 'antd';
-import { Field, Form, ObjectField, defineEffects, useForm, type Display } from 'shikiform';
-import { FormItem, FormLayout, Input, Radio } from 'shikiform/antd';
+import { Field, Form, ObjectField, defineEffects, useForm, type Display } from '@shikiform/react';
+import { FormItem, FormLayout, Input, Radio } from '@shikiform/antd';
 
 type Values = { mode: Display; contact: { email: string; phone: string } };
 
@@ -130,8 +130,8 @@ export default function App() {
 ```tsx preview play=tabs
 import { useState } from 'react';
 import { Button } from 'antd';
-import { Field, Form, Watch, useForm, type Draft } from 'shikiform';
-import { FormItem, FormLayout, Input, Radio } from 'shikiform/antd';
+import { Field, Form, Watch, useForm, type Draft } from '@shikiform/react';
+import { FormItem, FormLayout, Input, Radio } from '@shikiform/antd';
 
 type Values = { tab: 'base' | 'extra'; name: string; code: string; note: string };
 

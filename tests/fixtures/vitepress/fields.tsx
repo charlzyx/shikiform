@@ -1,4 +1,4 @@
-import { Field } from 'shikiform'
+import { Field } from '@shikiform/react'
 
 /** Visible copyable adapter, no store and no hidden imports. */
 export function TextField({ name, label }: { name: string; label: string }) {

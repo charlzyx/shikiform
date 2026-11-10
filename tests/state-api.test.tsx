@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, expectTypeOf, it } from 'vitest'
-import { Field, Form, useForm, useWatch } from '../src'
-import { defineEffects, ShikiUsageError, type Draft } from '../src/core'
-import { createEngine, type Engine, engineOf } from '../src/core/engine/create'
+import { Field, Form, useForm, useWatch } from '@shikiform/react'
+import { defineEffects, ShikiUsageError, type Draft } from '@shikiform/core'
+import { createEngine, type Engine, engineOf } from '../packages/core/src/engine/create'
 
 type Rec = { name: string; addr: { city: string }; rows: { id: string; qty: number }[] }
 const EMPTY: Rec = { name: '', addr: { city: '' }, rows: [] }

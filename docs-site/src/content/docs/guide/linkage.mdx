@@ -16,8 +16,8 @@ const effects = defineEffects<Values>(({ reaction, watch }) => {
 
 ```tsx preview
 import { useState } from 'react';
-import { Field, Form, defineEffects, useForm } from 'shikiform';
-import { FormItem, FormLayout, InputNumber, Select } from 'shikiform/antd';
+import { Field, Form, defineEffects, useForm } from '@shikiform/react';
+import { FormItem, FormLayout, InputNumber, Select } from '@shikiform/antd';
 
 type Values = { price: number; qty: number; amount: number; province: string; city: string };
 
@@ -94,8 +94,8 @@ reaction.each((d) => d.items, (row, { d, index, path, pos }) => { … })
 ```tsx preview play=sku
 import { useState } from 'react';
 import { Button } from 'antd';
-import { ArrayField, Field, Form, defineEffects, useForm } from 'shikiform';
-import { FormItem, FormLayout, InputNumber, Select } from 'shikiform/antd';
+import { ArrayField, Field, Form, defineEffects, useForm } from '@shikiform/react';
+import { FormItem, FormLayout, InputNumber, Select } from '@shikiform/antd';
 
 type Item = { id: number; sku: string; price: number; qty: number; total: number };
 type Values = { discount: number; items: Item[] };
@@ -155,8 +155,8 @@ export default function App() {
 
 ```tsx preview
 import { Button, Space } from 'antd';
-import { Field, Form, RowScope, TreeField, defineEffects, useForm } from 'shikiform';
-import { Input } from 'shikiform/antd';
+import { Field, Form, RowScope, TreeField, defineEffects, useForm } from '@shikiform/react';
+import { Input } from '@shikiform/antd';
 
 type Node = { id: string; code: string; name: string; children?: Node[] };
 type Values = { nodes: Node[] };

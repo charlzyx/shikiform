@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { applyJsxField } from '../src/react/hooks/field-lifecycle'
-import { createEngine } from '../src/core/engine/create'
+import { applyJsxField } from '../packages/react/src/hooks/field-lifecycle'
+import { createEngine } from '../packages/core/src/engine/create'
 
 describe('React JSX lease sequences over the real engine (not a browser effect test)', () => {
   it.each(['owner-first', 'consumer-first'])('%s: disposing a pure consumer preserves the remaining JSX owner', async (order) => {

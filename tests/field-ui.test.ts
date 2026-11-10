@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { defineEffects } from 'shikiform'
-import type { Draft } from 'shikiform'
-import { createEngine } from '../src/core/engine/create'
+import { defineEffects } from '@shikiform/react'
+import type { Draft } from '@shikiform/react'
+import { createEngine } from '../packages/core/src/engine/create'
 
 type V = { city: string; kind: string; rows: { name: string }[] }
 const initialValues: V = { city: '', kind: 'a', rows: [{ name: 'x' }, { name: 'y' }] }

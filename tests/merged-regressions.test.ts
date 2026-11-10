@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { newProduct, newSupplier, supplierRows, type Supplier } from '../playground/merged-model'
-import { createEngine } from '../src/core/engine/create'
+import { createEngine } from '../packages/core/src/engine/create'
 
 const suppliers = (): Supplier[] => [
   { id: 'sA', name: 'A', level: 'C', products: [

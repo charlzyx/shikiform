@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { defineEffects, ShikiConflictError, ShikiUsageError } from '../src/core'
-import { createEngine } from '../src/core/engine/create'
+import { defineEffects, ShikiConflictError, ShikiUsageError } from '@shikiform/core'
+import { createEngine } from '../packages/core/src/engine/create'
 
 describe('$disabled pattern shortcut', () => {
   it('returns to the parent pattern after $disabled turns off', () => {

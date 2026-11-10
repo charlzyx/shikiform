@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { Form, typed, useForm, useRecord, type Pattern, type FormInstance } from '../src'
-import { ArrayCards, ArrayItems, FormItem, Input } from '../src/antd'
-import { createEngine, type Engine } from '../src/core/engine/create'
+import { Form, typed, useForm, useRecord, type Pattern, type FormInstance } from '@shikiform/react'
+import { ArrayCards, ArrayItems, FormItem, Input } from '@shikiform/antd'
+import { createEngine, type Engine } from '../packages/core/src/engine/create'
 
 afterEach(cleanup)
 const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 20)))

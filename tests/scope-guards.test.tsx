@@ -3,12 +3,12 @@
 import { cleanup, renderHook } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createForm, Form, useIndex, useRecord, useTreeNode } from '../src'
-import { useArray } from '../src/react/hooks/use-array'
-import { useRequiredForm } from '../src/react/context'
-import { ShikiUsageError } from '../src/core'
-import { useShadow } from '../src/antd/shadow/shadow'
-import { useArrayShadow } from '../src/pro/use-array-shadow'
+import { createForm, Form, useIndex, useRecord, useTreeNode } from '@shikiform/react'
+import { useArray } from '../packages/react/src/hooks/use-array'
+import { useRequiredForm } from '../packages/react/src/context'
+import { ShikiUsageError } from '@shikiform/core'
+import { useShadow } from '../packages/antd/src/shadow/shadow'
+import { useArrayShadow } from '../packages/hooks/src/use-array-shadow'
 
 afterEach(cleanup)
 

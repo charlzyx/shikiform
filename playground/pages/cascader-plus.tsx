@@ -1,7 +1,7 @@
 import { Button, ConfigProvider, Divider, Space } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import { useState } from 'react'
-import { CascaderPlusView } from 'shikiform/antd'
+import { CascaderPlusView } from '@shikiform/antd'
 import { loadArea, loadAreaAll } from '../pro-data'
 
 /** Pro.formily `CascaderPlus.tsx` demo: lazy / full tree, multiple, labelInValue, and echo of existing values. */

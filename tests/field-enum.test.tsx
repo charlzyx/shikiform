@@ -2,11 +2,11 @@
 import { act, cleanup, render } from '@testing-library/react'
 import { StrictMode, useState } from 'react'
 import { afterEach, describe, expect, expectTypeOf, it } from 'vitest'
-import { ArrayField, defineEffects, EnumSource, Field, Form, typed, useField, useForm, type FieldEnum } from '../src'
+import { ArrayField, defineEffects, EnumSource, Field, Form, typed, useField, useForm, type FieldEnum } from '@shikiform/react'
 
-import { Checkbox, Radio, Select } from '../src/antd'
-import type { FormInstance } from '../src'
-import { engineOf } from '../src/core/engine/create'
+import { Checkbox, Radio, Select } from '@shikiform/antd'
+import type { FormInstance } from '@shikiform/react'
+import { engineOf } from '../packages/core/src/engine/create'
 
 afterEach(cleanup)
 const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 20)))

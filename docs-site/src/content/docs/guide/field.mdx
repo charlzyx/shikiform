@@ -32,8 +32,8 @@ description: Field 拥有一个 path，decorator 包住 component；UI 属性分
 
 ```tsx preview
 import { Input as AntInput } from 'antd';
-import { Field, Form, useForm } from 'shikiform';
-import { FormItem, FormLayout, Input } from 'shikiform/antd';
+import { Field, Form, useForm } from '@shikiform/react';
+import { FormItem, FormLayout, Input } from '@shikiform/antd';
 
 export default function App() {
   const form = useForm({ initialValues: { a: '元组', b: '子元素', c: 'render prop', d: '无装饰器' } });
@@ -71,8 +71,8 @@ export default function App() {
 `componentProps` / `decoratorProps` 深合并：普通对象逐键递归合并，数组、函数、React 元素、类实例取最高一层的整值。所以「根据别的字段改控件属性」写在 reaction 里，而不是在渲染时算 props：
 
 ```tsx preview
-import { Field, Form, defineEffects, useForm } from 'shikiform';
-import { FormItem, FormLayout, Input, Switch } from 'shikiform/antd';
+import { Field, Form, defineEffects, useForm } from '@shikiform/react';
+import { FormItem, FormLayout, Input, Switch } from '@shikiform/antd';
 
 type Values = { vip: boolean; code: string };
 
@@ -121,8 +121,8 @@ reaction 里读 `$componentProps` 看到的是「声明 + reaction」两层，JS
 
 ```tsx preview
 import { Switch } from 'antd';
-import { Form, typed, useForm } from 'shikiform';
-import { Checkbox, FormItem, FormLayout, Radio, Select } from 'shikiform/antd';
+import { Form, typed, useForm } from '@shikiform/react';
+import { Checkbox, FormItem, FormLayout, Radio, Select } from '@shikiform/antd';
 
 type Values = { level: 'gold' | 'silver'; tags: string[]; size: number };
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { comboMatch, comboOptions } from '../src/core'
-import { asOptions, isEnumBinding } from '../src/core/enum/enum-source'
+import { comboMatch, comboOptions } from '@shikiform/core'
+import { asOptions, isEnumBinding } from '../packages/core/src/enum/enum-source'
 
 type Row = { color: string; storage: string; stock: number }
 

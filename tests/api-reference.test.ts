@@ -34,21 +34,21 @@ describe('public Hook and adapter reference coverage', { timeout: 30_000 }, () =
     const dir = fixture()
     const file = path.join(dir, 'reference/exports.json')
     const manifest = JSON.parse(readFileSync(file, 'utf8'))
-    delete manifest.shikiform.useField
+    delete manifest['@shikiform/react'].useField
     writeFileSync(file, JSON.stringify(manifest))
     const result = check(dir)
     expect(result.status).not.toBe(0)
-    expect(result.stderr).toContain('Missing reference for shikiform:useField')
+    expect(result.stderr).toContain('Missing reference for @shikiform/react:useField')
   })
   it('rejects an invented useRow export', () => {
     const dir = fixture()
     const file = path.join(dir, 'reference/exports.json')
     const manifest = JSON.parse(readFileSync(file, 'utf8'))
-    manifest.shikiform.useRow = 'reference/react-hooks.mdx'
+    manifest['@shikiform/react'].useRow = 'reference/react-hooks.mdx'
     writeFileSync(file, JSON.stringify(manifest))
     const result = check(dir)
     expect(result.status).not.toBe(0)
-    expect(result.stderr).toContain('Not a public export in this scope: shikiform:useRow')
+    expect(result.stderr).toContain('Not a public export in this scope: @shikiform/react:useRow')
   })
   it('does not count a landing-page link as a detailed API section', () => {
     const dir = fixture()

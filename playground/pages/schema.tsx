@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { z } from 'zod'
 import * as v from 'valibot'
 import { Button, Space } from 'antd'
-import { FormButtonGroup, FormItem, FormLayout, Input } from 'shikiform/antd'
-import { Form, ObjectField, typed, useForm, type FieldError } from 'shikiform'
+import { FormButtonGroup, FormItem, FormLayout, Input } from '@shikiform/antd'
+import { Form, ObjectField, typed, useForm, type FieldError } from '@shikiform/react'
 
 interface Address {
   city: string

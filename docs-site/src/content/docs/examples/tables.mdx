@@ -8,9 +8,9 @@ description: 带联动条件的查询表、不依赖 antd 的同一个查询 Hoo
 场景：日志查询页。条件超过一行时折叠（折叠不丢值），「供应商」决定「模型」的选项，表头还能按状态筛选；新的查询回到第 1 页，翻页保留勾选。
 
 ```tsx preview play=query
-import { Field, defineEffects } from 'shikiform';
-import { useQueryTable } from 'shikiform/pro';
-import { FormItem, FormLayout, Input, QueryList, Select, type ArrayTableColumn } from 'shikiform/antd';
+import { Field, defineEffects } from '@shikiform/react';
+import { useQueryTable } from '@shikiform/hooks';
+import { FormItem, FormLayout, Input, QueryList, Select, type ArrayTableColumn } from '@shikiform/antd';
 
 type Log = { id: string; keyword: string; provider: string; model: string; status: string };
 type Query = { keyword: string; provider: string; model: string; user: string };
@@ -70,7 +70,7 @@ export default function App() {
 }
 ```
 
-- `useQueryTable`（`shikiform/pro`）管条件、分页、勾选、表头筛选和请求竞态；`QueryList` 只负责摆放：条件栅格 + 重置 / 查询 + 一张受控分页的 `ArrayTable`。它的 `form` 是普通引擎，所以条件之间照常写 `reaction` / `watch`。
+- `useQueryTable`（`@shikiform/hooks`）管条件、分页、勾选、表头筛选和请求竞态；`QueryList` 只负责摆放：条件栅格 + 重置 / 查询 + 一张受控分页的 `ArrayTable`。它的 `form` 是普通引擎，所以条件之间照常写 `reaction` / `watch`。
 - `rows: 'list'` 把每页结果写进 `list` 数组字段，表格显示的就是它（单元格也能放 `<Field>` 直接编辑）。
 - 条件排在 `FormGrid` 里，列数随容器宽度变（默认最多 4 列、每列至少 220px，`grid` 可改）。收起时只显示第一行，重置 / 查询排在这一行末尾；一行放不下时出现「展开 / 收起」，展开后按钮排在最后一行末尾。收起只是隐藏格子，不卸载字段，值不丢。
 - 表头筛选随请求发给 `request` 的 `filters`，并回到第 1 页、清空勾选；只翻页时勾选保留。见 [查询 Hooks](/reference/query-hooks)。
@@ -80,8 +80,8 @@ export default function App() {
 场景：同一个查询 Hook，换成原生 HTML。
 
 ```tsx preview play=query-native
-import { Field, Form } from 'shikiform';
-import { useQueryTable } from 'shikiform/pro';
+import { Field, Form } from '@shikiform/react';
+import { useQueryTable } from '@shikiform/hooks';
 
 type Log = { id: string; keyword: string };
 const LOGS: Log[] = Array.from({ length: 12 }, (_, i) => ({ id: String(i + 1), keyword: `${i % 2 ? 'beta' : 'alpha'}-${i + 1}` }));
@@ -134,8 +134,8 @@ export default function App() {
 ```tsx preview play=row-edit
 import { useState } from 'react';
 import { Button, Drawer, Table } from 'antd';
-import { Field, Form, ObjectField, Watch, useForm, type Draft } from 'shikiform';
-import { FormItem, Input, InputNumber } from 'shikiform/antd';
+import { Field, Form, ObjectField, Watch, useForm, type Draft } from '@shikiform/react';
+import { FormItem, Input, InputNumber } from '@shikiform/antd';
 
 type Row = { id: string; name: string; price: number };
 type Values = { rows: Row[]; editor: Row & { open: boolean } };

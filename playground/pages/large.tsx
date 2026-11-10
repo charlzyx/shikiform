@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef } from 'react'
-import { Form, RowScope, useArrayField, useField, useForm, VirtualRows, defineEffects } from 'shikiform'
+import { Form, RowScope, useArrayField, useField, useForm, VirtualRows, defineEffects } from '@shikiform/react'
 
 interface Row {
   id: string

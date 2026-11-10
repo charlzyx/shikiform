@@ -10,8 +10,8 @@ description: 嵌套对象与 pattern 继承、树节点跨层移动、只挂载�
 ```tsx preview play=nested
 import { useState } from 'react';
 import { Button, Drawer } from 'antd';
-import { ArrayField, Field, Form, ObjectField, Watch, defineEffects, useForm, type Draft } from 'shikiform';
-import { FormItem, FormLayout, Input, InputNumber, Switch } from 'shikiform/antd';
+import { ArrayField, Field, Form, ObjectField, Watch, defineEffects, useForm, type Draft } from '@shikiform/react';
+import { FormItem, FormLayout, Input, InputNumber, Switch } from '@shikiform/antd';
 
 type Order = { id: string; title: string; qty: number; shipped: boolean };
 type Values = { editable: boolean; profile: { name: string; address: { city: string; street: string } }; orders: Order[] };
@@ -81,7 +81,7 @@ export default function App() {
 
 ```tsx preview play=headless
 import { useState } from 'react';
-import { Form, RowScope, TreeField, useField, useForm, useTreeField, useTreeNode } from 'shikiform';
+import { Form, RowScope, TreeField, useField, useForm, useTreeField, useTreeNode } from '@shikiform/react';
 
 type Node = { id: string; name: string; children: Node[] };
 type DragProps = ReturnType<typeof useTreeField>['dragProps'];
@@ -158,8 +158,8 @@ export default function App() {
 
 ```tsx preview play=virtual
 import { useState } from 'react';
-import { ArrayField, Field, Form, useForm } from 'shikiform';
-import { Input } from 'shikiform/antd';
+import { ArrayField, Field, Form, useForm } from '@shikiform/react';
+import { Input } from '@shikiform/antd';
 
 type Row = { id: string; name: string };
 

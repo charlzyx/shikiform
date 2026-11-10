@@ -1,4 +1,4 @@
-import { ArrayField, Field, Form, useForm } from 'shikiform'
+import { ArrayField, Field, Form, useForm } from '@shikiform/react'
 
 interface Row {
   id: string

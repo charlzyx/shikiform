@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Input as AntInput } from 'antd'
-import { Field, Form, useForm, useFormContext, useWatch, type Draft } from 'shikiform'
-import { FormButtonGroup, FormItem, Input, InputNumber, MergedTable, Submit, Switch } from 'shikiform/antd'
+import { Field, Form, useForm, useFormContext, useWatch, type Draft } from '@shikiform/react'
+import { FormButtonGroup, FormItem, Input, InputNumber, MergedTable, Submit, Switch } from '@shikiform/antd'
 import { cloneSkus, paintGroupColor, type SkuRow } from '../skus'
 import { tid } from '../testid'
 

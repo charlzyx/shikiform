@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { defineEffects } from '../src/core'
-import { createEngine } from '../src/core/engine/create'
+import { defineEffects } from '@shikiform/core'
+import { createEngine } from '../packages/core/src/engine/create'
 
 describe('declared fields and unmounted rules', () => {
   it('validates a declared field that was never mounted', async () => {

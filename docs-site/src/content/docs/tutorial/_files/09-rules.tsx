@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { z } from 'zod';
-import { Field, Form, useForm } from 'shikiform';
-import { FormItem, Input, InputNumber, Submit } from 'shikiform/antd';
+import { Field, Form, useForm } from '@shikiform/react';
+import { FormItem, Input, InputNumber, Submit } from '@shikiform/antd';
 
 export const schema = z.object({
   name: z.string(),

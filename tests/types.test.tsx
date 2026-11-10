@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
-import { createForm, defineEffects, EnumSource, type Draft, type EnumOption } from '../src/core'
-import { useQueryTable } from '../src/pro/use-query-table'
-import { Field, ObjectField, typed, useArrayField, useField, useForm, useWatch } from '../src/react'
+import { createForm, defineEffects, EnumSource, type Draft, type EnumOption } from '@shikiform/core'
+import { useQueryTable } from '../packages/hooks/src/use-query-table'
+import { Field, ObjectField, typed, useArrayField, useField, useForm, useWatch } from '@shikiform/react'
 
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false
 type Expect<T extends true> = T

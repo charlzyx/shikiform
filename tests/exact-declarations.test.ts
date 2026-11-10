@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createEngine } from '../src/core/engine/create'
+import { createEngine } from '../packages/core/src/engine/create'
 
 /** #8: exact declarations on template paths survive their row leaving and coming back. */
 const row = () => ({ token: 'example-only', note: 'n', extra: 1 })

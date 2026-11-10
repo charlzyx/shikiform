@@ -1,8 +1,8 @@
 import { Button, ConfigProvider } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
-import { ArrayField, Field, Form, useForm, useWatch, type Draft } from 'shikiform'
-import { FormItem, Input, ArrayTable, ShadowModal } from 'shikiform/antd'
-import { useArrayShadow } from 'shikiform/pro'
+import { ArrayField, Field, Form, useForm, useWatch, type Draft } from '@shikiform/react'
+import { FormItem, Input, ArrayTable, ShadowModal } from '@shikiform/antd'
+import { useArrayShadow } from '@shikiform/hooks'
 
 /** Pro.formily `ProArrayTableWithShadow.tsx` demo: row editing and additions through shadow forms. */
 interface Row {

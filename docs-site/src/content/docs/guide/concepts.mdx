@@ -45,8 +45,8 @@ d.items.$value                // 整个数组的值；d.items 本身不是数组
 
 ```tsx preview
 import { Button, Space } from 'antd';
-import { Field, Form, Watch, useForm, type Draft } from 'shikiform';
-import { FormItem, Input } from 'shikiform/antd';
+import { Field, Form, Watch, useForm, type Draft } from '@shikiform/react';
+import { FormItem, Input } from '@shikiform/antd';
 
 type Values = { user: { name: string; email: string } };
 
@@ -108,8 +108,8 @@ export default function App() {
 写在 `useForm({ fields })` 里的字段不等组件挂载就存在：没渲染（标签页没打开、折叠、虚拟滚动之外）也照样校验。UI 也可以一起声明，之后 `<Field name="city" />` 就能渲染出来：
 
 ```tsx preview play=tabs
-import { Field, Form, Watch, useForm, type Draft } from 'shikiform';
-import { FormItem, Input, Select } from 'shikiform/antd';
+import { Field, Form, Watch, useForm, type Draft } from '@shikiform/react';
+import { FormItem, Input, Select } from '@shikiform/antd';
 
 type Values = { city: string; note: string; items: { name: string }[] };
 

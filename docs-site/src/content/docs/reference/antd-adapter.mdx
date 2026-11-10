@@ -3,11 +3,11 @@ title: Ant Design 适配层
 description: Formily 式适配：Field 的 decorator / component 槽位、FormItem 装饰器、FormLayout / FormGrid / FormButtonGroup、connect / mapProps / mapReadPretty（定义在 shikiform，这里再导出），以及接好的 antd 控件。
 ---
 
-`connect` / `mapProps` / `mapBlur` / `mapReadPretty` / `mapFieldProps` 定义在 `shikiform`，不依赖 antd；`shikiform/antd` 再导出同一批函数。接好的控件在这里额外映射 `status`（`'error'` / `'warning'`）。`<Field>` 拥有字段（`name`、`rules`、`title`、`decorator`、`component`），`FormItem` 只是装饰器。适配层把 [useField](/reference/react-hooks#usefield) 的 `FieldBinding` 映射成控件 props，不保存自己的状态。用法见 [Ant Design 适配](/guide/antd)；不装 antd 时见 [Headless · 接自己的组件库](/guide/headless#接自己的组件库)。
+`connect` / `mapProps` / `mapBlur` / `mapReadPretty` / `mapFieldProps` 定义在 `@shikiform/react`，不依赖 antd；`@shikiform/antd` 再导出同一批函数。接好的控件在这里额外映射 `status`（`'error'` / `'warning'`）。`<Field>` 拥有字段（`name`、`rules`、`title`、`decorator`、`component`），`FormItem` 只是装饰器。适配层把 [useField](/reference/react-hooks#usefield) 的 `FieldBinding` 映射成控件 props，不保存自己的状态。用法见 [Ant Design 适配](/guide/antd)；不装 antd 时见 [Headless · 接自己的组件库](/guide/headless#接自己的组件库)。
 
 ```tsx
-import { createForm, Field, Form } from 'shikiform'
-import { FormItem, FormLayout, Input, Select, Switch } from 'shikiform/antd'
+import { createForm, Field, Form } from '@shikiform/react'
+import { FormItem, FormLayout, Input, Select, Switch } from '@shikiform/antd'
 
 const form = createForm({
   initialValues: { email: '', city: 'sh', vip: false },
@@ -46,7 +46,7 @@ connect<C extends ComponentType<any>>(target: C, ...enhancers: ConnectEnhancer[]
 // ComponentStatics<C> = C 的静态成员（Select.Option、Input.Search …）
 ```
 
-把任意 value/onChange 控件变成字段控件。从 `shikiform` 或 `shikiform/antd` 导入，是同一个函数。`enhancers` 由 [mapProps](#mapprops)、[mapBlur](#mapblur) 与 [mapReadPretty](#mapreadpretty) 生成。返回的组件没有自己的状态：每次渲染都是对当前 `FieldBinding` 调一次 [mapFieldProps](#mapfieldprops)。字段的 `componentProps` 合并在调用方 props 之下（reaction 写的 `$componentProps` 因此能到达控件）。
+把任意 value/onChange 控件变成字段控件。从 `@shikiform/react` 或 `@shikiform/antd` 导入，是同一个函数。`enhancers` 由 [mapProps](#mapprops)、[mapBlur](#mapblur) 与 [mapReadPretty](#mapreadpretty) 生成。返回的组件没有自己的状态：每次渲染都是对当前 `FieldBinding` 调一次 [mapFieldProps](#mapfieldprops)。字段的 `componentProps` 合并在调用方 props 之下（reaction 写的 `$componentProps` 因此能到达控件）。
 
 默认传 `value` / `onChange` / `onBlur` / `disabled` / `readOnly` / `id`。**不传** antd 的 `status`；要红框的 antd 控件自己 `mapProps({ status: 'status' })`（本库接好的 Input、Select 等已经做了）。
 
@@ -126,7 +126,7 @@ mapReadPretty(component: ComponentType<any>, props?: Record<string, unknown>): C
 mapFieldProps(field: FieldBinding<any>, props: Record<string, any>, ...mappers: Array<PropsMapping | PropsTransform>): Record<string, any>
 ```
 
-`connect` 的纯函数核心，从 `shikiform` 导入即可，不必装 antd。`value` 取字段值（有 `format` 时先转成控件要的值）；`onChange` 先 `parse`（默认 `valueFromEvent`）写字段，再以原始参数调用调用方的 `onChange`，各一次；`onBlur` 先标记 touched 再调调用方；`disabled` / `readOnly` 与调用方 props 取 OR；`id` 默认是字段 id；`field.componentProps` 合并在 `props` 之下。`status` 只有第三个参数写了 `{ status: 'status' }` 才出现（有错误 `'error'`，只有警告 `'warning'`）。`blurOn` 与 `mapProps` 相同。
+`connect` 的纯函数核心，从 `@shikiform/react` 导入即可，不必装 antd。`value` 取字段值（有 `format` 时先转成控件要的值）；`onChange` 先 `parse`（默认 `valueFromEvent`）写字段，再以原始参数调用调用方的 `onChange`，各一次；`onBlur` 先标记 touched 再调调用方；`disabled` / `readOnly` 与调用方 props 取 OR；`id` 默认是字段 id；`field.componentProps` 合并在 `props` 之下。`status` 只有第三个参数写了 `{ status: 'status' }` 才出现（有错误 `'error'`，只有警告 `'warning'`）。`blurOn` 与 `mapProps` 相同。
 
 ```tsx
 const field = useField('email', { required: true })
@@ -178,8 +178,8 @@ Formily `FormItem`，**不拥有字段**：没有 `name` / `rules` / `required` 
 
 ```tsx preview
 import { Space } from 'antd';
-import { Field, Form, useForm } from 'shikiform';
-import { FormItem, FormLayout, Input, InputNumber } from 'shikiform/antd';
+import { Field, Form, useForm } from '@shikiform/react';
+import { FormItem, FormLayout, Input, InputNumber } from '@shikiform/antd';
 
 export default function App() {
   const form = useForm({ initialValues: { code: 'a', price: null, province: '', city: '', note: '' } });
@@ -292,8 +292,8 @@ FormGrid(props: {
 Formily `FormGrid`：CSS grid，列数跟随**自身宽度**——能放下几个 `minWidth` 宽的列就放几列，夹在 `minColumns` 与 `maxColumns` 之间；没量到宽度前（SSR）按 `maxColumns`。每个直接子元素占一格；`FormItem` 用 `gridSpan` 多占几格（超过当前列数时截断，`-1` 占满一行），其他内容用 [GridColumn](#gridcolumn)。
 
 ```tsx preview
-import { Field, Form, useForm } from 'shikiform';
-import { FormGrid, FormItem, FormLayout, GridColumn, Input } from 'shikiform/antd';
+import { Field, Form, useForm } from '@shikiform/react';
+import { FormGrid, FormItem, FormLayout, GridColumn, Input } from '@shikiform/antd';
 
 export default function App() {
   const form = useForm({ initialValues: { name: '', phone: '', email: '', city: '', address: '' } });
@@ -345,8 +345,8 @@ Formily `FormButtonGroup`：一行按钮，`gap` 默认 8，可换行。
 
 ```tsx preview
 import { useState } from 'react';
-import { Field, Form, useForm } from 'shikiform';
-import { FormButtonGroup, FormItem, FormLayout, Input, Reset, Submit } from 'shikiform/antd';
+import { Field, Form, useForm } from '@shikiform/react';
+import { FormButtonGroup, FormItem, FormLayout, Input, Reset, Submit } from '@shikiform/antd';
 
 export default function App() {
   const [result, setResult] = useState('');

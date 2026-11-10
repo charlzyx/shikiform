@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Button, Drawer } from 'antd'
-import { ArrayField, defineEffects, Field, Form, useForm, useFormContext, useRecord, useWatch, type Draft } from 'shikiform'
-import { FormItem, FormLayout, Input, InputNumber, Switch } from 'shikiform/antd'
+import { ArrayField, defineEffects, Field, Form, useForm, useFormContext, useRecord, useWatch, type Draft } from '@shikiform/react'
+import { FormItem, FormLayout, Input, InputNumber, Switch } from '@shikiform/antd'
 
 interface Order {
   id: string

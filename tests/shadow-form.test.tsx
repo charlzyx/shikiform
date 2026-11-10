@@ -2,9 +2,9 @@
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react'
 import { Button } from 'antd'
 import { afterEach, describe, expect, it } from 'vitest'
-import { ArrayField, createForm, Field, Form, RowScope, useField } from '../src'
-import { FormItem, Input, ArrayTable, ShadowForm, ShadowModal, ShadowPopconfirm, useShadow } from '../src/antd'
-import { useArrayShadow, useShadowForm } from '../src/pro'
+import { ArrayField, createForm, Field, Form, RowScope, useField } from '@shikiform/react'
+import { FormItem, Input, ArrayTable, ShadowForm, ShadowModal, ShadowPopconfirm, useShadow } from '@shikiform/antd'
+import { useArrayShadow, useShadowForm } from '@shikiform/hooks'
 import type { ReactNode } from 'react'
 
 afterEach(cleanup)

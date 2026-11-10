@@ -1,7 +1,7 @@
 import { useRef, useState, type HTMLAttributes, type MouseEvent } from 'react'
 import { Button, Drawer, Spin, Table } from 'antd'
-import { FormItem, FormLayout, Input, InputNumber } from 'shikiform/antd'
-import { defineEffects, Field, Form, ObjectField, useForm, useFormContext, useWatch, type Draft } from 'shikiform'
+import { FormItem, FormLayout, Input, InputNumber } from '@shikiform/antd'
+import { defineEffects, Field, Form, ObjectField, useForm, useFormContext, useWatch, type Draft } from '@shikiform/react'
 
 interface Row {
   id: string

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { pathOf, posOf } from '../src/core'
-import { isPosPrefix } from '../src/core/shared/tree-ops'
-import { createEngine } from '../src/core/engine/create'
+import { pathOf, posOf } from '@shikiform/core'
+import { isPosPrefix } from '../packages/core/src/shared/tree-ops'
+import { createEngine } from '../packages/core/src/engine/create'
 
 interface Node {
   id: string

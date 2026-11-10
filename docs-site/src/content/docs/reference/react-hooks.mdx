@@ -3,7 +3,7 @@ title: React Hooks
 description: useForm、useField、useWatch、数组与树 Hooks 的签名、返回值、订阅和完整示例。
 ---
 
-从 `shikiform` 导入，不依赖 antd。用法见 [Headless Hooks](/guide/headless)。
+从 `@shikiform/react` 导入，不依赖 antd。用法见 [Headless Hooks](/guide/headless)。
 
 | 要做什么 | Hook | 是否订阅 |
 |---|---|---|
@@ -45,7 +45,7 @@ interface UseFormOptions<T> extends FormOptions<T> { values?: T }
 
 完整选项、校验默认触发器和提交返回值见 [创建表单](/api#创建表单)。非 React 环境用 `createForm`。
 
-[实现：use-form.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-form.ts)
+[实现：use-form.ts](https://github.com/charlzyx/shikiform/blob/main/packages/react/src/hooks/use-form.ts)
 
 ## useFormMessage
 
@@ -53,7 +53,7 @@ interface UseFormOptions<T> extends FormOptions<T> { values?: T }
 useFormMessage(): (key: FormMessageKey, params?) => string
 ```
 
-返回一个函数，按最近 `<Form>` 的 `messages` → `setDefaultMessages` → `zhCN` 解析内置文案；没有表单时只用应用默认值。`shikiform/antd` 的按钮文案都经过它，自定义组件用它就能跟着同一套语言：
+返回一个函数，按最近 `<Form>` 的 `messages` → `setDefaultMessages` → `zhCN` 解析内置文案；没有表单时只用应用默认值。`@shikiform/antd` 的按钮文案都经过它，自定义组件用它就能跟着同一套语言：
 
 ```tsx
 const t = useFormMessage()
@@ -63,7 +63,7 @@ const t = useFormMessage()
 
 key 列表见 [内置文案](/guide/validation#内置文案)。有实例时等价于 `form.message(key, params)`。
 
-[实现：use-form-message.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-form-message.ts)
+[实现：use-form-message.ts](https://github.com/charlzyx/shikiform/blob/main/packages/react/src/hooks/use-form-message.ts)
 
 ## typed
 
@@ -124,7 +124,7 @@ const F = typed(form)
 - `<F.Field enum>` / `row.Field` 的 `enum` 按字段值检查选项的 `value`（数组字段按元素类型）。
 - `typed` 没有新的运行时：同一个表单多次调用返回同一个对象。
 
-[实现：typed.tsx](https://github.com/charlzyx/shikiform/blob/main/src/react/factory/typed.tsx)
+[实现：typed.tsx](https://github.com/charlzyx/shikiform/blob/main/packages/react/src/factory/typed.tsx)
 
 ## useFormContext
 
@@ -136,9 +136,9 @@ useFormContext<T = any>(): FormInstance<T>
 
 `T` 是调用者对已有实例的类型说明，不做运行时转换。它不订阅字段值或 `submitting`，适合按钮事件里调用 `reset`、`submit`。要显示实时提交状态，配合 `useWatch`。
 
-这是顶层公开 Hook；`useScope` 只是内部实现，不是 `shikiform` 顶层导出。
+这是顶层公开 Hook；`useScope` 只是内部实现，不是 `@shikiform/react` 顶层导出。
 
-[实现：context.tsx](https://github.com/charlzyx/shikiform/blob/main/src/react/context.tsx)
+[实现：context.tsx](https://github.com/charlzyx/shikiform/blob/main/packages/react/src/context.tsx)
 
 ## useField
 
@@ -188,7 +188,7 @@ type FieldSlot<C extends ComponentType<any> = ComponentType<any>> =
 | `useField<Row>('price')` | 检查路径存在，但值类型是各可选路径值的联合 |
 | `useField<Row, 'price'>('price')` | 检查路径，值精确为 `Row['price']` |
 
-`FieldBinding`、`FieldPath`、`PathValue` 都可从 `shikiform` 导入（`FieldPath` / `PathValue` 在 `shikiform/core` 里是同一个类型）。
+`FieldBinding`、`FieldPath`、`PathValue` 都可从 `@shikiform/react` 导入（`FieldPath` / `PathValue` 在 `@shikiform/core` 里是同一个类型）。
 
 ### 返回的 FieldBinding
 
@@ -247,7 +247,7 @@ const field = useField('amount', { ui: 'slider' })                  // 同上的
 - 实例**不**登记 JSX `rules` / `required` / `enum`（开发期警告一次）：这些写在不带 `ui` 的 `<Field>` 上。实例的 `display` 没有 `virtual`。
 - 名字类型：默认任意字符串；在 `UiNames` 里登记后 `ui` / `<UI name>` / `$ui()` 都检查拼写（见 [UI 节点](/guide/ui#名字的类型)）。
 
-[实现：use-field.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-field.ts)
+[实现：use-field.ts](https://github.com/charlzyx/shikiform/blob/main/packages/react/src/hooks/use-field.ts)
 
 ## UI 组件（`<UI>`）
 
@@ -272,7 +272,7 @@ reaction((d) => { d.$ui('approvalTip').$visible = d.amount.$value >= 50000 })
 - **隐藏不级联**：`<UI>` 隐藏时不渲染子元素，但里面字段的 `$visible`、校验、提交都不变（字段只看自己的 display）。要连字段一起去掉，再写字段自己的 `$visible = false`。
 - reaction 写了一个从没挂载过的 `$ui(name)`（拼错、忘了渲染）：挂载稳定后开发期警告一次，列出这个路径上已挂载的名字。
 
-[实现：ui.tsx](https://github.com/charlzyx/shikiform/blob/main/src/react/components/ui.tsx)
+[实现：ui.tsx](https://github.com/charlzyx/shikiform/blob/main/packages/react/src/components/ui.tsx)
 
 ## useWatch
 
@@ -292,12 +292,12 @@ useWatch<T = any, S = unknown>(select: (draft: Draft<T>) => S): S
 
 `useWatch` 是 React 中的读取/渲染；effects 里的 `watch(source, effect)` 是值变化后的动作，两者不是同一 API。参见 [联动](/guide/linkage)。
 
-[实现：use-watch.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-watch.ts)
+[实现：use-watch.ts](https://github.com/charlzyx/shikiform/blob/main/packages/react/src/hooks/use-watch.ts)
 
 ### 完整例子：一个绑定、一个 selector、一个操作按钮
 
 ```tsx preview
-import { Form, useField, useForm, useFormContext, useWatch, type Draft } from 'shikiform';
+import { Form, useField, useForm, useFormContext, useWatch, type Draft } from '@shikiform/react';
 
 type Values = { name: string };
 
@@ -341,7 +341,7 @@ useArrayField<TScope, N extends ArrayPath<TScope>>(
 ): ArrayHandle<ArrayItemOf<TScope, N & string>>
 ```
 
-`ArrayHandle` 类型可从 `shikiform` 导入，调用方通常直接用返回值推断。`ArrayPath` 从 `shikiform/core` 导入，`ArrayItemOf` 也可从 `shikiform` 导入。
+`ArrayHandle` 类型可从 `@shikiform/react` 导入，调用方通常直接用返回值推断。`ArrayPath` 从 `@shikiform/core` 导入，`ArrayItemOf` 也可从 `@shikiform/react` 导入。
 
 | 参数 | 作用 / 默认 |
 |---|---|
@@ -368,12 +368,12 @@ useArrayField<TScope, N extends ArrayPath<TScope>>(
 
 `dragProps` 函数对同一数组路径保持同一个引用（拖动起点记在句柄内部），所以可以经 context 交给 `memo` 的行而不让它们重渲染；没有隐藏的拖拽库，把手、键盘和触屏交互由应用决定。事件没有 `dataTransfer` 时用句柄记下的起点。
 
-[实现：use-array.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-array.ts) · [数组教程](/tutorial/7-array)
+[实现：use-array.ts](https://github.com/charlzyx/shikiform/blob/main/packages/react/src/hooks/use-array.ts) · [数组教程](/tutorial/7-array)
 
 ### 完整例子：拖动排序，键不变，路径随顺序变化
 
 ```tsx preview
-import { Form, RowScope, useArrayField, useField, useForm } from 'shikiform';
+import { Form, RowScope, useArrayField, useField, useForm } from '@shikiform/react';
 
 type Item = { id: string; label: string };
 type Values = { items: Item[] };
@@ -473,7 +473,7 @@ useTreeField(name: string, options?: {
 }
 ```
 
-`Pos` 是 `readonly number[]`，`MoveResult` 是 `{ ok: boolean; reason?: string }`，两者都从 `shikiform` 导入。当前 Hook 没有节点泛型；返回的 `value` 不是自动获得业务节点类型的数组。
+`Pos` 是 `readonly number[]`，`MoveResult` 是 `{ ok: boolean; reason?: string }`，两者都从 `@shikiform/react` 导入。当前 Hook 没有节点泛型；返回的 `value` 不是自动获得业务节点类型的数组。
 
 | 参数 / 返回 | 含义 / 默认 |
 |---|---|
@@ -489,13 +489,13 @@ useTreeField(name: string, options?: {
 
 `[0, 2]` 表示第一个根节点的第三个孩子，不是节点 ID。稳定 ID 用于移动时保持字段状态；不要用当前坐标代替业务 ID。
 
-[实现：use-tree.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-tree.ts) · [结构与路径](/guide/concepts)
+[实现：use-tree.ts](https://github.com/charlzyx/shikiform/blob/main/packages/react/src/hooks/use-tree.ts) · [结构与路径](/guide/concepts)
 
 ### 完整例子：同层拖动和显式移动结果
 
 ```tsx preview
 import { useState } from 'react';
-import { Form, useForm, useTreeField } from 'shikiform';
+import { Form, useForm, useTreeField } from '@shikiform/react';
 
 type Node = { id: string; title: string; children: Node[] };
 type Values = { nodes: Node[] };
@@ -581,7 +581,7 @@ function Section({ children }: { children: ReactNode }) {
 }
 ```
 
-[实现：field-group.tsx](https://github.com/charlzyx/shikiform/blob/main/src/react/field-group.tsx) · [分组容器](/guide/containers)
+[实现：field-group.tsx](https://github.com/charlzyx/shikiform/blob/main/packages/react/src/field-group.tsx) · [分组容器](/guide/containers)
 
 ## useFieldDecorator
 
@@ -594,7 +594,7 @@ useFieldDecorator(options?: {
 }): FieldDecorator
 ```
 
-给自己的 UI 库画标签和错误，返回的是数据，不是 antd 的 `Form.Item` props。必须写在 `<Field>` 里，或传入 `useField(name)` 的 binding。`shikiform/antd` 的 `FormItem` 仍走 `mapFormItemProps`。
+给自己的 UI 库画标签和错误，返回的是数据，不是 antd 的 `Form.Item` props。必须写在 `<Field>` 里，或传入 `useField(name)` 的 binding。`@shikiform/antd` 的 `FormItem` 仍走 `mapFormItemProps`。
 
 | 字段 | 含义 |
 |---|---|
@@ -633,7 +633,7 @@ function MantineInput() {
 }
 ```
 
-[实现：use-field-decorator.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-field-decorator.ts) · [Headless · 接自己的组件库](/guide/headless#接自己的组件库)
+[实现：use-field-decorator.ts](https://github.com/charlzyx/shikiform/blob/main/packages/react/src/hooks/use-field-decorator.ts) · [Headless · 接自己的组件库](/guide/headless#接自己的组件库)
 
 ## useSubmit
 
@@ -654,7 +654,7 @@ useSubmit<T, E = ClickEvent>(options?: {
 
 当前表单的提交状态，不订阅字段值。不传 `onSubmit` 时 `type` 是 `'submit'`，交给外层 `<Form onSubmit>`（回车同样提交）。传了 `onSubmit` 时 `type` 是 `'button'`，点击自己跑 `form.submit`。`onClick` 先执行，`preventDefault` 会跳过这次自带的提交。
 
-`<Submit>` 是这个 Hook 的三种外壳：默认 `<button>`（文案 `messages.submit`）、`asChild`（行为合并到唯一子元素）、render prop（参数就是这份状态）。`shikiform/antd` 的 `<Submit>` 是 antd `Button`，走同一个 Hook。
+`<Submit>` 是这个 Hook 的三种外壳：默认 `<button>`（文案 `messages.submit`）、`asChild`（行为合并到唯一子元素）、render prop（参数就是这份状态）。`@shikiform/antd` 的 `<Submit>` 是 antd `Button`，走同一个 Hook。
 
 ```tsx
 const submit = useSubmit()
@@ -664,7 +664,7 @@ const submit = useSubmit()
 <Submit onSubmit={saveDraft}>{(state) => <button type="button" disabled={state.disabled} onClick={state.onClick}>存草稿</button>}</Submit>
 ```
 
-[实现：use-submit.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-submit.ts)
+[实现：use-submit.ts](https://github.com/charlzyx/shikiform/blob/main/packages/react/src/hooks/use-submit.ts)
 
 ## useReset
 
@@ -682,4 +682,4 @@ useReset<T, E = ClickEvent>(options?: {
 <Reset afterReset={(values) => search(values)} asChild><button>重置</button></Reset>
 ```
 
-[实现：use-submit.ts](https://github.com/charlzyx/shikiform/blob/main/src/react/hooks/use-submit.ts) · [antd Reset](/reference/antd#reset)
+[实现：use-submit.ts](https://github.com/charlzyx/shikiform/blob/main/packages/react/src/hooks/use-submit.ts) · [antd Reset](/reference/antd#reset)

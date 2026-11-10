@@ -4,6 +4,8 @@ import { demoImports } from './docs-site/src/bridge/playground/imports';
 import { shikiformTutorials } from './docs-site/src/mdx/shikiform-vite.mjs';
 import { defineConfig } from 'vitest/config';
 
+const alias = (name: string, file: string) => ({ find: new RegExp(`^${name.replace('/', '\\/')}$`), replacement: path.resolve(file) })
+
 export default defineConfig({
   plugins: [demoImports(), shikiformTutorials()],
   resolve: {
@@ -16,10 +18,13 @@ export default defineConfig({
       // 同理：antd 从 docs-site/node_modules 解析时会带进第二份 react 实例。
       // \b 只替换包名本身，保留 /locale/zh_CN 等子路径。
       { find: /^antd\b/, replacement: path.resolve('node_modules/antd') },
-      { find: /^shikiform\/antd$/, replacement: path.resolve('src/antd/index.ts') },
-      { find: /^shikiform\/core$/, replacement: path.resolve('src/core/index.ts') },
-      { find: /^shikiform\/pro$/, replacement: path.resolve('src/pro/index.ts') },
-      { find: /^shikiform$/, replacement: path.resolve('src/index.ts') },
+      alias('@shikiform/antd', 'packages/antd/src/index.ts'),
+      alias('@shikiform/core/internal', 'packages/core/src/internal.ts'),
+      alias('@shikiform/core', 'packages/core/src/index.ts'),
+      alias('@shikiform/hooks/internal', 'packages/hooks/src/internal.ts'),
+      alias('@shikiform/hooks', 'packages/hooks/src/index.ts'),
+      alias('@shikiform/react/internal', 'packages/react/src/internal.ts'),
+      alias('@shikiform/react', 'packages/react/src/index.ts'),
     ],
   },
   test: {

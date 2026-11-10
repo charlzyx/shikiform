@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { defineEffects, Field, Form, ObjectField, useForm } from 'shikiform'
-import type { Display } from 'shikiform/core'
+import { defineEffects, Field, Form, ObjectField, useForm } from '@shikiform/react'
+import type { Display } from '@shikiform/core'
 import { Button } from 'antd'
-import { FormButtonGroup, FormItem, FormLayout, Input, Radio } from 'shikiform/antd'
+import { FormButtonGroup, FormItem, FormLayout, Input, Radio } from '@shikiform/antd'
 import { tid } from '../testid'
 
 interface Values {

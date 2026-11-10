@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
 import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { Field, Form, createForm, defineEffects } from '../src'
-import { FormItem, Input } from '../src/antd'
-import { createEngine } from '../src/core/engine/create'
+import { Field, Form, createForm, defineEffects } from '@shikiform/react'
+import { FormItem, Input } from '@shikiform/antd'
+import { createEngine } from '../packages/core/src/engine/create'
 
 const weak = (value: unknown) => (/\d/.test(String(value)) && /[a-z]/i.test(String(value)) ? null : '建议同时包含字母和数字')
 
