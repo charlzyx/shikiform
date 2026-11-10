@@ -68,6 +68,18 @@ describe('development usage errors (with the fix in the message)', () => {
     expect(withReaction((d) => { d.total.$value = d.count + 1 })).toThrow(/Read d\.count\.\$value/)
   })
 
+  it('rest, spread, Object.keys and array destructuring throw and name the child-handle form', () => {
+    expect(withReaction((d) => { Object.keys(d.user) })).toThrow(/Object\.keys\(d\.user\).*const \{ name \} = d\.user.*name\.\$value/)
+    expect(withReaction((d) => { const copy = { ...d.user }; void copy })).toThrow(/object spread/)
+    expect(withReaction((d) => { const { name, ...rest } = d.user; void name; void rest })).toThrow(/rest/)
+    expect(withReaction((d) => { const [row] = d.items; void row })).toThrow(/const \[row\] = d\.items.*reaction\.each/)
+    const form = withReaction((d) => {
+      const { name, tags } = d.user
+      d.total.$value = name.$value.length + tags.$value.length
+    })()
+    expect(form.getValue('total')).toBe(2)
+  })
+
   it('a field literally named length is still a path when the value is not an array', () => {
     const form = createEngine({ initialValues: { box: { length: 3 } } })
     expect((form.draft as any).box.length.$value).toBe(3)
@@ -110,6 +122,22 @@ describe('production builds skip the guards', () => {
       return d.total.$value
     })
     expect(form.getValue('total')).toBe(5)
+  })
+
+  it('enumerating a handle does not throw the guided error', () => {
+    let keys: string[] = []
+    let copied: string[] = []
+    expect(prod((d) => { keys = Object.keys(d.user) }).getValue('user')).toEqual({ name: 'a', tags: ['x'] })
+    expect(keys).toEqual([])
+    expect(
+      prod((d) => {
+        const copy = { ...d.user }
+        copied = Object.keys(copy)
+      }).getValue('total'),
+    ).toBe(0)
+    expect(copied).toEqual([])
+    expect(() => prod((d) => { const [row] = d.items; void row })).toThrow(TypeError)
+    expect(() => prod((d) => { const [row] = d.items; void row })).not.toThrow(ShikiUsageError)
   })
 
   it('array methods and .length on a handle do not throw the guided error; $value iteration works', () => {

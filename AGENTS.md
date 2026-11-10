@@ -25,7 +25,8 @@ and SSR-rendered against the packed library); the site's `/llms.txt` serves this
   (assigning `null` — what InputNumber writes when cleared — type-checks); an optional field accepts `undefined`.
 - A `$value` object is a snapshot of immutable data. Never mutate it; assign a new value or write the child path.
   Inside `reaction`, `watch` and `form.batch` the snapshot is read-only in development (mutation throws).
-- A handle is not an array: no `.map`, `.length`, `for…of` on `d.items`. Use `d.items.$value` or `reaction.each`.
+- A handle is not an array: no `.map`, `.length`, `for…of`, or `const [row] = d.items`. Use `d.items.$value` or `reaction.each`.
+- Destructuring takes child field handles only (`const { name } = d.user`, then `name.$value`). `$` state is always read and written on the handle. Object rest, object spread, and `Object.keys(handle)` throw in development.
 - Display is `visible` | `hidden` | `virtual` | `none` (no separate `virtual` flag). `visible` renders, validates,
   submits, and counts as dirty. `hidden` does not render (stays registered) but still validates, submits, and counts as
   dirty — unlike Formily, whose `hidden` skips validation. `virtual` renders and validates (errors block submit, e.g. a
@@ -40,8 +41,8 @@ and SSR-rendered against the packed library); the site's `/llms.txt` serves this
   `none` > `hidden` > `virtual` > `visible`. A conditional field is `$visible`; an inactive tab is `$hidden`; a confirm
   password or client-paging `page` is `display: 'virtual'`. Named UI `$display` has no `'virtual'`.
 
-Development builds throw `ShikiUsageError` with the fix for all three mistakes (mutating `$value`, using a handle
-as an array, and reading back a `$` state you wrote in the same pass), and for a misspelled state (`$valeu`,
+Development builds throw `ShikiUsageError` with the fix for these mistakes (mutating `$value`, using a handle
+as an array, enumerating it with `Object.keys` / object spread / rest, and reading back a `$` state you wrote in the same pass), and for a misspelled state (`$valeu`,
 `$requird`), a write to a read-only state (`$errors`, `$touched`), `d.x.value = …` without `$`, an unknown rule key
 (`minLenght` → "Did you mean minLength?"), `component={[undefined]}` (an import that resolves to nothing) and
 `<ArrayField>` over a non-array value. `ShikiConflictError` / `ShikiCycleError` list each reaction involved with its
@@ -57,14 +58,17 @@ call site, the states it reads and the states it writes. Production skips the ch
 - Writes are buffered until the pass returns: keep a new value in a local instead of reading it back. UI state is
   the exception (its pending writes replay, so `props.style ??= {}; props.style.color = 'red'` works).
 
-## 3. Rows and nodes: each / walk
+## 3. Rows and nodes: each
 
-One callback shape for all three row-level APIs: `(row, ctx)` with `ctx = { d, path, index, pos }`
-(`d` root draft, `path` exact row path, `index` index in its array, `pos` tree coordinate; `[index]` for arrays).
+`reaction.each(select, fn)` and `watch.each(select, fn)` take two arguments. No third argument and no `childrenKey`.
+`fn` is `(row, ctx)`. `ctx` has `key`, `index`, `depth`, `parent`, `path`, `pos`, and the root draft `d`.
 
-- `reaction.each((d) => d.items, (row, { d, index }) => …)`: one instance per row; a cell edit re-runs that row only.
-- `reaction.walk((d) => d.nodes, (node, { pos }) => …, { childrenKey })`: one instance per tree node.
-- `watch.each((d) => d.items, (row, ctx) => …)`: row-scoped watch; the `$` reads in the callback are its source.
+`each` visits every element of the selected array, then every nested array whose elements are objects.
+Arrays of primitives are not entered. Filter in the callback (`ctx.depth`, `ctx.key`), the way `JSON.stringify`'s
+replacer does. There is no `reaction.walk` / `watch.walk`.
+
+- `reaction.each((d) => d.items, (row, { d, index, depth }) => …)`: one instance per element; a cell edit re-runs that element only.
+- `watch.each((d) => d.items, (row, ctx) => …)`: the same traversal as a watch; the `$` reads in the callback are its source.
 
 Per-row settings that must follow the row when it moves are `rows.*.x` templates (in `fields`) or `reaction.each`.
 An exact-index declaration (`fields: { 'rows.0.x': … }`, `registerField('rows.0.x', …)`) belongs to that path: after a
@@ -330,27 +334,33 @@ watch((d) => d.price.$value, (d) => { d.total.$value = d.price.$value * 2 })  //
 reaction((d) => { d.total.$value = d.price.$value * 2 })                       // ✓
 watch((d) => d.province.$value, (d) => { d.city.$value = undefined })          // ✓ an action on change
 
-// 5. Row callbacks take (row, ctx)
-reaction.each((d) => d.rows, (row, d, index) => { /* … */ })          // ✗ old signature
-reaction.each((d) => d.rows, (row, { d, index }) => {                   // ✓
+// 5. each is two arguments; filter nested object arrays yourself
+reaction.each((d) => d.rows, (row) => {}, { childrenKey: 'children' }) // ✗ no third argument, no walk
+reaction.each((d) => d.rows, (row, { d, index, depth }) => {            // ✓
+  if (depth !== 0) return
   row.name.$required = index === 0 || d.strict.$value
 })
+
+// 6. Destructure child handles; read $ state on the handle
+const { $value, ...rest } = d.user              // ✗ rest / spread / Object.keys throw in dev
+const { name } = d.user                         // ✓
+name.$value = 'Ada'
 ```
 
 ```tsx
-// 6. Field owns the path; FormItem only decorates
+// 7. Field owns the path; FormItem only decorates
 <FormItem name="email" label="邮箱" required><Input /></FormItem>                      // ✗ FormItem has no name
 <Field name="email" title="邮箱" required decorator={[FormItem]} component={[Input]} />  // ✓
 
-// 7. UI linkage goes through $componentProps, not a prop computed in render
+// 8. UI linkage goes through $componentProps, not a prop computed in render
 <Field name="city" component={[Select, { disabled: form.getValue('kind') === 'b' }]} />   // ✗ not reactive
 reaction((d) => { d.city.$componentProps.disabled = d.kind.$value === 'b' })             // ✓
 
-// 8. Same field twice: name the second UI instead of a second <Field> with the same props layer
+// 9. Same field twice: name the second UI instead of a second <Field> with the same props layer
 <Field name="name" component={[Input]} /><Field name="name" component={[Echo]} />                    // ✗ one $componentProps, duplicate id
 <Field name="name" component={[Input]} /><Field name="name" ui="echo" component={[Echo]} />          // ✓ d.name.$ui('echo')
 
-// 9. Inside a row the name is relative, and typed by the row
+// 10. Inside a row the name is relative, and typed by the row
 <ArrayField name="items">{({ index }) => <Field name={`items.${index}.name`} />}</ArrayField>  // ✗ items.0.items.0.name (dev error)
 <F.ArrayField name="items">{(row) => <row.Field name="name" decorator={[FormItem]} component={[Input]} />}</F.ArrayField>  // ✓ F = typed(form)
 ```

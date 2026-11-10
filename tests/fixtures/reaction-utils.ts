@@ -22,6 +22,6 @@ export function runsFor(stats: Record<string, number>, suffix: string) {
 /** `each` / `walk` 调度器（而非每行 / 每节点实例）的运行次数。 */
 export function schedulerRuns(stats: Record<string, number>) {
   return Object.entries(stats)
-    .filter(([key]) => /^(each|walk):\d+$/.test(key))
+    .filter(([key]) => /^each:\d+$/.test(key))
     .reduce((sum, [, count]) => sum + count, 0)
 }

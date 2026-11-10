@@ -11,7 +11,8 @@ const effects = defineEffects<Values>(({ reaction }) => {
   reaction((d) => {
     d.orders.$pattern = d.editable.$value ? undefined : 'readPretty'
   })
-  reaction.each((d) => d.orders, (order, { d }) => {
+  reaction.each((d) => d.orders, (order, { d, depth }) => {
+    if (depth !== 0) return // items 也是对象数组；这一轮只处理订单
     order.$pattern = order.status.$value === 'shipped' ? 'readPretty' : undefined // 已发货：整单只读
     order.status.$pattern = d.editable.$value ? 'editable' : 'readPretty' // 状态本身始终跟随总开关
     let amount = 0

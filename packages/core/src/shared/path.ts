@@ -18,10 +18,60 @@ export function joinPath(parent: string, key: string): string {
   return parent ? `${parent}.${key}` : key
 }
 
+/**
+ * Lodash-style path segments. `a.b[0].c` and `a['b-c']` become `['a', 'b', '0', 'c']` / `['a', 'b-c']`.
+ * A path with no brackets is split on `.` unchanged (including empty segments).
+ */
+export function pathSegments(path: string): string[] {
+  if (!path) return []
+  if (!path.includes('[')) return path.split('.')
+  const out: string[] = []
+  let i = 0
+  let token = ''
+  const push = () => {
+    if (token) out.push(token)
+    token = ''
+  }
+  while (i < path.length) {
+    const ch = path[i]!
+    if (ch === '.') {
+      push()
+      i += 1
+      continue
+    }
+    if (ch === '[') {
+      push()
+      const end = path.indexOf(']', i + 1)
+      if (end < 0) {
+        token = path.slice(i)
+        push()
+        break
+      }
+      let inner = path.slice(i + 1, end).trim()
+      if ((inner.startsWith("'") && inner.endsWith("'") && inner.length >= 2) || (inner.startsWith('"') && inner.endsWith('"') && inner.length >= 2)) {
+        inner = inner.slice(1, -1)
+      }
+      out.push(inner)
+      i = end + 1
+      continue
+    }
+    token += ch
+    i += 1
+  }
+  push()
+  return out
+}
+
+/** `a.b[0].c` / `a['name']` → `a.b.0.c` / `a.name`. Dot paths are unchanged. */
+export function normalizePath(path: string): string {
+  if (!path || !path.includes('[')) return path
+  return pathSegments(path).join('.')
+}
+
 export function getAt(root: unknown, path: string): unknown {
   if (!path) return root
   let cur: unknown = root
-  for (const part of path.split('.')) {
+  for (const part of pathSegments(path)) {
     if (cur == null || (typeof cur !== 'object' && typeof cur !== 'function')) return undefined
     cur = (cur as Record<string, unknown>)[part]
   }
@@ -29,8 +79,8 @@ export function getAt(root: unknown, path: string): unknown {
 }
 
 export function setAt<T>(root: T, path: string, value: unknown): T {
-  if (!path) return value as T
-  const parts = path.split('.')
+  const parts = pathSegments(path)
+  if (!parts.length) return value as T
   const write = (node: unknown, index: number): unknown => {
     const key = parts[index]!
     const last = index === parts.length - 1
@@ -49,8 +99,8 @@ export function setAt<T>(root: T, path: string, value: unknown): T {
 }
 
 export function deleteAt<T>(root: T, path: string): T {
-  if (!path) return root
-  const parts = path.split('.')
+  const parts = pathSegments(path)
+  if (!parts.length) return root
   const write = (node: unknown, index: number): unknown => {
     if (node == null || typeof node !== 'object') return node
     const key = parts[index]!

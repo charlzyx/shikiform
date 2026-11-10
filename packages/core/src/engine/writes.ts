@@ -4,7 +4,7 @@ import { asOptions, isEnumBinding, type EnumBinding, type EnumOption } from '../
 import { unwrapReadonly } from '../draft/readonly'
 import { showDraftPath } from '../errors'
 import { deepEqual } from '../shared/equal'
-import { getAt, parentPath, setAt } from '../shared/path'
+import { getAt, normalizePath, parentPath, setAt } from '../shared/path'
 import { shownErrors, type FieldModel } from '../state/field-model'
 import type { FieldStore } from '../state/field-store'
 import type { Notifier } from '../state/notifier'
@@ -88,6 +88,7 @@ export class StateWriter {
   }
 
   commitExternal(path: string, value: unknown): void {
+    path = normalizePath(path)
     const { store, notifier, scheduler, validator } = this.deps
     if (process.env.NODE_ENV !== 'production') value = unwrapReadonly(value)
     if (!this.commitValue(path, value, false)) return
