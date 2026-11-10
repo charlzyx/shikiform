@@ -133,7 +133,7 @@ reaction.each((d) => d.orders, (order, ctx) => {
 ```
 
 <Aside type="caution" title="回调参数的类型停在选中的那一层">
-`each` 把回调的第一个参数类型定成选择器选中的元素（这里是 `{ lines }`）。运行时走进 `lines` 仍会调用它，但类型不会变成行。写成 `node.qty` 是 `TS2339`。运行时那样会把 `orders.0.lines.2` 设成必填，只是不能当能过 tsc 的写法。
+`each` 把回调的第一个参数类型定成选择器选中的元素（这里是 `{ lines }`）。运行时走进 `lines` 仍会调用它，但类型不会变成行。用 `ctx.key !== 'lines' || ctx.index !== 2` 可以在运行时只处理最里层的第 2 项，接着写 `node.qty` 却是 `TS2339`。那样运行时会把 `orders.0.lines.2` 设成必填，只是不能当能过 tsc 的写法。要改这个字段，用上面的 `order.lines[2].qty`。
 </Aside>
 
 平铺表格的回调里不用这些判断。树的子节点如果和当前节点是同一个类型（`children?: Node[]`），`ctx.key` / `ctx.depth` 滤完之后仍可以写 `node.name`。子元素是另一种形状时，用上面的外层 handle。
