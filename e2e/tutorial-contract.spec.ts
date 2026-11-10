@@ -29,7 +29,7 @@ test('the copied example submits through the public package and can be edited an
 })
 
 test('the tutorial $visible = false skips validation and drops the field from submit (display none)', async ({ page }) => {
-  const tutorial = await answer(page, '/tutorial/4-state')
+  const tutorial = await answer(page, '/tutorial/3-state')
   const form = tutorial.locator('form')
   await form.getByRole('switch', { name: '需要联系' }).check()
   await form.getByRole('textbox', { name: '邮箱' }).fill('')
@@ -41,7 +41,7 @@ test('the tutorial $visible = false skips validation and drops the field from su
 })
 
 test('array tutorial additions and removals use stable real rows and computed totals are submitted', async ({ page }) => {
-  const tutorial = await answer(page, '/tutorial/7-array')
+  const tutorial = await answer(page, '/tutorial/6-array')
   const form = tutorial.locator('form')
   await form.getByRole('button', { name: '添加一行', exact: true }).click()
   await expect(form.locator('fieldset')).toHaveCount(2)
@@ -55,7 +55,7 @@ test('array tutorial additions and removals use stable real rows and computed to
 })
 
 test('Standard Schema works without a private zod adapter', async ({ page }) => {
-  const tutorial = await answer(page, '/tutorial/9-rules')
+  const tutorial = await answer(page, '/tutorial/4-rules')
   const form = tutorial.locator('form')
   await form.getByRole('textbox', { name: '姓名' }).fill('A')
   await form.getByRole('textbox', { name: '姓名' }).blur()

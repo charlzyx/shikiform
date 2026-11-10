@@ -1,20 +1,19 @@
 ---
-title: 1. 最小表单
-description: useForm、Form、Field，加上 antd Input。
+title: 1. 字段
+description: 用 useForm、Form 和 Field 放上姓名和邮箱。
 tableOfContents: false
 ---
 
 <div className="tutorial-step">
 <div className="tutorial-copy">
 
-右边有一个姓名框。填上字，点提交，下面会出现 JSON。
+一张表单由三块拼成：`useForm` 创建引擎，`Form` 负责提交，`Field` 拥有一个路径。
 
-这几块就够了：`useForm` 创建表单，`Form` 处理提交，`Field` 的 `name` 是路径。
+每个输入都是同一种字段。`decorator={[FormItem]}` 显示标签和错误，`component={[Input]}` 是控件。它们从 `Field` 读字段，所以不用再写 `name`。`FormItem`、`Input`、`Submit` 来自 `@shikiform/antd`。
 
-一个字段分三层：`<Field>` 拥有路径和状态，`decorator={[FormItem]}` 显示标签（`title`）和错误，`component={[Input, props]}` 是输入框。`FormItem`、`Input`、`Submit` 都来自 `@shikiform/antd`，它们从 `Field` 读字段，所以不用再写 `name`。改字的时候，值写回 ShikiForm，不进 antd 的表单状态。
+数据形状决定你用哪一种字段：一个值用 `Field`，对象用 `ObjectField`，数组用 `ArrayField`，树用 `TreeField`。标题和按钮不是字段。
 
 **这一步：** 加上邮箱。`initialValues` 里写上 `email`，再放一个 `name="email"` 的 `Field`。提交之后，JSON 里同时有 `name` 和 `email`。
-
 
 </div>
 

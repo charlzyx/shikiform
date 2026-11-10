@@ -97,7 +97,7 @@ function NodeLabel({ dragProps }: { dragProps: TreeHandle['dragProps'] }) {   //
 
 `connect` / `mapProps` / `mapBlur` / `mapFieldProps` 在 `@shikiform/react` 里，不需要 `@shikiform/antd`，也不需要安装 antd。默认不传 antd 的 `status`。标签和错误用 [`useFieldDecorator`](/reference/react-hooks#usefielddecorator)，按钮用 [`Submit` / `Reset`](/reference/react-hooks#usesubmit)（`asChild` 或 render prop）。`Reset` 的 `afterReset` 在重置之后拿到新值。
 
-下面用 shadcn 写完整的 Input、Select、Checkbox、DatePicker 和 FormItem。MUI、Mantine 只列和 shadcn 不同的几点。本仓库没有安装这些库，那些示例是代码块，不会参与 `check:docs` 的类型检查和 SSR。可运行的是同一套接线换成原生元素的那一节。
+下面用 shadcn 写完整的 Input、Select、Checkbox、DatePicker 和 FormItem。MUI、Mantine 只列和 shadcn 不同的几点。这三节是可以直接复制的代码。页面上能点的例子是同一套接线换成原生元素的那一节，见 [不用 UI 库](/start/native)。
 
 ### `control` 里没有值
 

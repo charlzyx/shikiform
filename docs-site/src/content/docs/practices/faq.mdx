@@ -1,0 +1,32 @@
+---
+title: FAQ
+description: 计算字段为什么不能改、hidden 为什么挡住提交、确认密码为什么不在 JSON 里。
+---
+
+## 金额变成只读了
+
+`reaction` 写过它的 `$value`。这种字段是计算字段，pattern 是 `readPretty`，默认仍会提交。手改会在下一轮被算回来。不想提交时，声明 `display: 'virtual'`。
+
+## 藏起来的字段还在挡提交
+
+`$hidden = true` 和 `display: 'hidden'` 不渲染，但仍然校验、仍然提交。`$visible = false` 才是 `none`：不校验、不提交，值还留着。
+
+## 确认密码出现在提交结果里
+
+它是普通字段。加上 `display: 'virtual'`：界面还在，对不上会挡住提交，`getSubmitValues` 把它拿掉。这时读 `$visible` 仍是 true。
+
+## 只想要引擎，不要 React
+
+安装 `@shikiform/core`，用 `createForm`。React 绑定在 `@shikiform/react`，它会重新导出 core。
+
+## 字段名想要类型检查
+
+`const F = typed(form)`，然后用 `F.Field`。没有另一套字段工厂。动态路径继续用字符串 `name` 的 `Field`。
+
+## 自定义控件怎样接值
+
+在 `Field` 的 `component` 里 `useField()`，自己接 `value` / `onChange` / `onBlur`。或者 `connect(Control, mapProps({ format, parse }))`。`useFieldDecorator().control` 没有值和 onChange。
+
+## 查询列表在哪个包
+
+`useQueryTable` 在 `@shikiform/hooks`。带界面的 `QueryList` 在 `@shikiform/antd`。见 [查询列表](/guide/pro)。

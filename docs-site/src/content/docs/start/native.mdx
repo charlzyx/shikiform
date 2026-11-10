@@ -1,0 +1,59 @@
+---
+title: 不用 UI 库
+description: "只安装 @shikiform/react，用原生 input 写出能校验、能提交的表单。"
+---
+
+只装 `@shikiform/react` 就能跑。控件是原生元素，字段状态仍在引擎里。
+
+```bash
+npm i @shikiform/react
+```
+
+`useField()` 不写参数时，读的是离它最近的 `Field`。把它放进 `component`，自己把 `value`、`onChange`、`onBlur` 接到 input 上。
+
+```tsx preview
+import { useState } from 'react';
+import { Field, Form, useField, useForm } from '@shikiform/react';
+
+function TextInput({ label }: { label: string }) {
+  const field = useField<string>();
+  return (
+    <p>
+      <label htmlFor={field.id}>
+        {label}
+        {field.required ? ' *' : ''}
+      </label>
+      <input
+        id={field.id}
+        value={field.value ?? ''}
+        onChange={(event) => field.onChange(event.target.value)}
+        onBlur={field.onBlur}
+      />
+      {field.errors[0] ? <small role="alert"> {field.errors[0]}</small> : null}
+    </p>
+  );
+}
+
+type Values = { name: string; email: string };
+
+export default function App() {
+  const [result, setResult] = useState('还没有提交');
+  const form = useForm<Values>({ initialValues: { name: '', email: '' } });
+  return (
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
+      <Field name="name" required component={[TextInput, { label: '姓名' }]} />
+      <Field name="email" required rules={{ format: 'email', message: '邮箱格式不对' }} component={[TextInput, { label: '邮箱' }]} />
+      <button type="submit">提交</button>
+      <pre aria-live="polite">{result}</pre>
+    </Form>
+  );
+}
+```
+
+空着点提交，姓名和邮箱都会报错。邮箱写成 `ada@example.com` 之后，JSON 里有两项。
+
+<Aside type="tip" title="useField 要写在字段里面">
+不带参数的 `useField()` 离开 `Field` 的 `component`、`decorator` 或子元素就会抛错。要在字段外面读一个路径，用 `useField('email')` 或 `useWatch`。
+</Aside>
+
+标签、错误列表和 `connect` 的映射在 [接入组件库](/guide/headless#接自己的组件库)。要用 Ant Design，回到 [快速上手](/guide/quick-start)。

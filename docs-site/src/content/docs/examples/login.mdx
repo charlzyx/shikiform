@@ -1,0 +1,53 @@
+---
+title: 登录校验
+description: 账号必填、邮箱格式、密码长度。空值只由 required 判断。
+---
+
+登录要挡住空账号、不合法的邮箱和太短的密码。规则写在字段上，提交成功才进 `onSubmit`。
+
+```tsx preview
+import { useState } from 'react';
+import { Form, typed, useForm } from '@shikiform/react';
+import { FormButtonGroup, FormItem, FormLayout, Input, Submit } from '@shikiform/antd';
+
+type Values = { account: string; email: string; password: string };
+
+export default function App() {
+  const [result, setResult] = useState('');
+  const form = useForm<Values>({ initialValues: { account: '', email: '', password: '' } });
+  const F = typed(form);
+  return (
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
+      <FormLayout labelCol={{ span: 5 }} wrapperCol={{ span: 19 }}>
+        <F.Field name="account" title="账号" required decorator={[FormItem]} component={[Input]} />
+        <F.Field
+          name="email"
+          title="邮箱"
+          required
+          rules={{ format: 'email', message: '邮箱格式不对' }}
+          decorator={[FormItem]}
+          component={[Input]}
+        />
+        <F.Field
+          name="password"
+          title="密码"
+          required
+          rules={{ minLength: 8, message: '至少 8 位' }}
+          decorator={[FormItem]}
+          component={[Input.Password]}
+        />
+        <FormButtonGroup.FormItem>
+          <Submit>登录</Submit>
+        </FormButtonGroup.FormItem>
+      </FormLayout>
+      <pre aria-live="polite">{result}</pre>
+    </Form>
+  );
+}
+```
+
+直接点登录，三个字段都是「必填」。账号写一个字、邮箱空着，邮箱仍是必填，`format` 不管空值。邮箱写成 `a@b.co`、密码写成 `12345678`，下面出现 JSON。
+
+<Aside type="tip" title="空值">
+`''`、`null`、`undefined` 只由 `required` 判断。`minLength` 和 `format` 遇到它们直接通过。
+</Aside>

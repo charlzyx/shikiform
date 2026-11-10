@@ -1,0 +1,44 @@
+---
+title: 测试
+description: 用 Testing Library 填字段、失焦、提交，并断言 onSubmit 收到的值。
+---
+
+表单测试看用户能做的事：输入、离开输入框、点提交。不要去读引擎内部的字段表。
+
+组件照常用 `useForm` 和 `Field`。`onSubmit` 只在校验通过之后被调用。
+
+```tsx
+import { fireEvent, render, screen } from '@testing-library/react'
+import { expect, test, vi } from 'vitest'
+import { Form, typed, useForm } from '@shikiform/react'
+import { FormItem, Input, Submit } from '@shikiform/antd'
+
+function Login({ onSubmit }: { onSubmit: (values: { email: string }) => void }) {
+  const form = useForm({ initialValues: { email: '' } })
+  const F = typed(form)
+  return (
+    <Form form={form} onSubmit={onSubmit}>
+      <F.Field name="email" title="邮箱" required rules={{ format: 'email' }} decorator={[FormItem]} component={[Input]} />
+      <Submit>提交</Submit>
+    </Form>
+  )
+}
+
+test('邮箱通过之后才提交', async () => {
+  const onSubmit = vi.fn()
+  render(<Login onSubmit={onSubmit} />)
+  const email = screen.getByRole('textbox', { name: '邮箱' })
+  fireEvent.change(email, { target: { value: 'ada@example.com' } })
+  fireEvent.blur(email)
+  fireEvent.click(screen.getByRole('button', { name: '提 交' }))
+  expect(onSubmit).toHaveBeenCalledWith({ email: 'ada@example.com' })
+})
+```
+
+Ant Design 的 `FormItem` 会把标签上的星号和冒号算进无障碍名称，所以查询用「邮箱」而不是整段 `邮箱 *：`。两个汉字的按钮在可访问名称里常常是 `提 交`。
+
+<Aside type="tip" title="先失焦">
+默认在 `onBlur` 和提交时校验。只 `change` 不 `blur`，字段上还没有错误，第一次点击提交仍会跑校验。断言错误文案时，先 blur，或点一次提交。
+</Aside>
+
+`$visible = false` 的字段不会出现在 `onSubmit` 的参数里。断言时写你期望提交的那一份，而不是整棵 `initialValues`。

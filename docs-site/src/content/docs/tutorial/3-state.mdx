@@ -1,0 +1,37 @@
+---
+title: 3. 状态与 display
+description: 用 $visible 控制邮箱出不出现。关掉之后不校验、也不提交。
+tableOfContents: false
+---
+
+<div className="tutorial-step">
+<div className="tutorial-copy">
+
+右边有一个「需要联系」开关，下面一直有邮箱。打开、关掉，邮箱都不动。
+
+字段上的状态都带 `$`。`$value` 是当前值。不带 `$` 的名字是子字段。
+
+`display` 有四种：
+
+| 值 | 渲染 | 校验 | 提交 |
+|---|---|---|---|
+| `visible` | 是 | 是 | 是 |
+| `hidden` | 否 | 是 | 是 |
+| `virtual` | 是 | 是 | 否 |
+| `none` | 否 | 否 | 否 |
+
+`$visible = false` 就是 `none`。`$hidden = true` 才是 `hidden`。读 `$visible` 时，`visible` 和 `virtual` 都是 true。
+
+`pattern` 是另一组状态：`editable`、`disabled`、`readOnly`、`readPretty`。写在父级上，子级跟着走；子级自己写了 `$pattern` 就用自己的。
+
+**这一步：** 在 `reaction` 里写上 `d.email.$visible = d.contact.$value`。
+
+关掉开关，邮箱消失。打开、清空邮箱，再关掉并提交，表单通过，JSON 里没有 `email`。值还留在表单里，重新打开开关，刚才的输入又回来了。
+
+只想藏起界面、值仍要校验和提交时，写 `d.email.$hidden = !d.contact.$value`。
+
+</div>
+
+<TutorialPlay id="04-state" />
+
+</div>

@@ -12,10 +12,10 @@ test('the deployment build contains the docs and every playground route, without
 })
 
 test('tutorial pages keep framework previous/next navigation and retain the exercise', () => {
-  const html = readFileSync(path.resolve('dist/tutorial/2-fields/index.html'), 'utf8')
+  const html = readFileSync(path.resolve('dist/tutorial/2-path/index.html'), 'utf8')
   expect(html).not.toContain('tutorial-nav')
   expect(html).toContain('/tutorial/1-start')
-  expect(html).toContain('/tutorial/3-path')
+  expect(html).toContain('/tutorial/3-state')
   expect(html).toContain('这一步')
 })
 

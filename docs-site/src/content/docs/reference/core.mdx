@@ -1,0 +1,86 @@
+---
+title: Core
+description: "@shikiform/core 的 createForm、get、set、defineEffects 和错误类。不依赖 React。"
+---
+
+`@shikiform/core` 是引擎。没有 React，也没有 Ant Design。`@shikiform/react` 重新导出这一页里常用的运行时函数，组件里可以从那里导入。
+
+指南：[按路径读写](/basics/path)、[联动](/guide/linkage)、[核心概念](/guide/concepts)。
+
+## createForm
+
+```ts
+function createForm<T, TSubmit = T>(options?: FormOptions<T>): FormInstance<T, TSubmit>
+```
+
+组件外面创建引擎。选项和 `useForm` 相同：`initialValues`、`effects`、`fields`、`validate`、`pattern`、`messages`。返回的 `FormInstance` 上有 `getValue` / `setValue` / `batch` / `submit` / `validate` / `reset`。
+
+```ts
+import { createForm } from '@shikiform/core'
+
+const form = createForm<{ name: string }>({ initialValues: { name: '' } })
+form.setValue('name', 'Ada')
+```
+
+## get
+
+```ts
+function get<T, P extends FieldPath<T>>(data: T, path: P): PathValue<T, P>
+```
+
+从普通数据上按路径读取。`a.b[0].c`、`a.b.0.c`、`a['name']` 都可以。缺的段落是 `undefined`。不改入参。
+
+在 draft 上调用时，沿途每个属性都是子 handle，返回值也是 handle。读值要再写 `.$value`：
+
+```ts
+get(order, 'items[0].sku')
+get(d, 'orders[0].lines[2].qty').$value
+```
+
+## set
+
+```ts
+function set<T, P extends FieldPath<T>>(data: T, path: P, value: PathValue<T, P>): T
+```
+
+返回一棵把 `path` 设成 `value` 的新树，不改入参。缺的中间对象和数组会建出来。
+
+```ts
+const next = set(order, 'items[0].qty', 2)
+```
+
+写进表单用 `form.setValue('items[0].qty', 2)`，或在 reaction 里给 handle 的 `$value` 赋值。不要对 draft 调用 `set`。
+
+## defineEffects
+
+```ts
+function defineEffects<T>(factory: (api: { reaction, watch, query }) => void): EffectDef<T>
+```
+
+`reaction` 派生，`watch` 做动作。两者都有 `each(select, fn)`，只有这两个参数。见 [联动](/guide/linkage)。
+
+```ts
+import { defineEffects } from '@shikiform/core'
+
+const effects = defineEffects<{ qty: number; total: number }>(({ reaction }) => {
+  reaction((d) => {
+    d.total.$value = (d.qty.$value ?? 0) * 2
+  })
+})
+```
+
+## EnumSource
+
+异步选项。`EnumSource.with(params)` 交给字段的 `enum` 或 `$enum`。读 `$enum` 时，还没加载完是 `[]`。
+
+## 错误类
+
+`ShikiUsageError`、`ShikiConflictError`、`ShikiCycleError`。可以 `instanceof`。用法错误和两个 reaction 写同一状态只在开发构建检查。循环在生产构建也会抛。
+
+## 文案
+
+`zhCN` 是内置默认。`enUS` 是英文。`setDefaultMessages(enUS)` 改这一进程里之后创建的表单。单张表用 `messages` 覆盖一部分。`getDefaultMessages()` 读当前默认。
+
+## 树坐标
+
+`moveNode`、`pathOf`、`posOf`。`pos` 是下标链，例如 `[0, 2]`。移动树节点时用它们，平时的数组用 `form.moveArray`。

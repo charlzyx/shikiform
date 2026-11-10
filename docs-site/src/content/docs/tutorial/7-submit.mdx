@@ -1,0 +1,26 @@
+---
+title: 7. 提交与重置
+description: 确认密码用 virtual：会校验，不进提交 JSON。
+tableOfContents: false
+---
+
+<div className="tutorial-step">
+<div className="tutorial-copy">
+
+右边有昵称、密码和确认密码。先把两处密码都写成 `secret123`，点提交。
+
+JSON 里昵称在 `profile.name`。写在 `ObjectField` 里面的名字会接到外面的名字后面。
+
+确认密码也出现在 JSON 里。它只用来比对，不该被提交。这种字段写 `display="virtual"`：照样渲染，校验还在，`getSubmitValues` 会把它拿掉。`virtual` 时 `$visible` 仍是 true。
+
+`Reset` 把值回到 `initialValues`。`afterReset` 在重置完成之后拿到恢复后的值。
+
+**这一步：** 给 `confirmPassword` 加上 `display="virtual"`，并在 `rules` 中写校验：值不等于 `ctx.record.password` 时，返回 `两次密码不一致`。
+
+两次输入一致再提交。JSON 里有 `profile` 和 `password`，没有 `confirmPassword`。
+
+</div>
+
+<TutorialPlay id="03-path" />
+
+</div>

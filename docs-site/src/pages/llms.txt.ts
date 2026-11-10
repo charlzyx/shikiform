@@ -14,7 +14,7 @@ const HEADER = `# ShikiForm
 > TypeScript form library: a React-free engine (draft + \`$\` state, reaction / watch), headless React fields and hooks,
 > and a Formily-style Ant Design adapter (\`<Field decorator component>\`, \`FormItem\`, \`FormLayout\`, \`connect\`).
 
-- Docs: /guide/quick-start  ·  Concepts: /guide/concepts  ·  Linkage: /guide/linkage  ·  API: /api  ·  Agent guide (zh): /agents
+- Docs: /guide/quick-start  ·  Concepts: /guide/concepts  ·  Path: /basics/path  ·  Linkage: /guide/linkage  ·  Examples: /examples  ·  API: /api  ·  Agent guide (zh): /agents
 - Full text of every page: /llms-full.txt  ·  Source: https://github.com/charlzyx/shikiform (AGENTS.md, design/ARCHITECTURE.md)
 
 ---

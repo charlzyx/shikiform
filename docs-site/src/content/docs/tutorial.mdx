@@ -1,23 +1,23 @@
 ---
-title: 开始
-description: 左边是说明，右边可以改代码。
+title: 教程
+description: 用注册和订单里的八个切片，把字段、路径、状态、校验、联动、数组和提交走一遍。
 ---
 
-每一步左边是说明，右边是可以直接改的代码和运行结果。工具栏里点 **看答案** 换成参考写法，点重置按钮回到这一步开始时的代码。
+每一步左边是说明，右边可以改代码、看结果。点 **看答案** 换成参考写法，点重置回到这一步开始时的代码。
 
-教程运行的就是正式库：`useForm` / `Field` 从 `@shikiform/react` 导入，`FormItem`、输入控件和 `Submit` 从 `@shikiform/antd` 导入，Zod 从 `zod` 导入。右侧只有一个 **App.tsx**，可以整段复制到项目里。
+这八步都来自同一次注册或下单会碰到的事：先放字段，再写路径、显隐、校验、单价联动、订单行，最后提交。每一步是一张可以单独跑的表，不是把上一步的文件接着改。
+
+运行的是正式包：`useForm` / `Field` 从 `@shikiform/react` 导入，`FormItem`、输入控件和 `Submit` 从 `@shikiform/antd` 导入。右侧只有一个 **App.tsx**，可以整段复制到项目里。
 
 ## 目录
 
-1. [最小表单](/tutorial/1-start)
-2. [四种字段](/tutorial/2-fields)
-3. [path 和提交](/tutorial/3-path)
-4. [$ 状态](/tutorial/4-state)
-5. [pattern](/tutorial/5-pattern)
-6. [reaction](/tutorial/6-reaction)
-7. [reaction.each](/tutorial/7-array)
-8. [watch](/tutorial/8-watch)
-9. [规则和提交](/tutorial/9-rules)
-10. [接下来](/tutorial/10-next)
+1. [字段](/tutorial/1-start)
+2. [路径](/tutorial/2-path)
+3. [状态与 display](/tutorial/3-state)
+4. [校验](/tutorial/4-rules)
+5. [联动](/tutorial/5-linkage)
+6. [数组](/tutorial/6-array)
+7. [提交与重置](/tutorial/7-submit)
+8. [接下来](/tutorial/8-next)
 
-教程里的字段和项目里写法相同：[`<Field>`](/guide/field) 加 `FormItem` 装饰器和 `@shikiform/antd` 的控件。概念讲解见 [核心概念](/guide/concepts)，完整场景见 [示例库](/examples)。
+概念见 [核心概念](/guide/concepts)。完整页面见 [场景示例](/examples)。

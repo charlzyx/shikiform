@@ -41,7 +41,18 @@ d.items.$value                // 整个数组的值；d.items 本身不是数组
 - handle 不是数组：`d.items.map`、`d.items.length`、`for…of` 都不对。读 `d.items.$value`，或者用 [`reaction.each`](/guide/linkage)。
 - 名为 `value` 的字段写作 `d.value.$value`。
 
-开发构建遇到这几类错误会抛 `ShikiUsageError`，信息里写着正确写法；生产构建不检查。
+## 解构
+
+只记一条：**解构只用来取子字段，`$` 状态一律通过 handle 读写。**
+
+```ts
+const { name } = d.user // 仍是 handle，等于 d.user.name
+name.$value = 'Ada'
+```
+
+rest、对象展开、`Object.keys` 和数组解构在开发环境抛 `ShikiUsageError`。报错信息会写出能用的形式，例如 `d.items[0]`。对照见 [常见的坑](/practices/pitfalls#解构)。
+
+开发构建遇到这些错误会抛 `ShikiUsageError`，信息里写着正确写法；生产构建不检查。
 
 ```tsx preview
 import { Button, Space } from 'antd';
@@ -86,6 +97,8 @@ export default function App() {
 | `d.$canSubmit` `d.$submitting` `d.$submitCount` | 表单级只读状态，在根 draft 上读 |
 
 ## 显隐、pattern 与提交
+
+四种 `display` 的可运行例子在 [字段状态](/basics/state)。下面是对照表。
 
 | 设置 | UI | 校验 | 提交 |
 |---|---|---|---|
