@@ -12,6 +12,8 @@ npm i @shikiform/react
 
 用 Ant Design 再安装 `@shikiform/antd`。查询列表、影子表单这类 hook 再安装 `@shikiform/hooks`。`@shikiform/react` 会带上引擎 `@shikiform/core`。
 
+这四个包还没有发布到 npm。仓库里的 `npm run release` 只做 `npm publish --dry-run`。
+
 ## 一个例子
 
 ```tsx

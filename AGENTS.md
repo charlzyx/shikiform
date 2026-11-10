@@ -27,7 +27,7 @@ and SSR-rendered against the packed library); the site's `/llms.txt` serves this
   Inside `reaction`, `watch` and `form.batch` the snapshot is read-only in development (mutation throws).
 - A handle is not an array: no `.map`, `.length`, `for…of`, or `const [row] = d.items`. Use `d.items.$value` or `reaction.each`.
 - Destructuring takes child field handles only (`const { name } = d.user`, then `name.$value`). `$` state is always read and written on the handle. Object rest, object spread, and `Object.keys(handle)` throw in development.
-- `get` / `set` (`@shikiform/core`, re-exported by `@shikiform/react`) read and copy plain data with lodash-style paths (`a.b[0].c`, `a['name']`). `set` returns a new tree. `form.getValue` / `form.setValue` use the same syntax. On a draft, `get(d, path)` is the child handle: read `get(d, path).$value` or `d.a[0].b.$value`. Do not `set` a draft.
+- `get` / `set` (`@shikiform/core`, re-exported by `@shikiform/react`) read and copy plain data with lodash-style paths (`a.b[0].c`, `a['name']`). `set` returns a new tree. `form.getValue` / `form.setValue` use the same syntax. On a draft, `get` returns a child handle: `get(d, 'user.name').$value` typechecks; an indexed path such as `get(d, 'items[0].qty')` does not (`FieldPath` does not walk indexes on `Draft`). Use `d.items[0].qty.$value` or `form.getValue('items[0].qty')`. Do not `set` a draft.
 - Display is `visible` | `hidden` | `virtual` | `none` (no separate `virtual` flag). `visible` renders, validates,
   submits, and counts as dirty. `hidden` does not render (stays registered) but still validates, submits, and counts as
   dirty — unlike Formily, whose `hidden` skips validation. `virtual` renders and validates (errors block submit, e.g. a

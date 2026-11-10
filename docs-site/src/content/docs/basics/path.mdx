@@ -13,16 +13,14 @@ description: 用 handle 链、get / set，以及 form.getValue / form.setValue �
 
 ```ts
 d.orders[0].lines[2].qty.$value
-get(d, 'orders[0].lines[2].qty').$value
+get(d, 'user.name').$value
 form.getValue('orders[0].lines[2].qty')
 form.setValue('orders[0].lines[2].qty', 4)
 ```
 
 `d.orders[0].lines[2].qty` 是 handle。`$value` 才是数字，在 `reaction` 里也会成为依赖。
 
-`get(d, path)` 沿着 draft 走，返回的仍是那个子 handle，所以还要读 `$value`。它和 `d.orders[0]...` 是同一条路径。
-
-`form.getValue` / `form.setValue` 接受同样的路径，返回或写入的是值本身，并且按表单类型检查。组件外面改一个字段，用它们。
+`get` 在普通对象上返回值：`get(order, 'lines[0].qty')`。在 draft 上它只沿属性走，拿到的是子 handle，再读 `$value`。没有下标时可以写 `get(d, 'user.name').$value`。带下标的路径，`FieldPath` 走不到 draft 上的数组下标，所以 `get(d, 'orders[0].lines[2].qty')` 和 `get(d, 'orders.0.lines.2.qty')` 都过不了类型检查。这种位置用 handle 链，或 `form.getValue` / `form.setValue`。这两条接受同样的路径，读写的是值本身。
 
 ```tsx preview
 import { useState } from 'react';
@@ -66,7 +64,7 @@ export default function App() {
 }
 ```
 
-点「路径加一」，输入框变成 2、3、4。`form.values` 本身没有被改掉。点「set 出一棵新树」时，第二行数量在新对象里是 9，输入框仍是原来的数，直到你把结果写回 `form.setValue`。
+点「路径加一」走的是 `form.setValue`：表单换成新的值树，输入框变成 2、3、4。点「set 出一棵新树」时，`set` 只复制当时的 `form.values`，不写回表单，所以输入框保持不动，第二行数量只出现在下面的 JSON 里。
 
 <Aside type="caution" title="set 不写 draft">
 `set` 复制的是普通数据。对 draft 做展开，开发环境会抛 `ShikiUsageError`。在 `reaction` 里写字段，用 `d.orders[0].lines[2].qty.$value = 4`。

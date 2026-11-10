@@ -109,10 +109,10 @@ reaction.each((d) => d.items, (row, ctx) => { … })
 
 ```ts
 d.orders[0].lines[2].qty.$value
-get(d, 'orders[0].lines[2].qty').$value
+form.getValue('orders[0].lines[2].qty')
 ```
 
-`get(d, path)` 在 draft 上得到的是子 handle，再读 `$value`。
+没有下标时，`get(d, 'user.name').$value` 也行：draft 上 `get` 返回子 handle。带下标的 `get(d, 'orders[0].lines[2].qty')` 过不了类型检查，用上面两种写法。
 
 每个外层元素都取里面的同一项：
 

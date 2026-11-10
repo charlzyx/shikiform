@@ -47,16 +47,18 @@ const copy = d.user.$value
 const [first] = d.items
 ```
 
-开发环境抛错：handle 不是数组，不能 `for…of`、不能 `const [row] = d.items`、不能展开。信息里的正确形式是 `d.items.$value`，或者 `const { name } = d.items[0]` 再读 `name.$value`。
+开发环境抛错：handle 不是数组，不能 `for…of`、不能 `const [row] = d.items`、不能展开。信息里的正确形式是 `d.items.$value`、`const { name } = d.items[0]` 再读 `name.$value`，以及 `reaction.each((d) => d.items, (row, ctx) => …)`。
 
 ```ts
-const row = d.items[0]
-row.name.$value
-get(d, 'items[0]').$value
+const { name } = d.items[0]
+name.$value
 d.items.$value
+reaction.each((d) => d.items, (row) => {
+  row.name.$value
+})
 ```
 
-`get(d, 'items[0]')` 得到的是子 handle。报错原文写的是 `d.items[0]`，没有写 `get`。
+报错原文没有写 `get`。带下标的 `get(d, 'items[0]')` 也过不了类型检查。没有下标的对象路径可以 `get(d, 'user.name').$value`。
 
 ## 改 $value 上的对象
 
