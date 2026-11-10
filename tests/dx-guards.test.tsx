@@ -1,11 +1,11 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ArrayField, Field, Form, ObjectField, createForm, useField, useForm } from '../src'
-import { ShikiUsageError } from '../src/core'
-import { FormItem, Input, ArrayTable, Submit } from '../src/antd'
+import { ArrayField, Field, Form, ObjectField, createForm, useField, useForm } from '@shikiform/react'
+import { ShikiUsageError } from '@shikiform/core'
+import { FormItem, Input, ArrayTable, Submit } from '@shikiform/antd'
 import { withReaction } from './fixtures/reaction-utils'
-import { createEngine, engineOf } from '../src/core/engine/create'
+import { createEngine, engineOf } from '../packages/core/src/engine/create'
 
 afterEach(cleanup)
 

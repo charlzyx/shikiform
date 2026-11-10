@@ -15,8 +15,8 @@ description: ObjectField / ArrayField / TreeField 提供相对作用域；行身
 
 ```tsx preview
 import { Button, Space } from 'antd';
-import { ArrayField, Field, Form, ObjectField, Watch, useArray, useIndex, useForm, type Draft } from 'shikiform';
-import { FormItem, FormLayout, Input } from 'shikiform/antd';
+import { ArrayField, Field, Form, ObjectField, Watch, useArray, useIndex, useForm, type Draft } from '@shikiform/react';
+import { FormItem, FormLayout, Input } from '@shikiform/antd';
 
 type Contact = { id: number; name: string; phone: string };
 type Values = { profile: { name: string; address: { city: string } }; contacts: Contact[] };

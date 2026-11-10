@@ -6,52 +6,22 @@
 
 ## 安装
 
-还没有发布到 npm。在本仓库打出 tarball，再在你的项目里用 `file:` 装上。入口解析的是 `lib/`，所以要先 `build:lib` 再 `npm pack`。拉到新提交后重新打包，`file:` 不会跟着源码变。
+四个可独立发布的包，都在 npm 组织 `shikiform` 下。推到 registry 需要 token，本仓库的 `npm run release` 只做 `npm publish --dry-run`。
 
 ```bash
-# 在 shikiform 仓库。当前 version 是 0.1.0，产物是 shikiform-0.1.0.tgz
-npm ci
-npm run build:lib
-npm pack
+npm i @shikiform/react
+npm i @shikiform/antd     # Ant Design：FormItem、控件、布局
+npm i @shikiform/hooks    # 查询列表、影子表单、数组表格状态
 ```
 
-```bash
-# 在你的项目
-npm install ../shikiform/shikiform-0.1.0.tgz
-```
+`@shikiform/react` 依赖并再导出 `@shikiform/core`，一般不用单独装引擎。只要引擎、不要 React 时再装 `@shikiform/core`。
 
-`package.json` 里会写成：
-
-```json
-{
-  "dependencies": {
-    "shikiform": "file:../shikiform/shikiform-0.1.0.tgz"
-  }
-}
-```
-
-路径按两边目录的相对位置改。
-
-同一仓库用 workspace 时，把 shikiform 列进 workspace，并且同样先跑过 `npm run build:lib`。
-
-pnpm（`pnpm-workspace.yaml` 的 `packages` 包含这个目录）：
-
-```json
-{
-  "dependencies": {
-    "shikiform": "workspace:*"
-  }
-}
-```
-
-Yarn Berry（v2 及以上，根 `package.json` 的 `workspaces` 包含这个目录）同样写 `"shikiform": "workspace:*"`。Yarn Classic（v1）不认识 `workspace:`，写 `"shikiform": "*"`，由 workspaces 按包名链到仓库里的那一份。
-
-| peer 依赖 | 版本 | 什么时候需要 |
+| peer 依赖 | 版本 | 哪些包 |
 |---|---|---|
-| `react` / `react-dom` | `^18 \|\| ^19` | 用 React 层时 |
-| `antd` / `dayjs` | `^5.18` / `^1` | 只在用 `shikiform/antd` 时（`FormLayout layout="vertical"` 需要 antd 5.18 起的 `Form.Item layout`） |
+| `react` / `react-dom` | `^18 \|\| ^19` | `@shikiform/react`、`@shikiform/hooks`、`@shikiform/antd` |
+| `antd` / `dayjs` | `^5.18` / `^1` | 只有 `@shikiform/antd`（`FormLayout layout="vertical"` 需要 antd 5.18 起的 `Form.Item layout`） |
 
-四个入口：`shikiform/core`（无 React 的引擎）、`shikiform`（React 组件与 Hooks）、`shikiform/pro`（无 UI 的表格 / 查询 / 草稿）、`shikiform/antd`（`FormItem`、控件与按钮）。
+`@shikiform/core` 没有 peer。`antd` 和 `dayjs` 不是 optional：装 `@shikiform/antd` 就是要用它们。
 
 ## 第一张表单
 
@@ -59,8 +29,8 @@ Yarn Berry（v2 及以上，根 `package.json` 的 `workspaces` 包含这个目�
 
 ```tsx
 import { useState } from 'react';
-import { Form, typed, useForm } from 'shikiform';
-import { FormButtonGroup, FormItem, FormLayout, Input, InputNumber, Reset, Submit } from 'shikiform/antd';
+import { Form, typed, useForm } from '@shikiform/react';
+import { FormButtonGroup, FormItem, FormLayout, Input, InputNumber, Reset, Submit } from '@shikiform/antd';
 
 type Values = { name: string; email: string; age: number | null };
 

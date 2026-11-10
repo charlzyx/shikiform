@@ -1,11 +1,11 @@
 // @vitest-environment happy-dom
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import * as root from '../src'
-import * as core from '../src/core'
-import { QueryList } from '../src/antd'
-import { useQueryTable } from '../src/pro'
-import type { FormInstance, Pattern, Rule } from '../src'
+import * as root from '@shikiform/react'
+import * as core from '@shikiform/core'
+import { QueryList } from '@shikiform/antd'
+import { useQueryTable } from '@shikiform/hooks'
+import type { FormInstance, Pattern, Rule } from '@shikiform/react'
 
 afterEach(cleanup)
 
@@ -37,7 +37,7 @@ describe('QueryList reads the rows path from useQueryTable', () => {
 })
 
 describe('root entry re-exports the engine names an app needs', () => {
-  it('errors and EnumSource are the same objects as shikiform/core', () => {
+  it('errors and EnumSource are the same objects as @shikiform/core', () => {
     expect(root.ShikiUsageError).toBe(core.ShikiUsageError)
     expect(root.ShikiConflictError).toBe(core.ShikiConflictError)
     expect(root.ShikiCycleError).toBe(core.ShikiCycleError)

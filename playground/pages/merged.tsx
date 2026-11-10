@@ -1,6 +1,6 @@
 import { Button, Space } from 'antd'
-import { Field, Form, useForm, useFormContext, useWatch, type Draft } from 'shikiform'
-import { Checkbox, FormItem, Input, InputNumber, MergedTable, Select, Switch } from 'shikiform/antd'
+import { Field, Form, useForm, useFormContext, useWatch, type Draft } from '@shikiform/react'
+import { Checkbox, FormItem, Input, InputNumber, MergedTable, Select, Switch } from '@shikiform/antd'
 import { newProduct, newSupplier, supplierRows, type FlatRow, type Supplier } from '../merged-model'
 import { tid } from '../testid'
 

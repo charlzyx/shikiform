@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { defineEffects, type StandardSchemaV1, type ValidateCtx } from '../src/core'
-import { createEngine } from '../src/core/engine/create'
+import { defineEffects, type StandardSchemaV1, type ValidateCtx } from '@shikiform/core'
+import { createEngine } from '../packages/core/src/engine/create'
 
 function gate() {
   let open!: () => void

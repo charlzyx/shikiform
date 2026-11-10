@@ -1,5 +1,5 @@
-import { Field, Form, defineEffects, typed, useForm } from 'shikiform';
-import { FormItem, Select } from 'shikiform/antd';
+import { Field, Form, defineEffects, typed, useForm } from '@shikiform/react';
+import { FormItem, Select } from '@shikiform/antd';
 
 type Values = { province: string; city: string };
 

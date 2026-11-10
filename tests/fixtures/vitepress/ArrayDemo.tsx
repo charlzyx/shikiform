@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Form, RowScope, defineEffects, useArrayField, useForm, useFormContext, useWatch, type Draft } from 'shikiform'
+import { Form, RowScope, defineEffects, useArrayField, useForm, useFormContext, useWatch, type Draft } from '@shikiform/react'
 import { NumberField, TextField } from './fields'
 
 type Item = { id: string; product: { name: string; price: number }; qty: number; total: number }

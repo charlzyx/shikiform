@@ -1,7 +1,8 @@
 node_modules/
 dist/
-# 包构建产物在仓库根。不要用 `lib/`，否则会忽略 docs-site/src/lib（nimbus 的 cn / variants）。
+# 旧的单包产物目录。不要用未锚定的 `lib/`，否则会忽略 docs-site/src/lib（nimbus 的 cn / variants）。
 /lib/
+# 各包的 dist/ 已被上面的 `dist/` 规则覆盖。
 .astro/
 .rspress/
 test-results/

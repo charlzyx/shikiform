@@ -2,7 +2,7 @@
 import { act, cleanup, render } from '@testing-library/react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it } from 'vitest'
-import { Field, Form, enUS, type FieldBinding } from '../src'
+import { Field, Form, enUS, type FieldBinding } from '@shikiform/react'
 import {
   FormButtonGroup,
   FormGrid,
@@ -13,10 +13,10 @@ import {
   mapFormItemProps,
   Reset,
   Submit,
-} from '../src/antd'
-import { breakpointIndex } from '../src/antd/adapter/form-layout'
-import { gridColumns } from '../src/antd/adapter/form-grid'
-import { createEngine } from '../src/core/engine/create'
+} from '@shikiform/antd'
+import { breakpointIndex } from '../packages/antd/src/adapter/form-layout'
+import { gridColumns } from '../packages/antd/src/adapter/form-grid'
+import { createEngine } from '../packages/core/src/engine/create'
 
 afterEach(cleanup)
 

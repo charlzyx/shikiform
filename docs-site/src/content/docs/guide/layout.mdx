@@ -3,13 +3,13 @@ title: 布局
 description: FormLayout 统一布局、标签宽度、尺寸和反馈方式；FormGrid 栅格；FormButtonGroup 对齐按钮；FormItem 单独当标签用。
 ---
 
-每个 `FormItem` 都写一遍 `labelCol`、`size` 太啰嗦。`FormLayout`（`shikiform/antd`）把这些设置交给里面所有的 `FormItem`；它不持有值，可以嵌套，嵌套时逐键合并，最近的一层优先。
+每个 `FormItem` 都写一遍 `labelCol`、`size` 太啰嗦。`FormLayout`（`@shikiform/antd`）把这些设置交给里面所有的 `FormItem`；它不持有值，可以嵌套，嵌套时逐键合并，最近的一层优先。
 
 ```tsx preview
 import { useState } from 'react';
 import { Radio as AntRadio, Space } from 'antd';
-import { Field, Form, useForm } from 'shikiform';
-import { FormItem, FormLayout, Input, Select, type FeedbackLayout } from 'shikiform/antd';
+import { Field, Form, useForm } from '@shikiform/react';
+import { FormItem, FormLayout, Input, Select, type FeedbackLayout } from '@shikiform/antd';
 
 type Layout = 'horizontal' | 'vertical' | 'inline';
 type Size = 'small' | 'middle' | 'large';
@@ -79,8 +79,8 @@ export default function App() {
 
 ```tsx preview
 import { useState } from 'react';
-import { Field, Form, useForm } from 'shikiform';
-import { FormButtonGroup, FormGrid, FormItem, FormLayout, GridColumn, Input, Reset, Submit } from 'shikiform/antd';
+import { Field, Form, useForm } from '@shikiform/react';
+import { FormButtonGroup, FormGrid, FormItem, FormLayout, GridColumn, Input, Reset, Submit } from '@shikiform/antd';
 
 export default function App() {
   const [result, setResult] = useState('');
@@ -126,8 +126,8 @@ export default function App() {
 ```tsx preview
 import { useState } from 'react';
 import { Space } from 'antd';
-import { Form, typed, useForm } from 'shikiform';
-import { FormButtonGroup, FormItem, FormLayout, Input, InputNumber, Submit } from 'shikiform/antd';
+import { Form, typed, useForm } from '@shikiform/react';
+import { FormButtonGroup, FormItem, FormLayout, Input, InputNumber, Submit } from '@shikiform/antd';
 
 type Values = { areaCode: string; phoneNumber: string; minAge: number | null; maxAge: number | null };
 

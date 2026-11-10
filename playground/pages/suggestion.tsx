@@ -1,7 +1,7 @@
 import { ConfigProvider } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
-import { Field, Form, useForm, useWatch, type Draft } from 'shikiform'
-import { FormItem, FormLayout, Suggestion } from 'shikiform/antd'
+import { Field, Form, useForm, useWatch, type Draft } from '@shikiform/react'
+import { FormItem, FormLayout, Suggestion } from '@shikiform/antd'
 import { suggest } from '../pro-data'
 
 /** Pro.formily `Suggestion.tsx` demo: the four value shapes side by side, plus their live values. */

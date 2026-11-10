@@ -2,10 +2,10 @@
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { StrictMode } from 'react'
 import { afterEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
-import { defineEffects, Field, Form, typed, UI, useField, useForm, type FieldBinding, type UiName } from '../src'
+import { defineEffects, Field, Form, typed, UI, useField, useForm, type FieldBinding, type UiName } from '@shikiform/react'
 
-import { FormItem, Input, InputNumber, Slider } from '../src/antd'
-import type { FormInstance } from '../src'
+import { FormItem, Input, InputNumber, Slider } from '@shikiform/antd'
+import type { FormInstance } from '@shikiform/react'
 
 afterEach(() => {
   cleanup()

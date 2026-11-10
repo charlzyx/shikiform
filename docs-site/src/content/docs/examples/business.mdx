@@ -12,8 +12,8 @@ description: SKU 价格表、供应商与产品的合并单元格、可展开的
 ```tsx preview play=sku-editor
 import { useState } from 'react';
 import { Input as AntInput, Switch as AntSwitch } from 'antd';
-import { Field, Form, useForm, useFormContext, useWatch, type Draft } from 'shikiform';
-import { Input, InputNumber, MergedTable } from 'shikiform/antd';
+import { Field, Form, useForm, useFormContext, useWatch, type Draft } from '@shikiform/react';
+import { Input, InputNumber, MergedTable } from '@shikiform/antd';
 
 type Sku = { skuId: string; color: string; storage: string; price: number; stock: number; channel: string };
 type Values = { rows: Sku[]; channel: boolean };
@@ -65,8 +65,8 @@ export default function App() {
 
 ```tsx preview play=merged
 import { Button, Space } from 'antd';
-import { Field, Form, useForm, useFormContext, useWatch, type Draft } from 'shikiform';
-import { FormItem, Input, InputNumber, MergedTable, Select } from 'shikiform/antd';
+import { Field, Form, useForm, useFormContext, useWatch, type Draft } from '@shikiform/react';
+import { FormItem, Input, InputNumber, MergedTable, Select } from '@shikiform/antd';
 
 type Product = { id: string; name: string; price: number };
 type Supplier = { id: string; name: string; level: 'A' | 'B' | 'C'; products: Product[] };
@@ -134,8 +134,8 @@ export default function App() {
 场景：订单列表，展开一行编辑它的明细；行金额和订单合计实时计算；已发货的订单整单只读；待付款订单的单行数量不能超过 99。
 
 ```tsx preview play=orders
-import { ArrayField, Field, Form, defineEffects, useForm } from 'shikiform';
-import { ArrayTable, FormItem, InputNumber, Select, Switch, type ArrayTableColumn } from 'shikiform/antd';
+import { ArrayField, Field, Form, defineEffects, useForm } from '@shikiform/react';
+import { ArrayTable, FormItem, InputNumber, Select, Switch, type ArrayTableColumn } from '@shikiform/antd';
 
 type Item = { id: string; sku: string; qty: number; price: number; line: number };
 type Order = { id: string; no: string; status: string; amount: number; items: Item[] };

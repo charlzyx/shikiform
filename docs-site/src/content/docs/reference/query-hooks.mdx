@@ -3,7 +3,7 @@ title: 查询 Hooks 参考
 description: useQueryTable、useBuiltinQuery 的参数、请求协议、分页选择、表头排序筛选和错误边界。
 ---
 
-从 `shikiform/pro` 导入。它们没有 antd 依赖：Hook 处理请求、分页和选择；[QueryList](/reference/pro-components#querylist) 只是 UI。完整场景见 [查询表](/play/query)。
+从 `@shikiform/hooks` 导入。它们没有 antd 依赖：Hook 处理请求、分页和选择；[QueryList](/reference/pro-components#querylist) 只是 UI。完整场景见 [查询表](/play/query)。
 
 ## useQueryTable
 
@@ -26,7 +26,7 @@ useQueryTable<TValues, TRow = unknown>(
 ): QueryTableApi<TValues, TValues, TRow>
 ```
 
-`UseQueryTableOptions`、`QueryTableApi`、`QueryRequestArgs/Result`、`QueryHookArgs/Result` 都是本模块的类型导出；`FieldPath`、`PathValue` 从 `shikiform/core` 导入。通常直接让 `initialValues`、`params` 和 `request` 推断，不需要手写三组泛型。
+`UseQueryTableOptions`、`QueryTableApi`、`QueryRequestArgs/Result`、`QueryHookArgs/Result` 都是本模块的类型导出；`FieldPath`、`PathValue` 从 `@shikiform/core` 导入。通常直接让 `initialValues`、`params` 和 `request` 推断，不需要手写三组泛型。
 
 ### 参数与默认
 
@@ -116,9 +116,9 @@ const table = useQueryTable({
 
 ```tsx preview
 import { Input } from 'antd';
-import { Field } from 'shikiform';
-import { useQueryTable } from 'shikiform/pro';
-import { QueryList } from 'shikiform/antd';
+import { Field } from '@shikiform/react';
+import { useQueryTable } from '@shikiform/hooks';
+import { QueryList } from '@shikiform/antd';
 
 type Row = { id: string; name: string };
 type Values = { filters: { name: string }; list: Row[]; page: number; pageSize: number; selectedKeys: string[] };
@@ -171,4 +171,4 @@ useBuiltinQuery<TRow>(args: QueryHookArgs<TRow>): QueryHookResult<TRow>
 
 ## 实现位置
 
-`src/pro/use-query-table.ts` 定义 `useQueryTable`、`useBuiltinQuery` 和相关类型；导出入口在 `src/pro/index.ts`。UI 的分页/选择接线在 `src/antd/tables/query-list.tsx`，参阅 [QueryList](/reference/pro-components#querylist)。
+`packages/hooks/src/use-query-table.ts` 定义 `useQueryTable`、`useBuiltinQuery` 和相关类型；导出入口在 `packages/hooks/src/index.ts`。UI 的分页/选择接线在 `packages/antd/src/tables/query-list.tsx`，参阅 [QueryList](/reference/pro-components#querylist)。

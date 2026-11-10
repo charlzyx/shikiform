@@ -105,7 +105,7 @@ export default defineConfig({
   // Astro 7's Vite 8 bundler).
   vite: {
     plugins: [tailwindcss(), shikiformDemoImports(), shikiformDemoComponentMap(), shikiformPreviews(), shikiformTutorials()],
-    // shikiform 经 file:.. 链到仓库根，`shikiform/antd` 里的 import 会落到根 node_modules（antd 5、另一份 React）。
+    // @shikiform/* 经 file: 链到 packages/*/，包里的 `import 'antd'` 会落到仓库根 node_modules（antd 5、另一份 React）。
     // 站点只用自己的一份：否则客户端是 antd 5、SSR 是 antd 6，每个示例 island 水合失败（React #418）。
     resolve: { dedupe: ['react', 'react-dom', 'antd', 'dayjs', '@tanstack/react-virtual'] },
   },

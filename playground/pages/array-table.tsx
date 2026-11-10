@@ -1,8 +1,8 @@
 import { Button, ConfigProvider, Divider, message, Space } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import { useState } from 'react'
-import { ArrayField, Field, Form, useForm } from 'shikiform'
-import { FormItem, Input, ArrayTable, type ArrayTableColumn } from 'shikiform/antd'
+import { ArrayField, Field, Form, useForm } from '@shikiform/react'
+import { FormItem, Input, ArrayTable, type ArrayTableColumn } from '@shikiform/antd'
 
 /** Pro.formily `ArrayTable.tsx` demo, on ShikiForm. */
 interface Item {

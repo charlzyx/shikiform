@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createForm, type StandardSchemaV1 } from '../src/core'
+import { createForm, type StandardSchemaV1 } from '@shikiform/core'
 
 function gate() {
   let open!: () => void

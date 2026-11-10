@@ -1,8 +1,8 @@
 import { Button, ConfigProvider } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
-import { Field, Form, useWatch, type Draft } from 'shikiform'
-import { DatePicker, FormItem, Input, ArrayTable, QueryList, Select, ShadowModal, type ArrayTableColumn } from 'shikiform/antd'
-import { useArrayShadow, useQueryTable } from 'shikiform/pro'
+import { Field, Form, useWatch, type Draft } from '@shikiform/react'
+import { DatePicker, FormItem, Input, ArrayTable, QueryList, Select, ShadowModal, type ArrayTableColumn } from '@shikiform/antd'
+import { useArrayShadow, useQueryTable } from '@shikiform/hooks'
 import { CLASSIFY_ENUM, domainService, STATUS_ENUM, type DomainQuery, type DomainRow } from '../pro-data'
 
 /**

@@ -1,5 +1,5 @@
-import { ArrayField, Field, Form, defineEffects, useForm } from 'shikiform'
-import { ArrayTable, FormItem, InputNumber, Select, Switch, type ArrayTableColumn } from 'shikiform/antd'
+import { ArrayField, Field, Form, defineEffects, useForm } from '@shikiform/react'
+import { ArrayTable, FormItem, InputNumber, Select, Switch, type ArrayTableColumn } from '@shikiform/antd'
 
 type Item = { id: string; sku: string; qty: number; price: number; line: number }
 type Order = { id: string; no: string; status: string; amount: number; items: Item[] }

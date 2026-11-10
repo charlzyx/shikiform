@@ -3,7 +3,7 @@ title: Ant Design 参考
 description: Submit / Reset 按钮、控件取值契约、数组容器（ArrayItems / ArrayCards / ArrayTable）、分组容器和 MergedTable 的实际接口。
 ---
 
-从 `shikiform/antd` 导入。字段只有一种写法：`<Field decorator={[FormItem]} component={[Input]} />`（适配层见 [Ant Design 适配层参考](/reference/antd-adapter)），按表单类型检查名字用 [`typed(form)`](/reference/react-hooks#typed)。本页是按钮、控件的取值契约、数组容器和表格组件。用法见 [Ant Design 适配](/guide/antd)。
+从 `@shikiform/antd` 导入。字段只有一种写法：`<Field decorator={[FormItem]} component={[Input]} />`（适配层见 [Ant Design 适配层参考](/reference/antd-adapter)），按表单类型检查名字用 [`typed(form)`](/reference/react-hooks#typed)。本页是按钮、控件的取值契约、数组容器和表格组件。用法见 [Ant Design 适配](/guide/antd)。
 
 ## Submit
 
@@ -33,13 +33,13 @@ Reset<T = any>(props: ButtonProps & {
 })
 ```
 
-点击调用 `form.reset(values)`：不传 `values` 回到初始值；传了则把它设为新的初始值再重置（编辑页回填）。touched、edited 和全部消息一并清空。文字取 `messages.reset`（`重置` / `Reset`），`htmlType="button"`，不会触发原生 reset。`onClick` 先执行（读到的仍是旧值），`event.preventDefault()` 跳过重置。`afterReset` 在重置之后调用，参数已是恢复后的值，查询页用它再查一次，不必 `queueMicrotask`。不装 antd 时用 `shikiform` 的 `<Reset afterReset>` / `useReset()`。
+点击调用 `form.reset(values)`：不传 `values` 回到初始值；传了则把它设为新的初始值再重置（编辑页回填）。touched、edited 和全部消息一并清空。文字取 `messages.reset`（`重置` / `Reset`），`htmlType="button"`，不会触发原生 reset。`onClick` 先执行（读到的仍是旧值），`event.preventDefault()` 跳过重置。`afterReset` 在重置之后调用，参数已是恢复后的值，查询页用它再查一次，不必 `queueMicrotask`。不装 antd 时用 `@shikiform/react` 的 `<Reset afterReset>` / `useReset()`。
 
 ```tsx preview
 import { useState } from 'react';
 import { Space } from 'antd';
-import { Field, Form, useForm } from 'shikiform';
-import { FormItem, FormLayout, Input, Reset, Submit } from 'shikiform/antd';
+import { Field, Form, useForm } from '@shikiform/react';
+import { FormItem, FormLayout, Input, Reset, Submit } from '@shikiform/antd';
 
 export default function App() {
   const [saved, setSaved] = useState('还没有提交');
@@ -85,8 +85,8 @@ export default function App() {
 
 ```tsx preview
 import { useState } from 'react';
-import { Field, Form, useForm } from 'shikiform';
-import { FormItem, Switch } from 'shikiform/antd';
+import { Field, Form, useForm } from '@shikiform/react';
+import { FormItem, Switch } from '@shikiform/antd';
 
 export default function App() {
   const form = useForm({ initialValues: { notify: true } });
@@ -309,8 +309,8 @@ interface FormStepHandle {
 
 ## 实现位置
 
-- 按钮：`src/antd/components/buttons.tsx`；控件接线：`src/antd/components/controls.tsx`。
-- 数组容器：`src/antd/arrays/array-items.tsx`。
-- 分组容器：`src/antd/containers/form-tab.tsx`、`form-collapse.tsx`、`form-step.tsx`（字段收集：`src/react/field-group.tsx`）。
-- 表格与网格：`src/antd/tables/array-table.tsx`、`tables/merged-table.tsx`、`tables/query-list.tsx`。
-- 本模块的真实导出清单：`src/antd/index.ts`；所有示例只使用这些公开入口。
+- 按钮：`packages/antd/src/components/buttons.tsx`；控件接线：`packages/antd/src/components/controls.tsx`。
+- 数组容器：`packages/antd/src/arrays/array-items.tsx`。
+- 分组容器：`packages/antd/src/containers/form-tab.tsx`、`form-collapse.tsx`、`form-step.tsx`（字段收集：`packages/react/src/field-group.tsx`）。
+- 表格与网格：`packages/antd/src/tables/array-table.tsx`、`tables/merged-table.tsx`、`tables/query-list.tsx`。
+- 本模块的真实导出清单：`packages/antd/src/index.ts`；所有示例只使用这些公开入口。

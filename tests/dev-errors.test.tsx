@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ArrayField, createForm, defineEffects, Field, Form, ShikiConflictError, ShikiCycleError, ShikiUsageError, UI } from '../src'
-import { createEngine } from '../src/core/engine/create'
+import { ArrayField, createForm, defineEffects, Field, Form, ShikiConflictError, ShikiCycleError, ShikiUsageError, UI } from '@shikiform/react'
+import { createEngine } from '../packages/core/src/engine/create'
 
 afterEach(cleanup)
 

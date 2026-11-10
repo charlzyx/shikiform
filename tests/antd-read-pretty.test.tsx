@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { Field, Form, typed, useForm } from '../src'
+import { Field, Form, typed, useForm } from '@shikiform/react'
 import {
   AutoComplete,
   Cascader,
@@ -20,8 +20,8 @@ import {
   Transfer,
   TreeSelect,
   Upload,
-} from '../src/antd'
-import type { FormInstance } from '../src'
+} from '@shikiform/antd'
+import type { FormInstance } from '@shikiform/react'
 
 afterEach(cleanup)
 

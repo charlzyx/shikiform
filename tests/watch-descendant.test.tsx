@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { Form, Watch, defineEffects, useForm, type Draft } from '../src'
-import type { FormInstance } from '../src'
+import { Form, Watch, defineEffects, useForm, type Draft } from '@shikiform/react'
+import type { FormInstance } from '@shikiform/react'
 
 
 afterEach(cleanup)

@@ -21,8 +21,8 @@ vi.mock('antd', async (importOriginal) => {
     Checkbox: Object.assign(spy('Checkbox'), { Group: actual.Checkbox.Group }),
   }
 })
-import { Field, Form, useForm } from '../src'
-import { Checkbox, DatePicker, FormItem, Input, InputNumber, Radio, Select, Switch } from '../src/antd'
+import { Field, Form, useForm } from '@shikiform/react'
+import { Checkbox, DatePicker, FormItem, Input, InputNumber, Radio, Select, Switch } from '@shikiform/antd'
 
 const CONTROLS: Record<string, any> = { Input, Select, InputNumber, Switch, Checkbox }
 

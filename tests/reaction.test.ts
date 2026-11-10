@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { defineEffects, ShikiConflictError, ShikiCycleError } from '../src/core'
+import { defineEffects, ShikiConflictError, ShikiCycleError } from '@shikiform/core'
 import { runsFor, schedulerRuns } from './fixtures/reaction-utils'
-import { createEngine } from '../src/core/engine/create'
+import { createEngine } from '../packages/core/src/engine/create'
 
 interface Row {
   cost: number

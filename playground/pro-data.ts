@@ -2,8 +2,8 @@
  * Offline stand-ins for the remote services the Pro.formily demos call
  * (taobao suggest via JSONP, china-location, faker). Same shapes, deterministic data, small delays.
  */
-import type { CascaderOption } from 'shikiform/pro'
-import type { EnumOption } from 'shikiform/core'
+import type { CascaderOption } from '@shikiform/hooks'
+import type { EnumOption } from '@shikiform/core'
 
 export const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 

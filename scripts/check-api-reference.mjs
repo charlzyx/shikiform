@@ -18,10 +18,24 @@ const manifestFile = option('--manifest', path.join(docs, 'reference', 'exports.
 for (const arg of args.filter((arg) => arg.startsWith('--'))) {
   if (!['--docs-dir', '--manifest', '--list'].includes(arg)) throw new Error(`Unknown option ${arg}`)
 }
-const entries = { shikiform: 'src/index.ts', 'shikiform/pro': 'src/pro/index.ts', 'shikiform/antd': 'src/antd/index.ts' }
+const entries = {
+  '@shikiform/react': 'packages/react/src/index.ts',
+  '@shikiform/hooks': 'packages/hooks/src/index.ts',
+  '@shikiform/antd': 'packages/antd/src/index.ts',
+}
 const program = ts.createProgram(Object.values(entries).map((file) => path.join(root, file)), {
   target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext,
   moduleResolution: ts.ModuleResolutionKind.Bundler, jsx: ts.JsxEmit.ReactJSX, skipLibCheck: true, noEmit: true,
+  baseUrl: root,
+  paths: {
+    '@shikiform/antd': ['packages/antd/src/index.ts'],
+    '@shikiform/core': ['packages/core/src/index.ts'],
+    '@shikiform/core/internal': ['packages/core/src/internal.ts'],
+    '@shikiform/hooks': ['packages/hooks/src/index.ts'],
+    '@shikiform/hooks/internal': ['packages/hooks/src/internal.ts'],
+    '@shikiform/react': ['packages/react/src/index.ts'],
+    '@shikiform/react/internal': ['packages/react/src/internal.ts'],
+  },
 })
 const checker = program.getTypeChecker()
 const actual = {}
@@ -32,7 +46,7 @@ for (const [module, file] of Object.entries(entries)) {
   actual[module] = checker.getExportsOfModule(symbol).filter((exported) => {
     const target = exported.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(exported) : exported
     if (!(target.flags & ts.SymbolFlags.Value)) return false
-    return module !== 'shikiform' || /^use[A-Z]/.test(exported.name) || exported.name === 'typed'
+    return module !== '@shikiform/react' || /^use[A-Z]/.test(exported.name) || exported.name === 'typed'
   }).map((symbol) => symbol.name).sort()
 }
 if (args.includes('--list')) {
@@ -66,4 +80,4 @@ for (const [module, names] of Object.entries(actual)) {
   }
 }
 if (errors.length) throw new Error(errors.join('\n'))
-console.log(`API reference coverage passed: ${Object.values(actual).reduce((sum, names) => sum + names.length, 0)} public React hooks (+ typed) and pro/antd runtime exports`)
+console.log(`API reference coverage passed: ${Object.values(actual).reduce((sum, names) => sum + names.length, 0)} public React hooks (+ typed) and hooks/antd runtime exports`)

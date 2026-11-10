@@ -1,4 +1,4 @@
-import { createForm, defineEffects } from '../../src/core'
+import { createForm, defineEffects } from '@shikiform/core'
 
 /**
  * 共享 fixture：一个带单条 reaction 的表单工厂，返回「创建表单」的 thunk，

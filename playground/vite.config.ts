@@ -31,10 +31,10 @@ export default defineConfig({
   plugins: [react(), copyPlayRoutes()],
   resolve: {
     alias: [
-      { find: /^shikiform\/antd$/, replacement: path.resolve(__dirname, '../src/antd/index.ts') },
-      { find: /^shikiform\/core$/, replacement: path.resolve(__dirname, '../src/core/index.ts') },
-      { find: /^shikiform\/pro$/, replacement: path.resolve(__dirname, '../src/pro/index.ts') },
-      { find: /^shikiform$/, replacement: path.resolve(__dirname, '../src/index.ts') },
+      { find: /^@shikiform\/antd$/, replacement: path.resolve(__dirname, '../packages/antd/src/index.ts') },
+      { find: /^@shikiform\/core$/, replacement: path.resolve(__dirname, '../packages/core/src/index.ts') },
+      { find: /^@shikiform\/hooks$/, replacement: path.resolve(__dirname, '../packages/hooks/src/index.ts') },
+      { find: /^@shikiform\/react$/, replacement: path.resolve(__dirname, '../packages/react/src/index.ts') },
     ],
   },
 })

@@ -2,7 +2,7 @@
 import { act, cleanup, render } from '@testing-library/react'
 import { useState } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { ArrayField, Field, Form, createForm, useField } from '../src'
+import { ArrayField, Field, Form, createForm, useField } from '@shikiform/react'
 
 type Row = { a: string; b: number; c: number; t: number }
 type V = { rows: Row[]; title: string }

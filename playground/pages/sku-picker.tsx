@@ -1,5 +1,5 @@
-import { Form, typed, useForm } from 'shikiform'
-import { FormItem, FormLayout, Input, InputNumber, Radio } from 'shikiform/antd'
+import { Form, typed, useForm } from '@shikiform/react'
+import { FormItem, FormLayout, Input, InputNumber, Radio } from '@shikiform/antd'
 import { DIM_LABEL, DIMS, skuPickerEffects, type SkuSelection } from '../skus'
 
 /**

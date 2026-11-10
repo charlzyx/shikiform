@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { Field, Form, connect, mapFieldProps, mapProps, mapReadPretty, type FieldBinding } from '../src'
-import { createEngine } from '../src/core/engine/create'
+import { Field, Form, connect, mapFieldProps, mapProps, mapReadPretty, type FieldBinding } from '@shikiform/react'
+import { createEngine } from '../packages/core/src/engine/create'
 
 afterEach(() => cleanup())
 

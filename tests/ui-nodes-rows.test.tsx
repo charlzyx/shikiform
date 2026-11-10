@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { ArrayField, Form, UI, defineEffects } from '../src'
-import { createEngine } from '../src/core/engine/create'
+import { ArrayField, Form, UI, defineEffects } from '@shikiform/react'
+import { createEngine } from '../packages/core/src/engine/create'
 
 type V = { rows: { a: string }[] }
 const mk = (rows = ['A', 'B', 'C']) => createEngine<V>({ initialValues: { rows: rows.map((a) => ({ a })) } })

@@ -1,8 +1,8 @@
 // Props in `component={[C, props]}` / `decorator={[D, props]}` are checked against the component (M2).
 // The assertions are type-level (`npm run check`); vitest only makes sure the file loads.
 import { it } from 'vitest'
-import { createForm, Field, typed, UI, type FieldSlot } from '../src'
-import { FormItem, Input, InputNumber, Select } from '../src/antd'
+import { createForm, Field, typed, UI, type FieldSlot } from '@shikiform/react'
+import { FormItem, Input, InputNumber, Select } from '@shikiform/antd'
 
 type V = { n: number | null; s: string; tags: string[]; rows: { name: string }[] }
 const form = createForm<V>({ initialValues: { n: null, s: '', tags: [], rows: [] } })

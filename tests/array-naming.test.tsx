@@ -4,8 +4,8 @@
 import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import * as root from '../src'
-import { ArrayField, createForm, FieldGroup, Form, ObjectField, typed, useArrayField, useFieldGroup, useFieldGroupErrors, type FieldGroupHandle, useTreeField, TreeField } from '../src'
+import * as root from '@shikiform/react'
+import { ArrayField, createForm, FieldGroup, Form, ObjectField, typed, useArrayField, useFieldGroup, useFieldGroupErrors, type FieldGroupHandle, useTreeField, TreeField } from '@shikiform/react'
 
 // 测试辅助：把 Holder 里创建的组句柄共享给兄弟组件
 let sharedGroup: FieldGroupHandle | undefined
@@ -13,9 +13,9 @@ function useSharedGroup(): FieldGroupHandle {
   if (!sharedGroup) throw new Error('Holder has not run')
   return sharedGroup
 }
-import { ShikiUsageError } from '../src/core'
-import * as antd from '../src/antd'
-import { ArrayItems, ArrayTable, Input, type ArrayTableColumn } from '../src/antd'
+import { ShikiUsageError } from '@shikiform/core'
+import * as antd from '@shikiform/antd'
+import { ArrayItems, ArrayTable, Input, type ArrayTableColumn } from '@shikiform/antd'
 
 afterEach(() => cleanup())
 

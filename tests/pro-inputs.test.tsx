@@ -1,10 +1,10 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createForm, Field, Form } from '../src'
-import { CascaderPlus, FormItem, Input, PreviewText, QueryList, Select } from '../src/antd'
-import { enumItems, useCascaderLabels, useColumnSettings, useLazyCascader, useQueryTable, useSuggestion, type CascaderOption } from '../src/pro'
-import { cascaderPaths } from '../src/pro/use-lazy-cascader'
+import { createForm, Field, Form } from '@shikiform/react'
+import { CascaderPlus, FormItem, Input, PreviewText, QueryList, Select } from '@shikiform/antd'
+import { enumItems, useCascaderLabels, useColumnSettings, useLazyCascader, useQueryTable, useSuggestion, type CascaderOption } from '@shikiform/hooks'
+import { cascaderPaths } from '../packages/hooks/src/use-lazy-cascader'
 
 afterEach(() => {
   cleanup()

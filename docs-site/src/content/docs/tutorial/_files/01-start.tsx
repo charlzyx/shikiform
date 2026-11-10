@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Field, Form, useForm } from 'shikiform';
-import { FormItem, Input, Submit } from 'shikiform/antd';
+import { Field, Form, useForm } from '@shikiform/react';
+import { FormItem, Input, Submit } from '@shikiform/antd';
 
 export default function App() {
   const [payload, setPayload] = useState('');

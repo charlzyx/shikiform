@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { ArrayField, defineEffects, Field, Form, useForm } from 'shikiform'
-import { ArrayTable, Checkbox, FormButtonGroup, FormItem, FormLayout, InputNumber, Submit, type ArrayTableColumn } from 'shikiform/antd'
+import { ArrayField, defineEffects, Field, Form, useForm } from '@shikiform/react'
+import { ArrayTable, Checkbox, FormButtonGroup, FormItem, FormLayout, InputNumber, Submit, type ArrayTableColumn } from '@shikiform/antd'
 import { CATALOG, comboId } from '../data'
 
 interface SkuRow {

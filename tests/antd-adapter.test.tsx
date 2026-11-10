@@ -2,9 +2,9 @@ import dayjs from 'dayjs'
 import { createRef, forwardRef, type ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
-import { defineEffects, Field, Form, useField, type FieldBinding } from '../src'
-import { FieldContext } from '../src/react/field-context'
-import { zhCN } from '../src/core/validation/messages'
+import { defineEffects, Field, Form, useField, type FieldBinding } from '@shikiform/react'
+import { FieldContext } from '../packages/react/src/field-context'
+import { zhCN } from '../packages/core/src/validation/messages'
 import {
   Checkbox,
   connect,
@@ -21,8 +21,8 @@ import {
   Radio,
   Select,
   Switch,
-} from '../src/antd'
-import { createEngine } from '../src/core/engine/create'
+} from '@shikiform/antd'
+import { createEngine } from '../packages/core/src/engine/create'
 
 type Pattern = 'editable' | 'disabled' | 'readOnly' | 'readPretty'
 

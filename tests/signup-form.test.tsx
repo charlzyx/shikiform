@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { defineEffects } from '../src'
+import { defineEffects } from '@shikiform/react'
 import { SignupForm, type Signup } from './fixtures/signup-form'
-import { createEngine } from '../src/core/engine/create'
+import { createEngine } from '../packages/core/src/engine/create'
 
 afterEach(cleanup)
 const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 30)))

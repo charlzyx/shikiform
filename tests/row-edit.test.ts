@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createForm } from '../src/core'
+import { createForm } from '@shikiform/core'
 
 interface Row {
   id: string

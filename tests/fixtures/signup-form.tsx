@@ -1,8 +1,8 @@
 import { ColorPicker as AntColorPicker, Space, Switch } from 'antd'
-import { defineEffects, Form, typed, useForm } from '../../src'
+import { defineEffects, Form, typed, useForm } from '@shikiform/react'
 import {
   ArrayItems, connect, FormButtonGroup, FormItem, FormLayout, Input, mapBlur, mapProps, mapReadPretty, Reset, Select, Submit,
-} from '../../src/antd'
+} from '@shikiform/antd'
 
 export type Contact = { name: string; phone: string }
 export type Signup = {

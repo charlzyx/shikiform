@@ -1,5 +1,5 @@
-import { useQueryTable } from 'shikiform/pro'
-import { Field, Form } from 'shikiform'
+import { useQueryTable } from '@shikiform/hooks'
+import { Field, Form } from '@shikiform/react'
 import { LOGS, type LogRow } from '../data'
 
 interface Values {

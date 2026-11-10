@@ -1,5 +1,5 @@
 import { createContext, memo, useContext, useRef } from 'react'
-import { Form, RowScope, useArrayField, useField, useForm, useTreeField } from 'shikiform'
+import { Form, RowScope, useArrayField, useField, useForm, useTreeField } from '@shikiform/react'
 
 interface Item {
   id: string

@@ -27,8 +27,8 @@ description: 内置规则、Standard Schema（Zod）、跨字段与异步校验�
 import { useState } from 'react';
 import { Button } from 'antd';
 import { z } from 'zod';
-import { Field, Form, Watch, useForm, type Draft } from 'shikiform';
-import { Checkbox, FormButtonGroup, FormItem, FormLayout, Input } from 'shikiform/antd';
+import { Field, Form, Watch, useForm, type Draft } from '@shikiform/react';
+import { Checkbox, FormButtonGroup, FormItem, FormLayout, Input } from '@shikiform/antd';
 
 type Values = { username: string; email: string; password: string; confirm: string; agree: boolean };
 const TAKEN = ['admin', 'root'];
@@ -116,10 +116,10 @@ export default function App() {
 
 ## 内置文案
 
-内置规则、引擎和 `shikiform/antd` 组件的默认文案都是中文。`messages` 按 key 覆盖，没写的 key 用默认值；规则自己的 `message`、组件自己的属性（`title`、`okText` …）永远优先：
+内置规则、引擎和 `@shikiform/antd` 组件的默认文案都是中文。`messages` 按 key 覆盖，没写的 key 用默认值；规则自己的 `message`、组件自己的属性（`title`、`okText` …）永远优先：
 
 ```ts
-import { createForm, enUS, setDefaultMessages } from 'shikiform'
+import { createForm, enUS, setDefaultMessages } from '@shikiform/react'
 
 createForm({ messages: enUS })                       // 整套英文
 createForm({

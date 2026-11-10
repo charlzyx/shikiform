@@ -15,7 +15,7 @@ description: 不依赖任何 UI 库：useField、useWatch，行内的 useArray /
 ## 数组：行组件不需要名字
 
 ```tsx preview
-import { ArrayField, Form, Watch, useArray, useField, useForm, useIndex, useRecord, type Draft } from 'shikiform';
+import { ArrayField, Form, Watch, useArray, useField, useForm, useIndex, useRecord, type Draft } from '@shikiform/react';
 
 type Todo = { id: number; title: string; done: boolean };
 type Values = { todos: Todo[] };
@@ -95,7 +95,7 @@ function NodeLabel({ dragProps }: { dragProps: TreeHandle['dragProps'] }) {   //
 
 ## 接自己的组件库
 
-`connect` / `mapProps` / `mapBlur` / `mapFieldProps` 在 `shikiform` 里，不需要 `shikiform/antd`，也不需要安装 antd。默认不传 antd 的 `status`。标签和错误用 [`useFieldDecorator`](/reference/react-hooks#usefielddecorator)，按钮用 [`Submit` / `Reset`](/reference/react-hooks#usesubmit)（`asChild` 或 render prop）。`Reset` 的 `afterReset` 在重置之后拿到新值。
+`connect` / `mapProps` / `mapBlur` / `mapFieldProps` 在 `@shikiform/react` 里，不需要 `@shikiform/antd`，也不需要安装 antd。默认不传 antd 的 `status`。标签和错误用 [`useFieldDecorator`](/reference/react-hooks#usefielddecorator)，按钮用 [`Submit` / `Reset`](/reference/react-hooks#usesubmit)（`asChild` 或 render prop）。`Reset` 的 `afterReset` 在重置之后拿到新值。
 
 下面用 shadcn 写完整的 Input、Select、Checkbox、DatePicker 和 FormItem。MUI、Mantine 只列和 shadcn 不同的几点。本仓库没有安装这些库，那些示例是代码块，不会参与 `check:docs` 的类型检查和 SSR。可运行的是同一套接线换成原生元素的那一节。
 
@@ -104,7 +104,7 @@ function NodeLabel({ dragProps }: { dragProps: TreeHandle['dragProps'] }) {   //
 `useFieldDecorator().control` 给的是标签、说明、错误文案、`id`、`onBlur` 和 `aria-*`。**没有 `value`，也没有 `onChange`。** 把 `control` 摊开，字段值接不上。
 
 ```tsx
-import { Field, connect, useField, useFieldDecorator } from 'shikiform'
+import { Field, connect, useField, useFieldDecorator } from '@shikiform/react'
 
 // ✗ control 没有 value / onChange
 function Bad() {
@@ -158,7 +158,7 @@ shadcn 的 Input 就是 `value` / `onChange` / `onBlur`，直接 `connect`。Sel
 ```tsx
 import { format, parseISO } from 'date-fns'
 import type { ReactNode } from 'react'
-import { Field, Form, Reset, Submit, connect, mapProps, mapReadPretty, useFieldDecorator, useForm } from 'shikiform'
+import { Field, Form, Reset, Submit, connect, mapProps, mapReadPretty, useFieldDecorator, useForm } from '@shikiform/react'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Checkbox as ShadcnCheckbox } from '@/components/ui/checkbox'
@@ -272,7 +272,7 @@ export default function App() {
 
 ```tsx preview
 import { useState, type ReactNode } from 'react';
-import { Field, Form, Reset, Submit, connect, mapProps, mapReadPretty, useFieldDecorator, useForm } from 'shikiform';
+import { Field, Form, Reset, Submit, connect, mapProps, mapReadPretty, useFieldDecorator, useForm } from '@shikiform/react';
 
 function TextControl(props: {
   id?: string;
@@ -399,7 +399,7 @@ DatePickerInput 的 `value` 是 `Date | null`，不是字符串。字段里存 `
 ```tsx
 import { Checkbox, Select, TextInput } from '@mantine/core'
 import { DatePickerInput } from '@mantine/dates'
-import { Field, connect, mapProps, useField, useFieldDecorator } from 'shikiform'
+import { Field, connect, mapProps, useField, useFieldDecorator } from '@shikiform/react'
 
 function MantineInput() {
   const field = useField<string>()
@@ -448,7 +448,7 @@ import dayjs, { type Dayjs } from 'dayjs'
 import Checkbox from '@mui/material/Checkbox'
 import TextField from '@mui/material/TextField'
 import { DatePicker } from '@mui/x-date-pickers/DatePicker'
-import { Field, connect, mapBlur, mapProps, useField, useFieldDecorator } from 'shikiform'
+import { Field, connect, mapBlur, mapProps, useField, useFieldDecorator } from '@shikiform/react'
 
 // ✗ control 没有 value / onChange，而且 error 是文案不是布尔
 function Bad() {
@@ -505,9 +505,9 @@ MUI Select 自己有 `onBlur`，`onChange` 是 DOM 事件，不必 `blurOn`。�
 每个字段都写 `decorator={[FormItem]}` 是样板。把装饰器和控件登记一次，`<Field>` 的 `component` / `decorator` 槽位就能写字符串名字，或继续写已经 `connect` 过的组件引用。还是这一个 `<Field>`，没有第二套字段组件。
 
 ```tsx
-import { Field, FieldKit, Form } from 'shikiform'
+import { Field, FieldKit, Form } from '@shikiform/react'
 
-declare module 'shikiform' {
+declare module '@shikiform/react' {
   interface FieldComponents { Input: typeof Input; Select: typeof Select; DatePicker: typeof DatePicker }
   interface FieldDecorators { FormItem: typeof FormItem }
 }
@@ -521,7 +521,7 @@ declare module 'shikiform' {
 </FieldKit>
 ```
 
-`<Form kit={{ decorator: FormItem, components: { Input, Select } }}>` 是同一份登记，只作用于这一张表。没写 `decorator` 的字段用这份默认装饰器；`decorator={false}` 不要装饰器（表格单元格）。字符串名字在 `declare module 'shikiform'` 里登记之后才有提示，并按那个组件检查元组 props；没登记时任何字符串都能写。组件引用（`component={Input}`、`component={[Input, props]}`）和字符串是同一个槽位，引用不必再登记也能用到默认装饰器。
+`<Form kit={{ decorator: FormItem, components: { Input, Select } }}>` 是同一份登记，只作用于这一张表。没写 `decorator` 的字段用这份默认装饰器；`decorator={false}` 不要装饰器（表格单元格）。字符串名字在 `declare module '@shikiform/react'` 里登记之后才有提示，并按那个组件检查元组 props；没登记时任何字符串都能写。组件引用（`component={Input}`、`component={[Input, props]}`）和字符串是同一个槽位，引用不必再登记也能用到默认装饰器。
 
 签名、订阅边界和更多例子见 [React Hooks 参考](/reference/react-hooks)。
 

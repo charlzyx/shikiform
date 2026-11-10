@@ -2,8 +2,8 @@
 import { act, cleanup, renderHook } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { createForm, Form } from '../src'
-import { useArrayTable, type UseArrayTableOptions } from '../src/pro'
+import { createForm, Form } from '@shikiform/react'
+import { useArrayTable, type UseArrayTableOptions } from '@shikiform/hooks'
 
 afterEach(cleanup)
 

@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { Form, createForm } from '../src'
-import { FormGrid, FormLayout, GridColumn, useFormGrid, useFormLayout } from '../src/antd'
+import { Form, createForm } from '@shikiform/react'
+import { FormGrid, FormLayout, GridColumn, useFormGrid, useFormLayout } from '@shikiform/antd'
 
 afterEach(cleanup)
 

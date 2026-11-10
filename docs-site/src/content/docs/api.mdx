@@ -8,7 +8,7 @@ description: 四个入口、createForm 选项、引擎方法、React 组件与�
 | 要查什么 | 参考页 |
 |---|---|
 | `useForm`、`typed`、`useFormContext`、`useFormMessage`、`useField`（无参即当前字段）、`useFieldDecorator`、`useSubmit`、`useReset`（+ headless `<Submit>` / `<Reset>`）、`useWatch`、`useArrayField`、`useArray`、`useIndex`、`useRecord`、`useTreeField`、`useTreeNode`、`useFieldGroup`、`useFieldGroupErrors`（+ `<FieldGroup>`） | [React Hooks](/reference/react-hooks) |
-| `connect`、`mapProps`、`mapBlur`、`mapReadPretty`、`mapFieldProps`（定义在 `shikiform`，antd 再导出）、`FormItem`、`mapFormItemProps`、`FormLayout`、`useFormLayout`、`FormGrid`、`GridColumn`、`useFormGrid`、`FormButtonGroup`、`PreviewText`（及 `.Select` 等阅读态视图）、接好的控件（`Input` … `TimePicker`、`TreeSelect`、`Cascader`、`Upload`、`Slider`、`Rate`、`Transfer`、`AutoComplete`、`ColorPicker`） | [Ant Design 适配层](/reference/antd-adapter) |
+| `connect`、`mapProps`、`mapBlur`、`mapReadPretty`、`mapFieldProps`（定义在 `@shikiform/react`，antd 再导出）、`FormItem`、`mapFormItemProps`、`FormLayout`、`useFormLayout`、`FormGrid`、`GridColumn`、`useFormGrid`、`FormButtonGroup`、`PreviewText`（及 `.Select` 等阅读态视图）、接好的控件（`Input` … `TimePicker`、`TreeSelect`、`Cascader`、`Upload`、`Slider`、`Rate`、`Transfer`、`AutoComplete`、`ColorPicker`） | [Ant Design 适配层](/reference/antd-adapter) |
 | `Submit`、`Reset`、控件取值契约、`ArrayItems`、`ArrayCards`、`ArrayTable`、`useArrayEditable`、`FormTab`、`FormCollapse`、`FormStep`、`useFormStep`、`MergedTable`、`groupRowSpan` | [Ant Design 参考](/reference/antd) |
 | `useQueryTable`、`useBuiltinQuery` | [查询 Hooks](/reference/query-hooks) |
 | `useArrayTable`、`useColumnSettings`、`useShadowForm`、`useArrayShadow`、`useSuggestion`、`useLazyCascader`、`enumItems`、`ENUM_COLORS` | [Pro Hooks](/reference/pro-hooks) |
@@ -18,10 +18,10 @@ description: 四个入口、createForm 选项、引擎方法、React 组件与�
 
 | 入口 | 主要导出 |
 |---|---|
-| `shikiform` | `useForm`、`createForm`、`defineEffects`；`Form`、`Field`、`ObjectField`、`ArrayField`、`ArrayScope`、`RowScope`、`TreeField`、`Watch`、`VirtualRows`、`FieldGroup`；`connect` / `mapProps` / `mapBlur` / `mapReadPretty` / `mapFieldProps`；headless `Submit` / `Reset`；上表的 React Hooks（含 `useFieldDecorator` / `useSubmit` / `useReset`）；`EnumSource`、`ShikiUsageError` 等错误类、`zhCN` / `enUS` / `setDefaultMessages`；类型 `Draft`、`FieldBinding`、`FieldProps`、`FormOptions`、`Pattern`、`Display`、`Pos`、`MoveResult`、`FieldEnum` … |
-| `shikiform/core` | 不依赖 React 的引擎：`createForm`、`defineEffects`、`EnumSource`、`comboMatch`、`comboOptions`、错误类、树坐标工具 `moveNode` / `pathOf` / `posOf`；类型 `ArrayPath`、`EnumInput`、`EnumValueOf` … 根入口已有的引擎名字两处是同一个对象 |
-| `shikiform/pro` | 上表的 Pro Hooks，不依赖 antd |
-| `shikiform/antd` | 适配层（再导出 `connect` / `mapProps` / `mapBlur`，并给接好的控件加上 `status`；`FormItem`、`FormLayout`、`FormGrid`、`FormButtonGroup`）、接好的控件、antd 版 `Submit` / `Reset`（`Reset` 有 `afterReset`）、数组容器 `ArrayItems` / `ArrayCards` / `ArrayTable`、分组容器 `FormTab` / `FormCollapse` / `FormStep`、`QueryList`、`MergedTable` 与 Pro 组件 |
+| `@shikiform/react` | `useForm`、`createForm`、`defineEffects`；`Form`、`Field`、`ObjectField`、`ArrayField`、`ArrayScope`、`RowScope`、`TreeField`、`Watch`、`VirtualRows`、`FieldGroup`；`connect` / `mapProps` / `mapBlur` / `mapReadPretty` / `mapFieldProps`；headless `Submit` / `Reset`；上表的 React Hooks（含 `useFieldDecorator` / `useSubmit` / `useReset`）；`EnumSource`、`ShikiUsageError` 等错误类、`zhCN` / `enUS` / `setDefaultMessages`；类型 `Draft`、`FieldBinding`、`FieldProps`、`FormOptions`、`Pattern`、`Display`、`Pos`、`MoveResult`、`FieldEnum` … |
+| `@shikiform/core` | 不依赖 React 的引擎：`createForm`、`defineEffects`、`EnumSource`、`comboMatch`、`comboOptions`、错误类、树坐标工具 `moveNode` / `pathOf` / `posOf`；类型 `ArrayPath`、`EnumInput`、`EnumValueOf` … 根入口已有的引擎名字两处是同一个对象 |
+| `@shikiform/hooks` | 上表的 Pro Hooks，不依赖 antd |
+| `@shikiform/antd` | 适配层（再导出 `connect` / `mapProps` / `mapBlur`，并给接好的控件加上 `status`；`FormItem`、`FormLayout`、`FormGrid`、`FormButtonGroup`）、接好的控件、antd 版 `Submit` / `Reset`（`Reset` 有 `afterReset`）、数组容器 `ArrayItems` / `ArrayCards` / `ArrayTable`、分组容器 `FormTab` / `FormCollapse` / `FormStep`、`QueryList`、`MergedTable` 与 Pro 组件 |
 
 没有 `shikiform/ui`、`shikiform/zod` 入口：Zod 实现了 Standard Schema，直接传给 `rules` / `validate`。行上下文是 `useIndex()` / `useRecord()`（或 `ArrayTable.useRow()`），没有独立的 `useRow` 导出。
 
@@ -88,7 +88,7 @@ const dirty = useWatch((d: Draft<Values>) => d.$dirty)          // 改回原值�
 `submit` / `getSubmitValues` / `<Form onSubmit>` 的值类型是表单的第二个泛型 `TSubmit`，默认等于 `T`。运行时会删掉 `display: 'virtual'` 和 `display: 'none'` 的字段（以及它们的子树），而哪些字段被 reaction 改成这两种只有运行时才知道，所以默认类型不会替你猜。表单里有会被删掉的字段时，用 `SubmitValues<T, 路径>` 把它们声明成可选：
 
 ```ts
-import { createForm, type SubmitValues } from 'shikiform'
+import { createForm, type SubmitValues } from '@shikiform/react'
 
 type V = { a: string; tmp: string; b: string; rows: { qty: number; total: number }[] }
 const form = createForm<V, SubmitValues<V, 'tmp' | 'b' | 'rows.*.total'>>({
@@ -146,7 +146,7 @@ const effects = defineEffects<Values>(({ reaction, watch, query }) => {
 
 行级回调都是 `(row, ctx)`，`ctx: RowContext = { d, path, index, pos }`。详见 [联动](/guide/linkage)；`$` 状态与显隐见 [核心概念](/guide/concepts)，规则见 [校验](/guide/validation)。
 
-## 引擎工具（`shikiform/core`）
+## 引擎工具（`@shikiform/core`）
 
 联动、组件都用不到它们；写自己的树组件或做组合选择时才需要。全部是纯函数，不依赖 React。
 
@@ -176,7 +176,7 @@ setDefaultMessages(messages: Partial<FormMessages>): void   // 全应用默认�
 getDefaultMessages(): FormMessages       // 当前的全应用默认（setDefaultMessages 之后的结果）
 ```
 
-三个错误类都从 `shikiform` 和 `shikiform/core` 导出，可以 `instanceof` 判断。`ShikiCycleError` 在生产构建里也会抛（联动循环触发）；`ShikiUsageError` 和 `ShikiConflictError` 只在开发构建检查。开发构建里，冲突和循环的消息逐个列出涉及的 reaction：声明位置（`文件:行:列`）、它读了哪些状态、写了哪些状态。两个写者的冲突改成一个写者，或把动作移到 `watch`。文案的优先级是规则自己的 `message` > 表单 `messages` > `setDefaultMessages` > `zhCN`，见 [内置文案](/guide/validation#内置文案)。
+三个错误类都从 `@shikiform/react` 和 `@shikiform/core` 导出，可以 `instanceof` 判断。`ShikiCycleError` 在生产构建里也会抛（联动循环触发）；`ShikiUsageError` 和 `ShikiConflictError` 只在开发构建检查。开发构建里，冲突和循环的消息逐个列出涉及的 reaction：声明位置（`文件:行:列`）、它读了哪些状态、写了哪些状态。两个写者的冲突改成一个写者，或把动作移到 `watch`。文案的优先级是规则自己的 `message` > 表单 `messages` > `setDefaultMessages` > `zhCN`，见 [内置文案](/guide/validation#内置文案)。
 
 ## 类型索引
 
@@ -184,10 +184,10 @@ getDefaultMessages(): FormMessages       // 当前的全应用默认（setDefaul
 
 | 入口 | 类型 |
 |---|---|
-| `shikiform` 与 `shikiform/core` 共有 | 值与路径：`Draft`、`RowDraft`、`UiDraft`、`FieldPath`、`TemplatePath`（下标可写 `*`）、`ArrayItemOf`、`PathValue`、`SubmitValues`；字段：`FieldSpec`、`FieldUiSpec`（`title` / `decorator` / `component` 等 UI 部分）、`FieldError`、`Pattern`、`Display`、`UiName`、`UiNames`；枚举：`EnumOption`、`EnumBinding`（`$enum = source.with()` 存下的绑定）、`FieldEnum`；表单：`FormOptions`、`FormInstance`（`createForm` / `useForm` 返回的表单）、`SubmitResult`、`EffectDef`（`defineEffects` 的返回值）、`RowContext`；校验：`Rule`、`RulesInput`、`ValidateCtx`（`record` / `parent` / `array` / `root` / `get(path)`）、`ValidateTrigger`；树：`Pos`、`MoveResult`；文案：`FormMessages`、`FormMessageKey`、`MessageTemplate`、`MessageArgs`、`MessageBase`、`MessageParams`、`NoParams`、`TreeMoveParams` |
-| 仅 `shikiform` | `FieldProps`、`FieldSlot`、`UseFieldOptions`、`FieldBinding`、`UIProps`、`UiBinding`、`ArrayHandle`、`ArrayContainerSlot`（`<ArrayField component>` 的类型，按容器检查 props）、`FieldGroupHandle`、`UseFormOptions`、`FormProps`、`FormDomProps`（透传给 `<form>` 的属性）、`FormSubmitHandlers`、`TypedForm`、`ScopeFields`（`typed()` 按作用域检查名字的组件集） |
-| 仅 `shikiform/core` | `ArrayPath`、`EnumInput`、`EnumValueOf`、`TypedEnumOption`、`EnumConfig`、`EnumLoadContext`（异步枚举加载器的参数，带 `signal`）、`EnumPolicy`、`StandardSchemaV1`、`TreeMoveResult`（`moveNode` 的结果） |
-| `shikiform/pro` | 表格：`ArrayTableApi`、`UseArrayTableOptions`、`ArrayTablePagination`、`ArrayTableRow`、`ColumnSettingsApi`、`ColumnSetting`、`ColumnSettingInput`、`ColumnDragProps`、`ColumnDragEvent`、`TableDensity`；查询：`QueryTableApi`、`UseQueryTableOptions`、`QueryRequestArgs`、`QueryRequestResult`、`QuerySort`、`QueryFilters`、`TableSorterLike`、`QueryHookArgs`、`QueryHookResult`；影子草稿：`ShadowFormApi`、`UseShadowFormOptions`、`ShadowInit`、`ShadowConfirmResult`、`ArrayShadowApi`、`ArrayShadowContext`、`UseArrayShadowOptions`；输入：`SuggestionApi`、`UseSuggestionOptions`、`SuggestFetcher`、`LazyCascaderApi`、`UseLazyCascaderOptions`、`CascaderLoader`、`CascaderOption`、`CascaderLabelsApi`、`UseCascaderLabelsOptions`；枚举显示：`EnumDisplayItem`、`EnumItemsOptions` |
-| `shikiform/antd` | 适配：`ConnectedComponent`、`ConnectEnhancer`、`ConnectFieldProps`、`ComponentStatics`、`PropsMapping`、`PropsTransform`、`FieldPropKey`、`FieldStateKey`、`FormItemProps`、`FormItemEnv`、`FeedbackLayout`、`FormLayoutProps`、`FormLayoutValue`、`Responsive`、`FormGridProps`、`FormGridValue`、`FormButtonGroupProps`、`FormButtonGroupStickyProps`；阅读态：`PreviewTextProps`、`PreviewSelectProps`、`PreviewOption`、`PrettyType`、`PrettyTypeProps`；按钮：`SubmitProps`、`ResetProps`；数组与表格：`ArrayTableProps`、`ArrayTableColumn`、`ArrayTableCell`（列 `render` 的参数）、`MergedColumn`、`QueryListProps`；容器：`FormTabProps`、`FormTabPaneProps`、`FormCollapseProps`、`FormCollapsePanelProps`、`FormStepProps`、`FormStepStepProps`、`FormStepHandle`、`UseFormStepOptions`；Pro：`ShadowOwnProps`、`SuggestionViewProps`、`CascaderPlusViewProps` |
+| `@shikiform/react` 与 `@shikiform/core` 共有 | 值与路径：`Draft`、`RowDraft`、`UiDraft`、`FieldPath`、`TemplatePath`（下标可写 `*`）、`ArrayItemOf`、`PathValue`、`SubmitValues`；字段：`FieldSpec`、`FieldUiSpec`（`title` / `decorator` / `component` 等 UI 部分）、`FieldError`、`Pattern`、`Display`、`UiName`、`UiNames`；枚举：`EnumOption`、`EnumBinding`（`$enum = source.with()` 存下的绑定）、`FieldEnum`；表单：`FormOptions`、`FormInstance`（`createForm` / `useForm` 返回的表单）、`SubmitResult`、`EffectDef`（`defineEffects` 的返回值）、`RowContext`；校验：`Rule`、`RulesInput`、`ValidateCtx`（`record` / `parent` / `array` / `root` / `get(path)`）、`ValidateTrigger`；树：`Pos`、`MoveResult`；文案：`FormMessages`、`FormMessageKey`、`MessageTemplate`、`MessageArgs`、`MessageBase`、`MessageParams`、`NoParams`、`TreeMoveParams` |
+| 仅 `@shikiform/react` | `FieldProps`、`FieldSlot`、`UseFieldOptions`、`FieldBinding`、`UIProps`、`UiBinding`、`ArrayHandle`、`ArrayContainerSlot`（`<ArrayField component>` 的类型，按容器检查 props）、`FieldGroupHandle`、`UseFormOptions`、`FormProps`、`FormDomProps`（透传给 `<form>` 的属性）、`FormSubmitHandlers`、`TypedForm`、`ScopeFields`（`typed()` 按作用域检查名字的组件集） |
+| 仅 `@shikiform/core` | `ArrayPath`、`EnumInput`、`EnumValueOf`、`TypedEnumOption`、`EnumConfig`、`EnumLoadContext`（异步枚举加载器的参数，带 `signal`）、`EnumPolicy`、`StandardSchemaV1`、`TreeMoveResult`（`moveNode` 的结果） |
+| `@shikiform/hooks` | 表格：`ArrayTableApi`、`UseArrayTableOptions`、`ArrayTablePagination`、`ArrayTableRow`、`ColumnSettingsApi`、`ColumnSetting`、`ColumnSettingInput`、`ColumnDragProps`、`ColumnDragEvent`、`TableDensity`；查询：`QueryTableApi`、`UseQueryTableOptions`、`QueryRequestArgs`、`QueryRequestResult`、`QuerySort`、`QueryFilters`、`TableSorterLike`、`QueryHookArgs`、`QueryHookResult`；影子草稿：`ShadowFormApi`、`UseShadowFormOptions`、`ShadowInit`、`ShadowConfirmResult`、`ArrayShadowApi`、`ArrayShadowContext`、`UseArrayShadowOptions`；输入：`SuggestionApi`、`UseSuggestionOptions`、`SuggestFetcher`、`LazyCascaderApi`、`UseLazyCascaderOptions`、`CascaderLoader`、`CascaderOption`、`CascaderLabelsApi`、`UseCascaderLabelsOptions`；枚举显示：`EnumDisplayItem`、`EnumItemsOptions` |
+| `@shikiform/antd` | 适配：`ConnectedComponent`、`ConnectEnhancer`、`ConnectFieldProps`、`ComponentStatics`、`PropsMapping`、`PropsTransform`、`FieldPropKey`、`FieldStateKey`、`FormItemProps`、`FormItemEnv`、`FeedbackLayout`、`FormLayoutProps`、`FormLayoutValue`、`Responsive`、`FormGridProps`、`FormGridValue`、`FormButtonGroupProps`、`FormButtonGroupStickyProps`；阅读态：`PreviewTextProps`、`PreviewSelectProps`、`PreviewOption`、`PrettyType`、`PrettyTypeProps`；按钮：`SubmitProps`、`ResetProps`；数组与表格：`ArrayTableProps`、`ArrayTableColumn`、`ArrayTableCell`（列 `render` 的参数）、`MergedColumn`、`QueryListProps`；容器：`FormTabProps`、`FormTabPaneProps`、`FormCollapseProps`、`FormCollapsePanelProps`、`FormStepProps`、`FormStepStepProps`、`FormStepHandle`、`UseFormStepOptions`；Pro：`ShadowOwnProps`、`SuggestionViewProps`、`CascaderPlusViewProps` |
 
 下一步：[React Hooks 参考](/reference/react-hooks)，`useForm`、`useField`、`useWatch` 等的签名。

@@ -3,7 +3,7 @@ title: Ant Design 适配
 description: 接好的 antd 控件、阅读态、connect / mapProps / mapReadPretty 接自己的控件，以及提交 / 重置按钮。
 ---
 
-antd 控件要的是 `value`、`onChange`、`status`、`disabled` 这些 props。`shikiform/antd` 把字段绑定映射成这些 props，值仍在 ShikiForm 引擎里，所以**不要再把同一份值交给 antd `Form` 的 `name` / `rules` / `initialValues`**。
+antd 控件要的是 `value`、`onChange`、`status`、`disabled` 这些 props。`@shikiform/antd` 把字段绑定映射成这些 props，值仍在 ShikiForm 引擎里，所以**不要再把同一份值交给 antd `Form` 的 `name` / `rules` / `initialValues`**。
 
 ## 接好的控件
 
@@ -15,8 +15,8 @@ antd 控件要的是 `value`、`onChange`、`status`、`disabled` 这些 props�
 
 ```tsx preview
 import { Radio as AntRadio } from 'antd';
-import { Field, Form, ObjectField, useForm, type Pattern } from 'shikiform';
-import { Checkbox, DatePicker, FormItem, FormLayout, Input, InputNumber, Radio, Select, Switch } from 'shikiform/antd';
+import { Field, Form, ObjectField, useForm, type Pattern } from '@shikiform/react';
+import { Checkbox, DatePicker, FormItem, FormLayout, Input, InputNumber, Radio, Select, Switch } from '@shikiform/antd';
 
 type Profile = { name: string; age: number; level: string; tags: string[]; gender: string; vip: boolean; birthday: string };
 
@@ -67,11 +67,11 @@ export default function App() {
 
 ```tsx preview
 import { Segmented as AntSegmented } from 'antd';
-import { Field, Form, useForm } from 'shikiform';
-import { FormItem, FormLayout, Switch, connect, mapProps, mapReadPretty } from 'shikiform/antd';
+import { Field, Form, useForm } from '@shikiform/react';
+import { FormItem, FormLayout, Switch, connect, mapProps, mapReadPretty } from '@shikiform/antd';
 
 // Segmented 的 onChange 直接给值。headless connect 默认不传 status；这里再丢掉 id。阅读态显示带圆点的文字。
-// connect 也从 'shikiform' 导入，不必经过 antd。
+// connect 也从 '@shikiform/react' 导入，不必经过 antd。
 const Segmented = connect(
   AntSegmented,
   mapProps({ id: false, readOnly: 'disabled' }),
@@ -100,7 +100,7 @@ export default function App() {
 不想经过 `connect` 时，组件里用不带参数的 `useField()` 读当前字段，自己接线。`<Field>` 的 `component`、子元素、表格单元格里的 `<Field>` 都一样：
 
 ```tsx
-import { useField } from 'shikiform';
+import { useField } from '@shikiform/react';
 
 function Percent() {
   const field = useField<number>();
@@ -113,7 +113,7 @@ function Percent() {
 
 ## 提交与重置按钮
 
-`Submit` / `Reset` 读最近的 `<Form>`：`Submit` 在 `$canSubmit` 为 false 时不可点、提交中显示 loading；`Reset` 调 `form.reset()`。`afterReset` 在重置之后拿到新值（查询后再查一次）。按钮文字跟随表单的 `messages`。不装 antd 时用 `shikiform` 的同名组件（`asChild` / render prop）或 `useSubmit()` / `useReset()`。
+`Submit` / `Reset` 读最近的 `<Form>`：`Submit` 在 `$canSubmit` 为 false 时不可点、提交中显示 loading；`Reset` 调 `form.reset()`。`afterReset` 在重置之后拿到新值（查询后再查一次）。按钮文字跟随表单的 `messages`。不装 antd 时用 `@shikiform/react` 的同名组件（`asChild` / render prop）或 `useSubmit()` / `useReset()`。
 
 ```tsx
 <Form form={form} onSubmit={save}>

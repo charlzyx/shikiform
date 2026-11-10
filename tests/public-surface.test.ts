@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import * as root from '../src'
-import * as core from '../src/core'
-import * as pro from '../src/pro'
-import * as antd from '../src/antd'
-import { createForm, type FormInstance } from '../src'
+import * as root from '@shikiform/react'
+import * as core from '@shikiform/core'
+import * as pro from '@shikiform/hooks'
+import * as antd from '@shikiform/antd'
+import { createForm, type FormInstance } from '@shikiform/react'
 
 /** The public surface is a semver promise once published: removing a name later is a major. Grow it on purpose. */
 describe('public surface', () => {

@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Button, Select as AntSelect, Space } from 'antd'
-import { FormItem, Input, PreviewText, QueryList, Select } from 'shikiform/antd'
-import { defineEffects, Field, useFormContext, useWatch, type Draft } from 'shikiform'
-import { useQueryTable } from 'shikiform/pro'
+import { FormItem, Input, PreviewText, QueryList, Select } from '@shikiform/antd'
+import { defineEffects, Field, useFormContext, useWatch, type Draft } from '@shikiform/react'
+import { useQueryTable } from '@shikiform/hooks'
 import { LOGS, type LogRow } from '../data'
 
 interface QueryParams {

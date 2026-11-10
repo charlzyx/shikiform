@@ -3,9 +3,9 @@ import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { Button, Space } from 'antd'
 import { useState } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { ArrayField, createForm, Field, Form } from '../src'
-import { ArrayItems, ArrayTable, FormCollapse, FormItem, FormStep, FormTab, Input, Submit, useFormStep, type FormStepHandle } from '../src/antd'
-import type { FormInstance } from '../src'
+import { ArrayField, createForm, Field, Form } from '@shikiform/react'
+import { ArrayItems, ArrayTable, FormCollapse, FormItem, FormStep, FormTab, Input, Submit, useFormStep, type FormStepHandle } from '@shikiform/antd'
+import type { FormInstance } from '@shikiform/react'
 
 afterEach(cleanup)
 const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 30)))

@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ArrayField, createForm, Field, Form } from '../src'
-import { FormItem, Input, ArrayTable } from '../src/antd'
+import { ArrayField, createForm, Field, Form } from '@shikiform/react'
+import { FormItem, Input, ArrayTable } from '@shikiform/antd'
 
 afterEach(cleanup)
 

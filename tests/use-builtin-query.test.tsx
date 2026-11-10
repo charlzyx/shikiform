@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { useBuiltinQuery, type QueryRequestResult } from '../src/pro'
+import { useBuiltinQuery, type QueryRequestResult } from '@shikiform/hooks'
 
 afterEach(cleanup)
 

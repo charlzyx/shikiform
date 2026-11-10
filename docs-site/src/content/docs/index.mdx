@@ -7,8 +7,8 @@ description: 一个无 UI 的表单引擎，用 draft + $ 状态写联动，用 
 
 ```tsx preview
 import { useState } from 'react';
-import { defineEffects, Form, typed, useForm } from 'shikiform';
-import { FormButtonGroup, FormItem, FormLayout, Input, Radio, Submit } from 'shikiform/antd';
+import { defineEffects, Form, typed, useForm } from '@shikiform/react';
+import { FormButtonGroup, FormItem, FormLayout, Input, Radio, Submit } from '@shikiform/antd';
 
 type Values = { kind: 'personal' | 'work'; email: string; company: string };
 
@@ -49,7 +49,7 @@ export default function App() {
 
 ## 四个入口
 
-`shikiform/core` 是不依赖 React 的引擎；`shikiform` 加上 React 组件与 Hooks；`shikiform/pro` 是无 UI 的表格、查询、草稿 Hooks；`shikiform/antd` 是 Ant Design 控件和 Pro 组件。依赖方向是 `antd → pro → react → core`，不用 antd 时只用前两个。各入口的导出见 [模块入口](/api#模块入口)。
+`@shikiform/core` 是不依赖 React 的引擎；`@shikiform/react` 加上 React 组件与 Hooks；`@shikiform/hooks` 是无 UI 的表格、查询、草稿 Hooks；`@shikiform/antd` 是 Ant Design 控件和 Pro 组件。依赖方向是 `antd → pro → react → core`，不用 antd 时只用前两个。各入口的导出见 [模块入口](/api#模块入口)。
 
 用 AI 写代码时，把 [/llms.txt](/llms.txt) 交给它，或看 [Agent 指南](/agents)。想边改边学，走 [分步教程](/tutorial/)。
 

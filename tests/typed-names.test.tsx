@@ -16,8 +16,8 @@ import {
   Watch,
   type Draft,
   type SubmitValues,
-} from '../src'
-import { ShikiUsageError } from '../src/core'
+} from '@shikiform/react'
+import { ShikiUsageError } from '@shikiform/core'
 
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false
 type Expect<T extends true> = T

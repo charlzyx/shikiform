@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ENUM_COLORS, enumItems } from '../src/pro'
+import { ENUM_COLORS, enumItems } from '@shikiform/hooks'
 
 describe('ENUM_COLORS', () => {
   it('maps the named colors an option may use; the map itself passes through unknown names', () => {

@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { ArrayField, createForm, Form, RowScope, TreeField, useArray, useIndex, useRecord, useTreeNode } from '../src'
-import { ArrayTable } from '../src/antd'
+import { ArrayField, createForm, Form, RowScope, TreeField, useArray, useIndex, useRecord, useTreeNode } from '@shikiform/react'
+import { ArrayTable } from '@shikiform/antd'
 
 afterEach(cleanup)
 

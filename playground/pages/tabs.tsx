@@ -1,6 +1,6 @@
 import { Button } from 'antd'
-import { defineEffects, Field, Form, useForm, useWatch, type Draft } from 'shikiform'
-import { FormButtonGroup, FormItem, FormLayout, Input, Radio } from 'shikiform/antd'
+import { defineEffects, Field, Form, useForm, useWatch, type Draft } from '@shikiform/react'
+import { FormButtonGroup, FormItem, FormLayout, Input, Radio } from '@shikiform/antd'
 
 interface Values {
   tab: 'base' | 'extra'

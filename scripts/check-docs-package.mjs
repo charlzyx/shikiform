@@ -66,7 +66,10 @@ if (listOnly) {
   process.stdout.write(`${JSON.stringify(manifest, null, 2)}\n`)
   process.exit(0)
 }
-if (!existsSync(path.join(root, 'lib', 'index.d.ts'))) throw new Error('Run npm run build:lib before this check')
+const packageNames = ['core', 'react', 'hooks', 'antd']
+for (const name of packageNames) {
+  if (!existsSync(path.join(root, 'packages', name, 'dist', 'index.d.ts'))) throw new Error('Run npm run build:lib before this check')
+}
 if (keepDir && existsSync(keepDir)) throw new Error(`Refusing to overwrite existing evidence: ${keepDir}`)
 const work = keepDir ?? mkdtempSync(path.join(os.tmpdir(), 'shikiform-docs-package-'))
 mkdirSync(work, { recursive: true })
@@ -90,48 +93,59 @@ function run(command, parameters, cwd, log) {
 }
 
 try {
-  const packed = JSON.parse(run('npm', ['pack', '--ignore-scripts', '--json', '--pack-destination', work], root, 'pack.log'))
-  if (packed.length !== 1 || path.basename(packed[0].filename) !== packed[0].filename) throw new Error('Unexpected npm pack result')
-  // macOS 的 os.tmpdir() 经 /var → /private/var 符号链接，先归一化再比对前缀。
-  const packageDir = path.join(modules, 'shikiform')
-  mkdirSync(packageDir)
-  run('tar', ['-xzf', path.join(work, packed[0].filename), '-C', packageDir, '--strip-components=1'], root, 'unpack.log')
-  const pkg = JSON.parse(readFileSync(path.join(packageDir, 'package.json'), 'utf8'))
-  if (pkg.name !== 'shikiform') throw new Error(`Unexpected packed package: ${pkg.name}`)
-  // macOS 的 os.tmpdir() 返回 symlink 路径（/var/... → /private/var/...），realpath 会改写前缀，
-  // 前缀比较必须两边都先解析成真实路径。
-  const packageDirReal = realpathSync(packageDir)
-  for (const key of ['.', './core', './pro', './antd']) {
-    for (const condition of ['types', 'import']) {
-      const target = pkg.exports?.[key]?.[condition]
-      if (typeof target !== 'string') throw new Error(`Missing public ${key} ${condition} export`)
-      const actual = realpathSync(path.resolve(packageDir, target))
-      if (!actual.startsWith(`${packageDirReal}${path.sep}`)) throw new Error(`Export escapes the package: ${key}`)
-    }
+  const scopeDir = path.join(modules, '@shikiform')
+  mkdirSync(scopeDir, { recursive: true })
+  const packedDirs = {}
+  const forbidden = {
+    core: /^(react|react-dom|antd|dayjs)(\/|$)|@shikiform\/(react|hooks|antd)/,
+    react: /^(antd|dayjs)(\/|$)|@shikiform\/(hooks|antd)/,
+    hooks: /^(antd|dayjs)(\/|$)|@shikiform\/antd/,
+    antd: null,
   }
-  // Traverse emitted JS, including shared chunks: core/headless must not pull UI.
-  for (const entry of ['.', './core', './pro']) {
-    const visited = new Set()
-    const visitModule = (file) => {
-      const actual = realpathSync(file)
-      if (!actual.startsWith(`${packageDirReal}${path.sep}`)) throw new Error(`Chunk escapes package: ${file}`)
-      if (visited.has(actual)) return
-      visited.add(actual)
-      const code = readFileSync(actual, 'utf8')
-      for (const match of code.matchAll(/(?:from\s*|import\s*)['"]([^'"]+)['"]/g)) {
-        const dependency = match[1]
-        if (dependency === 'antd' || dependency.startsWith('antd/')) throw new Error(`${entry} unexpectedly imports ${dependency}`)
-        if (entry === './core' && /^(react|react-dom)(\/|$)/.test(dependency)) throw new Error(`Core unexpectedly imports ${dependency}`)
-        if (dependency.startsWith('.')) visitModule(path.resolve(path.dirname(actual), dependency))
+  for (const name of packageNames) {
+    const sourceDir = path.join(root, 'packages', name)
+    const packed = JSON.parse(run('npm', ['pack', '--ignore-scripts', '--json', '--pack-destination', work], sourceDir, `pack-${name}.log`))
+    if (packed.length !== 1 || path.basename(packed[0].filename) !== packed[0].filename) throw new Error(`Unexpected npm pack result for ${name}`)
+    const packageDir = path.join(scopeDir, name)
+    mkdirSync(packageDir)
+    run('tar', ['-xzf', path.join(work, packed[0].filename), '-C', packageDir, '--strip-components=1'], root, `unpack-${name}.log`)
+    const pkg = JSON.parse(readFileSync(path.join(packageDir, 'package.json'), 'utf8'))
+    if (pkg.name !== `@shikiform/${name}`) throw new Error(`Unexpected packed package: ${pkg.name}`)
+    const packageDirReal = realpathSync(packageDir)
+    packedDirs[pkg.name] = packageDirReal
+    const exportKeys = Object.keys(pkg.exports ?? {})
+    if (!exportKeys.includes('.')) throw new Error(`${pkg.name} is missing the "." export`)
+    for (const key of exportKeys) {
+      for (const condition of ['types', 'import']) {
+        const target = pkg.exports?.[key]?.[condition]
+        if (typeof target !== 'string') throw new Error(`Missing public ${pkg.name} ${key} ${condition} export`)
+        const actual = realpathSync(path.resolve(packageDir, target))
+        if (!actual.startsWith(`${packageDirReal}${path.sep}`)) throw new Error(`Export escapes the package: ${pkg.name} ${key}`)
       }
     }
-    visitModule(path.resolve(packageDir, pkg.exports[entry].import))
+    const rule = forbidden[name]
+    for (const entry of exportKeys) {
+      const visited = new Set()
+      const visitModule = (file) => {
+        const actual = realpathSync(file)
+        if (!actual.startsWith(`${packageDirReal}${path.sep}`)) throw new Error(`Chunk escapes package: ${file}`)
+        if (visited.has(actual)) return
+        visited.add(actual)
+        const code = readFileSync(actual, 'utf8')
+        for (const match of code.matchAll(/(?:from\s*|import\s*)['"]([^'"]+)['"]/g)) {
+          const dependency = match[1]
+          if (rule && rule.test(dependency)) throw new Error(`${pkg.name} ${entry} unexpectedly imports ${dependency}`)
+          if (dependency.startsWith('.')) visitModule(path.resolve(path.dirname(actual), dependency))
+        }
+      }
+      visitModule(path.resolve(packageDir, pkg.exports[entry].import))
+    }
   }
   summary.dependencyIsolation = 'passed'
-  // Third-party packages are reused offline. ShikiForm itself is a real tarball
-  // extraction: no link to the checkout, no workspace package, and no TS paths.
+  // Third-party packages are reused offline. The four packages are real tarball
+  // extractions: no link to the checkout, no workspace package, and no TS paths.
   for (const entry of readdirSync(path.join(root, 'node_modules'))) {
-    if (entry.startsWith('.') || entry === 'shikiform') continue
+    if (entry.startsWith('.') || entry === '@shikiform') continue
     symlinkSync(realpathSync(path.join(root, 'node_modules', entry)), path.join(modules, entry), 'junction')
   }
   writeFileSync(path.join(consumer, 'package.json'), JSON.stringify({ name: 'shikiform-docs-consumer', private: true, type: 'module' }, null, 2))
@@ -142,8 +156,8 @@ try {
   }
   writeFileSync(path.join(consumer, 'package-context.tsx'), readFileSync(path.join(root, 'scripts/fixtures/package-context.tsx'), 'utf8'))
   writeFileSync(path.join(consumer, 'public-entrypoints.ts'), [
-    "import * as form from 'shikiform'", "import * as core from 'shikiform/core'",
-    "import * as pro from 'shikiform/pro'", "import * as antd from 'shikiform/antd'",
+    "import * as form from '@shikiform/react'", "import * as core from '@shikiform/core'",
+    "import * as pro from '@shikiform/hooks'", "import * as antd from '@shikiform/antd'",
     'export const publicEntrypoints = { form, core, pro, antd }',
   ].join('\n'))
   writeFileSync(path.join(consumer, 'tsconfig.json'), JSON.stringify({
@@ -179,10 +193,10 @@ try {
   writeFileSync(path.join(consumer, 'index.html'), '<!doctype html><html><head><meta charset="utf-8"></head><body><div id="root"></div><script type="module" src="/entry.tsx"></script></body></html>')
   writeFileSync(path.join(consumer, 'vite.config.mjs'), "export default { esbuild: { jsx: 'automatic' }, build: { outDir: 'dist', emptyOutDir: true } }\n")
   summary.packageResolution = JSON.parse(run(process.execPath, ['--input-type=module', '-e',
-    "console.log(JSON.stringify(Object.fromEntries(['shikiform','shikiform/core','shikiform/pro','shikiform/antd'].map(name => [name,import.meta.resolve(name)]))))"], consumer, 'resolution.log'))
-  const packedUrl = pathToFileURL(`${packageDirReal}${path.sep}`).href
-  for (const resolved of Object.values(summary.packageResolution)) {
-    if (!resolved.startsWith(packedUrl)) throw new Error(`Consumer resolved outside packed package: ${resolved}`)
+    "console.log(JSON.stringify(Object.fromEntries(['@shikiform/react','@shikiform/core','@shikiform/hooks','@shikiform/antd'].map(name => [name,import.meta.resolve(name)]))))"], consumer, 'resolution.log'))
+  for (const [name, resolved] of Object.entries(summary.packageResolution)) {
+    const packedUrl = pathToFileURL(`${packedDirs[name]}${path.sep}`).href
+    if (!resolved.startsWith(packedUrl)) throw new Error(`Consumer resolved outside packed package: ${name} → ${resolved}`)
   }
   console.log(`Checking ${sources.filter((source) => source.kind === 'tutorial').length} tutorial files + ${sources.filter((source) => source.kind === 'inline').length} executable MDX blocks against npm pack exports`)
   summary.typecheck = 'running'
