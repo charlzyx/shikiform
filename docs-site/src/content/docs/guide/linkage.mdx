@@ -123,16 +123,20 @@ reaction.each((d) => d.orders, (order, ctx) => {
 })
 ```
 
-遍历最里层的数组，只处理指定下标：
+要改里面某一项，仍在外层回调里走 handle。`depth === 0` 时 `order` 的类型就是订单，`order.lines[2].qty` 能过类型检查：
 
 ```ts
-reaction.each((d) => d.orders, (node, ctx) => {
-  if (ctx.key !== 'lines' || ctx.index !== 2) return
-  node.qty.$required = true
+reaction.each((d) => d.orders, (order, ctx) => {
+  if (ctx.depth !== 0) return
+  order.lines[2].qty.$required = true
 })
 ```
 
-平铺表格的回调里不用这些判断。树和嵌套数组用 `ctx.key`、`ctx.depth` 滤掉不该处理的层。
+<Aside type="caution" title="回调参数的类型停在选中的那一层">
+`each` 把回调的第一个参数类型定成选择器选中的元素（这里是 `{ lines }`）。运行时走进 `lines` 仍会调用它，但类型不会变成行。写成 `node.qty` 是 `TS2339`。运行时那样会把 `orders.0.lines.2` 设成必填，只是不能当能过 tsc 的写法。
+</Aside>
+
+平铺表格的回调里不用这些判断。树的子节点如果和当前节点是同一个类型（`children?: Node[]`），`ctx.key` / `ctx.depth` 滤完之后仍可以写 `node.name`。子元素是另一种形状时，用上面的外层 handle。
 
 `watch.each` 是同样的遍历，语义是 `watch`：回调里读到的 `$` 状态就是来源，来源变了才执行，首次不写入。某个元素变化只触发它自己，兄弟和别处的移动不触发。适合「这个节点的 X 变了就做一次动作」。
 

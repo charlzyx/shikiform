@@ -55,11 +55,7 @@ const next = set(order, 'items[0].qty', 2)
 
 ## defineEffects
 
-```ts
-function defineEffects<T>(factory: (api: { reaction, watch, query }) => void): EffectDef<T>
-```
-
-`reaction` 派生，`watch` 做动作。两者都有 `each(select, fn)`，只有这两个参数。见 [联动](/guide/linkage)。
+`defineEffects<T>(factory)` 返回一个 effect 模块。`factory` 收到 `reaction`、`watch` 和 `query`。`reaction` 派生，`watch` 做动作。两者都有 `each(select, fn)`，只有这两个参数。见 [联动](/guide/linkage)。
 
 ```ts
 import { defineEffects } from '@shikiform/core'
