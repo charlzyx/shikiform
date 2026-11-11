@@ -1,6 +1,5 @@
 import { useEffect, useLayoutEffect, useRef } from 'react'
-import { createForm } from '@shikiform/core/internal'
-import { deepEqual } from '@shikiform/core/internal'
+import { createForm, deepEqual, markFormCurry } from '@shikiform/core/internal'
 import type { DefaultSubmit, FieldsInput, FormInstance, FormOptions, ResolveSubmit } from '@shikiform/core/internal'
 
 const useIsoLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
@@ -34,6 +33,9 @@ export interface UseFormOptions<T> extends FormOptions<T> {
  *   fields: { email: { required: true }, 'rows.*.name': { required: true } },
  * })
  * const edit = useForm<Detail>()({ values: record, fields: { token: { display: 'virtual' } } })
+ *
+ * `useForm()` with no arguments returns a function, not a form. An empty form is `useForm({})`.
+ * Passing that function to `<Form form>`, `typed`, or another form entry throws `ShikiUsageError` in development.
  */
 type UseFormArg<T, F> = Omit<UseFormOptions<T>, 'fields'> & { fields?: F & FieldsInput<T> }
 
@@ -45,7 +47,7 @@ export function useForm<T, TSubmit = DefaultSubmit, const F extends FieldsInput<
 ): FormInstance<T, ResolveSubmit<T, TSubmit, F>>
 export function useForm(options?: UseFormOptions<any>): any {
   // No arguments is the curried entry (`useForm<V>()(options)`). It does not call hooks; the inner call does.
-  if (options === undefined) return (next?: UseFormOptions<any>) => useForm(next ?? {})
+  if (options === undefined) return markFormCurry((next?: UseFormOptions<any>) => useForm(next ?? {}))
   const ref = useRef<FormInstance<any, any> | null>(null)
   const values = options.values
   const last = useRef(values)

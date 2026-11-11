@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
-import { cleanup, render } from '@testing-library/react'
+import { cleanup, render, renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ArrayField, createForm, defineEffects, Field, Form, ShikiConflictError, ShikiCycleError, ShikiUsageError, UI } from '@shikiform/react'
+import { ArrayField, createForm, defineEffects, Field, Form, ShikiConflictError, ShikiCycleError, ShikiUsageError, UI, typed, useForm } from '@shikiform/react'
+import { useQueryTable } from '@shikiform/hooks'
 import { createEngine } from '../packages/core/src/engine/create'
 
 afterEach(cleanup)
@@ -169,5 +170,38 @@ describe('conflict / cycle errors name the reactions', () => {
     }
     expect(error).toBeInstanceOf(ShikiConflictError)
     expect((error as Error).message).toMatch(/reaction\.each:\d+ \[row 0\] at tests\/dev-errors\.test\.tsx:\d+:\d+: reads d\.rows\[0\]\.a\.\$value/)
+  })
+})
+
+describe('useForm() / createForm() with no arguments', () => {
+  const hint = '空表单写 useForm({}) / createForm({})；写了泛型要再调用一次 useForm<V>()({...})'
+
+  it('throws ShikiUsageError when that function is used as a form', () => {
+    function BareForm() {
+      const form = useForm()
+      return <Form form={form as never} />
+    }
+    const rendered = renderError(<BareForm />)
+    expect(rendered).toBeInstanceOf(ShikiUsageError)
+    expect(rendered.message).toContain(hint)
+
+    function BareTyped() {
+      const form = useForm()
+      typed(form as never)
+      return null
+    }
+    expect(renderError(<BareTyped />).message).toContain(hint)
+
+    expect(() => (createForm() as { values?: unknown }).values).toThrow(ShikiUsageError)
+    expect(() => {
+      const { submit } = createForm() as { submit?: unknown }
+      void submit
+    }).toThrow(ShikiUsageError)
+
+    expect(() =>
+      renderHook(() => useQueryTable({ form: createForm() as never, request: async () => ({ data: [], total: 0 }) })),
+    ).toThrow(ShikiUsageError)
+
+    expect(createForm<{ a: number }>()({ initialValues: { a: 1 } }).getValue('a')).toBe(1)
   })
 })

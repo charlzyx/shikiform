@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode } from 'react'
-import type { FormInstance } from '@shikiform/core/internal'
+import { assertFormInstance, type FormInstance } from '@shikiform/core/internal'
 import type { ArrayItemOf, ArrayPath, Draft, FieldPath, PathValue } from '@shikiform/core/internal'
 import { ArrayField, Field, ObjectField, Watch, type ArrayContainerSlot, type CheckedFieldProps, type FieldProps } from '../components/fields'
 import { useArrayField, type ArrayHandle, type ArrayKey } from '../hooks/use-array'
@@ -66,6 +66,7 @@ export type TypedForm<T, TRoot = T> = ScopeFields<T> & {
 export function typed<T, TRoot = T>(): TypedForm<T, TRoot>
 export function typed<T>(form: FormInstance<T, any>): TypedForm<T>
 export function typed(_form?: FormInstance<any, any>): TypedForm<any> {
+  if (_form != null) assertFormInstance(_form)
   return handles
 }
 

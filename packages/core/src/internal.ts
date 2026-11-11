@@ -3,7 +3,7 @@
  * Own entry so the engine class stays a single module instance.
  * Not a supported application import.
  */
-export { createForm, engineOf } from './engine/create'
+export { assertFormInstance, createForm, engineOf, markFormCurry } from './engine/create'
 export type { FormEngine } from './engine/form-engine'
 export { pathDomId } from './engine/dom-id'
 export { uiId } from './engine/ui-nodes'
