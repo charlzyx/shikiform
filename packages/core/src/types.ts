@@ -620,8 +620,9 @@ export interface FormInstance<T, TSubmit = T> {
   validate(path?: FieldPath<T> | readonly FieldPath<T>[]): Promise<FieldError[]>
   /**
    * Clone of the values with `display: 'virtual'` and `display: 'none'` removed (whole subtrees).
-   * `hidden` values are kept. The static type is `TSubmit` (default `T`): the form cannot know statically which
-   * fields a reaction hides, so declare the droppable paths with `createForm<T, SubmitValues<T, 'tmp'>>()`.
+   * `hidden` values are kept. The static type is `TSubmit`. With no type argument, or `typed<T>().createForm`,
+   * paths declared `display: 'virtual'` / `'none'` in `fields` are optional. `createForm<T>(options)` stays `T`.
+   * JSX `display` and a reaction `$display` are not visible; list those with `createForm<T, SubmitValues<T, 'tmp'>>()`.
    */
   getSubmitValues(): TSubmit
 

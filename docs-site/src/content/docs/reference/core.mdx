@@ -13,7 +13,9 @@ description: "@shikiform/core 的 createForm、get、set、defineEffects 和错�
 function createForm<T, TSubmit = T>(options?: FormOptions<T>): FormInstance<T, TSubmit>
 ```
 
-组件外面创建引擎。选项和 `useForm` 相同：`initialValues`、`effects`、`fields`、`validate`、`pattern`、`messages`。返回的 `FormInstance` 上有 `getValue` / `setValue` / `batch` / `submit` / `validate` / `reset`。
+组件外面创建引擎。选项和 `useForm` 相同：`initialValues`、`effects`、`fields`、`validate`、`pattern`、`messages`。返回的 `FormInstance` 上有 `getValue` / `setValue` / `batch` / `submit` / `validate` / `reset`。不传 `options` 和传 `undefined` 都是空表单，等同 `{}`。
+
+不写泛型时，`fields` 里 `display: 'virtual'` / `display: 'none'` 的路径在提交类型里变成可选。`createForm<V>(options)` 的提交类型就是 `V`。写了 `V` 还要按 `fields` 推断，用 `@shikiform/react` 的 `typed<V>().createForm(options)`。第二个类型参数照写：`createForm<V, SubmitValues<V, 'tmp'>>(options)`。
 
 ```ts
 import { createForm } from '@shikiform/core'

@@ -174,34 +174,49 @@ describe('conflict / cycle errors name the reactions', () => {
 })
 
 describe('useForm() / createForm() with no arguments', () => {
-  const hint = '空表单写 useForm({}) / createForm({})；写了泛型要再调用一次 useForm<V>()({...})'
+  it('returns a form, and switching arguments does not change the hook count', () => {
+    expect(typeof createForm().getValue).toBe('function')
+    expect(typeof createForm(undefined).submit).toBe('function')
+    expect(createForm().getValue('missing')).toBeUndefined()
 
-  it('throws ShikiUsageError when that function is used as a form', () => {
-    function BareForm() {
-      const form = useForm()
-      return <Form form={form as never} />
-    }
-    const rendered = renderError(<BareForm />)
-    expect(rendered).toBeInstanceOf(ShikiUsageError)
-    expect(rendered.message).toContain(hint)
+    const bare = renderHook(({ none }: { none: boolean }) => (none ? useForm() : useForm(undefined)), {
+      initialProps: { none: false },
+    })
+    expect(typeof bare.result.current.getValue).toBe('function')
+    bare.rerender({ none: true })
+    expect(typeof bare.result.current.getValue).toBe('function')
+    bare.rerender({ none: false })
+    bare.unmount()
 
-    function BareTyped() {
-      const form = useForm()
-      typed(form as never)
-      return null
-    }
-    expect(renderError(<BareTyped />).message).toContain(hint)
+    const switched = renderHook(
+      ({ opts }: { opts?: { initialValues: { a: string } } }) => useForm(opts),
+      { initialProps: { opts: undefined as { initialValues: { a: string } } | undefined } },
+    )
+    switched.rerender({ opts: {} as { initialValues: { a: string } } })
+    switched.rerender({ opts: { initialValues: { a: '' } } })
+    switched.rerender({ opts: undefined })
+    expect(switched.result.current.getValue('a')).toBeUndefined()
+    switched.unmount()
 
-    expect(() => (createForm() as { values?: unknown }).values).toThrow(ShikiUsageError)
-    expect(() => {
-      const { submit } = createForm() as { submit?: unknown }
-      void submit
-    }).toThrow(ShikiUsageError)
+    const typedForm = renderHook(() => typed<{ a: string }>().useForm({ initialValues: { a: 'x' } }))
+    expect(typedForm.result.current.getValue('a')).toBe('x')
+    typedForm.unmount()
 
-    expect(() =>
-      renderHook(() => useQueryTable({ form: createForm() as never, request: async () => ({ data: [], total: 0 }) })),
-    ).toThrow(ShikiUsageError)
-
-    expect(createForm<{ a: number }>()({ initialValues: { a: 1 } }).getValue('a')).toBe(1)
+    const external = createForm({ initialValues: { q: '' } })
+    const query = renderHook(
+      ({ pass }: { pass: boolean }) =>
+        useQueryTable({
+          form: pass ? external : undefined,
+          initialValues: { q: '' },
+          request: async () => ({ data: [], total: 0 }),
+        }),
+      { initialProps: { pass: false } },
+    )
+    expect(typeof query.result.current.form.getValue).toBe('function')
+    query.rerender({ pass: true })
+    expect(query.result.current.form).toBe(external)
+    query.rerender({ pass: false })
+    expect(query.result.current.form).not.toBe(external)
+    query.unmount()
   })
 })

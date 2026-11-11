@@ -192,6 +192,7 @@ export function useQueryTable<TValues, TParams = TValues, TRow = unknown>(
     const call = useQueryTable as (options: UseQueryTableOptions<any, any, any>) => QueryTableApi<any, any, any>
     return (next: UseQueryTableOptions<any, any, any>) => call(next)
   }
+  // Always one useForm, including when `form` is passed (`undefined` is an empty form, same hooks as `{}`).
   const created = useForm<TValues>(
     options.form
       ? undefined

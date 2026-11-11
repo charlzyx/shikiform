@@ -49,9 +49,11 @@ declare module '@shikiform/react' {
 
 `submit` / `getSubmitValues` / `onSubmit` 的值类型：
 
-- 不写泛型，或 `createForm<Values>()({ fields })`：`fields` 里 `display: 'virtual'` / `display: 'none'` 变成可选（`hidden` 仍在）。
+- 不写泛型，或 `typed<Values>().createForm({ fields })`：`fields` 里 `display: 'virtual'` / `display: 'none'` 变成可选（`hidden` 仍在）。
 - `createForm<Values>({ fields })`：提交类型就是 `Values`，不看 `fields`。
-- 第二个类型参数照写：`createForm<Values, SubmitValues<Values, 'confirm'>>()`。JSX 上的 `display` 和 reaction 里的 `$display` 只有这种写法能标出来。
+- 第二个类型参数照写：`createForm<Values, SubmitValues<Values, 'confirm'>>(options)`。JSX 上的 `display` 和 reaction 里的 `$display` 只有这种写法能标出来。
+
+`createForm()` / `createForm(undefined)` 就是空表单。写了 `Values` 还要按 `fields` 推断，用 `typed<Values>().createForm`，不要再调用一次 `createForm`。
 
 ```ts
 import { createForm, type SubmitValues } from '@shikiform/react'

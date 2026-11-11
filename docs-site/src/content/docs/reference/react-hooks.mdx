@@ -29,9 +29,9 @@ description: useForm、useField、useWatch、数组与树 Hooks 的签名、返�
 ## useForm
 
 ```ts
-useForm<T>(): <TSubmit, const F>(options?) => FormInstance<T, …>   // 写了 T 仍按 fields 推断提交类型
-useForm<T>(options?: UseFormOptions<T>): FormInstance<T, T>        // 提交类型就是 T
+useForm<T>(options?: UseFormOptions<T>): FormInstance<T, T>        // 省略 options 等同 {}；提交类型就是 T
 useForm<T, TSubmit>(options?): FormInstance<T, TSubmit>            // 第二个类型参数照写
+typed<T>().useForm(options?): FormInstance<T, …>                   // 写了 T 仍按 fields 推断提交类型
 
 interface UseFormOptions<T> extends FormOptions<T> { values?: T }
 ```
@@ -41,7 +41,7 @@ interface UseFormOptions<T> extends FormOptions<T> { values?: T }
 | `options` | 省略等同 `{}`；除 `values` 外仅第一次渲染读取 |
 | `options.initialValues` | 省略时以空对象开始；建议完整写出值形状，让 `T` 可推断 |
 | `options.values` | 外部拥有的数据（加载的记录、查询缓存）。第一次渲染当作初始值；之后内容变化时调 `reset(values)`（新基线，不 dirty）。内容相同的新对象不触发 |
-| `TSubmit` | `submit` / `getSubmitValues` / `<Form onSubmit>` 的值类型。不写泛型或 `useForm<T>()(options)` 时，`fields` 里的 `virtual` / `none` 变成可选；`useForm<T>(options)` 的提交类型就是 `T`。要自己列路径用 `SubmitValues<T, 'tmp'>`，见 [提交值类型](/api#提交值类型) |
+| `TSubmit` | `submit` / `getSubmitValues` / `<Form onSubmit>` 的值类型。不写泛型或 `typed<T>().useForm(options)` 时，`fields` 里的 `virtual` / `none` 变成可选；`useForm<T>(options)` 的提交类型就是 `T`。要自己列路径用 `SubmitValues<T, 'tmp'>`，见 [提交值类型](/api#提交值类型) |
 | 返回值 | 稳定的 `FormInstance<T, TSubmit>`：状态 getter、`getValue` / `setValue` / `batch`、`submit` / `validate` / `reset`、`setErrors`、数组 / 树操作和订阅，见 [API 总览](/api#读写和提交) |
 
 `useForm` 本身不要求父级 Provider。后续渲染传入新 `initialValues` 不会重建实例，也不会生效；会变的数据用 `values`，或自己调 `reset(record)`。渲染需要实时值时用 `useField` / `useWatch`，不要期待读取 `form.values` 就自动重渲染。
@@ -78,6 +78,7 @@ type TypedForm<T> = {
   useArrayField(name: ArrayPath<T>, opts?: { rowKey?: string }): ArrayHandle<行类型>
   useWatch<S>(select: (d: Draft<TRoot>) => S): S
   Watch: <S>(props: { select: (d: Draft<TRoot>) => S; children: (value: S) => ReactNode }) => ReactNode
+  createForm(options?), useForm(options?)   // T 已固定，fields 里的 virtual / none 仍变成可选
 }
 ```
 
@@ -123,7 +124,7 @@ const F = typed(form)
 - 可复用片段（地址块、联系人块）就是普通组件：`const A = typed<Address>()`，组件里写 `<A.Field name="city" …/>`，用的地方 `<ObjectField name="home"><AddressFields /></ObjectField>`。同一个片段放在不同的 `ObjectField` 里就绑定不同的路径；需要额外参数就是普通 props。
 - 需要动态字符串（列定义、后端下发的路径）时继续用普通组件，`useField(name)` 返回 `FieldBinding<any>`。
 - `<F.Field enum>` / `row.Field` 的 `enum` 按字段值检查选项的 `value`（数组字段按元素类型）。
-- `typed` 没有新的运行时：同一个表单多次调用返回同一个对象。
+- `typed` 没有新的运行时：同一个表单多次调用返回同一个对象。`typed<Values>().useForm({ fields })` / `typed<Values>().createForm({ fields })` 就是 `useForm` / `createForm`，只是 `Values` 已经写上，`fields` 里的 `virtual` / `none` 仍会变成可选。
 
 
 ## useFormContext

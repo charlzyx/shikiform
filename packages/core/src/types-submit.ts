@@ -17,7 +17,7 @@ export type SubmitValues<T, P extends TemplatePath<T> = never> = [P] extends [ne
 
 /**
  * Sentinel for an omitted `TSubmit`. Auto-detected submit paths apply when this is still the default
- * (`createForm(options)` / `createForm<V>()(options)`). `createForm<V>(options)` does not infer `fields`.
+ * (`createForm(options)` / `typed<V>().createForm(options)`). `createForm<V>(options)` does not infer `fields`.
  */
 declare const DefaultSubmitBrand: unique symbol
 export type DefaultSubmit = typeof DefaultSubmitBrand

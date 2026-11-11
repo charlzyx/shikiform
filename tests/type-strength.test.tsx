@@ -174,13 +174,13 @@ function submitWithTypeArg() {
     ghost: { display: 'none' as const },
     tab: { display: 'hidden' as const },
   }
-  const curried = createForm<V>()({ initialValues: init, fields })
-  void curried.submit((values) => {
+  const inferred = typed<V>().createForm({ initialValues: init, fields })
+  void inferred.submit((values) => {
     values.name.length
     values.tab.length
-    // @ts-expect-error virtual is optional once V is applied through the curried call
+    // @ts-expect-error virtual is optional when V is fixed on typed().createForm
     values.confirm.length
-    // @ts-expect-error none is optional once V is applied through the curried call
+    // @ts-expect-error none is optional when V is fixed on typed().createForm
     values.ghost.length
   })
   const fixed = createForm<V>({ initialValues: init, fields })
@@ -189,9 +189,9 @@ function submitWithTypeArg() {
     values.confirm.length
     void _same
   })
-  const hooked = useForm<V>()({ initialValues: init, fields })
+  const hooked = typed<V>().useForm({ initialValues: init, fields })
   void hooked.submit((values) => {
-    // @ts-expect-error useForm<V>()(options) drops virtual
+    // @ts-expect-error typed<V>().useForm drops virtual
     values.confirm.length
   })
   const hookedFixed = useForm<V>({ initialValues: init, fields })
@@ -200,6 +200,19 @@ function submitWithTypeArg() {
     values.confirm.length
     void _same
   })
+  const bare = useForm()
+  const bareUndef = useForm(undefined)
+  bare.getValue('name')
+  bareUndef.submit(() => undefined)
+  const created = createForm()
+  const createdUndef = createForm(undefined)
+  created.getValue('name')
+  createdUndef.submit(() => undefined)
+  const maybe: { initialValues: V } | undefined = { initialValues: init }
+  const fromMaybe = createForm(maybe)
+  fromMaybe.getValue('name')
+  // @ts-expect-error undefined options still return a form, not a function
+  fromMaybe(maybe)
 }
 
 function eachSharedKeys() {

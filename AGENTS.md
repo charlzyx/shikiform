@@ -305,7 +305,7 @@ reaction((d) => {
 - Plain `<Field>` / `useField` / `<ArrayField>` / `<ObjectField>` read the form from context, so an unannotated `name`
   is any string (the escape hatch for dynamic paths). For checked names use `const F = typed(form)`: the same
   components and hooks with the form's types (`F.Field`, `F.ArrayField`, `F.ObjectField`, `F.useField`, `F.useWatch`,
-  `F.Watch`). No new runtime. There is no form factory / `AppField`: `<Field>` + `typed(form)` is the one way.
+  `F.Watch`). No new runtime. There is no `AppField`: `<Field>` + `typed(form)` is the one way.
 - Names are **relative to the current scope**, and so are the types: `F.ArrayField` hands each row `row.Field`
   typed as one row; `F.ObjectField`'s function children get `obj.Field` typed as that object.
   A root path inside a scope (`items.0.name` in the `items.0` row) throws `ShikiUsageError` in development.
@@ -314,12 +314,14 @@ reaction((d) => {
   mount it under `<ObjectField name="home"><AddressFields /></ObjectField>`.
 - Prefer `F.useWatch((d) => d.email.$value)` (`F = typed(form)`). A bare `useWatch((d) => …)` compiles with an untyped `d`.
   `useWatch<Values>()((d) => d.email.$value)` types the draft and still infers the result; `useWatch<Values>(…)` does not.
-- `submit` / `getSubmitValues` / `onSubmit` follow `fields` only in two forms: no type argument
-  (`createForm({ fields })` / `useForm({ fields })`), or the curried `createForm<V>()({ fields })` / `useForm<V>()({ fields })`.
-  Paths declared `display: 'virtual'` or `display: 'none'` become optional; `hidden` stays. `createForm<V>(options)` /
-  `useForm<V>(options)` keep the submit type as `V` (the `fields` display is not inferred). An explicit second argument
-  is used as written: `createForm<V, SubmitValues<V, 'tmp' | 'rows.*.total'>>(options)`. JSX `display` and a reaction `$display`
-  are never visible to that inference.
+- `submit` / `getSubmitValues` / `onSubmit` follow `fields` in two forms: no type argument
+  (`createForm({ fields })` / `useForm({ fields })`), or `typed<V>().createForm({ fields })` / `typed<V>().useForm({ fields })`
+  (V is fixed, and `fields` is still inferred). Paths declared `display: 'virtual'` or `display: 'none'` become optional;
+  `hidden` stays. `createForm<V>(options)` / `useForm<V>(options)` keep the submit type as `V` (the `fields` display is not
+  inferred). An explicit second argument is used as written: `createForm<V, SubmitValues<V, 'tmp' | 'rows.*.total'>>(options)`.
+  JSX `display` and a reaction `$display` are never visible to that inference.
+  `createForm()` / `useForm()` / `useForm(undefined)` are the same as `{}`: each returns a `FormInstance`. `useForm` runs
+  the same hooks for all three, so switching between them does not change the hook count.
 
 ## 8. Correct vs incorrect
 
@@ -381,7 +383,7 @@ reaction((d) => { d.city.$componentProps.disabled = d.kind.$value === 'b' })    
 
 ## 9. Form state: dirty, backfill, server errors
 
-- `useForm()` / `createForm()` return a `FormInstance`: state getters, `getValue` / `setValue` / `batch`, `submit` /
+- `useForm()` / `createForm()` return a `FormInstance` (no arguments and `undefined` are `{}`): state getters, `getValue` / `setValue` / `batch`, `submit` /
   `validate` / `reset` / `setInitialValues` / `getSubmitValues`, `setErrors` / `clearErrors`, array / tree ops, `message`,
   `subscribe*`. Nothing else: there is no `binding()` / `query()` / `registerField()` on it (declare in `fields`, read in a
   reaction or `useWatch`).

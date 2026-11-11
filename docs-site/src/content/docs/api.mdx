@@ -29,8 +29,8 @@ description: 四个入口、createForm 选项、引擎方法、React 组件与�
 ## 创建表单
 
 ```ts
-useForm<T, TSubmit = T>(options?: UseFormOptions<T>): FormInstance<T, TSubmit>  // 组件里，实例稳定；UseFormOptions = FormOptions + values
-createForm<T, TSubmit = T>(options?: FormOptions<T>): FormInstance<T, TSubmit>  // 组件外
+useForm<T, TSubmit = T>(options?: UseFormOptions<T>): FormInstance<T, TSubmit>  // 组件里，实例稳定；省略 options 等同 {}
+createForm<T, TSubmit = T>(options?: FormOptions<T>): FormInstance<T, TSubmit>  // 组件外；省略 options 等同 {}
 ```
 
 返回的 `FormInstance` 只有下面列出的成员（状态、读写、提交、数组 / 树操作、订阅）；引擎内部的绑定、租约、版本号不在上面。选项只在创建时读取，之后改值用写入 API 或 `reset`。`TSubmit` 是提交值的类型，见下面的 [提交值类型](#提交值类型)。
@@ -88,8 +88,8 @@ const dirty = useWatch((d: Draft<Values>) => d.$dirty)          // 改回原值�
 
 `submit` / `getSubmitValues` / `<Form onSubmit>` 的值类型：
 
-- 不写泛型，或 `createForm<V>()({ fields })` / `useForm<V>()({ fields })`：`fields` 里 `display: 'virtual'` / `display: 'none'` 变成可选；`hidden` 仍提交。
-- `createForm<V>({ fields })` / `useForm<V>({ fields })`：提交类型就是 `V`，不看 `fields`。
+- 不写泛型，或 `typed<V>().createForm({ fields })` / `typed<V>().useForm({ fields })`：`fields` 里 `display: 'virtual'` / `display: 'none'` 变成可选；`hidden` 仍提交。
+- `createForm<V>({ fields })` / `useForm<V>({ fields })`：提交类型就是 `V`，不看 `fields`。`createForm()` / `useForm()` / `useForm(undefined)` 返回表单，等同 `{}`。
 - 第二个类型参数照写（下面的例子）。JSX 的 `display` 和 reaction 里的 `$display` 类型上看不到，只能自己列出路径。
 
 ```ts

@@ -1,6 +1,6 @@
 ---
 title: 常见的坑
-description: 解构、路径、显隐、无参 useForm 和 control 的错误写法，以及对应的正确写法。
+description: 解构、路径、显隐和 control 的错误写法，以及对应的正确写法。
 ---
 
 下面每节都是同一件事的两种写法。开发环境会把左边抛成 `ShikiUsageError` 的，信息里带有修法。生产构建不做这些检查。
@@ -173,26 +173,3 @@ watch((d) => d.province.$value, (d) => {
 ```
 
 `watch` 用来做动作：省变了就清空市。它首次不跑。
-
-## 无参 useForm()
-
-### 错误
-
-```ts
-const form = useForm()
-const bare = createForm()
-```
-
-没传参数时返回的是函数，不是表单。react-hook-form 的 `useForm()` 直接就是表单；这里把这个函数交给 `<Form form={…}>`、`typed(…)`，或读 `form.values` / `form.submit`，开发环境抛 `ShikiUsageError`。
-
-### 正确
-
-```ts
-const form = useForm({})
-const bare = createForm({})
-
-const edit = useForm<Detail>()({ values: record })
-const created = createForm<Detail>()({ initialValues: record })
-```
-
-空表单写 `useForm({})` / `createForm({})`。已经写了泛型、还要按 `fields` 推断提交类型，再调用一次：`useForm<V>()({ ... })` / `createForm<V>()({ ... })`。

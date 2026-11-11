@@ -99,7 +99,7 @@ export default function App() {
 | `{ ok: false, reason: 'error', error }` | `onValid`（或表单级 `validate`）抛错，`error` 是抛出的值 |
 | `{ ok: false, reason: 'superseded', message }` | 值一直在变，3 轮都没稳定；不是校验错误，`errors` 为空，再提交一次 |
 
-`onSubmit` 的值类型有三种写法。不写泛型（`useForm({ fields })`），或写成 `useForm<Values>()({ fields })`，`fields` 里 `display: 'virtual'` / `display: 'none'` 的路径是可选的。`useForm<Values>({ fields })` 的提交类型就是 `Values`，不会看 `fields`。要自己列出路径，写第二个类型参数 `useForm<Values, SubmitValues<Values, 'confirm'>>()`。JSX 上的 `display` 和 reaction 里的 `$display` 类型上看不到，只能走这最后一种。
+`onSubmit` 的值类型有三种写法。不写泛型（`useForm({ fields })`），或写成 `typed<Values>().useForm({ fields })`，`fields` 里 `display: 'virtual'` / `display: 'none'` 的路径是可选的。`useForm<Values>({ fields })` 的提交类型就是 `Values`，不会看 `fields`。要自己列出路径，写第二个类型参数 `useForm<Values, SubmitValues<Values, 'confirm'>>()`。JSX 上的 `display` 和 reaction 里的 `$display` 类型上看不到，只能走这最后一种。`useForm()` 和 `useForm(undefined)` 就是空表单，和 `useForm({})` 一样。
 
 `<Form>` 把结果交给回调（antd 的 `<Submit onSubmit>` 也接受同样三个回调）：
 
