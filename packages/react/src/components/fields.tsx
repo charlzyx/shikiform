@@ -6,7 +6,7 @@ import type { Pos } from '@shikiform/core/internal'
 import { ArrayContext, FormContext, RowWrapContext, ScopeContext, useRequiredForm, useScope } from '../context'
 import { useArrayField } from '../hooks/use-array'
 import { FieldContext } from '../field-context'
-import { useField, type FieldBinding, type FieldSlot, type RegisteredComponentSlot, type RegisteredDecoratorSlot } from '../hooks/use-field'
+import { useField, type ControlValueGuard, type FieldBinding, type FieldSlot, type RegisteredComponentSlot, type RegisteredDecoratorSlot } from '../hooks/use-field'
 import { useTreeField } from '../hooks/use-tree'
 import { useWatch } from '../hooks/use-watch'
 import { resolveName } from '../hooks/resolve-name'
@@ -172,8 +172,8 @@ export interface FieldProps<
    * readPretty views read it as `options`.
    */
   enum?: FieldEnum<PathValue<TScope, N & string>>
-  /** Mount-scoped rules. Cleared on unmount. Does not erase a declaration, a template, or `$rules`. */
-  rules?: RulesInput
+  /** Mount-scoped rules. Cleared on unmount. Does not erase a declaration, a template, or `$rules`. `validator` receives this field's value. */
+  rules?: RulesInput<PathValue<TScope, N & string>>
   /** Mount-scoped required flag. Cleared on unmount. A declared or `$required` flag stays. */
   required?: boolean
   /**
@@ -203,6 +203,14 @@ export interface FieldProps<
   children?: ReactNode | ((field: FieldBinding<PathValue<TScope, N & string>>) => ReactNode)
 }
 
+/** {@link FieldProps} plus the control/value check (`InputNumber` on a `string` field does not compile). */
+export type CheckedFieldProps<
+  TScope = any,
+  N extends FieldPath<TScope> = FieldPath<TScope>,
+  C extends ComponentType<any> = ComponentType<any>,
+  D extends ComponentType<any> = ComponentType<any>,
+> = FieldProps<TScope, N, C, D> & ControlValueGuard<C, PathValue<TScope, N & string>>
+
 /**
  * One field: the single owner of a path's JSX config (Formily `<Field>`).
  *
@@ -229,7 +237,7 @@ export function Field<
   N extends FieldPath<TScope> = FieldPath<TScope>,
   C extends ComponentType<any> = ComponentType<any>,
   D extends ComponentType<any> = ComponentType<any>,
->({ name, children, ...options }: FieldProps<TScope, N, C, D>) {
+>({ name, children, ...options }: CheckedFieldProps<TScope, N, C, D>) {
   // Sugar over the hook: everything <Field> does is reachable through useField(name, options).
   const field = useField<TScope, N>(name, options)
   if (field.display !== 'visible' && field.display !== 'virtual') return null

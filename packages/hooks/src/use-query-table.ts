@@ -160,6 +160,22 @@ export interface QueryTableApi<TValues, TParams, TRow> {
  * `page` is omitted from submit in `client` mode and left alone in `server` mode (a caller's `hidden` / `none` stays).
  * `selectedKeys` is always omitted from submit. Neither write touches the field's display.
  */
+/**
+ * `useQueryTable<Values>()({ initialValues, … })` fixes the form type (so `[]` / `{}` / union literals are checked
+ * against `Values`) and still infers the row and the `params` payload. `useQueryTable<Values>(options)` does not:
+ * one explicit type argument stops inference of the rest.
+ */
+export function useQueryTable<TValues>(): {
+  <TRow, const P extends FieldPath<TValues>>(
+    options: UseQueryTableOptions<TValues, PathValue<TValues, P & string>, TRow> & { params: P },
+  ): QueryTableApi<TValues, PathValue<TValues, P & string>, TRow>
+  <TParams, TRow>(
+    options: UseQueryTableOptions<TValues, TParams, TRow> & { params: (values: TValues) => TParams },
+  ): QueryTableApi<TValues, TParams, TRow>
+  <TRow = unknown>(
+    options: Omit<UseQueryTableOptions<TValues, TValues, TRow>, 'params'> & { params?: undefined },
+  ): QueryTableApi<TValues, TValues, TRow>
+}
 export function useQueryTable<TValues, TRow, const P extends FieldPath<TValues>>(
   options: UseQueryTableOptions<TValues, PathValue<TValues, P & string>, TRow> & { params: P },
 ): QueryTableApi<TValues, PathValue<TValues, P & string>, TRow>
@@ -170,8 +186,13 @@ export function useQueryTable<TValues, TRow = unknown>(
   options: Omit<UseQueryTableOptions<TValues, TValues, TRow>, 'params'> & { params?: undefined },
 ): QueryTableApi<TValues, TValues, TRow>
 export function useQueryTable<TValues, TParams = TValues, TRow = unknown>(
-  options: UseQueryTableOptions<TValues, TParams, TRow>,
-): QueryTableApi<TValues, TParams, TRow> {
+  options?: UseQueryTableOptions<TValues, TParams, TRow>,
+): any {
+  if (options === undefined) {
+    const call = useQueryTable as (options: UseQueryTableOptions<any, any, any>) => QueryTableApi<any, any, any>
+    return (next: UseQueryTableOptions<any, any, any>) => call(next)
+  }
+  // Always one useForm, including when `form` is passed (`undefined` is an empty form, same hooks as `{}`).
   const created = useForm<TValues>(
     options.form
       ? undefined
@@ -302,7 +323,7 @@ export function useQueryTable<TValues, TParams = TValues, TRow = unknown>(
     publish(1, pageSize, submitted.current ?? readParams(), 'filters')
   }
 
-  return {
+  const api: QueryTableApi<TValues, TParams, TRow> = {
     form,
     rows: rowsPath || undefined,
     data,
@@ -352,6 +373,7 @@ export function useQueryTable<TValues, TParams = TValues, TRow = unknown>(
     sortOrderOf: (key) => sortState.find((item) => item.field === key)?.order ?? null,
     filteredValueOf: (key) => filterState[key] ?? null,
   }
+  return api
 }
 
 /** antd sorter result(s) → `QuerySort[]`. Columns without an order are dropped. */

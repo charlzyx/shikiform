@@ -58,7 +58,7 @@ reaction.each((d) => d.items, (row) => {
 })
 ```
 
-报错原文没有写 `get`。带下标的 `get(d, 'items[0]')` 也过不了类型检查。没有下标的对象路径可以 `get(d, 'user.name').$value`。
+报错原文没有写 `get`。对象路径可以 `get(d, 'user.name').$value`，数组下标可以 `get(d, 'items[0].name').$value`。
 
 ## 改 $value 上的对象
 

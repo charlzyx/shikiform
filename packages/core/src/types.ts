@@ -2,7 +2,7 @@ import type { Display, Pattern, UiDraft, UiName } from './types-display'
 import type { EnumBinding, EnumOption, EnumSource } from './enum/enum-source'
 import type { StandardSchemaV1 } from './validation/schema'
 import type { Rule, RulesInput, ValidateCtx } from './validation/rules'
-import type { FormMessageKey, FormMessages, MessageArgs } from './validation/messages'
+import type { FormMessageKey, MessageArgs } from './validation/messages'
 import type { Pos } from './shared/tree-ops'
 import type { NormalizePath } from './types-path'
 
@@ -29,12 +29,17 @@ export type ValidateTrigger = 'onChange' | 'onBlur' | 'onSubmit'
 export type EnumPolicy = 'error' | 'clear' | 'none'
 
 type IsAny<T> = 0 extends 1 & T ? true : false
+/** `unknown` only. `NonNullable<unknown>` is `{}`, so check this before `EnumValueOf`. */
+type IsUnknown<T> = IsAny<T> extends true ? false : [unknown] extends [T] ? ([T] extends [unknown] ? true : false) : false
 
 /** A static enum: `{ label, value }` options, or bare primitives (label = `String(value)`). */
 export type EnumInput = readonly EnumOption[] | readonly (string | number | boolean)[]
 
 /** The value one option carries for a field of type `V`: the element type for an array field (`Checkbox.Group`), else `V`. */
 export type EnumValueOf<V> = IsAny<V> extends true ? any : NonNullable<V> extends readonly (infer E)[] ? E : NonNullable<V>
+
+/** {@link EnumValueOf}, plus `null` when the field or its element type includes `null` (a cleared option). */
+type EnumOptionValue<V> = EnumValueOf<V> | ([null] extends [V] ? null : [null] extends [EnumValueOf<V>] ? null : never)
 
 /** {@link EnumOption} with `value` typed. */
 export interface TypedEnumOption<V> extends Omit<EnumOption, 'value' | 'children'> {
@@ -47,10 +52,16 @@ export interface TypedEnumOption<V> extends Omit<EnumOption, 'value' | 'children
  * `{ label, value }` options or bare primitives whose value matches the field (its element type for an array field),
  * or `SomeEnum.with(params)` (async, loaded by the engine like `$enum`). With an untyped `<Field>` (`V = any`) anything goes.
  */
-export type FieldEnum<V = any> =
-  | readonly TypedEnumOption<EnumValueOf<V>>[]
-  | readonly Extract<EnumValueOf<V>, string | number | boolean>[]
-  | EnumBinding<any>
+export type FieldEnum<V = any> = IsAny<V> extends true
+  ? EnumInput | EnumBinding<any>
+  : IsUnknown<V> extends true
+    ? EnumInput | EnumBinding<any>
+    : [unknown] extends [EnumValueOf<V>]
+      ? EnumInput | EnumBinding<any>
+      :
+        | readonly TypedEnumOption<EnumOptionValue<V>>[]
+        | readonly Extract<EnumOptionValue<V>, string | number | boolean>[]
+        | EnumBinding<any>
 
 /**
  * Every readable/writable path of `T`, including array indexes (`items.0.price`).
@@ -70,8 +81,21 @@ type StrictFieldPath<T, D extends number = 8> = [D] extends [0]
     : [T] extends [object]
       ? {
           [K in keyof T & string]: K | JoinPath<K, StrictFieldPath<NonNullable<T[K]>, PrevDepth[D]>>
-        }[keyof T & string]
+        }[keyof T & string] | DraftIndexPath<T, D>
       : never
+
+/**
+ * A draft of an array is an object (`DraftState` plus a numeric index), not an array, so the array branch above
+ * misses `orders.0.qty`. Walk that index when the numeric value is itself a draft (`$path`).
+ * `Record<string, never>` (a primitive draft) has a numeric index of `never` and contributes nothing.
+ */
+type DraftIndexPath<T, D extends number> = number extends keyof T
+  ? [T[number]] extends [never]
+    ? never
+    : T[number] extends { readonly $path: string }
+      ? `${number}` | JoinPath<`${number}`, StrictFieldPath<NonNullable<T[number]>, PrevDepth[D]>>
+      : never
+  : never
 
 /**
  * Like {@link FieldPath}, but an array index may be `*`.
@@ -102,37 +126,6 @@ export type ArrayPath<T> = IsAny<T> extends true
       : never
     : never
 
-/**
- * The submitted shape of `T` when the paths in `P` may be dropped from submit: each listed path becomes optional
- * (`?:`), at any depth. An array index may be `*` (or a number, which also makes it optional on every row).
- * Use it as the form's second type argument for `display: 'virtual'`, `display: 'none'` and computed fields:
- *
- * ```ts
- * const form = createForm<V, SubmitValues<V, 'tmp' | 'rows.*.total'>>({ … })
- * form.submit((values) => values.tmp) // string | undefined
- * ```
- *
- * With no `P` this is `T`.
- */
-export type SubmitValues<T, P extends TemplatePath<T> = never> = [P] extends [never] ? T : OptionalPaths<T, P & string>
-
-type HeadKey<P extends string> = P extends `${string}.${string}` ? never : P
-type RestOf<P extends string, K extends string> = P extends `${K}.${infer R}` ? R : never
-type OptionalAt<V, R extends string> = [R] extends [never] ? V : OptionalPaths<V, R>
-type Simplify<T> = { [K in keyof T]: T[K] } & {}
-
-type OptionalPaths<T, P extends string> = T extends readonly (infer E)[]
-  ? OptionalAt<E, RestOf<P, IndexSegment> | RestOf<P, `${number}`>>[]
-  : T extends object
-    ? Simplify<
-        {
-          [K in keyof T as K extends HeadKey<P> ? never : K]: OptionalAt<T[K], RestOf<P, K & string>>
-        } & {
-          [K in keyof T as K extends HeadKey<P> ? K : never]?: OptionalAt<T[K], RestOf<P, K & string>>
-        }
-      >
-    : T
-
 /** A {@link FieldPath}, or the same path with `[0]` / `['key']`. An unknown path is `never`. */
 export type ValuePath<T, P extends string> = [P] extends [FieldPath<T>] ? P : NormalizePath<P> extends FieldPath<T> ? P : never
 
@@ -156,7 +149,11 @@ type IndexValue<T, K extends string> = T extends readonly (infer E)[]
     : never
   : K extends keyof T
     ? T[K]
-    : never
+    : K extends `${number}`
+      ? number extends keyof T
+        ? T[number]
+        : never
+      : never
 
 /**
  * UI state for the field's decorator and component (Formily `title` / `description` / `decorator` / `component`).
@@ -225,60 +222,6 @@ export interface FieldSpec extends FieldUiSpec {
   asyncDebounceMs?: number
 }
 
-export interface FormOptions<T> {
-  /** Reset target. Cloned on create. */
-  initialValues?: T
-  /** Installed in order. Each factory receives `reaction` and `watch`. */
-  effects?: EffectDef<T>[]
-  /**
-   * Field models that exist even when no `<Field>` is mounted.
-   * An inactive tab, a collapsed region, or a virtualized row still validates if it is listed here.
-   * A key such as `rows.*.name` is an item template: the spec is applied to every current index.
-   * An exact path, `registerField`, and `$rules` / `$required` win over the template.
-   * JSX `rules` and `required` apply only while that `<Field>` is mounted and do not erase this spec on unmount.
-   * `selectedKeys` and client-paging `page` are usually `{ display: 'virtual' }`.
-   */
-  fields?: { [K in FieldPath<T> | TemplatePath<T>]?: FieldSpec }
-  /**
-   * Cross-field check. A Standard Schema's issue `path` is written onto that field's `$errors`
-   * (`['items', 0, 'name']` → `items.0.name`, `['nodes', 0, 'children', 1, 'name']` → `nodes.0.children.1.name`).
-   * Display `none` drops the issue (the field is not validated and does not block submit).
-   * Display `hidden` keeps the issue. A function return is the same path → message map.
-   */
-  validate?:
-    | StandardSchemaV1<T>
-    | ((values: T) => Partial<Record<string, string>> | void | Promise<Partial<Record<string, string>> | void>)
-  /** Default triggers. Field `trigger` overrides this. Default `['onBlur', 'onSubmit']`. */
-  validateTrigger?: ValidateTrigger[]
-  /**
-   * Debounce async field validators and async Standard Schemas. `0` runs them immediately.
-   * A newer edit aborts the previous `AbortSignal`. That attempt leaves the in-flight set
-   * immediately, so `submit` does not wait for it; a later resolve or reject is ignored.
-   */
-  asyncDebounceMs?: number
-  /**
-   * What to do when the current value is no longer in `$enum`.
-   * Default `'none'` (leave the value; clear it yourself in a `watch` if you need to keep the last edit).
-   */
-  enumPolicy?: EnumPolicy
-  /**
-   * Override built-in messages for this form (#44): `required`, `email`, `minLength`, `enum`, `fallback`,
-   * `superseded` … A key is a string or a function of the check's parameters (`({ minLength }) => …`).
-   * Order: the rule's own `message` > this > `setDefaultMessages` > {@link zhCN}. Pass `enUS` for English.
-   */
-  messages?: Partial<FormMessages>
-  /**
-   * Initial pattern of the whole form: the root `$pattern`, inherited by every field without its own pattern
-   * (`'readPretty'` for a detail page, `'disabled'` while loading). Change it later with `d.$pattern = …`;
-   * `d.$pattern = undefined` makes the form editable again.
-   */
-  pattern?: Pattern
-  /** Log each pass when true. */
-  devtools?: boolean
-  /** Tree roots that effects address before React mounts. Keys are array paths (`ArrayPath<T>`). */
-  trees?: { [K in ArrayPath<T>]?: { childrenKey?: string; rowKey?: string } }
-}
-
 /**
  * One effect module, usually the return value of {@link defineEffects}.
  * Modules run in array order when the form is created. Each factory closes over `reaction` and `watch`.
@@ -333,6 +276,65 @@ export interface RowContext<T> {
 /** The element draft of a selected array handle. */
 export type RowDraft<A> = A extends readonly (infer E)[] ? Draft<E> : Draft<A>
 
+type IsPlainObject<T> = [T] extends [never]
+  ? false
+  : T extends object
+    ? T extends readonly unknown[]
+      ? false
+      : T extends (...args: never[]) => unknown
+        ? false
+        : true
+    : false
+
+type ElemOf<T> = NonNullable<T> extends readonly (infer E)[] ? NonNullable<E> : never
+type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false
+
+/** Top-level array keys whose element type is `Elem` (`orders` for `Order[]`, not a nested `lines`). */
+type TopArrayKeys<T, Elem> = IsPlainObject<T> extends true
+  ? { [K in keyof T & string]: Same<ElemOf<T[K]>, Elem> extends true ? K : never }[keyof T & string]
+  : never
+
+type ObjectArrayKeys<T> = IsPlainObject<T> extends true
+  ? { [K in keyof T & string]: IsPlainObject<ElemOf<T[K]>> extends true ? K : never }[keyof T & string]
+  : never
+
+/** `depth` 0 is the selected array. Deeper visits are nested object arrays. `Rest` shrinks so a tree stays finite. */
+type EachVisit<Elem, Key extends string, Done extends readonly unknown[], Rest extends readonly unknown[]> =
+  | { key: Key; depth: Done['length']; elem: Elem }
+  | (Rest extends readonly [unknown, ...infer Tail]
+      ? ObjectArrayKeys<Elem> extends infer K
+        ? [K] extends [never]
+          ? never
+          : K extends keyof Elem & string
+            ? EachVisit<ElemOf<Elem[K]>, K, readonly [...Done, 0], Tail>
+            : never
+        : never
+      : never)
+
+type EachVisits<T, A> = [ElemOf<A>] extends [never]
+  ? { key: string; depth: 0; elem: A }
+  : EachVisit<ElemOf<A>, [TopArrayKeys<T, ElemOf<A>>] extends [never] ? string : TopArrayKeys<T, ElemOf<A>> & string, readonly [], readonly [0, 0, 0, 0, 0]>
+
+type VisitElems<T, A> = EachVisits<T, A> extends infer V ? (V extends { elem: infer E } ? E : never) : never
+type AllKeys<U> = U extends unknown ? keyof U : never
+type PropAt<U, K extends PropertyKey> = U extends unknown ? (K extends keyof U ? U[K] : never) : never
+/** One object: a key present on several visited shapes is the union of those property types, not their intersection. */
+type MergeValues<U> = { [K in AllKeys<U>]: PropAt<U, K> }
+
+/**
+ * Selected element plus every nested object-array element. TypeScript cannot narrow `row` from `ctx.key`, so the
+ * callback sees every shape `each` walks. A key shared by two shapes is the union of the two property types.
+ * `ctx.key` / `ctx.depth` stay a discriminated union.
+ */
+type EachRow<T, A> = [VisitElems<T, A>] extends [object] ? Draft<{ [K in keyof MergeValues<VisitElems<T, A>>]: MergeValues<VisitElems<T, A>>[K] }> : Draft<VisitElems<T, A>>
+
+type EachCtxOf<T, A> = Omit<RowContext<T>, 'key' | 'depth'> &
+  (EachVisits<T, A> extends infer V
+    ? V extends unknown
+      ? { key: V extends { key: infer K } ? K : string; depth: V extends { depth: infer D } ? D : number }
+      : never
+    : never)
+
 export interface ReactionFn<T> {
   /**
    * Derive `$` state. Reads are dependencies. Writes are not, so do not read a `$` state you just wrote.
@@ -362,7 +364,7 @@ export interface ReactionFn<T> {
    *   },
    * )
    */
-  each<A>(select: (d: Draft<T>) => Draft<A>, effect: (row: RowDraft<A>, ctx: RowContext<T>) => void): void
+  each<A>(select: (d: Draft<T>) => Draft<A>, effect: (row: EachRow<T, A>, ctx: EachCtxOf<T, A>) => void): void
 }
 
 export interface WatchFn<T> {
@@ -381,7 +383,7 @@ export interface WatchFn<T> {
    * An edit re-fires the elements whose source keys are dirty, not their siblings.
    * A structural move does not re-fire; the next edit at the new path does.
    */
-  each<A>(select: (d: Draft<T>) => Draft<A>, effect: (row: RowDraft<A>, ctx: RowContext<T>) => void): void
+  each<A>(select: (d: Draft<T>) => Draft<A>, effect: (row: EachRow<T, A>, ctx: EachCtxOf<T, A>) => void): void
 }
 
 /**
@@ -443,11 +445,12 @@ export interface DraftState<T> {
    * layer (like `$title` / `$pattern`): back to the mounted JSX `enum`, else `fields.x.enum`, else the item template.
    * `[]` clears the options.
    */
-  set $enum(value: EnumInput | EnumBinding<any> | undefined)
+  set $enum(value: FieldEnum<T> | undefined)
   /**
    * Rules written by a reaction. They stay when a JSX `<Field rules>` unmounts.
    * A reaction wins over JSX `rules`, `registerField`, and an item template.
    */
+  /** Reaction rules. The callback value is `unknown` here; a `<Field rules>` validator is typed as the field value. */
   $rules: Rule[]
   /** Decorator label (`FormItem` → `label`). Assign `undefined` to fall back to JSX / `fields`. */
   $title: unknown
@@ -617,8 +620,9 @@ export interface FormInstance<T, TSubmit = T> {
   validate(path?: FieldPath<T> | readonly FieldPath<T>[]): Promise<FieldError[]>
   /**
    * Clone of the values with `display: 'virtual'` and `display: 'none'` removed (whole subtrees).
-   * `hidden` values are kept. The static type is `TSubmit` (default `T`): the form cannot know statically which
-   * fields a reaction hides, so declare the droppable paths with `createForm<T, SubmitValues<T, 'tmp'>>()`.
+   * `hidden` values are kept. The static type is `TSubmit`. With no type argument, or `typed<T>().createForm`,
+   * paths declared `display: 'virtual'` / `'none'` in `fields` are optional. `createForm<T>(options)` stays `T`.
+   * JSX `display` and a reaction `$display` are not visible; list those with `createForm<T, SubmitValues<T, 'tmp'>>()`.
    */
   getSubmitValues(): TSubmit
 

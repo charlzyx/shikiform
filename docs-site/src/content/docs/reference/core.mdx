@@ -13,7 +13,9 @@ description: "@shikiform/core 的 createForm、get、set、defineEffects 和错�
 function createForm<T, TSubmit = T>(options?: FormOptions<T>): FormInstance<T, TSubmit>
 ```
 
-组件外面创建引擎。选项和 `useForm` 相同：`initialValues`、`effects`、`fields`、`validate`、`pattern`、`messages`。返回的 `FormInstance` 上有 `getValue` / `setValue` / `batch` / `submit` / `validate` / `reset`。
+组件外面创建引擎。选项和 `useForm` 相同：`initialValues`、`effects`、`fields`、`validate`、`pattern`、`messages`。返回的 `FormInstance` 上有 `getValue` / `setValue` / `batch` / `submit` / `validate` / `reset`。不传 `options` 和传 `undefined` 都是空表单，等同 `{}`。
+
+不写泛型时，`fields` 里 `display: 'virtual'` / `display: 'none'` 的路径在提交类型里变成可选。`createForm<V>(options)` 的提交类型就是 `V`。写了 `V` 还要按 `fields` 推断，用 `@shikiform/react` 的 `typed<V>().createForm(options)`。第二个类型参数照写：`createForm<V, SubmitValues<V, 'tmp'>>(options)`。
 
 ```ts
 import { createForm } from '@shikiform/core'
@@ -30,11 +32,12 @@ function get<T, P extends FieldPath<T>>(data: T, path: P): PathValue<T, P>
 
 从普通数据上按路径读取。`a.b[0].c`、`a.b.0.c`、`a['name']` 都可以。缺的段落是 `undefined`。不改入参。
 
-在 draft 上，`get` 沿属性走，返回子 handle，读值再写 `.$value`。没有下标的路径可以这样写。带下标时 `FieldPath` 走不到 draft 上的数组下标，`get(d, 'orders[0].lines[2].qty')` 和 `get(d, 'orders.0.lines.2.qty')` 都过不了类型检查。那种位置用 handle 链，或 `form.getValue`。
+在 draft 上，`get` 沿属性走，返回子 handle，读值再写 `.$value`。带下标同样可以。
 
 ```ts
 get(order, 'items[0].sku')
 get(d, 'user.name').$value
+get(d, 'orders[0].lines[2].qty').$value
 d.orders[0].lines[2].qty.$value
 form.getValue('orders[0].lines[2].qty')
 ```

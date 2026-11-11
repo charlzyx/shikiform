@@ -1,7 +1,8 @@
 import type { ComponentType, ReactNode } from 'react'
-import type { FormInstance } from '@shikiform/core/internal'
+import { createForm, type DefaultSubmit, type FieldsInput, type FormInstance, type FormOptions, type ResolveSubmit } from '@shikiform/core/internal'
 import type { ArrayItemOf, ArrayPath, Draft, FieldPath, PathValue } from '@shikiform/core/internal'
-import { ArrayField, Field, ObjectField, Watch, type ArrayContainerSlot, type FieldProps } from '../components/fields'
+import { useForm, type UseFormOptions } from '../hooks/use-form'
+import { ArrayField, Field, ObjectField, Watch, type ArrayContainerSlot, type CheckedFieldProps, type FieldProps } from '../components/fields'
 import { useArrayField, type ArrayHandle, type ArrayKey } from '../hooks/use-array'
 import { useField, type FieldBinding, type UseFieldOptions } from '../hooks/use-field'
 import { useWatch } from '../hooks/use-watch'
@@ -14,7 +15,7 @@ import { useWatch } from '../hooks/use-watch'
  */
 export type ScopeFields<T> = {
   Field: <N extends FieldPath<T>, C extends ComponentType<any> = ComponentType<any>, D extends ComponentType<any> = ComponentType<any>>(
-    props: FieldProps<T, N, C, D>,
+    props: CheckedFieldProps<T, N, C, D>,
   ) => ReactNode
   ObjectField: <N extends FieldPath<T>>(props: {
     name: N
@@ -35,11 +36,24 @@ export type ScopeFields<T> = {
  * `useField` / `useArrayField` names are relative to the calling component's scope, typed against `T`.
  * `useWatch` / `Watch` select from the root draft (`Draft<TRoot>`).
  */
+type FieldsOf<T, F> = { fields?: F & FieldsInput<T> }
+
 export type TypedForm<T, TRoot = T> = ScopeFields<T> & {
   useField: <N extends FieldPath<T>>(name: N, options?: UseFieldOptions<PathValue<T, N & string>>) => FieldBinding<PathValue<T, N & string>>
   useArrayField: <N extends ArrayPath<T>>(name: N, rowKey?: string) => ArrayHandle<ArrayItemOf<T, N & string>>
   useWatch: <S>(select: (d: Draft<TRoot>) => S) => S
   Watch: <S>(props: { select: (d: Draft<TRoot>) => S; children: (value: S) => ReactNode }) => ReactNode
+  /**
+   * Same `createForm`, with `T` already fixed, so `fields` still decides which `virtual` / `none` paths are optional
+   * on submit. `createForm<T>(options)` does not: its submit type is `T`.
+   */
+  createForm: <TSubmit = DefaultSubmit, const F extends FieldsInput<T> = {}>(
+    options?: Omit<FormOptions<T>, 'fields'> & FieldsOf<T, F>,
+  ) => FormInstance<T, ResolveSubmit<T, TSubmit, F>>
+  /** Same `useForm`. See {@link TypedForm.createForm}. `useForm()` with no arguments is not this; it is an empty form. */
+  useForm: <TSubmit = DefaultSubmit, const F extends FieldsInput<T> = {}>(
+    options?: Omit<UseFormOptions<T>, 'fields'> & FieldsOf<T, F>,
+  ) => FormInstance<T, ResolveSubmit<T, TSubmit, F>>
 }
 
 /**
@@ -62,6 +76,8 @@ export type TypedForm<T, TRoot = T> = ScopeFields<T> & {
  * `typed<Row>()` (no form) types a component that renders inside a scope — a row, or a reusable fragment under an
  * `<ObjectField name="address">`: `typed<Address>().Field`. Its `useWatch` still reads the root draft; pass the
  * root as the second argument (`typed<Row, Values>()`) to type it.
+ * The same object has `createForm` / `useForm`: `typed<Values>().useForm({ fields })` keeps `Values` and still infers
+ * which `fields` paths are optional on submit. `useForm<Values>(options)` does not.
  */
 export function typed<T, TRoot = T>(): TypedForm<T, TRoot>
 export function typed<T>(form: FormInstance<T, any>): TypedForm<T>
@@ -77,4 +93,4 @@ function TypedObjectField({ children, ...props }: { name: string; display?: Fiel
 }
 
 const scope = { Field, ObjectField: TypedObjectField, ArrayField: TypedArrayField }
-const handles = { ...scope, useField, useArrayField, useWatch, Watch } as unknown as TypedForm<any>
+const handles = { ...scope, useField, useArrayField, useWatch, Watch, createForm, useForm } as unknown as TypedForm<any>

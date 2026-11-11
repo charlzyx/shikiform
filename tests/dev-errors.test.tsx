@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
-import { cleanup, render } from '@testing-library/react'
+import { cleanup, render, renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ArrayField, createForm, defineEffects, Field, Form, ShikiConflictError, ShikiCycleError, ShikiUsageError, UI } from '@shikiform/react'
+import { ArrayField, createForm, defineEffects, Field, Form, ShikiConflictError, ShikiCycleError, ShikiUsageError, UI, typed, useForm } from '@shikiform/react'
+import { useQueryTable } from '@shikiform/hooks'
 import { createEngine } from '../packages/core/src/engine/create'
 
 afterEach(cleanup)
@@ -169,5 +170,53 @@ describe('conflict / cycle errors name the reactions', () => {
     }
     expect(error).toBeInstanceOf(ShikiConflictError)
     expect((error as Error).message).toMatch(/reaction\.each:\d+ \[row 0\] at tests\/dev-errors\.test\.tsx:\d+:\d+: reads d\.rows\[0\]\.a\.\$value/)
+  })
+})
+
+describe('useForm() / createForm() with no arguments', () => {
+  it('returns a form, and switching arguments does not change the hook count', () => {
+    expect(typeof createForm().getValue).toBe('function')
+    expect(typeof createForm(undefined).submit).toBe('function')
+    expect(createForm().getValue('missing')).toBeUndefined()
+
+    const bare = renderHook(({ none }: { none: boolean }) => (none ? useForm() : useForm(undefined)), {
+      initialProps: { none: false },
+    })
+    expect(typeof bare.result.current.getValue).toBe('function')
+    bare.rerender({ none: true })
+    expect(typeof bare.result.current.getValue).toBe('function')
+    bare.rerender({ none: false })
+    bare.unmount()
+
+    const switched = renderHook(
+      ({ opts }: { opts?: { initialValues: { a: string } } }) => useForm(opts),
+      { initialProps: { opts: undefined as { initialValues: { a: string } } | undefined } },
+    )
+    switched.rerender({ opts: {} as { initialValues: { a: string } } })
+    switched.rerender({ opts: { initialValues: { a: '' } } })
+    switched.rerender({ opts: undefined })
+    expect(switched.result.current.getValue('a')).toBeUndefined()
+    switched.unmount()
+
+    const typedForm = renderHook(() => typed<{ a: string }>().useForm({ initialValues: { a: 'x' } }))
+    expect(typedForm.result.current.getValue('a')).toBe('x')
+    typedForm.unmount()
+
+    const external = createForm({ initialValues: { q: '' } })
+    const query = renderHook(
+      ({ pass }: { pass: boolean }) =>
+        useQueryTable({
+          form: pass ? external : undefined,
+          initialValues: { q: '' },
+          request: async () => ({ data: [], total: 0 }),
+        }),
+      { initialProps: { pass: false } },
+    )
+    expect(typeof query.result.current.form.getValue).toBe('function')
+    query.rerender({ pass: true })
+    expect(query.result.current.form).toBe(external)
+    query.rerender({ pass: false })
+    expect(query.result.current.form).not.toBe(external)
+    query.unmount()
   })
 })

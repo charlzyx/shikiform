@@ -151,8 +151,16 @@ export const Input = Object.assign(connect(AntInput, mapProps(antdStatus), mapRe
   Password: connect(AntInput.Password, mapProps(antdStatus), mapReadPretty(PreviewText.Password)),
 })
 
+/**
+ * Pin the value a control stores when its public `value` prop is wider than the field (antd `InputNumber` accepts
+ * `string | number`; clearing writes `null`, and the field is `number | null`).
+ */
+function accepts<V>() {
+  return <C,>(component: C): C & { readonly __shikiAccepts: V } => component as C & { readonly __shikiAccepts: V }
+}
+
 /** Number input. Clearing writes `null` (the raw Ant Design value). `readPretty` applies `formatter` and the addons. */
-export const InputNumber = connect(AntInputNumber, mapProps(antdStatus), mapReadPretty(PreviewText.Input))
+export const InputNumber = accepts<number | null>()(connect(AntInputNumber, mapProps(antdStatus), mapReadPretty(PreviewText.Input)))
 
 /**
  * Select. `options` default to the field enum; `loading` follows an async enum.
@@ -193,14 +201,18 @@ function BooleanPreview({ value, checkedChildren, unCheckedChildren }: PreviewTe
 }
 
 /** Boolean switch: field value ↔ `checked`. `readPretty` shows `checkedChildren` / `unCheckedChildren`, else `messages.yes` / `no`. */
-export const Switch = connect(AntSwitch as SwitchWithBlur, mapProps({ value: 'checked', readOnly: 'disabled', status: false }), mapReadPretty(BooleanPreview))
+export const Switch = accepts<boolean>()(
+  connect(AntSwitch as SwitchWithBlur, mapProps({ value: 'checked', readOnly: 'disabled', status: false }), mapReadPretty(BooleanPreview)),
+)
 
 /**
  * Single checkbox: field value ↔ `checked`; `readPretty` shows `messages.yes` / `no`.
  * `Checkbox.Group` binds an array with enum `options`; `readPretty` shows the labels as tags.
  */
 export const Checkbox = Object.assign(
-  connect(AntCheckbox, mapProps({ value: 'checked', readOnly: 'disabled', status: false }, dropGroupedCheckboxId), mapReadPretty(BooleanPreview)),
+  accepts<boolean>()(
+    connect(AntCheckbox, mapProps({ value: 'checked', readOnly: 'disabled', status: false }, dropGroupedCheckboxId), mapReadPretty(BooleanPreview)),
+  ),
   { Group: connect(withPretty(AntCheckbox.Group), group, mapReadPretty(PreviewText.Select)) },
 )
 checkboxType = Checkbox

@@ -27,7 +27,7 @@ import { createEngine } from '../packages/core/src/engine/create'
 type Pattern = 'editable' | 'disabled' | 'readOnly' | 'readPretty'
 
 function binding(value: unknown, extra: { pattern?: Pattern; enum?: { label: string; value: unknown }[] } = {}) {
-  const form = createEngine({ initialValues: { x: value }, fields: { x: { pattern: extra.pattern, enum: extra.enum } } })
+  const form = createEngine<{ x: unknown }>({ initialValues: { x: value }, fields: { x: { pattern: extra.pattern, enum: extra.enum } } })
   return { form, field: form.binding('x') as FieldBinding<any> }
 }
 

@@ -28,7 +28,6 @@ export type {
   Draft,
   RowContext,
   RowDraft,
-  SubmitValues,
   EffectDef,
   EnumInput,
   EnumPolicy,
@@ -40,7 +39,6 @@ export type {
   FieldUiSpec,
   TemplatePath,
   FormInstance,
-  FormOptions,
   MoveResult,
   PathValue,
   NormalizePath,
@@ -53,3 +51,5 @@ export type {
   UiNames,
   ValidateTrigger,
 } from './types'
+export type { FormOptions } from './types-effects'
+export type { SubmitValues } from './types-submit'

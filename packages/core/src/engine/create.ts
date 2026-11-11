@@ -1,4 +1,6 @@
-import type { FormInstance, FormOptions } from '../types'
+import type { FormInstance } from '../types'
+import type { FormOptions } from '../types-effects'
+import type { DefaultSubmit, FieldsInput, ResolveSubmit } from '../types-submit'
 import { FormEngine } from './form-engine'
 
 /**
@@ -14,9 +16,18 @@ import { FormEngine } from './form-engine'
  *   initialValues: { code: '', rows: [{ name: '' }] },
  *   fields: { code: { required: true }, 'rows.*.name': { required: true } },
  * })
+ * // No type argument: `fields` display `virtual` / `none` are optional on submit.
+ * // `createForm<V>(options)` keeps the submit type as `V` (`fields` is not inferred).
+ * // To keep `V` and still infer `fields`, use `typed<V>().createForm(options)` from `@shikiform/react`.
+ * // An explicit second argument is used as written. `createForm()` and `createForm(undefined)` are `createForm({})`.
  */
-export function createForm<T, TSubmit = T>(options: FormOptions<T> = {}): FormInstance<T, TSubmit> {
-  return new FormEngine<T, TSubmit>(options)
+type CreateOptions<T, F> = Omit<FormOptions<T>, 'fields'> & { fields?: F & FieldsInput<T> }
+
+export function createForm<T = any, TSubmit = DefaultSubmit, const F extends FieldsInput<T> = {}>(
+  options?: CreateOptions<T, F>,
+): FormInstance<T, ResolveSubmit<T, TSubmit, F>>
+export function createForm(options?: FormOptions<any>): FormInstance<any, any> {
+  return new FormEngine(options ?? {})
 }
 
 /**
@@ -26,8 +37,10 @@ export function createForm<T, TSubmit = T>(options: FormOptions<T> = {}): FormIn
 export type Engine<T = any, TSubmit = T> = FormEngine<T, TSubmit> & FormInstance<T, TSubmit>
 
 /** @internal See {@link Engine}. */
-export function createEngine<T, TSubmit = T>(options: FormOptions<T> = {}): Engine<T, TSubmit> {
-  return new FormEngine<T, TSubmit>(options)
+export function createEngine<T, TSubmit = DefaultSubmit, const F extends FieldsInput<T> = {}>(
+  options?: Omit<FormOptions<T>, 'fields'> & { fields?: F & FieldsInput<T> },
+): Engine<T, ResolveSubmit<T, TSubmit, F>> {
+  return new FormEngine(options ?? {}) as Engine<T, ResolveSubmit<T, TSubmit, F>>
 }
 
 /**

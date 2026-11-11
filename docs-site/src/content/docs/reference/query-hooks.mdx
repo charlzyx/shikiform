@@ -26,7 +26,7 @@ useQueryTable<TValues, TRow = unknown>(
 ): QueryTableApi<TValues, TValues, TRow>
 ```
 
-`UseQueryTableOptions`、`QueryTableApi`、`QueryRequestArgs/Result`、`QueryHookArgs/Result` 都是本模块的类型导出；`FieldPath`、`PathValue` 从 `@shikiform/core` 导入。通常直接让 `initialValues`、`params` 和 `request` 推断，不需要手写三组泛型。
+`UseQueryTableOptions`、`QueryTableApi`、`QueryRequestArgs/Result`、`QueryHookArgs/Result` 都是本模块的类型导出；`FieldPath`、`PathValue` 从 `@shikiform/core` 导入。通常直接让 `initialValues`、`params` 和 `request` 推断，不需要手写三组泛型。空数组、空对象或联合字面量推断不准时，写成 `useQueryTable<Values>()({ initialValues, … })`：`Values` 检查 `initialValues`，行类型和 `params` 仍从参数推断。`useQueryTable<Values>(options)` 不会推断其余类型参数。
 
 ### 参数与默认
 
@@ -128,8 +128,8 @@ const rows: Row[] = [
 ];
 
 export default function App() {
-  const table = useQueryTable({
-    initialValues: { filters: { name: '' }, list: [] as Row[], page: 1, pageSize: 2, selectedKeys: [] as string[] },
+  const table = useQueryTable<Values>()({
+    initialValues: { filters: { name: '' }, list: [], page: 1, pageSize: 2, selectedKeys: [] },
     params: 'filters',
     rows: 'list',
     mode: 'client',

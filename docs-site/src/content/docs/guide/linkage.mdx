@@ -109,10 +109,11 @@ reaction.each((d) => d.items, (row, ctx) => { … })
 
 ```ts
 d.orders[0].lines[2].qty.$value
+get(d, 'orders[0].lines[2].qty').$value
 form.getValue('orders[0].lines[2].qty')
 ```
 
-没有下标时，`get(d, 'user.name').$value` 也行：draft 上 `get` 返回子 handle。带下标的 `get(d, 'orders[0].lines[2].qty')` 过不了类型检查，用上面两种写法。
+`get` 在 draft 上返回子 handle，带下标也可以：`get(d, 'orders[0].lines[2].qty').$value`。没有下标时同样是 `get(d, 'user.name').$value`。
 
 每个外层元素都取里面的同一项：
 
@@ -123,7 +124,16 @@ reaction.each((d) => d.orders, (order, ctx) => {
 })
 ```
 
-要改里面某一项，仍在外层回调里走 handle。`depth === 0` 时 `order` 的类型就是订单，`order.lines[2].qty` 能过类型检查：
+回调的 `row` 带上选中元素和每一层对象数组元素的字段。两边都有的键取并集（`id: string` 和 `id: number` 得到 `string | number`），不会交成 `never`。`ctx.key` / `ctx.depth` 是字面量联合（这里是 `'orders' | 'lines'` 和 `0 | 1`）。滤到明细之后可以直接写 `node.qty`：
+
+```ts
+reaction.each((d) => d.orders, (node, ctx) => {
+  if (ctx.key !== 'lines' || ctx.index !== 2) return
+  node.qty.$required = true
+})
+```
+
+只处理订单本身时看 `depth`。`depth === 0` 时走外层 handle 也行：
 
 ```ts
 reaction.each((d) => d.orders, (order, ctx) => {
@@ -132,11 +142,7 @@ reaction.each((d) => d.orders, (order, ctx) => {
 })
 ```
 
-<Aside type="caution" title="回调参数的类型停在选中的那一层">
-`each` 把回调的第一个参数类型定成选择器选中的元素（这里是 `{ lines }`）。运行时走进 `lines` 仍会调用它，但类型不会变成行。用 `ctx.key !== 'lines' || ctx.index !== 2` 可以在运行时只处理最里层的第 2 项，接着写 `node.qty` 却是 `TS2339`。那样运行时会把 `orders.0.lines.2` 设成必填，只是不能当能过 tsc 的写法。要改这个字段，用上面的 `order.lines[2].qty`。
-</Aside>
-
-平铺表格的回调里不用这些判断。树的子节点如果和当前节点是同一个类型（`children?: Node[]`），`ctx.key` / `ctx.depth` 滤完之后仍可以写 `node.name`。子元素是另一种形状时，用上面的外层 handle。
+平铺表格的回调里不用这些判断。树的子节点如果和当前节点是同一个类型（`children?: Node[]`），`ctx.key` / `ctx.depth` 滤完之后仍可以写 `node.name`。
 
 `watch.each` 是同样的遍历，语义是 `watch`：回调里读到的 `$` 状态就是来源，来源变了才执行，首次不写入。某个元素变化只触发它自己，兄弟和别处的移动不触发。适合「这个节点的 X 变了就做一次动作」。
 

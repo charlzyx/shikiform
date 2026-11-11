@@ -20,8 +20,13 @@ import { resolveName } from './resolve-name'
 export interface FieldBinding<TValue> {
   path: string
   value: TValue
-  onChange: (value: TValue) => void
-  onBlur: () => void
+  /**
+   * Method syntax is bivariant, so `FieldBinding<string>` can be passed to a helper typed as
+   * `FieldBinding<string | number>` or `FieldBinding<unknown>`. `value` stays covariant: a `string` binding is not a
+   * `number` binding. Calling `onChange` with a wider value is the same tradeoff React uses for event handlers.
+   */
+  onChange(value: TValue): void
+  onBlur(): void
   errors: string[]
   warnings: string[]
   display: Display
@@ -77,6 +82,48 @@ export type FieldSlot<C extends ComponentType<any> = ComponentType<any>> =
 /** The props half of a slot tuple: the component's own props, all optional, plus `data-*` attributes (as in JSX). */
 export type SlotProps<C extends ComponentType<any>> = Partial<ComponentProps<C>> & { [key: `data-${string}`]: unknown }
 
+type IsAny<T> = 0 extends 1 & T ? true : false
+
+/**
+ * The value a control stores on the field. `connect` sets `__shikiAccepts` from `format` / `parse` when those convert
+ * the value (a date string, not a Dayjs). Otherwise it is the control's `value` prop. An explicit
+ * `__shikiAccepts` on the component wins over the wide prop (antd `InputNumber` accepts `string | number` but stores
+ * `number | null`).
+ */
+export type ControlValue<C> = C extends { readonly __shikiAccepts: infer V }
+  ? V
+  : C extends ComponentType<infer P>
+    ? P extends { value?: infer V }
+      ? IsAny<V> extends true
+        ? any
+        : V
+      : any
+    : any
+
+/**
+ * True when `V` can be passed as the control's value (`any` on either side skips the check).
+ * `undefined` and `null` are ignored on the field side: `string | null` still matches Input, `boolean | null` still
+ * matches Switch / Checkbox. A cleared option (`value: null`) is a separate enum check.
+ */
+export type ControlAccepts<C, V> = IsAny<V> extends true
+  ? true
+  : IsAny<ControlValue<C>> extends true
+    ? true
+    : [Exclude<V, undefined | null>] extends [ControlValue<C>]
+      ? true
+      : false
+
+/**
+ * When the field value is not assignable to the control, the props gain a required explanation and `component`
+ * becomes `never`, so the error names both types.
+ */
+export type ControlValueGuard<C, V> = ControlAccepts<C, V> extends true
+  ? unknown
+  : {
+      component?: never
+      __shikiValueMismatch: { field: V; control: ControlValue<C> }
+    }
+
 /**
  * A `component` / `decorator` slot addressed by a name from {@link FieldComponents} / {@link FieldDecorators}.
  * With nothing registered, any string (and a loose props object) is accepted — the same escape hatch as an untyped
@@ -115,7 +162,7 @@ export interface UseFieldOptions<TValue = any> {
    * A new value (deep-compared, so an inline array is fine) is applied again; unmount or `undefined` restores the declaration.
    */
   enum?: FieldEnum<TValue>
-  rules?: RulesInput
+  rules?: RulesInput<TValue>
   required?: boolean
   /** `virtual` renders and validates but is not submitted. `hidden` / `none` do not render. */
   display?: Display

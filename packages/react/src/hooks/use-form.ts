@@ -1,7 +1,6 @@
 import { useEffect, useLayoutEffect, useRef } from 'react'
-import { createForm } from '@shikiform/core/internal'
-import { deepEqual } from '@shikiform/core/internal'
-import type { FormInstance, FormOptions } from '@shikiform/core/internal'
+import { createForm, deepEqual } from '@shikiform/core/internal'
+import type { DefaultSubmit, FieldsInput, FormInstance, FormOptions, ResolveSubmit } from '@shikiform/core/internal'
 
 const useIsoLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 
@@ -23,7 +22,10 @@ export interface UseFormOptions<T> extends FormOptions<T> {
  * The returned form is headless: nothing here imports a UI kit.
  *
  * `T` is inferred from `initialValues` / `values`. `getValue` / `setValue` / `batch` use that type.
- * `TSubmit` (default `T`) types `submit` / `getSubmitValues` / `<Form onSubmit>`; see `SubmitValues`.
+ * Submit values: no type argument drops `fields` paths whose display is `virtual` / `none`.
+ * `useForm<V>(options)` keeps the submit type as `V`. To keep `V` and still infer `fields`, call
+ * `typed<V>().useForm(options)`. An explicit second argument (`SubmitValues<V, …>`) is used as written.
+ * `useForm()`, `useForm(undefined)` and `useForm({})` are the same call: each returns a form and runs the same hooks.
  * `typed(form)` gives the name-checked `Field` / `ArrayField` / `useField` / `useWatch` for this form.
  * `fields` and `rows.*.name` templates validate even when the matching `<Field>` is not mounted.
  *
@@ -32,15 +34,20 @@ export interface UseFormOptions<T> extends FormOptions<T> {
  *   initialValues: { email: '', rows: [{ name: '' }] },
  *   fields: { email: { required: true }, 'rows.*.name': { required: true } },
  * })
- * const edit = useForm({ values: query.data }) // resets whenever the record reloads with new content
+ * const edit = typed<Detail>().useForm({ values: record, fields: { token: { display: 'virtual' } } })
  */
-export function useForm<T, TSubmit = T>(options?: UseFormOptions<T>): FormInstance<T, TSubmit> {
-  const ref = useRef<FormInstance<T, TSubmit> | null>(null)
+type UseFormArg<T, F> = Omit<UseFormOptions<T>, 'fields'> & { fields?: F & FieldsInput<T> }
+
+export function useForm<T = any, TSubmit = DefaultSubmit, const F extends FieldsInput<T> = {}>(
+  options?: UseFormArg<T, F>,
+): FormInstance<T, ResolveSubmit<T, TSubmit, F>>
+export function useForm(options?: UseFormOptions<any>): any {
+  const ref = useRef<FormInstance<any, any> | null>(null)
   const values = options?.values
   const last = useRef(values)
   if (!ref.current) {
     const { values: _values, ...rest } = options ?? {}
-    ref.current = createForm<T, TSubmit>(values !== undefined ? { ...rest, initialValues: values } : rest)
+    ref.current = createForm(values !== undefined ? { ...rest, initialValues: values } : rest)
   }
   const form = ref.current
   useIsoLayoutEffect(() => {

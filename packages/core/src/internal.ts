@@ -27,13 +27,14 @@ export type {
   FieldSpec,
   FieldUiSpec,
   FormInstance,
-  FormOptions,
   MoveResult,
   PathValue,
   Pattern,
   UiDisplay,
   UiName,
 } from './types'
+export type { FormOptions } from './types-effects'
+export type { DefaultSubmit, FieldsInput, ResolveSubmit } from './types-submit'
 export { formatMessage } from './validation/messages'
 export type { FormMessageKey, MessageArgs } from './validation/messages'
 export type { RulesInput } from './validation/rules'
