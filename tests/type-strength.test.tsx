@@ -2,15 +2,26 @@
 import { it } from 'vitest'
 import { createForm, defineEffects, get, type FieldEnum } from '@shikiform/core'
 import { useQueryTable } from '@shikiform/hooks'
-import { DatePicker, Input, InputNumber, Switch } from '@shikiform/antd'
-import { typed, useWatch, type FieldBinding } from '@shikiform/react'
+import { Checkbox, DatePicker, Input, InputNumber, Switch } from '@shikiform/antd'
+import { typed, useForm, useWatch, type FieldBinding } from '@shikiform/react'
 
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false
 type Expect<T extends true> = T
 
 type Line = { sku: string; qty: number }
 type Order = { id: string; lines: Line[] }
-type Values = { name: string; owner?: string; qty: number | null; level: 'bronze' | 'silver'; orders: Order[]; confirm: string; ghost: string; tab: string }
+type Values = {
+  name: string
+  owner?: string
+  qty: number | null
+  level: 'bronze' | 'silver'
+  nick?: string | null
+  on?: boolean | null
+  orders: Order[]
+  confirm: string
+  ghost: string
+  tab: string
+}
 
 // 1. validator value follows the field
 function validatorValue() {
@@ -31,8 +42,11 @@ defineEffects<Values>(({ reaction }) => {
   reaction((d) => {
     d.level.$enum = ['bronze', 'silver']
     d.level.$enum = [{ label: '青铜', value: 'bronze' }]
+    d.nick.$enum = [{ label: '无', value: null }, { label: 'A', value: 'a' }]
     // @ts-expect-error gold is not a level
     d.level.$enum = [{ value: 'gold' }]
+    // @ts-expect-error level is not nullable
+    d.level.$enum = [{ value: null }]
     const loose: FieldEnum<string> = [{ label: 'x', value: 'x' }]
     void loose
   })
@@ -51,6 +65,9 @@ function controlValue() {
       <F.Field name="qty" component={[InputNumber]} />
       <F.Field name="name" component={[Input]} />
       <F.Field name="owner" component={[Input]} />
+      <F.Field name="nick" component={[Input]} />
+      <F.Field name="on" component={[Switch]} />
+      <F.Field name="on" component={[Checkbox]} />
       <F.Field name="name" component={[DatePicker]} />
       {/* @ts-expect-error InputNumber stores number | null */}
       <F.Field name="name" component={[InputNumber]} />
@@ -149,6 +166,61 @@ void controlValue
 void queryTable
 void watchValue
 void submitInference
+function submitWithTypeArg() {
+  type V = { name: string; confirm: string; ghost: string; tab: string }
+  const init = { name: '', confirm: '', ghost: '', tab: '' }
+  const fields = {
+    confirm: { display: 'virtual' as const },
+    ghost: { display: 'none' as const },
+    tab: { display: 'hidden' as const },
+  }
+  const curried = createForm<V>()({ initialValues: init, fields })
+  void curried.submit((values) => {
+    values.name.length
+    values.tab.length
+    // @ts-expect-error virtual is optional once V is applied through the curried call
+    values.confirm.length
+    // @ts-expect-error none is optional once V is applied through the curried call
+    values.ghost.length
+  })
+  const fixed = createForm<V>({ initialValues: init, fields })
+  void fixed.submit((values) => {
+    const _same: Expect<Equal<typeof values, V>> = true
+    values.confirm.length
+    void _same
+  })
+  const hooked = useForm<V>()({ initialValues: init, fields })
+  void hooked.submit((values) => {
+    // @ts-expect-error useForm<V>()(options) drops virtual
+    values.confirm.length
+  })
+  const hookedFixed = useForm<V>({ initialValues: init, fields })
+  void hookedFixed.submit((values) => {
+    const _same: Expect<Equal<typeof values, V>> = true
+    values.confirm.length
+    void _same
+  })
+}
+
+function eachSharedKeys() {
+  type Child = { id: number; note: string; qty: number }
+  type Parent = { id: string; note?: string; kids: Child[] }
+  defineEffects<{ rows: Parent[] }>(({ reaction }) => {
+    reaction.each((d) => d.rows, (node) => {
+      const id = node.id.$value
+      const _id: Expect<Equal<typeof id, string | number>> = true
+      node.id.$value = 'parent'
+      node.id.$value = 1
+      node.note.$value = undefined
+      const qty: number = node.qty.$value
+      void _id
+      void qty
+    })
+  })
+}
+
 void pathsAndEach
+void submitWithTypeArg
+void eachSharedKeys
 
 it('type contracts are checked by tsc', () => {})

@@ -38,6 +38,9 @@ export type EnumInput = readonly EnumOption[] | readonly (string | number | bool
 /** The value one option carries for a field of type `V`: the element type for an array field (`Checkbox.Group`), else `V`. */
 export type EnumValueOf<V> = IsAny<V> extends true ? any : NonNullable<V> extends readonly (infer E)[] ? E : NonNullable<V>
 
+/** {@link EnumValueOf}, plus `null` when the field or its element type includes `null` (a cleared option). */
+type EnumOptionValue<V> = EnumValueOf<V> | ([null] extends [V] ? null : [null] extends [EnumValueOf<V>] ? null : never)
+
 /** {@link EnumOption} with `value` typed. */
 export interface TypedEnumOption<V> extends Omit<EnumOption, 'value' | 'children'> {
   value: V
@@ -56,8 +59,8 @@ export type FieldEnum<V = any> = IsAny<V> extends true
     : [unknown] extends [EnumValueOf<V>]
       ? EnumInput | EnumBinding<any>
       :
-        | readonly TypedEnumOption<EnumValueOf<V>>[]
-        | readonly Extract<EnumValueOf<V>, string | number | boolean>[]
+        | readonly TypedEnumOption<EnumOptionValue<V>>[]
+        | readonly Extract<EnumOptionValue<V>, string | number | boolean>[]
         | EnumBinding<any>
 
 /**
@@ -297,7 +300,7 @@ type ObjectArrayKeys<T> = IsPlainObject<T> extends true
 
 /** `depth` 0 is the selected array. Deeper visits are nested object arrays. `Rest` shrinks so a tree stays finite. */
 type EachVisit<Elem, Key extends string, Done extends readonly unknown[], Rest extends readonly unknown[]> =
-  | { key: Key; depth: Done['length']; row: Draft<Elem> }
+  | { key: Key; depth: Done['length']; elem: Elem }
   | (Rest extends readonly [unknown, ...infer Tail]
       ? ObjectArrayKeys<Elem> extends infer K
         ? [K] extends [never]
@@ -309,16 +312,21 @@ type EachVisit<Elem, Key extends string, Done extends readonly unknown[], Rest e
       : never)
 
 type EachVisits<T, A> = [ElemOf<A>] extends [never]
-  ? { key: string; depth: 0; row: Draft<A> }
+  ? { key: string; depth: 0; elem: A }
   : EachVisit<ElemOf<A>, [TopArrayKeys<T, ElemOf<A>>] extends [never] ? string : TopArrayKeys<T, ElemOf<A>> & string, readonly [], readonly [0, 0, 0, 0, 0]>
 
-type UnionToIntersection<U> = (U extends unknown ? (x: U) => void : never) extends (x: infer I) => void ? I : never
+type VisitElems<T, A> = EachVisits<T, A> extends infer V ? (V extends { elem: infer E } ? E : never) : never
+type AllKeys<U> = U extends unknown ? keyof U : never
+type PropAt<U, K extends PropertyKey> = U extends unknown ? (K extends keyof U ? U[K] : never) : never
+/** One object: a key present on several visited shapes is the union of those property types, not their intersection. */
+type MergeValues<U> = { [K in AllKeys<U>]: PropAt<U, K> }
 
 /**
  * Selected element plus every nested object-array element. TypeScript cannot narrow `row` from `ctx.key`, so the
- * callback sees the fields of every shape `each` walks. `ctx.key` / `ctx.depth` stay a discriminated union.
+ * callback sees every shape `each` walks. A key shared by two shapes is the union of the two property types.
+ * `ctx.key` / `ctx.depth` stay a discriminated union.
  */
-type EachRow<T, A> = UnionToIntersection<EachVisits<T, A> extends infer V ? (V extends unknown ? (V extends { row: infer R } ? R : never) : never) : never>
+type EachRow<T, A> = [VisitElems<T, A>] extends [object] ? Draft<{ [K in keyof MergeValues<VisitElems<T, A>>]: MergeValues<VisitElems<T, A>>[K] }> : Draft<VisitElems<T, A>>
 
 type EachCtxOf<T, A> = Omit<RowContext<T>, 'key' | 'depth'> &
   (EachVisits<T, A> extends infer V

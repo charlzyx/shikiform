@@ -23,7 +23,8 @@ export interface UseFormOptions<T> extends FormOptions<T> {
  * The returned form is headless: nothing here imports a UI kit.
  *
  * `T` is inferred from `initialValues` / `values`. `getValue` / `setValue` / `batch` use that type.
- * `TSubmit` (default `T`) types `submit` / `getSubmitValues` / `<Form onSubmit>`; see `SubmitValues`.
+ * Submit values: no type argument, or `useForm<V>()(options)`, drops `fields` paths whose display is `virtual` / `none`.
+ * `useForm<V>(options)` keeps the submit type as `V`. An explicit second argument (`SubmitValues<V, …>`) is used as written.
  * `typed(form)` gives the name-checked `Field` / `ArrayField` / `useField` / `useWatch` for this form.
  * `fields` and `rows.*.name` templates validate even when the matching `<Field>` is not mounted.
  *
@@ -32,17 +33,25 @@ export interface UseFormOptions<T> extends FormOptions<T> {
  *   initialValues: { email: '', rows: [{ name: '' }] },
  *   fields: { email: { required: true }, 'rows.*.name': { required: true } },
  * })
- * const edit = useForm({ values: query.data }) // resets whenever the record reloads with new content
+ * const edit = useForm<Detail>()({ values: record, fields: { token: { display: 'virtual' } } })
  */
+type UseFormArg<T, F> = Omit<UseFormOptions<T>, 'fields'> & { fields?: F & FieldsInput<T> }
+
+export function useForm<T>(): <TSubmit = DefaultSubmit, const F extends FieldsInput<T> = {}>(
+  options?: UseFormArg<T, F>,
+) => FormInstance<T, ResolveSubmit<T, TSubmit, F>>
 export function useForm<T, TSubmit = DefaultSubmit, const F extends FieldsInput<T> = {}>(
-  options?: Omit<UseFormOptions<T>, 'fields'> & { fields?: F & FieldsInput<T> },
-): FormInstance<T, ResolveSubmit<T, TSubmit, F>> {
-  const ref = useRef<FormInstance<T, ResolveSubmit<T, TSubmit, F>> | null>(null)
-  const values = options?.values
+  options?: UseFormArg<T, F>,
+): FormInstance<T, ResolveSubmit<T, TSubmit, F>>
+export function useForm(options?: UseFormOptions<any>): any {
+  // No arguments is the curried entry (`useForm<V>()(options)`). It does not call hooks; the inner call does.
+  if (options === undefined) return (next?: UseFormOptions<any>) => useForm(next ?? {})
+  const ref = useRef<FormInstance<any, any> | null>(null)
+  const values = options.values
   const last = useRef(values)
   if (!ref.current) {
-    const { values: _values, ...rest } = options ?? {}
-    ref.current = createForm(values !== undefined ? { ...rest, initialValues: values } : rest) as FormInstance<T, ResolveSubmit<T, TSubmit, F>>
+    const { values: _values, ...rest } = options
+    ref.current = createForm(values !== undefined ? { ...rest, initialValues: values } : rest)
   }
   const form = ref.current
   useIsoLayoutEffect(() => {

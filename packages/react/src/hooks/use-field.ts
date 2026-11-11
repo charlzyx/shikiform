@@ -102,14 +102,14 @@ export type ControlValue<C> = C extends { readonly __shikiAccepts: infer V }
 
 /**
  * True when `V` can be passed as the control's value (`any` on either side skips the check).
- * `undefined` is ignored: an optional field (`due?: string`) still matches a control whose `value` prop is optional
- * in JSX but whose declared value type does not mention `undefined`.
+ * `undefined` and `null` are ignored on the field side: `string | null` still matches Input, `boolean | null` still
+ * matches Switch / Checkbox. A cleared option (`value: null`) is a separate enum check.
  */
 export type ControlAccepts<C, V> = IsAny<V> extends true
   ? true
   : IsAny<ControlValue<C>> extends true
     ? true
-    : [Exclude<V, undefined>] extends [ControlValue<C>]
+    : [Exclude<V, undefined | null>] extends [ControlValue<C>]
       ? true
       : false
 

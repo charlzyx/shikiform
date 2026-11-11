@@ -124,7 +124,7 @@ reaction.each((d) => d.orders, (order, ctx) => {
 })
 ```
 
-回调的 `row` 带上选中元素和每一层对象数组元素的字段，`ctx.key` / `ctx.depth` 是字面量联合（这里是 `'orders' | 'lines'` 和 `0 | 1`）。滤到明细之后可以直接写 `node.qty`：
+回调的 `row` 带上选中元素和每一层对象数组元素的字段。两边都有的键取并集（`id: string` 和 `id: number` 得到 `string | number`），不会交成 `never`。`ctx.key` / `ctx.depth` 是字面量联合（这里是 `'orders' | 'lines'` 和 `0 | 1`）。滤到明细之后可以直接写 `node.qty`：
 
 ```ts
 reaction.each((d) => d.orders, (node, ctx) => {

@@ -16,11 +16,21 @@ import { FormEngine } from './form-engine'
  *   initialValues: { code: '', rows: [{ name: '' }] },
  *   fields: { code: { required: true }, 'rows.*.name': { required: true } },
  * })
+ * // `fields` display virtual / none are optional on submit when `T` is inferred, or via createForm<V>()(options).
+ * // createForm<V>(options) keeps the submit type as V. An explicit second argument is used as written.
  */
+type CreateOptions<T, F> = Omit<FormOptions<T>, 'fields'> & { fields?: F & FieldsInput<T> }
+
+export function createForm<T>(): <TSubmit = DefaultSubmit, const F extends FieldsInput<T> = {}>(
+  options?: CreateOptions<T, F>,
+) => FormInstance<T, ResolveSubmit<T, TSubmit, F>>
 export function createForm<T, TSubmit = DefaultSubmit, const F extends FieldsInput<T> = {}>(
-  options?: Omit<FormOptions<T>, 'fields'> & { fields?: F & FieldsInput<T> },
-): FormInstance<T, ResolveSubmit<T, TSubmit, F>> {
-  return new FormEngine(options ?? {}) as FormInstance<T, ResolveSubmit<T, TSubmit, F>>
+  options?: CreateOptions<T, F>,
+): FormInstance<T, ResolveSubmit<T, TSubmit, F>>
+export function createForm(options?: FormOptions<any>): any {
+  // No arguments is the curried entry (`createForm<V>()(options)`). An empty form is `createForm({})`.
+  if (options === undefined) return (next?: FormOptions<any>) => createForm(next ?? {})
+  return new FormEngine(options)
 }
 
 /**

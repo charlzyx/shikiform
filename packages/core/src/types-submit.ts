@@ -16,8 +16,8 @@ import type { FieldEnum, FieldPath, FieldSpec, RulesInput, TemplatePath } from '
 export type SubmitValues<T, P extends TemplatePath<T> = never> = [P] extends [never] ? T : OptionalPaths<T, P & string>
 
 /**
- * Sentinel for an omitted `TSubmit`. A default of `T` cannot be told apart from `createForm<V, V>()`, so auto-detected
- * submit paths only apply when the caller did not pass a second type argument.
+ * Sentinel for an omitted `TSubmit`. Auto-detected submit paths apply when this is still the default
+ * (`createForm(options)` / `createForm<V>()(options)`). `createForm<V>(options)` does not infer `fields`.
  */
 declare const DefaultSubmitBrand: unique symbol
 export type DefaultSubmit = typeof DefaultSubmitBrand

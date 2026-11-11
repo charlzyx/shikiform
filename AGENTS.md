@@ -314,9 +314,12 @@ reaction((d) => {
   mount it under `<ObjectField name="home"><AddressFields /></ObjectField>`.
 - Prefer `F.useWatch((d) => d.email.$value)` (`F = typed(form)`). A bare `useWatch((d) => …)` compiles with an untyped `d`.
   `useWatch<Values>()((d) => d.email.$value)` types the draft and still infers the result; `useWatch<Values>(…)` does not.
-- `submit` / `getSubmitValues` / `onSubmit` values are the form's second type argument `TSubmit`. When it is omitted,
-  paths declared in `fields` with `display: 'virtual'` or `display: 'none'` become optional. JSX `display` and a reaction
-  `$display` are not visible to that inference: list those paths with `createForm<V, SubmitValues<V, 'tmp' | 'rows.*.total'>>()`.
+- `submit` / `getSubmitValues` / `onSubmit` follow `fields` only in two forms: no type argument
+  (`createForm({ fields })` / `useForm({ fields })`), or the curried `createForm<V>()({ fields })` / `useForm<V>()({ fields })`.
+  Paths declared `display: 'virtual'` or `display: 'none'` become optional; `hidden` stays. `createForm<V>(options)` /
+  `useForm<V>(options)` keep the submit type as `V` (the `fields` display is not inferred). An explicit second argument
+  is used as written: `createForm<V, SubmitValues<V, 'tmp' | 'rows.*.total'>>(options)`. JSX `display` and a reaction `$display`
+  are never visible to that inference.
 
 ## 8. Correct vs incorrect
 

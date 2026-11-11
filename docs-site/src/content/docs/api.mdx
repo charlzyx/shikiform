@@ -86,7 +86,11 @@ const dirty = useWatch((d: Draft<Values>) => d.$dirty)          // 改回原值�
 
 ### 提交值类型
 
-`submit` / `getSubmitValues` / `<Form onSubmit>` 的值类型是表单的第二个泛型 `TSubmit`。不写第二个泛型时，`fields` 里写成 `display: 'virtual'` 或 `display: 'none'` 的路径会变成可选；`hidden` 仍提交。JSX 的 `display` 和 reaction 里改的 `$display` 类型上看不到。那些路径用 `SubmitValues<T, 路径>` 声明成可选：
+`submit` / `getSubmitValues` / `<Form onSubmit>` 的值类型：
+
+- 不写泛型，或 `createForm<V>()({ fields })` / `useForm<V>()({ fields })`：`fields` 里 `display: 'virtual'` / `display: 'none'` 变成可选；`hidden` 仍提交。
+- `createForm<V>({ fields })` / `useForm<V>({ fields })`：提交类型就是 `V`，不看 `fields`。
+- 第二个类型参数照写（下面的例子）。JSX 的 `display` 和 reaction 里的 `$display` 类型上看不到，只能自己列出路径。
 
 ```ts
 import { createForm, type SubmitValues } from '@shikiform/react'
