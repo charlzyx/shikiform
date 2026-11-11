@@ -16,7 +16,7 @@ pnpm add @shikiform/react
 yarn add @shikiform/react
 ```
 
-用 Ant Design 再安装 `@shikiform/antd`。查询列表、影子表单再安装 `@shikiform/hooks`。`@shikiform/react` 依赖引擎 `@shikiform/core`，从注册表安装时会一并装上。只要引擎、不要 React 时单独装 `@shikiform/core`。peer 是 `react` / `react-dom`（`^18 || ^19`）；`@shikiform/antd` 还要 `antd@^5.18` 和 `dayjs@^1`。
+用 Ant Design 再安装 `@shikiform/antd`，和 `@shikiform/react` 一起装。`Form`、`useForm`、`typed` 从 `@shikiform/react` 引入，`@shikiform/antd` 不重新导出它们；pnpm 只允许 import 直接依赖。查询列表、影子表单再安装 `@shikiform/hooks`。`@shikiform/react` 依赖引擎 `@shikiform/core`，从注册表安装时会一并装上。只要引擎、不要 React 时单独装 `@shikiform/core`。peer 是 `react` / `react-dom`（`^18 || ^19`）；`@shikiform/antd` 还要 `antd@^5.18` 和 `dayjs@^1`。
 
 ### 本地 tarball
 
@@ -62,14 +62,22 @@ npm i ../shikiform/packages/core/shikiform-core-0.1.0.tgz ../shikiform/packages/
 
 然后 `npm i`、`pnpm install` 或 `yarn install`。`npm` 会忽略 `pnpm` 和 `resolutions`。
 
-要用 `@shikiform/hooks`，再执行 `npm pack -w @shikiform/hooks --pack-destination packages/hooks`。要用 `@shikiform/antd`，四个都打包（antd 依赖 core、react、hooks）：
+要用 `@shikiform/antd`，四个包都打包（antd 依赖 core、react、hooks）。在仓库根目录：
 
 ```bash
+npm pack -w @shikiform/core --pack-destination packages/core
+npm pack -w @shikiform/react --pack-destination packages/react
+npm pack -w @shikiform/hooks --pack-destination packages/hooks
 npm pack -w @shikiform/antd --pack-destination packages/antd
+```
+
+在项目里一次装上：
+
+```bash
 npm i ../shikiform/packages/core/shikiform-core-0.1.0.tgz ../shikiform/packages/react/shikiform-react-0.1.0.tgz ../shikiform/packages/hooks/shikiform-hooks-0.1.0.tgz ../shikiform/packages/antd/shikiform-antd-0.1.0.tgz
 ```
 
-`dependencies` 里为每个 tarball 写一条 `file:`，并加上 peer `antd`（`^5.18.0`）和 `dayjs`（`^1`）。`pnpm.overrides` 与 `resolutions` 里为 `@shikiform/core`、`@shikiform/react`、`@shikiform/hooks` 各写一条，指向同一个 tarball。Yarn 1 若因间接依赖的 `engines` 停下来，改跑 `yarn install --ignore-engines`。
+`dependencies` 里为每个 tarball 写一条 `file:`，并加上 peer `antd`（`^5.18.0`）和 `dayjs`（`^1`）。`pnpm.overrides` 与 `resolutions` 里为 `@shikiform/core`、`@shikiform/react`、`@shikiform/hooks` 各写一条，指向同一个 tarball。Yarn 1 安装这组依赖时，antd 的间接依赖 `scroll-into-view-if-needed@3.2.0` 要求 Node `>=26`。Node 更低时改跑 `yarn install --ignore-engines`。只要 `@shikiform/hooks`、不要 antd 时，打包并安装 core、react、hooks 三个 tarball 即可。
 
 ### workspace
 
