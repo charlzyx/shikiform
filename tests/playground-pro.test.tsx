@@ -131,6 +131,9 @@ describe('/play/suggestion', () => {
 })
 
 describe('/play/query-list', () => {
+  // domainService waits 456ms per request. This file's waitFor budget is 4s, but vitest's default
+  // test timeout is 5s: under a full parallel run the timers slip and the test is killed before
+  // waitFor can fail the assertion. The longer budget is only for that scheduling slack.
   it('loads page 1 into editable rows, pages, and filters', async () => {
     render(<QueryListPage />)
     await waitFor(() => expect(value('domain-0')).toMatch(/1\./), slow)
@@ -142,7 +145,7 @@ describe('/play/query-list', () => {
     fireEvent.click(screen.getByTestId('query-submit'))
     await waitFor(() => expect(value('domain-0')).toMatch(/^abc\./), slow)
     expect(screen.getAllByTestId('row-id')[0]!.textContent).toBe('1')
-  })
+  }, 15_000)
 
   it('query-list-add edits a row through the shadow modal', async () => {
     render(<QueryListAddPage />)
@@ -153,7 +156,7 @@ describe('/play/query-list', () => {
     fireEvent.click(ok())
     await waitFor(() => expect(value('domain-0')).toBe('changed.dev'))
     expect(screen.getByTestId('list').textContent).toContain('1:changed.dev')
-  })
+  }, 15_000)
 })
 
 describe('SKU and merged pages on the current APIs', () => {
