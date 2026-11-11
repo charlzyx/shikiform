@@ -431,11 +431,17 @@ useArrayErrors(): { errors: readonly string[]; warnings: readonly string[] }
 
 最近一层数组**自己**的校验消息：写在这条数组路径上的规则、字段 schema、`form.setErrors`。子字段的消息不在里面（那些在行内 `FormItem` / `useField().errors` 上）。`d.items.$errors` 会把子孙字段的消息算进去，这个 Hook 不会。
 
-只订阅该数组路径，改一个单元格不会让它重渲染。必须在 `<ArrayField>` 里调用（容器或行内）；嵌套数组取最近的一层。不在数组内时抛 `ShikiUsageError`。
+只订阅该数组路径，改一个单元格不会让它重渲染。嵌套数组取最近的一层。
 
-`ArrayItems` / `ArrayCards` 用它画反馈行。自己画列表时：
+调用它的组件必须渲染在 `<ArrayField>` 的子树里（容器，或容器里的 `footer` / 工具栏）。和 `<ArrayField>` 平级时抛错：开发构建是 `ShikiUsageError`，消息为 `useArrayErrors() must render inside an <ArrayField> (its container, or a row).`；生产构建是 `Error`，消息为 `useArrayErrors() must render inside an <ArrayField>`。行 children 里调用也在作用域内，但数组为空时行函数不执行，有多行时每行各画一次。数组这一层的提示放在容器上。`ArrayTable` 不画这条反馈，交给它的 `footer`（仍在 `<ArrayField>` 内）。
+
+`ArrayItems` / `ArrayCards` 用它画反馈行。自己画时：
 
 ```tsx
+import type { ReactNode } from 'react'
+import { ArrayField, useArrayErrors } from '@shikiform/react'
+import { ArrayTable, type ArrayTableColumn } from '@shikiform/antd'
+
 function ListError() {
   const { errors, warnings } = useArrayErrors()
   const messages = errors.length ? errors : warnings
@@ -443,9 +449,36 @@ function ListError() {
   return <p role="alert">{messages.join('、')}</p>
 }
 
-<ArrayField name="tags" component={[MyList]}>
-  {() => <><ListError /><Row /></>}
-</ArrayField>
+function MyList({ children }: { children?: ReactNode }) {
+  return (
+    <div>
+      {children}
+      <ListError />
+    </div>
+  )
+}
+
+const columns: ArrayTableColumn[] = [{ key: 'name', title: '名称', render: () => null }]
+
+// ✓
+function Correct() {
+  return (
+    <>
+      <ArrayField name="tags" component={[MyList]}>{() => <span />}</ArrayField>
+      <ArrayField name="list" component={[ArrayTable, { columns, footer: <ListError /> }]} />
+    </>
+  )
+}
+
+// ✗ 兄弟节点，渲染时抛 ShikiUsageError
+function Wrong() {
+  return (
+    <>
+      <ArrayField name="tags" component={[MyList]}>{() => <span />}</ArrayField>
+      <ListError />
+    </>
+  )
+}
 ```
 
 已经显示的数组级错误，在 `push` / `insert` / `remove` / `move` / `swap` / `replace` 之后会重跑这一层规则（与改一个已经报错的输入相同）。改某一格不会重跑它。子字段要到下一次提交，或它们自己的校验时机，才校验。见 [数组自身的错误](/guide/arrays#数组自身的错误)。

@@ -112,7 +112,54 @@ export default function App() {
 
 `feedback={false}` 关掉这块。外层 `<FormLayout feedbackLayout="none">` 同样不显示。
 
-自己画列表时用 [`useArrayErrors()`](/reference/react-hooks#usearrayerrors)（必须在 `<ArrayField>` 里）。它只返回这一层路径上的 `errors` / `warnings`。子字段的合计是 draft 上的 `$errors`，两者不是一回事。`ArrayTable` 不画这条反馈，需要时在表格下自己渲染这个 Hook。
+自己画列表时用 [`useArrayErrors()`](/reference/react-hooks#usearrayerrors)。它只返回这一层路径上的 `errors` / `warnings`。子字段的合计是 draft 上的 `$errors`，两者不是一回事。
+
+调用它的组件必须渲染在 `<ArrayField>` 的子树里：作为 `component` 容器（容器包住各行，数组为空也会挂上），或放进容器仍会渲染的位置。`ArrayTable` 不画这条反馈；要画在表格下方时，把组件交给 `footer`。`footer` 由 `ArrayTable` 渲染，而 `ArrayTable` 在这个数组的作用域里。和 `<ArrayField>` 平级再挂一个兄弟节点（表格下面另写一个组件）会抛错。开发构建抛 `ShikiUsageError`，消息是 `useArrayErrors() must render inside an <ArrayField> (its container, or a row).`。生产构建抛 `Error`，消息是 `useArrayErrors() must render inside an <ArrayField>`。
+
+行 children 里调用也在作用域内，但数组为空时行函数不会执行，这条错误就出不来；有多行时每一行都会画一次。数组这一层的提示放在容器或 `footer`，不要放进行回调。
+
+```tsx
+import type { ReactNode } from 'react'
+import { ArrayField, useArrayErrors } from '@shikiform/react'
+import { ArrayTable, type ArrayTableColumn } from '@shikiform/antd'
+
+function ArrayMessage() {
+  const { errors } = useArrayErrors()
+  if (!errors.length) return null
+  return <p role="alert">{errors.join('、')}</p>
+}
+
+function MyList({ children }: { children?: ReactNode }) {
+  return (
+    <div>
+      {children}
+      <ArrayMessage />
+    </div>
+  )
+}
+
+const columns: ArrayTableColumn[] = [{ key: 'name', title: '名称', render: () => null }]
+
+// ✓ 容器、footer 都在 <ArrayField> 里面
+function Correct() {
+  return (
+    <>
+      <ArrayField name="tags" component={[MyList]}>{() => <span />}</ArrayField>
+      <ArrayField name="list" component={[ArrayTable, { columns, footer: <ArrayMessage /> }]} />
+    </>
+  )
+}
+
+// ✗ 和 <ArrayField> 平级，渲染时抛上面的 ShikiUsageError
+function Wrong() {
+  return (
+    <>
+      <ArrayField name="list" component={[ArrayTable, { columns }]} />
+      <ArrayMessage />
+    </>
+  )
+}
+```
 
 ```tsx preview
 import { Form, typed, useForm } from '@shikiform/react';
@@ -224,7 +271,7 @@ export default function App() {
 
 ## 和其他数组组件的关系
 
-- 只要作用域、按钮自己画：`<ArrayField>` + `useArray()` / `useIndex()`，见 [数组、树与嵌套对象](/guide/structures)。数组自身的错误用 [`useArrayErrors()`](/reference/react-hooks#usearrayerrors)。
+- 只要作用域、按钮自己画：`<ArrayField>` + `useArray()` / `useIndex()`，见 [数组、树与嵌套对象](/guide/structures)。数组自身的错误用 [`useArrayErrors()`](/reference/react-hooks#usearrayerrors)，写在 `<ArrayField>` 的容器或 `footer` 里，不要和 `<ArrayField>` 平级。
 - 查询条件 + 服务端分页的表格：[`QueryList`](/guide/pro#查询列表)，它内部就是一张 `ArrayTable`。
 - 很长的名单只渲染可见行：`<ArrayField name virtualScroll={{ height }}>`（普通行，不和容器同用），见 [示例 · 虚拟滚动](/examples/arrays)。
 - 参数表：[ArrayItems](/reference/antd#arrayitems)、[ArrayCards](/reference/antd#arraycards)、[ArrayTable](/reference/antd#arraytable)、[useArrayEditable](/reference/antd#usearrayeditable)。

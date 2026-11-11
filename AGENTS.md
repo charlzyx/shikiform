@@ -118,7 +118,10 @@ pattern is `editable` (readPretty / readOnly / disabled anywhere above hides the
 
 `ArrayItems` / `ArrayCards` show the array path's own errors under the rows (`feedback={false}` hides them; so does
 `FormLayout` `feedbackLayout: 'none'`). A custom list reads the same messages with `useArrayErrors()` (nearest array,
-own path only). `d.items.$errors` also includes descendant fields. `ArrayTable` does not draw that row.
+own path only). `d.items.$errors` also includes descendant fields. `ArrayTable` does not draw that row: pass the
+component as `footer` (or render it from the array's container `component`). The hook's component must be a descendant
+of `<ArrayField>`. A sibling throws `ShikiUsageError`: `useArrayErrors() must render inside an <ArrayField> (its container, or a row).`
+A per-row child does not run when the array is empty, and repeats once per row.
 
 ## 4. Nested values: per-path writes vs `$componentProps` patches
 
