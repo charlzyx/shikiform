@@ -40,10 +40,14 @@ const effects = defineEffects<Values>(({ reaction, watch }) => {
   reaction((d) => {
     const sel = selectionOf(d);
     for (const dim of DIMS) {
-      d[dim].$enum = comboOptions(SKUS, {}, dim).map((option) => ({
-        ...option,
-        disabled: !matching(afterPick(sel, dim, String(option.value))).some((row) => row.stock > 0),
-      }));
+      d[dim].$enum = comboOptions(SKUS, {}, dim).map((option) => {
+        const value = String(option.value);
+        return {
+          label: option.label,
+          value,
+          disabled: !matching(afterPick(sel, dim, value)).some((row) => row.stock > 0),
+        };
+      });
     }
   });
   // 动作：改了一个维度，清掉与它冲突的其他维度

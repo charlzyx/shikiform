@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import { createForm } from '@shikiform/core/internal'
 import { deepEqual } from '@shikiform/core/internal'
-import type { FormInstance, FormOptions } from '@shikiform/core/internal'
+import type { DefaultSubmit, FieldsInput, FormInstance, FormOptions, ResolveSubmit } from '@shikiform/core/internal'
 
 const useIsoLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 
@@ -34,13 +34,15 @@ export interface UseFormOptions<T> extends FormOptions<T> {
  * })
  * const edit = useForm({ values: query.data }) // resets whenever the record reloads with new content
  */
-export function useForm<T, TSubmit = T>(options?: UseFormOptions<T>): FormInstance<T, TSubmit> {
-  const ref = useRef<FormInstance<T, TSubmit> | null>(null)
+export function useForm<T, TSubmit = DefaultSubmit, const F extends FieldsInput<T> = {}>(
+  options?: Omit<UseFormOptions<T>, 'fields'> & { fields?: F & FieldsInput<T> },
+): FormInstance<T, ResolveSubmit<T, TSubmit, F>> {
+  const ref = useRef<FormInstance<T, ResolveSubmit<T, TSubmit, F>> | null>(null)
   const values = options?.values
   const last = useRef(values)
   if (!ref.current) {
     const { values: _values, ...rest } = options ?? {}
-    ref.current = createForm<T, TSubmit>(values !== undefined ? { ...rest, initialValues: values } : rest)
+    ref.current = createForm(values !== undefined ? { ...rest, initialValues: values } : rest) as FormInstance<T, ResolveSubmit<T, TSubmit, F>>
   }
   const form = ref.current
   useIsoLayoutEffect(() => {

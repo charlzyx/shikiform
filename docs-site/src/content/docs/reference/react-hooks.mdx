@@ -281,7 +281,7 @@ useWatch<T = any, S = unknown>(select: (draft: Draft<T>) => S): S
 | 返回值 | selector 的结果 `S`；没有额外包装对象 |
 | 依赖 | 自动跟踪本轮读到的 `$` 状态；分支变化后调整订阅 |
 
-不注解时 `useWatch((d) => d.$submitting)` 可以编译，`d` 是 `any`，返回值也是 `any`。要类型就用 [`typed(form).useWatch((d) => d.name.$value)`](#typed)（`string`），或注解 `useWatch((d: Draft<Values>) => d.name.$value)`。只写一个泛型 `useWatch<Values>(...)` 时 TypeScript 不再推断 `S`（它是 `unknown`），不要这样写。
+优先用 [`typed(form).useWatch((d) => d.name.$value)`](#typed)（`string`）。不注解时 `useWatch((d) => d.$submitting)` 可以编译，`d` 是 `any`，返回值也是 `any`。要给裸 `useWatch` 标表单类型，写成 `useWatch<Values>()((d) => d.name.$value)`：草稿是 `Draft<Values>`，返回值仍会推断。`useWatch<Values>(...)` 只写一个泛型时 TypeScript 不再推断返回值（它是 `unknown`），不要这样写。注解 `useWatch((d: Draft<Values>) => d.name.$value)` 也可以。
 
 返回对象/数组可用，快照通过 `Object.is` / 深比较复用；不要返回每次新建的函数。没有读到任何 `$` 依赖时会退回整表通知，因此它不适合作为“零订阅”的替代品。
 

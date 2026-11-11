@@ -27,7 +27,7 @@ and SSR-rendered against the packed library); the site's `/llms.txt` serves this
   Inside `reaction`, `watch` and `form.batch` the snapshot is read-only in development (mutation throws).
 - A handle is not an array: no `.map`, `.length`, `for…of`, or `const [row] = d.items`. Use `d.items.$value` or `reaction.each`.
 - Destructuring takes child field handles only (`const { name } = d.user`, then `name.$value`). `$` state is always read and written on the handle. Object rest, object spread, and `Object.keys(handle)` throw in development.
-- `get` / `set` (`@shikiform/core`, re-exported by `@shikiform/react`) read and copy plain data with lodash-style paths (`a.b[0].c`, `a['name']`). `set` returns a new tree. `form.getValue` / `form.setValue` use the same syntax. On a draft, `get` returns a child handle: `get(d, 'user.name').$value` typechecks; an indexed path such as `get(d, 'items[0].qty')` does not (`FieldPath` does not walk indexes on `Draft`). Use `d.items[0].qty.$value` or `form.getValue('items[0].qty')`. Do not `set` a draft.
+- `get` / `set` (`@shikiform/core`, re-exported by `@shikiform/react`) read and copy plain data with lodash-style paths (`a.b[0].c`, `a['name']`). `set` returns a new tree. `form.getValue` / `form.setValue` use the same syntax. On a draft, `get` returns a child handle: `get(d, 'user.name').$value` and `get(d, 'items[0].qty').$value` (`orders.0.qty` is the same path). Do not `set` a draft.
 - Display is `visible` | `hidden` | `virtual` | `none` (no separate `virtual` flag). `visible` renders, validates,
   submits, and counts as dirty. `hidden` does not render (stays registered) but still validates, submits, and counts as
   dirty — unlike Formily, whose `hidden` skips validation. `virtual` renders and validates (errors block submit, e.g. a
@@ -312,10 +312,11 @@ reaction((d) => {
   A row component without the instance uses `typed<Row>().useField('price')`.
 - Reusable fragments are plain components: `const A = typed<Address>()`, render `<A.Field name="city" … />`, and
   mount it under `<ObjectField name="home"><AddressFields /></ObjectField>`.
-- `useWatch((d) => …)` without annotation compiles with an untyped `d`; `F.useWatch((d) => d.email.$value)` is typed.
-- `submit` / `getSubmitValues` / `onSubmit` values are the form's second type argument `TSubmit` (default `T`).
-  Fields dropped at runtime (`display: 'virtual'`, `display: 'none'`) are not in the default type: declare them with
-  `createForm<V, SubmitValues<V, 'tmp' | 'rows.*.total'>>()` (those paths become optional).
+- Prefer `F.useWatch((d) => d.email.$value)` (`F = typed(form)`). A bare `useWatch((d) => …)` compiles with an untyped `d`.
+  `useWatch<Values>()((d) => d.email.$value)` types the draft and still infers the result; `useWatch<Values>(…)` does not.
+- `submit` / `getSubmitValues` / `onSubmit` values are the form's second type argument `TSubmit`. When it is omitted,
+  paths declared in `fields` with `display: 'virtual'` or `display: 'none'` become optional. JSX `display` and a reaction
+  `$display` are not visible to that inference: list those paths with `createForm<V, SubmitValues<V, 'tmp' | 'rows.*.total'>>()`.
 
 ## 8. Correct vs incorrect
 

@@ -16,8 +16,8 @@ interface Values {
 }
 
 function useDomainTable() {
-  return useQueryTable({
-    initialValues: { query: {}, list: [] } as Values,
+  return useQueryTable<Values>()({
+    initialValues: { query: {}, list: [] },
     fields: {
       'query.status': { enum: STATUS_ENUM },
       'query.classify': { enum: CLASSIFY_ENUM },

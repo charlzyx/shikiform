@@ -137,7 +137,7 @@ export async function domainService({ params, page, pageSize, idOrder }: { param
   return { data, total }
 }
 
-export const STATUS_ENUM: EnumOption[] = [
+export const STATUS_ENUM = [
   { label: '待审核', value: 0, color: 'default' },
   { label: '运行中', value: 1, color: 'processing' },
   { label: '已上线', value: 2, color: 'success' },
@@ -145,7 +145,7 @@ export const STATUS_ENUM: EnumOption[] = [
   { label: '告警', value: 4, color: 'warning' },
 ]
 
-export const CLASSIFY_ENUM: EnumOption[] = [
+export const CLASSIFY_ENUM = [
   { label: '官网', value: 0 },
   { label: '文档', value: 1 },
   { label: '接口', value: 2 },

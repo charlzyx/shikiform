@@ -23,13 +23,13 @@ import type {
   FieldPath,
   FieldSpec,
   FormInstance,
-  FormOptions,
   MoveResult,
   PathValue,
   ValuePath,
   SubmitResult,
   WriteOp,
 } from '../types'
+import type { FormOptions } from '../types-effects'
 import { Validator } from '../validation/validator'
 import { Baseline, errorEntries } from './baseline'
 import { FieldUi, uiKeyOf } from './field-ui'

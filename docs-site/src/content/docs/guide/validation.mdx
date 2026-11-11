@@ -99,6 +99,8 @@ export default function App() {
 | `{ ok: false, reason: 'error', error }` | `onValid`（或表单级 `validate`）抛错，`error` 是抛出的值 |
 | `{ ok: false, reason: 'superseded', message }` | 值一直在变，3 轮都没稳定；不是校验错误，`errors` 为空，再提交一次 |
 
+`onSubmit` 的值类型默认跟着 `fields`：写成 `display: 'virtual'` 或 `display: 'none'` 的路径是可选的（上面的 `confirm` 不用再手写 `SubmitValues`）。写在 JSX `display` 上、或只在 reaction 里改 `$display` 的，类型看不到，仍用 `useForm<V, SubmitValues<V, 'confirm'>>()`。
+
 `<Form>` 把结果交给回调（antd 的 `<Submit onSubmit>` 也接受同样三个回调）：
 
 ```tsx

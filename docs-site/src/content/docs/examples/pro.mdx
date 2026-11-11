@@ -220,6 +220,7 @@ import { FormItem, Input, QueryList, Select, type ArrayTableColumn } from '@shik
 
 type Row = { id: number; status: number; domain: string; classify: number[] };
 type Query = { domain?: string; status?: number };
+type Values = { query: Query; list: Row[] };
 
 const STATUS = [
   { label: '待审核', value: 0, color: 'default' }, { label: '运行中', value: 1, color: 'processing' },
@@ -244,8 +245,8 @@ const columns: ArrayTableColumn<Row>[] = [
 ];
 
 export default function App() {
-  const table = useQueryTable({
-    initialValues: { query: {} as Query, list: [] as Row[] },
+  const table = useQueryTable<Values>()({
+    initialValues: { query: {}, list: [] },
     fields: {
       'query.status': { enum: STATUS },
       'list.*.status': { enum: STATUS },
@@ -282,6 +283,7 @@ import { useArrayShadow, useQueryTable } from '@shikiform/hooks';
 import { FormItem, Input, ArrayTable, QueryList, ShadowModal } from '@shikiform/antd';
 
 type Row = { id: string; domain: string };
+type Values = { query: { domain: string }; list: Row[] };
 
 const DATA: Row[] = Array.from({ length: 12 }, (_, i) => ({ id: String(i + 1), domain: `site${i + 1}.dev` }));
 
@@ -295,8 +297,8 @@ function RowFields() {
 }
 
 export default function App() {
-  const table = useQueryTable({
-    initialValues: { query: { domain: '' }, list: [] as Row[] },
+  const table = useQueryTable<Values>()({
+    initialValues: { query: { domain: '' }, list: [] },
     params: 'query',
     rows: 'list',
     request: async ({ params, page, pageSize }) => {

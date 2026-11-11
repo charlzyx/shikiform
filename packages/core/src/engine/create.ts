@@ -1,4 +1,6 @@
-import type { FormInstance, FormOptions } from '../types'
+import type { FormInstance } from '../types'
+import type { FormOptions } from '../types-effects'
+import type { DefaultSubmit, FieldsInput, ResolveSubmit } from '../types-submit'
 import { FormEngine } from './form-engine'
 
 /**
@@ -15,8 +17,10 @@ import { FormEngine } from './form-engine'
  *   fields: { code: { required: true }, 'rows.*.name': { required: true } },
  * })
  */
-export function createForm<T, TSubmit = T>(options: FormOptions<T> = {}): FormInstance<T, TSubmit> {
-  return new FormEngine<T, TSubmit>(options)
+export function createForm<T, TSubmit = DefaultSubmit, const F extends FieldsInput<T> = {}>(
+  options?: Omit<FormOptions<T>, 'fields'> & { fields?: F & FieldsInput<T> },
+): FormInstance<T, ResolveSubmit<T, TSubmit, F>> {
+  return new FormEngine(options ?? {}) as FormInstance<T, ResolveSubmit<T, TSubmit, F>>
 }
 
 /**
@@ -26,8 +30,10 @@ export function createForm<T, TSubmit = T>(options: FormOptions<T> = {}): FormIn
 export type Engine<T = any, TSubmit = T> = FormEngine<T, TSubmit> & FormInstance<T, TSubmit>
 
 /** @internal See {@link Engine}. */
-export function createEngine<T, TSubmit = T>(options: FormOptions<T> = {}): Engine<T, TSubmit> {
-  return new FormEngine<T, TSubmit>(options)
+export function createEngine<T, TSubmit = DefaultSubmit, const F extends FieldsInput<T> = {}>(
+  options?: Omit<FormOptions<T>, 'fields'> & { fields?: F & FieldsInput<T> },
+): Engine<T, ResolveSubmit<T, TSubmit, F>> {
+  return new FormEngine(options ?? {}) as Engine<T, ResolveSubmit<T, TSubmit, F>>
 }
 
 /**

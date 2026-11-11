@@ -1,7 +1,7 @@
 import type { ComponentType, ReactNode } from 'react'
 import type { FormInstance } from '@shikiform/core/internal'
 import type { ArrayItemOf, ArrayPath, Draft, FieldPath, PathValue } from '@shikiform/core/internal'
-import { ArrayField, Field, ObjectField, Watch, type ArrayContainerSlot, type FieldProps } from '../components/fields'
+import { ArrayField, Field, ObjectField, Watch, type ArrayContainerSlot, type CheckedFieldProps, type FieldProps } from '../components/fields'
 import { useArrayField, type ArrayHandle, type ArrayKey } from '../hooks/use-array'
 import { useField, type FieldBinding, type UseFieldOptions } from '../hooks/use-field'
 import { useWatch } from '../hooks/use-watch'
@@ -14,7 +14,7 @@ import { useWatch } from '../hooks/use-watch'
  */
 export type ScopeFields<T> = {
   Field: <N extends FieldPath<T>, C extends ComponentType<any> = ComponentType<any>, D extends ComponentType<any> = ComponentType<any>>(
-    props: FieldProps<T, N, C, D>,
+    props: CheckedFieldProps<T, N, C, D>,
   ) => ReactNode
   ObjectField: <N extends FieldPath<T>>(props: {
     name: N

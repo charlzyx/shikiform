@@ -36,7 +36,7 @@ form.batch((d) => {
   void _value
 })
 
-const effects = defineEffects<{ rows: { name: string }[]; nodes: { label: string }[] }>(({ reaction }) => {
+const effects = defineEffects<{ rows: { name: string }[]; nodes: { label: string }[]; level: 'a' | 'b' }>(({ reaction }) => {
   reaction.each(
     (d) => d.rows,
     (row, ctx) => {
@@ -53,26 +53,29 @@ const effects = defineEffects<{ rows: { name: string }[]; nodes: { label: string
     },
   )
   reaction((d) => {
-    // `$enum` reads as resolved options (usable as an array) and writes any enum input.
-    const options = d.rows.$enum
+    // `$enum` reads as resolved options and writes only values of the field type.
+    const options = d.level.$enum
     const _options: Expect<Equal<typeof options, readonly EnumOption[]>> = true
     void _options
-    d.rows.$enum = ['a', 'b']
-    d.rows.$enum = [{ label: 'A', value: 'a' }]
-    d.rows.$enum = undefined
+    d.level.$enum = ['a', 'b']
+    d.level.$enum = [{ label: 'A', value: 'a' }]
+    d.level.$enum = undefined
     // A typed loader's binding is accepted (`EnumBinding<string>`, not only `EnumBinding<unknown>`).
-    d.rows.$enum = EnumSource.from(async (q: string) => [{ label: q, value: q }]).with('x')
-    d.nodes.$enum = options.filter((option) => option.value !== 'a')
+    d.level.$enum = EnumSource.from(async (q: string) => [{ label: q, value: q }]).with('x')
+    // @ts-expect-error resolved options are `{ value: unknown }`, not the field's union
+    d.level.$enum = options.filter((option) => option.value !== 'a')
+    // @ts-expect-error 'c' is not a level
+    d.level.$enum = ['c']
     // @ts-expect-error a number is not an enum input
-    d.nodes.$enum = 1
+    d.level.$enum = 1
   })
   reaction.each(
     (d) => d.nodes,
     (node, ctx) => {
       const label = node.label.$value
       const _label: Expect<Equal<typeof label, string>> = true
-      const _depth: Expect<Equal<typeof ctx.depth, number>> = true
-      const _key: Expect<Equal<typeof ctx.key, string>> = true
+      const _depth: Expect<Equal<typeof ctx.depth, 0>> = true
+      const _key: Expect<Equal<typeof ctx.key, 'nodes'>> = true
       void label
       void _label
       void _depth

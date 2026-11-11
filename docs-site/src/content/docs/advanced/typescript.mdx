@@ -47,7 +47,7 @@ declare module '@shikiform/react' {
 
 ## 提交值
 
-`submit` / `getSubmitValues` / `onSubmit` 的值类型是表单的第二个类型参数，默认和值类型相同。`virtual` 和 `none` 在运行时不出现在提交结果里，默认类型却还在。把这些路径标出来：
+`submit` / `getSubmitValues` / `onSubmit` 的值类型是表单的第二个类型参数。不写它时，`fields` 里 `display: 'virtual'` 或 `display: 'none'` 的路径会变成可选（`hidden` 仍在）。JSX 上的 `display` 和 reaction 里的 `$display` 类型上看不到，这些路径仍要自己标：
 
 ```ts
 import { createForm, type SubmitValues } from '@shikiform/react'

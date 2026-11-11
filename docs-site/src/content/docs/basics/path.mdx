@@ -13,6 +13,7 @@ description: 用 handle 链、get / set，以及 form.getValue / form.setValue �
 
 ```ts
 d.orders[0].lines[2].qty.$value
+get(d, 'orders[0].lines[2].qty').$value
 get(d, 'user.name').$value
 form.getValue('orders[0].lines[2].qty')
 form.setValue('orders[0].lines[2].qty', 4)
@@ -20,7 +21,7 @@ form.setValue('orders[0].lines[2].qty', 4)
 
 `d.orders[0].lines[2].qty` 是 handle。`$value` 才是数字，在 `reaction` 里也会成为依赖。
 
-`get` 在普通对象上返回值：`get(order, 'lines[0].qty')`。在 draft 上它只沿属性走，拿到的是子 handle，再读 `$value`。没有下标时可以写 `get(d, 'user.name').$value`。带下标的路径，`FieldPath` 走不到 draft 上的数组下标，所以 `get(d, 'orders[0].lines[2].qty')` 和 `get(d, 'orders.0.lines.2.qty')` 都过不了类型检查。这种位置用 handle 链，或 `form.getValue` / `form.setValue`。这两条接受同样的路径，读写的是值本身。
+`get` 在普通对象上返回值：`get(order, 'lines[0].qty')`。在 draft 上它沿属性走，拿到的是子 handle，再读 `$value`。带下标也一样：`get(d, 'orders[0].lines[2].qty').$value` 和 `get(d, 'orders.0.lines.2.qty').$value`。`form.getValue` / `form.setValue` 接受同样的路径，读写的是值本身。
 
 ```tsx preview
 import { useState } from 'react';

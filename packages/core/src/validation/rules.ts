@@ -22,7 +22,7 @@ export interface ValidateCtx {
 
 export type RuleMessage = string | null | undefined | Promise<string | null | undefined>
 
-export interface Rule {
+export interface Rule<V = unknown> {
   /** Empty values fail. The default message is `messages.required` (`必填`) unless `message` is set. */
   required?: boolean
   /** Inclusive lower bound for a number. */
@@ -51,7 +51,7 @@ export interface Rule {
    * Custom check. Return a message, nothing, or a promise of those.
    * A newer edit aborts the previous `AbortSignal` and drops a late result when `asyncDebounceMs` is set.
    */
-  validator?: (value: unknown, ctx: ValidateCtx) => RuleMessage
+  validator?: (value: V, ctx: ValidateCtx) => RuleMessage
   /**
    * `'warning'`: this rule's messages go to `$warnings` / `binding.warnings` (FormItem shows them in the warning
    * colour) instead of `$errors`. A warning never blocks `submit` or `canSubmit` (antd `warningOnly`), e.g. a weak
@@ -64,7 +64,7 @@ export interface Rule {
  * What `<Field rules>` and `registerField` accept.
  * A bare schema (`rules={z.string().email()}`), a built-in rule, or a mix of both.
  */
-export type RulesInput = Rule | StandardSchemaV1 | ReadonlyArray<Rule | StandardSchemaV1>
+export type RulesInput<V = unknown> = Rule<V> | StandardSchemaV1 | ReadonlyArray<Rule<V> | StandardSchemaV1>
 
 /** Turn `rules={…}` into the internal list. Schemas become `{ schema }`. `where` names the field in dev errors. */
 export function normalizeRules(input: RulesInput | undefined, where?: string): Rule[] {

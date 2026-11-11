@@ -77,9 +77,11 @@ export const skuPickerEffects = defineEffects<SkuSelection>(({ reaction, watch }
     const sel = Object.fromEntries(DIMS.map((dim) => [dim, d[dim].$value]))
     for (const dim of DIMS) {
       d[dim].$enum = comboOptions(TABLE, {}, dim).map((option) => {
-        const next = selectionAfterEdit(sel, dim, String(option.value))
+        const value = String(option.value)
+        const next = selectionAfterEdit(sel, dim, value)
         return {
-          ...option,
+          label: option.label,
+          value,
           disabled: !SKUS.some((row) => row.stock > 0 && DIMS.every((key) => !next[key] || row[key] === next[key])),
         }
       })

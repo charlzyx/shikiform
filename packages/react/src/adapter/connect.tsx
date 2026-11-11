@@ -424,7 +424,14 @@ type DemandBlur<C> = C & {
 type BlurTarget<C, E extends readonly unknown[]> =
   HasOnBlurProp<C> extends true ? C : AnyBlur<E> extends true ? C : DemandBlur<C>
 
-type ConnectedOf<C extends ComponentType<any>> = ConnectedComponent<ComponentProps<C>> & ComponentStatics<C>
+type ValueOfProps<C> = C extends ComponentType<infer P> ? (P extends { value?: infer V } ? V : unknown) : unknown
+
+/**
+ * Field value this control stores. Codec `format` / `parse` set it (a date field is a string, not a Dayjs).
+ * Otherwise it is the `value` prop. A later `__shikiAccepts` intersection narrows it (`InputNumber` → `number | null`).
+ */
+type ConnectedOf<C extends ComponentType<any>, V = ValueOfProps<C>> = ConnectedComponent<ComponentProps<C>> &
+  ComponentStatics<C> & { readonly __shikiAccepts: V }
 
 /** A plain enhancer: `format` / `parse` go through {@link CodecEnhancer}, so a mismatch is not swallowed by this overload. */
 type NoCodec<E> = E extends { __codec: any } ? never : E
@@ -460,13 +467,13 @@ export function connect<C extends ComponentType<any>, F, E extends readonly Conn
   target: C,
   e1: CodecEnhancer<ComponentProps<C>, F>,
   ...rest: E
-): BlurTarget<C, [CodecEnhancer<ComponentProps<C>, F>, ...E]> extends C ? ConnectedOf<C> : DemandBlur<C>
+): BlurTarget<C, [CodecEnhancer<ComponentProps<C>, F>, ...E]> extends C ? ConnectedOf<C, F> : DemandBlur<C>
 export function connect<C extends ComponentType<any>, F, E1 extends ConnectEnhancer, E extends readonly ConnectEnhancer[]>(
   target: C,
   e1: E1,
   e2: CodecEnhancer<ComponentProps<C>, F>,
   ...rest: E
-): BlurTarget<C, [E1, CodecEnhancer<ComponentProps<C>, F>, ...E]> extends C ? ConnectedOf<C> : DemandBlur<C>
+): BlurTarget<C, [E1, CodecEnhancer<ComponentProps<C>, F>, ...E]> extends C ? ConnectedOf<C, F> : DemandBlur<C>
 export function connect<C extends ComponentType<any>>(target: BlurTarget<C, []>): ConnectedOf<C>
 export function connect<C extends ComponentType<any>, E1 extends ConnectEnhancer>(
   target: BlurTarget<C, [NoCodec<E1>]>, e1: NoCodec<E1>,
