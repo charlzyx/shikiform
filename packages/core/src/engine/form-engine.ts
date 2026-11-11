@@ -74,7 +74,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     const validator = (this.validator = new Validator({ store, notifier, scheduler, options, readPos: (path) => trees.readPos(path) }))
     const declarations = (this.declarations = new Declarations(store, notifier, validator))
     validator.prepare = () => declarations.applyItemTemplates()
-    this.arrays = new ArrayOps(store, scheduler, declarations)
+    this.arrays = new ArrayOps(store, scheduler, declarations, validator)
     this.writer = new StateWriter({
       store, notifier, scheduler, validator, declarations, options,
       carryRowIdentity: (path, before, after) => this.arrays.carryIdentity(path, before, after),

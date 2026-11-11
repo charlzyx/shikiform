@@ -116,6 +116,10 @@ pattern is `editable` (readPretty / readOnly / disabled anywhere above hides the
 // Search fields sit in a FormGrid (`grid` = its column props): collapsed = first row + buttons at its end, 展开 shows the rest
 ```
 
+`ArrayItems` / `ArrayCards` show the array path's own errors under the rows (`feedback={false}` hides them; so does
+`FormLayout` `feedbackLayout: 'none'`). A custom list reads the same messages with `useArrayErrors()` (nearest array,
+own path only). `d.items.$errors` also includes descendant fields. `ArrayTable` does not draw that row.
+
 ## 4. Nested values: per-path writes vs `$componentProps` patches
 
 - **Form values** are written per path. `d.user.name.$value = 'x'` changes one field and wakes only its readers.

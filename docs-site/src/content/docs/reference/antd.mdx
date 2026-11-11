@@ -151,6 +151,7 @@ groupRowSpan<T>(rows: readonly T[], groupOf: (row: T) => string): number[]
 | 成员 / 参数 | 行为 |
 |---|---|
 | `addition` | 渲染在各行下方，通常是 `<ArrayItems.Addition />` |
+| `feedback` | 默认 `true`：在各行和 `addition` 之间显示**这一层数组自己的**错误 / 警告（颜色与 `FormItem` 的反馈文字相同，`data-testid="array-feedback"`）。子字段的消息不在这里。`false` 不显示；外层 `FormLayout` 的 `feedbackLayout: 'none'` 同样不显示。见 [useArrayErrors](/reference/react-hooks#usearrayerrors) |
 | `empty` | 没有行时显示；默认 antd `Empty`（简洁图），`false` 不显示 |
 | `className` / `style` | 外层纵向 flex 容器（间距 8） |
 | `ArrayItems.Item` | 一行横排（flex，间距 8），也是拖拽的放置目标 |
@@ -176,7 +177,7 @@ groupRowSpan<T>(rows: readonly T[], groupOf: (row: T) => string): number[]
 |---|---|
 | `title` | 卡片标题前缀，后面跟 `#序号`；可编辑时标题前有拖拽把手 |
 | `extra` | 卡片右上角；默认 `MoveUp` + `MoveDown` + `Remove` |
-| `addition` / `empty` / `className` / `style` | 同 `ArrayItems` |
+| `addition` / `empty` / `feedback` / `className` / `style` | 同 `ArrayItems`（含数组自身的错误行） |
 
 静态成员 `SortHandle`、`Index`、`Remove`、`MoveUp`、`MoveDown`、`Addition` 与 `ArrayItems` 的是同一批组件。
 

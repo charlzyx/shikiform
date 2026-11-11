@@ -42,7 +42,7 @@ packages/
     field-group.tsx        FieldGroup / useFieldGroup / useFieldGroupErrors（收集一块 JSX 里挂载的字段路径；分组容器的错误数与分步校验）
     field-context.ts       内部 FieldContext / useFieldContextOrNull（<Field> 提供；公开读取走无参 useField()）
     adapter/               connect.tsx（`connect` / `mapProps` / `mapBlur` / `mapReadPretty` / `mapFieldProps`：UI 无关，antd 再导出）
-    hooks/                 use-form、use-field、use-field-decorator（`useFieldDecorator`）、use-array（useArrayField / useArray，句柄含 dragProps）、drag（句柄共用的 HTML5 拖放，内部）、use-row（useIndex / useRecord / useTreeNode）、
+    hooks/                 use-form、use-field、use-field-decorator（`useFieldDecorator`）、use-array（useArrayField / useArray / useArrayErrors，句柄含 dragProps）、drag（句柄共用的 HTML5 拖放，内部）、use-row（useIndex / useRecord / useTreeNode）、
                            use-tree、use-watch、use-form-message、use-submit（`useSubmit` / `useReset`）、field-lifecycle（JSX lease）、resolve-name（相对名 → path，开发期查重复前缀）
     components/            fields.tsx（Form/Field/ObjectField/ArrayField/RowScope/TreeField/Watch）、buttons.tsx（headless `Submit` / `Reset`）、ui.tsx（UI 节点 `<UI>`）、virtual-rows.tsx
     field-kit.tsx          FieldKit / `<Form kit>`：默认装饰器，component / decorator 字符串名（运行时）；类型 FieldComponents / FieldDecorators
@@ -62,7 +62,7 @@ packages/
                            DatePicker、TimePicker、Slider、Rate、Transfer、Upload、ColorPicker，各自挂一个阅读态视图）、
                            suggestion.tsx（Suggestion）、cascader-plus.tsx（CascaderPlus）、buttons.tsx（Submit / Reset）
     containers/            form-tab.tsx / form-collapse.tsx / form-step.tsx（FormTab / FormCollapse / FormStep + useFormStep）、panes.tsx（面板收集、每面板一个字段组、错误徽标）
-    arrays/                array-items.tsx（ArrayItems / ArrayCards / useArrayEditable：<ArrayField component> 容器，按钮 = useArray + useIndex）
+    arrays/                array-items.tsx（ArrayItems / ArrayCards / useArrayEditable：<ArrayField component> 容器，按钮 = useArray + useIndex；数组路径自身的错误行 = useArrayErrors）
     shadow/                shadow.tsx（ShadowModal / ShadowDrawer / ShadowPopconfirm / ShadowForm / useShadow）
     tables/                array-table.tsx（ArrayTable：<ArrayField> 的 antd 表格容器）、query-list.tsx（QueryList：条件放在 `FormGrid` 里，收起只留第一行、按钮在行末）、merged-table.tsx
 ```

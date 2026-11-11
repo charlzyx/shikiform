@@ -48,11 +48,11 @@ export type ResetProps<T = any> = ButtonProps & {
  * errors cleared. Label: `messages.reset` (`重置`). `event.preventDefault()` in `onClick` skips the reset.
  * `afterReset` runs after the values have changed. The headless control is `Reset` from `@shikiform/react`.
  */
-export function Reset<T = any>({ values, onClick, afterReset, ...props }: ResetProps<T>) {
-  const state = useReset<T, MouseEvent<HTMLElement>>({ values, onClick, afterReset })
+export function Reset<T = any>({ values, onClick, afterReset, disabled, ...props }: ResetProps<T>) {
+  const state = useReset<T, MouseEvent<HTMLElement>>({ values, onClick, afterReset, disabled })
   const t = useFormMessage()
   return (
-    <Button htmlType="button" {...props} onClick={state.onClick}>
+    <Button htmlType="button" {...props} disabled={state.disabled} onClick={state.onClick}>
       {props.children ?? t('reset')}
     </Button>
   )

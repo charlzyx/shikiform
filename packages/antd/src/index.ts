@@ -9,7 +9,8 @@
  *   `readPretty` view from `PreviewText.*`;
  * - buttons: `Submit` / `Reset` for the surrounding form;
  * - arrays: `ArrayItems` / `ArrayCards` / `ArrayTable`, containers for `<ArrayField component>` (add / remove / move /
- *   drag rows; `ArrayTable` adds paging, selection, expansion, column settings over `useArrayTable` / `useColumnSettings`);
+ *   drag rows; `ArrayItems` / `ArrayCards` also show that array path's own errors; `ArrayTable` adds paging, selection,
+ *   expansion, column settings over `useArrayTable` / `useColumnSettings`);
  * - containers: `FormTab`, `FormCollapse`, `FormStep` / `useFormStep` (panes keep their fields mounted; error badges
  *   and per-step validation come from `FieldGroup` in `@shikiform/react`);
  * - tables: `QueryList` (search grid + `ArrayTable` over `useQueryTable({ rows })`), `MergedTable` (read-only rowspan);

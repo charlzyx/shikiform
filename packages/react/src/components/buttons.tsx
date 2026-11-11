@@ -123,19 +123,19 @@ export type ResetProps<T = any> = Omit<ButtonPass, 'onClick'> & {
  * ```
  */
 export function Reset<T = any>({ asChild, children, values, afterReset, onClick, className, disabled, ...rest }: ResetProps<T>) {
-  const options: UseResetOptions<T, MouseEvent<HTMLButtonElement>> = { values, afterReset, onClick }
+  const options: UseResetOptions<T, MouseEvent<HTMLButtonElement>> = { values, afterReset, onClick, disabled }
   const state = useReset<T, MouseEvent<HTMLButtonElement>>(options)
   const t = useFormMessage()
   if (typeof children === 'function') return <>{children(state)}</>
   if (asChild) {
     return mergeAsChild(children, {
       type: 'button',
-      disabled,
+      disabled: state.disabled,
       onClick: state.onClick as (event: MouseEvent<HTMLElement>) => void,
     }, 'Reset')
   }
   return (
-    <button {...rest} className={className} type="button" disabled={disabled} onClick={state.onClick}>
+    <button {...rest} className={className} type="button" disabled={state.disabled} onClick={state.onClick}>
       {children ?? t('reset')}
     </button>
   )

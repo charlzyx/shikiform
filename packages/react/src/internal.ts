@@ -25,7 +25,7 @@ export { ArrayContext, FormContext, RowWrapContext, ScopeContext, useRequiredFor
 export { useFieldContextOrNull } from './field-context'
 export { FieldGroup, FieldGroupStore, useFieldGroupRegistration, useGroupsErrors } from './field-group'
 export type { DragProps } from './hooks/drag'
-export { useArray, useArrayAt } from './hooks/use-array'
+export { useArray, useArrayAt, useArrayErrors } from './hooks/use-array'
 export type { ArrayKey } from './hooks/use-array'
 export type { FieldBinding } from './hooks/use-field'
 export { useForm } from './hooks/use-form'

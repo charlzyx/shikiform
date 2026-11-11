@@ -10,6 +10,7 @@ import { formatMessage, type FormMessageKey, type MessageArgs, type MessageParam
 import { fieldSchemaIssues, optionIncludes, runRules, type ValidateCtx } from './rules'
 import { runWarningRules } from './warnings'
 import { collectSchemaIssues, groupSchemaIssues, isStandardSchema, schemaIssuePath, type SchemaIssue, type StandardSchemaV1 } from './schema'
+import { ignoreRejection, isPromise, settleUnlessAborted } from './settle'
 
 export interface ValidatorDeps {
   store: FieldStore<any>
@@ -333,6 +334,36 @@ export class Validator {
   }
 
   /**
+   * The array value changed (`push` / `remove` / `move` / …). Re-run this path's own rules when it already
+   * shows errors, or when its trigger list includes `onChange` — the same rule as editing a field.
+   * Descendants are not validated, so a new row does not grow
+   * `required` errors before the next submit.
+   */
+  recheckOwn(path: string): void {
+    const field = this.store.get(path)
+    if (!field) return
+    if (!this.triggersFor(path).includes('onChange') && !shownErrors(field).length) return
+    if (field.externalErrors.length) this.setExternalMany([[path, []]])
+    void this.applyOwn(path).catch((err: unknown) => {
+      console.error('[shikiform] validation pass failed', err)
+    })
+  }
+
+  /** Field-schema messages for `path` only. A schema that reports child paths waits for the next full pass. */
+  private async applyOwn(path: string): Promise<void> {
+    const result = await this.validateOne(path, this.store.values)
+    if (result.stale) return
+    const field = this.store.get(path)
+    if (!field?.rules.some((rule) => rule.schema)) return
+    if (result.issues.some((issue) => issue.path !== path)) return
+    const next = new Map(this.schemaByPath)
+    const messages = result.issues.flatMap((issue) => (issue.message ? [issue.message] : []))
+    if (messages.length) next.set(path, messages)
+    else next.delete(path)
+    this.applySchemaMap(next)
+  }
+
+  /**
    * Debounce async rules. Sync-only fields validate on the next turn of `validate`.
    * Field-rule failures are messages already; a detached pass only reports what is left (#2).
    */
@@ -651,48 +682,3 @@ function sameValues(a: unknown, b: unknown): boolean {
   return a === b || deepEqual(a, b)
 }
 
-function isPromise(value: unknown): value is Promise<unknown> {
-  return !!value && typeof (value as Promise<unknown>).then === 'function'
-}
-
-type Settled<T> =
-  | { status: 'fulfilled'; value: T }
-  | { status: 'rejected'; reason: unknown }
-  | { status: 'aborted' }
-
-/**
- * Wait for `promise` unless `signal` aborts first. After abort, a later resolve or reject is ignored.
- * The promise's rejection is always observed, so dropping it cannot become an unhandled rejection.
- */
-function settleUnlessAborted<T>(promise: Promise<T>, signal: AbortSignal): Promise<Settled<T>> {
-  if (signal.aborted) return Promise.resolve({ status: 'aborted' })
-  return new Promise((resolve) => {
-    let settled = false
-    const onAbort = () => {
-      if (settled) return
-      settled = true
-      signal.removeEventListener('abort', onAbort)
-      resolve({ status: 'aborted' })
-    }
-    signal.addEventListener('abort', onAbort)
-    promise.then(
-      (value) => {
-        if (settled) return
-        settled = true
-        signal.removeEventListener('abort', onAbort)
-        resolve({ status: 'fulfilled', value })
-      },
-      (reason) => {
-        if (settled) return
-        settled = true
-        signal.removeEventListener('abort', onAbort)
-        resolve({ status: 'rejected', reason })
-      },
-    )
-  })
-}
-
-/** Observe a rejection and drop the reason. Used for attempts abandoned before they are awaited. */
-function ignoreRejection(promise: Promise<unknown>): void {
-  void promise.then(() => {}, () => {})
-}
