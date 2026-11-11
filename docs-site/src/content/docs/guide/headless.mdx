@@ -6,7 +6,7 @@ description: 不依赖任何 UI 库：useField、useWatch，行内的 useArray /
 不用 antd、或者要自己做表格和树组件时，直接用 Hook。`<Field>`、`<ArrayField>` 都是它们的薄封装；下面的例子只用原生 HTML。
 
 - `useField(name)` 绑定一个字段，`useWatch(select)` / `<Watch>` 订阅任意 `$` 状态。
-- 行内：`useArray()` 拿最近一层数组的操作，`useIndex()` 拿行号，`useRecord()` 拿这一行的值；都不需要写数组名。数组自身的错误用 `useArrayErrors()`（不含子字段），见 [数组自身的错误](/guide/arrays#数组自身的错误)。
+- 行内：`useArray()` 拿最近一层数组的操作，`useIndex()` 拿行号，`useRecord()` 拿这一行的值；都不需要写数组名。数组自身的错误用 `useArrayErrors()`（不含子字段）。调用它的组件要渲染在 `<ArrayField>` 里面（容器或 `ArrayTable` 的 `footer`）；和 `<ArrayField>` 平级会抛 `ShikiUsageError`。见 [数组自身的错误](/guide/arrays#数组自身的错误)。
 - 树节点内：`useTreeNode()` 返回 `{ path, pos, index, record }`。
 - 拖拽：数组句柄（`useArray()` / `useArrayField(name)`）的 `dragProps(index)`、树句柄（`useTreeField(name)`）的 `dragProps(pos)`，给出 HTML5 拖拽属性；移动本身是同一个句柄的 `move`。
 

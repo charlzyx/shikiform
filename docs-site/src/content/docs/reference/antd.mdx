@@ -204,6 +204,8 @@ groupRowSpan<T>(rows: readonly T[], groupOf: (row: T) => string): number[]
 
 数组上的 antd 表格（Formily `ArrayTable`，带 Pro.formily `ProArrayTable` 的功能），是 `<ArrayField>` 的容器，和 `ArrayItems` / `ArrayCards` 同一种写法。数组路径和 `rowKey` 来自外层 `<ArrayField>`；单元格来自 `columns`，所以 `<ArrayField>` 不写行 children（写了开发期警告一次）。建立在 [`useArrayTable`](/reference/pro-hooks#usearraytable) + [`useColumnSettings`](/reference/pro-hooks#usecolumnsettings) 上，表格状态（分页、选择、展开、列配置）是 React 状态，不进表单值。
 
+`ArrayTable` 不画数组路径自己的错误。要显示时把 [`useArrayErrors()`](/reference/react-hooks#usearrayerrors) 放进 `footer`：它出现在表格下方，并且仍由 `ArrayTable` 渲染，所以在 `<ArrayField>` 里面。和 `<ArrayField>` 平级再写一个组件会抛 `ShikiUsageError`（`useArrayErrors() must render inside an <ArrayField> (its container, or a row).`）。写法见 [数组自身的错误](/guide/arrays#数组自身的错误)。
+
 列的 `render(cell)` 渲染在行作用域里：`<Field name="a1">` 就是 `list.N.a1`，展开区里的 `<ArrayField name="children">` 也相对这一行。`cell` 是 `{ key, index, position, record, table }`；`component` 的属性按 `ArrayTableProps` 检查（少写 `columns` 是类型错误），要让 `record` 有类型，写 `const columns: ArrayTableColumn<Row>[] = […]`。
 
 | 参数 | 行为 |
