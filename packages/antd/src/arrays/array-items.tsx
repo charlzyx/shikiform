@@ -1,4 +1,4 @@
-import { Button, Card, Empty, Popconfirm, Space } from 'antd'
+import { Button, Card, ConfigProvider, Empty, Popconfirm, Space, theme } from 'antd'
 import {
   createContext,
   useCallback,
@@ -7,13 +7,14 @@ import {
   type ReactNode,
 } from 'react'
 import { ArrayContext, RowWrapContext, useRequiredForm } from '@shikiform/react/internal'
-import { useArray } from '@shikiform/react/internal'
+import { useArray, useArrayErrors } from '@shikiform/react/internal'
 import type { DragProps } from '@shikiform/react/internal'
 import { useFormMessage } from '@shikiform/react/internal'
 import { useIndex } from '@shikiform/react/internal'
 import { useWatch } from '@shikiform/react/internal'
 import type { Draft } from '@shikiform/core/internal'
 import { ShikiUsageError } from '@shikiform/core/internal'
+import { useFormLayout } from '../adapter/form-layout'
 
 /*
  * Array containers (Formily antd-v5 `ArrayItems` / `ArrayCards`). They are the `component` of an `<ArrayField>`:
@@ -58,8 +59,44 @@ interface ContainerProps {
   addition?: ReactNode
   /** Shown when there are no rows. Default: antd `Empty` (simple image). `false` shows nothing. */
   empty?: ReactNode | false
+  /**
+   * The array path's own errors and warnings, between the rows and `addition` (same help row as `FormItem`).
+   * Child-field messages stay on those fields. `false` hides the row; so does `FormLayout` `feedbackLayout: 'none'`.
+   * Default `true`.
+   */
+  feedback?: boolean
   className?: string
   style?: CSSProperties
+}
+
+/**
+ * Messages on this array path only (`useArrayErrors`). Nothing is rendered until there is one,
+ * so an empty list does not grow a blank help row.
+ */
+function ArrayFeedback({ feedback }: { feedback?: boolean }) {
+  const layout = useFormLayout()
+  const { token } = theme.useToken()
+  const { getPrefixCls } = useContext(ConfigProvider.ConfigContext)
+  const { errors, warnings } = useArrayErrors()
+  if (feedback === false || layout.feedbackLayout === 'none') return null
+  const messages = errors.length ? errors : warnings
+  if (!messages.length) return null
+  // The help text only: a Form.Item here would also reserve an empty control row.
+  const status = errors.length ? 'error' : 'warning'
+  const prefix = getPrefixCls('form')
+  return (
+    <div data-testid="array-feedback" role={errors.length ? 'alert' : 'status'}>
+      {messages.map((message, index) => (
+        <div
+          key={index}
+          className={`${prefix}-item-explain-${status}`}
+          style={{ color: status === 'error' ? token.colorError : token.colorWarning, fontSize: token.fontSize }}
+        >
+          {message}
+        </div>
+      ))}
+    </div>
+  )
 }
 
 function EmptyRows({ empty }: { empty?: ReactNode | false }) {
@@ -68,12 +105,13 @@ function EmptyRows({ empty }: { empty?: ReactNode | false }) {
 }
 
 /** Rows stacked vertically; each row is usually an `ArrayItems.Item`. Drag sort works through `SortHandle`. */
-function ArrayItemsBase({ children, addition, empty, className, style }: ContainerProps) {
+function ArrayItemsBase({ children, addition, empty, feedback, className, style }: ContainerProps) {
   const array = useArray()
   return (
     <DragContext.Provider value={array.dragProps}>
       <div className={className} style={{ display: 'flex', flexDirection: 'column', gap: 8, ...style }} data-array-items={array.path}>
         {array.keys.length === 0 ? <EmptyRows empty={empty} /> : children}
+        <ArrayFeedback feedback={feedback} />
         {addition}
       </div>
     </DragContext.Provider>

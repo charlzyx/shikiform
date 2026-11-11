@@ -81,11 +81,18 @@ export interface UseResetOptions<T, E> {
   afterReset?: (values: T) => void
   /** Runs before the reset. `preventDefault` skips the reset. */
   onClick?: (event: E) => void
+  /**
+   * Forces the button disabled. Default `false`: reset stays available while the form is invalid
+   * (unlike {@link useSubmit}, whose `disabled` follows `!$canSubmit`).
+   */
+  disabled?: boolean
 }
 
 /** What {@link useReset} returns. `type` is always `'button'` so a native form reset does not bypass the store. */
 export interface ResetState<E = ClickEvent> {
   type: 'button'
+  /** `options.disabled`, or `false`. Reset is not tied to `$canSubmit`. */
+  disabled: boolean
   onClick: (event: E) => void
 }
 
@@ -96,7 +103,7 @@ export interface ResetState<E = ClickEvent> {
  *
  * ```tsx
  * const reset = useReset({ afterReset: (values) => search(values) })
- * return <button type={reset.type} onClick={reset.onClick}>重置</button>
+ * return <button type={reset.type} disabled={reset.disabled} onClick={reset.onClick}>重置</button>
  * ```
  */
 export function useReset<T = any, E extends ClickEvent = ClickEvent>(options?: UseResetOptions<T, E>): ResetState<E> {
@@ -106,6 +113,7 @@ export function useReset<T = any, E extends ClickEvent = ClickEvent>(options?: U
   const onClick = options?.onClick
   return {
     type: 'button',
+    disabled: options?.disabled ?? false,
     onClick: (event: E) => {
       onClick?.(event)
       if (event.defaultPrevented) return

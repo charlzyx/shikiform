@@ -3,6 +3,7 @@ import type { Declarations } from '../declarations/declarations'
 import type { Scheduler } from '../effects/scheduler'
 import { getAt, joinPath, parentPath, setAt } from '../shared/path'
 import type { FieldStore } from '../state/field-store'
+import type { Validator } from '../validation/validator'
 import { reindexById } from './migrate'
 import { readRowId } from '../shared/tree-ops'
 
@@ -20,6 +21,7 @@ export class ArrayOps {
     private readonly store: FieldStore<any>,
     private readonly scheduler: Scheduler,
     private readonly declarations: Declarations,
+    private readonly validator: Validator,
   ) {}
 
   register(path: string, rowKey?: string): void {
@@ -141,5 +143,8 @@ export class ArrayOps {
     this.declarations.applyItemTemplates()
     scheduler.enqueueFromDirty()
     scheduler.flush()
+    // A shown array-level error is re-checked now, the way a shown field error is re-checked on edit.
+    // Only this path: descendants wait for the next submit, so the new row stays quiet.
+    this.validator.recheckOwn(path)
   }
 }

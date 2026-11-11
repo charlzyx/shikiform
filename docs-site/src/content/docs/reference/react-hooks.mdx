@@ -17,6 +17,7 @@ description: useForm、useField、useWatch、数组与树 Hooks 的签名、返�
 | 读取选中的值或状态 | [`useWatch`](#usewatch) | selector 实际读取的 `$` 依赖 |
 | 数组行增删、排序和拖动（`dragProps`） | [`useArrayField`](#usearrayfield) | 数组结构，不是每个单元格 |
 | 行内取最近的数组 / 行号 / 行值（无需 name） | [`useArray`](#usearray)、[`useIndex`](#useindex)、[`useRecord`](#userecord) | 数组结构 / 不订阅 / 这一行的值 |
+| 最近一层数组自己的错误（不含子字段） | [`useArrayErrors`](#usearrayerrors) | 只订阅该数组路径 |
 | 树结构、节点移动和拖动（`dragProps`） | [`useTreeField`](#usetreefield) | 树结构 |
 | 当前树节点（无需 name） | [`useTreeNode`](#usetreenode) | 这个节点的值 |
 | 收集一块 JSX 里的字段、读它们的错误 | [`useFieldGroup`](#usefieldgroup)、[`useFieldGroupErrors`](#usefieldgrouperrors) | 组成员 / 组内错误 |
@@ -422,6 +423,33 @@ function RemoveButton() {
 <ArrayField name="list" rowKey="id">{() => <><Field name="name" component={[Input]} /><RemoveButton /></>}</ArrayField>
 ```
 
+## useArrayErrors
+
+```ts
+useArrayErrors(): { errors: readonly string[]; warnings: readonly string[] }
+```
+
+最近一层数组**自己**的校验消息：写在这条数组路径上的规则、字段 schema、`form.setErrors`。子字段的消息不在里面（那些在行内 `FormItem` / `useField().errors` 上）。`d.items.$errors` 会把子孙字段的消息算进去，这个 Hook 不会。
+
+只订阅该数组路径，改一个单元格不会让它重渲染。必须在 `<ArrayField>` 里调用（容器或行内）；嵌套数组取最近的一层。不在数组内时抛 `ShikiUsageError`。
+
+`ArrayItems` / `ArrayCards` 用它画反馈行。自己画列表时：
+
+```tsx
+function ListError() {
+  const { errors, warnings } = useArrayErrors()
+  const messages = errors.length ? errors : warnings
+  if (!messages.length) return null
+  return <p role="alert">{messages.join('、')}</p>
+}
+
+<ArrayField name="tags" component={[MyList]}>
+  {() => <><ListError /><Row /></>}
+</ArrayField>
+```
+
+已经显示的数组级错误，在 `push` / `insert` / `remove` / `move` / `swap` / `replace` 之后会重跑这一层规则（与改一个已经报错的输入相同）。改某一格不会重跑它。子字段要到下一次提交，或它们自己的校验时机，才校验。见 [数组自身的错误](/guide/arrays#数组自身的错误)。
+
 ## useIndex
 
 ```ts
@@ -665,10 +693,11 @@ useReset<T, E = ClickEvent>(options?: {
   values?: T
   afterReset?: (values: T) => void   // form.reset 之后，参数已是重置后的值
   onClick?: (event: E) => void       // 先执行；preventDefault 跳过重置和 afterReset
-}): { type: 'button'; onClick: (event: E) => void }
+  disabled?: boolean                 // 默认 false；不跟 !$canSubmit
+}): { type: 'button'; disabled: boolean; onClick: (event: E) => void }
 ```
 
-`type` 固定 `'button'`，避免浏览器原生 reset 绕过 store。`onClick` 在重置前（读到的仍是旧值）；`afterReset` 在 `form.reset` 之后，查询页用它按清空后的条件再查。`<Reset afterReset={…}>` / `asChild` / render prop 与 `<Submit>` 同一套外壳，antd 的 `<Reset>` 也接受 `afterReset`。
+`type` 固定 `'button'`，避免浏览器原生 reset 绕过 store。`disabled` 只来自传入的选项，默认 `false`：表单无效时重置按钮仍然可点（和 `useSubmit` 不同，后者默认跟 `!$canSubmit`）。`onClick` 在重置前（读到的仍是旧值）；`afterReset` 在 `form.reset` 之后，查询页用它按清空后的条件再查。`<Reset afterReset={…} disabled={…}>` / `asChild` / render prop 与 `<Submit>` 同一套外壳，render prop 拿到的状态里包含 `disabled`。antd 的 `<Reset>` 也接受 `afterReset` 和 `disabled`。
 
 ```tsx
 <Reset afterReset={(values) => search(values)} asChild><button>重置</button></Reset>

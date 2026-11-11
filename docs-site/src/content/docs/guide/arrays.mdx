@@ -104,6 +104,64 @@ export default function App() {
 
 行的字段就是卡片内容，不需要包装组件。`extra` 换掉右上角的默认按钮（`extra={<ArrayCards.Remove confirm />}`）。
 
+## 数组自身的错误
+
+规则写在数组路径上时，校验的是这一层数组，不是某一格。`fields` 里的 `members.*.phones`、根上的 `tags`，都是这种规则。`ArrayItems` 和 `ArrayCards` 把**这一层自己的**错误和警告画在各行与添加按钮之间，样式与 `FormItem` 的反馈行相同（错误色 / 警告色）。行里字段的消息仍在各自的 `FormItem` 上，不会在这里再出现一次。
+
+第一次出现仍要等到提交，或该字段自己的校验时机。已经显示之后，增删、移动或替换一行会立刻重跑这一层（和改一个已经报错的输入一样），不用再提交一次。改某一格不会重跑数组这一层。新行上的 `required` 不会因此提前冒出来。
+
+`feedback={false}` 关掉这块。外层 `<FormLayout feedbackLayout="none">` 同样不显示。
+
+自己画列表时用 [`useArrayErrors()`](/reference/react-hooks#usearrayerrors)（必须在 `<ArrayField>` 里）。它只返回这一层路径上的 `errors` / `warnings`。子字段的合计是 draft 上的 `$errors`，两者不是一回事。`ArrayTable` 不画这条反馈，需要时在表格下自己渲染这个 Hook。
+
+```tsx preview
+import { Form, typed, useForm } from '@shikiform/react';
+import { ArrayItems, FormItem, Input, Submit } from '@shikiform/antd';
+
+type Phone = { no: string };
+type Member = { name: string; phones: Phone[] };
+type Values = { members: Member[] };
+
+export default function App() {
+  const form = useForm<Values>({
+    initialValues: { members: [{ name: 'Ada', phones: [] }] },
+    fields: {
+      'members.*.phones': {
+        rules: { validator: (phones) => (Array.isArray(phones) && phones.length ? null : '至少一个电话') },
+      },
+    },
+  });
+  const F = typed(form);
+  return (
+    <Form form={form}>
+      <F.ArrayField name="members" component={[ArrayItems]}>
+        {(member) => (
+          <ArrayItems.Item>
+            <member.Field name="name" decorator={[FormItem]} component={[Input, { placeholder: '姓名' }]} />
+            <div style={{ flex: 1 }}>
+              <member.ArrayField
+                name="phones"
+                component={[ArrayItems, { addition: <ArrayItems.Addition title="添加电话" defaultValue={{ no: '' }} /> }]}
+              >
+                {(phone) => (
+                  <ArrayItems.Item>
+                    <phone.Field name="no" decorator={[FormItem]} component={[Input, { placeholder: '电话' }]} />
+                    <ArrayItems.Remove />
+                  </ArrayItems.Item>
+                )}
+              </member.ArrayField>
+            </div>
+          </ArrayItems.Item>
+        )}
+      </F.ArrayField>
+      <Submit />
+    </Form>
+  );
+}
+```
+
+点「提交」：空的电话列表下面出现「至少一个电话」。点「添加电话」后这条消失。姓名字段如果再加 `required`，它的「必填」只出现在姓名的 `FormItem` 下。
+
 ## ArrayTable
 
 一张 antd 表格。单元格来自 `columns`，所以 `<ArrayField>` 不写行 children；列的 `render` 运行在**行作用域**里：`<Field name="name">` 就是 `list.N.name`，单元格可以不要装饰器。行内用 `ArrayTable.useRow()`（`{ key, index, position, record }`），或直接用 `useArray()` / `useIndex()` / `useRecord()`。
@@ -166,7 +224,7 @@ export default function App() {
 
 ## 和其他数组组件的关系
 
-- 只要作用域、按钮自己画：`<ArrayField>` + `useArray()` / `useIndex()`，见 [数组、树与嵌套对象](/guide/structures)。
+- 只要作用域、按钮自己画：`<ArrayField>` + `useArray()` / `useIndex()`，见 [数组、树与嵌套对象](/guide/structures)。数组自身的错误用 [`useArrayErrors()`](/reference/react-hooks#usearrayerrors)。
 - 查询条件 + 服务端分页的表格：[`QueryList`](/guide/pro#查询列表)，它内部就是一张 `ArrayTable`。
 - 很长的名单只渲染可见行：`<ArrayField name virtualScroll={{ height }}>`（普通行，不和容器同用），见 [示例 · 虚拟滚动](/examples/arrays)。
 - 参数表：[ArrayItems](/reference/antd#arrayitems)、[ArrayCards](/reference/antd#arraycards)、[ArrayTable](/reference/antd#arraytable)、[useArrayEditable](/reference/antd#usearrayeditable)。

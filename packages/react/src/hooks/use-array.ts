@@ -1,6 +1,6 @@
-import { useContext, useSyncExternalStore } from 'react'
+import { useContext, useRef, useSyncExternalStore } from 'react'
 import type { ArrayItemOf, ArrayPath } from '@shikiform/core/internal'
-import { ShikiUsageError, showDraftPath } from '@shikiform/core/internal'
+import { deepEqual, ShikiUsageError, showDraftPath } from '@shikiform/core/internal'
 import { ArrayContext, useRequiredForm, useScope } from '../context'
 import { useFieldGroupRegistration } from '../field-group'
 import { resolveName } from './resolve-name'
@@ -114,4 +114,54 @@ export function useArrayAt(path: string, rowKey?: string): ArrayHandle<unknown> 
 function toIndex(raw: string): number | undefined {
   const index = Number(raw)
   return Number.isInteger(index) ? index : undefined
+}
+
+/** This array path's own messages. Descendant fields are not included — those render on the row fields. */
+export interface ArrayErrors {
+  errors: readonly string[]
+  warnings: readonly string[]
+}
+
+const NO_MESSAGES: ArrayErrors = { errors: [], warnings: [] }
+
+/**
+ * The nearest array field's own validation messages (rules, schema, `form.setErrors` on that path).
+ * A child field's "必填" is not in here: `d.items.$errors` aggregates descendants, this does not.
+ * Subscribes to the array path only, so editing a cell does not re-render.
+ * Throws outside an `<ArrayField>`, like {@link useArray}.
+ *
+ * `ArrayItems` / `ArrayCards` render this under the rows. A custom list does the same:
+ *
+ * ```tsx
+ * function ListError() {
+ *   const { errors } = useArrayErrors()
+ *   if (!errors.length) return null
+ *   return <p role="alert">{errors.join('、')}</p>
+ * }
+ * ```
+ */
+export function useArrayErrors(): ArrayErrors {
+  const ctx = useContext(ArrayContext)
+  if (!ctx) {
+    if (process.env.NODE_ENV !== 'production') {
+      throw new ShikiUsageError('useArrayErrors() must render inside an <ArrayField> (its container, or a row).')
+    }
+    throw new Error('useArrayErrors() must render inside an <ArrayField>')
+  }
+  const form = useRequiredForm('useArrayErrors()')
+  const path = ctx.path
+  const cache = useRef<ArrayErrors>(NO_MESSAGES)
+  const read = () => {
+    const binding = form.binding(path)
+    const prev = cache.current
+    if (deepEqual(prev.errors, binding.errors) && deepEqual(prev.warnings, binding.warnings)) return prev
+    const next = { errors: binding.errors, warnings: binding.warnings }
+    cache.current = next
+    return next
+  }
+  return useSyncExternalStore(
+    (onStoreChange) => form.subscribePath(path, onStoreChange),
+    read,
+    read,
+  )
 }

@@ -12,6 +12,7 @@
     "useArrayField": "reference/react-hooks.mdx",
     "useTreeField": "reference/react-hooks.mdx",
     "useArray": "reference/react-hooks.mdx",
+    "useArrayErrors": "reference/react-hooks.mdx",
     "useIndex": "reference/react-hooks.mdx",
     "useRecord": "reference/react-hooks.mdx",
     "useTreeNode": "reference/react-hooks.mdx",

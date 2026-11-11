@@ -13,6 +13,7 @@ import {
   useField,
   useFieldDecorator,
   useForm,
+  useReset,
   type FieldBinding,
 } from '@shikiform/react'
 import { Reset as AntReset } from '@shikiform/antd'
@@ -231,6 +232,56 @@ describe('headless Submit and Reset', () => {
     expect(button.type).toBe('button')
     await act(async () => { fireEvent.click(button) })
     expect(onSubmit).toHaveBeenCalledExactlyOnceWith({ name: 'Ada' })
+  })
+
+  it('useReset reports disabled from the option and still resets', () => {
+    let api!: ReturnType<typeof useForm<{ a: string }>>
+    function Locked() {
+      const reset = useReset({ disabled: true })
+      return <button type={reset.type} disabled={reset.disabled} onClick={reset.onClick}>重置</button>
+    }
+    function App() {
+      const form = useForm({ initialValues: { a: 'init' } })
+      api = form
+      return <Form form={form}><Locked /></Form>
+    }
+    const view = render(<App />)
+    const button = view.getByRole('button', { name: '重置' }) as HTMLButtonElement
+    expect(button.type).toBe('button')
+    expect(button.disabled).toBe(true)
+    act(() => api.setValue('a', 'edited'))
+    fireEvent.click(button)
+    expect(api.getValue('a')).toBe('edited')
+    view.unmount()
+
+    function RenderProp() {
+      const form = useForm({ initialValues: { a: 'init' } })
+      api = form
+      return (
+        <Form form={form}>
+          <Reset disabled>{(state) => <button type="button" disabled={state.disabled} onClick={state.onClick}>重置</button>}</Reset>
+        </Form>
+      )
+    }
+    const again = render(<RenderProp />)
+    expect((again.getByRole('button', { name: '重置' }) as HTMLButtonElement).disabled).toBe(true)
+    again.unmount()
+
+    function Live() {
+      const reset = useReset<{ a: string }>()
+      return <button type={reset.type} disabled={reset.disabled} onClick={reset.onClick}>重置</button>
+    }
+    function Enabled() {
+      const form = useForm({ initialValues: { a: 'init' } })
+      api = form
+      return <Form form={form}><Live /></Form>
+    }
+    const open = render(<Enabled />)
+    const live = open.getByRole('button', { name: '重置' }) as HTMLButtonElement
+    expect(live.disabled).toBe(false)
+    act(() => api.setValue('a', 'edited'))
+    fireEvent.click(live)
+    expect(api.getValue('a')).toBe('init')
   })
 
   it('Reset afterReset sees the restored values; preventDefault skips both', () => {
