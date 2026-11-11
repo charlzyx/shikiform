@@ -11,17 +11,48 @@ description: "@shikiform/core 的 createForm、get、set、defineEffects 和错�
 
 ```ts
 function createForm<T, TSubmit = T>(options?: FormOptions<T>): FormInstance<T, TSubmit>
+
+// @shikiform/react。V 写在 typed<V>() 上。
+typed<V>().createForm<TSubmit = DefaultSubmit, const F extends FieldsInput<V> = {}>(
+  options?: Omit<FormOptions<V>, 'fields'> & { fields?: F & FieldsInput<V> },
+): FormInstance<V, ResolveSubmit<V, TSubmit, F>>
+
+typed<V>().useForm<TSubmit = DefaultSubmit, const F extends FieldsInput<V> = {}>(
+  options?: Omit<UseFormOptions<V>, 'fields'> & { fields?: F & FieldsInput<V> },
+): FormInstance<V, ResolveSubmit<V, TSubmit, F>>
 ```
 
-组件外面创建引擎。选项和 `useForm` 相同：`initialValues`、`effects`、`fields`、`validate`、`pattern`、`messages`。返回的 `FormInstance` 上有 `getValue` / `setValue` / `batch` / `submit` / `validate` / `reset`。不传 `options` 和传 `undefined` 都是空表单，等同 `{}`。
+组件外面创建引擎。选项和 `useForm` 相同：`initialValues`、`effects`、`fields`、`validate`、`pattern`、`messages`。返回的 `FormInstance` 上有 `getValue` / `setValue` / `batch` / `submit` / `validate` / `reset`。`createForm()`、`createForm(undefined)` 与 `createForm({})` 相同，都返回一张表单。`useForm()`、`useForm(undefined)` 与 `useForm({})` 也是。
 
-不写泛型时，`fields` 里 `display: 'virtual'` / `display: 'none'` 的路径在提交类型里变成可选。`createForm<V>(options)` 的提交类型就是 `V`。写了 `V` 还要按 `fields` 推断，用 `@shikiform/react` 的 `typed<V>().createForm(options)`。第二个类型参数照写：`createForm<V, SubmitValues<V, 'tmp'>>(options)`。
+不写泛型时，`fields` 里 `display: 'virtual'` / `display: 'none'` 的路径在提交类型里变成可选。`createForm<V>(options)` / `useForm<V>(options)` 的提交类型就是 `V`。写了 `V` 还要按 `fields` 推断，用 `@shikiform/react` 的 `typed<V>().createForm({ fields })` / `typed<V>().useForm({ fields })`。省略 `TSubmit` 时，`ResolveSubmit` 按 `fields` 把这些路径变成可选；写了 `TSubmit` 则提交类型就是它。第二个类型参数照写：`createForm<V, SubmitValues<V, 'tmp'>>(options)`。`DefaultSubmit`、`FieldsInput`、`ResolveSubmit` 是声明里的类型名，`@shikiform/core` 和 `@shikiform/react` 的公开入口不导出。
 
 ```ts
 import { createForm } from '@shikiform/core'
 
 const form = createForm<{ name: string }>({ initialValues: { name: '' } })
 form.setValue('name', 'Ada')
+```
+
+```ts
+import { typed } from '@shikiform/react'
+
+type Values = { name: string; confirm: string }
+const fields = { confirm: { display: 'virtual' as const } }
+
+const form = typed<Values>().createForm({ initialValues: { name: '', confirm: '' }, fields })
+
+form.submit((values) => {
+  values.name
+  values.confirm // string | undefined
+})
+
+function Demo() {
+  const live = typed<Values>().useForm({ initialValues: { name: '', confirm: '' }, fields })
+  live.submit((values) => {
+    values.confirm // string | undefined
+  })
+  return null
+}
 ```
 
 ## get
