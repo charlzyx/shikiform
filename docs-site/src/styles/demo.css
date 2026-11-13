@@ -50,6 +50,11 @@
   max-width: 100%;
   overflow-x: auto;
 }
+/* antd 给两个汉字加字距。这里只收掉额外字距。文案里的空格仍在，无障碍名称还是「提 交」。 */
+.sf-demo__preview .ant-btn-two-chinese-chars > *:not(.anticon) {
+  letter-spacing: normal;
+  margin-inline-end: 0;
+}
 .sf-demo__loading {
   margin: 0;
   color: var(--nb-muted-foreground);

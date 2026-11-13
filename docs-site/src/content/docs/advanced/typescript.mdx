@@ -8,9 +8,9 @@ description: typed(form) 检查字段名，FieldKit 登记控件，SubmitValues 
 ```tsx
 const form = useForm<Values>({ initialValues })
 const F = typed(form)
+const email = F.useWatch((d) => d.email.$value)
 
 <F.Field name="email" decorator={[FormItem]} component={[Input]} />
-<F.useWatch((d) => d.email.$value)
 ```
 
 `F.ArrayField` 的每一行拿到按这一行检查的 `row.Field`。`F.ObjectField` 的函数子节点拿到 `obj.Field`。名字相对当前作用域。在地址对象里面写 `address.city`，运行时会再拼一次。
