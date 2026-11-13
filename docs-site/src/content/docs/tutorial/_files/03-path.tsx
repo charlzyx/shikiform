@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Field, Form, ObjectField, useForm } from '@shikiform/react';
-import { FormItem, Input, Submit } from '@shikiform/antd';
+import { FormItem, Input, Reset, Submit } from '@shikiform/antd';
 
 export default function App() {
   const [payload, setPayload] = useState('');
@@ -14,6 +14,7 @@ export default function App() {
         decorator={[FormItem]} component={[Input.Password]} />
       <Field name="confirmPassword" title="确认密码" decorator={[FormItem]} component={[Input.Password]} />
       <Submit>提交</Submit>
+      <Reset />
       {payload ? <pre className="shiki-code">{payload}</pre> : null}
     </Form>
   );
