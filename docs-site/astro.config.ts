@@ -32,7 +32,7 @@ const nimbusConfig = defineNimbusConfig({
       {
         label: "开始",
         items: [
-          { label: "快速上手", link: "/guide/quick-start" },
+          { label: "快速开始", link: "/guide/quick-start" },
           { label: "不用 UI 库", link: "/start/native" },
         ],
       },
