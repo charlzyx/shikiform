@@ -46,6 +46,10 @@
   font-size: 14px;
   line-height: 1.5715;
 }
+.sf-demo__preview pre {
+  max-width: 100%;
+  overflow-x: auto;
+}
 .sf-demo__loading {
   margin: 0;
   color: var(--nb-muted-foreground);

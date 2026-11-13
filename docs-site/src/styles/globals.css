@@ -790,3 +790,24 @@ body:not(:has([data-mobile-sidebar])) [data-menu-btn] {
 		--nb-header-height: 6rem;
 	}
 }
+
+/* Footer [ ] hints. Component styles were losing to the base kbd reset, so the
+   brackets looked like leftover markdown. Draw them as keycaps here. */
+kbd.nb-pagination-key {
+	display: inline-flex;
+	flex-shrink: 0;
+	align-items: center;
+	justify-content: center;
+	min-width: 1.25rem;
+	height: 1.25rem;
+	padding: 0 0.3125rem;
+	font-family: var(--nb-font-mono);
+	font-size: 0.75rem;
+	font-weight: 500;
+	line-height: 1;
+	color: var(--nb-muted-foreground);
+	background: var(--nb-card);
+	border: 0;
+	border-radius: 0.3125rem;
+	box-shadow: 0 0 0 1px var(--nb-border-strong), 0 1px 0 1px var(--nb-border-strong);
+}

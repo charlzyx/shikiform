@@ -23,8 +23,7 @@ const nimbusConfig = defineNimbusConfig({
   // CHANGE_ME: a one-line description of your docs — used for meta + OG.
   description: "一个无 UI 的表单引擎：draft + $ 状态写联动，Field + FormItem 接 Ant Design。",
   locale: "zh-CN",
-  // CHANGE_ME: your repository — shown as the GitHub link in the header.
-  github: "https://github.com/charlzyx/shikiform",
+  // The repository is still private. A header link would 404 for visitors, so the icon stays off.
   socialImageAlt: "Nimbus documentation preview",
   // The home page leads the sidebar; every other page joins it automatically.
   sidebar: {
@@ -82,6 +81,7 @@ const nimbusConfig = defineNimbusConfig({
         label: "场景示例",
         items: [
           { label: "总览", link: "/examples" },
+          { label: "示例目录", link: "/play" },
           { label: "登录校验", link: "/examples/login" },
           { label: "联动计算", link: "/examples/computed" },
           { label: "条件显隐", link: "/examples/visibility" },
