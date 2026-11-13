@@ -7,7 +7,7 @@ tableOfContents: false
 <div className="tutorial-step">
 <div className="tutorial-copy">
 
-右边是一份资料。姓名是一个值，地址是一个对象，里面现在只有城市。点提交，JSON 里有 `name` 和 `address.city`。
+预览里是一份资料。姓名是一个值，地址是一个对象，里面现在只有城市。点提交，JSON 里有 `name` 和 `address.city`。
 
 `ObjectField` 给里面的字段一个作用域。你写的 `name` 是相对名字，引擎把它接到外层后面，得到 path `address.city`。不要在对象里面再写一遍 `address.city`，否则会拼成 `address.address.city`。
 

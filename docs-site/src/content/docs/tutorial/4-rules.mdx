@@ -7,7 +7,7 @@ tableOfContents: false
 <div className="tutorial-step">
 <div className="tutorial-copy">
 
-右边有姓名、邮箱和年龄。现在离开输入框，没有提示。
+预览里有姓名、邮箱和年龄。现在离开输入框，没有提示。
 
 字段自己的规则写在 `rules` 上。整张表可以交给实现了 Standard Schema 的库，例如 Zod：把 schema 传给 `useForm` 的 `validate`，不需要单独的适配包。`validateTrigger` 里有 `onBlur` 时，离开输入框就会校验；提交时再查一遍。
 
