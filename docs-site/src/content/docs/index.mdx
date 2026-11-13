@@ -45,7 +45,13 @@ export default function App() {
 }
 ```
 
-切到「工作」：邮箱变成必填、占位符换掉、公司出现；切回「个人」，公司既不显示、也不校验、不进提交结果。规则都在 `reaction` 里，组件里没有分支。字段用 `typed(form)` 的 `Field`：它拥有路径，`FormItem` 显示标签和错误，`component` 是控件。写法见 [快速上手](/guide/quick-start)。`d.email.$required` 在 [核心概念](/guide/concepts) 里解释。
+切到「工作」，邮箱变成必填，占位符换掉，公司出现。切回「个人」，公司不显示，也不校验，不进提交结果。
+
+这些规则都在 `reaction` 里。组件里没有分支。
+
+字段用 `typed(form)` 的 `Field`。它拥有路径。`FormItem` 显示标签和错误。`component` 是控件。
+
+写法见 [快速上手](/guide/quick-start)。`d.email.$required` 在 [核心概念](/guide/concepts) 里解释。
 
 ## 和另外两种写法
 
@@ -61,7 +67,7 @@ export default function App() {
 npm i @shikiform/react
 ```
 
-用 Ant Design 再执行 `npm i @shikiform/antd`。查询列表再执行 `npm i @shikiform/hooks`。
+用 Ant Design 再执行 `npm i @shikiform/antd`。查询列表、影子表单再执行 `npm i @shikiform/hooks`。
 
 | 包 | 里面有什么 |
 |---|---|

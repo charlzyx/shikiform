@@ -3,7 +3,7 @@ title: 核心概念
 description: 引擎、draft 与 handle、$ 状态、显隐与提交、fields 声明，以及一次输入怎样流过引擎。
 ---
 
-联动、校验和渲染读写的是同一个引擎。这一页解释引擎里的几个基本单位，后面各页都用这些词。
+联动、校验和渲染读写的是同一个引擎。后面各页用到的词，以这页为准。
 
 ## 术语
 
@@ -85,7 +85,7 @@ export default function App() {
 | 状态 | 含义 |
 |---|---|
 | `$value` | 值。reaction 写它时，字段成为**计算字段**：显示为 `readPretty`、不校验，默认仍提交 |
-| `$display` / `$visible` / `$hidden` | `visible` / `hidden` / `virtual` / `none`。`$visible = false` 等于 `none`；`$visible = true` 清掉 reaction 写的 display，回到声明值，不强制 `visible`。读 `$visible` 在字段实际渲染时为真（`visible` 或 `virtual`，且祖先没有 `hidden` / `none`）。`$hidden = true` 等于 `hidden`；`$hidden = false` 只清掉 hidden（`none` / `virtual` 不动）。读 `$display` 时 `none` > `hidden` > `virtual` > `visible` |
+| `$display` / `$visible` / `$hidden` | `visible` / `hidden` / `virtual` / `none`。细则见 [显隐、pattern 与提交](#显隐pattern-与提交) |
 | `$pattern` / `$disabled` | `$pattern = undefined` 恢复继承；`$disabled = true` 写 `disabled`，`$disabled = false` 撤销它并恢复继承 |
 | `$required` / `$rules` | 必填与规则；reaction 写的规则不随组件卸载 |
 | `$enum` | 选项（静态数组或 `EnumSource.with(params)`）；优先于 `<Field enum>` 和 `fields.x.enum`。`$enum = undefined` 撤销 reaction 层、回到 JSX / 声明 / 模板的选项，`$enum = []` 才是清空 |
@@ -110,9 +110,21 @@ export default function App() {
 
 和 Formily 的差别：Formily 的 `hidden` 不校验，这里的 `hidden` 仍校验、仍提交；多了 `virtual`（渲染并校验，但不提交、不计入 dirty）；`none` 不把值从 store 里删掉，只是不校验、不提交。
 
-「类型 = 公司才显示必填的税号」写 `d.taxId.$visible = d.kind.$value === 'company'`：`false` 是 `none`，切走后不挡提交、也不被提交；`true` 回到声明的 display，不是强制 `visible`。只藏 UI、值仍要校验和提交（没切到的标签页）用 `$hidden = true` / `$display = 'hidden'`。确认密码、前端分页的 `page`、`selectedKeys` 用 `display: 'virtual'` 或 `d.confirm.$display = 'virtual'`。
+公司才要税号，写 `d.taxId.$visible = d.kind.$value === 'company'`。
 
-继承是两个开关，不是一个合并值：祖先 `none` 最强（子级都不渲染、不校验、不提交）。否则 `hidden` 只关渲染，`virtual` 只关提交，可以叠加——父级 hidden、子级 virtual = 不渲染、仍校验、不提交。读 `$display` 时按 `none` > `hidden` > `virtual` > `visible` 返回，所以这种叠加读出来是 `hidden`，提交仍然拿掉子级。`$ui` 节点没有 `virtual`。
+`$visible = false` 是 `none`。切走之后不挡提交，也不进提交结果。`$visible = true` 回到声明的 display，不是强制 `visible`。
+
+只藏界面、值仍要校验和提交，比如没点开的标签页，写 `$hidden = true` 或 `$display = 'hidden'`。
+
+确认密码、前端分页的 `page`、`selectedKeys` 用 `display: 'virtual'`，或 `d.confirm.$display = 'virtual'`。
+
+继承是两个开关，不是合成一个值。祖先是 `none` 时，子级都不渲染、不校验、不提交。
+
+否则 `hidden` 只关渲染，`virtual` 只关提交。两者可以叠在一起。父级 `hidden`、子级 `virtual`：不渲染，仍校验，不提交。
+
+读 `$display` 时，`none` 优先于 `hidden`，再优先于 `virtual`，最后才是 `visible`。上面那种叠加读出来是 `hidden`，提交仍然拿掉子级。
+
+`$ui` 节点没有 `virtual`。
 
 `pattern` 从父级往下传：子级显式写了 `$pattern` 就用自己的。`$disabled = false` 只撤销 `$disabled = true` 写下的 `disabled`，显式写的 `$pattern` 不动。`disabled` / `readOnly` 只限制用户交互，不阻止程序写入。
 

@@ -63,7 +63,7 @@ export default function App() {
 ```
 
 - `useForm({ validate: schema })` 接任何 [Standard Schema](https://standardschema.dev)；issue 的 `path` 落到对应字段，`['address', 'city']` → `address.city`。
-- 昵称设成 `hidden` 后看不见，但空昵称仍挡住提交，通过后 `nick` 仍在上面的提交 JSON 里。设成 `virtual`：会渲染，不提交，`$visible` 读出来是 true；空昵称仍挡住提交，填上再提交，JSON 里没有 `nick`。设成 `none`（`$visible = false` 就是它，不是 `hidden`）才既不校验、也不进提交结果。见 [显隐与提交](/guide/concepts#显隐pattern-与提交)。
+- 三个按钮切换昵称的 `hidden`、`virtual`、`none`。校验和提交的差别见 [显隐、pattern 与提交](/guide/concepts#显隐pattern-与提交)。
 - 字段级规则和异步校验见 [校验](/guide/validation)。完整版另有 Valibot 版本和 `typed<Address>()` 字段片段。
 
 ## 显隐对照

@@ -10,7 +10,7 @@ ShikiForm 是一个 TypeScript 表单库。值、显隐、校验和联动放在�
 npm i @shikiform/react
 ```
 
-用 Ant Design 再执行 `npm i @shikiform/antd`。查询列表再执行 `npm i @shikiform/hooks`。
+用 Ant Design 再执行 `npm i @shikiform/antd`。查询列表、影子表单再执行 `npm i @shikiform/hooks`。
 
 ## 一个例子
 
