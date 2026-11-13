@@ -42,13 +42,14 @@ const fields = { confirm: { display: 'virtual' as const } }
 const form = typed<Values>().createForm({ initialValues: { name: '', confirm: '' }, fields })
 
 form.submit((values) => {
-  values.name
+  values.name // string
   values.confirm // string | undefined
 })
 
 function Demo() {
   const live = typed<Values>().useForm({ initialValues: { name: '', confirm: '' }, fields })
   live.submit((values) => {
+    values.name // string
     values.confirm // string | undefined
   })
   return null

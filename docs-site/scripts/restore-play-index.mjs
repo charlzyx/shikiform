@@ -1,4 +1,4 @@
-import { copyFileSync, existsSync } from 'node:fs'
+import { copyFileSync, existsSync, unlinkSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 /** Put the docs /play directory back after the playground build. Route shells stay the app. */
@@ -15,3 +15,5 @@ for (const [src, label] of [[htmlStash, 'index.html'], [markdownStash, 'index.md
 }
 copyFileSync(htmlStash, html)
 copyFileSync(markdownStash, markdown)
+unlinkSync(htmlStash)
+unlinkSync(markdownStash)
