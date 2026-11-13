@@ -1,105 +1,17 @@
 ---
 title: 快速开始
-description: 准备依赖，用 Field + FormItem + Submit 写出第一张能校验、能提交的表单。
+description: 安装依赖，用 Field + FormItem + Submit 写出第一张能校验、能提交的表单。
 ---
 
 从安装到一张会校验、会提交的表单。字段只有一种写法：`<Field>`，装饰器包住控件。
 
-## 准备
-
-这四个包还没有发布到 npm。在仓库里执行 `npm run release` 只做 `npm publish --dry-run`。
-
-### 从 npm 安装
-
-发布到 npm 之后，用下面任一命令。`@shikiform/react` 会带上引擎 `@shikiform/core`。
+## 安装
 
 ```bash
 npm i @shikiform/react
-pnpm add @shikiform/react
-yarn add @shikiform/react
 ```
 
-用 Ant Design 再安装 `@shikiform/antd`。查询列表、影子表单再安装 `@shikiform/hooks`。只要引擎、不要 React 时单独装 `@shikiform/core`。
-
-| peer 依赖 | 版本 | 哪些包 |
-|---|---|---|
-| `react` / `react-dom` | `^18 \|\| ^19` | `@shikiform/react`、`@shikiform/hooks`、`@shikiform/antd` |
-| `antd` / `dayjs` | `^5.18` / `^1` | 只有 `@shikiform/antd`（`FormLayout layout="vertical"` 需要 antd 5.18 起的 `Form.Item layout`） |
-
-### 本地 tarball
-
-包还不在 npm 上时，在 shikiform 仓库根目录先构建再打包。每个包的 `files` 只有 `dist/`，不构建就没有可运行的文件。`@shikiform/react` 依赖 `@shikiform/core@0.1.0`（版本以该包的 `package.json` 为准）。这个版本不在注册表里，只打包或只安装 react 会 404。core 和 react 都要打包，并在同一次安装里装上。
-
-```bash
-npm ci
-npm run build:lib
-npm pack -w @shikiform/core --pack-destination packages/core
-npm pack -w @shikiform/react --pack-destination packages/react
-```
-
-tarball 在包目录下。文件名是包名去掉 `@`、把 `/` 换成 `-`，再加上版本：`packages/core/shikiform-core-0.1.0.tgz`、`packages/react/shikiform-react-0.1.0.tgz`。
-
-下面假定项目和 shikiform 仓库是同级目录。路径按实际位置改。
-
-npm 可以在命令行一次装上两个 tarball：
-
-```bash
-npm i ../shikiform/packages/core/shikiform-core-0.1.0.tgz ../shikiform/packages/react/shikiform-react-0.1.0.tgz
-```
-
-写进 `package.json` 再安装，是同一件事。pnpm 和 Yarn 不能靠「同一次装上两个 tarball」对上依赖：它们仍按 `@shikiform/core@0.1.0` 去注册表查找。pnpm 用 `pnpm.overrides` 指回 core 的 tarball，Yarn 1 用 `resolutions`。Yarn 1 不自动安装 peer，把 `react` 和 `react-dom` 写进 `dependencies`。
-
-```json
-{
-  "dependencies": {
-    "@shikiform/core": "file:../shikiform/packages/core/shikiform-core-0.1.0.tgz",
-    "@shikiform/react": "file:../shikiform/packages/react/shikiform-react-0.1.0.tgz",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
-  },
-  "pnpm": {
-    "overrides": {
-      "@shikiform/core": "file:../shikiform/packages/core/shikiform-core-0.1.0.tgz"
-    }
-  },
-  "resolutions": {
-    "@shikiform/core": "file:../shikiform/packages/core/shikiform-core-0.1.0.tgz"
-  }
-}
-```
-
-然后 `npm i`、`pnpm install` 或 `yarn install`。`npm` 会忽略 `pnpm` 和 `resolutions`。
-
-要用 `@shikiform/hooks`，再执行 `npm pack -w @shikiform/hooks --pack-destination packages/hooks`。要用 `@shikiform/antd`，四个都打包（antd 依赖 core、react、hooks）：
-
-```bash
-npm pack -w @shikiform/antd --pack-destination packages/antd
-npm i ../shikiform/packages/core/shikiform-core-0.1.0.tgz ../shikiform/packages/react/shikiform-react-0.1.0.tgz ../shikiform/packages/hooks/shikiform-hooks-0.1.0.tgz ../shikiform/packages/antd/shikiform-antd-0.1.0.tgz
-```
-
-`dependencies` 里为每个 tarball 写一条 `file:`，并加上 peer `antd`（`^5.18.0`）和 `dayjs`（`^1`）。`pnpm.overrides` 与 `resolutions` 里为 `@shikiform/core`、`@shikiform/react`、`@shikiform/hooks` 各写一条，指向同一个 tarball。Yarn 1 若因间接依赖的 `engines` 停下来，改跑 `yarn install --ignore-engines`。
-
-### workspace
-
-先在 shikiform 仓库执行上面的 `npm ci` 和 `npm run build:lib`。把仓库放进 workspace（目录名按克隆来）。
-
-pnpm：根目录 `.npmrc` 写 `link-workspace-packages=true`，`pnpm-workspace.yaml`：
-
-```yaml
-packages:
-  - 'app'
-  - 'shikiform/packages/*'
-```
-
-应用的依赖写 `"@shikiform/react": "workspace:*"`。`.npmrc` 里的 `link-workspace-packages=true` 让 pnpm 把 `@shikiform/core@0.1.0` 接到 workspace 里的 core。用 antd 时再加 `"@shikiform/antd": "workspace:*"`。
-
-Yarn 4（Berry）用同一套目录。根 `package.json` 的 `workspaces` 包含 `app` 和 `shikiform/packages/*`，应用里同样是 `"@shikiform/react": "workspace:*"`。`.yarnrc.yml`：
-
-```yaml
-nodeLinker: node-modules
-```
-
-Yarn 4 默认的 PnP 下，Node 直接 import 找不到这些包。Yarn 1 没有 `workspace:*`，用上面的 tarball 和 `resolutions`。
+用 Ant Design 再执行 `npm i @shikiform/antd`。查询列表再执行 `npm i @shikiform/hooks`。`react` / `react-dom` 为 `^18 || ^19`。`antd`（`^5.18`）和 `dayjs`（`^1`）只在使用 `@shikiform/antd` 时需要。
 
 ## 第一张表单
 

@@ -3,55 +3,11 @@ title: 不用 UI 库
 description: "只安装 @shikiform/react，用原生 input 写出能校验、能提交的表单。"
 ---
 
-只装 `@shikiform/react` 就能跑。控件是原生元素，字段状态仍在引擎里。`@shikiform/react` 依赖 `@shikiform/core`，从注册表安装时会一并装上。
-
-`@shikiform/react` 还没有发布到 npm。仓库里的 `npm run release` 只做 `npm publish --dry-run`。发布之后：
-
 ```bash
 npm i @shikiform/react
-pnpm add @shikiform/react
-yarn add @shikiform/react
 ```
 
-还没发布时，在 shikiform 仓库根目录构建并打包 core 和 react（只打包 react 会在安装时 404，因为 `@shikiform/core@0.1.0` 不在注册表里）。每个包的 `files` 只有 `dist/`，要先构建。版本号以各包 `package.json` 为准，当前 tarball 是 `shikiform-core-0.1.0.tgz` 和 `shikiform-react-0.1.0.tgz`。
-
-```bash
-npm ci
-npm run build:lib
-npm pack -w @shikiform/core --pack-destination packages/core
-npm pack -w @shikiform/react --pack-destination packages/react
-```
-
-项目和仓库同级时，npm 一次装上两个 tarball：
-
-```bash
-npm i ../shikiform/packages/core/shikiform-core-0.1.0.tgz ../shikiform/packages/react/shikiform-react-0.1.0.tgz
-```
-
-`package.json` 里写成 `file:` 再安装，是同一件事。pnpm 加 `pnpm.overrides`，Yarn 1 加 `resolutions`，否则它们仍去注册表找 `@shikiform/core@0.1.0`。Yarn 1 不自动安装 peer。
-
-```json
-{
-  "dependencies": {
-    "@shikiform/core": "file:../shikiform/packages/core/shikiform-core-0.1.0.tgz",
-    "@shikiform/react": "file:../shikiform/packages/react/shikiform-react-0.1.0.tgz",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
-  },
-  "pnpm": {
-    "overrides": {
-      "@shikiform/core": "file:../shikiform/packages/core/shikiform-core-0.1.0.tgz"
-    }
-  },
-  "resolutions": {
-    "@shikiform/core": "file:../shikiform/packages/core/shikiform-core-0.1.0.tgz"
-  }
-}
-```
-
-然后 `npm i`、`pnpm install` 或 `yarn install`。
-
-pnpm workspace：仓库放进 workspace，根目录 `.npmrc` 写 `link-workspace-packages=true`，`pnpm-workspace.yaml` 包含 `shikiform/packages/*`，应用依赖写 `"@shikiform/react": "workspace:*"`。Yarn 4 用同样的 `workspaces` 和 `"@shikiform/react": "workspace:*"`，并在 `.yarnrc.yml` 写 `nodeLinker: node-modules`。Yarn 1 没有 `workspace:*`。antd / hooks 的打包和这套目录，见 [快速开始](/guide/quick-start#准备)。
+只装 `@shikiform/react` 就能跑。控件是原生元素，字段状态仍在引擎里。
 
 `useField()` 不写参数时，读的是离它最近的 `Field`。把它放进 `component`，自己把 `value`、`onChange`、`onBlur` 接到 input 上。
 

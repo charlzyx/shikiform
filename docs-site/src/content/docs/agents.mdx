@@ -3,7 +3,7 @@ title: Agent 指南
 description: 给 AI 编程助手的一屏心智模型和最常见的错误；完整英文版在 /llms.txt。
 ---
 
-AI 编程助手写 ShikiForm 时最常犯的错，集中在几条规则上。把 [/llms.txt](/llms.txt) 交给它：那是仓库根目录 [AGENTS.md](https://github.com/charlzyx/shikiform/blob/main/AGENTS.md)（英文）加一段索引。下面是中文摘要。
+AI 编程助手写 ShikiForm 时最常犯的错，集中在几条规则上。把 [/llms.txt](/llms.txt) 交给它。下面是中文摘要。
 
 ## 六条规则
 
@@ -44,9 +44,3 @@ reaction.each((d) => d.rows, (row, { depth, key }) => { if (depth !== 0) return 
 <Field name="city" component={[Select, { disabled: form.getValue('kind') === 'b' }]} />   // ✗ 不是响应式的
 reaction((d) => { d.city.$componentProps.disabled = d.kind.$value === 'b' })             // ✓
 ```
-
-## 提交前
-
-在仓库里改代码时，依次跑 `npm test`、`npm run check`、`npm run check:api`、`npm run build`。分层与模块规则见仓库的 `design/ARCHITECTURE.md`。
-
-文档目录：开始（[快速上手](/guide/quick-start)）、[教程](/tutorial/)（八步）、基础（[核心概念](/guide/concepts)、[按路径读写](/basics/path)）、进阶（[联动](/guide/linkage)、[查询列表](/guide/pro)）、[场景示例](/examples)、[常见的坑](/practices/pitfalls)、[API](/api)。
