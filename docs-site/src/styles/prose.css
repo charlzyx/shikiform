@@ -250,6 +250,11 @@
   vertical-align: top;
   border-bottom: 1px solid var(--nb-border);
 }
+/* Short label cells (状态放哪) should not break in the middle of the phrase. */
+.docs-content :where(td:first-child:not([class])) {
+  white-space: nowrap;
+  word-break: keep-all;
+}
 
 .docs-content :where(th:not([class])) {
   font-weight: 500;
