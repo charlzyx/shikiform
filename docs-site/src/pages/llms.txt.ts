@@ -15,7 +15,7 @@ const HEADER = `# ShikiForm
 > and a Formily-style Ant Design adapter (\`<Field decorator component>\`, \`FormItem\`, \`FormLayout\`, \`connect\`).
 
 - Docs: /guide/quick-start  ·  Concepts: /guide/concepts  ·  Path: /basics/path  ·  Linkage: /guide/linkage  ·  Examples: /examples  ·  API: /api  ·  Agent guide (zh): /agents
-- Full text of every page: /llms-full.txt  ·  Source: https://github.com/charlzyx/shikiform (AGENTS.md, design/ARCHITECTURE.md)
+- Full text of every page: /llms-full.txt
 
 ---
 
