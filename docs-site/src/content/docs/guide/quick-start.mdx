@@ -37,7 +37,7 @@ export default function App() {
         <F.Field name="age" title="年龄" rules={{ min: 0, max: 150 }} decorator={[FormItem]} component={[InputNumber]} />
         <FormButtonGroup.FormItem>
           <Submit>提交</Submit>
-          <Reset />
+          <Reset afterReset={() => setResult('还没有提交')} />
         </FormButtonGroup.FormItem>
       </FormLayout>
       <pre aria-live="polite">{result}</pre>

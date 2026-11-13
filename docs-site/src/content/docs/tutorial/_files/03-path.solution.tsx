@@ -16,7 +16,7 @@ export default function App() {
         rules={[{ validator: (value, ctx) => (value === ctx.record.password ? null : '两次密码不一致') }]}
         decorator={[FormItem]} component={[Input.Password]} />
       <Submit>提交</Submit>
-      <Reset />
+      <Reset>重置表单</Reset>
       {payload ? <pre className="shiki-code">{payload}</pre> : null}
     </Form>
   );

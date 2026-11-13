@@ -14,7 +14,7 @@ export default function App() {
         decorator={[FormItem]} component={[Input.Password]} />
       <Field name="confirmPassword" title="确认密码" decorator={[FormItem]} component={[Input.Password]} />
       <Submit>提交</Submit>
-      <Reset />
+      <Reset>重置表单</Reset>
       {payload ? <pre className="shiki-code">{payload}</pre> : null}
     </Form>
   );

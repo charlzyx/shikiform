@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build && node scripts/add-play-routes.mjs && npm run build:play",
+    "build": "astro build && node scripts/add-play-routes.mjs && node scripts/stash-play-index.mjs && npm run build:play && node scripts/restore-play-index.mjs",
     "build:play": "npm run build:play --prefix ..",
     "preview": "astro preview",
     "typecheck": "astro check",

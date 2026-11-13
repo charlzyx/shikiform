@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { defineEffects, Field, Form, ObjectField, useForm } from '@shikiform/react'
+import { useEffect, useRef, useState } from 'react'
+import { defineEffects, Field, Form, ObjectField, useForm, useWatch, type Draft } from '@shikiform/react'
 import type { Display } from '@shikiform/core'
 import { Button } from 'antd'
 import { FormButtonGroup, FormItem, FormLayout, Input, Radio } from '@shikiform/antd'
@@ -22,6 +22,21 @@ const effects = defineEffects<Values>(({ reaction }) => {
     d.box.$display = d.mode.$value
   })
 })
+
+function ClearOnMode({ clear }: { clear: () => void }) {
+  const mode = useWatch((d: Draft<Values>) => d.mode.$value)
+  const clearRef = useRef(clear)
+  clearRef.current = clear
+  const ready = useRef(false)
+  useEffect(() => {
+    if (!ready.current) {
+      ready.current = true
+      return
+    }
+    clearRef.current()
+  }, [mode])
+  return null
+}
 
 /** `hidden` keeps and validates. `virtual` renders and validates but drops the subtree. `none` skips validation and drops submit; the value stays. The child follows the parent. */
 export function DisplayPage() {
@@ -47,6 +62,7 @@ export function DisplayPage() {
         setErrors(failed.flatMap((error) => error.messages).join(' '))
       }}
     >
+      <ClearOnMode clear={() => { setPayload(''); setErrors('') }} />
       <h1>显隐</h1>
       <p>
         reaction 写 <code>d.box.$display</code>，里面的邮箱跟着父级。<b>hidden</b>：不渲染，值保留、照样校验和提交；
