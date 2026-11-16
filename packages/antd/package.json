@@ -1,6 +1,6 @@
 {
   "name": "@shikiform/antd",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Ant Design adapter for ShikiForm: FormItem, controls, arrays, and query lists.",
   "type": "module",
   "sideEffects": false,
@@ -20,9 +20,9 @@
     "access": "public"
   },
   "dependencies": {
-    "@shikiform/core": "0.1.1",
-    "@shikiform/hooks": "0.1.1",
-    "@shikiform/react": "0.1.1"
+    "@shikiform/core": "0.2.0",
+    "@shikiform/hooks": "0.2.0",
+    "@shikiform/react": "0.2.0"
   },
   "peerDependencies": {
     "antd": "^5.18.0",
