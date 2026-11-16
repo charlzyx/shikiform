@@ -86,6 +86,21 @@ describe('/play/array-table', () => {
     expect(added[21]!.a1).toBe('21.1')
     expect(added[23]).toEqual({ a1: '', a2: '', a3: '' })
   })
+
+  it('after 100k rows, submit names the total and shows a prefix instead of the whole JSON', async () => {
+    render(<ArrayTablePage />)
+    await act(async () => fireEvent.click(screen.getByTestId('load-big')))
+    await waitFor(() => expect(footerTotal()).toBe(100000), slow)
+    fireEvent.click(screen.getByTestId('submit'))
+    const pre = await screen.findByTestId('submitted')
+    await waitFor(() => expect(pre.textContent).toContain('共 100000 条，结果区只展示前 20 条'))
+    const text = pre.textContent ?? ''
+    const rows = JSON.parse(text.slice(text.indexOf('['))) as { a1: string }[]
+    expect(rows).toHaveLength(20)
+    expect(rows[0]!.a1).toBe('0.1')
+    expect(rows[19]!.a1).toBe('19.1')
+    expect(text).not.toContain('"a1": "99999.1"')
+  }, 20_000)
 })
 
 describe('/play/array-table-shadow', () => {
