@@ -38,7 +38,7 @@ npm run dev:e2e     # playground，http://127.0.0.1:5173/play/
 npm run test:e2e    # 文档构建 + playground 构建，再跑 Playwright
 ```
 
-教程在 `/tutorial`。每一步左边是说明，右边可以改代码。不需要 WebContainers，也不需要 COOP/COEP。
+教程在 `/tutorial`，一共八节。每一步上方是说明，中间是预览，下方可以改代码。不需要 WebContainers，也不需要 COOP/COEP。
 
 ### 安装工具链与 React 身份
 
@@ -69,7 +69,7 @@ Playground 随 `npm run build` 一起进入 `dist/play/`。每个 `/play/...` �
 
 ### 验证部署成功
 
-- 首页、`/guide/*` 指南（快速开始 → 核心概念 → 字段 → 布局 → 容器 → Ant Design → 控件 → 联动 → 命名 UI 节点 → 数据结构 → 数组字段 → Headless → Pro 组件 → 校验）、`/tutorial/` 与十节教程、`/examples` 与六个分类页、`/api`、六个参考页、`/agents` 都有 SSR 正文，每个 `tsx preview` 示例都 SSR 出真实组件并在浏览器里水合。
+- 首页、`/guide/*` 指南（快速开始 → 核心概念 → 字段 → 布局 → 容器 → Ant Design → 控件 → 联动 → 命名 UI 节点 → 数据结构 → 数组字段 → Headless → Pro 组件 → 校验）、`/tutorial/` 与八节教程、`/examples` 与六个分类页、`/api`、六个参考页、`/agents` 都有 SSR 正文，每个 `tsx preview` 示例都 SSR 出真实组件并在浏览器里水合。
 - `/examples` 能进入全部 23 个 `/play/...` 场景，静态入口不依赖 SPA fallback。
 - 侧栏、上一页 / 下一页、本页目录、Pagefind 搜索来自 Nimbus；`/llms.txt`（头部 + AGENTS.md + 页面索引）、`/llms-full.txt`、每页的 `index.md` 可访问。
 - 旧教程地址、旧草稿地址按 `_redirects` 301 到新页面，没有重定向循环（e2e `site-navigation` 检查）。
@@ -93,7 +93,7 @@ Playground 随 `npm run build` 一起进入 `dist/play/`。每个 `/play/...` �
 
 - 示例：MDX 里的 ```` ```tsx preview ```` 围栏由 `src/mdx/shikiform-demo-satteri.mjs` 换成 `<Demo>` island；`src/mdx/shikiform-vite.mjs` 在构建时用 esbuild 编译同一份源码，服务端直出、浏览器水合。`play=<route>` 给示例加「打开 /play」链接。
 - 示例外壳 `src/bridge/playground/`：预览在上、源码在下，工具栏可编辑（按需加载 CodeMirror 与 Sucrase，在浏览器里重新编译同一份源码）、复制、重新运行、重置、全屏；antd 跟随站点明暗（`src/bridge/theme.tsx` 读 Nimbus 的 `data-mode`），切换不丢表单状态。编辑器运行可信示例，不是任意代码沙箱，需要 CSP `unsafe-eval`。
-- 教程：`tutorial/_files/NN-name.tsx` + `.solution.tsx` 是练习的起始代码和参考答案，`<TutorialIsland>` 左边说明、右边可改代码。
+- 教程：`tutorial/_files/NN-name.tsx` + `.solution.tsx` 是练习的起始代码和参考答案。页面里的 `<TutorialPlay>`（`TutorialIsland.astro` 只负责挂上 island）上方是说明，中间是预览，下方可改代码。
 - 给 Agent：`/llms.txt` 是一段头部 + 仓库根 `AGENTS.md` + Nimbus 生成的页面索引（`src/pages/llms.txt.ts`），`/llms-full.txt` 是全部页面正文。改 `AGENTS.md` 就是改 `/llms.txt`。
 - `/play/*` 是 `playground/` 的独立 Vite 应用（`playground/routes.ts`），`docs-site/scripts/add-play-routes.mjs` 把这些路由登记给 Nimbus 的链接检查。
 

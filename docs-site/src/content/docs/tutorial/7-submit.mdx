@@ -11,7 +11,7 @@ tableOfContents: false
 
 在界面上，「确认密码」和普通字段一样需要渲染、也需要校验，但它只是前端用来做一致性比对的辅助字段，不应当提交给后端。此时只需给它设置 `display="virtual"`：字段仍会正常显示和参与校验（读取 `$visible` 仍为 `true`），但在提交与 `getSubmitValues()` 时会被自动剔除。
 
-下方的 `Reset` 按钮会将表单值恢复到 `initialValues`，并触发 `afterReset` 回调。注意界面里的「重置表单」按钮用来还原用户输入的数据，代码编辑器右上角的「重置」按钮则是把教程代码还原为初始状态。
+下方的 `Reset` 按钮会将表单值恢复到 `initialValues`，并触发 `afterReset` 回调（这里用来清掉刚才的提交结果）。注意界面里的「重置表单」按钮用来还原用户输入的数据，工具栏右侧的「重置」按钮则是把教程代码还原为初始状态。
 
 **这一步：** 为 `confirmPassword` 加上 `display="virtual"`，并在 `rules` 中补充校验：当输入值不等于 `ctx.record.password` 时，返回 `'两次密码不一致'`。
 

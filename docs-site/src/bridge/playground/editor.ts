@@ -37,11 +37,15 @@ export interface EditorOptions {
   doc: string
   label: string
   onChange: (doc: string) => void
+  /** Highlight without accepting edits. */
+  readOnly?: boolean
+  /** Move focus into the editor after it mounts. */
+  focus?: boolean
 }
 
 /** A CodeMirror view for one demo file. The caller owns its lifetime (`view.destroy()`). */
-export function mountEditor({ parent, doc, label, onChange }: EditorOptions): EditorView {
-  return new EditorView({
+export function mountEditor({ parent, doc, label, onChange, readOnly = false, focus = false }: EditorOptions): EditorView {
+  const view = new EditorView({
     parent,
     state: EditorState.create({
       doc,
@@ -54,6 +58,7 @@ export function mountEditor({ parent, doc, label, onChange }: EditorOptions): Ed
         syntaxHighlighting(highlighter),
         keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
         EditorState.tabSize.of(2),
+        EditorState.readOnly.of(readOnly),
         EditorView.contentAttributes.of({ 'aria-label': label }),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) onChange(update.state.doc.toString())
@@ -62,4 +67,8 @@ export function mountEditor({ parent, doc, label, onChange }: EditorOptions): Ed
       ],
     }),
   })
+  // Entering edit mode must land here. Otherwise the next key (the sidebar's `/`)
+  // goes to the navigation filter and the source never changes.
+  if (focus) view.focus()
+  return view
 }

@@ -220,6 +220,10 @@
 }
 
 /* Editor token colors (src/bridge/playground/editor.ts). */
+/* Read-only CodeMirror keeps the tokens; it is not an insertion point. */
+.sf-demo:not([data-editing]) .cm-cursor,
+.sf-demo:not([data-editing]) .cm-dropCursor { display: none; }
+
 .sf-demo .tok-keyword { color: var(--sf-tok-keyword); }
 .sf-demo .tok-string { color: var(--sf-tok-string); }
 .sf-demo .tok-constant { color: var(--sf-tok-constant); }
