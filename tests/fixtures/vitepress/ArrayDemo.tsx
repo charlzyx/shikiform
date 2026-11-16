@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Form, RowScope, defineEffects, useArrayField, useForm, useFormContext, useWatch, type Draft } from '@shikiform/react'
+import { ArrayField, Form, defineEffects, useArrayField, useForm, useFormContext, useWatch, type Draft } from '@shikiform/react'
 import { NumberField, TextField } from './fields'
 
 type Item = { id: string; product: { name: string; price: number }; qty: number; total: number }
@@ -26,16 +26,16 @@ function Rows() {
   const [sequence, setSequence] = useState(0)
   const total = useWatch((d: Draft<Values>) => d.items.$value.reduce((sum, row) => sum + row.total, 0))
   return <section aria-label="采购单">
-    {array.keys.map(({ key, index }) => <RowScope key={key} path={`items.${index}`} index={index}>
-      <fieldset data-row-id={key}>
+    <ArrayField name="items" rowKey="id">
+      {({ key, index }) => <fieldset data-row-id={key}>
         <legend>商品 {index + 1}</legend>
         <TextField name="product.name" label={`名称 ${key}`} />
         <NumberField name="product.price" label={`单价 ${key}`} />
         <NumberField name="qty" label={`数量 ${key}`} />
         <button type="button" disabled={index === 0} onClick={() => array.move(index, index - 1)}>上移 {key}</button>
         <button type="button" onClick={() => array.remove(index)}>删除 {key}</button>
-      </fieldset>
-    </RowScope>)}
+      </fieldset>}
+    </ArrayField>
     <button type="button" onClick={() => { const next = sequence + 1; setSequence(next); array.push({ id: `new-${next}`, product: { name: '新商品', price: 1 }, qty: 1, total: 0 }) }}>添加商品</button>
     <output data-testid="total">合计：{total}</output>
     <button type="button" disabled={array.keys.length === 0} onClick={() => form.setValue('items.0.qty', 3)}>首行数量设为 3</button>

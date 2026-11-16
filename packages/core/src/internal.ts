@@ -13,7 +13,7 @@ export type { EnumOption } from './enum/enum-source'
 export { deepEqual } from './shared/equal'
 export { nearestName } from './shared/near'
 export { getAt, joinPath, setAt } from './shared/path'
-export type { Pos } from './shared/tree-ops'
+export { pathOf, type Pos } from './shared/tree-ops'
 export { emptySlot, normalizeUiSpec } from './state/field-model'
 export type {
   ArrayItemOf,

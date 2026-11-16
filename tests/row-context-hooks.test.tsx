@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { ArrayField, createForm, Form, RowScope, TreeField, useArray, useIndex, useRecord, useTreeNode } from '@shikiform/react'
+import { ArrayField, createForm, Form, TreeField, useArray, useIndex, useRecord, useTreeNode } from '@shikiform/react'
 import { ArrayTable } from '@shikiform/antd'
 
 afterEach(cleanup)
@@ -74,7 +74,7 @@ describe('headless row context hooks (useArray / useIndex / useRecord / useTreeN
     }
   })
 
-  it('useTreeNode reads pos / index / record from <RowScope pos>', () => {
+  it('useTreeNode reads pos / index / record inside <TreeField>', () => {
     const form = createForm({ initialValues: { nodes: [{ label: 'root', children: [{ label: 'leaf', children: [] }] }] } })
     function Node() {
       const node = useTreeNode<{ label: string }>()
@@ -82,12 +82,20 @@ describe('headless row context hooks (useArray / useIndex / useRecord / useTreeN
     }
     render(
       <Form form={form}>
-        <RowScope path="nodes.0.children.0" pos={[0, 0]}>
-          <Node />
-        </RowScope>
+        <TreeField name="nodes">
+          {(node) => (
+            <>
+              <Node />
+              {node.children}
+            </>
+          )}
+        </TreeField>
       </Form>,
     )
-    expect(screen.getByTestId('node').textContent).toBe('nodes.0.children.0|0.0|0|leaf')
+    expect(screen.getAllByTestId('node').map((el) => el.textContent)).toEqual([
+      'nodes.0|0|0|root',
+      'nodes.0.children.0|0.0|0|leaf',
+    ])
   })
 
   it('useTreeNode moves nodes and exposes dragProps like the tree handle', () => {
@@ -112,22 +120,15 @@ describe('headless row context hooks (useArray / useIndex / useRecord / useTreeN
         </div>
       )
     }
-    function Branch({ path, nodes, pos }: { path: string; nodes: Node[]; pos: number[] }) {
-      return (
-        <>
-          {nodes.map((node, index) => (
-            <RowScope key={node.id} path={`${path}.${index}`} pos={[...pos, index]}>
-              <Node />
-              <Branch path={`${path}.${index}.children`} nodes={node.children} pos={[...pos, index]} />
-            </RowScope>
-          ))}
-        </>
-      )
-    }
     render(
       <Form form={form}>
         <TreeField name="menu" rowKey="id">
-          {(tree) => <Branch path={tree.path} nodes={tree.value as Node[]} pos={[]} />}
+          {(node) => (
+            <>
+              <Node />
+              {node.children}
+            </>
+          )}
         </TreeField>
       </Form>,
     )

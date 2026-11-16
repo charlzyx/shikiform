@@ -48,7 +48,7 @@ function wrap(form: ReturnType<typeof createForm<any>>) {
 
 describe('removed names stay removed', () => {
   it('no old exports', () => {
-    for (const name of ['useArrayMove', 'useTreeMove', 'useArrayMoveAt']) expect(name in root).toBe(false)
+    for (const name of ['useArrayMove', 'useTreeMove', 'useArrayMoveAt', 'RowScope', 'ArrayScope', 'VirtualRows']) expect(name in root).toBe(false)
     for (const name of ['ProArrayTable', 'ProQueryTable', 'QueryForm']) expect(name in antd).toBe(false)
     expect('ShadowAddition' in ArrayTable).toBe(true)
     expect('ProAddition' in ArrayTable).toBe(false)

@@ -31,7 +31,7 @@ export function useRecord<TRow = any>(): TRow {
   const scope = useScope()
   if (scope.index < 0 && !scope.pos) {
     if (process.env.NODE_ENV !== 'production') {
-      throw new ShikiUsageError('useRecord() must render inside an array row (<ArrayField> rows, ArrayTable cells included) or a tree node (<RowScope path pos>).')
+      throw new ShikiUsageError('useRecord() must render inside an array row (<ArrayField> rows, ArrayTable cells included) or a tree node (<TreeField>).')
     }
     throw new Error('useRecord() must render inside an array row or tree node')
   }
@@ -44,7 +44,7 @@ export function useRecord<TRow = any>(): TRow {
  * The tree node this component renders in: `path`, `pos`, `index` (last segment of `pos`), the reactive `record`,
  * plus `move(from, to)` and `dragProps(pos)` — the same node operations the tree handle gives, bound to the tree the
  * node belongs to (found by registering with the nearest tree, like `useArray()` does for arrays).
- * A tree's nodes are rendered by the caller; wrap each node in `<RowScope path pos>` to provide it.
+ * Render inside `<TreeField>` (which wraps each node in its row scope).
  * Throws outside a node.
  */
 export function useTreeNode<TNode = any>(): {
@@ -61,9 +61,9 @@ export function useTreeNode<TNode = any>(): {
   const scope = useScope()
   if (!scope.pos) {
     if (process.env.NODE_ENV !== 'production') {
-      throw new ShikiUsageError('useTreeNode() must render inside a tree node: wrap it in <RowScope path={…} pos={…}>.')
+      throw new ShikiUsageError('useTreeNode() must render inside a tree node (<TreeField>).')
     }
-    throw new Error('useTreeNode() must render inside a tree node (<RowScope path pos>)')
+    throw new Error('useTreeNode() must render inside a tree node (<TreeField>)')
   }
   const form = useRequiredForm('useRecord() / useTreeNode()')
   const record = useRecord<TNode>()

@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { ArrayField, createForm, Field, Form, RowScope, useField, useForm, useIndex, useRecord } from '@shikiform/react'
+import { ArrayField, createForm, Field, Form, useField, useForm, useIndex, useRecord } from '@shikiform/react'
 import { Input, PreviewText, Select } from '@shikiform/antd'
 
 afterEach(cleanup)
@@ -54,11 +54,13 @@ describe('<Field> keeps the surrounding scope', () => {
     const host = createForm({ initialValues: { rows: [{ title: 'x' }] } })
     render(
       <Form form={host}>
-        <RowScope path="rows.0" index={0}>
-          <div>
-            <Inner />
-          </div>
-        </RowScope>
+        <ArrayField name="rows">
+          {() => (
+            <div>
+              <Inner />
+            </div>
+          )}
+        </ArrayField>
       </Form>,
     )
     expect(path).toBe('title')
