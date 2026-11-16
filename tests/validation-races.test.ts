@@ -482,6 +482,177 @@ describe('an aborted async validator leaves the in-flight set', () => {
   })
 })
 
+describe('a value change drops a stale async error (#122)', () => {
+  async function until(pred: () => boolean): Promise<void> {
+    for (let i = 0; i < 50; i++) {
+      if (pred()) return
+      await sleep(10)
+    }
+    throw new Error('timed out waiting for an async check')
+  }
+
+  it('clears the occupied error when the value changes to an available one, then submit is allowed', async () => {
+    let release!: (message: string | null) => void
+    const form = createEngine<{ username: string }>({
+      initialValues: { username: '' },
+      asyncDebounceMs: 20,
+      fields: {
+        username: {
+          required: true,
+          rules: {
+            validator: (value) => {
+              if (value === 'admin') return new Promise<string | null>((resolve) => { release = resolve })
+              return null
+            },
+          },
+        },
+      },
+    })
+    form.setValue('username', 'admin')
+    form.blur('username')
+    await until(() => typeof release === 'function')
+    release('已被占用')
+    await sleep(20)
+    expect(form.errors).toEqual([{ path: 'username', messages: ['已被占用'] }])
+    expect(form.canSubmit).toBe(false)
+
+    form.setValue('username', 'ada')
+    // The finished request's message is dropped with that attempt, before the replacement check returns.
+    expect(form.errors).toEqual([])
+    expect(form.binding('username').validating).toBe(true)
+    expect(form.canSubmit).toBe(false)
+    await sleep(50)
+    expect(form.errors).toEqual([])
+    expect(form.binding('username').validating).toBe(false)
+    expect(form.canSubmit).toBe(true)
+    expect(await form.submit()).toEqual({ ok: true, values: { username: 'ada' } })
+  })
+
+  it('does not apply an in-flight occupied result after the value changes', async () => {
+    let release!: (message: string | null) => void
+    const started = gate()
+    const form = createEngine<{ username: string }>({
+      initialValues: { username: '' },
+      asyncDebounceMs: 20,
+      fields: {
+        username: {
+          rules: {
+            validator: (value) => new Promise<string | null>((resolve) => {
+              if (value === 'admin') {
+                release = resolve
+                started.open()
+                return
+              }
+              resolve(null)
+            }),
+          },
+        },
+      },
+    })
+    form.setValue('username', 'admin')
+    form.blur('username')
+    await started.promise
+    expect(form.binding('username').validating).toBe(true)
+    expect(form.errors).toEqual([])
+    form.setValue('username', 'ada')
+    release('已被占用')
+    await sleep(50)
+    expect(form.getValue('username')).toBe('ada')
+    expect(form.errors).toEqual([])
+    expect(form.binding('username').validating).toBe(false)
+    expect(form.canSubmit).toBe(true)
+  })
+
+  it('still settles when the value changes again while the recheck is in flight', async () => {
+    const gates: Array<ReturnType<typeof gate>> = []
+    const seen: string[] = []
+    const form = createEngine<{ username: string }>({
+      initialValues: { username: '' },
+      asyncDebounceMs: 20,
+      fields: {
+        username: {
+          rules: {
+            validator: (value) => {
+              const current = String(value ?? '')
+              seen.push(current)
+              const held = gate()
+              gates.push(held)
+              return held.promise.then(() => (current === 'admin' ? '已被占用' : null))
+            },
+          },
+        },
+      },
+    })
+    form.setValue('username', 'admin')
+    form.blur('username')
+    await until(() => gates.length === 1)
+    gates[0]!.open()
+    await sleep(20)
+    expect(form.errors).toEqual([{ path: 'username', messages: ['已被占用'] }])
+
+    form.setValue('username', 'a')
+    await until(() => gates.length === 2)
+    expect(form.binding('username').validating).toBe(true)
+    form.setValue('username', 'ada')
+    gates[1]!.open()
+    await until(() => gates.length === 3)
+    gates[2]!.open()
+    await sleep(20)
+    expect(seen).toContain('ada')
+    expect(form.getValue('username')).toBe('ada')
+    expect(form.errors).toEqual([])
+    expect(form.binding('username').validating).toBe(false)
+    expect(form.canSubmit).toBe(true)
+  })
+
+  it('matches the docs lookup: abort drops the occupied message for both sequences', async () => {
+    const lookup = (username: string, signal?: AbortSignal) => new Promise<string | null>((resolve) => {
+      const timer = setTimeout(() => {
+        resolve(username.trim().toLowerCase() === 'admin' ? '已被占用' : null)
+      }, 40)
+      signal?.addEventListener('abort', () => {
+        clearTimeout(timer)
+        resolve(null)
+      }, { once: true })
+    })
+    const make = () => createEngine<{ username: string; password: string; confirm: string }>({
+      initialValues: { username: '', password: 'secret123', confirm: 'secret123' },
+      asyncDebounceMs: 20,
+      fields: {
+        username: {
+          required: true,
+          rules: { validator: (value, ctx) => lookup(String(value ?? ''), ctx.signal) },
+        },
+        password: { required: true, rules: { minLength: 8 } },
+        confirm: {
+          required: true,
+          display: 'virtual',
+          rules: { validator: (value, ctx) => (value && value !== ctx.record?.password ? '两次密码不一致' : null) },
+        },
+      },
+    })
+
+    const finished = make()
+    finished.setValue('username', 'admin')
+    finished.blur('username')
+    await until(() => finished.errors.some((error) => error.messages.includes('已被占用')))
+    finished.setValue('username', 'ada')
+    expect(finished.errors).toEqual([])
+    await until(() => finished.canSubmit)
+    expect(await finished.submit()).toEqual({ ok: true, values: { username: 'ada', password: 'secret123' } })
+
+    const inflight = make()
+    inflight.setValue('username', 'admin')
+    inflight.blur('username')
+    await until(() => inflight.binding('username').validating)
+    expect(inflight.errors).toEqual([])
+    inflight.setValue('username', 'ada')
+    await until(() => inflight.canSubmit)
+    expect(inflight.errors).toEqual([])
+    expect(await inflight.submit()).toEqual({ ok: true, values: { username: 'ada', password: 'secret123' } })
+  })
+})
+
 describe('restoring a declared validator after JSX unmount (#7)', () => {
   it('a synchronously throwing declared validator runs once and lands as a message', async () => {
     let calls = 0

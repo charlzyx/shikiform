@@ -5,7 +5,7 @@ import { unwrapReadonly } from '../draft/readonly'
 import { showDraftPath } from '../errors'
 import { deepEqual } from '../shared/equal'
 import { getAt, normalizePath, parentPath, setAt } from '../shared/path'
-import { shownErrors, type FieldModel } from '../state/field-model'
+import type { FieldModel } from '../state/field-model'
 import type { FieldStore } from '../state/field-store'
 import type { Notifier } from '../state/notifier'
 import type { Display, Pattern, WriteOp } from '../types'
@@ -105,9 +105,10 @@ export class StateWriter {
     }
     scheduler.enqueueFromDirty()
     scheduler.flush()
-    // An error already on screen is re-checked on every edit, whatever the trigger: it disappears as soon as
-    // the value is fixed instead of waiting for blur (and `$canSubmit` / the `Submit` button come back with it).
-    if (validator.triggersFor(path).includes('onChange') || shownErrors(field).length) validator.scheduleValidate(path)
+    // An error already on screen is re-checked on every edit, whatever the trigger. An async attempt still in
+    // flight (or waiting out its debounce) is aborted too, so a late result cannot land on the new value (#122).
+    // `$canSubmit` / the `Submit` button come back when that replacement check passes.
+    validator.onEdit(path)
   }
 
   /** Mark the field touched. Validates when the trigger list includes `onBlur`. */
