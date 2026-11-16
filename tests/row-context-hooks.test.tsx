@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { ArrayField, createForm, Form, TreeField, useArray, useIndex, useRecord, useTreeNode } from '@shikiform/react'
+import { ArrayField, createForm, Form, TreeField, useArray, useIndex, useRecord, useTree, useTreeNode } from '@shikiform/react'
 import { ArrayTable } from '@shikiform/antd'
 
 afterEach(cleanup)
@@ -68,10 +68,61 @@ describe('headless row context hooks (useArray / useIndex / useRecord / useTreeN
     try {
       expect(() => render(<Form form={form}><Bad hook={useArray} /></Form>)).toThrow(/useArray\(\) must render inside/)
       expect(() => render(<Form form={form}><Bad hook={useIndex} /></Form>)).toThrow(/useIndex\(\) must render inside/)
+      expect(() => render(<Form form={form}><Bad hook={useTree} /></Form>)).toThrow(/useTree\(\) must render inside/)
       expect(() => render(<Form form={form}><Bad hook={useTreeNode} /></Form>)).toThrow(/useTreeNode\(\)/)
     } finally {
       console.error = quiet
     }
+  })
+
+  it('useTree reads the nearest tree; a nested tree wins; move uses final pos', () => {
+    type Node = { id: string; name: string; children: Node[]; notes?: Node[] }
+    const form = createForm<{ menu: Node[] }>({
+      initialValues: {
+        menu: [
+          {
+            id: 'file',
+            name: '文件',
+            children: [{ id: 'new', name: '新建', children: [] }],
+            notes: [{ id: 'note', name: '备注', children: [] }],
+          },
+          { id: 'edit', name: '编辑', children: [] },
+        ],
+      },
+    })
+    function NodeLabel() {
+      const tree = useTree<Node>()
+      const node = useTreeNode<Node>()
+      return (
+        <div>
+          <span data-testid={`tree-${node.record.id}`}>{tree.path}</span>
+          <button data-testid={`front-${node.record.id}`} type="button" onClick={() => tree.move(node.pos, [0])}>
+            front
+          </button>
+        </div>
+      )
+    }
+    render(
+      <Form form={form}>
+        <TreeField name="menu" rowKey="id">
+          {(node) => (
+            <>
+              <NodeLabel />
+              {node.children}
+              {node.index === 0 && node.depth === 0 ? (
+                <TreeField name="notes" rowKey="id">{() => <NodeLabel />}</TreeField>
+              ) : null}
+            </>
+          )}
+        </TreeField>
+      </Form>,
+    )
+    expect(screen.getByTestId('tree-file').textContent).toBe('menu')
+    expect(screen.getByTestId('tree-new').textContent).toBe('menu')
+    expect(screen.getByTestId('tree-note').textContent).toBe('menu.0.notes')
+    fireEvent.click(screen.getByTestId('front-edit'))
+    expect(form.getValue('menu.0.id')).toBe('edit')
+    expect(screen.getByTestId('tree-edit').textContent).toBe('menu')
   })
 
   it('useTreeNode reads pos / index / record inside <TreeField>', () => {

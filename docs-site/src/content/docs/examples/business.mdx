@@ -65,7 +65,7 @@ export default function App() {
 
 ```tsx preview play=merged
 import { Button, Space } from 'antd';
-import { Field, Form, useForm, useFormContext, useWatch, type Draft } from '@shikiform/react';
+import { Field, Form, useArrayField, useForm, useFormContext, useWatch, type Draft } from '@shikiform/react';
 import { FormItem, Input, InputNumber, MergedTable, Select } from '@shikiform/antd';
 
 type Product = { id: string; name: string; price: number };
@@ -75,6 +75,11 @@ type Values = { suppliers: Supplier[] };
 type Line = { id: string; s: number; p: number };
 
 const cell = [FormItem, { style: { margin: 0 } }] as const;
+
+function AddProduct({ supplierIndex }: { supplierIndex: number }) {
+  const products = useArrayField(`suppliers.${supplierIndex}.products`);
+  return <Button size="small" onClick={() => products.push({ id: crypto.randomUUID(), name: '新产品', price: 1 })}>加产品</Button>;
+}
 
 function Suppliers() {
   const form = useFormContext<Values>();
@@ -93,7 +98,7 @@ function Suppliers() {
                 <Field name={`suppliers.${line.s}.name`} decorator={cell} component={[Input]}
                   rules={[{ required: true }, { validator: (value, ctx) => (ctx.array?.filter((item: Supplier) => item.name === value).length ?? 0) > 1 ? '供应商重名' : null }]} />
                 <Field name={`suppliers.${line.s}.level`} component={[Select, { options: ['A', 'B', 'C'].map((value) => ({ label: `${value} 级`, value })) }]} />
-                <Button size="small" onClick={() => form.pushArray(`suppliers.${line.s}.products` as 'suppliers.0.products', { id: crypto.randomUUID(), name: '新产品', price: 1 })}>加产品</Button>
+                <AddProduct supplierIndex={line.s} />
               </Space>
             ),
           },

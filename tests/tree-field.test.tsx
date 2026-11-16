@@ -2,6 +2,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { useState } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
+import { engineOf } from '@shikiform/core/internal'
 import { createForm, Field, Form, TreeField, typed, useField, useTreeNode, type TreeNodeRender } from '@shikiform/react'
 
 afterEach(cleanup)
@@ -176,7 +177,7 @@ describe('<TreeField>', () => {
 
     // Move `undo` ([1, 0]) across parents to the front of `file` ([0, 0])
     await act(async () => {
-      form.moveTree('menu', [1, 0], [0, 0])
+      engineOf(form).moveTree('menu', [1, 0], [0, 0])
     })
 
     // `new` shifted to [0, 1] (`menu.0.children.1`) and keeps both its field error and its local React state

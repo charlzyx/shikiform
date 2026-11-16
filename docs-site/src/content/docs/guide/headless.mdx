@@ -7,14 +7,15 @@ description: 不依赖 UI 库直接使用 useField、useWatch、数组/树上下
 
 - **基础绑定与订阅**：`useField(name)` 负责绑定单个字段，`useWatch(select)` / `<Watch>` 负责订阅任意 `$` 状态变化。
 - **数组行内上下文**：`useArray()` 获取最近一层数组的操作句柄，`useIndex()` 获取当前行下标，`useRecord()` 获取当前行数据，调用时都不需要传数组名。如需展示数组路径自身的错误（不包含子字段），可以在容器或 `ArrayTable` 的 `footer` 中调用 `useArrayErrors()`（注意必须放在 `<ArrayField>` 子树内部，详见 [数组自身的错误](/guide/arrays#数组自身的错误)）。
-- **树节点上下文**：`useTreeNode()` 返回当前节点的 `{ path, pos, index, key, record, dragProps }`。
-- **拖拽排序**：数组句柄（`useArray()` / `useArrayField(name)`）的 `dragProps(index)` 与树节点（`useTreeNode().dragProps()`）或树句柄（`useTreeField(name).dragProps(pos)`）会直接返回所需的 HTML5 拖放事件属性，配合同一句柄的 `move` 即可完成排序。
+- **树上下文**：`useTree()` 取最近一层树（`move`、`dragProps`），`useTreeNode()` 取当前节点的 `{ path, pos, index, record, move, dragProps }`。命名版本是 `useTreeField(name)`。
+- **拖拽排序**：数组句柄（`useArray()` / `useArrayField(name)`）的 `dragProps(index)` 与树句柄（`useTree()` / `useTreeField(name)` 的 `dragProps(pos)`，或 `useTreeNode().dragProps()`）会直接返回所需的 HTML5 拖放事件属性，配合同一句柄的 `move` 即可完成排序。
 
 `useArray`、`useIndex` 和 `useRecord` 在普通 `<ArrayField>` 渲染函数以及 `ArrayItems`、`ArrayCards`、`ArrayTable` 容器内均可通用。
 
 ## 数组行组件：免传路径名
 
 ```tsx preview
+import { type ReactNode } from 'react';
 import { ArrayField, Form, Watch, useArray, useField, useForm, useIndex, useRecord, type Draft } from '@shikiform/react';
 
 type Todo = { id: number; title: string; done: boolean };
@@ -48,11 +49,13 @@ function Row() {
   );
 }
 
-function TodoList() {
+function TodoList({ children }: { children?: ReactNode }) {
+  const array = useArray<Todo>();
   return (
-    <ul style={{ paddingLeft: 0, listStyle: 'none' }}>
-      <ArrayField name="todos" rowKey="id">{() => <Row />}</ArrayField>
-    </ul>
+    <>
+      <ul style={{ paddingLeft: 0, listStyle: 'none' }}>{children}</ul>
+      <button type="button" onClick={() => array.push({ id: nextId++, title: '', done: false })}>添加</button>
+    </>
   );
 }
 
@@ -62,8 +65,7 @@ export default function App() {
   });
   return (
     <Form form={form}>
-      <TodoList />
-      <button type="button" onClick={() => form.pushArray('todos', { id: nextId++, title: '', done: false })}>添加</button>
+      <ArrayField name="todos" rowKey="id" component={TodoList}>{() => <Row />}</ArrayField>
       <Watch select={(d: Draft<Values>) => d.todos.$value.filter((todo) => todo.done).length}>
         {(done) => <p>已完成 {done} 项</p>}
       </Watch>
@@ -97,7 +99,7 @@ function NodeRow() {
 </ul>
 ```
 
-`useTreeNode().dragProps()`（以及 `useTreeField('menu')` 的 `tree.dragProps(pos)`）自带跨父级拖拽和「禁止拖入自身子节点」校验。完整可运行演示见 [示例库 · 树：跨层移动](/examples/arrays#树跨层移动)。
+`useTree().move` / `useTreeNode().dragProps()`（以及 `useTreeField('menu')` 的 `tree.dragProps(pos)`）自带跨父级拖拽和「禁止拖入自身子节点」校验。当前节点的 `path`、`pos` 和兄弟 `index` 在 `useTreeNode()` 上。完整可运行演示见 [示例库 · 树：跨层移动](/examples/arrays#树跨层移动)。
 
 ## 接自己的组件库
 

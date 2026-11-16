@@ -42,8 +42,9 @@ export function useRecord<TRow = any>(): TRow {
 
 /**
  * The tree node this component renders in: `path`, `pos`, `index` (last segment of `pos`), the reactive `record`,
- * plus `move(from, to)` and `dragProps(pos)` — the same node operations the tree handle gives, bound to the tree the
- * node belongs to (found by registering with the nearest tree, like `useArray()` does for arrays).
+ * plus `move(from, to)` and `dragProps(pos)` — the same node operations {@link useTree} gives, bound to the tree the
+ * node belongs to (the longest registered root that contains this path). `useTree()` is the tree itself;
+ * this hook is the current node (`path`, `pos`, `index`). `useIndex()` is that sibling index.
  * Render inside `<TreeField>` (which wraps each node in its row scope).
  * Throws outside a node.
  */

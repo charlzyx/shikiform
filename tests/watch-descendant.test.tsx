@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
+import { engineOf } from '@shikiform/core/internal'
 import { Form, Watch, defineEffects, useForm, type Draft } from '@shikiform/react'
 import type { FormInstance } from '@shikiform/react'
 
@@ -48,7 +49,7 @@ describe('the root `d.$value`', () => {
     expect(view.container.textContent).toBe('2||0')
     await act(async () => form.setValue('text', 'x'))
     expect(view.container.textContent).toBe('2|x|0')
-    await act(async () => form.pushArray('list', 7))
+    await act(async () => engineOf(form).pushArray('list', 7))
     expect(view.container.textContent).toBe('2|x|1')
     expect(form.getValue('snapshot')).toBe('{"a":2,"text":"x","list":[7]}')
   })

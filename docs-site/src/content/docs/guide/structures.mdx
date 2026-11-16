@@ -8,12 +8,13 @@ description: 使用 ObjectField、ArrayField 和 TreeField 建立相对路径作
 | 结构组件 | 提供的路径作用域 | 常用操作方式 |
 |---|---|---|
 | `<ObjectField name="profile">` | `profile.*` | — |
-| `<ArrayField name="items" rowKey="id">` | 每行内为 `items.N.*` | 引擎方法 `form.pushArray` / `insertArray` / `removeArray` / `moveArray` / `swapArray` / `replaceArray`，行组件内用 `useArray()` |
-| `<TreeField name="nodes">` | 每个树节点内为对应节点路径，子节点传入 `node.children` | `useTreeField('nodes')` / `useTreeNode()`（`move`、`dragProps`） |
+| `<ArrayField name="items" rowKey="id">` | 每行内为 `items.N.*` | `useArray()`（行内或 `component` 容器里）/ `useArrayField(name)`：`push` / `insert` / `remove` / `move` / `swap` / `replace` |
+| `<TreeField name="nodes">` | 每个树节点内为对应节点路径，子节点传入 `node.children` | `useTree()` / `useTreeField(name)` 的 `move`、`dragProps`；当前节点 `useTreeNode()`（`path`、`pos`、`index`） |
 
 ## 对象与数组示例
 
 ```tsx preview
+import { type ReactNode } from 'react';
 import { Button, Space } from 'antd';
 import { ArrayField, Field, Form, ObjectField, Watch, useArray, useIndex, useForm, type Draft } from '@shikiform/react';
 import { FormItem, FormLayout, Input } from '@shikiform/antd';
@@ -36,6 +37,17 @@ function RowActions() {
   );
 }
 
+/** 添加按钮放在 `<ArrayField component>` 里，这样 `useArray()` 能拿到这一层数组。 */
+function ContactList({ children }: { children?: ReactNode }) {
+  const array = useArray<Contact>();
+  return (
+    <>
+      {children}
+      <Button onClick={() => array.push({ id: nextId++, name: '', phone: '' })}>添加联系人</Button>
+    </>
+  );
+}
+
 export default function App() {
   const form = useForm<Values>({
     initialValues: {
@@ -54,7 +66,7 @@ export default function App() {
           </ObjectField>
         </ObjectField>
       </FormLayout>
-      <ArrayField name="contacts" rowKey="id">
+      <ArrayField name="contacts" rowKey="id" component={ContactList}>
         {() => (
           <FormLayout layout="inline" feedbackLayout="terse" style={{ marginBottom: 8 }}>
             <Field name="name" title="联系人" decorator={[FormItem]} component={[Input, { style: { width: 120 } }]} />
@@ -63,7 +75,6 @@ export default function App() {
           </FormLayout>
         )}
       </ArrayField>
-      <Button onClick={() => form.pushArray('contacts', { id: nextId++, name: '', phone: '' })}>添加联系人</Button>
       <Watch select={(d: Draft<Values>) => d.$value}>{(values) => <pre>{JSON.stringify(values, null, 2)}</pre>}</Watch>
     </Form>
   );
@@ -73,7 +84,7 @@ export default function App() {
 使用数组和结构组件时，有几个关键机制需要留意：
 - **行身份与状态跟随**：指定 `rowKey="id"` 后，每一行在引擎中都会绑定一个稳定的身份标识；如果行数据本身没有业务主键，引擎也会自动以对象引用作为唯一标识，因此通常无需刻意伪造 id。当发生上移、下移或删除操作时，错误提示和 `touched` 等字段状态会跟着数据行一起移动。
 - **行模板与固定下标的区别**：在 `fields` 中使用 `'contacts.*.name'` 声明的是行模板，它会自动应用到当前及未来新增的所有行上；而写死下标的配置（如 `'contacts.0.name'`）绑定的是「第 0 个位置」本身，行顺序变化后会作用于新的第 0 行。需要让配置跟随具体数据行移动时，请使用行模板或 [`reaction.each`](/guide/linkage#reactioneach每一行一个实例)。
-- **使用数组操作 API**：增删或调整行顺序时请调用 `form.*Array` 或行内的 `useArray()` 方法，不要直接原地修改 `getValue` 返回的数组引用。`<ArrayField>` 只订阅数组的长度与行键变化，修改某个单元格不会导致整张列表重渲染。
+- **使用数组句柄**：增删或调整行顺序时调用 `useArray()` / `useArrayField(name)` 上的 `push` / `remove` / `move` 等方法，不要直接原地修改 `getValue` 返回的数组引用，也不要调用 `form.pushArray`。`<ArrayField>` 只订阅数组的长度与行键变化，修改某个单元格不会导致整张列表重渲染。
 
 如果需要现成的添加、删除、上下移动和拖拽排序按钮，可以使用 [数组容器 ArrayItems / ArrayCards](/guide/arrays)。
 
@@ -107,7 +118,7 @@ const F = typed(form)
 d.user.name.$value = 'x'                              // ✓ 精准修改单个字段，影响范围最小
 d.user.$value = { ...d.user.$value, name: 'x' }       // 整体替换对象，会触发所有 user 读取者重跑
 d.user.$value.name = 'x'                              // ✗ 直接修改不可变快照，开发环境会报错
-d.items.$value = [...d.items.$value, row]             // 整体替换数组（effects 之外推荐用 form.pushArray）
+d.items.$value = [...d.items.$value, row]             // 联动里整体替换数组。组件里用 useArray().push(row)
 ```
 
 与表单值不同，`$componentProps` 这类对象型的 UI 状态支持按键深合并，具体规则见 [UI 状态三层叠加](/guide/field#ui-状态三层叠加)。

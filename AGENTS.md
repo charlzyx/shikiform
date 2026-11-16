@@ -77,13 +77,15 @@ Per-row settings that must follow the row when it moves are `rows.*.x` templates
 An exact-index declaration (`fields: { 'rows.0.x': … }`, `registerField('rows.0.x', …)`) belongs to that path: after a
 move / swap / insert / remove it stays on `rows.0.x` and applies to whichever row sits there now.
 
-In React, a row component reads its row without names: `useArray()` (nearest array handle: `push`, `remove`,
-`move`, `swap`, `dragProps(index)`…), `useIndex()`, `useRecord()` (reactive row value), `useTreeNode()` (inside
-`<TreeField>`; same handle shape with `move(from, to)` and `dragProps(pos?)` — defaulting to the node it
-renders in — read from the nearest registered tree). `useArrayField(name, opts?: { rowKey })` is the named version;
-`useTreeField(name, { childrenKey?, rowKey? })` is the tree handle (`move(from, to)`, `dragProps(pos)`); both resolve
+In React, a row component reads its row without names: `useArray()` (nearest array handle: `push`, `insert`, `remove`,
+`move`, `swap`, `replace`, `dragProps(index)`), `useIndex()`, `useRecord()` (reactive row value). A tree node uses
+`useTree()` (nearest tree: `move(from, to)`, `dragProps(pos)`; throws outside `<TreeField>`) and `useTreeNode()`
+(`path`, `pos`, `index`, reactive `record`, plus the same `move` / `dragProps` for this node). `useIndex()` in a tree
+node is that sibling index. `useArrayField(name, opts?: { rowKey })` and
+`useTreeField(name, { childrenKey?, rowKey? })` are the named handles; both resolve
 the name against the scope (a repeated scope prefix throws in dev) and register the path into the nearest `FieldGroup`,
 like `useField`. Drag-and-drop is `{...handle.dragProps(i)}` on the row; there is no separate drag hook.
+There is no `form.pushArray` / `form.moveTree`: those engine methods stay internal.
 Rows need no id: object rows without `rowKey` / `id` keep a stable object identity (state follows them on move).
 
 Ready-made array UI: give `<ArrayField>` a container `component` from `@shikiform/antd` (Formily `ArrayItems` /
@@ -295,7 +297,7 @@ reaction((d) => {
 - A rule with `level: 'warning'` (`{ validator: weak, level: 'warning' }`) reports to `$warnings` / `field.warnings`
   (FormItem shows it in the warning colour) and never blocks `submit` / `canSubmit` (antd `warningOnly`).
 - Built-in messages default to Chinese. Override per form with `messages` (partial; functions get params:
-  `minLength: ({ minLength }) => …`), app-wide with `setDefaultMessages(enUS)`. A rule's own `message` wins. The same `messages` cover `moveTree` refusal reasons
+  `minLength: ({ minLength }) => …`), app-wide with `setDefaultMessages(enUS)`. A rule's own `message` wins. The same `messages` cover tree-move refusal reasons (`useTree().move` / `useTreeField().move`)
   and every `@shikiform/antd` label (提交 / 重置 / 查询 / 删除 …); a component's own prop (`title`, `okText`) wins.
   Custom components read them with `useFormMessage()` (`t('submit')`) or `form.message('submit')`.
 
@@ -329,7 +331,7 @@ reaction((d) => {
 d.user.$value.name = 'x'                         // ✗ throws in dev: mutates stored data, nobody is notified
 d.user.name.$value = 'x'                         // ✓
 d.items.$value.push(row)                         // ✗ throws in dev
-d.items.$value = [...d.items.$value, row]        // ✓ (outside effects: form.pushArray('items', row))
+d.items.$value = [...d.items.$value, row]        // ✓ inside a reaction. In a component: useArray().push(row)
 
 // 2. Rows: reaction.each, not array methods on a handle
 d.items.forEach((row) => { row.total.$value = 1 })                    // ✗ a handle is not an array
@@ -383,11 +385,12 @@ reaction((d) => { d.city.$componentProps.disabled = d.kind.$value === 'b' })    
 ## 9. Form state: dirty, backfill, server errors
 
 - `useForm()` / `createForm()` return a `FormInstance` (no arguments and `undefined` are `{}`): state getters, `getValue` / `setValue` / `batch`, `submit` /
-  `validate` / `reset` / `setInitialValues` / `getSubmitValues`, `setErrors` / `clearErrors`, array / tree ops, `message`,
-  `subscribe*`. Nothing else: there is no `binding()` / `query()` / `registerField()` on it (declare in `fields`, read in a
+  `validate` / `reset` / `setInitialValues` / `getSubmitValues`, `setErrors` / `clearErrors`, `message`,
+  `subscribe*`. Nothing else: there is no `pushArray` / `moveArray` / `moveTree` / `binding()` / `query()` / `registerField()` on it
+  (array and tree edits go through `useArray` / `useArrayField` / `useTree` / `useTreeField`; declare fields in `fields`, read them in a
   reaction or `useWatch`).
 - `form.values`, `submitting`, `dirty`, `submitCount`, `validating` are read-only getters. Write values with
-  `setValue` / `batch` / array ops, never `form.values = x` (a TS error, and a `TypeError` at runtime).
+  `setValue` / `batch`, never `form.values = x` (a TS error, and a `TypeError` at runtime).
 - `dirty` / `$dirty` / `binding.dirty` = the value differs from `initial` (deep compare; changing it back clears it;
   `display: 'virtual'` and computed fields do not count at form level; `none` does). `edited` / `$edited` is the sticky "a user edited it" flag.
 - Edit page: `useForm({ values: record })` resets to `record` whenever its content changes (new baseline, not dirty;

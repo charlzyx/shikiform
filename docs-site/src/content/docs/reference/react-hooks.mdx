@@ -18,13 +18,13 @@ description: useForm、useField、useWatch、数组与树 Hooks 的签名、返�
 | 数组行增删、排序和拖动（`dragProps`） | [`useArrayField`](#usearrayfield) | 数组结构，不是每个单元格 |
 | 行内取最近的数组 / 行号 / 行值（无需 name） | [`useArray`](#usearray)、[`useIndex`](#useindex)、[`useRecord`](#userecord) | 数组结构 / 不订阅 / 这一行的值 |
 | 最近一层数组自己的错误（不含子字段） | [`useArrayErrors`](#usearrayerrors) | 只订阅该数组路径 |
-| 树结构、节点移动和拖动（`dragProps`） | [`useTreeField`](#usetreefield) | 树结构 |
-| 当前树节点（无需 name） | [`useTreeNode`](#usetreenode) | 这个节点的值 |
+| 树结构、节点移动和拖动（`dragProps`） | [`useTreeField`](#usetreefield)、[`useTree`](#usetree) | 树结构 |
+| 当前树节点的 path / pos / index（无需 name） | [`useTreeNode`](#usetreenode) | 这个节点的值 |
 | 收集一块 JSX 里的字段、读它们的错误 | [`useFieldGroup`](#usefieldgroup)、[`useFieldGroupErrors`](#usefieldgrouperrors) | 组成员 / 组内错误 |
 
 除 `useForm` 外，本页 Hooks 都必须在 `<Form form={form}>` 后代中调用。**在一个组件中先调用 `useField`、再从它返回 `<Form>` 不算在 Provider 内**；把读字段的组件放到 Form 里面。
 
-名字也有区别：`useField(name)` / `useArrayField(name)` 需要名字，返回输入绑定 / 行操作；对应 Formily `ArrayBase.useArray / useIndex / useRecord` 的无名上下文 Hook 是 [`useArray()`](#usearray)、[`useIndex()`](#useindex)、[`useRecord()`](#userecord)，当前字段是不带参数的 [`useField()`](#usefield)（与 Formily `useField()` 相同）。`<Field>`、表格单元格里的 `<Field>` 都用它，只有这一种写法。
+名字也有区别：`useField(name)` / `useArrayField(name)` / `useTreeField(name)` 需要名字，返回输入绑定 / 行操作 / 树操作；对应 Formily `ArrayBase.useArray / useIndex / useRecord` 的无名上下文 Hook 是 [`useArray()`](#usearray)、[`useIndex()`](#useindex)、[`useRecord()`](#userecord)，树是 [`useTree()`](#usetree) 和 [`useTreeNode()`](#usetreenode)（`path`、`pos`、兄弟 `index`），当前字段是不带参数的 [`useField()`](#usefield)（与 Formily `useField()` 相同）。`<Field>`、表格单元格里的 `<Field>` 都用它，只有这一种写法。
 
 ## useForm
 
@@ -522,6 +522,28 @@ function RowTitle() {
 ```
 
 
+## useTree
+
+```ts
+useTree<TNode = unknown>(): TreeHandle<TNode>
+// TreeHandle = useTreeField 的返回值：{ path, value, move, dragProps }
+```
+
+最近一层树（数组那边的 [`useArray`](#usearray)），无需 name：在 `<TreeField>` 的节点里，返回与 `useTreeField` 对同一棵树相同的句柄（订阅树结构）。嵌套 `<TreeField>` 取最近的一层。不在树内时抛错：开发构建是 `ShikiUsageError`，消息为 `useTree() must render inside <TreeField> (a node).`；生产构建是 `Error`，消息为 `useTree() must render inside <TreeField>`。
+
+当前节点的路径和坐标不在这个句柄上。`useTreeNode()` 返回 `{ path, pos, index, record, move, dragProps }`，`index` 是 `pos` 的最后一段；`useIndex()` 读的是同一个兄弟下标。
+
+```tsx
+function MoveFirst() {
+  const tree = useTree()
+  const node = useTreeNode()
+  return <button type="button" onClick={() => tree.move(node.pos, [0])}>移到最前</button>
+}
+<TreeField name="nodes" rowKey="id">
+  {(node) => <li><MoveFirst />{node.children}</li>}
+</TreeField>
+```
+
 ## useTreeField
 
 ```ts
@@ -598,10 +620,17 @@ export default function TreeHookExample() {
 ## useTreeNode
 
 ```ts
-useTreeNode<TNode = any>(): { path: string; pos: Pos; index: number; key: string; record: TNode; dragProps: (pos?: Pos) => DragProps }
+useTreeNode<TNode = any>(): {
+  path: string
+  pos: Pos
+  index: number
+  record: TNode
+  move(from: Pos, to: Pos): MoveResult
+  dragProps(pos?: Pos): DragProps
+}
 ```
 
-当前树节点：`path`、`pos`（树坐标）、`index`（`pos` 的最后一段）、`key`、响应式 `record` 以及 `dragProps(pos?)`（不传参默认指向当前节点）。在 `<TreeField>` 的节点渲染函数内部调用；不在节点内时抛错。
+当前树节点：`path`、`pos`（树坐标）、`index`（`pos` 的最后一段，和 `useIndex()` 相同）、响应式 `record`，以及绑定到这棵树的 `move` / `dragProps(pos?)`（不传参默认指向当前节点）。整棵树的句柄是 [`useTree()`](#usetree)。在 `<TreeField>` 的节点里调用；不在节点内时抛错。
 
 ```tsx
 function NodeLabel() {

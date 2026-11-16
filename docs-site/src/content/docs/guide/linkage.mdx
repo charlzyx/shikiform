@@ -135,9 +135,9 @@ reaction.each((d) => d.orders, (node, ctx) => {
 同样地，`watch.each` 遵循相同的遍历规则，但具备 `watch` 的语义：初始化时不执行，仅当某一行回调内部读取的 `$` 状态发生变化时，针对那一行触发动作（兄弟行增删或移动不会误触发）。非常适合「当某行的商品切换时，重置该行数量」这类交互逻辑：
 
 ```tsx preview play=sku
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Button } from 'antd';
-import { ArrayField, Field, Form, defineEffects, useForm } from '@shikiform/react';
+import { ArrayField, Field, Form, defineEffects, useArray, useForm, useIndex } from '@shikiform/react';
 import { FormItem, FormLayout, InputNumber, Select } from '@shikiform/antd';
 
 type Item = { id: number; sku: string; price: number; qty: number; total: number };
@@ -159,6 +159,22 @@ const effects = defineEffects<Values>(({ reaction, watch }) => {
   });
 });
 
+function RemoveButton() {
+  const array = useArray<Item>();
+  const index = useIndex();
+  return <Button danger onClick={() => array.remove(index)}>删除</Button>;
+}
+
+function ItemList({ children }: { children?: ReactNode }) {
+  const array = useArray<Item>();
+  return (
+    <>
+      {children}
+      <Button style={{ marginTop: 12 }} onClick={() => array.push({ id: nextId++, sku: '', price: 0, qty: 1, total: 0 })}>添加一行</Button>
+    </>
+  );
+}
+
 export default function App() {
   const [result, setResult] = useState('');
   const form = useForm<Values>({
@@ -171,18 +187,17 @@ export default function App() {
       <FormLayout layout="inline" feedbackLayout="terse">
         <Field name="discount" title="折扣 %" decorator={[FormItem]} component={[InputNumber, { min: 0, max: 100 }]} />
       </FormLayout>
-      <ArrayField name="items" rowKey="id">
-        {({ index }) => (
+      <ArrayField name="items" rowKey="id" component={ItemList}>
+        {() => (
           <FormLayout layout="inline" feedbackLayout="terse" style={{ marginTop: 12 }}>
             <Field name="sku" title="商品" decorator={[FormItem]} component={[Select, { style: { width: 100 } }]} />
             <Field name="price" title="单价" decorator={[FormItem]} component={[InputNumber]} />
             <Field name="qty" title="数量" decorator={[FormItem]} component={[InputNumber, { min: 1 }]} />
             <Field name="total" title="小计" decorator={[FormItem]} component={[InputNumber]} />
-            <Button danger onClick={() => form.removeArray('items', index)}>删除</Button>
+            <RemoveButton />
           </FormLayout>
         )}
       </ArrayField>
-      <Button style={{ marginTop: 12 }} onClick={() => form.pushArray('items', { id: nextId++, sku: '', price: 0, qty: 1, total: 0 })}>添加一行</Button>
       <Button style={{ marginTop: 12, marginLeft: 8 }} type="primary" htmlType="submit">提交</Button>
       <pre>{result}</pre>
     </Form>

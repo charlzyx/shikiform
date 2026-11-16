@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Button } from 'antd';
-import { ArrayField, Field, Form, useForm } from '@shikiform/react';
+import { ArrayField, Field, Form, useArray, useForm, useIndex } from '@shikiform/react';
 import { FormItem, FormLayout, Input, InputNumber, Submit } from '@shikiform/antd';
 
 type Row = { id: string; name: string; price: number; qty: number; total: number };
@@ -10,6 +10,22 @@ function createRow(): Row {
   return { id: crypto.randomUUID(), name: '', price: 0, qty: 1, total: 0 };
 }
 
+function RemoveButton() {
+  const array = useArray<Row>();
+  const index = useIndex();
+  return <Button danger onClick={() => array.remove(index)}>删除</Button>;
+}
+
+function ItemList({ children }: { children?: ReactNode }) {
+  const array = useArray<Row>();
+  return (
+    <>
+      {children}
+      <Button onClick={() => array.push(createRow())}>添加一行</Button>{' '}
+    </>
+  );
+}
+
 export default function App() {
   const [payload, setPayload] = useState('');
   const form = useForm<Values>({
@@ -17,7 +33,7 @@ export default function App() {
   });
   return (
     <Form form={form} onSubmit={(values) => setPayload(JSON.stringify(values, null, 2))}>
-      <ArrayField name="items" rowKey="id">
+      <ArrayField name="items" rowKey="id" component={ItemList}>
         {({ index }) => (
           <fieldset>
             <legend>第 {index + 1} 行</legend>
@@ -26,12 +42,11 @@ export default function App() {
               <Field name="price" title="单价" decorator={[FormItem]} component={[InputNumber]} />
               <Field name="qty" title="数量" decorator={[FormItem]} component={[InputNumber]} />
               <Field name="total" title="小计" decorator={[FormItem]} component={[InputNumber]} />
-              <Button danger onClick={() => form.removeArray('items', index)}>删除</Button>
+              <RemoveButton />
             </FormLayout>
           </fieldset>
         )}
       </ArrayField>
-      <Button onClick={() => form.pushArray('items', createRow())}>添加一行</Button>{' '}
       <Submit>提交</Submit>
       {payload ? <pre className="shiki-code">{payload}</pre> : null}
     </Form>

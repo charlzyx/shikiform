@@ -36,5 +36,19 @@ describe('public surface', () => {
     void form.setFieldError
     // @ts-expect-error removed: use the form-level `validate` function
     createForm({ initialValues: { a: '' }, resolver: () => ({}) })
+    // @ts-expect-error array edits are on useArray() / useArrayField(name), not the form
+    void form.pushArray
+    // @ts-expect-error array edits are on useArray() / useArrayField(name), not the form
+    void form.insertArray
+    // @ts-expect-error array edits are on useArray() / useArrayField(name), not the form
+    void form.removeArray
+    // @ts-expect-error array edits are on useArray() / useArrayField(name), not the form
+    void form.moveArray
+    // @ts-expect-error array edits are on useArray() / useArrayField(name), not the form
+    void form.swapArray
+    // @ts-expect-error array edits are on useArray() / useArrayField(name), not the form
+    void form.replaceArray
+    // @ts-expect-error tree moves are on useTree() / useTreeField(name), not the form
+    void form.moveTree
   })
 })

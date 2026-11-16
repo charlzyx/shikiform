@@ -3,6 +3,7 @@ import { act, cleanup, render } from '@testing-library/react'
 import { useState } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { ArrayField, Field, Form, createForm, useField } from '@shikiform/react'
+import { createEngine } from '../packages/core/src/engine/create'
 
 type Row = { a: string; b: number; c: number; t: number }
 type V = { rows: Row[]; title: string }
@@ -15,7 +16,7 @@ function Cell() {
 }
 
 function mk() {
-  return createForm<V>({
+  return createEngine<V>({
     initialValues: { title: '', rows: Array.from({ length: N }, (_, i) => ({ a: `x${i}`, b: i, c: 2, t: 0 })) },
   })
 }

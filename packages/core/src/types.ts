@@ -548,6 +548,9 @@ export interface MoveResult {
 /**
  * Core form. No React.
  * Field models are created lazily on `$` access, `registerField`, or `fields` in options.
+ * Array and tree structure changes are not methods on this type. In React, call `push` / `insert` /
+ * `remove` / `move` / `swap` / `replace` on the handle from `useArray()` / `useArrayField(name)`, and
+ * `move` on the handle from `useTree()` / `useTreeField(name)`. Inside a reaction, assign a new array.
  */
 export interface FormInstance<T, TSubmit = T> {
   readonly values: T
@@ -625,25 +628,6 @@ export interface FormInstance<T, TSubmit = T> {
    * JSX `display` and a reaction `$display` are not visible; list those with `createForm<T, SubmitValues<T, 'tmp'>>()`.
    */
   getSubmitValues(): TSubmit
-
-  /** Move an array row. `to` is the final index. Field models follow the row id. */
-  moveArray<P extends ArrayPath<T>>(path: P, from: number, to: number): void
-  /** Exchange two indexes. Field models follow the row ids. */
-  swapArray<P extends ArrayPath<T>>(path: P, indexA: number, indexB: number): void
-  /** Replace the row at `index`. The previous row's field model is dropped. */
-  replaceArray<P extends ArrayPath<T>>(path: P, index: number, row: ArrayItemOf<T, P & string>): void
-  /** Insert `row` at `index`. Later rows shift. Their field models follow row id. */
-  insertArray<P extends ArrayPath<T>>(path: P, index: number, row: ArrayItemOf<T, P & string>): void
-  /** Remove the row at `index`. Its field model is dropped. Later models follow row id. */
-  removeArray<P extends ArrayPath<T>>(path: P, index: number): void
-  /** Append `row`. An item template (`rows.*.name`) is applied to the new index. */
-  pushArray<P extends ArrayPath<T>>(path: P, row: ArrayItemOf<T, P & string>): void
-
-  /**
-   * Move a tree node to its final `pos`.
-   * Refuses a move into the node's own descendant. Field models follow `rowKey`.
-   */
-  moveTree<P extends ArrayPath<T>>(path: P, from: Pos, to: Pos): MoveResult
 
   /** One built-in text resolved for this form: `options.messages` → `setDefaultMessages` → `zhCN` (`form.message('submit')`). */
   message<K extends FormMessageKey>(key: K, ...params: MessageArgs<K>): string

@@ -23,7 +23,7 @@ export type {
 export { typed } from './factory/typed'
 export type { ScopeFields, TypedForm } from './factory/typed'
 export { useFormContext } from './context'
-export type { ArrayScopeValue, ScopeValue } from './context'
+export type { ArrayScopeValue, ScopeValue, TreeScopeValue } from './context'
 export { FieldKit } from './field-kit'
 export type { FieldComponents, FieldDecorators, FieldKitDecorator, FieldKitSpec } from './field-kit'
 export { ArrayField, Field, Form, ObjectField, TreeField, Watch } from './components/fields'
@@ -44,7 +44,8 @@ export type { ClickEvent, ResetState, SubmitState, UseResetOptions, UseSubmitOpt
 export { useForm } from './hooks/use-form'
 export type { UseFormOptions } from './hooks/use-form'
 export { useFormMessage } from './hooks/use-form-message'
-export { useTreeField } from './hooks/use-tree'
+export { useTree, useTreeField } from './hooks/use-tree'
+export type { TreeHandle, TreeOptions } from './hooks/use-tree'
 export { useWatch } from './hooks/use-watch'
 export { createForm, defineEffects, enUS, get, getDefaultMessages, set, setDefaultMessages, zhCN, EnumSource, ShikiConflictError, ShikiCycleError, ShikiUsageError } from '@shikiform/core'
 export type {

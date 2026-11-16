@@ -8,7 +8,7 @@ description: 四个入口、createForm 选项、引擎方法、React 组件与�
 | 要查什么 | 参考页 |
 |---|---|
 | `createForm`、`get`、`set`、`defineEffects`、`EnumSource`、错误类、文案 | [Core](/reference/core) |
-| `useForm`、`typed`、`useFormContext`、`useFormMessage`、`useField`（无参即当前字段）、`useFieldDecorator`、`useSubmit`、`useReset`（+ headless `<Submit>` / `<Reset>`）、`useWatch`、`useArrayField`、`useArray`、`useArrayErrors`、`useIndex`、`useRecord`、`useTreeField`、`useTreeNode`、`useFieldGroup`、`useFieldGroupErrors`（+ `<FieldGroup>`） | [React Hooks](/reference/react-hooks) |
+| `useForm`、`typed`、`useFormContext`、`useFormMessage`、`useField`（无参即当前字段）、`useFieldDecorator`、`useSubmit`、`useReset`（+ headless `<Submit>` / `<Reset>`）、`useWatch`、`useArrayField`、`useArray`、`useArrayErrors`、`useIndex`、`useRecord`、`useTreeField`、`useTree`、`useTreeNode`、`useFieldGroup`、`useFieldGroupErrors`（+ `<FieldGroup>`） | [React Hooks](/reference/react-hooks) |
 | `connect`、`mapProps`（定义在 `@shikiform/react`，antd 再导出）、`FormItem`、`FormLayout`、`useFormLayout`、`FormGrid`、`GridColumn`、`useFormGrid`、`FormButtonGroup`、`PreviewText`（及 `.Select` 等阅读态视图）、接好的控件（`Input` … `TimePicker`、`TreeSelect`、`Cascader`、`Upload`、`Slider`、`Rate`、`Transfer`、`AutoComplete`、`ColorPicker`） | [Ant Design 适配层](/reference/antd-adapter) |
 | `Submit`、`Reset`、控件取值契约、`ArrayItems`、`ArrayCards`、`ArrayTable`、`useArrayEditable`、`FormTab`、`FormCollapse`、`FormStep`、`useFormStep`、`MergedTable`、`groupRowSpan` | [Ant Design 参考](/reference/antd) |
 | `useQueryTable`、`useBuiltinQuery` | [查询 Hooks](/reference/query-hooks) |
@@ -33,7 +33,7 @@ useForm<T, TSubmit = T>(options?: UseFormOptions<T>): FormInstance<T, TSubmit>  
 createForm<T, TSubmit = T>(options?: FormOptions<T>): FormInstance<T, TSubmit>  // 组件外；省略 options 等同 {}
 ```
 
-返回的 `FormInstance` 只有下面列出的成员（状态、读写、提交、数组 / 树操作、订阅）；引擎内部的绑定、租约、版本号不在上面。选项只在创建时读取，之后改值用写入 API 或 `reset`。`TSubmit` 是提交值的类型，见下面的 [提交值类型](#提交值类型)。
+返回的 `FormInstance` 只有下面列出的成员（状态、读写、提交、订阅）；引擎内部的绑定、租约、版本号不在上面，数组和树的增删移动也不在上面。选项只在创建时读取，之后改值用写入 API 或 `reset`。`TSubmit` 是提交值的类型，见下面的 [提交值类型](#提交值类型)。
 
 | 选项 | 默认 | 作用 |
 |---|---|---|
@@ -54,8 +54,7 @@ createForm<T, TSubmit = T>(options?: FormOptions<T>): FormInstance<T, TSubmit>  
 |---|---|
 | `getValue(path)` / `setValue(path, value)` | 读 / 写一个有类型的 path，`a.b.c` 与 `a.b[0].c` 都可以；拿到的对象不要原地修改 |
 | `batch((d) => { … })` | 用一个 draft 做多次写入，一轮联动、一次通知 |
-| `pushArray` / `insertArray` / `removeArray` / `moveArray` / `swapArray` / `replaceArray` | 数组行操作，字段状态跟着 `rowKey` 走 |
-| `moveTree(path, from, to)` | 移动树节点到最终坐标，拒绝移进自己的子孙，返回 `{ ok, reason? }` |
+| 数组 / 树增删移动 | 不在表单上。见下面的 [数组与树句柄](#数组与树句柄) |
 | `validate(path?)` | 校验全表、一棵子树，或一组路径（`validate(['a', 'b'])`，一次校验，`FormStep` 的「下一步」就是它）→ `Promise<FieldError[]>` |
 | `submit(onValid?)` | 等异步规则、校验，通过才调用 `onValid` → `SubmitResult`：`{ ok: true, values }`，或 `ok: false` 带 `reason`：`'invalid'`（`errors`）/ `'error'`（`onValid` 抛错，`error`）/ `'superseded'`（值一直在变，`message`）。从不 reject |
 | `getSubmitValues()` | 去掉 `display: 'virtual'` 和 `display: 'none'` 后的值。reaction 写过的字段默认留下 |
@@ -69,6 +68,40 @@ createForm<T, TSubmit = T>(options?: FormOptions<T>): FormInstance<T, TSubmit>  
 | `subscribePath(path, fn)` / `subscribeStructure(path, fn)` / `subscribeMeta(fn)` | 不用 React 时订阅：某个 path 的值或字段状态变化 / 数组或树的长度、顺序变化 / `canSubmit`、`submitting`、`submitCount`、`dirty`、`validating` 变化。返回取消订阅。React 里用 `useWatch` / `useField` |
 
 实例属性（`values`、`initial`、`errors`、`canSubmit`、`submitting`、`validating`、`submitCount`、`dirty`、`edited`）都是**只读**的，赋值是 TS 错误、运行时抛 `TypeError`；写值走上面的方法。它们不会触发渲染；在 React 里用 `useWatch((d) => d.$canSubmit)` 之类订阅。
+
+### 数组与树句柄
+
+行和节点的结构操作在句柄上，不在 `form.pushArray` / `form.moveTree` 上。句柄来自上下文（最近一层，不需要 name）或按名字取。字段状态跟着 `rowKey`（没有 id 时是稳定的对象身份）走。
+
+```ts
+useArray<TRow = unknown>(): ArrayHandle<TRow>
+useArrayField(name, opts?: { rowKey?: string }): ArrayHandle<行类型>
+useTree<TNode = unknown>(): TreeHandle<TNode>
+useTreeField(name, opts?: { childrenKey?: string; rowKey?: string }): TreeHandle<unknown>
+
+interface ArrayHandle<TRow> {
+  path: string
+  keys: { key: string; index: number }[]
+  push(row: TRow): void
+  insert(index: number, row: TRow): void
+  remove(index: number): void
+  move(from: number, to: number): void   // to 是最终下标
+  swap(indexA: number, indexB: number): void
+  replace(index: number, row: TRow): void
+  dragProps(index: number): DragProps
+}
+
+interface TreeHandle<TNode> {
+  path: string
+  value: TNode[]
+  move(from: Pos, to: Pos): MoveResult   // 最终坐标；拒绝移入自身子孙，reason 说明原因
+  dragProps(pos: Pos): DragProps
+}
+```
+
+`useArray()` 必须渲染在 `<ArrayField>` 里（行，或 `component` 容器，工具栏也算）；`useTree()` 必须渲染在 `<TreeField>` 里。不在里面时，开发构建抛 `ShikiUsageError`。嵌套时取最近的一层。当前行下标是 `useIndex()`（树节点里是兄弟下标），当前行或节点的值是 `useRecord()`。当前树节点的路径和坐标是 `useTreeNode()`：`{ path, pos, index, record, move, dragProps }`。
+
+联动里改数组是赋一个新数组（`d.items.$value = [...d.items.$value, row]`），不要原地 `push`。组件里追加、删除、排序用上面的句柄。签名和例子在 [useArray](/reference/react-hooks#usearray)、[useTree](/reference/react-hooks#usetree)。
 
 - `dirty`：当前值和初始值**不同**（深比较），改回原值就变回 `false`；表单级不算 `display: 'virtual'` 和计算字段（`none` 仍算）。适合「没改动时禁用保存」「离开前提示未保存」。
 - `edited`：粘滞标记，用户编辑过（`setValue` / 控件 `onChange`）就为 `true`，直到 `reset`。reaction 写值不算。
@@ -116,7 +149,7 @@ await form.submit((values) => {
 | `<Field name …>` | 拥有一个 path，渲染 decorator + component，属性见 [Field](/guide/field) |
 | `<ObjectField name display?>` | 对象作用域。`display="virtual"` 整棵对象不进提交 |
 | `<ArrayField name rowKey? component? virtualScroll?>{({ index, key }) => …}` | 每行一个作用域；父组件只订阅结构。`component` 是包住各行的容器（`ArrayItems` / `ArrayCards` / `ArrayTable`，见 [数组字段](/guide/arrays)），`ArrayTable` 的单元格来自 `columns`，不写行 children；`virtualScroll={{ height }}` 只挂载可见的普通行，不和 `component` 同用 |
-| `<TreeField name childrenKey? rowKey?>{(node) => …}` | 注册树根并递归渲染节点：`node` 为 `{ path, pos, index, key, depth, children }`（叶子节点的 `children` 为 `null`），节点内用 `useTreeNode()` 读取坐标与 `dragProps()` |
+| `<TreeField name childrenKey? rowKey?>{(node) => …}` | 注册树根并递归渲染节点：`node` 为 `{ path, pos, index, key, depth, children }`（叶子节点的 `children` 为 `null`），节点内用 `useTree()` 拿整棵树、`useTreeNode()` 读取当前节点的 `path` / `pos` / `index` 与 `dragProps()` |
 | `<Field name ui="echo">` / `<UI name component decorator …>` | 同一字段的第二个 UI（`d.x.$ui('echo')`）/ 不带值的 UI 节点（`d.$ui(name)`），见 [命名 UI 节点](/guide/ui) |
 | `<FieldGroup value>` | 收集其中挂载的字段路径，配合 `useFieldGroup()` / `useFieldGroupErrors()`，见 [参考](/reference/react-hooks#usefieldgroup) |
 | `<Watch select>{(value) => …}` | `useWatch` 的渲染形式 |
@@ -163,7 +196,7 @@ comboMatch(table, selection): boolean                                     // 组
 comboOptions(table, selection, dim, { disabledWhen? }?): ComboOption[]    // 其余维度已选时，dim 还能选哪些值
 ```
 
-`moveNode` 的拒绝原因（移到自己的子树里、坐标不存在）走表单 `messages`（`treeIntoSelf` …）。树句柄 `useTreeField().move` 和联动里的树移动用的就是它。组合表的完整例子在 [示例 · 联动](/examples/linkage)。外部校验库直接传给 `rules` / `validate`（Standard Schema），不需要额外的工具函数。
+`moveNode` 的拒绝原因（移到自己的子树里、坐标不存在）走表单 `messages`（`treeIntoSelf` …）。树句柄 `useTree().move` / `useTreeField().move` 返回的 `reason` 用的就是它。组合表的完整例子在 [示例 · 联动](/examples/linkage)。外部校验库直接传给 `rules` / `validate`（Standard Schema），不需要额外的工具函数。
 
 ## 错误类与文案
 
