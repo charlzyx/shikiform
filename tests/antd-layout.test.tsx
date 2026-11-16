@@ -10,10 +10,10 @@ import {
   FormLayout,
   GridColumn,
   Input,
-  mapFormItemProps,
   Reset,
   Submit,
 } from '@shikiform/antd'
+import { mapFormItemProps } from '../packages/antd/src/adapter/form-item'
 import { breakpointIndex } from '../packages/antd/src/adapter/form-layout'
 import { gridColumns } from '../packages/antd/src/adapter/form-grid'
 import { createEngine } from '../packages/core/src/engine/create'

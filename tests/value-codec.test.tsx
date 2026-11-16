@@ -1,39 +1,45 @@
 // @vitest-environment happy-dom
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { Field, Form, connect, mapFieldProps, mapProps, mapReadPretty, type FieldBinding } from '@shikiform/react'
+import { Field, Form, connect, mapProps } from '@shikiform/react'
 import { createEngine } from '../packages/core/src/engine/create'
 
 afterEach(() => cleanup())
 
-function binding(value: unknown) {
-  const form = createEngine({ initialValues: { day: value } })
-  return { form, field: form.binding('day') as FieldBinding<any> }
-}
-
 describe('format / parse', () => {
   it('turns a field string into the control value and writes the parsed value back', () => {
-    const { form, field } = binding('2026-11-09')
-    const props = mapFieldProps(field, { format: 'YYYY-MM-DD' }, {
-      format: (value: string | undefined, props) => (value ? `${props.format}:${value}` : null),
-      parse: (next: string | null) => (next ? next.slice(0, 10) : undefined),
-    })
-    expect(props.value).toBe('YYYY-MM-DD:2026-11-09')
-    props.onChange('2026-12-01')
+    const seen: Record<string, any>[] = []
+    const Control = connect(
+      (props: { value?: string | null; onChange?: (next: string | null) => void; format?: string; onBlur?: () => void }) => {
+        seen.push(props)
+        return null
+      },
+      mapProps({
+        format: (value: string | undefined, props) => (value ? `${props.format}:${value}` : null),
+        parse: (next: string | null) => (next ? next.slice(0, 10) : undefined),
+      }),
+    )
+    const form = createEngine({ initialValues: { day: '2026-11-09' } })
+    render(<Form form={form}><Control name="day" format="YYYY-MM-DD" /></Form>)
+    expect(seen.at(-1)!.value).toBe('YYYY-MM-DD:2026-11-09')
+    seen.at(-1)!.onChange('2026-12-01')
     expect(form.getValue('day')).toBe('2026-12-01')
-    props.onChange(null)
+    seen.at(-1)!.onChange(null)
     expect(form.getValue('day')).toBeUndefined()
   })
 
   it('runs format after transforms, reading the field value rather than a transformed one', () => {
-    const { field } = binding('2026-01-02')
-    const props = mapFieldProps(
-      field,
-      {},
-      { format: (value: unknown, props) => `${props.pattern}:${String(value)}` },
-      (mapped) => ({ ...mapped, pattern: 'YYYY', value: 'transformed' }),
+    const seen: Record<string, any>[] = []
+    const Control = connect(
+      (props: Record<string, any>) => { seen.push(props); return null },
+      mapProps(
+        { format: (value: unknown, props) => `${props.pattern}:${String(value)}` },
+        (mapped) => ({ ...mapped, pattern: 'YYYY', value: 'transformed' }),
+      ),
     )
-    expect(props.value).toBe('YYYY:2026-01-02')
+    const form = createEngine({ initialValues: { day: '2026-01-02' } })
+    render(<Form form={form}><Control name="day" /></Form>)
+    expect(seen.at(-1)!.value).toBe('YYYY:2026-01-02')
   })
 
   it('connects a date control: the field keeps text, the control sees a Date, readPretty sees text', () => {
@@ -62,8 +68,9 @@ describe('format / parse', () => {
     const Pretty = connect(DateInput, mapProps({
       format: (value: string | undefined) => (value ? new Date(value) : null),
       parse: (next: Date | null) => next?.toISOString(),
-    }), mapReadPretty(function View({ value }: { value?: string }) {
-      return <span data-read-pretty>{value}</span>
+      readPretty: function View({ value }: { value?: string }) {
+        return <span data-read-pretty>{value}</span>
+      },
     }))
     const form = createEngine({ initialValues: { day: '2026-11-09', shown: '2026-11-09' }, fields: { shown: { pattern: 'readPretty' } } })
     const view = render(

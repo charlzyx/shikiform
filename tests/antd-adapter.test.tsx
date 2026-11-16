@@ -3,6 +3,7 @@ import { createRef, forwardRef, type ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 import { defineEffects, Field, Form, useField, type FieldBinding } from '@shikiform/react'
+import * as ReactPublic from '@shikiform/react'
 import { FieldContext } from '../packages/react/src/field-context'
 import { zhCN } from '../packages/core/src/validation/messages'
 import {
@@ -13,15 +14,14 @@ import {
   FormLayout,
   Input,
   InputNumber,
-  mapFieldProps,
-  mapFormItemProps,
   mapProps,
-  mapReadPretty,
   PreviewText,
   Radio,
   Select,
   Switch,
 } from '@shikiform/antd'
+import * as AntdPublic from '@shikiform/antd'
+import { mapFormItemProps } from '../packages/antd/src/adapter/form-item'
 import { createEngine } from '../packages/core/src/engine/create'
 
 type Pattern = 'editable' | 'disabled' | 'readOnly' | 'readPretty'
@@ -44,15 +44,22 @@ function target(Component: any, props: Record<string, unknown>): ReactElement<an
   return element
 }
 
-describe('mapFieldProps (the pure core of connect)', () => {
+describe('connect + mapProps prop mapping', () => {
   it('binds value, chains onChange / onBlur once with the original arguments', () => {
-    const { form, field } = binding('')
+    const seen: Record<string, any>[] = []
+    const Probe = connect((props: Record<string, any>) => { seen.push(props); return null })
+    const form = createEngine({ initialValues: { x: '' } })
     const onChange = vi.fn(() => expect(form.getValue('x')).toBe('Ada'))
     const onBlur = vi.fn()
-    const props = mapFieldProps(field, { onChange, onBlur, placeholder: 'p' })
+    renderToStaticMarkup(
+      <Form form={form} id="f">
+        <Probe name="x" onChange={onChange} onBlur={onBlur} placeholder="p" />
+      </Form>,
+    )
+    const props = seen.at(-1)!
     expect(props.value).toBe('')
     expect(props.placeholder).toBe('p')
-    expect(props.id).toBe('x')
+    expect(props.id).toBe('f-x')
     const event = { target: { value: 'Ada' } }
     props.onChange(event)
     expect(form.getValue('x')).toBe('Ada')
@@ -64,16 +71,25 @@ describe('mapFieldProps (the pure core of connect)', () => {
   })
 
   it('reads checkbox events as checked and non-events as the value itself', () => {
-    const { form, field } = binding(false)
-    mapFieldProps(field, {}).onChange({ target: { type: 'checkbox', checked: true, value: 'on' } })
+    const seen: Record<string, any>[] = []
+    const Probe = connect((props: Record<string, any>) => { seen.push(props); return null })
+    const form = createEngine({ initialValues: { x: false as unknown } })
+    renderToStaticMarkup(<Form form={form}><Probe name="x" /></Form>)
+    seen.at(-1)!.onChange({ target: { type: 'checkbox', checked: true, value: 'on' } })
     expect(form.getValue('x')).toBe(true)
-    mapFieldProps(form.binding('x') as FieldBinding<any>, {}).onChange(null)
+    seen.at(-1)!.onChange(null)
     expect(form.getValue('x')).toBe(null)
   })
 
   it('renames, merges, and drops binding props', () => {
-    const { field } = binding(true, { pattern: 'readOnly' })
-    const props = mapFieldProps(field, {}, { value: 'checked', readOnly: 'disabled', status: false })
+    const seen: Record<string, any>[] = []
+    const Probe = connect(
+      (props: Record<string, any>) => { seen.push(props); return null },
+      mapProps({ value: 'checked', readOnly: 'disabled', status: false }),
+    )
+    const form = createEngine({ initialValues: { x: true }, fields: { x: { pattern: 'readOnly' } } })
+    renderToStaticMarkup(<Form form={form}><Probe name="x" /></Form>)
+    const props = seen.at(-1)!
     expect(props.checked).toBe(true)
     expect(props.disabled).toBe(true)
     expect('readOnly' in props).toBe(false)
@@ -82,33 +98,91 @@ describe('mapFieldProps (the pure core of connect)', () => {
   })
 
   it('ORs disabled/readOnly with caller props and derives status only when mapped', async () => {
+    const plainSeen: Record<string, any>[] = []
+    const optInSeen: Record<string, any>[] = []
+    const Plain = connect((props: Record<string, any>) => { plainSeen.push(props); return null })
+    const OptIn = connect((props: Record<string, any>) => { optInSeen.push(props); return null }, mapProps({ status: 'status' }))
     const form = createEngine({ initialValues: { x: '' }, fields: { x: { required: true } } })
     await form.validate()
-    const field = form.binding('x') as FieldBinding<any>
-    expect(mapFieldProps(field, { disabled: true }).disabled).toBe(true)
-    expect('status' in mapFieldProps(field, {})).toBe(false)
-    expect(mapFieldProps(field, {}, { status: 'status' }).status).toBe('error')
-    expect(mapFieldProps(field, { status: 'warning' }, { status: 'status' }).status).toBe('warning')
+    renderToStaticMarkup(<Form form={form}><Plain name="x" disabled /><OptIn name="x" /></Form>)
+    expect(plainSeen.at(-1)!.disabled).toBe(true)
+    expect('status' in plainSeen.at(-1)!).toBe(false)
+    expect(optInSeen.at(-1)!.status).toBe('error')
+    renderToStaticMarkup(<Form form={form}><OptIn name="x" status="warning" /></Form>)
+    expect(optInSeen.at(-1)!.status).toBe('warning')
   })
 
   it('maps the field enum to options only when asked, and a caller list wins', () => {
-    const { field } = binding('a', { enum: [{ label: 'A', value: 'a' }] })
-    expect(mapFieldProps(field, {}).options).toBeUndefined()
-    expect(mapFieldProps(field, {}, { options: 'options' }).options).toEqual([{ label: 'A', value: 'a', disabled: undefined }])
-    expect(mapFieldProps(field, { options: [] }, { options: 'options' }).options).toEqual([])
+    const plainSeen: Record<string, any>[] = []
+    const mappedSeen: Record<string, any>[] = []
+    const Plain = connect((props: Record<string, any>) => { plainSeen.push(props); return null })
+    const Mapped = connect((props: Record<string, any>) => { mappedSeen.push(props); return null }, mapProps({ options: 'options' }))
+    const form = createEngine({ initialValues: { x: 'a' }, fields: { x: { enum: [{ label: 'A', value: 'a' }] } } })
+    renderToStaticMarkup(<Form form={form}><Plain name="x" /><Mapped name="x" /></Form>)
+    expect(plainSeen.at(-1)!.options).toBeUndefined()
+    expect(mappedSeen.at(-1)!.options).toEqual([{ label: 'A', value: 'a', disabled: undefined }])
+    renderToStaticMarkup(<Form form={form}><Mapped name="x" options={[]} /></Form>)
+    expect(mappedSeen.at(-1)!.options).toEqual([])
   })
 
   it('runs transforms last and uses a custom parse', () => {
-    const { form, field } = binding(0)
-    const props = mapFieldProps(field, {}, { parse: (v: string) => Number(v) }, (p) => ({ ...p, extra: 1 }))
+    const seen: Record<string, any>[] = []
+    const Probe = connect(
+      (props: Record<string, any>) => { seen.push(props); return null },
+      mapProps({ parse: (v: string) => Number(v) }, (p) => ({ ...p, extra: 1 })),
+    )
+    const form = createEngine({ initialValues: { x: 0 } })
+    renderToStaticMarkup(<Form form={form}><Probe name="x" /></Form>)
+    const props = seen.at(-1)!
     props.onChange('42')
     expect(form.getValue('x')).toBe(42)
     expect(props.extra).toBe(1)
   })
 
   it('treats readPretty as readOnly when there is no read-pretty view', () => {
-    const { field } = binding('x', { pattern: 'readPretty' })
-    expect(mapFieldProps(field, {}).readOnly).toBe(true)
+    const seen: Record<string, any>[] = []
+    const Probe = connect((props: Record<string, any>) => { seen.push(props); return null })
+    const form = createEngine({ initialValues: { x: 'x' }, fields: { x: { pattern: 'readPretty' } } })
+    renderToStaticMarkup(<Form form={form}><Probe name="x" /></Form>)
+    expect(seen.at(-1)!.readOnly).toBe(true)
+  })
+
+  it('supports readPretty: [View, defaultProps] tuple and last-enhancer-wins override', () => {
+    const FirstView = ({ value, badge }: { value?: string; badge?: string }) => (
+      <span data-view="first" data-badge={badge}>{value}</span>
+    )
+    const SecondView = ({ value, badge, tone }: { value?: string; badge?: string; tone?: string }) => (
+      <span data-view="second" data-badge={badge} data-tone={tone}>{value}</span>
+    )
+    const WithTuple = connect(
+      (props: { value?: string; onBlur?: () => void }) => <input readOnly value={props.value} />,
+      mapProps({ readPretty: [FirstView, { badge: 'default' }] }),
+    )
+    const Overridden = connect(
+      (props: { value?: string; badge?: string; onBlur?: () => void }) => <input readOnly value={props.value} />,
+      mapProps({ readPretty: [FirstView, { badge: 'first' }] }),
+      mapProps({ readPretty: [SecondView, { badge: 'second', tone: 'blue' }] }),
+    )
+    const form = createEngine({ initialValues: { x: 'hi' }, fields: { x: { pattern: 'readPretty' } } })
+    const tupleHtml = renderToStaticMarkup(<Form form={form}><WithTuple name="x" /></Form>)
+    expect(tupleHtml).toContain('data-view="first"')
+    expect(tupleHtml).toContain('data-badge="default"')
+    expect(tupleHtml).toContain('hi')
+
+    const overrideHtml = renderToStaticMarkup(<Form form={form}><Overridden name="x" badge="caller" /></Form>)
+    expect(overrideHtml).toContain('data-view="second"')
+    expect(overrideHtml).toContain('data-badge="caller"')
+    expect(overrideHtml).toContain('data-tone="blue"')
+  })
+
+  it('does not export removed adapter helpers from @shikiform/react or @shikiform/antd', () => {
+    expect('mapFieldProps' in ReactPublic).toBe(false)
+    expect('mapBlur' in ReactPublic).toBe(false)
+    expect('mapReadPretty' in ReactPublic).toBe(false)
+    expect('mapFormItemProps' in AntdPublic).toBe(false)
+    expect('mapFieldProps' in AntdPublic).toBe(false)
+    expect('mapBlur' in AntdPublic).toBe(false)
+    expect('mapReadPretty' in AntdPublic).toBe(false)
   })
 })
 
@@ -148,8 +222,8 @@ describe('connect', () => {
     expect(seen.at(-1)!.id).toBe('f-city')
   })
 
-  it('renders the mapReadPretty view in readPretty and the control otherwise', () => {
-    const Control = connect((props: { value?: string; onBlur?: () => void }) => <input data-control value={props.value} readOnly />, mapReadPretty(PreviewText))
+  it('renders the readPretty view in readPretty and the control otherwise', () => {
+    const Control = connect((props: { value?: string; onBlur?: () => void }) => <input data-control value={props.value} readOnly />, mapProps({ readPretty: PreviewText }))
     const editable = createEngine({ initialValues: { x: 'hi' } })
     const pretty = createEngine({ initialValues: { x: 'hi' }, fields: { x: { pattern: 'readPretty' } } })
     expect(renderToStaticMarkup(<Form form={editable}><Control name="x" /></Form>)).toContain('data-control')

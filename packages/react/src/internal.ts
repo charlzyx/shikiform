@@ -3,7 +3,7 @@
  * Own entry so React context stays a single module instance with the public entry.
  * Not a supported application import.
  */
-export { connect, mapBlur, mapFieldProps, mapProps, mapReadPretty, valueFromEvent } from './adapter/connect'
+export { connect, mapProps, valueFromEvent } from './adapter/connect'
 export type {
   BlurFlag,
   BlurOn,
@@ -16,7 +16,6 @@ export type {
   PropsEnhancer,
   PropsMapping,
   PropsTransform,
-  ReadPrettyEnhancer,
 } from './adapter/connect'
 export { ArrayField, Form, RowScope } from './components/fields'
 export type { FormSubmitHandlers } from './components/fields'

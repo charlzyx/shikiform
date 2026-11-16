@@ -1,13 +1,13 @@
 /**
  * Headless ShikiForm: the form engine plus React fields and hooks.
- * `connect` / `mapProps` / `mapFieldProps` live here (no Ant Design). `@shikiform/antd` re-exports them and
+ * `connect` / `mapProps` live here (no Ant Design). `@shikiform/antd` re-exports them and
  * opts its controls into `status`. `@shikiform/core` is the engine alone (re-exported here). `@shikiform/hooks` is `useQueryTable` and the other headless pro hooks.
  *
  * @packageDocumentation
  */
 export { Reset, Submit } from './components/buttons'
 export type { ResetProps, SubmitProps } from './components/buttons'
-export { connect, mapBlur, mapFieldProps, mapProps, mapReadPretty } from './adapter/connect'
+export { connect, mapProps } from './adapter/connect'
 export type {
   BlurFlag,
   BlurOn,

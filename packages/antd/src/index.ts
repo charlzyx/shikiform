@@ -1,6 +1,6 @@
 /**
  * Ant Design binding. Layers, each built on the headless hooks in `@shikiform/react`:
- * - adapter: `connect` / `mapProps` / `mapReadPretty` / `mapFieldProps` / `mapBlur` (defined in `@shikiform/react`, re-exported
+ * - adapter: `connect` / `mapProps` (defined in `@shikiform/react`, re-exported
  *   here; headless `connect` does not pass Ant Design `status` — these controls opt in), the `FormItem` decorator, `FormLayout`,
  *   `FormGrid` / `GridColumn` and `FormButtonGroup`
  *   (all reading the field a `<Field>` provides; Formily style: `<Field decorator={[FormItem]} component={[Input]} />`);
@@ -19,9 +19,9 @@
  *
  * @packageDocumentation
  */
-export { connect, mapBlur, mapFieldProps, mapProps, mapReadPretty } from './adapter/connect'
+export { connect, mapProps } from './adapter/connect'
 export type { BlurFlag, BlurOn, ComponentStatics, ConnectEnhancer, ConnectFieldProps, ConnectedComponent, FieldPropKey, FieldStateKey, PropsMapping, PropsTransform } from './adapter/connect'
-export { FormItem, mapFormItemProps } from './adapter/form-item'
+export { FormItem } from './adapter/form-item'
 export type { FormItemEnv, FormItemProps } from './adapter/form-item'
 export { FormLayout, useFormLayout } from './adapter/form-layout'
 export type { FeedbackLayout, FormLayoutProps, FormLayoutValue, Responsive } from './adapter/form-layout'

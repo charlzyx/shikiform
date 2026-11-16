@@ -7,7 +7,7 @@ import { useFormMessage } from '@shikiform/react/internal'
 
 /*
  * Read views (Formily `PreviewText`). Each one is a pure component over `value` (+ the control's own props); a
- * connected control picks one with `mapReadPretty`. Empty values show `messages.empty` (one setting per form via
+ * connected control picks one with `mapProps({ readPretty })`. Empty values show `messages.empty` (one setting per form via
  * `useForm({ messages: { empty: '—' } })`, app-wide via `setDefaultMessages`), or the view's own `empty` prop.
  */
 
@@ -267,7 +267,7 @@ function rangePreview(fallback: string) {
 
 /**
  * The read views, one per control family (Formily `PreviewText.*`). `PreviewText` itself is the generic one.
- * Use one for a custom control (`connect(MyTree, mapReadPretty(PreviewText.TreeSelect))`) or as a pure view
+ * Use one for a custom control (`connect(MyTree, mapProps({ readPretty: PreviewText.TreeSelect }))`) or as a pure view
  * (a table cell: `<PreviewText.Select value={row.status} options={STATUS} prettyType="badge" />`).
  */
 PreviewText.Input = InputPreview

@@ -1,7 +1,7 @@
 import { ColorPicker as AntColorPicker, Space, Switch } from 'antd'
 import { defineEffects, Form, typed, useForm } from '@shikiform/react'
 import {
-  ArrayItems, connect, FormButtonGroup, FormItem, FormLayout, Input, mapBlur, mapProps, mapReadPretty, Reset, Select, Submit,
+  ArrayItems, connect, FormButtonGroup, FormItem, FormLayout, Input, mapProps, Reset, Select, Submit,
 } from '@shikiform/antd'
 
 export type Contact = { name: string; phone: string }
@@ -25,8 +25,10 @@ const CITIES: Record<string, { label: string; value: string }[]> = {
 const ColorPicker = connect(
   AntColorPicker,
   mapProps({ status: false, parse: (_color, hex) => hex || undefined }),
-  mapBlur('onOpenChange'),
-  mapReadPretty(({ value }: { value?: string }) => <span style={{ color: value }}>■ {value}</span>),
+  mapProps({
+    blurOn: 'onOpenChange',
+    readPretty: ({ value }: { value?: string }) => <span style={{ color: value }}>■ {value}</span>,
+  }),
 )
 
 const effects = defineEffects<Signup>(({ reaction, watch }) => {

@@ -62,6 +62,7 @@ export type PropsMapping<P = any, F = any> = Partial<Record<FieldPropKey | Field
   /** Control `onChange` arguments → the value stored on the field. Default: {@link valueFromEvent}. */
   parse?: ParseFn<P, F>
   blurOn?: BlurOn
+  readPretty?: ComponentType<any> | readonly [ComponentType<any>, Record<string, unknown>?]
 }
 
 /** `true` when `P` is `any` (not a concrete props type). `unknown` is not `any`. */
@@ -111,15 +112,10 @@ export type PropsEnhancer = {
   transforms: PropsTransform[]
   /** Present when this mapping names a blur fallback, renames `onBlur`, or drops it on purpose. */
   blur?: BlurFlag
+  readPretty?: { component: ComponentType<any>; props?: Record<string, unknown> }
 }
 
-export type ReadPrettyEnhancer = {
-  kind: 'readPretty'
-  component: ComponentType<any>
-  props?: Record<string, unknown>
-}
-
-export type ConnectEnhancer = PropsEnhancer | ReadPrettyEnhancer
+export type ConnectEnhancer = PropsEnhancer
 
 /** Props every connected control accepts besides its own. */
 export interface ConnectFieldProps {
@@ -152,7 +148,7 @@ const DEFAULT_TARGETS: Record<FieldPropKey, string | false> = {
 }
 
 /** Keys of {@link PropsMapping} that are not "copy this field state onto a prop". */
-const MAPPING_META = new Set(['format', 'parse', 'blurOn'])
+const MAPPING_META = new Set(['format', 'parse', 'blurOn', 'readPretty'])
 
 /**
  * Default `onChange` → value: a DOM change event yields `target.checked` for checkboxes and
@@ -186,10 +182,10 @@ export function valueFromEvent(...args: any[]): unknown {
  *   warnings; an explicit caller `status` wins. Ant Design controls that paint `status` opt in; others should not.
  * - `options` (enum, tree nodes keep `children`) and `loading` are passed only when mapped; an explicit caller prop wins.
  * - `blurOn` calls `field.onBlur()` from another prop and does not pass `onBlur` (see {@link BlurOn}).
- * - `readPretty` without a `mapReadPretty` view is treated as `readOnly`.
+ * - `readPretty` without a `readPretty` view is treated as `readOnly`.
  * - `field.componentProps` (`fields` ← JSX ← `$componentProps`) are merged under `props`.
  */
-export function mapFieldProps(
+function mapFieldProps(
   field: FieldBinding<any>,
   props: Record<string, any>,
   ...mappers: Array<PropsMapping | PropsTransform>
@@ -335,7 +331,6 @@ type MapPropsResult<A extends readonly unknown[]> =
  * ```
  *
  * `blurOn` keeps `validateTrigger: 'onBlur'` alive when the control never calls `onBlur`.
- * `mapBlur('onOpenChange')` is the same decision as its own enhancer.
  * Put `format` / `parse` on the first object so `connect` can check them against the control.
  */
 type CodecMapping<P, F> = PropsMapping<P, F> & (
@@ -359,28 +354,20 @@ export function mapProps(...args: ReadonlyArray<PropsMapping | PropsTransform>):
   if (mapping.blurOn) blur = mapping.blurOn
   else if (mapping.onBlur === false) blur = 'drop'
   else if (typeof mapping.onBlur === 'string') blur = 'rename'
-  const enhancer: PropsEnhancer = blur ? { kind: 'props', mapping, transforms, blur } : { kind: 'props', mapping, transforms }
+  const rp = mapping.readPretty
+  const readPretty = rp
+    ? Array.isArray(rp)
+      ? { component: rp[0], props: rp[1] }
+      : { component: rp as ComponentType<any> }
+    : undefined
+  const enhancer: PropsEnhancer = {
+    kind: 'props',
+    mapping,
+    transforms,
+    ...(blur ? { blur } : {}),
+    ...(readPretty ? { readPretty } : {}),
+  }
   return enhancer
-}
-
-/**
- * Blur fallback as its own enhancer (same as `mapProps({ blurOn })`).
- * Use it when the control's props type has no `onBlur` — `connect` requires one of these, or `onBlur: false`.
- *
- * ```ts
- * connect(LobeSelect, mapBlur('onOpenChange'), mapProps({ options: 'options' }))
- * ```
- */
-export function mapBlur(on: BlurOn): PropsEnhancer & { blur: BlurOn } {
-  return { kind: 'props', mapping: { blurOn: on }, transforms: [], blur: on }
-}
-
-/**
- * Render `component` instead of the control when the field pattern is `readPretty` (Formily `mapReadPretty`).
- * It receives the caller props plus `value` and `options` (the enum).
- */
-export function mapReadPretty(component: ComponentType<any>, props?: Record<string, unknown>): ReadPrettyEnhancer {
-  return { kind: 'readPretty', component, props }
 }
 
 const NOT_STATIC = new Set([
@@ -418,7 +405,7 @@ type AnyBlur<E extends readonly unknown[]> = E extends readonly [infer H, ...inf
 
 type DemandBlur<C> = C & {
   readonly __shikiConnectBlurFallback:
-    'This control has no onBlur, so onBlur validation would never run. Pass mapProps({ blurOn: "onChange" | "onOpenChange" | { prop, when? } }), mapBlur(...), or mapProps({ onBlur: false }) to opt out.'
+    'This control has no onBlur, so onBlur validation would never run. Pass mapProps({ blurOn: "onChange" | "onOpenChange" | { prop, when? } }) or mapProps({ onBlur: false }) to opt out.'
 }
 
 type BlurTarget<C, E extends readonly unknown[]> =
@@ -446,7 +433,7 @@ type NoCodec<E> = E extends { __codec: any } ? never : E
  * (so `$componentProps.placeholder = …` in a reaction reaches the control).
  *
  * A control whose props type has no `onBlur` must say where blur validation goes
- * (`mapProps({ blurOn })` / {@link mapBlur} / `mapProps({ onBlur: false })`). Otherwise `validateTrigger: 'onBlur'`
+ * (`mapProps({ blurOn })` / `mapProps({ onBlur: false })`). Otherwise `validateTrigger: 'onBlur'`
  * would never run and TypeScript would not complain. `blurOn: 'onOpenChange'` treats a popup close (`false`) as blur;
  * `blurOn: 'onChange'` blurs after every change.
  *
@@ -491,12 +478,11 @@ export function connect<C extends ComponentType<any>, E1 extends ConnectEnhancer
 export function connect(target: ComponentType<any>, ...enhancers: ConnectEnhancer[]): any {
   const mapping: PropsMapping = {}
   const transforms: PropsTransform[] = []
-  let readPretty: ReadPrettyEnhancer | undefined
+  let readPretty: PropsEnhancer['readPretty']
   for (const enhancer of enhancers) {
-    if (enhancer.kind === 'props') {
-      Object.assign(mapping, enhancer.mapping)
-      transforms.push(...enhancer.transforms)
-    } else readPretty = enhancer
+    Object.assign(mapping, enhancer.mapping)
+    transforms.push(...enhancer.transforms)
+    if (enhancer.readPretty) readPretty = enhancer.readPretty
   }
   const Target = target as ComponentType<any>
   const displayName = `Connected(${Target.displayName ?? Target.name ?? 'Component'})`

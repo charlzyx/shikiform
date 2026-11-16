@@ -7,55 +7,68 @@ import {
   Reset,
   Submit,
   connect,
-  mapBlur,
-  mapFieldProps,
   mapProps,
   useField,
   useFieldDecorator,
   useForm,
   useReset,
-  type FieldBinding,
 } from '@shikiform/react'
 import { Reset as AntReset } from '@shikiform/antd'
 import { createEngine } from '../packages/core/src/engine/create'
 
 afterEach(() => cleanup())
 
-function requiredField(value = '') {
-  const form = createEngine({ initialValues: { city: value }, fields: { city: { required: true, title: '城市' } } })
-  return { form, field: form.binding('city') as FieldBinding<any> }
+function requiredForm(value = '') {
+  return createEngine({ initialValues: { city: value }, fields: { city: { required: true, title: '城市' } } })
 }
 
-describe('mapFieldProps blur fallback', () => {
+describe('connect blur fallback and status opt-in', () => {
   it('does not pass status unless it is mapped', async () => {
-    expect('status' in mapFieldProps(requiredField().field, {})).toBe(false)
-    const { form } = requiredField()
+    const plainSeen: Record<string, any>[] = []
+    const optInSeen: Record<string, any>[] = []
+    const Plain = connect((props: Record<string, any>) => { plainSeen.push(props); return null })
+    const OptIn = connect((props: Record<string, any>) => { optInSeen.push(props); return null }, mapProps({ status: 'status' }))
+
+    const form = requiredForm()
     await form.validate()
-    const field = form.binding('city') as FieldBinding<any>
-    expect(mapFieldProps(field, {}, { status: 'status' }).status).toBe('error')
-    expect(mapFieldProps(field, { status: 'warning' }, { status: 'status' }).status).toBe('warning')
+    render(<Form form={form}><Plain name="city" /><OptIn name="city" /></Form>)
+    expect('status' in plainSeen.at(-1)!).toBe(false)
+    expect(optInSeen.at(-1)!.status).toBe('error')
+
+    render(<Form form={form}><OptIn name="city" status="warning" /></Form>)
+    expect(optInSeen.at(-1)!.status).toBe('warning')
   })
 
-  it('treats onOpenChange(false) as blur and does not pass onBlur', async () => {
-    const { form, field } = requiredField()
+  it('treats onOpenChange(false) as blur and does not pass onBlur', () => {
+    const seen: Record<string, any>[] = []
+    const Control = connect(
+      (props: { value?: string; onOpenChange?: (open: boolean) => void }) => { seen.push(props); return null },
+      mapProps({ blurOn: 'onOpenChange' }),
+    )
+    const form = requiredForm()
     const onOpenChange = vi.fn()
-    const props = mapFieldProps(field, { onOpenChange }, { blurOn: 'onOpenChange' })
-    expect('onBlur' in props).toBe(false)
-    props.onOpenChange(true)
+    render(<Form form={form}><Control name="city" onOpenChange={onOpenChange} /></Form>)
+    expect('onBlur' in seen.at(-1)!).toBe(false)
+    act(() => seen.at(-1)!.onOpenChange(true))
     expect(onOpenChange).toHaveBeenCalledWith(true)
     expect(form.binding('city').touched).toBe(false)
-    props.onOpenChange(false)
+    act(() => seen.at(-1)!.onOpenChange(false))
     expect(onOpenChange).toHaveBeenCalledTimes(2)
     expect(form.binding('city').touched).toBe(true)
     expect(form.binding('city').errors).toEqual(['必填'])
   })
 
   it('treats onChange as blur after the value is written', () => {
-    const { form, field } = requiredField()
+    const seen: Record<string, any>[] = []
+    const Control = connect(
+      (props: { value?: string; onChange?: (v: string) => void }) => { seen.push(props); return null },
+      mapProps({ blurOn: 'onChange' }),
+    )
+    const form = requiredForm()
     const onChange = vi.fn()
-    const props = mapFieldProps(field, { onChange }, { blurOn: 'onChange' })
-    expect(props.onBlur).toBeUndefined()
-    props.onChange('杭州')
+    render(<Form form={form}><Control name="city" onChange={onChange} /></Form>)
+    expect(seen.at(-1)!.onBlur).toBeUndefined()
+    act(() => seen.at(-1)!.onChange('杭州'))
     expect(form.getValue('city')).toBe('杭州')
     expect(onChange).toHaveBeenCalledWith('杭州')
     expect(form.binding('city').touched).toBe(true)
@@ -63,21 +76,31 @@ describe('mapFieldProps blur fallback', () => {
   })
 
   it('calls field.onBlur from a custom prop when `when` says so', () => {
-    const { form, field } = requiredField()
+    const seen: Record<string, any>[] = []
+    const Control = connect(
+      (props: { value?: string; onDismiss?: (reason: string) => void }) => { seen.push(props); return null },
+      mapProps({ blurOn: { prop: 'onDismiss', when: (reason: string) => reason === 'close' } }),
+    )
+    const form = requiredForm()
     const onDismiss = vi.fn()
-    const props = mapFieldProps(field, { onDismiss }, { blurOn: { prop: 'onDismiss', when: (reason: string) => reason === 'close' } })
-    props.onDismiss('hover')
+    render(<Form form={form}><Control name="city" onDismiss={onDismiss} /></Form>)
+    act(() => seen.at(-1)!.onDismiss('hover'))
     expect(form.binding('city').touched).toBe(false)
-    props.onDismiss('close')
+    act(() => seen.at(-1)!.onDismiss('close'))
     expect(onDismiss).toHaveBeenCalledTimes(2)
     expect(form.binding('city').touched).toBe(true)
     expect(form.binding('city').errors).toEqual(['必填'])
   })
 
   it('onBlur: false opts out and does not validate', () => {
-    const { form, field } = requiredField()
-    const props = mapFieldProps(field, {}, { onBlur: false })
-    expect(props.onBlur).toBeUndefined()
+    const seen: Record<string, any>[] = []
+    const Control = connect(
+      (props: { value?: string }) => { seen.push(props); return null },
+      mapProps({ onBlur: false }),
+    )
+    const form = requiredForm()
+    render(<Form form={form}><Control name="city" /></Form>)
+    expect(seen.at(-1)!.onBlur).toBeUndefined()
     expect(form.binding('city').touched).toBe(false)
   })
 })
@@ -89,7 +112,7 @@ describe('connect requires a blur decision when the control has no onBlur', () =
   // @ts-expect-error no onBlur: blur validation would be dropped without blurOn / onBlur: false
   connect(NoBlur)
   connect(NoBlur, mapProps({ blurOn: 'onOpenChange' }))
-  connect(NoBlur, mapBlur('onChange'))
+  connect(NoBlur, mapProps({ blurOn: 'onChange' }))
   connect(NoBlur, mapProps({ onBlur: false }))
 
   it('wires onOpenChange close through connect so a Lobe-style select still validates', () => {

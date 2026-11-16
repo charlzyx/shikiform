@@ -22,7 +22,7 @@ import dayjs, { type Dayjs } from 'dayjs'
 import customParseFormat from 'dayjs/plugin/customParseFormat.js'
 import { Children, cloneElement, Fragment, isValidElement, type ComponentProps, type ComponentType, type FocusEventHandler, type ReactElement, type ReactNode } from 'react'
 import { useFormMessage } from '@shikiform/react/internal'
-import { connect, mapBlur, mapProps, mapReadPretty, type ComponentStatics } from '../adapter/connect'
+import { connect, mapProps, type ComponentStatics } from '../adapter/connect'
 import { isEmptyValue, PreviewText, type PreviewTextProps, type PrettyType } from '../adapter/preview'
 
 dayjs.extend(customParseFormat)
@@ -146,9 +146,9 @@ function TextAreaPreview(props: PreviewTextProps) {
 }
 
 /** Text input; `readPretty` shows the text with `addonBefore` / `prefix` / `suffix` / `addonAfter`. `.TextArea` keeps line breaks; `.Password` is masked. */
-export const Input = Object.assign(connect(AntInput, mapProps(antdStatus), mapReadPretty(PreviewText.Input)), {
-  TextArea: connect(AntInput.TextArea, mapProps(antdStatus), mapReadPretty(TextAreaPreview)),
-  Password: connect(AntInput.Password, mapProps(antdStatus), mapReadPretty(PreviewText.Password)),
+export const Input = Object.assign(connect(AntInput, mapProps({ ...antdStatus, readPretty: PreviewText.Input })), {
+  TextArea: connect(AntInput.TextArea, mapProps({ ...antdStatus, readPretty: TextAreaPreview })),
+  Password: connect(AntInput.Password, mapProps({ ...antdStatus, readPretty: PreviewText.Password })),
 })
 
 /**
@@ -160,16 +160,16 @@ function accepts<V>() {
 }
 
 /** Number input. Clearing writes `null` (the raw Ant Design value). `readPretty` applies `formatter` and the addons. */
-export const InputNumber = accepts<number | null>()(connect(AntInputNumber, mapProps(antdStatus), mapReadPretty(PreviewText.Input)))
+export const InputNumber = accepts<number | null>()(connect(AntInputNumber, mapProps({ ...antdStatus, readPretty: PreviewText.Input })))
 
 /**
  * Select. `options` default to the field enum; `loading` follows an async enum.
  * `readPretty` shows labels (several as tags), or badges / colored tags with `prettyType`.
  */
-export const Select = connect(withPretty(AntSelect), choice, mapReadPretty(PreviewText.Select))
+export const Select = connect(withPretty(AntSelect), choice, mapProps({ readPretty: PreviewText.Select }))
 
 /** Text input with suggestions (free text; the value need not be an option). `options` default to the field enum. */
-export const AutoComplete = connect(AntAutoComplete, mapProps({ options: 'options', readOnly: 'disabled', ...antdStatus }), mapReadPretty(PreviewText.Input))
+export const AutoComplete = connect(AntAutoComplete, mapProps({ options: 'options', readOnly: 'disabled', ...antdStatus, readPretty: PreviewText.Input }))
 
 /**
  * Tree select. `treeData` defaults to the field enum (`{ label, value, children }` nodes); `multiple` /
@@ -177,15 +177,14 @@ export const AutoComplete = connect(AntAutoComplete, mapProps({ options: 'option
  */
 export const TreeSelect = connect(
   withPretty(AntTreeSelect),
-  mapProps({ options: 'treeData', loading: 'loading', readOnly: 'disabled', ...antdStatus }, stripPrettyType),
-  mapReadPretty(PreviewText.TreeSelect),
+  mapProps({ options: 'treeData', loading: 'loading', readOnly: 'disabled', ...antdStatus, readPretty: PreviewText.TreeSelect }, stripPrettyType),
 )
 
 /**
  * Cascader: the value is the path (`['zj', 'hz']`; `multiple`: a list of paths). `options` default to the field enum
  * (`{ label, value, children }`). `readPretty` shows `label / label`. For children loaded level by level use `CascaderPlus`.
  */
-export const Cascader = connect(AntCascader, mapProps({ options: 'options', loading: 'loading', readOnly: 'disabled', ...antdStatus }), mapReadPretty(PreviewText.Cascader))
+export const Cascader = connect(AntCascader, mapProps({ options: 'options', loading: 'loading', readOnly: 'disabled', ...antdStatus, readPretty: PreviewText.Cascader }))
 
 /**
  * Ant Design forwards `onBlur` to rc-switch's button although the public `SwitchProps` omit it.
@@ -202,7 +201,7 @@ function BooleanPreview({ value, checkedChildren, unCheckedChildren }: PreviewTe
 
 /** Boolean switch: field value ↔ `checked`. `readPretty` shows `checkedChildren` / `unCheckedChildren`, else `messages.yes` / `no`. */
 export const Switch = accepts<boolean>()(
-  connect(AntSwitch as SwitchWithBlur, mapProps({ value: 'checked', readOnly: 'disabled', status: false }), mapReadPretty(BooleanPreview)),
+  connect(AntSwitch as SwitchWithBlur, mapProps({ value: 'checked', readOnly: 'disabled', status: false, readPretty: BooleanPreview })),
 )
 
 /**
@@ -211,13 +210,13 @@ export const Switch = accepts<boolean>()(
  */
 export const Checkbox = Object.assign(
   accepts<boolean>()(
-    connect(AntCheckbox, mapProps({ value: 'checked', readOnly: 'disabled', status: false }, dropGroupedCheckboxId), mapReadPretty(BooleanPreview)),
+    connect(AntCheckbox, mapProps({ value: 'checked', readOnly: 'disabled', status: false, readPretty: BooleanPreview }, dropGroupedCheckboxId)),
   ),
-  { Group: connect(withPretty(AntCheckbox.Group), group, mapReadPretty(PreviewText.Select)) },
+  { Group: connect(withPretty(AntCheckbox.Group), group, mapProps({ readPretty: PreviewText.Select })) },
 )
 checkboxType = Checkbox
 
-const RadioGroup = connect(withPretty(AntRadio.Group), group, mapReadPretty(PreviewText.Select))
+const RadioGroup = connect(withPretty(AntRadio.Group), group, mapProps({ readPretty: PreviewText.Select }))
 
 /**
  * Radio group with enum `options`; `Radio` and `Radio.Group` are the same control (`component={[Radio]}` works).
@@ -254,7 +253,8 @@ export const DatePicker = Object.assign(connect(AntDatePicker, mapProps({
   ...antdStatus,
   format: (value, props) => toDayjs(value, props.format ?? 'YYYY-MM-DD'),
   parse: (_date, text) => (text ? text : undefined),
-}), mapReadPretty(PreviewText.DatePicker)), {
+  readPretty: PreviewText.DatePicker,
+})), {
   RangePicker: connect(AntDatePicker.RangePicker, mapProps({
     readOnly: 'disabled',
     ...antdStatus,
@@ -263,7 +263,8 @@ export const DatePicker = Object.assign(connect(AntDatePicker, mapProps({
       return Array.isArray(value) ? [toDayjs(value[0], format), toDayjs(value[1], format)] : null
     },
     parse: (dates, texts) => (dates ? texts : undefined),
-  }), mapReadPretty(PreviewText.DateRangePicker)),
+    readPretty: PreviewText.DateRangePicker,
+  })),
 })
 
 /**
@@ -275,7 +276,8 @@ export const TimePicker = Object.assign(connect(AntTimePicker, mapProps({
   ...antdStatus,
   format: (value, props) => toDayjs(value, props.format ?? 'HH:mm:ss'),
   parse: (_date, text) => (text ? text : undefined),
-}), mapReadPretty(PreviewText.TimePicker)), {
+  readPretty: PreviewText.TimePicker,
+})), {
   RangePicker: connect(AntTimePicker.RangePicker, mapProps({
     readOnly: 'disabled',
     ...antdStatus,
@@ -284,30 +286,37 @@ export const TimePicker = Object.assign(connect(AntTimePicker, mapProps({
       return Array.isArray(value) ? [toDayjs(value[0], format), toDayjs(value[1], format)] : null
     },
     parse: (dates, texts) => (dates ? texts : undefined),
-  }), mapReadPretty(PreviewText.TimeRangePicker)),
+    readPretty: PreviewText.TimeRangePicker,
+  })),
 })
 
 /** Slider: a number, or `[from, to]` with `range`. `readPretty` shows the number(s). */
 export const Slider = connect(
   AntSlider,
-  mapProps({ readOnly: 'disabled', status: false }),
-  mapReadPretty(function SliderPreview({ value, empty }: PreviewTextProps) {
-    if (isEmptyValue(value)) return <PreviewText.Empty empty={empty} />
-    return <span data-read-pretty>{Array.isArray(value) ? `${value[0] ?? ''} ~ ${value[1] ?? ''}` : String(value)}</span>
+  mapProps({
+    readOnly: 'disabled',
+    status: false,
+    readPretty: function SliderPreview({ value, empty }: PreviewTextProps) {
+      if (isEmptyValue(value)) return <PreviewText.Empty empty={empty} />
+      return <span data-read-pretty>{Array.isArray(value) ? `${value[0] ?? ''} ~ ${value[1] ?? ''}` : String(value)}</span>
+    },
   }),
 )
 
 /** Star rating. `readPretty` shows the stars, not editable (`count`, `allowHalf`, `character` apply). */
 export const Rate = connect(
   AntRate,
-  mapProps({ readOnly: 'disabled', status: false }),
-  mapReadPretty(function RatePreview({ value, empty, count, allowHalf, character }: PreviewTextProps) {
-    if (value == null) return <PreviewText.Empty empty={empty} />
-    return (
-      <span data-read-pretty>
-        <AntRate disabled value={Number(value)} count={count as number} allowHalf={allowHalf as boolean} character={character as React.ReactNode} />
-      </span>
-    )
+  mapProps({
+    readOnly: 'disabled',
+    status: false,
+    readPretty: function RatePreview({ value, empty, count, allowHalf, character }: PreviewTextProps) {
+      if (value == null) return <PreviewText.Empty empty={empty} />
+      return (
+        <span data-read-pretty>
+          <AntRate disabled value={Number(value)} count={count as number} allowHalf={allowHalf as boolean} character={character as React.ReactNode} />
+        </span>
+      )
+    },
   }),
 )
 
@@ -325,16 +334,22 @@ function transferItems(source: unknown): TransferItem[] {
  */
 export const Transfer = connect(
   AntTransfer,
-  mapProps({ value: 'targetKeys', options: 'dataSource', readOnly: 'disabled', id: false, onBlur: false }, (props) => ({
+  mapProps({
+    value: 'targetKeys',
+    options: 'dataSource',
+    readOnly: 'disabled',
+    id: false,
+    onBlur: false,
+    readPretty: function TransferPreview(props: PreviewTextProps) {
+      const options = transferItems(props.dataSource ?? props.options).map((item) => ({ label: item.title, value: item.key }))
+      return <PreviewText.Select value={props.value} options={options} empty={props.empty} />
+    },
+  }, (props) => ({
     render: (item: TransferItem) => item.title,
     ...props,
     dataSource: transferItems(props.dataSource),
     targetKeys: Array.isArray(props.targetKeys) ? props.targetKeys : [],
   })),
-  mapReadPretty(function TransferPreview(props: PreviewTextProps) {
-    const options = transferItems(props.dataSource ?? props.options).map((item) => ({ label: item.title, value: item.key }))
-    return <PreviewText.Select value={props.value} options={options} empty={props.empty} />
-  }),
 )
 
 /**
@@ -386,7 +401,8 @@ export const Upload = Object.assign(connect(AntUpload, mapProps({
   readOnly: 'disabled',
   status: false,
   id: false,
-}), uploadBlur, mapReadPretty(UploadPreview)), {
+  readPretty: UploadPreview,
+}), uploadBlur), {
   Dragger: connect(AntUpload.Dragger, mapProps({
     value: 'fileList',
     parse: fileListFromEvent,
@@ -394,7 +410,8 @@ export const Upload = Object.assign(connect(AntUpload, mapProps({
     readOnly: 'disabled',
     status: false,
     id: false,
-  }), uploadBlur, mapReadPretty(UploadPreview)),
+    readPretty: UploadPreview,
+  }), uploadBlur),
 })
 
 /** Color picker: the value is the color text (`format`: hex by default; cleared → `undefined`). `readPretty` shows a swatch and the text. */
@@ -406,15 +423,17 @@ export const ColorPicker = connect(
     parse: (color, text) => (!color || color.cleared ? undefined : text),
   }),
   // The picker has no `onBlur`; closing the popover is the blur (so `validateTrigger: 'onBlur'` still runs).
-  mapBlur('onOpenChange'),
-  mapReadPretty(function ColorPreview({ value, empty }: PreviewTextProps) {
-    if (isEmptyValue(value)) return <PreviewText.Empty empty={empty} />
-    const text = typeof value === 'string' ? value : String((value as { toHexString?: () => string }).toHexString?.() ?? value)
-    return (
-      <Space size={6} data-read-pretty>
-        <span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: 3, background: text, border: '1px solid rgba(0,0,0,0.1)', verticalAlign: 'middle' }} />
-        <span>{text}</span>
-      </Space>
-    )
+  mapProps({
+    blurOn: 'onOpenChange',
+    readPretty: function ColorPreview({ value, empty }: PreviewTextProps) {
+      if (isEmptyValue(value)) return <PreviewText.Empty empty={empty} />
+      const text = typeof value === 'string' ? value : String((value as { toHexString?: () => string }).toHexString?.() ?? value)
+      return (
+        <Space size={6} data-read-pretty>
+          <span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: 3, background: text, border: '1px solid rgba(0,0,0,0.1)', verticalAlign: 'middle' }} />
+          <span>{text}</span>
+        </Space>
+      )
+    },
   }),
 )
