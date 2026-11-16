@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef } from 'react'
-import { Form, RowScope, useArrayField, useField, useForm, VirtualRows, defineEffects } from '@shikiform/react'
+import { ArrayField, Form, useField, useForm, defineEffects } from '@shikiform/react'
 
 interface Row {
   id: string
@@ -63,11 +63,10 @@ function Tier({ label, rows }: { label: string; rows: number }) {
 }
 
 function TierList() {
-  const array = useArrayField('rows')
   return (
-    <VirtualRows count={array.keys.length} height={360} rowHeight={36} overscan={2}>
-      {(index) => <PerfRow index={index} />}
-    </VirtualRows>
+    <ArrayField name="rows" virtualScroll={{ height: 300, rowHeight: 36, overscan: 4 }}>
+      {({ index }) => <PerfRow index={index} />}
+    </ArrayField>
   )
 }
 
@@ -75,15 +74,13 @@ const PerfRow = memo(function PerfRow({ index }: { index: number }) {
   const renders = useRef(0)
   renders.current += 1
   return (
-    <RowScope path={`rows.${index}`} index={index}>
-      <div data-index={index} data-row-renders={renders.current}>
-        <Cell name="sku" index={index} />
-        <Cell name="cost" index={index} numeric />
-        <Cell name="markup" index={index} numeric />
-        <Cell name="price" index={index} numeric />
-        <Cell name="suggested" index={index} numeric />
-      </div>
-    </RowScope>
+    <div data-index={index} data-row-renders={renders.current}>
+      <Cell name="sku" index={index} />
+      <Cell name="cost" index={index} numeric />
+      <Cell name="markup" index={index} numeric />
+      <Cell name="price" index={index} numeric />
+      <Cell name="suggested" index={index} numeric />
+    </div>
   )
 })
 

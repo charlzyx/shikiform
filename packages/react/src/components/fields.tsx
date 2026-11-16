@@ -2,7 +2,7 @@ import { memo, useContext, useEffect, useMemo, useRef, type ComponentProps, type
 import { engineOf } from '@shikiform/core/internal'
 import type { ArrayPath, Display, Draft, FieldEnum, FieldError, FieldPath, FormInstance, PathValue, Pattern, UiName } from '@shikiform/core/internal'
 import type { RulesInput } from '@shikiform/core/internal'
-import type { Pos } from '@shikiform/core/internal'
+import { pathOf, type Pos } from '@shikiform/core/internal'
 import { ArrayContext, FormContext, RowWrapContext, ScopeContext, useRequiredForm, useScope } from '../context'
 import { useArrayField } from '../hooks/use-array'
 import { FieldContext } from '../field-context'
@@ -404,7 +404,24 @@ export function RowScope({
   return <ScopeContext.Provider value={value}>{children}</ScopeContext.Provider>
 }
 
-/** Register a tree root. Rendering nodes is the caller's job (`pos` is `number[]`). `<TreeField<Values>>` checks the name. */
+/** Rendered tree node passed to `<TreeField>{(node) => …}</TreeField>`. */
+export interface TreeNodeRender {
+  path: string
+  pos: Pos
+  index: number
+  key: string
+  depth: number
+  children: ReactNode
+}
+
+/**
+ * The owner of a tree path. Walks the tree recursively, wraps each node in a row scope keyed by the node id
+ * (`rowKey`, else `id`, else a stable object identity), and hands `children` the pre-rendered subtree as `node.children`
+ * (`null` on leaves) so the caller decides where to place it (`<li><NodeRow />{node.children && <ul>{node.children}</ul>}</li>`).
+ * Inside a node, relative `<Field name="name">` / `useField('name')`, {@link useRecord} and {@link useTreeNode} read
+ * that node, and field state / errors follow the node across moves.
+ * `<TreeField<Values> name="menu">` checks the name; `typed(form).TreeField` also types the node's fields.
+ */
 export function TreeField<TScope = any>({
   name,
   childrenKey,
@@ -414,10 +431,43 @@ export function TreeField<TScope = any>({
   name: ArrayPath<TScope>
   childrenKey?: string
   rowKey?: string
-  children: (tree: ReturnType<typeof useTreeField>) => ReactNode
+  children: (node: TreeNodeRender) => ReactNode
 }) {
   const tree = useTreeField(String(name), { childrenKey, rowKey })
-  return children(tree)
+  const identMap = useRef(new WeakMap<object, string>())
+  const identSeq = useRef(0)
+  const resolvedChildrenKey = childrenKey ?? 'children'
+  const resolvedRowKey = rowKey ?? 'id'
+
+  const renderNodes = (nodes: unknown[], parentPos: readonly number[]): ReactNode =>
+    nodes.map((nodeObj, index) => {
+      const pos: Pos = [...parentPos, index]
+      const nodePath = pathOf(tree.path, pos, resolvedChildrenKey)
+      let key: string
+      if (nodeObj && typeof nodeObj === 'object' && (nodeObj as Record<string, unknown>)[resolvedRowKey] != null) {
+        key = String((nodeObj as Record<string, unknown>)[resolvedRowKey])
+      } else if (nodeObj && typeof nodeObj === 'object') {
+        let id = identMap.current.get(nodeObj)
+        if (!id) {
+          identSeq.current += 1
+          id = `node-${identSeq.current}`
+          identMap.current.set(nodeObj, id)
+        }
+        key = id
+      } else {
+        key = pos.join('.')
+      }
+      const subNodes =
+        nodeObj && typeof nodeObj === 'object' ? (nodeObj as Record<string, unknown>)[resolvedChildrenKey] : undefined
+      const renderedChildren = Array.isArray(subNodes) && subNodes.length > 0 ? renderNodes(subNodes, pos) : null
+      return (
+        <RowScope key={key} path={nodePath} index={index} itemKey={key} pos={pos}>
+          {children({ path: nodePath, pos, index, key, depth: pos.length - 1, children: renderedChildren })}
+        </RowScope>
+      )
+    })
+
+  return <>{renderNodes(tree.value, [])}</>
 }
 
 /**

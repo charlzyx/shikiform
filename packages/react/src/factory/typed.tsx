@@ -2,7 +2,7 @@ import type { ComponentType, ReactNode } from 'react'
 import { createForm, type DefaultSubmit, type FieldsInput, type FormInstance, type FormOptions, type ResolveSubmit } from '@shikiform/core/internal'
 import type { ArrayItemOf, ArrayPath, Draft, FieldPath, PathValue } from '@shikiform/core/internal'
 import { useForm, type UseFormOptions } from '../hooks/use-form'
-import { ArrayField, Field, ObjectField, Watch, type ArrayContainerSlot, type CheckedFieldProps, type FieldProps } from '../components/fields'
+import { ArrayField, Field, ObjectField, TreeField, Watch, type ArrayContainerSlot, type CheckedFieldProps, type FieldProps, type TreeNodeRender } from '../components/fields'
 import { useArrayField, type ArrayHandle, type ArrayKey } from '../hooks/use-array'
 import { useField, type FieldBinding, type UseFieldOptions } from '../hooks/use-field'
 import { useWatch } from '../hooks/use-watch'
@@ -28,6 +28,12 @@ export type ScopeFields<T> = {
     component?: ArrayContainerSlot<C>
     virtualScroll?: { height: number; rowHeight?: number; overscan?: number }
     children?: (row: ArrayKey & ScopeFields<ArrayItemOf<T, N & string>>) => ReactNode
+  }) => ReactNode
+  TreeField: <N extends ArrayPath<T>>(props: {
+    name: N
+    childrenKey?: string
+    rowKey?: string
+    children: (node: TreeNodeRender & ScopeFields<ArrayItemOf<T, N & string>>) => ReactNode
   }) => ReactNode
 }
 
@@ -91,6 +97,9 @@ function TypedArrayField({ children, ...props }: { name: string; rowKey?: string
 function TypedObjectField({ children, ...props }: { name: string; display?: FieldProps['display']; children?: ReactNode | ((scope: any) => ReactNode) }) {
   return <ObjectField {...props}>{typeof children === 'function' ? children(scope) : children}</ObjectField>
 }
+function TypedTreeField({ children, ...props }: { name: string; childrenKey?: string; rowKey?: string; children: (node: any) => ReactNode }) {
+  return <TreeField {...props}>{(node) => children({ ...node, ...scope })}</TreeField>
+}
 
-const scope = { Field, ObjectField: TypedObjectField, ArrayField: TypedArrayField }
+const scope = { Field, ObjectField: TypedObjectField, ArrayField: TypedArrayField, TreeField: TypedTreeField }
 const handles = { ...scope, useField, useArrayField, useWatch, Watch, createForm, useForm } as unknown as TypedForm<any>

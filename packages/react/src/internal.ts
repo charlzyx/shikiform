@@ -17,8 +17,9 @@ export type {
   PropsMapping,
   PropsTransform,
 } from './adapter/connect'
-export { ArrayField, Form, RowScope } from './components/fields'
+export { ArrayField, ArrayScope, Form, RowScope } from './components/fields'
 export type { FormSubmitHandlers } from './components/fields'
+export { VirtualRows } from './components/virtual-rows'
 export { useUiNodeOrNull } from './components/ui'
 export { ArrayContext, FormContext, RowWrapContext, ScopeContext, useRequiredForm, useScope } from './context'
 export { useFieldContextOrNull } from './field-context'
