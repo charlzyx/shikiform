@@ -9,9 +9,15 @@ async function pick(page: Page, scope: ReturnType<Page['locator']>, option: stri
   await expect(page.locator('.ant-select-dropdown:visible')).toHaveCount(0)
 }
 async function optionsOf(page: Page, label: string) {
-  await item(page, label).locator('.ant-select').click()
-  await expect(dropdownOptions(page).first()).toBeVisible()
-  const texts = await dropdownOptions(page).allTextContents()
+  const select = item(page, label).locator('.ant-select')
+  const options = dropdownOptions(page)
+  let texts: string[] = []
+  // The option nodes can detach for a frame while $enum swaps. allTextContents then returns [].
+  await expect(async () => {
+    if ((await page.locator('.ant-select-dropdown:visible').count()) === 0) await select.click()
+    texts = (await options.allTextContents()).map((text) => text.trim()).filter(Boolean)
+    expect(texts.length).toBeGreaterThan(0)
+  }).toPass()
   await page.keyboard.press('Escape')
   await expect(page.locator('.ant-select-dropdown:visible')).toHaveCount(0)
   return texts
