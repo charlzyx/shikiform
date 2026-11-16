@@ -11,6 +11,7 @@ import { formatMessage, type FormMessageKey, type MessageArgs, type MessageParam
 import { fieldSchemaIssues, optionIncludes, runRules, type ValidateCtx } from './rules'
 import { runWarningRules } from './warnings'
 import { collectSchemaIssues, groupSchemaIssues, isStandardSchema, schemaIssuePath, type SchemaIssue, type StandardSchemaV1 } from './schema'
+import { AsyncAttempts } from './async-attempt'
 import { ignoreRejection, isPromise, settleUnlessAborted } from './settle'
 
 export interface ValidatorDeps {
@@ -33,6 +34,8 @@ export interface ValidatorDeps {
  * A field's async result is stamped with `asyncSeq` and its `AbortController`; a newer edit aborts it.
  * Abort removes that attempt from {@link Validator.inflight} immediately, so `waitAsync` / `submit` do not
  * wait for a validator that only clears a timer. A later resolve or reject does not write field errors.
+ * A value change aborts an in-flight attempt even when the trigger is not `onChange`, and drops async
+ * messages that attempt already wrote (#122). See {@link AsyncAttempts}.
  * A throwing field rule (sync throw or rejection, validator or schema) becomes that field's message (#2, #7).
  * Built-in messages (enum, fallback) resolve through `options.messages`, then the app defaults (#44).
  */
@@ -43,13 +46,24 @@ export class Validator {
   validateGen = 0
   /** Attempts `waitAsync` still has to finish. Aborted attempts are removed in the abort listener. */
   private inflight = new Set<Promise<unknown>>()
-  private validateTimers = new Map<string, ReturnType<typeof setTimeout>>()
+  /** Debounce timers and superseded async attempts (#122). */
+  private readonly attempts: AsyncAttempts
   /** Runs before every pass. The engine expands item templates here. */
   prepare: () => void = () => {}
   /** The newest whole-form pass. A superseded `runSettled` adopts its verdict instead of failing (#41). */
   private latestFull: { gen: number; promise?: Promise<RunResult> } | undefined
 
-  constructor(private readonly deps: ValidatorDeps) {}
+  constructor(private readonly deps: ValidatorDeps) {
+    const self = this
+    this.attempts = new AsyncAttempts({
+      store: deps.store, scheduler: deps.scheduler, notifier: deps.notifier, options: deps.options,
+      get schemaByPath() { return self.schemaByPath },
+      triggersFor: (path) => self.triggersFor(path),
+      syncRuleMessages: (path) => self.syncRuleMessages(path),
+      validateDetached: (path) => self.validateDetached(path),
+      replaceSchema: (next) => self.applySchemaMap(next),
+    })
+  }
 
   /** A built-in message for this form (#44). */
   message<K extends FormMessageKey>(key: K, params: MessageParams<K>): string {
@@ -143,7 +157,8 @@ export class Validator {
       }
       if (gen !== this.validateGen) return scoped()
       this.commitSchemaIssues(path, collected, preserve)
-      await this.waitAsync()
+      // Not `waitAsync`: that would cancel the debounce an edit during this pass just scheduled (#122).
+      await this.waitInflight()
       return scoped()
     } finally {
       if (gen === this.validateGen) {
@@ -217,6 +232,10 @@ export class Validator {
     if (store.effectiveDisplay(path) === 'none' || field.computed) {
       this.setErrors(path, [])
       this.setWarnings(path, [])
+      if (field.validating) {
+        field.validating = false
+        scheduler.bumpMeta()
+      }
       return { stale: false, issues: [] }
     }
     field.abort?.abort()
@@ -274,7 +293,10 @@ export class Validator {
       }
     }
     const apply = (extra: string[], extraWarnings: string[] = []) => {
-      if (field.asyncSeq !== seq || ac.signal.aborted) return { stale: true as const, issues: [] as SchemaIssue[] }
+      if (field.asyncSeq !== seq || ac.signal.aborted) {
+        this.attempts.release(field, ac)
+        return { stale: true as const, issues: [] as SchemaIssue[] }
+      }
       const was = field.validating
       field.validating = false
       this.setWarnings(path, [...warned.messages, ...extraWarnings])
@@ -286,7 +308,10 @@ export class Validator {
     field.validating = true
     notifier.bumpPath(path)
     scheduler.bumpMeta()
-    const stale = () => ({ stale: true as const, issues: [] as SchemaIssue[] })
+    const stale = () => {
+      this.attempts.release(field, ac)
+      return { stale: true as const, issues: [] as SchemaIssue[] }
+    }
     const task = (async () => {
       // A validator we stop awaiting (abort mid-list) must not reject unhandled.
       for (const item of pending) ignoreRejection(item)
@@ -364,28 +389,11 @@ export class Validator {
     this.applySchemaMap(next)
   }
 
-  /**
-   * Debounce async rules. Sync-only fields validate on the next turn of `validate`.
-   * Field-rule failures are messages already; a detached pass only reports what is left (#2).
-   */
-  scheduleValidate(path: string): void {
-    const field = this.store.ensure(path)
-    const ms = field.asyncDebounceMs ?? this.deps.options.asyncDebounceMs ?? 0
-    const asyncish = field.rules.some((rule) => rule.validator || rule.schema)
-    if (ms > 0 && asyncish) {
-      const prev = this.validateTimers.get(path)
-      if (prev) clearTimeout(prev)
-      field.abort?.abort()
-      field.asyncSeq += 1
-      const timer = setTimeout(() => {
-        this.validateTimers.delete(path)
-        this.validateDetached(path)
-      }, ms)
-      this.validateTimers.set(path, timer)
-      return
-    }
-    this.validateDetached(path)
-  }
+  /** A user edit. See {@link AsyncAttempts.onEdit}. */
+  onEdit(path: string): void { this.attempts.onEdit(path) }
+
+  /** Debounce async rules. Sync-only fields validate on the next turn of `validate`. */
+  scheduleValidate(path: string): void { this.attempts.schedule(path) }
 
   /**
    * A pass nobody awaits (trigger, debounce timer, JSX release). Field rules never reject a pass; a throwing
@@ -398,11 +406,19 @@ export class Validator {
     })
   }
 
-  /** Cancel debounce timers and wait until no field validator is in flight. Aborted attempts are already gone. */
-  async waitAsync(): Promise<void> {
-    for (const timer of this.validateTimers.values()) clearTimeout(timer)
-    this.validateTimers.clear()
+  /** Wait until no field validator is in flight. Does not cancel a debounce a newer edit just scheduled. */
+  private async waitInflight(): Promise<void> {
     while (this.inflight.size) await Promise.allSettled([...this.inflight])
+  }
+
+  /**
+   * Cancel debounce timers and wait until no field validator is in flight. Aborted attempts are already gone.
+   * `submit` uses this so it validates the current value now. A validation pass must not: clearing the timer
+   * would drop the check that replaced it (#122).
+   */
+  async waitAsync(): Promise<void> {
+    this.attempts.clearAll()
+    await this.waitInflight()
   }
 
   /** Ignore an in-flight field validator. A late `apply` sees the bumped sequence and does not write. */
@@ -440,11 +456,7 @@ export class Validator {
     const field = this.store.get(path)
     if (!field) return
     this.discardInflight(field)
-    const timer = this.validateTimers.get(path)
-    if (timer) {
-      clearTimeout(timer)
-      this.validateTimers.delete(path)
-    }
+    this.attempts.clearTimer(path)
     this.schemaByPath.delete(path)
     this.store.fields.delete(path)
     this.deps.notifier.bumpPath(path)

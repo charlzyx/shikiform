@@ -143,8 +143,8 @@ Formily 的 `field.title` / `description` / `decorator` / `component` / `setComp
 ## 5. 校验管线（`core/validation`）
 
 1. **规则来源**（由 `declarations` 合成到 `field.rules/required`）：reaction（`$rules/$required`）> JSX lease（`<Field rules>` / `useField(name, { rules })`，卸载即释放）> 精确声明（`fields`、`registerField`）> 条目模板（`rows.*.name`）。
-2. **触发**：`validateTrigger`（默认 `onBlur` + `onSubmit`），字段可覆盖；`onChange`/`onBlur` 走 `scheduleValidate`，有 `asyncDebounceMs` 且含异步规则时防抖。
-3. **单字段**（`validateOne`）：`display: none` 或 computed 字段清空错误并跳过；`runRules` 产出同步消息与 pending Promise；字段 Standard Schema 同步/异步收集 issue；`enumPolicy: 'error'` 追加枚举校验。每次校验 `asyncSeq+1` 并换新 `AbortController`。abort 发生时该次任务立即离开 inflight，`waitAsync` / `submit` 不再等它；之后 Promise 无论 resolve 还是 reject 都不再写回（stale）。
+2. **触发**：`validateTrigger`（默认 `onBlur` + `onSubmit`），字段可覆盖；`onChange`/`onBlur` 走 `scheduleValidate`，有 `asyncDebounceMs` 且含异步规则时防抖。值变化时，字段上已有错误、或异步尝试还在飞（含防抖未触发），都会重校验并 abort 上一次，不限于 `onChange`（#122）。
+3. **单字段**（`validateOne`）：`display: none` 或 computed 字段清空错误并跳过；`runRules` 产出同步消息与 pending Promise；字段 Standard Schema 同步/异步收集 issue；`enumPolicy: 'error'` 追加枚举校验。每次校验 `asyncSeq+1` 并换新 `AbortController`。abort 发生时该次任务立即离开 inflight，`waitAsync` / `submit` 不再等它；之后 Promise 无论 resolve 还是 reject 都不再写回（stale）。值变化打断时，这次已经写上的异步错误马上清掉，同步规则按新值重算，`validating` 保持到替代校验结束（`$canSubmit` 在那次通过后回来）。被取代的那一轮收尾不再取消随后排上的防抖。
    - **警告级规则**：`Rule.level: 'warning'` 的规则单独跑（内置检查、`validator`、`schema` 都算，抛错也只是警告），结果写 `field.warnings`（`setWarnings`，标脏 `<path>:warnings` 链），`$warnings` / `binding.warnings` 读它；不进 `errors`，不挡 `canSubmit` / `submit`。
    - **规则抛错即消息**（#2、#7）：自定义 `validator` 同步 `throw`、返回的 Promise reject、字段 Schema 的 `validate` 同步抛错，都按同一契约变成该字段的错误消息（`err.message`，空则 `校验失败`）。因此字段规则永远不会让一轮校验 reject；公开的 `runRules` 也遵守这一点。
    - **无人等待的校验**（`validateDetached`：触发器、防抖定时器、JSX 卸载后恢复声明规则的那一轮）只可能因表单级 `validate` 抛错或 reaction 错误而失败，此时 `console.error` 报告，不留下未处理拒绝；被 `await` 的 `validate()`/`submit()` 仍把这类错误交给调用方。
