@@ -65,6 +65,16 @@ function RowSummary() {
   )
 }
 
+/** 100,000 pretty-printed rows stall this panel (~15 MB, ~18 million px). At or under this count, list every row. */
+const FULL_RESULT_ROWS = 100
+const RESULT_PREVIEW_ROWS = 20
+
+function submittedText(rows: readonly Row[]): string {
+  if (rows.length <= FULL_RESULT_ROWS) return JSON.stringify(rows, null, 2)
+  const preview = JSON.stringify(rows.slice(0, RESULT_PREVIEW_ROWS), null, 2)
+  return `共 ${rows.length} 条，结果区只展示前 ${RESULT_PREVIEW_ROWS} 条\n${preview}`
+}
+
 const itemColumns = (prefix: string): ArrayTableColumn<Item>[] => [
   { key: 'index', title: 'Index', width: 70, align: 'center', render: () => <ArrayTable.Index /> },
   { key: 'a1', title: 'A1', width: 160, render: ({ index }) => <Field name="a1" decorator={[FormItem, cell]}><Input data-testid={`${prefix}a1-${index}`} /></Field> },
@@ -81,7 +91,7 @@ export function ArrayTablePage() {
       <main style={{ padding: 16 }}>
         <h1>ArrayTable</h1>
         <p>对照 Pro.formily ArrayTable：拖拽排序、序号、行内编辑、删除（确认 + 异步）、上下移、行选择、展开行（自定义 render + 只读子表）、列配置、列宽拖拽、分页、自定义 toolbar / footer。</p>
-        <Form form={form} onSubmit={(values) => setSubmitted(JSON.stringify(values.array.slice(0, 3), null, 2))}>
+        <Form form={form} onSubmit={(values) => setSubmitted(submittedText(values.array))}>
           <ArrayField name="array" component={[ArrayTable, {
             title: 'Array Table Pro Max',
             resizeable: true,
