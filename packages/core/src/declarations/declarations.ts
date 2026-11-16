@@ -19,6 +19,8 @@ export type RegisterSpec = FieldSpec & {
    * `hidden` / `none` stay). Not part of the public `FieldSpec`.
    */
   omitSubmit?: boolean
+  /** Internal: JSX `<Field display pattern>` mount flags; applied to the model without recording an exact schema declaration. */
+  jsx?: boolean
 }
 
 /**
@@ -44,6 +46,7 @@ export class Declarations {
     private readonly store: FieldStore<any>,
     private readonly notifier: Notifier,
     private readonly validator: Validator,
+    private readonly initialFields?: Record<string, FieldSpec | undefined>,
   ) {
     store.onCreate = (path) => {
       const declaration = this.dormantDeclarations.get(path)
@@ -127,9 +130,11 @@ export class Declarations {
     }
     const field = this.store.ensure(path)
     // Undefined options are no-ops here, just as in applyFieldFlags below.
-    field.declaration = {
-      ...field.declaration,
-      ...Object.fromEntries(Object.entries(spec).filter(([, value]) => value !== undefined)),
+    if (!spec.jsx) {
+      field.declaration = {
+        ...field.declaration,
+        ...Object.fromEntries(Object.entries(spec).filter(([, value]) => value !== undefined)),
+      }
     }
     this.applyFieldFlags(field, spec, 'explicit')
     this.applyUi(field, spec, 'explicit')
@@ -338,6 +343,26 @@ export class Declarations {
   declaredEnum(path: string): EnumOption[] | undefined {
     const spec = this.store.get(path)?.declaration?.enum ?? this.templateSpec(path)?.enum
     return spec ? (asOptions(spec) ?? []) : undefined
+  }
+
+  /** Active exact declarations, dormant declarations, and item templates merged over `options.fields`. */
+  entries(): Record<string, FieldSpec> {
+    const out: Record<string, FieldSpec> = {}
+    for (const [path, spec] of Object.entries(this.initialFields ?? {})) {
+      if (spec) out[path] = { ...spec }
+    }
+    for (const [path, spec] of this.dormantDeclarations) {
+      if (Object.keys(spec).length > 0 || path in out) out[path] = { ...out[path], ...spec }
+    }
+    for (const [path, model] of this.store.fields) {
+      if (model.declaration && (Object.keys(model.declaration).length > 0 || path in out)) {
+        out[path] = { ...out[path], ...model.declaration }
+      }
+    }
+    for (const { pattern, spec } of this.itemTemplates) {
+      out[pattern] = { ...out[pattern], ...spec }
+    }
+    return out
   }
 
   /** The most specific template matching `path`. */

@@ -20,7 +20,20 @@ export class TreeOps {
     private readonly store: FieldStore<any>,
     private readonly scheduler: Scheduler,
     private readonly messages?: Partial<FormMessages>,
+    private readonly initialTrees?: Record<string, { childrenKey?: string; rowKey?: string } | undefined>,
   ) {}
+
+  /** Registered trees merged over `options.trees`. */
+  entries(): Record<string, { childrenKey: string; rowKey: string }> {
+    const out: Record<string, { childrenKey: string; rowKey: string }> = {}
+    for (const [path, spec] of Object.entries(this.initialTrees ?? {})) {
+      if (spec) out[path] = { childrenKey: spec.childrenKey ?? 'children', rowKey: spec.rowKey ?? 'id' }
+    }
+    for (const [path, cfg] of this.trees) {
+      out[path] = { childrenKey: cfg.childrenKey, rowKey: cfg.rowKey }
+    }
+    return out
+  }
 
   register(path: string, spec: { childrenKey?: string; rowKey?: string; canMove?: TreeConfig['canMove'] } = {}): void {
     const prev = this.trees.get(path)

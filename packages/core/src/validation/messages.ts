@@ -101,6 +101,8 @@ export interface FormMessages {
   ok: MessageTemplate<NoParams>
   /** Shadow drawer cancel. */
   cancel: MessageTemplate<NoParams>
+  /** Shadow modal / drawer / popconfirm close in `readPretty` / `readOnly`. */
+  close: MessageTemplate<NoParams>
   /** `PreviewText` for `true`. */
   yes: MessageTemplate<NoParams>
   /** `PreviewText` for `false`. */
@@ -161,6 +163,7 @@ export const zhCN: FormMessages = {
   edit: '编辑',
   ok: '确定',
   cancel: '取消',
+  close: '关闭',
   yes: '是',
   no: '否',
   empty: '-',
@@ -207,6 +210,7 @@ export const enUS: FormMessages = {
   edit: 'Edit',
   ok: 'OK',
   cancel: 'Cancel',
+  close: 'Close',
   yes: 'Yes',
   no: 'No',
   empty: '-',

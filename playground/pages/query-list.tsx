@@ -2,7 +2,7 @@ import { Button, ConfigProvider } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import { Field, Form, useWatch, type Draft } from '@shikiform/react'
 import { DatePicker, FormItem, Input, ArrayTable, QueryList, Select, ShadowModal, type ArrayTableColumn } from '@shikiform/antd'
-import { useArrayShadow, useQueryTable } from '@shikiform/hooks'
+import { useQueryTable } from '@shikiform/hooks'
 import { CLASSIFY_ENUM, domainService, STATUS_ENUM, type DomainQuery, type DomainRow } from '../pro-data'
 
 /**
@@ -86,19 +86,16 @@ function Selection({ table }: { table: ReturnType<typeof useDomainTable> }) {
   return <pre data-testid="selected">selectedKeys: {JSON.stringify(table.selectedKeys)}</pre>
 }
 
-/** `QueryListAdd.tsx`: the same list, plus 编辑 per row (one shared shadow modal) and 添加条目 (ProAddition). */
+/** `QueryListAdd.tsx`: the same list, plus 编辑 per row (ShadowModal inside the cell) and 添加条目 (ShadowAddition). */
 export function QueryListAddPage() {
   const table = useDomainTable()
-  // QueryList renders its own <Form>; pass the hook's form so the shadow can sit next to it.
-  const editor = useArrayShadow<DomainRow>('list', { form: table.form, rowKey: 'id' })
   return (
     <ConfigProvider locale={zhCN}>
       <main style={{ padding: 16 }}>
         <h1>QueryList + 添加 / 编辑</h1>
-        <p>在 QueryList 基础上：每行「编辑」打开影子表单，确定写回该行；「添加条目」追加一行到当前页数据。真实场景里 onOk 里调接口后 refresh。</p>
+        <p>在 QueryList 基础上：每行「编辑」直接用列内 ShadowModal 绑定当前行，确定写回该行；「添加条目」追加一行到当前页数据。真实场景里 onOk 里调接口后返回 false 并 refresh。</p>
         <QueryList
           table={table}
-         
           columns={[
             ...columns,
             {
@@ -107,9 +104,16 @@ export function QueryListAddPage() {
               width: 90,
               align: 'center',
               render: ({ index }) => (
-                <Button type="link" size="small" data-testid={`edit-${index}`} onClick={() => void editor.edit(index)}>
-                  编辑
-                </Button>
+                <ShadowModal<DomainRow>
+                  title="编辑"
+                  trigger={
+                    <Button type="link" size="small" data-testid={`edit-${index}`}>
+                      编辑
+                    </Button>
+                  }
+                >
+                  <RowFields prefix="edit" />
+                </ShadowModal>
               ),
             },
           ]}
@@ -121,9 +125,6 @@ export function QueryListAddPage() {
         >
           {SearchFields()}
         </QueryList>
-        <ShadowModal shadow={editor} title="编辑">
-          <RowFields prefix="edit" />
-        </ShadowModal>
         <ListView form={table.form} />
       </main>
     </ConfigProvider>

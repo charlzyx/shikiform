@@ -2,7 +2,7 @@
  * Headless "pro" hooks. No Ant Design. The components in `@shikiform/antd` render these:
  * - `useQueryTable` → `QueryList`;
  * - `useArrayTable` + `useColumnSettings` → `ArrayTable`;
- * - `useShadowForm` / `useArrayShadow` → `ShadowForm`, `ShadowModal`, `ShadowDrawer`, `ShadowPopconfirm`;
+ * - `useShadowForm` → `ShadowForm`, `ShadowModal`, `ShadowDrawer`, `ShadowPopconfirm`;
  * - `useSuggestion` → `Suggestion`; `useLazyCascader` / `useCascaderLabels` → `CascaderPlus`; `enumItems` → `PreviewText.Select` (choice controls' `readPretty`).
  *
  * @packageDocumentation
@@ -25,8 +25,6 @@ export { useColumnSettings } from './use-column-settings'
 export type { ColumnDragEvent, ColumnDragProps, ColumnSetting, ColumnSettingInput, ColumnSettingsApi, TableDensity } from './use-column-settings'
 export { useShadowForm } from './use-shadow-form'
 export type { ShadowConfirmResult, ShadowFormApi, ShadowInit, UseShadowFormOptions } from './use-shadow-form'
-export { useArrayShadow } from './use-array-shadow'
-export type { ArrayShadowApi, ArrayShadowContext, UseArrayShadowOptions } from './use-array-shadow'
 export { useSuggestion } from './use-suggestion'
 export type { SuggestFetcher, SuggestionApi, UseSuggestionOptions } from './use-suggestion'
 export { useCascaderLabels, useLazyCascader } from './use-lazy-cascader'

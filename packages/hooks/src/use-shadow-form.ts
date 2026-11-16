@@ -1,34 +1,55 @@
-import { useCallback, useRef, useState } from 'react'
-import { createForm } from '@shikiform/core/internal'
-import type { FormInstance } from '@shikiform/core/internal'
-import type { FieldError, FormOptions } from '@shikiform/core/internal'
+import { useCallback, useContext, useRef, useState } from 'react'
+import { createForm, engineOf, normalizePath, parentPath, ShikiUsageError } from '@shikiform/core/internal'
+import type { FieldError, FormEngine, FormInstance, FormOptions } from '@shikiform/core/internal'
+import { ArrayContext, FormContext, resolveName, useScope } from '@shikiform/react/internal'
 
 /** Where a shadow form's values come from when it opens: a value, or a (possibly async) loader. */
-export type ShadowInit<TValues> = TValues | Partial<TValues> | (() => TValues | Partial<TValues> | Promise<TValues | Partial<TValues>>)
+export type ShadowInit<TValues> =
+  | TValues
+  | Partial<TValues>
+  | (() => TValues | Partial<TValues> | Promise<TValues | Partial<TValues>>)
 
 /** Result of {@link ShadowFormApi.confirm}. `ok: false` keeps the shadow open with its errors. */
 export type ShadowConfirmResult<TValues> = { ok: true; values: TValues } | { ok: false; errors: FieldError[] }
 
 export interface UseShadowFormOptions<TValues, TContext = unknown> {
-  /** Values the shadow opens with when `open()` gets none. */
+  /**
+   * Bind to a path on the host form: relative to the current scope inside `<Form>`, or an absolute path when `form`
+   * is given. Omit inside a row / `<ObjectField>` scope to bind that scope's path automatically.
+   */
+  name?: string
+  /** Explicit host form when called outside `<Form>` (e.g. next to a `QueryList`). `name` is then absolute (`''` = root). */
+  form?: FormInstance<any>
+  /**
+   * Append mode on a bound array path (`name: 'list'`): `true` opens `{}` and appends on confirm; an object opens
+   * a clone of that template and appends on confirm.
+   */
+  add?: boolean | Partial<TValues>
+  /** Row id property when bound to an array element, used to locate the row if it moved before confirm. */
+  rowKey?: string
+  /** Custom merge when writing back an edited object or array row. Default shallow-merges plain objects so `virtual` keys survive. */
+  merge?: (current: TValues, values: TValues) => TValues
+  /** Values the shadow opens with when `open()` gets none (overrides bound value when provided, or fallback in `add` mode). */
   initialValues?: TValues
-  /** Field declarations for the shadow form (rules, enum, display…), as in `useForm({ fields })`. */
+  /** Field declarations for the shadow form (merged over inherited `forkOptions` fields). */
   fields?: FormOptions<TValues>['fields']
   /** Effects for the shadow form. They run again on every open (a fresh engine). */
   effects?: FormOptions<TValues>['effects']
-  /** Other engine options (validateTrigger, schema…). */
+  /** Other engine options (validateTrigger, schema, pattern, messages…). Merged over inherited `forkOptions`. */
   formOptions?: Omit<FormOptions<TValues>, 'initialValues' | 'fields' | 'effects'>
-  /** Called with the submitted shadow values after validation passes. Throw / reject to keep it open. */
-  onOk?: (values: TValues, context: TContext | undefined) => void | Promise<void>
+  /**
+   * Called with the submitted shadow values after validation passes, before any bound write-back.
+   * Return `false` to skip the automatic write-back; throw / reject to keep the shadow open.
+   */
+  onOk?: (values: TValues, context: TContext | undefined) => void | false | Promise<void | false>
   /** Called when the shadow closes without confirming. */
   onCancel?: (context: TContext | undefined) => void
 }
 
 /**
- * A detached draft form. It never writes the host form by itself; `onOk` decides what to do with the values.
- * Every `open()` builds a fresh engine whose `initialValues` are the opened values, so `reset`, `dirty`,
- * errors and effects start clean each time. Render its fields with `<Form form={shadow.form}>` (or the
- * `ShadowModal` / `ShadowDrawer` / `ShadowPopconfirm` / `ShadowForm` components in `@shikiform/antd`).
+ * A draft form, optionally bound to a host form path (object, array row, or array append).
+ * Every `open()` builds a fresh engine so `reset`, `dirty`, errors and effects start clean each time.
+ * Render its fields with `<Form form={shadow.form}>` or `ShadowModal` / `ShadowDrawer` / `ShadowPopconfirm` / `ShadowForm`.
  */
 export interface ShadowFormApi<TValues, TContext = unknown> {
   /** The current draft engine. Replaced on every `open()`. */
@@ -39,50 +60,149 @@ export interface ShadowFormApi<TValues, TContext = unknown> {
   loading: boolean
   /** True while `confirm()` validates and runs `onOk`. */
   submitting: boolean
-  /** Whatever `open()` was given as `context` (e.g. `{ index }` of the row being edited). */
+  /** Whatever `open()` was given as `context`. */
   context: TContext | undefined
   /** Open with values (or a loader) and an optional context. A newer `open()` supersedes a pending loader. */
   open: (init?: ShadowInit<TValues>, context?: TContext) => Promise<void>
-  /** Validate the draft, call `onOk` (and the optional per-call handler), then close. */
-  confirm: (onOk?: (values: TValues, context: TContext | undefined) => void | Promise<void>) => Promise<ShadowConfirmResult<TValues>>
+  /** Validate the draft, call `onOk` (and the optional per-call handler), write back when bound unless `false` is returned, then close. */
+  confirm: (
+    onOk?: (values: TValues, context: TContext | undefined) => void | false | Promise<void | false>,
+  ) => Promise<ShadowConfirmResult<TValues>>
   /** Close without writing anything. */
   cancel: () => void
 }
 
-/**
- * Headless ShadowForm (Pro.formily `ShadowForm` / `useShadowForm`): edit a copy of some record in a separate
- * form, then hand the validated values back. Components only decide where the draft is rendered
- * (modal, drawer, popconfirm, inline).
- *
- * ```tsx
- * const shadow = useShadowForm<Info>({ onOk: (values) => form.setValue('info', values) })
- * <Button onClick={() => shadow.open(form.getValue('info'))}>编辑</Button>
- * <Modal open={shadow.visible} onOk={() => shadow.confirm()} onCancel={shadow.cancel}>
- *   <Form form={shadow.form}>…</Form>
- * </Modal>
- * ```
- */
-export function useShadowForm<TValues = Record<string, any>, TContext = unknown>(
-  options: UseShadowFormOptions<TValues, TContext> = {},
+type WriteTarget =
+  | { kind: 'add'; host: FormEngine<any>; arrayPath: string }
+  | { kind: 'row'; host: FormEngine<any>; arrayPath: string; key: string | undefined; rowKey: string | undefined }
+  | { kind: 'object'; host: FormEngine<any>; path: string }
+
+export interface InternalShadowOptions<TValues, TContext = unknown> extends UseShadowFormOptions<TValues, TContext> {
+  /** Custom append used by `ArrayTable.ShadowAddition` so pagination follows the added row. */
+  append?: (row: TValues) => void
+}
+
+/** @internal Shared implementation accepting `append` for `ArrayTable.ShadowAddition`. */
+export function useShadowFormOver<TValues = Record<string, any>, TContext = unknown>(
+  options: InternalShadowOptions<TValues, TContext> = {},
 ): ShadowFormApi<TValues, TContext> {
+  const contextForm = useContext(FormContext)
+  const scope = useScope()
+  const arrayCtx = useContext(ArrayContext)
+
+  let boundHost: FormEngine<any> | null = null
+  let targetPath = ''
+  if (options.form !== undefined) {
+    boundHost = engineOf(options.form)
+    targetPath = options.name ? normalizePath(options.name) : ''
+  } else if (options.name !== undefined) {
+    if (!contextForm) {
+      if (process.env.NODE_ENV !== 'production') {
+        throw new ShikiUsageError('useShadowForm({ name }) needs a surrounding <Form> or a `form` option.')
+      }
+      throw new Error('useShadowForm({ name }) needs a surrounding <Form> or a `form` option')
+    }
+    boundHost = contextForm
+    targetPath = normalizePath(resolveName(boundHost, scope, normalizePath(options.name)))
+  } else if (contextForm && scope.path !== '') {
+    boundHost = contextForm
+    targetPath = normalizePath(scope.path)
+  }
+
+  const isAdd = options.add !== undefined && options.add !== false
+  if (isAdd && (!boundHost || !targetPath)) {
+    if (process.env.NODE_ENV !== 'production') {
+      throw new ShikiUsageError(
+        'useShadowForm({ add }) needs a bound array path (`name` inside <Form>, `form` + `name`, or an enclosing scope).',
+      )
+    }
+    throw new Error('useShadowForm({ add }) needs a bound array path')
+  }
+
+  const targetParent = targetPath ? parentPath(targetPath) : null
+  const resolvedRowKey =
+    options.rowKey ?? (targetParent !== null && targetParent === arrayCtx?.path ? arrayCtx.rowKey : undefined)
+
   const optionsRef = useRef(options)
   optionsRef.current = options
-  const build = useCallback((values: TValues | undefined) => {
+  const bindingRef = useRef({ host: boundHost, targetPath, isAdd, rowKey: resolvedRowKey })
+  bindingRef.current = { host: boundHost, targetPath, isAdd, rowKey: resolvedRowKey }
+
+  const snapshotTarget = useCallback((): WriteTarget | null => {
+    const { host, targetPath: path, isAdd: addMode, rowKey } = bindingRef.current
+    if (!host) return null
+    if (addMode) return { kind: 'add', host, arrayPath: path }
+    const parent = path ? parentPath(path) : null
+    const last = parent === null ? path : path.slice(parent.length + 1)
+    if (parent !== null && /^\d+$/.test(last) && Array.isArray(host.getValue(parent))) {
+      const index = Number(last)
+      const key = host.structureKeys(parent, rowKey)[index]?.key
+      return { kind: 'row', host, arrayPath: parent, key, rowKey }
+    }
+    return { kind: 'object', host, path }
+  }, [])
+
+  const build = useCallback((explicitInit: TValues | Partial<TValues> | undefined, hasExplicitInit: boolean) => {
     const current = optionsRef.current
+    const { host, targetPath: path, isAdd: addMode } = bindingRef.current
+    const forked = host ? host.forkOptions(addMode ? `${path}.*` : path) : undefined
+
+    let initialValues: TValues | undefined
+    if (hasExplicitInit) {
+      initialValues = explicitInit as TValues
+    } else if (addMode) {
+      if (typeof current.add === 'object' && current.add !== null) {
+        initialValues = clonePlain(current.add) as TValues
+      } else if (current.initialValues !== undefined) {
+        initialValues = clonePlain(current.initialValues)
+      } else {
+        initialValues = {} as TValues
+      }
+    } else if (current.initialValues !== undefined) {
+      initialValues = clonePlain(current.initialValues)
+    } else {
+      initialValues = forked?.initialValues as TValues | undefined
+    }
+
+    const fields = mergeFields(
+      forked?.fields as Record<string, any> | undefined,
+      current.fields as Record<string, any> | undefined,
+    )
+    const trees =
+      forked?.trees || current.formOptions?.trees
+        ? ({ ...forked?.trees, ...current.formOptions?.trees } as FormOptions<TValues>['trees'])
+        : undefined
+    const messages =
+      forked?.messages || current.formOptions?.messages
+        ? { ...forked?.messages, ...current.formOptions?.messages }
+        : undefined
+
     return createForm<TValues>({
+      ...forked,
       ...current.formOptions,
-      initialValues: values ?? (current.initialValues as TValues),
-      fields: current.fields,
+      ...(messages ? { messages } : {}),
+      ...(trees ? { trees } : {}),
+      initialValues,
+      ...(fields ? { fields: fields as FormOptions<TValues>['fields'] } : {}),
       effects: current.effects,
     })
   }, [])
+
   const [state, setState] = useState<{
     form: FormInstance<TValues>
     visible: boolean
     loading: boolean
     submitting: boolean
     context: TContext | undefined
-  }>(() => ({ form: build(undefined), visible: false, loading: false, submitting: false, context: undefined }))
+    target: WriteTarget | null
+  }>(() => ({
+    form: build(undefined, false),
+    visible: false,
+    loading: false,
+    submitting: false,
+    context: undefined,
+    target: null,
+  }))
   const stateRef = useRef(state)
   stateRef.current = state
   const seq = useRef(0)
@@ -90,12 +210,25 @@ export function useShadowForm<TValues = Record<string, any>, TContext = unknown>
   const open = useCallback(
     async (init?: ShadowInit<TValues>, context?: TContext) => {
       const ticket = ++seq.current
+      const target = snapshotTarget()
       if (typeof init === 'function') {
-        setState((prev) => ({ ...prev, visible: true, loading: true, submitting: false, context, form: build(undefined) }))
+        setState((prev) => ({
+          ...prev,
+          visible: true,
+          loading: true,
+          submitting: false,
+          context,
+          target,
+          form: build({} as TValues, true),
+        }))
         try {
-          const loaded = await (init as () => TValues | Promise<TValues>)()
+          const loaded = await (init as () => TValues | Partial<TValues> | Promise<TValues | Partial<TValues>>)()
           if (ticket !== seq.current) return
-          setState((prev) => ({ ...prev, loading: false, form: build(clonePlain(loaded) as TValues) }))
+          setState((prev) => ({
+            ...prev,
+            loading: false,
+            form: build(clonePlain(loaded) as TValues, loaded !== undefined),
+          }))
         } catch (error) {
           if (ticket !== seq.current) return
           setState((prev) => ({ ...prev, loading: false }))
@@ -103,31 +236,43 @@ export function useShadowForm<TValues = Record<string, any>, TContext = unknown>
         }
         return
       }
-      setState({ visible: true, loading: false, submitting: false, context, form: build(clonePlain(init) as TValues | undefined) })
+      setState({
+        visible: true,
+        loading: false,
+        submitting: false,
+        context,
+        target,
+        form: build(clonePlain(init) as TValues | undefined, init !== undefined),
+      })
     },
-    [build],
+    [build, snapshotTarget],
   )
 
   const cancel = useCallback(() => {
     seq.current += 1
     const context = stateRef.current.context
-    setState((prev) => ({ ...prev, visible: false, loading: false, submitting: false, context: undefined }))
+    setState((prev) => ({ ...prev, visible: false, loading: false, submitting: false, context: undefined, target: null }))
     optionsRef.current.onCancel?.(context)
   }, [])
 
   const confirm = useCallback(
-    async (onOk?: (values: TValues, context: TContext | undefined) => void | Promise<void>): Promise<ShadowConfirmResult<TValues>> => {
-      const { form, context } = stateRef.current
+    async (
+      onOk?: (values: TValues, context: TContext | undefined) => void | false | Promise<void | false>,
+    ): Promise<ShadowConfirmResult<TValues>> => {
+      const { form, context, target } = stateRef.current
       const ticket = seq.current
       setState((prev) => ({ ...prev, submitting: true }))
       try {
         const result = await form.submit()
         if (!result.ok) return { ok: false, errors: result.errors }
-        await optionsRef.current.onOk?.(result.values, context)
-        await onOk?.(result.values, context)
+        const first = await optionsRef.current.onOk?.(result.values, context)
+        const second = await onOk?.(result.values, context)
+        if (first !== false && second !== false && target) {
+          writeBack(target, result.values, optionsRef.current.merge, optionsRef.current.append)
+        }
         if (ticket === seq.current) {
           seq.current += 1
-          setState((prev) => ({ ...prev, visible: false, submitting: false, context: undefined }))
+          setState((prev) => ({ ...prev, visible: false, submitting: false, context: undefined, target: null }))
         }
         return { ok: true, values: result.values }
       } finally {
@@ -137,7 +282,98 @@ export function useShadowForm<TValues = Record<string, any>, TContext = unknown>
     [],
   )
 
-  return { ...state, open, confirm, cancel }
+  const { target: _target, ...publicState } = state
+  return { ...publicState, open, confirm, cancel }
+}
+
+/**
+ * Headless ShadowForm (Pro.formily `ShadowForm` / `useShadowForm`): edit a draft copy of an object, array row,
+ * or standalone record in a separate form engine, writing back on `confirm()` when bound.
+ */
+export function useShadowForm<TValues = Record<string, any>, TContext = unknown>(
+  options: UseShadowFormOptions<TValues, TContext> = {},
+): ShadowFormApi<TValues, TContext> {
+  const { name, form, add, rowKey, merge, initialValues, fields, effects, formOptions, onOk, onCancel } = options
+  return useShadowFormOver<TValues, TContext>({
+    name,
+    form,
+    add,
+    rowKey,
+    merge,
+    initialValues,
+    fields,
+    effects,
+    formOptions,
+    onOk,
+    onCancel,
+  })
+}
+
+function writeBack<TValues>(
+  target: WriteTarget,
+  values: TValues,
+  merge: ((current: TValues, values: TValues) => TValues) | undefined,
+  append: ((row: TValues) => void) | undefined,
+): void {
+  if (target.kind === 'add') {
+    if (append) append(values)
+    else target.host.pushArray(target.arrayPath as never, values as never)
+    return
+  }
+  if (target.kind === 'row') {
+    const found =
+      target.key !== undefined
+        ? target.host.structureKeys(target.arrayPath, target.rowKey).find((item) => item.key === target.key)
+        : undefined
+    if (!found) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(
+          `[shikiform] Shadow form row in "${target.arrayPath}" was removed before confirm; skipping write-back.`,
+        )
+      }
+      return
+    }
+    const current = target.host.getValue(`${target.arrayPath}.${found.index}` as never) as TValues
+    const next = merge ? merge(current, values) : shallowMergePlain(current, values)
+    target.host.replaceArray(target.arrayPath as never, found.index, next as never)
+    return
+  }
+  const current = target.host.getValue(target.path as never) as TValues
+  const next = merge ? merge(current, values) : shallowMergePlain(current, values)
+  if (target.path === '' && isPlainObject(next)) {
+    target.host.batch(() => {
+      for (const [key, value] of Object.entries(next)) target.host.setValue(key as never, value as never)
+    })
+    return
+  }
+  target.host.setValue(target.path as never, next as never)
+}
+
+function mergeFields(
+  base: Record<string, any> | undefined,
+  override: Record<string, any> | undefined,
+): Record<string, any> | undefined {
+  if (!base && !override) return undefined
+  if (!base) return override
+  if (!override) return base
+  const out: Record<string, any> = { ...base }
+  for (const [key, spec] of Object.entries(override)) {
+    if (spec !== undefined) out[key] = out[key] ? { ...out[key], ...spec } : spec
+  }
+  return out
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const proto = Object.getPrototypeOf(value)
+  return proto === Object.prototype || proto === null
+}
+
+function shallowMergePlain<T>(current: T, values: T): T {
+  if (isPlainObject(current) && isPlainObject(values)) {
+    return { ...current, ...values } as T
+  }
+  return values
 }
 
 function clonePlain<T>(value: T): T {

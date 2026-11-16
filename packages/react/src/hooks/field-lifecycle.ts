@@ -10,7 +10,9 @@ export function applyJsxField(
   if (spec.rules === undefined && spec.required === undefined) {
     // Display and pattern are persistent field flags, not JSX validation.
     // In particular a <Field> with only name/children owns no rules to release.
-    form.registerField(path, { display: spec.display, pattern: spec.pattern })
+    if (spec.display !== undefined || spec.pattern !== undefined) {
+      form.registerField(path, { display: spec.display, pattern: spec.pattern, jsx: true })
+    }
     return undefined
   }
   const lease = form.mountJsxField(path, spec)
