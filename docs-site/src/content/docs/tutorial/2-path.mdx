@@ -7,7 +7,7 @@ tableOfContents: false
 <div className="tutorial-step">
 <div className="tutorial-copy">
 
-右边的表单包含个人资料：姓名是一个顶层字段，地址是一个嵌套对象（目前只有「城市」）。直接点击提交，可以看到输出结果里已经带上了 `name` 和 `address.city`。
+预览里的表单是一份个人资料：姓名是一个顶层字段，地址是一个嵌套对象（目前只有「城市」）。直接点击提交，可以看到输出结果里已经带上了 `name` 和 `address.city`。
 
 `<ObjectField name="address">` 会为内部的字段建立一层路径作用域。在这个作用域内，子字段只需填写相对名称（例如 `city`），引擎会自动拼接为完整路径 `address.city`。如果在这里又写成 `address.city`，就会被拼成 `address.address.city`。
 
