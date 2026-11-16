@@ -1,6 +1,6 @@
 {
   "name": "@shikiform/react",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Headless React bindings for ShikiForm. Re-exports @shikiform/core.",
   "type": "module",
   "sideEffects": false,
@@ -25,7 +25,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@shikiform/core": "0.1.0",
+    "@shikiform/core": "0.2.0",
     "@tanstack/react-virtual": "^3.13.12"
   },
   "peerDependencies": {
