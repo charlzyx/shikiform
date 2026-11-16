@@ -7,8 +7,8 @@ description: 不依赖 UI 库直接使用 useField、useWatch、数组/树上下
 
 - **基础绑定与订阅**：`useField(name)` 负责绑定单个字段，`useWatch(select)` / `<Watch>` 负责订阅任意 `$` 状态变化。
 - **数组行内上下文**：`useArray()` 获取最近一层数组的操作句柄，`useIndex()` 获取当前行下标，`useRecord()` 获取当前行数据，调用时都不需要传数组名。如需展示数组路径自身的错误（不包含子字段），可以在容器或 `ArrayTable` 的 `footer` 中调用 `useArrayErrors()`（注意必须放在 `<ArrayField>` 子树内部，详见 [数组自身的错误](/guide/arrays#数组自身的错误)）。
-- **树节点上下文**：`useTreeNode()` 返回当前节点的 `{ path, pos, index, record }`。
-- **拖拽排序**：数组句柄（`useArray()` / `useArrayField(name)`）的 `dragProps(index)` 与树句柄（`useTreeField(name)`）的 `dragProps(pos)` 会直接返回所需的 HTML5 拖放事件属性，配合同一句柄的 `move` 即可完成排序。
+- **树节点上下文**：`useTreeNode()` 返回当前节点的 `{ path, pos, index, key, record, dragProps }`。
+- **拖拽排序**：数组句柄（`useArray()` / `useArrayField(name)`）的 `dragProps(index)` 与树节点（`useTreeNode().dragProps()`）或树句柄（`useTreeField(name).dragProps(pos)`）会直接返回所需的 HTML5 拖放事件属性，配合同一句柄的 `move` 即可完成排序。
 
 `useArray`、`useIndex` 和 `useRecord` 在普通 `<ArrayField>` 渲染函数以及 `ArrayItems`、`ArrayCards`、`ArrayTable` 容器内均可通用。
 
@@ -74,28 +74,34 @@ export default function App() {
 
 在 `Row` 组件中，`useArray()` 会自动解析到外层的 `todos` 数组，拖拽重排后 `#` 后面的行下标会同步变化，而业务 `id` 和焦点状态保持不变。
 
-## 树形结构：使用 RowScope 包裹节点
+## 树形结构：TreeField 与 useTreeNode
 
-渲染树形数据时，由业务组件递归渲染节点，并在每个节点外层包一层 `<RowScope path pos>`，内部的 `useField('name')` 就会自动指向当前节点，`useTreeNode()` 则提供当前节点的坐标与数据：
+渲染树形数据时，使用 `<TreeField name rowKey>` 遍历树并自动为每个节点建立作用域；子节点通过 `node.children` 递归传入（叶子节点为 `null`），内部的 `useField('name')` 会自动指向当前节点，`useTreeNode()` 则提供当前节点的坐标、数据与 `dragProps()`：
 
 ```tsx
-function NodeLabel({ dragProps }: { dragProps: TreeHandle['dragProps'] }) {   // TreeHandle = ReturnType<typeof useTreeField>
-  const { pos, record } = useTreeNode<Node>()
+function NodeRow() {
+  const { record, dragProps } = useTreeNode<Node>()
   const field = useField<Node, 'name'>('name')
-  return <div {...dragProps(pos)}>⠿ <input value={field.value} onChange={(e) => field.onChange(e.target.value)} /> {record.children?.length ?? 0}</div>
+  return <div {...dragProps()}>⠿ <input value={field.value} onChange={(e) => field.onChange(e.target.value)} /> {record.children?.length ?? 0}</div>
 }
 
-<RowScope path={`${path}.${index}`} pos={[...pos, index]}>
-  <NodeLabel dragProps={tree.dragProps} />
-  {node.children?.length ? <Branch path={`${path}.${index}.children`} nodes={node.children} pos={[...pos, index]} /> : null}
-</RowScope>
+<ul>
+  <TreeField name="menu" rowKey="id">
+    {(node) => (
+      <li>
+        <NodeRow />
+        {node.children && <ul>{node.children}</ul>}
+      </li>
+    )}
+  </TreeField>
+</ul>
 ```
 
-通过 `useTreeField('menu')` 获取的 `tree.dragProps(pos)` 自带跨父级拖拽和「禁止拖入自身子节点」校验。完整可运行演示见 [示例库 · 树：跨层移动](/examples/arrays#树跨层移动)。
+`useTreeNode().dragProps()`（以及 `useTreeField('menu')` 的 `tree.dragProps(pos)`）自带跨父级拖拽和「禁止拖入自身子节点」校验。完整可运行演示见 [示例库 · 树：跨层移动](/examples/arrays#树跨层移动)。
 
 ## 接自己的组件库
 
-`connect`、`mapProps`、`mapBlur` 和 `mapFieldProps` 均直接由 `@shikiform/react` 导出，不依赖 `@shikiform/antd`（默认不传 Ant Design 专属的 `status`）。标签与错误提示使用 [`useFieldDecorator`](/reference/react-hooks#usefielddecorator)，提交和重置按钮可使用 headless 的 [`Submit` / `Reset`](/reference/react-hooks#usesubmit)（支持 `asChild` 或 render prop，其中 `Reset` 通过 `afterReset` 接收重置后的值）。下面以 shadcn/ui、Mantine 和 MUI 为例展示接入方式，原生 HTML 最小起步见 [不用 UI 库](/start/native)。
+`connect` 和 `mapProps` 均直接由 `@shikiform/react` 导出，不依赖 `@shikiform/antd`（默认不传 Ant Design 专属的 `status`）。标签与错误提示使用 [`useFieldDecorator`](/reference/react-hooks#usefielddecorator)，提交和重置按钮可使用 headless 的 [`Submit` / `Reset`](/reference/react-hooks#usesubmit)（支持 `asChild` 或 render prop，其中 `Reset` 通过 `afterReset` 接收重置后的值）。下面以 shadcn/ui、Mantine 和 MUI 为例展示接入方式，原生 HTML 最小起步见 [不用 UI 库](/start/native)。
 
 ### 区分 `useFieldDecorator().control` 与 `connect`
 
@@ -136,18 +142,17 @@ const Input = connect(ShadcnInput)
 
 | 写法 | 触发 `field.onBlur()` 的时机 |
 |---|---|
-| `mapProps({ blurOn: 'onOpenChange' })` / `mapBlur('onOpenChange')` | 弹层关闭时（回调首个参数为 `false`），且不再向下透传 `onBlur` |
-| `mapProps({ blurOn: 'onChange' })` / `mapBlur('onChange')` | 每次值变更写入后立即触发 |
-| `mapProps({ blurOn: { prop, when? } })` / `mapBlur({ prop, when? })` | 指定的 `prop` 回调触发且 `when(...args)` 不返回 `false` 时（适用于如 MUI DatePicker 的 `onClose`） |
+| `mapProps({ blurOn: 'onOpenChange' })` | 弹层关闭时（回调首个参数为 `false`），且不再向下透传 `onBlur` |
+| `mapProps({ blurOn: 'onChange' })` | 每次值变更写入后立即触发 |
+| `mapProps({ blurOn: { prop, when? } })` | 指定的 `prop` 回调触发且 `when(...args)` 不返回 `false` 时（适用于如 MUI DatePicker 的 `onClose`） |
 | `mapProps({ onBlur: false })` | 显式声明不处理失焦校验 |
 
 ```tsx
 connect(SelectControl, mapProps({ options: 'options', onChange: 'onValueChange', blurOn: 'onOpenChange' }))
-connect(SelectControl, mapBlur('onOpenChange'), mapProps({ options: 'options', onChange: 'onValueChange' }))
 connect(Picker, mapProps({ onBlur: false }))
 ```
 
-`mapBlur` 与 `mapProps({ blurOn })` 等价，可以放在增强器列表的任意位置。完整参数签名见 [mapProps](/reference/antd-adapter#mapprops) 与 [mapBlur](/reference/antd-adapter#mapblur)。
+完整参数签名见 [mapProps](/reference/antd-adapter#mapprops)。
 
 ### shadcn/ui 接入模板
 
@@ -156,7 +161,7 @@ connect(Picker, mapProps({ onBlur: false }))
 ```tsx
 import { format, parseISO } from 'date-fns'
 import type { ReactNode } from 'react'
-import { Field, Form, Reset, Submit, connect, mapProps, mapReadPretty, useFieldDecorator, useForm } from '@shikiform/react'
+import { Field, Form, Reset, Submit, connect, mapProps, useFieldDecorator, useForm } from '@shikiform/react'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Checkbox as ShadcnCheckbox } from '@/components/ui/checkbox'
@@ -165,7 +170,7 @@ import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Select as ShadcnSelect, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
-const Input = connect(ShadcnInput, mapReadPretty(({ value }: { value?: string }) => <span>{value || '—'}</span>))
+const Input = connect(ShadcnInput, mapProps({ readPretty: ({ value }: { value?: string }) => <span>{value || '—'}</span> }))
 
 function SelectControl(props: {
   id?: string
@@ -270,7 +275,7 @@ export default function App() {
 
 ```tsx preview
 import { useState, type ReactNode } from 'react';
-import { Field, Form, Reset, Submit, connect, mapProps, mapReadPretty, useFieldDecorator, useForm } from '@shikiform/react';
+import { Field, Form, Reset, Submit, connect, mapProps, useFieldDecorator, useForm } from '@shikiform/react';
 
 function TextControl(props: {
   id?: string;
@@ -320,7 +325,7 @@ function PopoverSelect(props: {
   );
 }
 
-const Input = connect(TextControl, mapReadPretty(({ value }: { value?: string }) => <span>{value || '—'}</span>));
+const Input = connect(TextControl, mapProps({ readPretty: ({ value }: { value?: string }) => <span>{value || '—'}</span> }));
 const Select = connect(PopoverSelect, mapProps({ options: 'options', blurOn: 'onOpenChange' }));
 
 function DateControl(props: {
@@ -435,14 +440,14 @@ const Birthday = connect(DatePickerInput, mapProps({
 
 ### MUI 接入要点
 
-MUI 的 `TextField` 接收布尔型的 `error` 与提示文本 `helperText`，而 `control.error` 是字符串，因此不能直接展开 `control`，应当逐项读取 `useFieldDecorator()` 的字段并与 `useField()` 组合。`DatePicker`（dayjs 适配器）则通过 `slotProps.textField.id` 绑定标签 `id`，并用 `mapBlur({ prop: 'onClose' })` 触发失焦校验。
+MUI 的 `TextField` 接收布尔型的 `error` 与提示文本 `helperText`，而 `control.error` 是字符串，因此不能直接展开 `control`，应当逐项读取 `useFieldDecorator()` 的字段并与 `useField()` 组合。`DatePicker`（dayjs 适配器）则通过 `slotProps.textField.id` 绑定标签 `id`，并用 `mapProps({ blurOn: { prop: 'onClose' } })` 触发失焦校验。
 
 ```tsx
 import dayjs, { type Dayjs } from 'dayjs'
 import Checkbox from '@mui/material/Checkbox'
 import TextField from '@mui/material/TextField'
 import { DatePicker } from '@mui/x-date-pickers/DatePicker'
-import { Field, connect, mapBlur, mapProps, useField, useFieldDecorator } from '@shikiform/react'
+import { Field, connect, mapProps, useField, useFieldDecorator } from '@shikiform/react'
 
 // ✗ control 没有 value / onChange，而且 error 是文案不是布尔
 function Bad() {
@@ -480,12 +485,13 @@ function toDayjs(value: string | undefined): Dayjs | null {
 // DatePicker 自己没有 id，标签的 htmlFor 要落到内部 TextField 上。
 const Birthday = connect(DatePicker, mapProps({
   id: false,
+  blurOn: { prop: 'onClose' },
   format: (value: string | undefined) => toDayjs(value),
   parse: (next: Dayjs | null) => (next?.isValid() ? next.format('YYYY-MM-DD') : undefined),
 }, (props, field) => ({
   ...props,
   slotProps: { textField: { id: field.id } },
-})), mapBlur({ prop: 'onClose' }))
+})))
 
 <Field name="name" title="姓名" required component={[MuiText]} />
 <Field name="agree" rules={{ isTrue: true }} component={[Agree]} />

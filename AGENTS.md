@@ -79,7 +79,7 @@ move / swap / insert / remove it stays on `rows.0.x` and applies to whichever ro
 
 In React, a row component reads its row without names: `useArray()` (nearest array handle: `push`, `remove`,
 `move`, `swap`, `dragProps(index)`…), `useIndex()`, `useRecord()` (reactive row value), `useTreeNode()` (inside
-`<RowScope path pos>`; same handle shape with `move(from, to)` and `dragProps(pos?)` — defaulting to the node it
+`<TreeField>`; same handle shape with `move(from, to)` and `dragProps(pos?)` — defaulting to the node it
 renders in — read from the nearest registered tree). `useArrayField(name, opts?: { rowKey })` is the named version;
 `useTreeField(name, { childrenKey?, rowKey? })` is the tree handle (`move(from, to)`, `dragProps(pos)`); both resolve
 the name against the scope (a repeated scope prefix throws in dev) and register the path into the nearest `FieldGroup`,
@@ -139,12 +139,12 @@ A per-row child does not run when the array is empty, and repeats once per row.
 
 `<Field>` is the single owner of a path (Formily style). It renders `decorator` around `component` and provides the
 field through context; `FormItem` is a pure decorator and `connect()`ed controls need no `name`.
-`connect` / `mapProps` / `mapBlur` / `mapReadPretty` / `mapFieldProps` are exported from `@shikiform/react` (no antd).
+`connect` / `mapProps` are exported from `@shikiform/react` (no antd).
 `@shikiform/antd` re-exports them. Headless `connect` does not pass Ant Design `status`; the antd controls opt in with
 `mapProps({ status: 'status' })`. `mapProps({ format, parse })` converts both ways: the field keeps a serializable
 value, `format(value, props)` is what the control receives, `parse(...onChangeArgs)` is what gets stored (`parse`
 replaces the old `getValueFromEvent`). `readPretty` is not formatted. antd `DatePicker` / `TimePicker` / `Upload` /
-`ColorPicker` use this. A control whose props omit `onBlur` must pass `blurOn` / `mapBlur` (or `onBlur: false`):
+`ColorPicker` use this. A control whose props omit `onBlur` must pass `blurOn` in `mapProps` (or `onBlur: false`):
 `blurOn: 'onOpenChange'` blurs when the popup closes, `blurOn: 'onChange'` blurs after each change. Otherwise blur
 validation never runs and TypeScript reports it.
 A `connect()`ed control forwards `ref` and keeps the target's statics (`Select.Option`). Outside a field with no
@@ -200,7 +200,7 @@ const form = createForm({
   "tag"` on choice controls), dates as text, password `******`. Empty values show `messages.empty` (default `-`; set it once
   per form `useForm({ messages: { empty } })` or app-wide `setDefaultMessages`). A display-only enum cell is
   `<Field pattern="readPretty" component={[Select, { prettyType: 'badge' }]} />`; outside a form `<PreviewText.Select value options />`;
-  a custom control reuses a view: `connect(MyPicker, mapReadPretty(PreviewText.TreeSelect))`.
+  a custom control reuses a view: `connect(MyPicker, mapProps({ readPretty: PreviewText.TreeSelect }))`.
 
 ```tsx
 <F.Field name="area" enum={[{ label: '浙江', value: 'zj', children: [{ label: '杭州', value: 'hz' }] }]}
@@ -249,8 +249,7 @@ const step = useFormStep()   // in the component with the buttons; { current, co
   (`FormTab` / `FormCollapse`), `useFormStep({ current, onChange })`. Your own region: `const g = useFieldGroup()`,
   `<FieldGroup value={g}>…</FieldGroup>`, `useFieldGroupErrors(g)`, `form.validate(g.paths())` (from `@shikiform/react`);
   `form.subscribeValidateFailed((errors) => …)` is the hook the containers reveal from.
-- Hooks are the complete API: `useField(name, options)`, `useFieldDecorator()`, `mapFieldProps(field, props)`,
-  `mapFormItemProps(field, props)`, `useSubmit()` / `useReset()`.
+- Hooks are the complete API: `useField(name, options)`, `useFieldDecorator()`, `useSubmit()` / `useReset()`.
   Components are thin sugar over them.
 - One field hook (Formily-style): `useField()` with no name returns the field the nearest `<Field>`
   renders — use it in custom inputs, decorators, and table cells (`useField<string>()` types the value). Outside a

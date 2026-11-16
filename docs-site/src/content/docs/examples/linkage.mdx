@@ -167,7 +167,7 @@ export default function App() {
 
 ```tsx preview play=large
 import { memo, useRef } from 'react';
-import { Form, RowScope, VirtualRows, defineEffects, useArrayField, useField, useForm } from '@shikiform/react';
+import { ArrayField, Form, defineEffects, useField, useForm } from '@shikiform/react';
 
 type Row = { id: string; cost: number; markup: number; suggested: number };
 type Values = { rows: Row[] };
@@ -194,21 +194,18 @@ function Cell({ name }: { name: keyof Row }) {
 
 const Line = memo(function Line({ index }: { index: number }) {
   return (
-    <RowScope path={`rows.${index}`} index={index}>
-      <div style={{ height: 36 }}>
-        <code style={{ display: 'inline-block', width: 48 }}>#{index}</code>
-        <Cell name="cost" /><Cell name="markup" /><Cell name="suggested" />
-      </div>
-    </RowScope>
+    <div style={{ height: 36 }}>
+      <code style={{ display: 'inline-block', width: 48 }}>#{index}</code>
+      <Cell name="cost" /><Cell name="markup" /><Cell name="suggested" />
+    </div>
   );
 });
 
 function Table() {
-  const rows = useArrayField('rows');
   return (
-    <VirtualRows count={rows.keys.length} height={300} rowHeight={36} overscan={4}>
-      {(index) => <Line index={index} />}
-    </VirtualRows>
+    <ArrayField name="rows" virtualScroll={{ height: 300, rowHeight: 36, overscan: 4 }}>
+      {({ index }) => <Line index={index} />}
+    </ArrayField>
   );
 }
 
@@ -226,8 +223,8 @@ export default function App() {
 }
 ```
 
-- 修改第 3 行的成本时，只有第 3 行的 `cost` 和 `suggested` 上标的渲染次数会加 1，其余 999 行均保持静止。`useArrayField` 只订阅数组的结构变更，不订阅单元格值变化。
-- `<VirtualRows>` 仅挂载可视区域内的行组件，但未挂载行对应的 `reaction.each` 实例依然在引擎中运行，因此全表的建议价在初始化时就已经计算完成。
+- 修改第 3 行的成本时，只有第 3 行的 `cost` 和 `suggested` 上标的渲染次数会加 1，其余 999 行均保持静止。`<ArrayField>` 只订阅数组的结构变更，不订阅单元格值变化。
+- `<ArrayField virtualScroll>` 仅挂载可视区域内的行组件，但未挂载行对应的 `reaction.each` 实例依然在引擎中运行，因此全表的建议价在初始化时就已经计算完成。
 - 完整演示页同时提供了 200 行与 1000 行两档切换，用于直观观察局部渲染次数。
 
 下一组：[数组与树](/examples/arrays)。

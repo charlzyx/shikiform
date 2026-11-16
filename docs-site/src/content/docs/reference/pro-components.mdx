@@ -20,42 +20,53 @@ Pro.formily `QueryList` + `QueryForm` + `QueryTable`：可折叠的查询栅格�
 ## ShadowModal
 
 ```tsx
-<ShadowModal<Info> title="编辑" record={() => form.getValue('info')} onOk={(values) => form.setValue('info', values)} trigger={<Button>编辑</Button>}>
+// 1. 绑定宿主路径（自动继承规则、读写宿主路径，可省略 record / onOk）
+<ShadowModal<Info> name="info" title="编辑" trigger={<Button>编辑</Button>}>
+  <Field name="domain" decorator={[FormItem]} component={[Input]} />
+</ShadowModal>
+
+// 2. 放在数组行作用域内（如 ArrayTable 列内）直接绑定当前行
+<ShadowModal<Row> title="编辑" trigger={<Button type="link">编辑</Button>}>
+  <Field name="domain" decorator={[FormItem]} component={[Input]} />
+</ShadowModal>
+
+// 3. 非绑定模式（手动传 record / onOk）
+<ShadowModal<Info> title="编辑" record={() => form.getValue('info')} onOk={(values) => save(values)} trigger={<Button>编辑</Button>}>
   <Field name="domain" title="域名" required decorator={[FormItem]} component={[Input]} />
 </ShadowModal>
 ```
 
-在 antd `Modal` 中承载草稿表单进行编辑。点击 `trigger` 时会以 `record`（静态值或异步加载函数）打开草稿；点击确定时先执行校验再调用 `onOk`，成功后关闭弹窗；取消则直接丢弃草稿，不会影响原表单。传入由 `useShadowForm` / `useArrayShadow` 创建的 `shadow` 实例时受外部控制，否则组件内部会自动维护一个实例。草稿内部字段均相对于草稿根路径解析，不继承外层行作用域。按钮文案默认读取 `messages.ok` / `messages.cancel`（`确定` / `取消`），也可通过 `okText` / `cancelText` 覆盖。
+在 antd `Modal` 中承载草稿表单进行编辑。支持 `name` / `add` / `rowKey` / `merge` 以及可选的 `record`（静态值或异步加载函数）与 `onOk`：绑定到宿主路径或数组行时，打开自动继承宿主值、剥离前缀后的 `fields` / `trees` 规则及 `pattern`；确认校验通过后自动写回（`onOk` 返回 `false` 可跳过默认写回）；取消则直接丢弃草稿，不会影响原表单。传入由 `useShadowForm` 创建的 `shadow` 实例时受外部控制，否则组件内部会自动维护一个实例。当草稿处于 `readPretty` / `readOnly` 状态且未自定义 `footer` 时，隐藏确定按钮，仅显示关闭按钮（文案取 `messages.close`，默认 `关闭` / `Close`）；其余情况默认读取 `messages.ok` / `messages.cancel`（`确定` / `取消`），也可通过 `okText` / `cancelText` 覆盖。草稿内部（`ShadowBody`）会隔离宿主的表单、作用域、字段、分组与栅格上下文，同时继承外层 `FieldKit` 与 `FormLayout`，因此草稿里的 `<Field>` 相对于草稿根路径解析。
 
 ## ShadowDrawer
 
 ```tsx
-<ShadowDrawer shadow={editor} title="编辑" okText="保存">
-  <Field name="domain" title="域名" decorator={[FormItem]} component={[Input]} />
+<ShadowDrawer name="info" title="编辑" okText="保存" trigger={<Button>编辑</Button>}>
+  <Field name="domain" decorator={[FormItem]} component={[Input]} />
 </ShadowDrawer>
 ```
 
-与 `ShadowModal` 相同，换成 antd `Drawer`，底部是取消 / 确定。`ArrayTable.ShadowAddition` 的 `popType="drawer"` 就是它。适合字段较多、需要更大编辑区域的行编辑。
+与 `ShadowModal` 相同，换成 antd `Drawer`，底部是取消 / 确定（`readPretty` / `readOnly` 且未传自定义 `footer` 时隐藏确定按钮，仅显示 `messages.close` 关闭按钮）。`ArrayTable.ShadowAddition` 的 `popType="drawer"` 就是它。适合字段较多、需要更大编辑区域的行编辑。
 
 ## ShadowPopconfirm
 
 ```tsx
-<ShadowPopconfirm record={() => ({ name: form.getValue('name') })} onOk={(v) => form.setValue('name', v.name)} trigger={<Button>改名</Button>}>
-  <Field name="name" decorator={[FormItem]} component={[Input]} />
+<ShadowPopconfirm name="info" trigger={<Button>改名</Button>}>
+  <Field name="domain" decorator={[FormItem]} component={[Input]} />
 </ShadowPopconfirm>
 ```
 
-把少量字段放进 antd `Popconfirm` 的气泡里编辑（Pro.formily `ShadowPopconfirm`）。打开气泡时用 `record` 初始化草稿，确认校验后调用 `onOk`，取消或点外面关闭都会丢弃草稿。
+把少量字段放进 antd `Popconfirm` 的气泡里编辑（Pro.formily `ShadowPopconfirm`）。支持 `name` / `add` / `rowKey` / `merge` 与可选 `record` / `onOk`；打开气泡时初始化草稿，确认校验后写回并调用 `onOk`，取消或点外面关闭都会丢弃草稿。`readPretty` / `readOnly` 时隐藏确定按钮，仅保留 `messages.close` 关闭按钮。
 
 ## ShadowForm
 
 ```tsx
-<ShadowForm<Info> record={info} onOk={save}>
+<ShadowForm<Info> name="info">
   {(shadow) => <>…fields… <Button onClick={() => shadow.confirm()}>提交</Button></>}
 </ShadowForm>
 ```
 
-内联渲染草稿表单：组件挂载时即以 `record` 初始化草稿并将子节点渲染在草稿引擎之上。既可以通过 render prop 接收 `shadow` 实例，也可以在任意子组件中调用 `useShadow()` 获取它，从而把提交按钮灵活放置到任意位置。由于本身不渲染原生 `<form>` 标签，可以直接嵌套在宿主 `<Form>` 内部。
+内联渲染草稿表单：组件挂载时即初始化草稿（支持 `name` / `add` / `rowKey` / `merge` 或手动 `record` / `onOk`）并将子节点渲染在草稿引擎之上。既可以通过 render prop 接收 `shadow` 实例，也可以在任意子组件中调用 `useShadow()` 获取它，从而把提交按钮灵活放置到任意位置。由于本身不渲染原生 `<form>` 标签且隔离了宿主表单与作用域上下文（保留 `FieldKit` 与 `FormLayout`），可以直接嵌套在宿主 `<Form>` 内部。
 
 ## useShadow
 
@@ -63,7 +74,7 @@ Pro.formily `QueryList` + `QueryForm` + `QueryTable`：可折叠的查询栅格�
 useShadow<TValues, TContext>(): ShadowFormApi<TValues, TContext>
 ```
 
-读取外层 `ShadowForm` / `ShadowModal` / `ShadowDrawer` / `ShadowPopconfirm` 正在渲染的草稿：`form`、`visible`、`submitting`、`confirm()`、`cancel()`。不在这些组件里调用会抛错，提示需要的外层组件。
+读取外层 `ShadowForm` / `ShadowModal` / `ShadowDrawer` / `ShadowPopconfirm` 正在渲染的草稿：`form`、`visible`、`loading`、`submitting`、`context`、`open()`、`confirm()`、`cancel()`。不在这些组件里调用会抛错，提示需要的外层组件。
 
 ## Suggestion
 

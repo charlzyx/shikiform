@@ -9,7 +9,7 @@ description: 使用 ObjectField、ArrayField 和 TreeField 建立相对路径作
 |---|---|---|
 | `<ObjectField name="profile">` | `profile.*` | — |
 | `<ArrayField name="items" rowKey="id">` | 每行内为 `items.N.*` | 引擎方法 `form.pushArray` / `insertArray` / `removeArray` / `moveArray` / `swapArray` / `replaceArray`，行组件内用 `useArray()` |
-| `<TreeField name="nodes">` + `<RowScope path pos>` | 每个树节点内为对应节点路径 | `tree.move(from, to)`（对应 `form.moveTree`） |
+| `<TreeField name="nodes">` | 每个树节点内为对应节点路径，子节点传入 `node.children` | `useTreeField('nodes')` / `useTreeNode()`（`move`、`dragProps`） |
 
 ## 对象与数组示例
 
@@ -97,7 +97,7 @@ const F = typed(form)
 
 同理，在数组行内也应直接写 `name` 而不是 `items.0.name`。关于作用域类型推导的详细说明见 [typed](/reference/react-hooks#typed)。
 
-对于树形数据，组件负责遍历渲染树节点并在每个节点外层包裹 `<RowScope path pos>`，同时在创建表单时通过 `trees` 选项注册树根路径，以便联动在挂载前就能识别树结构。具体示例见 [联动 · 嵌套对象数组与树](/guide/linkage#嵌套对象数组与树) 和 [Headless Hooks](/guide/headless)。
+对于树形数据，使用 `<TreeField name rowKey>` 为每个节点自动建立作用域并传入 `node.children` 递归渲染，同时在创建表单时通过 `trees` 选项注册树根路径，以便联动在挂载前就能识别树结构。具体示例见 [联动 · 嵌套对象数组与树](/guide/linkage#嵌套对象数组与树) 和 [Headless Hooks](/guide/headless)。
 
 ## 按路径精准更新嵌套值
 

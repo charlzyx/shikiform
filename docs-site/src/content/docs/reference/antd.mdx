@@ -124,7 +124,7 @@ MergedTable<T extends { id: string }>({ rows, groupOf, columns, rowKey? })
 
 `rows: readonly T[]`，`groupOf(row): string`，`columns: { title: string; key: string; merge?: boolean; render(row, index): ReactNode }[]` 必填；`rowKey` 默认 `'id'`，也可以是 `(row) => string`（组的首行换了 id 时传稳定的 key，合并单元格里的字段才不会重新挂载）。
 
-使用 antd Table，`pagination={false}`。列 `merge` 默认 false；true 时以 `groupOf` 的**连续相邻分组**计算 rowSpan，非连续同名组不会跨行合并。它不排序、不扁平化嵌套对象、不维护编辑值；行模型由调用方准备。表格的行不是一个数组字段，单元格里的字段用 `<RowScope path>`（见 [API 总览](/api#react-组件)）指到它对应的路径，里面写相对名字，例如 `RowScope` 的 `path` 为 `suppliers.0.products.1` 时，`<Field name="price">` 绑定 `suppliers.0.products.1.price`。见 [供应商和产品](/play/merged)。
+使用 antd Table，`pagination={false}`。列 `merge` 默认 false；true 时以 `groupOf` 的**连续相邻分组**计算 rowSpan，非连续同名组不会跨行合并。它不排序、不扁平化嵌套对象、不维护编辑值；行模型由调用方准备。表格的行不是一个数组字段，单元格里的字段用 `<ObjectField name="suppliers.0.products.1">`（见 [API 总览](/api#react-组件)）指到它对应的路径，里面写相对名字，例如 `<Field name="price">` 绑定 `suppliers.0.products.1.price`。见 [供应商和产品](/play/merged)。
 
 ## groupRowSpan
 
@@ -146,7 +146,7 @@ groupRowSpan<T>(rows: readonly T[], groupOf: (row: T) => string): number[]
 </ArrayField>
 ```
 
-数组容器（Formily `ArrayItems`），作为 `<ArrayField>` / `F.ArrayField` 的 `component`。`<ArrayField>` 把它渲染在数组的 `ArrayScope` 里，`children` 是各行（每行一个 `RowScope`），所以下面的成员都只是 `useArray()` + `useIndex()`。
+数组容器（Formily `ArrayItems`），作为 `<ArrayField>` / `F.ArrayField` 的 `component`。`<ArrayField>` 提供数组上下文并为 `children` 的每一行注入行作用域，所以下面的成员都只是 `useArray()` + `useIndex()`。
 
 | 成员 / 参数 | 行为 |
 |---|---|
@@ -171,7 +171,7 @@ groupRowSpan<T>(rows: readonly T[], groupOf: (row: T) => string): number[]
 </ArrayField>
 ```
 
-每行一张 antd `Card`（`size="small"`，Formily `ArrayCards`）。不需要行包装组件：容器把每行内容包进卡片，卡片仍在该行的 `RowScope` 里。
+每行一张 antd `Card`（`size="small"`，Formily `ArrayCards`）。不需要行包装组件：容器把每行内容包进卡片，卡片仍在该行的作用域里。
 
 | 参数 | 行为 |
 |---|---|
@@ -230,7 +230,7 @@ groupRowSpan<T>(rows: readonly T[], groupOf: (row: T) => string): number[]
 | `ArrayTable.MoveUp` / `MoveDown` | 首行 / 末行禁用 |
 | `ArrayTable.Copy` | 在下方插入这一行的副本（id 由 `createRowKey` 生成，否则去掉） |
 | `ArrayTable.Addition` | `title?`、`defaultValue?`（值每次克隆，或函数；默认 `{}`，同 `ArrayItems.Addition`，没有 `method`）；追加后跳到它所在的页 |
-| `ArrayTable.ShadowAddition` | 使用草稿表单在弹窗（`popType="modal"`，默认）或抽屉中填写新行，确认后追加；`onOk(values, table)` 返回 `false` 可自行处理；其余参数同 [useShadowForm](/reference/pro-hooks#useshadowform) |
+| `ArrayTable.ShadowAddition` | 使用草稿表单在弹窗（`popType="modal"`，默认）或抽屉中填写新行，自动继承外层数组的行模板规则，确认后追加；`onOk(values, table)` 返回 `false` 可自行处理；其余参数同 [useShadowForm](/reference/pro-hooks#useshadowform) |
 | `ArrayTable.useTable()` | 在 `toolbar` / `footer` / 单元格里读表格状态 + 列配置（`useArrayTable` 的返回值加 `settings`） |
 | `ArrayTable.useRow()` | 单元格里的 `{ key, index, position, record }`，建立在 [`useIndex`](/reference/react-hooks#useindex) / [`useRecord`](/reference/react-hooks#userecord) 上，`record` 是响应式的 |
 

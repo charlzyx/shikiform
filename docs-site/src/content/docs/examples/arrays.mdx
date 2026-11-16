@@ -81,16 +81,15 @@ export default function App() {
 
 ```tsx preview play=headless
 import { useState } from 'react';
-import { Form, RowScope, TreeField, useField, useForm, useTreeField, useTreeNode } from '@shikiform/react';
+import { Form, TreeField, useField, useForm, useTreeField, useTreeNode } from '@shikiform/react';
 
 type Node = { id: string; name: string; children: Node[] };
-type DragProps = ReturnType<typeof useTreeField>['dragProps'];
 
-function NodeRow({ dragProps }: { dragProps: DragProps }) {
-  const { pos, path, record } = useTreeNode<Node>();
+function NodeRow() {
+  const { pos, path, record, dragProps } = useTreeNode<Node>();
   const name = useField<Node, 'name'>('name', { required: true });
   return (
-    <div {...dragProps(pos)} style={{ cursor: 'grab', padding: '2px 0' }}>
+    <div {...dragProps()} style={{ cursor: 'grab', padding: '2px 0' }}>
       ⠿ <input aria-label="名称" value={name.value} onChange={(event) => name.onChange(event.target.value)} onBlur={name.onBlur} />
       <small> id {record.id} · pos [{pos.join(',')}] · {path}</small>
       {name.errors[0] && <small style={{ color: 'crimson' }}> {name.errors[0]}</small>}
@@ -98,34 +97,25 @@ function NodeRow({ dragProps }: { dragProps: DragProps }) {
   );
 }
 
-function Branch({ path, nodes, pos, dragProps }: { path: string; nodes: Node[]; pos: number[]; dragProps: DragProps }) {
-  return (
-    <ul style={{ paddingLeft: pos.length ? 20 : 0, listStyle: 'none', margin: 0 }}>
-      {nodes.map((node, index) => (
-        <li key={node.id}>
-          <RowScope path={`${path}.${index}`} pos={[...pos, index]}>
-            <NodeRow dragProps={dragProps} />
-            <Branch path={`${path}.${index}.children`} nodes={node.children} pos={[...pos, index]} dragProps={dragProps} />
-          </RowScope>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 function Menu() {
+  const tree = useTreeField('menu', { rowKey: 'id' });
   const [result, setResult] = useState('');
   return (
-    <TreeField name="menu" rowKey="id">
-      {(tree) => (
-        <>
-          <Branch path={tree.path} nodes={tree.value as Node[]} pos={[]} dragProps={tree.dragProps} />
-          <button type="button" onClick={() => setResult(JSON.stringify(tree.move([1, 0], [0, 0])))}>「撤销」移到「文件」最前</button>{' '}
-          <button type="button" onClick={() => setResult(JSON.stringify(tree.move([0], [0, 0])))}>「文件」移进自己的子节点</button>
-          <pre>{result}</pre>
-        </>
-      )}
-    </TreeField>
+    <>
+      <ul style={{ paddingLeft: 0, listStyle: 'none', margin: 0 }}>
+        <TreeField name="menu" rowKey="id">
+          {(node) => (
+            <li>
+              <NodeRow />
+              {node.children && <ul style={{ paddingLeft: 20, listStyle: 'none', margin: 0 }}>{node.children}</ul>}
+            </li>
+          )}
+        </TreeField>
+      </ul>
+      <button type="button" onClick={() => setResult(JSON.stringify(tree.move([1, 0], [0, 0])))}>「撤销」移到「文件」最前</button>{' '}
+      <button type="button" onClick={() => setResult(JSON.stringify(tree.move([0], [0, 0])))}>「文件」移进自己的子节点</button>
+      <pre>{result}</pre>
+    </>
   );
 }
 
@@ -149,7 +139,7 @@ export default function App() {
 
 - 先点击「校验」让空名称节点报错，再将其拖拽到其他分组下：错误提示会跟随业务 `id` 一同迁移，同时节点的 `pos` 与 `path` 自动更新为新位置。
 - `tree.move(from, to)`（底层调用 `form.moveTree`）会返回 `{ ok, reason? }`，尝试移入自身子孙节点时会被拦截并返回拒绝原因。
-- 每个节点外层包裹 `<RowScope path pos>` 后，子组件内部调用 `useTreeNode()` 即可获取当前节点的坐标与记录，无需硬编码整棵树的字段路径，详见 [Headless Hooks](/guide/headless)。
+- `<TreeField>` 为每个节点自动建立作用域并传入 `node.children`，子组件内部调用 `useTreeNode()` 即可获取当前节点的坐标、记录与 `dragProps()`，无需硬编码整棵树的字段路径，详见 [Headless Hooks](/guide/headless)。
 
 ## 长列表：只挂载可见行
 
@@ -190,6 +180,6 @@ export default function App() {
 ```
 
 - 虽然第 499、999、1499 和 1999 行位于屏幕之外并未挂载到 DOM，但点击校验后引擎依然能准确查出它们的空值错误——因为规则声明在 `fields` 的行模板 `rows.*.name` 上，独立于组件生命周期。
-- `<ArrayField virtualScroll>` 基于 `<VirtualRows>` 实现并自动注入行作用域，仅用于自定义列表行，不可与 `ArrayTable` 等容器 `component` 同时使用。
+- `<ArrayField virtualScroll>` 仅挂载视口可见的行并自动注入行作用域，仅用于自定义列表行，不可与 `ArrayTable` 等容器 `component` 同时使用。
 
 下一组：[表格与查询](/examples/tables)。

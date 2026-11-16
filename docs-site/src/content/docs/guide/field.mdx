@@ -160,7 +160,7 @@ export default function App() {
 
 `<Field>` 本质上是对 `useField(name, options)` 的一层轻量封装：当字段 `display` 为 `hidden` 或 `none` 时返回 `null`（`virtual` 状态正常渲染），其余情况依次渲染 `decorator` 和 `component`。
 
-如果你不希望通过 `<Field>` 包裹，可以直接调用 `useField(name)` 并使用 `mapFormItemProps(field, props)` 和 `mapFieldProps(field, props)` 计算对应的属性；而在自定义控件或装饰器内部，调用无参数的 `useField()` 即可拿到当前字段的绑定对象。完整签名请参考 [useField](/reference/react-hooks#usefield) 和 [Ant Design 适配层](/reference/antd-adapter)。
+如果不希望通过 `<Field>` 包裹，可以直接调用 `useField(name)` 读取 `value`、`onChange`、`onBlur`、`disabled` 等字段状态，并配合 [`useFieldDecorator()`](/reference/react-hooks#usefielddecorator) 渲染标签与错误；而在自定义控件或装饰器内部，调用无参数的 `useField()` 即可拿到当前字段的绑定对象。完整签名请参考 [useField](/reference/react-hooks#usefield) 和 [Ant Design 适配层](/reference/antd-adapter)。
 
 ## 字段名的类型检查
 

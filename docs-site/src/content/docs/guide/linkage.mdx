@@ -198,7 +198,7 @@ export default function App() {
 
 ```tsx preview
 import { Button, Space } from 'antd';
-import { Field, Form, RowScope, TreeField, defineEffects, useForm } from '@shikiform/react';
+import { Field, Form, TreeField, defineEffects, useForm, useTreeField } from '@shikiform/react';
 import { Input } from '@shikiform/antd';
 
 type Node = { id: string; code: string; name: string; children?: Node[] };
@@ -212,24 +212,26 @@ const effects = defineEffects<Values>(({ reaction }) => {
   });
 });
 
-function Nodes({ path, nodes, pos }: { path: string; nodes: Node[]; pos: number[] }) {
+function NodeTree() {
+  const tree = useTreeField('nodes', { rowKey: 'id' });
   return (
-    <ul style={{ paddingLeft: pos.length ? 24 : 0, listStyle: 'none' }}>
-      {nodes.map((node, index) => {
-        const at = [...pos, index];
-        return (
-          <li key={node.id} style={{ margin: '6px 0' }}>
-            <RowScope path={`${path}.${index}`} pos={at}>
+    <>
+      <ul style={{ paddingLeft: 0, listStyle: 'none' }}>
+        <TreeField name="nodes" rowKey="id">
+          {(node) => (
+            <li style={{ margin: '6px 0' }}>
               <Space.Compact>
                 <Field name="code" component={[Input, { style: { width: 64 } }]} />
                 <Field name="name" component={[Input, { style: { width: 200 } }]} />
               </Space.Compact>
-              {node.children?.length ? <Nodes path={`${path}.${index}.children`} nodes={node.children} pos={at} /> : null}
-            </RowScope>
-          </li>
-        );
-      })}
-    </ul>
+              {node.children && <ul style={{ paddingLeft: 24, listStyle: 'none' }}>{node.children}</ul>}
+            </li>
+          )}
+        </TreeField>
+      </ul>
+      <Button onClick={() => tree.move([0, 1], [0, 0])}>把「洗菜」移到最前</Button>{' '}
+      <Button onClick={() => tree.move([0, 0], [1, 0])}>把第一个子节点移到「下厨」下</Button>
+    </>
   );
 }
 
@@ -246,15 +248,7 @@ export default function App() {
   });
   return (
     <Form form={form}>
-      <TreeField name="nodes" rowKey="id">
-        {(tree) => (
-          <>
-            <Nodes path={tree.path} nodes={tree.value as Node[]} pos={[]} />
-            <Button onClick={() => tree.move([0, 1], [0, 0])}>把「洗菜」移到最前</Button>{' '}
-            <Button onClick={() => tree.move([0, 0], [1, 0])}>把第一个子节点移到「下厨」下</Button>
-          </>
-        )}
-      </TreeField>
+      <NodeTree />
     </Form>
   );
 }

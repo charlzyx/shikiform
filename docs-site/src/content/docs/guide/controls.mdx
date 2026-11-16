@@ -133,7 +133,7 @@ export default function App() {
 ```
 
 - 如果在普通表格单元格或详情卡片等**表单外部**场景需要同款展示效果，可以直接渲染纯视图组件 `<PreviewText.Select value={row.state} options={STATUS} prettyType="badge" />`（还包括 `.Input`、`.TreeSelect`、`.Cascader`、`.DatePicker`、`.TimePicker` 等，完整列表见 [PreviewText](/reference/antd-adapter#previewtext)）。
-- 封装自定义控件时，使用 `connect(MyPicker, mapReadPretty(PreviewText.TreeSelect))` 即可直接复用现成的阅读态视图。
+- 封装自定义控件时，使用 `connect(MyPicker, mapProps({ readPretty: PreviewText.TreeSelect }))` 即可直接复用现成的阅读态视图。
 
 关于每个控件具体的属性映射细节，请参考 [Ant Design 适配层参考](/reference/antd-adapter#previewtext)。
 

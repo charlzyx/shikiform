@@ -1,9 +1,9 @@
 ---
 title: Ant Design 适配层
-description: Formily 式适配：Field 的 decorator / component 槽位、FormItem 装饰器、FormLayout / FormGrid / FormButtonGroup、connect / mapProps / mapReadPretty（定义在 shikiform，这里再导出），以及接好的 antd 控件。
+description: Formily 式适配：Field 的 decorator / component 槽位、FormItem 装饰器、FormLayout / FormGrid / FormButtonGroup、connect / mapProps（定义在 @shikiform/react，这里再导出），以及接好的 antd 控件。
 ---
 
-`connect` / `mapProps` / `mapBlur` / `mapReadPretty` / `mapFieldProps` 定义在 `@shikiform/react`，不依赖 antd；`@shikiform/antd` 再导出同一批函数。接好的控件在这里额外映射 `status`（`'error'` / `'warning'`）。`<Field>` 拥有字段（`name`、`rules`、`title`、`decorator`、`component`），`FormItem` 只是装饰器。适配层把 [useField](/reference/react-hooks#usefield) 的 `FieldBinding` 映射成控件 props，不保存自己的状态。用法见 [Ant Design 适配](/guide/antd)；不装 antd 时见 [Headless · 接自己的组件库](/guide/headless#接自己的组件库)。
+`connect` / `mapProps` 定义在 `@shikiform/react`，不依赖 antd；`@shikiform/antd` 再导出同一组函数（`mapProps` 专门作为 `connect` 的 enhancer 使用）。接好的控件在这里额外映射 `status`（`'error'` / `'warning'`）。`<Field>` 拥有字段（`name`、`rules`、`title`、`decorator`、`component`），`FormItem` 只是装饰器。适配层把 [useField](/reference/react-hooks#usefield) 的 `FieldBinding` 映射成控件 props，不保存自己的状态。用法见 [Ant Design 适配](/guide/antd)；不装 antd 时见 [Headless · 接自己的组件库](/guide/headless#接自己的组件库)。
 
 ```tsx
 import { createForm, Field, Form } from '@shikiform/react'
@@ -46,11 +46,11 @@ connect<C extends ComponentType<any>>(target: C, ...enhancers: ConnectEnhancer[]
 // ComponentStatics<C> = C 的静态成员（Select.Option、Input.Search …）
 ```
 
-把任意 value/onChange 控件变成字段控件。从 `@shikiform/react` 或 `@shikiform/antd` 导入，是同一个函数。`enhancers` 由 [mapProps](#mapprops)、[mapBlur](#mapblur) 与 [mapReadPretty](#mapreadpretty) 生成。返回的组件没有自己的状态：每次渲染都是对当前 `FieldBinding` 调一次 [mapFieldProps](#mapfieldprops)。字段的 `componentProps` 合并在调用方 props 之下（reaction 写的 `$componentProps` 因此能到达控件）。
+把任意 value/onChange 控件变成字段控件。从 `@shikiform/react` 或 `@shikiform/antd` 导入，是同一个函数。`enhancers` 由 [mapProps](#mapprops) 生成。返回的组件没有自己的状态：每次渲染都是把当前 `FieldBinding` 映射成控件 props。字段的 `componentProps` 合并在调用方 props 之下（reaction 写的 `$componentProps` 因此能到达控件）。
 
 默认传 `value` / `onChange` / `onBlur` / `disabled` / `readOnly` / `id`。**不传** antd 的 `status`；要红框的 antd 控件自己 `mapProps({ status: 'status' })`（本库接好的 Input、Select 等已经做了）。
 
-控件的 props 类型里没有 `onBlur` 时（弹出层选择器），TypeScript 要求说明 blur 校验去哪：`blurOn` / `mapBlur`，或 `onBlur: false` 明确放弃。否则 `validateTrigger: 'onBlur'` 不会跑。
+控件的 props 类型里没有 `onBlur` 时（弹出层选择器），TypeScript 要求说明 blur 校验去哪：`mapProps({ blurOn })` 或 `mapProps({ onBlur: false })` 明确放弃。否则 `validateTrigger: 'onBlur'` 不会跑。
 
 和 Formily 一样：`ref` 转发给原控件（React 18 也能拿到）；原控件的静态成员拷到返回值上（`Select.Option`、`Input.Search`，是原始的、未接字段的成员；类型也带上）。既没有 `name` / `field`、又不在 `<Field>` 里时，按普通控件渲染调用方 props，开发环境警告一次。
 
@@ -67,6 +67,7 @@ type PropsMapping<P = any, F = any> = Partial<Record<FieldPropKey | FieldStateKe
   format?: (value: F, props: P) => P extends { value?: infer V } ? V : unknown
   parse?: (...args: /* P 的 onChange 参数 */) => F
   blurOn?: 'onChange' | 'onOpenChange' | { prop: string; when?: (...args: any[]) => boolean }
+  readPretty?: ComponentType<any> | [ComponentType<any>, Record<string, unknown>]
 }
 type FieldPropKey = 'value' | 'onChange' | 'onBlur' | 'disabled' | 'readOnly' | 'status' | 'id' | 'options' | 'loading'
 type FieldStateKey = 'title' | 'description' | 'required' | 'validating' | 'touched' | 'dirty' | 'edited' | 'pattern' | 'display' | 'path'
@@ -100,39 +101,14 @@ const Birthday = connect(DatePicker, mapProps({
 
 `antd` 的 `DatePicker` / `TimePicker` / `Upload` / `ColorPicker` 走的就是这组钩子。`format` / `parse` 写在第一个对象参数上。
 
-## mapBlur
-
-```ts
-mapBlur(on: 'onChange' | 'onOpenChange' | { prop: string; when?: (...args: any[]) => boolean }): ConnectEnhancer
-```
-
-`mapProps({ blurOn })` 的单独写法，放在 enhancer 列表的任意位置。控件 props 里没有 `onBlur` 时，`mapBlur(...)`、`mapProps({ blurOn })` 或 `mapProps({ onBlur: false })` 三者满足类型检查。
+`readPretty` 指定字段 `pattern` 为 `readPretty`（自己的，或从祖先 / 根继承的）时渲染的阅读态视图，而不是原控件；支持传入组件或 `[Component, props]` 元组（多个 `mapProps` 时后者覆盖前者）。阅读态视图收到调用方 props（及元组里的预设 props），加上 `value` 与 `options`（字段枚举）。没有配置 `readPretty` 的控件在 `readPretty` 下按 `readOnly` 处理。内置控件都有阅读态视图，见 [PreviewText](#previewtext)。
 
 ```tsx
-connect(LobeSelect, mapBlur('onOpenChange'), mapProps({ options: 'options' }))
-```
-
-## mapReadPretty
-
-```ts
-mapReadPretty(component: ComponentType<any>, props?: Record<string, unknown>): ConnectEnhancer
-```
-
-字段 `pattern` 为 `readPretty`（自己的，或从祖先 / 根继承的）时渲染 `component` 而不是控件。它收到调用方 props，加上 `value` 与 `options`（字段枚举）。没有 `mapReadPretty` 的控件在 `readPretty` 下按 `readOnly` 处理。内置控件都有阅读态视图，见 [PreviewText](#previewtext)。
-
-## mapFieldProps
-
-```ts
-mapFieldProps(field: FieldBinding<any>, props: Record<string, any>, ...mappers: Array<PropsMapping | PropsTransform>): Record<string, any>
-```
-
-`connect` 的纯函数核心，从 `@shikiform/react` 导入即可，不必装 antd。`value` 取字段值（有 `format` 时先转成控件要的值）；`onChange` 先 `parse`（默认 `valueFromEvent`）写字段，再以原始参数调用调用方的 `onChange`，各一次；`onBlur` 先标记 touched 再调调用方；`disabled` / `readOnly` 与调用方 props 取 OR；`id` 默认是字段 id；`field.componentProps` 合并在 `props` 之下。`status` 只有第三个参数写了 `{ status: 'status' }` 才出现（有错误 `'error'`，只有警告 `'warning'`）。`blurOn` 与 `mapProps` 相同。
-
-```tsx
-const field = useField('email', { required: true })
-return <input {...mapFieldProps(field, { placeholder: 'Email' })} />
-// antd 控件要红框时：
-return <AntInput {...mapFieldProps(field, { placeholder: 'Email' }, { status: 'status' })} />
+const MySelect = connect(LobeSelect, mapProps({
+  options: 'options',
+  blurOn: 'onOpenChange',
+  readPretty: PreviewText.Select,
+}))
 ```
 
 ## FormItem
@@ -152,7 +128,7 @@ interface FormItemProps
 
 Formily `FormItem`，**不拥有字段**：没有 `name` / `rules` / `required` / `field` 属性。
 
-- **字段里**（`<Field decorator={[FormItem, props]}>`，或放在 `<Field>` 的 children 里）：从上下文读字段，渲染 antd `Form.Item`（props 由 [mapFormItemProps](#mapformitemprops) 计算）。`label` 取字段 `title`，`extra` 取 `description`（显式传入优先）；必填星号跟随 `required`，`readPretty` 下隐藏；`validateStatus` 依次 `error` → `validating` → `warning`；`help` 是**全部**错误（没有错误时是全部警告），一条一行。`display` 为 `hidden` / `none` 时不渲染。
+- **字段里**（`<Field decorator={[FormItem, props]}>`，或放在 `<Field>` 的 children 里）：从上下文读字段，渲染 antd `Form.Item`。`label` 取字段 `title`，`extra` 取 `description`（显式传入优先）；必填星号跟随 `required`，`readPretty` 下隐藏；`validateStatus` 依次 `error` → `validating` → `warning`；`help` 是**全部**错误（没有错误时是全部警告），一条一行。`display` 为 `hidden` / `none` 时不渲染。
 - **字段外**：纯布局（Formily `FormItem.BaseItem`）。一个标签、同一套列宽包住任何内容，常用来给几个字段一个标签。它显示里面字段的错误中**没有别的 `FormItem` 在显示**的那些：没有装饰器的字段、`FormItem` 设了 `feedbackLayout: 'none'` 的字段（嵌套的纯布局 `FormItem` 由里层显示）；相同文案只显示一次，用错误色并加 `ant-form-item-has-error` 类，不设 `validateStatus`（只有出错的控件变红）。里面的字段各带一个无标签的 `FormItem` 时，错误显示在各自控件下面，外层不重复。没有标签的 `FormItem`（字段内外都一样）不继承 `FormLayout` 的 `labelCol` / `wrapperCol` / `labelWidth` / `wrapperWidth`（Formily 同样），自己传的列宽照常生效。
 
 ```tsx
@@ -207,24 +183,6 @@ export default function App() {
 }
 ```
 
-## mapFormItemProps
-
-```ts
-mapFormItemProps(
-  field: FieldBinding<any> | null,
-  props: Omit<FormItemProps, 'children'>,
-  layout?: FormLayoutValue,
-  env?: { prefixCls?: string; optionalText?: ReactNode; gridColumns?: number; errors?: readonly string[]; labelFor?: boolean },
-): antd.FormItemProps
-```
-
-`FormItem` 的纯函数核心。合并顺序（低 → 高）：`layout`（`FormLayout`）← `field.decoratorProps`（`fields` ← JSX ← `$decoratorProps`）← `props`。`field` 为 `null` 时是纯布局（没有 `validateStatus`）。`env` 是组件自己从上下文读的部分：antd 表单类名前缀（`labelWrap` 和错误色类名用，默认 `ant-form`）、可选标记文案（默认 `(optional)`）、外层 `FormGrid` 的列数（`gridSpan` 用）、纯布局时要显示的错误 `errors`（组件自己从里面的字段收集；非空时作为错误色的 `help`，项上加 `has-error` 类）、`labelFor`（字段 id 是否落在可被 label 指向的元素上）。`htmlFor` 是字段 id；`readPretty` 下（阅读态是文字）或 `labelFor: false` 时不设。`FormItem` 每次渲染后检查一次 DOM：Transfer、Upload、以 div 为根的自定义控件、选项还没加载的 `Checkbox.Group` 都没有带这个 id 的 input，label 就不带 `for`。`addonBefore` / `addonAfter` 和 `popover` 的浮层是组件自己的标记，不在返回值里。Hook 用户不用组件也能得到同样的装饰：
-
-```tsx
-const field = useField('email', { required: true, title: '邮箱' })
-return <Form.Item {...mapFormItemProps(field, {})}><AntInput {...mapFieldProps(field, {})} /></Form.Item>
-```
-
 ## FormLayout
 
 ```ts
@@ -271,7 +229,7 @@ Formily `FormLayout`：给内部所有 `FormItem` 一份布局。嵌套的 `Form
 useFormLayout(): FormLayoutValue
 ```
 
-读取当前位置合并后的布局（所有外层 `FormLayout` 的合并结果，响应式数组已按宽度取值）。自定义装饰器用它继承同一套布局，例如 `mapFormItemProps(field, props, useFormLayout())`；在任何 `FormLayout` 之外返回 `{}`。
+读取当前位置合并后的布局（所有外层 `FormLayout` 的合并结果，响应式数组已按宽度取值）。自定义装饰器用它继承同一套布局，搭配 `useFieldDecorator()` 使用；在任何 `FormLayout` 之外返回 `{}`。
 
 ## FormGrid
 
@@ -377,11 +335,11 @@ PreviewText.Empty                                                      // 空值
 interface PreviewTextProps { value?: unknown; options?: PreviewOption[]; empty?: ReactNode; format?: unknown; [prop: string]: unknown }
 ```
 
-阅读态视图（Formily `PreviewText`）。每个接好的控件都用 `mapReadPretty` 挂了其中一个，收到控件自己的 props 加 `value` / `options`（字段枚举）。也能单独当纯组件用，例如表格单元格：
+阅读态视图（Formily `PreviewText`）。每个接好的控件都通过 `mapProps({ readPretty })` 挂了其中一个，收到控件自己的 props 加 `value` / `options`（字段枚举）。也能单独当纯组件用，例如表格单元格：
 
 ```tsx
 <PreviewText.Select value={row.status} options={STATUS} prettyType="badge" />
-connect(MyTreePicker, mapReadPretty(PreviewText.TreeSelect))   // 自定义控件复用
+connect(MyTreePicker, mapProps({ readPretty: PreviewText.TreeSelect }))   // 自定义控件复用
 ```
 
 - `Input`：`addonBefore` `prefix` 文本 `suffix` `addonAfter`；有 `formatter`（`InputNumber`）时先格式化。`Password` 显示 `******`。
@@ -401,7 +359,7 @@ const Input: ConnectedComponent<antd.InputProps> & {
 }
 ```
 
-`connect(antd.Input, mapReadPretty(PreviewText.Input))`。`onChange(event)` 写入 `event.target.value`。`readOnly` 字段传 `readOnly`；`readPretty` 显示文本和前后缀。`Input.TextArea` 阅读态保留换行；`Input.Password` 阅读态显示 `******`。
+`connect(antd.Input, mapProps({ status: 'status', readPretty: PreviewText.Input }))`。`onChange(event)` 写入 `event.target.value`。`readOnly` 字段传 `readOnly`；`readPretty` 显示文本和前后缀。`Input.TextArea` 阅读态保留换行；`Input.Password` 阅读态显示 `******`。
 
 ## InputNumber
 
@@ -409,7 +367,7 @@ const Input: ConnectedComponent<antd.InputProps> & {
 const InputNumber: ConnectedComponent<antd.InputNumberProps>
 ```
 
-`connect(antd.InputNumber, mapReadPretty(PreviewText.Input))`。写入 antd 给出的原始值：数字，清空时为 `null`。`readPretty` 显示数字，`formatter`、`prefix`、`addonBefore/After` 生效。
+`connect(antd.InputNumber, mapProps({ status: 'status', readPretty: PreviewText.Input }))`。写入 antd 给出的原始值：数字，清空时为 `null`。`readPretty` 显示数字，`formatter`、`prefix`、`addonBefore/After` 生效。
 
 ## Select
 
@@ -417,7 +375,7 @@ const InputNumber: ConnectedComponent<antd.InputNumberProps>
 const Select: ConnectedComponent<antd.SelectProps & { prettyType?: 'text' | 'badge' | 'tag' }>
 ```
 
-`connect(antd.Select, mapProps({ options: 'options', loading: 'loading', readOnly: 'disabled' }), mapReadPretty(PreviewText.Select))`。未传 `options` 时使用字段枚举（`<Field enum>`、`fields.x.enum`、`$enum`，含 `EnumSource` 异步加载的 `loading`）。`readOnly` 渲染为禁用；`readPretty` 显示选项的 `label`，多选显示为标签，`prettyType` 画成徽标 / 彩色标签。只显示、不编辑的枚举字段（如表格里的状态列）就是 `pattern="readPretty"` 的 `Select`。
+`connect(antd.Select, mapProps({ options: 'options', loading: 'loading', readOnly: 'disabled', status: 'status', readPretty: PreviewText.Select }))`。未传 `options` 时使用字段枚举（`<Field enum>`、`fields.x.enum`、`$enum`，含 `EnumSource` 异步加载的 `loading`）。`readOnly` 渲染为禁用；`readPretty` 显示选项的 `label`，多选显示为标签，`prettyType` 画成徽标 / 彩色标签。只显示、不编辑的枚举字段（如表格里的状态列）就是 `pattern="readPretty"` 的 `Select`。
 
 ## AutoComplete
 
@@ -433,7 +391,7 @@ const AutoComplete: ConnectedComponent<antd.AutoCompleteProps>
 const TreeSelect: ConnectedComponent<antd.TreeSelectProps & { prettyType?: 'text' | 'badge' | 'tag' }>
 ```
 
-`connect(antd.TreeSelect, mapProps({ options: 'treeData', loading: 'loading', readOnly: 'disabled' }), mapReadPretty(PreviewText.TreeSelect))`。未传 `treeData` 时使用字段枚举，节点是 `{ label, value, children }`（`<Field enum={TREE}>`，`children` 原样保留）。`multiple` / `treeCheckable` 时值是数组。`readPretty` 在整棵树里找 label。
+`connect(antd.TreeSelect, mapProps({ options: 'treeData', loading: 'loading', readOnly: 'disabled', status: 'status', readPretty: PreviewText.TreeSelect }))`。未传 `treeData` 时使用字段枚举，节点是 `{ label, value, children }`（`<Field enum={TREE}>`，`children` 原样保留）。`multiple` / `treeCheckable` 时值是数组。`readPretty` 在整棵树里找 label。
 
 ## Cascader
 
@@ -441,7 +399,7 @@ const TreeSelect: ConnectedComponent<antd.TreeSelectProps & { prettyType?: 'text
 const Cascader: ConnectedComponent<antd.CascaderProps>
 ```
 
-`connect(antd.Cascader, mapProps({ options: 'options', loading: 'loading', readOnly: 'disabled' }), mapReadPretty(PreviewText.Cascader))`。值是路径 `['zj', 'hz', 'xh']`（`multiple` 时是路径数组）。未传 `options` 时使用字段枚举（`{ label, value, children }` 树）；`typed(form).Field` 下选项的 `value` 按路径元素类型检查。`readPretty` 显示 `浙江 / 杭州 / 西湖`。每一级要按需从服务端加载时用 [`CascaderPlus`](/reference/pro-components#cascaderplus)。
+`connect(antd.Cascader, mapProps({ options: 'options', loading: 'loading', readOnly: 'disabled', status: 'status', readPretty: PreviewText.Cascader }))`。值是路径 `['zj', 'hz', 'xh']`（`multiple` 时是路径数组）。未传 `options` 时使用字段枚举（`{ label, value, children }` 树）；`typed(form).Field` 下选项的 `value` 按路径元素类型检查。`readPretty` 显示 `浙江 / 杭州 / 西湖`。每一级要按需从服务端加载时用 [`CascaderPlus`](/reference/pro-components#cascaderplus)。
 
 ## Switch
 
@@ -449,7 +407,7 @@ const Cascader: ConnectedComponent<antd.CascaderProps>
 const Switch: ConnectedComponent<antd.SwitchProps>
 ```
 
-`connect(antd.Switch, mapProps({ value: 'checked', readOnly: 'disabled', status: false }), mapReadPretty(…))`。字段值对应 `checked`，`onChange(checked)` 写入布尔值。`readOnly` 渲染为禁用开关；`readPretty` 显示 `checkedChildren` / `unCheckedChildren`，没写时显示 `messages.yes` / `messages.no`（是 / 否）。
+`connect(antd.Switch, mapProps({ value: 'checked', readOnly: 'disabled', status: false, readPretty: … }))`。字段值对应 `checked`，`onChange(checked)` 写入布尔值。`readOnly` 渲染为禁用开关；`readPretty` 显示 `checkedChildren` / `unCheckedChildren`，没写时显示 `messages.yes` / `messages.no`（是 / 否）。
 
 ## Checkbox
 

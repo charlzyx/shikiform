@@ -9,20 +9,20 @@ description: 四个入口、createForm 选项、引擎方法、React 组件与�
 |---|---|
 | `createForm`、`get`、`set`、`defineEffects`、`EnumSource`、错误类、文案 | [Core](/reference/core) |
 | `useForm`、`typed`、`useFormContext`、`useFormMessage`、`useField`（无参即当前字段）、`useFieldDecorator`、`useSubmit`、`useReset`（+ headless `<Submit>` / `<Reset>`）、`useWatch`、`useArrayField`、`useArray`、`useArrayErrors`、`useIndex`、`useRecord`、`useTreeField`、`useTreeNode`、`useFieldGroup`、`useFieldGroupErrors`（+ `<FieldGroup>`） | [React Hooks](/reference/react-hooks) |
-| `connect`、`mapProps`、`mapBlur`、`mapReadPretty`、`mapFieldProps`（定义在 `@shikiform/react`，antd 再导出）、`FormItem`、`mapFormItemProps`、`FormLayout`、`useFormLayout`、`FormGrid`、`GridColumn`、`useFormGrid`、`FormButtonGroup`、`PreviewText`（及 `.Select` 等阅读态视图）、接好的控件（`Input` … `TimePicker`、`TreeSelect`、`Cascader`、`Upload`、`Slider`、`Rate`、`Transfer`、`AutoComplete`、`ColorPicker`） | [Ant Design 适配层](/reference/antd-adapter) |
+| `connect`、`mapProps`（定义在 `@shikiform/react`，antd 再导出）、`FormItem`、`FormLayout`、`useFormLayout`、`FormGrid`、`GridColumn`、`useFormGrid`、`FormButtonGroup`、`PreviewText`（及 `.Select` 等阅读态视图）、接好的控件（`Input` … `TimePicker`、`TreeSelect`、`Cascader`、`Upload`、`Slider`、`Rate`、`Transfer`、`AutoComplete`、`ColorPicker`） | [Ant Design 适配层](/reference/antd-adapter) |
 | `Submit`、`Reset`、控件取值契约、`ArrayItems`、`ArrayCards`、`ArrayTable`、`useArrayEditable`、`FormTab`、`FormCollapse`、`FormStep`、`useFormStep`、`MergedTable`、`groupRowSpan` | [Ant Design 参考](/reference/antd) |
 | `useQueryTable`、`useBuiltinQuery` | [查询 Hooks](/reference/query-hooks) |
-| `useArrayTable`、`useColumnSettings`、`useShadowForm`、`useArrayShadow`、`useSuggestion`、`useLazyCascader`、`enumItems`、`ENUM_COLORS` | [Pro Hooks](/reference/pro-hooks) |
+| `useArrayTable`、`useColumnSettings`、`useShadowForm`、`useSuggestion`、`useLazyCascader`、`enumItems`、`ENUM_COLORS` | [Pro Hooks](/reference/pro-hooks) |
 | `QueryList`、`ShadowModal` / `ShadowDrawer` / `ShadowPopconfirm` / `ShadowForm`、`useShadow`、`Suggestion`、`CascaderPlus` 及其 `…View` | [Pro 组件](/reference/pro-components) |
 
 ## 模块入口
 
 | 入口 | 主要导出 |
 |---|---|
-| `@shikiform/react` | `useForm`、`createForm`、`defineEffects`；`Form`、`Field`、`ObjectField`、`ArrayField`、`ArrayScope`、`RowScope`、`TreeField`、`Watch`、`VirtualRows`、`FieldGroup`；`connect` / `mapProps` / `mapBlur` / `mapReadPretty` / `mapFieldProps`；headless `Submit` / `Reset`；上表的 React Hooks（含 `useFieldDecorator` / `useSubmit` / `useReset`）；`EnumSource`、`ShikiUsageError` 等错误类、`zhCN` / `enUS` / `setDefaultMessages`；类型 `Draft`、`FieldBinding`、`FieldProps`、`FormOptions`、`Pattern`、`Display`、`Pos`、`MoveResult`、`FieldEnum` … |
+| `@shikiform/react` | `useForm`、`createForm`、`defineEffects`；`Form`、`Field`、`ObjectField`、`ArrayField`、`TreeField`、`Watch`、`FieldGroup`；`connect` / `mapProps`；headless `Submit` / `Reset`；上表的 React Hooks（含 `useFieldDecorator` / `useSubmit` / `useReset`）；`EnumSource`、`ShikiUsageError` 等错误类、`zhCN` / `enUS` / `setDefaultMessages`；类型 `Draft`、`FieldBinding`、`FieldProps`、`FormOptions`、`Pattern`、`Display`、`Pos`、`MoveResult`、`FieldEnum` … |
 | `@shikiform/core` | 不依赖 React 的引擎：`createForm`、`defineEffects`、`EnumSource`、`comboMatch`、`comboOptions`、错误类、树坐标工具 `moveNode` / `pathOf` / `posOf`；类型 `ArrayPath`、`EnumInput`、`EnumValueOf` … 根入口已有的引擎名字两处是同一个对象 |
 | `@shikiform/hooks` | 上表的 Pro Hooks，不依赖 antd |
-| `@shikiform/antd` | 适配层（再导出 `connect` / `mapProps` / `mapBlur`，并给接好的控件加上 `status`；`FormItem`、`FormLayout`、`FormGrid`、`FormButtonGroup`）、接好的控件、antd 版 `Submit` / `Reset`（`Reset` 有 `afterReset`）、数组容器 `ArrayItems` / `ArrayCards` / `ArrayTable`、分组容器 `FormTab` / `FormCollapse` / `FormStep`、`QueryList`、`MergedTable` 与 Pro 组件 |
+| `@shikiform/antd` | 适配层（再导出 `connect` / `mapProps`，并给接好的控件加上 `status`；`FormItem`、`FormLayout`、`FormGrid`、`FormButtonGroup`）、接好的控件、antd 版 `Submit` / `Reset`（`Reset` 有 `afterReset`）、数组容器 `ArrayItems` / `ArrayCards` / `ArrayTable`、分组容器 `FormTab` / `FormCollapse` / `FormStep`、`QueryList`、`MergedTable` 与 Pro 组件 |
 
 没有 `shikiform/ui`、`shikiform/zod` 入口：Zod 实现了 Standard Schema，直接传给 `rules` / `validate`。行上下文是 `useIndex()` / `useRecord()`（或 `ArrayTable.useRow()`），没有独立的 `useRow` 导出。
 
@@ -116,13 +116,10 @@ await form.submit((values) => {
 | `<Field name …>` | 拥有一个 path，渲染 decorator + component，属性见 [Field](/guide/field) |
 | `<ObjectField name display?>` | 对象作用域。`display="virtual"` 整棵对象不进提交 |
 | `<ArrayField name rowKey? component? virtualScroll?>{({ index, key }) => …}` | 每行一个作用域；父组件只订阅结构。`component` 是包住各行的容器（`ArrayItems` / `ArrayCards` / `ArrayTable`，见 [数组字段](/guide/arrays)），`ArrayTable` 的单元格来自 `columns`，不写行 children；`virtualScroll={{ height }}` 只挂载可见的普通行，不和 `component` 同用 |
-| `<TreeField name childrenKey? rowKey?>{(tree) => …}` | 注册树根，节点由你渲染 |
-| `<RowScope path index? itemKey? pos?>` | 行 / 树节点作用域，`useIndex` / `useRecord` / `useTreeNode` 从这里读 |
-| `<ArrayScope path rowKey?>` | 自己实现的数组组件里，标记 `useArray()` 的目标 |
+| `<TreeField name childrenKey? rowKey?>{(node) => …}` | 注册树根并递归渲染节点：`node` 为 `{ path, pos, index, key, depth, children }`（叶子节点的 `children` 为 `null`），节点内用 `useTreeNode()` 读取坐标与 `dragProps()` |
 | `<Field name ui="echo">` / `<UI name component decorator …>` | 同一字段的第二个 UI（`d.x.$ui('echo')`）/ 不带值的 UI 节点（`d.$ui(name)`），见 [命名 UI 节点](/guide/ui) |
 | `<FieldGroup value>` | 收集其中挂载的字段路径，配合 `useFieldGroup()` / `useFieldGroupErrors()`，见 [参考](/reference/react-hooks#usefieldgroup) |
 | `<Watch select>{(value) => …}` | `useWatch` 的渲染形式 |
-| `<VirtualRows>` | 只挂载可见行的容器 |
 
 `<Field>`、`<ObjectField>`、`<ArrayField>`、`useField` 不写泛型时接受任意字符串（动态路径的出口）。要按表单类型检查名字，用 [`typed(form)`](/reference/react-hooks#typed) 拿到同一组组件的有类型版本：`<F.Field name="emial">` 编译不过，`ArrayField` 的每一行再给一组按行类型检查的 `row.Field`。可复用的字段片段是普通组件，放在 `<ObjectField>` 里，用 `typed<Address>()` 按片段自己的类型检查。名字在运行时始终相对当前作用域。
 

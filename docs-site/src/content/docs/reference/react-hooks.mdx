@@ -180,7 +180,7 @@ type FieldSlot<C extends ComponentType<any> = ComponentType<any>> =
 
 `options` 与 `<Field>` 同名属性语义相同：`rules` / `required` / `enum` 是挂载期 lease（调用组件卸载时释放；`enum` 的优先级是 reaction `$enum` > JSX > `fields` > 条目模板，reaction 写 `$enum = undefined` 回到 JSX 这一层，属性变化（深比较）会重新应用），`display` / `pattern` 是持久字段标记，UI 选项合并进返回的 binding。`<Field>` 就是 `useField(name, options)` 加上「display 为 `hidden` / `none` 时返回 null」。`virtual` 会渲染，不提交，`$visible` 读出来是 true。再渲染 `decorator` 包住的 `component`，并把 binding 提供给子树里不带参数的 `useField()`。
 
-带 `name` 时，它是当前对象 / 行作用域下的**相对路径**。例如在 `items.0` 的 `RowScope` 下，`useField('price')` 绑定 `items.0.price`。在行里再写 `items.0.price` 会重复前缀；稳定行 ID 也不是路径。
+带 `name` 时，它是当前对象 / 行作用域下的**相对路径**。例如在 `items.0` 的行作用域（`<ArrayField>` 的第 0 行）下，`useField('price')` 绑定 `items.0.price`。在行里再写 `items.0.price` 会重复前缀；稳定行 ID 也不是路径。
 
 | 写法 | 类型效果 |
 |---|---|
@@ -361,7 +361,7 @@ useArrayField<TScope, N extends ArrayPath<TScope>>(
 
 写全 `useArrayField<Values, 'items'>('items')` 才能同时检查数组路径和行值类型；只写一个泛型时行操作参数为 `unknown`。
 
-它只订阅结构（长度/顺序/行身份），不会因为单元格编辑就更新整个列表。单元格另用 `useField`，汇总另用 `useWatch`。不要原地修改返回的数组或 `getValue` 引用来代替操作方法。嵌套行需用 `RowScope` 提供路径；`<ArrayField>` 已替你做这层重复渲染。
+它只订阅结构（长度/顺序/行身份），不会因为单元格编辑就更新整个列表。单元格另用 `useField`，汇总另用 `useWatch`。不要原地修改返回的数组或 `getValue` 引用来代替操作方法。需要为每行提供相对路径作用域时直接使用 `<ArrayField>`。
 
 `dragProps` 函数对同一数组路径保持同一个引用（拖动起点记在句柄内部），所以可以经 context 交给 `memo` 的行而不让它们重渲染；没有隐藏的拖拽库，把手、键盘和触屏交互由应用决定。事件没有 `dataTransfer` 时用句柄记下的起点。
 
@@ -370,7 +370,7 @@ useArrayField<TScope, N extends ArrayPath<TScope>>(
 ### 完整例子：拖动排序，键不变，路径随顺序变化
 
 ```tsx preview
-import { Form, RowScope, useArrayField, useField, useForm } from '@shikiform/react';
+import { ArrayField, Form, useArray, useArrayField, useField, useForm, useIndex } from '@shikiform/react';
 
 type Item = { id: string; label: string };
 type Values = { items: Item[] };
@@ -381,20 +381,26 @@ function ItemInput() {
     onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} />;
 }
 
+function ItemRow() {
+  const array = useArray<Item>();
+  const index = useIndex();
+  return (
+    <div {...array.dragProps(index)}>
+      <ItemInput />
+      <button type="button" disabled={index === 0}
+        onClick={() => array.move(index, index - 1)}>上移</button>
+      <button type="button" onClick={() => array.remove(index)}>删除</button>
+    </div>
+  );
+}
+
 function Items() {
   const array = useArrayField<Values, 'items'>('items', { rowKey: 'id' });
   return (
     <section>
-      {array.keys.map((row) => (
-        <RowScope key={row.key} path={`${array.path}.${row.index}`} index={row.index}>
-          <div {...array.dragProps(row.index)}>
-            <ItemInput />
-            <button type="button" disabled={row.index === 0}
-              onClick={() => array.move(row.index, row.index - 1)}>上移</button>
-            <button type="button" onClick={() => array.remove(row.index)}>删除</button>
-          </div>
-        </RowScope>
-      ))}
+      <ArrayField name="items" rowKey="id">
+        {() => <ItemRow />}
+      </ArrayField>
       <button type="button" onClick={() => array.push({ id: crypto.randomUUID(), label: '' })}>新增</button>
     </section>
   );
@@ -415,7 +421,7 @@ useArray<TRow = unknown>(): ArrayHandle<TRow>
 // ArrayHandle = useArrayField 的返回值：{ path, keys, push, insert, remove, move, swap, replace, dragProps }
 ```
 
-最近一层数组（Formily `ArrayBase.useArray`），无需 name：在 `<ArrayField>` 的行、它的 `component` 容器（`ArrayItems` / `ArrayCards` / `ArrayTable`，含工具栏和展开行）里，返回与 `useArrayField` 对同一数组相同的句柄（订阅数组结构）。嵌套数组取最近的一层。不在数组内时抛错。自定义数组组件用 `<ArrayScope path rowKey>` 提供它。
+最近一层数组（Formily `ArrayBase.useArray`），无需 name：在 `<ArrayField>` 的行、它的 `component` 容器（`ArrayItems` / `ArrayCards` / `ArrayTable`，含工具栏和展开行）里，返回与 `useArrayField` 对同一数组相同的句柄（订阅数组结构）。嵌套数组取最近的一层。不在数组内时抛错。
 
 ```tsx
 function RemoveButton() {
@@ -492,7 +498,7 @@ function Wrong() {
 useIndex(): number
 ```
 
-当前行在数组中的下标（Formily `ArrayBase.useIndex`），来自外层 `RowScope`（`<ArrayField>` 的每一行都会提供，`ArrayTable` 的单元格也是）。行移动后随新位置更新。不在行内时抛错。
+当前行在数组中的下标（Formily `ArrayBase.useIndex`），来自外层 `<ArrayField>` 行作用域（`<ArrayField>` 的每一行与 `ArrayTable` 的单元格都会提供）。行移动后随新位置更新。不在行内时抛错。
 
 ```tsx
 function RowNo() {
@@ -592,17 +598,19 @@ export default function TreeHookExample() {
 ## useTreeNode
 
 ```ts
-useTreeNode<TNode = any>(): { path: string; pos: Pos; index: number; record: TNode }
+useTreeNode<TNode = any>(): { path: string; pos: Pos; index: number; key: string; record: TNode; dragProps: (pos?: Pos) => DragProps }
 ```
 
-当前树节点：`path`、`pos`（树坐标）、`index`（`pos` 的最后一段）和响应式 `record`。树节点由调用方渲染，用 `<RowScope path={…} pos={pos}>` 包住每个节点即可提供；不在节点内时抛错。
+当前树节点：`path`、`pos`（树坐标）、`index`（`pos` 的最后一段）、`key`、响应式 `record` 以及 `dragProps(pos?)`（不传参默认指向当前节点）。在 `<TreeField>` 的节点渲染函数内部调用；不在节点内时抛错。
 
 ```tsx
 function NodeLabel() {
   const node = useTreeNode<{ label: string }>()
-  return <span>{node.pos.join('.')} {node.record.label}</span>
+  return <span {...node.dragProps()}>{node.pos.join('.')} {node.record.label}</span>
 }
-<RowScope path={pathOf('nodes', pos)} pos={pos}><NodeLabel /></RowScope>
+<TreeField name="nodes" rowKey="id">
+  {(node) => <li><NodeLabel />{node.children && <ul>{node.children}</ul>}</li>}
+</TreeField>
 ```
 
 ## useFieldGroup
@@ -651,7 +659,7 @@ useFieldDecorator(options?: {
 }): FieldDecorator
 ```
 
-给自己的 UI 库画标签和错误，返回的是数据，不是 antd 的 `Form.Item` props。必须写在 `<Field>` 里，或传入 `useField(name)` 的 binding。`@shikiform/antd` 的 `FormItem` 仍走 `mapFormItemProps`。
+给自己的 UI 库画标签和错误，返回的是数据，不是 antd 的 `Form.Item` props。必须写在 `<Field>` 里，或传入 `useField(name)` 的 binding。
 
 | 字段 | 含义 |
 |---|---|

@@ -7,7 +7,7 @@ description: 介绍 @shikiform/hooks 与 @shikiform/antd 中的草稿表单、�
 
 | Ant Design 组件（`@shikiform/antd`） | 底层 Hook（`@shikiform/hooks`） | 适用场景 |
 |---|---|---|
-| `ShadowModal` / `ShadowDrawer` / `ShadowPopconfirm` / `ShadowForm` | `useShadowForm` / `useArrayShadow` | **草稿表单**：在独立的临时表单实例中编辑，确认校验通过后再写回主表单 |
+| `ShadowModal` / `ShadowDrawer` / `ShadowPopconfirm` / `ShadowForm` | `useShadowForm` | **草稿表单**：在独立的临时表单实例中编辑，确认校验通过后再写回主表单 |
 | `QueryList` | `useQueryTable` | **查询列表**：上方可折叠筛选区 + 下方服务端分页 `ArrayTable` |
 | 选择控件 `prettyType` / `Suggestion` / `CascaderPlus` | `enumItems` / `useSuggestion` / `useLazyCascader` + `useCascaderLabels` | 枚举阅读态徽标/标签、防抖远程联想、按需懒加载级联 |
 
@@ -26,16 +26,21 @@ type Info = { domain: string; owner: string; env: string };
 type Values = { info: Info };
 
 export default function App() {
-  const form = useForm<Values>({ initialValues: { info: { domain: 'shikiform.dev', owner: 'Ada', env: 'prod' } } });
+  const form = useForm<Values>({
+    initialValues: { info: { domain: 'shikiform.dev', owner: 'Ada', env: 'prod' } },
+    fields: {
+      'info.domain': { title: '域名', required: true, rules: { pattern: /^[a-z0-9.-]+$/, message: '只能包含小写字母、数字、点和横线' } },
+      'info.owner': { title: '负责人', required: true },
+      'info.env': { title: '环境', enum: [{ label: '生产', value: 'prod' }, { label: '预发', value: 'staging' }] },
+    },
+  });
   const fields = (
     <>
-      <Field name="domain" title="域名" required rules={{ pattern: /^[a-z0-9.-]+$/, message: '只能包含小写字母、数字、点和横线' }}
-        decorator={[FormItem]} component={[Input]} />
-      <Field name="owner" title="负责人" required decorator={[FormItem]} component={[Input]} />
-      <Field name="env" title="环境" decorator={[FormItem]} component={[Select]} />
+      <Field name="domain" decorator={[FormItem]} component={[Input]} />
+      <Field name="owner" decorator={[FormItem]} component={[Input]} />
+      <Field name="env" decorator={[FormItem]} component={[Select]} />
     </>
   );
-  const shadowFields = { env: { enum: [{ label: '生产', value: 'prod' }, { label: '预发', value: 'staging' }] } };
   return (
     <Form form={form}>
       <Watch select={(d: Draft<Values>) => d.info.$value}>
@@ -48,12 +53,10 @@ export default function App() {
         )}
       </Watch>
       <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-        <ShadowModal<Info> title="编辑（弹窗）" fields={shadowFields} record={() => form.getValue('info')}
-          onOk={(values) => form.setValue('info', values)} trigger={<Button>弹窗编辑</Button>}>
+        <ShadowModal<Info> name="info" title="编辑（弹窗）" trigger={<Button>弹窗编辑</Button>}>
           {fields}
         </ShadowModal>
-        <ShadowDrawer<Info> title="编辑（抽屉）" fields={shadowFields} record={() => form.getValue('info')}
-          onOk={(values) => form.setValue('info', values)} trigger={<Button>抽屉编辑</Button>}>
+        <ShadowDrawer<Info> name="info" title="编辑（抽屉）" trigger={<Button>抽屉编辑</Button>}>
           {fields}
         </ShadowDrawer>
       </div>
@@ -62,7 +65,7 @@ export default function App() {
 }
 ```
 
-需要注意：由于草稿内部是独立表单，里面 `<Field>` 的 `name` 是相对于草稿根路径解析的，不继承外层数组行或对象的作用域。如果专门用于弹窗编辑或新增表格的某一行，推荐直接使用封装好的 `useArrayShadow`，参见 [/play/array-table-shadow](/play/array-table-shadow)。
+需要注意：由于草稿内部是独立表单（`ShadowBody` 会隔离宿主表单、作用域、字段、分组与栅格上下文，仅保留 `FieldKit` 与 `FormLayout`），里面 `<Field>` 的 `name` 是相对于草稿根路径解析的。通过 `name="info"`（或把 `<ShadowModal>` 直接放在表格行内）绑定宿主路径后，打开草稿时会自动复制当前值并继承对应前缀的 `fields` 规则与 `pattern`，确认时自动写回原路径，参见 [/play/array-table-shadow](/play/array-table-shadow)。
 
 ## 查询列表
 

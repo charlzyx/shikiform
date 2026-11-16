@@ -63,20 +63,23 @@ export default function App() {
 | `mapProps({ title: 'placeholder' })` | 将其他字段状态映射到指定 prop（支持 `title`、`description`、`required`、`validating`、`componentProps.x` 等）；调用方显式传入同名 prop 时以调用方为准 |
 | `mapProps({ format, parse })` | 双向数据转换：`format` 将引擎里的可序列化值转成控件所需的类型（如字符串转 Date），`parse` 将控件 `onChange` 回调参数转回字段值 |
 | `mapProps((props, field) => props)` | 使用函数对最终 props 做自定义变换（在 `format` 之前执行） |
-| `mapProps({ blurOn: 'onOpenChange' })` / `mapBlur('onChange')` | 当控件自身没有 `onBlur` 回调时（例如弹出层选择器），指定通过关闭弹层或变更事件来触发失焦校验 |
-| `mapReadPretty(View)` | 指定字段处于 `readPretty` 状态时渲染的只读视图（接收 `value` 和 `options`）；未配置时则按 `readOnly` 降级 |
+| `mapProps({ blurOn: 'onOpenChange' })` | 当控件自身没有 `onBlur` 回调时（例如弹出层选择器），指定通过关闭弹层或变更事件（`'onChange'`）来触发失焦校验 |
+| `mapProps({ readPretty: View })` | 指定字段处于 `readPretty` 状态时渲染的只读视图（组件或 `[Component, props]`，接收 `value` 和 `options`）；未配置时则按 `readOnly` 降级 |
 
 ```tsx preview
 import { Segmented as AntSegmented } from 'antd';
 import { Field, Form, useForm } from '@shikiform/react';
-import { FormItem, FormLayout, Switch, connect, mapProps, mapReadPretty } from '@shikiform/antd';
+import { FormItem, FormLayout, Switch, connect, mapProps } from '@shikiform/antd';
 
 // Segmented 的 onChange 直接给值。headless connect 默认不传 status；这里再丢掉 id。阅读态显示带圆点的文字。
 // connect 也从 '@shikiform/react' 导入，不必经过 antd。
 const Segmented = connect(
   AntSegmented,
-  mapProps({ id: false, readOnly: 'disabled' }),
-  mapReadPretty(({ value }: { value?: string }) => <span>● {value}</span>),
+  mapProps({
+    id: false,
+    readOnly: 'disabled',
+    readPretty: ({ value }: { value?: string }) => <span>● {value}</span>,
+  }),
 );
 
 export default function App() {
