@@ -31,6 +31,14 @@ describe('playground routes', () => {
   })
 })
 
+/** Footer text is `共计 N 条数据`. The result `<pre>` must list that many top-level rows. */
+function footerTotal(): number {
+  const text = screen.getByTestId('custom-footer').textContent ?? ''
+  const match = text.match(/共计 (\d+) 条/)
+  expect(match, text).toBeTruthy()
+  return Number(match![1])
+}
+
 describe('/play/array-table', () => {
   it('pages 23 rows, edits in place, expands a summary + read-only subtable, and loads 100k rows', async () => {
     render(<ArrayTablePage />)
@@ -50,6 +58,34 @@ describe('/play/array-table', () => {
     await waitFor(() => expect(screen.getByTestId('custom-footer').textContent).toContain('100000'), slow)
     expect(performance.now() - started).toBeLessThan(10_000)
   }, 20_000)
+
+  it('submit JSON lists every row, including ones off the current page, and matches the footer (#124)', async () => {
+    render(<ArrayTablePage />)
+    expect(footerTotal()).toBe(23)
+    // Page size is 10. 21.1 sits on page 3 and is not mounted.
+    expect(screen.queryByDisplayValue('21.1')).toBeNull()
+    fireEvent.change(screen.getByTestId('a1-0'), { target: { value: '99' } })
+
+    fireEvent.click(screen.getByTestId('submit'))
+    const pre = await screen.findByTestId('submitted')
+    await waitFor(() => expect(JSON.parse(pre.textContent ?? 'null')).toHaveLength(footerTotal()))
+    const first = JSON.parse(pre.textContent ?? 'null') as { a1: string; a2: string; a3: string; subitems?: { a1: string }[] }[]
+    expect(first).toHaveLength(23)
+    expect(first[0]).toMatchObject({ a1: '99', a2: '0.2', a3: '0.3' })
+    expect(first[0]!.subitems?.[0]?.a1).toBe('c.0.1')
+    expect(first[21]).toEqual({ a1: '21.1', a2: '21.2', a3: '21.3', subitems: [{ a1: 'c.21.1', a2: 'c.21.2', a3: 'c.21.3' }] })
+    expect(pre.textContent).toContain('"a1": "22.1"')
+
+    fireEvent.click(screen.getByTestId('row-add'))
+    await waitFor(() => expect(footerTotal()).toBe(24))
+    fireEvent.click(screen.getByTestId('submit'))
+    await waitFor(() => expect(JSON.parse(screen.getByTestId('submitted').textContent ?? 'null')).toHaveLength(24))
+    const added = JSON.parse(screen.getByTestId('submitted').textContent ?? 'null') as { a1: string }[]
+    expect(added).toHaveLength(footerTotal())
+    expect(added[0]!.a1).toBe('99')
+    expect(added[21]!.a1).toBe('21.1')
+    expect(added[23]).toEqual({ a1: '', a2: '', a3: '' })
+  })
 })
 
 describe('/play/array-table-shadow', () => {

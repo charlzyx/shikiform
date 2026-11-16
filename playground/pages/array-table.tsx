@@ -81,7 +81,7 @@ export function ArrayTablePage() {
       <main style={{ padding: 16 }}>
         <h1>ArrayTable</h1>
         <p>对照 Pro.formily ArrayTable：拖拽排序、序号、行内编辑、删除（确认 + 异步）、上下移、行选择、展开行（自定义 render + 只读子表）、列配置、列宽拖拽、分页、自定义 toolbar / footer。</p>
-        <Form form={form} onSubmit={(values) => setSubmitted(JSON.stringify(values.array.slice(0, 3), null, 2))}>
+        <Form form={form} onSubmit={(values) => setSubmitted(JSON.stringify(values.array, null, 2))}>
           <ArrayField name="array" component={[ArrayTable, {
             title: 'Array Table Pro Max',
             resizeable: true,
