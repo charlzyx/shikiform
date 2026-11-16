@@ -1,18 +1,18 @@
 ---
-title: Headless Hooks
-description: 不依赖任何 UI 库：useField、useWatch，行内的 useArray / useIndex / useRecord，树节点的 useTreeNode，以及接入 shadcn、MUI、Mantine。
+title: Headless Hooks 与接入组件库
+description: 不依赖 UI 库直接使用 useField、useWatch、数组/树上下文 Hooks，以及如何接入 shadcn/ui、Mantine、MUI 等第三方组件库。
 ---
 
-不用 antd、或者要自己做表格和树组件时，直接用 Hook。`<Field>`、`<ArrayField>` 都是它们的薄封装；下面的例子只用原生 HTML。
+如果你不打算引入 Ant Design，或者需要封装自定义的表格与树形编辑器，可以直接使用 `@shikiform/react` 提供的无 UI Hooks（`<Field>` 和 `<ArrayField>` 本身也是构建在这些 Hook 之上的薄封装）：
 
-- `useField(name)` 绑定一个字段，`useWatch(select)` / `<Watch>` 订阅任意 `$` 状态。
-- 行内：`useArray()` 拿最近一层数组的操作，`useIndex()` 拿行号，`useRecord()` 拿这一行的值；都不需要写数组名。数组自身的错误用 `useArrayErrors()`（不含子字段）。调用它的组件要渲染在 `<ArrayField>` 里面（容器或 `ArrayTable` 的 `footer`）；和 `<ArrayField>` 平级会抛 `ShikiUsageError`。见 [数组自身的错误](/guide/arrays#数组自身的错误)。
-- 树节点内：`useTreeNode()` 返回 `{ path, pos, index, record }`。
-- 拖拽：数组句柄（`useArray()` / `useArrayField(name)`）的 `dragProps(index)`、树句柄（`useTreeField(name)`）的 `dragProps(pos)`，给出 HTML5 拖拽属性；移动本身是同一个句柄的 `move`。
+- **基础绑定与订阅**：`useField(name)` 负责绑定单个字段，`useWatch(select)` / `<Watch>` 负责订阅任意 `$` 状态变化。
+- **数组行内上下文**：`useArray()` 获取最近一层数组的操作句柄，`useIndex()` 获取当前行下标，`useRecord()` 获取当前行数据，调用时都不需要传数组名。如需展示数组路径自身的错误（不包含子字段），可以在容器或 `ArrayTable` 的 `footer` 中调用 `useArrayErrors()`（注意必须放在 `<ArrayField>` 子树内部，详见 [数组自身的错误](/guide/arrays#数组自身的错误)）。
+- **树节点上下文**：`useTreeNode()` 返回当前节点的 `{ path, pos, index, record }`。
+- **拖拽排序**：数组句柄（`useArray()` / `useArrayField(name)`）的 `dragProps(index)` 与树句柄（`useTreeField(name)`）的 `dragProps(pos)` 会直接返回所需的 HTML5 拖放事件属性，配合同一句柄的 `move` 即可完成排序。
 
-`useArray` / `useIndex` / `useRecord` 在 `<ArrayField>` 的行里都能用，`ArrayItems` / `ArrayCards` / `ArrayTable` 容器里也一样。
+`useArray`、`useIndex` 和 `useRecord` 在普通 `<ArrayField>` 渲染函数以及 `ArrayItems`、`ArrayCards`、`ArrayTable` 容器内均可通用。
 
-## 数组：行组件不需要名字
+## 数组行组件：免传路径名
 
 ```tsx preview
 import { ArrayField, Form, Watch, useArray, useField, useForm, useIndex, useRecord, type Draft } from '@shikiform/react';
@@ -72,11 +72,11 @@ export default function App() {
 }
 ```
 
-行里的 `useArray()` 就是外层数组的句柄：`remove`、`move`、`dragProps` 都在上面，不用写数组名。拖动一行，`#` 后的行号变了，`id` 不变。
+在 `Row` 组件中，`useArray()` 会自动解析到外层的 `todos` 数组，拖拽重排后 `#` 后面的行下标会同步变化，而业务 `id` 和焦点状态保持不变。
 
-## 树：每个节点一层 RowScope
+## 树形结构：使用 RowScope 包裹节点
 
-树没有现成的行组件，节点由你递归渲染。每个节点包一层 `<RowScope path pos>`，里面的 `useField('name')` 就指向这个节点，`useTreeNode()` 给出它的坐标和值：
+渲染树形数据时，由业务组件递归渲染节点，并在每个节点外层包一层 `<RowScope path pos>`，内部的 `useField('name')` 就会自动指向当前节点，`useTreeNode()` 则提供当前节点的坐标与数据：
 
 ```tsx
 function NodeLabel({ dragProps }: { dragProps: TreeHandle['dragProps'] }) {   // TreeHandle = ReturnType<typeof useTreeField>
@@ -91,28 +91,26 @@ function NodeLabel({ dragProps }: { dragProps: TreeHandle['dragProps'] }) {   //
 </RowScope>
 ```
 
-`useTreeField('menu')` 返回的 `tree.dragProps(pos)` 给节点加上拖拽：拖到另一个节点上就移动到那个位置，不能拖进自己的子孙。可运行的完整版见 [示例库 · 树：跨层移动](/examples/arrays#树跨层移动)。
+通过 `useTreeField('menu')` 获取的 `tree.dragProps(pos)` 自带跨父级拖拽和「禁止拖入自身子节点」校验。完整可运行演示见 [示例库 · 树：跨层移动](/examples/arrays#树跨层移动)。
 
 ## 接自己的组件库
 
-`connect` / `mapProps` / `mapBlur` / `mapFieldProps` 在 `@shikiform/react` 里，不需要 `@shikiform/antd`，也不需要安装 antd。默认不传 antd 的 `status`。标签和错误用 [`useFieldDecorator`](/reference/react-hooks#usefielddecorator)，按钮用 [`Submit` / `Reset`](/reference/react-hooks#usesubmit)（`asChild` 或 render prop）。`Reset` 的 `afterReset` 在重置之后拿到新值。
+`connect`、`mapProps`、`mapBlur` 和 `mapFieldProps` 均直接由 `@shikiform/react` 导出，不依赖 `@shikiform/antd`（默认不传 Ant Design 专属的 `status`）。标签与错误提示使用 [`useFieldDecorator`](/reference/react-hooks#usefielddecorator)，提交和重置按钮可使用 headless 的 [`Submit` / `Reset`](/reference/react-hooks#usesubmit)（支持 `asChild` 或 render prop，其中 `Reset` 通过 `afterReset` 接收重置后的值）。下面以 shadcn/ui、Mantine 和 MUI 为例展示接入方式，原生 HTML 最小起步见 [不用 UI 库](/start/native)。
 
-下面用 shadcn 写完整的 Input、Select、Checkbox、DatePicker 和 FormItem。MUI、Mantine 只列和 shadcn 不同的几点。这三节是可以直接复制的代码。页面上能点的例子是同一套接线换成原生元素的那一节，见 [不用 UI 库](/start/native)。
+### 区分 `useFieldDecorator().control` 与 `connect`
 
-### `control` 里没有值
-
-`useFieldDecorator().control` 给的是标签、说明、错误文案、`id`、`onBlur` 和 `aria-*`。**没有 `value`，也没有 `onChange`。** 把 `control` 摊开，字段值接不上。
+`useFieldDecorator().control` 返回的是标签、说明、错误提示、`id`、`onBlur` 和无障碍 `aria-*` 属性，**里面不包含 `value` 和 `onChange`**：
 
 ```tsx
 import { Field, connect, useField, useFieldDecorator } from '@shikiform/react'
 
-// ✗ control 没有 value / onChange
+// ✗ control 没有 value / onChange，不能单独接管受控值
 function Bad() {
   const { control } = useFieldDecorator()
   return <TextInput {...control} />
 }
 
-// ✓ 控件自己画 label（Mantine）：control 管标签和错误，值用 useField
+// ✓ 适合自带 label 的控件（如 Mantine TextInput）：control 负责标签和报错，值单独用 useField 接入
 function NameInput() {
   const field = useField<string>()
   const { control } = useFieldDecorator()
@@ -125,23 +123,23 @@ function NameInput() {
   )
 }
 
-// ✓ 不画 label：connect 接 value / onChange / onBlur，外面再用 FormItem
+// ✓ 适合纯输入控件（如 shadcn Input）：用 connect 接入输入绑定，外面再搭配 FormItem 装饰器
 const Input = connect(ShadcnInput)
 <Field name="name" title="姓名" decorator={[FormItem]} component={[Input]} />
 ```
 
-`NameInput` 这种自己画标签的控件不要再套 decorator，否则标签和错误出两遍。也不要把 `control` 摊到已经 `connect()` 过的控件上：`connect` 已经写了 `id`、`disabled`、`readOnly`、`onBlur`。
+像 `NameInput` 这样自身已经渲染了标签和报错的组件，不要再嵌套 `FormItem` 装饰器，也不要把 `control` 展开到已经用 `connect()` 包装过的组件上。
 
-### 没有 `onBlur` 的 Select
+### 处理没有 `onBlur` 的组件
 
-控件的 props 类型里没有 `onBlur` 时，`connect(...)` 是类型错误：传下去的 `onBlur` 会被丢掉，`validateTrigger: 'onBlur'` 永远不跑。三种写法都满足类型检查：
+如果目标控件的属性类型里没有 `onBlur`（常见于下拉弹层或日期选择器），TypeScript 在调用 `connect()` 时会报错提示，避免失焦校验失效。你可以通过以下方式显式声明失焦时机：
 
-| 写法 | 何时 `field.onBlur()` |
+| 写法 | 触发 `field.onBlur()` 的时机 |
 |---|---|
-| `mapProps({ blurOn: 'onOpenChange' })` 或 `mapBlur('onOpenChange')` | 弹出层关闭（回调的第一个参数是 `false`）。不再把 `onBlur` 传给控件 |
-| `mapProps({ blurOn: 'onChange' })` 或 `mapBlur('onChange')` | 每次写入之后（值已经写进字段） |
-| `mapProps({ blurOn: { prop, when? } })` 或 `mapBlur({ prop, when? })` | `prop` 触发，且 `when(...args)` 不为 false（`when` 默认恒真）。MUI DatePicker 的 `onClose` 用这个：它没有参数 `false`，不能写 `'onOpenChange'` |
-| `mapProps({ onBlur: false })` | 明确不在失焦时校验 |
+| `mapProps({ blurOn: 'onOpenChange' })` / `mapBlur('onOpenChange')` | 弹层关闭时（回调首个参数为 `false`），且不再向下透传 `onBlur` |
+| `mapProps({ blurOn: 'onChange' })` / `mapBlur('onChange')` | 每次值变更写入后立即触发 |
+| `mapProps({ blurOn: { prop, when? } })` / `mapBlur({ prop, when? })` | 指定的 `prop` 回调触发且 `when(...args)` 不返回 `false` 时（适用于如 MUI DatePicker 的 `onClose`） |
+| `mapProps({ onBlur: false })` | 显式声明不处理失焦校验 |
 
 ```tsx
 connect(SelectControl, mapProps({ options: 'options', onChange: 'onValueChange', blurOn: 'onOpenChange' }))
@@ -149,11 +147,11 @@ connect(SelectControl, mapBlur('onOpenChange'), mapProps({ options: 'options', o
 connect(Picker, mapProps({ onBlur: false }))
 ```
 
-`blurOn` 和 `mapBlur` 是同一件事，`mapBlur` 可以单独放在 enhancer 列表里。签名见 [mapProps](/reference/antd-adapter#mapprops) / [mapBlur](/reference/antd-adapter#mapblur)。
+`mapBlur` 与 `mapProps({ blurOn })` 等价，可以放在增强器列表的任意位置。完整参数签名见 [mapProps](/reference/antd-adapter#mapprops) 与 [mapBlur](/reference/antd-adapter#mapblur)。
 
-### shadcn
+### shadcn/ui 接入模板
 
-shadcn 的 Input 就是 `value` / `onChange` / `onBlur`，直接 `connect`。Select 的选项是 `SelectItem`，回调是 `onValueChange`，没有 `onBlur`。Checkbox 用 `checked` / `onCheckedChange`（参数是布尔或 `'indeterminate'`，不是 DOM 事件）。DatePicker 是 Popover + Calendar 拼出来的，字段里存 `yyyy-MM-dd` 字符串。FormItem 只读 `useFieldDecorator()`，不读 `control`。
+在 shadcn/ui 中，`Input` 本身支持标准 `value` / `onChange` / `onBlur`，可以直接 `connect`；`Select` 的选项由 `SelectItem` 渲染，通过 `onValueChange` 回调值并在弹层关闭时触发 `blurOn: 'onOpenChange'`；`Checkbox` 使用 `checked` 与 `onCheckedChange`；`DatePicker` 由 `Popover + Calendar` 组合而成，借助 `format` / `parse` 在表单存储的 `yyyy-MM-dd` 字符串与 `Date` 对象间双向转换；`FormItem` 装饰器基于 `useFieldDecorator()` 渲染标签和错误。
 
 ```tsx
 import { format, parseISO } from 'date-fns'
@@ -262,13 +260,13 @@ export default function App() {
 }
 ```
 
-- Radix Select 不接受空字符串，所以没选时传 `undefined`。`options` 来自 `<Field enum>`。
-- Checkbox 的包装组件带 `onBlur`，失焦校验走它，不必再写 `blurOn`。`onCheckedChange` 的参数不是事件，用 `parse` 收成布尔。`required` 把 `false` 当成已填写；「必须勾选」用 `rules={{ isTrue: true }}`。
-- DatePicker 的包装组件没有 `onBlur`，所以必须写 `blurOn`。关掉弹层（`onOpenChange(false)`）时失焦。字段里是 `yyyy-MM-dd` 字符串，Calendar 要 `Date`：`format` 用 `parseISO` 传进去，`parse` 在选中后 `format` 回字符串。控件自己只接 `Date`，不再包一层做转换。
+接入时的几点细节：
+- Radix Select 不允许传入空字符串作为 `value`，未选择时需转为 `undefined`。
+- Checkbox 的 `required` 规则认为 `false` 也是有效值，强制勾选需使用 `rules={{ isTrue: true }}`。
 
-### 可运行的最小版
+### 在线最小可运行示例
 
-同一套 FormItem 和 `blurOn`，用原生 input / select / `type="date"` 代替 shadcn，页面上能直接提交。Select 没有 `onBlur`，选中后调用 `onOpenChange(false)`。日期字段存 `YYYY-MM-DD`，`format` / `parse` 和控件的 `Date` 对转。`kit` 登记默认装饰器和控件名字，字段不必再写 `decorator={[FormItem]}`。
+下面是一个用原生 `<input>` / `<select>` / `<input type="date">` 模拟上述适配模式的完整示例，同时演示了 `kit` 注册默认装饰器和控件名称的写法：
 
 ```tsx preview
 import { useState, type ReactNode } from 'react';
@@ -390,11 +388,9 @@ export default function App() {
 }
 ```
 
-### Mantine
+### Mantine 接入要点
 
-TextInput、Select、Checkbox 的 props 里带 `onBlur`，`connect` 不必再写 `blurOn`。某个版本的类型里没有 `onBlur` 时，补上面三种写法里的一种。`control.error` 是字符串，和 Mantine 的 `error`（ReactNode）对得上，所以自带 label 的控件可以直接摊开 `control`，再自己接值。Select 的选项 prop 叫 `data`，`onChange` 的第一个参数就是值，默认会收下。
-
-DatePickerInput 的 `value` 是 `Date | null`，不是字符串。字段里存 `YYYY-MM-DD` 时直接 `connect`，用 `format` / `parse` 双向转：传进去是本地日历日的 `Date`（避免 `new Date('YYYY-MM-DD')` 被当成 UTC），写回是字符串。`valueFormat` 只影响输入框里的文字。
+Mantine 的 `TextInput`、`Select`、`Checkbox` 均支持 `onBlur`，且 `error` 属性直接接收报错文本，因此自带标签的控件可以直接展开 `control` 并配合 `useField()` 接线；`Select` 的选项属性名为 `data`；`DatePickerInput` 则通过 `format` / `parse` 在 `Date | null` 与本地日期字符串 `YYYY-MM-DD` 之间转换（解析时手动拆年月日构造本地 `Date`，避免 `new Date('YYYY-MM-DD')` 被按 UTC 解析产生时区偏差）。
 
 ```tsx
 import { Checkbox, Select, TextInput } from '@mantine/core'
@@ -437,11 +433,9 @@ const Birthday = connect(DatePickerInput, mapProps({
 <Field name="birthday" component={[Birthday]} />
 ```
 
-### MUI
+### MUI 接入要点
 
-不要把 `control` 摊到 `TextField` 上。除了没有 `value` / `onChange`，MUI 的 `error` 是布尔，`control.error` 是文案，摊开会把类型和含义都弄错。标签和错误从 `useFieldDecorator()` 逐项拿，值用 `useField()`。
-
-DatePicker（dayjs 适配器）的 `value` 是 Dayjs，字段仍存 `YYYY-MM-DD`。`format` 传进去，`parse` 写回来，不必再包一层。`onClose` 没有参数 `false`，失焦用 `mapBlur({ prop: 'onClose' })`，不能写 `blurOn: 'onOpenChange'`。
+MUI 的 `TextField` 接收布尔型的 `error` 与提示文本 `helperText`，而 `control.error` 是字符串，因此不能直接展开 `control`，应当逐项读取 `useFieldDecorator()` 的字段并与 `useField()` 组合。`DatePicker`（dayjs 适配器）则通过 `slotProps.textField.id` 绑定标签 `id`，并用 `mapBlur({ prop: 'onClose' })` 触发失焦校验。
 
 ```tsx
 import dayjs, { type Dayjs } from 'dayjs'
@@ -498,11 +492,11 @@ const Birthday = connect(DatePicker, mapProps({
 <Field name="birthday" component={[Birthday]} />
 ```
 
-MUI Select 自己有 `onBlur`，`onChange` 是 DOM 事件，不必 `blurOn`。选项是 `MenuItem` 而不是 `options`，要接 `<Field enum>` 就照 shadcn 那样包一层。
+MUI `Select` 自身支持 `onBlur` 且 `onChange` 遵循标准事件结构，无需配置 `blurOn`；如需配合 `<Field enum>`，可参照上文 shadcn/ui 的包装方式把选项映射成 `MenuItem`。
 
 ## 登记一次
 
-每个字段都写 `decorator={[FormItem]}` 是样板。把装饰器和控件登记一次，`<Field>` 的 `component` / `decorator` 槽位就能写字符串名字，或继续写已经 `connect` 过的组件引用。还是这一个 `<Field>`，没有第二套字段组件。
+如果不想在每个 `<Field>` 上重复写 `decorator={[FormItem]}`，可以通过 `<FieldKit>` 或 `<Form kit={{ ... }}>` 集中注册默认装饰器和常用控件。注册后，在 `<Field>` 上可以直接传字符串名称（或继续传组件引用）；不需要默认装饰器时（例如表格单元格），显式传入 `decorator={false}` 即可。
 
 ```tsx
 import { Field, FieldKit, Form } from '@shikiform/react'
@@ -521,8 +515,8 @@ declare module '@shikiform/react' {
 </FieldKit>
 ```
 
-`<Form kit={{ decorator: FormItem, components: { Input, Select } }}>` 是同一份登记，只作用于这一张表。没写 `decorator` 的字段用这份默认装饰器；`decorator={false}` 不要装饰器（表格单元格）。字符串名字在 `declare module '@shikiform/react'` 里登记之后才有提示，并按那个组件检查元组 props；没登记时任何字符串都能写。组件引用（`component={Input}`、`component={[Input, props]}`）和字符串是同一个槽位，引用不必再登记也能用到默认装饰器。
+扩展 `FieldComponents` / `FieldDecorators` 后，字符串名称即可获得完整的自动补全与元组 `props` 类型校验；使用组件引用时，即使不预先注册也能自动应用默认装饰器。
 
-签名、订阅边界和更多例子见 [React Hooks 参考](/reference/react-hooks)。
+全部 Hook 签名与订阅范围请见 [React Hooks 参考](/reference/react-hooks)。
 
-下一步：[Pro 组件](/guide/pro)，影子草稿和查询列表。
+下一步：[查询列表与 Pro 组件](/guide/pro)，使用草稿表单与服务端分页查询列表。

@@ -1,17 +1,17 @@
 ---
 title: 2. 路径
-description: 对象字段用相对名字，引擎拼成 path。
+description: 在 ObjectField 作用域内使用相对字段名，引擎会自动拼接出完整路径。
 tableOfContents: false
 ---
 
 <div className="tutorial-step">
 <div className="tutorial-copy">
 
-预览里是一份资料。姓名是一个值，地址是一个对象，里面现在只有城市。点提交，JSON 里有 `name` 和 `address.city`。
+右边的表单包含个人资料：姓名是一个顶层字段，地址是一个嵌套对象（目前只有「城市」）。直接点击提交，可以看到输出结果里已经带上了 `name` 和 `address.city`。
 
-`ObjectField` 给里面的字段一个作用域。你写的 `name` 是相对名字，引擎把它接到外层后面，得到 path `address.city`。不要在对象里面再写一遍 `address.city`，否则会拼成 `address.address.city`。
+`<ObjectField name="address">` 会为内部的字段建立一层路径作用域。在这个作用域内，子字段只需填写相对名称（例如 `city`），引擎会自动拼接为完整路径 `address.city`。如果在这里又写成 `address.city`，就会被拼成 `address.address.city`。
 
-**这一步：** 在地址里面加上街道。提交之后，`address` 里同时有 `city` 和 `street`。
+**这一步：** 在地址对象内补充一个「街道」字段（`street`）。提交表单后，确认输出 JSON 中的 `address` 对象同时包含 `city` 和 `street`。
 
 </div>
 

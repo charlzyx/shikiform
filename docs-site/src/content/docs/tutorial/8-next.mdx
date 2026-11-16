@@ -1,20 +1,20 @@
 ---
 title: 8. 接下来
-description: 教程之后去哪一页。
+description: 完成互动教程后的进阶阅读与示例推荐。
 ---
 
-你已经会写一份表单：字段、相对路径、四种 `display`、规则、`reaction`、`watch`、`reaction.each`，以及 `virtual` 字段怎样留在界面上、又不进提交结果。
+通过前面七个练习，你已经掌握了 ShikiForm 的日常核心用法：表单与字段绑定、嵌套对象与相对路径、四种 `display` 状态、规则与 Schema 校验、`reaction` / `watch` / `reaction.each` 联动，以及用 `virtual` 处理仅做前端校验的辅助字段。
 
-## 接着读
+## 深入原理与专题
 
-- [核心概念](/guide/concepts)：handle，以及解构时只取子字段。
-- [按路径读写](/basics/path)：`get` / `set` 和 `d.orders[0].lines[2].qty`。
-- [字段状态](/basics/state)：`visible` / `hidden` / `virtual` / `none`。
-- [联动](/guide/linkage)：嵌套数组和树怎样用 `ctx` 过滤。
-- [常见的坑](/practices/pitfalls)：错误和正确的对照。
-- [API](/api)：四个包的导出。
+- [核心概念](/guide/concepts)：理解表单引擎、draft handle 以及 `$` 状态的设计。
+- [按路径读写](/basics/path)：使用 `get` / `set` 和 `d.orders[0].lines[2].qty` 精准操作深层路径。
+- [字段状态](/basics/state)：完整对比 `visible`、`hidden`、`virtual`、`none` 四种模式及 `pattern` 继承规则。
+- [联动](/guide/linkage)：学习在多层嵌套数组和树形结构中使用 `ctx` 进行局部联动。
+- [常见的坑](/practices/pitfalls)：常见误用（如解构 handle、同轮回读等）的正误对照。
+- [API 总览](/api)：查阅四个包提供的完整组件、Hooks 和工具函数。
 
-## 完整页面
+## 场景示例
 
 - [登录校验](/examples/login)
 - [联动计算](/examples/computed)
@@ -22,4 +22,4 @@ description: 教程之后去哪一页。
 - [动态表格](/examples/dynamic-table)
 - [跨字段与异步校验](/examples/async-rules)
 
-查询表、SKU、合并单元格和影子表单在 [示例库](/examples) 里，每一项都能打开独立的 `/play/...` 页面。
+更多复杂场景（如查询列表、SKU 选择器、合并单元格表格与草稿表单），请访问 [示例库](/examples) 或直接查看可独立打开的 [示例目录](/play)。

@@ -1,34 +1,34 @@
 ---
 title: 3. 状态与 display
-description: 用 $visible 控制邮箱出不出现。关掉之后不校验、也不提交。
+description: 使用 $visible 控制字段显示与否，隐藏后自动跳过校验并从提交结果中剔除。
 tableOfContents: false
 ---
 
 <div className="tutorial-step">
 <div className="tutorial-copy">
 
-预览里有一个「需要联系」开关，下面一直有邮箱。打开、关掉，邮箱都不动。
+练习代码里有一个「需要联系」开关，目前无论开或关，下方的邮箱输入框始终显示在界面上。
 
-字段上的状态都带 `$`。`$value` 是当前值。不带 `$` 的名字是子字段。
+在联动函数中，字段的自身状态统一带有 `$` 前缀（例如 `$value` 读取当前值，`$required` 控制必填），不带 `$` 的属性名则代表子字段。
 
-`display` 有四种：
+ShikiForm 用 `display` 区分四种渲染与提交行为：
 
-| 值 | 渲染 | 校验 | 提交 |
+| 值 | 界面渲染 | 参与校验 | 参与提交 |
 |---|---|---|---|
 | `visible` | 是 | 是 | 是 |
 | `hidden` | 否 | 是 | 是 |
 | `virtual` | 是 | 是 | 否 |
 | `none` | 否 | 否 | 否 |
 
-`$visible = false` 就是 `none`。`$hidden = true` 才是 `hidden`。读 `$visible` 时，`visible` 和 `virtual` 都是 true。
+其中 `$visible = false` 等价于 `display = 'none'`，而 `$hidden = true` 对应 `display = 'hidden'`。读取 `$visible` 时，只要字段在界面上可见（即 `visible` 或 `virtual`），结果都为 `true`。
 
-`pattern` 是另一组状态：`editable`、`disabled`、`readOnly`、`readPretty`。写在父级上，子级跟着走；子级自己写了 `$pattern` 就用自己的。
+另一组常用状态是 `pattern`（包含 `editable`、`disabled`、`readOnly`、`readPretty`），它支持从父级向下继承；如果某个子字段显式设置了自己的 `$pattern`，则会覆盖父级的配置。
 
-**这一步：** 在 `reaction` 里写上 `d.email.$visible = d.contact.$value`。
+**这一步：** 在 `reaction` 中补充 `d.email.$visible = d.contact.$value`。
 
-关掉开关，邮箱消失。打开、清空邮箱，再关掉并提交，表单通过，JSON 里没有 `email`。值还留在表单里，重新打开开关，刚才的输入又回来了。
+完成后，关闭开关即可隐藏邮箱。即便先清空邮箱再关闭开关，点击提交依然能够顺利通过，且最终 JSON 中不包含 `email`；同时引擎会保留原先输入的值，重新打开开关时内容依然还在。
 
-只想藏起界面、值仍要校验和提交时，写 `d.email.$hidden = !d.contact.$value`。
+如果业务要求「隐藏界面但依然校验并提交数据」，可以改为设置 `d.email.$hidden = !d.contact.$value`。
 
 </div>
 

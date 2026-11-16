@@ -1,13 +1,9 @@
 ---
 title: Field、装饰器与组件
-description: Field 拥有一个 path，decorator 包住 component；UI 属性分三层叠加，按键深合并。
+description: 使用 Field 绑定字段路径，通过 decorator 与 component 分层渲染标签和控件，并按三层叠加规则管理 UI 属性。
 ---
 
-一个字段要有标签、控件和错误提示，也要知道自己的值和状态。
-
-`<Field>` 拥有一个 path。它渲染 `decorator`，包住 `component`。字段通过上下文交给这两层。
-
-所以 `FormItem` 和接好的控件都不用再写 `name`。
+在 ShikiForm 中，`<Field>` 是单个表单项的唯一入口。它会绑定数据路径并渲染两层结构：外层的 `decorator` 负责展示标签、必填星号和校验报错，内层的 `component` 负责实际的数据输入。由于 `<Field>` 会把当前字段上下文向下传递，因此 `FormItem` 和接入后的控件都可以直接读取字段状态，无需再次传入 `name`。
 
 ```tsx
 <Field
@@ -20,19 +16,19 @@ description: Field 拥有一个 path，decorator 包住 component；UI 属性分
 />
 ```
 
-| 属性 | 作用 |
+| 属性 | 说明 |
 |---|---|
-| `name` | 相对路径。`profile.name`，或在 `<ObjectField name="profile">` 里写 `name` |
-| `rules` / `required` | 挂载期规则，组件卸载时释放，见 [规则写在哪](/guide/validation#规则写在哪) |
-| `enum` | 选项：`[{ label, value }]`、原始值数组 `['a', 'b']` 或 `SomeEnum.with(params)`，见 [选项写在 JSX 里](#选项写在-jsx-里) |
-| `display` / `pattern` | 初始显隐（`visible` / `hidden` / `virtual` / `none`）/ 编辑态；reaction 写的值优先。`virtual` 渲染并校验，但不提交 |
-| `title` / `description` | 装饰器的标签 / 说明 |
-| `decorator` / `component` | 组件，或 `[组件, props]`：元组里的 props 就是 JSX 这一层的 `decoratorProps` / `componentProps`，按组件检查类型（都可选；写错键或类型不通过编译）。登记过之后也可以写名字：`component="Input"`、`["Input", props]`，见 [登记一次](/guide/headless#登记一次) |
-| `children` | 控件元素（`<Input />`）或 render prop `(field) => …`，代替 `component` |
+| `name` | 字段路径，相对于外层的 `<ObjectField>` 或数组行解析 |
+| `rules` / `required` | 挂载期校验规则，组件卸载时自动移除；持久化规则请写在 `fields` 或 `reaction` 中，详见 [规则写在哪](/guide/validation#规则写在哪) |
+| `enum` | 静态选项（如 `[{ label, value }]`、`['a', 'b']`）或异步数据源 `SomeEnum.with(params)`，详见 [选项写在 JSX 里](#选项写在-jsx-里) |
+| `display` / `pattern` | 组件层声明的显隐（`visible` / `hidden` / `virtual` / `none`）和交互模式；若 `reaction` 中也写了对应状态，则以 `reaction` 为准 |
+| `title` / `description` | 传递给装饰器的标题与补充说明 |
+| `decorator` / `component` | 接收组件本身或 `[Component, props]` 元组。元组中的 `props` 会与组件的完整属性类型进行严格校验；使用 `FieldKit` 注册后，也可以直接传注册名字符串（如 `"Input"` 或 `["Input", props]`），见 [登记一次](/guide/headless#登记一次) |
+| `children` | 直接传入控件元素（如 `<Input />`）或 render prop `(field) => …`，用来替代 `component` |
 
-`<Field>` 在 `hidden` / `none` 时返回 null。`virtual` 仍会渲染。校验和提交见 [显隐、pattern 与提交](/guide/concepts#显隐pattern-与提交)。
+当 `display` 为 `hidden` 或 `none` 时，`<Field>` 会跳过渲染并返回 `null`；处于 `virtual` 时仍正常渲染。显隐状态对校验与提交的影响见 [显隐、pattern 与提交](/guide/concepts#显隐pattern-与提交)。
 
-## 四种写法
+## 四种常用写法
 
 ```tsx preview
 import { Input as AntInput } from 'antd';
@@ -62,17 +58,17 @@ export default function App() {
 }
 ```
 
-`component={[MyInput, { placeholder: '…' }]}` 时，`MyInput` 会以 props 收到合并后的 `componentProps`（`fields` 声明 ← JSX 这一层 ← reaction 的 `$componentProps`，深合并）。`decorator` 同样以 props 收到合并后的 `decoratorProps`。这包 props 里没有字段的 `value` / `onChange`，值仍用 `useField()` 或 `connect` 接。
+当使用 `component={[MyInput, { placeholder: '…' }]}` 时，引擎会把合并后的 `componentProps` 直接作为 props 传给 `MyInput`（`decoratorProps` 同理）。注意这包属性中不包含 `value` 和 `onChange`，字段的数据绑定依然通过 `connect` 或在组件内调用 `useField()` 完成。
 
 ## UI 状态三层叠加
 
-`title`、`description`、`componentProps`、`decoratorProps` 存在字段模型上，来源从低到高：
+字段的 `title`、`description`、`componentProps` 和 `decoratorProps` 支持三个配置层级，优先级从低到高依次为：
 
-1. `fields` 声明；
-2. JSX（`<Field title>`、元组里的 props）；
-3. reaction（`$title`、`$componentProps.placeholder = …`）。
+1. 创建表单时传入的 `fields` 声明；
+2. JSX 中 `<Field>` 上的属性及元组里的 `props`；
+3. 联动函数 `reaction` 中写入的 `$title`、`$componentProps` 等状态。
 
-`componentProps` / `decoratorProps` 深合并：普通对象逐键递归合并，数组、函数、React 元素、类实例取最高一层的整值。所以「根据别的字段改控件属性」写在 reaction 里，而不是在渲染时算 props：
+其中 `componentProps` 和 `decoratorProps` 采用对象深合并策略：普通对象会递归合并各自的键，而数组、函数、React 元素或类实例则整体取最高层级的值。因此，如果需要根据其他字段动态调整控件属性，应当写在 `reaction` 中，而不是在 JSX 渲染期间计算后传入：
 
 ```tsx preview
 import { Field, Form, defineEffects, useForm } from '@shikiform/react';
@@ -105,23 +101,23 @@ export default function App() {
 }
 ```
 
-reaction 通过 draft 写入时只改写到的那一处：
+在 `reaction` 中操作 `$componentProps` / `$decoratorProps` 时，不同写法的合并效果如下：
 
-| 写法 | 结果 |
+| 写法 | 合并效果 |
 |---|---|
-| `d.x.$componentProps.placeholder = '…'` | 只改这个键，其他键保留 |
-| `d.x.$componentProps.style.color = 'red'` | 只补 `style.color`，下层 `style` 的其他键保留。中间对象不会自动创建，先写 `style ??= {}` |
-| `d.x.$componentProps.style ??= {}` | 开一层空补丁，不清空下层的 `style` |
+| `d.x.$componentProps.placeholder = '…'` | 仅覆盖 `placeholder`，其余来自下层的属性继续保留 |
+| `d.x.$componentProps.style.color = 'red'` | 仅补充 `style.color`，保留下层 `style` 中的其他样式；由于中间层对象不会自动初始化，需先写 `style ??= {}` |
+| `d.x.$componentProps.style ??= {}` | 初始化一个空补丁层，不会清空下层已有的 `style` |
 | `d.x.$componentProps.style = { color: 'red' }` | 整键替换：下层的 `style` 不再生效 |
-| `delete d.x.$componentProps.style` | 去掉这个键，下层的也不再生效 |
-| `d.x.$componentProps = { … }` | 整体替换，`fields` 和 JSX 两层都不再生效 |
-| `d.x.$componentProps = undefined` | 撤销 reaction 这一层 |
+| `delete d.x.$componentProps.style` | 移除该键，下层的 `style` 同样不再生效 |
+| `d.x.$componentProps = { … }` | 整体替换掉整个对象，`fields` 和 JSX 两层的 props 全部失效 |
+| `d.x.$componentProps = undefined` | 撤销 `reaction` 这一层的覆盖，恢复下层属性 |
 
-reaction 里读 `$componentProps` 看到的是「声明 + reaction」两层，JSX 只在渲染时合并。UI 状态是唯一能在同一轮读回刚写的值的 `$` 状态。
+在 `reaction` 内部读取 `$componentProps` 时，只能读到「`fields` 声明 + `reaction`」两层合并后的结果，JSX 层属性仅在渲染阶段合并。在所有 `$` 状态中，只有 UI 状态支持在同一轮次内读回刚刚写入的值。
 
 ## 选项写在 JSX 里
 
-选择类字段的选项可以直接写在 `<Field enum>` 上（Formily 的 `enum`），不用先去 `fields` 里声明。`Select`、`Radio`、`Checkbox.Group` 把它当 `options`，阅读态显示标签。
+下拉框、单选框、多选框组等选择类字段，可以直接在 `<Field>` 上通过 `enum` 传入选项数据，无需提前在 `fields` 中声明。适配后的 `Select`、`Radio`、`Checkbox.Group` 会自动将其作为 `options`，阅读态下也会自动将其反显为对应的标签文案。
 
 ```tsx preview
 import { Switch } from 'antd';
@@ -153,27 +149,29 @@ export default function App() {
 }
 ```
 
-- 与其他来源叠加：reaction 的 `$enum` > JSX `enum` > `fields.x.enum` > 条目模板（`rows.*.x`）。JSX 的 `enum` 只在组件挂载期间生效，卸载或改回 `undefined` 后恢复声明的选项。
-- reaction 写 `$enum = undefined` 撤销 reaction 这一层（和 `$title` / `$pattern = undefined` 一样），回到下一层：挂载中的 JSX `enum`（异步 source 会重新加载）> `fields.x.enum` > 条目模板，都没有就是空。reaction 自己发起、还没回来的异步加载会被 abort，`loading` 复位。要明确清空选项写 `$enum = []`。
-- 属性变了就重新应用（深比较，所以每次渲染写一个新数组没关系）。之后的变化按 `enumPolicy` 处理（`'clear'` 清掉不在新选项里的值）；首次挂载和 `fields` 声明一样不清值。
-- 异步选项写 `enum={Cities.with(province)}`，和 `$enum = Cities.with(…)` 一样加载、带 `loading`。随别的字段变化的选项仍然写在 reaction 里（`d.city.$enum = …`），它优先于 JSX。
-- reaction 里读 `$enum` 读到的是生效的选项，包括 JSX 这一层；写 `undefined` 之后读到的是回退后的选项。
-- 用 `typed(form)` / `row.Field` 时 `value` 按字段值检查（数组字段按元素）；普通 `<Field>` 不检查。
+关于 JSX `enum` 的使用细节：
+- **覆盖优先级**：`reaction` 中的 `$enum` > JSX `enum` > `fields.x.enum` > 行模板（`rows.*.x`）。JSX 传入的选项仅在组件挂载期间生效，卸载或改为 `undefined` 后会自动回退到声明层。
+- **撤销与清空**：在 `reaction` 中设置 `$enum = undefined` 会撤掉联动层的选项并回退到下层（同时中止未完成的异步枚举加载并复位 `loading`）；如果要彻底清空选项，请赋值 `$enum = []`。
+- **变动更新策略**：引擎会对 JSX `enum` 做深比较，因此每次渲染传入新的数组字面量不会引起无效重置；选项变更后按 `enumPolicy` 处理（如 `'clear'` 会自动清掉不再合法的旧值，首次挂载则保持原值）。
+- **异步数据源**：可直接传入 `enum={Cities.with(province)}`；但如果选项依赖其他字段变化，推荐写在 `reaction` 中（`d.city.$enum = …`）。
+- **类型校验**：配合 `typed(form)` 或 `row.Field` 使用时，选项中的 `value` 类型会与字段值类型（数组字段为其元素类型）进行严格比对。
 
-## Field 就是 useField
+## Field 与底层 Hooks 的对应关系
 
-`<Field>` 等于 `useField(name, options)` 加「display 为 `hidden` / `none` 时返回 null」，再渲染两个槽。`virtual` 会渲染，不提交，`$visible` 读出来是 true。不用组件时，纯函数 `mapFormItemProps(field, props)` 和 `mapFieldProps(field, props)` 给出同样的 `Form.Item` 和控件 props。在装饰器或控件内部读当前字段，用不带参数的 `useField()`。完整签名见 [useField](/reference/react-hooks#usefield) 和 [适配层参考](/reference/antd-adapter)。
+`<Field>` 本质上是对 `useField(name, options)` 的一层轻量封装：当字段 `display` 为 `hidden` 或 `none` 时返回 `null`（`virtual` 状态正常渲染），其余情况依次渲染 `decorator` 和 `component`。
+
+如果你不希望通过 `<Field>` 包裹，可以直接调用 `useField(name)` 并使用 `mapFormItemProps(field, props)` 和 `mapFieldProps(field, props)` 计算对应的属性；而在自定义控件或装饰器内部，调用无参数的 `useField()` 即可拿到当前字段的绑定对象。完整签名请参考 [useField](/reference/react-hooks#usefield) 和 [Ant Design 适配层](/reference/antd-adapter)。
 
 ## 字段名的类型检查
 
-`<Field name>` 从 React 上下文找表单，拿不到表单的值类型，所以 `name` 默认是任意字符串。要让拼错的名字编译不过，用 `typed(form)` 拿同一组组件的有类型版本：
+普通的 `<Field>` 通过 React 上下文获取表单实例，无法静态得知表单值的类型结构，因此 `name` 默认接受任意字符串（这也保留了动态路径的灵活性）。如果希望在编译期捕获字段名拼写错误，使用 `typed(form)` 获取强类型版本即可：
 
 ```tsx
 const F = typed(form)
-<F.Field name="email" decorator={[FormItem]} component={[Input]} />   // name="emial" 编译不过
+<F.Field name="email" decorator={[FormItem]} component={[Input]} />   // name="emial" 会触发 TS 编译错误
 <F.ArrayField name="items">{(row) => <row.Field name="name" component={[Input]} />}</F.ArrayField>
 ```
 
-名字始终相对当前作用域，`row.Field` 按一行的类型检查。见 [typed](/reference/react-hooks#typed)。
+生成的组件依然遵守相对路径作用域规则，`row.Field` 会自动按单行数据类型进行字段名检查。详见 [typed](/reference/react-hooks#typed)。
 
-下一步：[布局](/guide/layout)，FormLayout、FormGrid 和按钮对齐。
+下一步：[布局](/guide/layout)，了解 `FormLayout`、`FormGrid` 以及提交按钮组的对齐方式。

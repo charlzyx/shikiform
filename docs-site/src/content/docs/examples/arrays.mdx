@@ -1,11 +1,11 @@
 ---
 title: 数组与树
-description: 嵌套对象与 pattern 继承、树节点跨层移动、只挂载可见行的长列表。
+description: 嵌套对象与 pattern 继承、树节点跨层拖拽移动，以及基于虚拟滚动的长列表校验。
 ---
 
 ## 嵌套对象与只读行
 
-场景：一张客户资料里有嵌套的地址和一组订单；整张表可以切成只读，已发货的订单行无论如何都不能改数量；地址放在抽屉里编辑。
+**场景**：客户资料表单包含嵌套的地址信息与订单列表。希望一键切换整张表单的编辑态/只读态，同时要求「已发货」的订单行始终不可修改数量，并且地址详情放在抽屉中编辑。
 
 ```tsx preview play=nested
 import { useState } from 'react';
@@ -70,14 +70,14 @@ export default function App() {
 }
 ```
 
-- `$pattern` 从父级往下传：只写 `d.profile` 和 `d.orders`，下面所有字段一起变；`undefined` 表示「跟随上级」。
-- 行里的 `qty` 自己写了 `readPretty`，所以表格可编辑时它也只读；打开「已发货」开关试试。
-- 抽屉里的 `<ObjectField name="address">` 仍在 `profile` 作用域里：React context 能穿过 portal。抽屉关掉，值和字段状态都还在引擎里。
-- 「地址」那一行不是字段：`FormItem` 放在字段外就是纯布局，标签和列宽跟随 `FormLayout`，见 [一个标签放几个字段](/guide/layout#一个标签放几个字段)。
+- `$pattern` 具有沿路径向下继承的特性：只需设置 `d.profile` 和 `d.orders`，它们内部的所有子字段都会跟着切换；赋值为 `undefined` 表示恢复跟随上级。
+- 订单行中的 `qty` 单独设置了 `$pattern`，因此在表单整体可编辑时，已发货行的数量依然处于只读态；试着切换「已发货」开关即可观察效果。
+- 抽屉中的 `<ObjectField name="address">` 通过 React 上下文穿透 Portal 保持在 `profile` 作用域内，关闭抽屉后字段的值和状态依然保留在表单引擎中。
+- 「地址」这一行使用不带 `name` 的 `<FormItem label="地址">` 做纯布局容器，标签与列宽依然会自动对齐外层的 `FormLayout`，参见 [一个标签放几个字段](/guide/layout#一个标签放几个字段)。
 
 ## 树：跨层移动
 
-场景：菜单编辑器。节点可以拖到别的父节点下，节点上的错误和输入状态要跟着节点走；不能把节点拖进它自己的子孙。
+**场景**：实现一个支持跨父级拖拽的菜单树编辑器，要求节点的错误状态和输入状态能随着节点移动保留，同时禁止将父节点拖入自身的子孙节点中。
 
 ```tsx preview play=headless
 import { useState } from 'react';
@@ -147,14 +147,13 @@ export default function App() {
 }
 ```
 
-- 先点「校验」，空名称的节点报错；再把它拖到别处：错误跟着 `id` 走，`pos` 和 `path` 随位置变化。
-- `tree.move(from, to)`（即 `form.moveTree`）返回 `{ ok, reason? }`，拒绝移进自己的子孙。
-- 每个节点包一层 `<RowScope path pos>`，节点组件里用 `useTreeNode()` 拿 `pos` / `path` / `record`，不需要知道树叫什么。见 [Headless Hooks](/guide/headless)。
-- 完整版把数组拖动和树拖动放在一页，并显示每行的渲染次数。
+- 先点击「校验」让空名称节点报错，再将其拖拽到其他分组下：错误提示会跟随业务 `id` 一同迁移，同时节点的 `pos` 与 `path` 自动更新为新位置。
+- `tree.move(from, to)`（底层调用 `form.moveTree`）会返回 `{ ok, reason? }`，尝试移入自身子孙节点时会被拦截并返回拒绝原因。
+- 每个节点外层包裹 `<RowScope path pos>` 后，子组件内部调用 `useTreeNode()` 即可获取当前节点的坐标与记录，无需硬编码整棵树的字段路径，详见 [Headless Hooks](/guide/headless)。
 
 ## 长列表：只挂载可见行
 
-场景：2000 行的名单，只渲染滚动窗口里的几行，但每行的必填规则都要生效。
+**场景**：渲染包含 2000 行的名单列表，为了保证页面流畅只挂载视口可见的几行，但提交前所有 2000 行的必填校验规则都必须生效。
 
 ```tsx preview play=virtual
 import { useState } from 'react';
@@ -190,7 +189,7 @@ export default function App() {
 }
 ```
 
-- 第 499、999、1499、1999 行是空的，它们都不在可见区域，校验照样报出来：规则在 `fields` 的行模板 `rows.*.name` 上，不在组件上。
-- `<ArrayField virtualScroll>` 和 `<VirtualRows>` 是同一个虚拟滚动，只是把行作用域也一并提供了；它只用于普通行，不和容器 `component` 一起用。
+- 虽然第 499、999、1499 和 1999 行位于屏幕之外并未挂载到 DOM，但点击校验后引擎依然能准确查出它们的空值错误——因为规则声明在 `fields` 的行模板 `rows.*.name` 上，独立于组件生命周期。
+- `<ArrayField virtualScroll>` 基于 `<VirtualRows>` 实现并自动注入行作用域，仅用于自定义列表行，不可与 `ArrayTable` 等容器 `component` 同时使用。
 
 下一组：[表格与查询](/examples/tables)。

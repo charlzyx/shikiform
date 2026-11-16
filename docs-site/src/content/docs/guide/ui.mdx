@@ -1,23 +1,23 @@
 ---
-title: UI 节点：同一字段多个 UI、无数据的 UI
-description: 一个字段显示成输入框 + 回显、滑块 + 数字框，各自控制样式和 pattern；一段提示、一个分组框没有值，也能在 reaction 里按名字控制显隐和 props。
+title: 命名 UI：同一字段多控件与无数据 UI
+description: 为同一个字段挂载多个独立控件（如输入框 + 滑块/回显），或在表单中通过 reaction 控制提示横幅与分组框等无数据节点。
 ---
 
-两类需求，用字段本身都不好写：
+在日常表单开发中，有两类界面需求很难直接通过普通 `<Field>` 优雅表达：
 
-- **同一个值，两个 UI。** 输入框旁边一个回显，输入超长时回显变红；金额既能拖滑块也能输数字，锁定时只禁用滑块。写两个 `<Field name="amount">` 的话，两者共用一份 `$componentProps` / `$pattern`，改一个两个都变，`id` 也重复（label 指向第一个）。
-- **没有值的 UI。** 「金额 ≥ 5 万需要审批」的提示条、一个「发票信息」分组框。它们要随值显隐、改 props，但不是字段：不该进 `values`、不该参与校验。
+- **同一字段对应多个控件**：例如在输入框旁放一个实时回显，超过一定字数时仅让回显变红；或者让预算金额同时绑定数字框和滑块，锁定开关开启时只禁用滑块。如果直接写两个 `<Field name="amount">`，两者会共享同一份 `$componentProps` 和 `$pattern`，不仅无法单独控制，还会产生重复的 `id`。
+- **不绑定数据的纯 UI 节点**：例如「报销金额 ≥ 5 万需要主管审批」的提示横幅，或者一个用来包裹分组的卡片容器。它们需要跟随表单值变化动态显隐或修改属性，但不应该进入提交结果或参与校验。
 
-ShikiForm 给它们起名字：
+ShikiForm 通过「命名 UI 节点」来解决这两类场景：
 
-| 写法 | effects 里 | 是什么 |
+| 界面写法 | 联动访问方式 | 含义 |
 |---|---|---|
-| `<Field name="x" ui="echo" component={[Echo]} />` | `d.x.$ui('echo')` | 字段 `x` 的另一个 UI：值、错误、规则共享，UI 状态独立 |
-| `<UI name="tip" component={[Alert, props]} />` | `d.$ui('tip')` | 没有值的 UI 节点；在行 / `<ObjectField>` 里是该作用域的 `row.$ui('tip')` |
+| `<Field name="x" ui="echo" component={[Echo]} />` | `d.x.$ui('echo')` | 字段 `x` 的附加 UI 实例：共享值、错误和校验规则，但拥有独立的 UI 状态 |
+| `<UI name="tip" component={[Alert, props]} />` | `d.$ui('tip')` | 无数据的纯 UI 节点（在数组行或 `<ObjectField>` 内可通过作用域句柄 `row.$ui('tip')` 访问） |
 
-两者都只有 UI 状态：`$visible` / `$hidden` / `$display` / `$pattern` / `$disabled` / `$title` / `$description` / `$componentProps` / `$decoratorProps`。优先级和字段的 UI 层一样：reaction > JSX > 回退；读取是依赖，和其他 `$` 读一样会让 reaction 重跑。
+命名 UI 节点仅包含界面相关的状态（`$visible`、`$hidden`、`$display`、`$pattern`、`$disabled`、`$title`、`$description`、`$componentProps`、`$decoratorProps`），优先级同样遵循 `reaction > JSX > 回退值`。在 `reaction` 中读取它们时也会正常收集依赖。
 
-## 回显变红：实例有自己的 props
+## 同一字段的独立 UI 实例
 
 ```tsx preview
 import type { CSSProperties } from 'react';
@@ -56,11 +56,11 @@ export default function App() {
 }
 ```
 
-- 输入框的 `id` 是 `echo-nickname`，回显的是 `echo-nickname--echo`：两个 label 各指各的。前缀来自 `<Form id="echo">`；不传 `id` 时前缀是 React `useId()`，同一页上的另一张表单不会再撞上 `nickname`。
-- `$componentProps` / `$decoratorProps` 只属于这个实例（另一个组件的 props 不回退到字段的）。`title` / `description` 不写时回退到字段的（声明 + reaction）。
-- 不带 `ui` 的那个 `<Field>` 就是字段本身（`d.nickname.$componentProps`）。
+- 在这个例子中，主输入框的 DOM `id` 为 `echo-nickname`，回显节点的 `id` 自动生成为 `echo-nickname--echo`，两者的 `label` 互不冲突（若 `<Form>` 未传 `id`，引擎会自动使用 React `useId()` 生成唯一前缀以隔离同页面多张表单）。
+- `$componentProps` 和 `$decoratorProps` 仅作用于当前实例本身；而 `title` 和 `description` 若未单独指定，则会自动回退继承主字段的标题与说明。
+- 不带 `ui` 属性的主 `<Field>` 依然对应字段自身（通过 `d.nickname.$componentProps` 控制）。
 
-## 滑块 + 数字框：共享值，各自 pattern
+## 共享数据但独立控制交互形态
 
 ```tsx preview
 import { defineEffects, Form, typed, useForm } from '@shikiform/react';
@@ -92,11 +92,11 @@ export default function App() {
 }
 ```
 
-- 值、错误、`required` 是字段的，两个控件都显示同一份；拖滑块改的就是 `budget`。
-- `$ui('slider').$pattern = undefined` 回退到字段的有效 pattern：整张表 `d.$pattern = 'readPretty'` 时滑块也跟着变。
-- 规则、`required`、`enum` 写在不带 `ui` 的 `<Field>` 上；写在实例上不会生效（开发期警告一次），这样一个字段不会有两套 JSX 规则。实例的 `$display` 没有 `virtual`（字段要不要提交写在字段自己的 `display` 上）。
+- 数字输入框与滑块共享同一份值和校验状态，拖动滑块或输入数字都会实时同步。
+- 当 `$ui('slider').$pattern` 设为 `undefined` 时，实例会自动继承主字段的 `pattern`（因此切换整张表单为阅读态时，滑块也会一起切换）。
+- 需要注意，`rules`、`required` 和 `enum` 这类数据规则应统一写在主 `<Field>` 上，不要写在带 `ui` 的附加实例上（附加实例的 `$display` 也不支持 `virtual`）。
 
-## 没有值的提示：`<UI>`
+## 无数据的提示节点：`<UI>`
 
 ```tsx preview
 import { Alert } from 'antd';
@@ -135,13 +135,11 @@ export default function App() {
 }
 ```
 
-- 提交的值里只有 `amount`：UI 节点永远不进 `values`、提交和校验。
-- `component` 的 props 也能由 reaction 改：`d.$ui('approvalTip').$componentProps.message = …`。`decorator={[FormItem]}` 时 `title` / `description` 成为 label / extra。
-- `children` 渲染在 `component` 里面（或单独渲染），也可以是 `(ui) => …`。
+`<UI>` 节点不会出现在表单值或校验列表中，但同样支持通过 `decorator`、`title`、`description` 融入表单排版，并允许在 `reaction` 中动态更新 `$componentProps.message` 等属性。它也支持传入子元素或 render prop `(ui) => …`。
 
-## 隐藏 UI 不会隐藏里面的字段
+## 隐藏 `<UI>` 不会自动隐藏内部字段
 
-`<UI>` 可以包住字段做分组。隐藏它只是不渲染这块 UI：里面字段的 `$visible`、校验、提交都**不变**。字段的数据去留只看它自己的 `$visible` / display。
+用 `<UI>` 包裹一组字段作为视觉分组时，把 `<UI>` 隐藏仅仅是卸载了这层容器界面；内部各个字段的校验和提交行为依然只由它们自身的 `$visible` / `$display` 决定。
 
 ```tsx preview
 import { Card } from 'antd';
@@ -158,8 +156,8 @@ export default function App() {
       defineEffects<Values>(({ reaction }) => {
         reaction((d) => {
           const need = d.needInvoice.$value;
-          d.$ui('invoiceBox').$visible = need;   // 只藏这块 UI
-          d.invoiceTitle.$visible = need;        // 字段要不要提交 / 校验，写字段自己的 $visible
+          d.$ui('invoiceBox').$visible = need;   // 只控制卡片 UI 是否渲染
+          d.invoiceTitle.$visible = need;        // 字段自身是否参与校验与提交需单独设置
         });
       }),
     ],
@@ -184,28 +182,24 @@ export default function App() {
 }
 ```
 
-关掉「开发票」再提交。`invoiceTitle` 自己是 `$visible = false`，所以不校验，也不提交。
+在这个示例里，关闭「开发票」开关后提交：`invoiceTitle` 因为自身设置了 `$visible = false`（`none`），所以跳过校验且不会出现在提交结果中；而 `remark` 没有修改过显隐状态，即使外层卡片被隐藏，提交 JSON 里依然会包含 `"remark": "保留"`。因此如果需要整组数据都不提交，请同时设置内部字段的 `$visible`。
 
-`remark` 没有改显隐，提交值里仍是 `"remark":"保留"`。它所在的框虽然藏了，字段还在。
+## 回退规则一览
 
-框藏不藏，和数据留不留，是两件事。提交结果只看字段自己的状态。
-
-## 回退规则
-
-| 状态 | 没写时（reaction 和 JSX 都没有） |
+| UI 状态 | 未显式赋值时（无 reaction / JSX）的默认值 |
 |---|---|
-| `$display` / `$visible` / `$hidden` | 字段实例：字段的有效 display（`virtual` 读成 `visible`，UI 没有 `virtual`）；`<UI>`：所在作用域的（根上就是 `visible`） |
-| `$pattern` / `$disabled` | 字段实例：字段的有效 pattern（继承根 `$pattern`）；`<UI>`：作用域的 |
-| `$title` / `$description` | 字段实例：字段的声明 + reaction 值；`<UI>`：无 |
-| `$componentProps` / `$decoratorProps` | 不回退：只有这个 UI 自己的 JSX + reaction |
+| `$display` / `$visible` / `$hidden` | 字段附加实例继承主字段的有效 display（`virtual` 视作 `visible`）；`<UI>` 继承所在作用域（根部默认 `visible`） |
+| `$pattern` / `$disabled` | 字段附加实例继承主字段的有效 pattern（含根 `$pattern`）；`<UI>` 继承所在作用域 |
+| `$title` / `$description` | 字段附加实例回退到主字段的标题与说明；`<UI>` 默认为空 |
+| `$componentProps` / `$decoratorProps` | 仅取当前节点自身的 JSX 与 `reaction` 配置，不从主字段继承 |
 
-实例自己的 `$visible = true` 优先于字段：`d.x.$hidden = true; d.x.$ui('summary').$visible = true` 只显示摘要、字段照样校验和提交。
+另外，附加实例自身的显隐设置优先级高于主字段（例如 `d.x.$hidden = true; d.x.$ui('summary').$visible = true` 可以实现「隐藏主输入控件但保留摘要展示，同时照常校验和提交该字段」）。
 
-## 名字的类型
+## 为 UI 名称启用类型检查
 
-默认 `ui` / `<UI name>` / `$ui()` 接受任意字符串。reaction 写了一个**从没挂载过**的名字（拼错、忘了渲染）时，挂载稳定后开发期警告一次，并列出这个路径上已挂载的名字。
+默认情况下，`ui`、`<UI name>` 和 `$ui()` 接受任意字符串；如果在 `reaction` 中写入了一个从未挂载的 UI 名称，开发环境下会在渲染稳定后发出警告并列出当前路径下已挂载的名称。
 
-要在编译期查拼写，登记一次名字（全应用共用，TypeScript 模块扩充）：
+如果希望在编译期就拦截拼写错误，可以在全局类型声明中扩展 `UiNames` 接口：
 
 ```ts
 // src/shikiform.d.ts
@@ -215,6 +209,6 @@ declare module '@shikiform/core' {
 }
 ```
 
-之后 `ui="ecko"`、`<UI name="aprovalTip">`、`d.$ui('aprovalTip')` 都是类型错误。名字不按表单区分：一个应用里同名的 UI 都用这一份登记。
+声明完成后，像 `ui="ecko"` 或 `d.$ui('aprovalTip')` 这样的拼写错误会直接触发 TypeScript 编译报错。
 
-下一步：[数组、树与嵌套对象](/guide/structures)，给字段分组、按行渲染。
+下一步：[字段路径与结构](/guide/structures)，使用嵌套对象、数组和树形作用域组织复杂表单。

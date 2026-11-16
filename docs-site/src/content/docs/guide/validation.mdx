@@ -1,27 +1,27 @@
 ---
 title: 校验
-description: 内置规则、Standard Schema（Zod）、跨字段与异步校验；规则写在哪决定组件卸载后还查不查。
+description: 使用内置规则、Standard Schema（如 Zod）进行同步与异步校验，理解规则声明位置对未挂载字段的影响。
 ---
 
-校验要回答两件事：规则是什么，以及字段不在页面上时还查不查。
+在编写表单校验时，核心需要关注两件事：一是校验规则如何定义，二是当字段没有挂载到页面上（例如折叠面板、未打开的标签页）时规则是否依然生效。
 
-## 规则
+## 规则配置
 
-`rules` 接受一条内置规则、一个 [Standard Schema](https://standardschema.dev)（Zod、Valibot、ArkType），或它们的数组：
+字段的 `rules` 支持传入单条内置规则、实现了 [Standard Schema](https://standardschema.dev) 规范的校验器（如 Zod、Valibot、ArkType），或者由它们组成的数组：
 
-| 内置规则 | 含义 |
+| 内置规则 | 说明 |
 |---|---|
-| `required` | 空值失败（也可以直接写 `required` 属性） |
-| `min` / `max` | 数字上下限（含） |
-| `minLength` / `maxLength` | 字符串长度 |
-| `pattern` | 正则 |
-| `format: 'email' \| 'url'` | 内置格式 |
-| `isTrue` | 必须为 `true`（同意条款） |
-| `validator(value, ctx)` | 返回错误文案、空值或它们的 Promise；`ctx` 有 `record`（最近的对象）、`parent`（跳过数组的上一层）、`root`、`get(path)`、`signal`，它们和 `value` 读的是同一轮校验开始时的值。抛错或 reject 时，错误的 `message` 就是这个字段的提示 |
-| `message` | 覆盖这条规则的文案 |
-| `level: 'warning'` | 这条规则只给警告：文案进 `$warnings` / `field.warnings`，`FormItem` 用警告色显示，**不挡提交**、不影响 `canSubmit`（antd 的 `warningOnly`）。适合「密码强度弱」这类提醒 |
+| `required` | 必填校验，空值报错（也可以直接在 `<Field>` 上写 `required` 属性） |
+| `min` / `max` | 数值上下限校验（含边界值） |
+| `minLength` / `maxLength` | 字符串长度限制 |
+| `pattern` | 正则表达式匹配 |
+| `format: 'email' \| 'url'` | 内置格式校验 |
+| `isTrue` | 值必须为 `true`（常用于勾选同意协议） |
+| `validator(value, ctx)` | 自定义校验函数，返回错误文案、空值或对应 Promise。`ctx` 提供 `record`（所属对象）、`parent`（跳过数组层的上级对象）、`root`、`get(path)` 以及 `signal`（读到的是本轮校验开始时的快照）。函数抛错或 reject 时，异常的 `message` 会作为报错文案 |
+| `message` | 自定义该条规则的错误提示文案 |
+| `level: 'warning'` | 设为警告级别：提示信息写入 `$warnings` / `field.warnings` 并以警告色展示，但**不会阻止提交**，也不会影响 `canSubmit`（类似 Ant Design 的 `warningOnly`），适合「密码强度偏弱」等软提醒 |
 
-空值（`''`、`null`、`undefined`）只由 `required` 判断：`minLength`、`pattern`、`min`、`format` 等对空值直接通过（与 Formily、antd 相同），所以选填字段不会因为没填而报「至少 3 个字符」，必填字段没填时也只显示「必填」一条。Standard Schema 不在此列：空值过不过由 schema 自己决定（`z.string().min(3)` 对 `''` 也报错），选填就写成 `.optional()` 或 `.or(z.literal(''))`。
+与 Ant Design 和 Formily 一致，ShikiForm 的内置规则中，空值（`''`、`null`、`undefined`）统一只由 `required` 判定；`minLength`、`pattern`、`min`、`format` 等规则遇到空值会直接放行。这样既能保证选填项留空时不报错，也能避免必填项在留空时同时冒出多条错误。对于 Zod 等外部 Schema，空值是否放行取决于 Schema 自身定义（例如 `z.string().min(3)` 会拦截空串，若字段可留空需写 `.optional()` 或 `.or(z.literal(''))`）。
 
 ```tsx preview play=schema
 import { useState } from 'react';
@@ -78,121 +78,120 @@ export default function App() {
 }
 ```
 
-密码只填数字：出现黄色的警告，仍然可以提交。输入 `admin`：异步规则在停止输入后运行，较新的输入会中止旧请求（`signal`）并丢弃迟到的结果。被中止的规则不会拖住提交，即使它的 Promise 永远不 resolve；用 `signal` 清掉定时器或取消请求即可。
+尝试只输入纯数字密码时，字段会展示黄色警告提示，但依然可以正常提交；在用户名中输入 `admin`，异步校验会在停顿 300ms 后发起，如果在这期间继续输入，引擎会通过 `signal` 中止前一次请求并丢弃过期结果，被中止的请求也不会阻塞后续提交。
 
-整表也可以交给一个 schema：`useForm({ validate: z.object({ … }) })`，issue 的 `path` 会落到对应字段（`['items', 0, 'name']` → `items.0.name`）。字段上的 schema 校验这个字段的值，issue path 相对字段。
+除了字段级规则，你还可以直接给 `useForm({ validate: z.object({ … }) })` 传入整表 Schema，报错路径（如 `['items', 0, 'name']`）会自动映射到对应的字段（`items.0.name`）；若将 Schema 写在具体字段的 `rules` 上，报错路径则会相对于该字段解析。
 
-## 什么时候校验
+## 校验时机与竞态处理
 
-- 默认在失焦（`onBlur`）和提交（`onSubmit`）时；表单级改 `validateTrigger: ['onChange', 'onBlur', 'onSubmit']`。控件必须把 blur 交回 `field.onBlur`（接好的 antd 控件已经做了）。已经显示错误的字段，之后每次修改都会重新校验，改对即消失，不必等失焦。
-- 手动：`form.validate()` 校验全表，`form.validate('items')` 校验一棵子树，都返回 `FieldError[]`（`{ path, messages }`）。
-- `submit` 先等进行中的异步规则再校验；通过才调用回调。校验期间值又变了，就按新值再校验一轮（最多 3 轮），交出去的永远是刚校验过的值。值没变时并发的两次 `submit`（双击）都成功，各自调用自己的回调；要防重复提交，按钮用 `$submitting` 禁用。
+- **默认时机**：默认在控件失焦（`onBlur`）和表单提交（`onSubmit`）时触发校验，可通过 `validateTrigger: ['onChange', 'onBlur', 'onSubmit']` 调整。如果字段已经处于报错状态，后续每次修改值都会实时重新校验，输入合法后错误会立即消除。
+- **手动触发**：调用 `form.validate()` 可校验整张表单，传入路径前缀（如 `form.validate('items')`）则只校验指定子树，均返回 `{ path, messages }[]`。
+- **提交与并发**：`submit()` 会等待进行中的异步校验完成后再执行最终检查。如果在校验过程中用户又修改了表单值，引擎会基于最新值重新校验（最多自动重试 3 轮），确保最终提交的数据一定经过了完整校验。如果两次连续提交之间值没有变化，两次回调都会各自执行；若需防止重复提交，可根据 `$submitting` 禁用按钮。
 
-## 提交结果
+## 提交返回值处理
 
-`submit()` 从不 reject，结果按 `reason` 区分：
+调用 `form.submit()` 永远不会抛出异常（reject），而是返回以下四种结构之一：
 
-| 结果 | 含义 |
+| 返回值 | 说明 |
 |---|---|
-| `{ ok: true, values }` | 校验通过，`onValid` 已执行完 |
-| `{ ok: false, reason: 'invalid', errors }` | 校验失败，没有调用 `onValid` |
-| `{ ok: false, reason: 'error', error }` | `onValid`（或表单级 `validate`）抛错，`error` 是抛出的值 |
-| `{ ok: false, reason: 'superseded', message }` | 值一直在变，3 轮都没稳定；不是校验错误，`errors` 为空，再提交一次 |
+| `{ ok: true, values }` | 校验通过，且 `onValid` 回调执行完毕 |
+| `{ ok: false, reason: 'invalid', errors }` | 校验未通过，`onValid` 不会被调用 |
+| `{ ok: false, reason: 'error', error }` | `onValid` 回调或表单级 `validate` 抛出了异常 |
+| `{ ok: false, reason: 'superseded', message }` | 校验期间值持续变化且 3 轮后仍未稳定，可提示用户重新提交 |
 
-`onSubmit` 的值类型有三种写法。不写泛型（`useForm({ fields })`），或写成 `typed<Values>().useForm({ fields })`，`fields` 里 `display: 'virtual'` / `display: 'none'` 的路径是可选的。`useForm<Values>({ fields })` 的提交类型就是 `Values`，不会看 `fields`。要自己列出路径，写第二个类型参数 `useForm<Values, SubmitValues<Values, 'confirm'>>()`。JSX 上的 `display` 和 reaction 里的 `$display` 类型上看不到，只能走这最后一种。`useForm()` 和 `useForm(undefined)` 就是空表单，和 `useForm({})` 一样。
+对于 `<Form>` 的提交类型推断：不传泛型（`useForm({ fields })`）或使用 `typed<Values>().useForm({ fields })` 时，在 `fields` 中声明了 `display: 'virtual'` 或 `display: 'none'` 的路径会自动推导为可选字段；如果直接写 `useForm<Values>({ fields })`，提交类型则固定为 `Values`；对于只在 JSX 或 `reaction` 中动态设置的 `virtual` / `none` 字段，可以通过第二个泛型参数 `SubmitValues<Values, 'confirm'>` 手动剔除。`useForm()` 不传参或传 `undefined` 等价于传入 `{}`。
 
-`<Form>` 把结果交给回调（antd 的 `<Submit onSubmit>` 也接受同样三个回调）：
+`<Form>` 支持通过属性直接绑定这几个回调（`@shikiform/antd` 的 `<Submit onSubmit>` 也支持相同用法）：
 
 ```tsx
 <Form
   form={form}
   id="profile"
-  onSubmit={save}                                   // 通过校验后调用，可以是 async
+  onSubmit={save}                                   // 校验通过后执行，支持 async 函数
   onInvalid={(errors) => scrollToField(errors[0].path)}
-  onSubmitError={(error) => message.error(String(error))}  // save 抛错；不传就 console.error
+  onSubmitError={(error) => message.error(String(error))}  // 处理 save 抛出的异常，不传时默认 console.error
 >
   …
 </Form>
-<button type="submit" form="profile">保存</button>   {/* 其余属性透传给 <form> */}
+<button type="submit" form="profile">保存</button>   {/* 其余原生属性会透传至 <form> */}
 ```
 
-## 内置文案
+## 内置文案与国际化
 
-内置规则、引擎和 `@shikiform/antd` 组件的默认文案都是中文。`messages` 按 key 覆盖，没写的 key 用默认值；规则自己的 `message`、组件自己的属性（`title`、`okText` …）永远优先：
+内置校验提示、引擎错误信息以及 `@shikiform/antd` 按钮的默认文案均为简体中文。你可以通过 `messages` 按需覆盖单张表单的文案，或用 `setDefaultMessages` 全局修改：
 
 ```ts
 import { createForm, enUS, setDefaultMessages } from '@shikiform/react'
 
-createForm({ messages: enUS })                       // 整套英文
+createForm({ messages: enUS })                       // 单张表单切换为英文
 createForm({
   messages: {
     required: 'Required',
-    minLength: ({ minLength }) => `At least ${minLength} characters`,  // 函数拿到参数
+    minLength: ({ minLength }) => `At least ${minLength} characters`,  // 函数形式可接收上下文参数
     enum: ({ value }) => `${value} is not an option`,
   },
 })
-setDefaultMessages(enUS)                              // 全应用默认，启动时调一次
+setDefaultMessages(enUS)                              // 全局默认配置，通常在应用入口调用一次
 ```
 
-| key | 何时 | 函数参数（都有 `path`、`value`） |
+| 文案 key | 使用场景 | 回调参数（默认均含 `path`、`value`） |
 |---|---|---|
-| `required` / `isTrue` / `email` / `url` / `pattern` | 对应规则 | `pattern` 另有 `pattern` |
-| `minLength` / `maxLength` | 字符串长度 | `minLength` / `maxLength`、`length` |
-| `min` / `max` | 数字范围 | `min` / `max` |
-| `enum` | `enumPolicy: 'error'` 且值不在 `$enum` | `options` |
-| `fallback` | validator 抛出没有 message 的错误，或 schema issue 的 `message` 为空 | `error` |
-| `superseded` | `submit` 结果 `reason: 'superseded'` 的 `message` | — |
-| `treeIntoSelf` / `treeSourceMissing` / `treeTargetMissing` / `treeEmptyPos` | `moveTree` 拒绝时的 `reason` | `from`、`to`（不含 `path`、`value`） |
-| `submit` / `reset` / `search` / `refresh` / `expand` / `collapse` | antd 按钮：`Submit` / `Reset`、QueryList | — |
-| `optional` | `requiredMark: 'optional'` 时非必填项标签后的文字（`（可选）`） | — |
-| `add` / `remove` / `removeConfirm` / `moveUp` / `moveDown` / `copy` / `dragSort` | `ArrayItems` / `ArrayCards` / `ArrayTable` 的行按钮（`copy` 只有 `ArrayTable`） | — |
-| `selectionCount` / `selectionClear` / `selectionAll` / `selectionInvert` / `density` / `columnSettings` | ArrayTable 选择栏、密度、列配置 | `selectionCount`：`count`；`density`：`density` |
-| `edit` / `ok` / `cancel` | Shadow 触发按钮、ShadowDrawer 底部 | — |
-| `yes` / `no` / `empty` | 阅读态（`PreviewText.*`，所有控件）的布尔值和空值，`empty` 默认 `-` | — |
+| `required` / `isTrue` / `email` / `url` / `pattern` | 对应内置校验规则 | `pattern` 额外提供 `pattern` |
+| `minLength` / `maxLength` | 字符串长度校验 | `minLength` / `maxLength`、`length` |
+| `min` / `max` | 数值范围校验 | `min` / `max` |
+| `enum` | `enumPolicy: 'error'` 且值不在 `$enum` 选项中时 | `options` |
+| `fallback` | `validator` 抛出的错误缺少 `message`，或 schema issue 文案为空时 | `error` |
+| `superseded` | `submit` 返回 `reason: 'superseded'` 时的提示信息 | — |
+| `treeIntoSelf` / `treeSourceMissing` / `treeTargetMissing` / `treeEmptyPos` | `moveTree` 操作被拒绝时的原因说明 | `from`、`to`（不含 `path` 与 `value`） |
+| `submit` / `reset` / `search` / `refresh` / `expand` / `collapse` | `Submit` / `Reset` 及 `QueryList` 等按钮文案 | — |
+| `optional` | `requiredMark: 'optional'` 时非必填项标签后缀（默认 `（可选）`） | — |
+| `add` / `remove` / `removeConfirm` / `moveUp` / `moveDown` / `copy` / `dragSort` | `ArrayItems`、`ArrayCards`、`ArrayTable` 行操作按钮文案（`copy` 仅用于 `ArrayTable`） | — |
+| `selectionCount` / `selectionClear` / `selectionAll` / `selectionInvert` / `density` / `columnSettings` | `ArrayTable` 多选栏、表格密度与列设置 | `selectionCount` 含 `count`；`density` 含 `density` |
+| `edit` / `ok` / `cancel` | 草稿表单触发按钮及抽屉底部按钮 | — |
+| `yes` / `no` / `empty` | `PreviewText.*` 阅读态组件的布尔值与空值占位符（`empty` 默认为 `-`） | — |
 
-优先级：规则 `message` > 表单 `messages` > `setDefaultMessages` > 内置中文（`zhCN`）。组件读最近的 `<Form>` 的文案；QueryList 读 `table.form` 的，要英文就把 `useForm({ messages: enUS })` 作为 `form` 传给 `useQueryTable`，或者直接 `setDefaultMessages(enUS)`。自定义组件用 `useFormMessage()` 跟随同一套文案：`const t = useFormMessage(); t('submit')`；有实例时也可以 `form.message('submit')`。
+文案覆盖优先级从高到低为：规则自身的 `message` > 组件自身的属性（如 `title`、`okText`） > 表单 `messages` > `setDefaultMessages` > 内置中文（`zhCN`）。`QueryList` 会读取 `table.form` 的 `messages` 配置。在自定义组件中，可以通过 `const t = useFormMessage(); t('submit')` 或 `form.message('submit')` 读取当前表单的文案。
 
 ## 服务端错误
 
-提交后后端说「用户名已存在」，用 `setErrors` 把错误写到字段上：
+当提交接口返回业务校验错误（例如「用户名已存在」）时，可以调用 `form.setErrors` 将错误挂载回指定字段：
 
 ```ts
 await form.submit(async (values) => {
   const res = await api.register(values)
   if (res.status === 409) form.setErrors({ username: '用户名已存在' })
-  // 也可以一次给多条、给表单根：form.setErrors({ email: ['格式不对'], '': '服务器繁忙' })
+  // 也支持一次传入多个字段及表单根错误（键为 ''）：
+  // form.setErrors({ email: ['格式不对'], '': '服务器繁忙' })
 })
 ```
 
-- 接受 `{ path: 文案 | 文案[] }` 或 `FieldError[]`；`''` 是表单根；`null` 或空数组清掉那条。
-- 和规则错误一起出现在 `form.errors`、`field.errors`、`$errors` 里，并让 `canSubmit` 为 `false`。
-- 自动清除：这个值（或它的上级、下级）变了，或这个字段重新校验（每次 `submit` 都会校验全表）；也可以 `reset()` / `clearErrors(path?)`。
+`setErrors` 接收 `{ path: 文案 | 文案[] }` 或 `FieldError[]`，传入 `null` 或空数组可清除单条错误。挂载后的服务端错误会与规则错误一同显示，并使 `canSubmit` 变为 `false`；只要对应字段（或其祖先/子孙字段）的值发生变更、触发重新校验，或调用 `reset()` / `clearErrors(path?)`，服务端错误会自动清除。
 
-## 规则写在哪
+## 规则写在哪决定「卸载后是否还校验」
 
-规则写在哪，决定**组件卸载后还查不查**：
+ShikiForm 支持在三个地方定义校验规则，它们在 `<Field>` 卸载后的生命周期各不相同：
 
-| 规则写在 | `<Field>` 卸载后 |
+| 规则定义位置 | `<Field>` 卸载后是否继续校验 |
 |---|---|
-| JSX：`<Field rules required>`、`useField(name, { rules })` | 不再查（挂载期规则，卸载时释放） |
-| `useForm({ fields })`、`registerField`、行模板 `items.*.name` | 仍查 |
-| reaction 里的 `$rules` / `$required` | 仍查（并且优先级最高） |
+| JSX 属性：`<Field rules required>` 或 `useField(name, { rules })` | 不再校验（随组件卸载自动释放） |
+| 引擎配置：`useForm({ fields })`、`registerField`、行模板 `items.*.name` | 依然校验 |
+| 联动规则：`reaction` 中的 `$rules` / `$required` | 依然校验，且优先级最高 |
 
-`none` 和计算字段会跳过校验，见 [显隐、pattern 与提交](/guide/concepts#显隐pattern-与提交)。`hidden`（`$hidden = true`）和 `virtual` 仍然校验：藏起来的必填、确认密码对不上，都挡住提交。`$visible = false` 才是 `none`，不校验。和 Formily 不同：那边 `hidden` 也不校验。
+如果需要在切换标签页、收起折叠面板或虚拟滚动列表场景下依然校验隐藏起来的字段，请将业务规则写在 `fields` 或 `reaction` 中；仅与当前界面渲染强相关的临时校验才适合写在 JSX 上。
 
-跨标签页、折叠区、虚拟滚动之外都要校验的业务规则，写在 `fields` 或 reaction 里；只在当前界面有意义的规则才写 JSX。
+另外，处于 `none`（`$visible = false`）或计算字段状态的字段会自动跳过校验；而 `hidden`（`$hidden = true`）和 `virtual` 状态的字段依然参与校验。关于显隐机制的完整对比请参见 [显隐、pattern 与提交](/guide/concepts#显隐pattern-与提交)。
 
-### 练一练：没挂载的字段
+### 练一练：未挂载字段的校验
 
-关掉「填写更多」，昵称和邀请码的输入框都不在页面上，现在直接提交没有错误。改成：
+下面的练习中，关闭「填写更多」开关后，昵称和邀请码都会从页面上卸载，直接点击提交目前不会报错。你可以动手改造一下：
 
-1. `defineEffects` 里写 `d.code.$rules = [{ required: true, message: '邀请码必填' }]`，把 effects 传给 `useForm`；
-2. 邀请码的 `Field` 去掉 `rules`，昵称的 JSX 规则留着。
+1. 在 `defineEffects` 中添加 `d.code.$rules = [{ required: true, message: '邀请码必填' }]`，并把 `effects` 传给 `useForm`；
+2. 移除邀请码 `<Field>` 上的 `rules` 属性，保留昵称的 JSX 规则。
 
-再关掉开关提交：错误列表仍有「邀请码必填」，昵称不再校验。点「看答案」对照。
+再次关闭开关并提交，就会发现邀请码即使不在界面上也依然会拦截提交，而昵称因为使用 JSX 规则已停止校验。点击 **看答案** 可以核对写法。
 
 <div>
 <TutorialPlay id="10-declared" />
 </div>
 
-下一步：[示例库](/examples)，把这些拼成完整场景。
+下一步：[示例库](/examples)，查看真实业务场景中的综合表单实践。

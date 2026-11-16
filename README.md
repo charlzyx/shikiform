@@ -1,8 +1,8 @@
 # ShikiForm
 
-ShikiForm 是一个 TypeScript 表单库。值、显隐、校验和联动放在同一个引擎里：联动写成对 draft 上 `$` 状态的赋值，组件只负责渲染。不绑某一种 UI；Ant Design 是可选适配层。
+ShikiForm 是一个面向 TypeScript 的表单引擎，将表单值、显隐状态、校验规则和联动逻辑统一放在引擎中管理。你可以直接在联动中修改字段的 `$` 状态，React 组件只负责声明界面结构。引擎本身不绑定特定 UI 库，同时提供开箱即用的 Ant Design 适配层。
 
-文档：<https://shikiform.pages.dev>
+官网文档：<https://shikiform.pages.dev>
 
 ## 安装
 
@@ -10,9 +10,9 @@ ShikiForm 是一个 TypeScript 表单库。值、显隐、校验和联动放在�
 npm i @shikiform/react
 ```
 
-用 Ant Design 再执行 `npm i @shikiform/antd`。查询列表、影子表单再执行 `npm i @shikiform/hooks`。
+如需配合 Ant Design 使用，请继续安装 `@shikiform/antd`；需要查询列表、草稿表单等高阶 Hooks 时，安装 `@shikiform/hooks`。
 
-## 一个例子
+## 快速示例
 
 ```tsx
 import { useState } from 'react';
@@ -40,11 +40,11 @@ export default function App() {
 }
 ```
 
-`typed(form)` 返回同一组 `Field`，`name` 按表单值做类型检查。
+`typed(form)` 会返回带表单值类型提示的 `Field` 组件，在编写 `name` 时即可获得自动补全与静态类型检查。
 
-## 文档
+## 文档导航
 
 - [简介](https://shikiform.pages.dev/)
-- [快速上手](https://shikiform.pages.dev/guide/quick-start)
-- [教程](https://shikiform.pages.dev/tutorial/)
-- [API](https://shikiform.pages.dev/api)
+- [快速开始](https://shikiform.pages.dev/guide/quick-start)
+- [互动教程](https://shikiform.pages.dev/tutorial/)
+- [API 参考](https://shikiform.pages.dev/api)

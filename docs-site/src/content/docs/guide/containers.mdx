@@ -1,16 +1,17 @@
 ---
 title: 分组容器 FormTab / FormCollapse / FormStep
-description: 长表单分到标签页、折叠面板或分步里：字段一直挂载、值不丢、提交时照常校验；标签头显示错误数；下一步只校验当前步。
+description: 将大型表单拆分为标签页、折叠面板或分步向导，保持所有字段挂载和校验有效，并在提交失败时自动定位到出错面板。
 ---
 
-长表单要分组展示。直接用 antd `Tabs` / `Collapse` 有两个坑：没打开过的标签页不渲染，里面 `<Field>` 的 JSX 规则就不生效；切走后看不出哪个标签页里有错。`@shikiform/antd` 的三个容器（对应 Formily `FormTab`、`FormCollapse`、`FormStep`）处理这些：
+当表单字段较多时，通常需要拆分成标签页、折叠面板或分步向导来组织界面。但如果直接用原生的 Ant Design `Tabs` 或 `Collapse`，未激活的面板默认不会渲染，导致里面的 `<Field>` 规则无法注册生效，切换面板后也无法直观看出哪一页存在校验报错。
 
-- **字段一直挂载**：所有面板都渲染（不活动的只是隐藏），值、规则、错误都在，提交时照常校验和提交。
-- **错误数**：标签页 / 面板标题上显示里面有错的字段数；分步条上有错的那一步显示错误状态。
-- **提交失败时带你去错误那里**：切到第一个有错的标签页 / 展开有错的面板 / 回到最早有错的那一步，再聚焦第一个有错的字段。
-- **只是布局**：容器不占值路径，字段名照常写；`$pattern` / `$display` 照常按字段路径继承（整张表阅读态，面板里的字段也是阅读态）。
+`@shikiform/antd` 提供的 `FormTab`、`FormCollapse` 和 `FormStep` 专门解决了这些问题：
+- **保持字段挂载**：所有面板都会保持渲染（非当前面板仅做视觉隐藏），用户输入的数据、JSX 校验规则和报错状态始终保留，提交时自动校验全部面板。
+- **错误角标提示**：标签页或折叠面板的标题上会自动显示内部出错字段的数量，分步条上也会把包含错误的步骤标记为异常状态。
+- **自动定位报错**：点击提交或调用 `form.validate()` 发现错误时，容器会自动切换到包含错误字段的面板或步骤，随后表单将焦点定位到第一个出错控件。
+- **纯视图容器**：这些容器不对应任何数据路径，内部字段名按正常规则书写即可；外层的 `$pattern` 与 `$display` 状态也会照常继承下去。
 
-面板是容器的直接子元素（可以包在 Fragment 里，也可以 `cond && <FormTab.Pane>`），里面放任意 `<Field>` 和布局。
+所有面板组件必须作为对应容器的直接子元素（支持包裹在 Fragment 中或使用条件表达式）。
 
 ## FormTab
 
@@ -50,15 +51,9 @@ export default function App() {
 }
 ```
 
-直接点「提交」。「联系方式」没打开过，里面两个必填字段照样校验，标签上出现 `2`。
+直接点击「提交」可以看到，即使「联系方式」标签页从未被点开过，里面的两个必填项依然参与了校验，并在标签头上显示错误计数 `2`。如果先填好「姓名」再提交，容器会自动切到「联系方式」并将焦点移至「邮箱」输入框（存在错误时提交按钮处于禁用状态，改对后会重新启用）。
 
-点「重新运行」回到初始状态。先填好「姓名」再提交，会自动切到「联系方式」，光标停在「邮箱」上。
-
-已经有错误时，「提交」是禁用的。改完错误才能再点。
-
-- `FormTab` 的其余 props 交给 antd `Tabs`（`type`、`size`、`tabPosition`…）。
-- 当前页：不受控用 `defaultActiveKey`；受控用 `activeKey` + `onChange(key)`，`key` 是 `Pane` 的 `name`（不写 `name` 时是下标字符串）。
-- `Pane`：`name?`、`tab`、`disabled?`。
+`FormTab` 支持透传 Ant Design `Tabs` 的其余属性（如 `type`、`size`、`tabPosition` 等）；非受控模式用 `defaultActiveKey`，受控模式用 `activeKey` 与 `onChange(key)`（`key` 对应 `Pane` 的 `name`，未指定时默认取下标字符串）。`FormTab.Pane` 接收 `name?`、`tab`、`disabled?`。
 
 ## FormCollapse
 
@@ -95,21 +90,20 @@ export default function App() {
 }
 ```
 
-- 默认全部展开（`accordion` 时只展开第一个）；`defaultActiveKey` / 受控 `activeKey` + `onChange(keys)` 都是 `string[]`。
-- `Panel`：`name?`、`header`、`extra?`、`collapsible?`。其余 props 交给 antd `Collapse`。
+`FormCollapse` 默认展开全部面板（若开启手风琴模式 `accordion`，则默认只展开第一个）。支持传入 `defaultActiveKey` 或受控的 `activeKey` + `onChange(keys)`（类型为 `string[]`），其余 props 透传给 Ant Design `Collapse`；`FormCollapse.Panel` 支持 `name?`、`header`、`extra?`、`collapsible?`。
 
 ## FormStep
 
-`useFormStep()` 是分步的状态，在放按钮的组件里创建，交给 `<FormStep step={step}>`：
+分步表单的状态通过 `useFormStep()` 创建，通常在按钮所在的父组件中初始化后传给 `<FormStep step={step}>`：
 
-| 成员 | 含义 |
+| 成员 | 说明 |
 |---|---|
-| `current` / `count` | 当前步（从 0 开始）/ 步数 |
-| `isFirst` / `isLast` | 第一步 / 最后一步 |
-| `next(): Promise<boolean>` | **只校验当前步**的可编辑字段（一次 `form.validate(paths)`），有错停在这一步并返回 `false` |
-| `back()` / `goTo(i)` | 不校验 |
+| `current` / `count` | 当前步骤下标（从 0 开始）以及总步数 |
+| `isFirst` / `isLast` | 是否处于第一步或最后一步 |
+| `next(): Promise<boolean>` | **仅校验当前步骤**内的可编辑字段（单次调用 `form.validate(paths)`），校验失败时停留在当前步并返回 `false` |
+| `back()` / `goTo(i)` | 直接切换步骤，不触发校验 |
 
-最后一步用普通的 `<Submit />`：提交校验**所有**步，任何一步有错都不会提交，有错的那一步在步骤条上标红。
+最后一步直接使用普通的 `<Submit />` 按钮，提交时会完整校验所有步骤的字段，如有错误会在步骤条上高亮标红。
 
 ```tsx preview
 import { Button } from 'antd';
@@ -150,32 +144,28 @@ export default function App() {
 }
 ```
 
-- 每一步的字段一直挂载（其他步 `hidden`），回到上一步时值还在。
-- `next()` 跳过不可编辑的字段（自身或继承的 `readPretty` / `readOnly` / `disabled`）：用户在这一步改不了它们，详情页（`useForm({ pattern: 'readPretty' })`）可以一路点下一步。提交仍然校验全部字段。
-- 受控：`useFormStep({ current, onChange })`，这时 `next` / `back` / `goTo` 只调用 `onChange`；不受控时 `defaultCurrent` 给初始步。
-- `next()` 从不 reject：表单级 `validate` 抛错时停在原步，报 `console.error`。
-- `FormStep` 的其余 props 交给 antd `Steps`（`size`、`direction`、`labelPlacement`…）；`Step`：`name?`、`title`、`description?`、`subTitle?`、`icon?`。
+- 在步骤切换过程中，非当前步骤的字段处于 `hidden` 状态但依然挂载，返回上一步时输入内容完整保留。
+- `next()` 会自动跳过不可编辑的字段（`readPretty` / `readOnly` / `disabled`），因此全表单处于阅读态的详情页也能顺畅点击下一步；而最终提交依然会校验全部字段。
+- 需要受控管理步骤时，可使用 `useFormStep({ current, onChange })`（此时 `next` / `back` / `goTo` 仅触发 `onChange` 回调）；非受控模式下可通过 `defaultCurrent` 指定初始步。`next()` 不会 reject，若表单级校验抛错则停留在原步骤并在控制台输出错误。
+- `FormStep` 其余 props 透传至 Ant Design `Steps`；`FormStep.Step` 支持 `name?`、`title`、`description?`、`subTitle?`、`icon?`。
 
-## 提交失败时
+## 提交失败时的自动展开与聚焦
 
-`submit()` 校验失败（`<Submit />`、回车、`form.submit()`），或你调用的 `form.validate()` 发现错误时，三个容器自动把错误摆到眼前，不用配置、没有开关：
+无论是点击 `<Submit />`、表单内回车、调用 `form.submit()` 还是手动执行 `form.validate()`，只要发现校验错误，三个容器都会自动执行定位（无需额外配置）：
 
-| 容器 | 行为 |
+| 容器 | 自动展开行为 |
 |---|---|
-| `FormTab` | 切到**第一个**含有这次错误的标签页 |
-| `FormCollapse` | 展开**所有**含有这次错误的面板（已展开的不动）；`accordion` 只能开一个，开第一个 |
-| `FormStep` | 回到**最早**含有这次错误的那一步 |
+| `FormTab` | 自动切换到**第一个**包含出错字段的标签页 |
+| `FormCollapse` | 自动展开**所有**包含出错字段的面板（手风琴模式下则展开第一个） |
+| `FormStep` | 自动跳转至**最早**包含出错字段的步骤 |
 
-然后 `<Form>` 聚焦表单里第一个有错的字段（按页面顺序）。控件 `id` 是 `<前缀>-<净化路径>`（前缀为 `<Form id>` 或 `useId()`，`user.name` 不会拿原始路径去找元素）；不能聚焦的元素就滚动到它。
+面板切换完毕后，`<Form>` 会按页面 DOM 顺序将焦点定位到第一个出错的控件（控件 `id` 由 `<Form id>` 或 `useId()` 前缀加上字段路径生成，如果目标元素不可聚焦则会滚动至可视区域）。需要注意，输入或失焦触发的常规校验不会自动切页；使用受控模式时容器只会触发 `onChange`，是否切换由外部状态决定。如果存在容器嵌套（如折叠面板中嵌标签页），内外层会协同切换到目标面板。
 
-- 受控（`activeKey` / `useFormStep({ current })`）时只调用 `onChange`，切不切由你决定。
-- 输入、失焦触发的校验不会切换，只有提交和显式的 `form.validate()` 会。`step.next()` 只校验当前步，错误都在当前步里，所以它不会把你带走。
-- 嵌套容器（折叠面板里的标签页）各自切到含有错误的那一格。
-- 自己做的分组也能接：`form.subscribeValidateFailed((errors) => …)` 在同样的时机拿到这次的错误。
+如果需要为自定义容器接入同款定位能力，可以通过 `form.subscribeValidateFailed((errors) => …)` 订阅校验失败事件。
 
-## 自己做分组：FieldGroup
+## 自定义分组：FieldGroup
 
-三个容器的错误数和「只校验这一步」都建立在 `@shikiform/react` 的无 UI 原语上：`<FieldGroup>` 收集它里面挂载的字段路径（嵌套的组也计入外层组）。
+上述容器的错误汇总和局部校验能力，均构建在 `@shikiform/react` 提供的无 UI 原语 `<FieldGroup>` 之上。`<FieldGroup>` 会自动收集内部所有已挂载字段的路径（支持多层嵌套汇总）：
 
 ```tsx
 import type { ReactNode } from 'react';
@@ -184,7 +174,7 @@ import { FieldGroup, useFieldGroup, useFieldGroupErrors, useFormContext } from '
 function Section({ title, children }: { title: string; children: ReactNode }) {
   const form = useFormContext();
   const group = useFieldGroup();
-  const errors = useFieldGroupErrors(group);   // [{ path, messages }]，每个有错的字段一项
+  const errors = useFieldGroupErrors(group);   // [{ path, messages }]，按出错字段列表返回
   return (
     <section>
       <h3>{title} {errors.length > 0 && `(${errors.length})`}</h3>
@@ -195,6 +185,6 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 }
 ```
 
-`form.validate(paths[])` 一次校验多个路径（及其后代）；分别调用 `validate(path)` 会互相取代。
+通过将路径数组一次性传给 `form.validate(paths[])`，可以同时校验一组字段及其子孙节点（分次单独调用 `validate(path)` 则会导致后一次覆盖前一次的竞态检查）。
 
-下一步：[Ant Design 适配](/guide/antd)，接好的控件和自己的控件。
+下一步：[Ant Design 适配](/guide/antd)，了解控件映射机制以及如何接入自定义控件。

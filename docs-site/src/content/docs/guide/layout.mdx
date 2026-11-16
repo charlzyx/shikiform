@@ -1,9 +1,9 @@
 ---
 title: 布局
-description: FormLayout 统一布局、标签宽度、尺寸和反馈方式；FormGrid 栅格；FormButtonGroup 对齐按钮；FormItem 单独当标签用。
+description: 使用 FormLayout 统一表单尺寸与标签宽度，通过 FormGrid 实现响应式多列栅格，并用 FormButtonGroup 对齐操作按钮。
 ---
 
-每个 `FormItem` 都写一遍 `labelCol`、`size` 太啰嗦。`FormLayout`（`@shikiform/antd`）把这些设置交给里面所有的 `FormItem`；它不持有值，可以嵌套，嵌套时逐键合并，最近的一层优先。
+如果在每个 `FormItem` 上逐一配置 `labelCol` 和 `size`，代码会非常冗长。`@shikiform/antd` 提供的 `FormLayout` 可以统一控制内部所有 `FormItem` 的布局样式。`FormLayout` 本身不绑定任何字段路径，也支持多层嵌套——内层会与外层逐键合并，并以最近的一层为准。
 
 ```tsx preview
 import { useState } from 'react';
@@ -46,26 +46,26 @@ export default function App() {
 }
 ```
 
-| 属性 | 作用 |
+| 属性 | 说明 |
 |---|---|
-| `layout` | `horizontal`（标签在左）/ `vertical`（标签在上）/ `inline`（同一行流式排列） |
-| `labelCol` / `wrapperCol` / `labelAlign` / `colon` | 与 antd `Form.Item` 相同 |
-| `labelWidth` / `wrapperWidth` | 固定列宽（数字是 px），优先于 `labelCol` / `wrapperCol` |
-| `labelWrap` | 长标签换行，不截断 |
-| `requiredMark` | `true` 星号 / `false` 不显示 / `'optional'` 改为给非必填项加「（可选）」 |
-| `tooltipLayout` | `icon`（ⓘ 图标）/ `text`（提示文字跟在标签后） |
-| `size` | 同时决定里面控件的尺寸（antd `componentSize`） |
-| `feedbackLayout` | `loose`（默认，错误占一行）/ `terse`（没有提示时不留底部间距，适合密集栅格和表格）/ `popover`（错误浮在控件上方）/ `none`（不显示文字，只保留状态颜色） |
-| `breakpoints` | 列相关的键给数组时，按容器宽度分档（默认 `[720, 1280, 1920]`） |
-| `className` / `style` | 包裹层样式 |
+| `layout` | 排列方式：`horizontal`（标签在左）、`vertical`（标签在上）或 `inline`（行内流式排列） |
+| `labelCol` / `wrapperCol` / `labelAlign` / `colon` | 与 Ant Design `Form.Item` 一致 |
+| `labelWidth` / `wrapperWidth` | 固定列宽（传数字时单位为 `px`），优先级高于 `labelCol` / `wrapperCol` |
+| `labelWrap` | 允许过长的标签文本自动换行 |
+| `requiredMark` | `true` 显示必填星号、`false` 不显示，或设为 `'optional'` 在非必填项后附加「（可选）」 |
+| `tooltipLayout` | 提示显示形式：`icon`（显示 ⓘ 图标）或 `text`（紧跟在标签后的说明文字） |
+| `size` | 统一控制内部控件的尺寸（对应 Ant Design `componentSize`） |
+| `feedbackLayout` | 错误提示布局：`loose`（默认，始终保留提示行占位）、`terse`（无错误时不留底部空白，适合紧凑表单和表格）、`popover`（悬浮气泡提示）、`none`（仅保留状态边框颜色，不显示文字） |
+| `breakpoints` | 配合响应式数组使用的容器宽度断点，默认为 `[720, 1280, 1920]` |
+| `className` / `style` | 外层容器样式 |
 
-优先级（低 → 高）：`FormLayout` → 字段的 `decoratorProps`（`fields` ← JSX ← `$decoratorProps`）→ `FormItem` 自己的 props。读当前继承到的布局用 `useFormLayout()`。
+布局配置的优先级从低到高依次为：`FormLayout` → 字段自身的 `decoratorProps`（含 `fields` 声明、JSX 与 `$decoratorProps`）→ `FormItem` 组件上直接传入的 props。在自定义组件中可通过 `useFormLayout()` 读取当前继承到的布局上下文。
 
-表格单元格通常不要装饰器，或用 `decorator={[FormItem, { feedbackLayout: 'terse' }]}`。完整签名见 [FormLayout 参考](/reference/antd-adapter#formlayout)。
+在表格单元格中，通常直接省略 `decorator`，或传入紧凑模式 `decorator={[FormItem, { feedbackLayout: 'terse' }]}`。完整签名见 [FormLayout 参考](/reference/antd-adapter#formlayout)。
 
-## 窄屏改成标签在上
+## 响应式断点：窄屏自动切换标签位置
 
-`layout`、`labelCol`、`wrapperCol`、`labelWidth`、`wrapperWidth`、`labelAlign` 可以按断点给数组，量的是 `FormLayout` 自己的宽度（放进抽屉、侧栏时也对）：
+`layout`、`labelCol`、`wrapperCol`、`labelWidth`、`wrapperWidth` 和 `labelAlign` 均支持传入数组，根据 `FormLayout` 自身容器的实际宽度（即使嵌在弹窗或侧边栏抽屉里也能准确响应）自动匹配对应档位：
 
 ```tsx
 <FormLayout layout={['vertical', 'horizontal']} labelWidth={[undefined, 96]} breakpoints={[600]}>
@@ -73,9 +73,9 @@ export default function App() {
 </FormLayout>
 ```
 
-## 栅格：FormGrid
+## 栅格布局：FormGrid
 
-多列表单用 `FormGrid`：能放下几个 `minWidth` 宽的列就放几列（夹在 `minColumns` 和 `maxColumns` 之间），列数跟着容器变。字段用 `decorator={[FormItem, { gridSpan: 2 }]}` 跨列，其他内容用 `GridColumn`。
+`FormGrid` 用于快速构建自适应的多列表单。它会根据容器宽度自动计算能容纳多少个 `minWidth` 宽度的列（并限制在 `minColumns` 与 `maxColumns` 之间）。需要让某个字段横跨多列时，在装饰器属性中设置 `gridSpan`（例如 `decorator={[FormItem, { gridSpan: 2 }]}`）；普通内容则可用 `GridColumn` 包裹。
 
 ```tsx preview
 import { useState } from 'react';
@@ -104,9 +104,9 @@ export default function App() {
 }
 ```
 
-## 一个标签放几个字段
+## 在一个标签下组合多个字段
 
-`FormItem` 不在字段里时就是纯布局：一个标签、同一套列宽，里面放什么都行。
+当 `FormItem` 脱离 `<Field>` 直接在 JSX 中使用时，它就是一个纯布局容器，可以为内部的多个控件提供统一的标签和对齐列宽：
 
 ```tsx
 <FormItem label="地址" asterisk>
@@ -117,11 +117,11 @@ export default function App() {
 </FormItem>
 ```
 
-里面的字段各带一个没有标签的 `FormItem`，错误提示显示在各自控件下面。和 Formily 一样，**没有标签的 `FormItem` 不用 `FormLayout` 的 `labelCol` / `wrapperCol` / `labelWidth`**，所以不会在这一行里再缩一次；自己在 `FormItem` 上写的列宽照常生效。
+上面的写法中，内部每个字段各自带有无标签的 `FormItem`，错误信息会分别显示在各自控件下方。与 Formily 一致，没有传入 `label` 的 `FormItem` 不会继承外层 `FormLayout` 的 `labelCol` / `wrapperCol` / `labelWidth`，避免在一行内部产生二次缩进。
 
-### 不给里面的字段装饰器：错误汇总到外层
+### 省略内部装饰器，将错误汇总到外层
 
-日期区间、`Space.Compact` 拼起来的输入组，控件挨在一起，各自一行提示会把布局撑乱。这时里面的字段不写 `decorator`，外层的纯布局 `FormItem` 把它们的错误显示在自己的提示区：
+对于区号加号码（`Space.Compact`）或日期范围这类紧挨在一起的组合控件，如果每个子字段都各自占一行显示报错，会把版面撑开。此时可以去掉内部 `<Field>` 的 `decorator`，外层的纯布局 `FormItem` 会自动收集并展示它们未被消化的错误信息：
 
 ```tsx preview
 import { useState } from 'react';
@@ -158,16 +158,15 @@ export default function App() {
 }
 ```
 
-规则：**纯布局 `FormItem` 显示它里面「没有别的 `FormItem` 在显示」的错误**。
+汇总规则如下：
+- 内部字段自己带有 `FormItem`（如上例「年龄段」）时，错误由内层各自展示，外层不重复。
+- 内部字段没有装饰器（如上例「电话」），或者其 `FormItem` 设了 `feedbackLayout: 'none'` 时，错误会自动汇总到外层 `FormItem` 展示，且相同的提示文案会自动去重。
+- 多个纯布局 `FormItem` 嵌套时，错误仅由最内层的那一个展示。
+- 外层错误汇总只展示错误文案并添加 `ant-form-item-has-error` 样式类，不会强行设置全局 `validateStatus`，因此只有真正出错的那个输入框边框会变红。外层自身的 `feedbackLayout`（如 `terse` / `popover` / `none`）同样正常生效。
 
-- 字段自己有 `FormItem` 装饰器（上例「年龄段」）：错误在字段自己的提示区，外层不重复。
-- 字段没有装饰器（上例「电话」），或它的 `FormItem` 设了 `feedbackLayout: 'none'`：错误汇总到外层，相同的文案只显示一次。
-- 嵌套的纯布局 `FormItem`：里层显示，外层不重复。
-- 外层的提示用错误色，项上加 `ant-form-item-has-error` 类；但**不**设 antd 的 `validateStatus`，所以只有出错的控件变红，没错的那个不会跟着变红。`feedbackLayout`（`terse` / `popover` / `none`）照常生效。
+## 按钮对齐
 
-## 按钮对齐到控件列
-
-`FormButtonGroup.FormItem` 用一个空标签占住标签列，按钮自动和上面的控件对齐，`labelCol` 和 `labelWidth` 都适用；长表单用 `FormButtonGroup.Sticky` 让按钮栏贴在底部。
+使用 `FormButtonGroup.FormItem` 可以自动用空的标签列占位，使操作按钮精确对齐上方表单控件的起始位置（同时兼容 `labelCol` 和 `labelWidth`）；长表单还可以使用 `FormButtonGroup.Sticky` 让操作栏吸底展示。
 
 ```tsx
 <FormLayout labelWidth={96}>
@@ -176,4 +175,4 @@ export default function App() {
 </FormLayout>
 ```
 
-下一步：[分组容器](/guide/containers)，标签页、折叠面板和分步表单。
+下一步：[分组容器](/guide/containers)，用标签页、折叠面板或分步条组织大型表单。

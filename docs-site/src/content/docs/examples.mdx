@@ -1,27 +1,27 @@
 ---
 title: 示例库
-description: 五个可以直接跑的场景，以及查询表、数组、业务页和 Pro 组件。
+description: 五个可以直接运行的典型场景，以及涵盖查询表、数组、业务页与 Pro 组件的完整交互示例。
 ---
 
-先看五个完整场景。每个都能在页内改代码、提交。
+先看五个核心场景，每个示例都可以直接在页面内修改代码并点击提交查看结果：
 
-| 场景 | 你会用到 |
+| 场景 | 核心用法 |
 |---|---|
-| [登录校验](/examples/login) | `required`、`format`、`minLength` |
-| [联动计算](/examples/computed) | `reaction` 写金额，结果仍会提交 |
-| [条件显隐](/examples/visibility) | `$visible = false` 就是 `none` |
-| [动态表格](/examples/dynamic-table) | `reaction.each` 给每一行算小计 |
-| [跨字段与异步校验](/examples/async-rules) | 确认密码；异步校验在 abort 时结束 |
+| [登录校验](/examples/login) | `required`、`format`、`minLength` 等基础规则组合 |
+| [联动计算](/examples/computed) | 使用 `reaction` 派生计算字段的值 |
+| [条件显隐](/examples/visibility) | `$visible = false`（`none`）对校验与提交的影响 |
+| [动态表格](/examples/dynamic-table) | 使用 `reaction.each` 为订单每一行独立计算小计 |
+| [跨字段与异步校验](/examples/async-rules) | 读取同记录密码比对，以及配合 `AbortSignal` 处理异步请求 |
 
-下面这些页面是更长的业务例子。每个示例都能在页内改代码。独立演示收在 [示例目录](/play)。数据是本地模拟，写回只改当前表单。
+下面按主题整理了更贴近真实业务的完整页面（代码均支持在线编辑，独立演示页汇总在 [示例目录](/play)，其中的请求均为本地模拟）。
 
 ## 基础表单
 
-| 完整页面 | 场景 | 代码与讲解 |
+| 完整页面 | 场景说明 | 代码与讲解 |
 |---|---|---|
-| <a href="/play/schema" target="_self">Schema 校验</a> | 注册表单：字段 Zod + 整表 Valibot；`hidden` 仍校验、`none` 才排除 | [基础表单 · 注册：整表 schema](/examples/forms#注册整表-schema) |
-| <a href="/play/display" target="_self">显隐对照</a> | `visible` / `hidden` / `none` 对校验和提交的影响 | [基础表单 · 显隐对照](/examples/forms#显隐对照) |
-| <a href="/play/tabs" target="_self">标签页</a> | `fields` 声明的规则跨标签页生效，没挂载的字段照样校验 | [基础表单 · 标签页与没挂载的字段](/examples/forms#标签页与没挂载的字段) |
+| <a href="/play/schema" target="_self">Schema 校验</a> | 注册表单：整表 Zod 校验，以及 `hidden`、`virtual` 与 `none` 差异演示 | [基础表单 · 注册：整表 schema](/examples/forms#注册整表-schema) |
+| <a href="/play/display" target="_self">显隐对照</a> | `visible` / `hidden` / `virtual` / `none` 对渲染、校验与提交的完整对比 | [基础表单 · 显隐对照](/examples/forms#显隐对照) |
+| <a href="/play/tabs" target="_self">标签页</a> | 在 `fields` 中声明的规则跨标签页生效，未挂载字段同样参与校验 | [基础表单 · 标签页与未挂载字段](/examples/forms#标签页与未挂载字段) |
 
 ## 联动
 
@@ -55,17 +55,17 @@ description: 五个可以直接跑的场景，以及查询表、数组、业务�
 | <a href="/play/merged" target="_self">供应商和产品</a> | 数据保持嵌套，合并单元格只是显示；跨层校验读父记录 | [业务场景 · 供应商与产品：合并单元格](/examples/business#供应商与产品合并单元格) |
 | <a href="/play/orders" target="_self">订单行</a> | 可展开的订单子表：行金额、订单合计、已发货整单只读 | [业务场景 · 订单与可展开明细](/examples/business#订单与可展开明细) |
 
-## Pro.formily 复刻
+## Pro 组件与高阶场景
 
-| 完整页面 | 场景 | 代码与讲解 |
+| 完整页面 | 场景说明 | 代码与讲解 |
 |---|---|---|
-| <a href="/play/array-table" target="_self">ArrayTable</a> | 行内编辑、展开子表、分页、选择、拖动行与列宽、列配置、异步删除 | [Pro.formily 复刻 · ArrayTable 全功能](/examples/pro#arraytable-全功能) |
-| <a href="/play/array-table-shadow" target="_self">ArrayTable + 影子表单</a> | `useArrayShadow`：行编辑与弹窗 / 抽屉添加，确认才写回 | [Pro.formily 复刻 · 用影子表单编辑行](/examples/pro#用影子表单编辑行) |
-| <a href="/play/shadow-form" target="_self">ShadowForm</a> | 弹窗、气泡、抽屉、内联和纯 Hook 五种草稿 | [Pro.formily 复刻 · 影子表单的几种容器](/examples/pro#影子表单的几种容器) |
-| <a href="/play/query-list" target="_self">QueryList</a> | 折叠条件、服务端分页接口形状、刷新、默认隐藏列 | [Pro.formily 复刻 · QueryList](/examples/pro#querylist) |
-| <a href="/play/query-list-add" target="_self">QueryList 添加与编辑</a> | 在查询结果上打开行草稿和添加条目 | [Pro.formily 复刻 · QueryList 添加与编辑](/examples/pro#querylist-添加与编辑) |
-| <a href="/play/pro-enum" target="_self">ProEnum</a> | 静态 / 异步枚举，文字、徽标、标签三种阅读态 | [Pro.formily 复刻 · 枚举：静态、懒加载与阅读态](/examples/pro#枚举静态懒加载与阅读态) |
-| <a href="/play/suggestion" target="_self">Suggestion</a> | 防抖联想、作废过期结果、四种值形状 | [Pro.formily 复刻 · Suggestion：远程联想](/examples/pro#suggestion远程联想) |
-| <a href="/play/cascader-plus" target="_self">CascaderPlus</a> | 全量与懒加载、单选多选、`labelInValue` 反显 | [Pro.formily 复刻 · CascaderPlus：懒加载级联](/examples/pro#cascaderplus懒加载级联) |
+| <a href="/play/array-table" target="_self">ArrayTable</a> | 行内编辑、展开子表、分页、选择、拖动行与列宽、列配置、异步删除 | [Pro 组件 · ArrayTable 全功能](/examples/pro#arraytable-全功能) |
+| <a href="/play/array-table-shadow" target="_self">ArrayTable + 草稿表单</a> | `useArrayShadow`：行编辑与弹窗 / 抽屉添加，确认才写回 | [Pro 组件 · 用草稿表单编辑行](/examples/pro#用草稿表单编辑行) |
+| <a href="/play/shadow-form" target="_self">ShadowForm 草稿表单</a> | 弹窗、气泡、抽屉、内联和纯 Hook 五种草稿形态 | [Pro 组件 · 草稿表单的几种容器](/examples/pro#草稿表单的几种容器) |
+| <a href="/play/query-list" target="_self">QueryList</a> | 折叠条件、服务端分页接口形状、刷新、默认隐藏列 | [Pro 组件 · QueryList](/examples/pro#querylist) |
+| <a href="/play/query-list-add" target="_self">QueryList 添加与编辑</a> | 在查询结果上打开行草稿和添加条目 | [Pro 组件 · QueryList 添加与编辑](/examples/pro#querylist-添加与编辑) |
+| <a href="/play/pro-enum" target="_self">ProEnum</a> | 静态 / 异步枚举，文字、徽标、标签三种阅读态 | [Pro 组件 · 枚举：静态、懒加载与阅读态](/examples/pro#枚举静态懒加载与阅读态) |
+| <a href="/play/suggestion" target="_self">Suggestion</a> | 防抖联想、作废过期结果、四种值形状 | [Pro 组件 · Suggestion：远程联想](/examples/pro#suggestion远程联想) |
+| <a href="/play/cascader-plus" target="_self">CascaderPlus</a> | 全量与懒加载、单选多选、`labelInValue` 反显 | [Pro 组件 · CascaderPlus：懒加载级联](/examples/pro#cascaderplus懒加载级联) |
 
-对应的讲解：[联动](/guide/linkage)、[数组、树与嵌套对象](/guide/structures)、[校验](/guide/validation)、[Pro 组件](/guide/pro)。
+对应指南：[联动与派生](/guide/linkage)、[数组、树与嵌套对象](/guide/structures)、[查询列表与 Pro 组件](/guide/pro) 与 [校验](/guide/validation)。

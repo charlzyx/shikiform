@@ -1,29 +1,29 @@
 ---
 title: 提交与重置
-description: Submit、Reset 和 afterReset。校验失败时焦点落到第一个出错的字段。
+description: 了解 form.submit 的返回结构、Submit 与 Reset 按钮行为以及焦点自动定位机制。
 ---
 
-`<Form onSubmit>` 收到的是校验通过之后的值。Enter、`type="submit"` 和 `form.submit()` 走同一条路。不要再套一层 `<form>`。
+在 ShikiForm 中，无论是在表单内按回车、点击 `<Submit>` 按钮（`type="submit"`），还是直接调用 `form.submit()`，最终都会进入同一套校验与提交流程。`<Form onSubmit>` 回调只有在整张表单校验通过后才会触发，并且会收到已经剔除 `virtual` 与 `none` 字段的提交数据。注意 `<Form>` 本身已经渲染了原生 `<form>` 元素，不要在外部或内部再嵌套一层 `<form>`。
 
-`form.submit()` 不会 reject。它 resolve 成 `{ ok: true, values }`，或者 `{ ok: false, reason }`：
+与普通异步函数不同，`form.submit()` 永远不会 reject，而是固定返回一个带状态标识的对象：
 
-| reason | 什么时候 |
+| 返回值 / `reason` | 触发场景 |
 |---|---|
-| `invalid` | 有校验错误，结果里有 `errors` |
-| `error` | `onValid` 抛了，结果里有 `error` |
-| `superseded` | 值还没稳定下来，结果里有 `message` |
+| `{ ok: true, values }` | 校验全部通过，且 `onValid` 回调执行完毕 |
+| `{ ok: false, reason: 'invalid', errors }` | 校验未通过，`errors` 为错误详情，不会触发 `onValid` |
+| `{ ok: false, reason: 'error', error }` | `onValid` 回调或表单级校验抛出了异常，`error` 为捕获的异常对象 |
+| `{ ok: false, reason: 'superseded', message }` | 校验过程中表单值持续变动且连续 3 轮未收敛，提示可重新发起提交 |
 
-按 `reason` 分支，不要去比错误文案。同一份没改过的值，提交两次都会成功。
+在业务代码中建议直接根据 `reason` 做分支处理，不要去匹配具体的文案字符串。如果表单值没有变化，连续两次调用 `submit` 都会正常通过。
 
-校验失败时，`<Form>` 把焦点放到文档顺序里第一个出错的字段。`FormTab`、`FormCollapse`、`FormStep` 会先打开那一块，再聚焦。不要自己在 `onInvalid` 里切标签。
+当校验失败时，`<Form>` 会按 DOM 文档顺序自动将焦点移动至第一个出错的字段；如果表单内使用了 `FormTab`、`FormCollapse` 或 `FormStep`，容器还会先自动切换到包含错误字段的面板或步骤，再执行聚焦。因此，无需在 `onInvalid` 回调里手动编写切换标签页的逻辑。
 
-## 按钮
+## Submit 与 Reset 按钮
 
-`@shikiform/antd` 的 `Submit` / `Reset` 是 Ant Design 按钮。`@shikiform/react` 里有不带样式的同名组件（`asChild` 或 render prop），状态用 `useSubmit()` / `useReset()`。
+`@shikiform/antd` 提供了开箱即用的 `Submit` 和 `Reset` 按钮组件；如果你不使用 Ant Design，也可以从 `@shikiform/react` 导入无样式的同名组件（支持 `asChild` 或 render prop），或者直接使用底层 Hook `useSubmit()` 和 `useReset()`。
 
-`Submit` 在 `$canSubmit` 为 false 时不可点，提交过程中是 loading。已经出现的错误会让它禁用；还没校验过的空必填项不挡住第一次点击。
-
-`Reset` 调用 `form.reset()`。`onClick` 先跑，`preventDefault` 就不再重置。`afterReset(values)` 在重置完成之后拿到恢复后的值。
+- **`Submit`**：订阅表单的 `$canSubmit` 与 `$submitting` 状态。当表单存在已暴露的校验错误或正在提交时，按钮会自动进入禁用或加载状态；尚未触发校验的空必填项不会在初始渲染时禁用提交按钮，首次点击时仍会正常触发校验。
+- **`Reset`**：点击时调用 `form.reset()` 将表单恢复到初始值。如果传入了 `onClick` 回调，它会在重置前执行，调用 `event.preventDefault()` 可以阻止本次重置；`afterReset(values)` 则在重置完成后执行，参数为恢复后的最新表单值。
 
 ```tsx preview
 import { useState } from 'react';
@@ -55,10 +55,10 @@ export default function App() {
 }
 ```
 
-把姓名清空再提交，焦点在姓名上，下面是「没有通过校验」。点重置，姓名回到 Ada，日志是重置后的值。
+清空姓名后点击提交，页面焦点会自动回到姓名输入框，同时下方显示「没有通过校验」；接着点击重置按钮，姓名会恢复为 `Ada`，日志同步更新为重置后的表单值。
 
-<Aside type="tip" title="保存成功之后">
-`form.setInitialValues(form.values)` 把当前值设成新的基线，表单不再是 dirty。`form.reset(record)` 则同时换掉值和基线。
+<Aside type="tip" title="保存接口返回后的基线更新">
+表单提交保存成功后，如果想保持当前表单值不变并清除 `dirty` 脏标记，可以调用 `form.setInitialValues(form.values)` 将当前值更新为新的基线；如果是加载一条新记录并重设基线，则直接调用 `form.reset(record)`。
 </Aside>
 
-服务端错误用 `form.setErrors({ username: '已存在' })`。它们和规则错误一起显示，并挡住提交，直到这个值变了、再次校验，或 `clearErrors`。见 [校验](/guide/validation#服务端错误)。
+当服务端返回字段级报错（如「用户名已存在」）时，可以调用 `form.setErrors({ username: '已存在' })` 将错误挂载到对应字段上。详情请参考 [服务端错误](/guide/validation#服务端错误)。

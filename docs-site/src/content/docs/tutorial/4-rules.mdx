@@ -1,21 +1,21 @@
 ---
 title: 4. 校验
-description: 字段规则和整表 Zod。空值只由 required 判断。
+description: 结合字段级 rules 与整表 Zod Schema 校验表单，理解空值仅由 required 判定的规则。
 tableOfContents: false
 ---
 
 <div className="tutorial-step">
 <div className="tutorial-copy">
 
-预览里有姓名、邮箱和年龄。现在离开输入框，没有提示。
+当前表单中有姓名、邮箱和年龄三个字段，但还没有配置任何校验规则。
 
-字段自己的规则写在 `rules` 上。整张表可以交给实现了 Standard Schema 的库，例如 Zod：把 schema 传给 `useForm` 的 `validate`，不需要单独的适配包。`validateTrigger` 里有 `onBlur` 时，离开输入框就会校验；提交时再查一遍。
+单个字段的校验可以直接写在 `<Field>` 的 `rules` 属性上；如果需要对整张表单做结构化校验，可以直接把实现了 Standard Schema 规范的校验器（如 Zod）传给 `useForm` 的 `validate` 选项。默认情况下，输入框失焦（`onBlur`）和点击提交时都会自动触发校验。
 
-空字符串、`null`、`undefined` 只由 `required` 判断。`minLength`、`format`、`min` 遇到空值直接通过。练习里的 schema 也放过空值：邮箱是 `.or(z.literal(''))`，年龄是 `.nullable()`（清空数字框得到 `null`）。
+需要注意的是，在 ShikiForm 中，空值（`''`、`null`、`undefined`）统一只由 `required` 检查；`minLength`、`format`、`min` 等规则遇到空值时默认放行。因此练习代码里的 Zod Schema 也放过了空值（邮箱允许 `z.literal('')`，年龄使用了 `.nullable()` 以兼容数字框清空后的 `null`）。
 
-**这一步：** `useForm` 加上 `validate: schema`。姓名、邮箱、年龄都加上 `required`。姓名的 `rules` 写 `{ minLength: 2, message: '至少 2 个字' }`。
+**这一步：** 为 `useForm` 传入 `validate: schema`，给姓名、邮箱、年龄三个字段都加上 `required`，并为姓名添加 `rules={{ minLength: 2, message: '至少 2 个字' }}`。
 
-姓名、邮箱空着，或把年龄清空，失焦只提示「必填」。姓名一个字，提示「至少 2 个字」。邮箱格式不对、年龄小于 18，看到 Zod 的文案。都合法之后，提交 JSON 里有三项。
+改好后，留空任意字段失焦都会提示「必填」；姓名只输一个字会提示「至少 2 个字」；邮箱格式有误或年龄小于 18 时会显示 Zod 的错误文案。全部填写合法后，点击提交即可看到完整的 JSON 结果。
 
 </div>
 

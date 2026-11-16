@@ -1,14 +1,14 @@
 ---
 title: 联动
-description: reaction 维持派生状态，watch 做一次性动作；reaction.each / watch.each 走进每一层对象数组。
+description: 用 reaction 维护派生状态，用 watch 执行一次性动作，并通过 reaction.each 与 watch.each 深入多层数组和树结构。
 ---
 
-「金额 = 单价 × 数量」「省份变了清空城市」这类规则写在 `defineEffects` 里，交给 `useForm({ effects })`。它们直接读写引擎，字段有没有挂载都生效。
+像「金额 = 单价 × 数量」「切换省份后清空城市」这类表单联动规则，统一写在 `defineEffects` 中并传给 `useForm({ effects })`。联动直接读写引擎底层状态，无论目标字段此时是否已经挂载渲染，规则都能正常生效。
 
 ```ts
 const effects = defineEffects<Values>(({ reaction, watch }) => {
-  reaction((d) => { /* 派生：读到的 $ 状态就是依赖 */ })
-  watch((d) => d.province.$value, (d) => { /* 动作：来源变了才执行 */ })
+  reaction((d) => { /* 派生计算：自动追踪内部读取的所有 $ 状态 */ })
+  watch((d) => d.province.$value, (d) => { /* 动作响应：仅在监听源变化时触发 */ })
 })
 ```
 
@@ -65,47 +65,46 @@ export default function App() {
 }
 ```
 
-| | `reaction(effect)` | `watch(source, effect)` |
+| 特性 | `reaction(effect)` | `watch(source, effect)` |
 |---|---|---|
-| 用途 | **派生**：维持一份结果 | **动作**：X 变了就做一次 Y |
-| 首次 | 立即运行 | 不运行 |
-| 依赖 | `effect` 里读到的所有 `$` 状态 | 只有 `source` 读到的；`effect` 里的读取不算 |
-| 写 `$value` | 字段成为[计算字段](/guide/concepts#显隐pattern-与提交)，默认仍提交；不想提交就声明 `display: 'virtual'` | 普通写入 |
+| **定位** | **派生**：持续同步得出的一份结果 | **动作**：当 X 变化时执行一次 Y |
+| **首次运行** | 初始化时立即运行一次 | 初始化时不运行 |
+| **依赖追踪** | 自动收集 `effect` 内读取的所有 `$` 状态 | 仅追踪 `source` 内读取的状态，忽略 `effect` 中的读取 |
+| **写入 `$value`** | 目标字段成为[计算字段](/guide/concepts#显隐pattern-与提交)（转为只读展示且默认保留在提交值中；不提交需声明 `display: 'virtual'`） | 作为普通用户数据写入 |
 
-规则：
-
-- 写入在本轮结束才生效。刚写的值不要在同一轮读回，先放进局部变量：`const total = …; d.total.$value = total; d.tax.$value = total * 0.1`。
-- 一个 `$` 状态只能由一个 reaction 写；两个 reaction 写同一个状态会报错。
-- reaction 必须同步；请求放在 `watch` 里，结果用 `form.batch` 写回。
-- 只有读过的键变了，reaction 才重跑；相等的写入不会唤醒下游。
+编写联动时需遵守四条规则：
+- 写入结果会在当前轮次结束后统一生效，因此不要在同一段 `reaction` 中读回刚赋值的 `$value`；需要复用中间结果时，请先存入局部变量（如 `const total = …; d.total.$value = total; d.tax.$value = total * 0.1`）。
+- 同一个 `$` 状态只能由一个 `reaction` 负责写入；如果多个 `reaction` 同时写入同一个状态，引擎会在开发阶段报错提示。
+- `reaction` 必须保持同步执行；异步请求等副作用应当放在 `watch` 中，拿到响应后再通过 `form.batch` 写回表单。
+- 只有读取过的状态确实发生改变时，`reaction` 才会重新触发；如果写入的值与当前值相等，不会唤醒下游依赖。
 
 ## reaction.each：每一行一个实例
 
-`reaction.each(select, effect)` 只有两个参数。选择器返回数组的 **handle**。每一行一个 reaction 实例，单元格改了只重算那一行（包括没有渲染出来的行）。
+处理动态数组时，使用 `reaction.each(select, effect)` 可以为选中的数组元素逐一建立独立的联动实例。该函数只接收两个参数：第一个参数选中目标数组的 handle，第二个参数是每行执行的回调。修改某一行的数据时，只有对应那一行的回调会重新运行（包括尚未渲染到界面上的离线行）。
 
-遇到**元素是对象的数组**会继续走进去（嵌套 `lines`、树的 `children`）。嵌套在对象上的**基本类型数组**（行里的 `tags: string[]`）不进。直接对这个数组调用 `each` 是例外：`reaction.each((d) => d.tags, fn)` 会在 `depth === 0` 访问每个元素。没有第三个参数。回调自己按 `ctx` 过滤。
+如果数组中包含嵌套的对象数组（例如订单下的明细 `lines`，或树节点的 `children`），`reaction.each` 会自动递归进入每一层对象数组；而嵌套在对象上的基本类型数组（如 `tags: string[]`）则不会自动展开，除非你直接对该数组本身调用 `reaction.each((d) => d.tags, fn)`（此时回调会在 `depth === 0` 时针对每个元素触发）。需要区分不同层级或字段时，可在回调中通过第二个参数 `ctx` 进行过滤。
 
 ```ts
 reaction.each((d) => d.items, (row, ctx) => { … })
-// ctx：key、index、depth、parent、path、pos，外加根 draft `d`
+// ctx 提供：key、index、depth、parent、path、pos 以及根 draft `d`
 ```
 
-- `key`：这一元素所在数组的字段名（`items`、`children`）
-- `index`：它在那个数组里的下标
-- `depth`：选中数组的直接元素是 `0`，每进一层对象数组加 1
-- `parent`：父元素的 handle；`depth === 0` 时没有
-- `path`：此刻的路径（`items.2`、`nodes.0.children.1`）
-- `pos`：从选中数组数下来的下标链（`[0, 1]`）；普通行是 `[index]`
+- `key`：当前元素所属数组的字段名（如 `items`、`children`）。
+- `index`：当前元素在所属数组中的下标。
+- `depth`：当前遍历深度；直接选中的数组元素为 `0`，每深入一层对象数组加 `1`。
+- `parent`：父级元素的 handle（`depth === 0` 时不存在）。
+- `path`：当前元素此刻的路径（如 `items.2`、`nodes.0.children.1`）。
+- `pos`：从选中数组根部算起的下标路径（如 `[0, 1]`；普通单层数组为 `[index]`）。
 
-只要某一层的逻辑不一样，在回调里返回。插入、删除、移动之后，换了元素的位置会用新的元素重跑，所以写下的状态跟着走。
+当发生行插入、删除或排序移动时，位置发生变动的行会自动以新数据重新计算，确保联动写入的状态跟随数据行一起迁移。
 
-<Aside type="caution" title="提前 return 且什么都没读">
-这样的实例跑过一次之后就停着。那个节点的数据再变，也不会重跑。要跟着变，就在 return 之前读到相关的 `$` 状态，或者不要在那一层 return。
+<Aside type="caution" title="不要在读取任何状态前直接 return">
+如果回调在第一行就根据条件提前 `return` 且没有读取任何 `$` 状态，引擎会认为该实例不依赖任何数据变化，之后该节点再修改时也不会重新触发。如果需要随数据变化而恢复计算，请确保在 `return` 前已经读取过相关的 `$` 状态。
 </Aside>
 
 ## 用 ctx 过滤
 
-数据是 `orders: [{ lines: [{ sku, qty }] }]`。只取一个位置时不要用 `each`，直接写路径。细节见 [按路径读写](/basics/path)。
+对于多层嵌套结构（例如 `orders: [{ lines: [{ sku, qty }] }]`），如果只是想读取某一个固定位置，直接按路径访问即可，不必动用 `each`（参见 [按路径读写](/basics/path)）：
 
 ```ts
 d.orders[0].lines[2].qty.$value
@@ -113,27 +112,7 @@ get(d, 'orders[0].lines[2].qty').$value
 form.getValue('orders[0].lines[2].qty')
 ```
 
-`get` 在 draft 上返回子 handle，带下标也可以：`get(d, 'orders[0].lines[2].qty').$value`。没有下标时同样是 `get(d, 'user.name').$value`。
-
-每个外层元素都取里面的同一项：
-
-```ts
-reaction.each((d) => d.orders, (order, ctx) => {
-  if (ctx.depth !== 0) return
-  const qty = order.lines[2].qty.$value
-})
-```
-
-回调的 `row` 带上选中元素和每一层对象数组元素的字段。两边都有的键取并集（`id: string` 和 `id: number` 得到 `string | number`），不会交成 `never`。`ctx.key` / `ctx.depth` 是字面量联合（这里是 `'orders' | 'lines'` 和 `0 | 1`）。滤到明细之后可以直接写 `node.qty`：
-
-```ts
-reaction.each((d) => d.orders, (node, ctx) => {
-  if (ctx.key !== 'lines' || ctx.index !== 2) return
-  node.qty.$required = true
-})
-```
-
-只处理订单本身时看 `depth`。`depth === 0` 时走外层 handle 也行：
+如果需要为每个订单外层元素的特定位置设置逻辑，可以用 `ctx.depth` 过滤出外层元素：
 
 ```ts
 reaction.each((d) => d.orders, (order, ctx) => {
@@ -142,9 +121,18 @@ reaction.each((d) => d.orders, (order, ctx) => {
 })
 ```
 
-平铺表格的回调里不用这些判断。树的子节点如果和当前节点是同一个类型（`children?: Node[]`），`ctx.key` / `ctx.depth` 滤完之后仍可以写 `node.name`。
+如果希望直接定位到内层的 `lines` 节点，回调里的 `row` 会聚合选中数组及各嵌套对象数组的字段（同名字段取联合类型），而 `ctx.key` 和 `ctx.depth` 也会被精确推导为字面量联合（如 `'orders' | 'lines'` 和 `0 | 1`）：
 
-`watch.each` 是同样的遍历，语义是 `watch`：回调里读到的 `$` 状态就是来源，来源变了才执行，首次不写入。某个元素变化只触发它自己，兄弟和别处的移动不触发。适合「这个节点的 X 变了就做一次动作」。
+```ts
+reaction.each((d) => d.orders, (node, ctx) => {
+  if (ctx.key !== 'lines' || ctx.index !== 2) return
+  node.qty.$required = true
+})
+```
+
+普通的单层表格无需这些过滤判断；而对于递归的树形结构（`children?: Node[]`），过滤掉非子节点的其他对象数组后，即可直接安全地读写 `node` 上的字段。
+
+同样地，`watch.each` 遵循相同的遍历规则，但具备 `watch` 的语义：初始化时不执行，仅当某一行回调内部读取的 `$` 状态发生变化时，针对那一行触发动作（兄弟行增删或移动不会误触发）。非常适合「当某行的商品切换时，重置该行数量」这类交互逻辑：
 
 ```tsx preview play=sku
 import { useState } from 'react';
@@ -202,11 +190,11 @@ export default function App() {
 }
 ```
 
-改某一行的数量，只有那一行重算；改折扣，所有行重算（它们都读了 `d.discount`）。`price` 和 `total` 是计算字段，仍在提交结果里。
+在上面的例子中，修改某一行的数量只会触发该行重算；调整顶部的全局折扣时，由于所有行都读取了 `d.discount`，所有行都会同步重算。`price` 和 `total` 属于计算字段，界面上呈只读态，但仍会保留在提交数据里。
 
 ## 嵌套对象数组与树
 
-`children` 是对象数组，所以同一个 `reaction.each` 会走到每个节点。`ctx.pos` 是下标链（`[0, 1]`），移动后变；稳定身份用 `rowKey`。节点上如果还有别的对象数组，用 `ctx.key === 'children'` 滤掉。
+对于包含 `children` 属性的树形数据，由于 `children` 本身也是对象数组，`reaction.each` 会自动遍历到树中的每一个节点。回调里的 `ctx.pos` 记录了节点当前的下标链（如 `[0, 1]`），适合用于生成大纲编号或判断层级；节点身份的稳定追踪依然依靠 `rowKey`。如果树节点上还挂载了其他对象数组字段，只需通过 `ctx.key === 'children'` 过滤一下即可。
 
 ```tsx preview
 import { Button, Space } from 'antd';
@@ -272,10 +260,14 @@ export default function App() {
 }
 ```
 
-## UI 也是状态
+## 通过联动控制 UI 状态
 
-显隐、必填、选项、标签、占位符都是 `$` 状态，在 reaction 里赋值即可（完整例子见 [首页](/)）。条件显示的字段写 `$visible`：`$visible = false` 等价于 `display: 'none'`，不是 `hidden`（不渲染、不校验、不提交，值留在 store；与 Formily 的 `visible` 一致）。只藏 UI、仍校验仍提交，写 `$hidden = true` / `$display = 'hidden'`。见 [显隐、pattern 与提交](/guide/concepts#显隐pattern-与提交)。赋 `undefined` 撤销 reaction 写的这一层（`$title`、`$pattern`、`$enum` 都一样），`$enum = undefined` 回到 `<Field enum>` / `fields` 声明的选项，`$enum = []` 才是清空。不要在渲染时根据 `form.getValue(...)` 算 props：那不是响应式的。同一字段的第二个 UI（回显、滑块）和没有值的提示条用命名 UI 节点 `d.x.$ui('echo')` / `d.$ui('tip')`，见 [UI 节点](/guide/ui)。
+字段的显隐、必填、下拉选项、标签和占位符同样是 `$` 状态，可以直接在 `reaction` 中赋值（完整示范见 [首页](/)）。
 
-三个维度的 SKU 选择、冲突清理、价格与库存联动见 [SKU 选择器](/play/sku-picker)，更多场景在 [联动示例](/examples/linkage)。
+控制字段条件显隐时，使用 `$visible`（`$visible = false` 等价于 `display: 'none'`，不渲染、不校验、不提交，但值会留在引擎中；如果希望隐藏界面的同时依然参与校验和提交，请使用 `$hidden = true` 或 `$display = 'hidden'`，详见 [显隐、pattern 与提交](/guide/concepts#显隐pattern-与提交)）。想撤销联动层对 `$title`、`$pattern` 或 `$enum` 的覆盖时，赋值为 `undefined` 即可回退到 JSX 或 `fields` 声明；对于 `$enum`，赋 `[]` 才会彻底清空选项。
 
-下一步：[UI 节点](/guide/ui)，同一字段的多个 UI、没有值的提示和分组。
+不要在组件渲染期间通过 `form.getValue(...)` 手动计算控件属性，这种写法无法自动响应联动更新。如果是需要为同一字段配置第二个 UI（例如回显文本、联动滑块），或者控制不绑定表单数据的提示横幅，可以使用命名 UI 节点 `d.x.$ui('echo')` / `d.$ui('tip')`，详见 [命名 UI](/guide/ui)。
+
+想看多维 SKU 选择、冲突清理、价格与库存联动等综合场景，请查看 [SKU 选择器](/play/sku-picker) 和 [联动示例](/examples/linkage)。
+
+下一步：[命名 UI](/guide/ui)，为同一字段渲染多个控件或控制无数据节点。

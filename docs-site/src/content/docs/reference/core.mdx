@@ -3,9 +3,9 @@ title: Core
 description: "@shikiform/core 的 createForm、get、set、defineEffects 和错误类。不依赖 React。"
 ---
 
-`@shikiform/core` 是引擎。没有 React，也没有 Ant Design。`@shikiform/react` 重新导出这一页里常用的运行时函数，组件里可以从那里导入。
+`@shikiform/core` 是纯 TypeScript 表单引擎，不依赖 React 或任何 UI 库。`@shikiform/react` 重新导出了本页中常用的运行时 API，因此在 React 组件中也可以直接从 `@shikiform/react` 导入。
 
-指南：[按路径读写](/basics/path)、[联动](/guide/linkage)、[核心概念](/guide/concepts)。
+相关指南：[按路径读写](/basics/path)、[联动](/guide/linkage)、[核心概念](/guide/concepts)。
 
 ## createForm
 
@@ -22,9 +22,9 @@ typed<V>().useForm<TSubmit = DefaultSubmit, const F extends FieldsInput<V> = {}>
 ): FormInstance<V, ResolveSubmit<V, TSubmit, F>>
 ```
 
-组件外面创建引擎。选项和 `useForm` 相同：`initialValues`、`effects`、`fields`、`validate`、`pattern`、`messages`。返回的 `FormInstance` 上有 `getValue` / `setValue` / `batch` / `submit` / `validate` / `reset`。`createForm()`、`createForm(undefined)` 与 `createForm({})` 相同，都返回一张表单。`useForm()`、`useForm(undefined)` 与 `useForm({})` 也是。
+用于在组件外部创建表单引擎实例，配置项与 `useForm` 完全一致（包括 `initialValues`、`effects`、`fields`、`validate`、`pattern`、`messages`）。返回的 `FormInstance` 提供 `getValue`、`setValue`、`batch`、`submit`、`validate`、`reset` 等方法。无参调用 `createForm()` 或传入 `undefined` 与传入 `{}` 等价。
 
-不写泛型时，`fields` 里 `display: 'virtual'` / `display: 'none'` 的路径在提交类型里变成可选。`createForm<V>(options)` / `useForm<V>(options)` 的提交类型就是 `V`。写了 `V` 还要按 `fields` 推断，用 `@shikiform/react` 的 `typed<V>().createForm({ fields })` / `typed<V>().useForm({ fields })`。省略 `TSubmit` 时，`ResolveSubmit` 按 `fields` 把这些路径变成可选；写了 `TSubmit` 则提交类型就是它。第二个类型参数照写：`createForm<V, SubmitValues<V, 'tmp'>>(options)`。`DefaultSubmit`、`FieldsInput`、`ResolveSubmit` 是声明里的类型名，`@shikiform/core` 和 `@shikiform/react` 的公开入口不导出。
+在类型推导上：不传泛型参数时，`fields` 中声明了 `display: 'virtual'` 或 `display: 'none'` 的路径在提交类型里会自动变为可选；显式传入 `createForm<V>(options)` 时提交类型固定为 `V`；如果既想显式指定原始值类型 `V`，又想根据 `fields` 自动剔除虚拟/隐藏字段，请使用 `typed<V>().createForm({ fields })`（或 `typed<V>().useForm({ fields })`）；需要手动列举可选路径时，可以通过第二个泛型参数传 `SubmitValues<V, 'tmp'>`。`DefaultSubmit`、`FieldsInput` 和 `ResolveSubmit` 为内部推导辅助类型，不作为公开类型导出。
 
 ```ts
 import { createForm } from '@shikiform/core'
@@ -90,7 +90,7 @@ const next = set(order, 'items[0].qty', 2)
 
 ## defineEffects
 
-`defineEffects<T>(factory)` 返回一个 effect 模块。`factory` 收到 `reaction`、`watch` 和 `query`。`reaction` 派生，`watch` 做动作。两者都有 `each(select, fn)`，只有这两个参数。见 [联动](/guide/linkage)。
+`defineEffects<T>(factory)` 用于定义一组可复用的联动模块。`factory` 会收到 `reaction`、`watch` 和 `query`：`reaction` 用于声明派生状态，`watch` 用于响应变化执行一次性动作，两者均提供仅接收两个参数的 `each(select, fn)` 方法。详见 [联动](/guide/linkage)。
 
 ```ts
 import { defineEffects } from '@shikiform/core'
@@ -104,16 +104,16 @@ const effects = defineEffects<{ qty: number; total: number }>(({ reaction }) => 
 
 ## EnumSource
 
-异步选项。`EnumSource.with(params)` 交给字段的 `enum` 或 `$enum`。读 `$enum` 时，还没加载完是 `[]`。
+用于定义异步选项源，通过 `EnumSource.with(params)` 绑定到字段的 `enum` 或 `$enum`。在请求尚未完成前，读取 `$enum` 会返回空数组 `[]`。
 
 ## 错误类
 
-`ShikiUsageError`、`ShikiConflictError`、`ShikiCycleError`。可以 `instanceof`。用法错误和两个 reaction 写同一状态只在开发构建检查。循环在生产构建也会抛。
+引擎会导出 `ShikiUsageError`、`ShikiConflictError` 和 `ShikiCycleError`，均可使用 `instanceof` 捕获判断。其中用法误用和反应式写冲突仅在开发环境校验，而循环依赖错误在生产环境也会抛出。
 
 ## 文案
 
-`zhCN` 是内置默认。`enUS` 是英文。`setDefaultMessages(enUS)` 改这一进程里之后创建的表单。单张表用 `messages` 覆盖一部分。`getDefaultMessages()` 读当前默认。
+内置文案默认使用中文 `zhCN`，同时也提供了英文 `enUS`。调用 `setDefaultMessages(enUS)` 会修改此后创建的所有表单的默认文案，单个表单可通过 `messages` 选项进行局部覆盖，`getDefaultMessages()` 用于读取当前生效的全局默认文案。
 
 ## 树坐标
 
-`moveNode`、`pathOf`、`posOf`。`pos` 是下标链，例如 `[0, 2]`。移动树节点时用它们，平时的数组用 `form.moveArray`。
+提供 `moveNode`、`pathOf` 和 `posOf` 工具函数用于操作树形节点的坐标路径（`pos` 为下标数组，如 `[0, 2]`）。普通数组操作请直接使用 `form.moveArray`。

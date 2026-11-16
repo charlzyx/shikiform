@@ -1,17 +1,18 @@
 ---
 title: Ant Design 适配
-description: 接好的 antd 控件、阅读态、connect / mapProps / mapReadPretty 接自己的控件，以及提交 / 重置按钮。
+description: 如何使用开箱即用的 Ant Design 控件、通过 connect / mapProps 接入自定义控件，以及使用 Submit / Reset 按钮。
 ---
 
-antd 控件要的是 `value`、`onChange`、`status`、`disabled` 这些 props。`@shikiform/antd` 把字段绑定映射成这些 props，值仍在 ShikiForm 引擎里，所以**不要再把同一份值交给 antd `Form` 的 `name` / `rules` / `initialValues`**。
+Ant Design 控件通常接收 `value`、`onChange`、`status`、`disabled` 等属性。`@shikiform/antd` 负责将 ShikiForm 引擎里的字段状态映射成这些属性，数据本身依然统一存储在 ShikiForm 引擎中——因此请**不要同时使用 Ant Design 原生 `Form` 的 `name`、`rules` 或 `initialValues`**，以免两套状态互相冲突。
 
-## 接好的控件
+## 开箱即用的控件
 
-`Input`（含 `TextArea`、`Password`）、`InputNumber`、`Select`、`AutoComplete`、`TreeSelect`、`Cascader`、`Switch`、`Checkbox`（含 `Group`）、`Radio`（就是单选组，`Radio.Group` 同一个）、`DatePicker` / `TimePicker`（含 `RangePicker`）、`Slider`、`Rate`、`Transfer`、`Upload`（含 `Dragger`）、`ColorPicker` 可以直接放进 `component`。全表和每个控件的阅读态见 [控件与阅读态](/guide/controls)。
+`@shikiform/antd` 提供了全套常用控件的适配版本，包括：`Input`（含 `TextArea`、`Password`）、`InputNumber`、`Select`、`AutoComplete`、`TreeSelect`、`Cascader`、`Switch`、`Checkbox`（含 `Group`）、`Radio`（直接作为单选组使用，等同于 `Radio.Group`）、`DatePicker` / `TimePicker`（含 `RangePicker`）、`Slider`、`Rate`、`Transfer`、`Upload`（含 `Dragger`）和 `ColorPicker`。完整清单与阅读态效果见 [控件与阅读态](/guide/controls)。
 
-- 选择类控件的 `options`（`TreeSelect` 的 `treeData`、`Transfer` 的 `dataSource`）默认取字段枚举（`<Field enum>`、`fields.x.enum` 或 `$enum`），异步枚举时自动带 `loading`。
-- `pattern` 自动生效：`disabled` / `readOnly` 禁用控件，`readPretty` 换成阅读态视图（选择类显示标签，可加 `prettyType="badge" | "tag"`）。
-- `DatePicker` / `TimePicker` 的字段值是格式化后的字符串（默认 `YYYY-MM-DD` / `HH:mm:ss`），不是 dayjs 对象。
+这些适配控件具备以下统一特性：
+- **自动读取枚举**：选择类控件的 `options`（以及 `TreeSelect` 的 `treeData`、`Transfer` 的 `dataSource`）会自动对接字段配置的枚举（JSX `enum`、`fields.x.enum` 或 `$enum`），使用异步数据源时还会自动传入 `loading` 状态。
+- **自动响应交互态**：当 `pattern` 为 `disabled` 或 `readOnly` 时自动禁用输入；设为 `readPretty` 时自动切换为阅读态文本（选择类控件可配置 `prettyType="badge" | "tag"`）。
+- **日期存储字符串**：`DatePicker` 与 `TimePicker` 自动完成字符串与 `dayjs` 对象之间的转换，表单引擎中只保留格式化后的纯字符串（默认 `YYYY-MM-DD` / `HH:mm:ss`）。
 
 ```tsx preview
 import { Radio as AntRadio } from 'antd';
@@ -50,20 +51,20 @@ export default function App() {
 }
 ```
 
-切换上面的按钮只写了 `d.profile.$pattern`，下面的字段靠继承一起切换。选项直接写在 `<Field enum>` 上，见 [选项写在 JSX 里](/guide/field#选项写在-jsx-里)。
+演示中切换顶部按钮时只修改了 `d.profile.$pattern`，内部的七个子字段通过继承自动同步切换状态。
 
 ## 封装自己的控件
 
-任何 `value` / `onChange` 控件经 `connect(Component, ...enhancers)` 都能当 `component` 用：
+任何遵循受控值/回调约定（如 `value` / `onChange`）的第三方或业务组件，都可以通过 `connect(Component, ...enhancers)` 接入 ShikiForm：
 
-| enhancer | 作用 |
+| 增强器（enhancer） | 作用说明 |
 |---|---|
-| `mapProps({ value: 'checked' })` | 重命名绑定属性；`false` 丢弃（`{ onBlur: false }`）。`status` 默认不传，antd 要红框时写 `{ status: 'status' }` |
-| `mapProps({ title: 'placeholder' })` | 把其他字段状态交给某个 prop：`title`、`description`、`required`、`validating`、`componentProps.x` …；调用方显式传的 prop 优先 |
-| `mapProps({ format, parse })` | 字段值 ↔ 控件值。`format` 传进去（字符串 → Date / Dayjs），`parse` 写回来。`parse` 的参数是控件 `onChange` 的参数 |
-| `mapProps((props, field) => props)` | 最后一步变换 props，在 `format` 之前 |
-| `mapProps({ blurOn: 'onOpenChange' })` / `mapBlur('onChange')` | 控件没有 `onBlur` 时，用弹出层关闭或 `onChange` 触发失焦校验 |
-| `mapReadPretty(View)` | `readPretty` 时渲染 `View`（收到 `value` 和 `options`）；没有它时按 `readOnly` 处理 |
+| `mapProps({ value: 'checked' })` | 重命名绑定属性；传 `false` 可屏蔽某个属性（如 `{ onBlur: false }`）。注意无 UI 的 `connect` 默认不传 Ant Design 专属的 `status`，需要校验红框时写 `{ status: 'status' }` |
+| `mapProps({ title: 'placeholder' })` | 将其他字段状态映射到指定 prop（支持 `title`、`description`、`required`、`validating`、`componentProps.x` 等）；调用方显式传入同名 prop 时以调用方为准 |
+| `mapProps({ format, parse })` | 双向数据转换：`format` 将引擎里的可序列化值转成控件所需的类型（如字符串转 Date），`parse` 将控件 `onChange` 回调参数转回字段值 |
+| `mapProps((props, field) => props)` | 使用函数对最终 props 做自定义变换（在 `format` 之前执行） |
+| `mapProps({ blurOn: 'onOpenChange' })` / `mapBlur('onChange')` | 当控件自身没有 `onBlur` 回调时（例如弹出层选择器），指定通过关闭弹层或变更事件来触发失焦校验 |
+| `mapReadPretty(View)` | 指定字段处于 `readPretty` 状态时渲染的只读视图（接收 `value` 和 `options`）；未配置时则按 `readOnly` 降级 |
 
 ```tsx preview
 import { Segmented as AntSegmented } from 'antd';
@@ -93,11 +94,9 @@ export default function App() {
 }
 ```
 
-控件的 `onChange` 先写字段，再用原始参数调用你传的 `onChange`；`onBlur` 同理。
+经 `connect` 包装后的组件会自动转发 `ref`，并保留原组件的静态成员（如 `Select.Option`、`Input.Search`）。当控件触发 `onChange` 或 `onBlur` 时，会先通知引擎更新字段，再透传原始参数调用外部传入的回调；如果将该组件直接渲染在 `<Field>` 之外且未传入 `name` / `field`，它会自动退化为普通非绑定组件。
 
-和 Formily 一样，`ref` 转发给原控件，静态成员（`Select.Option`、`Input.Search`）保留。接好的控件放在 `<Field>` 外、也没给 `name` 时，就是普通控件：只用你传的 props，开发环境警告一次。
-
-不想经过 `connect` 时，组件里用不带参数的 `useField()` 读当前字段，自己接线。`<Field>` 的 `component`、子元素、表格单元格里的 `<Field>` 都一样：
+如果只是临时写一个业务专用控件，也可以跳过 `connect`，直接在组件内调用无参数的 `useField()` 手动接线：
 
 ```tsx
 import { useField } from '@shikiform/react';
@@ -109,21 +108,19 @@ function Percent() {
 <Field name="volume" title="音量" decorator={[FormItem]} component={[Percent]} />
 ```
 
-在任何 `<Field>` 之外调用会抛 `ShikiUsageError`，消息里写明怎么改。
-
 ## 提交与重置按钮
 
-`Submit` / `Reset` 读最近的 `<Form>`：`Submit` 在 `$canSubmit` 为 false 时不可点、提交中显示 loading；`Reset` 调 `form.reset()`。`afterReset` 在重置之后拿到新值（查询后再查一次）。按钮文字跟随表单的 `messages`。不装 antd 时用 `@shikiform/react` 的同名组件（`asChild` / render prop）或 `useSubmit()` / `useReset()`。
+`@shikiform/antd` 导出的 `Submit` 和 `Reset` 会自动关联外层的 `<Form>`：`Submit` 在 `$canSubmit` 为 `false` 时自动禁用并在提交过程中展示 loading 状态；`Reset` 则在点击时调用 `form.reset()`，并支持通过 `afterReset` 拿到重置后的值（常用于清空查询条件后重新发起请求）。两个按钮的默认文本跟随表单的 `messages` 配置。如果不需要 Ant Design 按钮样式，可使用 `@shikiform/react` 提供的无样式版本或 `useSubmit()` / `useReset()`。
 
 ```tsx
 <Form form={form} onSubmit={save}>
   <Field name="email" title="邮箱" required decorator={[FormItem]} component={[Input]} />
-  <Submit />                                         {/* 原生 submit，交给 <Form onSubmit> */}
+  <Submit />                                         {/* 触发原生 submit，交由 <Form onSubmit> 处理 */}
   <Reset />
-  <Submit onSubmit={saveDraft}>存草稿</Submit>        {/* 自己调用 form.submit(saveDraft) */}
+  <Submit onSubmit={saveDraft}>存草稿</Submit>        {/* 绑定独立提交逻辑，内部直接调用 form.submit(saveDraft) */}
 </Form>
 ```
 
-按表单值类型检查字段名用 [`typed(form)`](/reference/react-hooks#typed)。细节见 [antd 参考](/reference/antd#submit)。
+如果需要对字段名开启 TypeScript 编译检查，配合 [`typed(form)`](/reference/react-hooks#typed) 使用即可。更多参数细节见 [Ant Design 参考](/reference/antd#submit)。
 
-下一步：[控件与阅读态](/guide/controls)，全部接好的控件和它们的阅读态。
+下一步：[控件与阅读态](/guide/controls)，查看全套内置控件及各自的阅读态渲染效果。

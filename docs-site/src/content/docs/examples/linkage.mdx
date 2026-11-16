@@ -1,11 +1,11 @@
 ---
 title: 联动
-description: SKU 选择器的选项与冲突清理、按勾选生成数组行、上千个字段下的局部重算。
+description: SKU 规格选择器、按勾选动态生成数组行，以及上千个字段下的局部重算演示。
 ---
 
 ## SKU 选择器
 
-场景：商品有颜色、容量、版本三个维度，用户可以按任意顺序选；选项要跟着已选维度禁用缺货组合，冲突的选择要自动清掉，价格和库存随选择变化。
+**场景**：商品包含颜色、容量、版本三个规格维度，用户可以按任意顺序点选；需要根据库存自动禁用无货组合，并在切换时清理冲突选项，同时实时展示价格区间与可用库存。
 
 ```tsx preview play=sku-picker
 import { Field, Form, defineEffects, useForm, type Draft } from '@shikiform/react';
@@ -93,14 +93,14 @@ export default function App() {
 }
 ```
 
-- 三种联动各司其职：`reaction` 维持选项和价格（[派生](/guide/linkage#reaction-与-watch)），`watch` 在维度变化时清理冲突（动作），`$rules` 让数量上限跟着库存。
-- `comboOptions` / `comboMatch`（`@shikiform/core`）只做组合表查询，组合表由你提供。
-- 价格、库存、SKU 被 reaction 写了 `$value`，自动成为阅读态；它们只是展示文字，所以声明了 `display: 'virtual'`，不进提交结果。reaction 写入的值默认是会提交的。
-- 先选「白色」再选「128G」：白色 128G 缺货，所以「128G」是禁用的；先选「128G」再点「白色」也一样。
+- 三种机制各司其职：`reaction` 维护可选项与价格区间（[派生](/guide/linkage#reaction-与-watch)），`watch` 在某个维度变化时清理互斥选项（动作），`$rules` 让数量上限跟随库存实时更新。
+- `comboOptions` 与 `comboMatch`（由 `@shikiform/core` 提供）负责组合表过滤计算，组合数据源由业务侧提供。
+- 价格、库存、SKU 编码由于在 `reaction` 中写入了 `$value`，会自动进入阅读态；同时它们声明了 `display: 'virtual'`，仅用于展示而不随表单提交。
+- 试着先点选「白色」，可以看到缺货的「128G」自动变为禁用；先选「128G」再看「白色」也是同样的互斥效果。
 
 ## 按勾选生成行
 
-场景：勾选颜色 × 容量的组合，每个组合生成一行价格表；取消勾选删掉那一行，已经改过的价格不能因为勾选变化而丢失。
+**场景**：勾选「颜色 × 容量」的规格组合后生成对应的价格明细行；取消勾选时移除该行，而已经填好价格的保留行不能在重新同步时被重置。
 
 ```tsx preview play=sku
 import { useState } from 'react';
@@ -156,14 +156,14 @@ export default function App() {
 }
 ```
 
-- 生成行用 `watch`，不用 `reaction`：它只在勾选变化时执行，回调里读 `d.rows.$value` 不会成为依赖，所以可以「读旧行、写新行」。
-- `reaction.each` 的回调是 `(row, ctx)`；`row.total` 这类 handle 相对这一行。见 [reaction.each](/guide/linkage#reactioneach每一行一个实例)。
-- 缺货组合在 `enum` 里带 `disabled: true`，`Checkbox.Group` 直接禁用它。
-- 完整版用一张 `overrides` 表按组合 id 记住改过的价格，再由 reaction 重建整个数组。
+- 这里使用 `watch` 而不是 `reaction` 来同步数组行：`watch` 只在 `picked` 发生变化时触发，回调中读取 `d.rows.$value` 获取旧行不会被追踪为依赖，因此可以安全地实现「保留旧行数据、同步新行结构」。
+- `reaction.each` 的回调接收 `(row, ctx)`，其中的 `row.total` 等句柄相对于当前行解析，详见 [reaction.each](/guide/linkage#reactioneach每一行一个实例)。
+- 缺货的组合在 `enum` 中设置了 `disabled: true`，`Checkbox.Group` 会自动禁用对应复选框。
+- 在更复杂的场景中，也可以单独维护一份 `overrides` 映射表记录修改过的单价，再通过 `reaction` 派生整张数组。
 
 ## 上千个字段
 
-场景：1000 行 × 4 个字段的价格表，每行的建议价由成本和加价率算出；改一个单元格，不应该让整张表重渲染或重算。
+**场景**：包含 1000 行、共 4000 个字段的价格表，每行根据成本和加价率实时计算建议价；修改其中一个单元格时，只重渲染并重算该行。
 
 ```tsx preview play=large
 import { memo, useRef } from 'react';
@@ -226,8 +226,8 @@ export default function App() {
 }
 ```
 
-- 改第 3 行的成本：只有这一行的 `cost` 和 `suggested` 渲染次数加一，其他行不动。`useArrayField` 只订阅数组结构（行数和行身份），不订阅单元格。
-- `VirtualRows` 只挂载可见行；没挂载的行照样有 `reaction.each` 实例，建议价一开始就全部算好。
-- 完整版同时放了 200 / 1000 两档，用来观察渲染计数，它不是性能基准。
+- 修改第 3 行的成本时，只有第 3 行的 `cost` 和 `suggested` 上标的渲染次数会加 1，其余 999 行均保持静止。`useArrayField` 只订阅数组的结构变更，不订阅单元格值变化。
+- `<VirtualRows>` 仅挂载可视区域内的行组件，但未挂载行对应的 `reaction.each` 实例依然在引擎中运行，因此全表的建议价在初始化时就已经计算完成。
+- 完整演示页同时提供了 200 行与 1000 行两档切换，用于直观观察局部渲染次数。
 
 下一组：[数组与树](/examples/arrays)。

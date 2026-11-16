@@ -230,7 +230,7 @@ groupRowSpan<T>(rows: readonly T[], groupOf: (row: T) => string): number[]
 | `ArrayTable.MoveUp` / `MoveDown` | 首行 / 末行禁用 |
 | `ArrayTable.Copy` | 在下方插入这一行的副本（id 由 `createRowKey` 生成，否则去掉） |
 | `ArrayTable.Addition` | `title?`、`defaultValue?`（值每次克隆，或函数；默认 `{}`，同 `ArrayItems.Addition`，没有 `method`）；追加后跳到它所在的页 |
-| `ArrayTable.ShadowAddition` | 用影子表单在弹窗（`popType="modal"`，默认）或抽屉里填一行，确定才追加；`onOk(values, table)` 返回 `false` 自己处理；其余参数同 [useShadowForm](/reference/pro-hooks#useshadowform) |
+| `ArrayTable.ShadowAddition` | 使用草稿表单在弹窗（`popType="modal"`，默认）或抽屉中填写新行，确认后追加；`onOk(values, table)` 返回 `false` 可自行处理；其余参数同 [useShadowForm](/reference/pro-hooks#useshadowform) |
 | `ArrayTable.useTable()` | 在 `toolbar` / `footer` / 单元格里读表格状态 + 列配置（`useArrayTable` 的返回值加 `settings`） |
 | `ArrayTable.useRow()` | 单元格里的 `{ key, index, position, record }`，建立在 [`useIndex`](/reference/react-hooks#useindex) / [`useRecord`](/reference/react-hooks#userecord) 上，`record` 是响应式的 |
 

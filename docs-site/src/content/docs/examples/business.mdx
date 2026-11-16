@@ -1,13 +1,13 @@
 ---
 title: 业务场景
-description: SKU 价格表、供应商与产品的合并单元格、可展开的订单明细。
+description: 展示 SKU 价格表、供应商与产品合并单元格表格，以及可展开明细的订单表三个典型复杂业务场景。
 ---
 
-这三个场景的共同点：**数据保持原来的形状**（平铺的 SKU、嵌套的供应商与订单），表格的合并、展开只是显示方式，字段永远按真实 path 读写。
+这三个复杂表单的共同设计原则是**保持业务数据的原始结构**（例如平铺的 SKU 列表、嵌套的供应商与订单树）。表格的单元格合并或行展开只是视图层的展示方式，每个字段依然按照自身真实的嵌套路径读写和校验。
 
 ## SKU 价格表
 
-场景：按颜色合并单元格的 SKU 表。改合并格里的颜色，等于改这一组的每一行；临时加一列「渠道」，已经改过的价格和库存不受影响。
+**场景**：按颜色合并单元格的 SKU 价格表。修改合并格里的颜色时，同步更新该颜色分组下的每一行；动态勾选显示「渠道」列时，已填写的价格与库存数据不受影响。
 
 ```tsx preview play=sku-editor
 import { useState } from 'react';
@@ -55,13 +55,13 @@ export default function App() {
 }
 ```
 
-- 值是平铺的 SKU 数组；`MergedTable` 用 `groupOf` 计算 `rowSpan`，合并只发生在显示层。
-- 改价格、加渠道列都不重建行：价格和库存一直挂在原来那一行上（`skuId` 不变）。
-- 「改合并格 = 改整组」是一次整体写入 `rows`；单个单元格仍按 `rows.N.price` 这样的 path 写。
+- 数据模型依然是平铺的 SKU 数组，`MergedTable` 根据 `groupOf` 自动计算 `rowSpan`，合并行为完全局限在展示层。
+- 切换显示「渠道」列或修改单个价格时，行对象不会重建，原有字段状态与错误提示均稳定挂载在原 `skuId` 行上。
+- 修改合并单元格属于对同一分组的批量更新（整体更新 `rows`），而单个输入框依然按 `rows.N.price` 精准更新。
 
 ## 供应商与产品：合并单元格
 
-场景：供应商下挂多个产品，表格按供应商合并单元格；C 级供应商的产品单价不能超过 1000，供应商不能重名。
+**场景**：供应商与产品为一对多嵌套结构，表格需要按供应商合并单元格；同时要求校验「供应商名称不能重复」，以及「C 级供应商的产品单价不能超过 1000」。
 
 ```tsx preview play=merged
 import { Button, Space } from 'antd';
@@ -125,13 +125,13 @@ export default function App() {
 }
 ```
 
-- 点「校验」：螺丝报单价超限（它的供应商是 C 级），两个「供应商 A」都报重名；垫片 5000 不报，因为它的供应商是 A 级。
-- `validator(value, ctx)` 里，`ctx.record` 是字段所在的对象（产品），`ctx.parent` 跳过数组再上一层（供应商），`ctx.array` 是所在的数组。见 [校验](/guide/validation)。
-- 值保持嵌套（`suppliers.N.products.M`），合并单元格的行只记录 path 坐标，不复制数据。完整版还有「只看在售」筛选、空供应商占位行和组排序。
+- 点击「校验」后，「螺丝」会因为归属 C 级供应商且单价超出 1000 报错，两个「供应商 A」也会报重名错误，而归属 A 级供应商的「垫片」则可以正常通过。
+- 在校验函数 `validator(value, ctx)` 中，`ctx.record` 指向当前所在对象（产品），`ctx.parent` 越过所属数组指向上一层对象（供应商），`ctx.array` 则是当前所在的数组，详见 [校验](/guide/validation)。
+- 表单数据始终保持原始的嵌套结构（`suppliers.N.products.M`），用于驱动合并单元格的展平列表只记录坐标索引而不复制业务数据。
 
 ## 订单与可展开明细
 
-场景：订单列表，展开一行编辑它的明细；行金额和订单合计实时计算；已发货的订单整单只读；待付款订单的单行数量不能超过 99。
+**场景**：订单列表展开每一行后可编辑其商品明细，要求实时计算行金额和订单总计；「已发货」的订单整单只读，「待付款」订单的单行商品数量不能超过 99。
 
 ```tsx preview play=orders
 import { ArrayField, Field, Form, defineEffects, useForm } from '@shikiform/react';
@@ -206,9 +206,9 @@ export default function App() {
 }
 ```
 
-- 一个 `reaction.each` 会走进订单和明细（`items` 是对象数组）。`depth === 0` 这一轮只处理订单：状态决定整单 `$pattern`，明细决定行金额和合计。只有改动的那张订单会重算。
-- 订单和明细都是 `<ArrayField component={[ArrayTable, { columns }]}>`：单元格和展开区都渲染在行作用域里，所以明细是 `<ArrayField name="items">`、字段写 `name="qty"`，不用拼 `orders.${index}.items.${i}.qty`。
-- 「已发货」整单只读，是因为子字段继承了 `order.$pattern`；状态字段自己写了 `$pattern`，所以仍能改回「已付款」，明细随即可编辑。
-- 直接写入正式值，没有草稿和取消回滚；需要「确认才写回」时用 [影子表单](/examples/pro#用影子表单编辑行)。
+- 由于订单内的 `items` 也是对象数组，`reaction.each` 会递归进入内层；在回调开头判断 `if (depth !== 0) return`，可以让这一轮只针对外层订单执行——当某一张订单的状态或明细改动时，只有该订单会重新计算。
+- 主表与展开子表都采用 `<ArrayField component={[ArrayTable, { columns }]}>`，因此无论是外层列还是展开区里的 `<ArrayField name="items">` 与 `<Field name="qty">`，都可以直接写相对路径。
+- 「已发货」订单之所以整单只读，是因为子字段继承了 `order.$pattern`；同时状态列自身显式设置了 `order.status.$pattern`，因此依然可以手动切回「已付款」恢复整单可编辑。
+- 上述表格直接在原数据上实时修改，若希望「确认后再写回、取消可丢弃」，请使用 [草稿表单（ShadowForm）](/examples/pro#用草稿表单编辑行)。
 
 回到 [示例库](/examples)。

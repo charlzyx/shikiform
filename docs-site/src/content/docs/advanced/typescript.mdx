@@ -1,9 +1,9 @@
 ---
 title: TypeScript
-description: typed(form) 检查字段名，FieldKit 登记控件，SubmitValues 描述提交时可以缺的路径。
+description: 使用 typed(form) 检查字段名，通过 FieldKit 注册控件类型，并用 SubmitValues 精确约束提交数据结构。
 ---
 
-普通 `Field` 的 `name` 是任意字符串，方便动态路径。要让写错的名字编译不过，用 `typed(form)`。它没有新的运行时，返回的仍是同一组组件和 hook。
+普通的 `<Field>` 通过 React 上下文读取表单实例，无法静态推导表单类型，因此 `name` 默认接受任意字符串，适合动态路径场景。如果希望在编译期就拦住字段名拼写错误，可以使用 `typed(form)`：它不会增加额外运行时开销，只是为同一批组件和 Hook 加上了完整的类型推导。
 
 ```tsx
 const form = useForm<Values>({ initialValues })
@@ -13,13 +13,13 @@ const email = F.useWatch((d) => d.email.$value)
 <F.Field name="email" decorator={[FormItem]} component={[Input]} />
 ```
 
-`F.ArrayField` 的每一行拿到按这一行检查的 `row.Field`。`F.ObjectField` 的函数子节点拿到 `obj.Field`。名字相对当前作用域。在地址对象里面写 `address.city`，运行时会再拼一次。
+在作用域组件中，`F.ArrayField` 的渲染函数会传入按单行类型约束的 `row.Field`，`F.ObjectField` 的函数子节点会传入按该对象类型约束的 `obj.Field`，字段名始终相对于当前作用域书写。
 
-可复用的片段是普通组件：`const A = typed<Address>()`，渲染 `A.Field`，再挂到 `<ObjectField name="home">` 下面。
+对于可复用的独立子表单组件，只需通过 `const A = typed<Address>()` 定义一组绑定到该片段类型的组件，再挂载到对应的 `<ObjectField>` 下面即可。
 
-## 登记控件
+## 注册控件与默认装饰器
 
-`<FieldKit>` 或 `<Form kit>` 登记控件和默认装饰器。省略 `decorator` 时用这份默认值。`decorator={false}` 不要装饰器，例如表格单元格。
+使用 `<FieldKit>` 或 `<Form kit>` 可以集中注册常用控件和默认装饰器（省略 `decorator` 属性的字段会自动套用默认装饰器，不需要时可传 `decorator={false}`）。配合 TypeScript 模块扩展声明后，使用字符串名称也能获得完整的属性提示与校验：
 
 ```tsx
 import { Field, FieldKit, Form } from '@shikiform/react'
@@ -41,19 +41,15 @@ declare module '@shikiform/react' {
 </FieldKit>
 ```
 
-字符串名字在模块扩充之后才有提示，并按那个组件检查元组里的 props。没登记时任何字符串都能写。组件引用（`component={Input}`、`component={[Input, props]}`）不必再登记，也会用到默认装饰器。
+在传入 `[Component, props]` 元组时，引擎会校验 `props` 与组件属性的类型匹配（`data-*` 自定义属性默认放行）。当组件本身是泛型控件（例如 `InputNumber`）时，元组中会按最宽泛的类型参数推断，回调参数通常无需手动标注类型。
 
-元组 props 对不上组件时编译失败。`data-*` 可以写。泛型控件在元组里取最宽的参数，回调参数先不要自己标类型。
+## 推导提交值类型
 
-## 提交值
+`submit`、`getSubmitValues` 与 `onSubmit` 回调接收的值类型支持以下三种推导方式：
 
-`submit` / `getSubmitValues` / `onSubmit` 的值类型：
-
-- 不写泛型：`createForm({ fields })` / `useForm({ fields })`。值类型写成 `Values`、提交类型仍按 `fields` 推断：`typed<Values>().createForm({ fields })` / `typed<Values>().useForm({ fields })`。这几种里，`display: 'virtual'` / `display: 'none'` 变成可选（`hidden` 仍在）。
-- `createForm<Values>(options)` / `useForm<Values>(options)`：提交类型就是 `Values`，不看 `fields`。
-- 第二个类型参数照写：`createForm<Values, SubmitValues<Values, 'confirm'>>(options)`（`useForm` 同样）。JSX 上的 `display` 和 reaction 里的 `$display` 只有这种写法能标出来。
-
-`createForm()` 与 `useForm()` 不传参数时各返回一张表单，和传入 `{}` 相同。`createForm(undefined)`、`useForm(undefined)` 也是。
+- **自动排除 `fields` 中的非提交字段**：直接调用 `createForm({ fields })` / `useForm({ fields })`，或者通过 `typed<Values>().createForm({ fields })` / `typed<Values>().useForm({ fields })` 显式指定原始值类型时，在 `fields` 中声明为 `display: 'virtual'` 或 `display: 'none'` 的路径在提交类型中会自动变为可选（`hidden` 字段依然保留为必填）。
+- **保持与原始值一致**：使用 `createForm<Values>(options)` / `useForm<Values>(options)` 时，提交类型直接沿用 `Values`。
+- **手动指定可选路径**：如果字段是在 JSX `display` 或 `reaction` 中动态设为 `virtual` / `none` 的，可以通过第二个泛型参数结合 `SubmitValues` 工具类型精确剔除：
 
 ```ts
 import { createForm, type SubmitValues } from '@shikiform/react'
@@ -65,4 +61,4 @@ createForm<Values, SubmitValues<Values, 'confirm' | 'rows.*.total'>>({
 })
 ```
 
-`confirm` 和每一行的 `total` 在提交类型里变成可选。
+上述写法中，`confirm` 和数组每行的 `total` 在提交值类型中都会被自动推导为可选属性。另外，无参数调用 `createForm()` / `useForm()` 或传入 `undefined` 均等价于传入 `{}`。
