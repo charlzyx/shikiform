@@ -5,8 +5,8 @@ import { FormItem, Input, InputNumber, Submit } from '@shikiform/antd';
 
 export const schema = z.object({
   name: z.string(),
-  email: z.string().email('邮箱格式不对'),
-  age: z.number().min(18, '需要年满 18'),
+  email: z.string().email('邮箱格式不对').or(z.literal('')),
+  age: z.number().min(18, '需要年满 18').nullable(),
 });
 
 export default function App() {

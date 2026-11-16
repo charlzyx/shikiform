@@ -11,11 +11,11 @@ tableOfContents: false
 
 字段自己的规则写在 `rules` 上。整张表可以交给实现了 Standard Schema 的库，例如 Zod：把 schema 传给 `useForm` 的 `validate`，不需要单独的适配包。`validateTrigger` 里有 `onBlur` 时，离开输入框就会校验；提交时再查一遍。
 
-空字符串、`null`、`undefined` 只由 `required` 判断。`minLength`、`format`、`min` 遇到空值直接通过。
+空字符串、`null`、`undefined` 只由 `required` 判断。`minLength`、`format`、`min` 遇到空值直接通过。练习里的 schema 也放过空值：邮箱是 `.or(z.literal(''))`，年龄是 `.nullable()`（清空数字框得到 `null`）。
 
-**这一步：** `useForm` 加上 `validate: schema`。姓名加上 `required`，`rules` 写 `{ minLength: 2, message: '至少 2 个字' }`。
+**这一步：** `useForm` 加上 `validate: schema`。姓名、邮箱、年龄都加上 `required`。姓名的 `rules` 写 `{ minLength: 2, message: '至少 2 个字' }`。
 
-姓名空着失焦，只提示「必填」。姓名一个字，提示「至少 2 个字」。邮箱格式不对、年龄小于 18，看到 Zod 的文案。都合法之后，提交 JSON 里有三项。
+姓名、邮箱空着，或把年龄清空，失焦只提示「必填」。姓名一个字，提示「至少 2 个字」。邮箱格式不对、年龄小于 18，看到 Zod 的文案。都合法之后，提交 JSON 里有三项。
 
 </div>
 

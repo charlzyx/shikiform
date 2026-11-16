@@ -5,8 +5,8 @@ import { FormItem, Input, InputNumber, Submit } from '@shikiform/antd';
 
 export const schema = z.object({
   name: z.string(),
-  email: z.string().email('邮箱格式不对'),
-  age: z.number().min(18, '需要年满 18'),
+  email: z.string().email('邮箱格式不对').or(z.literal('')),
+  age: z.number().min(18, '需要年满 18').nullable(),
 });
 
 export default function App() {
@@ -20,8 +20,8 @@ export default function App() {
     <Form form={form} onSubmit={(values) => setPayload(JSON.stringify(values, null, 2))}>
       <Field name="name" title="姓名" required rules={{ minLength: 2, message: '至少 2 个字' }}
         decorator={[FormItem]} component={[Input]} />
-      <Field name="email" title="邮箱" decorator={[FormItem]} component={[Input]} />
-      <Field name="age" title="年龄" decorator={[FormItem]} component={[InputNumber]} />
+      <Field name="email" title="邮箱" required decorator={[FormItem]} component={[Input]} />
+      <Field name="age" title="年龄" required decorator={[FormItem]} component={[InputNumber]} />
       <Submit>提交</Submit>
       {payload ? <pre className="shiki-code">{payload}</pre> : null}
     </Form>
