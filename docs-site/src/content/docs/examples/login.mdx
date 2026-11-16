@@ -1,9 +1,9 @@
 ---
 title: 登录校验
-description: 账号必填、邮箱格式、密码长度。空值只由 required 判断。
+description: 账号必填、邮箱格式与密码长度校验。空值仅由 required 规则负责拦截。
 ---
 
-登录要挡住空账号、不合法的邮箱和太短的密码。规则写在字段上，提交成功才进 `onSubmit`。
+登录表单通常需要拦截空账号、非法邮箱格式和过短的密码。将这些规则声明在字段上后，只有全部校验通过，提交事件才会进入 `onSubmit`。
 
 ```tsx preview
 import { useState } from 'react';
@@ -46,8 +46,8 @@ export default function App() {
 }
 ```
 
-直接点登录，三个字段都是「必填」。账号写一个字、邮箱空着，邮箱仍是必填，`format` 不管空值。邮箱写成 `a@b.co`、密码写成 `12345678`，下面出现 JSON。
+直接点击「登录」，三个必填字段都会立即提示错误；如果只填了账号而邮箱留空，邮箱触发的仍是必填提示，而不会报格式错误。当输入合法邮箱（如 `a@b.co`）和至少 8 位密码后提交，表单值会打印在下方。
 
-<Aside type="tip" title="空值">
-`''`、`null`、`undefined` 只由 `required` 判断。`minLength` 和 `format` 遇到它们直接通过。
+<Aside type="tip" title="空值校验分工">
+`''`、`null` 和 `undefined` 等空值仅由 `required` 规则拦截。`minLength`、`pattern`、`format` 等格式或长度规则遇到空值会直接放行，因此非必填字段可以安全地叠加格式校验。
 </Aside>

@@ -1,27 +1,27 @@
 ---
 title: 控件与阅读态
-description: "@shikiform/antd 接好的全部 antd 控件（含 TimePicker、TreeSelect、Cascader、Upload、Slider、Rate、Transfer），树形选项写在 <Field enum>，每个控件的阅读态（PreviewText）与空值文字。"
+description: "@shikiform/antd 提供的全套 Ant Design 适配控件、树形 enum 配置以及对应的 PreviewText 阅读态与空值占位。"
 ---
 
-`@shikiform/antd` 接好了常用的 antd 控件（对应 Formily `@formily/antd`），放进 `component` 就能用。每个控件都有**阅读态**：字段（或它的任一祖先、整张表）的 `pattern` 是 `readPretty` 时，控件换成文字：选项显示 `label` 而不是值，日期按格式显示，密码打码，多个值显示为标签，空值显示同一个占位文字。
+`@shikiform/antd` 内置了全套常用 Ant Design 控件的适配版本，可以直接传给 `<Field>` 的 `component` 属性。当某个字段、父级对象或整张表单的 `pattern` 设为 `readPretty` 时，这些控件会自动切换为只读的「阅读态」文本：选项自动反显为 `label`、日期按格式展示、密码打码、多选展示为标签，空值则统一显示为空值占位符。
 
-| 控件 | 字段值 | 选项来自 `<Field enum>` | 阅读态 |
+| 控件 | 字段值类型 | 枚举来源（`<Field enum>`） | 阅读态表现 |
 |---|---|---|---|
-| `Input`（`.TextArea` `.Password`）、`AutoComplete` | 字符串 | `AutoComplete` 的联想项 | 文字（前后缀、换行）；密码 `******` |
-| `InputNumber` | 数字，清空 `null` | — | 数字（`formatter` 生效） |
-| `Select`、`Radio`、`Checkbox.Group` | 值 / 数组 | `options` | `label`；多个是标签；`prettyType` 徽标 / 彩色标签 |
-| `TreeSelect` | 值 / 数组 | `treeData`（`children` 树） | 在树里找 `label` |
-| `Cascader` | 路径 `['zj', 'hz']` | `options`（`children` 树） | `浙江 / 杭州` |
-| `Transfer` | 目标 key 数组 | `dataSource` | 标签 |
-| `Switch`、`Checkbox` | 布尔 | — | 是 / 否（`Switch` 的 `checkedChildren` 优先） |
-| `DatePicker`、`TimePicker`（`.RangePicker`） | 格式化字符串 / `[start, end]` | — | 文字，区间 `start ~ end` |
-| `Slider`、`Rate` | 数字（`Slider range` 为 `[from, to]`） | — | 数字 / 不可编辑的星星 |
-| `Upload`（`.Dragger`） | 文件列表 `UploadFile[]` | — | 文件链接 / 缩略图 |
-| `ColorPicker` | 颜色文本 `#1677ff` | — | 色块 + 文本 |
+| `Input`（`.TextArea` `.Password`）、`AutoComplete` | 字符串 | `AutoComplete` 的补全项 | 文本展示（保留前后缀与换行）；密码显示为 `******` |
+| `InputNumber` | 数字（清空时为 `null`） | — | 数字文本（自动应用 `formatter`） |
+| `Select`、`Radio`、`Checkbox.Group` | 单值或数组 | `options` | 展示对应的 `label`；多选呈标签组，支持 `prettyType` 设徽标或彩色标签 |
+| `TreeSelect` | 单值或数组 | `treeData`（带 `children` 的树） | 从树节点中匹配并显示 `label` |
+| `Cascader` | 路径数组（如 `['zj', 'hz']`） | `options`（带 `children` 的树） | 拼接为 `浙江 / 杭州` |
+| `Transfer` | 目标 key 数组 | `dataSource` | 展示选中项的标签 |
+| `Switch`、`Checkbox` | 布尔值 | — | 显示「是 / 否」（`Switch` 若配了 `checkedChildren` 则优先显示它） |
+| `DatePicker`、`TimePicker`（`.RangePicker`） | 格式化字符串或 `[start, end]` | — | 格式化文本；范围显示为 `start ~ end` |
+| `Slider`、`Rate` | 数字（`Slider range` 为 `[from, to]`） | — | 数字文本 / 只读星级 |
+| `Upload`（`.Dragger`） | 文件列表 `UploadFile[]` | — | 文件下载链接或缩略图 |
+| `ColorPicker` | 颜色字符串（如 `#1677ff`） | — | 色块加颜色值文本 |
 
-## 全部控件 + 阅读态切换
+## 控件总览与交互态切换
 
-切换只写了一处：`form.batch((d) => { d.$pattern = … })`。根上的 `$pattern` 被每个字段继承；字段自己写了 `pattern` 时以字段为准。
+在下面的演示中，切换顶部状态只需修改根节点一处 `d.$pattern`，所有子字段都会自动继承生效；如果有个别字段需要例外，只需单独设置该字段的 `pattern`。
 
 ```tsx preview
 import { Button, Segmented } from 'antd';
@@ -92,14 +92,14 @@ export default function App() {
 }
 ```
 
-- 树形选项（`TreeSelect` / `Cascader`）就是带 `children` 的 `<Field enum>`；`typed(form).Field` 下选项的 `value` 按字段值检查（`Cascader` 按路径元素，`TreeSelect` / `Transfer` 多选按数组元素）。随别的字段变化的选项照常写在 reaction 里：`d.city.$enum = …`。
-- `Upload` 的字段值就是 antd 的 `fileList`；有 `action` 时上传完成的文件取响应里的 `url`。上面的例子 `beforeUpload: () => false`，文件留在本地（`originFileObj`），随表单提交。
-- 日期 / 时间存格式化后的字符串（`format`），所以 `reset`、`initialValues`、提交都不碰 dayjs 对象。
-- 每一级都要从服务端按需加载的级联用 [`CascaderPlus`](/reference/pro-components#cascaderplus)；值必须是远程选项之一的搜索下拉用 [`Suggestion`](/reference/pro-components#suggestion)。
+- **树形枚举**：`TreeSelect` 和 `Cascader` 同样通过 `<Field enum>` 传入带 `children` 的树形数据；在 `typed(form).Field` 中，选项值类型会与字段值（或路径/多选的元素类型）对齐检查。动态加载选项在 `reaction` 中给 `d.city.$enum` 赋值即可。
+- **文件上传**：`Upload` 绑定的字段值就是 Ant Design 的 `fileList`。如果配了 `action` 自动上传，提交时可直接读取响应中的 `url`；上例设置 `beforeUpload: () => false`，文件会保留在本地 `originFileObj` 中随表单一起提交。
+- **序列化日期**：`DatePicker` 和 `TimePicker` 在引擎中直接存储格式化后的字符串，避免引入 `dayjs` 实例，因此在设置 `initialValues`、调用 `reset()` 和提交数据时都非常干净。
+- **异步大数据控件**：需要逐级异步加载的级联使用 [`CascaderPlus`](/reference/pro-components#cascaderplus)；需要远程搜索防抖的下拉框使用 [`Suggestion`](/reference/pro-components#suggestion)。
 
-## 详情页：整张表只读、空值文字
+## 详情页：全表只读与空值占位
 
-详情页直接 `useForm({ pattern: 'readPretty' })`。空值（`undefined` / `null` / `''` / `[]`）在所有控件里显示同一个文字：`messages.empty`，默认 `-`；一张表用 `messages` 改，整个应用用 `setDefaultMessages({ empty: '…' })` 改一次。
+构建详情页时，只需在创建表单时传入 `useForm({ pattern: 'readPretty' })` 即可。对于 `undefined`、`null`、`''`、`[]` 等空值，所有控件在阅读态下都会统一显示 `messages.empty`（默认为 `-`），可以通过单表的 `messages` 或全局的 `setDefaultMessages({ empty: '…' })` 修改。
 
 ```tsx preview
 import { Form, typed, useForm } from '@shikiform/react';
@@ -132,9 +132,9 @@ export default function App() {
 }
 ```
 
-- 表格单元格、详情卡片这类不在表单里的地方，直接用纯视图：`<PreviewText.Select value={row.state} options={STATUS} prettyType="badge" />`（还有 `.Input` `.TreeSelect` `.Cascader` `.DatePicker` `.TimePicker` 等，见 [PreviewText](/reference/antd-adapter#previewtext)）。
-- 自己的控件用 `connect(MyPicker, mapReadPretty(PreviewText.TreeSelect))` 复用同一套阅读态。
+- 如果在普通表格单元格或详情卡片等**表单外部**场景需要同款展示效果，可以直接渲染纯视图组件 `<PreviewText.Select value={row.state} options={STATUS} prettyType="badge" />`（还包括 `.Input`、`.TreeSelect`、`.Cascader`、`.DatePicker`、`.TimePicker` 等，完整列表见 [PreviewText](/reference/antd-adapter#previewtext)）。
+- 封装自定义控件时，使用 `connect(MyPicker, mapReadPretty(PreviewText.TreeSelect))` 即可直接复用现成的阅读态视图。
 
-每个控件的映射细节见 [Ant Design 适配层参考](/reference/antd-adapter#previewtext)。
+关于每个控件具体的属性映射细节，请参考 [Ant Design 适配层参考](/reference/antd-adapter#previewtext)。
 
-下一步：[联动](/guide/linkage)，让字段跟着别的字段变。
+下一步：[联动](/guide/linkage)，使用 `reaction` 与 `watch` 组织字段间的依赖关系。

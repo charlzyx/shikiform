@@ -1,30 +1,32 @@
 ---
 title: 字段状态
-description: value、四种 display，以及 pattern。字段默认提交；virtual 和 none 不进提交结果。
+description: 详解 $value、四种 display 显隐模式以及 pattern 交互态的继承与覆盖规则。
 ---
 
-字段状态都挂在 handle 上，以 `$` 开头。最常用的是 `$value`、`$display` 和 `$pattern`。
+在 ShikiForm 的表单模型中，字段的所有自身状态都以 `$` 开头挂在 handle 上，最常打交道的是 `$value`、`$display` 和 `$pattern`。
 
-reaction 写过 `$value` 的字段是计算字段：显示成 `readPretty`，默认仍会提交。要把它排除在提交之外，声明 `display: 'virtual'`。
+另外，如果某个字段的 `$value` 由 `reaction` 写入，引擎会自动将其视为「计算字段」：界面上默认切换为只读展示（`readPretty`），提交时默认保留它的计算结果。如果你希望计算结果只做前端展示而不随表单提交，为该字段声明 `display: 'virtual'` 即可。
 
 ## 四种 display
 
-| 值 | 渲染 | 校验 | 提交 | 计入 dirty |
+表单中的隐藏逻辑往往不只「看不见」这么简单，有时希望藏起来但仍要校验提交（例如多标签页表单），有时希望显示出来校验但不要提交（例如确认密码）。为此，ShikiForm 将 `display` 细分为四种模式：
+
+| 模式 | 界面渲染 | 参与校验 | 参与提交 | 计入 dirty |
 |---|---|---|---|---|
 | `visible` | 是 | 是 | 是 | 是 |
-| `hidden` | 否，仍注册 | 是 | 是 | 是 |
-| `virtual` | 是 | 是，错误会挡住提交 | 否，整棵子树 | 否 |
-| `none` | 否 | 否，已有错误会清掉 | 否 | 是 |
+| `hidden` | 否（字段仍注册） | 是 | 是 | 是 |
+| `virtual` | 是 | 是（报错会阻止提交） | 否（整棵子树剔除） | 否 |
+| `none` | 否 | 否（并清空已有错误） | 否 | 是 |
 
-值不会因为 `none` 从 store 里消失。重新显示时，原来的输入还在。
+当字段处于 `none` 状态时，它的值依然保留在引擎的 store 中不会被清空；之后重新切回可见时，用户之前输入的内容还在。
 
-`$visible = false` 就是 `none`。`$visible = true` 清掉 reaction 写的 display，回到声明，不会强制成 `visible`。读 `$visible` 时，只要字段画得出来就是 true：`visible` 或 `virtual`，并且祖先不是 `hidden` / `none`。
+为了方便日常编写，引擎提供了两个快捷属性：
+- **`$visible`**：设置 `$visible = false` 等价于切换为 `none`；设置 `$visible = true` 会清除当前联动写入的 display，恢复到字段声明的默认状态（而非强制设为 `visible`）。读取 `$visible` 时，只要字段在界面上实际可见（自身为 `visible` 或 `virtual`，且所有祖先均不为 `hidden` / `none`），结果就为 `true`。
+- **`$hidden`**：设置 `$hidden = true` 等价于设为 `hidden`；设置 `$hidden = false` 只会取消 `hidden` 标记，如果字段原先是 `none` 或 `virtual` 则保持不变。
 
-`$hidden = true` 是 `hidden`。`$hidden = false` 只取消 hidden，`none` 和 `virtual` 保持不动。
+在层级嵌套时，祖先的 `none` 会直接覆盖整个子树。其余情况下，`hidden` 只控制是否渲染，`virtual` 只控制是否提交，两者可以叠加生效——例如父级是 `hidden`、子级是 `virtual` 时，子级既不渲染也不参与提交，但依然会参与校验。读取 `$display` 时按 `none > hidden > virtual > visible` 的优先级合并。
 
-读 `$display` 时，越靠前越优先：`none`，然后 `hidden`，然后 `virtual`，最后 `visible`。祖先的 `none` 盖过子级。除此之外，`hidden` 只关渲染，`virtual` 只关提交，两样可以叠在一起：父级 hidden、子级 virtual 时，不渲染、仍校验、不提交。
-
-条件字段用 `$visible`。还没点开的标签页用 `$hidden`。确认密码、只在前端用的页码用 `display: 'virtual'`。
+按场景选用的经验法则：条件显隐字段用 `$visible`；未激活的标签页内容用 `$hidden`；确认密码或前端分页页码等纯辅助字段用 `display: 'virtual'`。
 
 ```tsx preview
 import { useState } from 'react';
@@ -62,16 +64,21 @@ export default function App() {
 }
 ```
 
-选 `hidden`：输入框消失，空着提交仍会失败，填过之后 JSON 里有 `nick`。选 `virtual`：输入框还在，`$visible` 是 true，JSON 里没有 `nick`。选 `none`：不校验，JSON 里也没有 `nick`。
+可以在上面的例子中切换选项观察差异：
+- 选 `hidden` 时，输入框从界面消失，但清空后再提交依然会报必填错误；填入内容后，提交的 JSON 中仍会包含 `nick`。
+- 选 `virtual` 时，输入框正常显示、`$visible` 为 `true`，但提交的 JSON 中不会包含 `nick`。
+- 选 `none` 时，输入框消失，既不校验也不会出现在提交结果中。
 
-<Aside type="caution" title="$visible = false 不是 hidden">
-它等于 `none`：不渲染、不校验、不提交。只想藏起来、值仍要校验和提交，写 `$hidden = true` 或 `$display = 'hidden'`。
+<Aside type="caution" title="区分 $visible = false 与 hidden">
+`$visible = false` 对应的是 `none`（不渲染、不校验、不提交），而 `hidden` 仅仅是不渲染界面，依然会校验并参与提交。需要「隐藏但保留校验和提交」时，请使用 `$hidden = true` 或 `$display = 'hidden'`。
 </Aside>
 
-## pattern
+## 交互形态（pattern）
 
-`pattern` 是 `editable`、`disabled`、`readOnly`、`readPretty`。写在父级上，子级跟着继承，包括表单根。子级自己写了就用自己的；写成 `undefined` 又回到继承。
+`pattern` 用于控制字段的交互模式，支持四种取值：`editable`（可编辑）、`disabled`（禁用）、`readOnly`（只读）和 `readPretty`（阅读态）。
 
-详情页可以在创建时设好：`useForm({ initialValues, pattern: 'readPretty' })`。运行中切换整张表：`form.batch((d) => { d.$pattern = 'readPretty' })`。
+`pattern` 支持沿着字段路径从父级向子级继承（包括根表单本身）。如果子字段显式设置了自己的 `$pattern`，则会优先使用自身的值；赋值为 `undefined` 时重新恢复继承。
 
-`$disabled = true` 写成 `disabled`。`$disabled = false` 撤销它，恢复继承。
+在详情页等只读展示场景中，可以在创建表单时直接设置 `useForm({ initialValues, pattern: 'readPretty' })`；如果需要在运行时一键切换整张表单的编辑/阅读状态，只需在批量更新中修改根节点：`form.batch((d) => { d.$pattern = 'readPretty' })`。
+
+对于常用的禁用切换，还可以使用快捷属性 `$disabled`：`$disabled = true` 会写入 `disabled`，`$disabled = false` 则撤销这一层禁用标记并恢复继承。

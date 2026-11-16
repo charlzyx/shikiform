@@ -1,58 +1,52 @@
 ---
 title: 核心概念
-description: 引擎、draft 与 handle、$ 状态、显隐与提交、fields 声明，以及一次输入怎样流过引擎。
+description: 理解 ShikiForm 的统一表单引擎、draft 与 handle、$ 状态、显隐与提交机制、fields 声明及数据流转过程。
 ---
 
-联动、校验和渲染读写的是同一个引擎。后面各页用到的词，以这页为准。
+ShikiForm 的核心思路是把所有表单状态（值、显隐、只读、校验规则、错误提示、UI 属性）和联动逻辑收拢到一个与视图框架解耦的引擎中。React 组件和 Ant Design 适配层本身不维护独立状态，它们只负责订阅对应路径的变化并把状态映射为组件属性。
 
-## 术语
+理解这套模型后，日常开发只需掌握以下几个核心概念。
 
-| 术语 | 含义 |
+## 术语速览
+
+| 术语 | 说明 |
 |---|---|
-| 表单 | `useForm`、`createForm` 返回的 `FormInstance`，持有值和每个 path 的字段状态 |
-| draft | 联动和 `form.batch` 回调收到的 `d`，用来读写引擎 |
-| handle | draft 上的一个 path，例如 `d.user.name`；访问它不读数据 |
-| `$` 状态 | handle 上以 `$` 开头的成员：`$value`、`$required`、`$display` … |
-| value | 字段的值，读写 `$value` |
-| decorator | 包在控件外的组件，负责标签、星号、错误，例如 `FormItem` |
-| component | 真正接收输入的控件，例如 `Input` |
-| reaction | 派生：立即运行，读到的 `$` 状态变了就重跑 |
-| watch | 动作：来源变了才执行一次，首次不运行 |
-| each | `reaction.each` / `watch.each` 只有两个参数：选中的数组每个元素一个实例，并自动进入元素为对象的嵌套数组。嵌套在对象里的基本类型数组不进。对字符串数组本身调用 `each` 时，回调仍在 `depth === 0` 触发。用 `ctx.key` / `ctx.depth` 自己过滤 |
-| display | `visible` 渲染、校验、提交、计入 dirty；`hidden` 不渲染但仍校验、仍提交、计入 dirty；`virtual` 渲染、校验、不提交、不计入 dirty；`none` 不渲染、不校验、不提交，值留在 store，仍计入 dirty |
-| pattern | `editable` / `disabled` / `readOnly` / `readPretty`，从父级继承；整张表单写在根上：`form.batch((d) => { d.$pattern = 'readPretty' })`，或创建时 `useForm({ pattern: 'readPretty' })` |
+| **表单实例** | 由 `useForm` 或 `createForm` 返回的 `FormInstance`，统一持有表单数据树与各路径的字段状态 |
+| **draft** | `reaction`、`watch` 和 `form.batch` 回调收到的参数 `d`，用来安全地追踪依赖并读写引擎状态 |
+| **handle** | draft 上的路径句柄（如 `d.user.name`）。属性访问只用于定位路径，不会直接读取数据 |
+| **`$` 状态** | 挂在 handle 上以 `$` 开头的成员（如 `$value`、`$required`、`$display`），用于读写具体的字段状态 |
+| **`decorator` / `component`** | `<Field>` 渲染的两层结构：`decorator`（如 `FormItem`）负责标签和错误展示，`component`（如 `Input`）负责输入交互 |
+| **`reaction` / `watch`** | `reaction` 用于派生状态，初始化即运行并自动追踪依赖；`watch` 用于副作用动作，仅在监听源变化后触发 |
+| **`each`** | `reaction.each` 与 `watch.each` 只接受两个参数，会为选中数组的每一行建立独立实例，并自动递归进入嵌套对象数组（嵌套在对象上的基本类型数组除外；若直接对基本类型数组本身调用 `each`，则会在 `depth === 0` 触发回调），可在回调内按 `ctx.key` / `ctx.depth` 过滤 |
+| **`display`** | 控制显隐及校验提交行为，包含 `visible`、`hidden`、`virtual`、`none` 四种模式 |
+| **`pattern`** | 控制交互形态（`editable`、`disabled`、`readOnly`、`readPretty`），支持从父级向下继承 |
 
-## 一个引擎
+## handle 与 value 的区别
 
-值（`initialValues` 那棵树）和字段状态（显隐、pattern、规则、错误、UI 属性）都在引擎里。React 层只订阅 path 并提供作用域，antd 适配层只把字段映射成控件 props，二者都不另存一份值。
-
-## handle 与 value
-
-`d.user.name` 只是 path，以 `$` 开头的成员才是状态：
+在 `reaction`、`watch` 或 `form.batch` 中，初学者最容易混淆「字段句柄（handle）」和「字段值（value）」。记住一条核心原则：**不带 `$` 的访问是在定位路径，带 `$` 的成员才是读写状态**。
 
 ```ts
-d.user.name.$value            // 读值（在 reaction 里会成为依赖）
-d.user.name.$value = 'Ada'    // 写这个字段
-d.user.name.$required = true  // 写字段状态
-d.items.$value                // 整个数组的值；d.items 本身不是数组
+d.user.name.$value            // 读取字段值（在 reaction 中会自动登记为依赖）
+d.user.name.$value = 'Ada'    // 更新该字段的值
+d.user.name.$required = true  // 修改该字段的必填状态
+d.items.$value                // 获取整个数组的值（d.items 本身只是路径句柄，不是数组）
 ```
 
-- 写字段就赋值它自己的 path。`$value` 读到的是不可变快照：`d.user.$value.name = 'x'` 在开发构建的 reaction / watch / `form.batch` 里直接抛错，别处也不会通知任何人。
-- handle 不是数组：`d.items.map`、`d.items.length`、`for…of` 都不对。读 `d.items.$value`，或者用 [`reaction.each`](/guide/linkage)。
-- 名为 `value` 的字段写作 `d.value.$value`。
+实际使用时需要注意三点：
+1. **不要直接修改 `$value` 返回的对象**：`$value` 返回的是不可变快照，直接执行 `d.user.$value.name = 'x'` 既不会触发通知，在开发环境下还会直接抛出错误。需要改哪个字段，就赋值给那个字段自己的 `$value`。
+2. **不要把 handle 当作数组操作**：诸如 `d.items.map`、`d.items.length` 或 `for…of d.items` 都是无效的。遍历行逻辑请用 [`reaction.each`](/guide/linkage)，读取整组数据请访问 `d.items.$value`。
+3. **字段本身叫 `value` 时**：依然遵循同一规则，通过 `d.value.$value` 读写。
 
-## 解构
+### 关于解构
 
-只记一条：**解构只用来取子字段，`$` 状态一律通过 handle 读写。**
+**解构仅用于提前取出子字段的 handle，任何 `$` 状态都必须挂在 handle 上读写：**
 
 ```ts
-const { name } = d.user // 仍是 handle，等于 d.user.name
+const { name } = d.user // name 依然是指向 d.user.name 的 handle
 name.$value = 'Ada'
 ```
 
-rest、对象展开、`Object.keys` 和数组解构在开发环境抛 `ShikiUsageError`。报错信息会写出能用的形式，例如 `d.items[0]`。对照见 [常见的坑](/practices/pitfalls#解构)。
-
-开发构建遇到这些错误会抛 `ShikiUsageError`，信息里写着正确写法；生产构建不检查。
+在开发模式下，对象展开（`{ ...d.user }`）、rest 剩余属性、`Object.keys(d.user)` 以及数组解构（`const [first] = d.items`）都会触发 `ShikiUsageError`，错误信息中会提示改用 `d.items[0]` 或 `d.user.$value` 等正确写法。更多案例见 [常见的坑](/practices/pitfalls#解构)。
 
 ```tsx preview
 import { Button, Space } from 'antd';
@@ -78,59 +72,45 @@ export default function App() {
 }
 ```
 
-`form.batch(fn)` 用同一个 draft 做一组写入，只触发一轮联动和一次通知。单个值也可以 `form.setValue('user.name', 'Grace')`。
+当需要一次修改多个状态时，推荐使用 `form.batch(fn)`，它会在回调结束后统一触发一轮联动与组件重渲染；如果只是更新单个字段的值，也可以直接调用 `form.setValue('user.name', 'Grace')`。
 
-## `$` 状态
+## 常用 `$` 状态一览
 
-| 状态 | 含义 |
+| 状态 | 作用说明 |
 |---|---|
-| `$value` | 值。reaction 写它时，字段成为**计算字段**：显示为 `readPretty`、不校验，默认仍提交 |
-| `$display` / `$visible` / `$hidden` | `visible` / `hidden` / `virtual` / `none`。细则见 [显隐、pattern 与提交](#显隐pattern-与提交) |
-| `$pattern` / `$disabled` | `$pattern = undefined` 恢复继承；`$disabled = true` 写 `disabled`，`$disabled = false` 撤销它并恢复继承 |
-| `$required` / `$rules` | 必填与规则；reaction 写的规则不随组件卸载 |
-| `$enum` | 选项（静态数组或 `EnumSource.with(params)`）；优先于 `<Field enum>` 和 `fields.x.enum`。`$enum = undefined` 撤销 reaction 层、回到 JSX / 声明 / 模板的选项，`$enum = []` 才是清空 |
-| `$title` / `$description` | 装饰器的标签 / 说明（`FormItem` → `label` / `extra`） |
-| `$component` / `$decorator` | `<Field>` 渲染的控件 / 装饰器 |
-| `$componentProps` / `$decoratorProps` | 控件 / 装饰器 props，按键打补丁，见 [UI 状态三层叠加](/guide/field#ui-状态三层叠加) |
-| `$errors` `$warnings` `$validating` `$touched` | 只读 |
-| `$dirty` / `$edited` | 只读。`$dirty`：值和初始值不同（深比较，改回原值即 `false`；根上 `d.$dirty` 不算 `display: 'virtual'` 和计算字段，`none` 仍算）。`$edited`：用户编辑过，直到 `reset` |
-| `d.$canSubmit` `d.$submitting` `d.$submitCount` | 表单级只读状态，在根 draft 上读 |
+| `$value` | 字段的值。被 `reaction` 写入 `$value` 的字段会自动成为**计算字段**（默认展示为 `readPretty`、跳过校验，提交时默认保留值） |
+| `$display` / `$visible` / `$hidden` | 控制显隐及校验提交行为，详见下方 [显隐、pattern 与提交](#显隐pattern-与提交) |
+| `$pattern` / `$disabled` | 控制交互模式；`$pattern = undefined` 可恢复继承父级；`$disabled = true/false` 仅控制由它写入的禁用状态 |
+| `$required` / `$rules` | 控制必填与校验规则；由 `reaction` 写入的规则不受组件卸载影响 |
+| `$enum` | 枚举选项（支持静态数组或 `EnumSource.with(params)`），优先级高于 JSX `enum` 与 `fields` 声明；赋 `undefined` 撤销 reaction 层覆盖，赋 `[]` 清空选项 |
+| `$title` / `$description` | 字段标题与辅助说明（映射至 `FormItem` 的 `label` 与 `extra`） |
+| `$component` / `$decorator` | 动态替换 `<Field>` 渲染的控件或装饰器 |
+| `$componentProps` / `$decoratorProps` | 控件与装饰器的透传属性，支持按键打补丁，详见 [UI 状态三层叠加](/guide/field#ui-状态三层叠加) |
+| `$errors` / `$warnings` / `$validating` / `$touched` | 只读状态，分别表示错误列表、警告列表、异步校验中状态及失焦触碰标记 |
+| `$dirty` / `$edited` | 只读状态。`$dirty` 通过深比较判断当前值是否偏离初始值（改回原值即恢复 `false`；表单根上的 `d.$dirty` 不计入 `virtual` 与计算字段，但计入 `none`）；`$edited` 记录用户是否手动编辑过，直到 `reset` 才重置 |
+| `d.$canSubmit` / `d.$submitting` / `d.$submitCount` | 表单级只读状态，只能在根 draft `d` 上读取 |
 
 ## 显隐、pattern 与提交
 
-四种 `display` 的可运行例子在 [字段状态](/basics/state)。下面是对照表。
+在实际表单中，「隐藏一个字段」往往对应不同的业务诉求。ShikiForm 用四种 `display` 值精确区分渲染、校验和提交行为（可交互演示见 [字段状态](/basics/state)）：
 
-| 设置 | UI | 校验 | 提交 |
+| 配置方式 | 界面渲染 | 参与校验 | 参与提交 |
 |---|---|---|---|
-| `display: 'visible'` | 渲染 | 查 | 带上，计入 dirty |
-| `display: 'hidden'`（`$hidden = true`） | 不渲染（仍注册） | **仍查** | **仍带上**，计入 dirty |
-| `display: 'virtual'` | 渲染 | **仍查**（会挡提交，例如确认密码） | 拿掉整棵子树，不计入 dirty |
-| `display: 'none'`（`$visible = false`） | 不渲染 | 跳过（清错误） | 拿掉；值留在 store，重新显示时还在；仍计入 dirty |
-| reaction 写过 `$value` | `readPretty` | 跳过 | 带上（声明 `display: 'virtual'` 才拿掉） |
+| `display: 'visible'` | 渲染 | 校验 | 保留在提交结果中，计入 dirty |
+| `display: 'hidden'`（`$hidden = true`） | 不渲染（仍保留注册） | **仍然校验** | **保留在提交结果中**，计入 dirty |
+| `display: 'virtual'` | 渲染 | **仍然校验**（如确认密码） | 剔除该字段及全部子节点，不计入 dirty |
+| `display: 'none'`（`$visible = false`） | 不渲染 | 跳过校验并清除错误 | 剔除；值仍保留在 store 中以便切回时恢复，计入 dirty |
+| `reaction` 写过 `$value` | `readPretty` | 跳过校验 | 保留（声明 `display: 'virtual'` 时才剔除） |
 
-和 Formily 的差别：Formily 的 `hidden` 不校验，这里的 `hidden` 仍校验、仍提交；多了 `virtual`（渲染并校验，但不提交、不计入 dirty）；`none` 不把值从 store 里删掉，只是不校验、不提交。
+如果之前用过 Formily，需要注意一个关键区别：Formily 中的 `hidden` 会跳过校验，而 ShikiForm 中的 `hidden` 只是隐藏界面，依然会参与校验并随表单提交（适用于未激活的标签页等场景）；想要跳过校验且不提交，请使用 `none`（即 `$visible = false`）。此外，`$visible = true` 的语义是撤销联动层覆盖并回到字段声明时的 `display`，并非强制改成 `visible`。
 
-公司才要税号，写 `d.taxId.$visible = d.kind.$value === 'company'`。
+关于继承与叠加机制：祖先节点设为 `none` 时，整棵子树都不会渲染、校验和提交；其余情况下，`hidden` 只关闭渲染、`virtual` 只关闭提交，两者相互独立可以叠加（例如父级 `hidden`、子级 `virtual` 时，子级既不渲染也不提交，但依然会参与校验）。读取 `$display` 时按 `none > hidden > virtual > visible` 的优先级合并。命名 UI 节点（`$ui`）不支持 `virtual`。
 
-`$visible = false` 是 `none`。切走之后不挡提交，也不进提交结果。`$visible = true` 回到声明的 display，不是强制 `visible`。
+`pattern` 同样遵循从父级向下继承的规则：子级显式设置了 `$pattern` 时以自身为准；`$disabled = false` 只会撤销 `$disabled = true` 写入的禁用状态，不会干扰显式指定的 `$pattern`。注意 `disabled` 和 `readOnly` 只限制界面上的用户输入，不影响程序代码通过 `setValue` 或 `reaction` 修改字段值。
 
-只藏界面、值仍要校验和提交，比如没点开的标签页，写 `$hidden = true` 或 `$display = 'hidden'`。
+## 用 `fields` 预声明字段
 
-确认密码、前端分页的 `page`、`selectedKeys` 用 `display: 'virtual'`，或 `d.confirm.$display = 'virtual'`。
-
-继承是两个开关，不是合成一个值。祖先是 `none` 时，子级都不渲染、不校验、不提交。
-
-否则 `hidden` 只关渲染，`virtual` 只关提交。两者可以叠在一起。父级 `hidden`、子级 `virtual`：不渲染，仍校验，不提交。
-
-读 `$display` 时，`none` 优先于 `hidden`，再优先于 `virtual`，最后才是 `visible`。上面那种叠加读出来是 `hidden`，提交仍然拿掉子级。
-
-`$ui` 节点没有 `virtual`。
-
-`pattern` 从父级往下传：子级显式写了 `$pattern` 就用自己的。`$disabled = false` 只撤销 `$disabled = true` 写下的 `disabled`，显式写的 `$pattern` 不动。`disabled` / `readOnly` 只限制用户交互，不阻止程序写入。
-
-## `fields` 声明
-
-写在 `useForm({ fields })` 里的字段不等组件挂载就存在：没渲染（标签页没打开、折叠、虚拟滚动之外）也照样校验。UI 也可以一起声明，之后 `<Field name="city" />` 就能渲染出来：
+在 `useForm({ fields })` 中声明的字段在表单创建时即已生效，即使对应的 `<Field>` 组件尚未挂载（例如位于未打开的标签页、折叠面板或虚拟列表视口之外），其校验规则和联动依然有效。你也可以把 `title`、`decorator`、`component` 等 UI 配置一并声明在 `fields` 中，JSX 里只需写 `<Field name="city" />` 即可渲染：
 
 ```tsx preview play=tabs
 import { Field, Form, Watch, useForm, type Draft } from '@shikiform/react';
@@ -147,7 +127,7 @@ export default function App() {
         enum: [{ label: '上海', value: 'sh' }, { label: '北京', value: 'bj' }],
       },
       note: { title: '备注', description: '声明在 fields 里的说明', decorator: [FormItem], component: [Input.TextArea] },
-      // 模板：作用于 items 的每一行（包括以后 push 的行）
+      // 行模板：作用于 items 的每一行（包括之后新增的行）
       'items.*.name': { required: true },
     },
   });
@@ -162,14 +142,16 @@ export default function App() {
 }
 ```
 
-`items.*.name` 是行模板，作用于每一行，包括以后添加的行。
+配置中的 `'items.*.name'` 属于行模板规则，会自动应用到 `items` 现有的及后续新增的每一行上。
 
-## 一次输入的路径
+## 一次用户输入如何流转
 
-1. 控件调用 `field.onChange(value)`。
-2. 引擎写入并标记变化；读过这些状态的 `reaction` 重跑，它写下的状态再唤醒下游，直到稳定。`watch` 在来源变化后执行。
-3. 订阅了相关 path 的组件重新渲染。
-4. 失焦或提交时校验（可配置为输入时）。
-5. `submit` 等待异步规则并校验，通过才调用回调；结果里去掉 `display: 'virtual'` 和 `display: 'none'` 的字段（以及它们的子树）。`hidden` 留下。
+当用户在页面上修改某个输入框时，数据会按以下顺序流过引擎：
 
-下一步：[Field、装饰器与组件](/guide/field)，把字段渲染出来。
+1. 控件触发 `field.onChange(value)`，将新值写入表单引擎。
+2. 引擎标记受影响的状态，并重新执行订阅了这些状态的 `reaction`；如果有下游依赖，会持续传递直到整个状态树收敛。来源发生变化的 `watch` 也会随后触发一次。
+3. 订阅了相关字段路径的 React 组件收到通知并完成局部重渲染。
+4. 按照触发时机（默认失焦或提交时，可配置为输入时）执行同步及异步校验。
+5. 调用提交时，引擎会先等待尚未完成的异步规则并做最终校验，全部通过后过滤掉 `virtual` 与 `none` 字段（保留 `hidden` 字段），将最终数据交给 `onSubmit` 回调。
+
+下一步建议阅读 [表单与字段](/guide/field)，了解 `<Field>`、装饰器与控件之间的属性合并和绑定方式。

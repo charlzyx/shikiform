@@ -1,21 +1,32 @@
 ---
 title: 快速开始
-description: 安装依赖，用 Field + FormItem + Submit 写出第一张能校验、能提交的表单。
+description: 安装依赖，使用 Field、FormItem 和 Submit 构建第一张支持校验与提交的表单。
 ---
 
-从安装到一张会校验、会提交的表单。字段只有一种写法：`<Field>`，装饰器包住控件。
+本节介绍如何从零安装 ShikiForm，并用它写出第一张包含校验、提交流程和字段复用的表单。
 
 ## 安装
+
+大多数 React 项目只需安装核心绑定包：
 
 ```bash
 npm i @shikiform/react
 ```
 
-用 Ant Design 再执行 `npm i @shikiform/antd`。查询列表、影子表单再执行 `npm i @shikiform/hooks`。`react` / `react-dom` 为 `^18 || ^19`。`antd`（`^5.18`）和 `dayjs`（`^1`）只在使用 `@shikiform/antd` 时需要。
+如需配合 Ant Design 控件使用，再补充安装适配包；若用到查询列表或草稿表单，则安装 `@shikiform/hooks`：
+
+```bash
+npm i @shikiform/antd
+npm i @shikiform/hooks
+```
+
+环境要求：`react` 和 `react-dom` 需为 `^18 || ^19`；使用 `@shikiform/antd` 时还需项目中已安装 `antd`（`^5.18`）和 `dayjs`（`^1`）。
 
 ## 第一张表单
 
-`useForm` 创建引擎，`<Form>` 把它交给字段并渲染原生 `<form>`。`<Field>` 拥有一个路径：`decorator={[FormItem]}` 显示标签、星号和错误，`component={[Input]}` 是 connect 过的 antd 控件，二者都从字段上下文读字段，不再写 `name`。`typed(form)` 返回同一组组件，只是 `name` 按表单值类型检查。
+构建表单主要涉及三个部分：`useForm` 用于创建表单引擎实例，`<Form>` 负责提供上下文并渲染原生 `<form>` 标签，`<Field>` 则负责绑定字段路径。
+
+在 `<Field>` 上，`decorator`（例如 `[FormItem]`）用来展示字段标签、必填星号和报错提示，`component`（例如 `[Input]`）则是具体的输入控件。它们会通过上下文自动获取外层 `<Field>` 的状态，无需重复传入 `name`。`typed(form)` 返回的 `F.Field` 在运行时完全一致，只是多了一层基于表单类型的字段名检查。
 
 ```tsx preview
 import { useState } from 'react';
@@ -46,16 +57,18 @@ export default function App() {
 }
 ```
 
-直接点提交，必填项报错；失焦时也会校验。全部通过后 `onSubmit` 才收到值。
+直接点击提交时，空的必填项会触发校验报错，失焦时也会实时检查；全部校验通过后，`onSubmit` 才会触发并拿到完整的表单值。
 
-- `title`、`required`、`rules` 写在 `Field` 上；`component` / `decorator` 的第二项是传给控件 / 装饰器的属性。
-- `<Submit>` 在已经有错误、或正在提交时不可点（`$canSubmit` 为 false）。还没校验过的空必填项不挡住它，第一次点击仍会跑校验。`<Reset>` 回到初始值。
-- `FormButtonGroup.FormItem` 让按钮跟随 `FormLayout` 对齐到控件列，不用再写一遍偏移。
-- `<Form>` 自己就是 `<form>`，不要再套一层。组件外创建引擎用 `createForm`，选项和 `useForm` 相同。
+使用过程中有几个常见约定：
 
-## 不用 antd
+- `title`、`required`、`rules` 等字段元信息直接写在 `<Field>` 上；传递给控件或装饰器的属性，放在 `component={[Input, props]}` 或 `decorator={[FormItem, props]}` 元组的第二项中。
+- 当表单存在已触发的错误或正处于提交中（`$canSubmit` 为 `false`）时，`<Submit>` 会自动禁用。尚未触发校验的空必填项不会在初始状态禁用提交按钮，首次点击时仍会执行校验；`<Reset>` 则将表单恢复到初始值。
+- `FormButtonGroup.FormItem` 会自动对齐 `FormLayout` 的标签宽度，让底部按钮与输入框左侧对齐。
+- `<Form>` 本身会渲染原生 `<form>` 元素，不要在内部或外部再额外包裹一层 `<form>`。如果需要在组件外部创建表单实例，可以使用 `createForm`，参数与 `useForm` 相同。
 
-自己的输入组件用不带参数的 `useField()` 读当前字段，放进 `component`（或作为 `<Field>` 的子元素）。完整的一页在 [不用 UI 库](/start/native)。
+## 不使用 Ant Design
+
+如果不依赖现成的 UI 库，可以在自定义输入组件内部调用无参数的 `useField()` 获取当前字段的绑定信息（包含 `value`、`onChange`、`onBlur`、`errors` 和 `id`），再将该组件传给 `component`。完整说明见 [不用 UI 库](/start/native)。
 
 ```tsx preview
 import { useState } from 'react';
@@ -85,11 +98,11 @@ export default function App() {
 }
 ```
 
-不带参数的 `useField()` 必须写在 `<Field>` 的 `component` / `decorator` / 子元素里，否则抛错并提示修法。输入组件自己把 `value` / `onChange` / `onBlur` 接到控件上；要套用同一套映射，用 [`connect`](/reference/antd-adapter#connect)（从 `@shikiform/react` 导入，不必装 antd）。标签、错误和提交按钮见 [接自己的组件库](/guide/headless#接自己的组件库)。
+无参数的 `useField()` 只能在 `<Field>` 渲染的 `component`、`decorator` 或子组件内调用。如果想批量将第三方组件接入 ShikiForm，可以使用 `@shikiform/react` 提供的 [`connect`](/reference/antd-adapter#connect) 工具函数（不依赖 Ant Design），详细接入方式参考 [接入组件库](/guide/headless#接自己的组件库)。
 
 ## 复用一段字段
 
-片段就是普通组件：名字相对外层 `<ObjectField>` / 行作用域解析，`typed<Address>()` 按片段自己的值类型检查。
+业务中常见的「收货地址」「联系人信息」等子表单片段，可以直接封装成普通的 React 组件。在 `<ObjectField>` 或数组行作用域内渲染时，内部的字段名会自动按相对路径解析。配合 `typed<Address>()`，组件还能独立获得完整的值类型提示。
 
 ```tsx preview
 import { Form, ObjectField, typed, useForm } from '@shikiform/react';
@@ -118,6 +131,6 @@ export default function App() {
 }
 ```
 
-装饰器和控件的四种写法、UI 属性分层见 [Field、装饰器与组件](/guide/field)。只要绑定、不要组件时用 `useField`，见 [Headless Hooks](/guide/headless)。
+关于装饰器与控件的更多写法以及 UI 属性合并规则，请阅读 [表单与字段](/guide/field)；如果希望彻底脱离 `<Field>` 组件，只用 Hooks 绑定控件，可以参考 [接入组件库](/guide/headless)。
 
-下一步：[教程](/tutorial/)，或者先看 [核心概念](/guide/concepts) 里的 handle。
+下一步建议跟着 [教程](/tutorial/) 逐步练习，或先通过 [核心概念](/guide/concepts) 了解引擎的整体设计。

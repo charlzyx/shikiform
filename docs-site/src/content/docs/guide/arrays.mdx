@@ -1,17 +1,17 @@
 ---
 title: 数组容器 ArrayItems / ArrayCards / ArrayTable
-description: 给 ArrayField 一个容器组件，就有添加、删除、上下移、拖拽排序、序号和空状态；ArrayTable 是带分页、选择、列配置的 antd 表格。
+description: 为 ArrayField 传入容器组件即可获得增删、排序、拖拽、序号和空状态；ArrayTable 提供分页、勾选和列配置等完整表格能力。
 ---
 
-[`<ArrayField>`](/guide/structures) 只管作用域和行身份，按钮要自己写：`useArray()` + `useIndex()` 拼删除、上移、下移，再判断数组是不是可编辑。`@shikiform/antd` 把这些写成了 Formily 式的容器：
+基础的 [`<ArrayField>`](/guide/structures) 只负责建立行作用域和追踪行身份，如果自己手写列表，往往需要用 `useArray()` 和 `useIndex()` 拼接增删改序按钮并判断编辑权限。为了避免重复劳动，`@shikiform/antd` 提供了三种常用的数组容器组件：
 
-| 容器 | 每一行 | 内置 |
+| 容器 | 展示形式 | 内置功能 |
 |---|---|---|
-| `ArrayItems` | 你写 `ArrayItems.Item`（一行横排） | `SortHandle`、`Index`、`Remove`、`MoveUp`、`MoveDown`、`Addition`，空状态 |
-| `ArrayCards` | 自动包成一张卡片，标题 `title #序号` | 卡片右上角默认 上移 / 下移 / 删除，可拖拽排序，空状态 |
-| `ArrayTable` | antd 表格的一行，单元格来自 `columns` | 同一批行按钮 + `Copy` / `ShadowAddition`，分页、勾选、展开子表、列配置、列宽 |
+| `ArrayItems` | 配合 `ArrayItems.Item` 渲染紧凑的行列表 | `SortHandle`、`Index`、`Remove`、`MoveUp`、`MoveDown`、`Addition` 及空状态提示 |
+| `ArrayCards` | 自动将每行包装为卡片，标题形如 `title #序号` | 右上角自带上移 / 下移 / 删除按钮，支持拖拽排序与空状态提示 |
+| `ArrayTable` | 基于 Ant Design Table 的可编辑表格，单元格由 `columns` 定义 | 包含全套行操作、`Copy` / `ShadowAddition`（弹窗草稿添加）、分页、多选、展开子表、列配置与列宽调节 |
 
-容器是 `<ArrayField>` 的 `component`，和 `<Field component>` 一样可以写 `[组件, props]`（props 按容器检查类型）。它渲染在数组的作用域里，所以按钮不需要数组名和行号。三个容器只有这一种接法。
+使用时只需将容器传给 `<ArrayField>` 的 `component` 属性（同样支持 `[容器, props]` 元组写法及严格的类型检查）。由于容器渲染在数组作用域内部，配套的操作按钮都能自动识别当前数组和行号。
 
 ## ArrayItems
 
@@ -53,23 +53,22 @@ export default function App() {
 }
 ```
 
-- `F = typed(form)`：`F.ArrayField` 的 `row.Field` 按一行（`Contact`）检查名字；行里的自定义组件用 `useIndex()` / `useRecord<Contact>()` 读这一行。
-- 行**不需要 id**。没有 `rowKey` / `id` 的对象行用对象身份当 key，移动后错误、touched 跟着行走；单元格编辑不会换 key。只有行里本来就有业务 id 时才传 `rowKey`。
-- 拖拽：按住 `⋮⋮` 拖到另一行上松开，等于 `array.move(from, to)`（HTML5 拖放，没有额外依赖）。拖放载荷带源数组路径，跨数组（或跨树）放置会被忽略。`MoveUp` / `MoveDown` 是键盘可用的同一操作，首行 / 末行禁用。
-- `Addition` 默认追加 `{}`；`defaultValue` 可以是值（每次克隆）或函数，`method="unshift"` 插到最前。
-- 没有行时显示 antd `Empty`；`empty={<span>还没有联系人</span>}` 换内容，`empty={false}` 不显示。
+- **强类型行作用域**：通过 `F = typed(form)` 得到的 `F.ArrayField` 会把强类型的 `row.Field` 交给子函数，按单行类型检查字段名；在自定义行组件中可通过 `useIndex()` 和 `useRecord<Contact>()` 读取行号和当前行数据。
+- **无需手造 id**：对于没有业务主键的行对象，引擎直接以对象引用作为唯一 key，调整顺序后错误提示和 `touched` 状态依然跟随数据行，编辑单元格也不会丢失焦点或重置状态；仅在数据本身带有稳定主键时才需要传 `rowKey`。
+- **拖拽与键盘排序**：按住 `⋮⋮` 拖放到目标行即可触发重排（基于原生 HTML5 拖放，并自动隔离不同数组间的误拖放）；`MoveUp` 和 `MoveDown` 提供等价的按钮操作，在首行或末行会自动禁用。
+- **新增与空状态**：`Addition` 默认追加空对象 `{}`，可通过 `defaultValue` 指定初始值或生成函数，通过 `method="unshift"` 插入到列表顶部。列表为空时默认展示 Ant Design `Empty` 占位，也可传入自定义的 `empty` 节点或 `empty={false}` 关闭。
 
-## 不可编辑时按钮自动消失
+## 不可编辑状态自动隐藏按钮
 
-`Addition`、`Remove`、`MoveUp`、`MoveDown`、`SortHandle` 只在数组的**有效 pattern** 是 `editable` 时渲染；`Index` 一直显示。有效 pattern 沿祖先继承到根，所以这些写法都会让按钮消失：
+`Addition`、`Remove`、`MoveUp`、`MoveDown` 和 `SortHandle` 会检查当前数组的有效 `pattern`，只有在 `editable` 状态下才会渲染（`Index` 序号始终保留）。由于 `pattern` 会沿路径从祖先向下继承，以下几种写法都会自动收起全部操作按钮：
 
 ```ts
-useForm({ initialValues, pattern: 'readPretty' })        // 整张表从阅读态开始（详情页）
-form.batch((d) => { d.$pattern = 'disabled' })            // 运行时切整张表；undefined 恢复
-form.batch((d) => { d.contacts.$pattern = 'readOnly' })   // 只锁这个数组
+useForm({ initialValues, pattern: 'readPretty' })        // 详情页：整张表单初始化为阅读态
+form.batch((d) => { d.$pattern = 'disabled' })            // 运行时全局禁用（赋 undefined 恢复）
+form.batch((d) => { d.contacts.$pattern = 'readOnly' })   // 仅将当前数组设为只读
 ```
 
-`ArrayTable` 的行操作（`SortHandle`、`Remove`、`MoveUp`、`MoveDown`、`Copy`、`Addition`、`ShadowAddition`）遵守同一条规则。自己写的行操作用 `useArrayEditable()` 做同样的判断。
+`ArrayTable` 中的全套操作按钮（含 `Copy` 与 `ShadowAddition`）同样遵循该规则；自定义行操作按钮可以调用 `useArrayEditable()` 获取相同的编辑权限状态。
 
 ## ArrayCards
 
@@ -102,21 +101,17 @@ export default function App() {
 }
 ```
 
-行的字段就是卡片内容，不需要包装组件。`extra` 换掉右上角的默认按钮（`extra={<ArrayCards.Remove confirm />}`）。
+每行的子字段会直接渲染为卡片内容，无需额外包裹；卡片右上角默认自带上移、下移和删除按钮，传入 `extra` 属性即可替换（如 `extra={<ArrayCards.Remove confirm />}`）。
 
 ## 数组自身的错误
 
-规则写在数组路径上时，校验的是这一层数组，不是某一格。`fields` 里的 `members.*.phones`、根上的 `tags`，都是这种规则。`ArrayItems` 和 `ArrayCards` 把**这一层自己的**错误和警告画在各行与添加按钮之间，样式与 `FormItem` 的反馈行相同（错误色 / 警告色）。行里字段的消息仍在各自的 `FormItem` 上，不会在这里再出现一次。
+当校验规则写在数组路径本身上时（例如 `fields` 中的 `members.*.phones` 或表单根的 `tags`），校验的是整个数组（如「至少添加一项」），而不是数组内部某个单元格。`ArrayItems` 和 `ArrayCards` 会将**数组层级自身的**错误与警告直接渲染在列表行与添加按钮之间（行内具体字段的错误依然展示在各自的 `FormItem` 下，互不干扰）。
 
-第一次出现仍要等到提交，或该字段自己的校验时机。已经显示之后，增删、移动或替换一行会立刻重跑这一层（和改一个已经报错的输入一样），不用再提交一次。改某一格不会重跑数组这一层。新行上的 `required` 不会因此提前冒出来。
+数组层级的首次校验同样遵循默认的提交或指定时机；一旦报错显示出来，之后每次增删、移动或替换行都会立即重检该层数组，方便用户改对后即时消错（修改单个单元格不会触发整组重检）。如果不需要容器自带的反馈行，可以传入 `feedback={false}` 或在外层 `<FormLayout>` 设置 `feedbackLayout="none"`。
 
-`feedback={false}` 关掉这块。外层 `<FormLayout feedbackLayout="none">` 同样不显示。
+自行封装列表容器时，可以调用 [`useArrayErrors()`](/reference/react-hooks#usearrayerrors) 读取数组自身的 `errors` 和 `warnings`（如果要读取包含所有子字段在内的汇总错误，请访问 draft 上的 `$errors`）。
 
-自己画列表时用 [`useArrayErrors()`](/reference/react-hooks#usearrayerrors)。它只返回这一层路径上的 `errors` / `warnings`。子字段的合计是 draft 上的 `$errors`，两者不是一回事。
-
-调用它的组件必须渲染在 `<ArrayField>` 的子树里：作为 `component` 容器（容器包住各行，数组为空也会挂上），或放进容器仍会渲染的位置。`ArrayTable` 不画这条反馈；要画在表格下方时，把组件交给 `footer`。`footer` 由 `ArrayTable` 渲染，而 `ArrayTable` 在这个数组的作用域里。和 `<ArrayField>` 平级再挂一个兄弟节点（表格下面另写一个组件）会抛错。开发构建抛 `ShikiUsageError`，消息是 `useArrayErrors() must render inside an <ArrayField> (its container, or a row).`。生产构建抛 `Error`，消息是 `useArrayErrors() must render inside an <ArrayField>`。
-
-行 children 里调用也在作用域内，但数组为空时行函数不会执行，这条错误就出不来；有多行时每一行都会画一次。数组这一层的提示放在容器或 `footer`，不要放进行回调。
+需要注意，`useArrayErrors()` 必须在 `<ArrayField>` 渲染树内部调用（例如容器组件或 `ArrayTable` 的 `footer` 中），这样即使数组为空也能正常展示提示；不能把它写在 `<ArrayField>` 之外的兄弟组件里，也不要放在每行渲染函数内（否则数组为空时根本不会执行，有多行时又会重复渲染多遍）。
 
 ```tsx
 import type { ReactNode } from 'react'
@@ -140,7 +135,7 @@ function MyList({ children }: { children?: ReactNode }) {
 
 const columns: ArrayTableColumn[] = [{ key: 'name', title: '名称', render: () => null }]
 
-// ✓ 容器、footer 都在 <ArrayField> 里面
+// ✓ 放在容器或 footer 内部，处于 <ArrayField> 作用域内
 function Correct() {
   return (
     <>
@@ -150,7 +145,7 @@ function Correct() {
   )
 }
 
-// ✗ 和 <ArrayField> 平级，渲染时抛上面的 ShikiUsageError
+// ✗ 与 <ArrayField> 平级调用，渲染时会抛出错误
 function Wrong() {
   return (
     <>
@@ -207,11 +202,11 @@ export default function App() {
 }
 ```
 
-点「提交」：空的电话列表下面出现「至少一个电话」。点「添加电话」后这条消失。姓名字段如果再加 `required`，它的「必填」只出现在姓名的 `FormItem` 下。
+直接点击「提交」，空的电话列表下方会出现「至少一个电话」提示；点击「添加电话」新增一行后，提示随即消失。
 
 ## ArrayTable
 
-一张 antd 表格。单元格来自 `columns`，所以 `<ArrayField>` 不写行 children；列的 `render` 运行在**行作用域**里：`<Field name="name">` 就是 `list.N.name`，单元格可以不要装饰器。行内用 `ArrayTable.useRow()`（`{ key, index, position, record }`），或直接用 `useArray()` / `useIndex()` / `useRecord()`。
+`ArrayTable` 封装了完整的 Ant Design Table，由于单元格内容通过 `columns` 定义，`<ArrayField>` 无需传递子元素函数。每一列的 `render` 方法都运行在当前行的作用域内，直接写 `<Field name="name" />` 就会自动绑定到 `list.N.name`，单元格内也可以省略 `FormItem` 装饰器。在自定义单元格组件中，可以通过 `ArrayTable.useRow()`（返回 `{ key, index, position, record }`）或 `useArray()` / `useIndex()` / `useRecord()` 获取行信息。
 
 ```tsx preview play=array-table
 import { Field, Form, typed, useForm } from '@shikiform/react';
@@ -267,13 +262,13 @@ export default function App() {
 }
 ```
 
-拖动 ⋮⋮ 排序、勾选行、在弹窗里添加（先校验再写回）、复制和删除。展开子表、列宽拖拽、异步删除、10 万行见 [/play/array-table](/play/array-table)。表格状态（分页、勾选、展开、列配置）不进表单值；无 UI 的同一套状态是 `useArrayTable`（`@shikiform/hooks`）。
+表格自带行拖拽排序、批量勾选、弹窗草稿添加（校验通过后才写入列表）、单行复制和确认删除。更多高级功能（如展开子表、拖拽列宽、异步删除及大数据量虚拟滚动）请看 [/play/array-table](/play/array-table)。分页、勾选、展开和列设置等表格交互状态不会混入表单值；如果需要脱离 Ant Design 复用同款表格状态管理，可以使用 `@shikiform/hooks` 中的 `useArrayTable`。
 
-## 和其他数组组件的关系
+## 其他数组方案的选择
 
-- 只要作用域、按钮自己画：`<ArrayField>` + `useArray()` / `useIndex()`，见 [数组、树与嵌套对象](/guide/structures)。数组自身的错误用 [`useArrayErrors()`](/reference/react-hooks#usearrayerrors)，写在 `<ArrayField>` 的容器或 `footer` 里，不要和 `<ArrayField>` 平级。
-- 查询条件 + 服务端分页的表格：[`QueryList`](/guide/pro#查询列表)，它内部就是一张 `ArrayTable`。
-- 很长的名单只渲染可见行：`<ArrayField name virtualScroll={{ height }}>`（普通行，不和容器同用），见 [示例 · 虚拟滚动](/examples/arrays)。
-- 参数表：[ArrayItems](/reference/antd#arrayitems)、[ArrayCards](/reference/antd#arraycards)、[ArrayTable](/reference/antd#arraytable)、[useArrayEditable](/reference/antd#usearrayeditable)。
+- **完全自定义行布局和按钮**：直接使用 `<ArrayField>` 配合 `useArray()` / `useIndex()`，参见 [字段路径与结构](/guide/structures)。
+- **带查询条件的分页表格**：使用 [`QueryList`](/guide/pro#查询列表)，其底层即由 `ArrayTable` 驱动。
+- **万行级超长列表**：使用不带容器的 `<ArrayField name virtualScroll={{ height }}>`，仅渲染视口内的可见行，参见 [数组示例 · 长列表](/examples/arrays)。
+- **详细属性参考**：[ArrayItems](/reference/antd#arrayitems)、[ArrayCards](/reference/antd#arraycards)、[ArrayTable](/reference/antd#arraytable)、[useArrayEditable](/reference/antd#usearrayeditable)。
 
-下一步：[Headless Hooks](/guide/headless)，不依赖 UI 库写同样的结构。
+下一步：[接入组件库](/guide/headless)，不依赖 Ant Design 直接使用底层 Hooks。

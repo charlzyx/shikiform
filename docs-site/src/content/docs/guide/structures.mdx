@@ -1,17 +1,17 @@
 ---
-title: 数组、树与嵌套对象
-description: ObjectField / ArrayField / TreeField 提供相对作用域；行身份用 rowKey（或对象身份），设置用行模板跟着行走；嵌套值按 path 写。
+title: 字段路径与结构
+description: 使用 ObjectField、ArrayField 和 TreeField 建立相对路径作用域，通过 rowKey 或行模板保持行状态随数据移动。
 ---
 
-值就是普通的嵌套对象和数组。字段一多，每个都写完整 path（`contacts.2.phone`）既啰嗦又跟不上行的增删。结构组件给里面的字段一个**作用域**，字段只写相对名字。
+当表单数据结构包含多层嵌套对象、动态列表或树形结构时，把所有 `<Field>` 都写成 `profile.address.city`、`contacts.2.phone` 这样的绝对路径既繁琐，又难以应对数组行的增删和排序。ShikiForm 提供了三个结构组件，用来为子字段划定路径作用域：
 
-| 组件 | 作用域 | 行 / 节点操作 |
+| 结构组件 | 提供的路径作用域 | 常用操作方式 |
 |---|---|---|
 | `<ObjectField name="profile">` | `profile.*` | — |
-| `<ArrayField name="items" rowKey="id">{({ index, key }) => …}</ArrayField>` | 每行 `items.N.*` | `form.pushArray` / `insertArray` / `removeArray` / `moveArray` / `swapArray` / `replaceArray`，行内 `useArray()` |
-| `<TreeField name="nodes">{(tree) => …}</TreeField>` + `<RowScope path pos>` | 每个节点 | `tree.move(from, to)`（`form.moveTree`） |
+| `<ArrayField name="items" rowKey="id">` | 每行内为 `items.N.*` | 引擎方法 `form.pushArray` / `insertArray` / `removeArray` / `moveArray` / `swapArray` / `replaceArray`，行组件内用 `useArray()` |
+| `<TreeField name="nodes">` + `<RowScope path pos>` | 每个树节点内为对应节点路径 | `tree.move(from, to)`（对应 `form.moveTree`） |
 
-## 对象与数组
+## 对象与数组示例
 
 ```tsx preview
 import { Button, Space } from 'antd';
@@ -70,46 +70,46 @@ export default function App() {
 }
 ```
 
-- 行身份用 `rowKey`（这里是 `id`）。移动后字段状态（错误、touched）跟着行走；path 里的下标会变，不要拿下标当身份。
-- `contacts.*.name` 是行模板：已有的行和以后添加的行都带这条设置，行没渲染也会校验。
-- 写死下标的声明（`fields: { 'contacts.0.name': { display: 'virtual' } }`、`registerField('contacts.0.name', …)`）属于**这个路径**，不属于行：移动、交换、插入、删除后，它留在 `contacts.0.name`，作用于此刻占着第 0 行的那一行。要让设置跟着行走，用 `contacts.*.name` 或 [`reaction.each`](/guide/linkage#reactioneach每一行一个实例)。
-- 增删改行走 `form.*Array` 或 `useArray()`，不要原地 `push` 到 `getValue` 拿到的数组。`ArrayField` 的父组件只订阅结构（行数、行 id），不订阅单元格的值。
-- 行没有 `rowKey` / `id` 时用对象身份当 key，同样跟着行走；`rowKey` 只在行里本来就有业务 id 时传。
-- 现成的添加 / 删除 / 移动 / 拖拽按钮（不可编辑时自动隐藏）：[数组容器 ArrayItems / ArrayCards](/guide/arrays）。
+使用数组和结构组件时，有几个关键机制需要留意：
+- **行身份与状态跟随**：指定 `rowKey="id"` 后，每一行在引擎中都会绑定一个稳定的身份标识；如果行数据本身没有业务主键，引擎也会自动以对象引用作为唯一标识，因此通常无需刻意伪造 id。当发生上移、下移或删除操作时，错误提示和 `touched` 等字段状态会跟着数据行一起移动。
+- **行模板与固定下标的区别**：在 `fields` 中使用 `'contacts.*.name'` 声明的是行模板，它会自动应用到当前及未来新增的所有行上；而写死下标的配置（如 `'contacts.0.name'`）绑定的是「第 0 个位置」本身，行顺序变化后会作用于新的第 0 行。需要让配置跟随具体数据行移动时，请使用行模板或 [`reaction.each`](/guide/linkage#reactioneach每一行一个实例)。
+- **使用数组操作 API**：增删或调整行顺序时请调用 `form.*Array` 或行内的 `useArray()` 方法，不要直接原地修改 `getValue` 返回的数组引用。`<ArrayField>` 只订阅数组的长度与行键变化，修改某个单元格不会导致整张列表重渲染。
 
-### 作用域里的名字不要带前缀
+如果需要现成的添加、删除、上下移动和拖拽排序按钮，可以使用 [数组容器 ArrayItems / ArrayCards](/guide/arrays)。
 
-`<ObjectField name="group">` 里面的 `name` 会接到 `group.` 后面。用根上的 `F = typed(form)` 写 `F.Field name="group.inner"`，**类型检查能过**（`F.Field` 按整张表的类型看，`group.inner` 确实存在），运行时却再拼一次，变成 `group.group.inner`。开发环境在拼出来的路径没有值、而从根上读 `group.inner` 有值时抛 `ShikiUsageError`。
+### 作用域内的字段名不要重复前缀
+
+由于 `<ObjectField>` 和 `<ArrayField>` 会自动为内部字段拼接外层路径前缀，内部的子字段只能写相对路径。如果在一个 `<F.ObjectField name="group">` 内部，不小心又使用了表单根上解构出来的 `F.Field` 并写了 `name="group.inner"`，TypeScript 虽然能通过类型检查（因为根表单确实存在 `group.inner`），但运行时路径会被重复拼接成 `group.group.inner`。开发模式下，当拼接后的路径没有值而根路径存在值时，引擎会抛出 `ShikiUsageError` 提示。
 
 ```tsx
 const F = typed(form)
 
-// ✗ 类型能过，运行时 ShikiUsageError：解析成 group.group.inner
+// ✗ 类型检查能过，但运行时会被拼接成 group.group.inner 并报错
 <F.ObjectField name="group">
   <F.Field name="group.inner" />
 </F.ObjectField>
 
-// ✓ 函数子节点拿到按这一层对象检查的 obj.Field，名字相对 group
+// ✓ 使用函数子节点提供的 obj.Field，在享受类型检查的同时写相对路径
 <F.ObjectField name="group">
   {(obj) => <obj.Field name="inner" />}
 </F.ObjectField>
 ```
 
-普通 `<Field name="inner">`（不经 `typed`）同样是相对路径，写 `group.inner` 也会拼成 `group.group.inner`。数组行里写 `items.0.name` 是同一个错误。`typed` 的说明见 [typed](/reference/react-hooks#typed)。
+同理，在数组行内也应直接写 `name` 而不是 `items.0.name`。关于作用域类型推导的详细说明见 [typed](/reference/react-hooks#typed)。
 
-树的节点由你渲染，每个节点包一层 `<RowScope path pos>`；`trees` 选项让联动在组件挂载前就认识树根。例子见 [联动 · 嵌套对象数组与树](/guide/linkage#嵌套对象数组与树) 和 [Headless Hooks](/guide/headless)。
+对于树形数据，组件负责遍历渲染树节点并在每个节点外层包裹 `<RowScope path pos>`，同时在创建表单时通过 `trees` 选项注册树根路径，以便联动在挂载前就能识别树结构。具体示例见 [联动 · 嵌套对象数组与树](/guide/linkage#嵌套对象数组与树) 和 [Headless Hooks](/guide/headless)。
 
-## 嵌套值：按 path 写
+## 按路径精准更新嵌套值
 
-表单值按 path 写，只唤醒读过这个 path 的订阅者：
+在 `reaction` 中更新嵌套对象中的某个字段时，应当直接赋值到目标字段路径，这样只有订阅了该字段的组件和联动会重新执行；如果给父对象整体赋一个新对象，则所有读取父对象的订阅都会被唤醒：
 
 ```ts
-d.user.name.$value = 'x'                              // ✓ 只改一个字段，只唤醒 user.name 的读者
-d.user.$value = { ...d.user.$value, name: 'x' }       // 整体替换：所有读 user 的地方都会重跑
-d.user.$value.name = 'x'                              // ✗ 改了不可变快照，开发构建直接抛错
-d.items.$value = [...d.items.$value, row]             // 整体替换数组（effects 外用 form.pushArray）
+d.user.name.$value = 'x'                              // ✓ 精准修改单个字段，影响范围最小
+d.user.$value = { ...d.user.$value, name: 'x' }       // 整体替换对象，会触发所有 user 读取者重跑
+d.user.$value.name = 'x'                              // ✗ 直接修改不可变快照，开发环境会报错
+d.items.$value = [...d.items.$value, row]             // 整体替换数组（effects 之外推荐用 form.pushArray）
 ```
 
-`$componentProps` 这类对象型 UI 状态不按 path 写，而是按键打补丁，见 [UI 状态三层叠加](/guide/field#ui-状态三层叠加)。
+与表单值不同，`$componentProps` 这类对象型的 UI 状态支持按键深合并，具体规则见 [UI 状态三层叠加](/guide/field#ui-状态三层叠加)。
 
-下一步：[数组容器 ArrayItems / ArrayCards](/guide/arrays)，现成的添加、删除、排序按钮。
+下一步：[数组容器 ArrayItems / ArrayCards](/guide/arrays)，使用内置的增删改序容器组件。

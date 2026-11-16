@@ -1,11 +1,11 @@
 ---
 title: 条件显隐
-description: 不需要发票时，税号不渲染、不校验、也不提交。
+description: 使用 $visible 控制字段显示，隐藏时自动跳过校验并从提交结果中剔除。
 ---
 
-只有勾了「需要发票」，税号才出现，并且必填。关掉之后，税号既不挡提交，也不进 JSON。
+当勾选「需要发票」时，税号输入框显示并变为必填；关闭开关后，税号不仅从界面隐藏，也不会阻止表单提交或出现在提交结果中。
 
-`$visible = false` 是 `display: 'none'`，不是 `hidden`。
+需要注意：`$visible = false` 对应的是 `display: 'none'`，而不是 `hidden`。
 
 ```tsx preview
 import { useState } from 'react';
@@ -44,8 +44,8 @@ export default function App() {
 }
 ```
 
-不开开关，直接提交，JSON 里只有 `invoice: false`。打开开关，税号为空时提交失败。填上 `91310000` 再提交，JSON 里有税号。关掉开关，税号从界面消失，再提交又没有 `taxId`。重新打开，刚才填的税号还在。
+默认未开启开关时直接点击提交，输出 JSON 里只有 `invoice: false`；打开开关后税号出现且必填（留空会拦截提交）；填好税号再次关掉开关并提交，`taxId` 会被自动剔除，而重新打开开关时刚才填过的内容依然完整保留。
 
-<Aside type="caution" title="只藏界面时用 hidden">
-没点开的标签页仍要校验、仍要提交。那种情况写 `$hidden = true`，不要写 `$visible = false`。
+<Aside type="caution" title="只藏界面时请使用 hidden">
+如果是未激活的标签页等「暂时不展示在界面上，但提交前依然需要校验并提交」的场景，请使用 `$hidden = true`，不要用 `$visible = false`。
 </Aside>

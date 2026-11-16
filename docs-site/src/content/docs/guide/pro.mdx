@@ -1,19 +1,21 @@
 ---
-title: 查询列表
-description: "@shikiform/hooks 里的 useQueryTable、影子草稿、联想和级联，以及 @shikiform/antd 上的对应组件。"
+title: 查询列表与 Pro 组件
+description: 介绍 @shikiform/hooks 与 @shikiform/antd 中的草稿表单、查询列表、远程联想及懒加载级联组件。
 ---
 
-查询列表、弹窗编辑和远程输入都在 `@shikiform/hooks`。`@shikiform/antd` 里的同名组件是它们的界面。可编辑表格 `ArrayTable` 是数组容器，见 [数组](/guide/arrays#arraytable)。
+在复杂后台页面中常见的查询列表、弹窗/抽屉编辑以及远程异步输入控件，无 UI 的状态逻辑都封装在 `@shikiform/hooks` 中，`@shikiform/antd` 则提供了对应的 Ant Design 视图组件。至于行内可编辑表格 `ArrayTable`，它属于数组容器，详情请参考 [数组容器](/guide/arrays#arraytable)。
 
-| 组件（`@shikiform/antd`） | Hook（`@shikiform/hooks`） | 用途 |
+| Ant Design 组件（`@shikiform/antd`） | 底层 Hook（`@shikiform/hooks`） | 适用场景 |
 |---|---|---|
-| `ShadowModal` / `ShadowDrawer` / `ShadowPopconfirm` / `ShadowForm` | `useShadowForm` / `useArrayShadow` | 影子草稿：在独立引擎里编辑，确认后才写回 |
-| `QueryList` | `useQueryTable` | 查询条件 + 服务端分页列表（一张 `ArrayTable`） |
-| 选择控件 `prettyType` / `Suggestion` / `CascaderPlus` | `enumItems` / `useSuggestion` / `useLazyCascader` + `useCascaderLabels` | 枚举阅读态（徽标 / 标签）、远程联想、懒加载级联 |
+| `ShadowModal` / `ShadowDrawer` / `ShadowPopconfirm` / `ShadowForm` | `useShadowForm` / `useArrayShadow` | **草稿表单**：在独立的临时表单实例中编辑，确认校验通过后再写回主表单 |
+| `QueryList` | `useQueryTable` | **查询列表**：上方可折叠筛选区 + 下方服务端分页 `ArrayTable` |
+| 选择控件 `prettyType` / `Suggestion` / `CascaderPlus` | `enumItems` / `useSuggestion` / `useLazyCascader` + `useCascaderLabels` | 枚举阅读态徽标/标签、防抖远程联想、按需懒加载级联 |
 
-## 影子草稿
+## 草稿表单（ShadowForm）
 
-编辑到一半想取消，宿主表单不能被改脏。影子表单每次打开都建一个**独立的引擎**：确认时先校验，通过后把值交给 `onOk`，由你决定怎么写回；取消什么都不写。
+很多业务需要在弹窗或抽屉里编辑一条数据或数组中的某一行：如果用户改到一半点「取消」，主表单的数据和 `dirty` 状态不能受到任何影响。
+
+草稿表单（对应 API 为 `ShadowModal` / `ShadowDrawer` 等）会在打开时创建一个**完全独立的表单引擎实例**，并在确认提交时先执行草稿内部的校验，全部通过后把值交给 `onOk` 回调，由你决定如何更新主表单或调用接口；点击取消则会直接丢弃这份草稿，不会污染原表单。
 
 ```tsx preview play=shadow-form
 import { Button, Descriptions } from 'antd';
@@ -60,13 +62,11 @@ export default function App() {
 }
 ```
 
-- 草稿里的字段名从草稿的根开始解析，不继承所在行的作用域。
-- 表格行编辑用 `useArrayShadow`：它在 `useShadowForm` 上加了「编辑这一行 / 追加一行」的默认写回，见 [/play/array-table-shadow](/play/array-table-shadow)。
-- 草稿是一份编辑副本，不是并发事务，也不会替你调用后端。
+需要注意：由于草稿内部是独立表单，里面 `<Field>` 的 `name` 是相对于草稿根路径解析的，不继承外层数组行或对象的作用域。如果专门用于弹窗编辑或新增表格的某一行，推荐直接使用封装好的 `useArrayShadow`，参见 [/play/array-table-shadow](/play/array-table-shadow)。
 
 ## 查询列表
 
-`useQueryTable` 管查询条件、分页、表头排序和列筛选、请求竞态和选择；`QueryList` 渲染可折叠的条件栅格加一张受控分页的 `ArrayTable`。每页结果写进 `rows` 指定的数组字段，所以单元格同样可以编辑。
+`useQueryTable` 统一管理查询条件、分页状态、表头排序、列筛选、请求竞态以及批量勾选；配套的 `QueryList` 则渲染顶部的可折叠筛选栏和下方的受控分页 `ArrayTable`。由于请求返回的每页列表会直接写入 `rows` 指定的数组字段，因此表格里的单元格同样支持直接行内编辑。
 
 ```tsx
 const table = useQueryTable({ initialValues: { query: {}, list: [] }, params: 'query', rows: 'list', request })
@@ -75,18 +75,18 @@ const table = useQueryTable({ initialValues: { query: {}, list: [] }, params: 'q
 </QueryList>
 ```
 
-条件栅格就是 [`FormGrid`](/guide/layout#栅格formgrid)：列数随宽度变，收起时只留第一行，重置 / 查询排在行末（像 antd Pro 的 `QueryFilter`），放不下才出现「展开 / 收起」；`grid` 改列数，宽的条件用 `gridSpan`。
+顶部的筛选栏底层使用 [`FormGrid`](/guide/layout#栅格formgrid)，列数随容器宽度自动调整。收起状态下只保留第一行，并将「重置 / 查询」按钮放在行末，只有筛选条件放不下时才会出现「展开 / 收起」开关；需要自定义列数或横跨多列时，可以配置 `grid` 和 `gridSpan`。
 
-列上写 `sorter: true` / `filters`，表头排序和列筛选会随请求发给服务端（`request` 的 `sorter` / `filters`）并回到第 1 页。列筛选和点「查询」一样会清空选择，免得批量操作碰到已经看不见的行；只翻页或排序时选择保留。
+如果在列定义中开启了 `sorter: true` 或 `filters`，操作表头排序和列筛选时会自动携带参数重新请求并重置到第 1 页；为防止批量操作误触已被过滤掉的数据，触发列筛选或点击「查询」时会自动清空当前勾选（仅翻页或排序时保留勾选）。
 
-请求协议和返回值见 [查询 Hooks](/reference/query-hooks)；完整页面见 [/play/query-list](/play/query-list) 和不依赖 antd 的 [/play/query-native](/play/query-native)。
+完整的协议定义与返回值说明见 [查询 Hooks](/reference/query-hooks)，完整可交互示例见 [/play/query-list](/play/query-list) 以及无 Ant Design 依赖的 [/play/query-native](/play/query-native)。
 
-## 枚举、联想与级联
+## 枚举展示、远程联想与懒加载级联
 
-- 枚举阅读态：选择类控件在 `readPretty` 下显示 label，`prettyType="badge" | "tag"` 画成徽标 / 彩色标签；只显示的字段写 `pattern="readPretty"`，表单外用 `PreviewText.Select`（[/play/pro-enum](/play/pro-enum)，[控件与阅读态](/guide/controls)）。
-- `Suggestion`：远程联想下拉，防抖并丢弃过期结果，支持多选和 `labelInValue`（[/play/suggestion](/play/suggestion)）。
-- `CascaderPlus`：一个 `loadData(path)` 服务所有层级的懒加载级联，打开已有值时逐级反显；阅读态显示标签，没有 `labelInValue` 的裸编码也会经同一个 `loadData` 解析成标签（[/play/cascader-plus](/play/cascader-plus)）。
+- **枚举阅读态标签**：选择类控件在 `readPretty` 模式下会自动将值反显为标签文案，传入 `prettyType="badge" | "tag"` 可渲染为状态徽标或彩色标签；单独在列表或卡片中使用时可配合 `PreviewText.Select`（详见 [/play/pro-enum](/play/pro-enum) 与 [控件与阅读态](/guide/controls)）。
+- **远程搜索联想（`Suggestion`）**：自带输入防抖并自动丢弃过期的并发响应，支持单选、多选以及 `labelInValue` 等多种值格式（[/play/suggestion](/play/suggestion)）。
+- **懒加载级联（`CascaderPlus`）**：只需提供一个 `loadData(path)` 函数即可按需加载每一级选项，回显已有数据时支持逐级自动拉取并翻译为完整路径标签（[/play/cascader-plus](/play/cascader-plus)）。
 
-每个组件还有不绑定字段的 `…View` / `SuggestionView` 版本。签名见 [Pro 组件参考](/reference/pro-components) 与 [Pro Hooks 参考](/reference/pro-hooks)，更多场景在 [Pro 示例](/examples/pro)。
+上述输入组件均提供不绑定表单的 `…View`（如 `SuggestionView`）独立版本。详细参数见 [Pro 组件参考](/reference/pro-components) 与 [Pro Hooks 参考](/reference/pro-hooks)，更多业务案例见 [Pro 示例](/examples/pro)。
 
-下一步：[校验](/guide/validation)，规则、异步校验和提交。
+下一步：[校验](/guide/validation)，系统了解内置规则、Schema 校验与提交返回值处理。

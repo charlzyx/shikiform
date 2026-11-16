@@ -1,31 +1,30 @@
 ---
 title: 常见的坑
-description: 解构、路径、显隐和 control 的错误写法，以及对应的正确写法。
+description: 汇总解构 handle、修改不可变快照、同轮回读、相对路径及反应式用法中的常见误区与正确写法。
 ---
 
-下面每节都是同一件事的两种写法。开发环境会把左边抛成 `ShikiUsageError` 的，信息里带有修法。生产构建不做这些检查。
+开发模式下，下面提到的许多误用都会直接抛出 `ShikiUsageError` 并在错误消息中给出修改建议（生产环境出于性能考虑会跳过这些运行时检查）。对照下面的正误案例，可以避开绝大多数踩坑点。
 
-## 解构
+## 解构 handle
 
-解构只用来取子字段。`$` 状态通过 handle 读写。
+解构操作只用来提取子字段的 handle，任何 `$` 状态都必须直接在 handle 上读取或赋值。
 
-### 解构 $ 状态再赋值
+### 不要解构 `$value` 后再尝试赋值
 
 ```ts
 const { $value } = d.user
 $value = 'Ada'
 ```
 
-`$value` 是当前值的副本。接着赋值只改这个局部变量，表单不变。
+`$value` 返回的是当前值的快照副本，对局部变量重新赋值不会改变表单内部的状态。正确做法是保留子字段的 handle 再赋值：
 
 ```ts
 const { name } = d.user
 name.$value = 'Ada'
+// 或者直接写：d.user.name.$value = 'Ada'
 ```
 
-`name` 仍是 handle。也可以直接写 `d.user.name.$value = 'Ada'`。
-
-### rest、展开和 Object.keys
+### 不要对 handle 使用展开运算符、rest 或 `Object.keys`
 
 ```ts
 const { name, ...rest } = d.user
@@ -33,7 +32,7 @@ const copy = { ...d.user }
 Object.keys(d.user)
 ```
 
-开发环境抛错，大意是：这是 draft handle，不是数据对象；`Object.keys`、对象展开和 rest 都不支持。正确形式写在同一条信息里：只解构子字段 handle，然后在那个 handle 上读写 `$` 状态；要复制数据，用 `d.user.$value`。
+draft handle 是路径代理而不是普通数据对象，因此不支持枚举属性键或展开。在开发环境下执行以上操作会直接抛出 `ShikiUsageError`。需要读取或拷贝整份数据时，应访问 `d.user.$value`：
 
 ```ts
 const { name } = d.user
@@ -41,13 +40,13 @@ name.$value
 const copy = d.user.$value
 ```
 
-### 数组解构
+### 不要对数组字段的 handle 进行数组解构
 
 ```ts
 const [first] = d.items
 ```
 
-开发环境抛错：handle 不是数组，不能 `for…of`、不能 `const [row] = d.items`、不能展开。信息里的正确形式是 `d.items.$value`、`const { name } = d.items[0]` 再读 `name.$value`，以及 `reaction.each((d) => d.items, (row, ctx) => …)`。
+数组 handle 同样不是原生数组，不能进行数组解构、`for…of` 遍历或调用 `.map`。需要操作特定下标、读取数组数据或逐行联动时，请使用下标访问、`$value` 或 `reaction.each`：
 
 ```ts
 const { name } = d.items[0]
@@ -58,32 +57,31 @@ reaction.each((d) => d.items, (row) => {
 })
 ```
 
-报错原文没有写 `get`。对象路径可以 `get(d, 'user.name').$value`，数组下标可以 `get(d, 'items[0].name').$value`。
+对于动态嵌套路径，也可以使用 [`get`](/basics/path)：`get(d, 'user.name').$value` 或 `get(d, 'items[0].name').$value`。
 
-## 改 $value 上的对象
+## 直接修改 `$value` 上的对象或数组
 
 ```ts
 d.user.$value.name = 'Ada'
 d.items.$value.push(row)
 ```
 
-`$value` 是快照。在 `reaction`、`watch`、`form.batch` 里这样改会抛错，别处也不会通知读者。
+`$value` 返回的是不可变快照：直接原地修改它在开发环境的 `reaction`、`watch` 和 `form.batch` 中会直接报错，在其他地方也不会触发任何组件重渲染。更新时应直接给对应字段赋值，或在外部调用数组操作方法：
 
 ```ts
 d.user.name.$value = 'Ada'
 d.items.$value = [...d.items.$value, row]
+// 在组件或外部逻辑中追加行：form.pushArray('items', row)
 ```
 
-组件外面追加一行，用 `form.pushArray('items', row)`。
-
-## 同一轮读回刚写的值
+## 在同一轮联动中读回刚写入的 `$value`
 
 ```ts
 d.total.$value = d.price.$value * d.qty.$value
 d.tax.$value = d.total.$value * 0.1
 ```
 
-写入要等这一轮结束才生效。这里读到的还是旧的 total。
+在 `reaction` 中，数据写入会缓冲到本轮函数返回后才统一生效，因此第二行读到的 `d.total.$value` 依然是旧值（开发模式下会报错提示）。正确的做法是先把计算结果存进局部变量：
 
 ```ts
 const total = d.price.$value * d.qty.$value
@@ -91,9 +89,9 @@ d.total.$value = total
 d.tax.$value = total * 0.1
 ```
 
-`$componentProps` 这类 UI 状态例外：同一轮的写入会重放，所以可以先 `props.style ??= {}` 再改颜色。
+唯一的例外是 `$componentProps` / `$decoratorProps` 等 UI 状态：它们的写入会在当前轮次内即时叠加，因此可以先写 `props.style ??= {}` 再修改里面的样式属性。
 
-## ObjectField 的路径
+## 在作用域内部重复书写父级路径前缀
 
 ```tsx
 <ObjectField name="address">
@@ -101,7 +99,7 @@ d.tax.$value = total * 0.1
 </ObjectField>
 ```
 
-作用域里的名字是相对的。这样会拼成 `address.address.city`。用 `typed(form)` 的根 `F.Field` 写 `address.city`，类型检查能过，运行时仍会再拼一次。开发环境在拼出来的路径没有值、而从根上读得到时抛错。
+`<ObjectField>` 和 `<ArrayField>` 内部使用的 `name` 是相对于当前作用域解析的。上面的写法会拼接成 `address.address.city`（哪怕外层使用 `typed(form)` 的根 `F.Field` 通过了类型检查，运行时依然会重复拼接并在开发模式报错）。在强类型写法中，应当使用作用域回调提供的子组件来约束相对路径：
 
 ```tsx
 <F.ObjectField name="address">
@@ -109,23 +107,23 @@ d.tax.$value = total * 0.1
 </F.ObjectField>
 ```
 
-数组行里写 `items.0.name` 是同一个问题。写 `name`。
+在数组行中同理，应当直接写 `name`，而不是 `items.0.name`。
 
-## $visible = false
+## 误把 `$visible = false` 当成 `hidden`
 
 ```ts
 d.taxId.$visible = false
 ```
 
-这是 `none`：不渲染、不校验、不提交。值留在 store 里。它不是 `hidden`。
+`$visible = false` 对应的是 `display: 'none'`——不仅不渲染，还会**跳过校验并从提交结果中剔除**（虽然值仍留在引擎里）。如果你的目的是「隐藏界面但依然参与校验和提交」，应当使用 `$hidden = true`：
 
 ```ts
-d.taxId.$hidden = true       // 不渲染，仍校验，仍提交
-d.taxId.$display = 'virtual' // 渲染，仍校验，不提交，$visible 为 true
-d.taxId.$visible = false     // none
+d.taxId.$hidden = true       // 隐藏界面，但保留校验与提交
+d.taxId.$display = 'virtual' // 正常渲染并校验，但不提交（$visible 仍为 true）
+d.taxId.$visible = false     // 即 none：不渲染、不校验、不提交
 ```
 
-## control 和 connect
+## 把 `useFieldDecorator().control` 当成数据绑定传给控件
 
 ```tsx
 function Bad() {
@@ -134,7 +132,7 @@ function Bad() {
 }
 ```
 
-`control` 里是标签、说明、错误、`id` 和 `aria-*`，没有 `value`，也没有 `onChange`。摊开它，字段值接不上。
+`control` 只包含标签、错误文案、`id`、`onBlur` 和无障碍属性，**里面没有 `value` 和 `onChange`**。自己写原生或第三方受控组件时，需要通过 `useField()` 手动接入值和变更回调，或者直接使用 `connect` 包装组件：
 
 ```tsx
 function NameInput() {
@@ -150,9 +148,9 @@ function NameInput() {
 }
 ```
 
-要一套现成的映射（含 `format` / `parse`），用 `connect`。`useFieldDecorator()` 留给自己画标签的控件。见 [接入组件库](/guide/headless#接自己的组件库)。
+如果控件自己渲染标签，请配合 `useField()` + `control`；若想统一复用属性映射与 `format`/`parse` 转换，请使用 `connect`，详见 [接入组件库](/guide/headless#接自己的组件库)。
 
-## 把派生写进 watch
+## 把派生计算写进 `watch`
 
 ```ts
 watch((d) => d.price.$value, (d) => {
@@ -160,7 +158,7 @@ watch((d) => d.price.$value, (d) => {
 })
 ```
 
-这是派生，应该用 `reaction`，初始化就会跑，之后只在读过的状态变化时重跑。
+`watch` 在初始化时不会执行，因此页面刚打开时 `total` 不会得到计算值。凡是「B 始终由 A 推导得出」的逻辑都应该用 `reaction`；`watch` 仅用于「当 A 发生变化时执行一次动作」（例如切换省份时清空城市）：
 
 ```ts
 reaction((d) => {
@@ -171,5 +169,3 @@ watch((d) => d.province.$value, (d) => {
   d.city.$value = undefined
 })
 ```
-
-`watch` 用来做动作：省变了就清空市。它首次不跑。

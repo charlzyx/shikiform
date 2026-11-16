@@ -1,11 +1,11 @@
 ---
 title: 表格与查询
-description: 带联动条件的查询表、不依赖 antd 的同一个查询 Hook、抽屉里编辑表格行。
+description: 演示带条件联动的查询列表、脱离 antd 的原生查询实现，以及使用抽屉编辑表格行。
 ---
 
 ## 查询表
 
-场景：日志查询页。条件超过一行时折叠（折叠不丢值），「供应商」决定「模型」的选项，表头还能按状态筛选；新的查询回到第 1 页，翻页保留勾选。
+**场景**：日志查询页面。查询条件超过一行时自动折叠（折叠后依然保留已输入的值），选择「供应商」动态更新「模型」的可选项，同时支持表头状态筛选；发起新查询时重置到第 1 页，翻页时保留已勾选项。
 
 ```tsx preview play=query
 import { Field, defineEffects } from '@shikiform/react';
@@ -70,14 +70,14 @@ export default function App() {
 }
 ```
 
-- `useQueryTable`（`@shikiform/hooks`）管条件、分页、勾选、表头筛选和请求竞态；`QueryList` 只负责摆放：条件栅格 + 重置 / 查询 + 一张受控分页的 `ArrayTable`。它的 `form` 是普通引擎，所以条件之间照常写 `reaction` / `watch`。
-- `rows: 'list'` 把每页结果写进 `list` 数组字段，表格显示的就是它（单元格也能放 `<Field>` 直接编辑）。
-- 条件排在 `FormGrid` 里，列数随容器宽度变（默认最多 4 列、每列至少 220px，`grid` 可改）。收起时只显示第一行，重置 / 查询排在这一行末尾；一行放不下时出现「展开 / 收起」，展开后按钮排在最后一行末尾。收起只是隐藏格子，不卸载字段，值不丢。
-- 表头筛选随请求发给 `request` 的 `filters`，并回到第 1 页、清空勾选；只翻页时勾选保留。见 [查询 Hooks](/reference/query-hooks)。
+- `useQueryTable`（`@shikiform/hooks`）统一托管查询条件、分页、勾选、表头筛选和请求竞态；`QueryList` 负责渲染顶部可折叠筛选栏和下方的受控 `ArrayTable`。由于底层仍是标准 ShikiForm 引擎，条件之间可以照常编写 `reaction` 和 `watch`。
+- 配置 `rows: 'list'` 后，接口返回的每一页数据会写入表单的 `list` 数组字段，因此表格单元格也可以直接放置 `<Field>` 进行行内编辑。
+- 查询区底层采用 `FormGrid`，列数随容器宽度自动调整（默认最多 4 列、每列最小 220px，可通过 `grid` 调整）。收起时只保留第一行且按钮置于行末；只有超出单行时才出现「展开 / 收起」开关，且收起仅隐藏节点不卸载，输入值不会丢失。
+- 触发表头筛选时，筛选条件会传给 `request` 的 `filters` 参数，同时回到第 1 页并清空勾选项；单纯翻页时勾选项会保留。详见 [查询 Hooks](/reference/query-hooks)。
 
 ## 不用 antd 的查询表
 
-场景：同一个查询 Hook，换成原生 HTML。
+**场景**：不引入 Ant Design，直接将同一个 `useQueryTable` Hook 接入原生 HTML 表单和表格。
 
 ```tsx preview play=query-native
 import { Field, Form } from '@shikiform/react';
@@ -124,12 +124,12 @@ export default function App() {
 }
 ```
 
-- Hook 返回的是状态和动作（`data`、`total`、`page`、`selectedKeys`、`submit`、`onPageChange` …），没有任何 UI 假设。
-- `<Form form={table.form} onSubmit={() => table.submit()}>`：回车也是一次新查询。
+- `useQueryTable` 只返回纯状态与操作函数（`data`、`total`、`page`、`selectedKeys`、`submit`、`onPageChange` 等），对 UI 框架没有任何依赖。
+- 通过 `<Form form={table.form} onSubmit={() => table.submit()}>` 包装后，用户在输入框内按回车也能直接触发查询。
 
 ## 抽屉里编辑一行
 
-场景：表格只读展示，点「编辑」在抽屉里改一行；取消不写回，确定按 id 写回原行。
+**场景**：表格本身只读展示，点击某行的「编辑」在右侧抽屉中修改数据；点击取消放弃修改，点击确定校验通过后按 `id` 写回原行。
 
 ```tsx preview play=row-edit
 import { useState } from 'react';
@@ -190,8 +190,8 @@ export default function App() {
 }
 ```
 
-- 编辑区是同一个引擎里的一个 `display: 'virtual'` 对象：参与校验（`form.validate('editor')` 只查这棵子树），不进提交结果。
-- 写回用 `form.batch` 按 path 写到原行，一轮联动、一次通知。
-- 只有一个编辑器、要打开就拷贝、确认才写回，这正是 [影子草稿](/examples/pro#影子表单的几种容器) 的形状；需要独立引擎、弹窗 / 抽屉容器时用 `ShadowModal` / `useArrayShadow`。完整版还演示了异步加载和「旧请求不能覆盖新打开的行」。
+- 这里的编辑区利用了同一个引擎中声明为 `display: 'virtual'` 的 `editor` 对象：既支持通过 `form.validate('editor')` 局部校验该子树，又不会混入最终提交的 JSON 中。
+- 写回时使用 `form.batch` 一次性更新原行字段并关闭抽屉，仅触发一轮联动与一次视图通知。
+- 如果希望弹窗/抽屉拥有**完全独立的表单实例**且开箱即用，推荐使用 [草稿表单（ShadowForm）](/examples/pro#草稿表单的几种容器)（`ShadowModal` / `useArrayShadow`）。
 
 下一组：[Pro 组件](/examples/pro)。

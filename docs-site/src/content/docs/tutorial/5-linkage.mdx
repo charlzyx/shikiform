@@ -1,26 +1,26 @@
 ---
 title: 5. 联动
-description: reaction 维持金额，watch 在省变化之后才清空市。
+description: 使用 reaction 实时派生金额，使用 watch 在省份变更后按需清空城市。
 tableOfContents: false
 ---
 
 <div className="tutorial-step">
 <div className="tutorial-copy">
 
-单价是 10，数量是 2。金额还要自己填。改单价，金额不动。
+第一段练习中，单价和数量已经填好，但金额不会自动更新，仍然需要手动填写。
 
-`reaction` 用来维持一份派生结果。它一开始就会跑。读到的 `$` 状态是依赖，同一轮里的写入不是依赖。乘法先放进局部变量，再写回 `$value`。
+派生计算适合用 `reaction`：它会在表单初始化时立即执行一次，并自动收集内部读取的所有 `$` 状态作为依赖；当依赖发生变化时重新计算。如果一个计算结果在当前轮次还要继续使用（比如先算小计再算税费），请先存入局部变量，不要直接读回刚赋值的 `$value`。
 
-`reaction` 写过 `$value` 的字段是计算字段：阅读态，默认仍会提交。不想提交就声明 `display: 'virtual'`。
+另外，凡是被 `reaction` 写入过 `$value` 的字段都会自动成为计算字段——界面上默认转为只读展示（`readPretty`），提交时默认保留该值；如果只希望它在界面上展示、不需要提交，为其声明 `display: 'virtual'` 即可。
 
-**这一步：** 用 `defineEffects` 包一个 `reaction`：
+**这一步：** 用 `defineEffects` 注册一条 `reaction`：
 
 ```ts
 const amount = (d.price.$value || 0) * (d.qty.$value || 0);
 d.amount.$value = amount;
 ```
 
-把 `effects` 传给 `useForm`。改单价或数量，金额变成乘积，而且不能手改。提交 JSON 里有 `amount`。
+将 `effects` 传给 `useForm` 后，修改单价或数量，金额会自动更新且转为只读展示，最终提交的 JSON 里也会包含 `amount`。
 
 </div>
 
@@ -31,13 +31,13 @@ d.amount.$value = amount;
 <div className="tutorial-step">
 <div className="tutorial-copy">
 
-省是浙江，市本来该是杭州。现在一打开，市是空的。
+第二段练习中，初始省份为「浙江」，原本对应的初始城市是「杭州」，但因为起始代码把清空城市的逻辑错写在了 `reaction` 中，导致表单一打开就把杭州清空了。
 
-清空市是一个动作，应该等省变了再做。这种用 `watch`：初始化不跑，来源变化之后才跑。起始代码把清空写在 `reaction` 里，所以杭州一进来就被清掉了。
+「在某个字段变化时执行一次性动作」应该使用 `watch`：它在初始化时不执行，只有当第一个参数中监听的状态发生改变时，才会触发回调。
 
-这一步的字段用 `typed(form)` 的 `F.Field`：字段名按表单类型检查。
+这段代码同时演示了 `typed(form)` 返回的 `F.Field`：它与普通 `<Field>` 行为一致，只是会在编译期检查字段名是否拼写正确。
 
-**这一步：** `reaction` 只留 `d.city.$disabled = !d.province.$value`。清空改成：
+**这一步：** 在 `reaction` 中仅保留 `d.city.$disabled = !d.province.$value`，把清空城市改为 `watch`：
 
 ```ts
 watch(
@@ -48,7 +48,7 @@ watch(
 );
 ```
 
-一进来市仍是杭州。切换省之后，市被清空。没有省的时候，市是禁用的。
+修改后，首次打开时城市会保留「杭州」；只有主动切换省份后，城市才会被清空；如果清空省份，城市选择器也会随之禁用。
 
 </div>
 

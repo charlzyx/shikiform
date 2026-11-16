@@ -1,13 +1,13 @@
 ---
-title: Pro.formily 复刻
-description: Pro.formily 的八个演示在 ShikiForm 上的对应写法：ArrayTable、影子草稿、QueryList、枚举、联想与级联。
+title: Pro 组件与高阶场景
+description: 完整演示 ArrayTable、草稿表单（ShadowForm）、QueryList、枚举阅读态、远程联想与懒加载级联组件。
 ---
 
-这一组是查询表、影子表单、枚举和级联的完整页面。组件来自 `@shikiform/antd`，背后的 Hook 来自 `@shikiform/hooks`，概念见 [查询列表](/guide/pro)。
+本页汇总了 `@shikiform/antd` 与 `@shikiform/hooks` 中高阶业务组件的完整用法，底层概念介绍请参考 [查询列表与 Pro 组件](/guide/pro)。
 
 ## ArrayTable 全功能
 
-场景：可编辑的明细表，要分页、勾选、拖动排序、调列宽、列配置、带确认的异步删除，可展开的行里再放一张只读子表。
+**场景**：可编辑的明细表格，需要支持分页、行勾选、拖拽排序、列宽拖拽调整、列配置面板、带确认提示的异步删除，以及展开行展示只读子表。
 
 ```tsx preview play=array-table
 import { Button, Space, message } from 'antd';
@@ -83,14 +83,14 @@ export default function App() {
 }
 ```
 
-- 列的 `render` 运行在行作用域里：`<Field name="a1">` 就是 `list.N.a1`；展开区里的 `<ArrayField name="subitems" component={[ArrayTable, …]}>` 也相对这一行。
-- `ArrayTable.useTable()` 在 `toolbar` / `footer` 里读同一张表的分页和勾选；行内用 `ArrayTable.useRow()` 或 headless 的 `useIndex()` / `useRecord()`。
-- `onRemove` 返回 Promise：删除按钮先转圈，resolve 才删，reject 保留这一行。
-- 表头右侧的齿轮是列配置：显隐、拖动排序、密度。完整版还有「加载 10 万行」。
+- 每一列的 `render` 都运行在当前行作用域内，因此 `<Field name="a1">` 会自动绑定到 `list.N.a1`；展开区内的 `<ArrayField name="subitems">` 同样相对于当前行解析。
+- 在 `toolbar` 或 `footer` 中调用 `ArrayTable.useTable()` 可以读取当前表格的分页和勾选状态；在行内读取行信息时可使用 `ArrayTable.useRow()` 或无 UI 的 `useIndex()` / `useRecord()`。
+- 当 `onRemove` 返回 Promise 时，删除按钮会自动进入加载状态，只有 Promise resolve 后才会真正移除该行，reject 则保留原行。
+- 点击表头右上角的齿轮图标即可配置列显隐、拖拽列顺序或调整表格密度。
 
-## 用影子表单编辑行
+## 用草稿表单编辑行
 
-场景：表格只读，每行「编辑」打开同一个弹窗；另有两个「添加」入口，一个弹窗、一个抽屉。确认才写回，取消什么都不动。
+**场景**：表格本身设为只读，点击每行的「编辑」时打开弹窗修改；同时提供弹窗和抽屉两个「添加」入口，确认校验通过后才写回列表，取消则保持原数据不变。
 
 ```tsx preview play=array-table-shadow
 import { Button } from 'antd';
@@ -142,13 +142,13 @@ export default function App() {
 }
 ```
 
-- `useArrayShadow(name)` 是 `useShadowForm` 加上默认写回：`edit(index)` 拷贝这一行打开草稿，确认后写回同一行；可传 `edit(index, init)` 先映射或请求记录。
-- `ArrayTable.ShadowAddition`（Pro.formily `ProAddition`）自带一个影子草稿：确认后追加一行，并翻到新行所在的页。
-- 草稿是独立的引擎，字段名从草稿的根开始解析，不继承所在行的作用域。
+- `useArrayShadow(name)` 基于 `useShadowForm` 封装了列表行的默认写回逻辑：调用 `edit(index)` 时会拷贝该行打开独立草稿，确认提交后自动写回原行；也可以传入 `edit(index, init)` 在打开前先异步请求或转换记录。
+- `ArrayTable.ShadowAddition` 内置了草稿表单：确认通过后自动向数组追加新行，并跳转到新行所在的页码。
+- 由于草稿内部是独立的表单引擎，其中的 `<Field>` 路径从草稿根路径解析，不继承外层表格行的作用域。
 
-## 影子表单的几种容器
+## 草稿表单的几种容器
 
-场景：同一份「域名 + 描述」草稿，分别放进气泡确认框、页面内联区块和纯 Hook 里。
+**场景**：同一份「域名 + 描述」草稿字段，分别接入气泡确认框、页面内联区块以及纯 Hook 控制流中。
 
 ```tsx preview play=shadow-form
 import { useState } from 'react';
@@ -205,13 +205,13 @@ export default function App() {
 }
 ```
 
-- 所有容器都是 `useShadowForm` 的外壳：`open(record)` 拷贝一份到新引擎，`confirm()` 校验通过后调用 `onOk(values)`，`cancel()` 丢弃。
-- `ShadowForm` 内联渲染草稿，子组件用 `useShadow()` 拿到它；也可以写成 render prop `{(shadow) => …}`。
-- 弹窗和抽屉（`ShadowModal` / `ShadowDrawer`）见 [Pro 组件 · 影子草稿](/guide/pro#影子草稿)。
+- 几种容器底层共用 `useShadowForm`：`open(record)` 会将数据拷贝进新的表单引擎实例，`confirm()` 在校验通过后调用 `onOk(values)`，`cancel()` 则直接丢弃草稿。
+- `ShadowForm` 支持在页面内联渲染草稿内容，子组件通过 `useShadow()` 获取当前草稿实例（也可使用 `{(shadow) => ...}` 渲染函数）。
+- 弹窗与抽屉容器（`ShadowModal` / `ShadowDrawer`）的用法请见 [草稿表单（ShadowForm）](/guide/pro#草稿表单shadowform)。
 
 ## QueryList
 
-场景：域名列表页。条件栅格超过两格时折叠，服务端分页，ID 表头排序发给服务端，「分类」列默认隐藏，状态显示成徽标，列表里的域名可以直接改。
+**场景**：域名管理列表页。筛选区超过一行时自动折叠，开启服务端分页和表头按 ID 排序，「分类」列默认隐藏，状态列渲染为徽标，列表中的域名列支持直接行内编辑。
 
 ```tsx preview play=query-list
 import { Field } from '@shikiform/react';
@@ -267,14 +267,14 @@ export default function App() {
 }
 ```
 
-- `QueryList` = 可折叠的条件栅格 + 受控分页的 `ArrayTable` + 刷新按钮，状态全部在 `useQueryTable` 里。
-- `rows: 'list'` 让每一页结果成为表单数组，所以单元格可以编辑、校验；这类写入不算用户修改（不置脏）。
-- 列上写 `sorter: true`，表头排序随请求发给 `request` 的 `sorter` 并回到第 1 页；勾选保留。`hidden: true` 的列在列配置里可以再打开。
-- `params: 'query'` 让请求参数的类型就是 `query` 字段的类型。
+- `QueryList` 将可折叠筛选栏、受控分页 `ArrayTable` 和刷新按钮组合在一起，所有查询与分页状态由 `useQueryTable` 统一驱动。
+- 指定 `rows: 'list'` 后，接口返回的当页数据会写入表单的 `list` 数组字段，单元格中的 `<Field>` 可以直接编辑和校验，且引擎填充查询结果不会把表单标记为 `dirty`。
+- 在列定义中配置 `sorter: true` 后，点击表头排序会自动携带 `sorter` 参数重新请求并回到第 1 页；设置 `hidden: true` 的列默认隐藏，用户可在右上角列配置面板中重新勾选显示。
+- 声明 `params: 'query'` 可以自动推导请求中 `params` 的 TypeScript 类型与 `query` 字段一致。
 
 ## QueryList 添加与编辑
 
-场景：在查询结果上直接加一行、或用弹窗改某一行；真实项目里在 `onOk` 里调接口，然后 `table.refresh()`。
+**场景**：在 `QueryList` 查询结果中直接新增一行或弹窗编辑某一行；接入真实后端时只需在 `onOk` 中调用接口，再执行 `table.refresh()` 刷新列表。
 
 ```tsx preview play=query-list-add
 import { Button } from 'antd';
@@ -306,7 +306,7 @@ export default function App() {
       return { data: rows.slice((page - 1) * pageSize, page * pageSize), total: rows.length };
     },
   });
-  // QueryList 自己渲染 <Form>；把 Hook 的 form 交给影子，它就能写回 list。
+  // QueryList 自己渲染 <Form>；将 table.form 传给草稿表单，确认后即可写回 list。
   const editor = useArrayShadow<Row>('list', { form: table.form, rowKey: 'id' });
   return (
     <>
@@ -327,12 +327,12 @@ export default function App() {
 }
 ```
 
-- 编辑和添加都只改当前页的 `list`，不会替你调用后端；要持久化就在 `onOk` 里请求，再 `table.refresh()`。
-- `useArrayShadow` 不在 `<Form>` 里时，用 `{ form }` 指定写回哪个引擎。
+- 当组件只需要操作本地列表时，保存后直接更新 `list`；在真实业务中接入持久化接口时，在 `onOk` 回调里提交接口请求，完成后调用 `table.refresh()` 即可。
+- 在 `QueryList` 外部使用 `useArrayShadow` 时，通过 `{ form: table.form }` 传入查询列表持有的表单实例即可自动写回对应的 `list` 字段。
 
 ## 枚举：静态、懒加载与阅读态
 
-场景：一组选择类字段，有的选项是静态的，有的要远程加载（多个字段共用一次请求）；整组切到阅读态时，显示成文字、徽标或标签。
+**场景**：演示静态枚举与远程懒加载枚举（多个字段共享同一次接口请求）的声明方式，以及在阅读态下如何渲染为纯文本、状态徽标或彩色标签。
 
 ```tsx preview play=pro-enum
 import { Button, Space } from 'antd';
@@ -378,13 +378,13 @@ export default function App() {
 }
 ```
 
-- 选项写在 `<Field enum>` 上：静态数组，或远程的 `EnumSource.from(loader).with(params)`（同一个 source 加载一次，所有字段共享）。随别的字段变化的参数写在 reaction 里：`d.city.$enum = Cities.with(d.province.$value)`，参数变了会重新加载并作废旧请求。
-- 选择类控件的 `options` 默认取字段枚举，加载中自动 `loading`；阅读态显示选项的 `label`（多个值是标签），`prettyType` 换成 `badge` 或彩色 `tag`（颜色取选项的 `color`）。
-- 只显示、不编辑的字段（表格里的状态列）就是 `pattern="readPretty"` 的选择控件；不在表单里用纯视图 `<PreviewText.Select value options prettyType />`。
+- 通过 `EnumSource.from(loader).with(params)` 定义的远程枚举会在相同参数下共享加载结果，加载期间下拉控件自动展示 `loading`；若参数依赖其他字段，在 `reaction` 中赋值 `d.city.$enum = Cities.with(d.province.$value)` 即可在参数变化时自动重新加载并作废过期请求。
+- 切换到 `readPretty` 模式后，选择类控件会自动根据枚举翻译出 `label`（多选展示为标签），传入 `prettyType="badge"` 或 `prettyType="tag"` 可以配合选项上的 `color` 渲染为徽标或彩色标签。
+- 表格中的纯展示状态列可以直接给字段传入 `pattern="readPretty"`；在表单上下文之外单独展示枚举标签时，使用 `<PreviewText.Select value options prettyType />`。
 
 ## Suggestion：远程联想
 
-场景：输入关键字后联想商品名；值可以是字符串、`{ label, value }`，也可以多选。
+**场景**：输入关键字实时联想商品名称，支持普通字符串、`{ label, value }` 对象以及多选等多种值结构。
 
 ```tsx preview play=suggestion
 import { Field, Form, Watch, useForm, type Draft } from '@shikiform/react';
@@ -417,12 +417,12 @@ export default function App() {
 }
 ```
 
-- `fetch(keyword, { signal })` 返回选项；组件负责防抖（`debounce`，默认 300ms）、中止旧请求、丢弃迟到的结果。
-- 无 UI 的同一套逻辑是 `useSuggestion`（`@shikiform/hooks`），不绑字段的组件是 `SuggestionView`。
+- 传入 `fetch(keyword, { signal })` 后，组件内置了请求防抖（`debounce` 默认 300ms）、中止旧请求和丢弃过期响应的能力。
+- 底层无 UI Hook 为 `useSuggestion`（`@shikiform/hooks`），不绑定表单字段的独立受控组件为 `SuggestionView`。
 
 ## CascaderPlus：懒加载级联
 
-场景：省 / 市 / 区三级地址，每一级都按需加载；表单里已有的值打开时要逐级反显，阅读态显示成「北京市 / 北京市 / 朝阳区」。
+**场景**：省 / 市 / 区三级地址按需逐级加载，并在打开已有编码数据时自动逐级反显完整路径标签。
 
 ```tsx preview play=cascader-plus
 import { Button, Space } from 'antd';
@@ -469,8 +469,8 @@ export default function App() {
 }
 ```
 
-- `loadData(path)` 收到已选值组成的路径（根是 `[]`），返回下一级选项；最后一级标 `isLeaf: true`。
-- 只有编码的值会通过同一个 `loadData` 解析出标签，编辑态和阅读态都能显示文字；`labelInValue` 的值自带标签。
-- 选项一开始就是整棵树时不需要它：把树给 `<Field enum>`，用 [`Cascader`](/guide/controls)。不绑字段的组件是 `CascaderPlusView`，无 UI 的逻辑是 `useLazyCascader` / `useCascaderLabels`。
+- `loadData(path)` 接收当前已选节点值数组（根节点为 `[]`），返回下一级选项列表，最末级需要标记 `isLeaf: true`。
+- 对于只有编码数组（非 `labelInValue`）的初始值，组件和阅读态都会自动调用 `loadData` 逐级解析出文本标签。
+- 如果选项本身就是一份静态完整的树形数据，直接把树赋给 `<Field enum>` 并配合标准 [`Cascader`](/guide/controls) 即可。`CascaderPlusView` 是不绑字段的独立版本，无 UI 状态逻辑见 `useLazyCascader` 与 `useCascaderLabels`。
 
 下一组：[业务场景](/examples/business)。

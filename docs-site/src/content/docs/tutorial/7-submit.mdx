@@ -1,25 +1,21 @@
 ---
 title: 7. 提交与重置
-description: 确认密码用 virtual：会校验，不进提交 JSON。
+description: 用 virtual 标记只校验不提交的确认密码，并了解 Reset 与 afterReset 的用法。
 tableOfContents: false
 ---
 
 <div className="tutorial-step">
 <div className="tutorial-copy">
 
-预览里有昵称、密码和确认密码。先把两处密码都写成 `secret123`，点提交。
+在这个表单里，如果把密码和确认密码都填成 `secret123` 再点提交，会发现 `confirmPassword` 也出现在了最终提交的 JSON 里。
 
-JSON 里昵称在 `profile.name`。写在 `ObjectField` 里面的名字会接到外面的名字后面。
+在界面上，「确认密码」和普通字段一样需要渲染、也需要校验，但它只是前端用来做一致性比对的辅助字段，不应当提交给后端。此时只需给它设置 `display="virtual"`：字段仍会正常显示和参与校验（读取 `$visible` 仍为 `true`），但在提交与 `getSubmitValues()` 时会被自动剔除。
 
-确认密码也出现在 JSON 里。它只用来比对，不该被提交。这种字段写 `display="virtual"`：照样渲染，校验还在，`getSubmitValues` 会把它拿掉。`virtual` 时 `$visible` 仍是 true。
+下方的 `Reset` 按钮会将表单值恢复到 `initialValues`，并触发 `afterReset` 回调。注意界面里的「重置表单」按钮用来还原用户输入的数据，代码编辑器右上角的「重置」按钮则是把教程代码还原为初始状态。
 
-`Reset` 把值回到 `initialValues`。`afterReset` 在重置完成之后拿到恢复后的值。
+**这一步：** 为 `confirmPassword` 加上 `display="virtual"`，并在 `rules` 中补充校验：当输入值不等于 `ctx.record.password` 时，返回 `'两次密码不一致'`。
 
-表单上的「重置表单」只清字段。它不是工具栏里那个把代码还原的「重置」。
-
-**这一步：** 给 `confirmPassword` 加上 `display="virtual"`，并在 `rules` 中写校验：值不等于 `ctx.record.password` 时，返回 `两次密码不一致`。
-
-两次输入一致再提交。JSON 里有 `profile` 和 `password`，没有 `confirmPassword`。
+修改完成后，输入相同的两次密码并提交，确认结果 JSON 中只包含 `profile` 和 `password`，不再出现 `confirmPassword`。
 
 </div>
 

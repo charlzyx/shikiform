@@ -1,32 +1,33 @@
 ---
 title: FAQ
-description: 计算字段为什么不能改、hidden 为什么挡住提交、确认密码为什么不在 JSON 里。
+description: 解答计算字段只读、hidden 与 none 的校验差异、虚拟字段剔除及自定义控件接线等常见疑问。
 ---
 
-## 金额变成只读了
+## 为什么字段自动变成了只读？
 
-`reaction` 写过它的 `$value`。这种字段是计算字段，pattern 是 `readPretty`，默认仍会提交。手改会在下一轮被算回来。不想提交时，声明 `display: 'virtual'`。
+只要某个字段的 `$value` 在 `reaction` 中被赋值过，引擎就会自动把它标记为计算字段，默认将 `$pattern` 设为 `'readPretty'`（防止手动编辑与计算结果冲突，但提交时仍会包含该值）。如果这个派生结果仅用于展示、不需要提交给后端，可以给它配置 `display: 'virtual'`。
 
-## 藏起来的字段还在挡提交
+## 隐藏的字段为什么还在阻止表单提交？
 
-`$hidden = true` 和 `display: 'hidden'` 不渲染，但仍然校验、仍然提交。`$visible = false` 才是 `none`：不校验、不提交，值还留着。
+`display: 'hidden'`（或 `$hidden = true`）的语义是「隐藏界面渲染，但字段仍然有效」，因此它会继续参与校验并出现在提交结果中。如果希望字段在隐藏时跳过校验且不提交，请使用 `$visible = false`（等价于 `display: 'none'`），引擎会保留它的值并在重新显示时恢复。
 
-## 确认密码出现在提交结果里
+## 确认密码等辅助字段怎么从提交数据中剔除？
 
-它是普通字段。加上 `display: 'virtual'`：界面还在，对不上会挡住提交，`getSubmitValues` 把它拿掉。这时读 `$visible` 仍是 true。
+给辅助字段声明 `display: 'virtual'` 即可：这样输入框依然正常显示、也能执行「两次密码一致」的校验规则并拦住非法提交，但在调用 `getSubmitValues()` 或 `onSubmit` 时会被自动剔除。此时读取它的 `$visible` 依然为 `true`。
 
-## 只想要引擎，不要 React
+## 可以不引入 React 单独使用表单引擎吗？
 
-安装 `@shikiform/core`，用 `createForm`。React 绑定在 `@shikiform/react`，它会重新导出 core。
+可以。安装 `@shikiform/core` 后直接调用 `createForm` 即可，所有联动、校验、路径读写和数组操作都不依赖 React。使用 React 时直接安装 `@shikiform/react`，其中已经重导出了核心 API。
 
-## 字段名想要类型检查
+## 如何让字段名获得 TypeScript 类型检查？
 
-`const F = typed(form)`，然后用 `F.Field`。没有另一套字段工厂。动态路径继续用字符串 `name` 的 `Field`。
+通过 `const F = typed(form)` 获取绑定当前表单类型的组件集合，然后使用 `<F.Field name="..." />`、`F.useWatch(...)` 即可。对于需要动态拼接路径的场景，继续使用普通的 `<Field>`。
 
-## 自定义控件怎样接值
+## 自定义组件怎么接入表单的值和错误提示？
 
-在 `Field` 的 `component` 里 `useField()`，自己接 `value` / `onChange` / `onBlur`。或者 `connect(Control, mapProps({ format, parse }))`。`useFieldDecorator().control` 没有值和 onChange。
+- 如果组件只负责输入部分，推荐用 `connect(Control, mapProps({ ... }))` 包装，外部再套 `decorator={[FormItem]}`。
+- 如果在自定义渲染函数或独立组件内部接线，直接调用 `useField()` 读写 `value`、`onChange`、`onBlur`。注意 `useFieldDecorator().control` 只包含标签、无障碍属性和错误信息，**不包含 `value` 与 `onChange`**。
 
-## 查询列表在哪个包
+## 查询列表和弹窗草稿表单在哪个包？
 
-`useQueryTable` 在 `@shikiform/hooks`。带界面的 `QueryList` 在 `@shikiform/antd`。见 [查询列表](/guide/pro)。
+无 UI 的状态 Hook（`useQueryTable`、`useShadowForm`、`useArrayShadow`）位于 `@shikiform/hooks`，开箱即用的 Ant Design 组件（`QueryList`、`ShadowModal`、`ShadowDrawer`）位于 `@shikiform/antd`。详见 [查询列表与 Pro 组件](/guide/pro)。

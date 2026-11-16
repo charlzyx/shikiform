@@ -1,56 +1,52 @@
 ---
 title: Agent 指南
-description: 给 AI 编程助手的一屏心智模型和最常见的错误；完整英文版在 /llms.txt。
+description: 帮助 AI 编程助手快速理解 ShikiForm 的核心心智模型并避开常见误区，完整英文规范见 /llms.txt。
 ---
 
-AI 编程助手写 ShikiForm 时最常犯的错，集中在几条规则上。把 [/llms.txt](/llms.txt) 交给它。下面是中文摘要。
+在使用 AI 编程助手编写 ShikiForm 代码时，大部分错误都源自把 draft handle 当成普通数据对象，或者混淆了 `reaction` 与 `watch` 的语义。你可以直接把 [/llms.txt](/llms.txt) 提供给它；本页汇总了最关键的六条开发规范。
 
-## 六条规则
+## 六条核心规范
 
-1. **handle 不是 value。** `d.user.name` 只是 path；读写用 `$value`。不要修改 `$value` 返回的对象，写字段自己的 path。handle 不是数组，不能 `.map` / `.length`。
-2. **reaction 派生，watch 做动作。** reaction 立即运行、读到的都是依赖；watch 首次不运行、只认 `source`。派生值不要藏在 watch 里。
-3. **刚写的值不要在同一轮读回**，先放局部变量（UI 状态除外）。
-4. **`reaction.each` / `watch.each` 只有两个参数**，回调是 `(row, ctx)`。`ctx` 含 `key`、`index`、`depth`、`parent`、`path`、`pos`（以及根 draft `d`）。对象数组会自动往下走。嵌套在对象里的基本类型数组不进；对字符串数组本身调用 `each` 时，回调仍在 `depth === 0` 触发。按 `ctx.key` / `ctx.depth` 自己过滤。组件里用 `useArray()` / `useIndex()` / `useRecord()` / `useTreeNode()`。
-5. **值按 path 写，对象型 UI 状态按键打补丁**：`d.city.$componentProps.placeholder = '…'` 只改一个键；整体赋值会替换下层。
-6. **`<Field>` 拥有 path，`FormItem` 只是装饰器**：`<Field name title required decorator={[FormItem]} component={[Input]} />`。
+1. **handle 不是普通数据**：`d.user.name` 只是一个路径句柄，读取或修改数据必须通过 `$value`。不要直接修改 `$value` 返回的对象，而是直接向对应字段的 `$value` 赋值；同样，数组字段的 handle 不能直接调用 `.map` 或访问 `.length`。
+2. **`reaction` 用于派生，`watch` 用于副作用动作**：`reaction` 会在初始化时立即执行，并自动追踪内部读取的所有 `$` 状态；`watch` 在首次渲染时不执行，只监听第一个参数中读取的依赖。不要把派生计算写进 `watch` 里。
+3. **不要在同一轮联动中读回刚写入的值**：写入操作会缓冲到当前批次结束后才生效（`$componentProps` 等 UI 状态除外），需要复用计算结果时请先存入局部变量。
+4. **`reaction.each` / `watch.each` 只接受两个参数**：回调函数接收 `(row, ctx)`，其中 `ctx` 包含 `key`、`index`、`depth`、`parent`、`path`、`pos` 以及根 draft `d`。遍历时会自动进入元素为对象的嵌套数组，忽略嵌套在对象上的基本类型数组（除非直接对该基本类型数组调用 `each`，此时会在 `depth === 0` 触发回调）。需要限定层级或字段名时，请在回调内根据 `ctx.depth` 和 `ctx.key` 自行判断。在 React 行组件中，通过 `useArray()`、`useIndex()`、`useRecord()`、`useTreeNode()` 读取上下文。
+5. **表单值按路径写入，对象型 UI 属性支持按键打补丁**：例如 `d.city.$componentProps.placeholder = '…'` 只会覆盖该属性，不会丢失下层声明的其它 props；如果直接对 `$componentProps` 整体赋值，则会替换掉下层。
+6. **`<Field>` 绑定路径，`FormItem` 仅作装饰器**：表单项统一写作 `<Field name title required decorator={[FormItem]} component={[Input]} />`，不要把 `name` 写在 `FormItem` 上。
 
-开发构建会对 1、3 和「把 handle 当数组」抛 `ShikiUsageError`，错误信息里写了正确写法。
+在开发模式下，违反第 1、3 条规范或把 handle 当数组操作时，引擎会抛出 `ShikiUsageError` 并给出修改建议。
 
-## 对照
+## 正误写法对照
 
 ```ts
-d.user.$value.name = 'x'                                  // ✗ 改了不可变快照
-d.user.name.$value = 'x'                                  // ✓
+d.user.$value.name = 'x'                                  // ✗ 直接修改了不可变快照
+d.user.name.$value = 'x'                                  // ✓ 按字段路径赋值
 
 d.items.forEach((row) => { row.total.$value = 1 })        // ✗ handle 不是数组
-reaction.each((d) => d.items, (row) => {                  // ✓ 每行一个实例
+reaction.each((d) => d.items, (row) => {                  // ✓ 为每一行建立独立联动
   row.total.$value = row.price.$value * row.qty.$value
 })
 
 d.total.$value = d.price.$value * d.qty.$value
-d.tax.$value = d.total.$value * 0.1                       // ✗ 读回了刚写的值
-const total = d.price.$value * d.qty.$value               // ✓
+d.tax.$value = d.total.$value * 0.1                       // ✗ 在同一轮内读回了刚写入的值
+const total = d.price.$value * d.qty.$value               // ✓ 用局部变量传递中间结果
 d.total.$value = total
 d.tax.$value = total * 0.1
 
 reaction.each((d) => d.rows, (row) => {}, { childrenKey: 'children' }) // ✗ 没有第三个参数
-reaction.each((d) => d.rows, (row, { depth, key }) => { if (depth !== 0) return }) // ✓
+reaction.each((d) => d.rows, (row, { depth }) => { if (depth !== 0) return }) // ✓ 在回调内自行过滤
 ```
 
 ```tsx
-<FormItem name="email" label="邮箱" required><Input /></FormItem>                        // ✗ FormItem 没有 name
-<Field name="email" title="邮箱" required decorator={[FormItem]} component={[Input]} />  // ✓
+<FormItem name="email" label="邮箱" required><Input /></FormItem>                        // ✗ FormItem 不接受 name
+<Field name="email" title="邮箱" required decorator={[FormItem]} component={[Input]} />  // ✓ 由 Field 绑定路径
 
-<Field name="city" component={[Select, { disabled: form.getValue('kind') === 'b' }]} />   // ✗ 不是响应式的
-reaction((d) => { d.city.$componentProps.disabled = d.kind.$value === 'b' })             // ✓
+<Field name="city" component={[Select, { disabled: form.getValue('kind') === 'b' }]} />   // ✗ 非响应式，状态不会随联动更新
+reaction((d) => { d.city.$componentProps.disabled = d.kind.$value === 'b' })             // ✓ 通过 reaction 更新 UI 状态
 ```
 
-文档目录：
+## 相关文档
 
-- 开始：[快速上手](/guide/quick-start)
-- [教程](/tutorial/)（八步）
-- 基础：[核心概念](/guide/concepts)、[按路径读写](/basics/path)
-- 进阶：[联动](/guide/linkage)、[查询列表](/guide/pro)
-- [场景示例](/examples)
-- [常见的坑](/practices/pitfalls)
-- [API](/api)
+- 入门：[快速开始](/guide/quick-start)、[互动教程](/tutorial/)
+- 基础与进阶：[核心概念](/guide/concepts)、[按路径读写](/basics/path)、[联动](/guide/linkage)、[查询列表](/guide/pro)
+- 实战与排查：[场景示例](/examples)、[常见的坑](/practices/pitfalls)、[API 总览](/api)

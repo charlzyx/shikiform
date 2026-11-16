@@ -64,7 +64,7 @@ useShadowForm<TValues, TContext>(options?: {
 // { form, visible, loading, submitting, context, open(init?, context?), confirm(onOk?), cancel() }
 ```
 
-影子表单（Pro.formily `ShadowForm`）：编辑一份副本，确认才把校验后的值交给 `onOk`，它自己从不写宿主表单。每次 `open()` 都新建一个引擎，`initialValues` 就是打开时的值，所以 `reset`、`dirty`、错误和 effects 每次都是干净的。`open` 可以传值或（异步）加载函数，较新的 `open` 会作废还在加载的旧请求。`confirm` 校验失败时返回 `{ ok: false, errors }` 并保持打开。
+草稿表单（`ShadowForm`）：在独立的临时表单实例中编辑一份副本，只有用户确认且校验通过后，才会将表单值交给 `onOk`，本身绝不直接修改宿主表单。每次调用 `open()` 都会创建全新的表单引擎，因此 `reset`、`dirty`、错误状态与联动都会从干净基线开始。`open` 支持直接传入对象或异步加载函数（连续触发时，新的 `open` 会自动作废尚在加载中的旧请求）。若 `confirm` 校验失败，会返回 `{ ok: false, errors }` 并保持弹窗/草稿打开。
 
 ## useArrayShadow
 
@@ -76,7 +76,7 @@ useArrayShadow<TRow>(name: string, options?: UseShadowFormOptions & {
 }): ShadowFormApi<TRow, ArrayShadowContext> & { edit(index, loader?), add(init?) }
 ```
 
-一份草稿服务整张表的行编辑（Pro.formily `DelegateAction` + `ShadowModal` + `ProAddition`，后者即 `ArrayTable.ShadowAddition`）：`edit(index, loader)` 打开这一行（`loader` 即 `initLoader`），确认后按行 id 找回该行并 `{ ...row, ...values }` 写回；`add()` 打开空草稿，确认后追加。`onOk` 返回 `false` 可以跳过默认写入自己处理。不在 `<Form>` 里调用时传 `form`，`name` 视为绝对路径。
+使用单个草稿表单服务整张列表的行编辑与新增：`edit(index, loader)` 会打开对应行的数据，确认后按行 `id` 定位原行并默认执行 `{ ...row, ...values }` 合并写回；`add()` 则打开空白草稿，确认后自动追加到数组末尾。如果需要在确认后自行调接口处理，可以让 `onOk` 返回 `false` 以跳过默认写回。在 `<Form>` 外部调用时，传入 `form` 即可将 `name` 作为绝对路径写回指定实例。
 
 ## useSuggestion
 

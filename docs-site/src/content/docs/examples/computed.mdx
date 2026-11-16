@@ -1,9 +1,9 @@
 ---
 title: 联动计算
-description: 单价乘数量得到金额。reaction 写出来的字段默认仍会提交。
+description: 根据单价与数量自动计算金额，并说明计算字段的只读与提交行为。
 ---
 
-金额由单价和数量决定。用 `reaction` 维持它，不要在 `watch` 里偷偷做乘法。
+当金额完全由单价和数量派生时，应当使用 `reaction` 来维护它的值，而不是写在 `watch` 里。
 
 ```tsx preview
 import { useState } from 'react';
@@ -42,10 +42,10 @@ export default function App() {
 }
 ```
 
-打开页面，金额已经是 20，而且不能手改。把单价改成 30，金额变成 60。提交 JSON 里有 `amount`。
+页面打开时，引擎会立刻执行一次 `reaction`，把金额计算为 20 并自动将其设为阅读态（不可手动修改）。把单价改成 30 时，金额会同步更新为 60，点击提交后返回的 JSON 中同样包含 `amount`。
 
-<Aside type="tip" title="计算字段默认提交">
-reaction 写过 `$value` 的字段是阅读态，仍在提交结果里。不想带上它，给这个字段声明 `display: 'virtual'`。
+<Aside type="tip" title="计算字段默认仍会提交">
+在 `reaction` 中写入过 `$value` 的字段会自动成为计算字段并展示为阅读态，但默认仍会随表单一起提交。如果只想在界面上展示而不想提交给后端，给该字段声明 `display: 'virtual'` 即可。
 </Aside>
 
-同一轮里不要读刚写的 `$value`。乘积放在 `amount` 这个局部变量里，再赋值。
+另外，在同一个 `reaction` 轮次内不要去读回刚写入的 `$value`——如果后续计算也需要用到这个新值，请先存入局部变量（例如上面的 `amount`）再赋值。

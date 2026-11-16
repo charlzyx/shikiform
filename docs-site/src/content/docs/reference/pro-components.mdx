@@ -25,7 +25,7 @@ Pro.formily `QueryList` + `QueryForm` + `QueryTable`：可折叠的查询栅格�
 </ShadowModal>
 ```
 
-在 antd `Modal` 里编辑影子草稿（Pro.formily `ShadowModal`）。点 `trigger` 用 `record` 打开（值或加载函数）；确定先校验，再调 `onOk`，成功后关闭；取消什么都不写。传 `shadow`（来自 `useShadowForm` / `useArrayShadow`）时用外部草稿，否则组件自己持有一个。草稿字段从草稿的根开始解析，不继承所在行的作用域。按钮文字取 `messages.ok` / `messages.cancel`（确定 / 取消），`okText` / `cancelText` 覆盖。
+在 antd `Modal` 中承载草稿表单进行编辑。点击 `trigger` 时会以 `record`（静态值或异步加载函数）打开草稿；点击确定时先执行校验再调用 `onOk`，成功后关闭弹窗；取消则直接丢弃草稿，不会影响原表单。传入由 `useShadowForm` / `useArrayShadow` 创建的 `shadow` 实例时受外部控制，否则组件内部会自动维护一个实例。草稿内部字段均相对于草稿根路径解析，不继承外层行作用域。按钮文案默认读取 `messages.ok` / `messages.cancel`（`确定` / `取消`），也可通过 `okText` / `cancelText` 覆盖。
 
 ## ShadowDrawer
 
@@ -55,7 +55,7 @@ Pro.formily `QueryList` + `QueryForm` + `QueryTable`：可折叠的查询栅格�
 </ShadowForm>
 ```
 
-内联的影子表单（Pro.formily 把 `ShadowForm` 用作 decorator / component 的两种写法）：挂载即用 `record` 打开，子节点渲染在草稿上。草稿通过 render prop 交给容器，或在任意子组件里用 `useShadow()` 取得，所以提交按钮可以放在任何位置。不渲染 `<form>` 元素，可以放在宿主 `<Form>` 里。
+内联渲染草稿表单：组件挂载时即以 `record` 初始化草稿并将子节点渲染在草稿引擎之上。既可以通过 render prop 接收 `shadow` 实例，也可以在任意子组件中调用 `useShadow()` 获取它，从而把提交按钮灵活放置到任意位置。由于本身不渲染原生 `<form>` 标签，可以直接嵌套在宿主 `<Form>` 内部。
 
 ## useShadow
 
