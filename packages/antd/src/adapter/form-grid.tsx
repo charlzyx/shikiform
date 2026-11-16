@@ -8,7 +8,7 @@ export interface FormGridValue {
   columns: number
 }
 
-const FormGridContext = createContext<FormGridValue | null>(null)
+export const FormGridContext = createContext<FormGridValue | null>(null)
 
 /** The surrounding {@link FormGrid} (its current column count), or `null` outside one. */
 export function useFormGrid(): FormGridValue | null {

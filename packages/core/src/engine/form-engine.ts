@@ -33,6 +33,7 @@ import type { FormOptions } from '../types-effects'
 import { Validator } from '../validation/validator'
 import { Baseline, errorEntries } from './baseline'
 import { FieldUi, uiKeyOf } from './field-ui'
+import { forkEngineOptions } from './fork'
 import { pathDomId, uiDomId } from './dom-id'
 import { UiNodes, type UiJsx, type UiKind, type UiNodeView } from './ui-nodes'
 import { StateWriter } from './writes'
@@ -70,9 +71,9 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     const store = (this.store = new FieldStore<T>((options.initialValues ?? {}) as T))
     const notifier = (this.notifier = new Notifier())
     const scheduler = (this.scheduler = new Scheduler(notifier, !!options.devtools))
-    const trees = (this.trees = new TreeOps(store, scheduler, options.messages))
+    const trees = (this.trees = new TreeOps(store, scheduler, options.messages, options.trees as Record<string, { childrenKey?: string; rowKey?: string } | undefined>))
     const validator = (this.validator = new Validator({ store, notifier, scheduler, options, readPos: (path) => trees.readPos(path) }))
-    const declarations = (this.declarations = new Declarations(store, notifier, validator))
+    const declarations = (this.declarations = new Declarations(store, notifier, validator, options.fields as Record<string, FieldSpec | undefined>))
     validator.prepare = () => declarations.applyItemTemplates()
     this.arrays = new ArrayOps(store, scheduler, declarations, validator)
     this.writer = new StateWriter({
@@ -690,4 +691,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
 
   /** @internal React has mounted: writes to UI names that never mount warn from now on (once each). */
   markUiReady(): void { this.uiNodes.markReady() }
+
+  /** @internal Options for a shadow/draft form rooted at `path` (or `list.*`). */
+  forkOptions(path: string): FormOptions<any> { return forkEngineOptions({ store: this.store, declarations: this.declarations, trees: this.trees, options: this.options }, path) }
 }

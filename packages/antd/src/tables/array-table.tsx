@@ -16,9 +16,9 @@ import { Children, createContext, useContext, useRef, type CSSProperties, type M
 import { ShikiUsageError } from '@shikiform/core/internal'
 import { useArrayTableOver, type ArrayTableApi, type ArrayTablePagination, type ArrayTableRow } from '@shikiform/hooks/internal'
 import { useColumnSettings, type ColumnSettingsApi, type TableDensity } from '@shikiform/hooks/internal'
-import { useShadowForm, type UseShadowFormOptions } from '@shikiform/hooks/internal'
+import { useShadowFormOver, type UseShadowFormOptions } from '@shikiform/hooks/internal'
 import { RowScope } from '@shikiform/react/internal'
-import { ArrayContext, useScope } from '@shikiform/react/internal'
+import { ArrayContext, FormContext, useScope } from '@shikiform/react/internal'
 import type { DragProps } from '@shikiform/react/internal'
 import { useArrayAt } from '@shikiform/react/internal'
 import { useFormMessage } from '@shikiform/react/internal'
@@ -257,35 +257,33 @@ function ShadowAddition<TRow = any>({
   onOk?: (values: TRow, table: ArrayTableApi<TRow>) => void | false | Promise<void | false>
 }) {
   const table = useTable()
+  const hostForm = useContext(FormContext)
+  const array = useContext(ArrayContext)
   const t = useFormMessage()
   const editable = useArrayEditable()
-  const shadow = useShadowForm<TRow>({
+  const path = array?.path ?? table.path
+  const shadow = useShadowFormOver<TRow>({
     ...shadowOptions,
-    onOk: async (values) => {
-      const handled = await onOk?.(values, table)
-      if (handled !== false) table.add(values)
-    },
+    ...(shadowOptions.form ? { form: shadowOptions.form } : hostForm ? { form: hostForm } : {}),
+    name: shadowOptions.name ?? path,
+    add: shadowOptions.add ?? (initialValues !== undefined ? initialValues : true),
+    append: table.add,
+    onOk: onOk ? (values) => onOk(values, table) : undefined,
   })
   if (!editable) return null
   const trigger = (
-    <Button size="small" type="dashed" data-testid="pro-addition" onClick={() => void shadow.open(initialValues ?? ({} as TRow))}>
+    <Button size="small" type="dashed" data-testid="pro-addition">
       {title ?? t('add')}
     </Button>
   )
   return popType === 'drawer' ? (
-    <>
-      {trigger}
-      <ShadowDrawer shadow={shadow} title={title}>
-        {children}
-      </ShadowDrawer>
-    </>
+    <ShadowDrawer shadow={shadow} title={title} trigger={trigger}>
+      {children}
+    </ShadowDrawer>
   ) : (
-    <>
-      {trigger}
-      <ShadowModal shadow={shadow} title={title}>
-        {children}
-      </ShadowModal>
-    </>
+    <ShadowModal shadow={shadow} title={title} trigger={trigger}>
+      {children}
+    </ShadowModal>
   )
 }
 

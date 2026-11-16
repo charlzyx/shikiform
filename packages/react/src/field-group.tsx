@@ -63,7 +63,7 @@ interface GroupRegistrar {
   add(path: string): () => void
 }
 
-const FieldGroupContext = createContext<GroupRegistrar | null>(null)
+export const FieldGroupContext = createContext<GroupRegistrar | null>(null)
 
 /** Create a group handle that lives as long as the component (pass it to {@link FieldGroup}). */
 export function useFieldGroup(): FieldGroupHandle {

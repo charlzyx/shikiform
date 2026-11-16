@@ -211,7 +211,7 @@ interface ClaimRegistrar {
   claim(path: string, deep: boolean): () => void
 }
 
-const ClaimContext = createContext<ClaimRegistrar | null>(null)
+export const ClaimContext = createContext<ClaimRegistrar | null>(null)
 
 function useClaim(path: string | undefined, deep: boolean): void {
   const registrar = useContext(ClaimContext)
