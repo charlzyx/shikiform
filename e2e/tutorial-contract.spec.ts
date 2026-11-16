@@ -12,6 +12,24 @@ async function answer(page: Page, route: string) {
   return tutorial
 }
 
+test('typing in the tutorial editor changes the code and leaves the sidebar filter empty', async ({ page }) => {
+  await gotoHydrated(page, '/tutorial/1-start/')
+  const tutorial = page.locator('.tutorial-play')
+  await tutorial.scrollIntoViewIfNeeded()
+  // Opens already editing. Step out and back in: that is the pencil path, and
+  // focus has to land in CodeMirror or the next key goes to the sidebar filter.
+  await tutorial.getByRole('button', { name: '编辑中，改为只读', exact: true }).click()
+  await expect(tutorial.locator('.cm-editor')).toBeVisible()
+  await expect(tutorial.locator('.tok-keyword').first()).toBeVisible()
+  await tutorial.getByRole('button', { name: '只读，改为编辑', exact: true }).click()
+  const editor = tutorial.locator('.cm-content')
+  await expect(editor).toBeFocused()
+  await page.keyboard.type('//x')
+  await expect(editor).toContainText('//x')
+  // type="search" is a searchbox, not a textbox.
+  await expect(page.getByRole('searchbox', { name: 'Filter navigation' })).toHaveValue('')
+})
+
 test('the copied example submits through the public package and can be edited and reset', async ({ page }) => {
   const tutorial = await answer(page, '/tutorial/1-start')
   const form = tutorial.locator('form')

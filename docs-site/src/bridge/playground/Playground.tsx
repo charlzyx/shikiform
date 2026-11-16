@@ -109,11 +109,13 @@ function useCompiled(sources: DemoFiles, entry: string, enabled: boolean) {
 }
 
 /** CodeMirror is loaded on demand; until then the same source shows as static code (no layout jump). */
-function CodeEditor({ doc, label, fallback, onChange }: {
+function CodeEditor({ doc, label, fallback, onChange, readOnly = false, focus = false }: {
   doc: string
   label: string
   fallback: ReactNode
   onChange: (doc: string) => void
+  readOnly?: boolean
+  focus?: boolean
 }) {
   const host = useRef<HTMLDivElement>(null)
   const latest = useRef(onChange)
@@ -124,14 +126,22 @@ function CodeEditor({ doc, label, fallback, onChange }: {
     let cancelled = false
     void import('./editor').then(({ mountEditor }) => {
       if (cancelled || !host.current) return
-      view = mountEditor({ parent: host.current, doc, label, onChange: (next) => latest.current(next) })
+      view = mountEditor({
+        parent: host.current,
+        doc,
+        label,
+        readOnly,
+        focus,
+        onChange: (next) => latest.current(next),
+      })
       setReady(true)
     })
     return () => {
       cancelled = true
       view?.destroy()
     }
-    // `doc` seeds the view; later edits live in CodeMirror. The parent remounts this per file and per reset.
+    // `doc`, `readOnly` and `focus` seed the view; later edits live in CodeMirror.
+    // The parent remounts this per file, per reset, and when edit mode changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   return (
@@ -216,10 +226,12 @@ export function Playground({
     else void root.current?.requestFullscreen()
   }
 
-  const staticCode = (file: string) =>
-    pristine && file === entry && codeHtml
-      ? <div className="sf-demo__highlighted" dangerouslySetInnerHTML={{ __html: codeHtml }} />
-      : <pre className="sf-demo__pre"><code>{sources[file]}</code></pre>
+  const plainCode = (file: string) => <pre className="sf-demo__pre"><code>{sources[file]}</code></pre>
+  // Shiki HTML only exists for the pristine entry. Other files, edits, and tutorials
+  // stay in CodeMirror so switching to read-only still has tokens.
+  const highlighted = !editing && pristine && active === entry && codeHtml
+    ? <div className="sf-demo__highlighted" dangerouslySetInnerHTML={{ __html: codeHtml }} />
+    : null
 
   return (
     <section ref={root} className="sf-demo" aria-label={label} data-editing={editing || undefined}>
@@ -242,7 +254,11 @@ export function Playground({
         {!pristine && <span className="sf-demo__status">已修改</span>}
         <span className="sf-demo__actions">
           {actions}
-          <ToolButton label={editing ? '只读查看代码' : '编辑代码'} pressed={editing} onClick={toggleEditing}><EditIcon /></ToolButton>
+          <button type="button" className="sf-demo__btn" aria-pressed={editing} onClick={toggleEditing}
+            aria-label={editing ? '编辑中，改为只读' : '只读，改为编辑'}>
+            <EditIcon />
+            <span>{editing ? '编辑中，改为只读' : '只读，改为编辑'}</span>
+          </button>
           <ToolButton label={copied ? '已复制' : '复制代码'} onClick={copy}>{copied ? <CheckIcon /> : <CopyIcon />}</ToolButton>
           <ToolButton label="重新运行" onClick={() => setRun(run + 1)}><RerunIcon /></ToolButton>
           {(!pristine || onReset) && <ToolButton label="重置" onClick={reset}><ResetIcon /></ToolButton>}
@@ -273,10 +289,17 @@ export function Playground({
               ))}
             </div>
           )}
-          {editing
-            ? <CodeEditor key={`${active}:${revision}`} doc={sources[active] ?? ''} label={`编辑 ${active}`}
-                fallback={staticCode(active)} onChange={(doc) => setSources((current) => ({ ...current, [active]: doc }))} />
-            : staticCode(active)}
+          {highlighted ?? (
+            <CodeEditor
+              key={`${active}:${revision}:${editing ? 'edit' : 'read'}`}
+              doc={sources[active] ?? ''}
+              label={editing ? `编辑 ${active}` : `查看 ${active}`}
+              readOnly={!editing}
+              focus={editing}
+              fallback={plainCode(active)}
+              onChange={(doc) => setSources((current) => ({ ...current, [active]: doc }))}
+            />
+          )}
         </div>
       )}
     </section>

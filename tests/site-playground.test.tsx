@@ -100,7 +100,7 @@ describe('Playground', () => {
 
     await act(async () => { button(host, '查看代码').click() })
     expect(host.querySelector('.hl')).not.toBeNull()
-    await act(async () => { button(host, '编辑代码').click() })
+    await act(async () => { button(host, '只读，改为编辑').click() })
     await vi.waitFor(() => expect(host.querySelector('.cm-editor')).not.toBeNull())
     const editor = EditorView.findFromDOM(host.querySelector('.cm-editor') as HTMLElement)!
     await act(async () => {
@@ -115,5 +115,24 @@ describe('Playground', () => {
     await act(async () => { button(host, '重置').click() })
     expect(probe().textContent).toBe('count:0')
     expect(host.textContent).not.toContain('已修改')
+  }, 20000)
+
+  it('keeps highlighting without codeHtml, and entering edit mode focuses the editor', async () => {
+    class ResizeObserver { observe() {} unobserve() {} disconnect() {} }
+    vi.stubGlobal('ResizeObserver', ResizeObserver)
+    Object.defineProperty(Range.prototype, 'getClientRects', { configurable: true, value: () => [] })
+    Object.defineProperty(Range.prototype, 'getBoundingClientRect', { configurable: true, value: () => ({ x: 0, y: 0, width: 0, height: 0, top: 0, left: 0, right: 0, bottom: 0 }) })
+    const source = "export default function App() { return <b>hi</b> }\n"
+    const { host, render } = mount(() => createElement(Playground, { files: { 'App.tsx': source }, editing: true }))
+    await act(async () => render())
+    await vi.waitFor(() => expect(host.querySelector('.cm-content')).toBe(document.activeElement))
+
+    await act(async () => { button(host, '编辑中，改为只读').click() })
+    await vi.waitFor(() => expect(host.querySelector('.tok-keyword')).not.toBeNull())
+    expect(host.querySelector('.sf-demo__pre')).toBeNull()
+    expect(host.querySelector('.cm-editor')).not.toBeNull()
+
+    await act(async () => { button(host, '只读，改为编辑').click() })
+    await vi.waitFor(() => expect(host.querySelector('.cm-content')).toBe(document.activeElement))
   }, 20000)
 })
