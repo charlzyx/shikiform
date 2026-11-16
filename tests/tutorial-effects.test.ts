@@ -72,11 +72,36 @@ describe('tutorial effects use the published FormEngine contract', () => {
   })
 
   it('runs the actual Zod tutorial schema directly, without a resolver adapter', async () => {
-    const form = createEngine({ initialValues: { name: 'Ada', email: 'bad', age: 17 }, validate: schema })
-    expect(await form.validate()).toEqual(expect.arrayContaining([
-      { path: 'email', messages: ['邮箱格式不对'] },
-      { path: 'age', messages: ['需要年满 18'] },
-    ]))
+    const form = createEngine<{ name: string; email: string; age: number | null }>({
+      initialValues: { name: 'Ada', email: 'bad', age: 17 },
+      validate: schema,
+      // Same required flags as the tutorial answer. Empty is their job; the schema lets '' and null through.
+      fields: {
+        name: { required: true, rules: { minLength: 2, message: '至少 2 个字' } },
+        email: { required: true },
+        age: { required: true },
+      },
+    })
+    const messages = (path: string) => form.errors.find((error) => error.path === path)?.messages
+    await form.validate()
+    expect(messages('email')).toEqual(['邮箱格式不对'])
+    expect(messages('age')).toEqual(['需要年满 18'])
+    form.setValue('email', '')
+    form.setValue('age', null)
+    await form.validate()
+    expect(messages('email')).toEqual(['必填'])
+    expect(messages('age')).toEqual(['必填'])
+    expect(form.errors.flatMap((error) => error.messages).join('\n')).not.toMatch(/Invalid input|expected number/)
+    form.setValue('age', 0)
+    await form.validate()
+    expect(messages('age')).toEqual(['需要年满 18'])
+    form.setValue('name', '')
+    await form.validate()
+    expect(messages('name')).toEqual(['必填'])
+    form.setValue('name', 'A')
+    await form.validate()
+    expect(messages('name')).toEqual(['至少 2 个字'])
+    form.setValue('name', 'Ada')
     form.setValue('email', 'ada@example.com')
     form.setValue('age', 18)
     expect(await form.submit()).toEqual({ ok: true, values: { name: 'Ada', email: 'ada@example.com', age: 18 } })
