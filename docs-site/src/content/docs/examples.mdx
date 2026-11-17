@@ -9,7 +9,7 @@ description: 五个可以直接运行的典型场景，以及涵盖查询表、�
 |---|---|
 | [登录校验](/examples/login) | `required`、`format`、`minLength` 等基础规则组合 |
 | [联动计算](/examples/computed) | 使用 `reaction` 派生计算字段的值 |
-| [条件显隐](/examples/visibility) | `$visible = false`（`none`）对校验与提交的影响 |
+| [条件显隐](/examples/visibility) | `$visible = false` 跳过校验；不提交再写 `$omit` |
 | [动态表格](/examples/dynamic-table) | 使用 `reaction.each` 为订单每一行独立计算小计 |
 | [跨字段与异步校验](/examples/async-rules) | 读取同记录密码比对，以及配合 `AbortSignal` 处理异步请求 |
 
@@ -19,8 +19,8 @@ description: 五个可以直接运行的典型场景，以及涵盖查询表、�
 
 | 完整页面 | 场景说明 | 代码与讲解 |
 |---|---|---|
-| <a href="/play/schema" target="_self">Schema 校验</a> | 注册表单：整表 Zod 校验，以及 `hidden`、`virtual` 与 `none` 差异演示 | [基础表单 · 注册：整表 schema](/examples/forms#注册整表-schema) |
-| <a href="/play/display" target="_self">显隐对照</a> | `visible` / `hidden` / `virtual` / `none` 对渲染、校验与提交的完整对比 | [基础表单 · 显隐对照](/examples/forms#显隐对照) |
+| <a href="/play/schema" target="_self">Schema 校验</a> | 注册表单：整表 Zod 校验，以及隐藏仍提交、omit 不提交 | [基础表单 · 注册：整表 schema](/examples/forms#注册整表-schema) |
+| <a href="/play/display" target="_self">显隐对照</a> | `visible` / `hidden` / `omit` / `readOnly` 对渲染、校验与提交的对照 | [基础表单 · 显隐对照](/examples/forms#显隐对照) |
 | <a href="/play/tabs" target="_self">标签页</a> | 在 `fields` 中声明的规则跨标签页生效，未挂载字段同样参与校验 | [基础表单 · 标签页与未挂载字段](/examples/forms#标签页与未挂载字段) |
 
 ## 联动

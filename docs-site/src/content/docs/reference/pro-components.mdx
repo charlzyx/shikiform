@@ -36,7 +36,7 @@ Pro.formily `QueryList` + `QueryForm` + `QueryTable`：可折叠的查询栅格�
 </ShadowModal>
 ```
 
-在 antd `Modal` 中承载草稿表单进行编辑。支持 `name` / `add` / `rowKey` / `merge` 以及可选的 `record`（静态值或异步加载函数）与 `onOk`：绑定到宿主路径或数组行时，打开自动继承宿主值、剥离前缀后的 `fields` / `trees` 规则及 `pattern`；确认校验通过后自动写回（`onOk` 返回 `false` 可跳过默认写回）；取消则直接丢弃草稿，不会影响原表单。传入由 `useShadowForm` 创建的 `shadow` 实例时受外部控制，否则组件内部会自动维护一个实例。当草稿处于 `readPretty` / `readOnly` 状态且未自定义 `footer` 时，隐藏确定按钮，仅显示关闭按钮（文案取 `messages.close`，默认 `关闭` / `Close`）；其余情况默认读取 `messages.ok` / `messages.cancel`（`确定` / `取消`），也可通过 `okText` / `cancelText` 覆盖。草稿内部（`ShadowBody`）会隔离宿主的表单、作用域、字段、分组与栅格上下文，同时继承外层 `FieldKit` 与 `FormLayout`，因此草稿里的 `<Field>` 相对于草稿根路径解析。
+在 antd `Modal` 中承载草稿表单进行编辑。支持 `name` / `add` / `rowKey` / `merge` 以及可选的 `record`（静态值或异步加载函数）与 `onOk`：绑定到宿主路径或数组行时，打开自动继承宿主值、剥离前缀后的 `fields` / `trees` 规则及该路径的 `readOnly` / `disabled`；确认校验通过后自动写回（`onOk` 返回 `false` 可跳过默认写回）；取消则直接丢弃草稿，不会影响原表单。传入由 `useShadowForm` 创建的 `shadow` 实例时受外部控制，否则组件内部会自动维护一个实例。当草稿处于 `readOnly` 且未自定义 `footer` 时，隐藏确定按钮，仅显示关闭按钮（文案取 `messages.close`，默认 `关闭` / `Close`）；其余情况默认读取 `messages.ok` / `messages.cancel`（`确定` / `取消`），也可通过 `okText` / `cancelText` 覆盖。草稿内部（`ShadowBody`）会隔离宿主的表单、作用域、字段、分组与栅格上下文，同时继承外层 `FieldKit` 与 `FormLayout`，因此草稿里的 `<Field>` 相对于草稿根路径解析。
 
 ## ShadowDrawer
 
@@ -46,7 +46,7 @@ Pro.formily `QueryList` + `QueryForm` + `QueryTable`：可折叠的查询栅格�
 </ShadowDrawer>
 ```
 
-与 `ShadowModal` 相同，换成 antd `Drawer`，底部是取消 / 确定（`readPretty` / `readOnly` 且未传自定义 `footer` 时隐藏确定按钮，仅显示 `messages.close` 关闭按钮）。`ArrayTable.ShadowAddition` 的 `popType="drawer"` 就是它。适合字段较多、需要更大编辑区域的行编辑。
+与 `ShadowModal` 相同，换成 antd `Drawer`，底部是取消 / 确定（`readOnly` 且未传自定义 `footer` 时隐藏确定按钮，仅显示 `messages.close` 关闭按钮）。`ArrayTable.ShadowAddition` 的 `popType="drawer"` 就是它。适合字段较多、需要更大编辑区域的行编辑。
 
 ## ShadowPopconfirm
 
@@ -56,7 +56,7 @@ Pro.formily `QueryList` + `QueryForm` + `QueryTable`：可折叠的查询栅格�
 </ShadowPopconfirm>
 ```
 
-把少量字段放进 antd `Popconfirm` 的气泡里编辑（Pro.formily `ShadowPopconfirm`）。支持 `name` / `add` / `rowKey` / `merge` 与可选 `record` / `onOk`；打开气泡时初始化草稿，确认校验后写回并调用 `onOk`，取消或点外面关闭都会丢弃草稿。`readPretty` / `readOnly` 时隐藏确定按钮，仅保留 `messages.close` 关闭按钮。
+把少量字段放进 antd `Popconfirm` 的气泡里编辑（Pro.formily `ShadowPopconfirm`）。支持 `name` / `add` / `rowKey` / `merge` 与可选 `record` / `onOk`；打开气泡时初始化草稿，确认校验后写回并调用 `onOk`，取消或点外面关闭都会丢弃草稿。`readOnly` 时隐藏确定按钮，仅保留 `messages.close` 关闭按钮。
 
 ## ShadowForm
 
@@ -98,7 +98,7 @@ useShadow<TValues, TContext>(): ShadowFormApi<TValues, TContext>
 <Field name="area" title="地区" decorator={[FormItem]} component={[CascaderPlus, { loadData: (path) => api.children(path), labelInValue: true }]} />
 ```
 
-字段绑定的懒加载级联（Pro.formily `CascaderPlus`），建立在 `useLazyCascader` 上：一个 `loadData(path)` 服务所有层级，已有值打开时逐级加载以反显标签（已带 `children` 的节点不再加载，所以 `loadData([])` 一次返回整棵树也行，但选项一开始就齐全时用 [`Cascader`](/reference/antd-adapter#cascader) + `<Field enum>`）；支持 `multiple` 和 `labelInValue`（每一级 `{ label, value }`）。默认 `changeOnSelect`。阅读态（`readPretty`）与 `Cascader` 一样显示 `省 / 市 / 区`：`labelInValue` 的值自带标签；裸值（`['410000', '410600']`）用同一个 `loadData` 逐级加载后显示标签而不是编码（[`useCascaderLabels`](/reference/pro-hooks#usecascaderlabels)）。
+字段绑定的懒加载级联（Pro.formily `CascaderPlus`），建立在 `useLazyCascader` 上：一个 `loadData(path)` 服务所有层级，已有值打开时逐级加载以反显标签（已带 `children` 的节点不再加载，所以 `loadData([])` 一次返回整棵树也行，但选项一开始就齐全时用 [`Cascader`](/reference/antd-adapter#cascader) + `<Field enum>`）；支持 `multiple` 和 `labelInValue`（每一级 `{ label, value }`）。默认 `changeOnSelect`。阅读态（`readOnly`）与 `Cascader` 一样显示 `省 / 市 / 区`：`labelInValue` 的值自带标签；裸值（`['410000', '410600']`）用同一个 `loadData` 逐级加载后显示标签而不是编码（[`useCascaderLabels`](/reference/pro-hooks#usecascaderlabels)）。
 
 ## CascaderPlusView
 

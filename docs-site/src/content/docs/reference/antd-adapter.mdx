@@ -67,10 +67,10 @@ type PropsMapping<P = any, F = any> = Partial<Record<FieldPropKey | FieldStateKe
   format?: (value: F, props: P) => P extends { value?: infer V } ? V : unknown
   parse?: (...args: /* P 的 onChange 参数 */) => F
   blurOn?: 'onChange' | 'onOpenChange' | { prop: string; when?: (...args: any[]) => boolean }
-  readPretty?: ComponentType<any> | [ComponentType<any>, Record<string, unknown>]
+  preview?: ComponentType<any> | [ComponentType<any>, Record<string, unknown>]
 }
 type FieldPropKey = 'value' | 'onChange' | 'onBlur' | 'disabled' | 'readOnly' | 'status' | 'id' | 'options' | 'loading'
-type FieldStateKey = 'title' | 'description' | 'required' | 'validating' | 'touched' | 'dirty' | 'edited' | 'pattern' | 'display' | 'path'
+type FieldStateKey = 'title' | 'description' | 'required' | 'validating' | 'touched' | 'dirty' | 'edited' | 'visible' | 'disabled' | 'readOnly' | 'omit' | 'path'
   | 'errors' | 'warnings' | `componentProps.${string}` | `decoratorProps.${string}`
 type PropsTransform = (props: Record<string, any>, field: FieldBinding<any>) => Record<string, any>
 ```
@@ -89,7 +89,7 @@ type PropsTransform = (props: Record<string, any>, field: FieldBinding<any>) => 
 
 `format` / `parse` 是一对。字段里留可序列化的值，控件看到它自己的类型：
 
-- `format(value, props)` 在传给控件之前把字段值转成控件的 `value`（`value: 'checked'` 时写到 `checked`）。`props` 是映射完的控件 props，所以日期控件能读到自己的 `props.format`。`readPretty` 不走 `format`，阅读态拿到的是字段值。
+- `format(value, props)` 在传给控件之前把字段值转成控件的 `value`（`value: 'checked'` 时写到 `checked`）。`props` 是映射完的控件 props，所以日期控件能读到自己的 `props.format`。`preview` 不走 `format`，阅读态拿到的是字段值。
 - `parse(...onChangeArgs)` 把控件 `onChange` 的参数写回字段，代替默认的 `valueFromEvent`（checkbox 取 `checked`，事件取 `target.value`，否则取第一个参数）。参数类型是控件 `onChange` 的参数；`format` 的 `props` 是控件 props。写在 `connect(Control, mapProps({ ... }))` 里时由控件推导，不必先标 Dayjs / Date。
 
 ```tsx
@@ -101,13 +101,13 @@ const Birthday = connect(DatePicker, mapProps({
 
 `antd` 的 `DatePicker` / `TimePicker` / `Upload` / `ColorPicker` 走的就是这组钩子。`format` / `parse` 写在第一个对象参数上。
 
-`readPretty` 指定字段 `pattern` 为 `readPretty`（自己的，或从祖先 / 根继承的）时渲染的阅读态视图，而不是原控件；支持传入组件或 `[Component, props]` 元组（多个 `mapProps` 时后者覆盖前者）。阅读态视图收到调用方 props（及元组里的预设 props），加上 `value` 与 `options`（字段枚举）。没有配置 `readPretty` 的控件在 `readPretty` 下按 `readOnly` 处理。内置控件都有阅读态视图，见 [PreviewText](#previewtext)。
+`preview` 指定字段 `readOnly` 时渲染的阅读态，而不是原控件（`disabled` 同时为真时也走预览）。支持组件或 `[Component, props]`（多个 `mapProps` 时后者覆盖前者）。视图收到调用方 props（及元组里的预设 props），加上 `value` 与 `options`，不走 `format`。没有 `preview` 时控件收到 `readOnly`。内置控件都有阅读态，见 [PreviewText](#previewtext)。
 
 ```tsx
 const MySelect = connect(LobeSelect, mapProps({
   options: 'options',
   blurOn: 'onOpenChange',
-  readPretty: PreviewText.Select,
+  preview: PreviewText.Select,
 }))
 ```
 
@@ -128,7 +128,7 @@ interface FormItemProps
 
 Formily `FormItem`，**不拥有字段**：没有 `name` / `rules` / `required` / `field` 属性。
 
-- **字段里**（`<Field decorator={[FormItem, props]}>`，或放在 `<Field>` 的 children 里）：从上下文读字段，渲染 antd `Form.Item`。`label` 取字段 `title`，`extra` 取 `description`（显式传入优先）；必填星号跟随 `required`，`readPretty` 下隐藏；`validateStatus` 依次 `error` → `validating` → `warning`；`help` 是**全部**错误（没有错误时是全部警告），一条一行。`display` 为 `hidden` / `none` 时不渲染。
+- **字段里**（`<Field decorator={[FormItem, props]}>`，或放在 `<Field>` 的 children 里）：从上下文读字段，渲染 antd `Form.Item`。`label` 取字段 `title`，`extra` 取 `description`（显式传入优先）；必填星号跟随 `required`，`readOnly` 下隐藏；`validateStatus` 依次 `error` → `validating` → `warning`；`help` 是**全部**错误（没有错误时是全部警告），一条一行。`visible` 为 false 时不渲染。
 - **字段外**：纯布局（Formily `FormItem.BaseItem`）。一个标签、同一套列宽包住任何内容，常用来给几个字段一个标签。它显示里面字段的错误中**没有别的 `FormItem` 在显示**的那些：没有装饰器的字段、`FormItem` 设了 `feedbackLayout: 'none'` 的字段（嵌套的纯布局 `FormItem` 由里层显示）；相同文案只显示一次，用错误色并加 `ant-form-item-has-error` 类，不设 `validateStatus`（只有出错的控件变红）。里面的字段各带一个无标签的 `FormItem` 时，错误显示在各自控件下面，外层不重复。没有标签的 `FormItem`（字段内外都一样）不继承 `FormLayout` 的 `labelCol` / `wrapperCol` / `labelWidth` / `wrapperWidth`（Formily 同样），自己传的列宽照常生效。
 
 ```tsx
@@ -335,11 +335,11 @@ PreviewText.Empty                                                      // 空值
 interface PreviewTextProps { value?: unknown; options?: PreviewOption[]; empty?: ReactNode; format?: unknown; [prop: string]: unknown }
 ```
 
-阅读态视图（Formily `PreviewText`）。每个接好的控件都通过 `mapProps({ readPretty })` 挂了其中一个，收到控件自己的 props 加 `value` / `options`（字段枚举）。也能单独当纯组件用，例如表格单元格：
+阅读态视图（Formily `PreviewText`）。每个接好的控件都通过 `mapProps({ preview })` 挂了其中一个，收到控件自己的 props 加 `value` / `options`（字段枚举）。也能单独当纯组件用，例如表格单元格：
 
 ```tsx
 <PreviewText.Select value={row.status} options={STATUS} prettyType="badge" />
-connect(MyTreePicker, mapProps({ readPretty: PreviewText.TreeSelect }))   // 自定义控件复用
+connect(MyTreePicker, mapProps({ preview: PreviewText.TreeSelect }))   // 自定义控件复用
 ```
 
 - `Input`：`addonBefore` `prefix` 文本 `suffix` `addonAfter`；有 `formatter`（`InputNumber`）时先格式化。`Password` 显示 `******`。
@@ -359,7 +359,7 @@ const Input: ConnectedComponent<antd.InputProps> & {
 }
 ```
 
-`connect(antd.Input, mapProps({ status: 'status', readPretty: PreviewText.Input }))`。`onChange(event)` 写入 `event.target.value`。`readOnly` 字段传 `readOnly`；`readPretty` 显示文本和前后缀。`Input.TextArea` 阅读态保留换行；`Input.Password` 阅读态显示 `******`。
+`connect(antd.Input, mapProps({ status: 'status', preview: PreviewText.Input }))`。`onChange(event)` 写入 `event.target.value`。`readOnly` 渲染预览，显示文本和前后缀。`Input.TextArea` 阅读态保留换行；`Input.Password` 阅读态显示 `******`。
 
 ## InputNumber
 
@@ -367,7 +367,7 @@ const Input: ConnectedComponent<antd.InputProps> & {
 const InputNumber: ConnectedComponent<antd.InputNumberProps>
 ```
 
-`connect(antd.InputNumber, mapProps({ status: 'status', readPretty: PreviewText.Input }))`。写入 antd 给出的原始值：数字，清空时为 `null`。`readPretty` 显示数字，`formatter`、`prefix`、`addonBefore/After` 生效。
+`connect(antd.InputNumber, mapProps({ status: 'status', preview: PreviewText.Input }))`。写入 antd 给出的原始值：数字，清空时为 `null`。`preview` 显示数字，`formatter`、`prefix`、`addonBefore/After` 生效。
 
 ## Select
 
@@ -375,7 +375,7 @@ const InputNumber: ConnectedComponent<antd.InputNumberProps>
 const Select: ConnectedComponent<antd.SelectProps & { prettyType?: 'text' | 'badge' | 'tag' }>
 ```
 
-`connect(antd.Select, mapProps({ options: 'options', loading: 'loading', readOnly: 'disabled', status: 'status', readPretty: PreviewText.Select }))`。未传 `options` 时使用字段枚举（`<Field enum>`、`fields.x.enum`、`$enum`，含 `EnumSource` 异步加载的 `loading`）。`readOnly` 渲染为禁用；`readPretty` 显示选项的 `label`，多选显示为标签，`prettyType` 画成徽标 / 彩色标签。只显示、不编辑的枚举字段（如表格里的状态列）就是 `readOnly` 的 `Select`。
+`connect(antd.Select, mapProps({ options: 'options', loading: 'loading', readOnly: 'disabled', status: 'status', preview: PreviewText.Select }))`。未传 `options` 时使用字段枚举（`<Field enum>`、`fields.x.enum`、`$enum`，含 `EnumSource` 异步加载的 `loading`）。`readOnly` 渲染预览：选项的 `label`，多选显示为标签，`prettyType` 画成徽标 / 彩色标签。只显示、不编辑的枚举字段（如表格里的状态列）就是 `readOnly` 的 `Select`。
 
 ## AutoComplete
 
@@ -383,7 +383,7 @@ const Select: ConnectedComponent<antd.SelectProps & { prettyType?: 'text' | 'bad
 const AutoComplete: ConnectedComponent<antd.AutoCompleteProps>
 ```
 
-自由文本输入 + 联想（值不必是选项之一）。未传 `options` 时字段枚举就是联想项（`enum={['杭州', '南京']}`）。`readPretty` 显示文本。要从服务端搜、值必须是选项之一时用 [`Suggestion`](/reference/pro-components#suggestion)。
+自由文本输入 + 联想（值不必是选项之一）。未传 `options` 时字段枚举就是联想项（`enum={['杭州', '南京']}`）。`preview` 显示文本。要从服务端搜、值必须是选项之一时用 [`Suggestion`](/reference/pro-components#suggestion)。
 
 ## TreeSelect
 
@@ -391,7 +391,7 @@ const AutoComplete: ConnectedComponent<antd.AutoCompleteProps>
 const TreeSelect: ConnectedComponent<antd.TreeSelectProps & { prettyType?: 'text' | 'badge' | 'tag' }>
 ```
 
-`connect(antd.TreeSelect, mapProps({ options: 'treeData', loading: 'loading', readOnly: 'disabled', status: 'status', readPretty: PreviewText.TreeSelect }))`。未传 `treeData` 时使用字段枚举，节点是 `{ label, value, children }`（`<Field enum={TREE}>`，`children` 原样保留）。`multiple` / `treeCheckable` 时值是数组。`readPretty` 在整棵树里找 label。
+`connect(antd.TreeSelect, mapProps({ options: 'treeData', loading: 'loading', readOnly: 'disabled', status: 'status', preview: PreviewText.TreeSelect }))`。未传 `treeData` 时使用字段枚举，节点是 `{ label, value, children }`（`<Field enum={TREE}>`，`children` 原样保留）。`multiple` / `treeCheckable` 时值是数组。`preview` 在整棵树里找 label。
 
 ## Cascader
 
@@ -399,7 +399,7 @@ const TreeSelect: ConnectedComponent<antd.TreeSelectProps & { prettyType?: 'text
 const Cascader: ConnectedComponent<antd.CascaderProps>
 ```
 
-`connect(antd.Cascader, mapProps({ options: 'options', loading: 'loading', readOnly: 'disabled', status: 'status', readPretty: PreviewText.Cascader }))`。值是路径 `['zj', 'hz', 'xh']`（`multiple` 时是路径数组）。未传 `options` 时使用字段枚举（`{ label, value, children }` 树）；`typed(form).Field` 下选项的 `value` 按路径元素类型检查。`readPretty` 显示 `浙江 / 杭州 / 西湖`。每一级要按需从服务端加载时用 [`CascaderPlus`](/reference/pro-components#cascaderplus)。
+`connect(antd.Cascader, mapProps({ options: 'options', loading: 'loading', readOnly: 'disabled', status: 'status', preview: PreviewText.Cascader }))`。值是路径 `['zj', 'hz', 'xh']`（`multiple` 时是路径数组）。未传 `options` 时使用字段枚举（`{ label, value, children }` 树）；`typed(form).Field` 下选项的 `value` 按路径元素类型检查。`preview` 显示 `浙江 / 杭州 / 西湖`。每一级要按需从服务端加载时用 [`CascaderPlus`](/reference/pro-components#cascaderplus)。
 
 ## Switch
 
@@ -407,7 +407,7 @@ const Cascader: ConnectedComponent<antd.CascaderProps>
 const Switch: ConnectedComponent<antd.SwitchProps>
 ```
 
-`connect(antd.Switch, mapProps({ value: 'checked', readOnly: 'disabled', status: false, readPretty: … }))`。字段值对应 `checked`，`onChange(checked)` 写入布尔值。`readOnly` 渲染为禁用开关；`readPretty` 显示 `checkedChildren` / `unCheckedChildren`，没写时显示 `messages.yes` / `messages.no`（是 / 否）。
+`connect(antd.Switch, mapProps({ value: 'checked', readOnly: 'disabled', status: false, preview: … }))`。字段值对应 `checked`，`onChange(checked)` 写入布尔值。`readOnly` 渲染预览，显示 `checkedChildren` / `unCheckedChildren`，没写时显示 `messages.yes` / `messages.no`（是 / 否）。
 
 ## Checkbox
 
@@ -417,7 +417,7 @@ const Checkbox: ConnectedComponent<antd.CheckboxProps> & {
 }
 ```
 
-单个 `Checkbox` 的字段值对应 `checked`，`readOnly` 渲染为禁用，`readPretty` 显示 是 / 否。`Checkbox.Group` 绑定数组值，未传 `options` 时使用字段枚举，`readPretty` 把所选项显示为标签（`prettyType` 可选）。字段 id 不放在组的外层 div 上（`label` 的 `htmlFor` 点不到 div）：`options` 或手写的 `Checkbox` 子项里，第一个没有自己 `id` 的选项 input 带上字段 id（`<前缀>-<路径>`），其余选项保持自己的 `id` 或留空。
+单个 `Checkbox` 的字段值对应 `checked`，`readOnly` 渲染预览，显示 是 / 否。`Checkbox.Group` 绑定数组值，未传 `options` 时使用字段枚举，`preview` 把所选项显示为标签（`prettyType` 可选）。字段 id 不放在组的外层 div 上（`label` 的 `htmlFor` 点不到 div）：`options` 或手写的 `Checkbox` 子项里，第一个没有自己 `id` 的选项 input 带上字段 id（`<前缀>-<路径>`），其余选项保持自己的 `id` 或留空。
 
 ## Radio
 
@@ -428,7 +428,7 @@ const Radio: ConnectedComponent<antd.RadioGroupProps & { prettyType?: 'text' | '
 }
 ```
 
-`Radio` 本身就是单选**组**（`component={[Radio]}` 与 `component={[Radio.Group]}` 相同）：`onChange(event)` 写入 `event.target.value`。未传 `options` 时使用字段枚举；`readOnly` 渲染为禁用；`readPretty` 显示所选标签。单独一个是/否单选用 `Checkbox` 或 `Switch`；`Radio.Button` 是 antd 原件，给 `optionType="button"` 以外的手写子项用。和 `Checkbox.Group` 一样，字段 id 在第一个没有自己 `id` 的选项 input 上（`options` 或手写的 `Radio.Button`），不在组的外层 div 上。
+`Radio` 本身就是单选**组**（`component={[Radio]}` 与 `component={[Radio.Group]}` 相同）：`onChange(event)` 写入 `event.target.value`。未传 `options` 时使用字段枚举；`readOnly` 渲染预览：所选标签。单独一个是/否单选用 `Checkbox` 或 `Switch`；`Radio.Button` 是 antd 原件，给 `optionType="button"` 以外的手写子项用。和 `Checkbox.Group` 一样，字段 id 在第一个没有自己 `id` 的选项 input 上（`options` 或手写的 `Radio.Button`），不在组的外层 div 上。
 
 ## DatePicker
 
@@ -448,7 +448,7 @@ const TimePicker: ConnectedComponent<antd.TimePickerProps> & {
 }
 ```
 
-与 `DatePicker` 相同：字段保存格式化后的字符串（`format`，默认 `HH:mm:ss`），清空写 `undefined`；`TimePicker.RangePicker` 保存 `[start, end]`。`readPretty` 显示文本，区间为 `start ~ end`。
+与 `DatePicker` 相同：字段保存格式化后的字符串（`format`，默认 `HH:mm:ss`），清空写 `undefined`；`TimePicker.RangePicker` 保存 `[start, end]`。`preview` 显示文本，区间为 `start ~ end`。
 
 ## Slider
 
@@ -456,7 +456,7 @@ const TimePicker: ConnectedComponent<antd.TimePickerProps> & {
 const Slider: ConnectedComponent<antd.SliderSingleProps | antd.SliderRangeProps>
 ```
 
-值是数字，`range` 时是 `[from, to]`。`readOnly` 渲染为禁用；`readPretty` 显示数字（区间 `from ~ to`）。
+值是数字，`range` 时是 `[from, to]`。`readOnly` 渲染预览：数字（区间 `from ~ to`）。
 
 ## Rate
 
@@ -464,7 +464,7 @@ const Slider: ConnectedComponent<antd.SliderSingleProps | antd.SliderRangeProps>
 const Rate: ConnectedComponent<antd.RateProps>
 ```
 
-值是数字。`readOnly` 渲染为禁用；`readPretty` 显示不可编辑的星星（`count`、`allowHalf`、`character` 生效），没有值时显示空值文字。
+值是数字。`readOnly` 渲染预览：不可编辑的星星（`count`、`allowHalf`、`character` 生效），没有值时显示空值文字。
 
 ## Transfer
 
@@ -472,7 +472,7 @@ const Rate: ConnectedComponent<antd.RateProps>
 const Transfer: ConnectedComponent<antd.TransferProps>
 ```
 
-值是目标列的 key 数组（`targetKeys`，初始 `undefined` 也当作 `[]`）。未传 `dataSource` 时使用字段枚举，`{ label, value }` 变成 `{ key: value, title: label }`，默认 `render` 显示 `title`。`readPretty` 把已选项的标题显示为标签。
+值是目标列的 key 数组（`targetKeys`，初始 `undefined` 也当作 `[]`）。未传 `dataSource` 时使用字段枚举，`{ label, value }` 变成 `{ key: value, title: label }`，默认 `render` 显示 `title`。`preview` 把已选项的标题显示为标签。
 
 ## Upload
 
@@ -482,7 +482,7 @@ const Upload: ConnectedComponent<antd.UploadProps> & {
 }
 ```
 
-值是文件列表（antd `UploadFile[]`，`fileList` ↔ 字段值，`undefined` 当作 `[]`）。`onChange({ file, fileList })` 写入 `fileList`：去掉 `xhr`（不能克隆，会让提交失败），上传完成且没有 `url` 时取响应里的 `response.url`。其余（`action`、`beforeUpload`、`listType`、`maxCount`…）都是 antd 的 props；`beforeUpload` 返回 `false` 时文件留在 `originFileObj` 里随表单提交。`Upload.Dragger` 是拖拽区。`readPretty` 把文件列成链接（`picture` / `picture-card` 显示缩略图），没有上传按钮和删除按钮。
+值是文件列表（antd `UploadFile[]`，`fileList` ↔ 字段值，`undefined` 当作 `[]`）。`onChange({ file, fileList })` 写入 `fileList`：去掉 `xhr`（不能克隆，会让提交失败），上传完成且没有 `url` 时取响应里的 `response.url`。其余（`action`、`beforeUpload`、`listType`、`maxCount`…）都是 antd 的 props；`beforeUpload` 返回 `false` 时文件留在 `originFileObj` 里随表单提交。`Upload.Dragger` 是拖拽区。`preview` 把文件列成链接（`picture` / `picture-card` 显示缩略图），没有上传按钮和删除按钮。
 
 ## ColorPicker
 
@@ -490,4 +490,4 @@ const Upload: ConnectedComponent<antd.UploadProps> & {
 const ColorPicker: ConnectedComponent<antd.ColorPickerProps>
 ```
 
-值是颜色文本（按 `format`，默认 hex，如 `#1677ff`），不是 antd 的 `Color` 对象；`allowClear` 清空写 `undefined`。`readPretty` 显示色块和文本。
+值是颜色文本（按 `format`，默认 hex，如 `#1677ff`），不是 antd 的 `Color` 对象；`allowClear` 清空写 `undefined`。`preview` 显示色块和文本。

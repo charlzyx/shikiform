@@ -11,7 +11,7 @@ Ant Design 控件通常接收 `value`、`onChange`、`status`、`disabled` 等�
 
 这些适配控件具备以下统一特性：
 - **自动读取枚举**：选择类控件的 `options`（以及 `TreeSelect` 的 `treeData`、`Transfer` 的 `dataSource`）会自动对接字段配置的枚举（JSX `enum`、`fields.x.enum` 或 `$enum`），使用异步数据源时还会自动传入 `loading` 状态。
-- **自动响应交互态**：当 `pattern` 为 `disabled` 或 `readOnly` 时自动禁用输入；设为 `readPretty` 时自动切换为阅读态文本（选择类控件可配置 `prettyType="badge" | "tag"`）。
+- **自动响应交互态**：`disabled` 置灰；`readOnly` 换成阅读态文本（选择类控件可配置 `prettyType="badge" | "tag"`）。两个同时为真时渲染预览。
 - **日期存储字符串**：`DatePicker` 与 `TimePicker` 自动完成字符串与 `dayjs` 对象之间的转换，表单引擎中只保留格式化后的纯字符串（默认 `YYYY-MM-DD` / `HH:mm:ss`）。
 
 ```tsx preview
@@ -36,7 +36,7 @@ export default function App() {
           d.profile.$readOnly = mode === 'readOnly' ? true : undefined;
         })} />
       <FormLayout labelCol={{ span: 5 }} wrapperCol={{ span: 19 }}>
-        {/* 子字段都继承 profile 的 pattern */}
+        {/* 子字段继承 profile 的 disabled / readOnly */}
         <ObjectField name="profile">
           <Field name="name" title="Input" decorator={[FormItem]} component={[Input]} />
           <Field name="age" title="InputNumber" decorator={[FormItem]} component={[InputNumber]} />
@@ -55,7 +55,7 @@ export default function App() {
 }
 ```
 
-演示中切换顶部按钮时只修改了 `d.profile.$pattern`，内部的七个子字段通过继承自动同步切换状态。
+演示中切换顶部按钮时只修改了 `d.profile.$disabled` / `$readOnly`，内部的七个子字段通过继承自动同步。
 
 ## 封装自己的控件
 
@@ -68,7 +68,7 @@ export default function App() {
 | `mapProps({ format, parse })` | 双向数据转换：`format` 将引擎里的可序列化值转成控件所需的类型（如字符串转 Date），`parse` 将控件 `onChange` 回调参数转回字段值 |
 | `mapProps((props, field) => props)` | 使用函数对最终 props 做自定义变换（在 `format` 之前执行） |
 | `mapProps({ blurOn: 'onOpenChange' })` | 当控件自身没有 `onBlur` 回调时（例如弹出层选择器），指定通过关闭弹层或变更事件（`'onChange'`）来触发失焦校验 |
-| `mapProps({ readPretty: View })` | 指定字段处于 `readPretty` 状态时渲染的只读视图（组件或 `[Component, props]`，接收 `value` 和 `options`）；未配置时则按 `readOnly` 降级 |
+| `mapProps({ preview: View })` | 字段 `readOnly` 时渲染的阅读态（组件或 `[Component, props]`，接收 `value` 和 `options`）。没配 `preview` 时控件收到 `readOnly` |
 
 ```tsx preview
 import { Segmented as AntSegmented } from 'antd';

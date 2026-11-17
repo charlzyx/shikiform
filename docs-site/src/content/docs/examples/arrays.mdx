@@ -1,6 +1,6 @@
 ---
 title: 数组与树
-description: 嵌套对象与 pattern 继承、树节点跨层拖拽移动，以及基于虚拟滚动的长列表校验。
+description: 嵌套对象与 readOnly 继承、树节点跨层拖拽移动，以及基于虚拟滚动的长列表校验。
 ---
 
 ## 嵌套对象与只读行
@@ -70,8 +70,8 @@ export default function App() {
 }
 ```
 
-- `$pattern` 具有沿路径向下继承的特性：只需设置 `d.profile` 和 `d.orders`，它们内部的所有子字段都会跟着切换；赋值为 `undefined` 表示恢复跟随上级。
-- 订单行中的 `qty` 单独设置了 `$pattern`，因此在表单整体可编辑时，已发货行的数量依然处于只读态；试着切换「已发货」开关即可观察效果。
+- `$readOnly` 沿字段路径向下走：写 `d.profile` 和 `d.orders`，里面的字段跟着变。赋 `undefined` 丢掉这一层，回到上一级。
+- 已发货行单独写了 `row.qty.$readOnly = true`，整表可编辑时这一格仍是预览。
 - 抽屉中的 `<ObjectField name="address">` 通过 React 上下文穿透 Portal 保持在 `profile` 作用域内，关闭抽屉后字段的值和状态依然保留在表单引擎中。
 - 「地址」这一行使用不带 `name` 的 `<FormItem label="地址">` 做纯布局容器，标签与列宽依然会自动对齐外层的 `FormLayout`，参见 [一个标签放几个字段](/guide/layout#一个标签放几个字段)。
 

@@ -3,13 +3,13 @@ title: 8. 接下来
 description: 完成互动教程后的进阶阅读与示例推荐。
 ---
 
-通过前面七个练习，你已经掌握了 ShikiForm 的日常核心用法：表单与字段绑定、嵌套对象与相对路径、四种 `display` 状态、规则与 Schema 校验、`reaction` / `watch` / `reaction.each` 联动，以及用 `virtual` 处理仅做前端校验的辅助字段。
+通过前面七个练习，你已经掌握了 ShikiForm 的日常核心用法：表单与字段绑定、嵌套对象与相对路径、`visible` / `disabled` / `readOnly` / `omit`、规则与 Schema 校验、`reaction` / `watch` / `reaction.each` 联动，以及用 `omit` 处理仅做前端校验的辅助字段。
 
 ## 深入原理与专题
 
 - [核心概念](/guide/concepts)：理解表单引擎、draft handle 以及 `$` 状态的设计。
 - [按路径读写](/basics/path)：使用 `get` / `set` 和 `d.orders[0].lines[2].qty` 精准操作深层路径。
-- [字段状态](/basics/state)：完整对比 `visible`、`hidden`、`virtual`、`none` 四种模式及 `pattern` 继承规则。
+- [字段状态](/basics/state)：`visible`、`disabled`、`readOnly`、`omit` 以及沿字段路径继承。
 - [联动](/guide/linkage)：学习在多层嵌套数组和树形结构中使用 `ctx` 进行局部联动。
 - [常见的坑](/practices/pitfalls)：常见误用（如解构 handle、同轮回读等）的正误对照。
 - [API 总览](/api)：查阅四个包提供的完整组件、Hooks 和工具函数。

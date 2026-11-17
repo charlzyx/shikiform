@@ -1,11 +1,11 @@
 ---
 title: 条件显隐
-description: 使用 $visible 控制字段显示，隐藏时自动跳过校验并从提交结果中剔除。
+description: 使用 $visible 隐藏字段并跳过校验；不进提交结果时再写 $omit。
 ---
 
-当勾选「需要发票」时，税号输入框显示并变为必填；关闭开关后，税号不仅从界面隐藏，也不会阻止表单提交或出现在提交结果中。
+当勾选「需要发票」时，税号输入框显示并变为必填；关闭开关后，税号从界面消失、不再拦提交，也不会出现在提交结果中。
 
-需要注意：`$visible = false` 对应的是 `visible: false, omit: true`，而不是 `hidden`。
+`$visible = false` 只负责不渲染、不校验，值默认仍会提交。这个例子同时写了 `$omit = !need`，所以关掉开关后税号不进 JSON。
 
 ```tsx preview
 import { useState } from 'react';
@@ -18,6 +18,7 @@ const effects = defineEffects<Values>(({ reaction }) => {
   reaction((d) => {
     const need = d.invoice.$value;
     d.taxId.$visible = need;
+    d.taxId.$omit = !need;
     d.taxId.$required = need;
   });
 });
@@ -46,6 +47,6 @@ export default function App() {
 
 默认未开启开关时直接点击提交，输出 JSON 里只有 `invoice: false`；打开开关后税号出现且必填（留空会拦截提交）；填好税号再次关掉开关并提交，`taxId` 会被自动剔除，而重新打开开关时刚才填过的内容依然完整保留。
 
-<Aside type="caution" title="只藏界面时请使用 hidden">
-如果是未激活的标签页等「暂时不展示在界面上，但提交前依然需要校验并提交」的场景，请使用 `$hidden = true`，不要用 `$visible = false`。
+<Aside type="caution" title="隐藏会跳过校验">
+`$visible = false` 不渲染、不校验，值仍然提交。还要校验的字段不要卸掉，`FormTab` / `FormCollapse` 的非当前页会保持挂载。不进提交结果再写 `$omit = true`。
 </Aside>

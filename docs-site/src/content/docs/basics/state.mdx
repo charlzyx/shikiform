@@ -16,7 +16,7 @@ description: 详解 $value 以及 visible、disabled、readOnly、omit 四个独
 | `readOnly` | `false` | 渲染预览。与 `disabled` 同时为真时预览优先 | 跳过并清错 | 提交 |
 | `omit` | `false` | 不影响 | 不影响 | 剔除该字段，不计入 dirty |
 
-`visible` / `disabled` / `readOnly` 按 OR 从父级继承，子级显式 `false` 退出。`omit` 不继承。赋 `undefined` 丢掉 reaction 层。隐藏后再显示，值还在。
+沿字段路径从根走到自己：这一层写了 `true` 或 `false` 就用这一层，没写就保持上一层。所以父级 `disabled: true`、子级 `disabled: false` 时，子级可以编辑。`FormLayout` / `FormTab` 不是字段路径上的父级。`omit` 不继承。赋 `undefined` 丢掉 reaction 层。隐藏后再显示，值还在。关掉校验门会清掉已有错误；再打开时不会自动重跑，要等下一次 blur、`validate` 或 `submit`。`disabled` 的字段照常提交，这和 react-hook-form 相反。
 
 ```tsx preview
 import { useState } from 'react';

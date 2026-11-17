@@ -234,7 +234,7 @@ groupRowSpan<T>(rows: readonly T[], groupOf: (row: T) => string): number[]
 | `ArrayTable.useTable()` | 在 `toolbar` / `footer` / 单元格里读表格状态 + 列配置（`useArrayTable` 的返回值加 `settings`） |
 | `ArrayTable.useRow()` | 单元格里的 `{ key, index, position, record }`，建立在 [`useIndex`](/reference/react-hooks#useindex) / [`useRecord`](/reference/react-hooks#userecord) 上，`record` 是响应式的 |
 
-行操作（`SortHandle`、`Remove`、`MoveUp`、`MoveDown`、`Copy`、`Addition`、`ShadowAddition`）和 `ArrayItems` 一样，只在数组的有效 pattern 为 `editable` 时渲染（外层或根的 `readPretty` / `readOnly` / `disabled` 都会隐藏它们；整个数组的 pattern 写在 `d.list.$pattern` 或 `fields: { list: { pattern } }` 上，单元格各自的用 `<Field pattern>`）；`Index` 一直显示。
+行操作（`SortHandle`、`Remove`、`MoveUp`、`MoveDown`、`Copy`、`Addition`、`ShadowAddition`）和 `ArrayItems` 一样，只在数组可见、且不是 `readOnly` / `disabled` 时渲染（写在 `d.list.$readOnly` / `$disabled`，或 `fields: { list: { readOnly } }`；单元格各自用 `<Field readOnly>`）。`Index` 一直显示。
 
 单元格里同样可以直接用 [`useArrayField()`](/reference/react-hooks#usearrayfield) / `useIndex()` / `useRecord()`。行操作按钮的文案走表单 `messages`（`add`、`remove`、`removeConfirm`、`moveUp`、`moveDown`、`copy`、`dragSort`、`selection*`、`density`、`columnSettings`）。可点的例子：[/play/array-table](/play/array-table)、[/play/array-table-shadow](/play/array-table-shadow)。
 
@@ -254,7 +254,7 @@ useArrayEditable(): boolean
 </FormTab>
 ```
 
-标签页容器（Formily `FormTab`）。子元素必须是 `FormTab.Pane`（可包在 Fragment 里，`false` / `null` 跳过；其他元素抛错）。每个面板都渲染（antd `forceRender`），不活动的只是隐藏：字段的值、JSX 规则、错误都在，提交照常校验和提交。标签标题带错误数徽标：面板里有错（不含 display `none`）的字段数，`0` 时不显示。`submit()` 校验失败或 `form.validate()` 发现错误时，切到**第一个**含有这次错误的面板（受控时只调用 `onChange`），随后 `<Form>` 聚焦第一个有错的字段。
+标签页容器（Formily `FormTab`）。子元素必须是 `FormTab.Pane`（可包在 Fragment 里，`false` / `null` 跳过；其他元素抛错）。每个面板都渲染（antd `forceRender`），不活动的只是隐藏：字段的值、JSX 规则、错误都在，提交照常校验和提交。标签标题带错误数徽标：面板里有错的字段数（`visible: false` 的字段错误已清掉，不会计入），`0` 时不显示。`submit()` 校验失败或 `form.validate()` 发现错误时，切到**第一个**含有这次错误的面板（受控时只调用 `onChange`），随后 `<Form>` 聚焦第一个有错的字段。
 
 | 参数 | 行为 |
 |---|---|
@@ -264,7 +264,7 @@ useArrayEditable(): boolean
 | `defaultActiveKey` | 不受控初始页；默认第一个 |
 | 其余 | 交给 antd `Tabs`（`items` 由面板生成） |
 
-只是布局：不占值路径，不写 `$display` / `$pattern`；字段的 pattern 照常沿字段路径继承（根 `$pattern = 'readPretty'` 时面板里的字段也是阅读态）。
+只是布局：不占值路径，也不改字段的四个布尔。`visible` / `disabled` / `readOnly` 沿字段路径继承（`useForm({ readOnly: true })` 时面板里的字段也是阅读态）。
 
 ## FormCollapse
 

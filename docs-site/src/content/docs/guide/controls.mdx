@@ -3,7 +3,7 @@ title: 控件与阅读态
 description: "@shikiform/antd 提供的全套 Ant Design 适配控件、树形 enum 配置以及对应的 PreviewText 阅读态与空值占位。"
 ---
 
-`@shikiform/antd` 内置了全套常用 Ant Design 控件的适配版本，可以直接传给 `<Field>` 的 `component` 属性。当某个字段、父级对象或整张表单的 `pattern` 设为 `readPretty` 时，这些控件会自动切换为只读的「阅读态」文本：选项自动反显为 `label`、日期按格式展示、密码打码、多选展示为标签，空值则统一显示为空值占位符。
+`@shikiform/antd` 内置了全套常用 Ant Design 控件的适配版本，可以直接传给 `<Field>` 的 `component` 属性。字段、父对象或整张表单的 `readOnly` 为 true 时，这些控件换成阅读态文本：选项反显为 `label`、日期按格式展示、密码打码、多选展示为标签，空值显示空值占位符。详情页写 `useForm({ readOnly: true })`。
 
 | 控件 | 字段值类型 | 枚举来源（`<Field enum>`） | 阅读态表现 |
 |---|---|---|---|
@@ -136,7 +136,7 @@ export default function App() {
 ```
 
 - 如果在普通表格单元格或详情卡片等**表单外部**场景需要同款展示效果，可以直接渲染纯视图组件 `<PreviewText.Select value={row.state} options={STATUS} prettyType="badge" />`（还包括 `.Input`、`.TreeSelect`、`.Cascader`、`.DatePicker`、`.TimePicker` 等，完整列表见 [PreviewText](/reference/antd-adapter#previewtext)）。
-- 封装自定义控件时，使用 `connect(MyPicker, mapProps({ readPretty: PreviewText.TreeSelect }))` 即可直接复用现成的阅读态视图。
+- 封装自定义控件时，使用 `connect(MyPicker, mapProps({ preview: PreviewText.TreeSelect }))` 即可直接复用现成的阅读态视图。
 
 关于每个控件具体的属性映射细节，请参考 [Ant Design 适配层参考](/reference/antd-adapter#previewtext)。
 

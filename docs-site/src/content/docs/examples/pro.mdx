@@ -386,7 +386,7 @@ export default function App() {
 ```
 
 - 通过 `EnumSource.from(loader).with(params)` 定义的远程枚举会在相同参数下共享加载结果，加载期间下拉控件自动展示 `loading`；若参数依赖其他字段，在 `reaction` 中赋值 `d.city.$enum = Cities.with(d.province.$value)` 即可在参数变化时自动重新加载并作废过期请求。
-- 切换到 `readPretty` 模式后，选择类控件会自动根据枚举翻译出 `label`（多选展示为标签），传入 `prettyType="badge"` 或 `prettyType="tag"` 可以配合选项上的 `color` 渲染为徽标或彩色标签。
+- `readOnly` 时选择类控件把值翻译成 `label`（多选是标签）。`prettyType="badge"` 或 `"tag"` 配合选项上的 `color` 画成徽标或彩色标签。
 - 表格中的纯展示状态列可以直接给字段传入 `readOnly`；在表单上下文之外单独展示枚举标签时，使用 `<PreviewText.Select value options prettyType />`。
 
 ## Suggestion：远程联想

@@ -112,7 +112,7 @@ try {
 }
 ```
 
-对于 `<Form>` 的提交类型推断：不传泛型（`useForm({ fields })`）或使用 `typed<Values>().useForm({ fields })` 时，在 `fields` 中声明了 `omit: true` 或 `visible: false, omit: true` 的路径会自动推导为可选字段；如果直接写 `useForm<Values>({ fields })`，提交类型则固定为 `Values`；对于只在 JSX 或 `reaction` 中动态设置的 `virtual` / `none` 字段，可以通过第二个泛型参数 `SubmitValues<Values, 'confirm'>` 手动剔除。`useForm()` 不传参或传 `undefined` 等价于传入 `{}`。
+对于 `<Form>` 的提交类型推断：不传泛型（`useForm({ fields })`）或使用 `typed<Values>().useForm({ fields })` 时，在 `fields` 中声明了 `omit: true` 或 `visible: false, omit: true` 的路径会自动推导为可选字段；如果直接写 `useForm<Values>({ fields })`，提交类型则固定为 `Values`；对于只在 JSX 或 `reaction` 里动态 `omit` 的字段，可以通过第二个泛型参数 `SubmitValues<Values, 'confirm'>` 手动剔除。`useForm()` 不传参或传 `undefined` 等价于传入 `{}`。
 
 `<Form>` 支持通过属性直接绑定这几个回调（`@shikiform/antd` 的 `<Submit onSubmit>` 也支持相同用法）：
 
@@ -192,7 +192,7 @@ ShikiForm 支持在三个地方定义校验规则，它们在 `<Field>` 卸载�
 
 如果需要在切换标签页、收起折叠面板或虚拟滚动列表场景下依然校验隐藏起来的字段，请将业务规则写在 `fields` 或 `reaction` 中；仅与当前界面渲染强相关的临时校验才适合写在 JSX 上。
 
-另外，处于 `none`（`$visible = false`）或计算字段状态的字段会自动跳过校验；而 `hidden`（`$hidden = true`）和 `virtual` 状态的字段依然参与校验。关于显隐机制的完整对比请参见 [显隐、pattern 与提交](/guide/concepts#显隐pattern-与提交)。
+校验只在 `visible && !disabled && !readOnly` 时运行，否则清掉已有错误。计算字段不会因此跳过校验。门重新打开后不会自动重跑，要等下一次 blur、`validate` 或 `submit`。完整对照见 [四个布尔](/guide/concepts#四个布尔)。
 
 ### 练一练：未挂载字段的校验
 

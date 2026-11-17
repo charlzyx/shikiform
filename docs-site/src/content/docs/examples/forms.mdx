@@ -71,12 +71,12 @@ export default function App() {
 ```
 
 - `useForm({ validate: schema })` 支持任何实现 [Standard Schema](https://standardschema.dev) 规范的校验库；校验问题中的路径会自动映射回对应字段（例如 `['address', 'city']` 会显示在 `address.city` 下方）。
-- 可以通过底部按钮分别切换「昵称」的 `hidden`、`virtual`、`none` 状态，观察校验与提交结果的差异，完整规则见 [显隐、pattern 与提交](/guide/concepts#显隐pattern-与提交)。
+- 底部按钮把「昵称」切到 `hidden`（不渲染、仍提交）、`omit`（仍渲染、不提交）或 `visible`。完整规则见 [四个布尔](/guide/concepts#四个布尔)。
 - 更多字段级规则与异步校验用法请参考 [校验](/guide/validation)。
 
 ## 显隐对照
 
-**场景**：联系方式分组需要随顶部开关切换展示模式，直观对比四种 `display` 状态对渲染、校验和提交的影响。
+**场景**：联系方式分组随顶部开关切换 `visible` / `omit` / `readOnly`，对照渲染、校验和提交。
 
 ```tsx preview play=display
 import { useState } from 'react';

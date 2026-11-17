@@ -110,7 +110,7 @@ interface TreeHandle<TNode> {
 
 联动里改数组是赋一个新数组（`d.items.$value = [...d.items.$value, row]`），不要原地 `push`。组件里追加、删除、排序用上面的句柄。签名和例子在 [useArrayField](/reference/react-hooks#usearrayfield)、[useTreeField](/reference/react-hooks#usetreefield)。
 
-- `dirty`：当前值和初始值**不同**（深比较），改回原值就变回 `false`；表单级不算 `omit: true` 和计算字段（`none` 仍算）。适合「没改动时禁用保存」「离开前提示未保存」。
+- `dirty`：当前值和初始值**不同**（深比较），改回原值就变回 `false`；表单级不算 `omit: true` 和计算字段（`visible: false` 仍算）。适合「没改动时禁用保存」「离开前提示未保存」。
 - `edited`：粘滞标记，用户编辑过（`setValue` / 控件 `onChange`）就为 `true`，直到 `reset`。reaction 写值不算。
 
 ### 编辑页回填
@@ -128,9 +128,9 @@ const dirty = useWatch((d: Draft<Values>) => d.$dirty)          // 改回原值�
 
 `submit` / `getSubmitValues` / `<Form onSubmit>` 的值类型：
 
-- 不写泛型，或 `typed<V>().createForm({ fields })` / `typed<V>().useForm({ fields })`：`fields` 里 `omit: true` / `visible: false, omit: true` 变成可选；`hidden` 仍提交。
+- 不写泛型，或 `typed<V>().createForm({ fields })` / `typed<V>().useForm({ fields })`：`fields` 里 `omit: true` 变成可选。`visible: false` 仍提交，类型上仍在，除非同时 `omit: true`。
 - `createForm<V>({ fields })` / `useForm<V>({ fields })`：提交类型就是 `V`，不看 `fields`。`createForm()` / `useForm()` / `useForm(undefined)` 返回表单，等同 `{}`。
-- 第二个类型参数照写（下面的例子）。JSX 的 `display` 和 reaction 里的 `$display` 类型上看不到，只能自己列出路径。
+- 第二个类型参数照写（下面的例子）。JSX 的 `omit` 和 reaction 里的 `$omit` 类型上看不到，只能自己列出路径。
 
 ```ts
 import { createForm, type SubmitValues } from '@shikiform/react'

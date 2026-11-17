@@ -70,7 +70,7 @@ export default function App() {
 | **定位** | **派生**：持续同步得出的一份结果 | **动作**：当 X 变化时执行一次 Y |
 | **首次运行** | 初始化时立即运行一次 | 初始化时不运行 |
 | **依赖追踪** | 自动收集 `effect` 内读取的所有 `$` 状态 | 仅追踪 `source` 内读取的状态，忽略 `effect` 中的读取 |
-| **写入 `$value`** | 目标字段成为[计算字段](/guide/concepts#显隐pattern-与提交)（转为只读展示且默认保留在提交值中；不提交需声明 `omit: true`） | 作为普通用户数据写入 |
+| **写入 `$value`** | 目标字段成为[计算字段](/guide/concepts#四个布尔)（仍可编辑、仍提交、不计入 dirty；预览再写 `readOnly`，不提交再写 `omit`） | 作为普通用户数据写入 |
 
 编写联动时需遵守四条规则：
 - 写入结果会在当前轮次结束后统一生效，因此不要在同一段 `reaction` 中读回刚赋值的 `$value`；需要复用中间结果时，请先存入局部变量（如 `const total = …; d.total.$value = total; d.tax.$value = total * 0.1`）。
@@ -273,7 +273,7 @@ export default function App() {
 
 字段的显隐、必填、下拉选项、标签和占位符同样是 `$` 状态，可以直接在 `reaction` 中赋值（完整示范见 [首页](/)）。
 
-控制字段条件显隐时，使用 `$visible`（`$visible = false` 等价于 `visible: false, omit: true`，不渲染、不校验、不提交，但值会留在引擎中；如果希望隐藏界面的同时依然参与校验和提交，请使用 `$hidden = true` 或 `$display = 'hidden'`，详见 [显隐、pattern 与提交](/guide/concepts#显隐pattern-与提交)）。想撤销联动层对 `$title`、`$pattern` 或 `$enum` 的覆盖时，赋值为 `undefined` 即可回退到 JSX 或 `fields` 声明；对于 `$enum`，赋 `[]` 才会彻底清空选项。
+控制字段条件显隐时使用 `$visible`：`$visible = false` 不渲染、不校验，值仍然提交（详见 [四个布尔](/guide/concepts#四个布尔)）。不进提交结果再写 `$omit = true`。想撤销联动层对 `$title`、`$readOnly`、`$disabled` 或 `$enum` 的覆盖时，赋值为 `undefined` 即可回退到 JSX 或 `fields` 声明；对于 `$enum`，赋 `[]` 才会彻底清空选项。
 
 不要在组件渲染期间通过 `form.getValue(...)` 手动计算控件属性，这种写法无法自动响应联动更新。如果是需要为同一字段配置第二个 UI（例如回显文本、联动滑块），或者控制不绑定表单数据的提示横幅，可以使用命名 UI 节点 `d.x.$ui('echo')` / `d.$ui('tip')`，详见 [命名 UI](/guide/ui)。
 

@@ -136,7 +136,7 @@ function RowEditBody() {
     <main>
       <h1>抽屉里编辑一行</h1>
       <p>
-        编辑区是同一个引擎里的一个 <code>display: virtual</code> 对象（<code>editor</code>，不进提交值）。打开时异步加载这一行，较新的打开会作废旧的加载；
+        编辑区是同一个引擎里的一个 <code>omit</code> 对象（<code>editor</code>，不进提交值）。打开时异步加载这一行，较新的打开会作废旧的加载；
         「确定」用 <code>form.batch</code> 按 id 找到原行写回；「详情」把同一组字段切成阅读态。
       </p>
       <div data-testid="row-table" onClick={onTableClick}>
@@ -218,7 +218,7 @@ function RowEditBody() {
 function EditorFields() {
   const loading = useWatch((d: Draft<Values>) => d.editor.loading.$value === true)
   if (loading) return <Spin data-testid="editor-loading" />
-  // Detail = the same fields with `$pattern = 'readPretty'` (see the reaction); FormItem / Input render the text view.
+  // Detail sets `$readOnly` (see the reaction); FormItem / Input render the preview.
   return (
     <ObjectField name="editor" omit>
       <FormLayout layout="vertical">
