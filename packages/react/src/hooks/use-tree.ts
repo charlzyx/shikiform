@@ -1,6 +1,6 @@
-import { useCallback, useContext, useSyncExternalStore } from 'react'
+import { useCallback, useContext, useRef, useSyncExternalStore } from 'react'
 import type { Draft, MoveResult, Pos } from '@shikiform/core/internal'
-import { ShikiUsageError } from '@shikiform/core/internal'
+import { deepEqual, ShikiUsageError } from '@shikiform/core/internal'
 import { TreeContext, useRequiredForm, useScope } from '../context'
 import { useFieldGroupRegistration } from '../field-group'
 import { resolveName } from './resolve-name'
@@ -14,15 +14,22 @@ export interface TreeOptions {
 }
 
 /**
- * Tree handle. Subscribes to structure only. `value` is the current root array (`[]` when the stored value is not an array).
+ * Edits on one tree. Field models follow the node id.
+ * `path` is always the thing this handle points at: the tree root for `useTreeField(name)`, the current node for `useTreeField()`.
+ * `treePath` is always the tree root (same as `path` on a root handle).
+ * `errors` / `warnings` are that path's own messages, not descendant fields.
+ * `value` is the current root array (`[]` when the stored value is not an array).
  * `move(from, to)` uses final `pos` coordinates and refuses a move into a descendant (the result says why).
- * `push` / `insert` / `remove` / `replace` edit the tree the same way: field models follow the node id.
- * `dragProps(pos)` is the HTML5 drag-and-drop props for the node at that coordinate (source and drop target);
- * dropping node A on node B is `move(A, B)`.
+ * `dragProps(pos)` is the HTML5 drag-and-drop props for the node at that coordinate; dropping A on B is `move(A, B)`.
  */
-/** Edits on one tree. `path` is the tree root. Field models follow the node id. */
 export interface TreeHandle<TNode = unknown> {
+  /** What this handle points at. Root handle: the tree root. Node handle: the current node. */
   path: string
+  /** The tree root. Equal to `path` on a root handle. */
+  treePath: string
+  /** This path's own messages. Descendant fields are not included. */
+  errors: readonly string[]
+  warnings: readonly string[]
   value: TNode[]
   /** Append `node` at the root, or as the last child of `parentPos`. A missing children array is created. */
   push: (node: TNode, parentPos?: Pos) => void
@@ -40,16 +47,16 @@ export interface TreeHandle<TNode = unknown> {
 
 /**
  * `useTreeField()` inside a node: the current node plus the same tree edits.
- * `path` / `pos` / `index` / `record` are this node. `treePath` / `value` are the enclosing tree.
+ * `path` is this node's path (`items.0.children.1`). `treePath` is the tree root.
+ * `errors` / `warnings` are this node's own messages. `value` is the enclosing tree.
  * `dragProps()` with no argument targets this node.
  */
 export interface TreeNodeHandle<TNode = unknown> extends TreeHandle<TNode> {
-  /** This node's path (`items.0.children.1`), not the tree root. */
+  /** This node's path, not the tree root. */
   path: string
   pos: Pos
   index: number
   record: TNode
-  /** The tree root this node belongs to. */
   treePath: string
   dragProps: (pos?: Pos) => DragProps
 }
@@ -57,11 +64,11 @@ export interface TreeNodeHandle<TNode = unknown> extends TreeHandle<TNode> {
 /**
  * One tree hook.
  *
- * `useTreeField(name)` resolves `name` against the current scope and returns the tree
- * (`path` is the root). It registers that path into the nearest `FieldGroup`.
+ * `useTreeField(name)` resolves `name` against the current scope and returns the tree.
+ * `path` and `treePath` are both the root. It registers that path into the nearest `FieldGroup`.
  *
- * `useTreeField()` takes the nearest `<TreeField>` node: `path`, `pos`, `index`, `record`,
- * and the tree's `push` / `insert` / `remove` / `replace` / `move` / `dragProps`.
+ * `useTreeField()` takes the nearest `<TreeField>` node: `path` is the node, `treePath` is the root,
+ * plus `pos`, `index`, `record`, and the tree's `push` / `insert` / `remove` / `replace` / `move` / `dragProps`.
  * Outside a node it throws.
  */
 export function useTreeField<TNode = unknown>(): TreeNodeHandle<TNode>
@@ -79,10 +86,11 @@ export function useTreeField(name?: string, opts?: TreeOptions): TreeHandle<unkn
   const treePath = name != null ? resolveName(form, scope, name) : (ctx?.path ?? form.treeRoot(scope.path) ?? scope.path)
   const options = name != null ? opts : { childrenKey: ctx?.childrenKey, rowKey: ctx?.rowKey }
   useFieldGroupRegistration(name != null ? treePath : undefined)
-  // A node does not subscribe to the whole tree. TreeField (the named hook) repaints structure;
-  // this node re-renders when its own record or position changes, so a sibling move leaves it mounted.
+  // A node does not subscribe to the whole tree. `<TreeField>` repaints structure and keeps
+  // unchanged sibling elements; this node re-renders when its own record or position changes.
   const tree = useTreeAt(treePath, options, name != null)
   const nodePath = name == null ? scope.path : ''
+  const own = useOwnMessages(nodePath || null)
   const record = useWatch(useCallback((d: Draft<any>) => (nodePath ? form.query(nodePath).$value : undefined), [form, nodePath]))
   const pos = scope.pos as Pos | undefined
   const nodeDrag = useCallback((at?: Pos) => tree.dragProps(at ?? pos ?? []), [tree.dragProps, pos])
@@ -90,7 +98,9 @@ export function useTreeField(name?: string, opts?: TreeOptions): TreeHandle<unkn
   return {
     ...tree,
     path: scope.path,
-    treePath: tree.path,
+    treePath: tree.treePath,
+    errors: own.errors,
+    warnings: own.warnings,
     pos: pos ?? [],
     index: pos ? (pos[pos.length - 1] ?? scope.index) : scope.index,
     record,
@@ -114,9 +124,13 @@ export function useTreeAt(path: string | null, opts?: TreeOptions, subscribe = t
   void version
   const value = path ? form.getValue(path as never) as unknown : undefined
   const dragProps = useDragProps<Pos>(path ?? '', (from, to) => { if (path) form.moveTree(path, from, to) }, (pos) => pos.join('.'), toPos)
+  const messages = useOwnMessages(subscribe ? path : null)
   const at = path ?? ''
   return {
     path: at,
+    treePath: at,
+    errors: messages.errors,
+    warnings: messages.warnings,
     value: Array.isArray(value) ? (value as unknown[]) : [],
     push: (node: unknown, parentPos?: Pos) => { if (path) form.pushTree(path, node, parentPos) },
     insert: (pos: Pos, node: unknown) => { if (path) form.insertTree(path, pos, node) },
@@ -126,6 +140,28 @@ export function useTreeAt(path: string | null, opts?: TreeOptions, subscribe = t
     dragProps,
   }
 }
+
+/** This path's own messages. Subscribes to that path only, so a descendant edit does not re-render. */
+function useOwnMessages(path: string | null): { errors: readonly string[]; warnings: readonly string[] } {
+  const form = useRequiredForm(path ? `the tree '${path}'` : 'useTreeField()')
+  const cache = useRef(NO_MESSAGES)
+  const read = () => {
+    if (!path) return NO_MESSAGES
+    const binding = form.binding(path)
+    const prev = cache.current
+    if (deepEqual(prev.errors, binding.errors) && deepEqual(prev.warnings, binding.warnings)) return prev
+    const next = { errors: binding.errors, warnings: binding.warnings }
+    cache.current = next
+    return next
+  }
+  return useSyncExternalStore(
+    (onStoreChange) => (path ? form.subscribePath(path, onStoreChange) : () => {}),
+    read,
+    read,
+  )
+}
+
+const NO_MESSAGES = { errors: [] as readonly string[], warnings: [] as readonly string[] }
 
 function toPos(raw: string): Pos | undefined {
   const pos = raw.split('.').map(Number)

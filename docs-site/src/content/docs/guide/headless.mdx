@@ -7,7 +7,7 @@ description: 不依赖 UI 库直接使用 useField、useWatch、数组/树上下
 
 - **基础绑定与订阅**：`useField(name)` 负责绑定单个字段，`useWatch(select)` / `<Watch>` 负责订阅任意 `$` 状态变化。
 - **数组行内上下文**：`useArrayField()` 获取最近一层数组的操作句柄，`useIndex()` 获取当前行下标，`useRecord()` 获取当前行数据，调用时都不需要传数组名。数组自己的错误在句柄的 `errors` / `warnings` 上（不含子字段），在容器或 `ArrayTable` 的 `footer` 里读 `useArrayField().errors`（必须在 `<ArrayField>` 里面，见 [数组自身的错误](/guide/arrays#数组自身的错误)）。
-- **树**：`useTreeField(name)` 取那棵树（`push` / `insert` / `remove` / `replace` / `move` / `dragProps(pos)`）。`useTreeField()` 必须在节点里：当前节点的 `{ path, pos, index, record }`，以及这棵树的增删和 `dragProps()`（不传坐标指向当前节点）。
+- **树**：`useTreeField(name)` 取那棵树，`path` 和 `treePath` 都是树根（`push` / `insert` / `remove` / `replace` / `move` / `dragProps(pos)`，以及这一层的 `errors` / `warnings`）。`useTreeField()` 必须在节点里：`path` 是当前节点，`treePath` 是树根，并带上 `{ pos, index, record }` 和这棵树的增删、`dragProps()`（不传坐标指向当前节点）。移动一个节点时，位置和子树没变的兄弟以及其他子树不会重新渲染。
 - **拖拽排序**：数组句柄的 `dragProps(index)` 和树句柄的 `dragProps(pos)`（节点上 `useTreeField().dragProps()`）返回 HTML5 拖放属性，配合同一句柄的 `move` 完成排序。
 
 `useArrayField`、`useIndex` 和 `useRecord` 在普通 `<ArrayField>` 渲染函数以及 `ArrayItems`、`ArrayCards`、`ArrayTable` 容器内均可通用。

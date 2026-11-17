@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { engineOf } from '@shikiform/core/internal'
 import { createForm, Field, Form, TreeField, typed, useField, useTreeField, type TreeNodeRender } from '@shikiform/react'
@@ -69,9 +69,9 @@ describe('<TreeField>', () => {
     )
 
     expect(snapshots).toEqual([
+      { path: 'menu.0', pos: [0], index: 0, key: 'file', depth: 0, hasChildren: true },
       { path: 'menu.0.children.0', pos: [0, 0], index: 0, key: 'new', depth: 1, hasChildren: false },
       { path: 'menu.0.children.1', pos: [0, 1], index: 1, key: 'open', depth: 1, hasChildren: false },
-      { path: 'menu.0', pos: [0], index: 0, key: 'file', depth: 0, hasChildren: true },
       { path: 'menu.1', pos: [1], index: 1, key: 'edit', depth: 0, hasChildren: false },
     ])
     expect(screen.getAllByTestId(/^li-/).map((el) => el.getAttribute('data-path'))).toEqual([
@@ -113,8 +113,8 @@ describe('<TreeField>', () => {
     )
 
     expect(paths).toEqual([
-      'c1:tree.0.items.0:1:leaf',
       'r1:tree.0:0:branch',
+      'c1:tree.0.items.0:1:leaf',
     ])
     expect(screen.getByTestId('title-c1').textContent).toBe('Child')
   })
@@ -291,5 +291,65 @@ describe('<TreeField>', () => {
 
     expect(screen.getByTestId('typed-val-file').textContent).toBe('文件@0')
     expect(screen.getByTestId('typed-val-new').textContent).toBe('新建@1')
+  })
+
+  it('moving one node does not re-render siblings or other subtrees', () => {
+    type Node = { id: string; name: string; children: Node[] }
+    const form = createForm<{ menu: Node[] }>({
+      initialValues: {
+        menu: [
+          { id: 'a', name: 'A', children: [{ id: 'a1', name: 'A1', children: [] }, { id: 'a2', name: 'A2', children: [] }] },
+          { id: 'b', name: 'B', children: [{ id: 'b1', name: 'B1', children: [] }] },
+          { id: 'c', name: 'C', children: [{ id: 'c1', name: 'C1', children: [] }] },
+        ],
+      },
+    })
+    function Mark({ id, pos, children }: { id: string; pos: string; children?: ReactNode }) {
+      const renders = useRef(0)
+      renders.current += 1
+      return <div data-testid={`n-${id}`} data-pos={pos} data-renders={renders.current}>{children}</div>
+    }
+    function Move() {
+      const tree = useTreeField('menu')
+      return <button type="button" data-testid="move" onClick={() => tree.move([0, 1], [1, 1])}>move</button>
+    }
+    render(
+      <Form form={form}>
+        <Move />
+        <TreeField name="menu" rowKey="id">
+          {(node) => <Mark id={node.key} pos={node.pos.join('.')}>{node.children}</Mark>}
+        </TreeField>
+      </Form>,
+    )
+    const renders = (id: string) => screen.getByTestId(`n-${id}`).getAttribute('data-renders')
+    const before = Object.fromEntries(['a', 'a1', 'b', 'b1', 'c', 'c1'].map((id) => [id, renders(id)]))
+    fireEvent.click(screen.getByTestId('move'))
+    expect(screen.getByTestId('n-a2').getAttribute('data-pos')).toBe('1.1')
+    expect(screen.getByTestId('n-a1').getAttribute('data-pos')).toBe('0.0')
+    expect(screen.getByTestId('n-b1').getAttribute('data-pos')).toBe('1.0')
+    for (const id of ['a1', 'b1', 'c', 'c1']) expect(renders(id)).toBe(before[id])
+    expect(Number(renders('a'))).toBe(Number(before.a) + 1)
+    expect(Number(renders('b'))).toBe(Number(before.b) + 1)
+  })
+
+  it('errors and warnings are this path only; path is the handle target and treePath is the root', () => {
+    const form = createForm({ initialValues: { menu: [{ id: 'a', name: '', children: [] }] } })
+    function Root() {
+      const tree = useTreeField('menu')
+      return <span data-testid="root">{`${tree.path}|${tree.treePath}|${tree.errors.join('/')}|${tree.warnings.join('/')}`}</span>
+    }
+    function Node() {
+      const node = useTreeField<{ id: string }>()
+      return <span data-testid="node">{`${node.path}|${node.treePath}|${node.errors.join('/')}`}</span>
+    }
+    render(
+      <Form form={form}>
+        <Root />
+        <TreeField name="menu" rowKey="id">{() => <Node />}</TreeField>
+      </Form>,
+    )
+    act(() => form.setErrors({ menu: '根', 'menu.0': '节点', 'menu.0.name': '名称' }))
+    expect(screen.getByTestId('root').textContent).toBe('menu|menu|根|')
+    expect(screen.getByTestId('node').textContent).toBe('menu.0|menu|节点')
   })
 })

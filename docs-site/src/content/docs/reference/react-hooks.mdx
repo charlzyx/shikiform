@@ -506,16 +506,20 @@ useTreeField<TNode = unknown>(): TreeNodeHandle<TNode>   // 必须在 <TreeField
 useTreeField(name: string, options?: { childrenKey?: string; rowKey?: string }): TreeHandle<unknown>
 ```
 
-一个 Hook。`useTreeField(name)` 按当前 scope 解析那棵树，`path` 是树根，并把路径登记进最近的字段组。`useTreeField()` 不传名字时必须在 `<TreeField>` 的节点里：返回当前节点的 `path`、`pos`、`index`、`record`，以及这棵树的 `value`、`push`、`insert`、`remove`、`replace`、`move`、`dragProps`（`dragProps()` 不传坐标就指向当前节点）。`treePath` 是树根。不在节点里时抛错：开发构建是 `ShikiUsageError`，消息为 `useTreeField() must render inside a tree node (<TreeField>).`。
+一个 Hook。句柄的 `path` 永远是它指向的东西，`treePath` 永远是树根。`useTreeField(name)` 按当前 scope 解析那棵树，`path` 和 `treePath` 都是树根，并把路径登记进最近的字段组。`useTreeField()` 不传名字时必须在 `<TreeField>` 的节点里：`path` 是当前节点，`treePath` 是树根，并带上 `pos`、`index`、`record`，以及这棵树的 `value`、`push`、`insert`、`remove`、`replace`、`move`、`dragProps`（`dragProps()` 不传坐标就指向当前节点）。两种句柄的 `errors` / `warnings` 都只算 `path` 这一层，不含子孙字段。不在节点里时抛错：开发构建是 `ShikiUsageError`，消息为 `useTreeField() must render inside a tree node (<TreeField>).`。
+
+`<TreeField>` 在结构变化时重画。位置和子树都没变的兄弟，以及其他子树，沿用上一次的元素，不重新渲染。变了的是被移动的节点、坐标变了的节点，以及子树形状变了的祖先。`children` 渲染函数换了身份（父组件重渲染时写的内联函数）会把每个节点重画一遍。
 
 `Pos` 是 `readonly number[]`，`MoveResult` 是 `{ ok: boolean; reason?: string }`，两者都从 `@shikiform/react` 导入。不传 name 时可以用 `useTreeField<Node>()` 标节点类型；传了 name 时返回的 `value` 是 `unknown[]`，按已知数据自行标注。
 
 | 参数 / 返回 | 含义 / 默认 |
 |---|---|
-| `name` | 传入时是相对当前 scope 的树根路径，返回 `TreeHandle`（`path` 是树根）。省略时必须在节点里，返回 `TreeNodeHandle` |
+| `name` | 传入时是相对当前 scope 的树根路径，返回 `TreeHandle`。省略时必须在节点里，返回 `TreeNodeHandle` |
 | `options.childrenKey` | 只在传入 `name` 时使用。优先用传入值；否则继承已有树配置，再默认 `'children'` |
 | `options.rowKey` | 同上，默认 `'id'` |
-| `path` | 传了 `name`：树根。没传：当前节点 |
+| `path` | 句柄指向的路径。传了 `name`：树根。没传：当前节点 |
+| `treePath` | 树根。树根句柄上和 `path` 相同 |
+| `errors` / `warnings` | `path` 这一层自己的消息，不含子孙字段 |
 | `value` | 当前根节点数组；当前值不是数组时返回 `[]`。不要原地修改 |
 | `push(node, parentPos?)` | 追加到根，或作为 `parentPos` 的最后一个孩子。父节点没有 children 数组时会建一个 |
 | `insert(pos, node)` | 插到 `pos`，后面的兄弟后移 |
@@ -526,7 +530,7 @@ useTreeField(name: string, options?: { childrenKey?: string; rowKey?: string }):
 
 字段状态跟着节点 id 走（没有 id 时移动仍改数据，但没有 id 可跟随）。`useTreeField` 与 `useField` / `useArrayField(name)` 一致：名字按当前 scope 解析（开发期名字重复 scope 前缀会抛 `ShikiUsageError` 并提示修法）。它只订阅树结构，不订阅每个节点的文字/勾选状态。节点编辑单独用 `useField`，读取选定值用 `useWatch`。要让 React 挂载前的树联动也认识自定义 `childrenKey`，在 `useForm({ trees: { ... } })` 里声明配置。
 
-不传 name 时 `path` 是当前节点，`treePath` 是树根，`index` 是 `pos` 的最后一段（和 `useIndex()` 相同）。`dragProps()` 不传坐标指向当前节点。
+不传 name 时 `path` 是当前节点，`treePath` 是树根，`index` 是 `pos` 的最后一段（和 `useIndex()` 相同）。`errors` / `warnings` 是这个节点自己的消息。`dragProps()` 不传坐标指向当前节点。
 
 ```tsx
 function MoveFirst() {
@@ -586,6 +590,8 @@ export default function TreeHookExample() {
 useTreeField<TNode = any>(): {
   path: string          // 当前节点
   treePath: string      // 树根
+  errors: readonly string[]
+  warnings: readonly string[]
   pos: Pos
   index: number
   record: TNode

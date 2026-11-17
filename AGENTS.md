@@ -80,8 +80,10 @@ move / swap / insert / remove it stays on `rows.0.x` and applies to whichever ro
 In React, a row component reads its row without names: `useArrayField()` (nearest array handle: `push`, `insert`, `remove`,
 `move`, `swap`, `replace`, `dragProps(index)`, plus this path's `errors` / `warnings`), `useIndex()`, `useRecord()` (reactive row value).
 `useTreeField(name, { childrenKey?, rowKey? })` is the tree handle (`push` / `insert` / `remove` / `replace` / `move` / `dragProps(pos)`).
-`useTreeField()` with no name must render inside a `<TreeField>` node: it returns that node's `path`, `pos`, `index`, reactive `record`,
-and the same tree edits (`dragProps()` with no pos targets this node). `useIndex()` in a tree node is that sibling index.
+`useTreeField()` with no name must render inside a `<TreeField>` node: `path` is that node, `treePath` is the root, plus `pos`, `index`, reactive `record`,
+and the same tree edits (`dragProps()` with no pos targets this node). A root handle's `path` and `treePath` are both the root.
+`errors` / `warnings` on either handle are that path's own messages. Moving a node does not re-render siblings or other subtrees whose position and subtree stayed the same.
+`useIndex()` in a tree node is that sibling index.
 `useArrayField(name, opts?: { rowKey })` is the named array handle. Both named hooks resolve
 the name against the scope (a repeated scope prefix throws in dev) and register the path into the nearest field group,
 like `useField`. Drag-and-drop is `{...handle.dragProps(i)}` on the row; there is no separate drag hook.

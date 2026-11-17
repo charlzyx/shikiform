@@ -4,7 +4,7 @@
 
 ## 1. API 原则：Hooks 优先，组件是糖
 
-1. **Hooks 是完整的主 API。** `@shikiform/react` 导出的 `useForm`、`useFormContext`、`useField`（无参即当前字段）、`useWatch`、`useArrayField(name?)`、`useTreeField(name?)`、`useIndex`、`useRecord`。`useArrayField()` 取最近一层数组（Formily `ArrayBase.useArray`）。`useTreeField(name)` 取那棵树；`useTreeField()` 在节点里返回当前节点（`path` / `pos` / `index` / `record`）并带上这棵树的 `push` / `insert` / `remove` / `replace` / `move` / `dragProps`。结构操作不在 `FormInstance` 上。`useFormMessage`、`useSubmit`、`useReset`、`useFieldGroup`、`FieldGroup` 只从 `@shikiform/react/internal` 导出。
+1. **Hooks 是完整的主 API。** `@shikiform/react` 导出的 `useForm`、`useFormContext`、`useField`（无参即当前字段）、`useWatch`、`useArrayField(name?)`、`useTreeField(name?)`、`useIndex`、`useRecord`。`useArrayField()` 取最近一层数组（Formily `ArrayBase.useArray`）。`useTreeField(name)` 取那棵树（`path` 与 `treePath` 都是树根）；`useTreeField()` 在节点里返回当前节点（`path` 是节点，`treePath` 是树根，另有 `pos` / `index` / `record`）并带上这棵树的 `push` / `insert` / `remove` / `replace` / `move` / `dragProps`。两种句柄的 `errors` / `warnings` 只算 `path` 这一层。`<TreeField>` 移动节点时，位置和子树都没变的兄弟以及其他子树不重渲染。结构操作不在 `FormInstance` 上。`useFormMessage`、`useSubmit`、`useReset`、`useFieldGroup`、`FieldGroup` 只从 `@shikiform/react/internal` 导出。
 2. **组件只是 Hook 的薄封装，不得拥有 Hook 用户拿不到的逻辑。**
    - `<Field name rules required enum display pattern title description decorator component>` = `useField(name, options)` + `display` 为 `hidden` / `none` 时返回 `null`（`virtual` 仍渲染）+ 渲染 `decorator` 包住 `component`（或 children），并用内部 `FieldContext` 提供 binding（经无参 `useField()` 读取，不导出）。
    - `<Field name ui="echo">` = `useField(name, { ui })`：同一字段的另一个 UI 实例（值 / 错误 / 规则共享，UI 层独立，见 §3.2）；`<UI name>` = `useUiNode` + `form.uiBinding(作用域, name, props, 'node')` + 渲染 `decorator` / `component`（无值）。

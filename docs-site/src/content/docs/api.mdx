@@ -76,8 +76,8 @@ createForm<T, TSubmit = T>(options?: FormOptions<T>): FormInstance<T, TSubmit>  
 ```ts
 useArrayField<TRow = unknown>(): ArrayHandle<TRow>
 useArrayField(name, opts?: { rowKey?: string }): ArrayHandle<行类型>
-useTreeField<TNode = unknown>(): TreeHandle<TNode>
-useTreeField(name, opts?: { childrenKey?: string; rowKey?: string }): TreeHandle<unknown>
+useTreeField<TNode = unknown>(): TreeNodeHandle<TNode>   // 必须在节点里。path 是当前节点
+useTreeField(name, opts?: { childrenKey?: string; rowKey?: string }): TreeHandle<unknown>   // path 和 treePath 都是树根
 
 interface ArrayHandle<TRow> {
   path: string
@@ -92,7 +92,10 @@ interface ArrayHandle<TRow> {
 }
 
 interface TreeHandle<TNode> {
-  path: string
+  path: string            // 句柄指向的路径：树根句柄是树根，节点句柄是当前节点
+  treePath: string        // 永远是树根。树根句柄上和 path 相同
+  errors: readonly string[]     // 这一层自己的消息，不含子孙字段
+  warnings: readonly string[]
   value: TNode[]
   push(node: TNode, parentPos?: Pos): void  // 追加到根，或作为 parentPos 的最后一个孩子
   insert(pos: Pos, node: TNode): void
@@ -103,7 +106,7 @@ interface TreeHandle<TNode> {
 }
 ```
 
-`useArrayField()` 必须渲染在 `<ArrayField>` 里（行，或 `component` 容器，工具栏也算）。不在里面时，开发构建抛 `ShikiUsageError`。嵌套时取最近的一层。当前行下标是 `useIndex()`（树节点里是兄弟下标），当前行或节点的值是 `useRecord()`。`useTreeField()` 不传名字时必须在 `<TreeField>` 的节点里，返回当前节点的 `{ path, pos, index, record }`，以及这棵树的 `value`、`push`、`insert`、`remove`、`replace`、`move`、`dragProps`（`dragProps()` 不传坐标指向当前节点）。整棵树用 `useTreeField(name)`。
+`useArrayField()` 必须渲染在 `<ArrayField>` 里（行，或 `component` 容器，工具栏也算）。不在里面时，开发构建抛 `ShikiUsageError`。嵌套时取最近的一层。当前行下标是 `useIndex()`（树节点里是兄弟下标），当前行或节点的值是 `useRecord()`。句柄的 `path` 永远是它指向的东西：`useTreeField(name)` 的 `path` 和 `treePath` 都是树根；`useTreeField()` 必须在 `<TreeField>` 的节点里，`path` 是当前节点，`treePath` 是树根，并带上 `pos`、`index`、`record` 和这棵树的 `value`、`push`、`insert`、`remove`、`replace`、`move`、`dragProps`（`dragProps()` 不传坐标指向当前节点）。两种句柄的 `errors` / `warnings` 都只算自己这一层。移动一个节点时，位置和子树都没变的兄弟、以及其他子树，不会重新渲染。
 
 联动里改数组是赋一个新数组（`d.items.$value = [...d.items.$value, row]`），不要原地 `push`。组件里追加、删除、排序用上面的句柄。签名和例子在 [useArrayField](/reference/react-hooks#usearrayfield)、[useTreeField](/reference/react-hooks#usetreefield)。
 

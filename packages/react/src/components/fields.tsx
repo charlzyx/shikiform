@@ -437,6 +437,9 @@ export interface TreeNodeRender {
  * The owner of a tree path. Walks the tree recursively, wraps each node in a row scope keyed by the node id
  * (`rowKey`, else `id`, else a stable object identity), and hands `children` the pre-rendered subtree as `node.children`
  * (`null` on leaves) so the caller decides where to place it (`<li><NodeRow />{node.children && <ul>{node.children}</ul>}</li>`).
+ * A move re-renders the moved node, nodes whose `pos` changed, and ancestors whose subtree changed.
+ * A sibling whose position and subtree did not change, and every other subtree, keep the previous element and do not re-render.
+ * The `children` render function is part of that identity: a new function (an inline callback while the parent re-renders) redraws every node.
  * Inside a node, relative `<Field name="name">` / `useField('name')`, {@link useRecord}, and {@link useTreeField}
  * (no name: this node, plus the tree's edits) read that node, and field state / errors follow the node across moves.
  * `<TreeField<Values> name="menu">` checks the name; `typed(form).TreeField` also types the node's fields.
@@ -455,38 +458,156 @@ export function TreeField<TScope = any>({
   const tree = useTreeField(String(name), { childrenKey, rowKey })
   const identMap = useRef(new WeakMap<object, string>())
   const identSeq = useRef(0)
+  const cache = useRef(new Map<string, TreeFrameCache>())
   const resolvedChildrenKey = childrenKey ?? 'children'
   const resolvedRowKey = rowKey ?? 'id'
+  const ctx: TreeFrameCtx = {
+    treePath: tree.treePath,
+    childrenKey: resolvedChildrenKey,
+    rowKey: resolvedRowKey,
+    render: children,
+    identMap,
+    identSeq,
+  }
+  return (
+    <TreeScope path={tree.treePath} childrenKey={childrenKey} rowKey={rowKey}>
+      {frameList(tree.value, [], ctx, cache.current)}
+    </TreeScope>
+  )
+}
 
-  const renderNodes = (nodes: unknown[], parentPos: readonly number[]): ReactNode =>
-    nodes.map((nodeObj, index) => {
-      const pos: Pos = [...parentPos, index]
-      const nodePath = pathOf(tree.path, pos, resolvedChildrenKey)
-      let key: string
-      if (nodeObj && typeof nodeObj === 'object' && (nodeObj as Record<string, unknown>)[resolvedRowKey] != null) {
-        key = String((nodeObj as Record<string, unknown>)[resolvedRowKey])
-      } else if (nodeObj && typeof nodeObj === 'object') {
-        let id = identMap.current.get(nodeObj)
-        if (!id) {
-          identSeq.current += 1
-          id = `node-${identSeq.current}`
-          identMap.current.set(nodeObj, id)
-        }
-        key = id
-      } else {
-        key = pos.join('.')
-      }
-      const subNodes =
-        nodeObj && typeof nodeObj === 'object' ? (nodeObj as Record<string, unknown>)[resolvedChildrenKey] : undefined
-      const renderedChildren = Array.isArray(subNodes) && subNodes.length > 0 ? renderNodes(subNodes, pos) : null
-      return (
-        <RowScope key={key} path={nodePath} index={index} itemKey={key} pos={pos}>
-          {children({ path: nodePath, pos, index, key, depth: pos.length - 1, children: renderedChildren })}
-        </RowScope>
-      )
-    })
+/** One node. Re-renders only when its key, position, subtree shape, or the row render function changes. */
+const TreeNodeFrame = memo(function TreeNodeFrame(props: TreeFrameProps) {
+  const cache = useRef(new Map<string, TreeFrameCache>())
+  const children = frameList(props.childNodes, props.pos, props, cache.current)
+  return (
+    <RowScope path={props.path} index={props.index} itemKey={props.itemKey} pos={props.pos}>
+      {props.render({
+        path: props.path,
+        pos: props.pos,
+        index: props.index,
+        key: props.itemKey,
+        depth: props.depth,
+        children,
+      })}
+    </RowScope>
+  )
+}, (prev, next) =>
+  prev.itemKey === next.itemKey &&
+  prev.posKey === next.posKey &&
+  prev.path === next.path &&
+  prev.index === next.index &&
+  prev.depth === next.depth &&
+  prev.childSig === next.childSig &&
+  prev.render === next.render &&
+  prev.childrenKey === next.childrenKey &&
+  prev.rowKey === next.rowKey &&
+  prev.treePath === next.treePath,
+)
 
-  return <TreeScope path={tree.path} childrenKey={childrenKey} rowKey={rowKey}>{renderNodes(tree.value, [])}</TreeScope>
+interface TreeFrameCtx {
+  treePath: string
+  childrenKey: string
+  rowKey: string
+  render: (node: TreeNodeRender) => ReactNode
+  identMap: { current: WeakMap<object, string> }
+  identSeq: { current: number }
+}
+
+interface TreeFrameProps extends TreeFrameCtx {
+  path: string
+  pos: Pos
+  posKey: string
+  index: number
+  depth: number
+  itemKey: string
+  childSig: string
+  childNodes: unknown[]
+}
+
+interface TreeFrameCache {
+  sig: string
+  posKey: string
+  render: (node: TreeNodeRender) => ReactNode
+  element: ReactNode
+}
+
+/** Child frames. An unchanged subtree is the same element, so React skips it. */
+function frameList(nodes: unknown[], parentPos: readonly number[], ctx: TreeFrameCtx, cache: Map<string, TreeFrameCache>): ReactNode {
+  if (!nodes.length) return null
+  const seen = new Set<string>()
+  const frames = nodes.map((nodeObj, index) => {
+    const pos: Pos = [...parentPos, index]
+    const posKey = pos.join('.')
+    const itemKey = treeNodeKey(nodeObj, ctx.rowKey, posKey, ctx.identMap, ctx.identSeq)
+    seen.add(itemKey)
+    const childNodes = treeChildList(nodeObj, ctx.childrenKey)
+    const childSig = treeChildSig(childNodes, pos, ctx)
+    const hit = cache.get(itemKey)
+    if (hit && hit.sig === childSig && hit.posKey === posKey && hit.render === ctx.render) return hit.element
+    const element = (
+      <TreeNodeFrame
+        key={itemKey}
+        treePath={ctx.treePath}
+        childrenKey={ctx.childrenKey}
+        rowKey={ctx.rowKey}
+        render={ctx.render}
+        identMap={ctx.identMap}
+        identSeq={ctx.identSeq}
+        path={pathOf(ctx.treePath, pos, ctx.childrenKey)}
+        pos={pos}
+        posKey={posKey}
+        index={index}
+        depth={pos.length - 1}
+        itemKey={itemKey}
+        childSig={childSig}
+        childNodes={childNodes}
+      />
+    )
+    cache.set(itemKey, { sig: childSig, posKey, render: ctx.render, element })
+    return element
+  })
+  for (const key of cache.keys()) if (!seen.has(key)) cache.delete(key)
+  return frames
+}
+
+function treeChildList(node: unknown, childrenKey: string): unknown[] {
+  if (!node || typeof node !== 'object') return []
+  const sub = (node as Record<string, unknown>)[childrenKey]
+  return Array.isArray(sub) ? sub : []
+}
+
+function treeNodeKey(
+  node: unknown,
+  rowKey: string,
+  posKey: string,
+  identMap: { current: WeakMap<object, string> },
+  identSeq: { current: number },
+): string {
+  if (node && typeof node === 'object' && (node as Record<string, unknown>)[rowKey] != null) {
+    return String((node as Record<string, unknown>)[rowKey])
+  }
+  if (node && typeof node === 'object') {
+    let id = identMap.current.get(node)
+    if (!id) {
+      identSeq.current += 1
+      id = `node-${identSeq.current}`
+      identMap.current.set(node, id)
+    }
+    return id
+  }
+  return posKey
+}
+
+/** Keys and positions of this subtree. A sibling move does not change it. */
+function treeChildSig(nodes: unknown[], parentPos: readonly number[], ctx: TreeFrameCtx): string {
+  let sig = ''
+  for (let index = 0; index < nodes.length; index++) {
+    const posKey = `${parentPos.length ? parentPos.join('.') + '.' : ''}${index}`
+    const key = treeNodeKey(nodes[index], ctx.rowKey, posKey, ctx.identMap, ctx.identSeq)
+    sig += `${key}@${posKey}(${treeChildSig(treeChildList(nodes[index], ctx.childrenKey), [...parentPos, index], ctx)})`
+  }
+  return sig
 }
 
 /**
