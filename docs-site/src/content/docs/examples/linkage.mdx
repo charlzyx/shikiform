@@ -74,7 +74,7 @@ const effects = defineEffects<Values>(({ reaction, watch }) => {
 
 export default function App() {
   const form = useForm<Values>({ initialValues: { color: '', storage: '', edition: '', qty: 1, skuId: '', price: '', stock: '' },
-    fields: { skuId: { display: 'virtual' }, price: { display: 'virtual' }, stock: { display: 'virtual' } }, // 展示用，不进提交结果
+    fields: { skuId: { omit: true }, price: { omit: true }, stock: { omit: true } }, // 展示用，不进提交结果
     effects: [effects],
   });
   return (
@@ -95,7 +95,7 @@ export default function App() {
 
 - 三种机制各司其职：`reaction` 维护可选项与价格区间（[派生](/guide/linkage#reaction-与-watch)），`watch` 在某个维度变化时清理互斥选项（动作），`$rules` 让数量上限跟随库存实时更新。
 - `comboOptions` 与 `comboMatch`（由 `@shikiform/core` 提供）负责组合表过滤计算，组合数据源由业务侧提供。
-- 价格、库存、SKU 编码由于在 `reaction` 中写入了 `$value`，会自动进入阅读态；同时它们声明了 `display: 'virtual'`，仅用于展示而不随表单提交。
+- 价格、库存、SKU 编码由于在 `reaction` 中写入了 `$value`，会自动进入阅读态；同时它们声明了 `omit: true`，仅用于展示而不随表单提交。
 - 试着先点选「白色」，可以看到缺货的「128G」自动变为禁用；先选「128G」再看「白色」也是同样的互斥效果。
 
 ## 按勾选生成行
@@ -142,7 +142,7 @@ export default function App() {
       <ArrayField name="rows" rowKey="id">
         {() => (
           <FormLayout layout="inline" feedbackLayout="terse" style={{ marginBottom: 8 }}>
-            <Field name="id" pattern="readPretty" component={[Input]} />
+            <Field name="id" readOnly component={[Input]} />
             <Field name="price" title="单价" decorator={[FormItem]} component={[InputNumber, { min: 0 }]} />
             <Field name="qty" title="数量" decorator={[FormItem]} component={[InputNumber, { min: 1 }]} />
             <Field name="total" title="小计" decorator={[FormItem]} component={[InputNumber]} />

@@ -115,11 +115,11 @@ d.tax.$value = total * 0.1
 d.taxId.$visible = false
 ```
 
-`$visible = false` 对应的是 `display: 'none'`——不仅不渲染，还会**跳过校验并从提交结果中剔除**（虽然值仍留在引擎里）。如果你的目的是「隐藏界面但依然参与校验和提交」，应当使用 `$hidden = true`：
+`$visible = false` 对应的是 `visible: false, omit: true`——不仅不渲染，还会**跳过校验并从提交结果中剔除**（虽然值仍留在引擎里）。如果你的目的是「隐藏界面但依然参与校验和提交」，应当使用 `$hidden = true`：
 
 ```ts
-d.taxId.$hidden = true       // 隐藏界面，但保留校验与提交
-d.taxId.$display = 'virtual' // 正常渲染并校验，但不提交（$visible 仍为 true）
+d.taxId.$visible = false       // 隐藏界面，但保留校验与提交
+d.taxId.$omit = true // 正常渲染并校验，但不提交（$visible 仍为 true）
 d.taxId.$visible = false     // 即 none：不渲染、不校验、不提交
 ```
 

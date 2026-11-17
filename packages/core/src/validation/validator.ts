@@ -1,6 +1,7 @@
 import type { Scheduler } from '../effects/scheduler'
 import { deepEqual } from '../shared/equal'
 import { getAt, parentPath } from '../shared/path'
+import type { FlagName } from '../state/flags'
 import { shownErrors, type FieldModel } from '../state/field-model'
 import type { FieldStore } from '../state/field-store'
 import type { Notifier } from '../state/notifier'
@@ -13,6 +14,7 @@ import { runWarningRules } from './warnings'
 import { collectSchemaIssues, groupSchemaIssues, isStandardSchema, schemaIssuePath, type SchemaIssue, type StandardSchemaV1 } from './schema'
 import { AsyncAttempts } from './async-attempt'
 import { ignoreRejection, isPromise, settleUnlessAborted } from './settle'
+import { clearInactiveErrors, noteFlagChange, type InactiveHost } from './inactive'
 
 export interface ValidatorDeps {
   store: FieldStore<any>
@@ -78,15 +80,20 @@ export class Validator {
     return this.deps.store
   }
 
-  /** Messages for every field whose effective display is not `none`. */
+  /** Messages for every field that still validates (`visible && !disabled && !readOnly`). */
   errors(): FieldError[] {
     const out: FieldError[] = []
     for (const [path, field] of this.store.fields) {
-      if (this.store.effectiveDisplay(path) === 'none') continue
+      if (!this.store.acceptsValidation(path)) continue
       const messages = shownErrors(field)
       if (messages.length) out.push({ path, messages })
     }
     return out
+  }
+
+  /** A flag changed. See {@link noteFlagChange}. */
+  noteFlags(path: string, names: readonly FlagName[]): void {
+    noteFlagChange(this as unknown as InactiveHost, path, names)
   }
 
   triggersFor(path: string): ValidateTrigger[] {
@@ -227,9 +234,12 @@ export class Validator {
     const { store, notifier, scheduler, options } = this.deps
     const field = store.get(path)
     if (!field) return { stale: false, issues: [] }
-    if (store.effectiveDisplay(path) === 'none' || field.computed) {
+    if (!store.acceptsValidation(path)) {
       this.setErrors(path, [])
       this.setWarnings(path, [])
+      field.schemaErrors = []
+      this.schemaByPath.delete(path)
+      if (field.externalErrors.length) field.externalErrors = []
       if (field.validating) {
         field.validating = false
         scheduler.bumpMeta()
@@ -434,7 +444,7 @@ export class Validator {
   syncRuleMessages(path: string): void {
     const field = this.store.get(path)
     if (!field) return
-    if (this.store.effectiveDisplay(path) === 'none' || field.computed) {
+    if (!this.store.acceptsValidation(path)) {
       this.setErrors(path, [])
       this.setWarnings(path, [])
       return
@@ -475,8 +485,8 @@ export class Validator {
     const store = this.store
     const filtered = issues.filter((issue) => {
       if (!issue.message) return false
-      if (!issue.path) return store.effectiveDisplay('') !== 'none'
-      return store.effectiveDisplay(issue.path) !== 'none'
+      if (!issue.path) return store.acceptsValidation('')
+      return store.acceptsValidation(issue.path)
     })
     const grouped = groupSchemaIssues(filtered)
     const replaceAll = (scope === undefined || scope === '') && preserve.size === 0
@@ -521,18 +531,9 @@ export class Validator {
     }
   }
 
-  /** Clear messages on `path` and descendants whose effective display became `none`. */
-  clearHiddenErrors(path: string): void {
-    for (const [fieldPath, field] of this.store.fields) {
-      if (fieldPath !== path && !fieldPath.startsWith(path + '.')) continue
-      if (this.store.effectiveDisplay(fieldPath) !== 'none') continue
-      this.setErrors(fieldPath, [])
-      this.setWarnings(fieldPath, [])
-      field.schemaErrors = []
-      this.schemaByPath.delete(fieldPath)
-      this.deps.notifier.bumpPath(fieldPath)
-    }
-    this.deps.scheduler.bumpMeta()
+  /** Clear messages on `path` and descendants that no longer validate. */
+  clearInactive(path: string): void {
+    clearInactiveErrors(this as unknown as InactiveHost, path)
   }
 
   /** `level: 'warning'` messages of one field (`$warnings`, `binding.warnings`). They never block `canSubmit`. */
@@ -641,7 +642,7 @@ export class Validator {
     const out: string[] = []
     for (const [fieldPath, field] of this.store.fields) {
       if (path && fieldPath !== path && !fieldPath.startsWith(path + '.')) continue
-      if (this.store.effectiveDisplay(fieldPath) === 'none') continue
+      if (!this.store.acceptsValidation(fieldPath)) continue
       if (kind === 'errors') out.push(...shownErrors(field))
       else out.push(...field.warnings)
     }

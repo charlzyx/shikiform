@@ -21,7 +21,7 @@ describe('virtual row editor', () => {
         ],
         editor: { open: false, rowId: '', name: '', price: 0, note: '' },
       },
-      fields: { editor: { display: 'virtual' } },
+      fields: { editor: { omit: true } },
     })
 
     form.batch((d) => {

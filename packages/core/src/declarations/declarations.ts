@@ -1,6 +1,7 @@
 import { asOptions, type EnumOption } from '../enum/enum-source'
 import { deepEqual } from '../shared/equal'
 import { parentPath } from '../shared/path'
+import { FLAG_NAMES, type FlagName } from '../state/flags'
 import { normalizeUiSpec, type FieldModel } from '../state/field-model'
 import type { FieldStore } from '../state/field-store'
 import type { Notifier } from '../state/notifier'
@@ -14,12 +15,7 @@ export type RegisterSpec = FieldSpec & {
   validator?: Rule['validator']
   warning?: Rule['validator']
   rules?: RulesInput
-  /**
-   * Internal. Drop this field from submit without changing `display` (the render switch and a caller's
-   * `hidden` / `none` stay). Not part of the public `FieldSpec`.
-   */
-  omitSubmit?: boolean
-  /** Internal: JSX `<Field display pattern>` mount flags; applied to the model without recording an exact schema declaration. */
+  /** Internal: JSX `<Field visible readOnly …>` mount flags; applied without recording an exact schema declaration. */
   jsx?: boolean
 }
 
@@ -83,19 +79,13 @@ export class Declarations {
       field.declaredRequired = undefined
       if (!field.requiredFromEffect && field.jsxRequired === undefined) field.required = false
     }
-    if ((spec as RegisterSpec).omitSubmit) field.omitSubmit = false
-    if (spec.pattern !== undefined && !field.patternFromEffect) {
-      field.pattern = undefined
-      field.hasPattern = false
+    const cleared: FlagName[] = []
+    for (const name of FLAG_NAMES) {
+      if (spec[name] === undefined || field.flags[name].declared === undefined) continue
+      field.flags[name].declared = undefined
+      cleared.push(name)
     }
-    if (spec.display !== undefined) {
-      field.baseDisplay = undefined
-      field.hasBaseDisplay = false
-      if (!field.displayFromEffect) {
-        field.display = undefined
-        field.hasDisplay = false
-      }
-    }
+    if (cleared.length) this.validator.noteFlags(field.path, cleared)
     if ((spec as RegisterSpec).trigger) field.triggers = undefined
     if (spec.asyncDebounceMs !== undefined) field.asyncDebounceMs = undefined
     if (spec.enum && !field.enumFromEffect && field.jsxEnum === undefined) field.enumOptions = undefined
@@ -158,7 +148,7 @@ export class Declarations {
   mountJsxField(path: string, spec: FieldSpec = {}): FieldModel {
     const field = this.store.ensure(path)
     field.jsxActive = true
-    this.applyFieldFlags(field, spec, 'explicit')
+    this.applyFieldFlags(field, { ...spec, jsx: true }, 'explicit')
     const rules = rulesFromSpec(spec, field.rules, `<Field name="${path}">`)
     if (rules && !field.rulesFromEffect) {
       field.jsxRules = rules.slice()
@@ -193,6 +183,7 @@ export class Declarations {
     const restoreRules = field.jsxRules !== undefined
     const restoreRequired = field.jsxRequired !== undefined
     field.jsxActive = false
+    this.clearJsxFlags(field)
     field.jsxRules = undefined
     field.jsxRequired = undefined
     if (restoreRules && !field.rulesFromEffect) {
@@ -227,6 +218,22 @@ export class Declarations {
     })
   }
 
+  /** Drop the JSX flag layer (`<Field visible readOnly …>` unmounted) and let the declaration show through. */
+  releaseJsxFlags(path: string): void {
+    const field = this.store.get(path)
+    if (field) this.clearJsxFlags(field)
+  }
+
+  private clearJsxFlags(field: FieldModel): void {
+    const cleared: FlagName[] = []
+    for (const name of FLAG_NAMES) {
+      if (field.flags[name].jsx === undefined) continue
+      field.flags[name].jsx = undefined
+      cleared.push(name)
+    }
+    if (cleared.length) this.validator.noteFlags(field.path, cleared)
+  }
+
   /** Declared UI state. An exact declaration replaces per key; a template only fills keys nobody declared. */
   private applyUi(field: FieldModel, spec: FieldSpec, mode: 'explicit' | 'template'): void {
     const ui = normalizeUiSpec(spec, `fields['${field.path}']`)
@@ -245,8 +252,7 @@ export class Declarations {
     this.notifier.bumpPath(field.path)
   }
 
-  private applyFieldFlags(field: FieldModel, spec: FieldSpec & { trigger?: ValidateTrigger[]; omitSubmit?: boolean }, mode: 'explicit' | 'template'): void {
-    if (spec.omitSubmit) field.omitSubmit = true
+  private applyFieldFlags(field: FieldModel, spec: FieldSpec & { trigger?: ValidateTrigger[]; jsx?: boolean }, mode: 'explicit' | 'template'): void {
     if (mode === 'explicit') {
       if (spec.trigger) field.triggers = spec.trigger
       if (spec.asyncDebounceMs !== undefined) field.asyncDebounceMs = spec.asyncDebounceMs
@@ -256,24 +262,28 @@ export class Declarations {
       field.enumOptions = asOptions(spec.enum) ?? []
       this.notifier.bumpPath(field.path)
     }
-    if (spec.pattern !== undefined && !field.patternFromEffect && (mode === 'explicit' || !field.hasPattern)) {
-      field.pattern = spec.pattern
-      field.hasPattern = true
+    const changed: FlagName[] = []
+    for (const name of FLAG_NAMES) {
+      const value = spec[name]
+      if (typeof value !== 'boolean') continue
+      if (spec.jsx) {
+        if (field.flags[name].jsx === value) continue
+        field.flags[name].jsx = value
+        changed.push(name)
+        continue
+      }
+      // A template fills a flag only where no exact declaration set one. A reaction layer stays on top.
+      if (mode === 'template' && (field.declaration?.[name] !== undefined || field.flags[name].declared !== undefined)) continue
+      if (field.flags[name].declared === value) continue
+      field.flags[name].declared = value
+      changed.push(name)
     }
-    if (spec.display !== undefined && (mode === 'explicit' || !field.hasBaseDisplay)) {
-      field.baseDisplay = spec.display
-      field.hasBaseDisplay = true
-    }
-    // A reaction overlay (`displayFromEffect`) keeps the live display; the base above is what `$visible = true` restores.
-    if (spec.display !== undefined && !field.displayFromEffect && (mode === 'explicit' || !field.hasDisplay)) {
-      field.display = spec.display
-      field.hasDisplay = true
-    }
+    if (changed.length) this.validator.noteFlags(field.path, changed)
   }
 
   /**
    * Copy item templates onto indexes that exist right now, and drop template instances that no longer do.
-   * Exact rules/required keep their models. Other exact declarations (`display`, `pattern`, UI) go dormant
+   * Exact rules/required keep their models. Other exact declarations (the four flags, UI) go dormant
    * with their row and are re-registered when it exists again, whether the row left through `setValue` / `reset` or
    * an array operation (#8).
    */

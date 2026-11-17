@@ -64,7 +64,7 @@ describe('new controls: options from the field enum, value ↔ props, onChange �
 
   it('Cascader: tree enum → options, the path is the value; readOnly → disabled', () => {
     const form = mount({ area: [] as string[] }, (F) => (
-      <F.Field name="area" enum={AREA} pattern="readOnly" decorator={[FormItem]} component={[Cascader]} />
+      <F.Field name="area" enum={AREA} disabled decorator={[FormItem]} component={[Cascader]} />
     ))
     expect(seen.Cascader.options[1]).toMatchObject({ label: '江苏', value: 'js', children: [{ label: '南京', value: 'nj' }] })
     expect(seen.Cascader.disabled).toBe(true)
@@ -125,7 +125,7 @@ describe('new controls: options from the field enum, value ↔ props, onChange �
   it('Slider / Rate / AutoComplete / ColorPicker map value, disabled and options', () => {
     const form = mount({ volume: 30, score: 3, city: '', color: '#1677ff' }, (F) => (
       <>
-        <F.Field name="volume" pattern="disabled" component={[Slider]} />
+        <F.Field name="volume" disabled component={[Slider]} />
         <F.Field name="score" component={[Rate]} />
         <F.Field name="city" enum={['杭州', '南京']} component={[AutoComplete]} />
         <F.Field name="color" component={[ColorPicker]} />

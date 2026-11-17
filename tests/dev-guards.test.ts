@@ -44,7 +44,7 @@ describe('development usage errors (with the fix in the message)', () => {
     expect(
       withReaction((d) => {
         d.total.$visible = false
-        void d.total.$display
+        void d.total.$visible
       }),
     ).toThrow(ShikiUsageError)
     // UI state replays pending writes, so this is fine

@@ -27,7 +27,7 @@ const ColorPicker = connect(
   mapProps({ status: false, parse: (_color, hex) => hex || undefined }),
   mapProps({
     blurOn: 'onOpenChange',
-    readPretty: ({ value }: { value?: string }) => <span style={{ color: value }}>■ {value}</span>,
+    preview: ({ value }: { value?: string }) => <span style={{ color: value }}>■ {value}</span>,
   }),
 )
 
@@ -52,7 +52,7 @@ export function SignupForm({ onSubmit, initialValues = EMPTY }: { onSubmit: (val
     <Form form={form} onSubmit={onSubmit}>
       <FormLayout labelCol={{ span: 6 }} wrapperCol={{ span: 18 }}>
         <FormItem label="阅读态">
-          <Switch aria-label="阅读态" onChange={(on: boolean) => form.batch((d) => { d.$pattern = on ? 'readPretty' : undefined })} />
+          <Switch aria-label="阅读态" onChange={(on: boolean) => form.batch((d) => { d.$readOnly = on ? true : undefined })} />
         </FormItem>
         <F.Field name="username" title="用户名" required rules={{ minLength: 3 }} decorator={[FormItem]} component={[Input]} />
         <F.Field name="email" title="邮箱" required rules={{ format: 'email' }} decorator={[FormItem]} component={[Input]} />

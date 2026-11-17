@@ -375,7 +375,7 @@ const InputNumber: ConnectedComponent<antd.InputNumberProps>
 const Select: ConnectedComponent<antd.SelectProps & { prettyType?: 'text' | 'badge' | 'tag' }>
 ```
 
-`connect(antd.Select, mapProps({ options: 'options', loading: 'loading', readOnly: 'disabled', status: 'status', readPretty: PreviewText.Select }))`。未传 `options` 时使用字段枚举（`<Field enum>`、`fields.x.enum`、`$enum`，含 `EnumSource` 异步加载的 `loading`）。`readOnly` 渲染为禁用；`readPretty` 显示选项的 `label`，多选显示为标签，`prettyType` 画成徽标 / 彩色标签。只显示、不编辑的枚举字段（如表格里的状态列）就是 `pattern="readPretty"` 的 `Select`。
+`connect(antd.Select, mapProps({ options: 'options', loading: 'loading', readOnly: 'disabled', status: 'status', readPretty: PreviewText.Select }))`。未传 `options` 时使用字段枚举（`<Field enum>`、`fields.x.enum`、`$enum`，含 `EnumSource` 异步加载的 `loading`）。`readOnly` 渲染为禁用；`readPretty` 显示选项的 `label`，多选显示为标签，`prettyType` 画成徽标 / 彩色标签。只显示、不编辑的枚举字段（如表格里的状态列）就是 `readOnly` 的 `Select`。
 
 ## AutoComplete
 

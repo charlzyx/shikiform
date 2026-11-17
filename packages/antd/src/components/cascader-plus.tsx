@@ -81,11 +81,11 @@ function CascaderPlusPreview({ value, multiple, loadData, empty }: { value?: unk
 }
 
 /**
- * Field-bound {@link CascaderPlusView}. `readPretty` shows labels: a `labelInValue` value carries them; a bare value
+ * Field-bound {@link CascaderPlusView}. `preview` shows labels: a `labelInValue` value carries them; a bare value
  * (`['zj', 'hz']`) is resolved by loading its ancestor levels through the same `loadData`.
  *
  * ```tsx
  * <Field name="area" title="地区" decorator={[FormItem]} component={[CascaderPlus, { loadData: loadArea, labelInValue: true }]} />
  * ```
  */
-export const CascaderPlus = connect(CascaderPlusView, mapProps({ status: 'status', readPretty: CascaderPlusPreview }))
+export const CascaderPlus = connect(CascaderPlusView, mapProps({ status: 'status', preview: CascaderPlusPreview }))

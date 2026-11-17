@@ -36,10 +36,10 @@ const EMPTY_EDITOR: Editor = { open: false, loading: false, action: '', rowId: '
 
 const effects = defineEffects<Values>(({ reaction }) => {
   reaction((d) => {
-    const pattern = d.editor.action.$value === 'detail' ? 'readPretty' : undefined
-    d.editor.name.$pattern = pattern
-    d.editor.price.$pattern = pattern
-    d.editor.note.$pattern = pattern
+    const readOnly = d.editor.action.$value === 'detail' ? true : undefined
+    d.editor.name.$readOnly = readOnly
+    d.editor.price.$readOnly = readOnly
+    d.editor.note.$readOnly = readOnly
   })
 })
 
@@ -47,7 +47,7 @@ export function RowEditPage() {
   const form = useForm<Values>({
     initialValues: { rows: ROWS, editor: EMPTY_EDITOR },
     effects: [effects],
-    fields: { editor: { display: 'virtual' } },
+    fields: { editor: { omit: true } },
   })
   return (
     <Form form={form}>
@@ -220,7 +220,7 @@ function EditorFields() {
   if (loading) return <Spin data-testid="editor-loading" />
   // Detail = the same fields with `$pattern = 'readPretty'` (see the reaction); FormItem / Input render the text view.
   return (
-    <ObjectField name="editor" display="virtual">
+    <ObjectField name="editor" omit>
       <FormLayout layout="vertical">
         <Field name="name" title="名称" decorator={[FormItem]} component={[Input, { 'data-testid': 'editor-name' }]} />
         <Field name="price" title="价格" decorator={[FormItem]} component={[InputNumber, { 'data-testid': 'editor-price', min: 0 }]} />

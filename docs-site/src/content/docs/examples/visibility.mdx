@@ -5,7 +5,7 @@ description: 使用 $visible 控制字段显示，隐藏时自动跳过校验并
 
 当勾选「需要发票」时，税号输入框显示并变为必填；关闭开关后，税号不仅从界面隐藏，也不会阻止表单提交或出现在提交结果中。
 
-需要注意：`$visible = false` 对应的是 `display: 'none'`，而不是 `hidden`。
+需要注意：`$visible = false` 对应的是 `visible: false, omit: true`，而不是 `hidden`。
 
 ```tsx preview
 import { useState } from 'react';

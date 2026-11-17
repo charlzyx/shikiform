@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test'
 import { gotoHydrated } from './hydration'
 
-test('controls guide: readPretty shows option labels, editable brings the controls back', async ({ page }) => {
+test('controls guide: readOnly shows option labels, editable brings the controls back', async ({ page }) => {
   await gotoHydrated(page, '/guide/controls')
   const demo = page.locator('[data-controls-demo]').first()
   await expect(demo.locator('.ant-select').first()).toBeVisible()
 
-  await demo.locator('.ant-segmented-item').filter({ hasText: 'readPretty' }).click()
+  await demo.locator('.ant-segmented-item').filter({ hasText: /^readOnly$/ }).click()
   // 职级 stores 'p7' and shows its label; 远程 (Switch) reads 是.
   const level = demo.locator('.ant-form-item').filter({ has: page.locator('.ant-form-item-label').getByText('职级', { exact: true }) })
   await expect(level).toContainText('P7')

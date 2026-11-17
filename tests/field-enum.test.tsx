@@ -37,7 +37,7 @@ describe('<Field enum>', () => {
       const form = useForm<Values>({ initialValues: { level: '', tags: [], n: 2 } })
       return (
         <Form form={form}>
-          <Field name="n" enum={[1, 2, 3]} pattern="readPretty" component={[Select]} />
+          <Field name="n" enum={[1, 2, 3]} readOnly component={[Select]} />
         </Form>
       )
     }
@@ -53,7 +53,7 @@ describe('<Field enum>', () => {
       const [show, set] = useState(true)
       setShow = set
       form = useForm<Values>({ initialValues: { level: 'gold', tags: [], n: 1 }, fields: { level: { enum: [{ label: '声明', value: 'gold' }] } } })
-      return <Form form={form}>{show ? <Field name="level" enum={LEVELS} pattern="readPretty" component={[Select]} /> : null}</Form>
+      return <Form form={form}>{show ? <Field name="level" enum={LEVELS} readOnly component={[Select]} /> : null}</Form>
     }
     const view = render(<App />)
     expect(view.container.textContent).toBe('黄金')
@@ -158,7 +158,7 @@ describe('<Field enum>', () => {
       return (
         <Form form={form}>
           <ArrayField name="rows" rowKey="id">
-            {({ index }) => <Field name="s" enum={[{ label: index === 0 ? '首' : '次', value: 1 }]} pattern="readPretty" component={[Select]} />}
+            {({ index }) => <Field name="s" enum={[{ label: index === 0 ? '首' : '次', value: 1 }]} readOnly component={[Select]} />}
           </ArrayField>
         </Form>
       )
@@ -321,9 +321,9 @@ describe('reaction `$enum = undefined` falls back', () => {
 })
 
 describe('<Field enum> with antd choice controls (editable + readPretty)', () => {
-  function mount(pattern?: 'readPretty') {
+  function mount(readOnly?: boolean) {
     function App() {
-      const form = useForm<Values>({ initialValues: { level: 'silver', tags: ['gold'], n: 1 }, pattern })
+      const form = useForm<Values>({ initialValues: { level: 'silver', tags: ['gold'], n: 1 }, readOnly })
       const F = typed(form)
       return (
         <Form form={form}>
@@ -344,7 +344,7 @@ describe('<Field enum> with antd choice controls (editable + readPretty)', () =>
   })
 
   it('readPretty shows labels, not values', () => {
-    const view = mount('readPretty')
+    const view = mount(true)
     const text = view.container.textContent!
     expect(text).toContain('白银')
     expect(text).toContain('黄金')

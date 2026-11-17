@@ -133,12 +133,12 @@ describe('declared fields and unmounted rules', () => {
       },
     })
     form.batch((d) => {
-      d.nick.$display = 'hidden'
-      d.ghost.$display = 'none'
-      d.box.$display = 'none'
+      d.nick.$visible = false
+      d.ghost.$visible = false; d.ghost.$omit = true
+      d.box.$visible = false; d.box.$omit = true
     })
     const errors = await fieldErrorsOf(form.validate())
-    expect(errors.map((error) => error.path)).toEqual(['nick'])
+    expect(errors.map((error) => error.path)).toEqual([])
     const submitted = form.getSubmitValues()
     expect(submitted.nick).toBe('')
     expect(submitted).not.toHaveProperty('ghost')

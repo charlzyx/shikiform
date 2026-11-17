@@ -133,7 +133,7 @@ export default function App() {
     <Form form={form}>
       <FormLayout labelCol={{ span: 5 }} wrapperCol={{ span: 19 }}>
         <FormItem label="阅读态">
-          <Switch onChange={(on) => form.batch((d) => { d.$pattern = on ? 'readPretty' : undefined; })} />
+          <Switch onChange={(on) => form.batch((d) => { d.$readOnly = on ? true : undefined; })} />
         </FormItem>
         {/* value 按字段类型检查：写 'bronze' 编译不过 */}
         <F.Field name="level" title="等级" enum={[{ label: '黄金', value: 'gold' }, { label: '白银', value: 'silver' }]}

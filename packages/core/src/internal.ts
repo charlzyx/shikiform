@@ -18,7 +18,6 @@ export { emptySlot, normalizeUiSpec } from './state/field-model'
 export type {
   ArrayItemOf,
   ArrayPath,
-  Display,
   Draft,
   EffectDef,
   FieldEnum,
@@ -29,8 +28,6 @@ export type {
   FormInstance,
   MoveResult,
   PathValue,
-  Pattern,
-  UiDisplay,
   UiName,
 } from './types'
 export type { FormOptions } from './types-effects'

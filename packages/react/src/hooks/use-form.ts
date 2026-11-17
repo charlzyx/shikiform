@@ -22,7 +22,7 @@ export interface UseFormOptions<T> extends FormOptions<T> {
  * The returned form is headless: nothing here imports a UI kit.
  *
  * `T` is inferred from `initialValues` / `values`. `getValue` / `setValue` / `batch` use that type.
- * Submit values: no type argument drops `fields` paths whose display is `virtual` / `none`.
+ * Submit values: no type argument drops `fields` paths with `omit: true`.
  * `useForm<V>(options)` keeps the submit type as `V`. To keep `V` and still infer `fields`, call
  * `typed<V>().useForm(options)`. An explicit second argument (`SubmitValues<V, …>`) is used as written.
  * `useForm()`, `useForm(undefined)` and `useForm({})` are the same call: each returns a form and runs the same hooks.
@@ -34,7 +34,7 @@ export interface UseFormOptions<T> extends FormOptions<T> {
  *   initialValues: { email: '', rows: [{ name: '' }] },
  *   fields: { email: { required: true }, 'rows.*.name': { required: true } },
  * })
- * const edit = typed<Detail>().useForm({ values: record, fields: { token: { display: 'virtual' } } })
+ * const edit = typed<Detail>().useForm({ values: record, fields: { token: { omit: true } } })
  */
 type UseFormArg<T, F> = Omit<UseFormOptions<T>, 'fields'> & { fields?: F & FieldsInput<T> }
 

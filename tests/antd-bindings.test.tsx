@@ -27,17 +27,18 @@ import { Checkbox, DatePicker, FormItem, Input, InputNumber, Radio, Select, Swit
 
 const CONTROLS: Record<string, any> = { Input, Select, InputNumber, Switch, Checkbox }
 
-type Pattern = 'editable' | 'disabled' | 'readOnly' | 'readPretty'
+type Mode = 'editable' | 'disabled' | 'readOnly' | 'readPretty'
 
 afterEach(() => {
   cleanup()
   for (const key of Object.keys(seen)) delete seen[key]
 })
 
-function mount(name: string, value: unknown, pattern: Pattern = 'editable', props: Record<string, unknown> = {}) {
+function mount(name: string, value: unknown, mode: Mode = 'editable', props: Record<string, unknown> = {}) {
+  const flags = mode === 'disabled' ? { disabled: true } : mode === 'readOnly' || mode === 'readPretty' ? { readOnly: true } : {}
   let api: any
   function App() {
-    const form = useForm({ initialValues: { value }, fields: { value: { pattern } } })
+    const form = useForm({ initialValues: { value }, fields: { value: flags } })
     api = form
     return (
       <Form form={form}>
@@ -78,9 +79,10 @@ describe('Ant Design control contracts (connect controls in a FormItem field)', 
     expect(form.binding('value').touched).toBe(true)
   })
 
-  it.each(['Select', 'Switch', 'Checkbox'])('%s cannot edit a readOnly model', (name) => {
-    const { control } = mount(name, '', 'readOnly', { disabled: false })
-    expect(control().disabled).toBe(true)
+  it.each(['Select', 'Switch', 'Checkbox'])('%s readOnly renders the preview instead of the control', (name) => {
+    const { control, html } = mount(name, name === 'Select' ? 'a' : false, 'readOnly', { disabled: false })
+    expect(control()).toBeUndefined()
+    expect(html()).toContain('data-read-pretty')
   })
 
   it.each(['Switch', 'Checkbox'])('%s reads as 是 / 否 in readPretty (no control rendered)', (name) => {

@@ -1,9 +1,9 @@
 import type { Declarations } from '../declarations/declarations'
 import { clone } from '../shared/equal'
-import { normalizePath, parentPath, pathSegments, selfAndAncestors } from '../shared/path'
+import { normalizePath, parentPath, pathSegments } from '../shared/path'
 import type { FieldStore } from '../state/field-store'
 import type { TreeOps } from '../structure/trees'
-import type { FieldSpec, Pattern } from '../types'
+import type { FieldSpec } from '../types'
 import type { FormOptions } from '../types-effects'
 
 export interface ForkDeps {
@@ -22,6 +22,28 @@ function wildcardCount(segs: readonly string[]): number {
   let count = 0
   for (const seg of segs) if (seg === '*') count += 1
   return count
+}
+
+/** The most specific `fields` entry whose path is the fork target, for one inherited flag. */
+function matchSelfFlag(entries: Record<string, FieldSpec>, targetSegs: readonly string[], name: 'readOnly' | 'disabled'): boolean | undefined {
+  if (!targetSegs.length) return undefined
+  const matched: { wildcards: number; value: boolean }[] = []
+  for (const [rawKey, spec] of Object.entries(entries)) {
+    if (typeof spec[name] !== 'boolean') continue
+    const keySegs = pathSegments(normalizePath(rawKey))
+    if (keySegs.length !== targetSegs.length) continue
+    let ok = true
+    for (let i = 0; i < targetSegs.length; i++) {
+      if (!segmentMatches(keySegs[i]!, targetSegs[i]!)) {
+        ok = false
+        break
+      }
+    }
+    if (ok) matched.push({ wildcards: wildcardCount(keySegs), value: spec[name]! })
+  }
+  if (!matched.length) return undefined
+  matched.sort((a, b) => b.wildcards - a.wildcards)
+  return matched[matched.length - 1]!.value
 }
 
 function cleanSpec(spec: FieldSpec): FieldSpec {
@@ -60,31 +82,10 @@ function stripPrefix<V>(
   return out
 }
 
-function matchSelfPattern(entries: Record<string, FieldSpec>, targetSegs: readonly string[]): Pattern | undefined {
-  if (!targetSegs.length) return undefined
-  const matched: { wildcards: number; pattern: Pattern }[] = []
-  for (const [rawKey, spec] of Object.entries(entries)) {
-    if (spec.pattern === undefined) continue
-    const keySegs = pathSegments(normalizePath(rawKey))
-    if (keySegs.length !== targetSegs.length) continue
-    let ok = true
-    for (let i = 0; i < targetSegs.length; i++) {
-      if (!segmentMatches(keySegs[i]!, targetSegs[i]!)) {
-        ok = false
-        break
-      }
-    }
-    if (ok) matched.push({ wildcards: wildcardCount(keySegs), pattern: spec.pattern })
-  }
-  if (!matched.length) return undefined
-  matched.sort((a, b) => b.wildcards - a.wildcards)
-  return matched[matched.length - 1]!.pattern
-}
-
 /**
  * Build {@link FormOptions} for a shadow/draft form rooted at `path` (or `list.*` for array add mode).
  * Copies `initialValues` (deep-cloned), prefix-stripped `fields` & `trees` (templates + exact + runtime),
- * effective `pattern`, and `messages` / `validateTrigger` / `asyncDebounceMs` / `enumPolicy`.
+ * effective `readOnly` / `disabled`, and `messages` / `validateTrigger` / `asyncDebounceMs` / `enumPolicy`.
  * Never copies `effects` or form-level `validate`.
  */
 export function forkEngineOptions({ store, declarations, trees, options }: ForkDeps, path: string): FormOptions<any> {
@@ -105,20 +106,15 @@ export function forkEngineOptions({ store, declarations, trees, options }: ForkD
   const strippedTrees = stripPrefix(allTrees, targetSegs, (_prev, next) => ({ ...next }))
   if (strippedTrees) out.trees = strippedTrees
 
-  const selfPattern = matchSelfPattern(allFields, targetSegs)
-  if (target.includes('*')) {
-    const parent = parentPath(target) ?? ''
-    const hasExplicit = selfPattern !== undefined || selfAndAncestors(parent).some((p) => store.get(p)?.hasPattern)
-    const pattern = selfPattern ?? store.effectivePattern(parent)
-    if (hasExplicit) out.pattern = pattern
-  } else {
-    const hasExplicit =
-      selfPattern !== undefined ||
-      selfAndAncestors(target).some((p) => store.get(p)?.hasPattern) ||
-      !!store.get(target)?.computed
-    const pattern = store.get(target)?.hasPattern ? store.effectivePattern(target) : (selfPattern ?? store.effectivePattern(target))
-    if (hasExplicit) out.pattern = pattern
-  }
+  // A concrete path uses the live effective flags. A wildcard (`list.*`, add mode) has no row yet, so the
+  // matching `fields` entry (`list.*: { readOnly: true }`) supplies the shadow root, else the parent.
+  const base = target.includes('*') ? (parentPath(target) ?? '') : target
+  const specReadOnly = target.includes('*') ? matchSelfFlag(allFields, targetSegs, 'readOnly') : undefined
+  const specDisabled = target.includes('*') ? matchSelfFlag(allFields, targetSegs, 'disabled') : undefined
+  const readOnly = specReadOnly ?? store.effective(base, 'readOnly')
+  const disabled = specDisabled ?? store.effective(base, 'disabled')
+  if (readOnly) out.readOnly = true
+  if (disabled) out.disabled = true
 
   if (options.messages !== undefined) out.messages = { ...options.messages }
   if (options.validateTrigger !== undefined) out.validateTrigger = [...options.validateTrigger]

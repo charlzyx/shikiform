@@ -33,7 +33,7 @@ interface EachNode {
  * @example
  * defineEffects<{ tab: string; code: string; rows: { name: string }[] }>(({ reaction }) => {
  *   reaction((d) => {
- *     d.code.$display = d.tab.$value === 'extra' ? 'visible' : 'hidden'
+ *     d.code.$visible = d.tab.$value === 'extra'
  *   })
  *   reaction.each(
  *     (d) => d.rows,

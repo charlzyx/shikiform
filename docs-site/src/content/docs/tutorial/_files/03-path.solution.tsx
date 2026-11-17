@@ -12,7 +12,7 @@ export default function App() {
       </ObjectField>
       <Field name="password" title="密码" required rules={{ minLength: 8, message: '至少 8 位' }}
         decorator={[FormItem]} component={[Input.Password]} />
-      <Field name="confirmPassword" title="确认密码" display="virtual"
+      <Field name="confirmPassword" title="确认密码" omit
         rules={[{ validator: (value, ctx) => (value === ctx.record.password ? null : '两次密码不一致') }]}
         decorator={[FormItem]} component={[Input.Password]} />
       <Submit>提交</Submit>

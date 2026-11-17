@@ -172,7 +172,7 @@ import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Select as ShadcnSelect, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
-const Input = connect(ShadcnInput, mapProps({ readPretty: ({ value }: { value?: string }) => <span>{value || '—'}</span> }))
+const Input = connect(ShadcnInput, mapProps({ preview: ({ value }: { value?: string }) => <span>{value || '—'}</span> }))
 
 function SelectControl(props: {
   id?: string
@@ -327,7 +327,7 @@ function PopoverSelect(props: {
   );
 }
 
-const Input = connect(TextControl, mapProps({ readPretty: ({ value }: { value?: string }) => <span>{value || '—'}</span> }));
+const Input = connect(TextControl, mapProps({ preview: ({ value }: { value?: string }) => <span>{value || '—'}</span> }));
 const Select = connect(PopoverSelect, mapProps({ options: 'options', blurOn: 'onOpenChange' }));
 
 function DateControl(props: {

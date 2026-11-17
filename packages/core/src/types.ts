@@ -1,4 +1,4 @@
-import type { Display, Pattern, UiDraft, UiName } from './types-display'
+import type { UiDraft, UiName } from './types-display'
 import type { EnumBinding, EnumOption, EnumSource } from './enum/enum-source'
 import type { StandardSchemaV1 } from './validation/schema'
 import type { Rule, RulesInput, ValidateCtx } from './validation/rules'
@@ -9,7 +9,7 @@ import type { NormalizePath } from './types-path'
 export type { NormalizePath } from './types-path'
 
 export type { StandardSchemaV1, RulesInput }
-export type { Display, Pattern, UiDisplay, UiDraft, UiName, UiNames } from './types-display'
+export type { UiDraft, UiName, UiNames } from './types-display'
 
 export type { EnumOption, EnumBinding, EnumSource, Rule, ValidateCtx, Pos }
 
@@ -182,18 +182,28 @@ export interface FieldUiSpec {
 
 export interface FieldSpec extends FieldUiSpec {
   /**
-   * Initial explicit pattern. A child with its own pattern wins over an ancestor.
-   * `$pattern = undefined` clears the explicit value and inherits again.
+   * Render this field. Default `true`. Inherited from ancestors (OR): a parent `false` hides the
+   * child, and the child's own `false` hides it under a shown parent. An explicit `true` shows it
+   * again. `false` skips validation and clears errors; the value is still submitted unless `omit`.
    */
-  pattern?: Pattern
+  visible?: boolean
   /**
-   * Initial display. Prefer a reaction for linkage (`$display`, including `'virtual'`).
-   * `hidden` still validates and submits. `virtual` renders and validates but is not submitted
-   * (the whole subtree) and does not count as `dirty`. `none` skips validation and submit; the value
-   * stays in the store. An ancestor `none` wins. Otherwise `hidden` only turns render off and
-   * `virtual` only turns submit off, so a hidden parent and a virtual child stack.
+   * Gray the control out and refuse edits. Inherited (OR); an explicit `false` exits a disabled
+   * ancestor. Skips validation and clears errors. Still submitted. `readOnly` wins when both are set
+   * (the preview renders instead of a disabled input).
    */
-  display?: Display
+  disabled?: boolean
+  /**
+   * Render the preview instead of the input. Inherited (OR); an explicit `false` exits a read-only
+   * ancestor. Skips validation and clears errors. Still submitted. Wins over `disabled`.
+   */
+  readOnly?: boolean
+  /**
+   * Drop this field from submit. Not inherited: a parent `omit` does not mark the child, and a child
+   * `omit` does not change the parent. Default `false` (submitted), including values a reaction wrote.
+   * Does not affect render or validation. Does not count toward `dirty`.
+   */
+  omit?: boolean
   /**
    * Built-in rules, a Standard Schema (`z.string().email()`, Valibot, ArkType), or a mix.
    * A field schema validates this field's value. An issue path is relative to the field
@@ -340,7 +350,7 @@ export interface ReactionFn<T> {
    * Derive `$` state. Reads are dependencies. Writes are not, so do not read a `$` state you just wrote.
    * Synchronous only. The same `$` state written by two reactions is a dev error.
    * A reaction that reads nothing runs once, then stays idle.
-   * After a batch, it runs again only when a dirty key (`path:value`, `path:display`, `:meta`, …)
+   * After a batch, it runs again only when a dirty key (`path:value`, `path:visible`, `:meta`, …)
    * intersects those reads. A write inside the reaction dirties its keys, so downstream reactions
    * run in the same flush until the graph settles. A cycle still throws {@link ShikiCycleError}.
    * An equal write does not dirty a key and does not wake anyone.
@@ -400,41 +410,40 @@ export type Draft<T> = IsAny<T> extends true ? any : DraftState<T> & DraftNav<T>
 export interface DraftState<T> {
   /**
    * Current value. Reading tracks a dependency. A reaction write marks the field computed
-   * (`readPretty`). The value is still submitted unless the field's display is `virtual` (or an ancestor omits it).
+   * (it does not count toward `dirty`). The value is still submitted unless this field's `$omit` is set.
    */
   $value: T
   /**
-   * Convenience for display. `false` sets `none` (no UI, not validated, not submitted; the value stays
-   * in the form and comes back when shown again). `true` clears a reaction's display and restores the
-   * declaration — it does not force `visible`. Reading is true whenever the field renders: effective
-   * display `visible` or `virtual`, and no ancestor `hidden` / `none`. To hide the UI but keep validating
-   * and submitting, use `$hidden = true` / `$display = 'hidden'`.
+   * Whether the field renders. Reading is the effective value (OR-inherited; an ancestor `false` hides
+   * this node, and this node's explicit `false` hides it under a shown parent). `true` / `false` set
+   * this node's own flag. `undefined` drops the reaction layer and restores JSX / `fields` / inheritance.
+   * `false` skips validation and clears errors. The value is still submitted unless `$omit`.
    */
-  $visible: boolean
-  /**
-   * Convenience for display. `true` sets `hidden` (no UI, still validated, still submitted).
-   * `false` clears `hidden` only: a reaction's hidden restores the declaration, a declared hidden
-   * becomes `visible`, and `none` / `virtual` are left unchanged. Reading is true only when the
-   * effective display is `hidden` (a hidden ancestor outranks a virtual child, so this can be true
-   * while the child is still omitted from submit).
-   */
-  $hidden: boolean
-  /**
-   * `visible` | `hidden` | `virtual` | `none`. See {@link Display}.
-   * The read collapses inherited switches: `none` > `hidden` > `virtual` > `visible`.
-   * Assign `'virtual'` to omit the field (and its subtree) from submit without hiding it.
-   */
-  $display: Display
+  get $visible(): boolean
+  set $visible(value: boolean | undefined)
   /** When true, empty values fail validation even without a `required` rule. */
   $required: boolean
   /**
-   * `true` sets pattern `disabled`.
-   * `false` clears it when this shortcut installed the current pattern, so the field inherits again.
-   * An explicit `$pattern` is left as written. To force `editable`, assign `$pattern`.
+   * Grayed out, not editable. Reading is the effective value (OR-inherited; explicit `false` exits).
+   * `undefined` drops the reaction layer. Skips validation and clears errors. Still submitted.
+   * When this and `$readOnly` are both set, `$readOnly` wins and the preview renders.
    */
-  $disabled: boolean
-  /** Explicit pattern. Assign `undefined` to inherit again. */
-  $pattern: Pattern | undefined
+  get $disabled(): boolean
+  set $disabled(value: boolean | undefined)
+  /**
+   * Render the preview instead of the input. Reading is the effective value (OR-inherited; explicit
+   * `false` exits). `undefined` drops the reaction layer. Skips validation and clears errors. Still
+   * submitted. Wins over `$disabled`.
+   */
+  get $readOnly(): boolean
+  set $readOnly(value: boolean | undefined)
+  /**
+   * Drop this field from submit. Not inherited. `undefined` drops the reaction layer (back to JSX /
+   * `fields`, or submitted). Does not change render or validation. An omitted field does not count
+   * toward `dirty`.
+   */
+  get $omit(): boolean
+  set $omit(value: boolean | undefined)
   /**
    * Reading gives the effective options as `{ label, value }` objects (reaction > JSX `enum` > `fields` > template; an async
    * `EnumSource` reads as its loaded options, `[]` until they arrive). Never `undefined`, never the binding.
@@ -442,7 +451,7 @@ export interface DraftState<T> {
   get $enum(): readonly EnumOption[]
   /**
    * Static options (objects or bare primitives) or `SomeEnum.with(params)` (async). `undefined` drops the reaction
-   * layer (like `$title` / `$pattern`): back to the mounted JSX `enum`, else `fields.x.enum`, else the item template.
+   * layer (like `$title` / `$visible = undefined`): back to the mounted JSX `enum`, else `fields.x.enum`, else the item template.
    * `[]` clears the options.
    */
   set $enum(value: FieldEnum<T> | undefined)
@@ -478,7 +487,7 @@ export interface DraftState<T> {
   readonly $touched: boolean
   /**
    * The value differs from its initial value (deep compare); changing it back clears it.
-   * On the root (`d.$dirty`): any non-`virtual`-display, non-computed value differs. `none` counts.
+   * On the root (`d.$dirty`): any non-`omit`, non-computed value differs. A hidden field still counts.
    * Follows `reset(values)` / `setInitialValues`.
    */
   readonly $dirty: boolean
@@ -486,8 +495,8 @@ export interface DraftState<T> {
   readonly $edited: boolean
   /**
    * Form-level, read it on the root draft: `d.$canSubmit`.
-   * False while submitting or validating, or while any visible/hidden field has `$errors`.
-   * Display `none` does not count.
+   * False while submitting or validating, or while any field that still validates
+   * (`visible && !disabled && !readOnly`) has `$errors`.
    */
   readonly $canSubmit: boolean
   /** Form-level. True for the duration of `submit()`, including the async validation it waits for. */
@@ -507,8 +516,8 @@ export interface DraftState<T> {
   $pathOf(pos: Pos): string
   /**
    * One named UI on this path: `d.name.$ui('echo')` is `<Field name="name" ui="echo">` (another UI of the same
-   * field: shared value, errors and rules, its own display / pattern / props); `d.$ui('tip')` is `<UI name="tip">`
-   * (a UI with no value). Reads are dependencies. Unset state falls back to the path's own (pattern inherits).
+   * field: shared value, errors and rules, its own visible / disabled / readOnly / props); `d.$ui('tip')` is `<UI name="tip">`
+   * (a UI with no value). Reads are dependencies. Unset flags fall back to the path's own.
    */
   $ui(name: UiName): UiDraft
 }
@@ -560,7 +569,7 @@ export interface FormInstance<T, TSubmit = T> {
   readonly initial: T
   /**
    * Values differ from `initial` (deep compare). Changing a value back clears it.
-   * `display: 'virtual'` and computed (reaction-written) fields do not count. `none` does.
+   * `omit` and computed (reaction-written) fields do not count. A hidden field does.
    */
   readonly dirty: boolean
   /** Sticky: true after a user edit (`setValue`, input `onChange`) until `reset`. */
@@ -568,7 +577,8 @@ export interface FormInstance<T, TSubmit = T> {
   /** How many times {@link FormInstance.submit} has been called. */
   readonly submitCount: number
   /**
-   * False while a submit or validation is running, or while any field that is not display `none` has errors.
+   * False while a submit or validation is running, or while any field that still validates
+   * (`visible && !disabled && !readOnly`) has errors.
    * Empty required fields do not block until a validation trigger has run.
    */
   readonly canSubmit: boolean
@@ -587,8 +597,8 @@ export interface FormInstance<T, TSubmit = T> {
   /** One draft, one reaction pass, one notification. */
   batch(fn: (d: Draft<T>) => void): void
   /**
-   * Wait for in-flight async rules, validate, drop `display: 'virtual'` and `display: 'none'` values
-   * (and their subtrees). `hidden` values are kept. A reaction-written value is kept unless its display is `virtual`.
+   * Wait for in-flight async rules, validate, then drop fields whose own `omit` is set.
+   * Hidden, disabled and read-only values are kept. A reaction-written value is kept unless that field's `omit` is set.
    * Values changed during validation are validated again (bounded).
    *
    * Resolves the submit values (`TSubmit`; see {@link SubmitValues}). Pass `onValid` and the promise resolves to
@@ -619,7 +629,8 @@ export interface FormInstance<T, TSubmit = T> {
    * Validate `path` and its descendants, or the whole form when `path` is omitted.
    * Fields from `fields`, `registerField`, `$rules`, and `rows.*.name` templates are included
    * even when no `<Field>` is mounted. JSX `rules` / `required` count only while mounted.
-   * Display `none` skips the field, and an ancestor `none` covers descendants. `hidden` and `virtual` still validate.
+   * A field validates only when it is `visible` and not `disabled` or `readOnly` (each inherited).
+   * Otherwise its errors are cleared and it does not block.
    * A form-level Standard Schema always runs. A scoped call refreshes schema issues under `path` only.
    * An array validates several paths in ONE pass (`validate(['name', 'address'])`, what `FormStep` does for a step);
    * two concurrent scoped calls would supersede each other.
@@ -627,10 +638,11 @@ export interface FormInstance<T, TSubmit = T> {
    */
   validate(path?: FieldPath<T> | readonly FieldPath<T>[]): Promise<void>
   /**
-   * Clone of the values with `display: 'virtual'` and `display: 'none'` removed (whole subtrees).
-   * `hidden` values are kept. The static type is `TSubmit`. With no type argument, or `typed<T>().createForm`,
-   * paths declared `display: 'virtual'` / `'none'` in `fields` are optional. `createForm<T>(options)` stays `T`.
-   * JSX `display` and a reaction `$display` are not visible; list those with `createForm<T, SubmitValues<T, 'tmp'>>()`.
+   * Clone of the values with each field whose own `omit` is set removed (`omit` does not inherit; deleting
+   * an omitted object removes the nested keys with it). Hidden fields are kept. The static type is `TSubmit`.
+   * With no type argument, or `typed<T>().createForm`, paths declared `omit: true` in `fields` are optional.
+   * `createForm<T>(options)` stays `T`. JSX `omit` and a reaction `$omit` are not visible to that inference;
+   * list those with `createForm<T, SubmitValues<T, 'tmp'>>()`.
    */
   getSubmitValues(): TSubmit
 

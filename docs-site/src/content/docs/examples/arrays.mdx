@@ -18,12 +18,12 @@ type Values = { editable: boolean; profile: { name: string; address: { city: str
 
 const effects = defineEffects<Values>(({ reaction }) => {
   reaction((d) => {
-    const pattern = d.editable.$value ? undefined : 'readPretty'; // undefined = 继承上级
-    d.profile.$pattern = pattern;
-    d.orders.$pattern = pattern;
+    const readOnly = d.editable.$value ? undefined : true; // undefined = 继承上级
+    d.profile.$readOnly = readOnly;
+    d.orders.$readOnly = readOnly;
   });
   reaction.each((d) => d.orders, (row) => {
-    row.qty.$pattern = row.shipped.$value ? 'readPretty' : undefined;
+    row.qty.$readOnly = row.shipped.$value ? true : undefined;
   });
 });
 
@@ -35,7 +35,7 @@ export default function App() {
       profile: { name: 'Ada', address: { city: '伦敦', street: '贝克街 221B' } },
       orders: [{ id: 'o1', title: '未发货', qty: 1, shipped: false }, { id: 'o2', title: '已发货', qty: 2, shipped: true }],
     },
-    fields: { editable: { display: 'virtual' } },
+    fields: { editable: { omit: true } },
     effects: [effects],
   });
   return (
@@ -59,7 +59,7 @@ export default function App() {
       <ArrayField name="orders" rowKey="id">
         {() => (
           <FormLayout layout="inline" feedbackLayout="terse" style={{ marginBottom: 8 }}>
-            <Field name="title" pattern="readPretty" component={[Input]} />
+            <Field name="title" readOnly component={[Input]} />
             <Field name="qty" title="数量" decorator={[FormItem]} component={[InputNumber, { min: 1 }]} />
             <Field name="shipped" title="已发货" decorator={[FormItem]} component={[Switch]} />
           </FormLayout>

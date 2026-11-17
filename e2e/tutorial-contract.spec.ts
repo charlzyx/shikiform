@@ -46,7 +46,7 @@ test('the copied example submits through the public package and can be edited an
   await expect(form.locator('pre.shiki-code')).toHaveCount(0)
 })
 
-test('the tutorial $visible = false skips validation and drops the field from submit (display none)', async ({ page }) => {
+test('the tutorial $visible = false skips validation and still submits the email', async ({ page }) => {
   const tutorial = await answer(page, '/tutorial/3-state')
   const form = tutorial.locator('form')
   await form.getByRole('switch', { name: '需要联系' }).check()
@@ -55,7 +55,7 @@ test('the tutorial $visible = false skips validation and drops the field from su
   await expect(form.getByRole('textbox', { name: '邮箱' })).toHaveCount(0)
   await form.getByRole('button', { name: '提 交', exact: true }).click()
   await expect(form.locator('pre.shiki-code')).toContainText('"contact": false')
-  await expect(form.locator('pre.shiki-code')).not.toContainText('email')
+  await expect(form.locator('pre.shiki-code')).toContainText('"email": ""')
 })
 
 test('array tutorial additions and removals use stable real rows and computed totals are submitted', async ({ page }) => {

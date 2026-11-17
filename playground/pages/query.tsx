@@ -80,7 +80,7 @@ export function QueryPage() {
       selectedKeys: [],
     },
     effects: [effects],
-    fields: { params: { display: 'virtual' } },
+    fields: { params: { omit: true } },
     defaultPageSize: 5,
     params: 'params',
     rows: 'list',
@@ -136,7 +136,7 @@ export function QueryPage() {
   )
 }
 
-/** What the next request sends (`params` is `display: 'virtual'`; a reaction builds it from the search fields). */
+/** What the next request sends (`params` is `omit: true`; a reaction builds it from the search fields). */
 function ParamsPreview() {
   const params = useWatch((d: Draft<QueryValues>) => d.params.$value)
   return (

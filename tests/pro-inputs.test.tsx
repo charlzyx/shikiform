@@ -29,7 +29,7 @@ describe('enumItems / prettyType', () => {
   })
 
   it('renders tags / badges from the field enum through the choice controls, and as a pure view', () => {
-    const form = createForm({ initialValues: { tags: ['a', 'e'], one: 'o' }, fields: { tags: { enum: LIST, pattern: 'readPretty' }, one: { enum: LIST, pattern: 'readPretty' } } })
+    const form = createForm({ initialValues: { tags: ['a', 'e'], one: 'o' }, fields: { tags: { enum: LIST, readOnly: true }, one: { enum: LIST, readOnly: true } } })
     const { container } = render(
       <Form form={form}>
         <Field name="tags" decorator={[FormItem]}><Select mode="multiple" prettyType="tag" /></Field>
@@ -115,7 +115,7 @@ describe('CascaderPlus readPretty labels', () => {
   it('shows labels, not codes, for a readPretty field without labelInValue (single and multiple)', async () => {
     const form = createForm({
       initialValues: { one: ['110000', '11000000', '110105'], many: [['110000', '11000000', '110105'], ['410000', '410600', '410621']] },
-      fields: { one: { pattern: 'readPretty' }, many: { pattern: 'readPretty' } },
+      fields: { one: { readOnly: true }, many: { readOnly: true } },
     })
     const loader = load()
     const { container } = render(

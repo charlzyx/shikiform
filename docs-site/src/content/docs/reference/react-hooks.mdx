@@ -285,8 +285,8 @@ type Values = { name: string };
 
 function NameInput() {
   const field = useField<Values, 'name'>('name');
-  if (field.display !== 'visible') return null;
-  if (field.pattern === 'readPretty') return <p>姓名：{field.value}</p>;
+  if (!field.visible) return null;
+  if (field.readOnly === true) return <p>姓名：{field.value}</p>;
   return (
     <label htmlFor={field.id}>
       姓名

@@ -630,7 +630,7 @@ describe('a value change drops a stale async error (#122)', () => {
         password: { required: true, rules: { minLength: 8 } },
         confirm: {
           required: true,
-          display: 'virtual',
+          omit: true,
           rules: { validator: (value, ctx) => (value && value !== ctx.record?.password ? '两次密码不一致' : null) },
         },
       },

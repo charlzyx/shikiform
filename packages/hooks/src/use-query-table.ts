@@ -210,10 +210,10 @@ export function useQueryTable<TValues, TParams = TValues, TRow = unknown>(
     ready.current = true
     // Submit only. A caller's `hidden` / `none` / `virtual` on these paths stays; server mode does not write display.
     if (mode === 'client') {
-      form.registerField(pagePath, { omitSubmit: true })
-      form.registerField(sizePath, { omitSubmit: true })
+      form.registerField(pagePath, { omit: true })
+      form.registerField(sizePath, { omit: true })
     }
-    form.registerField(selectedPath, { omitSubmit: true })
+    form.registerField(selectedPath, { omit: true })
     if (form.getValue(pagePath as never) == null) form.setValue(pagePath as never, 1 as never)
     if (form.getValue(sizePath as never) == null) form.setValue(sizePath as never, sizeDefault as never)
     if (form.getValue(selectedPath as never) == null) form.setValue(selectedPath as never, [] as never)

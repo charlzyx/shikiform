@@ -19,7 +19,10 @@ export type ScopeFields<T> = {
   ) => ReactNode
   ObjectField: <N extends FieldPath<T>>(props: {
     name: N
-    display?: FieldProps['display']
+    visible?: FieldProps['visible']
+    disabled?: FieldProps['disabled']
+    readOnly?: FieldProps['readOnly']
+    omit?: FieldProps['omit']
     children?: ReactNode | ((scope: ScopeFields<NonNullable<PathValue<T, N & string>>>) => ReactNode)
   }) => ReactNode
   ArrayField: <N extends ArrayPath<T>, C extends ComponentType<any> = ComponentType<any>>(props: {
@@ -50,7 +53,7 @@ export type TypedForm<T, TRoot = T> = ScopeFields<T> & {
   useWatch: <S>(select: (d: Draft<TRoot>) => S) => S
   Watch: <S>(props: { select: (d: Draft<TRoot>) => S; children: (value: S) => ReactNode }) => ReactNode
   /**
-   * Same `createForm`, with `T` already fixed, so `fields` still decides which `virtual` / `none` paths are optional
+   * Same `createForm`, with `T` already fixed, so `fields` still decides which `omit: true` paths are optional
    * on submit. `createForm<T>(options)` does not: its submit type is `T`.
    */
   createForm: <TSubmit = DefaultSubmit, const F extends FieldsInput<T> = {}>(
@@ -94,7 +97,7 @@ export function typed(_form?: FormInstance<any, any>): TypedForm<any> {
 function TypedArrayField({ children, ...props }: { name: string; rowKey?: string; component?: ArrayContainerSlot; virtualScroll?: { height: number; rowHeight?: number; overscan?: number }; children?: (row: any) => ReactNode }) {
   return <ArrayField {...props}>{children ? (row) => children({ ...row, ...scope }) : undefined}</ArrayField>
 }
-function TypedObjectField({ children, ...props }: { name: string; display?: FieldProps['display']; children?: ReactNode | ((scope: any) => ReactNode) }) {
+function TypedObjectField({ children, ...props }: { name: string; visible?: boolean; disabled?: boolean; readOnly?: boolean; omit?: boolean; children?: ReactNode | ((scope: any) => ReactNode) }) {
   return <ObjectField {...props}>{typeof children === 'function' ? children(scope) : children}</ObjectField>
 }
 function TypedTreeField({ children, ...props }: { name: string; childrenKey?: string; rowKey?: string; children: (node: any) => ReactNode }) {

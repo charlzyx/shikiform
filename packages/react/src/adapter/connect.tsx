@@ -24,7 +24,7 @@ export type FieldPropKey = 'value' | 'onChange' | 'onBlur' | 'disabled' | 'readO
  * `{ title: 'placeholder' }`, `{ required: 'aria-required' }`, `{ 'componentProps.max': 'count' }`.
  */
 export type FieldStateKey =
-  | 'title' | 'description' | 'required' | 'validating' | 'touched' | 'dirty' | 'edited' | 'pattern' | 'display' | 'path'
+  | 'title' | 'description' | 'required' | 'validating' | 'touched' | 'dirty' | 'edited' | 'visible' | 'disabled' | 'readOnly' | 'omit' | 'path'
   | 'errors' | 'warnings'
   | `componentProps.${string}`
   | `decoratorProps.${string}`
@@ -47,7 +47,7 @@ export type BlurOn =
  * more field state to a prop (`{ title: 'placeholder' }`; an explicit caller prop wins).
  * `format` / `parse` convert between the field value and the control value (a `'YYYY-MM-DD'` string in the field,
  * a `Date` / Dayjs in the control). `parse` replaces the default {@link valueFromEvent}. `format` runs after prop
- * transforms, so it sees the control's own props (`props.format`, …). `readPretty` is not converted: the view gets
+ * transforms, so it sees the control's own props (`props.format`, …). The `readOnly` preview is not converted: the view gets
  * the field value.
  * `blurOn` is the blur fallback for a control that does not call `onBlur` ({@link BlurOn}). It replaces the default
  * `onBlur` prop so the unused handler is not passed through.
@@ -62,7 +62,8 @@ export type PropsMapping<P = any, F = any> = Partial<Record<FieldPropKey | Field
   /** Control `onChange` arguments → the value stored on the field. Default: {@link valueFromEvent}. */
   parse?: ParseFn<P, F>
   blurOn?: BlurOn
-  readPretty?: ComponentType<any> | readonly [ComponentType<any>, Record<string, unknown>?]
+  /** Component rendered when the field is `readOnly` (the preview). A tuple's props are its defaults. */
+  preview?: ComponentType<any> | readonly [ComponentType<any>, Record<string, unknown>?]
 }
 
 /** `true` when `P` is `any` (not a concrete props type). `unknown` is not `any`. */
@@ -112,7 +113,7 @@ export type PropsEnhancer = {
   transforms: PropsTransform[]
   /** Present when this mapping names a blur fallback, renames `onBlur`, or drops it on purpose. */
   blur?: BlurFlag
-  readPretty?: { component: ComponentType<any>; props?: Record<string, unknown> }
+  preview?: { component: ComponentType<any>; props?: Record<string, unknown> }
 }
 
 export type ConnectEnhancer = PropsEnhancer
@@ -148,7 +149,7 @@ const DEFAULT_TARGETS: Record<FieldPropKey, string | false> = {
 }
 
 /** Keys of {@link PropsMapping} that are not "copy this field state onto a prop". */
-const MAPPING_META = new Set(['format', 'parse', 'blurOn', 'readPretty'])
+const MAPPING_META = new Set(['format', 'parse', 'blurOn', 'preview'])
 
 /**
  * Default `onChange` → value: a DOM change event yields `target.checked` for checkboxes and
@@ -182,7 +183,7 @@ export function valueFromEvent(...args: any[]): unknown {
  *   warnings; an explicit caller `status` wins. Ant Design controls that paint `status` opt in; others should not.
  * - `options` (enum, tree nodes keep `children`) and `loading` are passed only when mapped; an explicit caller prop wins.
  * - `blurOn` calls `field.onBlur()` from another prop and does not pass `onBlur` (see {@link BlurOn}).
- * - `readPretty` without a `readPretty` view is treated as `readOnly`.
+ * - `readOnly` with a `preview` renders that view (it wins over `disabled`). Without one, the control receives `readOnly`.
  * - `field.componentProps` (`fields` ← JSX ← `$componentProps`) are merged under `props`.
  */
 function mapFieldProps(
@@ -196,7 +197,7 @@ function mapFieldProps(
     if (typeof mapper === 'function') transforms.push(mapper)
     else Object.assign(mapping, mapper)
   }
-  return applyMapping(field, { ...field.componentProps, ...props }, mapping, transforms, false)
+  return applyMapping(field, { ...field.componentProps, ...props }, mapping, transforms)
 }
 
 /** Enum options as a control takes them: `{ label, value, disabled }`, with `children` for tree / cascader nodes. */
@@ -246,7 +247,6 @@ function applyMapping(
   props: Record<string, any>,
   mapping: PropsMapping,
   transforms: PropsTransform[],
-  hasReadPretty: boolean,
 ): Record<string, any> {
   const target = (key: FieldPropKey): string | false => (mapping[key] === undefined ? DEFAULT_TARGETS[key] : mapping[key]!)
   const parseValue = mapping.parse ?? valueFromEvent
@@ -256,9 +256,10 @@ function applyMapping(
   const id = target('id')
   if (id) out[id] = props[id] ?? field.id
   const disabled = target('disabled')
-  if (disabled) out[disabled] = !!out[disabled] || field.disabled
+  // `readOnly` wins: a preview (or a read-only control) is not also disabled.
+  if (disabled) out[disabled] = !!out[disabled] || (field.disabled && !field.readOnly)
   const readOnly = target('readOnly')
-  if (readOnly) out[readOnly] = !!out[readOnly] || field.readOnly || (!hasReadPretty && field.pattern === 'readPretty')
+  if (readOnly) out[readOnly] = !!out[readOnly] || field.readOnly
   const status = target('status')
   if (status) {
     const derived = field.errors.length ? 'error' : field.warnings.length ? 'warning' : undefined
@@ -354,8 +355,8 @@ export function mapProps(...args: ReadonlyArray<PropsMapping | PropsTransform>):
   if (mapping.blurOn) blur = mapping.blurOn
   else if (mapping.onBlur === false) blur = 'drop'
   else if (typeof mapping.onBlur === 'string') blur = 'rename'
-  const rp = mapping.readPretty
-  const readPretty = rp
+  const rp = mapping.preview
+  const preview = rp
     ? Array.isArray(rp)
       ? { component: rp[0], props: rp[1] }
       : { component: rp as ComponentType<any> }
@@ -365,7 +366,7 @@ export function mapProps(...args: ReadonlyArray<PropsMapping | PropsTransform>):
     mapping,
     transforms,
     ...(blur ? { blur } : {}),
-    ...(readPretty ? { readPretty } : {}),
+    ...(preview ? { preview } : {}),
   }
   return enhancer
 }
@@ -478,22 +479,22 @@ export function connect<C extends ComponentType<any>, E1 extends ConnectEnhancer
 export function connect(target: ComponentType<any>, ...enhancers: ConnectEnhancer[]): any {
   const mapping: PropsMapping = {}
   const transforms: PropsTransform[] = []
-  let readPretty: PropsEnhancer['readPretty']
+  let preview: PropsEnhancer['preview']
   for (const enhancer of enhancers) {
     Object.assign(mapping, enhancer.mapping)
     transforms.push(...enhancer.transforms)
-    if (enhancer.readPretty) readPretty = enhancer.readPretty
+    if (enhancer.preview) preview = enhancer.preview
   }
   const Target = target as ComponentType<any>
   const displayName = `Connected(${Target.displayName ?? Target.name ?? 'Component'})`
   const render = (field: FieldBinding<any>, callerProps: Record<string, any>, ref: Ref<any>): ReactElement => {
     // The field's componentProps (`fields` ← JSX ← `$componentProps`) sit under the caller's own props.
     const props = { ...field.componentProps, ...callerProps }
-    if (readPretty && field.pattern === 'readPretty') {
-      const Pretty = readPretty.component
-      return <Pretty {...readPretty.props} {...props} value={field.value} options={props.options ?? field.options} />
+    if (preview && field.readOnly) {
+      const Preview = preview.component
+      return <Preview {...preview.props} {...props} value={field.value} options={props.options ?? field.options} />
     }
-    const mapped = applyMapping(field, props, mapping, transforms, !!readPretty)
+    const mapped = applyMapping(field, props, mapping, transforms)
     return ref == null ? <Target {...mapped} /> : <Target {...mapped} ref={ref} />
   }
   function WithField({ field, rest, forwarded }: { field: FieldBinding<any>; rest: Record<string, any>; forwarded: Ref<any> }) {

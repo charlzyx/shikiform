@@ -16,7 +16,7 @@ import { FormEngine } from './form-engine'
  *   initialValues: { code: '', rows: [{ name: '' }] },
  *   fields: { code: { required: true }, 'rows.*.name': { required: true } },
  * })
- * // No type argument: `fields` display `virtual` / `none` are optional on submit.
+ * // No type argument: `fields` paths with `omit: true` are optional on submit.
  * // `createForm<V>(options)` keeps the submit type as `V` (`fields` is not inferred).
  * // To keep `V` and still infer `fields`, use `typed<V>().createForm(options)` from `@shikiform/react`.
  * // An explicit second argument is used as written. `createForm()` and `createForm(undefined)` are `createForm({})`.

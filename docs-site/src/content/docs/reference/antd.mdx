@@ -104,11 +104,11 @@ export default function App() {
               setTarget(event.currentTarget.tagName);
             }} />
         </Field>
-        <button type="button" onClick={() => form.batch((d) => { d.notify.$pattern = 'readOnly'; })}>设为只读</button>
-        <button type="button" onClick={() => form.batch((d) => { d.notify.$pattern = 'readPretty'; })}>设为展示</button>
-        <button type="button" onClick={() => form.batch((d) => { d.notify.$pattern = 'editable'; })}>恢复编辑</button>
-        <button type="button" onClick={() => form.batch((d) => { d.notify.$display = 'hidden'; })}>隐藏通知控件</button>
-        <button type="button" onClick={() => form.batch((d) => { d.notify.$display = 'visible'; })}>显示通知控件</button>
+        <button type="button" onClick={() => form.batch((d) => { d.notify.$readOnly = true; })}>设为只读</button>
+        <button type="button" onClick={() => form.batch((d) => { d.notify.$readOnly = true; })}>设为展示</button>
+        <button type="button" onClick={() => form.batch((d) => { d.notify.$readOnly = false; d.notify.$disabled = false; })}>恢复编辑</button>
+        <button type="button" onClick={() => form.batch((d) => { d.notify.$visible = false; })}>隐藏通知控件</button>
+        <button type="button" onClick={() => form.batch((d) => { d.notify.$visible = true; })}>显示通知控件</button>
         <pre data-testid="adapter-event-counts">{JSON.stringify({ changes, blurs, target })}</pre>
       </section>
     </Form>
@@ -195,7 +195,7 @@ groupRowSpan<T>(rows: readonly T[], groupOf: (row: T) => string): number[]
   rowSelection: true,
   expandable: {
     rowExpandable: (record) => !!record.children,
-    render: () => <ArrayField name="children" component={[ArrayTable, { columns: childColumns }]} />,   // 只读：childColumns 的单元格写 pattern="readPretty"
+    render: () => <ArrayField name="children" component={[ArrayTable, { columns: childColumns }]} />,   // 只读：childColumns 的单元格写 readOnly
   },
   extra: <ArrayTable.Addition />,
   onRemove: (index, record) => api.remove(record.id),
@@ -244,7 +244,7 @@ groupRowSpan<T>(rows: readonly T[], groupOf: (row: T) => string): number[]
 useArrayEditable(): boolean
 ```
 
-最近一层数组（`<ArrayField>` 的容器或行内）的有效 pattern 是否为 `editable`。有效 pattern 沿祖先继承到根：`useForm({ pattern: 'readPretty' })`、`d.$pattern = 'disabled'`、`d.contacts.$pattern = 'readOnly'` 都让它变成 `false`。`ArrayItems` / `ArrayCards` / `ArrayTable` 的动作按钮靠它隐藏；自己写的行操作也用它。在数组外调用抛错。
+最近一层数组（`<ArrayField>` 的容器或行内）的有效 pattern 是否为 `editable`。有效 pattern 沿祖先继承到根：`useForm({ readOnly: true })`、`d.$disabled = true`、`d.contacts.$readOnly = true` 都让它变成 `false`。`ArrayItems` / `ArrayCards` / `ArrayTable` 的动作按钮靠它隐藏；自己写的行操作也用它。在数组外调用抛错。
 
 ## FormTab
 

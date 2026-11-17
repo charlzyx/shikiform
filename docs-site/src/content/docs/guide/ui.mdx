@@ -74,7 +74,7 @@ export default function App() {
     effects: [
       defineEffects<Values>(({ reaction }) => {
         reaction((d) => {
-          d.budget.$ui('slider').$pattern = d.locked.$value ? 'disabled' : undefined;
+          d.budget.$ui('slider').$disabled = d.locked.$value ? true : undefined;
         });
       }),
     ],
@@ -193,7 +193,7 @@ export default function App() {
 | `$title` / `$description` | 字段附加实例回退到主字段的标题与说明；`<UI>` 默认为空 |
 | `$componentProps` / `$decoratorProps` | 仅取当前节点自身的 JSX 与 `reaction` 配置，不从主字段继承 |
 
-另外，附加实例自身的显隐设置优先级高于主字段（例如 `d.x.$hidden = true; d.x.$ui('summary').$visible = true` 可以实现「隐藏主输入控件但保留摘要展示，同时照常校验和提交该字段」）。
+另外，附加实例自身的显隐设置优先级高于主字段（例如 `d.x.$visible = false; d.x.$ui('summary').$visible = true` 可以实现「隐藏主输入控件但保留摘要展示，同时照常校验和提交该字段」）。
 
 ## 为 UI 名称启用类型检查
 

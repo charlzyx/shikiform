@@ -14,10 +14,8 @@ const TABS = [{ label: '基本', value: 'base' }, { label: '附加', value: 'ext
 
 const effects = defineEffects<Values>(({ reaction }) => {
   reaction((d) => {
-    const tab = d.tab.$value
-    d.name.$display = tab === 'base' ? 'visible' : 'hidden'
-    d.code.$display = tab === 'extra' ? 'visible' : 'hidden'
-    d.ghost.$display = 'none'
+    d.ghost.$visible = false
+    d.ghost.$omit = true
   })
 })
 
@@ -30,7 +28,7 @@ export function TabsPage() {
   const form = useForm<Values>({
     initialValues: { tab: 'base', name: '', code: '', ghost: '', note: '' },
     fields: {
-      tab: { display: 'virtual' },
+      tab: { omit: true },
       name: { required: true },
       code: { required: true },
       ghost: { required: true },
@@ -48,7 +46,7 @@ export function TabsPage() {
       <h1>未挂载字段的校验</h1>
       <p>
         这不是 FormTab 用法（FormTab 的面板一直挂载）。这里切换时另一组字段真的卸载：在 <code>fields</code> 里声明的规则属于路径，卸载了照样校验（在「基本」提交，<code>code</code> 报错）；
-        写在 JSX 上的 <code>required</code>（备注）随组件卸载失效；<code>display: none</code> 的 <code>ghost</code> 从不校验。真实的分页表单用 <a href="/guide/containers">FormTab</a>。
+        写在 JSX 上的 <code>required</code>（备注）随组件卸载失效；<code>visible: false</code> 的 <code>ghost</code> 从不校验。真实的分页表单用 <a href="/guide/containers">FormTab</a>。
       </p>
       <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 12 }}>
         <Field name="tab" title="当前" enum={TABS} decorator={[FormItem]} component={[Radio, { optionType: 'button' }]} />

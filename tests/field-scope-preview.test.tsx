@@ -72,8 +72,8 @@ describe('readPretty never shows the edit-time placeholder as a value', () => {
     const form = createForm({ initialValues: { a: '', b: undefined as string | undefined } })
     const { container } = render(
       <Form form={form}>
-        <Field name="a" pattern="readPretty" component={[Input, { placeholder: '请输入邮箱' }]} />
-        <Field name="b" pattern="readPretty" component={[Select, { placeholder: '请选择', prettyType: 'tag' }]} />
+        <Field name="a" readOnly component={[Input, { placeholder: '请输入邮箱' }]} />
+        <Field name="b" readOnly component={[Select, { placeholder: '请选择', prettyType: 'tag' }]} />
       </Form>,
     )
     expect(container.textContent).toBe('--')

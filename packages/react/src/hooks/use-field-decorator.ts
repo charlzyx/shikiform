@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react'
-import type { Pattern } from '@shikiform/core/internal'
 import { ShikiUsageError } from '@shikiform/core/internal'
 import { useFieldContextOrNull } from '../field-context'
 import type { FieldBinding } from './use-field'
@@ -17,7 +16,7 @@ export interface FieldDecorator {
   /** `options.description` when passed, otherwise the field description. */
   description: ReactNode
   /**
-   * Whether to show the required mark. The field's `required`, hidden in `readPretty`, unless `asterisk` forces it.
+   * Whether to show the required mark. The field's `required`, hidden when `readOnly`, unless `asterisk` forces it.
    */
   required: boolean
   errors: readonly string[]
@@ -27,12 +26,12 @@ export interface FieldDecorator {
   /** True when `errors` is non-empty. Warnings alone are not invalid. */
   invalid: boolean
   validating: boolean
+  visible: boolean
   disabled: boolean
   readOnly: boolean
-  pattern: Pattern
   /** Space-separated ids for `aria-describedby`. Undefined when there is nothing to point at. */
   describedBy: string | undefined
-  /** Spread onto `<label>`. `htmlFor` is omitted in `readPretty` (the view is text). */
+  /** Spread onto `<label>`. `htmlFor` is omitted when `readOnly` (the view is text). */
   labelProps: { id: string; htmlFor?: string }
   /** Spread onto the description element. Undefined when there is no description. */
   descriptionProps: { id: string } | undefined
@@ -67,7 +66,7 @@ export interface FieldDecoratorOptions {
   label?: ReactNode
   /** Wins over the field description. */
   description?: ReactNode
-  /** Force the required mark on (`true`) or off (`false`). Default: `field.required`, hidden in `readPretty`. */
+  /** Force the required mark on (`true`) or off (`false`). Default: `field.required`, hidden when `readOnly`. */
   asterisk?: boolean
 }
 
@@ -104,7 +103,7 @@ export function useFieldDecorator(options?: FieldDecoratorOptions): FieldDecorat
   if (!field) throw new ShikiUsageError(NO_FIELD)
   const label = options && options.label !== undefined ? options.label : field.title
   const description = options && options.description !== undefined ? options.description : field.description
-  const required = options?.asterisk !== undefined ? options.asterisk : field.required && field.pattern !== 'readPretty'
+  const required = options?.asterisk !== undefined ? options.asterisk : field.required && !field.readOnly
   const errors = field.errors
   const warnings = field.warnings
   const invalid = errors.length > 0
@@ -113,7 +112,7 @@ export function useFieldDecorator(options?: FieldDecoratorOptions): FieldDecorat
   const descriptionId = present(description) ? `${field.id}-description` : undefined
   const describedBy = [descriptionId, errorId ?? warningId].filter(Boolean).join(' ') || undefined
   const labelProps: FieldDecorator['labelProps'] = { id: `${field.id}-label` }
-  if (field.pattern !== 'readPretty') labelProps.htmlFor = field.id
+  if (!field.readOnly) labelProps.htmlFor = field.id
   return {
     id: field.id,
     label,
@@ -124,9 +123,9 @@ export function useFieldDecorator(options?: FieldDecoratorOptions): FieldDecorat
     error: errors[0],
     invalid,
     validating: field.validating,
+    visible: field.visible,
     disabled: field.disabled,
     readOnly: field.readOnly,
-    pattern: field.pattern,
     describedBy,
     labelProps,
     descriptionProps: descriptionId ? { id: descriptionId } : undefined,

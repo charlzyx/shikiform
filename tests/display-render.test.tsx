@@ -12,9 +12,9 @@ describe('display virtual still renders', () => {
       const form = useForm({
         initialValues: { shown: 'a', confirm: 'b', secret: 'c', gone: 'd' },
         fields: {
-          confirm: { display: 'virtual' },
-          secret: { display: 'hidden' },
-          gone: { display: 'none' },
+          confirm: { omit: true },
+          secret: { visible: false },
+          gone: { visible: false, omit: true },
         },
       })
       return (

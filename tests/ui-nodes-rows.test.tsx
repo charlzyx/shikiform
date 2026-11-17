@@ -7,12 +7,12 @@ import { createEngine } from '../packages/core/src/engine/create'
 type V = { rows: { a: string }[] }
 const mk = (rows = ['A', 'B', 'C']) => createEngine<V>({ initialValues: { rows: rows.map((a) => ({ a })) } })
 
-/** `{ row value: [tip visible, echo pattern] }` for every row. */
+/** `{ row value: [tip visible, echo disabled] }` for every row. */
 function snapshot(form: ReturnType<typeof mk>) {
-  const out: Record<string, [boolean, string]> = {}
+  const out: Record<string, [boolean, boolean]> = {}
   form.batch((d: any) => {
     form.values.rows.forEach((row, i) => {
-      out[row.a] = [d.rows[i].$ui('tip').$visible, d.rows[i].a.$ui('echo').$pattern]
+      out[row.a] = [d.rows[i].$ui('tip').$visible, d.rows[i].a.$ui('echo').$disabled]
     })
   })
   return out
@@ -25,30 +25,30 @@ describe('$ui state follows its row (M7)', () => {
     const form = mk()
     form.batch((d) => {
       d.rows[0].$ui('tip').$visible = false
-      d.rows[0].a.$ui('echo').$pattern = 'disabled'
+      d.rows[0].a.$ui('echo').$disabled = true
     })
     form.moveArray('rows', 0, 2)
-    expect(snapshot(form)).toEqual({ B: [true, 'editable'], C: [true, 'editable'], A: [false, 'disabled'] })
+    expect(snapshot(form)).toEqual({ B: [true, false], C: [true, false], A: [false, true] })
     form.swapArray('rows', 0, 2)
-    expect(snapshot(form)).toEqual({ A: [false, 'disabled'], C: [true, 'editable'], B: [true, 'editable'] })
+    expect(snapshot(form)).toEqual({ A: [false, true], C: [true, false], B: [true, false] })
   })
 
   it('insert shifts state with the rows; the new row starts fresh', () => {
     const form = mk()
     form.batch((d) => { d.rows[1].$ui('tip').$visible = false })
     form.insertArray('rows', 0, { a: 'N' })
-    expect(snapshot(form)).toEqual({ N: [true, 'editable'], A: [true, 'editable'], B: [false, 'editable'], C: [true, 'editable'] })
+    expect(snapshot(form)).toEqual({ N: [true, false], A: [true, false], B: [false, false], C: [true, false] })
   })
 
   it('remove drops the row state: a row pushed later does not inherit it', () => {
     const form = mk(['A', 'B'])
     form.batch((d) => {
       d.rows[1].$ui('tip').$visible = false
-      d.rows[1].a.$ui('echo').$pattern = 'readPretty'
+      d.rows[1].a.$ui('echo').$readOnly = true
     })
     form.removeArray('rows', 1)
     form.pushArray('rows', { a: 'C' })
-    expect(snapshot(form)).toEqual({ A: [true, 'editable'], C: [true, 'editable'] })
+    expect(snapshot(form)).toEqual({ A: [true, false], C: [true, false] })
   })
 
   it('a reaction reading a row node re-runs when the occupant changes', () => {

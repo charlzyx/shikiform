@@ -5,10 +5,11 @@ import { unwrapReadonly } from '../draft/readonly'
 import { showDraftPath } from '../errors'
 import { deepEqual } from '../shared/equal'
 import { getAt, normalizePath, parentPath, setAt } from '../shared/path'
+import type { FlagName } from '../state/flags'
 import type { FieldModel } from '../state/field-model'
 import type { FieldStore } from '../state/field-store'
 import type { Notifier } from '../state/notifier'
-import type { Display, Pattern, WriteOp } from '../types'
+import type { WriteOp } from '../types'
 import type { FormOptions } from '../types-effects'
 import { assertRuleKeys, isEmpty, optionIncludes, type Rule } from '../validation/rules'
 import type { Validator } from '../validation/validator'
@@ -37,7 +38,7 @@ export interface WriterDeps {
  *
  * - User edits (`setValue`, `binding().onChange`) → {@link StateWriter.commitExternal}: sticky `edited` flags + `onChange` trigger.
  *   `dirty` is not written here: the engine derives it from values vs `initial`.
- * - Draft writes (`d.x.$value = …`, `$display`, `$rules`, …) → {@link StateWriter.writeState}: buffered inside a
+ * - Draft writes (`d.x.$value = …`, `$visible`, `$rules`, …) → {@link StateWriter.writeState}: buffered inside a
  *   reaction / watch / batch, applied immediately otherwise.
  * - `$enum` with an `EnumSource` binding loads asynchronously (debounced, aborted, sequence-stamped).
  */
@@ -124,9 +125,9 @@ export class StateWriter {
 
   commitValue(path: string, value: unknown, fromReaction: boolean): boolean {
     const { store, notifier, scheduler, declarations } = this.deps
-    // A reaction write marks the field computed (`readPretty` when no pattern is set), also when the derived
-    // value already equals the current one (an initial value that is already right). It stays in the submit
-    // payload unless its display is `virtual` (or an ancestor omits the subtree).
+    // A reaction write marks the field computed (excluded from `dirty`), also when the derived value already
+    // equals the current one (an initial value that is already right). It stays in the submit payload unless
+    // this field's own `omit` is set.
     if (fromReaction) store.ensure(path).computed = true
     const old = getAt(store.values, path)
     if (deepEqual(old, value)) return false
@@ -166,14 +167,6 @@ export class StateWriter {
     }
   }
 
-  private bumpDescendants(path: string): void {
-    // The root ('') is everyone's ancestor.
-    const prefix = path ? path + '.' : ''
-    for (const fieldPath of this.deps.store.fields.keys()) {
-      if (fieldPath && fieldPath !== path && fieldPath.startsWith(prefix)) this.deps.notifier.bumpPath(fieldPath)
-    }
-  }
-
   private makeOp(path: string, key: string, value: unknown): WriteOp {
     const uiKey = uiKeyOf(key)
     if (uiKey && this.deps.ui) return this.deps.ui.makeOp(path, uiKey, value)
@@ -181,31 +174,10 @@ export class StateWriter {
       const fromReaction = isReactionId(this.deps.scheduler.current()?.id ?? '')
       return { key: `${path}:value`, apply: () => this.commitValue(path, value, fromReaction) }
     }
-    if (key === '$visible') {
-      // `false` is `none`. `true` drops the reaction overlay and restores the declaration — it does not force `visible`.
-      return { key: `${path}:display`, apply: () => (value ? this.restoreDisplay(path) : this.setDisplay(path, 'none', true)) }
-    }
-    if (key === '$hidden') {
-      // Alias of hidden. `false` only clears a hidden display; `none` and `virtual` stay as they are.
-      return { key: `${path}:display`, apply: () => (value ? this.setDisplay(path, 'hidden', true) : this.clearHidden(path)) }
-    }
-    if (key === '$display') {
-      return { key: `${path}:display`, apply: () => this.setDisplay(path, value as Display, true) }
-    }
-    if (key === '$pattern') {
-      return {
-        key: `${path}:pattern`,
-        apply: () => {
-          const changed = this.setPattern(path, value as Pattern | undefined, true)
-          // An explicit pattern write takes the pattern back from the `$disabled` shortcut.
-          this.deps.store.ensure(path).patternFromDisabled = false
-          return changed
-        },
-      }
-    }
-    if (key === '$disabled') {
-      // Same op key as `$pattern`, so conflict detection is unchanged.
-      return { key: `${path}:pattern`, apply: () => this.applyDisabled(path, !!value) }
+    if (key === '$visible' || key === '$disabled' || key === '$readOnly' || key === '$omit') {
+      const name = key.slice(1) as FlagName
+      // `undefined` drops the reaction layer. `true` / `false` set it (`false` exits an inherited `true`).
+      return { key: `${path}:${name}`, apply: () => this.setFlag(path, name, value as boolean | undefined) }
     }
     if (key === '$required') {
       return { key: `${path}:required`, apply: () => this.setRequired(path, !!value) }
@@ -219,85 +191,25 @@ export class StateWriter {
     return { key: `${path}:${key}`, apply: () => false }
   }
 
-  private setDisplay(path: string, display: Display, fromEffect: boolean): boolean {
+  /**
+   * Reaction / batch write of one flag.
+   * `undefined` drops the reaction layer (JSX / `fields` / inheritance show through).
+   * `true` and `false` are both explicit; `false` is what exits an inherited `true`.
+   */
+  private setFlag(path: string, name: FlagName, value: boolean | undefined): boolean {
     const field = this.deps.store.ensure(path)
-    if (field.hasDisplay && field.display === display) {
-      if (fromEffect) field.displayFromEffect = true
+    const slot = field.flags[name]
+    if (value === undefined) {
+      if (!slot.fromEffect) return false
+      slot.fromEffect = false
+      slot.effect = undefined
+    } else if (slot.fromEffect && slot.effect === value) {
       return false
+    } else {
+      slot.fromEffect = true
+      slot.effect = value
     }
-    field.hasDisplay = true
-    field.display = display
-    if (fromEffect) field.displayFromEffect = true
-    this.afterDisplay(path)
-    return true
-  }
-
-  /**
-   * `$visible = true`: drop the reaction's display and put the declaration (`fields` / JSX / template) back.
-   * Does nothing when no reaction owns the display, so a declared `hidden` stays hidden.
-   */
-  private restoreDisplay(path: string): boolean {
-    const field = this.deps.store.get(path)
-    if (!field?.displayFromEffect) return false
-    field.displayFromEffect = false
-    const has = field.hasBaseDisplay
-    const next = has ? field.baseDisplay : undefined
-    if (field.hasDisplay === has && field.display === next) return false
-    field.hasDisplay = has
-    field.display = next
-    this.afterDisplay(path)
-    return true
-  }
-
-  /**
-   * `$hidden = false` only removes `hidden`. `none` and `virtual` are left alone (they are not hidden).
-   * A reaction's hidden restores the declaration; a declared hidden with no reaction becomes `visible`.
-   */
-  private clearHidden(path: string): boolean {
-    const field = this.deps.store.get(path)
-    if (!field?.hasDisplay || field.display !== 'hidden') return false
-    if (field.displayFromEffect) return this.restoreDisplay(path)
-    return this.setDisplay(path, 'visible', true)
-  }
-
-  private afterDisplay(path: string): void {
-    const { store, notifier, scheduler, validator } = this.deps
-    notifier.bumpPath(path)
-    this.bumpDescendants(path)
-    scheduler.markDirty(`${path}:display`)
-    if (store.effectiveDisplay(path) === 'none') validator.clearHiddenErrors(path)
-  }
-
-  /**
-   * `$disabled` owns the pattern only while its `true` write is what installed the current value.
-   * `false` then clears it, the same as `$pattern = undefined`, and the field inherits again.
-   * `false` does nothing when something else owns the pattern.
-   * `true` does not take over a pattern that is already `disabled`.
-   */
-  private applyDisabled(path: string, disabled: boolean): boolean {
-    if (!disabled) {
-      const field = this.deps.store.get(path)
-      if (!field?.patternFromDisabled) return false
-      field.patternFromDisabled = false
-      return this.setPattern(path, undefined, true)
-    }
-    const field = this.deps.store.ensure(path)
-    const changed = this.setPattern(path, 'disabled', true)
-    if (changed || field.patternFromDisabled) field.patternFromDisabled = true
-    return changed
-  }
-
-  private setPattern(path: string, pattern: Pattern | undefined, fromEffect: boolean): boolean {
-    const { store, notifier, scheduler } = this.deps
-    const field = store.ensure(path)
-    const has = pattern !== undefined
-    if (field.hasPattern === has && field.pattern === pattern) return false
-    field.hasPattern = has
-    field.pattern = pattern
-    if (fromEffect) field.patternFromEffect = true
-    notifier.bumpPath(path)
-    this.bumpDescendants(path)
-    scheduler.markDirty(`${path}:pattern`)
+    this.deps.validator.noteFlags(path, [name])
     return true
   }
 
@@ -323,7 +235,7 @@ export class StateWriter {
   }
 
   /**
-   * `$enum` from a reaction / batch. `undefined` drops the reaction layer like `$title` / `$pattern = undefined`:
+   * `$enum` from a reaction / batch. `undefined` drops the reaction layer like `$title` / `$visible = undefined`:
    * the field falls back to the mounted `<Field enum>`, else `fields.x.enum`, else the `rows.*.x` template
    * (no options at all when none exists). `[]` pins an empty list. Any reaction load in flight is cancelled.
    */

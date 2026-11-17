@@ -41,4 +41,4 @@ test('邮箱通过之后才提交', async () => {
 字段默认在 `onBlur` 和表单提交时触发校验。如果测试中只触发了 `change` 事件而没有 `blur`，页面上还不会出现错误提示（直到点击提交才会校验）。因此断言错误文案前，记得先调用 `fireEvent.blur` 或直接触发一次提交。
 </Aside>
 
-此外，通过 `$visible = false`（`none`）或 `display: 'virtual'` 排除的字段不会出现在 `onSubmit` 收到的参数对象中，编写断言时请按实际提交的数据结构比对，不要直接把完整的 `initialValues` 拿来做全等断言。
+此外，通过 `$visible = false`（`none`）或 `omit: true` 排除的字段不会出现在 `onSubmit` 收到的参数对象中，编写断言时请按实际提交的数据结构比对，不要直接把完整的 `initialValues` 拿来做全等断言。

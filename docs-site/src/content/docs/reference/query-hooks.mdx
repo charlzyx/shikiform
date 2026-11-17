@@ -34,7 +34,7 @@ useQueryTable<TValues, TRow = unknown>(
 |---|---|---|
 | `form` | 不传则创建表单 | 传入现有表单（`useForm` / `createForm` 的返回值）；这时不再用下面三项初始化它 |
 | `initialValues`、`effects`、`fields` | 同表单创建选项 | 仅用于创建内部表单；后续渲染不重新初始化 |
-| `params` | 整个 `form.values` | 字段路径，或把 values 映射为请求参数的函数；不是 `getSubmitValues()`，不要假定自动排除 `display: 'virtual'` |
+| `params` | 整个 `form.values` | 字段路径，或把 values 映射为请求参数的函数；不是 `getSubmitValues()`，不要假定自动排除 `omit: true` |
 | `page` | `'page'` | 页码字段路径；值不存在时初始化为 `1` |
 | `pageSize` | `'pageSize'` | 页大小字段路径；值不存在时用 defaultPageSize |
 | `defaultPageSize` | `10` | 缺失页大小时的默认值；已有字段值优先 |

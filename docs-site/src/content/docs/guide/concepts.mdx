@@ -64,7 +64,7 @@ export default function App() {
       <Space wrap>
         <Button onClick={() => form.batch((d) => { d.user.name.$value = 'Grace'; })}>写 user.name</Button>
         <Button onClick={() => form.batch((d) => { d.user.email.$required = !d.user.email.$required; })}>切换邮箱必填</Button>
-        <Button onClick={() => form.batch((d) => { d.user.email.$pattern = d.user.email.$pattern === 'readPretty' ? undefined : 'readPretty'; })}>切换阅读态</Button>
+        <Button onClick={() => form.batch((d) => { d.user.email.$readOnly = !d.user.email.$readOnly; })}>切换阅读态</Button>
       </Space>
       <Watch select={(d: Draft<Values>) => d.user.$value}>{(user) => <pre>{JSON.stringify(user)}</pre>}</Watch>
     </Form>
@@ -92,21 +92,20 @@ export default function App() {
 
 ## 显隐、pattern 与提交
 
-在实际表单中，「隐藏一个字段」往往对应不同的业务诉求。ShikiForm 用四种 `display` 值精确区分渲染、校验和提交行为（可交互演示见 [字段状态](/basics/state)）：
+字段状态是四个独立布尔（可交互演示见 [字段状态](/basics/state)）：
 
-| 配置方式 | 界面渲染 | 参与校验 | 参与提交 |
+| 配置 | 界面 | 校验 | 提交 |
 |---|---|---|---|
-| `display: 'visible'` | 渲染 | 校验 | 保留在提交结果中，计入 dirty |
-| `display: 'hidden'`（`$hidden = true`） | 不渲染（仍保留注册） | **仍然校验** | **保留在提交结果中**，计入 dirty |
-| `display: 'virtual'` | 渲染 | **仍然校验**（如确认密码） | 剔除该字段及全部子节点，不计入 dirty |
-| `display: 'none'`（`$visible = false`） | 不渲染 | 跳过校验并清除错误 | 剔除；值仍保留在 store 中以便切回时恢复，计入 dirty |
-| `reaction` 写过 `$value` | `readPretty` | 跳过校验 | 保留（声明 `display: 'virtual'` 时才剔除） |
+| 默认 | 渲染 | 校验 | 提交，计入 dirty |
+| `visible: false` | 不渲染（仍注册） | 跳过，并清掉已有错误 | **仍然提交**，计入 dirty |
+| `disabled: true` | 置灰、不可编辑 | 跳过，并清掉已有错误 | 提交 |
+| `readOnly: true` | 渲染预览。和 `disabled` 同时为真时预览优先 | 跳过，并清掉已有错误 | 提交 |
+| `omit: true` | 不影响渲染 | 不影响校验 | 剔除该字段。不计入 dirty |
+| `reaction` 写过 `$value` | 仍可编辑（要预览就再写 `readOnly`） | 按上面三个开关 | 提交，除非 `omit` |
 
-如果之前用过 Formily，需要注意一个关键区别：Formily 中的 `hidden` 会跳过校验，而 ShikiForm 中的 `hidden` 只是隐藏界面，依然会参与校验并随表单提交（适用于未激活的标签页等场景）；想要跳过校验且不提交，请使用 `none`（即 `$visible = false`）。此外，`$visible = true` 的语义是撤销联动层覆盖并回到字段声明时的 `display`，并非强制改成 `visible`。
+`visible` / `disabled` / `readOnly` 按 OR 从父级继承，子级写显式 `false` 可以退出。`omit` 不继承：父级 `omit` 不会把子级的 `$omit` 读成 `true`；删掉一个被 omit 的对象时，嵌套的键会跟着对象一起离开提交结果。
 
-关于继承与叠加机制：祖先节点设为 `none` 时，整棵子树都不会渲染、校验和提交；其余情况下，`hidden` 只关闭渲染、`virtual` 只关闭提交，两者相互独立可以叠加（例如父级 `hidden`、子级 `virtual` 时，子级既不渲染也不提交，但依然会参与校验）。读取 `$display` 时按 `none > hidden > virtual > visible` 的优先级合并。命名 UI 节点（`$ui`）不支持 `virtual`。
-
-`pattern` 同样遵循从父级向下继承的规则：子级显式设置了 `$pattern` 时以自身为准；`$disabled = false` 只会撤销 `$disabled = true` 写入的禁用状态，不会干扰显式指定的 `$pattern`。注意 `disabled` 和 `readOnly` 只限制界面上的用户输入，不影响程序代码通过 `setValue` 或 `reaction` 修改字段值。
+`$flag = undefined` 丢掉 reaction 这一层，回到 JSX / `fields` / 继承。详情页用 `useForm({ readOnly: true })`。
 
 ## 用 `fields` 预声明字段
 

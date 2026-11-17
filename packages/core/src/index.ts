@@ -24,8 +24,6 @@ export type { Rule, RulesInput, ValidateCtx } from './validation/rules'
 export type {
   ArrayItemOf,
   ArrayPath,
-  Display,
-  UiDisplay,
   Draft,
   RowContext,
   RowDraft,
@@ -44,7 +42,6 @@ export type {
   PathValue,
   NormalizePath,
   ValuePath,
-  Pattern,
   SubmitResolved,
   TypedEnumOption,
   UiDraft,

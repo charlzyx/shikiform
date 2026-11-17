@@ -3,7 +3,7 @@ title: 提交与重置
 description: 了解 form.submit 的 Promise、Submit 与 Reset 按钮行为以及焦点自动定位机制。
 ---
 
-在 ShikiForm 中，无论是在表单内按回车、点击 `<Submit>` 按钮（`type="submit"`），还是直接调用 `form.submit()`，最终都会进入同一套校验与提交流程。`<Form onSubmit>` 回调只有在整张表单校验通过后才会触发，并且会收到已经剔除 `virtual` 与 `none` 字段的提交数据。注意 `<Form>` 本身已经渲染了原生 `<form>` 元素，不要在外部或内部再嵌套一层 `<form>`。
+在 ShikiForm 中，无论是在表单内按回车、点击 `<Submit>` 按钮（`type="submit"`），还是直接调用 `form.submit()`，最终都会进入同一套校验与提交流程。`<Form onSubmit>` 回调只有在整张表单校验通过后才会触发，并且会收到已经剔除 `omit` 字段的提交数据。注意 `<Form>` 本身已经渲染了原生 `<form>` 元素，不要在外部或内部再嵌套一层 `<form>`。
 
 `form.submit()` 是一个 Promise，和 Formily 一样：
 
@@ -30,8 +30,13 @@ try {
 form.submit(async (values) => {
   const saved = await api.save(values)
   return saved.id
-}).then((id) => setId(id)).catch((errors) => scrollTo(errors[0]?.path))
+}).then((id) => setId(id)).catch((error) => {
+  if (isFieldErrors(error)) scrollTo(error[0]?.path)
+  else report(error)
+})
 ```
+
+直接调用 `form.submit()` 时要 `await`，或者接上 `.catch`。没有接住的失败会变成未处理的 rejection（unhandled rejection）。
 
 `<Form>` 和 `<Submit>` 会在内部 catch 这次 rejection：校验失败走 `onInvalid(errors)`，`onSubmit` 抛错和 `SubmitUnstableError` 走 `onSubmitError`（不传则 `console.error`），被取代的那次提交被吞掉，不会变成未处理的 rejection。
 

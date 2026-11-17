@@ -12,13 +12,13 @@ ShikiForm 延续了「`<Field>` 绑定路径，`decorator` 包裹 `component`」
 | Formily 概念 | ShikiForm 对应写法 |
 |---|---|
 | `reactions` / `x-reactions` | 在 `defineEffects` 中编写 `reaction((d) => ...)`，直接给 `$` 状态赋值 |
-| `visible: false` | `$visible = false`（即 `display: 'none'`，值会保留在引擎中，重新显示时恢复） |
+| `visible: false` | `$visible = false`（即 `visible: false, omit: true`，值会保留在引擎中，重新显示时恢复） |
 | `hidden`（隐藏且跳过校验） | ShikiForm 的 `hidden` 仍会校验并提交；若要隐藏且不校验，请使用 `none` |
-| 单独的虚拟字段标记 | 使用 `display: 'virtual'`（正常渲染和校验，但不参与提交与 `dirty` 统计） |
+| 单独的虚拟字段标记 | 使用 `omit: true`（正常渲染和校验，但不参与提交与 `dirty` 统计） |
 | `onFieldValueChange` 中清空关联字段 | 使用 `watch(source, effect)` 监听变化后执行一次性重置 |
 | 数组行内 `map` 联动 | 使用 `reaction.each(select, fn)`（只接收两个参数） |
 
-另外，在 ShikiForm 中被 `reaction` 赋值的计算字段默认仍会随表单提交；如果原本在 Formily 中是通过不注册字段来丢弃展示值，迁移后只需加上 `display: 'virtual'` 或 `display: 'none'` 即可。
+另外，在 ShikiForm 中被 `reaction` 赋值的计算字段默认仍会随表单提交；如果原本在 Formily 中是通过不注册字段来丢弃展示值，迁移后只需加上 `omit: true` 或 `visible: false, omit: true` 即可。
 
 ## 从 react-hook-form 迁移
 

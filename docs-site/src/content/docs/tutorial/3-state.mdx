@@ -20,15 +20,15 @@ ShikiForm 用 `display` 区分四种渲染与提交行为：
 | `virtual` | 是 | 是 | 否 |
 | `none` | 否 | 否 | 否 |
 
-其中 `$visible = false` 等价于 `display = 'none'`，而 `$hidden = true` 对应 `display = 'hidden'`。读取 `$visible` 时，只要字段在界面上可见（即 `visible` 或 `virtual`），结果都为 `true`。
+`$visible = false` 不渲染、不校验，值仍然提交。不提交用 `$omit = true`（不继承）。`disabled` 置灰，`readOnly` 渲染预览；两者同时为真时 `readOnly` 优先。`visible` / `disabled` / `readOnly` 按 OR 从父级继承，显式 `false` 可以退出。
 
-另一组常用状态是 `pattern`（包含 `editable`、`disabled`、`readOnly`、`readPretty`），它支持从父级向下继承；如果某个子字段显式设置了自己的 `$pattern`，则会覆盖父级的配置。
+校验只在 `visible && !disabled && !readOnly` 时运行。
 
 **这一步：** 在 `reaction` 中补充 `d.email.$visible = d.contact.$value`。
 
 完成后，关闭开关即可隐藏邮箱。即便先清空邮箱再关闭开关，点击提交依然能够顺利通过，且最终 JSON 中不包含 `email`；同时引擎会保留原先输入的值，重新打开开关时内容依然还在。
 
-如果业务要求「隐藏界面但依然校验并提交数据」，可以改为设置 `d.email.$hidden = !d.contact.$value`。
+隐藏后的字段仍然提交。如果这份数据不该进提交结果，再写 `d.email.$omit = true`。
 
 </div>
 

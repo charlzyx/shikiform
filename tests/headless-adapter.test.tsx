@@ -176,7 +176,7 @@ describe('useFieldDecorator', () => {
   it('hides the mark and htmlFor in readPretty, and asterisk forces the mark', () => {
     const form = createEngine({
       initialValues: { email: 'a@b.c' },
-      fields: { email: { title: '邮箱', required: true, pattern: 'readPretty' } },
+      fields: { email: { title: '邮箱', required: true, readOnly: true } },
     })
     function Item({ asterisk }: { asterisk?: boolean }) {
       const d = useFieldDecorator({ asterisk })

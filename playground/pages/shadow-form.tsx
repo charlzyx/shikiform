@@ -50,10 +50,10 @@ export function ShadowFormPage() {
           </ShadowModal>
           <Divider />
           <Card title="info（阅读态）" size="small">
-            <Field name="info.domain" pattern="readPretty" decorator={[FormItem]}>
+            <Field name="info.domain" readOnly decorator={[FormItem]}>
               <Input data-testid="info-domain" />
             </Field>
-            <Field name="info.desc" pattern="readPretty" decorator={[FormItem]}>
+            <Field name="info.desc" readOnly decorator={[FormItem]}>
               <Input.TextArea rows={4} />
             </Field>
             <Space wrap>

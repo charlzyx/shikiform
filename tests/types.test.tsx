@@ -28,10 +28,10 @@ createForm<{ rows: { name: string }[] }>({ fields: { 'nope.*.name': { required: 
 form.batch((d) => {
   const value = d.name.$value
   const _value: Expect<Equal<typeof value, string>> = true
-  d.name.$pattern = undefined
-  d.name.$display = 'hidden'
+  d.name.$readOnly = undefined; d.name.$disabled = undefined
   d.name.$visible = false
-  d.name.$hidden = true
+  d.name.$visible = false
+  d.name.$visible = false
   void value
   void _value
 })

@@ -26,10 +26,10 @@ describe('tutorial effects use the published FormEngine contract', () => {
     expect(solution.binding('city').disabled).toBe(true)
   })
 
-  it('derives a read-pretty amount and still submits it', () => {
+  it('derives an amount and still submits it', () => {
     const form = createEngine({ initialValues: { price: 10, qty: 2, amount: 0 }, effects: [computedEffects] })
     expect(form.getValue('amount')).toBe(20)
-    expect(form.binding('amount').pattern).toBe('readPretty')
+    expect(form.binding('amount').readOnly).toBe(false)
     form.setValue('price', 30)
     expect(form.getValue('amount')).toBe(60)
     expect(form.getSubmitValues()).toEqual({ price: 30, qty: 2, amount: 60 })
@@ -39,9 +39,9 @@ describe('tutorial effects use the published FormEngine contract', () => {
     const form = createEngine({
       initialValues: { price: 10, qty: 2, amount: 0 },
       effects: [computedEffects],
-      fields: { amount: { display: 'virtual' } },
+      fields: { amount: { omit: true } },
     })
-    expect(form.binding('amount').pattern).toBe('readPretty')
+    expect(form.binding('amount').readOnly).toBe(false)
     expect(form.getSubmitValues()).toEqual({ price: 10, qty: 2 })
   })
 
@@ -66,7 +66,7 @@ describe('tutorial effects use the published FormEngine contract', () => {
     })
     expect(same.getValue('items.0.total')).toBe(0)
     // A reaction-written field is computed even when the derived value equals the initial one.
-    expect(same.binding('items.0.total').pattern).toBe('readPretty')
+    expect(same.binding('items.0.total').readOnly).toBe(false)
     expect(same.getSubmitValues()).toEqual({ items: [{ id: 'row-2', name: '新行', price: 0, qty: 1, total: 0 }] })
     form.binding('items.0.price').onChange(undefined)
     expect(form.getValue('items.0.total')).toBe(0)
@@ -108,14 +108,14 @@ describe('tutorial effects use the published FormEngine contract', () => {
     expect(await form.submit()).toEqual({ name: 'Ada', email: 'ada@example.com', age: 18 })
   })
 
-  it('$visible = false drops the email from validation and submit, and keeps the value for later', async () => {
+  it('$visible = false skips validation and still submits the email', async () => {
     const form = createEngine({
       initialValues: { contact: false, email: '' },
       effects: [visibleEffects],
       fields: { email: { required: true } },
     })
-    expect(form.binding('email').display).toBe('none')
-    expect(await form.submit()).toEqual({ contact: false })
+    expect(form.binding('email').visible).toBe(false)
+    expect(await form.submit()).toEqual({ contact: false, email: '' })
     form.setValue('contact', true)
     await expect(form.submit()).rejects.toEqual(expect.any(Array))
     form.setValue('email', 'ada@example.com')

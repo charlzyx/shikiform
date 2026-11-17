@@ -51,7 +51,7 @@ describe('FormEngine.forkOptions', () => {
       },
       fields: {
         'info.domain': { required: true, title: '域名' },
-        'list.*': { pattern: 'readOnly' },
+        'list.*': { readOnly: true },
         'list.*.domain': { required: true, title: '默认域名' },
         'list.0.domain': { title: '首行域名' },
         'list.*.tags.*.label': { required: true },
@@ -101,7 +101,7 @@ describe('FormEngine.forkOptions', () => {
       note: { title: '模板备注' },
     })
     expect(row0Fork.trees).toEqual({ deps: { childrenKey: 'subs', rowKey: 'code' } })
-    expect(row0Fork.pattern).toBe('readOnly')
+    expect(row0Fork.readOnly).toBe(true)
 
     const row1Fork = engine.forkOptions('list.1')
     expect(row1Fork.fields).toEqual({
@@ -112,7 +112,7 @@ describe('FormEngine.forkOptions', () => {
 
     const addFork = engine.forkOptions('list.*')
     expect(addFork.initialValues).toBeUndefined()
-    expect(addFork.pattern).toBe('readOnly')
+    expect(addFork.readOnly).toBe(true)
     expect(addFork.fields).toEqual({
       domain: { required: true, title: '默认域名' },
       'tags.*.label': { required: true },
@@ -123,9 +123,9 @@ describe('FormEngine.forkOptions', () => {
   it('inherits parent effectivePattern in add mode when list.* has no own pattern', () => {
     const host = createForm({
       initialValues: { list: [] as { name: string }[] },
-      pattern: 'readPretty',
+      readOnly: true,
     })
-    expect(engineOf(host).forkOptions('list.*').pattern).toBe('readPretty')
+    expect(engineOf(host).forkOptions('list.*').readOnly).toBe(true)
   })
 })
 
@@ -182,7 +182,7 @@ describe('useShadowForm', () => {
       initialValues: { info: { domain: 'a.com', desc: 'ping', secret: 'keep-me' } },
       fields: {
         'info.domain': { required: true },
-        'info.secret': { display: 'virtual' },
+        'info.secret': { omit: true },
       },
     })
     const { result } = renderHook(() =>
@@ -223,7 +223,7 @@ describe('useShadowForm', () => {
           { id: 'r2', domain: 'two.com', token: 'v2' },
         ],
       },
-      fields: { 'list.*.token': { display: 'virtual' } },
+      fields: { 'list.*.token': { omit: true } },
     })
     const { result } = renderHook(() =>
       useShadowForm<{ id: string; domain: string; token?: string }>({
@@ -431,7 +431,7 @@ describe('Shadow components', () => {
   it('hides OK and uses messages.close in readPretty/readOnly while respecting explicit modalProps/drawerProps footer', async () => {
     const form = createForm({
       initialValues: { info: { domain: 'readonly.dev' } },
-      pattern: 'readPretty',
+      readOnly: true,
       messages: enUS,
     })
     render(
@@ -485,14 +485,14 @@ describe('Shadow components', () => {
       })
       return (
         <>
-          <Button data-testid="toggle-rp" onClick={() => shadow.form.batch((d) => { d.$pattern = 'readOnly' })}>
+          <Button data-testid="toggle-rp" onClick={() => shadow.form.batch((d) => { d.$readOnly = true })}>
             MakeReadOnly
           </Button>
           <ShadowModal shadow={shadow} title="Live" trigger={<Button data-testid="open-live">OpenLive</Button>}>
             <Field name="domain" decorator={[FormItem]} component={[Input]} />
           </ShadowModal>
           <ShadowPopconfirm
-            formOptions={{ pattern: 'readPretty', messages: enUS }}
+            formOptions={{ readOnly: true, messages: enUS }}
             record={{ domain: 'pop.dev' }}
             trigger={<Button data-testid="open-rp-pop">OpenPop</Button>}
           >
@@ -541,7 +541,7 @@ describe('ArrayTable + bound ShadowModal & ShadowAddition', () => {
                   key: 'domain',
                   title: '域名',
                   render: () => (
-                    <Field name="domain" pattern="readPretty" decorator={[FormItem]}>
+                    <Field name="domain" readOnly decorator={[FormItem]}>
                       <Input />
                     </Field>
                   ),

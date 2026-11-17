@@ -6,7 +6,7 @@
  *   (all reading the field a `<Field>` provides; Formily style: `<Field decorator={[FormItem]} component={[Input]} />`);
  * - components: `Input`, `InputNumber`, `Select`, `AutoComplete`, `TreeSelect`, `Cascader`, `Switch`, `Checkbox`, `Radio`,
  *   `DatePicker`, `TimePicker`, `Slider`, `Rate`, `Transfer`, `Upload`, `ColorPicker` wired through `connect`, each with a
- *   `readPretty` view from `PreviewText.*`;
+ *   `preview` view from `PreviewText.*`;
  * - buttons: `Submit` / `Reset` for the surrounding form;
  * - arrays: `ArrayItems` / `ArrayCards` / `ArrayTable`, containers for `<ArrayField component>` (add / remove / move /
  *   drag rows; `ArrayItems` / `ArrayCards` also show that array path's own errors; `ArrayTable` adds paging, selection,

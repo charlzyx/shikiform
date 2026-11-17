@@ -26,7 +26,8 @@ test('standard schema: field rules, cross-field path, hidden vs none', async ({ 
   await page.getByTestId('hide-nick').click()
   await expect(page.getByTestId('nick')).toHaveCount(0)
   await page.getByTestId('schema-submit').click()
-  await expect(page.getByTestId('errors')).toContainText('nick:昵称必填')
+  await expect(page.getByTestId('errors')).not.toContainText('nick')
+  await expect(page.getByTestId('result')).toContainText('"nick": ""')
 
   await page.getByTestId('show-nick').click()
   await page.getByTestId('nick').fill('ada')

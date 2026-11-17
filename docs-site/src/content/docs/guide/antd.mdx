@@ -16,12 +16,12 @@ Ant Design 控件通常接收 `value`、`onChange`、`status`、`disabled` 等�
 
 ```tsx preview
 import { Radio as AntRadio } from 'antd';
-import { Field, Form, ObjectField, useForm, type Pattern } from '@shikiform/react';
+import { Field, Form, ObjectField, useForm } from '@shikiform/react';
 import { Checkbox, DatePicker, FormItem, FormLayout, Input, InputNumber, Radio, Select, Switch } from '@shikiform/antd';
 
 type Profile = { name: string; age: number; level: string; tags: string[]; gender: string; vip: boolean; birthday: string };
 
-const PATTERNS: Pattern[] = ['editable', 'disabled', 'readOnly', 'readPretty'];
+const MODES = ['editable', 'disabled', 'readOnly'] as const;
 
 export default function App() {
   const form = useForm<{ profile: Profile }>({
@@ -29,8 +29,12 @@ export default function App() {
   });
   return (
     <Form form={form}>
-      <AntRadio.Group style={{ marginBottom: 16 }} optionType="button" options={PATTERNS} defaultValue="editable"
-        onChange={(event) => form.batch((d) => { d.profile.$pattern = event.target.value; })} />
+      <AntRadio.Group style={{ marginBottom: 16 }} optionType="button" options={[...MODES]} defaultValue="editable"
+        onChange={(event) => form.batch((d) => {
+          const mode = event.target.value;
+          d.profile.$disabled = mode === 'disabled' ? true : undefined;
+          d.profile.$readOnly = mode === 'readOnly' ? true : undefined;
+        })} />
       <FormLayout labelCol={{ span: 5 }} wrapperCol={{ span: 19 }}>
         {/* 子字段都继承 profile 的 pattern */}
         <ObjectField name="profile">
@@ -78,7 +82,7 @@ const Segmented = connect(
   mapProps({
     id: false,
     readOnly: 'disabled',
-    readPretty: ({ value }: { value?: string }) => <span>● {value}</span>,
+    preview: ({ value }: { value?: string }) => <span>● {value}</span>,
   }),
 );
 
@@ -88,7 +92,7 @@ export default function App() {
     <Form form={form}>
       <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }}>
         <Field name="pretty" title="阅读态" decorator={[FormItem]}>
-          <Switch onChange={(checked: boolean) => form.batch((d) => { d.size.$pattern = checked ? 'readPretty' : undefined; })} />
+          <Switch onChange={(checked: boolean) => form.batch((d) => { d.size.$readOnly = checked ? true : undefined; })} />
         </Field>
         <Field name="size" title="尺寸" decorator={[FormItem]} component={[Segmented, { options: ['小', '中', '大'] }]} />
       </FormLayout>

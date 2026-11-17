@@ -45,14 +45,14 @@ describe('useQueryTable paging display', () => {
     const hook = renderHook(() =>
       useQueryTable({
         initialValues: { q: '', page: 1, pageSize: 10 } as { q: string; page: number; pageSize: number },
-        fields: { page: { display: 'hidden' }, pageSize: { display: 'none' } },
+        fields: { page: { visible: false }, pageSize: { visible: false, omit: true } },
         request,
       }),
     )
     await waitFor(() => expect(hook.result.current.data.length).toBeGreaterThan(0))
     const form = engineOf(hook.result.current.form)
-    expect(form.binding('page').display).toBe('hidden')
-    expect(form.binding('pageSize').display).toBe('none')
+    expect(form.binding('page').visible).toBe(false)
+    expect(form.binding('pageSize').visible).toBe(false)
     const values = form.getSubmitValues() as { page?: number; pageSize?: number }
     expect(values.page).toBe(1)
     expect(values).not.toHaveProperty('pageSize')
@@ -60,7 +60,7 @@ describe('useQueryTable paging display', () => {
     function Probe() {
       const table = useQueryTable({
         initialValues: { q: '', page: 1, pageSize: 10 } as { q: string; page: number; pageSize: number },
-        fields: { page: { display: 'hidden' }, pageSize: { display: 'none' } },
+        fields: { page: { visible: false }, pageSize: { visible: false, omit: true } },
         request,
       })
       return (
@@ -81,14 +81,14 @@ describe('useQueryTable paging display', () => {
       useQueryTable({
         mode: 'client',
         initialValues: { q: '', page: 1, pageSize: 10 } as { q: string; page: number; pageSize: number },
-        fields: { page: { display: 'hidden' }, pageSize: { display: 'none' } },
+        fields: { page: { visible: false }, pageSize: { visible: false, omit: true } },
         request,
       }),
     )
     await waitFor(() => expect(hook.result.current.data.length).toBeGreaterThan(0))
     const form = engineOf(hook.result.current.form)
-    expect(form.binding('page').display).toBe('hidden')
-    expect(form.binding('pageSize').display).toBe('none')
+    expect(form.binding('page').visible).toBe(false)
+    expect(form.binding('pageSize').visible).toBe(false)
     const values = form.getSubmitValues() as { page?: number; pageSize?: number }
     expect(values).not.toHaveProperty('page')
     expect(values).not.toHaveProperty('pageSize')

@@ -425,7 +425,7 @@ function ResizableTitle({ onResize, width, ...rest }: ThHTMLAttributes<HTMLTable
  * The array path and `rowKey` come from the surrounding `<ArrayField>`.
  *
  * Row actions (`SortHandle`, `Remove`, `MoveUp`, `MoveDown`, `Copy`, `Addition`, `ShadowAddition`) render only while
- * the array's effective pattern is `editable` (readPretty / readOnly / disabled hide them), like `ArrayItems`.
+ * the array is editable (`visible` and not `readOnly` / `disabled`), like `ArrayItems`.
  *
  * Cells are plain render functions in the row scope, so the field components are the usual ones:
  *

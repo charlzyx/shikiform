@@ -22,7 +22,7 @@ describe('item templates declare enum', () => {
       return (
         <Form form={form}>
           <ArrayField name="rows" rowKey="id">
-            {() => <Field name="status" pattern="readPretty" component={[Select]} />}
+            {() => <Field name="status" readOnly component={[Select]} />}
           </ArrayField>
         </Form>
       )
@@ -42,7 +42,7 @@ describe('item templates declare enum', () => {
       })
       return (
         <Form form={form}>
-          <ArrayField name="rows" rowKey="id">{() => <Field name="status" pattern="readPretty" component={[Select]} />}</ArrayField>
+          <ArrayField name="rows" rowKey="id">{() => <Field name="status" readOnly component={[Select]} />}</ArrayField>
         </Form>
       )
     }

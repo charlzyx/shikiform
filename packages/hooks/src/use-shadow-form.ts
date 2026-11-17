@@ -28,7 +28,7 @@ export interface UseShadowFormOptions<TValues, TContext = unknown> {
   add?: boolean | Partial<TValues>
   /** Row id property when bound to an array element, used to locate the row if it moved before confirm. */
   rowKey?: string
-  /** Custom merge when writing back an edited object or array row. Default shallow-merges plain objects so `virtual` keys survive. */
+  /** Custom merge when writing back an edited object or array row. Default shallow-merges plain objects so `omit` keys survive. */
   merge?: (current: TValues, values: TValues) => TValues
   /** Values the shadow opens with when `open()` gets none (overrides bound value when provided, or fallback in `add` mode). */
   initialValues?: TValues
@@ -36,7 +36,7 @@ export interface UseShadowFormOptions<TValues, TContext = unknown> {
   fields?: FormOptions<TValues>['fields']
   /** Effects for the shadow form. They run again on every open (a fresh engine). */
   effects?: FormOptions<TValues>['effects']
-  /** Other engine options (validateTrigger, schema, pattern, messages…). Merged over inherited `forkOptions`. */
+  /** Other engine options (validateTrigger, schema, readOnly, messages…). Merged over inherited `forkOptions`. */
   formOptions?: Omit<FormOptions<TValues>, 'initialValues' | 'fields' | 'effects'>
   /**
    * Called with the submitted shadow values after validation passes, before any bound write-back.

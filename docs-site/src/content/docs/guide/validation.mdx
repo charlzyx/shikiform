@@ -39,7 +39,7 @@ export default function App() {
     initialValues: { username: '', email: '', password: '', confirm: '', agree: false },
     fields: {
       username: { asyncDebounceMs: 300 }, // 停止输入 300ms 后才跑异步规则
-      confirm: { display: 'virtual' }, // 参与校验，不进提交结果
+      confirm: { omit: true }, // 参与校验，不进提交结果
     },
     // 跨字段：返回 path → 文案
     validate: (values) => (values.confirm && values.confirm !== values.password ? { confirm: '两次密码不一致' } : undefined),
@@ -112,7 +112,7 @@ try {
 }
 ```
 
-对于 `<Form>` 的提交类型推断：不传泛型（`useForm({ fields })`）或使用 `typed<Values>().useForm({ fields })` 时，在 `fields` 中声明了 `display: 'virtual'` 或 `display: 'none'` 的路径会自动推导为可选字段；如果直接写 `useForm<Values>({ fields })`，提交类型则固定为 `Values`；对于只在 JSX 或 `reaction` 中动态设置的 `virtual` / `none` 字段，可以通过第二个泛型参数 `SubmitValues<Values, 'confirm'>` 手动剔除。`useForm()` 不传参或传 `undefined` 等价于传入 `{}`。
+对于 `<Form>` 的提交类型推断：不传泛型（`useForm({ fields })`）或使用 `typed<Values>().useForm({ fields })` 时，在 `fields` 中声明了 `omit: true` 或 `visible: false, omit: true` 的路径会自动推导为可选字段；如果直接写 `useForm<Values>({ fields })`，提交类型则固定为 `Values`；对于只在 JSX 或 `reaction` 中动态设置的 `virtual` / `none` 字段，可以通过第二个泛型参数 `SubmitValues<Values, 'confirm'>` 手动剔除。`useForm()` 不传参或传 `undefined` 等价于传入 `{}`。
 
 `<Form>` 支持通过属性直接绑定这几个回调（`@shikiform/antd` 的 `<Submit onSubmit>` 也支持相同用法）：
 

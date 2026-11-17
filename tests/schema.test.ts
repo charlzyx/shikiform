@@ -41,18 +41,18 @@ describe('standard schema', () => {
     })
     form.registerTree('nodes', { childrenKey: 'children', rowKey: 'id' })
     form.batch((d) => {
-      d.nick.$display = 'hidden'
-      d.ghost.$display = 'none'
-      d.nodes[0]!.children[0]!.$display = 'hidden'
+      d.nick.$visible = false
+      d.ghost.$visible = false; d.ghost.$omit = true
+      d.nodes[0]!.children[0]!.$visible = false
     })
     await fieldErrorsOf(form.validate())
     const messages = Object.fromEntries(form.errors.map((error) => [error.path, error.messages.join('|')]))
     expect(messages.email).toContain('邮箱格式不对')
-    expect(messages.nick).toContain('昵称必填')
+    expect(messages.nick).toBeUndefined()
     expect(messages.ghost).toBeUndefined()
     expect(messages.confirm).toContain('两次密码不一致')
     expect(messages['items.0.name']).toContain('名称必填')
-    expect(messages['nodes.0.children.0.name']).toContain('节点名必填')
+    expect(messages['nodes.0.children.0.name']).toBeUndefined()
     const submitted = form.getSubmitValues()
     expect(submitted).not.toHaveProperty('ghost')
     expect(submitted.nick).toBe('')
@@ -125,14 +125,11 @@ describe('standard schema', () => {
       initialValues: { nodes: [{ name: 'a', children: [{ name: 'ok' }, { name: '' }] }] },
       validate: schema,
     })
-    form.batch((d) => {
-      d.nodes[0]!.children[1]!.$display = 'hidden'
-    })
     await fieldErrorsOf(form.validate())
     expect(form.errors.find((error) => error.path === 'nodes.0.children.1.name')?.messages.join(' ')).toContain('节点名必填')
 
     form.batch((d) => {
-      d.nodes.$display = 'none'
+      d.nodes.$visible = false; d.nodes.$omit = true
     })
     await fieldErrorsOf(form.validate())
     expect(form.errors.find((error) => error.path.startsWith('nodes'))).toBeUndefined()
@@ -165,11 +162,11 @@ describe('standard schema', () => {
     form.registerField('ghost', { rules: z.string().min(1, '幽灵必填') })
     form.registerField('nick', { rules: z.string().min(1, '昵称必填') })
     form.batch((d) => {
-      d.ghost.$display = 'none'
-      d.nick.$display = 'hidden'
+      d.ghost.$visible = false; d.ghost.$omit = true
+      d.nick.$visible = false
     })
     await fieldErrorsOf(form.validate())
-    expect(form.errors.map((error) => error.path)).toEqual(['nick'])
+    expect(form.errors.map((error) => error.path)).toEqual([])
   })
 
   it('maps a valibot cross-field issue onto confirm', async () => {

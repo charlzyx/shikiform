@@ -11,13 +11,16 @@ and SSR-rendered against the packed library); the site's `/llms.txt` serves this
 ## 1. Handle vs value
 
 `d.user.name` is a **handle**: a path, not data. Property access never reads values. `$` members are state:
-`$value`, `$display`, `$visible`, `$hidden`, `$pattern`, `$disabled`, `$required`, `$rules`, `$enum`, `$errors`, UI state
+`$value`, `$visible`, `$disabled`, `$readOnly`, `$omit`, `$required`, `$rules`, `$enum`, `$errors`, UI state
 (`$title`, `$description`, `$componentProps`, `$decoratorProps`, `$component`, `$decorator`), named UI nodes
 `d.x.$ui('echo')` / `d.$ui('tip')` (§5), and form-level `d.$canSubmit` / `d.$submitting`. A field literally named `value` is `d.value.$value`.
 
-- `$pattern` / `$display` inherit from ancestors, the root included: `form.batch((d) => { d.$pattern = 'readPretty' })`
-  switches the whole form (a field with its own pattern wins; `undefined` inherits again). To start that way (a detail
-  page), `useForm({ initialValues, pattern: 'readPretty' })` sets the root `$pattern` at creation.
+- Four independent booleans. `visible` (default true) renders. `disabled` grays the control out. `readOnly` renders the
+ preview (`disabled` and `readOnly` together: `readOnly` wins). `omit` leaves the field out of submit. Validation runs
+ only when `visible && !disabled && !readOnly`; otherwise existing errors clear. Submit looks only at `omit`
+ (`visible: false` still submits). Reaction-written fields submit unless `omit`.
+ `visible` / `disabled` / `readOnly` inherit by OR from ancestors; an explicit `false` exits. `omit` does not inherit.
+ `useForm({ readOnly: true })` (and `disabled`) sets the root. `undefined` drops the reaction layer.
 - Empty values (`''`, `null`, `undefined`) are judged only by `required`: `minLength`, `pattern`, `min`, `format` pass them.
 
 - Read data with `$value`; write a field by assigning its own path: `d.user.name.$value = 'x'`.
@@ -53,7 +56,7 @@ call site, the states it reads and the states it writes. Production skips the ch
 
 - `reaction((d) => …)` **derives** state. Every `$` read is a dependency; writes are not. It re-runs only when a key
   it read changes, and its writes wake downstream reactions in the same flush. A field whose `$value` a reaction
-  writes becomes computed (`readPretty` by default, still submitted). Declare `display: 'virtual'` to omit it. Two reactions writing the same state is an error.
+  writes becomes computed (still editable and still submitted; set `readOnly` or `omit` yourself). Two reactions writing the same state is an error.
 - `watch(source, effect)` is an **action**: it runs after `source`'s reads change, never on the first pass; reads
   inside `effect` are not dependencies. Use it for "when X changes, do Y once" (reset a dependent field, fetch).
 - Writes are buffered until the pass returns: keep a new value in a local instead of reading it back. UI state is

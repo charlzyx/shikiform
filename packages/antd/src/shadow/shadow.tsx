@@ -11,7 +11,7 @@ import {
   type ReactNode,
 } from 'react'
 import { engineOf, formatMessage, ShikiUsageError } from '@shikiform/core/internal'
-import type { FormInstance, FormMessageKey, MessageArgs, Pattern } from '@shikiform/core/internal'
+import type { FormInstance, FormMessageKey, MessageArgs } from '@shikiform/core/internal'
 import { useShadowForm, type ShadowFormApi, type ShadowInit, type UseShadowFormOptions } from '@shikiform/hooks/internal'
 import {
   ArrayContext,
@@ -50,12 +50,12 @@ function idOf(form: FormInstance<any>): number {
   return id
 }
 
-function useShadowPattern(shadow: ShadowFormApi<any, any>): Pattern {
+function useShadowReadOnly(shadow: ShadowFormApi<any, any>): boolean {
   const engine = engineOf(shadow.form)
   return useSyncExternalStore(
     (onStoreChange) => engine.subscribePath('', onStoreChange),
-    () => engine.binding('').pattern,
-    () => engine.binding('').pattern,
+    () => engine.binding('').readOnly,
+    () => engine.binding('').readOnly,
   )
 }
 
@@ -153,7 +153,7 @@ function Trigger({ trigger, onOpen }: { trigger?: ReactNode; onOpen: () => void 
 
 /**
  * Edit a draft in an Ant Design `Modal` (Pro.formily `ShadowModal`). OK validates the draft, runs `onOk` (and writes
- * back when bound), and closes; Cancel discards it. In `readPretty` / `readOnly` the OK button is hidden and Cancel
+ * back when bound), and closes; Cancel discards it. In `preview` / `readOnly` the OK button is hidden and Cancel
  * defaults to `messages.close` (unless `modalProps.footer` is passed).
  */
 export function ShadowModal<TValues = any, TContext = unknown>(
@@ -165,8 +165,7 @@ export function ShadowModal<TValues = any, TContext = unknown>(
   },
 ) {
   const shadow = useOwnedShadow(props)
-  const pattern = useShadowPattern(shadow)
-  const viewOnly = pattern === 'readPretty' || pattern === 'readOnly'
+  const viewOnly = useShadowReadOnly(shadow)
   const t = useShadowMessage(shadow)
   const hasCustomFooter = !!props.modalProps && 'footer' in props.modalProps
   return (
@@ -197,7 +196,7 @@ export function ShadowModal<TValues = any, TContext = unknown>(
   )
 }
 
-/** Same as {@link ShadowModal} in an Ant Design `Drawer` with 取消 / 确定 (or 关闭 in readPretty / readOnly) in its footer. */
+/** Same as {@link ShadowModal} in an Ant Design `Drawer` with 取消 / 确定 (or 关闭 in preview / readOnly) in its footer. */
 export function ShadowDrawer<TValues = any, TContext = unknown>(
   props: ShadowOwnProps<TValues, TContext> & {
     drawerProps?: Omit<DrawerProps, 'open' | 'onClose'>
@@ -207,8 +206,7 @@ export function ShadowDrawer<TValues = any, TContext = unknown>(
   },
 ) {
   const shadow = useOwnedShadow(props)
-  const pattern = useShadowPattern(shadow)
-  const viewOnly = pattern === 'readPretty' || pattern === 'readOnly'
+  const viewOnly = useShadowReadOnly(shadow)
   const t = useShadowMessage(shadow)
   const hasCustomFooter = !!props.drawerProps && 'footer' in props.drawerProps
   const defaultFooter = (
@@ -256,8 +254,7 @@ export function ShadowPopconfirm<TValues = any, TContext = unknown>(
   },
 ) {
   const shadow = useOwnedShadow(props)
-  const pattern = useShadowPattern(shadow)
-  const viewOnly = pattern === 'readPretty' || pattern === 'readOnly'
+  const viewOnly = useShadowReadOnly(shadow)
   const t = useShadowMessage(shadow)
   const trigger = isValidElement(props.trigger) ? (
     props.trigger

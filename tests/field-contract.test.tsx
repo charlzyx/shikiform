@@ -13,16 +13,28 @@ function Input() {
 }
 
 describe('<Field> as the one field controller', () => {
-  it.each(['hidden', 'none'] as const)('does not render a %s field but preserves declared validation', async (display) => {
-    let engine!: FormInstance<{ email: string }>
+  it('does not render a hidden field, skips its validation, and still submits it', async () => {
+    let engine!: FormInstance<{ email: string }, { email?: string }>
     function App() {
-      const form = useForm({ initialValues: { email: '' }, fields: { email: { required: true, display } } })
+      const form = useForm({ initialValues: { email: '' }, fields: { email: { required: true, visible: false } } })
       engine = form
       return <Form form={form}><Field name="email" component={[Input]} /></Form>
     }
     expect(renderToStaticMarkup(<App />)).not.toContain('<input')
-    expect((await fieldErrorsOf(engine.validate())).length > 0).toBe(display === 'hidden')
-    expect(engine.getSubmitValues()).toEqual(display === 'none' ? {} : { email: '' })
+    expect(await fieldErrorsOf(engine.validate())).toEqual([])
+    expect(engine.getSubmitValues()).toEqual({ email: '' })
+  })
+
+  it('renders an omitted field, validates it, and leaves it out of submit', async () => {
+    let engine!: FormInstance<{ email: string }, { email?: string }>
+    function App() {
+      const form = useForm({ initialValues: { email: '' }, fields: { email: { required: true, omit: true } } })
+      engine = form
+      return <Form form={form}><Field name="email" component={[Input]} /></Form>
+    }
+    expect(renderToStaticMarkup(<App />)).toContain('<input')
+    expect((await fieldErrorsOf(engine.validate())).length > 0).toBe(true)
+    expect(engine.getSubmitValues()).toEqual({})
   })
 
   it('a fragment component under ObjectField binds the scoped value without claiming a JSX validation lease', () => {

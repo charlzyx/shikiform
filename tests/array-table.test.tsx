@@ -100,7 +100,7 @@ describe('ArrayTable', () => {
   })
 
   it('expandable rows render a nested read-only table in the row scope', async () => {
-    const form = createForm({ initialValues: { list: rows(3) }, pattern: 'readPretty' })
+    const form = createForm({ initialValues: { list: rows(3) }, readOnly: true })
     render(
       <Form form={form}>
         <ArrayField name="list" component={[ArrayTable, {
