@@ -125,7 +125,7 @@ describe('restoring declared validators after JSX unmount (#7)', () => {
 describe('exact declarations alongside wildcard templates (#8)', () => {
   for (const source of ['fields', 'registerField'] as const) {
     for (const restore of ['setValue', 'reset'] as const) {
-      it(`keeps virtual from ${source} after clearing and ${restore}`, async () => {
+      it(`keeps omit from ${source} after clearing and ${restore}`, async () => {
         const form = createEngine<{ rows: { token: string }[] }>({
           initialValues: { rows: [{ token: 'example-only' }] },
           fields: {
@@ -148,7 +148,7 @@ describe('exact declarations alongside wildcard templates (#8)', () => {
     }
   }
 
-  it('keeps an explicit virtual false override of a virtual template', () => {
+  it('keeps an explicit omit: false override of an omit template', () => {
     const form = createEngine({
       initialValues: { rows: [{ token: 'keep' }] },
       fields: {

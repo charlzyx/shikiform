@@ -138,7 +138,7 @@ describe('connect + mapProps prop mapping', () => {
     expect(props.extra).toBe(1)
   })
 
-  it('treats readPretty as readOnly when there is no read-pretty view', () => {
+  it('passes readOnly through when there is no preview', () => {
     const seen: Record<string, any>[] = []
     const Probe = connect((props: Record<string, any>) => { seen.push(props); return null })
     const form = createEngine({ initialValues: { x: 'x' }, fields: { x: { readOnly: true } } })
@@ -146,7 +146,7 @@ describe('connect + mapProps prop mapping', () => {
     expect(seen.at(-1)!.readOnly).toBe(true)
   })
 
-  it('supports readPretty: [View, defaultProps] tuple and last-enhancer-wins override', () => {
+  it('supports preview: [View, defaultProps] tuple and last-enhancer-wins override', () => {
     const FirstView = ({ value, badge }: { value?: string; badge?: string }) => (
       <span data-view="first" data-badge={badge}>{value}</span>
     )
@@ -221,7 +221,7 @@ describe('connect', () => {
     expect(seen.at(-1)!.id).toBe('f-city')
   })
 
-  it('renders the readPretty view in readPretty and the control otherwise', () => {
+  it('renders the preview when readOnly and the control otherwise', () => {
     const Control = connect((props: { value?: string; onBlur?: () => void }) => <input data-control value={props.value} readOnly />, mapProps({ preview: PreviewText }))
     const editable = createEngine({ initialValues: { x: 'hi' } })
     const pretty = createEngine({ initialValues: { x: 'hi' }, fields: { x: { readOnly: true } } })
@@ -315,7 +315,7 @@ describe('FormItem', () => {
     expect(await fieldErrorsOf(form.validate())).toEqual([{ path: 'code', messages: ['至少 3 个字符'] }])
   })
 
-  it('renders nothing for display hidden / none and hides the required mark in readPretty', () => {
+  it('renders nothing when visible is false and hides the required mark when readOnly', () => {
     const hidden = createEngine({ initialValues: { a: 1 }, fields: { a: { visible: false } } })
     expect(renderToStaticMarkup(<Form form={hidden}><Field name="a" title="A" decorator={[FormItem]}><InputNumber /></Field></Form>)).not.toContain('A')
     const pretty = createEngine({ initialValues: { a: 1 }, fields: { a: { readOnly: true, required: true } } })
@@ -531,7 +531,7 @@ describe('connected Ant Design controls', () => {
     expect(html).not.toContain('blue')
   })
 
-  it('Switch and Checkbox bind checked; readPretty shows messages.yes / no', () => {
+  it('Switch and Checkbox bind checked; the preview shows messages.yes / no', () => {
     for (const Control of [Switch, Checkbox]) {
       const { form, field } = binding(false)
       const el = target(Control, { field })

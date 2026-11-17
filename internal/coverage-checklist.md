@@ -11,7 +11,7 @@ description: 对照 Formily / pro.formily / ProComponents / SKU 表格编辑的�
 
 图例：✅ 已通过对应验收 · ⚠️ 已有实现但部分缺失或待实测 · ❌ 缺 · ⏸️ v1 明确不做。测试文件存在不等于已经跑过；本地或 PR 通过不等于官网已发布。
 
-本页是 backlog，不是全量通过报告。用户验收的唯一入口是 `shikiform.pages.dev`；分支改动未合入并发布前，只能标为待上线。本批把可执行教程迁到了正式包；历史教学子集的通过记录不能替代现在的包消费者和浏览器验收，见 [产品验收标准](/OUTLINE#产品验收标准) 和 [显隐](/guide/display)。
+本页是 backlog，不是全量通过报告。用户验收的唯一入口是 `shikiform.pages.dev`；分支改动未合入并发布前，只能标为待上线。本批把可执行教程迁到了正式包；历史教学子集的通过记录不能替代现在的包消费者和浏览器验收，见 [产品验收标准](/OUTLINE#产品验收标准) 和 [字段状态](/basics/state)。表里写出的 `docs/guide/display.mdx`、`docs/tutorial/5-pattern.mdx`、`tests/display.test.ts` 是改名之前的路径记录，不是现行配置。
 
 ---
 
@@ -23,7 +23,7 @@ description: 对照 Formily / pro.formily / ProComponents / SKU 表格编辑的�
 | P0-2 | SKU 表格编辑（合并单元格改整组） | Formily ArrayTable + rowspan；「嵌套+合并+编辑」交集 | PLAN §3.1/3.2/3.4；usage 暗示与 07 共用 SKUS | ⚠️ 实现/测试源已在 PR；浏览器待验收。 `/play/sku-editor` 与 P0-1 共用 `playground/skus.ts`。颜色列 rowspan，改合并色写入整组，价/库存按行。增维是多一列渠道，按 `skuId` 留在原行，不重建矩阵。单测覆盖涂色留价；e2e 覆盖组内同步和加列后价格还在 | 已补。没有「按新维度组合键迁移价格」的第二套算法 | 改合并色→组内同步；加列后旧价还在，策略写在页面上 |
 | P0-3 | 供应商→产品合并表编辑 | Pro 可编辑嵌套表 | usage/08 | ⚠️ 实现/测试源已在 PR；浏览器待验收。 `/play/merged`：数据保持 `suppliers[].products[]`。合并列绑父（名称、等级、组上移、加产品），子列绑产品。只看在售后 rowspan 重算。父重名显示在合并格。C 级单价 ≤ 1000 用 `ctx.parent.level`。没有 `MergedTable.Group` / `Column` 插槽，列在页面里写 | 行为已补；插槽组件未做 | 编辑供应商名一次整组更新；过滤后 rowspan 重算；跨层校验 |
 | P0-4 | QueryFilter + Table 全套 | ProComponents ProTable/QueryFilter；pro.formily QueryForm/Table | usage/09；PLAN §3.3 | ⚠️ 实现/测试源已在 PR；浏览器待验收。 `/play/query`：Grid 自动宽、折叠留值、`params` 省略空值并 trim、列筛选与查询表单共用 `status` 且立即查询回第 1 页并清空选择、批量标记、provider→model。React `Field` 还没有 `ui` 属性，列筛选不是 `d.status.$ui('filter')` | 行为已补；UI Brand 单独显隐未做 | e2e：折叠不清空、列筛回第 1 页并清空选择、新查询清空选择 |
-| P0-5 | 行展开二级表 + 行内编辑 | Pro EditableProTable / 嵌套 | usage/10；row-edit | ⚠️ 实现/测试源已在 PR；浏览器待验收。 `/play/orders`：`expandedKeys` 为 virtual。展开里改数量，收起再开仍在。编辑开关切换 `orders` 的 pattern，已发货行显式 `readPretty`。直接写正式值。页面写明不做 Shadow 草稿，没有取消回滚。旧的 `/play/nested`、`/play/row-edit` 仍在 | 已补 v1。Shadow 草稿仍 ⏸️ | e2e：展开编辑→收起再开仍在；文档标明直接写 |
+| P0-5 | 行展开二级表 + 行内编辑 | Pro EditableProTable / 嵌套 | usage/10；row-edit | ⚠️ 实现/测试源已在 PR；浏览器待验收。 `/play/orders`：`expandedKeys` 为 omit。展开里改数量，收起再开仍在。编辑开关切换 `orders` 的 `readOnly`，已发货行显式 `readOnly`。直接写正式值。页面写明不做 Shadow 草稿，没有取消回滚。旧的 `/play/nested`、`/play/row-edit` 仍在 | 已补 v1。Shadow 草稿仍 ⏸️ | e2e：展开编辑→收起再开仍在；文档标明直接写 |
 
 ---
 
@@ -36,12 +36,12 @@ description: 对照 Formily / pro.formily / ProComponents / SKU 表格编辑的�
 | P1-3 | 嵌套 Object | Formily ObjectField | usage/03 | ⚠️ nested 偏表 | 地址对象相对名 + 模块函数复用 |
 | P1-4 | Array 增删排序 | Formily ArrayField | usage/04 | ⚠️ 仅随表出现 | 独立 Array demo + 嵌套路径 remove/move |
 | P1-5 | Tree 排序移动（按钮版） | Formily 树 | usage/05；DECISIONS D2 | ⚠️ tree 单测有；无拖拽 ⏸️ | 按钮 indent/outdent/up/down；禁止移入后代 |
-| P1-6 | Computed / 派生只读 | Formily reactions 计算 | usage/06 | ⚠️ 随 SKU/query | 独立页：合计、virtual 默认可改提交 |
+| P1-6 | Computed / 派生只读 | Formily reactions 计算 | usage/06 | ⚠️ 随 SKU/query | 独立页：合计。计算字段默认可编辑、仍提交，不提交再写 `omit` |
 | P1-7 | 联动图谱（1:N / N:1 / N:N） | Formily reactions | usage/15 | ❌ 无独立页 | 三例并排 + 环检测报错展示 |
 | P1-8 | effects 语法参考 | Formily effects | usage/16 | ⚠️ 实现/测试源已在 PR；浏览器待验收。 [联动](/guide/effects)：`reaction` / `reaction.each` / `watch`，以及不要读刚写的值、不要两个 reaction 写同一状态。用例 16 仍是草稿 | 指南已补 |
-| P1-9 | pattern 四态 | Formily pattern | DECISIONS D5 | ⚠️ 实现/测试源已在 PR；浏览器待验收。 [pattern](/guide/pattern) 可切换四态，备注强制 `editable` 盖过父级 | 已补 |
+| P1-9 | 四个布尔 | `visible` / `disabled` / `readOnly` / `omit` | DECISIONS D5 | ⚠️ 实现/测试源已在 PR；浏览器待验收。 [字段状态](/basics/state) 可切换四个布尔，这一层写了 `true` 或 `false` 就用这一层 | 已补 |
 | P1-10 | 校验与枚举（同步/异步/跨字段/枚举合法） | Formily + pro.formily Enum | usage/11；QUALITY §4 | ⚠️ 仍有「本地 state 旧 demo」风险。指南 [校验](/guide/validation) 写了触发时机、卸载和跨层 `ctx.parent`，没有单独的枚举合法页 | 规则进 JSX/effect；async 过期作废；枚举外值报错；禁止 alert |
-| P1-11 | 显隐语义 | Formily display | PLAN §2.7 | ⚠️ 实现/测试源已在 PR；浏览器待验收。 [显隐](/guide/display) + `/play/display`。`$visible = false` 是 `hidden`：保留值、仍然校验、仍然提交。`none` 才跳过校验并不提交。父级覆盖子级。清单旧文「跳过校验」与库不一致，以库为准 | 已按库的行为补 |
+| P1-11 | 显隐语义 | 字段 `visible` / `omit` | PLAN §2.7 | ⚠️ 实现/测试源已在 PR；浏览器待验收。 [字段状态](/basics/state) + `/play/display`。`$visible = false` 不渲染、跳过校验、值仍提交。不提交再写 `$omit = true`。这一层写了 `true` 或 `false` 就用这一层 | 已按库的行为补 |
 | P1-12 | address vs path / UI Brand | Formily address | usage/14 | ❌ | 同 path 双 UI、`ui="summary"` 单独控显隐 |
 | P1-13 | 跨模块规则 | Formily 模块化 | usage/13 | ❌ | 显式传 handle，不耦合宿主 root |
 | P1-14 | tabs / forceMount 与未挂载校验 | Formily 隐藏字段 | DECISIONS Q5 | ⚠️ [没挂载的字段](/guide/unmounted) 和 [校验](/guide/validation) 写了 JSX `rules` 与 `$rules`。库没有 `forceMount` 这个 prop。`hidden` 仍校验，见 P1-11 | 文档写清声明字段 vs 挂载；forceMount 示例 |
@@ -54,7 +54,7 @@ description: 对照 Formily / pro.formily / ProComponents / SKU 表格编辑的�
 |---|---|---|---|---|---|
 | P2-1 | Grid 查询变体 | Pro QueryFilter 多断点 | ❌ | 多列数/按钮占位对比 demo | |
 | P2-2 | EditableProTable 风格批量行编辑 | ProComponents | ⚠️ row-edit 浅 | 多行同时编、行校验不挡他行 | |
-| P2-3 | ProEnumPretty / 查看态 Tag | pro.formily | ❌/弱 | 编辑 Select → readPretty Tag 色映射 | |
+| P2-3 | ProEnumPretty / 查看态 Tag | pro.formily | ❌/弱 | 编辑 Select → 只读预览 Tag 色映射 | |
 | P2-4 | CascaderPlus（懒树） | pro.formily | ⚠️ 若仍是列式 select | 文档标明非浮层；或补浮层 ⏸️ | |
 | P2-5 | ShadowForm 弹窗编辑 | pro.formily | ✅ 已实现 | `useShadowForm` / `useArrayShadow`（`@shikiform/hooks`）+ `ShadowModal` / `ShadowDrawer` / `ShadowPopconfirm` / `ShadowForm`（`@shikiform/antd`）；`/play/shadow-form`、`/play/array-table-shadow` | `tests/shadow-form.test.tsx`、`tests/playground-pro.test.tsx` |
 | P2-6 | ArrayTable 工具栏/列设置 | ProTable | ❌ | 刷新/导出/列设置不进表单值 | |
@@ -103,7 +103,7 @@ description: 对照 Formily / pro.formily / ProComponents / SKU 表格编辑的�
 - [x] 本文件入库
 - [x] Rspress 能打开该清单页
 - [x] 侧边栏或教程索引可见
-- [x] 指南加了联动、pattern、显隐、path 和提交、校验、可点的例子。没挂载的字段还在。
+- [x] 指南加了联动、四个布尔、显隐、path 和提交、校验、可点的例子。没挂载的字段还在。
 - [x] P0-1 `/play/sku-picker`，P0-2 `/play/sku-editor`，P0-3 `/play/merged`，P0-4 `/play/query`，P0-5 `/play/orders`。显隐示例在 `/play/display`。
 - [ ] 上述场景通过浏览器回归并发布到官网后，再按验收逐项确认。`MergedTable.Group` 插槽、`Field` 的 `ui`、Shadow 草稿没有标成完成。
 
@@ -136,20 +136,20 @@ description: 对照 Formily / pro.formily / ProComponents / SKU 表格编辑的�
 | P1-3 | `docs/tutorial/2-fields.mdx`、`docs/tutorial/3-path.mdx`、`playground/pages/schema.tsx`、`src/react/factory/typed.tsx` | `e2e/schema.spec.ts`、`tests/types.test.tsx` | 已有教学地址对象，以及正式库 typed<Address>() 片段（快速开始「复用一段字段」），不是只有nested表；缺独立复用指南和同模块双实例演示。 |
 | P1-4 | `docs/tutorial/7-array.mdx`、`playground/pages/headless.tsx`、`src/react/hooks/use-array.ts` | `tests/move.test.ts`、`tests/declared.test.ts`、`e2e/headless.spec.ts` | 教学有增删+each；正式库有数组移动/错误按ID迁移；缺独立增删复制排序和嵌套路径综合页。 |
 | P1-5 | `src/core/shared/tree-ops.ts`、`src/react/hooks/use-tree.ts`、`playground/pages/headless.tsx` | `tests/tree.test.ts`、`e2e/headless.spec.ts` | 正式库实际已有move及HTML5拖动示例，不应仍称无拖拽；清单指定indent/outdent/up/down按钮页缺。TreeField是正式公开导出；当前教程仍未提供独立树交互页。 |
-| P1-6 | `docs/tutorial/6-reaction.mdx`、`docs/guide/effects.mdx`、`docs/guide/path.mdx`、`src/core/engine/form-engine.ts` | `tests/tutorial-contract.test.tsx`、`tests/reaction.test.ts`、`tests/submit-regressions.test.ts` | 已有独立教学计算页和virtual说明；正式库报价单式合计+virtual=false提交的可点组合缺。 |
+| P1-6 | `docs/tutorial/6-reaction.mdx`、`docs/guide/effects.mdx`、`docs/guide/path.mdx`、`src/core/engine/form-engine.ts` | `tests/tutorial-contract.test.tsx`、`tests/reaction.test.ts`、`tests/submit-regressions.test.ts` | 已有独立教学计算页和 `omit` 说明；正式库报价单式合计（默认提交，`omit` 才剔除）的可点组合缺。 |
 | P1-7 | `docs/guide/effects.mdx`、`playground/pages/query.tsx`、`playground/skus.ts`、`src/core/errors.ts` | `tests/reaction.test.ts`、`tests/sku-picker.test.ts`、`tests/tutorial-contract.test.tsx` | 实例分散；缺三个形状并排及cycle/conflict错误可视化与修正方法。 |
 | P1-8 | `docs/guide/effects.mdx`、`docs/tutorial/6-reaction.mdx`、`docs/tutorial/7-array.mdx`、`docs/tutorial/8-watch.mdx`、`src/core/types.ts` | `tests/reaction.test.ts`、`tests/tutorial-contract.test.tsx` | PR11补指南，但正式reaction/watch/each/walk签名、参数、返回清理/触发时机未成检索API；本批已使用正式包；walk的渐进示例仍缺。 |
-| P1-9 | `docs/tutorial/5-pattern.mdx`、`docs/guide/pattern.mdx`、`playground/pages/orders.tsx`、`src/react/components/fields.tsx` | `tests/display.test.ts`、`tests/tutorial-contract.test.tsx`、`e2e/orders.spec.ts` | 四态可切教学页存在，正式lib有继承/覆盖单测及订单readPretty流程；无四态同字段完整浏览器矩阵。 |
+| P1-9 | `docs/tutorial/5-pattern.mdx`、`docs/guide/pattern.mdx`、`playground/pages/orders.tsx`、`src/react/components/fields.tsx` | `tests/display.test.ts`、`tests/tutorial-contract.test.tsx`、`e2e/orders.spec.ts` | 四个布尔的教学页存在，正式库有继承/覆盖单测及订单只读预览流程；无四个布尔同字段完整浏览器矩阵。 |
 | P1-10 | `playground/pages/schema.tsx`、`src/core/validation/rules.ts`、`src/core/enum/enum-source.ts`、`docs/guide/validation.mdx` | `tests/schema.test.ts`、`tests/meta.test.ts`、`tests/p2-validation.test.ts`、`tests/registration-regressions.test.ts`、`tests/submit-regressions.test.ts`、`e2e/schema.spec.ts` | 现schema demo是真库，不是旧本地state假校验；缺独立async+枚举非法值页及Enum缓存/并发/enumPolicy专项回归。 |
-| P1-11 | `docs/guide/display.mdx`、`playground/pages/display.tsx`、`src/core/engine/form-engine.ts` | `tests/display.test.ts`、`tests/declared.test.ts`、`e2e/display.spec.ts`、`e2e/schema.spec.ts`、`tests/tutorial-contract.test.tsx` | PR11明确hidden仍校验/提交，none才跳过；本批已改为正式库hidden语义并补聚合错误；仍待浏览器及官网验收。 |
+| P1-11 | `docs/guide/display.mdx`、`playground/pages/display.tsx`、`src/core/engine/form-engine.ts` | `tests/display.test.ts`、`tests/declared.test.ts`、`e2e/display.spec.ts`、`e2e/schema.spec.ts`、`tests/tutorial-contract.test.tsx` | `$visible = false` 不渲染、跳过校验、值仍提交；不提交再加 `omit`。仍待浏览器及官网验收。 |
 | P1-12 | `src/core/draft/handle.ts`、`src/core/types.ts`、`src/core/engine/form-engine.ts`、`docs/tutorial/_files/fields.tsx`、`src/react/components/fields.tsx` | 暂无专项测试 | 命名 UI（$ui / query(path,{ui})）2026-11-01 已从引擎删除，不再计划。 |
 | P1-13 | `src/react/factory/typed.tsx`、`playground/pages/schema.tsx`、`archive/usage/13-cross-module.tsx` | `tests/types.test.tsx` | 有typed field group复用；显式传handle/输入而不耦合root的跨模块规则仍只有归档草稿。 |
 | P1-14 | `docs/guide/unmounted.mdx`、`docs/guide/validation.mdx`、`playground/pages/tabs.tsx`、`src/core/engine/form-engine.ts` | `tests/declared.test.ts`、`tests/p2-validation.test.ts`、`tests/registration-regressions.test.ts`、`e2e/tabs.spec.ts`、`tests/tutorial-contract.test.tsx` | 声明vsJSX生命周期已有实现和回归源；不存在forceMount库prop，别为对齐旧草稿假装导出。本批使用正式React字段；SSR/模型验证不能代替浏览器生命周期实测。 |
 | P2-1 | `src/antd/tables/query-list.tsx`、`playground/pages/query.tsx` | `e2e/query.spec.ts` | QueryList 查询条件区是auto-fit minmax(220px,1fr)，有折叠；已有 1280/480 两宽度断言源；缺多断点/列数/按钮占位比较页和更完整矩阵。 |
-| P2-2 | `playground/pages/row-edit.tsx`、`playground/pages/orders.tsx` | `tests/row-edit.test.ts`、`e2e/row-edit.spec.ts`、`e2e/orders.spec.ts` | 现row-edit只用一个virtual editor抽屉；orders直接写正式值。多行同时编辑、逐行验证互不阻挡未覆盖。 |
-| P2-3 | `src/antd/form-hook/form-hook.tsx`、`src/core/enum/enum-source.ts` | 暂无专项测试 | EnumOption支持color；FieldSelect readPretty仅String(value)，无label/color→Tag完整例子/封装。 |
+| P2-2 | `playground/pages/row-edit.tsx`、`playground/pages/orders.tsx` | `tests/row-edit.test.ts`、`e2e/row-edit.spec.ts`、`e2e/orders.spec.ts` | 现 row-edit 只用一个 `omit` 编辑抽屉；orders 直接写正式值。多行同时编辑、逐行验证互不阻挡未覆盖。 |
+| P2-3 | `src/antd/form-hook/form-hook.tsx`、`src/core/enum/enum-source.ts` | 暂无专项测试 | EnumOption支持color；只读 Select 预览仅 String(value)，无 label/color→Tag 完整例子/封装。 |
 | P2-4 | `src/core/enum/enum-source.ts`、`archive/usage/11-validation-enum.tsx` | 暂无专项测试 | 只有EnumOption.children/async source基础；当前正式antd导出无CascaderPlus，可运行懒树选择器页亦无。新浮层按清单延后。 |
-| P2-5 | `archive/usage/DECISIONS.md`、`playground/pages/row-edit.tsx` | `tests/row-edit.test.ts`、`e2e/row-edit.spec.ts` | v1明确不做ShadowForm。现virtual editor手动复制/确认不能声称通用Shadow能力。 |
+| P2-5 | `archive/usage/DECISIONS.md`、`playground/pages/row-edit.tsx` | `tests/row-edit.test.ts`、`e2e/row-edit.spec.ts` | v1明确不做ShadowForm。现 `omit` 编辑区手动复制/确认不能声称通用 Shadow 能力。 |
 | P2-6 | `src/antd/tables/array-table.tsx`、`src/antd/tables/query-list.tsx` | 暂无专项测试 | ArrayTable只有行/virtualScroll渲染；QueryTable的refresh/toolbar不能充作ArrayTable导出/列设置能力。 |
 | P2-7 | `src/pro/use-query-table.ts`、`src/antd/tables/query-list.tsx` | `e2e/query-native.spec.ts`、`e2e/query.spec.ts` | 清单延后要细化：当前同一查询内选择已跨页保留，submit/reset清空；跨查询/全选远端全集等不做。不要把已有同查询行为再实现一遍。 |
 | P2-8 | `playground/pages/headless.tsx`、`playground/pages/large.tsx`、`src/react/hooks/use-field.ts` | `e2e/headless.spec.ts`、`e2e/large.spec.ts` | 有原生DOM/useField绑定，headless页本身主要拖动/文本；缺从value/onChange/onBlur/errors逐步接入的独立教程。 |

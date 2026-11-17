@@ -154,7 +154,7 @@ function SortHandle() {
   )
 }
 
-/** 1-based row number: `#1`. Shown in every pattern. */
+/** 1-based row number: `#1`. Shown whether or not the array is editable. */
 function Index({ prefix = '#' }: { prefix?: ReactNode }) {
   const index = useIndex()
   return <span data-testid="row-index">{prefix}{index + 1}</span>

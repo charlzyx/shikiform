@@ -192,7 +192,7 @@ const form = createForm({
   `fileList`), ColorPicker (value = color text). Lazy per-level cascader: `CascaderPlus`; remote-search select: `Suggestion`.
 - Preview (`readOnly`): every control has a read view (`PreviewText.*`): enum labels, several values as tags (`prettyType="badge" |
   "tag"` on choice controls), dates as text, password `******`. Empty values show `messages.empty` (default `-`; set it once
-  per form `useForm({ messages: { empty } })` or app-wide `setDefaultMessages`). A display-only enum cell is
+  per form `useForm({ messages: { empty } })` or app-wide `setDefaultMessages`). A read-only enum cell is
   `<Field readOnly component={[Select, { prettyType: 'badge' }]} />`; outside a form `<PreviewText.Select value options />`;
   a custom control reuses a view: `connect(MyPicker, mapProps({ preview: PreviewText.TreeSelect }))`.
 
@@ -227,7 +227,7 @@ const form = useForm<Detail>({ initialValues, readOnly: true })   // a detail pa
   Headers badge the number of fields with errors. A failed `submit()` / `form.validate()` shows the error by itself:
   FormTab activates the first pane holding one, FormCollapse opens those panels, FormStep goes to the earliest such
   step, then `<Form>` focuses the first errored field (no prop; controlled containers get `onChange`). Do not write an
-  `onInvalid` that switches tabs. Do not use bare antd `Tabs` / `Collapse` around fields (inactive panes do not mount). They own no value path: name fields as usual; pattern inherits along field paths.
+  `onInvalid` that switches tabs. Do not use bare antd `Tabs` / `Collapse` around fields (inactive panes do not mount). They own no value path: name fields as usual; `visible` / `disabled` / `readOnly` inherit along field paths (this level's `true` or `false` wins; unset keeps the parent).
 
 ```tsx
 <FormTab><FormTab.Pane name="base" tab="基本">…fields…</FormTab.Pane><FormTab.Pane name="more" tab="更多">…</FormTab.Pane></FormTab>
@@ -250,12 +250,12 @@ const step = useFormStep()   // in the component with the buttons; { current, co
   field context itself is internal.
 
 - Named UI nodes (`/guide/ui`): a second UI of the **same field** is `<Field name="x" ui="echo" component={[Echo]} />`
-  (shared value / errors / rules / options; its own display, pattern, title, componentProps, decoratorProps; DOM id
+  (shared value / errors / rules / options; its own visible, disabled, readOnly, title, componentProps, decoratorProps; DOM id
   `<form id>-x--echo`, or a `useId()` prefix when `<Form>` has no `id`); in effects `d.x.$ui('echo').$disabled = true`. Inside it `useField()` returns the shared field with
-  the instance's UI state (`field.ui === 'echo'`). Put `rules` / `required` / `enum` / `display` on the `<Field>`
+  the instance's UI state (`field.ui === 'echo'`). Put `rules` / `required` / `enum` / `omit` on the `<Field>`
   without `ui` (an instance ignores them, dev warning). A UI with **no value** (a tip, a group box) is
   `<UI name="tip" component={[Alert, props]}>children</UI>` → `d.$ui('tip')` (in a row: `row.$ui('tip')`); never in
-  values / submit / validation. Priority reaction > JSX > fallback; unset display / pattern fall back to the field's
+  values / submit / validation. Priority reaction > JSX > fallback; unset visible / disabled / readOnly fall back to the field's
   (a `<UI>`: its scope's), so a form-wide `$readOnly` still reaches them; componentProps never inherit.
   **Hiding a UI does not cascade**: a `<UI>` that hides unmounts its children, but each field inside keeps its own
   `$visible`, validation and submit — hide the field too (`d.x.$visible = false`) if its data should go.

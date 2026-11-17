@@ -320,7 +320,7 @@ describe('reaction `$enum = undefined` falls back', () => {
   })
 })
 
-describe('<Field enum> with antd choice controls (editable + readPretty)', () => {
+describe('<Field enum> with antd choice controls (editable + readOnly)', () => {
   function mount(readOnly?: boolean) {
     function App() {
       const form = useForm<Values>({ initialValues: { level: 'silver', tags: ['gold'], n: 1 }, readOnly })
@@ -343,7 +343,7 @@ describe('<Field enum> with antd choice controls (editable + readPretty)', () =>
     expect(view.container.querySelector('.ant-select-selection-item')?.textContent).toBe('白银')
   })
 
-  it('readPretty shows labels, not values', () => {
+  it('readOnly shows labels, not values', () => {
     const view = mount(true)
     const text = view.container.textContent!
     expect(text).toContain('白银')

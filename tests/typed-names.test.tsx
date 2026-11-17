@@ -263,7 +263,7 @@ describe('typed handles (runtime)', () => {
     expect(seen).toMatchObject({ items: [{ id: 1, name: 'y', total: 0 }] })
   })
 
-  it('getSubmitValues drops virtual fields that SubmitValues marks optional (#43)', () => {
+  it('getSubmitValues drops omit fields that SubmitValues marks optional (#43)', () => {
     const form = createForm<V, SubmitValues<V, 'email'>>({ initialValues: init, fields: { email: { omit: true } } })
     const values = form.getSubmitValues()
     expect('email' in values).toBe(false)

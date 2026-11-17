@@ -67,7 +67,7 @@ export function schemaIssuePath(path: StandardSchemaV1.Issue['path'] | undefined
  * Run a Standard Schema. Sync and async schemas both come back as a list.
  * A thrown validator becomes a single issue on the value itself.
  * An issue without a message, or a throw without one, gets `fallback` (default: the `fallback` built-in message).
- * The caller decides which paths are display `none` and must be dropped.
+ * The caller decides which paths are `omit` and must be dropped.
  */
 export async function collectSchemaIssues(
   schema: StandardSchemaV1,

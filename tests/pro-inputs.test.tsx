@@ -93,7 +93,7 @@ describe('useLazyCascader', () => {
   })
 })
 
-describe('CascaderPlus readPretty labels', () => {
+describe('CascaderPlus read-only labels', () => {
   const load = () => vi.fn(async (path: Array<string | number>) => AREA[JSON.stringify(path)] ?? [])
 
   it('useCascaderLabels resolves bare codes through the loader, and skips loading for labelInValue', async () => {
@@ -112,7 +112,7 @@ describe('CascaderPlus readPretty labels', () => {
     expect(cascaderPaths([[{ label: 'a', value: 1 }, 2], 'bad'], true)).toEqual([[1, 2]])
   })
 
-  it('shows labels, not codes, for a readPretty field without labelInValue (single and multiple)', async () => {
+  it('shows labels, not codes, for a read-only field without labelInValue (single and multiple)', async () => {
     const form = createForm({
       initialValues: { one: ['110000', '11000000', '110105'], many: [['110000', '11000000', '110105'], ['410000', '410600', '410621']] },
       fields: { one: { readOnly: true }, many: { readOnly: true } },

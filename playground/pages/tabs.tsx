@@ -22,7 +22,7 @@ const effects = defineEffects<Values>(({ reaction }) => {
 /**
  * Engine behaviour, on purpose without FormTab (FormTab keeps every pane mounted): here the inactive "tab" is really
  * unmounted. Rules declared in `fields` belong to the path and still run (`code` while on 基本); a rule written in JSX
- * (`note`) lives only while its `<Field>` is mounted; display `none` (`ghost`) is never validated.
+ * (`note`) lives only while its `<Field>` is mounted; `ghost` is `visible: false` and `omit: true`, so it is never validated.
  */
 export function TabsPage() {
   const form = useForm<Values>({

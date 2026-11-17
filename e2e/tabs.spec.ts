@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-test('an unmounted declared field still fails submit and display none does not', async ({ page }) => {
+test('an unmounted declared field still fails submit and a hidden omitted field does not', async ({ page }) => {
   await page.goto('/play/tabs')
   await expect(page.getByTestId('code')).toHaveCount(0)
   await expect(page.getByTestId('ghost')).toHaveCount(0)

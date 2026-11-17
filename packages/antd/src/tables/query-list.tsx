@@ -116,7 +116,7 @@ function cellSpan(child: ReactNode, columns: number): number {
 /**
  * The cells of the search grid plus the button cell (antd Pro `QueryFilter`): collapsed, the fields that fit in the
  * first row beside the buttons (at least one); expanded, all of them. The buttons always sit in the last column, on
- * the last row when it has room. Hidden fields stay mounted (`display: none`), so their values still search.
+ * the last row when it has room. Folded fields stay mounted with CSS `display: none`, so their values still search.
  */
 function QueryCells<TValues, TParams, TRow>({ table, children }: { table: QueryTableApi<TValues, TParams, TRow>; children: ReactNode[] }) {
   const columns = useFormGrid()?.columns ?? 1

@@ -76,7 +76,7 @@ export interface UseQueryTableOptions<TValues, TParams, TRow> {
    * Omit to use the whole form value. `TParams` is that payload; `TRow` is one element of `request`'s `data`.
    */
   params?: FieldPath<TValues> | ((values: TValues) => TParams)
-  /** Page field. Default `'page'`. Client mode omits it from submit; server mode leaves the caller's display alone. */
+  /** Page field. Default `'page'`. Client mode omits it from submit; server mode does not change the caller's `visible` / `omit`. */
   page?: FieldPath<TValues>
   /** Page size field. Default `'pageSize'`. */
   pageSize?: FieldPath<TValues>
@@ -157,8 +157,8 @@ export interface QueryTableApi<TValues, TParams, TRow> {
  * `TValues` is inferred from `initialValues` or `form`. `TRow` is inferred from `request`'s `data`.
  * `params: 'filters'` types the request payload as that field's value.
  * `params: (values) => ...` types it as the function's return. Omit `params` to send the whole form value.
- * `page` is omitted from submit in `client` mode and left alone in `server` mode (a caller's `hidden` / `none` stays).
- * `selectedKeys` is always omitted from submit. Neither write touches the field's display.
+ * `page` is omitted from submit in `client` mode and left alone in `server` mode (a caller's `visible` / `omit` stays).
+ * `selectedKeys` is always omitted from submit. Neither write changes `visible`.
  */
 /**
  * `useQueryTable<Values>()({ initialValues, … })` fixes the form type (so `[]` / `{}` / union literals are checked
@@ -208,7 +208,7 @@ export function useQueryTable<TValues, TParams = TValues, TRow = unknown>(
   const ready = useRef(false)
   if (!ready.current) {
     ready.current = true
-    // Submit only. A caller's `hidden` / `none` / `virtual` on these paths stays; server mode does not write display.
+    // Submit only. A caller's `visible` / `omit` on these paths stays; server mode does not write them.
     if (mode === 'client') {
       form.registerField(pagePath, { omit: true })
       form.registerField(sizePath, { omit: true })

@@ -42,7 +42,7 @@ const nimbusConfig = defineNimbusConfig({
           { label: "总览", link: "/tutorial" },
           { label: "字段", link: "/tutorial/1-start" },
           { label: "路径", link: "/tutorial/2-path" },
-          { label: "状态与 display", link: "/tutorial/3-state" },
+          { label: "状态", link: "/tutorial/3-state" },
           { label: "校验", link: "/tutorial/4-rules" },
           { label: "联动", link: "/tutorial/5-linkage" },
           { label: "数组", link: "/tutorial/6-array" },

@@ -35,7 +35,7 @@ describe('tutorial effects use the published FormEngine contract', () => {
     expect(form.getSubmitValues()).toEqual({ price: 30, qty: 2, amount: 60 })
   })
 
-  it('omits a computed amount only when virtual is declared', () => {
+  it('omits a computed amount only when omit is declared', () => {
     const form = createEngine({
       initialValues: { price: 10, qty: 2, amount: 0 },
       effects: [computedEffects],

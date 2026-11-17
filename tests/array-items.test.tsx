@@ -149,8 +149,8 @@ describe('ArrayCards', () => {
   })
 })
 
-describe('useForm({ pattern })', () => {
-  it('starts the whole form in that pattern (root $pattern); undefined makes it editable again', () => {
+describe('useForm({ readOnly })', () => {
+  it('starts the whole form read-only (root $readOnly); undefined makes it editable again', () => {
     const form = createEngine({ initialValues: { a: '', rows: [{ name: '' }] }, readOnly: true })
     expect(form.binding('a').readOnly).toBe(true)
     expect(form.binding('rows.0.name').readOnly).toBe(true)

@@ -65,7 +65,7 @@ export default function App() {
 }
 ```
 
-需要注意：由于草稿内部是独立表单（`ShadowBody` 会隔离宿主表单、作用域、字段、分组与栅格上下文，仅保留 `FieldKit` 与 `FormLayout`），里面 `<Field>` 的 `name` 是相对于草稿根路径解析的。通过 `name="info"`（或把 `<ShadowModal>` 直接放在表格行内）绑定宿主路径后，打开草稿时会自动复制当前值并继承对应前缀的 `fields` 规则与 `pattern`，确认时自动写回原路径，参见 [/play/array-table-shadow](/play/array-table-shadow)。
+需要注意：由于草稿内部是独立表单（`ShadowBody` 会隔离宿主表单、作用域、字段、分组与栅格上下文，仅保留 `FieldKit` 与 `FormLayout`），里面 `<Field>` 的 `name` 是相对于草稿根路径解析的。通过 `name="info"`（或把 `<ShadowModal>` 直接放在表格行内）绑定宿主路径后，打开草稿时会自动复制当前值并继承对应前缀的 `fields` 规则与有效 `readOnly` / `disabled`，确认时自动写回原路径，参见 [/play/array-table-shadow](/play/array-table-shadow)。
 
 ## 查询列表
 

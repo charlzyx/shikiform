@@ -133,7 +133,7 @@ function mount(values: Partial<Values> = VALUES, messages?: { empty: string }) {
 
 const ORDER = ['text', 'note', 'secret', 'amount', 'one', 'many', 'on', 'agree', 'checks', 'pick', 'day', 'days', 'at', 'hours', 'dept', 'depts', 'area', 'areas', 'volume', 'range', 'score', 'users', 'files', 'city', 'color']
 
-describe('readPretty: every control has a read view (root pattern inherited via useForm({ pattern }))', () => {
+describe('readOnly: every control has a read view (root readOnly inherited via useForm({ readOnly: true }))', () => {
   it('no control renders an input; each field renders exactly one read view', () => {
     const { view } = mount()
     expect(view.container.querySelectorAll('input, textarea, button[role="switch"]').length).toBe(0)
@@ -200,7 +200,7 @@ describe('readPretty: every control has a read view (root pattern inherited via 
     expect(custom.text('files')).toBe('N/A')
   })
 
-  it('switching the root pattern back to editable restores the controls', () => {
+  it('switching the root readOnly back to editable restores the controls', () => {
     const { view, form } = mount()
     act(() => form().batch((d) => { d.$readOnly = false; d.$disabled = false }))
     expect(view.container.querySelectorAll('[data-read-pretty]').length).toBe(0)

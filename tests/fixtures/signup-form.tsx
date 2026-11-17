@@ -21,7 +21,7 @@ const CITIES: Record<string, { label: string; value: string }[]> = {
   js: [{ label: '南京', value: 'nj' }, { label: '苏州', value: 'sz' }],
 }
 
-// A third-party control: onChange(color, hex) → store the hex; readPretty shows a swatch.
+// A third-party control: onChange(color, hex) → store the hex; the preview shows a swatch.
 const ColorPicker = connect(
   AntColorPicker,
   mapProps({ status: false, parse: (_color, hex) => hex || undefined }),

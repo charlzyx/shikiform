@@ -238,7 +238,7 @@ describe('#39 dirty = differs from initial; edited = sticky', () => {
     expect(form.dirty).toBe(false)
   })
 
-  it('virtual and computed fields do not make the form dirty', () => {
+  it('omit and computed fields do not make the form dirty', () => {
     type V = { price: number; qty: number; total: number; confirm: string }
     const effects = defineEffects<V>(({ reaction }) => reaction((d) => { d.total.$value = d.price.$value * d.qty.$value }))
     const form = createEngine<V>({ initialValues: { price: 2, qty: 1, total: 0, confirm: '' }, fields: { confirm: { omit: true } }, effects: [effects] })

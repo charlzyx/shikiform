@@ -49,7 +49,7 @@ test('shadow-form: modal and popconfirm write back on confirm', async ({ page })
   await expect(page.getByTestId('pop-domain')).toHaveValue('shiki.dev')
 })
 
-test('pro-enum: lazy enums load and READ PRETTY shows tags', async ({ page }) => {
+test('pro-enum: lazy enums load and readOnly shows tags', async ({ page }) => {
   await page.goto('/play/pro-enum')
   await expect(page.getByRole('radio')).toHaveCount(6)
   await page.getByTestId('read-pretty').click()

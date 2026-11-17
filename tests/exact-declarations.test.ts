@@ -18,7 +18,7 @@ function make() {
 }
 
 describe('exact declarations on template paths (#8)', () => {
-  it('setValue empty → refill keeps virtual / display none out of the payload', async () => {
+  it('setValue empty → refill keeps omit out of the payload', async () => {
     const form = make()
     expect(form.getSubmitValues()).toEqual({ rows: [{}] })
     form.setValue('rows', [])

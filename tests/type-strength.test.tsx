@@ -105,7 +105,7 @@ function watchValue() {
   void _email
 }
 
-// 6. fields display virtual / none become optional on submit; hidden stays
+// 6. fields omit (and visible:false plus omit) become optional on submit; visible:false alone stays
 function submitInference() {
   const form = createForm({
     initialValues: { name: '', confirm: '', ghost: '', tab: '' },
@@ -118,9 +118,9 @@ function submitInference() {
   void form.submit((values) => {
     values.name satisfies string
     values.tab satisfies string
-    // @ts-expect-error virtual fields are omitted from submit
+    // @ts-expect-error omit fields are left out of submit
     values.confirm.length
-    // @ts-expect-error display none is omitted from submit
+    // @ts-expect-error visible:false plus omit is left out of submit
     values.ghost.length
   })
 }
@@ -178,9 +178,9 @@ function submitWithTypeArg() {
   void inferred.submit((values) => {
     values.name.length
     values.tab.length
-    // @ts-expect-error virtual is optional when V is fixed on typed().createForm
+    // @ts-expect-error omit is optional when V is fixed on typed().createForm
     values.confirm.length
-    // @ts-expect-error none is optional when V is fixed on typed().createForm
+    // @ts-expect-error visible:false plus omit is optional when V is fixed on typed().createForm
     values.ghost.length
   })
   const fixed = createForm<V>({ initialValues: init, fields })
@@ -191,7 +191,7 @@ function submitWithTypeArg() {
   })
   const hooked = typed<V>().useForm({ initialValues: init, fields })
   void hooked.submit((values) => {
-    // @ts-expect-error typed<V>().useForm drops virtual
+    // @ts-expect-error typed<V>().useForm drops omit
     values.confirm.length
   })
   const hookedFixed = useForm<V>({ initialValues: init, fields })
