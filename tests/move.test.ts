@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { defineEffects } from '@shikiform/core'
 import { runsFor } from './fixtures/reaction-utils'
 import { createEngine } from '../packages/core/src/engine/create'
+import { fieldErrorsOf } from './field-errors'
 
 interface Item {
   id: string
@@ -24,7 +25,7 @@ describe('array move', () => {
       },
     })
     form.registerField('rows.*.name', { required: true })
-    const errors = await form.validate('rows.1.name')
+    const errors = await fieldErrorsOf(form.validate('rows.1.name'))
     expect(errors.some((error) => error.path === 'rows.1.name')).toBe(true)
     form.moveArray('rows', 1, 3)
     expect(form.getValue('rows').map((row) => row.id)).toEqual(['a', 'c', 'd', 'b'])
@@ -43,7 +44,7 @@ describe('array move', () => {
       },
     })
     form.registerField('rows.*.name', { required: true })
-    await form.validate('rows.0.name')
+    await fieldErrorsOf(form.validate('rows.0.name'))
     form.swapArray('rows', 0, 2)
     expect(form.getValue('rows').map((row) => row.id)).toEqual(['c', 'b', 'a'])
     expect(form.errors.some((error) => error.path === 'rows.2.name')).toBe(true)
@@ -85,7 +86,7 @@ describe('array move', () => {
       initialValues: { rows: [{ id: 'a', name: '' }] },
     })
     form.registerField('rows.*.name', { required: true })
-    await form.validate('rows.0.name')
+    await fieldErrorsOf(form.validate('rows.0.name'))
     expect(form.errors).toHaveLength(1)
     form.replaceArray('rows', 0, { id: 'z', name: 'Z' })
     expect(form.getValue('rows.0.id')).toBe('z')

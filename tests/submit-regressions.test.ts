@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createForm, type StandardSchemaV1 } from '@shikiform/core'
+import { fieldErrorsOf } from './field-errors'
 
 function gate() {
   let open!: () => void
@@ -40,15 +41,13 @@ describe('submit validates the values it returns (#6)', () => {
       await entered.promise
       form.setValue('name', 'invalid')
       held.open()
-      const result = await pending
-      // The edit is validated by a second pass; its real error comes back, not a retry message.
-      expect(result).toEqual({ ok: false, reason: 'invalid', errors: [{ path: 'name', messages: ['invalid current name'] }] })
+      await expect(pending).rejects.toEqual([{ path: 'name', messages: ['invalid current name'] }])
       expect(onValid).not.toHaveBeenCalled()
       expect(form.submitting).toBe(false)
       expect(form.validating).toBe(false)
-      expect(await form.validate()).toEqual([{ path: 'name', messages: ['invalid current name'] }])
+      expect(await fieldErrorsOf(form.validate())).toEqual([{ path: 'name', messages: ['invalid current name'] }])
       form.setValue('name', 'valid')
-      expect(await form.submit(onValid)).toEqual({ ok: true, values: { name: 'valid' } })
+      expect(await form.submit(onValid)).toEqual({ name: 'valid' })
       expect(onValid).toHaveBeenCalledExactlyOnceWith({ name: 'valid' })
     })
   }
@@ -74,9 +73,9 @@ describe('submit validates the values it returns (#6)', () => {
     held[0]!.open()
     held[1]!.open()
     // The superseded submit adopts the newer pass's verdict on the same values (#41): its error, not a retry.
-    expect(await pending).toEqual({ ok: false, reason: 'invalid', errors: [{ path: 'name', messages: ['new validation error'] }] })
+    await expect(pending).rejects.toEqual([{ path: 'name', messages: ['new validation error'] }])
     expect(onValid).not.toHaveBeenCalled()
-    expect(await newer).toEqual([{ path: 'name', messages: ['new validation error'] }])
+    await expect(newer).rejects.toEqual([{ path: 'name', messages: ['new validation error'] }])
     expect(calls).toBe(2)
   })
 
@@ -102,7 +101,7 @@ describe('submit validates the values it returns (#6)', () => {
       else form.setValue('rows', [{ name: 'unvalidated' }])
       held.open()
       const expected = { rows: [{ name: edit === 'reset' ? 'valid' : 'unvalidated' }] }
-      expect(await pending).toEqual({ ok: true, values: expected })
+      expect(await pending).toEqual(expected)
       expect(onValid).toHaveBeenCalledExactlyOnceWith(expected)
       expect(passes).toBe(2)
     })
@@ -119,7 +118,7 @@ describe('submit validates the values it returns (#6)', () => {
     })
     const onValid = vi.fn()
     try {
-      expect(await form.submit(onValid)).toEqual({ ok: true, values: { name: 'valid' } })
+      expect(await form.submit(onValid)).toEqual({ name: 'valid' })
       await newer
       expect(reentered).toBe(true)
       expect(onValid).toHaveBeenCalledExactlyOnceWith({ name: 'valid' })
@@ -128,7 +127,7 @@ describe('submit validates the values it returns (#6)', () => {
     }
   })
 
-  it('settles concurrent submissions on unchanged values with the newer pass verdict, both ok (#41)', async () => {
+  it('an older submit is superseded by a later one; only the later onValid runs (#41)', async () => {
     const entered = [gate(), gate()]
     const held = [gate(), gate()]
     let calls = 0
@@ -153,10 +152,10 @@ describe('submit validates the values it returns (#6)', () => {
     expect(firstCallback).not.toHaveBeenCalled()
     expect(form.submitting).toBe(true)
     held[1]!.open()
-    expect(await first).toEqual({ ok: true, values: { name: 'valid' } })
-    expect(await second).toEqual({ ok: true, values: { name: 'valid' } })
+    await expect(first).rejects.toMatchObject({ name: 'SubmitSupersededError', code: 'superseded' })
+    expect(await second).toEqual({ name: 'valid' })
     expect(calls).toBe(2)
-    expect(firstCallback).toHaveBeenCalledExactlyOnceWith({ name: 'valid' })
+    expect(firstCallback).not.toHaveBeenCalled()
     expect(secondCallback).toHaveBeenCalledExactlyOnceWith({ name: 'valid' })
     expect(form.submitting).toBe(false)
   })
@@ -179,7 +178,7 @@ describe('submit validates the values it returns (#6)', () => {
     await entered.promise
     held.open()
     const values = { name: 'valid', hidden: 'keep', date }
-    expect(await pending).toEqual({ ok: true, values })
+    expect(await pending).toEqual(values)
     expect(onValid).toHaveBeenCalledExactlyOnceWith(values)
     expect(form.submitting).toBe(false)
   })
@@ -193,10 +192,10 @@ describe('submit validates the values it returns (#6)', () => {
       await held.promise
     })
     await entered.promise
-    expect(await form.submit()).toEqual({ ok: true, values: { name: 'valid' } })
+    expect(await form.submit()).toEqual({ name: 'valid' })
     expect(form.submitting).toBe(true)
     held.open()
-    expect(await first).toEqual({ ok: true, values: { name: 'valid' } })
+    expect(await first).toEqual({ name: 'valid' })
     expect(form.submitting).toBe(false)
   })
 })

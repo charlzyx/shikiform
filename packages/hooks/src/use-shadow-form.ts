@@ -1,4 +1,5 @@
 import { useCallback, useContext, useRef, useState } from 'react'
+import { isFieldErrors } from '@shikiform/core'
 import { createForm, engineOf, normalizePath, parentPath, ShikiUsageError } from '@shikiform/core/internal'
 import type { FieldError, FormEngine, FormInstance, FormOptions } from '@shikiform/core/internal'
 import { ArrayContext, FormContext, resolveName, useScope } from '@shikiform/react/internal'
@@ -263,18 +264,23 @@ export function useShadowFormOver<TValues = Record<string, any>, TContext = unkn
       const ticket = seq.current
       setState((prev) => ({ ...prev, submitting: true }))
       try {
-        const result = await form.submit()
-        if (!result.ok) return { ok: false, errors: result.errors }
-        const first = await optionsRef.current.onOk?.(result.values, context)
-        const second = await onOk?.(result.values, context)
+        let values: TValues
+        try {
+          values = await form.submit()
+        } catch (error) {
+          if (isFieldErrors(error)) return { ok: false, errors: error }
+          throw error
+        }
+        const first = await optionsRef.current.onOk?.(values, context)
+        const second = await onOk?.(values, context)
         if (first !== false && second !== false && target) {
-          writeBack(target, result.values, optionsRef.current.merge, optionsRef.current.append)
+          writeBack(target, values, optionsRef.current.merge, optionsRef.current.append)
         }
         if (ticket === seq.current) {
           seq.current += 1
           setState((prev) => ({ ...prev, visible: false, submitting: false, context: undefined, target: null }))
         }
-        return { ok: true, values: result.values }
+        return { ok: true, values }
       } finally {
         setState((prev) => (prev.submitting ? { ...prev, submitting: false } : prev))
       }

@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { fieldErrorsOf } from './field-errors'
 
 // Record the props each Ant Design control receives. Everything else (FormItem, the engine, connect) is real,
 // so these contracts cover the connect() controls inside a `<Field decorator={[FormItem]}>`.
@@ -126,7 +127,7 @@ describe('Ant Design control contracts (connect controls in a FormItem field)', 
     const view = render(<App />)
     expect(view.container.innerHTML).toContain('邮箱')
     expect(view.container.innerHTML).toContain('ant-form-item-required')
-    await api.validate()
+    await fieldErrorsOf(api.validate())
     expect(seen.Input.status).toBe('error')
   })
 

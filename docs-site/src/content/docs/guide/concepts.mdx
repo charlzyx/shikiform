@@ -135,7 +135,7 @@ export default function App() {
     <Form form={form}>
       <Field name="city" />
       <Field name="note" />
-      <button type="button" onClick={() => void form.validate()}>校验（items 没有渲染）</button>
+      <button type="button" onClick={() => { void form.validate().catch(() => {}) }}>校验（items 没有渲染）</button>
       <Watch select={(d: Draft<Values>) => d.items.$errors}>{(errors) => <small> 错误：{errors.join('；') || '无'}</small>}</Watch>
     </Form>
   );

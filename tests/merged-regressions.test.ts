@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { newProduct, newSupplier, supplierRows, type Supplier } from '../playground/merged-model'
 import { createEngine } from '../packages/core/src/engine/create'
+import { fieldErrorsOf } from './field-errors'
 
 const suppliers = (): Supplier[] => [
   { id: 'sA', name: 'A', level: 'C', products: [
@@ -60,7 +61,7 @@ describe('merged supplier rows', () => {
     form.mountJsxField('suppliers.0.products.2.price', {
       rules: [{ validator: (value, ctx) => ctx.parent?.level === 'C' && Number(value) > 1000 ? '超过 1000' : null }],
     })
-    await form.validate('suppliers.0.products.2.price')
+    await fieldErrorsOf(form.validate('suppliers.0.products.2.price'))
     expect(form.errors).toEqual([{ path: 'suppliers.0.products.2.price', messages: ['超过 1000'] }])
     form.pushArray('suppliers.0.products', newProduct())
     form.pushArray('suppliers.1.products', newProduct())

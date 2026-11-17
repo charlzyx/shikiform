@@ -33,8 +33,13 @@ export default function App() {
     validate: schema,
   });
   const submit = async () => {
-    const result = await form.submit();
-    setOut(result.ok ? `提交：${JSON.stringify(result.values)}` : `错误：${result.errors.map((error) => error.path).join('、')}`);
+    try {
+      const values = await form.submit();
+      setOut(`提交：${JSON.stringify(values)}`);
+    } catch (error) {
+      const errors = Array.isArray(error) ? error as { path: string }[] : [];
+      setOut(`错误：${errors.map((item) => item.path).join('、')}`);
+    }
   };
   const setNick = (display: 'visible' | 'hidden' | 'virtual' | 'none') => form.batch((d) => { d.nick.$display = display; });
   return (
@@ -92,8 +97,13 @@ export default function App() {
     effects: [effects],
   });
   const submit = async () => {
-    const result = await form.submit();
-    setOut(result.ok ? `提交：${JSON.stringify(result.values)}` : `被挡住：${result.errors.map((error) => error.path).join('、')}`);
+    try {
+      const values = await form.submit();
+      setOut(`提交：${JSON.stringify(values)}`);
+    } catch (error) {
+      const errors = Array.isArray(error) ? error as { path: string }[] : [];
+      setOut(`被挡住：${errors.map((item) => item.path).join('、')}`);
+    }
   };
   return (
     <Form form={form}>
@@ -145,8 +155,13 @@ export default function App() {
     },
   });
   const submit = async () => {
-    const result = await form.submit();
-    setOut(result.ok ? '通过' : `被挡住：${result.errors.map((error) => error.path).join('、')}`);
+    try {
+      await form.submit();
+      setOut('通过');
+    } catch (error) {
+      const errors = Array.isArray(error) ? error as { path: string }[] : [];
+      setOut(`被挡住：${errors.map((item) => item.path).join('、')}`);
+    }
   };
   return (
     <Form form={form}>

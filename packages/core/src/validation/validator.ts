@@ -5,7 +5,7 @@ import { shownErrors, type FieldModel } from '../state/field-model'
 import type { FieldStore } from '../state/field-store'
 import type { Notifier } from '../state/notifier'
 import { scopeOf, type Pos } from '../shared/tree-ops'
-import type { FieldError, SubmitResult, ValidateTrigger } from '../types'
+import type { FieldError, ValidateTrigger } from '../types'
 import type { FormOptions } from '../types-effects'
 import { formatMessage, type FormMessageKey, type MessageArgs, type MessageParams } from './messages'
 import { fieldSchemaIssues, optionIncludes, runRules, type ValidateCtx } from './rules'
@@ -173,8 +173,9 @@ export class Validator {
    * Validate the whole form until a pass describes the live values (#6, used by `submit`).
    * A pass validates one snapshot; when the values differ from it once the pass settles (an edit while waiting
    * on async rules, a reaction derived from `$errors`, a reset), validate again, up to {@link SETTLE_PASSES}.
-   * A pass superseded by a newer whole-form pass adopts that pass's verdict (a second `submit()` on the same
-   * values must not fail the first, #41); one superseded by a scoped `validate(path)` runs again.
+   * A pass superseded by a newer whole-form pass adopts that pass's verdict (a `validate()` started mid-submit,
+   * or the pass a later `submit()` is already running). The engine then drops an older `submit()` as superseded.
+   * One superseded by a scoped `validate(path)` runs again.
    * Returns the errors of a current pass over the live values, or `null` when the values never settled.
    */
   async runSettled(): Promise<FieldError[] | null> {
@@ -190,16 +191,13 @@ export class Validator {
   }
 
   /**
-   * `submit`'s verdict: wait for in-flight rules, then {@link Validator.runSettled}. `null` when the live values
-   * validated clean; otherwise `reason: 'invalid'` with the errors, or `'superseded'` when they never settled.
+   * `submit`'s verdict: wait for in-flight rules, then {@link Validator.runSettled}.
+   * `[]` when the live values validated clean, the errors when they did not, `null` when they never settled.
+   * Does not notify `validateFailed` — `submit` does that only for the call that still owns the outcome.
    */
-  async submitVerdict(): Promise<Exclude<SubmitResult<unknown>, { ok: true }> | null> {
+  async submitVerdict(): Promise<FieldError[] | null> {
     await this.waitAsync()
-    const errors = await this.runSettled()
-    if (!errors) return { ok: false, reason: 'superseded', errors: [], message: this.message('superseded', { path: '', value: this.store.values }) }
-    if (!errors.length) return null
-    this.deps.notifier.validateFailed(errors)
-    return { ok: false, reason: 'invalid', errors }
+    return this.runSettled()
   }
 
   /**

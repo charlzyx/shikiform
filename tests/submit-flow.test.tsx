@@ -1,6 +1,8 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { fieldErrorsOf } from './field-errors'
+import { SubmitSupersededError, isFieldErrors } from '@shikiform/react'
 import {
   Form,
   createForm,
@@ -145,39 +147,63 @@ describe('<Form> submit flow (#38)', () => {
     }
   })
 
-  it('form.submit() resolves reason "error" instead of rejecting', async () => {
+  it('form.submit() rejects the error onValid threw', async () => {
     const form = createForm<{ a: string }>({ initialValues: { a: 'x' } })
     const boom = new Error('409')
-    expect(await form.submit(() => { throw boom })).toEqual({ ok: false, reason: 'error', errors: [], error: boom })
+    await expect(form.submit(() => { throw boom })).rejects.toBe(boom)
     expect(form.submitting).toBe(false)
   })
 })
 
-describe('concurrent submit on unchanged values (#41)', () => {
-  it('both submits succeed; neither returns the retry message', async () => {
+describe('submit / validate promises', () => {
+  it('resolves the values, or onValid\'s return when that is not undefined', async () => {
+    const form = createForm<{ name: string }>({ initialValues: { name: 'ada' } })
+    expect(await form.submit()).toEqual({ name: 'ada' })
+    expect(await form.submit(async () => undefined)).toEqual({ name: 'ada' })
+    expect(await form.submit(async (values) => values.name.length)).toBe(3)
+  })
+
+  it('validate(path) resolves when the path is clean and rejects FieldError[] when it is not', async () => {
+    const form = createForm<{ name: string }>({ initialValues: { name: '' }, fields: { name: { required: true } } })
+    await expect(form.validate('name')).rejects.toEqual([{ path: 'name', messages: ['必填'] }])
+    form.setValue('name', 'ada')
+    await expect(form.validate('name')).resolves.toBeUndefined()
+    await expect(form.validate()).resolves.toBeUndefined()
+  })
+})
+
+describe('concurrent submit (#41)', () => {
+  it('an older submit rejects SubmitSupersededError; the latest one resolves the values', async () => {
     const form = createForm<{ a: string }>({ initialValues: { a: 'x' } })
     const save = vi.fn(async () => { await new Promise((r) => setTimeout(r, 30)) })
-    const [r1, r2] = await Promise.all([form.submit(save), form.submit(save)])
-    expect(r1).toEqual({ ok: true, values: { a: 'x' } })
-    expect(r2).toEqual({ ok: true, values: { a: 'x' } })
-    expect(save).toHaveBeenCalledTimes(2)
+    const [r1, r2] = await Promise.allSettled([form.submit(save), form.submit(save)])
+    expect(r1.status).toBe('rejected')
+    if (r1.status === 'rejected') expect(r1.reason).toBeInstanceOf(SubmitSupersededError)
+    expect(r2).toEqual({ status: 'fulfilled', value: { a: 'x' } })
+    expect(save).toHaveBeenCalledTimes(1)
     expect(form.submitting).toBe(false)
   })
 
-  it('with async rules too', async () => {
+  it('with async rules too, only the latest submit resolves', async () => {
     const form = createForm<{ a: string }>({
       initialValues: { a: 'x' },
       fields: { a: { rules: { validator: async (v) => { await new Promise((r) => setTimeout(r, 10)); return v ? null : 'empty' } } } },
     })
-    const results = await Promise.all([form.submit(), form.submit(), form.submit()])
-    expect(results.map((r) => r.ok)).toEqual([true, true, true])
+    const results = await Promise.allSettled([form.submit(), form.submit(), form.submit()])
+    expect(results[0]?.status).toBe('rejected')
+    expect(results[1]?.status).toBe('rejected')
+    expect(results[2]).toEqual({ status: 'fulfilled', value: { a: 'x' } })
+    if (results[0]?.status === 'rejected') expect(results[0].reason).toBeInstanceOf(SubmitSupersededError)
   })
 
-  it('concurrent submits on an invalid form all report the same errors', async () => {
+  it('the latest invalid submit rejects FieldError[]; an older one rejects SubmitSupersededError', async () => {
     const form = createForm<{ a: string }>({ initialValues: { a: '' }, fields: { a: { required: true } } })
-    const [r1, r2] = await Promise.all([form.submit(), form.submit()])
-    expect(r1).toEqual({ ok: false, reason: 'invalid', errors: [{ path: 'a', messages: ['必填'] }] })
-    expect(r2).toEqual(r1)
+    const [r1, r2] = await Promise.allSettled([form.submit(), form.submit()])
+    expect(r1.status).toBe('rejected')
+    if (r1.status === 'rejected') expect(r1.reason).toBeInstanceOf(SubmitSupersededError)
+    expect(r2.status).toBe('rejected')
+    if (r2.status === 'rejected') expect(r2.reason).toEqual([{ path: 'a', messages: ['必填'] }])
+    expect(isFieldErrors(r2.status === 'rejected' ? r2.reason : null)).toBe(true)
   })
 })
 
@@ -200,7 +226,7 @@ describe('built-in messages (#44)', () => {
 
   it('defaults stay Chinese', async () => {
     const form = createForm<V>({ initialValues, enumPolicy: 'error', fields })
-    expect(await form.validate()).toEqual([
+    expect(await fieldErrorsOf(form.validate())).toEqual([
       { path: 'name', messages: ['必填'] },
       { path: 'email', messages: ['邮箱格式不对'] },
       { path: 'site', messages: ['URL 格式不对'] },
@@ -217,7 +243,7 @@ describe('built-in messages (#44)', () => {
 
   it('FormOptions.messages: enUS covers every built-in message', async () => {
     const form = createForm<V>({ initialValues, enumPolicy: 'error', fields, messages: enUS })
-    expect(await form.validate()).toEqual([
+    expect(await fieldErrorsOf(form.validate())).toEqual([
       { path: 'name', messages: ['Required'] },
       { path: 'email', messages: ['Invalid email address'] },
       { path: 'site', messages: ['Invalid URL'] },
@@ -249,7 +275,7 @@ describe('built-in messages (#44)', () => {
         enum: ({ options, value }) => `${String(value)} ∉ ${options.map((o) => o.value).join('|')}`,
       },
     })
-    expect(await form.validate()).toEqual([
+    expect(await fieldErrorsOf(form.validate())).toEqual([
       { path: 'a', messages: ['a: 1/3'] },
       { path: 'b', messages: ['1 < 5'] },
       { path: 'c', messages: ['必填'] },
@@ -270,7 +296,7 @@ describe('built-in messages (#44)', () => {
       validate: rootIssue,
       messages: { fallback: ({ path }) => `bad ${path}` },
     })
-    expect(await form.validate()).toEqual([
+    expect(await fieldErrorsOf(form.validate())).toEqual([
       { path: 'a', messages: ['bad a'] },
       { path: 'b', messages: ['bad b'] },
       { path: 'c', messages: ['bad c'] },
@@ -288,7 +314,7 @@ describe('built-in messages (#44)', () => {
         return {}
       },
     })
-    expect(await form.submit()).toEqual({ ok: false, reason: 'superseded', errors: [], message: 'Form changed, please submit again' })
+    await expect(form.submit()).rejects.toMatchObject({ name: 'SubmitSupersededError', code: 'superseded', message: 'Form changed, please submit again' })
   })
 
   it('setDefaultMessages changes the app-wide defaults; form messages still win', async () => {
@@ -296,10 +322,10 @@ describe('built-in messages (#44)', () => {
     expect(getDefaultMessages().required).toBe('Required')
     const a = createForm<{ x: string }>({ initialValues: { x: '' }, fields: { x: { required: true } } })
     const b = createForm<{ x: string }>({ initialValues: { x: '' }, fields: { x: { required: true } }, messages: { required: '必须填' } })
-    expect(await a.validate()).toEqual([{ path: 'x', messages: ['Required'] }])
-    expect(await b.validate()).toEqual([{ path: 'x', messages: ['必须填'] }])
+    expect(await fieldErrorsOf(a.validate())).toEqual([{ path: 'x', messages: ['Required'] }])
+    expect(await fieldErrorsOf(b.validate())).toEqual([{ path: 'x', messages: ['必须填'] }])
     setDefaultMessages(zhCN)
-    expect(await a.validate()).toEqual([{ path: 'x', messages: ['必填'] }])
+    expect(await fieldErrorsOf(a.validate())).toEqual([{ path: 'x', messages: ['必填'] }])
   })
 })
 
@@ -333,6 +359,40 @@ describe('antd Submit / Reset', () => {
     })
     expect(onInvalid).toHaveBeenCalledOnce()
     expect(api.errors).toEqual([{ path: 'a', messages: ['必填'] }])
+  })
+
+  it('Submit catches a throwing onSubmit and a failed validation; neither is an unhandled rejection', async () => {
+    const unhandled = vi.fn()
+    process.on('unhandledRejection', unhandled)
+    try {
+      const boom = new Error('409')
+      const onSubmitError = vi.fn()
+      const onInvalid = vi.fn()
+      function App({ broken }: { broken: boolean }) {
+        const form = useForm({ initialValues: { a: broken ? '' : 'x' }, fields: { a: { required: true } } })
+        return (
+          <Form form={form}>
+            <Submit onSubmit={() => { if (!broken) throw boom }} onSubmitError={onSubmitError} onInvalid={onInvalid}>save</Submit>
+          </Form>
+        )
+      }
+      const ok = render(<App broken={false} />)
+      await act(async () => {
+        fireEvent.click(ok.getByRole('button'))
+        await new Promise((r) => setTimeout(r, 20))
+      })
+      expect(onSubmitError).toHaveBeenCalledExactlyOnceWith(boom)
+      ok.unmount()
+      const bad = render(<App broken />)
+      await act(async () => {
+        fireEvent.click(bad.getByRole('button'))
+        await new Promise((r) => setTimeout(r, 20))
+      })
+      expect(onInvalid).toHaveBeenCalledOnce()
+      expect(unhandled).not.toHaveBeenCalled()
+    } finally {
+      process.off('unhandledRejection', unhandled)
+    }
   })
 
   it('Submit without onSubmit is a native submit button for <Form onSubmit>', async () => {

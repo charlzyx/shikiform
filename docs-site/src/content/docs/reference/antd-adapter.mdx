@@ -175,7 +175,7 @@ export default function App() {
         </FormItem>
         <Field name="note" title="备注" decorator={[FormItem]} component={[Input]} />
         <FormItem label=" " colon={false}>
-          <button type="button" onClick={() => void form.validate()}>校验</button>
+          <button type="button" onClick={() => { void form.validate().catch(() => {}) }}>校验</button>
         </FormItem>
       </FormLayout>
     </Form>

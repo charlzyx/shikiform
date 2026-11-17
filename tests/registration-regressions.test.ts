@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createEngine } from '../packages/core/src/engine/create'
+import { fieldErrorsOf } from './field-errors'
 
 // Let the queued restoration and its promises finish, including Node's
 // unhandled-rejection checkpoint. No real request or browser mount is involved.
@@ -136,13 +137,13 @@ describe('exact declarations alongside wildcard templates (#8)', () => {
         expect(form.getSubmitValues()).toEqual({ rows: [{}] })
         form.setValue('rows', [])
         expect(form.getSubmitValues()).toEqual({ rows: [] })
-        expect(await form.validate()).toEqual([])
-        expect(await form.submit()).toEqual({ ok: true, values: { rows: [] } })
+        expect(await fieldErrorsOf(form.validate())).toEqual([])
+        expect(await form.submit()).toEqual({ rows: [] })
         if (restore === 'reset') form.reset()
         else form.setValue('rows', [{ token: 'example-only' }])
 
         expect(form.getSubmitValues()).toEqual({ rows: [{}] })
-        expect(await form.submit()).toEqual({ ok: true, values: { rows: [{}] } })
+        expect(await form.submit()).toEqual({ rows: [{}] })
       })
     }
   }
@@ -190,7 +191,7 @@ describe('exact declarations alongside wildcard templates (#8)', () => {
       form.setValue('rows', [])
       form.setValue('rows', [{ name: '' }])
       expect(form.binding('rows.0.name').display).toBe(display)
-      expect((await form.validate()).map((error) => error.path)).toEqual(display === 'hidden' ? ['rows.0.name'] : [])
+      expect((await fieldErrorsOf(form.validate())).map((error) => error.path)).toEqual(display === 'hidden' ? ['rows.0.name'] : [])
       expect(form.getSubmitValues()).toEqual({ rows: [display === 'hidden' ? { name: '' } : {}] })
     })
   }
@@ -225,10 +226,10 @@ describe('exact declarations alongside wildcard templates (#8)', () => {
     form.setValue('rows', [{ token: 'example-only' }])
     expect(form.getSubmitValues()).toEqual({ rows: [{}] })
     form.reset()
-    expect(await form.validate()).toEqual([])
-    expect(await form.submit()).toEqual({ ok: true, values: { rows: [] } })
+    expect(await fieldErrorsOf(form.validate())).toEqual([])
+    expect(await form.submit()).toEqual({ rows: [] })
     form.setValue('rows', [{ token: 'example-only' }])
-    expect(await form.validate()).toEqual([])
-    expect(await form.submit()).toEqual({ ok: true, values: { rows: [{}] } })
+    expect(await fieldErrorsOf(form.validate())).toEqual([])
+    expect(await form.submit()).toEqual({ rows: [{}] })
   })
 })

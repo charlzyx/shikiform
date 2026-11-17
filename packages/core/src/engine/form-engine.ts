@@ -13,6 +13,7 @@ import { ArrayOps } from '../structure/arrays'
 import { findPos, pathOf, type Pos } from '../shared/tree-ops'
 import { TreeOps, type TreeConfig } from '../structure/trees'
 import { formatMessage, type FormMessageKey, type MessageArgs } from '../validation/messages'
+import { SubmitSupersededError } from '../errors'
 import type {
   FieldUiSpec,
   ArrayItemOf,
@@ -26,7 +27,7 @@ import type {
   MoveResult,
   PathValue,
   ValuePath,
-  SubmitResult,
+  SubmitResolved,
   WriteOp,
 } from '../types'
 import type { FormOptions } from '../types-effects'
@@ -38,15 +39,7 @@ import { pathDomId, uiDomId } from './dom-id'
 import { UiNodes, type UiJsx, type UiKind, type UiNodeView } from './ui-nodes'
 import { StateWriter } from './writes'
 
-/**
- * Form engine. No React and no UI.
- *
- * A facade over the engine parts (see `design/ARCHITECTURE.md`): `FieldStore` (state), `Notifier` (versions),
- * `Scheduler` (reaction / watch), `Validator`, `Declarations`, `ArrayOps` / `TreeOps`, `StateWriter`.
- *
- * Declared fields (`fields`, `registerField`, `$rules` / `$required`, `rows.*.x`) validate without a mounted `<Field>`;
- * JSX `rules` / `required` apply only while mounted. `hidden` validates and submits; `none` (or an ancestor's) does neither.
- */
+/** Form engine. No React and no UI. Parts: see `design/ARCHITECTURE.md`. */
 export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit>, DraftHost, EffectsRuntime<T> {
   /** Root draft. Prefer {@link FormEngine.batch} so writes flush once. */
   readonly draft: Draft<T>
@@ -64,6 +57,8 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   private readonly fieldUi: FieldUi
   private readonly uiNodes: UiNodes
   private pendingSubmits = 0
+  /** Bumped at the start of each `submit`. An older call rejects once a newer one has started. */
+  private submitSerial = 0
   private readonly baseline: Baseline
 
   constructor(options: FormOptions<T> = {}) {
@@ -200,27 +195,34 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   // —— submit / reset / validate ——
 
   /**
-   * Bump `submitCount`, wait for in-flight async rules, validate, then call `onValid` with {@link FormEngine.getSubmitValues}.
-   * `display: 'virtual'` and `none` are omitted, including their subtrees. `hidden` is kept.
-   * A computed field is omitted only when its display (or an ancestor's) turns submit off.
-   *
-   * Only values its own pass validated are submitted (#6, #41; see `Validator.submitVerdict`). Never rejects (#38).
+   * Validate, then call `onValid` with {@link FormEngine.getSubmitValues}.
+   * Resolves the submit values, or `onValid`'s return when that is not `undefined`.
+   * Rejects `FieldError[]` on validation failure. `onValid` and a form-level `validate` reject as-is.
+   * A later `submit`, or values that never settle, reject `SubmitSupersededError` before `onValid`.
    */
-  async submit(onValid?: (values: TSubmit) => void | Promise<void>): Promise<SubmitResult<TSubmit>> {
+  submit(): Promise<TSubmit>
+  submit<R>(onValid: (values: TSubmit) => R | Promise<R>): Promise<SubmitResolved<TSubmit, R>>
+  async submit<R>(onValid?: (values: TSubmit) => R | Promise<R>): Promise<TSubmit | SubmitResolved<TSubmit, R>> {
     const { store, scheduler, notifier, validator } = this
+    const serial = ++this.submitSerial
     store.submitCount += 1
     this.pendingSubmits += 1
     store.submitting = true
     scheduler.bumpMeta()
     notifier.emit()
     try {
-      const failed = await validator.submitVerdict()
-      if (failed) return failed
+      const errors = await validator.submitVerdict()
+      if (serial !== this.submitSerial || errors === null) {
+        throw new SubmitSupersededError(this.message('superseded', { path: '', value: store.values }))
+      }
+      if (errors.length) {
+        notifier.validateFailed(errors)
+        throw errors
+      }
       const values = this.getSubmitValues()
-      if (onValid) await onValid(values)
-      return { ok: true, values }
-    } catch (error) {
-      return { ok: false, reason: 'error', errors: [], error }
+      if (!onValid) return values
+      const returned = await onValid(values)
+      return (returned === undefined ? values : returned) as TSubmit | SubmitResolved<TSubmit, R>
     } finally {
       this.pendingSubmits -= 1
       store.submitting = this.pendingSubmits > 0
@@ -262,16 +264,15 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   }
 
   /**
-   * Validate `path` and its descendants, or the whole form.
-   * Declared fields, `registerField`, `$rules`, and item templates are included even if no `<Field>` is mounted.
-   * JSX rules count only while mounted. Display `none` skips the field. `hidden` does not.
-   * The form-level schema always runs. A scoped call replaces schema issues under `path` only.
-   * A newer `validate` supersedes an in-flight form-level `validate`; the older pass does not write errors.
-   * Pass an array to validate several paths (and their descendants) in one pass: `validate(['name', 'address'])`.
+   * Validate `path` and its descendants, or the whole form. An array validates those paths in one pass.
+   * Resolves when the scope is clean. Rejects `FieldError[]` when it is not. Display `none` is skipped; `hidden` is not.
    */
-  validate(path?: FieldPath<T> | readonly FieldPath<T>[]): Promise<FieldError[]> {
-    const run = this.validator.validate(path as string | readonly string[] | undefined)
-    return run.then((errors) => (this.notifier.validateFailed(errors), errors))
+  async validate(path?: FieldPath<T> | readonly FieldPath<T>[]): Promise<void> {
+    const errors = await this.validator.validate(path as string | readonly string[] | undefined)
+    if (errors.length) {
+      this.notifier.validateFailed(errors)
+      throw errors
+    }
   }
 
   /** Untyped handle for an exact path. Prefer {@link FormEngine.getValue} and {@link FormEngine.batch}. */
@@ -375,7 +376,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   /** Snapshot for {@link FormEngine.subscribeMeta}. */
   getMetaVersion(): number { return this.notifier.getMetaVersion() }
 
-  /** After a `submit()` with `reason: 'invalid'` or a `validate()` that found errors (not change / blur runs): its errors. */
+  /** After a `submit()` or `validate()` that rejected `FieldError[]` (not change / blur runs): its errors. */
   subscribeValidateFailed(listener: (errors: readonly FieldError[]) => void): () => void {
     return this.notifier.subscribeValidateFailed(listener)
   }

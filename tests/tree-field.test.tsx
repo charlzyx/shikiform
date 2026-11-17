@@ -4,6 +4,7 @@ import { useRef, useState, type ReactNode } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { engineOf } from '@shikiform/core/internal'
 import { createForm, Field, Form, TreeField, typed, useField, useTreeField, type TreeNodeRender } from '@shikiform/react'
+import { fieldErrorsOf } from './field-errors'
 
 afterEach(cleanup)
 
@@ -170,7 +171,7 @@ describe('<TreeField>', () => {
     // Increment local component state on sibling `new` (stays under `file`) and validate so `new` has an error
     fireEvent.click(screen.getByTestId('bump-new'))
     await act(async () => {
-      await form.validate()
+      await fieldErrorsOf(form.validate())
     })
     expect(screen.getByTestId('meta-new').textContent).toBe('0.0|menu.0.children.0|必填|1')
     expect(screen.getByTestId('meta-undo').textContent).toBe('1.0|menu.1.children.0|ok|0')
@@ -330,6 +331,45 @@ describe('<TreeField>', () => {
     for (const id of ['a1', 'b1', 'c', 'c1']) expect(renders(id)).toBe(before[id])
     expect(Number(renders('a'))).toBe(Number(before.a) + 1)
     expect(Number(renders('b'))).toBe(Number(before.b) + 1)
+  })
+
+  it('useTreeField() inside a node does not re-render when another node moves', () => {
+    type Node = { id: string; name: string; children: Node[] }
+    const form = createForm<{ menu: Node[] }>({
+      initialValues: {
+        menu: [
+          { id: 'a', name: 'A', children: [{ id: 'a1', name: 'A1', children: [] }, { id: 'a2', name: 'A2', children: [] }] },
+          { id: 'b', name: 'B', children: [{ id: 'b1', name: 'B1', children: [] }] },
+          { id: 'c', name: 'C', children: [{ id: 'c1', name: 'C1', children: [] }] },
+        ],
+      },
+    })
+    function NodeView({ children }: { children?: ReactNode }) {
+      const node = useTreeField<Node>()
+      const renders = useRef(0)
+      renders.current += 1
+      return <div data-testid={`hook-${node.record.id}`} data-path={node.path} data-tree={node.treePath} data-renders={renders.current}>{children}</div>
+    }
+    function Move() {
+      const tree = useTreeField('menu')
+      return <button type="button" data-testid="move-hook" onClick={() => tree.move([0, 1], [1, 1])}>move</button>
+    }
+    render(
+      <Form form={form}>
+        <Move />
+        <TreeField name="menu" rowKey="id">
+          {(node) => <NodeView>{node.children}</NodeView>}
+        </TreeField>
+      </Form>,
+    )
+    const renders = (id: string) => screen.getByTestId(`hook-${id}`).getAttribute('data-renders')
+    const before = Object.fromEntries(['a', 'a1', 'a2', 'b', 'b1', 'c', 'c1'].map((id) => [id, renders(id)]))
+    fireEvent.click(screen.getByTestId('move-hook'))
+    expect(screen.getByTestId('hook-a2').getAttribute('data-path')).toBe('menu.1.children.1')
+    expect(screen.getByTestId('hook-a1').getAttribute('data-path')).toBe('menu.0.children.0')
+    expect(screen.getByTestId('hook-a1').getAttribute('data-tree')).toBe('menu')
+    // a2 moved; a and b are ancestors whose child lists changed. Unrelated nodes stay put.
+    for (const id of ['a1', 'b1', 'c', 'c1']) expect(renders(id)).toBe(before[id])
   })
 
   it('errors and warnings are this path only; path is the handle target and treePath is the root', () => {

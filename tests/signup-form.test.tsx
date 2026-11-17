@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineEffects } from '@shikiform/react'
 import { SignupForm, type Signup } from './fixtures/signup-form'
 import { createEngine } from '../packages/core/src/engine/create'
+import { fieldErrorsOf } from './field-errors'
 
 afterEach(cleanup)
 const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 30)))
@@ -72,7 +73,7 @@ describe('root draft pattern / display', () => {
     const form = createEngine({ initialValues: { a: '', b: '' } })
     form.registerField('a', { rules: [{ minLength: 3 }, { pattern: /^\d+$/ }] })
     form.registerField('b', { rules: [{ required: true, minLength: 3 }] })
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     expect(form.binding('a').errors).toEqual([])
     expect(form.binding('b').errors).toEqual(['必填'])
   })

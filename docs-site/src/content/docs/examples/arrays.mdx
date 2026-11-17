@@ -131,7 +131,7 @@ export default function App() {
   return (
     <Form form={form}>
       <Menu />
-      <button type="button" onClick={() => void form.validate()}>校验</button>
+      <button type="button" onClick={() => { void form.validate().catch(() => {}) }}>校验</button>
     </Form>
   );
 }
@@ -159,8 +159,13 @@ export default function App() {
     fields: { 'rows.*.name': { required: true } }, // 行模板：每一行都有，挂没挂载都查
   });
   const validate = async () => {
-    const result = await form.validate();
-    setErrors(result.map((error) => error.path).join('、') || '无');
+    try {
+      await form.validate();
+      setErrors('无');
+    } catch (error) {
+      const errors = Array.isArray(error) ? error as { path: string }[] : [];
+      setErrors(errors.map((item) => item.path).join('、') || '无');
+    }
   };
   return (
     <Form form={form}>

@@ -1,3 +1,17 @@
+/**
+ * `submit()` lost the race: a later `submit()` replaced it, or the values kept changing and the bounded
+ * retries never settled. Not a validation failure — catch it apart from `FieldError[]` (`instanceof`, or `code`).
+ * `message` is `messages.superseded`.
+ */
+export class SubmitSupersededError extends Error {
+  readonly code = 'superseded' as const
+
+  constructor(message: string) {
+    super(message)
+    this.name = 'SubmitSupersededError'
+  }
+}
+
 /** A reaction or watch pass did not settle within the fixed iteration budget. */
 export class ShikiCycleError extends Error {
   readonly cycle: readonly string[]

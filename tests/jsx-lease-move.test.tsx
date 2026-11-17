@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { engineOf } from '@shikiform/core/internal'
 import { Form, TreeField, useField, useForm, useTreeField } from '@shikiform/react'
 import type { FormInstance } from '@shikiform/react'
+import { fieldErrorsOf } from './field-errors'
 
 
 afterEach(cleanup)
@@ -44,13 +45,13 @@ describe('JSX validation lease across a tree move', () => {
       )
     }
     const view = render(<App />)
-    await act(async () => { await form.validate() })
+    await act(async () => { await fieldErrorsOf(form.validate()) })
     expect(view.container.textContent).toContain('[new 0,0 必填]')
     await act(async () => { engineOf(form).moveTree('menu', [1, 0], [0, 0]) })
     expect(view.container.textContent).toContain('[undo 0,0 ok][new 0,1 必填][open 0,2 ok]')
     expect(form.errors.map((error: { path: string }) => error.path)).toEqual(['menu.0.children.1.name'])
     // the rule is still leased: fixing and clearing the name re-validates as required
-    await act(async () => { await form.validate() })
+    await act(async () => { await fieldErrorsOf(form.validate()) })
     expect(form.errors.map((error: { path: string }) => error.path)).toEqual(['menu.0.children.1.name'])
   })
 })

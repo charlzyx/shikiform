@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineEffects, type StandardSchemaV1, type ValidateCtx } from '@shikiform/core'
 import { createEngine } from '../packages/core/src/engine/create'
+import { fieldErrorsOf } from './field-errors'
 
 function gate() {
   let open!: () => void
@@ -44,11 +45,11 @@ describe('one pass validates one immutable snapshot (#1)', () => {
     form.setValue('rows.0.min', 20)
     held.open()
     // The pass describes the snapshot it started on: min 0, max 10 is valid.
-    expect(await pending).toEqual([])
+    await expect(pending).resolves.toBeUndefined()
     expect(seen).toEqual([10, 0, 0, 0, 0])
     // A fresh pass sees the edit, and record/get agree on it.
     held.open()
-    expect(await form.validate()).toEqual([{ path: 'rows.0.max', messages: ['max must be >= min'] }])
+    expect(await fieldErrorsOf(form.validate())).toEqual([{ path: 'rows.0.max', messages: ['max must be >= min'] }])
     expect(seen.slice(5)).toEqual([10, 20, 20, 20, 20])
   })
 
@@ -111,13 +112,13 @@ describe('a throwing field validator settles every caller (#2)', () => {
     })
   }
 
-  it('an awaited validate()/submit() resolves with the message instead of rejecting', async () => {
+  it('an awaited validate()/submit() rejects FieldError[] (a field rule throw is still a message)', async () => {
     const form = createEngine({
       initialValues: { name: 'x' },
       fields: { name: { rules: { validator: () => { throw new Error('sync boom') } } } },
     })
-    await expect(form.validate('name')).resolves.toEqual([{ path: 'name', messages: ['sync boom'] }])
-    await expect(form.submit()).resolves.toEqual({ ok: false, reason: 'invalid', errors: [{ path: 'name', messages: ['sync boom'] }] })
+    await expect(form.validate('name')).rejects.toEqual([{ path: 'name', messages: ['sync boom'] }])
+    await expect(form.submit()).rejects.toEqual([{ path: 'name', messages: ['sync boom'] }])
     expect(form.validating).toBe(false)
     expect(form.submitting).toBe(false)
     await sleep(10)
@@ -154,7 +155,7 @@ describe('submit returns only values its pass validated (#6)', () => {
     await entered.promise
     form.setValue('name', 'invalid')
     held.open()
-    expect(await pending).toEqual({ ok: false, reason: 'invalid', errors: [{ path: 'name', messages: ['invalid current name'] }] })
+    await expect(pending).rejects.toEqual([{ path: 'name', messages: ['invalid current name'] }])
     expect(onValid).not.toHaveBeenCalled()
   })
 
@@ -178,7 +179,7 @@ describe('submit returns only values its pass validated (#6)', () => {
     await entered.promise
     form.setValue('name', 'second')
     held.open()
-    expect(await pending).toEqual({ ok: true, values: { name: 'second' } })
+    expect(await pending).toEqual({ name: 'second' })
     expect(onValid).toHaveBeenCalledExactlyOnceWith({ name: 'second' })
     expect(seen).toEqual(['first', 'second'])
   })
@@ -191,9 +192,9 @@ describe('submit returns only values its pass validated (#6)', () => {
         reaction((d) => { d.hasError.$value = d.$errors.length > 0 })
       })],
     })
-    expect(await form.submit()).toEqual({ ok: false, reason: 'invalid', errors: [{ path: 'name', messages: ['必填'] }] })
+    await expect(form.submit()).rejects.toEqual([{ path: 'name', messages: ['必填'] }])
     form.setValue('name', 'ok')
-    expect(await form.submit()).toEqual({ ok: true, values: { name: 'ok', hasError: false } })
+    expect(await form.submit()).toEqual({ name: 'ok', hasError: false })
   })
 
   it('gives up with the retry message when values never settle (bounded)', async () => {
@@ -206,7 +207,7 @@ describe('submit returns only values its pass validated (#6)', () => {
         return {}
       },
     })
-    expect(await form.submit()).toEqual({ ok: false, reason: 'superseded', errors: [], message: '表单或校验已更新，请重新提交' })
+    await expect(form.submit()).rejects.toMatchObject({ name: 'SubmitSupersededError', code: 'superseded', message: '表单或校验已更新，请重新提交' })
     expect(calls).toBe(3)
     expect(form.submitting).toBe(false)
   })
@@ -222,7 +223,7 @@ function withTimeout<T>(promise: Promise<T>, ms = 1000): Promise<T> {
       },
       (err) => {
         clearTimeout(timer)
-        reject(err instanceof Error ? err : new Error(String(err)))
+        reject(err)
       },
     )
   })
@@ -255,12 +256,12 @@ describe('an aborted async validator leaves the in-flight set', () => {
         },
       },
     })
-    const first = form.validate()
+    const first = fieldErrorsOf(form.validate())
     await started.promise
     expect(form.binding('name').validating).toBe(true)
     form.setValue('name', 'new')
     expect(calls).toBe(1)
-    expect(await withTimeout(form.submit())).toEqual({ ok: true, values: { name: 'new' } })
+    expect(await withTimeout(form.submit())).toEqual({ name: 'new' })
     expect(form.errors).toEqual([])
     expect(form.submitting).toBe(false)
     expect(form.binding('name').validating).toBe(false)
@@ -295,7 +296,7 @@ describe('an aborted async validator leaves the in-flight set', () => {
         },
       },
     })
-    const first = form.validate()
+    const first = fieldErrorsOf(form.validate())
     await started.promise
     form.setValue('name', 'b')
     let settled = false
@@ -308,7 +309,7 @@ describe('an aborted async validator leaves the in-flight set', () => {
     expect(settled).toBe(false)
     expect(calls).toBeGreaterThan(1)
     live.open()
-    expect(await withTimeout(pending)).toEqual({ ok: false, reason: 'invalid', errors: [{ path: 'name', messages: ['仍要等'] }] })
+    await expect(withTimeout(pending)).rejects.toEqual([{ path: 'name', messages: ['仍要等'] }])
     expect(form.submitting).toBe(false)
     await withTimeout(first)
   })
@@ -336,9 +337,9 @@ describe('an aborted async validator leaves the in-flight set', () => {
         },
       },
     })
-    const first = form.validate()
+    const first = fieldErrorsOf(form.validate())
     await started.promise
-    expect(await withTimeout(form.validate())).toEqual([{ path: 'name', messages: ['第二次错误'] }])
+    await expect(withTimeout(form.validate())).rejects.toEqual([{ path: 'name', messages: ['第二次错误'] }])
     late('过期错误')
     await sleep(20)
     expect(form.errors).toEqual([{ path: 'name', messages: ['第二次错误'] }])
@@ -369,9 +370,9 @@ describe('an aborted async validator leaves the in-flight set', () => {
         },
       },
     })
-    const first = form.validate()
+    const first = fieldErrorsOf(form.validate())
     await started.promise
-    expect(await withTimeout(form.validate())).toEqual([])
+    await expect(withTimeout(form.validate())).resolves.toBeUndefined()
     await sleep(20)
     expect(form.errors).toEqual([])
     await withTimeout(first)
@@ -401,9 +402,9 @@ describe('an aborted async validator leaves the in-flight set', () => {
         },
       },
     })
-    const first = form.validate()
+    const first = fieldErrorsOf(form.validate())
     await started.promise
-    expect(await withTimeout(form.validate())).toEqual([{ path: 'name', messages: ['第二次错误'] }])
+    await expect(withTimeout(form.validate())).rejects.toEqual([{ path: 'name', messages: ['第二次错误'] }])
     late(new Error('过期失败'))
     await sleep(20)
     expect(unhandled).toEqual([])
@@ -434,10 +435,10 @@ describe('an aborted async validator leaves the in-flight set', () => {
       validateTrigger: ['onChange'],
       fields: { name: { rules: schema } },
     })
-    const first = form.validate()
+    const first = fieldErrorsOf(form.validate())
     await started.promise
     form.setValue('name', 'new')
-    expect(await withTimeout(form.submit())).toEqual({ ok: true, values: { name: 'new' } })
+    expect(await withTimeout(form.submit())).toEqual({ name: 'new' })
     expect(form.errors).toEqual([])
     await withTimeout(first)
   })
@@ -471,14 +472,14 @@ describe('an aborted async validator leaves the in-flight set', () => {
     expect(settled).toBe(false)
     expect(form.binding('name').validating).toBe(true)
     pendingResult.open()
-    expect(await pending).toEqual({ ok: false, reason: 'invalid', errors: [{ path: 'name', messages: ['异步错误'] }] })
+    await expect(pending).rejects.toEqual([{ path: 'name', messages: ['异步错误'] }])
     expect(form.validating).toBe(false)
     expect(form.submitting).toBe(false)
     const again = form.submit()
     await Promise.resolve()
     expect(form.submitting).toBe(true)
     later.open()
-    expect(await again).toEqual({ ok: true, values: { name: 'x' } })
+    expect(await again).toEqual({ name: 'x' })
   })
 })
 
@@ -525,7 +526,7 @@ describe('a value change drops a stale async error (#122)', () => {
     expect(form.errors).toEqual([])
     expect(form.binding('username').validating).toBe(false)
     expect(form.canSubmit).toBe(true)
-    expect(await form.submit()).toEqual({ ok: true, values: { username: 'ada' } })
+    expect(await form.submit()).toEqual({ username: 'ada' })
   })
 
   it('does not apply an in-flight occupied result after the value changes', async () => {
@@ -639,7 +640,7 @@ describe('a value change drops a stale async error (#122)', () => {
     finished.setValue('username', 'ada')
     expect(finished.errors).toEqual([])
     await until(() => finished.canSubmit)
-    expect(await finished.submit()).toEqual({ ok: true, values: { username: 'ada', password: 'secret123' } })
+    expect(await finished.submit()).toEqual({ username: 'ada', password: 'secret123' })
 
     const inflight = make()
     inflight.setValue('username', 'admin')
@@ -649,7 +650,7 @@ describe('a value change drops a stale async error (#122)', () => {
     inflight.setValue('username', 'ada')
     await until(() => inflight.canSubmit)
     expect(inflight.errors).toEqual([])
-    expect(await inflight.submit()).toEqual({ ok: true, values: { username: 'ada', password: 'secret123' } })
+    expect(await inflight.submit()).toEqual({ username: 'ada', password: 'secret123' })
   })
 })
 

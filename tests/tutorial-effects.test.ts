@@ -7,6 +7,7 @@ import { effects as arrayEffects } from '../docs-site/src/content/docs/tutorial/
 import { schema } from '../docs-site/src/content/docs/tutorial/_files/09-rules.solution'
 import { effects as declaredEffects } from '../docs-site/src/content/docs/tutorial/_files/10-declared.solution'
 import { createEngine } from '../packages/core/src/engine/create'
+import { fieldErrorsOf } from './field-errors'
 
 // Reuse the actual editable tutorial sources, not a second copy of their logic.
 describe('tutorial effects use the published FormEngine contract', () => {
@@ -83,28 +84,28 @@ describe('tutorial effects use the published FormEngine contract', () => {
       },
     })
     const messages = (path: string) => form.errors.find((error) => error.path === path)?.messages
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     expect(messages('email')).toEqual(['邮箱格式不对'])
     expect(messages('age')).toEqual(['需要年满 18'])
     form.setValue('email', '')
     form.setValue('age', null)
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     expect(messages('email')).toEqual(['必填'])
     expect(messages('age')).toEqual(['必填'])
     expect(form.errors.flatMap((error) => error.messages).join('\n')).not.toMatch(/Invalid input|expected number/)
     form.setValue('age', 0)
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     expect(messages('age')).toEqual(['需要年满 18'])
     form.setValue('name', '')
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     expect(messages('name')).toEqual(['必填'])
     form.setValue('name', 'A')
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     expect(messages('name')).toEqual(['至少 2 个字'])
     form.setValue('name', 'Ada')
     form.setValue('email', 'ada@example.com')
     form.setValue('age', 18)
-    expect(await form.submit()).toEqual({ ok: true, values: { name: 'Ada', email: 'ada@example.com', age: 18 } })
+    expect(await form.submit()).toEqual({ name: 'Ada', email: 'ada@example.com', age: 18 })
   })
 
   it('$visible = false drops the email from validation and submit, and keeps the value for later', async () => {
@@ -114,17 +115,17 @@ describe('tutorial effects use the published FormEngine contract', () => {
       fields: { email: { required: true } },
     })
     expect(form.binding('email').display).toBe('none')
-    expect(await form.submit()).toEqual({ ok: true, values: { contact: false } })
+    expect(await form.submit()).toEqual({ contact: false })
     form.setValue('contact', true)
-    expect((await form.submit()).ok).toBe(false)
+    await expect(form.submit()).rejects.toEqual(expect.any(Array))
     form.setValue('email', 'ada@example.com')
-    expect(await form.submit()).toEqual({ ok: true, values: { contact: true, email: 'ada@example.com' } })
+    expect(await form.submit()).toEqual({ contact: true, email: 'ada@example.com' })
   })
 
   it('validates the invitation rule even before its input is mounted', async () => {
     const form = createEngine({ initialValues: { more: false, nickname: '', code: '' }, effects: [declaredEffects] })
-    expect(await form.validate()).toEqual([{ path: 'code', messages: ['邀请码必填'] }])
+    expect(await fieldErrorsOf(form.validate())).toEqual([{ path: 'code', messages: ['邀请码必填'] }])
     form.setValue('code', 'INVITE')
-    expect(await form.validate()).toEqual([])
+    expect(await fieldErrorsOf(form.validate())).toEqual([])
   })
 })

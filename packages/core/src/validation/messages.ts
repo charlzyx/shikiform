@@ -41,7 +41,7 @@ export interface FormMessages {
    * `error` is what was thrown (undefined for an empty issue message).
    */
   fallback: MessageTemplate<MessageBase & { error: unknown }>
-  /** `submit()` result `message` when it gives up with `reason: 'superseded'` (values never settled). */
+  /** `SubmitSupersededError` message: a later submit replaced this one, or the values never settled. */
   superseded: MessageTemplate<{ path: ''; value: unknown }>
 
   // Tree moves (tree handle `move` / `dragProps`, `moveNode`): the refused `MoveResult.reason`.

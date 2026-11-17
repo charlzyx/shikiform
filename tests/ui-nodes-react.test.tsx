@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { StrictMode } from 'react'
 import { afterEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
 import { defineEffects, Field, Form, typed, UI, useField, useForm, type FieldBinding, type UiName } from '@shikiform/react'
+import { fieldErrorsOf } from './field-errors'
 
 import { FormItem, Input, InputNumber, Slider } from '@shikiform/antd'
 import type { FormInstance } from '@shikiform/react'
@@ -119,7 +120,7 @@ describe('<Field ui> — several UIs of one field', () => {
       )
     }
     render(<App />)
-    expect(await form.validate()).toEqual([])
+    expect(await fieldErrorsOf(form.validate())).toEqual([])
     expect(String(warn.mock.calls[0]?.[0])).toMatch(/ui="echo"> ignores required/)
   })
 })
@@ -150,7 +151,7 @@ describe('<UI> — a UI with no data', () => {
     expect(view.getByRole('alert').textContent).toBe('需要审批')
     act(() => form.setValue('amount', 100))
     expect(view.queryByRole('alert')).toBeNull()
-    expect(await form.submit()).toEqual({ ok: true, values: { amount: 100 } })
+    expect(await form.submit()).toEqual({ amount: 100 })
   })
 
   it('hiding a UI does not cascade to the fields inside it', async () => {
@@ -170,7 +171,7 @@ describe('<UI> — a UI with no data', () => {
     act(() => form.batch((d) => { d.$ui('box').$visible = false }))
     expect(view.container.querySelector('input')).toBeNull()
     form.batch((d) => { expect(d.note.$visible).toBe(true) })
-    expect(await form.submit()).toEqual({ ok: true, values: { note: 'kept' } })
+    expect(await form.submit()).toEqual({ note: 'kept' })
   })
 
   it('warns once when a reaction writes a $ui name that never mounts', async () => {

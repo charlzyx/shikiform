@@ -526,18 +526,15 @@ export interface FieldError {
 }
 
 /**
- * What `submit()` resolves to. It never rejects.
- * - `ok: true` — validation passed and `onValid` (if any) finished; `values` are the submitted values.
- * - `reason: 'invalid'` — validation failed; `errors` lists them. `onValid` was not called.
- * - `reason: 'error'` — `onValid` (or a form-level `validate`) threw or rejected; `error` is what was thrown.
- * - `reason: 'superseded'` — the values kept changing while validating (bounded retries); `message` is
- *   `messages.superseded`. Not a validation error, `errors` is empty. Submit again.
+ * What `submit(onValid)` resolves to.
+ * No callback, or a callback that returns `void` / `undefined`: the submit values.
+ * Otherwise the awaited return value of `onValid`.
  */
-export type SubmitResult<T> =
-  | { ok: true; values: T }
-  | { ok: false; reason: 'invalid'; errors: FieldError[] }
-  | { ok: false; reason: 'error'; errors: FieldError[]; error: unknown }
-  | { ok: false; reason: 'superseded'; errors: FieldError[]; message: string }
+export type SubmitResolved<TValues, R> = [R] extends [void]
+  ? TValues
+  : Awaited<R> extends void
+    ? TValues
+    : Awaited<R>
 
 /** Result of a tree move. `reason` is set when the move is refused. */
 export interface MoveResult {
@@ -592,11 +589,17 @@ export interface FormInstance<T, TSubmit = T> {
   /**
    * Wait for in-flight async rules, validate, drop `display: 'virtual'` and `display: 'none'` values
    * (and their subtrees). `hidden` values are kept. A reaction-written value is kept unless its display is `virtual`.
-   * Values changed during validation are validated again (bounded); two submits on the same values both pass.
-   * Never rejects: see {@link SubmitResult} for `invalid` / `error` / `superseded`.
-   * `values` is `TSubmit` (the form's second type argument, default `T`); see {@link SubmitValues}.
+   * Values changed during validation are validated again (bounded).
+   *
+   * Resolves the submit values (`TSubmit`; see {@link SubmitValues}). Pass `onValid` and the promise resolves to
+   * its return value, or to the submit values when that return is `undefined`.
+   * Rejects `FieldError[]` when validation fails (`onValid` is not called).
+   * A throw or rejection from `onValid`, or from a form-level `validate`, rejects as-is.
+   * An earlier call replaced by a later `submit()`, and a submit whose values never settle, reject
+   * `SubmitSupersededError` (`messages.superseded`) — not a `FieldError[]`.
    */
-  submit(onValid?: (values: TSubmit) => void | Promise<void>): Promise<SubmitResult<TSubmit>>
+  submit(): Promise<TSubmit>
+  submit<R>(onValid: (values: TSubmit) => R | Promise<R>): Promise<SubmitResolved<TSubmit, R>>
   /**
    * Restore initial values; touched, edited, and every message clear; computed values are written again.
    * `reset('a.b')` restores one subtree. `reset(values)` first makes `values` the new initial values (edit-page backfill).
@@ -620,8 +623,9 @@ export interface FormInstance<T, TSubmit = T> {
    * A form-level Standard Schema always runs. A scoped call refreshes schema issues under `path` only.
    * An array validates several paths in ONE pass (`validate(['name', 'address'])`, what `FormStep` does for a step);
    * two concurrent scoped calls would supersede each other.
+   * Resolves when the scope is clean. Rejects `FieldError[]` when it is not. A throw from a form-level `validate` rejects as-is.
    */
-  validate(path?: FieldPath<T> | readonly FieldPath<T>[]): Promise<FieldError[]>
+  validate(path?: FieldPath<T> | readonly FieldPath<T>[]): Promise<void>
   /**
    * Clone of the values with `display: 'virtual'` and `display: 'none'` removed (whole subtrees).
    * `hidden` values are kept. The static type is `TSubmit`. With no type argument, or `typed<T>().createForm`,
@@ -639,7 +643,7 @@ export interface FormInstance<T, TSubmit = T> {
   subscribeStructure(path: string, listener: () => void): () => void
   /** Notified when `canSubmit`, `submitting`, `submitCount`, `dirty`, or `validating` change. */
   subscribeMeta(listener: () => void): () => void
-  /** Called with the errors of a `submit()` that failed validation or a `validate()` that found errors. */
+  /** Called with the errors when `submit()` or `validate()` rejects `FieldError[]` (not change / blur runs). */
   subscribeValidateFailed(listener: (errors: readonly FieldError[]) => void): () => void
 }
 

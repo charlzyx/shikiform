@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { createEngine } from '../packages/core/src/engine/create'
+import { fieldErrorsOf } from './field-errors'
 
 const atLeastOne = (value: unknown) => (Array.isArray(value) && value.length ? null : '至少一行')
 
@@ -18,7 +19,7 @@ describe('array path recheck after a row change', () => {
     expect(form.binding('rows').errors).toEqual([])
     expect(form.binding('rows.0.name').errors).toEqual([])
 
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     expect(form.binding('rows').errors).toEqual([])
     expect(form.binding('rows.0.name').errors).toEqual(['必填'])
     expect(form.binding('rows.1.name').errors).toEqual([])
@@ -26,7 +27,7 @@ describe('array path recheck after a row change', () => {
 
     form.removeArray('rows', 1)
     form.removeArray('rows', 0)
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     expect(form.binding('rows').errors).toEqual(['至少一行'])
     expect(form.binding('note').errors).toEqual(['必填'])
 
@@ -56,7 +57,7 @@ describe('array path recheck after a row change', () => {
       initialValues: { tags: [] },
       fields: { tags: { rules: z.array(z.string()).min(1, '至少一个') } },
     })
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     expect(form.binding('tags').errors).toEqual(['至少一个'])
     form.pushArray('tags', 'a')
     await Promise.resolve()
@@ -71,7 +72,7 @@ describe('array path recheck after a row change', () => {
         'members.*.phones': { rules: { validator: atLeastOne } },
       },
     })
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     expect(form.binding('members.0.phones').errors).toEqual(['至少一行'])
     expect(form.binding('members.1.phones').errors).toEqual([])
     form.moveArray('members', 0, 1)

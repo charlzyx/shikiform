@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createEngine } from '../packages/core/src/engine/create'
+import { fieldErrorsOf } from './field-errors'
 
 describe('field and form meta', () => {
   it('tracks touched, dirty, canSubmit, and submitCount', async () => {
@@ -7,8 +8,7 @@ describe('field and form meta', () => {
     form.registerField('name', { required: true })
     expect(form.canSubmit).toBe(true)
     expect(form.binding('name').dirty).toBe(false)
-    const failed = await form.submit()
-    expect(failed.ok).toBe(false)
+    await expect(form.submit()).rejects.toEqual([{ path: 'name', messages: ['必填'] }])
     expect(form.submitCount).toBe(1)
     expect(form.submitting).toBe(false)
     expect(form.canSubmit).toBe(false)
@@ -17,8 +17,7 @@ describe('field and form meta', () => {
     expect(form.binding('name').dirty).toBe(true)
     form.blur('name')
     expect(form.binding('name').touched).toBe(true)
-    const ok = await form.submit()
-    expect(ok.ok).toBe(true)
+    expect(await form.submit()).toEqual({ name: 'ada' })
     expect(form.submitCount).toBe(2)
     expect(form.canSubmit).toBe(true)
   })
@@ -81,7 +80,7 @@ describe('field and form meta', () => {
     form.registerField('code', { required: true })
     const hits: string[] = []
     form.subscribeDep(':errors', () => hits.push('root'))
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     expect(form.trackSelector((d) => d.$errors).value).toContain('必填')
     expect(hits).toContain('root')
   })

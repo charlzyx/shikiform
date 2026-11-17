@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { cloneSkus, DIMS, paintGroupColor, skuPickerEffects, type Dim, type SkuSelection } from '../playground/skus'
 import { createEngine } from '../packages/core/src/engine/create'
+import { fieldErrorsOf } from './field-errors'
 
 function picker() {
   return createEngine<SkuSelection>({
@@ -105,7 +106,7 @@ describe('sku picker', () => {
     form.setValue('storage', '256G')
     form.setValue('edition', 'Pro')
     form.setValue('qty', 9)
-    const errors = await form.validate('qty')
+    const errors = await fieldErrorsOf(form.validate('qty'))
     expect(errors.some((error) => error.messages.some((message) => message.includes('库存仅剩 3')))).toBe(true)
   })
 

@@ -106,7 +106,7 @@ const table = useQueryTable({
 ]} />
 ```
 
-**这里的 `submit()` 是查询动作，不是表单 `form.submit()`。** 它不等待校验，也不返回请求 Promise。需要先验证筛选时，先 `await table.form.validate()`，没有错误再 `table.submit()`。
+**这里的 `submit()` 是查询动作，不是表单 `form.submit()`。** 它不等待校验，也不返回请求 Promise。需要先验证筛选时，`try { await table.form.validate() } catch { return }`，通过后再 `table.submit()`。
 
 输入过滤条件不会立刻请求；查询动作才采用当前筛选。翻页/刷新使用上一次提交的筛选。筛选对象来自表单值，不要原地修改 `form.values` 或请求参数。
 
