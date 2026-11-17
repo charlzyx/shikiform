@@ -1,4 +1,4 @@
-import type { UiDraft, UiName } from './types-display'
+import type { UiDraft, UiName } from './types-state'
 import type { EnumBinding, EnumOption, EnumSource } from './enum/enum-source'
 import type { StandardSchemaV1 } from './validation/schema'
 import type { Rule, RulesInput, ValidateCtx } from './validation/rules'
@@ -9,7 +9,7 @@ import type { NormalizePath } from './types-path'
 export type { NormalizePath } from './types-path'
 
 export type { StandardSchemaV1, RulesInput }
-export type { UiDraft, UiName, UiNames } from './types-display'
+export type { UiDraft, UiName, UiNames } from './types-state'
 
 export type { EnumOption, EnumBinding, EnumSource, Rule, ValidateCtx, Pos }
 
