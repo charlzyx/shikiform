@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { pathOf, posOf } from '@shikiform/core'
 import { isPosPrefix } from '../packages/core/src/shared/tree-ops'
 import { createEngine } from '../packages/core/src/engine/create'
+import { fieldErrorsOf } from './field-errors'
 
 interface Node {
   id: string
@@ -26,7 +27,7 @@ describe('tree move', () => {
     const form = createEngine<{ nodes: Node[] }>({ initialValues: { nodes: initial() } })
     form.registerTree('nodes', { childrenKey: 'children', rowKey: 'id' })
     form.registerField('nodes.*.children.*.name', { required: true })
-    await form.validate('nodes.0.children.0.name')
+    await fieldErrorsOf(form.validate('nodes.0.children.0.name'))
     expect(form.errors.some((error) => error.path === 'nodes.0.children.0.name')).toBe(true)
     const moved = form.moveTree('nodes', [0, 0], [1, 1])
     expect(moved.ok).toBe(true)
@@ -40,7 +41,7 @@ describe('tree move', () => {
     const form = createEngine<{ nodes: Node[] }>({ initialValues: { nodes: initial() } })
     form.registerTree('nodes', { childrenKey: 'children', rowKey: 'id' })
     form.registerField('nodes.*.children.*.name', { required: true })
-    await form.validate('nodes.0.children.0.name')
+    await fieldErrorsOf(form.validate('nodes.0.children.0.name'))
     const paths = () => form.errors.map((error) => error.path)
     expect(paths()).toContain('nodes.0.children.0.name')
 

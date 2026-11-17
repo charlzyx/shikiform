@@ -6,6 +6,7 @@ import { ShikiUsageError } from '@shikiform/core'
 import { FormItem, Input, ArrayTable, Submit } from '@shikiform/antd'
 import { withReaction } from './fixtures/reaction-utils'
 import { createEngine, engineOf } from '../packages/core/src/engine/create'
+import { fieldErrorsOf } from './field-errors'
 
 afterEach(cleanup)
 
@@ -101,7 +102,7 @@ describe('an error on screen is re-checked on change', () => {
     form.setValue('name', 'a')
     await new Promise((r) => setTimeout(r, 10))
     expect(engineOf(form).query('name').$errors).toEqual([])
-    await form.validate('name')
+    await fieldErrorsOf(form.validate('name'))
     expect(engineOf(form).query('name').$errors.length).toBe(1)
     form.setValue('name', 'abcd')
     await new Promise((r) => setTimeout(r, 10))

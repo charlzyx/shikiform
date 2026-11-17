@@ -5,6 +5,7 @@ import { useForm } from '../packages/react/src/hooks/use-form'
 import { useField } from '../packages/react/src/hooks/use-field'
 import type { FormInstance } from '../packages/core/src/types'
 import { engineOf } from '../packages/core/src/engine/create'
+import { fieldErrorsOf } from './field-errors'
 
 function Input() {
   const field = useField<string>()
@@ -20,7 +21,7 @@ describe('<Field> as the one field controller', () => {
       return <Form form={form}><Field name="email" component={[Input]} /></Form>
     }
     expect(renderToStaticMarkup(<App />)).not.toContain('<input')
-    expect((await engine.validate()).length > 0).toBe(display === 'hidden')
+    expect((await fieldErrorsOf(engine.validate())).length > 0).toBe(display === 'hidden')
     expect(engine.getSubmitValues()).toEqual(display === 'none' ? {} : { email: '' })
   })
 

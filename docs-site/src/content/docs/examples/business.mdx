@@ -112,7 +112,7 @@ function Suppliers() {
           },
         ]}
       />
-      <Button style={{ marginTop: 8 }} onClick={() => void form.validate()}>校验</Button>
+      <Button style={{ marginTop: 8 }} onClick={() => { void form.validate().catch(() => {}) }}>校验</Button>
     </>
   );
 }

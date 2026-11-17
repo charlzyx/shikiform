@@ -13,7 +13,8 @@ export { EnumSource } from './enum/enum-source'
 export type { EnumBinding, EnumConfig, EnumLoadContext, EnumOption } from './enum/enum-source'
 export { ENUM_COLORS, enumItems } from './enum/enum-pretty'
 export type { EnumDisplayItem, EnumItemsOptions } from './enum/enum-pretty'
-export { ShikiConflictError, ShikiCycleError, ShikiUsageError } from './errors'
+export { ShikiConflictError, ShikiCycleError, ShikiUsageError, SubmitSupersededError, SubmitUnstableError } from './errors'
+export { isFieldErrors } from './validation/field-errors'
 export type { StandardSchemaV1 } from './validation/schema'
 export { moveNode, pathOf, posOf } from './shared/tree-ops'
 export type { Pos, TreeMoveResult } from './shared/tree-ops'
@@ -44,7 +45,7 @@ export type {
   NormalizePath,
   ValuePath,
   Pattern,
-  SubmitResult,
+  SubmitResolved,
   TypedEnumOption,
   UiDraft,
   UiName,

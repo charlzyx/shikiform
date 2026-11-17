@@ -6,6 +6,7 @@ import { defineEffects, Field, Form, useField, type FieldBinding } from '@shikif
 import * as ReactPublic from '@shikiform/react'
 import { FieldContext } from '../packages/react/src/field-context'
 import { zhCN } from '../packages/core/src/validation/messages'
+import { fieldErrorsOf } from './field-errors'
 import {
   Checkbox,
   connect,
@@ -103,7 +104,7 @@ describe('connect + mapProps prop mapping', () => {
     const Plain = connect((props: Record<string, any>) => { plainSeen.push(props); return null })
     const OptIn = connect((props: Record<string, any>) => { optInSeen.push(props); return null }, mapProps({ status: 'status' }))
     const form = createEngine({ initialValues: { x: '' }, fields: { x: { required: true } } })
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     renderToStaticMarkup(<Form form={form}><Plain name="x" disabled /><OptIn name="x" /></Form>)
     expect(plainSeen.at(-1)!.disabled).toBe(true)
     expect('status' in plainSeen.at(-1)!).toBe(false)
@@ -296,7 +297,7 @@ describe('FormItem', () => {
     const first = view()
     expect(first).toContain('邮箱')
     expect(first).toContain('ant-form-item-required')
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     const after = view()
     // antd renders `help` through a motion list on the client; SSR carries the status classes.
     expect(after).toContain('ant-form-item-has-error')
@@ -313,7 +314,7 @@ describe('FormItem', () => {
         </Field>
       </Form>,
     )
-    expect(await form.validate()).toEqual([{ path: 'code', messages: ['至少 3 个字符'] }])
+    expect(await fieldErrorsOf(form.validate())).toEqual([{ path: 'code', messages: ['至少 3 个字符'] }])
   })
 
   it('renders nothing for display hidden / none and hides the required mark in readPretty', () => {
@@ -339,7 +340,7 @@ describe('FormItem', () => {
     }
     const html = renderToStaticMarkup(<Form form={form}><Hooked /></Form>)
     expect(html).toContain('姓名')
-    expect(await form.validate()).toEqual([{ path: 'name', messages: ['必填'] }])
+    expect(await fieldErrorsOf(form.validate())).toEqual([{ path: 'name', messages: ['必填'] }])
     const props = mapFormItemProps(form.binding('name', { title: '姓名' }) as FieldBinding<any>, { tooltip: 't' })
     expect(props).toMatchObject({ label: '姓名', required: true, validateStatus: 'error', help: '必填', tooltip: 't', htmlFor: 'name' })
   })
@@ -370,7 +371,7 @@ describe('FormItem', () => {
     expect(mapFormItemProps(field, { feedbackLayout: 'terse' }).style).toEqual({ marginBottom: 0 })
     expect(mapFormItemProps(field, { asterisk: true }).required).toBe(true)
     form.registerField('a', { required: true })
-    void form.validate()
+    void fieldErrorsOf(form.validate())
     const failed = form.binding('a') as FieldBinding<any>
     expect(mapFormItemProps(failed, { feedbackLayout: 'none' })).toMatchObject({ validateStatus: 'error', help: undefined })
     expect(mapFormItemProps(failed, {}, { layout: 'vertical', labelCol: { span: 4 } })).toMatchObject({ layout: 'vertical', labelCol: { span: 4 } })

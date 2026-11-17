@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { ArrayField, Form, typed, useArrayField } from '@shikiform/react'
 import { ArrayCards, ArrayItems, FormItem, FormLayout, Input } from '@shikiform/antd'
 import { createEngine, type Engine } from '../packages/core/src/engine/create'
+import { fieldErrorsOf } from './field-errors'
 
 afterEach(cleanup)
 const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 20)))
@@ -57,7 +58,7 @@ describe('array-level errors', () => {
     expect(feedback(view, 'members.0.phones')).toBeNull()
     expect(feedback(view, 'members')).toBeNull()
 
-    await act(() => form.validate())
+    await act(async () => { await fieldErrorsOf(form.validate()) })
     const empty = feedback(view, 'members.0.phones')
     expect(empty?.textContent).toBe('至少一个电话')
     expect(empty?.querySelector('.ant-form-item-explain-error')).not.toBeNull()
@@ -85,7 +86,7 @@ describe('array-level errors', () => {
         <F.ArrayField name="rows" component={[ArrayCards, { title: '行' }]}>{() => null}</F.ArrayField>
       </Form>,
     )
-    await act(() => form.validate())
+    await act(async () => { await fieldErrorsOf(form.validate()) })
     expect(view.getByTestId('array-feedback').textContent).toBe('至少一行')
     expect(view.getByTestId('array-empty')).toBeTruthy()
 
@@ -102,7 +103,7 @@ describe('array-level errors', () => {
         </FormLayout>
       </Form>,
     )
-    await act(() => hidden.validate())
+    await act(async () => { await fieldErrorsOf(hidden.validate()) })
     expect(off.queryByTestId('array-feedback')).toBeNull()
     expect(hidden.errors.flatMap((error) => error.messages)).toEqual(['至少一行'])
 
@@ -117,7 +118,7 @@ describe('array-level errors', () => {
         <B.ArrayField name="rows" component={[ArrayItems, { feedback: false }]}>{() => null}</B.ArrayField>
       </Form>,
     )
-    await act(() => bare.validate())
+    await act(async () => { await fieldErrorsOf(bare.validate()) })
     expect(none.queryByTestId('array-feedback')).toBeNull()
   })
 
@@ -139,7 +140,7 @@ describe('array-level errors', () => {
         <F.ArrayField name="rows" component={[ArrayItems]}>{() => null}</F.ArrayField>
       </Form>,
     )
-    await act(() => form.validate())
+    await act(async () => { await fieldErrorsOf(form.validate()) })
     const box = view.getByTestId('array-feedback')
     expect(box.textContent).toContain('偏少')
     expect(box.textContent).toContain('另一条')
@@ -167,7 +168,7 @@ describe('array-level errors', () => {
         </ArrayField>
       </Form>,
     )
-    await act(() => form.validate())
+    await act(async () => { await fieldErrorsOf(form.validate()) })
     expect(view.getByTestId('own').textContent).toBe('至少一个电话')
     expect(form.binding('members.0.name').errors).toEqual(['必填'])
 

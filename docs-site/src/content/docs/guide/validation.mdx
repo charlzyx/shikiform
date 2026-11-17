@@ -85,19 +85,32 @@ export default function App() {
 ## 校验时机与竞态处理
 
 - **默认时机**：默认在控件失焦（`onBlur`）和表单提交（`onSubmit`）时触发校验，可通过 `validateTrigger: ['onChange', 'onBlur', 'onSubmit']` 调整。如果字段已经处于报错状态，后续每次修改值都会实时重新校验，输入合法后错误会立即消除。
-- **手动触发**：调用 `form.validate()` 可校验整张表单，传入路径前缀（如 `form.validate('items')`）则只校验指定子树，均返回 `{ path, messages }[]`。
-- **提交与并发**：`submit()` 会等待进行中的异步校验完成后再执行最终检查。如果在校验过程中用户又修改了表单值，引擎会基于最新值重新校验（最多自动重试 3 轮），确保最终提交的数据一定经过了完整校验。如果两次连续提交之间值没有变化，两次回调都会各自执行；若需防止重复提交，可根据 `$submitting` 禁用按钮。
+- **手动触发**：`await form.validate()` 校验整张表单，传入路径前缀（如 `form.validate('items')`）则只校验指定子树。通过时 resolve `undefined`，失败时 reject `FieldError[]`（`{ path, messages }[]`）。
+- **提交与并发**：`submit()` 会等待进行中的异步校验完成后再执行最终检查。如果在校验过程中用户又修改了表单值，引擎会基于最新值重新校验（最多自动重试 3 轮），确保最终提交的数据一定经过了完整校验。后一次 `submit()` 会取代还在校验的前一次：旧的那次 reject `SubmitSupersededError`，只有最新的一次调用 `onValid`。若需防止重复提交，可根据 `$submitting` 禁用按钮。
 
 ## 提交返回值处理
 
-调用 `form.submit()` 永远不会抛出异常（reject），而是返回以下四种结构之一：
+`form.submit()` 通过时 resolve，失败时 reject：
 
-| 返回值 | 说明 |
+| 结果 | 说明 |
 |---|---|
-| `{ ok: true, values }` | 校验通过，且 `onValid` 回调执行完毕 |
-| `{ ok: false, reason: 'invalid', errors }` | 校验未通过，`onValid` 不会被调用 |
-| `{ ok: false, reason: 'error', error }` | `onValid` 回调或表单级 `validate` 抛出了异常 |
-| `{ ok: false, reason: 'superseded', message }` | 校验期间值持续变化且 3 轮后仍未稳定，可提示用户重新提交 |
+| resolve 提交值 | 校验通过。没传 `onValid`，或它返回 `undefined` |
+| resolve `onValid` 的返回值 | `await onValid(values)` 得到了非 `undefined` 的值 |
+| reject `FieldError[]` | 校验未通过，`onValid` 不会被调用 |
+| reject 原错误 | `onValid` 或表单级 `validate` 自己抛出的异常 |
+| reject `SubmitSupersededError` | 被后一次 `submit()` 取代（`code: 'superseded'`，`message` 为 `messages.superseded`） |
+| reject `SubmitUnstableError` | 值连续 3 轮未稳定，不是被取代（`code: 'unstable'`，`message` 同样为 `messages.superseded`）。`<Form>` / `<Submit>` 把它交给 `onSubmitError` |
+
+```ts
+try {
+  const values = await form.submit(async (draft) => {
+    await api.save(draft)
+  })
+  form.setInitialValues(form.values)
+} catch (error) {
+  if (isFieldErrors(error)) console.log(error[0]?.path)
+}
+```
 
 对于 `<Form>` 的提交类型推断：不传泛型（`useForm({ fields })`）或使用 `typed<Values>().useForm({ fields })` 时，在 `fields` 中声明了 `display: 'virtual'` 或 `display: 'none'` 的路径会自动推导为可选字段；如果直接写 `useForm<Values>({ fields })`，提交类型则固定为 `Values`；对于只在 JSX 或 `reaction` 中动态设置的 `virtual` / `none` 字段，可以通过第二个泛型参数 `SubmitValues<Values, 'confirm'>` 手动剔除。`useForm()` 不传参或传 `undefined` 等价于传入 `{}`。
 
@@ -141,7 +154,7 @@ setDefaultMessages(enUS)                              // 全局默认配置，�
 | `min` / `max` | 数值范围校验 | `min` / `max` |
 | `enum` | `enumPolicy: 'error'` 且值不在 `$enum` 选项中时 | `options` |
 | `fallback` | `validator` 抛出的错误缺少 `message`，或 schema issue 文案为空时 | `error` |
-| `superseded` | `submit` 返回 `reason: 'superseded'` 时的提示信息 | — |
+| `superseded` | `SubmitSupersededError` 与 `SubmitUnstableError` 的 `message` | — |
 | `treeIntoSelf` / `treeSourceMissing` / `treeTargetMissing` / `treeEmptyPos` | 树句柄 `move` 被拒绝时的原因说明 | `from`、`to`（不含 `path` 与 `value`） |
 | `submit` / `reset` / `search` / `refresh` / `expand` / `collapse` | `Submit` / `Reset` 及 `QueryList` 等按钮文案 | — |
 | `optional` | `requiredMark: 'optional'` 时非必填项标签后缀（默认 `（可选）`） | — |

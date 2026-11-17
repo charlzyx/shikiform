@@ -1,5 +1,6 @@
 import { Steps, type StepsProps } from 'antd'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { isFieldErrors } from '@shikiform/core'
 import type { FormEngine } from '@shikiform/core/internal'
 import { FieldGroup, useGroupsErrors, type FieldGroupStore } from '@shikiform/react/internal'
 import { useRequiredForm } from '@shikiform/react/internal'
@@ -85,15 +86,13 @@ export function useFormStep(options: UseFormStepOptions = {}): FormStepHandle {
     if (!attached || from >= total - 1) return false
     const group = attached.groups[from]
     const paths = group ? group.paths().filter((path) => attached.form.query(path).$pattern === 'editable') : []
-    let errors
     try {
-      errors = await attached.form.validate(paths)
+      await attached.form.validate(paths)
     } catch (error) {
-      // A form-level validate threw: stay, like submit's `reason: 'error'`.
-      console.error('[shikiform] FormStep next() validation failed', error)
+      // Field errors stay on this step. Anything else (a form-level validate threw) is logged; next() never rejects.
+      if (!isFieldErrors(error)) console.error('[shikiform] FormStep next() validation failed', error)
       return false
     }
-    if (errors.length) return false
     // Only move when nobody moved meanwhile (a double click validates twice but advances once).
     if (latest.current.current !== from) return false
     goTo(from + 1)

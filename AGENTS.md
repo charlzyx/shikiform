@@ -284,9 +284,13 @@ reaction((d) => {
 
 ## 6. Submit and messages
 
-- `form.submit(onValid?)` never rejects. It resolves `{ ok: true, values }` or `{ ok: false, reason }`:
-  `'invalid'` (`errors`), `'error'` (`onValid` threw; `error`), `'superseded'` (values never settled; `message`).
-  Branch on `reason`, not on a message string. Two submits on unchanged values both succeed.
+- `form.submit(onValid?)` is a Promise. Validation success resolves the submit values. With `onValid`, await it and
+  resolve its return value, or the values when that return is `undefined`. Validation failure rejects `FieldError[]`.
+  A throw from `onValid` rejects as-is. A submit replaced by a later `submit()` rejects `SubmitSupersededError`
+  (`code: 'superseded'`). Values that never settle reject `SubmitUnstableError` (`code: 'unstable'`). Both use
+  `messages.superseded`, and neither is a `FieldError[]`. `<Form>` / `<Submit>` send `SubmitUnstableError` to `onSubmitError`.
+  `form.validate(path?)` resolves `undefined` when clean and rejects `FieldError[]` otherwise.
+  `<Form>` / `<Submit>` catch the rejection (`onInvalid` / `onSubmitError`); a superseded submit is swallowed.
 - `<Form>` takes the submit callbacks: `onSubmit(values)`, `onInvalid(errors)`,
   `onSubmitError(error)` (default `console.error`); other props go to the native `<form>` (`id`, `className`, `noValidate`).
   Enter, `type="submit"`, and `form.submit(onValid)` behave the same; do not add a second `<form>`.

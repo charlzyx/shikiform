@@ -67,7 +67,7 @@ describe('named UI nodes (core)', () => {
     form.setValue('amount', 60000)
     expect(form.uiBinding('', 'approvalTip', undefined, 'node').display).toBe('visible')
     const result = await form.submit()
-    expect(result).toEqual({ ok: true, values: { amount: 60000 } })
+    expect(result).toEqual({ amount: 60000 })
     expect(form.values).toEqual({ amount: 60000 })
   })
 
@@ -75,8 +75,7 @@ describe('named UI nodes (core)', () => {
     const form = createEngine({ initialValues: { a: '' }, fields: { a: { required: true } } })
     form.batch((d) => { d.$ui('box').$visible = false; d.a.$ui('echo').$visible = false })
     expect(form.binding('a').display).toBe('visible')
-    const result = await form.submit()
-    expect(result.ok).toBe(false)
+    await expect(form.submit()).rejects.toEqual(expect.any(Array))
   })
 
   it('ids differ from the field id', () => {

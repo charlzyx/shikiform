@@ -4,6 +4,7 @@ import { afterEach, describe, expect, expectTypeOf, it } from 'vitest'
 import { Field, Form, useForm, useWatch } from '@shikiform/react'
 import { defineEffects, ShikiUsageError, type Draft } from '@shikiform/core'
 import { createEngine, type Engine, engineOf } from '../packages/core/src/engine/create'
+import { fieldErrorsOf } from './field-errors'
 
 type Rec = { name: string; addr: { city: string }; rows: { id: string; qty: number }[] }
 const EMPTY: Rec = { name: '', addr: { city: '' }, rows: [] }
@@ -29,7 +30,7 @@ describe('#33 reset(values) / setInitialValues', () => {
   it('reset(record) clears touched, edited and messages, and does not alias the caller object', async () => {
     const form = createEngine<Rec>({ initialValues: EMPTY, fields: { name: { required: true } } })
     form.binding('name').onBlur()
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     expect(form.errors.length).toBe(1)
     const record = structuredClone(RECORD)
     form.reset(record)
@@ -122,7 +123,7 @@ describe('#34 setErrors / clearErrors', () => {
     let seen: string[] = []
     form.batch((d) => { seen = d.username.$errors })
     expect(seen).toEqual(['用户名已存在'])
-    await form.validate('username')
+    await fieldErrorsOf(form.validate('username'))
     expect(form.errors).toEqual([])
   })
 
@@ -138,11 +139,9 @@ describe('#34 setErrors / clearErrors', () => {
 
   it('submit revalidates, so a resubmit is not stuck on the old server message', async () => {
     const form = createEngine<V>({ initialValues: init })
-    const first = await form.submit(async () => { form.setErrors({ username: '用户名已存在' }) })
-    expect(first.ok).toBe(true)
+    expect(await form.submit(async () => { form.setErrors({ username: '用户名已存在' }) })).toEqual(init)
     expect(form.errors).toEqual([{ path: 'username', messages: ['用户名已存在'] }])
-    const second = await form.submit()
-    expect(second.ok).toBe(true)
+    expect(await form.submit()).toEqual(init)
   })
 
   it('clearErrors(path?) and an empty entry clear messages; React shows them', () => {
@@ -268,7 +267,7 @@ describe('#39 dirty = differs from initial; edited = sticky', () => {
 
     let api!: Engine<{ name: string }>
     function F() {
-      api = engineOf(useForm({ initialValues: { name: 'Ada' } }))
+      api = engineOf(useForm<{ name: string }>({ initialValues: { name: 'Ada' } }))
       return <Form form={api}><DirtyLabel /></Form>
     }
     function DirtyLabel() {

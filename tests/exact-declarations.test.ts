@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createEngine } from '../packages/core/src/engine/create'
+import { fieldErrorsOf } from './field-errors'
 
 /** #8: exact declarations on template paths survive their row leaving and coming back. */
 const row = () => ({ token: 'example-only', note: 'n', extra: 1 })
@@ -23,7 +24,7 @@ describe('exact declarations on template paths (#8)', () => {
     form.setValue('rows', [])
     form.setValue('rows', [row()])
     expect(form.getSubmitValues()).toEqual({ rows: [{}] })
-    expect(await form.validate()).toEqual([])
+    expect(await fieldErrorsOf(form.validate())).toEqual([])
   })
 
   it('removeArray → pushArray re-applies the exact declarations to the new row 0', async () => {
@@ -34,7 +35,7 @@ describe('exact declarations on template paths (#8)', () => {
     expect(form.getSubmitValues()).toEqual({ rows: [{}] })
     expect(form.errors).toEqual([])
     const submitted = await form.submit()
-    expect(submitted).toMatchObject({ ok: true, values: { rows: [{}] } })
+    expect(submitted).toMatchObject({ rows: [{}] })
   })
 
   it('reset after emptying restores the submit shape without ghost errors', async () => {
@@ -45,7 +46,7 @@ describe('exact declarations on template paths (#8)', () => {
     form.setValue('rows', [])
     form.reset()
     expect(form.getSubmitValues()).toEqual({ rows: [{}] })
-    expect(await form.validate()).toEqual([])
+    expect(await fieldErrorsOf(form.validate())).toEqual([])
     expect(form.errors).toEqual([])
   })
 
@@ -55,7 +56,7 @@ describe('exact declarations on template paths (#8)', () => {
     form.pushArray('rows', row())
     form.pushArray('rows', { token: '', note: 'x', extra: 2 })
     expect(form.getSubmitValues()).toEqual({ rows: [{}, { token: '', note: 'x', extra: 2 }] })
-    const errors = await form.validate()
+    const errors = await fieldErrorsOf(form.validate())
     expect(errors.map((error) => error.path)).toEqual(['rows.1.token'])
   })
 })
@@ -109,7 +110,7 @@ describe('exact declarations stay on their path on move / swap / insert', () => 
       fields: { 'rows.0.token': { required: true } },
     })
     form.moveArray('rows', 0, 1)
-    const errors = await form.validate()
+    const errors = await fieldErrorsOf(form.validate())
     expect(errors.map((error) => error.path)).toEqual(['rows.0.token'])
   })
 

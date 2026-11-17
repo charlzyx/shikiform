@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as root from '@shikiform/react'
 import { ArrayField, createForm, Form, ObjectField, typed, useArrayField, useTreeField, TreeField } from '@shikiform/react'
 import { FieldGroup, useFieldGroup, useFieldGroupErrors, type FieldGroupHandle } from '@shikiform/react/internal'
+import { fieldErrorsOf } from './field-errors'
 
 // 测试辅助：把 Holder 里创建的组句柄共享给兄弟组件
 let sharedGroup: FieldGroupHandle | undefined
@@ -245,7 +246,7 @@ describe('useTreeField aligns with useField / useArrayField', () => {
       </Form>,
     )
     await act(async () => {
-      await form.validate()
+      await fieldErrorsOf(form.validate())
     })
     expect(captured!.paths()).toContain('nodes')
     expect(view.getByTestId('errors').textContent).toContain('nodes')

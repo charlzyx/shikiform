@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { fieldErrorsOf } from './field-errors'
 import {
   Field,
   Form,
@@ -30,7 +31,7 @@ describe('connect blur fallback and status opt-in', () => {
     const OptIn = connect((props: Record<string, any>) => { optInSeen.push(props); return null }, mapProps({ status: 'status' }))
 
     const form = requiredForm()
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     render(<Form form={form}><Plain name="city" /><OptIn name="city" /></Form>)
     expect('status' in plainSeen.at(-1)!).toBe(false)
     expect(optInSeen.at(-1)!.status).toBe('error')
@@ -165,7 +166,7 @@ describe('useFieldDecorator', () => {
     expect(label.getAttribute('for')).toBe('f-email')
     expect(view.getByText('工作用').id).toBe('f-email-description')
     expect(view.getByText('邮箱*').closest('div')!.querySelector('[data-invalid]')!.getAttribute('data-invalid')).toBe('0')
-    await act(async () => { await form.validate() })
+    await act(async () => { await fieldErrorsOf(form.validate()) })
     expect(view.getByRole('alert').textContent).toBe('必填')
     expect(view.getByRole('alert').id).toBe('f-email-error')
     expect(view.container.querySelector('[data-describedby]')!.getAttribute('data-describedby')).toBe('f-email-description f-email-error')

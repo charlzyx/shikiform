@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { defineEffects } from '@shikiform/core'
 import { createEngine } from '../packages/core/src/engine/create'
+import { fieldErrorsOf } from './field-errors'
 
 describe('display and pattern', () => {
   it('keeps hidden values and drops none values', async () => {
@@ -14,7 +15,7 @@ describe('display and pattern', () => {
       d.b.$required = true
       d.c.$required = true
     })
-    const errors = await form.validate()
+    const errors = await fieldErrorsOf(form.validate())
     expect(errors.map((error) => error.path)).toContain('c')
     expect(errors.map((error) => error.path)).not.toContain('b')
     expect(errors.map((error) => error.path)).not.toContain('a')
@@ -33,14 +34,14 @@ describe('display and pattern', () => {
     })
     expect(form.binding('a').display).toBe('none')
     expect(form.getSubmitValues()).toEqual({})
-    expect(await form.submit()).toEqual({ ok: true, values: {} })
+    expect(await form.submit()).toEqual({})
     form.batch((d) => {
       d.a.$visible = true
       d.b.$visible = true
     })
     expect(form.binding('a').display).toBe('visible')
     expect(form.getValue('a')).toBe('x')
-    expect((await form.submit()).ok).toBe(false)
+    await expect(form.submit()).rejects.toEqual(expect.any(Array))
   })
 
   it('treats $hidden true as hidden (Formily hidden): still validated and submitted', async () => {
@@ -52,7 +53,7 @@ describe('display and pattern', () => {
     })
     expect(form.binding('a').display).toBe('hidden')
     expect(form.getSubmitValues()).toEqual({ a: 'x', b: '' })
-    expect(await form.submit()).toMatchObject({ ok: false, errors: [{ path: 'b' }] })
+    await expect(form.submit()).rejects.toEqual([expect.objectContaining({ path: 'b' })])
     form.batch((d) => {
       d.b.$hidden = false
     })
@@ -111,12 +112,12 @@ describe('display and pattern', () => {
         }),
       ],
     })
-    expect((await form.submit()).ok).toBe(false)
+    await expect(form.submit()).rejects.toEqual(expect.any(Array))
     form.setValue('taxId', 'T-123')
     form.setValue('kind', 'person')
-    expect(await form.submit()).toEqual({ ok: true, values: { kind: 'person', name: 'x' } })
+    expect(await form.submit()).toEqual({ kind: 'person', name: 'x' })
     form.setValue('kind', 'company')
-    expect(await form.submit()).toEqual({ ok: true, values: { kind: 'company', name: 'x', taxId: 'T-123' } })
+    expect(await form.submit()).toEqual({ kind: 'company', name: 'x', taxId: 'T-123' })
   })
 
   it('display virtual renders in the binding, validates, omits the subtree, and ignores dirty', async () => {
@@ -133,7 +134,7 @@ describe('display and pattern', () => {
     form.setValue('note', 'n')
     expect(form.getSubmitValues()).toEqual({ box: { email: '', keep: 'k' }, note: 'n' })
     form.setValue('confirm', '')
-    expect((await form.submit()).ok).toBe(false)
+    await expect(form.submit()).rejects.toEqual(expect.any(Array))
 
     form.batch((d) => { d.box.$display = 'virtual' })
     expect(form.binding('box.email').display).toBe('virtual')
@@ -164,12 +165,12 @@ describe('display and pattern', () => {
       expect(d.box.secret.$visible).toBe(false)
     })
     // Hidden parent + virtual child: still validated, not submitted. The sibling hidden field is submitted.
-    expect((await form.validate()).map((error) => error.path).sort()).toEqual(['box.secret', 'box.shown'])
+    expect((await fieldErrorsOf(form.validate())).map((error) => error.path).sort()).toEqual(['box.secret', 'box.shown'])
     expect(form.getSubmitValues()).toEqual({ box: { shown: '' }, other: 'o' })
 
     form.batch((d) => { d.box.$display = 'none' })
     expect(form.binding('box.secret').display).toBe('none')
-    expect(await form.validate()).toEqual([])
+    expect(await fieldErrorsOf(form.validate())).toEqual([])
     expect(form.getSubmitValues()).toEqual({ other: 'o' })
     expect(form.getValue('box.secret')).toBe('')
   })
@@ -181,7 +182,7 @@ describe('display and pattern', () => {
     })
     // hidden outranks virtual on the read, but the parent's virtual still omits the subtree.
     expect(form.binding('box.name').display).toBe('hidden')
-    expect((await form.validate()).map((error) => error.path)).toEqual(['box.name'])
+    expect((await fieldErrorsOf(form.validate())).map((error) => error.path)).toEqual(['box.name'])
     expect(form.getSubmitValues()).toEqual({})
   })
 
@@ -197,7 +198,7 @@ describe('display and pattern', () => {
       ],
     })
     expect(form.binding('confirm').display).toBe('virtual')
-    expect((await form.submit()).ok).toBe(false)
+    await expect(form.submit()).rejects.toEqual(expect.any(Array))
     form.setValue('need', false)
     expect(form.binding('confirm').display).toBe('visible')
     expect(form.getSubmitValues()).toEqual({ need: false, confirm: '' })

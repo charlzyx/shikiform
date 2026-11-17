@@ -52,10 +52,7 @@ describe('virtual row editor', () => {
     expect(form.getValue('rows.1.name')).toBe('新墨水')
 
     const result = await form.submit()
-    expect(result.ok).toBe(true)
-    if (result.ok) {
-      expect(result.values).not.toHaveProperty('editor')
-      expect(result.values.rows[1].name).toBe('新墨水')
-    }
+    expect(result).not.toHaveProperty('editor')
+    expect(result.rows[1].name).toBe('新墨水')
   })
 })

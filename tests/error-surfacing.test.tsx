@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { ArrayField, createForm, Field, Form } from '@shikiform/react'
 import { ArrayItems, ArrayTable, FormCollapse, FormItem, FormStep, FormTab, Input, Submit, useFormStep, type FormStepHandle } from '@shikiform/antd'
 import type { FormInstance } from '@shikiform/react'
+import { fieldErrorsOf } from './field-errors'
 
 afterEach(cleanup)
 const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 30)))
@@ -24,18 +25,18 @@ describe('form.subscribeValidateFailed', () => {
     const form = createForm<Values>({ initialValues: initial, fields: { name: { required: true } } })
     const calls: string[][] = []
     const stop = form.subscribeValidateFailed((errors) => calls.push(errors.map((e) => e.path)))
-    await form.submit()
+    await fieldErrorsOf(form.submit())
     expect(calls).toEqual([['name']])
-    await form.validate('email')
+    await fieldErrorsOf(form.validate('email'))
     expect(calls).toHaveLength(1)
-    await form.validate(['name'])
+    await fieldErrorsOf(form.validate(['name']))
     expect(calls).toEqual([['name'], ['name']])
     form.setValue('name', 'Ada')
-    expect((await form.submit()).ok).toBe(true)
+    expect(await form.submit()).toEqual({ ...initial, name: 'Ada' })
     expect(calls).toHaveLength(2)
     stop()
     form.setValue('name', '')
-    await form.submit()
+    await fieldErrorsOf(form.submit())
     expect(calls).toHaveLength(2)
   })
 })
@@ -75,7 +76,7 @@ describe('containers reveal the first error', () => {
     // form.validate() reveals too: fix email, the next error is on the third pane.
     act(() => form.setValue('email', 'a@b.c'))
     await act(async () => {
-      await form.validate()
+      await fieldErrorsOf(form.validate())
     })
     await settle()
     expect(activeTab(view)).toContain('更多')
@@ -89,7 +90,7 @@ describe('containers reveal the first error', () => {
     const view = render(<TabForm form={form} activeKey="base" onChange={(key) => seen.push(key)} />)
     await settle()
     await act(async () => {
-      await form.submit()
+      await fieldErrorsOf(form.submit())
     })
     expect(seen).toEqual(['contact'])
     expect(activeTab(view)).toBe('基本')
@@ -115,7 +116,7 @@ describe('containers reveal the first error', () => {
     await settle()
     expect(view.container.querySelectorAll('.ant-collapse-item-active')).toHaveLength(1)
     await act(async () => {
-      await form.submit()
+      await fieldErrorsOf(form.submit())
     })
     await settle()
     expect(view.container.querySelectorAll('.ant-collapse-item-active')).toHaveLength(3)
@@ -138,7 +139,7 @@ describe('containers reveal the first error', () => {
     )
     await settle()
     await act(async () => {
-      await form.submit()
+      await fieldErrorsOf(form.submit())
     })
     await settle()
     const open = accordion.container.querySelectorAll('.ant-collapse-item-active')
@@ -205,7 +206,7 @@ describe('pure-layout FormItem shows the errors inside it', () => {
     const view = render(<Layout form={form} />)
     await settle()
     await act(async () => {
-      await form.submit()
+      await fieldErrorsOf(form.submit())
     })
     await settle()
     const range = view.getByTestId('range').closest('.ant-form-item')!
@@ -214,7 +215,7 @@ describe('pure-layout FormItem shows the errors inside it', () => {
     act(() => form.setValue('name', 'Ada'))
     act(() => form.setValue('email', 'x'))
     await act(async () => {
-      await form.validate()
+      await fieldErrorsOf(form.validate())
     })
     await settle()
     expect([...range.querySelectorAll('.ant-form-item-explain-error')].map((n) => n.textContent)).toHaveLength(1)
@@ -228,7 +229,7 @@ describe('pure-layout FormItem shows the errors inside it', () => {
     const view = render(<Layout form={form} />)
     await settle()
     await act(async () => {
-      await form.submit()
+      await fieldErrorsOf(form.submit())
     })
     await settle()
     const outer = view.getByTestId('decorated').closest('.ant-form-item')!
@@ -240,7 +241,7 @@ describe('pure-layout FormItem shows the errors inside it', () => {
     const quiet = render(<Layout form={form} innerFeedback="none" />)
     await settle()
     await act(async () => {
-      await form.submit()
+      await fieldErrorsOf(form.submit())
     })
     await settle()
     const box = quiet.getByTestId('decorated').closest('.ant-form-item')!
@@ -261,7 +262,7 @@ describe('pure-layout FormItem shows the errors inside it', () => {
     )
     await settle()
     await act(async () => {
-      await form.submit()
+      await fieldErrorsOf(form.submit())
     })
     await settle()
     const item = (id: string) => view.getByTestId(id).closest('.ant-form-item')!

@@ -9,7 +9,7 @@ description: 使用 ObjectField、ArrayField 和 TreeField 建立相对路径作
 |---|---|---|
 | `<ObjectField name="profile">` | `profile.*` | — |
 | `<ArrayField name="items" rowKey="id">` | 每行内为 `items.N.*` | `useArrayField(name?)`：`push` / `insert` / `remove` / `move` / `swap` / `replace`。不传 name 取最近一层 |
-| `<TreeField name="nodes">` | 每个树节点内为对应节点路径，子节点传入 `node.children` | `useTreeField(name)` 是整棵树。节点里 `useTreeField()` 是当前节点（`path`、`pos`、`index`）并带上树的 `push` / `insert` / `remove` / `replace` / `move` / `dragProps` |
+| `<TreeField name="nodes">` | 每个树节点内为对应节点路径，子节点传入 `node.children` | `useTreeField(name)` 是整棵树，`path` 与 `treePath` 都是树根。节点里 `useTreeField()` 是当前节点：`path` 是句柄指向的字段路径，`treePath` 是这棵树的根路径，并带上 `pos`、`index` 和树的 `push` / `insert` / `remove` / `replace` / `move` / `dragProps` |
 
 ## 对象与数组示例
 

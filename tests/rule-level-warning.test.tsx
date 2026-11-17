@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { Field, Form, createForm, defineEffects } from '@shikiform/react'
 import { FormItem, Input } from '@shikiform/antd'
 import { createEngine } from '../packages/core/src/engine/create'
+import { fieldErrorsOf } from './field-errors'
 
 const weak = (value: unknown) => (/\d/.test(String(value)) && /[a-z]/i.test(String(value)) ? null : '建议同时包含字母和数字')
 
@@ -15,16 +16,16 @@ describe("Rule.level: 'warning'", () => {
       initialValues: { password: '123456' },
       fields: { password: { rules: [{ minLength: 6 }, { validator: weak, level: 'warning' }] } },
     })
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     expect(form.errors).toEqual([])
     expect(form.binding('password').warnings).toEqual(['建议同时包含字母和数字'])
     let seen: string[] = []
     form.batch((d) => { seen = d.password.$warnings })
     expect(seen).toEqual(['建议同时包含字母和数字'])
     expect(form.canSubmit).toBe(true)
-    expect(await form.submit()).toEqual({ ok: true, values: { password: '123456' } })
+    expect(await form.submit()).toEqual({ password: '123456' })
     form.setValue('password', 'abc123')
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     expect(form.binding('password').warnings).toEqual([])
   })
 
@@ -33,8 +34,7 @@ describe("Rule.level: 'warning'", () => {
       initialValues: { name: 'ab' },
       fields: { name: { rules: [{ minLength: 5, level: 'warning', message: '最好 5 个字符以上' }, { maxLength: 1, message: '太长' }] } },
     })
-    const result = await form.submit()
-    expect(result.ok).toBe(false)
+    await expect(form.submit()).rejects.toEqual([{ path: 'name', messages: ['太长'] }])
     expect(form.binding('name').errors).toEqual(['太长'])
     expect(form.binding('name').warnings).toEqual(['最好 5 个字符以上'])
   })
@@ -47,24 +47,23 @@ describe("Rule.level: 'warning'", () => {
         b: { rules: { validator: async () => { throw new Error('net') }, level: 'warning' } },
       },
     })
-    const result = await form.submit()
-    expect(result.ok).toBe(true)
+    expect(await form.submit()).toEqual({ a: 'x', b: 'y' })
     expect(form.binding('a').warnings).toEqual(['慢一点的提醒'])
     expect(form.binding('b').warnings).toEqual(['net'])
   })
 
   it('reset and clearErrors drop warnings; display none clears them', async () => {
     const form = createEngine({ initialValues: { a: '1' }, fields: { a: { rules: { validator: weak, level: 'warning' } } } })
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     expect(form.binding('a').warnings).toHaveLength(1)
     form.reset()
     expect(form.binding('a').warnings).toEqual([])
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     form.clearErrors()
     expect(form.binding('a').warnings).toEqual([])
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     form.batch((d) => { d.a.$visible = false })
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     expect(form.binding('a').warnings).toEqual([])
   })
 
@@ -76,10 +75,10 @@ describe("Rule.level: 'warning'", () => {
         reaction((d) => { d.hint.$value = d.a.$warnings.join(',') })
       })],
     })
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     expect(form.getValue('hint')).toBe('建议同时包含字母和数字')
     form.setValue('a', 'a1')
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     expect(form.getValue('hint')).toBe('')
   })
 
@@ -90,7 +89,7 @@ describe("Rule.level: 'warning'", () => {
         <Field name="password" title="密码" rules={{ validator: weak, level: 'warning' }} decorator={[FormItem]} component={[Input]} />
       </Form>,
     )
-    await act(async () => { await form.validate() })
+    await act(async () => { await fieldErrorsOf(form.validate()) })
     expect(view.container.querySelector('.ant-form-item-has-warning')).not.toBeNull()
     expect(view.container.textContent).toContain('建议同时包含字母和数字')
   })

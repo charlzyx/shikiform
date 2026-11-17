@@ -202,9 +202,10 @@ function RowEditBody() {
         data-testid="form-submit"
         style={{ marginTop: 16 }}
         onClick={() => {
-          void form.submit().then((submitResult) => {
-            setResult(submitResult.ok ? JSON.stringify(submitResult.values) : 'error')
-          })
+          void form.submit().then(
+            (values) => setResult(JSON.stringify(values)),
+            () => setResult('error'),
+          )
         }}
       >
         提交

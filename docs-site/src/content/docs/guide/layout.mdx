@@ -38,7 +38,7 @@ export default function App() {
           <FormLayout layout="vertical" labelCol={{ span: 24 }} wrapperCol={{ span: 24 }}>
             <Field name="remark" title="备注（嵌套的 vertical 布局）" decorator={[FormItem]} component={[Input.TextArea]} />
           </FormLayout>
-          <button type="button" onClick={() => void form.validate()}>校验，看反馈方式</button>
+          <button type="button" onClick={() => { void form.validate().catch(() => {}) }}>校验，看反馈方式</button>
         </FormLayout>
       </Form>
     </>

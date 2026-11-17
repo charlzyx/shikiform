@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { type StandardSchemaV1 } from '@shikiform/core'
 import { createEngine } from '../packages/core/src/engine/create'
+import { fieldErrorsOf } from './field-errors'
 
 function gate() {
   let open!: () => void
@@ -55,11 +56,11 @@ describe('form-level validate generations (schema and function)', () => {
       })
       const first = form.validate()
       form.setValue('name', 'new')
-      await form.validate()
+      await fieldErrorsOf(form.validate())
       expect(form.getValue('name')).toBe('new')
       expect(form.errors).toEqual([])
       held.open()
-      await first
+      await fieldErrorsOf(first)
       expect(form.getValue('name')).toBe('new')
       expect(form.errors).toEqual([])
       expect(form.validating).toBe(false)
@@ -74,10 +75,10 @@ describe('form-level validate generations (schema and function)', () => {
       })
       const first = form.validate()
       form.setValue('name', 'new')
-      await form.validate()
+      await fieldErrorsOf(form.validate())
       expect(form.errors.find((error) => error.path === 'name')?.messages).toEqual(['new-error'])
       held.open()
-      await first
+      await fieldErrorsOf(first)
       expect(form.errors.find((error) => error.path === 'name')?.messages).toEqual(['new-error'])
       expect(form.validating).toBe(false)
     })
@@ -94,8 +95,8 @@ describe('rules that combine required with other constraints', () => {
       initialValues: { name: 'x' },
       fields: { name: { rules: [{ required: true }, { minLength: 6 }] } },
     })
-    expect(await combined.validate()).toEqual(await split.validate())
-    expect((await combined.validate()).flatMap((error) => error.messages)).toContain('至少 6 个字符')
+    expect(await fieldErrorsOf(combined.validate())).toEqual(await fieldErrorsOf(split.validate()))
+    expect((await fieldErrorsOf(combined.validate())).flatMap((error) => error.messages)).toContain('至少 6 个字符')
   })
 
   it('reports only required when the value is empty (other rules skip empty values)', async () => {
@@ -107,8 +108,8 @@ describe('rules that combine required with other constraints', () => {
       initialValues: { name: '' },
       fields: { name: { rules: [{ required: true }, { minLength: 6 }] } },
     })
-    const combinedErrors = await combined.validate()
-    const splitErrors = await split.validate()
+    const combinedErrors = await fieldErrorsOf(combined.validate())
+    const splitErrors = await fieldErrorsOf(split.validate())
     expect(combinedErrors).toEqual(splitErrors)
     expect(combinedErrors.flatMap((error) => error.messages)).toEqual(['必填'])
   })
@@ -131,7 +132,7 @@ describe('rules that combine required with other constraints', () => {
         },
       },
     })
-    const errors = await form.validate()
+    const errors = await fieldErrorsOf(form.validate())
     expect(calls).toBe(1)
     expect(errors.flatMap((error) => error.messages)).toContain('自定义')
   })
@@ -141,7 +142,7 @@ describe('JSX unmount', () => {
   it('clears a JSX-only required error as soon as the field unmounts', async () => {
     const form = createEngine<{ note: string }>({ initialValues: { note: '' } })
     form.mountJsxField('note', { required: true })
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     expect(form.canSubmit).toBe(false)
     form.releaseJsxField('note')
     expect(form.binding('note').required).toBe(false)
@@ -155,7 +156,7 @@ describe('JSX unmount', () => {
       fields: { name: { required: true } },
     })
     form.mountJsxField('name', { rules: [{ minLength: 4, message: '太短' }] })
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     // empty value: the JSX minLength skips it, only the declared required reports
     expect(form.errors.flatMap((error) => error.messages)).toEqual(['必填'])
     form.releaseJsxField('name')
@@ -186,7 +187,7 @@ describe('JSX unmount', () => {
     held.open()
     await pending
     expect(form.errors).toEqual([])
-    expect(await form.validate()).toEqual([])
+    expect(await fieldErrorsOf(form.validate())).toEqual([])
     expect(form.canSubmit).toBe(true)
   })
 
@@ -196,7 +197,7 @@ describe('JSX unmount', () => {
       d.title.$rules = [{ minLength: 4, message: '至少四字' }]
     })
     form.mountJsxField('title', { rules: [{ maxLength: 1, message: '太长' }] })
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     expect(form.errors.flatMap((error) => error.messages)).toContain('至少四字')
     form.releaseJsxField('title')
     expect(form.errors.flatMap((error) => error.messages)).toContain('至少四字')
@@ -210,13 +211,11 @@ describe('wildcard templates after reset and replace', () => {
       fields: { 'rows.*.name': { required: true } },
     })
     form.pushArray('rows', { name: '' })
-    expect((await form.validate()).map((error) => error.path)).toEqual(['rows.0.name'])
+    expect((await fieldErrorsOf(form.validate())).map((error) => error.path)).toEqual(['rows.0.name'])
     form.reset()
     expect(form.getValue('rows')).toEqual([])
-    expect(await form.validate()).toEqual([])
-    const submitted = await form.submit()
-    expect(submitted.ok).toBe(true)
-    if (submitted.ok) expect(submitted.values.rows).toEqual([])
+    expect(await fieldErrorsOf(form.validate())).toEqual([])
+    expect(await form.submit()).toEqual({ rows: [] })
   })
 
   it('drops a template instance when the array is replaced with []', async () => {
@@ -225,10 +224,10 @@ describe('wildcard templates after reset and replace', () => {
       fields: { 'rows.*.name': { required: true } },
     })
     form.pushArray('rows', { name: '' })
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     form.setValue('rows', [])
     expect(form.getValue('rows')).toEqual([])
-    expect(await form.validate()).toEqual([])
+    expect(await fieldErrorsOf(form.validate())).toEqual([])
   })
 
   it('still validates rows that reset restored', async () => {
@@ -237,10 +236,10 @@ describe('wildcard templates after reset and replace', () => {
       fields: { 'rows.*.name': { required: true } },
     })
     form.pushArray('rows', { name: '' })
-    expect((await form.validate()).map((error) => error.path).sort()).toEqual(['rows.0.name', 'rows.1.name'])
+    expect((await fieldErrorsOf(form.validate())).map((error) => error.path).sort()).toEqual(['rows.0.name', 'rows.1.name'])
     form.reset()
     expect(form.getValue('rows')).toEqual([{ name: '' }])
-    expect((await form.validate()).map((error) => error.path)).toEqual(['rows.0.name'])
+    expect((await fieldErrorsOf(form.validate())).map((error) => error.path)).toEqual(['rows.0.name'])
   })
 
   it('keeps removeArray from reporting the removed row', async () => {
@@ -250,7 +249,7 @@ describe('wildcard templates after reset and replace', () => {
     })
     form.pushArray('rows', { name: '' })
     form.removeArray('rows', 0)
-    expect(await form.validate()).toEqual([])
+    expect(await fieldErrorsOf(form.validate())).toEqual([])
   })
 
   it('keeps an exact declaration when the array is cleared', async () => {
@@ -262,7 +261,7 @@ describe('wildcard templates after reset and replace', () => {
       },
     })
     form.setValue('rows', [])
-    expect((await form.validate()).map((error) => error.path)).toEqual(['rows.0.name'])
+    expect((await fieldErrorsOf(form.validate())).map((error) => error.path)).toEqual(['rows.0.name'])
   })
 
   it('does not write a template error after the row disappears', async () => {
@@ -289,6 +288,6 @@ describe('wildcard templates after reset and replace', () => {
     held.open()
     await pending
     expect(form.errors).toEqual([])
-    expect(await form.validate()).toEqual([])
+    expect(await fieldErrorsOf(form.validate())).toEqual([])
   })
 })

@@ -1,3 +1,5 @@
+// 起始文件：校验规则还没接上。按本章补上 useForm 的 validate: schema，
+// 给姓名、邮箱、年龄加上 required，姓名再加 rules={{ minLength: 2, message: '至少 2 个字' }}。
 import { useState } from 'react';
 import { z } from 'zod';
 import { Field, Form, useForm } from '@shikiform/react';

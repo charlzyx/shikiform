@@ -1,20 +1,39 @@
 ---
 title: 提交与重置
-description: 了解 form.submit 的返回结构、Submit 与 Reset 按钮行为以及焦点自动定位机制。
+description: 了解 form.submit 的 Promise、Submit 与 Reset 按钮行为以及焦点自动定位机制。
 ---
 
 在 ShikiForm 中，无论是在表单内按回车、点击 `<Submit>` 按钮（`type="submit"`），还是直接调用 `form.submit()`，最终都会进入同一套校验与提交流程。`<Form onSubmit>` 回调只有在整张表单校验通过后才会触发，并且会收到已经剔除 `virtual` 与 `none` 字段的提交数据。注意 `<Form>` 本身已经渲染了原生 `<form>` 元素，不要在外部或内部再嵌套一层 `<form>`。
 
-与普通异步函数不同，`form.submit()` 永远不会 reject，而是固定返回一个带状态标识的对象：
+`form.submit()` 是一个 Promise，和 Formily 一样：
 
-| 返回值 / `reason` | 触发场景 |
+| 结果 | 触发场景 |
 |---|---|
-| `{ ok: true, values }` | 校验全部通过，且 `onValid` 回调执行完毕 |
-| `{ ok: false, reason: 'invalid', errors }` | 校验未通过，`errors` 为错误详情，不会触发 `onValid` |
-| `{ ok: false, reason: 'error', error }` | `onValid` 回调或表单级校验抛出了异常，`error` 为捕获的异常对象 |
-| `{ ok: false, reason: 'superseded', message }` | 校验过程中表单值持续变动且连续 3 轮未收敛，提示可重新发起提交 |
+| resolve 提交值 | 校验通过。没传 `onValid`，或 `onValid` 返回 `undefined`，resolve 的就是提交值 |
+| resolve `onValid` 的返回值 | 传了 `onValid` 且它返回了非 `undefined` 的值（`await` 之后） |
+| reject `FieldError[]` | 校验未通过，不会调用 `onValid` |
+| reject `onValid` 抛出的那个错误 | `onValid` 或表单级 `validate` 自己抛错，原样 reject |
+| reject `SubmitSupersededError` | 这次提交被后一次 `submit()` 取代。`code` 是 `'superseded'`，`message` 来自 `messages.superseded`。不是 `FieldError[]` |
+| reject `SubmitUnstableError` | 校验期间值连续 3 轮都没稳定（不是被后一次提交取代）。`code` 是 `'unstable'`，`message` 同样来自 `messages.superseded` |
 
-在业务代码中建议直接根据 `reason` 做分支处理，不要去匹配具体的文案字符串。如果表单值没有变化，连续两次调用 `submit` 都会正常通过。
+```ts
+try {
+  const values = await form.submit()
+  save(values)
+} catch (error) {
+  if (error instanceof SubmitSupersededError) return // 后一次提交会给出结论
+  if (error instanceof SubmitUnstableError) return report(error)
+  if (isFieldErrors(error)) showErrors(error)
+  else report(error)
+}
+
+form.submit(async (values) => {
+  const saved = await api.save(values)
+  return saved.id
+}).then((id) => setId(id)).catch((errors) => scrollTo(errors[0]?.path))
+```
+
+`<Form>` 和 `<Submit>` 会在内部 catch 这次 rejection：校验失败走 `onInvalid(errors)`，`onSubmit` 抛错和 `SubmitUnstableError` 走 `onSubmitError`（不传则 `console.error`），被取代的那次提交被吞掉，不会变成未处理的 rejection。
 
 当校验失败时，`<Form>` 会按 DOM 文档顺序自动将焦点移动至第一个出错的字段；如果表单内使用了 `FormTab`、`FormCollapse` 或 `FormStep`，容器还会先自动切换到包含错误字段的面板或步骤，再执行聚焦。因此，无需在 `onInvalid` 回调里手动编写切换标签页的逻辑。
 

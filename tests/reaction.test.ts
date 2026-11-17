@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { defineEffects, ShikiConflictError, ShikiCycleError } from '@shikiform/core'
 import { runsFor, schedulerRuns } from './fixtures/reaction-utils'
 import { createEngine } from '../packages/core/src/engine/create'
+import { fieldErrorsOf } from './field-errors'
 
 interface Row {
   cost: number
@@ -442,7 +443,7 @@ describe('reaction', () => {
     form.batch((d) => {
       d.x.$required = true
     })
-    const errors = await form.validate()
+    const errors = await fieldErrorsOf(form.validate())
     expect(errors.some((error) => error.path === 'x' && error.messages.length > 0)).toBe(true)
   })
 })

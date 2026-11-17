@@ -3,6 +3,7 @@ import * as v from 'valibot'
 import { z } from 'zod'
 import { type StandardSchemaV1 } from '@shikiform/core'
 import { createEngine } from '../packages/core/src/engine/create'
+import { fieldErrorsOf } from './field-errors'
 
 describe('standard schema', () => {
   it('maps zod issues onto fields, including array and tree paths', async () => {
@@ -44,7 +45,7 @@ describe('standard schema', () => {
       d.ghost.$display = 'none'
       d.nodes[0]!.children[0]!.$display = 'hidden'
     })
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     const messages = Object.fromEntries(form.errors.map((error) => [error.path, error.messages.join('|')]))
     expect(messages.email).toContain('邮箱格式不对')
     expect(messages.nick).toContain('昵称必填')
@@ -65,7 +66,7 @@ describe('standard schema', () => {
     form.registerField('code', {
       rules: [v.pipe(v.string(), v.email('邮箱格式不对')), { minLength: 5, message: '太短' }],
     })
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     for (const path of ['email', 'code']) {
       const messages = form.errors.find((error) => error.path === path)?.messages ?? []
       expect(messages.some((message) => message.includes('邮箱'))).toBe(true)
@@ -89,7 +90,7 @@ describe('standard schema', () => {
     form.registerField('items', {
       rules: z.array(z.object({ name: z.string().min(1, '名称必填') })),
     })
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     const messages = Object.fromEntries(form.errors.map((error) => [error.path, error.messages.join('|')]))
     expect(messages['address.city']).toContain('城市必填')
     expect(messages['items.0.name']).toContain('名称必填')
@@ -127,13 +128,13 @@ describe('standard schema', () => {
     form.batch((d) => {
       d.nodes[0]!.children[1]!.$display = 'hidden'
     })
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     expect(form.errors.find((error) => error.path === 'nodes.0.children.1.name')?.messages.join(' ')).toContain('节点名必填')
 
     form.batch((d) => {
       d.nodes.$display = 'none'
     })
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     expect(form.errors.find((error) => error.path.startsWith('nodes'))).toBeUndefined()
     expect(form.getSubmitValues()).not.toHaveProperty('nodes')
   })
@@ -152,9 +153,9 @@ describe('standard schema', () => {
       initialValues: { password: 'a', confirm: 'b', nick: '' },
       validate: schema,
     })
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     form.setValue('confirm', 'a')
-    await form.validate('confirm')
+    await fieldErrorsOf(form.validate('confirm'))
     expect(form.errors.find((error) => error.path === 'confirm')).toBeUndefined()
     expect(form.errors.find((error) => error.path === 'nick')?.messages.join(' ')).toContain('昵称必填')
   })
@@ -167,7 +168,7 @@ describe('standard schema', () => {
       d.ghost.$display = 'none'
       d.nick.$display = 'hidden'
     })
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     expect(form.errors.map((error) => error.path)).toEqual(['nick'])
   })
 
@@ -190,10 +191,10 @@ describe('standard schema', () => {
       initialValues: { password: 'secret', confirm: 'other' },
       validate: schema,
     })
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     expect(form.errors.find((error) => error.path === 'confirm')?.messages.join(' ')).toContain('两次密码不一致')
     form.setValue('confirm', 'secret')
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     expect(form.errors.find((error) => error.path === 'confirm')).toBeUndefined()
   })
 })

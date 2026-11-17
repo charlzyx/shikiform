@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { defineEffects } from '@shikiform/core'
 import { createEngine } from '../packages/core/src/engine/create'
+import { fieldErrorsOf } from './field-errors'
 
 describe('declared fields and unmounted rules', () => {
   it('validates a declared field that was never mounted', async () => {
@@ -11,7 +12,7 @@ describe('declared fields and unmounted rules', () => {
         code: { required: true },
       },
     })
-    const errors = await form.validate()
+    const errors = await fieldErrorsOf(form.validate())
     expect(errors.map((error) => error.path)).toEqual(['code'])
   })
 
@@ -19,19 +20,19 @@ describe('declared fields and unmounted rules', () => {
     const form = createEngine<{ code: string }>({ initialValues: { code: 'ab' } })
     form.registerField('code', { required: true })
     form.mountJsxField('code', { rules: [{ minLength: 3, message: '太短' }] })
-    expect((await form.validate()).map((error) => error.messages).flat()).toContain('太短')
+    expect((await fieldErrorsOf(form.validate())).map((error) => error.messages).flat()).toContain('太短')
     form.releaseJsxField('code')
-    expect(await form.validate()).toEqual([])
+    expect(await fieldErrorsOf(form.validate())).toEqual([])
     form.setValue('code', '')
-    expect((await form.validate()).map((error) => error.path)).toEqual(['code'])
+    expect((await fieldErrorsOf(form.validate())).map((error) => error.path)).toEqual(['code'])
   })
 
   it('drops JSX-only rules on release', async () => {
     const form = createEngine<{ note: string }>({ initialValues: { note: '' } })
     form.mountJsxField('note', { required: true })
-    expect((await form.validate()).map((error) => error.path)).toEqual(['note'])
+    expect((await fieldErrorsOf(form.validate())).map((error) => error.path)).toEqual(['note'])
     form.releaseJsxField('note')
-    expect(await form.validate()).toEqual([])
+    expect(await fieldErrorsOf(form.validate())).toEqual([])
   })
 
   it('does not let JSX rules or unmount replace $rules', async () => {
@@ -40,10 +41,10 @@ describe('declared fields and unmounted rules', () => {
       d.title.$rules = [{ minLength: 4, message: '至少四字' }]
     })
     form.mountJsxField('title', { rules: [{ maxLength: 1, message: '太长' }] })
-    expect(await form.validate()).toEqual([])
+    expect(await fieldErrorsOf(form.validate())).toEqual([])
     form.releaseJsxField('title')
     form.setValue('title', 'abc')
-    expect((await form.validate()).map((error) => error.messages).flat()).toContain('至少四字')
+    expect((await fieldErrorsOf(form.validate())).map((error) => error.messages).flat()).toContain('至少四字')
   })
 
   it('applies an item template to every row, including ones that are not mounted', async () => {
@@ -51,7 +52,7 @@ describe('declared fields and unmounted rules', () => {
       initialValues: { rows: [{ name: '' }, { name: 'ada' }, { name: '' }] },
       fields: { 'rows.*.name': { required: true } },
     })
-    const errors = await form.validate()
+    const errors = await fieldErrorsOf(form.validate())
     expect(errors.map((error) => error.path).sort()).toEqual(['rows.0.name', 'rows.2.name'])
   })
 
@@ -61,7 +62,7 @@ describe('declared fields and unmounted rules', () => {
       fields: { 'rows.*.name': { required: true } },
     })
     form.pushArray('rows', { name: '' })
-    expect((await form.validate()).map((error) => error.path)).toEqual(['rows.0.name'])
+    expect((await fieldErrorsOf(form.validate())).map((error) => error.path)).toEqual(['rows.0.name'])
   })
 
   it('lets an exact path and $rules win over the item template', async () => {
@@ -82,7 +83,7 @@ describe('declared fields and unmounted rules', () => {
         }),
       ],
     })
-    expect(await form.validate()).toEqual([])
+    expect(await fieldErrorsOf(form.validate())).toEqual([])
   })
 
   it('restores the item template when a JSX rule unmounts', async () => {
@@ -92,13 +93,13 @@ describe('declared fields and unmounted rules', () => {
     })
     form.mountJsxField('rows.0.qty', { required: false, rules: [{ maxLength: 2, message: '太长' }] })
     form.setValue('rows.0.qty', 'abcd')
-    const mounted = await form.validate()
+    const mounted = await fieldErrorsOf(form.validate())
     expect(mounted.find((error) => error.path === 'rows.0.qty')?.messages).toEqual(['太长'])
     expect(mounted.map((error) => error.path)).toContain('rows.1.qty')
     form.releaseJsxField('rows.0.qty')
-    expect((await form.validate()).map((error) => error.path)).toEqual(['rows.1.qty'])
+    expect((await fieldErrorsOf(form.validate())).map((error) => error.path)).toEqual(['rows.1.qty'])
     form.setValue('rows.0.qty', '')
-    expect((await form.validate()).map((error) => error.path).sort()).toEqual(['rows.0.qty', 'rows.1.qty'])
+    expect((await fieldErrorsOf(form.validate())).map((error) => error.path).sort()).toEqual(['rows.0.qty', 'rows.1.qty'])
   })
 
   it('covers every row when reaction.each writes $rules', async () => {
@@ -115,7 +116,7 @@ describe('declared fields and unmounted rules', () => {
         }),
       ],
     })
-    expect((await form.validate()).map((error) => error.path).sort()).toEqual(['rows.0.name', 'rows.1.name'])
+    expect((await fieldErrorsOf(form.validate())).map((error) => error.path).sort()).toEqual(['rows.0.name', 'rows.1.name'])
   })
 
   it('still validates hidden declared fields and skips none, including descendants', async () => {
@@ -136,7 +137,7 @@ describe('declared fields and unmounted rules', () => {
       d.ghost.$display = 'none'
       d.box.$display = 'none'
     })
-    const errors = await form.validate()
+    const errors = await fieldErrorsOf(form.validate())
     expect(errors.map((error) => error.path)).toEqual(['nick'])
     const submitted = form.getSubmitValues()
     expect(submitted.nick).toBe('')

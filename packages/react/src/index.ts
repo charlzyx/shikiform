@@ -42,7 +42,7 @@ export type { UseFormOptions } from './hooks/use-form'
 export { useTreeField } from './hooks/use-tree'
 export type { TreeHandle, TreeNodeHandle, TreeOptions } from './hooks/use-tree'
 export { useWatch } from './hooks/use-watch'
-export { createForm, defineEffects, enUS, get, getDefaultMessages, set, setDefaultMessages, zhCN, EnumSource, ShikiConflictError, ShikiCycleError, ShikiUsageError } from '@shikiform/core'
+export { createForm, defineEffects, enUS, get, getDefaultMessages, isFieldErrors, set, setDefaultMessages, zhCN, EnumSource, ShikiConflictError, ShikiCycleError, ShikiUsageError, SubmitSupersededError, SubmitUnstableError } from '@shikiform/core'
 export type {
   FormMessageKey,
   FormMessages,
@@ -53,7 +53,7 @@ export type {
   NoParams,
   TreeMoveParams,
   FieldError,
-  SubmitResult,
+  SubmitResolved,
   RowContext,
   RowDraft,
   FormOptions,

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { Form, typed, useForm, useRecord, type Pattern, type FormInstance } from '@shikiform/react'
 import { ArrayCards, ArrayItems, FormItem, Input } from '@shikiform/antd'
 import { createEngine, type Engine } from '../packages/core/src/engine/create'
+import { fieldErrorsOf } from './field-errors'
 
 afterEach(cleanup)
 const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 20)))
@@ -70,7 +71,7 @@ describe('ArrayItems', () => {
   it('rows without an id keep their field state when they move', async () => {
     const form = createEngine<Values>({ initialValues: { rows: [{ name: '' }, { name: 'b' }] } })
     const view = render(<Items form={form} />)
-    await act(() => form.validate())
+    await act(async () => { await fieldErrorsOf(form.validate()) })
     expect(form.binding('rows.0.name').errors).toEqual(['必填'])
     fireEvent.click(all(view, 'row-down')[0]!)
     await settle()

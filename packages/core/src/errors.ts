@@ -1,3 +1,29 @@
+/**
+ * `submit()` lost to a later `submit()`. Not a validation failure, and not {@link SubmitUnstableError}.
+ * `message` is `messages.superseded`. Catch it apart from `FieldError[]` (`instanceof`, or `code === 'superseded'`).
+ */
+export class SubmitSupersededError extends Error {
+  readonly code = 'superseded' as const
+
+  constructor(message: string) {
+    super(message)
+    this.name = 'SubmitSupersededError'
+  }
+}
+
+/**
+ * `submit()` gave up because the values kept changing across the bounded retries.
+ * A later submit did not replace this one. `message` is `messages.superseded`.
+ */
+export class SubmitUnstableError extends Error {
+  readonly code = 'unstable' as const
+
+  constructor(message: string) {
+    super(message)
+    this.name = 'SubmitUnstableError'
+  }
+}
+
 /** A reaction or watch pass did not settle within the fixed iteration budget. */
 export class ShikiCycleError extends Error {
   readonly cycle: readonly string[]

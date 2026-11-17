@@ -1,4 +1,5 @@
 import { memo, useContext, useEffect, useMemo, useRef, type ComponentProps, type ComponentType, type FormEvent, type FormHTMLAttributes, type ReactNode } from 'react'
+import { isFieldErrors, SubmitSupersededError } from '@shikiform/core'
 import { engineOf } from '@shikiform/core/internal'
 import type { ArrayPath, Display, Draft, FieldEnum, FieldError, FieldPath, FormInstance, PathValue, Pattern, UiName } from '@shikiform/core/internal'
 import type { RulesInput } from '@shikiform/core/internal'
@@ -22,11 +23,13 @@ const ROOT_SCOPE = { path: '', index: -1 }
 export interface FormSubmitHandlers<T> {
   /** Called with the submit values after validation passes. May be async; the submit waits for it. */
   onSubmit?: (values: T) => void | Promise<void>
-  /** Called with the errors when validation fails (`reason: 'invalid'`). Scroll to the first error, show a toast … */
+  /** Called with the errors when validation fails (`submit` / `validate` reject `FieldError[]`). */
   onInvalid?: (errors: FieldError[]) => void
   /**
-   * Called when `onSubmit` (or a form-level `validate`) throws or rejects (`reason: 'error'`).
+   * Called when `onSubmit` (or a form-level `validate`) throws or rejects.
    * Without it the error is reported with `console.error`; it never becomes an unhandled rejection.
+   * Includes `SubmitUnstableError` (values never settled). A `SubmitSupersededError` is swallowed:
+   * the newer submit owns that outcome.
    */
   onSubmitError?: (error: unknown) => void
 }
@@ -61,21 +64,25 @@ export function handleFormSubmit<T, TSubmit = T>(
   runSubmit(form, handlers)
 }
 
-/** `form.submit(onSubmit)` with the result routed to `onInvalid` / `onSubmitError` (shared by `<Form>` and `Submit`). */
+/**
+ * `form.submit(onSubmit)`, with the rejection routed to `onInvalid` / `onSubmitError`
+ * (shared by `<Form>` and `Submit`). Never leaves an unhandled rejection.
+ */
 export function runSubmit<T, TSubmit = T>(form: FormInstance<T, TSubmit>, handlers: FormSubmitHandlers<TSubmit>): void {
-  void form
-    .submit(handlers.onSubmit)
-    .then((result) => {
-      if (result.ok) return
-      if (result.reason === 'invalid') handlers.onInvalid?.(result.errors)
-      else if (result.reason === 'error') {
-        if (handlers.onSubmitError) handlers.onSubmitError(result.error)
-        else console.error('[shikiform] onSubmit failed', result.error)
+  const pending = handlers.onSubmit ? form.submit(handlers.onSubmit) : form.submit()
+  void pending.then(
+    () => undefined,
+    (error: unknown) => {
+      if (isFieldErrors(error)) {
+        handlers.onInvalid?.(error)
+        return
       }
-    })
-    .catch((err: unknown) => {
-      console.error('[shikiform] submit callback failed', err)
-    })
+      // Replaced by a later submit: that call reports the outcome. SubmitUnstableError falls through.
+      if (error instanceof SubmitSupersededError) return
+      if (handlers.onSubmitError) handlers.onSubmitError(error)
+      else console.error('[shikiform] onSubmit failed', error)
+    },
+  )
 }
 
 /**

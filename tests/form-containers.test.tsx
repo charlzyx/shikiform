@@ -7,6 +7,7 @@ import { createForm, Field, Form, typed } from '@shikiform/react'
 import { FieldGroup, useFieldGroup, useFieldGroupErrors } from '@shikiform/react/internal'
 import { FormCollapse, FormItem, FormStep, FormTab, Input, Submit, useFormStep, type FormStepHandle } from '@shikiform/antd'
 import type { FormInstance } from '@shikiform/react'
+import { fieldErrorsOf } from './field-errors'
 
 afterEach(cleanup)
 const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 20)))
@@ -23,13 +24,13 @@ describe('validate(paths[])', () => {
       initialValues: initial,
       fields: { name: { required: true }, email: { required: true }, city: { required: true } },
     })
-    const errors = await form.validate(['name', 'email'])
+    const errors = await fieldErrorsOf(form.validate(['name', 'email']))
     expect(errors.map((e) => e.path).sort()).toEqual(['email', 'name'])
     expect(form.errors.map((e) => e.path).sort()).toEqual(['email', 'name'])
-    expect(await form.validate([])).toEqual([])
+    expect(await fieldErrorsOf(form.validate([]))).toEqual([])
     expect(form.errors).toHaveLength(2)
     // A whole-form pass still sees the third field.
-    expect((await form.validate()).map((e) => e.path).sort()).toEqual(['city', 'email', 'name'])
+    expect((await fieldErrorsOf(form.validate())).map((e) => e.path).sort()).toEqual(['city', 'email', 'name'])
   })
 
   it('a scoped array replaces form-schema issues only under its paths', async () => {
@@ -37,11 +38,11 @@ describe('validate(paths[])', () => {
       initialValues: initial,
       validate: (values) => ({ name: values.name ? undefined : 'n', note: values.note ? undefined : 'x' }),
     })
-    await form.validate()
+    await fieldErrorsOf(form.validate())
     expect(form.errors.map((e) => e.path).sort()).toEqual(['name', 'note'])
     form.setValue('name', 'ok')
     form.setValue('note', 'ok')
-    await form.validate(['name'])
+    await fieldErrorsOf(form.validate(['name']))
     // `note` is outside the scope: its old schema message stays until it is validated.
     expect(form.errors.map((e) => e.path)).toEqual(['note'])
   })
@@ -78,13 +79,13 @@ describe('FieldGroup', () => {
     )
     await settle()
     await act(async () => {
-      await form.validate()
+      await fieldErrorsOf(form.validate())
     })
     expect(view.getByTestId('outer').textContent).toBe('name,email')
     expect(view.getByTestId('inner').textContent).toBe('email')
     act(() => form.setValue('email', 'a@b.c'))
     await act(async () => {
-      await form.validate('email')
+      await fieldErrorsOf(form.validate('email'))
     })
     expect(view.getByTestId('outer').textContent).toBe('name')
     expect(view.getByTestId('inner').textContent).toBe('')
@@ -120,16 +121,16 @@ describe('FormTab', () => {
     await settle()
     // The inactive tab's input is rendered (forceRender) and keeps its value.
     expect((view.getByTestId('email') as HTMLInputElement).value).toBe('kept')
-    let result: Awaited<ReturnType<typeof form.submit>> | undefined
+    let result: { path: string }[] = []
     await act(async () => {
-      result = await form.submit()
+      result = await fieldErrorsOf(form.submit())
     })
-    expect(result).toMatchObject({ ok: false, reason: 'invalid' })
+    expect(result.map((e) => e.path).sort()).toEqual(['city', 'name'])
     expect(form.errors.map((e) => e.path).sort()).toEqual(['city', 'name'])
     expect(badge(view)).toEqual(['1', '1'])
     act(() => form.setValue('city', 'sh'))
     await act(async () => {
-      await form.validate('city')
+      await fieldErrorsOf(form.validate('city'))
     })
     expect(badge(view)).toEqual(['1'])
   })
@@ -213,7 +214,7 @@ describe('FormCollapse', () => {
     await settle()
     expect(keys).toEqual([['a']])
     await act(async () => {
-      await form.submit()
+      await fieldErrorsOf(form.submit())
     })
     expect(badge(view)).toEqual(['1', '2'])
     expect(view.container.querySelectorAll('input')).toHaveLength(3)

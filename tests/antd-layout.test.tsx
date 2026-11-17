@@ -3,6 +3,7 @@ import { act, cleanup, render } from '@testing-library/react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it } from 'vitest'
 import { Field, Form, enUS, type FieldBinding } from '@shikiform/react'
+import { fieldErrorsOf } from './field-errors'
 import {
   FormButtonGroup,
   FormGrid,
@@ -23,7 +24,7 @@ afterEach(cleanup)
 async function failing(rules: Record<string, unknown>, value = '') {
   const form = createEngine({ initialValues: { a: value } })
   form.registerField('a', { rules: rules as never })
-  await form.validate()
+  await fieldErrorsOf(form.validate())
   return { form, field: form.binding('a') as FieldBinding<any> }
 }
 
