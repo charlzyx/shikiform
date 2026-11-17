@@ -139,7 +139,7 @@ export default function App() {
 
 ## 隐藏 `<UI>` 不会自动隐藏内部字段
 
-用 `<UI>` 包裹一组字段作为视觉分组时，把 `<UI>` 隐藏仅仅是卸载了这层容器界面；内部各个字段的校验和提交行为依然只由它们自身的 `$visible` / `$display` 决定。
+用 `<UI>` 包裹一组字段作为视觉分组时，把 `<UI>` 隐藏仅仅是卸载了这层容器界面；里面的字段是否渲染、是否校验看它自己的 `$visible`，是否提交看它自己的 `$omit`。
 
 ```tsx preview
 import { Card } from 'antd';
@@ -157,7 +157,8 @@ export default function App() {
         reaction((d) => {
           const need = d.needInvoice.$value;
           d.$ui('invoiceBox').$visible = need;   // 只控制卡片 UI 是否渲染
-          d.invoiceTitle.$visible = need;        // 字段自身是否参与校验与提交需单独设置
+          d.invoiceTitle.$visible = need;        // 隐藏并跳过校验；visible=false 仍会提交
+          d.invoiceTitle.$omit = !need;          // 不需要发票时，从提交结果里去掉抬头
         });
       }),
     ],
@@ -182,7 +183,7 @@ export default function App() {
 }
 ```
 
-在这个示例里，关闭「开发票」开关后提交：`invoiceTitle` 因为自身设置了 `$visible = false`（`none`），所以跳过校验且不会出现在提交结果中；而 `remark` 没有修改过显隐状态，即使外层卡片被隐藏，提交 JSON 里依然会包含 `"remark": "保留"`。因此如果需要整组数据都不提交，请同时设置内部字段的 `$visible`。
+在这个示例里，关闭「开发票」后提交：`invoiceTitle` 同时设了 `$visible = false` 和 `$omit = true`，所以不渲染、不校验，也不会出现在提交结果中。`remark` 没有改这两个开关，卡片被隐藏后提交 JSON 里依然包含 `"remark": "保留"`。`$visible = false` 本身仍会提交；要整组数据都不提交，需要给里面的字段各自设置 `$omit`。
 
 ## 回退规则一览
 

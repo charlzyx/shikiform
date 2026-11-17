@@ -36,13 +36,13 @@ const itemColumns: ArrayTableColumn<Item>[] = [
     ),
   },
   { key: 'price', title: '单价', render: () => <Field name="price" component={[InputNumber, { min: 0 }]} /> },
-  { key: 'line', title: '行金额', render: () => <Field name="line" component={[InputNumber]} /> },
+  { key: 'line', title: '行金额', render: () => <Field name="line" readOnly component={[InputNumber]} /> },
 ]
 
 const orderColumns: ArrayTableColumn<Order>[] = [
   { key: 'no', title: '订单号', render: ({ record }) => record.no },
   { key: 'status', title: '状态', render: () => <Field name="status" enum={STATUS} component={[Select, { style: { width: 110 } }]} /> },
-  { key: 'amount', title: '合计', render: () => <Field name="amount" component={[InputNumber]} /> },
+  { key: 'amount', title: '合计', render: () => <Field name="amount" readOnly component={[InputNumber]} /> },
 ]
 
 /**

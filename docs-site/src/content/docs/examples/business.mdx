@@ -177,13 +177,13 @@ const itemColumns: ArrayTableColumn<Item>[] = [
     ),
   },
   { key: 'price', title: '单价', render: () => <Field name="price" component={[InputNumber, { min: 0 }]} /> },
-  { key: 'line', title: '行金额', render: () => <Field name="line" component={[InputNumber]} /> },
+  { key: 'line', title: '行金额', render: () => <Field name="line" readOnly component={[InputNumber]} /> },
 ];
 
 const orderColumns: ArrayTableColumn<Order>[] = [
   { key: 'no', title: '订单号', render: ({ record }) => record.no },
   { key: 'status', title: '状态', render: () => <Field name="status" enum={STATUS} component={[Select, { style: { width: 110 } }]} /> },
-  { key: 'amount', title: '合计', render: () => <Field name="amount" component={[InputNumber]} /> },
+  { key: 'amount', title: '合计', render: () => <Field name="amount" readOnly component={[InputNumber]} /> },
 ];
 
 export default function App() {
@@ -213,7 +213,7 @@ export default function App() {
 
 - 由于订单内的 `items` 也是对象数组，`reaction.each` 会递归进入内层；在回调开头判断 `if (depth !== 0) return`，可以让这一轮只针对外层订单执行——当某一张订单的状态或明细改动时，只有该订单会重新计算。
 - 主表与展开子表都采用 `<ArrayField component={[ArrayTable, { columns }]}>`，因此无论是外层列还是展开区里的 `<ArrayField name="items">` 与 `<Field name="qty">`，都可以直接写相对路径。
-- 「已发货」订单之所以整单只读，是因为子字段继承了 `order.$pattern`；同时状态列自身显式设置了 `order.status.$pattern`，因此依然可以手动切回「已付款」恢复整单可编辑。
+- 「已发货」订单整单只读，是因为子字段继承了 `order.$readOnly`。状态列在可编辑时写了 `order.status.$readOnly = false`，所以仍能改回「已付款」，整单恢复可编辑。合计和行金额自己声明了 `readOnly`，阅读态展示计算结果。
 - 上述表格直接在原数据上实时修改，若希望「确认后再写回、取消可丢弃」，请使用 [草稿表单（ShadowForm）](/examples/pro#用草稿表单编辑行)。
 
 回到 [示例库](/examples)。

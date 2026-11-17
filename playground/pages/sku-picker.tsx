@@ -4,7 +4,7 @@ import { DIM_LABEL, DIMS, skuPickerEffects, type SkuSelection } from '../skus'
 
 /**
  * Options and their `disabled` come from a reaction (`$enum`); a `watch` clears the dimensions that conflict with
- * the one just picked. Price, stock and SKU are computed fields, so they render as text (readPretty) by themselves.
+ * the one just picked. Price, stock and SKU are written by a reaction and declared `readOnly`, so they render as text.
  */
 export function SkuPickerPage() {
   const form = useForm<SkuSelection>({
@@ -22,9 +22,9 @@ export function SkuPickerPage() {
         {DIMS.map((dim) => (
           <F.Field key={dim} name={dim} title={DIM_LABEL[dim]} decorator={[FormItem]} component={[Radio, { optionType: 'button' }]} />
         ))}
-        <F.Field name="priceText" title="价格" decorator={[FormItem]} component={[Input]} />
-        <F.Field name="stock" title="库存" decorator={[FormItem]} component={[InputNumber]} />
-        <F.Field name="skuId" title="SKU" decorator={[FormItem]} component={[Input]} />
+        <F.Field name="priceText" title="价格" readOnly decorator={[FormItem]} component={[Input]} />
+        <F.Field name="stock" title="库存" readOnly decorator={[FormItem]} component={[InputNumber]} />
+        <F.Field name="skuId" title="SKU" readOnly decorator={[FormItem]} component={[Input]} />
         <F.Field name="qty" title="数量" decorator={[FormItem]} component={[InputNumber, { min: 1 }]} />
       </FormLayout>
     </Form>

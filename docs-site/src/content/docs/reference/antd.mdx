@@ -77,11 +77,11 @@ export default function App() {
 
 `InputNumber` 的转换是正式适配器契约。需要不同的空值、字符串精度策略时，用 `connect(AntInputNumber, mapProps({ parse }))`，或 `<Field>` + 无参 `useField()` 自己接线。
 
-字段 `disabled` 和控件 `disabled` 合并。Input/InputNumber 的 readOnly 使用原生只读属性，Select 的 readOnly 映射为 disabled；Switch/Checkbox 在 readOnly 和 readPretty 时都保留 checked 外观并禁用交互。Input/Select/InputNumber 的 readPretty 改为文本展示（Select 显示选项 label）。这些 UI 状态不禁止程序调用 `form.setValue()`。
+字段 `disabled` 和控件 `disabled` 合并。`readOnly` 渲染 `preview`：Switch / Checkbox 显示「是 / 否」，Input 显示文本，Select 显示选项 label。`disabled` 与 `readOnly` 同时为真时以阅读态为准。这些 UI 状态不禁止程序调用 `form.setValue()`。
 
 ### 完整例子：状态与事件回调
 
-点击开关一次，change 计数只加一次；聚焦开关后按 Tab，blur 计数只加一次且 `currentTarget` 是真实 button。只读/阅读态禁止交互，隐藏后再显示仍是同一字段值。
+点击开关一次，change 计数只加一次；聚焦开关后按 Tab，blur 计数只加一次且 `currentTarget` 是真实 button。设为只读后开关换成阅读态文本（是 / 否），隐藏后再显示仍是同一字段值。
 
 ```tsx preview
 import { useState } from 'react';
