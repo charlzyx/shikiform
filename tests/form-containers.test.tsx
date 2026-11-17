@@ -165,7 +165,7 @@ describe('FormTab', () => {
     expect(controlled.container.querySelector('.ant-tabs-tab-active')?.textContent).toBe('基本')
   })
 
-  it('panes inherit the root pattern (readPretty) like any field', async () => {
+  it('panes inherit the root readOnly like any field', async () => {
     const form = createForm<Values>({ initialValues: { ...initial, name: 'Ada', email: 'a@b.c' }, readOnly: true })
     const view = render(<TabForm form={form} />)
     await settle()
@@ -337,7 +337,7 @@ describe('FormStep', () => {
     expect(submitted[0]).toMatchObject({ name: 'Ada', email: 'a@b.c', note: 'n' })
   })
 
-  it('does not block on fields that are not editable (readPretty detail page)', async () => {
+  it('does not block on fields that are not editable (readOnly detail page)', async () => {
     const form = createForm<Values>({ initialValues: initial, readOnly: true })
     render(<Wizard form={form} />)
     await settle()

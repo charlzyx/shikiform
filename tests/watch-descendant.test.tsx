@@ -12,11 +12,11 @@ type Values = { editor: { id: string; open: boolean } | null }
 
 /** `<Watch select={d => d.editor.open.$value}>` with no field registered at `editor.open` (tables example: row-edit). */
 describe('Watch on a descendant of a replaced object', () => {
-  for (const virtual of [false, true]) {
-    it(`re-renders when the parent is written whole (virtual: ${virtual})`, async () => {
+  for (const omit of [false, true]) {
+    it(`re-renders when the parent is written whole (omit: ${omit})`, async () => {
       let form!: FormInstance<Values>
       function App() {
-        form = useForm<Values>({ initialValues: { editor: { id: '', open: false } }, fields: virtual ? { editor: { omit: true } } : {} })
+        form = useForm<Values>({ initialValues: { editor: { id: '', open: false } }, fields: omit ? { editor: { omit: true } } : {} })
         return <Form form={form}><Watch select={(d: Draft<Values>) => d.editor.open.$value}>{(open) => <i>{String(open)}</i>}</Watch></Form>
       }
       const view = render(<App />)

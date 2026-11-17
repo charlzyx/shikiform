@@ -60,7 +60,7 @@ export default function App() {
 
 ## 不可编辑状态自动隐藏按钮
 
-`Addition`、`Remove`、`MoveUp`、`MoveDown` 和 `SortHandle` 会检查当前数组的有效 `pattern`，只有在 `editable` 状态下才会渲染（`Index` 序号始终保留）。由于 `pattern` 会沿路径从祖先向下继承，以下几种写法都会自动收起全部操作按钮：
+`Addition`、`Remove`、`MoveUp`、`MoveDown` 和 `SortHandle` 在数组不可编辑时不渲染（`visible` 为 false，或 `readOnly` / `disabled` 为 true，含从祖先继承来的值；`Index` 序号始终保留）。下面几种写法都会收起全部操作按钮：
 
 ```ts
 useForm({ initialValues, readOnly: true })        // 详情页：整张表单初始化为阅读态

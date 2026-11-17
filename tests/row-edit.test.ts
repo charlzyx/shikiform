@@ -8,7 +8,7 @@ interface Row {
   note: string
 }
 
-describe('virtual row editor', () => {
+describe('omit row editor', () => {
   it('omits the editor object from submit and writes back by id', async () => {
     const form = createForm<{
       rows: Row[]

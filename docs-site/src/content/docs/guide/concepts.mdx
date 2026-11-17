@@ -101,7 +101,7 @@ export default function App() {
 | `omit: true` | 不影响渲染 | 不影响校验 | 剔除该字段。不计入 dirty |
 | `reaction` 写过 `$value` | 仍可编辑（要预览就再写 `readOnly`） | 按上面三个开关 | 提交，除非 `omit` |
 
-`visible` / `disabled` / `readOnly` 按 OR 从父级继承，子级写显式 `false` 可以退出。`omit` 不继承：父级 `omit` 不会把子级的 `$omit` 读成 `true`；删掉一个被 omit 的对象时，嵌套的键会跟着对象一起离开提交结果。
+`visible` / `disabled` / `readOnly` 沿字段路径从根走到自己：这一层写了 `true` 或 `false` 就用这一层，没写就保持上一层。所以父级 `disabled: true`、子级 `disabled: false` 时，子级可以编辑。`omit` 不继承：父级 `omit` 不会把子级的 `$omit` 读成 `true`；删掉一个被 omit 的对象时，嵌套的键会跟着对象一起离开提交结果。
 
 `$flag = undefined` 丢掉 reaction 这一层，回到 JSX / `fields` / 继承。详情页用 `useForm({ readOnly: true })`。
 

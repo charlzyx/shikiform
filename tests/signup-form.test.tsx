@@ -30,7 +30,7 @@ describe('self-review: realistic signup form', () => {
     expect(text).toContain('联系人必填')
   })
 
-  it('filled submit hands over the values; root $pattern switches every field to readPretty', async () => {
+  it('filled submit hands over the values; root $readOnly switches every field to a preview', async () => {
     const onSubmit = vi.fn()
     const view = render(<SignupForm onSubmit={onSubmit} initialValues={FILLED} />)
     fireEvent.submit(view.container.querySelector('form')!)
@@ -53,8 +53,8 @@ describe('self-review: realistic signup form', () => {
   })
 })
 
-describe('root draft pattern / display', () => {
-  it('d.$pattern on the root is inherited by every field; a field with its own pattern wins; undefined clears', () => {
+describe('root readOnly and disabled', () => {
+  it('d.$readOnly / $disabled on the root are inherited; a field\'s own false wins; undefined clears', () => {
     const form = createEngine({ initialValues: { a: '', b: { c: '' } }, fields: { a: { readOnly: false, disabled: false } } })
     form.batch((d) => { d.$disabled = true })
     expect(form.binding('b.c').disabled).toBe(true)
@@ -63,7 +63,7 @@ describe('root draft pattern / display', () => {
     expect(form.binding('b.c').readOnly).toBe(false)
   })
 
-  it('a reaction reading a field pattern re-runs when the root pattern changes', () => {
+  it('a reaction reading a field readOnly re-runs when the root readOnly changes', () => {
     const seen: boolean[] = []
     const effects = defineEffects<{ a: string }>(({ reaction }) => reaction((d) => { seen.push(d.a.$readOnly) }))
     const form = createEngine({ initialValues: { a: '' }, effects: [effects] })

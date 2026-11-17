@@ -5,7 +5,7 @@ export function parentPath(path: string): string | null {
   return i < 0 ? null : path.slice(0, i)
 }
 
-/** `path`, each ancestor, then the root `''` (inherited states: pattern, display). */
+/** `path`, each ancestor, then the root `''` (inherited flags: visible, disabled, readOnly). */
 export function selfAndAncestors(path: string): string[] {
   const out: string[] = []
   for (let cursor: string | null = path; cursor; cursor = parentPath(cursor)) out.push(cursor)

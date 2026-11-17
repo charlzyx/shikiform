@@ -173,7 +173,7 @@ describe('useFieldDecorator', () => {
     expect(view.container.querySelector('[data-control]')!.getAttribute('data-error')).toBe('必填')
   })
 
-  it('hides the mark and htmlFor in readPretty, and asterisk forces the mark', () => {
+  it('hides the mark and htmlFor when readOnly, and asterisk forces the mark', () => {
     const form = createEngine({
       initialValues: { email: 'a@b.c' },
       fields: { email: { title: '邮箱', required: true, readOnly: true } },

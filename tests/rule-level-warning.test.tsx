@@ -52,7 +52,7 @@ describe("Rule.level: 'warning'", () => {
     expect(form.binding('b').warnings).toEqual(['net'])
   })
 
-  it('reset and clearErrors drop warnings; display none clears them', async () => {
+  it('reset and clearErrors drop warnings; visible: false clears them', async () => {
     const form = createEngine({ initialValues: { a: '1' }, fields: { a: { rules: { validator: weak, level: 'warning' } } } })
     await fieldErrorsOf(form.validate())
     expect(form.binding('a').warnings).toHaveLength(1)

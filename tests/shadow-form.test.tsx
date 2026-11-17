@@ -177,7 +177,7 @@ describe('useShadowForm', () => {
     expect(result.current.loading).toBe(false)
   })
 
-  it('bound object edit shallow-merges write-back preserving virtual keys, and cancel leaves host clean', async () => {
+  it('bound object edit shallow-merges write-back preserving omit keys, and cancel leaves host clean', async () => {
     const host = createForm({
       initialValues: { info: { domain: 'a.com', desc: 'ping', secret: 'keep-me' } },
       fields: {
@@ -428,7 +428,7 @@ describe('Shadow components', () => {
     expect(groupPaths()).toEqual(['hostField', 'list'])
   })
 
-  it('hides OK and uses messages.close in readPretty/readOnly while respecting explicit modalProps/drawerProps footer', async () => {
+  it('hides OK and uses messages.close when readOnly while respecting explicit modalProps/drawerProps footer', async () => {
     const form = createForm({
       initialValues: { info: { domain: 'readonly.dev' } },
       readOnly: true,
@@ -477,7 +477,7 @@ describe('Shadow components', () => {
     await waitFor(() => expect(screen.getByTestId('custom-drawer-footer').textContent).toBe('My Drawer Footer'))
   })
 
-  it('reactively updates footer when draft root $pattern switches at runtime and covers ShadowPopconfirm', async () => {
+  it('reactively updates footer when draft root $readOnly switches at runtime and covers ShadowPopconfirm', async () => {
     function SwitchableModal() {
       const shadow = useShadowForm<{ domain: string }>({
         initialValues: { domain: 'live.dev' },

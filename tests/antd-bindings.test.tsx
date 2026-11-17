@@ -27,7 +27,7 @@ import { Checkbox, DatePicker, FormItem, Input, InputNumber, Radio, Select, Swit
 
 const CONTROLS: Record<string, any> = { Input, Select, InputNumber, Switch, Checkbox }
 
-type Mode = 'editable' | 'disabled' | 'readOnly' | 'readPretty'
+type Mode = 'editable' | 'disabled' | 'readOnly'
 
 afterEach(() => {
   cleanup()
@@ -35,7 +35,7 @@ afterEach(() => {
 })
 
 function mount(name: string, value: unknown, mode: Mode = 'editable', props: Record<string, unknown> = {}) {
-  const flags = mode === 'disabled' ? { disabled: true } : mode === 'readOnly' || mode === 'readPretty' ? { readOnly: true } : {}
+  const flags = mode === 'disabled' ? { disabled: true } : mode === 'readOnly' ? { readOnly: true } : {}
   let api: any
   function App() {
     const form = useForm({ initialValues: { value }, fields: { value: flags } })
@@ -85,12 +85,12 @@ describe('Ant Design control contracts (connect controls in a FormItem field)', 
     expect(html()).toContain('data-read-pretty')
   })
 
-  it.each(['Switch', 'Checkbox'])('%s reads as 是 / 否 in readPretty (no control rendered)', (name) => {
-    const on = mount(name, true, 'readPretty')
+  it.each(['Switch', 'Checkbox'])('%s reads as 是 / 否 when readOnly (no control rendered)', (name) => {
+    const on = mount(name, true, 'readOnly')
     expect(on.control()).toBeUndefined()
     expect(on.html()).toContain('是')
     cleanup()
-    expect(mount(name, false, 'readPretty').html()).toContain('否')
+    expect(mount(name, false, 'readOnly').html()).toContain('否')
   })
 
   it.each(['Input', 'InputNumber'])('%s respects an explicit readOnly prop as well as the field state', (name) => {
@@ -133,8 +133,8 @@ describe('Ant Design control contracts (connect controls in a FormItem field)', 
     expect(seen.Input.status).toBe('error')
   })
 
-  it('readPretty shows the preview text', () => {
-    const { html } = mount('Input', 'hello', 'readPretty')
+  it('readOnly shows the preview text', () => {
+    const { html } = mount('Input', 'hello', 'readOnly')
     expect(html()).toContain('data-read-pretty')
     expect(html()).toContain('hello')
   })

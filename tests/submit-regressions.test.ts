@@ -160,7 +160,7 @@ describe('submit validates the values it returns (#6)', () => {
     expect(form.submitting).toBe(false)
   })
 
-  it('keeps normal async submission and virtual/none/hidden payload semantics', async () => {
+  it('keeps normal async submission and omit / visible:false payload semantics', async () => {
     const entered = gate()
     const held = gate()
     const date = new Date('2026-01-01T00:00:00Z')

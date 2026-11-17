@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-test('standard schema: field rules, cross-field path, hidden vs none', async ({ page }) => {
+test('standard schema: field rules, cross-field path, visible:false still submits, omit drops ghost', async ({ page }) => {
   await page.goto('/play/schema')
   await page.getByTestId('email').fill('not-an-email')
   await page.getByTestId('email').blur()

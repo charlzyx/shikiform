@@ -67,7 +67,7 @@ describe('<Field> keeps the surrounding scope', () => {
   })
 })
 
-describe('readPretty never shows the edit-time placeholder as a value', () => {
+describe('readOnly never shows the edit-time placeholder as a value', () => {
   it('Input / Select with an empty value render empty text, not their placeholder', () => {
     const form = createForm({ initialValues: { a: '', b: undefined as string | undefined } })
     const { container } = render(

@@ -156,12 +156,12 @@ groupRowSpan<T>(rows: readonly T[], groupOf: (row: T) => string): number[]
 | `className` / `style` | 外层纵向 flex 容器（间距 8） |
 | `ArrayItems.Item` | 一行横排（flex，间距 8），也是拖拽的放置目标 |
 | `ArrayItems.SortHandle` | `⋮⋮` 拖拽把手，放到另一行上 = `array.move(from, to)`（HTML5 拖放） |
-| `ArrayItems.Index` | `#序号`（从 1 开始），`prefix` 换前缀；任何 pattern 都显示 |
+| `ArrayItems.Index` | `#序号`（从 1 开始），`prefix` 换前缀；不可编辑时也显示 |
 | `ArrayItems.Remove` | `title?`、`confirm?: boolean \| string`（先 `Popconfirm`） |
 | `ArrayItems.MoveUp` / `MoveDown` | `title?`；首行 / 末行禁用 |
 | `ArrayItems.Addition` | `title?`、`defaultValue?`（值每次克隆，或函数；默认 `{}`）、`method?: 'push' \| 'unshift'` |
 
-`SortHandle`、`Remove`、`MoveUp`、`MoveDown`、`Addition` 只在数组的有效 pattern 为 `editable` 时渲染（见 [useArrayEditable](#usearrayeditable)）。按钮文案走表单 `messages`（`add`、`remove`、`removeConfirm`、`moveUp`、`moveDown`、`dragSort`）。行可以没有 id：对象行的身份是稳定的对象身份，`rowKey` 只在行里有业务 id 时传。
+`SortHandle`、`Remove`、`MoveUp`、`MoveDown`、`Addition` 只在数组可编辑时渲染（`visible` 且不是 `readOnly` / `disabled`，见 [useArrayEditable](#usearrayeditable)）。按钮文案走表单 `messages`（`add`、`remove`、`removeConfirm`、`moveUp`、`moveDown`、`dragSort`）。行可以没有 id：对象行的身份是稳定的对象身份，`rowKey` 只在行里有业务 id 时传。
 
 ## ArrayCards
 
@@ -244,7 +244,7 @@ groupRowSpan<T>(rows: readonly T[], groupOf: (row: T) => string): number[]
 useArrayEditable(): boolean
 ```
 
-最近一层数组（`<ArrayField>` 的容器或行内）的有效 pattern 是否为 `editable`。有效 pattern 沿祖先继承到根：`useForm({ readOnly: true })`、`d.$disabled = true`、`d.contacts.$readOnly = true` 都让它变成 `false`。`ArrayItems` / `ArrayCards` / `ArrayTable` 的动作按钮靠它隐藏；自己写的行操作也用它。在数组外调用抛错。
+最近一层数组（`<ArrayField>` 的容器或行内）是否可编辑：`visible` 且不是 `readOnly` / `disabled`（自己的、祖先的、根上的，含 `useForm({ readOnly: true })` / `{ disabled: true }`）。为 false 时 `ArrayItems` / `ArrayCards` / `ArrayTable` 的动作按钮不渲染；自己写的行操作也用它。在数组外调用抛错。
 
 ## FormTab
 
@@ -306,7 +306,7 @@ interface FormStepHandle {
 
 分步状态（Formily `FormStep.createFormStep()`）。在渲染按钮的组件里调用，不需要在 `<Form>` 里面；交给 `<FormStep step>` 后它才知道步数和表单。
 
-- `next()`：取当前步里挂载的字段中**有效 pattern 为 `editable`** 的路径，`form.validate(paths)` 一次校验；无错前进一步并返回 `true`，有错停留返回 `false`。最后一步、`<FormStep>` 未挂载时返回 `false`。表单级 `validate` 抛错时 `console.error` 并返回 `false`，从不 reject。等待校验期间步数已被别处改变则不再前进（双击只前进一步）。
+- `next()`：取当前步里挂载的字段中可编辑的路径（`visible` 且不是 `readOnly` / `disabled`），`form.validate(paths)` 一次校验；无错前进一步并返回 `true`，有错停留返回 `false`。最后一步、`<FormStep>` 未挂载时返回 `false`。表单级 `validate` 抛错时 `console.error` 并返回 `false`，从不 reject。等待校验期间步数已被别处改变则不再前进（双击只前进一步）。
 - `back()` / `goTo(i)`：不校验；`goTo` 夹在 `[0, count - 1]`。
 - 受控（传 `current`）时三个方法只调用 `onChange`。
 

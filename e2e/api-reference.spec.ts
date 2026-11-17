@@ -54,7 +54,7 @@ test('the demo toolbar edits, recompiles, copies and resets the same example', a
   await expect(demo.locator('form')).toContainText('姓名')
 })
 
-test('Switch forwards one real button blur and follows readOnly/display across remounts', async ({ page }) => {
+test('Switch forwards one real button blur and follows readOnly and visible across remounts', async ({ page }) => {
   await gotoHydrated(page, '/reference/antd')
   const example = page.getByRole('region', { name: '适配状态与事件', exact: true })
   const input = example.getByRole('switch', { name: '通知开关', exact: true })

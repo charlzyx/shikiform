@@ -48,7 +48,7 @@ export function ProEnumPage() {
     <ConfigProvider locale={zhCN}>
       <main style={{ padding: 16, maxWidth: 960 }}>
         <h1>ProEnum</h1>
-        <p>静态 / 懒加载枚举（同一个 EnumSource 只请求一次），阅读态显示为文字、徽标或标签，远程联想，级联懒加载。按钮切换整组的 pattern。</p>
+        <p>静态 / 懒加载枚举（同一个 EnumSource 只请求一次），阅读态显示为文字、徽标或标签，远程联想，级联懒加载。按钮切换整组的 readOnly。</p>
         <Space style={{ marginBottom: 16 }}>
           <Button data-testid="read-pretty" onClick={() => setReadOnly(true)}>
             READ ONLY

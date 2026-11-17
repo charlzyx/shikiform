@@ -42,7 +42,7 @@ describe('format / parse', () => {
     expect(seen.at(-1)!.value).toBe('YYYY:2026-01-02')
   })
 
-  it('connects a date control: the field keeps text, the control sees a Date, readPretty sees text', () => {
+  it('connects a date control: the field keeps text, the control sees a Date, the preview sees text', () => {
     const seen: Record<string, any>[] = []
     function DateInput(props: {
       value?: Date | null

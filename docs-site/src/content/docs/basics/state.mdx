@@ -70,4 +70,4 @@ export default function App() {
 
 `disabled` 把控件置灰。`readOnly` 换成预览组件。两个都是 `true` 时渲染预览。
 
-它们和 `visible` 一样按 OR 从父级继承，显式 `false` 退出。赋 `undefined` 丢掉 reaction 层。详情页：`useForm({ readOnly: true })`，或运行时 `form.batch((d) => { d.$readOnly = true })`。
+它们和 `visible` 一样沿字段路径继承：这一层写了 `true` 或 `false` 就用这一层，没写就保持上一层。赋 `undefined` 丢掉 reaction 层。详情页：`useForm({ readOnly: true })`，或运行时 `form.batch((d) => { d.$readOnly = true })`。

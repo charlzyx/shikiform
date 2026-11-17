@@ -19,7 +19,7 @@ description: 四个入口、createForm 选项、引擎方法、React 组件与�
 
 | 入口 | 主要导出 |
 |---|---|
-| `@shikiform/react` | `useForm`、`useFormContext`、`createForm`、`defineEffects`；`Form`、`Field`、`ObjectField`、`ArrayField`、`TreeField`、`Watch`；`connect` / `mapProps`；headless `Submit` / `Reset`；上表的 React Hooks；`EnumSource`、`ShikiUsageError` 等错误类、`zhCN` / `enUS` / `setDefaultMessages`；类型 `Draft`、`FieldBinding`、`FieldProps`、`FormOptions`、`Pattern`、`Display`、`Pos`、`MoveResult`、`FieldEnum` … |
+| `@shikiform/react` | `useForm`、`useFormContext`、`createForm`、`defineEffects`；`Form`、`Field`、`ObjectField`、`ArrayField`、`TreeField`、`Watch`；`connect` / `mapProps`；headless `Submit` / `Reset`；上表的 React Hooks；`EnumSource`、`ShikiUsageError` 等错误类、`zhCN` / `enUS` / `setDefaultMessages`；类型 `Draft`、`FieldBinding`、`FieldProps`、`FormOptions`、`Pos`、`MoveResult`、`FieldEnum` … |
 | `@shikiform/core` | 不依赖 React 的引擎：`createForm`、`defineEffects`、`EnumSource`、`comboMatch`、`comboOptions`、错误类、树坐标工具 `moveNode` / `pathOf` / `posOf`；类型 `ArrayPath`、`EnumInput`、`EnumValueOf` … 根入口已有的引擎名字两处是同一个对象 |
 | `@shikiform/hooks` | 上表的 Pro Hooks，不依赖 antd |
 | `@shikiform/antd` | 适配层（再导出 `connect` / `mapProps`，并给接好的控件加上 `status`；`FormItem`、`FormLayout`、`FormGrid`、`FormButtonGroup`）、接好的控件、antd 版 `Submit` / `Reset`（`Reset` 有 `afterReset`）、数组容器 `ArrayItems` / `ArrayCards` / `ArrayTable`、分组容器 `FormTab` / `FormCollapse` / `FormStep`、`QueryList`、`MergedTable` 与 Pro 组件 |
@@ -39,12 +39,12 @@ createForm<T, TSubmit = T>(options?: FormOptions<T>): FormInstance<T, TSubmit>  
 |---|---|---|
 | `initialValues` | `{}` | 初始值，`reset` 的目标；写全形状以便推断 `T` |
 | `effects` | — | `defineEffects` 模块数组，按顺序安装 |
-| `fields` | — | `{ [path]: FieldSpec }`：不依赖挂载的字段模型（规则、`required`、`enum`、`display`、`pattern`、`title`、`decorator`、`component`、`componentProps` …）。`items.*.name` 跟着每一行；`items.0.name` 留在路径上，见 [数组](/guide/structures) |
+| `fields` | — | `{ [path]: FieldSpec }`：不依赖挂载的字段模型（规则、`required`、`enum`、`visible`、`disabled`、`readOnly`、`omit`、`title`、`decorator`、`component`、`componentProps` …）。`items.*.name` 跟着每一行；`items.0.name` 留在路径上，见 [数组](/guide/structures) |
 | `validate` | — | 整表 Standard Schema，或返回 path → 文案的（异步）函数（接外部校验库时也写在这里） |
 | `validateTrigger` | `['onBlur', 'onSubmit']` | 可加 `'onChange'` |
 | `asyncDebounceMs` | `0` | 异步规则的防抖，字段可单独设置 |
 | `enumPolicy` | `'none'` | 值不在 `$enum` 里时：`'clear'` 清掉，`'error'` 报错 |
-| `readOnly` / `disabled` | — | 整张表的初始只读 / 禁用（根上的 `$readOnly` / `$disabled`），子字段按 OR 继承，显式 `false` 退出。之后用 `d.$readOnly = …` 改，`undefined` 恢复可编辑 |
+| `readOnly` / `disabled` | — | 整张表的初始只读 / 禁用（根上的 `$readOnly` / `$disabled`）。子字段沿路径继承：这一层写了 `true` 或 `false` 就用这一层，没写就保持上一层。之后用 `d.$readOnly = …` 改，`undefined` 丢掉 reaction 层，根回到可编辑 |
 | `trees` | — | `{ [path]: { childrenKey?, rowKey? } }`：让联动在挂载前就认识树根 |
 | `messages` | 中文 | 覆盖内置文案（校验、提交重试、树移动拒绝、antd 组件按钮），可部分覆盖，值可以是函数，见 [内置文案](/guide/validation#内置文案) |
 
@@ -154,7 +154,7 @@ await form.submit((values) => {
 |---|---|
 | `<Form form onSubmit onInvalid onSubmitError …>` | 提供引擎，渲染原生 `<form>`，提交时调用 `form.submit(onSubmit)`；校验失败调 `onInvalid(errors)`，`onSubmit` 抛错调 `onSubmitError(error)`（不传则 `console.error`）；提交或 `form.validate()` 失败时聚焦表单里第一个有错的字段（按文档顺序）。控件 `id` 是 `<前缀>-<净化路径>`（`user.name` → `<前缀>-user-name`；前缀是 `<Form id>`，没传则是 React `useId()`）。`<form>` 自身的 `id` 只在传入 `id` 时设置。其余属性（`className`、`noValidate`、`aria-*`）透传给 `<form>` |
 | `<Field name …>` | 拥有一个 path，渲染 decorator + component，属性见 [Field](/guide/field) |
-| `<ObjectField name display?>` | 对象作用域。`omit` 整棵对象不进提交 |
+| `<ObjectField name visible? disabled? readOnly? omit?>` | 对象作用域。`visible` / `disabled` / `readOnly` 传给里面的字段；`omit` 整棵对象不进提交 |
 | `<ArrayField name rowKey? component? virtualScroll?>{({ index, key }) => …}` | 每行一个作用域；父组件只订阅结构。`component` 是包住各行的容器（`ArrayItems` / `ArrayCards` / `ArrayTable`，见 [数组字段](/guide/arrays)），`ArrayTable` 的单元格来自 `columns`，不写行 children；`virtualScroll={{ height }}` 只挂载可见的普通行，不和 `component` 同用 |
 | `<TreeField name childrenKey? rowKey?>{(node) => …}` | 注册树根并递归渲染节点：`node` 为 `{ path, pos, index, key, depth, children }`（叶子节点的 `children` 为 `null`）。节点里 `useTreeField()` 读当前节点的 `path` / `pos` / `index` / `record`，并带上这棵树的增删、`move` 和 `dragProps()`。节点外拿整棵树用 `useTreeField(name)` |
 | `<Field name ui="echo">` / `<UI name component decorator …>` | 同一字段的第二个 UI（`d.x.$ui('echo')`）/ 不带值的 UI 节点（`d.$ui(name)`），见 [命名 UI 节点](/guide/ui) |
@@ -229,7 +229,7 @@ getDefaultMessages(): FormMessages       // 当前的全应用默认（setDefaul
 
 | 入口 | 类型 |
 |---|---|
-| `@shikiform/react` 与 `@shikiform/core` 共有 | 值与路径：`Draft`、`RowDraft`、`UiDraft`、`FieldPath`、`TemplatePath`（下标可写 `*`）、`ArrayItemOf`、`PathValue`、`SubmitValues`；字段：`FieldSpec`、`FieldUiSpec`（`title` / `decorator` / `component` 等 UI 部分）、`FieldError`、`Pattern`、`Display`、`UiName`、`UiNames`；枚举：`EnumOption`、`EnumBinding`（`$enum = source.with()` 存下的绑定）、`FieldEnum`；表单：`FormOptions`、`FormInstance`（`createForm` / `useForm` 返回的表单）、`SubmitResolved`、`EffectDef`（`defineEffects` 的返回值）、`RowContext`；校验：`Rule`、`RulesInput`、`ValidateCtx`（`record` / `parent` / `array` / `root` / `get(path)`）、`ValidateTrigger`；树：`Pos`、`MoveResult`；文案：`FormMessages`、`FormMessageKey`、`MessageTemplate`、`MessageArgs`、`MessageBase`、`MessageParams`、`NoParams`、`TreeMoveParams` |
+| `@shikiform/react` 与 `@shikiform/core` 共有 | 值与路径：`Draft`、`RowDraft`、`UiDraft`、`FieldPath`、`TemplatePath`（下标可写 `*`）、`ArrayItemOf`、`PathValue`、`SubmitValues`；字段：`FieldSpec`、`FieldUiSpec`（`title` / `decorator` / `component` 等 UI 部分）、`FieldError`、`UiName`、`UiNames`；枚举：`EnumOption`、`EnumBinding`（`$enum = source.with()` 存下的绑定）、`FieldEnum`；表单：`FormOptions`、`FormInstance`（`createForm` / `useForm` 返回的表单）、`SubmitResolved`、`EffectDef`（`defineEffects` 的返回值）、`RowContext`；校验：`Rule`、`RulesInput`、`ValidateCtx`（`record` / `parent` / `array` / `root` / `get(path)`）、`ValidateTrigger`；树：`Pos`、`MoveResult`；文案：`FormMessages`、`FormMessageKey`、`MessageTemplate`、`MessageArgs`、`MessageBase`、`MessageParams`、`NoParams`、`TreeMoveParams` |
 | 仅 `@shikiform/react` | `FieldProps`、`FieldSlot`、`UseFieldOptions`、`FieldBinding`、`UIProps`、`UiBinding`、`ArrayHandle`、`ArrayContainerSlot`（`<ArrayField component>` 的类型，按容器检查 props）、`FieldGroupHandle`、`UseFormOptions`、`FormProps`、`FormDomProps`（透传给 `<form>` 的属性）、`FormSubmitHandlers`、`TypedForm`、`ScopeFields`（`typed()` 按作用域检查名字的组件集） |
 | 仅 `@shikiform/core` | `ArrayPath`、`EnumInput`、`EnumValueOf`、`TypedEnumOption`、`EnumConfig`、`EnumLoadContext`（异步枚举加载器的参数，带 `signal`）、`EnumPolicy`、`StandardSchemaV1`、`TreeMoveResult`（`moveNode` 的结果） |
 | `@shikiform/hooks` | 表格：`ArrayTableApi`、`UseArrayTableOptions`、`ArrayTablePagination`、`ArrayTableRow`、`ColumnSettingsApi`、`ColumnSetting`、`ColumnSettingInput`、`ColumnDragProps`、`ColumnDragEvent`、`TableDensity`；查询：`QueryTableApi`、`UseQueryTableOptions`、`QueryRequestArgs`、`QueryRequestResult`、`QuerySort`、`QueryFilters`、`TableSorterLike`、`QueryHookArgs`、`QueryHookResult`；草稿表单：`ShadowFormApi`、`UseShadowFormOptions`、`ShadowInit`、`ShadowConfirmResult`、`ArrayShadowApi`、`ArrayShadowContext`、`UseArrayShadowOptions`；输入：`SuggestionApi`、`UseSuggestionOptions`、`SuggestFetcher`、`LazyCascaderApi`、`UseLazyCascaderOptions`、`CascaderLoader`、`CascaderOption`、`CascaderLabelsApi`、`UseCascaderLabelsOptions`；枚举显示：`EnumDisplayItem`、`EnumItemsOptions` |

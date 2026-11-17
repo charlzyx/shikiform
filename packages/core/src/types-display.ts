@@ -1,6 +1,6 @@
 /**
  * Named-UI types. Field visibility and editability are the booleans on {@link FieldSpec}
- * (`visible` / `disabled` / `readOnly` / `omit`), not a display or pattern enum.
+ * (`visible` / `disabled` / `readOnly` / `omit`).
  */
 
 /**

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-test('a delegated row action fills one virtual editor and confirm writes back by id', async ({ page }) => {
+test('a delegated row action fills one omit editor and confirm writes back by id', async ({ page }) => {
   await page.goto('/play/row-edit')
   await expect(page.getByTestId('edit-a')).toBeVisible()
   await expect(page.getByTestId('edit-b')).toBeVisible()

@@ -40,7 +40,7 @@ async function pickSelect(scope: Locator, label: string, option: string) {
 }
 
 test.describe('forms', () => {
-  test('schema: zod issues land on fields; hidden still validates, none drops nick', async ({ page }) => {
+  test('schema: zod issues land on fields; omit drops nick but still validates', async ({ page }) => {
     const scope = await demo(page, 'forms', 0)
     const submit = scope.getByRole('button', { name: /提\s*交/ })
     await submit.click()
@@ -77,7 +77,7 @@ test.describe('forms', () => {
     await expect(pre(scope)).toContainText('"nick":""')
   })
 
-  test('display: visible / hidden block on empty email, none drops contact and virtual mode', async ({ page }) => {
+  test('visible and hidden keep contact in submit; omit drops it', async ({ page }) => {
     const scope = await demo(page, 'forms', 1)
     const submit = scope.getByRole('button', { name: /提\s*交/ })
     await submit.click()
@@ -180,7 +180,7 @@ test.describe('linkage', () => {
 })
 
 test.describe('arrays', () => {
-  test('nested: pattern inherits, shipped row qty read-only, drawer edits address', async ({ page }) => {
+  test('nested: readOnly inherits, shipped row qty is a preview, drawer edits address', async ({ page }) => {
     const scope = await demo(page, 'arrays', 0)
     const qty = scope.locator('.ant-form-item').filter({ hasText: '数量' })
     await expect(qty.nth(0).locator('input')).toHaveCount(1)
@@ -197,7 +197,7 @@ test.describe('arrays', () => {
     await item(scope, '可编辑').locator('.ant-switch').click()
     await expect(input(scope, '姓名')).toHaveCount(0)
     await expect(item(scope, '姓名')).toContainText('Ada')
-    // Order switches read too: readPretty shows messages.yes instead of a switch; only 可编辑 stays a switch.
+    // Order switches read too: readOnly shows messages.yes instead of a switch; only 可编辑 stays a switch.
     await expect(scope.locator('.ant-switch')).toHaveCount(1)
     await expect(item(scope, '已发货')).toHaveCount(2)
     await expect(item(scope, '已发货').nth(0)).toContainText('是')
@@ -221,7 +221,7 @@ test.describe('arrays', () => {
     await expect(scope.locator('pre')).toContainText('"ok":false')
   })
 
-  test('virtual: unmounted empty rows still fail validation', async ({ page }) => {
+  test('virtualScroll: unmounted empty rows still fail validation', async ({ page }) => {
     const scope = await demo(page, 'arrays', 2)
     expect(await scope.locator('input').count()).toBeLessThan(30)
     await scope.getByRole('button', { name: '校验全部 2000 行' }).click()

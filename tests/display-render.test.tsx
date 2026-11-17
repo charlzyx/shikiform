@@ -6,8 +6,8 @@ import { FormItem, Input } from '@shikiform/antd'
 
 afterEach(cleanup)
 
-describe('display virtual still renders', () => {
-  it('mounts virtual fields and skips hidden and none', () => {
+describe('omit still renders', () => {
+  it('mounts omit fields and skips visible: false', () => {
     function Page() {
       const form = useForm({
         initialValues: { shown: 'a', confirm: 'b', secret: 'c', gone: 'd' },

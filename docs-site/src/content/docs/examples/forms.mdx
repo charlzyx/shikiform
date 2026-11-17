@@ -137,7 +137,7 @@ export default function App() {
 | `omit` | ✓ | ✓ | ✗ |
 | `readOnly` | 预览 | ✗ | ✓ |
 
-- `omit` 不继承。这里写在 `contact` 上，整段对象离开提交结果；`visible` / `readOnly` 会按 OR 传给里面的邮箱和电话，子字段写 `false` 可以退出。
+- `omit` 不继承。这里写在 `contact` 上，整段对象离开提交结果；`visible` / `readOnly` 沿字段路径传给里面的邮箱和电话：这一层写了 `true` 或 `false` 就用这一层，没写就保持上一层。
 - 顶部的 `mode` 开关自己也声明了 `omit`，所以它不进提交结果。
 
 ## 标签页与未挂载字段

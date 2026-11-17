@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { gotoHydrated } from './hydration'
 
-test('ArrayItems guide: add, drag sort, and actions hide in readPretty', async ({ page }) => {
+test('ArrayItems guide: add, drag sort, and actions hide when read-only', async ({ page }) => {
   await gotoHydrated(page, '/guide/arrays')
   const demo = page.locator('[data-array-items="contacts"]').first()
   const items = demo.getByTestId('array-item')

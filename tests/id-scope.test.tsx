@@ -221,7 +221,7 @@ describe('FormItem label for', () => {
     expect(labelFors(view.container)).toEqual(['lf-name', null, null])
   })
 
-  it('drops for in readPretty and restores it when editable again', async () => {
+  it('drops for when readOnly and restores it when editable again', async () => {
     const form = createForm({ initialValues: { name: 'Ada' } })
     const view = render(
       <Form form={form} id="rp">
