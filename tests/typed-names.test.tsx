@@ -72,10 +72,10 @@ function checkedNames() {
   const _f: Expect<Equal<typeof field.value, string>> = true
   // @ts-expect-error typo
   F.useField('emial')
-  const rows = F.useArray('items')
+  const rows = F.useArrayField('items')
   rows.push({ id: 2, name: 'y', total: 0 })
   // @ts-expect-error not an array
-  F.useArray('email')
+  F.useArrayField('email')
   void _f
   return (
     <Form form={form}>

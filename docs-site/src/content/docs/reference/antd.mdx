@@ -33,7 +33,7 @@ Reset<T = any>(props: ButtonProps & {
 })
 ```
 
-点击调用 `form.reset(values)`：不传 `values` 回到初始值；传了则把它设为新的初始值再重置（编辑页回填）。touched、edited 和全部消息一并清空。文字取 `messages.reset`（`重置` / `Reset`），`htmlType="button"`，不会触发原生 reset。`onClick` 先执行（读到的仍是旧值），`event.preventDefault()` 跳过重置。`afterReset` 在重置之后调用，参数已是恢复后的值，查询页用它再查一次，不必 `queueMicrotask`。不装 antd 时用 `@shikiform/react` 的 `<Reset afterReset>` / `useReset()`。
+点击调用 `form.reset(values)`：不传 `values` 回到初始值；传了则把它设为新的初始值再重置（编辑页回填）。touched、edited 和全部消息一并清空。文字取 `messages.reset`（`重置` / `Reset`），`htmlType="button"`，不会触发原生 reset。`onClick` 先执行（读到的仍是旧值），`event.preventDefault()` 跳过重置。`afterReset` 在重置之后调用，参数已是恢复后的值，查询页用它再查一次，不必 `queueMicrotask`。不装 antd 时用 `@shikiform/react` 的 `<Reset afterReset>`。
 
 ```tsx preview
 import { useState } from 'react';
@@ -146,12 +146,12 @@ groupRowSpan<T>(rows: readonly T[], groupOf: (row: T) => string): number[]
 </ArrayField>
 ```
 
-数组容器（Formily `ArrayItems`），作为 `<ArrayField>` / `F.ArrayField` 的 `component`。`<ArrayField>` 提供数组上下文并为 `children` 的每一行注入行作用域，所以下面的成员都只是 `useArray()` + `useIndex()`。
+数组容器（Formily `ArrayItems`），作为 `<ArrayField>` / `F.ArrayField` 的 `component`。`<ArrayField>` 提供数组上下文并为 `children` 的每一行注入行作用域，所以下面的成员都只是 `useArrayField()` + `useIndex()`。
 
 | 成员 / 参数 | 行为 |
 |---|---|
 | `addition` | 渲染在各行下方，通常是 `<ArrayItems.Addition />` |
-| `feedback` | 默认 `true`：在各行和 `addition` 之间显示**这一层数组自己的**错误 / 警告（颜色与 `FormItem` 的反馈文字相同，`data-testid="array-feedback"`）。子字段的消息不在这里。`false` 不显示；外层 `FormLayout` 的 `feedbackLayout: 'none'` 同样不显示。见 [useArrayErrors](/reference/react-hooks#usearrayerrors) |
+| `feedback` | 默认 `true`：在各行和 `addition` 之间显示**这一层数组自己的**错误 / 警告（颜色与 `FormItem` 的反馈文字相同，`data-testid="array-feedback"`）。子字段的消息不在这里。`false` 不显示；外层 `FormLayout` 的 `feedbackLayout: 'none'` 同样不显示。见 [数组句柄的 errors](/reference/react-hooks#usearrayfield) |
 | `empty` | 没有行时显示；默认 antd `Empty`（简洁图），`false` 不显示 |
 | `className` / `style` | 外层纵向 flex 容器（间距 8） |
 | `ArrayItems.Item` | 一行横排（flex，间距 8），也是拖拽的放置目标 |
@@ -204,7 +204,7 @@ groupRowSpan<T>(rows: readonly T[], groupOf: (row: T) => string): number[]
 
 数组上的 antd 表格（Formily `ArrayTable`，带 Pro.formily `ProArrayTable` 的功能），是 `<ArrayField>` 的容器，和 `ArrayItems` / `ArrayCards` 同一种写法。数组路径和 `rowKey` 来自外层 `<ArrayField>`；单元格来自 `columns`，所以 `<ArrayField>` 不写行 children（写了开发期警告一次）。建立在 [`useArrayTable`](/reference/pro-hooks#usearraytable) + [`useColumnSettings`](/reference/pro-hooks#usecolumnsettings) 上，表格状态（分页、选择、展开、列配置）是 React 状态，不进表单值。
 
-`ArrayTable` 不画数组路径自己的错误。要显示时把 [`useArrayErrors()`](/reference/react-hooks#usearrayerrors) 放进 `footer`：它出现在表格下方，并且仍由 `ArrayTable` 渲染，所以在 `<ArrayField>` 里面。和 `<ArrayField>` 平级再写一个组件会抛 `ShikiUsageError`（`useArrayErrors() must render inside an <ArrayField> (its container, or a row).`）。写法见 [数组自身的错误](/guide/arrays#数组自身的错误)。
+`ArrayTable` 不画数组路径自己的错误。要显示时在 `footer` 里读 `useArrayField().errors`：它出现在表格下方，并且仍由 `ArrayTable` 渲染，所以在 `<ArrayField>` 里面。和 `<ArrayField>` 平级再写一个组件会抛 `ShikiUsageError`。写法见 [数组自身的错误](/guide/arrays#数组自身的错误)。
 
 列的 `render(cell)` 渲染在行作用域里：`<Field name="a1">` 就是 `list.N.a1`，展开区里的 `<ArrayField name="children">` 也相对这一行。`cell` 是 `{ key, index, position, record, table }`；`component` 的属性按 `ArrayTableProps` 检查（少写 `columns` 是类型错误），要让 `record` 有类型，写 `const columns: ArrayTableColumn<Row>[] = […]`。
 
@@ -236,7 +236,7 @@ groupRowSpan<T>(rows: readonly T[], groupOf: (row: T) => string): number[]
 
 行操作（`SortHandle`、`Remove`、`MoveUp`、`MoveDown`、`Copy`、`Addition`、`ShadowAddition`）和 `ArrayItems` 一样，只在数组的有效 pattern 为 `editable` 时渲染（外层或根的 `readPretty` / `readOnly` / `disabled` 都会隐藏它们；整个数组的 pattern 写在 `d.list.$pattern` 或 `fields: { list: { pattern } }` 上，单元格各自的用 `<Field pattern>`）；`Index` 一直显示。
 
-单元格里同样可以直接用 [`useArray()`](/reference/react-hooks#usearray) / `useIndex()` / `useRecord()`。行操作按钮的文案走表单 `messages`（`add`、`remove`、`removeConfirm`、`moveUp`、`moveDown`、`copy`、`dragSort`、`selection*`、`density`、`columnSettings`）。可点的例子：[/play/array-table](/play/array-table)、[/play/array-table-shadow](/play/array-table-shadow)。
+单元格里同样可以直接用 [`useArrayField()`](/reference/react-hooks#usearrayfield) / `useIndex()` / `useRecord()`。行操作按钮的文案走表单 `messages`（`add`、`remove`、`removeConfirm`、`moveUp`、`moveDown`、`copy`、`dragSort`、`selection*`、`density`、`columnSettings`）。可点的例子：[/play/array-table](/play/array-table)、[/play/array-table-shadow](/play/array-table-shadow)。
 
 ## useArrayEditable
 

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrayField, Form, defineEffects, useArray, useForm, useFormContext, useWatch, type Draft } from '@shikiform/react'
+import { ArrayField, Form, defineEffects, useArrayField, useForm, useFormContext, useWatch, type Draft } from '@shikiform/react'
 import { NumberField, TextField } from './fields'
 
 type Item = { id: string; product: { name: string; price: number }; qty: number; total: number }
@@ -21,7 +21,7 @@ export function ArrayDemo() {
   </Form>
 }
 function Rows() {
-  const array = useArray<Values, 'items'>('items', { rowKey: 'id' })
+  const array = useArrayField<Values, 'items'>('items', { rowKey: 'id' })
   const form = useFormContext<Values>()
   const [sequence, setSequence] = useState(0)
   const total = useWatch((d: Draft<Values>) => d.items.$value.reduce((sum, row) => sum + row.total, 0))

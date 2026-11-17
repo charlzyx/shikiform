@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Button } from 'antd';
-import { ArrayField, Field, Form, defineEffects, useArray, useForm, useIndex } from '@shikiform/react';
+import { ArrayField, Field, Form, defineEffects, useArrayField, useForm, useIndex } from '@shikiform/react';
 import { FormItem, FormLayout, Input, InputNumber, Submit } from '@shikiform/antd';
 
 type Row = { id: string; name: string; price: number; qty: number; total: number };
@@ -11,13 +11,13 @@ function createRow(): Row {
 }
 
 function RemoveButton() {
-  const array = useArray<Row>();
+  const array = useArrayField<Row>();
   const index = useIndex();
   return <Button danger onClick={() => array.remove(index)}>删除</Button>;
 }
 
 function ItemList({ children }: { children?: ReactNode }) {
-  const array = useArray<Row>();
+  const array = useArrayField<Row>();
   return (
     <>
       {children}

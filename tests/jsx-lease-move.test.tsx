@@ -2,7 +2,7 @@
 import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { engineOf } from '@shikiform/core/internal'
-import { Form, TreeField, useField, useForm, useTreeNode } from '@shikiform/react'
+import { Form, TreeField, useField, useForm, useTreeField } from '@shikiform/react'
 import type { FormInstance } from '@shikiform/react'
 
 
@@ -12,7 +12,7 @@ type Node = { id: string; name: string; children: Node[] }
 type Values = { menu: Node[] }
 
 function NodeRow() {
-  const { pos, record } = useTreeNode<Node>()
+  const { pos, record } = useTreeField<Node>()
   const name = useField<Node, 'name'>('name', { required: true }) // a JSX rule, not a template
   return <div>[{record.id} {pos.join(',')} {name.errors[0] ?? 'ok'}]</div>
 }

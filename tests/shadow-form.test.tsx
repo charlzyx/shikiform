@@ -10,14 +10,13 @@ import {
   defineEffects,
   enUS,
   Field,
-  FieldGroup,
   Form,
   ObjectField,
   setDefaultMessages,
   useField,
-  useFieldGroup,
   zhCN,
 } from '@shikiform/react'
+import { FieldGroup, useFieldGroup } from '@shikiform/react/internal'
 import {
   ArrayTable,
   FormItem,

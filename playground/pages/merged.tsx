@@ -1,5 +1,5 @@
 import { Button, Space } from 'antd'
-import { Field, Form, useArray, useForm, useWatch, type Draft } from '@shikiform/react'
+import { Field, Form, useArrayField, useForm, useWatch, type Draft } from '@shikiform/react'
 import { Checkbox, FormItem, Input, InputNumber, MergedTable, Select, Switch } from '@shikiform/antd'
 import { newProduct, newSupplier, supplierRows, type FlatRow, type Supplier } from '../merged-model'
 import { tid } from '../testid'
@@ -49,7 +49,7 @@ export function MergedPage() {
 }
 
 function MergedBody() {
-  const suppliersHandle = useArray<Values, 'suppliers'>('suppliers')
+  const suppliersHandle = useArrayField<Values, 'suppliers'>('suppliers')
   const onlyActive = useWatch((d: Draft<Values>) => d.onlyActive.$value) === true
   const suppliers = useWatch((d: Draft<Values>) => d.suppliers.$value) ?? []
   const rows = supplierRows(suppliers, onlyActive)
@@ -126,8 +126,8 @@ function mergedRowKey(row: FlatRow) {
 }
 
 function SupplierCell({ supplierIndex, rowId }: { supplierIndex: number; rowId: string }) {
-  const suppliersHandle = useArray<Values, 'suppliers'>('suppliers')
-  const products = useArray(`suppliers.${supplierIndex}.products`)
+  const suppliersHandle = useArrayField<Values, 'suppliers'>('suppliers')
+  const products = useArrayField(`suppliers.${supplierIndex}.products`)
   const supplier = useWatch((d: Draft<Values>) => d.suppliers.$value)?.[supplierIndex]
   if (!supplier) return null
   return (

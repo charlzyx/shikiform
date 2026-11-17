@@ -20,7 +20,7 @@ description: 了解 form.submit 的返回结构、Submit 与 Reset 按钮行为�
 
 ## Submit 与 Reset 按钮
 
-`@shikiform/antd` 提供了开箱即用的 `Submit` 和 `Reset` 按钮组件；如果你不使用 Ant Design，也可以从 `@shikiform/react` 导入无样式的同名组件（支持 `asChild` 或 render prop），或者直接使用底层 Hook `useSubmit()` 和 `useReset()`。
+`@shikiform/antd` 提供了开箱即用的 `Submit` 和 `Reset` 按钮组件；如果不使用 Ant Design，从 `@shikiform/react` 导入无样式的同名组件（支持 `asChild` 或 render prop）。
 
 - **`Submit`**：订阅表单的 `$canSubmit` 与 `$submitting` 状态。当表单存在已暴露的校验错误或正在提交时，按钮会自动进入禁用或加载状态；尚未触发校验的空必填项不会在初始渲染时禁用提交按钮，首次点击时仍会正常触发校验。
 - **`Reset`**：点击时调用 `form.reset()` 将表单恢复到初始值。如果传入了 `onClick` 回调，它会在重置前执行，调用 `event.preventDefault()` 可以阻止本次重置；`afterReset(values)` 则在重置完成后执行，参数为恢复后的最新表单值。

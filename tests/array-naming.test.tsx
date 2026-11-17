@@ -5,7 +5,8 @@ import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-li
 import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as root from '@shikiform/react'
-import { ArrayField, createForm, FieldGroup, Form, ObjectField, typed, useArray, useFieldGroup, useFieldGroupErrors, type FieldGroupHandle, useTree, TreeField } from '@shikiform/react'
+import { ArrayField, createForm, Form, ObjectField, typed, useArrayField, useTreeField, TreeField } from '@shikiform/react'
+import { FieldGroup, useFieldGroup, useFieldGroupErrors, type FieldGroupHandle } from '@shikiform/react/internal'
 
 // 测试辅助：把 Holder 里创建的组句柄共享给兄弟组件
 let sharedGroup: FieldGroupHandle | undefined
@@ -104,7 +105,7 @@ describe('<ArrayField> owns every array UI', () => {
 describe('dragProps on the array and tree handles', () => {
   it('array: stable per path, dropping row A on row B moves A to B', () => {
     const form = createForm({ initialValues: { rows: [{ id: 'a' }, { id: 'b' }, { id: 'c' }] } })
-    const { result, rerender } = renderHook(() => useArray('rows', { rowKey: 'id' }), { wrapper: wrap(form) })
+    const { result, rerender } = renderHook(() => useArrayField('rows', { rowKey: 'id' }), { wrapper: wrap(form) })
     const first = result.current.dragProps
     rerender()
     expect(result.current.dragProps).toBe(first)
@@ -121,8 +122,8 @@ describe('dragProps on the array and tree handles', () => {
 
   it('array: falls back to dataTransfer text when the drag started elsewhere (another hook instance, same array)', () => {
     const form = createForm({ initialValues: { rows: [{ id: 'a' }, { id: 'b' }] } })
-    const { result } = renderHook(() => useArray('rows'), { wrapper: wrap(form) })
-    const { result: again } = renderHook(() => useArray('rows'), { wrapper: wrap(form) })
+    const { result } = renderHook(() => useArrayField('rows'), { wrapper: wrap(form) })
+    const { result: again } = renderHook(() => useArrayField('rows'), { wrapper: wrap(form) })
     act(() => {
       const data = new Map<string, string>()
       const event = {
@@ -142,8 +143,8 @@ describe('dragProps on the array and tree handles', () => {
 
   it('cross-array drop is ignored: the payload carries the source array path', () => {
     const form = createForm({ initialValues: { rows: [{ id: 'a' }, { id: 'b' }], other: [{ id: 'x' }, { id: 'y' }] } })
-    const { result } = renderHook(() => useArray('rows', { rowKey: 'id' }), { wrapper: wrap(form) })
-    const { result: other } = renderHook(() => useArray('other', { rowKey: 'id' }), { wrapper: wrap(form) })
+    const { result } = renderHook(() => useArrayField('rows', { rowKey: 'id' }), { wrapper: wrap(form) })
+    const { result: other } = renderHook(() => useArrayField('other', { rowKey: 'id' }), { wrapper: wrap(form) })
     act(() => {
       const event = { preventDefault() {}, stopPropagation() {}, dataTransfer: null } as never
       // drag row 0 of `rows` (via dataTransfer, as a real cross-array drop would) onto row 1 of `other`
@@ -156,7 +157,7 @@ describe('dragProps on the array and tree handles', () => {
 
   it('same-array drop via dataTransfer still moves the row (payload decode)', () => {
     const form = createForm({ initialValues: { rows: [{ id: 'a' }, { id: 'b' }, { id: 'c' }] } })
-    const { result } = renderHook(() => useArray('rows', { rowKey: 'id' }), { wrapper: wrap(form) })
+    const { result } = renderHook(() => useArrayField('rows', { rowKey: 'id' }), { wrapper: wrap(form) })
     act(() => {
       const from = result.current.dragProps(0)
       const to = result.current.dragProps(2)
@@ -180,7 +181,7 @@ describe('dragProps on the array and tree handles', () => {
     const form = createForm({
       initialValues: { nodes: [{ id: 'a', children: [{ id: 'a1', children: [] }] }, { id: 'b', children: [] }] },
     })
-    const { result } = renderHook(() => useTree('nodes'), { wrapper: wrap(form) })
+    const { result } = renderHook(() => useTreeField('nodes'), { wrapper: wrap(form) })
     const event = { preventDefault() {}, stopPropagation() {}, dataTransfer: null } as never
     act(() => {
       result.current.dragProps([1]).onDragStart(event)
@@ -195,13 +196,13 @@ describe('dragProps on the array and tree handles', () => {
   })
 })
 
-describe('useTree aligns with useField / useArray', () => {
+describe('useTreeField aligns with useField / useArrayField', () => {
   it('a name repeating the scope prefix throws ShikiUsageError in development with the fix', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
       const form = createForm({ initialValues: { form: { nodes: [{ id: 'a', children: [] }] } } })
       function Inner() {
-        useTree('form.nodes')
+        useTreeField('form.nodes')
         return null
       }
       expect(() =>

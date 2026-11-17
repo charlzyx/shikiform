@@ -116,4 +116,4 @@ const effects = defineEffects<{ qty: number; total: number }>(({ reaction }) => 
 
 ## 树坐标
 
-提供 `moveNode`、`pathOf` 和 `posOf` 工具函数用于操作树形节点的坐标路径（`pos` 为下标数组，如 `[0, 2]`）。`moveNode` 只改数据、不迁移字段状态。表单里移动数组或树节点用句柄：`useArray().move` / `useTree().move`（或 `useArray` / `useTree`）。
+提供 `moveNode`、`pathOf` 和 `posOf` 工具函数用于操作树形节点的坐标路径（`pos` 为下标数组，如 `[0, 2]`）。`moveNode` 只改数据、不迁移字段状态。表单里移动数组或树节点用句柄：`useArrayField().move` / `useTreeField().move`（或 `useArrayField` / `useTreeField`）。

@@ -11,8 +11,8 @@ import {
   useField,
   useFieldDecorator,
   useForm,
-  useReset,
 } from '@shikiform/react'
+import { useReset } from '@shikiform/react/internal'
 import { Reset as AntReset } from '@shikiform/antd'
 import { createEngine } from '../packages/core/src/engine/create'
 

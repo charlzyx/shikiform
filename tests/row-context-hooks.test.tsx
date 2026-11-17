@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { ArrayField, createForm, Form, TreeField, useArray, useIndex, useRecord, useTree, useTreeNode } from '@shikiform/react'
+import { ArrayField, createForm, Form, TreeField, useArrayField, useIndex, useRecord, useTreeField } from '@shikiform/react'
 import { ArrayTable } from '@shikiform/antd'
 
 afterEach(cleanup)
@@ -9,7 +9,7 @@ afterEach(cleanup)
 type Row = { id: string; name: string }
 
 function RowProbe() {
-  const array = useArray<Row>()
+  const array = useArrayField<Row>()
   const index = useIndex()
   const record = useRecord<Row>()
   return (
@@ -27,7 +27,7 @@ function RowProbe() {
   )
 }
 
-describe('headless row context hooks (useArray / useIndex / useRecord / useTreeNode)', () => {
+describe('headless row context hooks (useArrayField / useIndex / useRecord / useTreeField)', () => {
   it('read the nearest array and row without a name; useRecord is reactive and follows moves', () => {
     const form = createForm({ initialValues: { list: [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }] as Row[] } })
     render(
@@ -66,16 +66,16 @@ describe('headless row context hooks (useArray / useIndex / useRecord / useTreeN
     const quiet = console.error
     console.error = () => {}
     try {
-      expect(() => render(<Form form={form}><Bad hook={useArray} /></Form>)).toThrow(/useArray\(\) must render inside/)
+      expect(() => render(<Form form={form}><Bad hook={useArrayField} /></Form>)).toThrow(/useArrayField\(\) must render inside/)
       expect(() => render(<Form form={form}><Bad hook={useIndex} /></Form>)).toThrow(/useIndex\(\) must render inside/)
-      expect(() => render(<Form form={form}><Bad hook={useTree} /></Form>)).toThrow(/useTree\(\) must render inside/)
-      expect(() => render(<Form form={form}><Bad hook={useTreeNode} /></Form>)).toThrow(/useTreeNode\(\)/)
+      expect(() => render(<Form form={form}><Bad hook={useTreeField} /></Form>)).toThrow(/useTreeField\(\) must render inside/)
+      expect(() => render(<Form form={form}><Bad hook={useTreeField} /></Form>)).toThrow(/useTreeField\(\)/)
     } finally {
       console.error = quiet
     }
   })
 
-  it('useTree reads the nearest tree; a nested tree wins; move uses final pos', () => {
+  it('useTreeField reads the nearest tree; a nested tree wins; move uses final pos', () => {
     type Node = { id: string; name: string; children: Node[]; notes?: Node[] }
     const form = createForm<{ menu: Node[] }>({
       initialValues: {
@@ -91,12 +91,11 @@ describe('headless row context hooks (useArray / useIndex / useRecord / useTreeN
       },
     })
     function NodeLabel() {
-      const tree = useTree<Node>()
-      const node = useTreeNode<Node>()
+      const node = useTreeField<Node>()
       return (
         <div>
-          <span data-testid={`tree-${node.record.id}`}>{tree.path}</span>
-          <button data-testid={`front-${node.record.id}`} type="button" onClick={() => tree.move(node.pos, [0])}>
+          <span data-testid={`tree-${node.record.id}`}>{node.treePath}</span>
+          <button data-testid={`front-${node.record.id}`} type="button" onClick={() => node.move(node.pos, [0])}>
             front
           </button>
         </div>
@@ -125,10 +124,10 @@ describe('headless row context hooks (useArray / useIndex / useRecord / useTreeN
     expect(screen.getByTestId('tree-edit').textContent).toBe('menu')
   })
 
-  it('useTreeNode reads pos / index / record inside <TreeField>', () => {
+  it('useTreeField reads pos / index / record inside <TreeField>', () => {
     const form = createForm({ initialValues: { nodes: [{ label: 'root', children: [{ label: 'leaf', children: [] }] }] } })
     function Node() {
-      const node = useTreeNode<{ label: string }>()
+      const node = useTreeField<{ label: string }>()
       return <span data-testid="node">{`${node.path}|${node.pos.join('.')}|${node.index}|${node.record.label}`}</span>
     }
     render(
@@ -149,7 +148,7 @@ describe('headless row context hooks (useArray / useIndex / useRecord / useTreeN
     ])
   })
 
-  it('useTreeNode moves nodes and exposes dragProps like the tree handle', () => {
+  it('useTreeField moves nodes and exposes dragProps like the tree handle', () => {
     type Node = { id: string; name: string; children: Node[] }
     const form = createForm<{ menu: Node[] }>({
       initialValues: {
@@ -160,7 +159,7 @@ describe('headless row context hooks (useArray / useIndex / useRecord / useTreeN
       },
     })
     function Node() {
-      const node = useTreeNode<Node>()
+      const node = useTreeField<Node>()
       return (
         <div>
           <span data-testid={`node-${node.record.id}`} {...node.dragProps()}>{node.path}</span>
@@ -201,7 +200,7 @@ describe('headless row context hooks (useArray / useIndex / useRecord / useTreeN
     const form = createForm({ initialValues: { list: [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }] as Row[] } })
     function Cell() {
       const row = ArrayTable.useRow()
-      const array = useArray()
+      const array = useArrayField()
       return <span data-testid={`cell-${row.index}`}>{`${row.key}|${row.position}|${row.record.name}|${array.path}`}</span>
     }
     render(

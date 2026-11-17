@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from 'react'
 import { ArrayContext, RowWrapContext, useRequiredForm } from '@shikiform/react/internal'
-import { useArray, useArrayErrors } from '@shikiform/react/internal'
+import { useArrayField } from '@shikiform/react/internal'
 import type { DragProps } from '@shikiform/react/internal'
 import { useFormMessage } from '@shikiform/react/internal'
 import { useIndex } from '@shikiform/react/internal'
@@ -24,7 +24,7 @@ import { useFormLayout } from '../adapter/form-layout'
  *   </F.ArrayField>
  *
  * `<ArrayField>` renders the container inside the array's `ArrayScope` and passes the rows (one `RowScope` each)
- * as `children`, so every button here is `useArray()` + `useIndex()`: no state of their own.
+ * as `children`, so every button here is `useArrayField()` + `useIndex()`: no state of their own.
  */
 
 /** The container's `array.dragProps`, so rows and handles need no structure subscription of their own. */
@@ -70,14 +70,14 @@ interface ContainerProps {
 }
 
 /**
- * Messages on this array path only (`useArrayErrors`). Nothing is rendered until there is one,
+ * Messages on this array path only (`useArrayField().errors`). Nothing is rendered until there is one,
  * so an empty list does not grow a blank help row.
  */
 function ArrayFeedback({ feedback }: { feedback?: boolean }) {
   const layout = useFormLayout()
   const { token } = theme.useToken()
   const { getPrefixCls } = useContext(ConfigProvider.ConfigContext)
-  const { errors, warnings } = useArrayErrors()
+  const { errors, warnings } = useArrayField()
   if (feedback === false || layout.feedbackLayout === 'none') return null
   const messages = errors.length ? errors : warnings
   if (!messages.length) return null
@@ -106,7 +106,7 @@ function EmptyRows({ empty }: { empty?: ReactNode | false }) {
 
 /** Rows stacked vertically; each row is usually an `ArrayItems.Item`. Drag sort works through `SortHandle`. */
 function ArrayItemsBase({ children, addition, empty, feedback, className, style }: ContainerProps) {
-  const array = useArray()
+  const array = useArrayField()
   return (
     <DragContext.Provider value={array.dragProps}>
       <div className={className} style={{ display: 'flex', flexDirection: 'column', gap: 8, ...style }} data-array-items={array.path}>
@@ -159,7 +159,7 @@ function Index({ prefix = '#' }: { prefix?: ReactNode }) {
 
 /** Remove this row; `confirm` asks first. Hidden when the array is not editable. */
 function Remove({ title, confirm }: { title?: ReactNode; confirm?: boolean | string }) {
-  const array = useArray()
+  const array = useArrayField()
   const index = useIndex()
   const editable = useArrayEditable()
   const t = useFormMessage()
@@ -179,7 +179,7 @@ function Remove({ title, confirm }: { title?: ReactNode; confirm?: boolean | str
 
 /** Move this row up one place (disabled on the first row). Hidden when the array is not editable. */
 function MoveUp({ title }: { title?: ReactNode }) {
-  const array = useArray()
+  const array = useArrayField()
   const index = useIndex()
   const editable = useArrayEditable()
   const t = useFormMessage()
@@ -193,7 +193,7 @@ function MoveUp({ title }: { title?: ReactNode }) {
 
 /** Move this row down one place (disabled on the last row). Hidden when the array is not editable. */
 function MoveDown({ title }: { title?: ReactNode }) {
-  const array = useArray()
+  const array = useArrayField()
   const index = useIndex()
   const editable = useArrayEditable()
   const t = useFormMessage()
@@ -211,7 +211,7 @@ function MoveDown({ title }: { title?: ReactNode }) {
  * Hidden when the array is not editable.
  */
 function Addition({ title, defaultValue, method = 'push' }: { title?: ReactNode; defaultValue?: unknown; method?: 'push' | 'unshift' }) {
-  const array = useArray()
+  const array = useArrayField()
   const editable = useArrayEditable()
   const t = useFormMessage()
   if (!editable) return null

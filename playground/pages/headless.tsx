@@ -1,5 +1,5 @@
 import { createContext, memo, useContext, useRef } from 'react'
-import { ArrayField, Form, TreeField, useArray, useField, useForm, useTreeNode } from '@shikiform/react'
+import { ArrayField, Form, TreeField, useArrayField, useField, useForm, useTreeField } from '@shikiform/react'
 
 interface Item {
   id: string
@@ -13,7 +13,7 @@ interface Node {
 }
 
 /** `handle.dragProps` is stable per array, so memoized rows read it from context without re-rendering. */
-const ArrayDrag = createContext<ReturnType<typeof useArray>['dragProps'] | null>(null)
+const ArrayDrag = createContext<ReturnType<typeof useArrayField>['dragProps'] | null>(null)
 
 export function HeadlessPage() {
   const form = useForm<{ items: Item[]; nodes: Node[] }>({
@@ -39,7 +39,7 @@ export function HeadlessPage() {
 }
 
 function ItemList() {
-  const items = useArray('items')
+  const items = useArrayField('items')
   return (
     <ArrayDrag.Provider value={items.dragProps}>
       <ul data-testid="items">
@@ -85,7 +85,7 @@ function NodeList() {
 }
 
 const NodeRow = memo(function NodeRow() {
-  const { pos, record, dragProps } = useTreeNode<Node>()
+  const { pos, record, dragProps } = useTreeField<Node>()
   const renders = useRef(0)
   renders.current += 1
   return (

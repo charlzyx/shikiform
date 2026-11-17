@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { useState } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { engineOf } from '@shikiform/core/internal'
-import { createForm, Field, Form, TreeField, typed, useField, useTreeNode, type TreeNodeRender } from '@shikiform/react'
+import { createForm, Field, Form, TreeField, typed, useField, useTreeField, type TreeNodeRender } from '@shikiform/react'
 
 afterEach(cleanup)
 
@@ -39,7 +39,7 @@ describe('<TreeField>', () => {
 
     function NodeLabel() {
       const field = useField<MenuNode, 'name'>('name')
-      const { record } = useTreeNode<MenuNode>()
+      const { record } = useTreeField<MenuNode>()
       return <span data-testid={`label-${record.id}`}>{field.value}</span>
     }
 
@@ -141,7 +141,7 @@ describe('<TreeField>', () => {
     })
 
     function NodeRow() {
-      const { pos, path, record } = useTreeNode<MenuNode>()
+      const { pos, path, record } = useTreeField<MenuNode>()
       const name = useField<MenuNode, 'name'>('name', { required: true })
       const [localCount, setLocalCount] = useState(0)
       return (

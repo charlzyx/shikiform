@@ -150,7 +150,7 @@ setDefaultMessages(enUS)                              // 全局默认配置，�
 | `edit` / `ok` / `cancel` | 草稿表单触发按钮及抽屉底部按钮 | — |
 | `yes` / `no` / `empty` | `PreviewText.*` 阅读态组件的布尔值与空值占位符（`empty` 默认为 `-`） | — |
 
-文案覆盖优先级从高到低为：规则自身的 `message` > 组件自身的属性（如 `title`、`okText`） > 表单 `messages` > `setDefaultMessages` > 内置中文（`zhCN`）。`QueryList` 会读取 `table.form` 的 `messages` 配置。在自定义组件中，可以通过 `const t = useFormMessage(); t('submit')` 或 `form.message('submit')` 读取当前表单的文案。
+文案覆盖优先级从高到低为：规则自身的 `message` > 组件自身的属性（如 `title`、`okText`） > 表单 `messages` > `setDefaultMessages` > 内置中文（`zhCN`）。`QueryList` 会读取 `table.form` 的 `messages` 配置。在自定义组件中，用 `form.message('submit')`（或 `useFormContext().message('submit')`）读取当前表单的文案。
 
 ## 服务端错误
 

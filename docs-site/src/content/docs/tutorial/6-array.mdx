@@ -9,7 +9,7 @@ tableOfContents: false
 
 当前订单中已经有一条商品数据（贴纸，单价 2，数量 4），但小计还停留在 0，也不会随数量变化。
 
-`<ArrayField>` 接收一个渲染函数作为子元素，函数内部渲染的字段名会自动相对于当前行解析。通过设置 `rowKey="id"`，引擎会在增删或拖拽排序时保留每行的状态。增删行用数组句柄：行里的 `<RemoveButton>` 调 `useArray().remove(useIndex())`，「添加一行」写在 `<ArrayField>` 的 `component` 里，同样用 `useArray().push(row)`。不要调用 `form.pushArray` / `form.removeArray`。
+`<ArrayField>` 接收一个渲染函数作为子元素，函数内部渲染的字段名会自动相对于当前行解析。通过设置 `rowKey="id"`，引擎会在增删或拖拽排序时保留每行的状态。增删行用数组句柄：行里的 `<RemoveButton>` 调 `useArrayField().remove(useIndex())`，「添加一行」写在 `<ArrayField>` 的 `component` 里，同样用 `useArrayField().push(row)`。不要调用 `form.pushArray` / `form.removeArray`。
 
 在联动逻辑中，数组每一行的派生计算应当使用 `reaction.each(select, callback)`。其中第一个参数选中数组字段的 handle，第二个参数是每行对应的回调。引擎会为数组中的每一行建立独立的联动实例，编辑某一行时只会触发那一行的重算。
 

@@ -10,7 +10,7 @@ description: 帮助 AI 编程助手快速理解 ShikiForm 的核心心智模型�
 1. **handle 不是普通数据**：`d.user.name` 只是一个路径句柄，读取或修改数据必须通过 `$value`。不要直接修改 `$value` 返回的对象，而是直接向对应字段的 `$value` 赋值；同样，数组字段的 handle 不能直接调用 `.map` 或访问 `.length`。
 2. **`reaction` 用于派生，`watch` 用于副作用动作**：`reaction` 会在初始化时立即执行，并自动追踪内部读取的所有 `$` 状态；`watch` 在首次渲染时不执行，只监听第一个参数中读取的依赖。不要把派生计算写进 `watch` 里。
 3. **不要在同一轮联动中读回刚写入的值**：写入操作会缓冲到当前批次结束后才生效（`$componentProps` 等 UI 状态除外），需要复用计算结果时请先存入局部变量。
-4. **`reaction.each` / `watch.each` 只接受两个参数**：回调函数接收 `(row, ctx)`，其中 `ctx` 包含 `key`、`index`、`depth`、`parent`、`path`、`pos` 以及根 draft `d`。遍历时会自动进入元素为对象的嵌套数组，忽略嵌套在对象上的基本类型数组（除非直接对该基本类型数组调用 `each`，此时会在 `depth === 0` 触发回调）。需要限定层级或字段名时，请在回调内根据 `ctx.depth` 和 `ctx.key` 自行判断。在 React 行组件中，通过 `useArray()`、`useIndex()`、`useRecord()`、`useTreeNode()` 读取上下文。
+4. **`reaction.each` / `watch.each` 只接受两个参数**：回调函数接收 `(row, ctx)`，其中 `ctx` 包含 `key`、`index`、`depth`、`parent`、`path`、`pos` 以及根 draft `d`。遍历时会自动进入元素为对象的嵌套数组，忽略嵌套在对象上的基本类型数组（除非直接对该基本类型数组调用 `each`，此时会在 `depth === 0` 触发回调）。需要限定层级或字段名时，请在回调内根据 `ctx.depth` 和 `ctx.key` 自行判断。在 React 行组件中，通过 `useArrayField()`、`useIndex()`、`useRecord()`、`useTreeField()` 读取上下文。
 5. **表单值按路径写入，对象型 UI 属性支持按键打补丁**：例如 `d.city.$componentProps.placeholder = '…'` 只会覆盖该属性，不会丢失下层声明的其它 props；如果直接对 `$componentProps` 整体赋值，则会替换掉下层。
 6. **`<Field>` 绑定路径，`FormItem` 仅作装饰器**：表单项统一写作 `<Field name title required decorator={[FormItem]} component={[Input]} />`，不要把 `name` 写在 `FormItem` 上。
 

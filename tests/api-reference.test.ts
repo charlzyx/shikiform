@@ -24,10 +24,10 @@ describe('public Hook and adapter reference coverage', { timeout: 30_000 }, () =
   it('maps every real public Hook, typed, and pro/antd export to a named signature section', () => {
     const result = check(path.resolve('docs-site/src/content/docs'))
     expect(result.status, result.stderr).toBe(0)
-    // 计数从 exports.json 派生。合并 useArray(name?) / useTree(name?) 之后是 75；再删公开导出时把下限一起改掉。
+    // 计数从 exports.json 派生。公开 react hooks 收成 8 个（外加 typed、useFieldDecorator）之后是 67。
     const manifest = JSON.parse(readFileSync(path.resolve('docs-site/src/content/docs/reference/exports.json'), 'utf8'))
     const count = Object.values(manifest).reduce((sum: number, scope) => sum + Object.keys(scope as object).length, 0)
-    expect(count).toBeGreaterThanOrEqual(75)
+    expect(count).toBeGreaterThanOrEqual(67)
     expect(result.stdout).toContain(`${count} public`)
   })
   it('fails when an existing Hook disappears from the reference map', () => {

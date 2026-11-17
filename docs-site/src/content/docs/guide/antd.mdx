@@ -113,7 +113,7 @@ function Percent() {
 
 ## 提交与重置按钮
 
-`@shikiform/antd` 导出的 `Submit` 和 `Reset` 会自动关联外层的 `<Form>`：`Submit` 在 `$canSubmit` 为 `false` 时自动禁用并在提交过程中展示 loading 状态；`Reset` 则在点击时调用 `form.reset()`，并支持通过 `afterReset` 拿到重置后的值（常用于清空查询条件后重新发起请求）。两个按钮的默认文本跟随表单的 `messages` 配置。如果不需要 Ant Design 按钮样式，可使用 `@shikiform/react` 提供的无样式版本或 `useSubmit()` / `useReset()`。
+`@shikiform/antd` 导出的 `Submit` 和 `Reset` 会自动关联外层的 `<Form>`：`Submit` 在 `$canSubmit` 为 `false` 时自动禁用并在提交过程中展示 loading 状态；`Reset` 则在点击时调用 `form.reset()`，并支持通过 `afterReset` 拿到重置后的值（常用于清空查询条件后重新发起请求）。两个按钮的默认文本跟随表单的 `messages` 配置。如果不需要 Ant Design 按钮样式，用 `@shikiform/react` 的无样式 `<Submit>` / `<Reset>`。
 
 ```tsx
 <Form form={form} onSubmit={save}>

@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import { createForm, defineEffects, get, set, EnumSource, type Draft, type EnumOption } from '@shikiform/core'
 import { useQueryTable } from '../packages/hooks/src/use-query-table'
-import { Field, ObjectField, typed, useArray, useField, useForm, useWatch } from '@shikiform/react'
+import { Field, ObjectField, typed, useArrayField, useField, useForm, useWatch } from '@shikiform/react'
 
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false
 type Expect<T extends true> = T
@@ -107,12 +107,12 @@ function hookTypes() {
   const _p: Expect<Equal<typeof price, number>> = true
   const watched = useWatch((d: Draft<{ name: string; age: number }>) => d.age.$value)
   const _w: Expect<Equal<typeof watched, number>> = true
-  const rows = useArray<{ rows: { name: string }[] }, 'rows'>('rows')
+  const rows = useArrayField<{ rows: { name: string }[] }, 'rows'>('rows')
   rows.push({ name: 'a' })
   // @ts-expect-error name is a string
   rows.push({ name: 1 })
   // @ts-expect-error rows is the only array
-  useArray<{ rows: { name: string }[] }>('nope')
+  useArrayField<{ rows: { name: string }[] }>('nope')
   const cell = useFieldProbe()
   void hooked
   void name

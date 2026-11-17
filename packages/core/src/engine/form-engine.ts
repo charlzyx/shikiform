@@ -280,8 +280,8 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   }
 
   // —— structure ——
-  // Not on FormInstance. React reaches these through useArray(name?) / useTree(name?)
-  // (and useArrayTable / useShadowForm). Tests of the engine call them on createEngine / engineOf.
+  // Not on FormInstance. React: useArrayField(name?), useTreeField(name), or useTreeField() on a node
+  // (that node plus the tree edits). Also useArrayTable / useShadowForm. Tests call createEngine / engineOf.
 
   /** @internal Move an array row. `to` is the final index. Field models follow the row id. */
   moveArray<P extends ArrayPath<T>>(path: P, from: number, to: number): void {

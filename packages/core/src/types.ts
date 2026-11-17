@@ -549,8 +549,9 @@ export interface MoveResult {
  * Core form. No React.
  * Field models are created lazily on `$` access, `registerField`, or `fields` in options.
  * Array and tree structure changes are not methods on this type. In React, call them on the handle from
- * `useArray(name?)` (`push` / `insert` / `remove` / `move` / `swap` / `replace`) and `useTree(name?)`
- * (`push` / `insert` / `remove` / `replace` / `move`). Inside a reaction, assign a new array.
+ * `useArrayField(name?)` (`push` / `insert` / `remove` / `move` / `swap` / `replace`) and `useTreeField(name)`
+ * (`push` / `insert` / `remove` / `replace` / `move`). `useTreeField()` inside a node is that node plus the same edits.
+ * Inside a reaction, assign a new array.
  */
 export interface FormInstance<T, TSubmit = T> {
   readonly values: T

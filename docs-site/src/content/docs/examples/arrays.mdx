@@ -81,12 +81,12 @@ export default function App() {
 
 ```tsx preview play=headless
 import { useState } from 'react';
-import { Form, TreeField, useField, useForm, useTree, useTreeNode } from '@shikiform/react';
+import { Form, TreeField, useField, useForm, useTreeField } from '@shikiform/react';
 
 type Node = { id: string; name: string; children: Node[] };
 
 function NodeRow() {
-  const { pos, path, record, dragProps } = useTreeNode<Node>();
+  const { pos, path, record, dragProps } = useTreeField<Node>();
   const name = useField<Node, 'name'>('name', { required: true });
   return (
     <div {...dragProps()} style={{ cursor: 'grab', padding: '2px 0' }}>
@@ -98,7 +98,7 @@ function NodeRow() {
 }
 
 function Menu() {
-  const tree = useTree('menu', { rowKey: 'id' });
+  const tree = useTreeField('menu', { rowKey: 'id' });
   const [result, setResult] = useState('');
   return (
     <>
@@ -138,8 +138,8 @@ export default function App() {
 ```
 
 - 先点击「校验」让空名称节点报错，再将其拖拽到其他分组下：错误提示会跟随业务 `id` 一同迁移，同时节点的 `pos` 与 `path` 自动更新为新位置。
-- `tree.move(from, to)`（`useTree` / `useTree` 的句柄）会返回 `{ ok, reason? }`，尝试移入自身子孙节点时会被拦截并返回拒绝原因。节点里的 `useTreeNode()` 给出当前 `path`、`pos` 和兄弟 `index`。
-- `<TreeField>` 为每个节点自动建立作用域并传入 `node.children`，子组件内部调用 `useTreeNode()` 即可获取当前节点的坐标、记录与 `dragProps()`，无需硬编码整棵树的字段路径，详见 [Headless Hooks](/guide/headless)。
+- `move(from, to)`（`useTreeField(name)` 或节点上的 `useTreeField()`）返回 `{ ok, reason? }`，移入自身子孙时拒绝并给出原因。节点里的 `useTreeField()` 给出当前 `path`、`pos` 和兄弟 `index`。
+- `<TreeField>` 为每个节点自动建立作用域并传入 `node.children`，子组件内部调用 `useTreeField()` 即可获取当前节点的坐标、记录与 `dragProps()`，无需硬编码整棵树的字段路径，详见 [Headless Hooks](/guide/headless)。
 
 ## 长列表：只挂载可见行
 

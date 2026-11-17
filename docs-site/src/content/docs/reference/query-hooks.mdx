@@ -1,6 +1,6 @@
 ---
 title: 查询 Hooks 参考
-description: useQueryTable、useBuiltinQuery 的参数、请求协议、分页选择、表头排序筛选和错误边界。
+description: useQueryTable 的参数、请求协议、分页选择、表头排序筛选和错误边界。
 ---
 
 从 `@shikiform/hooks` 导入。它们没有 antd 依赖：Hook 处理请求、分页和选择；[QueryList](/reference/pro-components#querylist) 只是 UI。完整场景见 [查询表](/play/query)。
@@ -42,7 +42,7 @@ useQueryTable<TValues, TRow = unknown>(
 | `mode` | `'server'` | server 模式由服务端分页；client 模式对请求结果的整个 data 做切片 |
 | `request` | **必填** | 异步返回 `{ data, total }`，见协议 |
 | `rows` | 不写回 | 数组字段路径：每页 `data` 写进这个字段并作为它的初始值，单元格可直接编辑；`QueryList` 必须有它 |
-| `useQuery` | `useBuiltinQuery` | 可接 TanStack Query 等兼容 Hook；每次渲染应传同一个 Hook，不要动态切换 Hook 实现 |
+| `useQuery` | 内置 runner | 省略时用库内的最小请求实现（不从包入口导出）。可换成 TanStack Query 等兼容 Hook；每次渲染应传同一个 Hook，不要动态切换 Hook 实现 |
 
 初始化时，client 的 page、pageSize 以及 selectedKeys 只从提交结果里拿掉，不改它们的 display。server 的 page、pageSize 连这个都不写：调用方声明的 `hidden` / `none` 保持不渲染。路径和模式等配置在同一实例生命周期内保持稳定。首次请求在 effect 中发起，SSR 不发送请求。
 
@@ -149,13 +149,9 @@ export default function App() {
 }
 ```
 
-## useBuiltinQuery
+## 默认请求
 
-```ts
-useBuiltinQuery<TRow>(args: QueryHookArgs<TRow>): QueryHookResult<TRow>
-```
-
-无须表单 context。它是默认的最小请求 runner，通常由 `useQueryTable` 调用；也可以单独使用。
+不传 `useQuery` 时，`useQueryTable` 用库内的最小 runner。它不从 `@shikiform/hooks` 导出。
 
 | 输入 | 类型 / 作用 |
 |---|---|
@@ -167,8 +163,8 @@ useBuiltinQuery<TRow>(args: QueryHookArgs<TRow>): QueryHookResult<TRow>
 
 **没有 `error` 字段、重试、缓存淘汰或跨组件查询缓存。** 请求失败会结束 fetching 并保留旧结果；业务错误展示需要在 request/页面自行处理，或提供兼容的查询 Hook。不要从 `isFetching=false` 推断请求成功。
 
-兼容 Hook 接收同样的 `QueryHookArgs`，返回同样的三个属性；库没有安装或导入 `@tanstack/react-query`，也不替应用创建它的 Provider。
+兼容 Hook 接收同样的参数，返回同样的三个属性；库没有安装或导入 `@tanstack/react-query`，也不替应用创建它的 Provider。
 
 ## 实现位置
 
-`packages/hooks/src/use-query-table.ts` 定义 `useQueryTable`、`useBuiltinQuery` 和相关类型；导出入口在 `packages/hooks/src/index.ts`。UI 的分页/选择接线在 `packages/antd/src/tables/query-list.tsx`，参阅 [QueryList](/reference/pro-components#querylist)。
+`packages/hooks/src/use-query-table.ts` 定义 `useQueryTable` 和默认请求。公开导出只有 `useQueryTable`（`packages/hooks/src/index.ts`）。UI 的分页/选择接线在 `packages/antd/src/tables/query-list.tsx`，参阅 [QueryList](/reference/pro-components#querylist)。

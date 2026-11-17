@@ -3,8 +3,8 @@
 import { cleanup, renderHook } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createForm, Form, useIndex, useRecord, useTreeNode } from '@shikiform/react'
-import { useArray } from '../packages/react/src/hooks/use-array'
+import { createForm, Form, useIndex, useRecord, useTreeField } from '@shikiform/react'
+import { useArrayField } from '../packages/react/src/hooks/use-array'
 import { ShikiUsageError } from '@shikiform/core'
 import { useShadow } from '../packages/antd/src/shadow/shadow'
 import { useShadowForm } from '@shikiform/hooks'
@@ -22,9 +22,9 @@ describe('scope hooks throw ShikiUsageError in development', () => {
   })
 
   it.each<[string, () => unknown]>([
-    ['useArray', () => useArray()],
+    ['useArrayField', () => useArrayField()],
     ['useIndex', () => useIndex()],
-    ['useTreeNode', () => useTreeNode()],
+    ['useTreeField', () => useTreeField()],
     ['useShadow', () => useShadow()],
     ['useShadowForm({ name })', () => useShadowForm({ name: 'rows' })],
     ['useShadowForm({ add })', () => useShadowForm({ add: true })],
@@ -44,15 +44,15 @@ describe('scope hooks throw ShikiUsageError in development', () => {
 
 describe('production builds skip the usage message but still fail loudly', () => {
   it.each<[string, () => unknown]>([
-    ['useArray', () => useArray()],
+    ['useArrayField', () => useArrayField()],
     ['useIndex', () => useIndex()],
-    ['useTreeNode', () => useTreeNode()],
+    ['useTreeField', () => useTreeField()],
     ['useShadowForm({ name })', () => useShadowForm({ name: 'rows' })],
     ['useShadowForm({ add })', () => useShadowForm({ add: true })],
   ])('%s throws a plain Error outside a scope', (_name, hook) => {
     vi.stubEnv('NODE_ENV', 'production')
     try {
-      expect(() => renderHook(hook)).toThrow(/use(Array|Index|TreeNode|ShadowForm)/)
+      expect(() => renderHook(hook)).toThrow(/use(ArrayField|Index|TreeField|ShadowForm)/)
       expect(() => renderHook(hook)).not.toThrow(ShikiUsageError)
     } finally {
       vi.unstubAllEnvs()

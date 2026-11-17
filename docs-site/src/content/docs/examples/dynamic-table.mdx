@@ -10,7 +10,7 @@ description: 使用 reaction.each 为订单明细的每一行独立计算小计�
 ```tsx preview
 import { useState, type ReactNode } from 'react';
 import { Button } from 'antd';
-import { defineEffects, Form, typed, useArray, useForm } from '@shikiform/react';
+import { defineEffects, Form, typed, useArrayField, useForm } from '@shikiform/react';
 import { FormItem, Input, InputNumber, Submit } from '@shikiform/antd';
 
 type Line = { sku: string; price: number | null; qty: number | null; total: number };
@@ -26,7 +26,7 @@ const effects = defineEffects<Values>(({ reaction }) => {
 const blank = (): Line => ({ sku: '', price: 0, qty: 1, total: 0 });
 
 function Lines({ children }: { children?: ReactNode }) {
-  const lines = useArray<Line>();
+  const lines = useArrayField<Line>();
   return (
     <>
       {children}

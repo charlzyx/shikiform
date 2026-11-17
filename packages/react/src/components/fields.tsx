@@ -4,10 +4,10 @@ import type { ArrayPath, Display, Draft, FieldEnum, FieldError, FieldPath, FormI
 import type { RulesInput } from '@shikiform/core/internal'
 import { pathOf, type Pos } from '@shikiform/core/internal'
 import { ArrayContext, FormContext, RowWrapContext, ScopeContext, TreeContext, useRequiredForm, useScope } from '../context'
-import { useArray } from '../hooks/use-array'
+import { useArrayField } from '../hooks/use-array'
 import { FieldContext } from '../field-context'
 import { useField, type ControlValueGuard, type FieldBinding, type FieldSlot, type RegisteredComponentSlot, type RegisteredDecoratorSlot } from '../hooks/use-field'
-import { useTree } from '../hooks/use-tree'
+import { useTreeField } from '../hooks/use-tree'
 import { useWatch } from '../hooks/use-watch'
 import { resolveName } from '../hooks/resolve-name'
 import { ShikiUsageError } from '@shikiform/core/internal'
@@ -289,7 +289,7 @@ export function ObjectField<TScope = any>({
  * Names inside a row are relative to the row (`name="price"`, not `items.0.price`).
  * `component` is the container around the rows (Formily `ArrayItems` / `ArrayCards` / `ArrayTable` in
  * `@shikiform/antd`): `component={[ArrayItems, { addition: <ArrayItems.Addition /> }]}` renders
- * `<ArrayItems …>{rows}</ArrayItems>` inside the array's scope, so its buttons reach the array through {@link useArray}.
+ * `<ArrayItems …>{rows}</ArrayItems>` inside the array's scope, so its buttons reach the array through {@link useArrayField}.
  * A container that renders its own cells (`ArrayTable` with `columns`) needs no `children`.
  * `virtualScroll` windows the plain rows (TanStack Virtual); it does not combine with a container `component`.
  * `<ArrayField<Values> name="items">` checks the name; `typed(form).ArrayField` also types the row's fields.
@@ -319,7 +319,7 @@ export function ArrayField<TScope = any, C extends ComponentType<any> = Componen
   /** One row. Optional when `component` renders the rows itself (`ArrayTable` columns). */
   children?: (row: { index: number; key: string }) => ReactNode
 }) {
-  const array = useArray(String(name), { rowKey })
+  const array = useArrayField(String(name), { rowKey })
   const [Container, props] = Array.isArray(component) ? component : [component as ComponentType<any> | undefined, undefined]
   if (Array.isArray(component) && Container == null && process.env.NODE_ENV !== 'production') {
     throw emptySlot(`<ArrayField name="${String(name)}">`, 'component', Container)
@@ -369,8 +369,8 @@ const ArrayRow = memo(function ArrayRow({ path, index, itemKey, render }: {
 })
 
 /**
- * Mark the nearest array for {@link useArray} (`path` is absolute). `<ArrayField>` renders it; use it in a custom
- * array component built on `useArray(name)`.
+ * Mark the nearest array for {@link useArrayField} (`path` is absolute). `<ArrayField>` renders it; use it in a custom
+ * array component built on `useArrayField(name)`.
  */
 export function ArrayScope({ path, rowKey, children }: { path: string; rowKey?: string; children?: ReactNode }) {
   const value = useMemo(() => ({ path, rowKey }), [path, rowKey])
@@ -378,7 +378,7 @@ export function ArrayScope({ path, rowKey, children }: { path: string; rowKey?: 
 }
 
 /**
- * Mark the nearest tree for {@link useTree} (`path` is absolute). `<TreeField>` renders it.
+ * Mark the nearest tree for {@link useTreeField} (`path` is absolute). `<TreeField>` renders it.
  * `childrenKey` / `rowKey` stay unset when the caller omitted them, so a prior `trees` registration is kept.
  */
 export function TreeScope({
@@ -398,7 +398,7 @@ export function TreeScope({
 
 /**
  * Scope for one row (or tree node): relative names resolve under `path`, and {@link useIndex} / {@link useRecord}
- * (/ {@link useTreeNode} with `pos`) read it. Stable value, so a row that did not move does not wake its consumers.
+ * (/ {@link useTreeField} with `pos`) read it. Stable value, so a row that did not move does not wake its consumers.
  * For a tree node pass `pos` (and `index` = its last segment, or omit `index`).
  */
 export function RowScope({
@@ -437,8 +437,8 @@ export interface TreeNodeRender {
  * The owner of a tree path. Walks the tree recursively, wraps each node in a row scope keyed by the node id
  * (`rowKey`, else `id`, else a stable object identity), and hands `children` the pre-rendered subtree as `node.children`
  * (`null` on leaves) so the caller decides where to place it (`<li><NodeRow />{node.children && <ul>{node.children}</ul>}</li>`).
- * Inside a node, relative `<Field name="name">` / `useField('name')`, {@link useRecord}, {@link useTree}, and
- * {@link useTreeNode} read that node (or the tree), and field state / errors follow the node across moves.
+ * Inside a node, relative `<Field name="name">` / `useField('name')`, {@link useRecord}, and {@link useTreeField}
+ * (no name: this node, plus the tree's edits) read that node, and field state / errors follow the node across moves.
  * `<TreeField<Values> name="menu">` checks the name; `typed(form).TreeField` also types the node's fields.
  */
 export function TreeField<TScope = any>({
@@ -452,7 +452,7 @@ export function TreeField<TScope = any>({
   rowKey?: string
   children: (node: TreeNodeRender) => ReactNode
 }) {
-  const tree = useTree(String(name), { childrenKey, rowKey })
+  const tree = useTreeField(String(name), { childrenKey, rowKey })
   const identMap = useRef(new WeakMap<object, string>())
   const identSeq = useRef(0)
   const resolvedChildrenKey = childrenKey ?? 'children'
