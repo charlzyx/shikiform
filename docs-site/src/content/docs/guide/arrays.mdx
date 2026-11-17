@@ -3,7 +3,7 @@ title: 数组容器 ArrayItems / ArrayCards / ArrayTable
 description: 为 ArrayField 传入容器组件即可获得增删、排序、拖拽、序号和空状态；ArrayTable 提供分页、勾选和列配置等完整表格能力。
 ---
 
-基础的 [`<ArrayField>`](/guide/structures) 只负责建立行作用域和追踪行身份，如果自己手写列表，往往需要用 `useArray()` 和 `useIndex()` 拼接增删改序按钮并判断编辑权限。为了避免重复劳动，`@shikiform/antd` 提供了三种常用的数组容器组件：
+基础的 [`<ArrayField>`](/guide/structures) 只负责建立行作用域和追踪行身份，如果自己手写列表，往往需要用 `useArrayField()` 和 `useIndex()` 拼接增删改序按钮并判断编辑权限。为了避免重复劳动，`@shikiform/antd` 提供了三种常用的数组容器组件：
 
 | 容器 | 展示形式 | 内置功能 |
 |---|---|---|
@@ -109,17 +109,17 @@ export default function App() {
 
 数组层级的首次校验同样遵循默认的提交或指定时机；一旦报错显示出来，之后每次增删、移动或替换行都会立即重检该层数组，方便用户改对后即时消错（修改单个单元格不会触发整组重检）。如果不需要容器自带的反馈行，可以传入 `feedback={false}` 或在外层 `<FormLayout>` 设置 `feedbackLayout="none"`。
 
-自行封装列表容器时，可以调用 [`useArrayErrors()`](/reference/react-hooks#usearrayerrors) 读取数组自身的 `errors` 和 `warnings`（如果要读取包含所有子字段在内的汇总错误，请访问 draft 上的 `$errors`）。
+自行封装列表容器时，在 `<ArrayField>` 里面调用 `useArrayField()`，读句柄上的 `errors` 和 `warnings`（这一层数组自己的消息，不含子字段）。要连子字段一起看，读 draft 的 `$errors`。
 
-需要注意，`useArrayErrors()` 必须在 `<ArrayField>` 渲染树内部调用（例如容器组件或 `ArrayTable` 的 `footer` 中），这样即使数组为空也能正常展示提示；不能把它写在 `<ArrayField>` 之外的兄弟组件里，也不要放在每行渲染函数内（否则数组为空时根本不会执行，有多行时又会重复渲染多遍）。
+`useArrayField()` 必须在 `<ArrayField>` 里面（容器或 `footer`）。和它平级会抛错。不要写在每一行的渲染函数里：数组为空时行函数不跑，有多行时又会重复画。
 
 ```tsx
 import type { ReactNode } from 'react'
-import { ArrayField, useArrayErrors } from '@shikiform/react'
+import { ArrayField, useArrayField } from '@shikiform/react'
 import { ArrayTable, type ArrayTableColumn } from '@shikiform/antd'
 
 function ArrayMessage() {
-  const { errors } = useArrayErrors()
+  const { errors } = useArrayField()
   if (!errors.length) return null
   return <p role="alert">{errors.join('、')}</p>
 }
@@ -206,7 +206,7 @@ export default function App() {
 
 ## ArrayTable
 
-`ArrayTable` 封装了完整的 Ant Design Table，由于单元格内容通过 `columns` 定义，`<ArrayField>` 无需传递子元素函数。每一列的 `render` 方法都运行在当前行的作用域内，直接写 `<Field name="name" />` 就会自动绑定到 `list.N.name`，单元格内也可以省略 `FormItem` 装饰器。在自定义单元格组件中，可以通过 `ArrayTable.useRow()`（返回 `{ key, index, position, record }`）或 `useArray()` / `useIndex()` / `useRecord()` 获取行信息。
+`ArrayTable` 封装了完整的 Ant Design Table，由于单元格内容通过 `columns` 定义，`<ArrayField>` 无需传递子元素函数。每一列的 `render` 方法都运行在当前行的作用域内，直接写 `<Field name="name" />` 就会自动绑定到 `list.N.name`，单元格内也可以省略 `FormItem` 装饰器。在自定义单元格组件中，可以通过 `ArrayTable.useRow()`（返回 `{ key, index, position, record }`）或 `useArrayField()` / `useIndex()` / `useRecord()` 获取行信息。
 
 ```tsx preview play=array-table
 import { Field, Form, typed, useForm } from '@shikiform/react';
@@ -266,7 +266,7 @@ export default function App() {
 
 ## 其他数组方案的选择
 
-- **完全自定义行布局和按钮**：直接使用 `<ArrayField>` 配合 `useArray()` / `useIndex()`，参见 [字段路径与结构](/guide/structures)。
+- **完全自定义行布局和按钮**：直接使用 `<ArrayField>` 配合 `useArrayField()` / `useIndex()`，参见 [字段路径与结构](/guide/structures)。
 - **带查询条件的分页表格**：使用 [`QueryList`](/guide/pro#查询列表)，其底层即由 `ArrayTable` 驱动。
 - **万行级超长列表**：使用不带容器的 `<ArrayField name virtualScroll={{ height }}>`，仅渲染视口内的可见行，参见 [数组示例 · 长列表](/examples/arrays)。
 - **详细属性参考**：[ArrayItems](/reference/antd#arrayitems)、[ArrayCards](/reference/antd#arraycards)、[ArrayTable](/reference/antd#arraytable)、[useArrayEditable](/reference/antd#usearrayeditable)。

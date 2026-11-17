@@ -6,16 +6,17 @@ description: 不依赖 UI 库直接使用 useField、useWatch、数组/树上下
 如果你不打算引入 Ant Design，或者需要封装自定义的表格与树形编辑器，可以直接使用 `@shikiform/react` 提供的无 UI Hooks（`<Field>` 和 `<ArrayField>` 本身也是构建在这些 Hook 之上的薄封装）：
 
 - **基础绑定与订阅**：`useField(name)` 负责绑定单个字段，`useWatch(select)` / `<Watch>` 负责订阅任意 `$` 状态变化。
-- **数组行内上下文**：`useArray()` 获取最近一层数组的操作句柄，`useIndex()` 获取当前行下标，`useRecord()` 获取当前行数据，调用时都不需要传数组名。如需展示数组路径自身的错误（不包含子字段），可以在容器或 `ArrayTable` 的 `footer` 中调用 `useArrayErrors()`（注意必须放在 `<ArrayField>` 子树内部，详见 [数组自身的错误](/guide/arrays#数组自身的错误)）。
-- **树节点上下文**：`useTreeNode()` 返回当前节点的 `{ path, pos, index, key, record, dragProps }`。
-- **拖拽排序**：数组句柄（`useArray()` / `useArrayField(name)`）的 `dragProps(index)` 与树节点（`useTreeNode().dragProps()`）或树句柄（`useTreeField(name).dragProps(pos)`）会直接返回所需的 HTML5 拖放事件属性，配合同一句柄的 `move` 即可完成排序。
+- **数组行内上下文**：`useArrayField()` 获取最近一层数组的操作句柄，`useIndex()` 获取当前行下标，`useRecord()` 获取当前行数据，调用时都不需要传数组名。数组自己的错误在句柄的 `errors` / `warnings` 上（不含子字段），在容器或 `ArrayTable` 的 `footer` 里读 `useArrayField().errors`（必须在 `<ArrayField>` 里面，见 [数组自身的错误](/guide/arrays#数组自身的错误)）。
+- **树**：`useTreeField(name)` 取那棵树，`path` 和 `treePath` 都是树根（`push` / `insert` / `remove` / `replace` / `move` / `dragProps(pos)`，以及这一层的 `errors` / `warnings`）。`useTreeField()` 必须在节点里：`path` 是当前节点，`treePath` 是树根，并带上 `{ pos, index, record }` 和这棵树的增删、`dragProps()`（不传坐标指向当前节点）。移动一个节点时，位置和子树没变的兄弟以及其他子树不会重新渲染。
+- **拖拽排序**：数组句柄的 `dragProps(index)` 和树句柄的 `dragProps(pos)`（节点上 `useTreeField().dragProps()`）返回 HTML5 拖放属性，配合同一句柄的 `move` 完成排序。
 
-`useArray`、`useIndex` 和 `useRecord` 在普通 `<ArrayField>` 渲染函数以及 `ArrayItems`、`ArrayCards`、`ArrayTable` 容器内均可通用。
+`useArrayField`、`useIndex` 和 `useRecord` 在普通 `<ArrayField>` 渲染函数以及 `ArrayItems`、`ArrayCards`、`ArrayTable` 容器内均可通用。
 
 ## 数组行组件：免传路径名
 
 ```tsx preview
-import { ArrayField, Form, Watch, useArray, useField, useForm, useIndex, useRecord, type Draft } from '@shikiform/react';
+import { type ReactNode } from 'react';
+import { ArrayField, Form, Watch, useArrayField, useField, useForm, useIndex, useRecord, type Draft } from '@shikiform/react';
 
 type Todo = { id: number; title: string; done: boolean };
 type Values = { todos: Todo[] };
@@ -37,7 +38,7 @@ function DoneBox() {
 }
 
 function Row() {
-  const array = useArray<Todo>();
+  const array = useArrayField<Todo>();
   const index = useIndex();
   const record = useRecord<Todo>();
   return (
@@ -48,11 +49,13 @@ function Row() {
   );
 }
 
-function TodoList() {
+function TodoList({ children }: { children?: ReactNode }) {
+  const array = useArrayField<Todo>();
   return (
-    <ul style={{ paddingLeft: 0, listStyle: 'none' }}>
-      <ArrayField name="todos" rowKey="id">{() => <Row />}</ArrayField>
-    </ul>
+    <>
+      <ul style={{ paddingLeft: 0, listStyle: 'none' }}>{children}</ul>
+      <button type="button" onClick={() => array.push({ id: nextId++, title: '', done: false })}>添加</button>
+    </>
   );
 }
 
@@ -62,8 +65,7 @@ export default function App() {
   });
   return (
     <Form form={form}>
-      <TodoList />
-      <button type="button" onClick={() => form.pushArray('todos', { id: nextId++, title: '', done: false })}>添加</button>
+      <ArrayField name="todos" rowKey="id" component={TodoList}>{() => <Row />}</ArrayField>
       <Watch select={(d: Draft<Values>) => d.todos.$value.filter((todo) => todo.done).length}>
         {(done) => <p>已完成 {done} 项</p>}
       </Watch>
@@ -72,15 +74,15 @@ export default function App() {
 }
 ```
 
-在 `Row` 组件中，`useArray()` 会自动解析到外层的 `todos` 数组，拖拽重排后 `#` 后面的行下标会同步变化，而业务 `id` 和焦点状态保持不变。
+在 `Row` 组件中，`useArrayField()` 会自动解析到外层的 `todos` 数组，拖拽重排后 `#` 后面的行下标会同步变化，而业务 `id` 和焦点状态保持不变。
 
-## 树形结构：TreeField 与 useTreeNode
+## 树形结构：TreeField 与 useTreeField
 
-渲染树形数据时，使用 `<TreeField name rowKey>` 遍历树并自动为每个节点建立作用域；子节点通过 `node.children` 递归传入（叶子节点为 `null`），内部的 `useField('name')` 会自动指向当前节点，`useTreeNode()` 则提供当前节点的坐标、数据与 `dragProps()`：
+渲染树形数据时，使用 `<TreeField name rowKey>` 遍历树并自动为每个节点建立作用域；子节点通过 `node.children` 递归传入（叶子节点为 `null`），内部的 `useField('name')` 会自动指向当前节点，`useTreeField()` 则提供当前节点的坐标、数据与 `dragProps()`：
 
 ```tsx
 function NodeRow() {
-  const { record, dragProps } = useTreeNode<Node>()
+  const { record, dragProps } = useTreeField<Node>()
   const field = useField<Node, 'name'>('name')
   return <div {...dragProps()}>⠿ <input value={field.value} onChange={(e) => field.onChange(e.target.value)} /> {record.children?.length ?? 0}</div>
 }
@@ -97,11 +99,11 @@ function NodeRow() {
 </ul>
 ```
 
-`useTreeNode().dragProps()`（以及 `useTreeField('menu')` 的 `tree.dragProps(pos)`）自带跨父级拖拽和「禁止拖入自身子节点」校验。完整可运行演示见 [示例库 · 树：跨层移动](/examples/arrays#树跨层移动)。
+`useTreeField().move` / `useTreeField().dragProps()`（以及 `useTreeField('menu')` 的 `tree.dragProps(pos)`）自带跨父级拖拽和「禁止拖入自身子节点」校验。当前节点的 `path`、`pos` 和兄弟 `index` 在 `useTreeField()` 上。完整可运行演示见 [示例库 · 树：跨层移动](/examples/arrays#树跨层移动)。
 
 ## 接自己的组件库
 
-`connect` 和 `mapProps` 均直接由 `@shikiform/react` 导出，不依赖 `@shikiform/antd`（默认不传 Ant Design 专属的 `status`）。标签与错误提示使用 [`useFieldDecorator`](/reference/react-hooks#usefielddecorator)，提交和重置按钮可使用 headless 的 [`Submit` / `Reset`](/reference/react-hooks#usesubmit)（支持 `asChild` 或 render prop，其中 `Reset` 通过 `afterReset` 接收重置后的值）。下面以 shadcn/ui、Mantine 和 MUI 为例展示接入方式，原生 HTML 最小起步见 [不用 UI 库](/start/native)。
+`connect` 和 `mapProps` 均直接由 `@shikiform/react` 导出，不依赖 `@shikiform/antd`（默认不传 Ant Design 专属的 `status`）。标签与错误提示使用 [`useFieldDecorator`](/reference/react-hooks#usefielddecorator)，提交和重置按钮可使用 headless 的 [`Submit` / `Reset`](/reference/react-hooks#submit)（支持 `asChild` 或 render prop，其中 `Reset` 通过 `afterReset` 接收重置后的值）。下面以 shadcn/ui、Mantine 和 MUI 为例展示接入方式，原生 HTML 最小起步见 [不用 UI 库](/start/native)。
 
 ### 区分 `useFieldDecorator().control` 与 `connect`
 

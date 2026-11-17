@@ -1,5 +1,5 @@
 import { Button, Space } from 'antd'
-import { Field, Form, useForm, useFormContext, useWatch, type Draft } from '@shikiform/react'
+import { Field, Form, useArrayField, useForm, useWatch, type Draft } from '@shikiform/react'
 import { Checkbox, FormItem, Input, InputNumber, MergedTable, Select, Switch } from '@shikiform/antd'
 import { newProduct, newSupplier, supplierRows, type FlatRow, type Supplier } from '../merged-model'
 import { tid } from '../testid'
@@ -49,7 +49,7 @@ export function MergedPage() {
 }
 
 function MergedBody() {
-  const form = useFormContext<Values>()
+  const suppliersHandle = useArrayField<Values, 'suppliers'>('suppliers')
   const onlyActive = useWatch((d: Draft<Values>) => d.onlyActive.$value) === true
   const suppliers = useWatch((d: Draft<Values>) => d.suppliers.$value) ?? []
   const rows = supplierRows(suppliers, onlyActive)
@@ -113,7 +113,7 @@ function MergedBody() {
           },
         ]}
       />
-      <Button style={{ marginTop: 8 }} data-testid="add-supplier" onClick={() => form.pushArray('suppliers', newSupplier())}>
+      <Button style={{ marginTop: 8 }} data-testid="add-supplier" onClick={() => suppliersHandle.push(newSupplier())}>
         加供应商
       </Button>
     </main>
@@ -126,7 +126,8 @@ function mergedRowKey(row: FlatRow) {
 }
 
 function SupplierCell({ supplierIndex, rowId }: { supplierIndex: number; rowId: string }) {
-  const form = useFormContext<Values>()
+  const suppliersHandle = useArrayField<Values, 'suppliers'>('suppliers')
+  const products = useArrayField(`suppliers.${supplierIndex}.products`)
   const supplier = useWatch((d: Draft<Values>) => d.suppliers.$value)?.[supplierIndex]
   if (!supplier) return null
   return (
@@ -147,13 +148,13 @@ function SupplierCell({ supplierIndex, rowId }: { supplierIndex: number; rowId: 
       </div>
       <Field name={`suppliers.${supplierIndex}.level`} enum={LEVELS} component={[Select, { ...tid(`level-${supplier.id}`), style: { width: 90 } }]} />
       <Space>
-        <Button size="small" data-testid={`up-${supplier.id}`} disabled={supplierIndex === 0} onClick={() => form.moveArray('suppliers', supplierIndex, supplierIndex - 1)}>
+        <Button size="small" data-testid={`up-${supplier.id}`} disabled={supplierIndex === 0} onClick={() => suppliersHandle.move(supplierIndex, supplierIndex - 1)}>
           组上移
         </Button>
         <Button
           size="small"
           data-testid={`add-product-${supplier.id}`}
-          onClick={() => form.pushArray(`suppliers.${supplierIndex}.products` as 'suppliers.0.products', newProduct())}
+          onClick={() => products.push(newProduct())}
         >
           加产品
         </Button>

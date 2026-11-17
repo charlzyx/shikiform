@@ -44,7 +44,7 @@ export interface FormMessages {
   /** `submit()` result `message` when it gives up with `reason: 'superseded'` (values never settled). */
   superseded: MessageTemplate<{ path: ''; value: unknown }>
 
-  // Tree moves (`moveTree`, tree `dragProps`, `moveNode`): the refused `MoveResult.reason`.
+  // Tree moves (tree handle `move` / `dragProps`, `moveNode`): the refused `MoveResult.reason`.
   /** `from` or `to` is an empty position. */
   treeEmptyPos: MessageTemplate<TreeMoveParams>
   /** Moving a node into itself or one of its descendants. */

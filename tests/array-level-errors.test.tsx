@@ -2,7 +2,7 @@
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { ArrayField, Form, typed, useArrayErrors } from '@shikiform/react'
+import { ArrayField, Form, typed, useArrayField } from '@shikiform/react'
 import { ArrayCards, ArrayItems, FormItem, FormLayout, Input } from '@shikiform/antd'
 import { createEngine, type Engine } from '../packages/core/src/engine/create'
 
@@ -148,9 +148,9 @@ describe('array-level errors', () => {
     expect(form.canSubmit).toBe(true)
   })
 
-  it('useArrayErrors returns the nearest array only, and throws outside one', async () => {
+  it('the array handle errors are the nearest array only, and useArrayField throws outside one', async () => {
     function Probe() {
-      const { errors } = useArrayErrors()
+      const { errors } = useArrayField()
       return <span data-testid="own">{errors.join('|')}</span>
     }
     function PhoneList({ children }: { children?: ReactNode }) {
@@ -172,9 +172,9 @@ describe('array-level errors', () => {
     expect(form.binding('members.0.name').errors).toEqual(['必填'])
 
     function Outside() {
-      useArrayErrors()
+      useArrayField()
       return null
     }
-    expect(() => render(<Form form={form}><Outside /></Form>)).toThrow(/useArrayErrors\(\) must render inside an <ArrayField>/)
+    expect(() => render(<Form form={form}><Outside /></Form>)).toThrow(/useArrayField\(\) must render inside/)
   })
 })

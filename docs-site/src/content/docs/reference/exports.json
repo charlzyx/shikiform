@@ -1,27 +1,18 @@
 {
   "@shikiform/react": {
     "useForm": "reference/react-hooks.mdx",
-    "useFormMessage": "reference/react-hooks.mdx",
     "typed": "reference/react-hooks.mdx",
     "useFormContext": "reference/react-hooks.mdx",
     "useField": "reference/react-hooks.mdx",
     "useFieldDecorator": "reference/react-hooks.mdx",
-    "useSubmit": "reference/react-hooks.mdx",
-    "useReset": "reference/react-hooks.mdx",
     "useWatch": "reference/react-hooks.mdx",
     "useArrayField": "reference/react-hooks.mdx",
     "useTreeField": "reference/react-hooks.mdx",
-    "useArray": "reference/react-hooks.mdx",
-    "useArrayErrors": "reference/react-hooks.mdx",
     "useIndex": "reference/react-hooks.mdx",
-    "useRecord": "reference/react-hooks.mdx",
-    "useTreeNode": "reference/react-hooks.mdx",
-    "useFieldGroup": "reference/react-hooks.mdx",
-    "useFieldGroupErrors": "reference/react-hooks.mdx"
+    "useRecord": "reference/react-hooks.mdx"
   },
   "@shikiform/hooks": {
     "useQueryTable": "reference/query-hooks.mdx",
-    "useBuiltinQuery": "reference/query-hooks.mdx",
     "useArrayTable": "reference/pro-hooks.mdx",
     "useColumnSettings": "reference/pro-hooks.mdx",
     "useShadowForm": "reference/pro-hooks.mdx",

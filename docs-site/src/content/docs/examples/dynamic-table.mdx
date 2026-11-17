@@ -8,9 +8,9 @@ description: 使用 reaction.each 为订单明细的每一行独立计算小计�
 对于只有一层的扁平表格，回调函数不需要读取第二个 `ctx` 参数；如果是嵌套子数组或树形结构，可以通过 `ctx.key`、`ctx.depth` 进行层级过滤，详见 [用 ctx 过滤](/guide/linkage#用-ctx-过滤)。
 
 ```tsx preview
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Button } from 'antd';
-import { defineEffects, Form, typed, useForm } from '@shikiform/react';
+import { defineEffects, Form, typed, useArrayField, useForm } from '@shikiform/react';
 import { FormItem, Input, InputNumber, Submit } from '@shikiform/antd';
 
 type Line = { sku: string; price: number | null; qty: number | null; total: number };
@@ -25,6 +25,16 @@ const effects = defineEffects<Values>(({ reaction }) => {
 
 const blank = (): Line => ({ sku: '', price: 0, qty: 1, total: 0 });
 
+function Lines({ children }: { children?: ReactNode }) {
+  const lines = useArrayField<Line>();
+  return (
+    <>
+      {children}
+      <Button htmlType="button" onClick={() => lines.push(blank())}>添加一行</Button>
+    </>
+  );
+}
+
 export default function App() {
   const [result, setResult] = useState('');
   const form = useForm<Values>({
@@ -34,7 +44,7 @@ export default function App() {
   const F = typed(form);
   return (
     <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
-      <F.ArrayField name="lines">
+      <F.ArrayField name="lines" component={Lines}>
         {(row) => (
           <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
             <row.Field name="sku" title="商品" decorator={[FormItem]} component={[Input]} />
@@ -44,7 +54,6 @@ export default function App() {
           </div>
         )}
       </F.ArrayField>
-      <Button htmlType="button" onClick={() => form.pushArray('lines', blank())}>添加一行</Button>
       <Submit style={{ marginLeft: 8 }}>提交</Submit>
       <pre aria-live="polite">{result}</pre>
     </Form>

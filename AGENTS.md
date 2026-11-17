@@ -77,17 +77,21 @@ Per-row settings that must follow the row when it moves are `rows.*.x` templates
 An exact-index declaration (`fields: { 'rows.0.x': … }`, `registerField('rows.0.x', …)`) belongs to that path: after a
 move / swap / insert / remove it stays on `rows.0.x` and applies to whichever row sits there now.
 
-In React, a row component reads its row without names: `useArray()` (nearest array handle: `push`, `remove`,
-`move`, `swap`, `dragProps(index)`…), `useIndex()`, `useRecord()` (reactive row value), `useTreeNode()` (inside
-`<TreeField>`; same handle shape with `move(from, to)` and `dragProps(pos?)` — defaulting to the node it
-renders in — read from the nearest registered tree). `useArrayField(name, opts?: { rowKey })` is the named version;
-`useTreeField(name, { childrenKey?, rowKey? })` is the tree handle (`move(from, to)`, `dragProps(pos)`); both resolve
-the name against the scope (a repeated scope prefix throws in dev) and register the path into the nearest `FieldGroup`,
+In React, a row component reads its row without names: `useArrayField()` (nearest array handle: `push`, `insert`, `remove`,
+`move`, `swap`, `replace`, `dragProps(index)`, plus this path's `errors` / `warnings`), `useIndex()`, `useRecord()` (reactive row value).
+`useTreeField(name, { childrenKey?, rowKey? })` is the tree handle (`push` / `insert` / `remove` / `replace` / `move` / `dragProps(pos)`).
+`useTreeField()` with no name must render inside a `<TreeField>` node: `path` is that node, `treePath` is the root, plus `pos`, `index`, reactive `record`,
+and the same tree edits (`dragProps()` with no pos targets this node). A root handle's `path` and `treePath` are both the root.
+`errors` / `warnings` on either handle are that path's own messages. Moving a node does not re-render siblings or other subtrees whose position and subtree stayed the same.
+`useIndex()` in a tree node is that sibling index.
+`useArrayField(name, opts?: { rowKey })` is the named array handle. Both named hooks resolve
+the name against the scope (a repeated scope prefix throws in dev) and register the path into the nearest field group,
 like `useField`. Drag-and-drop is `{...handle.dragProps(i)}` on the row; there is no separate drag hook.
+There is no `form.pushArray` / `form.moveTree`: those engine methods stay internal.
 Rows need no id: object rows without `rowKey` / `id` keep a stable object identity (state follows them on move).
 
 Ready-made array UI: give `<ArrayField>` a container `component` from `@shikiform/antd` (Formily `ArrayItems` /
-`ArrayCards` / `ArrayTable`) instead of writing `useArray()` buttons by hand. That is the only way to attach one: there
+`ArrayCards` / `ArrayTable`) instead of writing `useArrayField()` buttons by hand. That is the only way to attach one: there
 is no `<ArrayTable name>`; the container's props are type-checked (`[ArrayTable, {}]` without `columns` is an error). Action buttons render only while the array's effective
 pattern is `editable` (readPretty / readOnly / disabled anywhere above hides them; same for every `ArrayTable` row action and
 `Addition`; `useArrayEditable()` for your own).
@@ -117,10 +121,10 @@ pattern is `editable` (readPretty / readOnly / disabled anywhere above hides the
 ```
 
 `ArrayItems` / `ArrayCards` show the array path's own errors under the rows (`feedback={false}` hides them; so does
-`FormLayout` `feedbackLayout: 'none'`). A custom list reads the same messages with `useArrayErrors()` (nearest array,
-own path only). `d.items.$errors` also includes descendant fields. `ArrayTable` does not draw that row: pass the
-component as `footer` (or render it from the array's container `component`). The hook's component must be a descendant
-of `<ArrayField>`. A sibling throws `ShikiUsageError`: `useArrayErrors() must render inside an <ArrayField> (its container, or a row).`
+`FormLayout` `feedbackLayout: 'none'`). A custom list reads the same messages on the handle: `useArrayField().errors`
+(nearest array, own path only, not descendants). `d.items.$errors` also includes descendant fields. `ArrayTable` does not draw that row: pass the
+component as `footer` (or render it from the array's container `component`). The component must be a descendant
+of `<ArrayField>`. A sibling throws `ShikiUsageError`: `useArrayField() must render inside <ArrayField> (a row or its container component: ArrayItems / ArrayCards / ArrayTable).`
 A per-row child does not run when the array is empty, and repeats once per row.
 
 ## 4. Nested values: per-path writes vs `$componentProps` patches
@@ -152,7 +156,7 @@ A `connect()`ed control forwards `ref` and keeps the target's statics (`Select.O
 `mapProps` object keys also take field state: `mapProps({ title: 'placeholder' })`.
 `useFieldDecorator()` returns library-agnostic label / required / description / errors (`labelProps`, `errorProps`,
 and `control` for a widget that draws its own label). Headless `<Submit>` / `<Reset>` (`asChild` or a render prop)
-and `useSubmit()` / `useReset()` cover buttons; `afterReset` runs after `form.reset` with the restored values
+and headless `<Submit>` / `<Reset>` cover buttons; `afterReset` runs after `form.reset` with the restored values
 (antd `<Reset>` takes the same callback).
 
 ```tsx
@@ -246,11 +250,10 @@ const step = useFormStep()   // in the component with the buttons; { current, co
 
   `step.next()` validates the current step's editable fields in one pass (`form.validate(paths[])`) and resolves
   `false` on errors; the last step is a plain `<Submit />` (validates every step). Controlled: `activeKey` + `onChange`
-  (`FormTab` / `FormCollapse`), `useFormStep({ current, onChange })`. Your own region: `const g = useFieldGroup()`,
-  `<FieldGroup value={g}>…</FieldGroup>`, `useFieldGroupErrors(g)`, `form.validate(g.paths())` (from `@shikiform/react`);
+  (`FormTab` / `FormCollapse`), `useFormStep({ current, onChange })`. Field-group primitives are not a public export.
   `form.subscribeValidateFailed((errors) => …)` is the hook the containers reveal from.
-- Hooks are the complete API: `useField(name, options)`, `useFieldDecorator()`, `useSubmit()` / `useReset()`.
-  Components are thin sugar over them.
+- Hooks are the complete API: `useForm`, `useFormContext`, `useField(name, options)`, `useFieldDecorator()`, `useWatch`,
+  `useArrayField`, `useTreeField`, `useIndex`, `useRecord`. Components are thin sugar over them. `<Submit>` / `<Reset>` are the public buttons.
 - One field hook (Formily-style): `useField()` with no name returns the field the nearest `<Field>`
   renders — use it in custom inputs, decorators, and table cells (`useField<string>()` types the value). Outside a
   field it throws `ShikiUsageError`. It is the only way to read the current field: no separate context hook, and the
@@ -287,17 +290,17 @@ reaction((d) => {
 - `<Form>` takes the submit callbacks: `onSubmit(values)`, `onInvalid(errors)`,
   `onSubmitError(error)` (default `console.error`); other props go to the native `<form>` (`id`, `className`, `noValidate`).
   Enter, `type="submit"`, and `form.submit(onValid)` behave the same; do not add a second `<form>`.
-- Buttons: headless `<Submit>` / `<Reset>` from `@shikiform/react` (`asChild` or a render prop; `useSubmit()` / `useReset()`
-  for the same state). antd `<Submit>` / `<Reset>` are the Ant Design buttons on those hooks. `<Submit>` is a native
+- Buttons: headless `<Submit>` / `<Reset>` from `@shikiform/react` (`asChild` or a render prop). antd `<Submit>` / `<Reset>`
+  are the Ant Design buttons. `<Submit>` is a native
   submit for `<Form onSubmit>` (disabled while `$canSubmit` is false, loading while submitting); `<Submit onSubmit={fn}>`
   submits on click by itself. `<Reset>` calls `form.reset()`. `onClick` runs first (`preventDefault` skips the reset);
   `afterReset(values)` runs after, with the restored values.
 - A rule with `level: 'warning'` (`{ validator: weak, level: 'warning' }`) reports to `$warnings` / `field.warnings`
   (FormItem shows it in the warning colour) and never blocks `submit` / `canSubmit` (antd `warningOnly`).
 - Built-in messages default to Chinese. Override per form with `messages` (partial; functions get params:
-  `minLength: ({ minLength }) => …`), app-wide with `setDefaultMessages(enUS)`. A rule's own `message` wins. The same `messages` cover `moveTree` refusal reasons
+  `minLength: ({ minLength }) => …`), app-wide with `setDefaultMessages(enUS)`. A rule's own `message` wins. The same `messages` cover tree-move refusal reasons (`useTreeField().move`)
   and every `@shikiform/antd` label (提交 / 重置 / 查询 / 删除 …); a component's own prop (`title`, `okText`) wins.
-  Custom components read them with `useFormMessage()` (`t('submit')`) or `form.message('submit')`.
+  Custom components read them with `form.message('submit')` (or `useFormContext().message`).
 
 ## 7. Types: names, watch, submit
 
@@ -329,7 +332,7 @@ reaction((d) => {
 d.user.$value.name = 'x'                         // ✗ throws in dev: mutates stored data, nobody is notified
 d.user.name.$value = 'x'                         // ✓
 d.items.$value.push(row)                         // ✗ throws in dev
-d.items.$value = [...d.items.$value, row]        // ✓ (outside effects: form.pushArray('items', row))
+d.items.$value = [...d.items.$value, row]        // ✓ inside a reaction. In a component: useArrayField().push(row)
 
 // 2. Rows: reaction.each, not array methods on a handle
 d.items.forEach((row) => { row.total.$value = 1 })                    // ✗ a handle is not an array
@@ -383,11 +386,12 @@ reaction((d) => { d.city.$componentProps.disabled = d.kind.$value === 'b' })    
 ## 9. Form state: dirty, backfill, server errors
 
 - `useForm()` / `createForm()` return a `FormInstance` (no arguments and `undefined` are `{}`): state getters, `getValue` / `setValue` / `batch`, `submit` /
-  `validate` / `reset` / `setInitialValues` / `getSubmitValues`, `setErrors` / `clearErrors`, array / tree ops, `message`,
-  `subscribe*`. Nothing else: there is no `binding()` / `query()` / `registerField()` on it (declare in `fields`, read in a
+  `validate` / `reset` / `setInitialValues` / `getSubmitValues`, `setErrors` / `clearErrors`, `message`,
+  `subscribe*`. Nothing else: there is no `pushArray` / `moveArray` / `moveTree` / `binding()` / `query()` / `registerField()` on it
+  (array and tree edits go through `useArrayField(name?)` / `useTreeField(name?)`; declare fields in `fields`, read them in a
   reaction or `useWatch`).
 - `form.values`, `submitting`, `dirty`, `submitCount`, `validating` are read-only getters. Write values with
-  `setValue` / `batch` / array ops, never `form.values = x` (a TS error, and a `TypeError` at runtime).
+  `setValue` / `batch`, never `form.values = x` (a TS error, and a `TypeError` at runtime).
 - `dirty` / `$dirty` / `binding.dirty` = the value differs from `initial` (deep compare; changing it back clears it;
   `display: 'virtual'` and computed fields do not count at form level; `none` does). `edited` / `$edited` is the sticky "a user edited it" flag.
 - Edit page: `useForm({ values: record })` resets to `record` whenever its content changes (new baseline, not dirty;

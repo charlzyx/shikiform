@@ -5,7 +5,8 @@ import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-li
 import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as root from '@shikiform/react'
-import { ArrayField, createForm, FieldGroup, Form, ObjectField, typed, useArrayField, useFieldGroup, useFieldGroupErrors, type FieldGroupHandle, useTreeField, TreeField } from '@shikiform/react'
+import { ArrayField, createForm, Form, ObjectField, typed, useArrayField, useTreeField, TreeField } from '@shikiform/react'
+import { FieldGroup, useFieldGroup, useFieldGroupErrors, type FieldGroupHandle } from '@shikiform/react/internal'
 
 // 测试辅助：把 Holder 里创建的组句柄共享给兄弟组件
 let sharedGroup: FieldGroupHandle | undefined

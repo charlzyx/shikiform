@@ -19,9 +19,17 @@ export interface ArrayScopeValue {
   rowKey?: string
 }
 
+/** The nearest enclosing tree (`<TreeField>`): its absolute path and the keys it was given (unset inherits). */
+export interface TreeScopeValue {
+  path: string
+  childrenKey?: string
+  rowKey?: string
+}
+
 export const FormContext = createContext<FormEngine<any> | null>(null)
 export const ScopeContext = createContext<ScopeValue>({ path: '', index: -1 })
 export const ArrayContext = createContext<ArrayScopeValue | null>(null)
+export const TreeContext = createContext<TreeScopeValue | null>(null)
 
 /**
  * Internal: a container's per-row wrapper (`ArrayCards` puts each row in a card). `<ArrayField>` rows are memoized,

@@ -14,7 +14,7 @@ Hooks 是主 API，JSX 是其结构与渲染封装；draft 和 `$` 描述状态�
 
 ## 包
 
-- `@shikiform/react` — core 加 headless React（`<Field>` / `<ArrayField>` / `<TreeField>` 等组件，`useForm`、`useField`、`useFieldDecorator`、`useSubmit` / `useReset`、`useArrayField`、`useArray` / `useArrayErrors` / `useIndex` / `useRecord`、`useTreeField`、`useTreeNode`、`useWatch`、`typed`；`connect` / `mapProps`；headless `Submit` / `Reset`；数组和树句柄自带 `move` / `dragProps`）
+- `@shikiform/react` — core 加 headless React（`<Field>` / `<ArrayField>` / `<TreeField>` 等组件，`useForm`、`useFormContext`、`useField`、`useFieldDecorator`、`useWatch`、`useArrayField(name?)`、`useTreeField(name?)`、`useIndex`、`useRecord`、`typed`；`connect` / `mapProps`；headless `Submit` / `Reset`。数组句柄有 `push` / `insert` / `remove` / `move` / `swap` / `replace` / `dragProps` 和本层 `errors`；`useTreeField(name)` 是整棵树，`useTreeField()` 在节点里返回当前节点并带上 `push` / `insert` / `remove` / `replace` / `move` / `dragProps`。这些操作不在 `FormInstance` 上。`useFormMessage`、`useSubmit`、`useReset`、`FieldGroup` 只在 `@shikiform/react/internal`）
 - `@shikiform/core` — 表单引擎，没有 React
 - `@shikiform/hooks` — headless 查询、数组表格/列配置、影子草稿、联想与懒加载级联 Hooks，以及枚举显示工具（不依赖 antd）
 - `@shikiform/antd` — 再导出 `connect` / `mapProps`（并给已绑定控件加上 `status`）、`FormItem` / `FormLayout` / `FormGrid` / `FormButtonGroup`、已绑定控件、antd 版 `Submit` / `Reset`（`afterReset`）、数组容器 `ArrayItems` / `ArrayCards` / `ArrayTable`（都写在 `<ArrayField component>` 里）；`QueryList`、影子容器和高级输入，以及 `MergedTable`

@@ -7,7 +7,7 @@
  *
  * @packageDocumentation
  */
-export { useBuiltinQuery, useQueryTable } from './use-query-table'
+export { useQueryTable } from './use-query-table'
 export type {
   QueryHookArgs,
   QueryFilters,

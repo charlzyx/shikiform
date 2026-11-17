@@ -10,21 +10,20 @@ description: useForm、useField、useWatch、数组与树 Hooks 的签名、返�
 | 创建并保留表单 | [`useForm`](#useform) | 不自动订阅值 |
 | 按表单类型检查字段名 | [`typed`](#typed) | 不订阅（返回有类型的组件和 Hooks） |
 | 取得上层表单 | [`useFormContext`](#useformcontext) | 不自动订阅值 |
-| 跟随表单语言的内置文案 | [`useFormMessage`](#useformmessage) | 不订阅 |
+| 跟随表单语言的内置文案 | `form.message(key)` / [`useFormContext`](#useformcontext) | 不订阅 |
 | 绑定一个输入；无参时读当前字段（自定义控件、装饰器、单元格） | [`useField`](#usefield) | `useField(name)` 订阅该路径；`useField()` 不另订阅（随外层 Field 渲染） |
 | 标签、必填、描述、错误（自己的 UI 库） | [`useFieldDecorator`](#usefielddecorator) | 不另订阅（随外层 Field，或随传入的 binding） |
-| 提交 / 重置按钮的状态 | [`useSubmit`](#usesubmit)、[`useReset`](#usereset) | 只订阅 `$canSubmit` / `$submitting`（Reset 不订阅值） |
+| 提交 / 重置按钮 | headless [`<Submit>`](#submit) / [`<Reset>`](#reset) | 只订阅 `$canSubmit` / `$submitting`（Reset 不订阅值） |
 | 读取选中的值或状态 | [`useWatch`](#usewatch) | selector 实际读取的 `$` 依赖 |
-| 数组行增删、排序和拖动（`dragProps`） | [`useArrayField`](#usearrayfield) | 数组结构，不是每个单元格 |
-| 行内取最近的数组 / 行号 / 行值（无需 name） | [`useArray`](#usearray)、[`useIndex`](#useindex)、[`useRecord`](#userecord) | 数组结构 / 不订阅 / 这一行的值 |
-| 最近一层数组自己的错误（不含子字段） | [`useArrayErrors`](#usearrayerrors) | 只订阅该数组路径 |
-| 树结构、节点移动和拖动（`dragProps`） | [`useTreeField`](#usetreefield) | 树结构 |
-| 当前树节点（无需 name） | [`useTreeNode`](#usetreenode) | 这个节点的值 |
-| 收集一块 JSX 里的字段、读它们的错误 | [`useFieldGroup`](#usefieldgroup)、[`useFieldGroupErrors`](#usefieldgrouperrors) | 组成员 / 组内错误 |
+| 数组行增删、排序和拖动（`dragProps`）；可传 name，也可取最近一层 | [`useArrayField`](#usearrayfield) | 数组结构，不是每个单元格 |
+| 行内取最近的数组 / 行号 / 行值（无需 name） | [`useArrayField`](#usearrayfield)、[`useIndex`](#useindex)、[`useRecord`](#userecord) | 数组结构 / 不订阅 / 这一行的值 |
+| 最近一层数组自己的错误（不含子字段） | [`useArrayField().errors`](#usearrayfield) | 只订阅该数组路径 |
+| 树的增删、移动和拖动（`dragProps`）；可传 name，也可取最近一层 | [`useTreeField`](#usetreefield) | 树结构 |
+| 当前树节点的 path / pos / index（无需 name） | [`useTreeField()`](#usetreefield) | 这个节点的值 |
 
 除 `useForm` 外，本页 Hooks 都必须在 `<Form form={form}>` 后代中调用。**在一个组件中先调用 `useField`、再从它返回 `<Form>` 不算在 Provider 内**；把读字段的组件放到 Form 里面。
 
-名字也有区别：`useField(name)` / `useArrayField(name)` 需要名字，返回输入绑定 / 行操作；对应 Formily `ArrayBase.useArray / useIndex / useRecord` 的无名上下文 Hook 是 [`useArray()`](#usearray)、[`useIndex()`](#useindex)、[`useRecord()`](#userecord)，当前字段是不带参数的 [`useField()`](#usefield)（与 Formily `useField()` 相同）。`<Field>`、表格单元格里的 `<Field>` 都用它，只有这一种写法。
+`useField(name)` 需要名字；不带参数的 [`useField()`](#usefield) 就是当前字段（与 Formily `useField()` 相同）。[`useArrayField(name?)`](#usearrayfield) 传了名字就解析那一条数组，不传就取最近一层。[`useTreeField(name)`](#usetreefield) 解析那棵树；不传名字的 [`useTreeField()`](#usetreefield) 只在树节点里用，返回当前节点并带上这棵树的增删和移动。[`useIndex()`](#useindex) / [`useRecord()`](#userecord) 不需要名字。`<Field>`、表格单元格里的 `<Field>` 都用无参 `useField()`，只有这一种写法。
 
 ## useForm
 
@@ -42,28 +41,14 @@ interface UseFormOptions<T> extends FormOptions<T> { values?: T }
 | `options.initialValues` | 省略时以空对象开始；建议完整写出值形状，让 `T` 可推断 |
 | `options.values` | 外部拥有的数据（加载的记录、查询缓存）。第一次渲染当作初始值；之后内容变化时调 `reset(values)`（新基线，不 dirty）。内容相同的新对象不触发 |
 | `TSubmit` | `submit` / `getSubmitValues` / `<Form onSubmit>` 的值类型。不写泛型或 `typed<T>().useForm(options)` 时，`fields` 里的 `virtual` / `none` 变成可选；`useForm<T>(options)` 的提交类型就是 `T`。要自己列路径用 `SubmitValues<T, 'tmp'>`，见 [提交值类型](/api#提交值类型) |
-| 返回值 | 稳定的 `FormInstance<T, TSubmit>`：状态 getter、`getValue` / `setValue` / `batch`、`submit` / `validate` / `reset`、`setErrors`、数组 / 树操作和订阅，见 [API 总览](/api#读写和提交) |
+| 返回值 | 稳定的 `FormInstance<T, TSubmit>`：状态 getter、`getValue` / `setValue` / `batch`、`submit` / `validate` / `reset`、`setErrors` 和订阅，见 [API 总览](/api#读写和提交)。数组和树的增删移动用 `useArrayField` / `useTreeField` |
 
 `useForm` 本身不要求父级 Provider。后续渲染传入新 `initialValues` 不会重建实例，也不会生效；会变的数据用 `values`，或自己调 `reset(record)`。渲染需要实时值时用 `useField` / `useWatch`，不要期待读取 `form.values` 就自动重渲染。
 
 完整选项、校验默认触发器和提交返回值见 [创建表单](/api#创建表单)。非 React 环境用 `createForm`。
 
 
-## useFormMessage
-
-```ts
-useFormMessage(): (key: FormMessageKey, params?) => string
-```
-
-返回一个函数，按最近 `<Form>` 的 `messages` → `setDefaultMessages` → `zhCN` 解析内置文案；没有表单时只用应用默认值。`@shikiform/antd` 的按钮文案都经过它，自定义组件用它就能跟着同一套语言：
-
-```tsx
-const t = useFormMessage()
-<Button>{t('submit')}</Button>
-<span>{t('selectionCount', { count: 3 })}</span>
-```
-
-key 列表见 [内置文案](/guide/validation#内置文案)。有实例时等价于 `form.message(key, params)`。
+内置文案用 `form.message(key, params)`（或 `useFormContext().message`）。解析顺序是这张表单的 `messages` → `setDefaultMessages` → `zhCN`。key 列表见 [内置文案](/guide/validation#内置文案)。
 
 
 ## typed
@@ -331,6 +316,7 @@ export default function HookExample() {
 ## useArrayField
 
 ```ts
+useArrayField<TRow = unknown>(): ArrayHandle<TRow>
 useArrayField(name: string, opts?: { rowKey?: string }): ArrayHandle<unknown>
 useArrayField<TScope>(name: ArrayPath<TScope>, opts?: { rowKey?: string }): ArrayHandle<unknown>
 useArrayField<TScope, N extends ArrayPath<TScope>>(
@@ -338,11 +324,13 @@ useArrayField<TScope, N extends ArrayPath<TScope>>(
 ): ArrayHandle<ArrayItemOf<TScope, N & string>>
 ```
 
+一个 Hook。不传 `name` 时取最近一层 `<ArrayField>`（Formily `ArrayBase.useArray`：行、容器、工具栏都算；嵌套取最近的一层；不在数组里抛错）。传了 `name` 就按当前 scope 解析这条数组，并把路径登记进最近的字段组。
+
 `ArrayHandle` 类型可从 `@shikiform/react` 导入，调用方通常直接用返回值推断。`ArrayPath` 从 `@shikiform/core` 导入，`ArrayItemOf` 也可从 `@shikiform/react` 导入。
 
 | 参数 | 作用 / 默认 |
 |---|---|
-| `name` | 必填，相对当前 scope 的数组路径 |
+| `name` | 省略 = 最近一层数组。传入时是相对当前 scope 的数组路径 |
 | `opts.rowKey` | 可选行标识属性名；省略时使用行的 `id`，没有 ID 的对象行使用对象身份。业务数据建议明确提供唯一稳定 ID |
 
 返回 `{ path, keys, push, insert, remove, move, swap, replace, dragProps }`：
@@ -357,6 +345,7 @@ useArrayField<TScope, N extends ArrayPath<TScope>>(
 | `move(from, to)` | 移动到**最终下标** `to` → `void` |
 | `swap(a, b)` | 交换两个下标 → `void` |
 | `replace(index, row)` | 替换一行 → `void` |
+| `errors` / `warnings` | 这一层数组自己的消息，不含子字段 |
 | `dragProps(index)` | 这一行的原生 HTML5 拖动属性 `{ draggable, onDragStart, onDragOver, onDrop }`：展开到行上（既是拖动源也是放置目标），或把 `onDragOver` / `onDrop` 给行、`draggable` / `onDragStart` 给把手。把 A 行放到 B 行上 = `move(A, B)` |
 
 写全 `useArrayField<Values, 'items'>('items')` 才能同时检查数组路径和行值类型；只写一个泛型时行操作参数为 `unknown`。
@@ -370,7 +359,7 @@ useArrayField<TScope, N extends ArrayPath<TScope>>(
 ### 完整例子：拖动排序，键不变，路径随顺序变化
 
 ```tsx preview
-import { ArrayField, Form, useArray, useArrayField, useField, useForm, useIndex } from '@shikiform/react';
+import { ArrayField, Form, useArrayField, useField, useForm, useIndex } from '@shikiform/react';
 
 type Item = { id: string; label: string };
 type Values = { items: Item[] };
@@ -382,7 +371,7 @@ function ItemInput() {
 }
 
 function ItemRow() {
-  const array = useArray<Item>();
+  const array = useArrayField<Item>();
   const index = useIndex();
   return (
     <div {...array.dragProps(index)}>
@@ -414,45 +403,33 @@ export default function ArrayHookExample() {
 }
 ```
 
-## useArray
-
-```ts
-useArray<TRow = unknown>(): ArrayHandle<TRow>
-// ArrayHandle = useArrayField 的返回值：{ path, keys, push, insert, remove, move, swap, replace, dragProps }
-```
-
-最近一层数组（Formily `ArrayBase.useArray`），无需 name：在 `<ArrayField>` 的行、它的 `component` 容器（`ArrayItems` / `ArrayCards` / `ArrayTable`，含工具栏和展开行）里，返回与 `useArrayField` 对同一数组相同的句柄（订阅数组结构）。嵌套数组取最近的一层。不在数组内时抛错。
+不传 name 时，删除按钮写在行里：
 
 ```tsx
 function RemoveButton() {
-  const array = useArray()
+  const array = useArrayField()
   const index = useIndex()
   return <button type="button" onClick={() => array.remove(index)}>删除</button>
 }
-<ArrayField name="list" rowKey="id">{() => <><Field name="name" component={[Input]} /><RemoveButton /></>}</ArrayField>
 ```
 
-## useArrayErrors
+## 数组句柄上的 errors
 
-```ts
-useArrayErrors(): { errors: readonly string[]; warnings: readonly string[] }
-```
-
-最近一层数组**自己**的校验消息：写在这条数组路径上的规则、字段 schema、`form.setErrors`。子字段的消息不在里面（那些在行内 `FormItem` / `useField().errors` 上）。`d.items.$errors` 会把子孙字段的消息算进去，这个 Hook 不会。
+`errors` / `warnings` 是这一层数组**自己**的校验消息：写在这条数组路径上的规则、字段 schema、`form.setErrors`。子字段的消息不在里面（那些在行内 `FormItem` / `useField().errors` 上）。`d.items.$errors` 会把子孙字段的消息算进去，句柄不会。
 
 只订阅该数组路径，改一个单元格不会让它重渲染。嵌套数组取最近的一层。
 
-调用它的组件必须渲染在 `<ArrayField>` 的子树里（容器，或容器里的 `footer` / 工具栏）。和 `<ArrayField>` 平级时抛错：开发构建是 `ShikiUsageError`，消息为 `useArrayErrors() must render inside an <ArrayField> (its container, or a row).`；生产构建是 `Error`，消息为 `useArrayErrors() must render inside an <ArrayField>`。行 children 里调用也在作用域内，但数组为空时行函数不执行，有多行时每行各画一次。数组这一层的提示放在容器上。`ArrayTable` 不画这条反馈，交给它的 `footer`（仍在 `<ArrayField>` 内）。
+读它的组件必须渲染在 `<ArrayField>` 的子树里（容器，或容器里的 `footer` / 工具栏）。和 `<ArrayField>` 平级时 `useArrayField()` 抛 `ShikiUsageError`。行 children 里调用也在作用域内，但数组为空时行函数不执行，有多行时每行各画一次。数组这一层的提示放在容器上。`ArrayTable` 不画这条反馈，交给它的 `footer`（仍在 `<ArrayField>` 内）。
 
 `ArrayItems` / `ArrayCards` 用它画反馈行。自己画时：
 
 ```tsx
 import type { ReactNode } from 'react'
-import { ArrayField, useArrayErrors } from '@shikiform/react'
+import { ArrayField, useArrayField } from '@shikiform/react'
 import { ArrayTable, type ArrayTableColumn } from '@shikiform/antd'
 
 function ListError() {
-  const { errors, warnings } = useArrayErrors()
+  const { errors, warnings } = useArrayField()
   const messages = errors.length ? errors : warnings
   if (!messages.length) return null
   return <p role="alert">{messages.join('、')}</p>
@@ -525,30 +502,42 @@ function RowTitle() {
 ## useTreeField
 
 ```ts
-useTreeField(name: string, options?: {
-  childrenKey?: string
-  rowKey?: string
-}): {
-  path: string
-  value: any[]
-  move(from: Pos, to: Pos): MoveResult
-  dragProps(pos: Pos): { draggable: true; onDragStart; onDragOver; onDrop }
-}
+useTreeField<TNode = unknown>(): TreeNodeHandle<TNode>   // 必须在 <TreeField> 的节点里
+useTreeField(name: string, options?: { childrenKey?: string; rowKey?: string }): TreeHandle<unknown>
 ```
 
-`Pos` 是 `readonly number[]`，`MoveResult` 是 `{ ok: boolean; reason?: string }`，两者都从 `@shikiform/react` 导入。当前 Hook 没有节点泛型；返回的 `value` 不是自动获得业务节点类型的数组。
+一个 Hook。句柄的 `path` 永远是它指向的东西，`treePath` 永远是树根。`useTreeField(name)` 按当前 scope 解析那棵树，`path` 和 `treePath` 都是树根，并把路径登记进最近的字段组。`useTreeField()` 不传名字时必须在 `<TreeField>` 的节点里：`path` 是当前节点，`treePath` 是树根，并带上 `pos`、`index`、`record`，以及这棵树的 `value`、`push`、`insert`、`remove`、`replace`、`move`、`dragProps`（`dragProps()` 不传坐标就指向当前节点）。两种句柄的 `errors` / `warnings` 都只算 `path` 这一层，不含子孙字段。不在节点里时抛错：开发构建是 `ShikiUsageError`，消息为 `useTreeField() must render inside a tree node (<TreeField>).`。
+
+`<TreeField>` 在结构变化时重画。位置和子树都没变的兄弟，以及其他子树，沿用上一次的元素，不重新渲染。变了的是被移动的节点、坐标变了的节点，以及子树形状变了的祖先。`children` 渲染函数换了身份（父组件重渲染时写的内联函数）会把每个节点重画一遍。
+
+`Pos` 是 `readonly number[]`，`MoveResult` 是 `{ ok: boolean; reason?: string }`，两者都从 `@shikiform/react` 导入。不传 name 时可以用 `useTreeField<Node>()` 标节点类型；传了 name 时返回的 `value` 是 `unknown[]`，按已知数据自行标注。
 
 | 参数 / 返回 | 含义 / 默认 |
 |---|---|
-| `name` | 必填，相对当前 scope 的树根数组路径 |
-| `options.childrenKey` | 优先使用传入值；否则继承已有树配置，再默认 `'children'` |
-| `options.rowKey` | 优先使用传入值；否则继承已有树配置，再默认 `'id'` |
-| `path` | 完整树根路径 |
+| `name` | 传入时是相对当前 scope 的树根路径，返回 `TreeHandle`。省略时必须在节点里，返回 `TreeNodeHandle` |
+| `options.childrenKey` | 只在传入 `name` 时使用。优先用传入值；否则继承已有树配置，再默认 `'children'` |
+| `options.rowKey` | 同上，默认 `'id'` |
+| `path` | 句柄指向的路径。传了 `name`：树根。没传：当前节点 |
+| `treePath` | 树根。树根句柄上和 `path` 相同 |
+| `errors` / `warnings` | `path` 这一层自己的消息，不含子孙字段 |
 | `value` | 当前根节点数组；当前值不是数组时返回 `[]`。不要原地修改 |
+| `push(node, parentPos?)` | 追加到根，或作为 `parentPos` 的最后一个孩子。父节点没有 children 数组时会建一个 |
+| `insert(pos, node)` | 插到 `pos`，后面的兄弟后移 |
+| `remove(pos)` | 删掉这个节点，它的字段状态一起去掉 |
+| `replace(pos, node)` | 换成另一个节点，旧节点的字段状态去掉 |
 | `move(from, to)` | 使用移动后的最终索引坐标；拒绝移到自己的后代，失败看 `reason` |
 | `dragProps(pos)` | 这个节点的原生 HTML5 拖动属性：拖到另一个节点上 = `move(源, 目标)`；拖动开始和放下都阻止冒泡，嵌套节点只处理自己。被拒绝的移动不提示，需要提示时自己调 `move` 看 `reason` |
 
-`useTreeField` 与 `useField` / `useArrayField` 一致：名字按当前 scope 解析（开发期名字重复 scope 前缀会抛 `ShikiUsageError` 并提示修法），树根路径登记进最近的 `FieldGroup`（FormTab 徽标、FormStep 分步校验会包含树内字段）。它只订阅树结构，不订阅每个节点的文字/勾选状态。节点编辑单独用 `useField`，读取选定值用 `useWatch`。要让 React 挂载前的树联动也认识自定义 `childrenKey`，在 `useForm({ trees: { ... } })` 里声明配置。
+字段状态跟着节点 id 走（没有 id 时移动仍改数据，但没有 id 可跟随）。`useTreeField` 与 `useField` / `useArrayField(name)` 一致：名字按当前 scope 解析（开发期名字重复 scope 前缀会抛 `ShikiUsageError` 并提示修法）。它只订阅树结构，不订阅每个节点的文字/勾选状态。节点编辑单独用 `useField`，读取选定值用 `useWatch`。要让 React 挂载前的树联动也认识自定义 `childrenKey`，在 `useForm({ trees: { ... } })` 里声明配置。
+
+不传 name 时 `path` 是当前节点，`treePath` 是树根，`index` 是 `pos` 的最后一段（和 `useIndex()` 相同）。`errors` / `warnings` 是这个节点自己的消息。`dragProps()` 不传坐标指向当前节点。
+
+```tsx
+function MoveFirst() {
+  const node = useTreeField<{ id: string }>()
+  return <button type="button" onClick={() => node.move(node.pos, [0])}>移到最前</button>
+}
+```
 
 `[0, 2]` 表示第一个根节点的第三个孩子，不是节点 ID。稳定 ID 用于移动时保持字段状态；不要用当前坐标代替业务 ID。
 
@@ -595,17 +584,28 @@ export default function TreeHookExample() {
 
 需要 JSX 结构组件时看 [Field、ArrayField、TreeField](/api#react-组件)；需要把绑定封装成项目自己的输入组件时看 [connect](/reference/antd-adapter#connect) 和上面的无参 `useField()`。
 
-## useTreeNode
+### 不传 name：当前节点
 
 ```ts
-useTreeNode<TNode = any>(): { path: string; pos: Pos; index: number; key: string; record: TNode; dragProps: (pos?: Pos) => DragProps }
+useTreeField<TNode = any>(): {
+  path: string          // 当前节点
+  treePath: string      // 树根
+  errors: readonly string[]
+  warnings: readonly string[]
+  pos: Pos
+  index: number
+  record: TNode
+  value: TNode[]
+  push, insert, remove, replace, move
+  dragProps(pos?: Pos): DragProps   // 不传指向当前节点
+}
 ```
 
-当前树节点：`path`、`pos`（树坐标）、`index`（`pos` 的最后一段）、`key`、响应式 `record` 以及 `dragProps(pos?)`（不传参默认指向当前节点）。在 `<TreeField>` 的节点渲染函数内部调用；不在节点内时抛错。
+不传 name 时，`path` 是当前节点，`pos` 是树坐标，`index` 是 `pos` 的最后一段（和 `useIndex()` 相同），`record` 是这一节点的值。`dragProps()` 不传参指向当前节点。`push` / `insert` / `remove` / `replace` / `move` / `value` 作用在所属的树上。要在节点外拿整棵树，传名字：`useTreeField('nodes')`。
 
 ```tsx
 function NodeLabel() {
-  const node = useTreeNode<{ label: string }>()
+  const node = useTreeField<{ label: string }>()
   return <span {...node.dragProps()}>{node.pos.join('.')} {node.record.label}</span>
 }
 <TreeField name="nodes" rowKey="id">
@@ -613,40 +613,7 @@ function NodeLabel() {
 </TreeField>
 ```
 
-## useFieldGroup
-
-```ts
-useFieldGroup(): FieldGroupHandle
-<FieldGroup value={group}>{children}</FieldGroup>
-
-interface FieldGroupHandle {
-  paths(): string[]                               // 组内挂载的字段绝对路径，按挂载顺序，去重
-  subscribe(listener: () => void): () => void     // 成员增减时调用
-  version(): number
-}
-```
-
-一块 JSX 区域里的字段集合。`<FieldGroup value={group}>` 不渲染 DOM；它里面每个 `<Field>` / `useField(name)` / `<ArrayField>` / `useArrayField` / `useTreeField` 挂载期间把自己的绝对路径登记进去，卸载时移除；嵌套的 `FieldGroup` 同时登记进所有外层组。句柄在组件生命周期内稳定。只收集**挂载**的字段：只在 `fields` 里声明、没渲染的字段不在组里。
-
-`form.validate(group.paths())` 只校验这一组（一次校验）。`FormTab` / `FormCollapse` 的错误徽标和提交失败时切到有错的面板、`FormStep` 的「下一步」、纯布局 `FormItem` 汇总里面字段的错误，都建立在它上面。
-
-## useFieldGroupErrors
-
-```ts
-useFieldGroupErrors(group: FieldGroupHandle): FieldError[]
-```
-
-组内字段当前显示的错误，每个有错的字段一项 `{ path, messages }`（display `none` 的不算），路径在组成员之下的错误（如对象下表单级 schema 的错误）也算。只在这份列表变化时重渲染。`errors.length` 就是标签页徽标上的数字。必须在 `<Form>` 里调用。
-
-```tsx
-function Section({ children }: { children: ReactNode }) {
-  const group = useFieldGroup()
-  const errors = useFieldGroupErrors(group)
-  return <fieldset><legend>资料 {errors.length || ''}</legend><FieldGroup value={group}>{children}</FieldGroup></fieldset>
-}
-```
-
-[分组容器](/guide/containers)
+分组、徽标和「只校验这一步」用 [FormTab / FormCollapse / FormStep](/guide/containers)。字段分组原语不从 `@shikiform/react` 公开导出。自己要在校验失败时切到某一块，用 `form.subscribeValidateFailed`。
 
 ## useFieldDecorator
 
@@ -700,48 +667,19 @@ function MantineInput() {
 
 [Headless · 接自己的组件库](/guide/headless#接自己的组件库)
 
-## useSubmit
+## Submit
 
-```ts
-useSubmit<T, E = ClickEvent>(options?: {
-  onSubmit?: (values: T) => void | Promise<void>
-  onInvalid?: (errors: FieldError[]) => void
-  onSubmitError?: (error: unknown) => void
-  disabled?: boolean          // 覆盖 !$canSubmit；false 表示无效时仍可点
-  onClick?: (event: E) => void
-}): {
-  canSubmit, submitting, loading, disabled,
-  type: 'submit' | 'button',
-  'aria-busy'?: true, 'data-loading'?: '',
-  onClick: (event: E) => void,
-}
-```
-
-当前表单的提交状态，不订阅字段值。不传 `onSubmit` 时 `type` 是 `'submit'`，交给外层 `<Form onSubmit>`（回车同样提交）。传了 `onSubmit` 时 `type` 是 `'button'`，点击自己跑 `form.submit`。`onClick` 先执行，`preventDefault` 会跳过这次自带的提交。
-
-`<Submit>` 是这个 Hook 的三种外壳：默认 `<button>`（文案 `messages.submit`）、`asChild`（行为合并到唯一子元素）、render prop（参数就是这份状态）。`@shikiform/antd` 的 `<Submit>` 是 antd `Button`，走同一个 Hook。
+`<Submit>` 从 `@shikiform/react` 导入。三种外壳：默认 `<button>`（文案 `messages.submit`）、`asChild`（行为合并到唯一子元素）、render prop。不传 `onSubmit` 时是原生 submit，交给外层 `<Form onSubmit>`（回车同样提交），`$canSubmit` 为 false 时禁用，提交中显示 loading。传了 `onSubmit` 时点击自己跑 `form.submit`。`onClick` 先执行，`preventDefault` 会跳过这次自带的提交。`disabled` 覆盖「无效时不可点」；传 `false` 表示无效时仍可点。`@shikiform/antd` 的 `<Submit>` 是 antd `Button`，行为相同。
 
 ```tsx
-const submit = useSubmit()
-<button type={submit.type} disabled={submit.disabled} aria-busy={submit['aria-busy']} onClick={submit.onClick}>保存</button>
-
 <Submit asChild><button>保存</button></Submit>
 <Submit onSubmit={saveDraft}>{(state) => <button type="button" disabled={state.disabled} onClick={state.onClick}>存草稿</button>}</Submit>
 ```
 
 
-## useReset
+## Reset
 
-```ts
-useReset<T, E = ClickEvent>(options?: {
-  values?: T
-  afterReset?: (values: T) => void   // form.reset 之后，参数已是重置后的值
-  onClick?: (event: E) => void       // 先执行；preventDefault 跳过重置和 afterReset
-  disabled?: boolean                 // 默认 false；不跟 !$canSubmit
-}): { type: 'button'; disabled: boolean; onClick: (event: E) => void }
-```
-
-`type` 固定 `'button'`，避免浏览器原生 reset 绕过 store。`disabled` 只来自传入的选项，默认 `false`：表单无效时重置按钮仍然可点（和 `useSubmit` 不同，后者默认跟 `!$canSubmit`）。`onClick` 在重置前（读到的仍是旧值）；`afterReset` 在 `form.reset` 之后，查询页用它按清空后的条件再查。`<Reset afterReset={…} disabled={…}>` / `asChild` / render prop 与 `<Submit>` 同一套外壳，render prop 拿到的状态里包含 `disabled`。antd 的 `<Reset>` 也接受 `afterReset` 和 `disabled`。
+`<Reset>` 从 `@shikiform/react` 导入，调用 `form.reset()`。`type` 固定 `'button'`，避免浏览器原生 reset 绕过 store。表单无效时仍然可点；`disabled` 只来自传入的选项。`onClick` 在重置前（读到的仍是旧值），`preventDefault` 跳过重置和 `afterReset`。`afterReset(values)` 在 `form.reset` 之后，参数已是重置后的值，查询页用它按清空后的条件再查。`asChild` / render prop 与 `<Submit>` 同一套外壳。antd 的 `<Reset>` 也接受 `afterReset` 和 `disabled`。
 
 ```tsx
 <Reset afterReset={(values) => search(values)} asChild><button>重置</button></Reset>

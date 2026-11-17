@@ -1,5 +1,5 @@
 import { createContext, memo, useContext, useRef } from 'react'
-import { ArrayField, Form, TreeField, useArrayField, useField, useForm, useTreeNode } from '@shikiform/react'
+import { ArrayField, Form, TreeField, useArrayField, useField, useForm, useTreeField } from '@shikiform/react'
 
 interface Item {
   id: string
@@ -85,7 +85,7 @@ function NodeList() {
 }
 
 const NodeRow = memo(function NodeRow() {
-  const { pos, record, dragProps } = useTreeNode<Node>()
+  const { pos, record, dragProps } = useTreeField<Node>()
   const renders = useRef(0)
   renders.current += 1
   return (

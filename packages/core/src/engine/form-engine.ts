@@ -101,7 +101,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
 
   // —— form state (read-only, #36: writes go through setValue / batch / reset / submit so subscribers hear them) ——
 
-  /** Current values. Write with `setValue`, `batch`, `reset(values)`, or the array and tree methods. */
+  /** Current values. Write with `setValue`, `batch`, or `reset(values)`. Array and tree structure ops stay on this engine for handles. */
   get values(): T { return this.store.values }
 
   /** Baseline `reset()` restores and `dirty` compares against. Cloned on create; replaced by `reset(values)` / `setInitialValues`. */
@@ -280,44 +280,45 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   }
 
   // —— structure ——
+  // Not on FormInstance. React: useArrayField(name?), useTreeField(name), or useTreeField() on a node
+  // (that node plus the tree edits). Also useArrayTable / useShadowForm. Tests call createEngine / engineOf.
 
-  /** Move an array row. `to` is the final index. Field models follow the row id. */
+  /** @internal Move an array row. `to` is the final index. Field models follow the row id. */
   moveArray<P extends ArrayPath<T>>(path: P, from: number, to: number): void {
     this.arrays.move(path, from, to)
   }
 
-  /** Exchange two indexes. Field models follow the row ids. */
+  /** @internal Exchange two indexes. Field models follow the row ids. */
   swapArray<P extends ArrayPath<T>>(path: P, indexA: number, indexB: number): void {
     this.arrays.swap(path, indexA, indexB)
   }
 
-  /** Replace the row at `index`. The previous row's field model is dropped. */
+  /** @internal Replace the row at `index`. The previous row's field model is dropped. */
   replaceArray<P extends ArrayPath<T>>(path: P, index: number, row: ArrayItemOf<T, P & string>): void {
     this.arrays.replace(path, index, row)
   }
 
-  /** Insert `row` at `index`. Later field models follow row id. Item templates apply to the new index. */
+  /** @internal Insert `row` at `index`. Later field models follow row id. Item templates apply to the new index. */
   insertArray<P extends ArrayPath<T>>(path: P, index: number, row: ArrayItemOf<T, P & string>): void {
     this.arrays.insert(path, index, row)
   }
 
-  /** Remove the row at `index`. Its field model is dropped. */
+  /** @internal Remove the row at `index`. Its field model is dropped. */
   removeArray<P extends ArrayPath<T>>(path: P, index: number): void {
     this.arrays.remove(path, index)
   }
 
-  /** Append `row`. Item templates (`rows.*.name`) apply to the new index. */
+  /** @internal Append `row`. Item templates (`rows.*.name`) apply to the new index. */
   pushArray<P extends ArrayPath<T>>(path: P, row: ArrayItemOf<T, P & string>): void {
     this.arrays.push(path, row)
   }
 
-  /**
-   * Move a tree node to its final `pos`.
-   * Refuses a move into the node's own descendant. Field models follow `rowKey`.
-   */
-  moveTree(path: string, from: Pos, to: Pos): MoveResult {
-    return this.trees.move(path, from, to)
-  }
+  /** @internal Tree edits. Field models follow the node id. `move` refuses a move into a descendant. */
+  moveTree(path: string, from: Pos, to: Pos): MoveResult { return this.trees.move(path, from, to) }
+  pushTree(path: string, node: unknown, parentPos?: Pos): void { this.trees.push(path, node, parentPos) }
+  insertTree(path: string, pos: Pos, node: unknown): void { this.trees.insert(path, pos, node) }
+  removeTree(path: string, pos: Pos): void { this.trees.remove(path, pos) }
+  replaceTree(path: string, pos: Pos, node: unknown): void { this.trees.replace(path, pos, node) }
 
   /** Remember which key identifies a row so field models follow that id across moves. */
   registerArray(path: string, rowKey?: string): void {

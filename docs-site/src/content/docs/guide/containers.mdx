@@ -163,28 +163,8 @@ export default function App() {
 
 如果需要为自定义容器接入同款定位能力，可以通过 `form.subscribeValidateFailed((errors) => …)` 订阅校验失败事件。
 
-## 自定义分组：FieldGroup
+## 自定义区域
 
-上述容器的错误汇总和局部校验能力，均构建在 `@shikiform/react` 提供的无 UI 原语 `<FieldGroup>` 之上。`<FieldGroup>` 会自动收集内部所有已挂载字段的路径（支持多层嵌套汇总）：
-
-```tsx
-import type { ReactNode } from 'react';
-import { FieldGroup, useFieldGroup, useFieldGroupErrors, useFormContext } from '@shikiform/react';
-
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  const form = useFormContext();
-  const group = useFieldGroup();
-  const errors = useFieldGroupErrors(group);   // [{ path, messages }]，按出错字段列表返回
-  return (
-    <section>
-      <h3>{title} {errors.length > 0 && `(${errors.length})`}</h3>
-      <button type="button" onClick={() => form.validate(group.paths())}>校验本节</button>
-      <FieldGroup value={group}>{children}</FieldGroup>
-    </section>
-  );
-}
-```
-
-通过将路径数组一次性传给 `form.validate(paths[])`，可以同时校验一组字段及其子孙节点（分次单独调用 `validate(path)` 则会导致后一次覆盖前一次的竞态检查）。
+分组、徽标和「只校验这一步」由 `FormTab` / `FormCollapse` / `FormStep` 完成。字段分组原语不从 `@shikiform/react` 的公开入口导出。自己要在校验失败时切到某一块，用 `form.subscribeValidateFailed((errors) => …)`，再对那一块字段调用一次 `form.validate(paths)`。
 
 下一步：[Ant Design 适配](/guide/antd)，了解控件映射机制以及如何接入自定义控件。

@@ -71,7 +71,7 @@ d.items.$value.push(row)
 ```ts
 d.user.name.$value = 'Ada'
 d.items.$value = [...d.items.$value, row]
-// 在组件或外部逻辑中追加行：form.pushArray('items', row)
+// 在组件里追加行：useArrayField().push(row)，或 useArrayField('items').push(row)
 ```
 
 ## 在同一轮联动中读回刚写入的 `$value`

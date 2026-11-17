@@ -10,14 +10,13 @@ import {
   defineEffects,
   enUS,
   Field,
-  FieldGroup,
   Form,
   ObjectField,
   setDefaultMessages,
   useField,
-  useFieldGroup,
   zhCN,
 } from '@shikiform/react'
+import { FieldGroup, useFieldGroup } from '@shikiform/react/internal'
 import {
   ArrayTable,
   FormItem,
@@ -236,7 +235,7 @@ describe('useShadowForm', () => {
 
     // Open on index 0 (`r1`), then move `r1` to index 1 before confirming.
     await act(() => result.current.open())
-    act(() => host.moveArray('list', 0, 1))
+    act(() => engineOf(host).moveArray('list', 0, 1))
     act(() => result.current.form.setValue('domain', 'one-edited.com'))
     await act(async () => {
       await result.current.confirm()
@@ -250,7 +249,7 @@ describe('useShadowForm', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     try {
       await act(() => result.current.open())
-      act(() => host.removeArray('list', 0))
+      act(() => engineOf(host).removeArray('list', 0))
       act(() => result.current.form.setValue('domain', 'gone.com'))
       let res: Awaited<ReturnType<typeof result.current.confirm>> | undefined
       await act(async () => {
