@@ -4,12 +4,12 @@
 
 ## 1. API 原则：Hooks 优先，组件是糖
 
-1. **Hooks 是完整的主 API。** `@shikiform/react` 导出的 `useForm`、`useField`、`useArrayField`、`useTreeField`（数组句柄带 `push` / `insert` / `remove` / `move` / `swap` / `replace` 和 `dragProps`，树句柄带 `move` 和 `dragProps`）、`useWatch`，以及无需 name 的上下文 Hook：无参 `useField()`（当前字段，Formily `useField()`）、`useArray`、`useIndex`、`useRecord`、`useTree`、`useTreeNode`（Formily `ArrayBase.useArray/useIndex/useRecord`，树是 `useTree` / `useTreeNode`）能做到组件能做的一切。这些结构操作不在 `FormInstance` 上。
+1. **Hooks 是完整的主 API。** `@shikiform/react` 导出的 `useForm`、`useField`（无参即当前字段）、`useArray(name?)`（数组句柄：`push` / `insert` / `remove` / `move` / `swap` / `replace` / `dragProps`）、`useTree(name?)`（树句柄：`push` / `insert` / `remove` / `replace` / `move` / `dragProps`）、`useIndex`、`useRecord`、`useTreeNode`、`useWatch` 能做到组件能做的一切。不传 name 取最近一层（Formily `ArrayBase.useArray`）。这些结构操作不在 `FormInstance` 上。
 2. **组件只是 Hook 的薄封装，不得拥有 Hook 用户拿不到的逻辑。**
    - `<Field name rules required enum display pattern title description decorator component>` = `useField(name, options)` + `display` 为 `hidden` / `none` 时返回 `null`（`virtual` 仍渲染）+ 渲染 `decorator` 包住 `component`（或 children），并用内部 `FieldContext` 提供 binding（经无参 `useField()` 读取，不导出）。
    - `<Field name ui="echo">` = `useField(name, { ui })`：同一字段的另一个 UI 实例（值 / 错误 / 规则共享，UI 层独立，见 §3.2）；`<UI name>` = `useUiNode` + `form.uiBinding(作用域, name, props, 'node')` + 渲染 `decorator` / `component`（无值）。
-   - `<FieldGroup value>` = 内部 `FieldGroupContext`（`react/field-group.tsx`）：其中挂载的 `useField(name)` / `useArrayField` / `useTreeField` 在 effect 里把绝对路径登记进最近的组及所有外层组（引用计数，卸载移除）；`useFieldGroup()` 建句柄，`useFieldGroupErrors(group)` = `useWatch`（依赖根 `:errors`）按组成员过滤 `form.errors`。
-   - `<ArrayField>` = `useArrayField` + `ArrayScope`（供 `useArray()`）+ 每行 `RowScope`（供 `useIndex()` / `useRecord()`）+ 可选的容器 `component`（`[C, props]`，在 `ArrayScope` 内以各行为 `children` 渲染；类型 `ArrayContainerSlot<C>` 按容器检查 props）或可选的 `virtualScroll`（各行包进 `VirtualRows`；二者互斥，同用开发期抛 `ShikiUsageError`）。数组 UI 只有这一种接法：`ArrayItems` / `ArrayCards` / `ArrayTable` 都是容器，没有自带 `name` 的数组组件；`<TreeField>` = `useTreeField` + `TreeScope`（供 `useTree()`）+ 按节点 ID 为 key 递归包裹内部 `RowScope`（供 `useTreeNode()` / `useIndex()` / 相对字段使用，`node.children` 为已渲染子树），`RowScope` / `ArrayScope` / `TreeScope` / `VirtualRows` 均只从 `@shikiform/react/internal` 导出；`<Watch>` = `useWatch`；`<Form>` = Context Provider + `form.submit()`。
+   - `<FieldGroup value>` = 内部 `FieldGroupContext`（`react/field-group.tsx`）：其中挂载的 `useField(name)` / `useArray` / `useTree` 在 effect 里把绝对路径登记进最近的组及所有外层组（引用计数，卸载移除）；`useFieldGroup()` 建句柄，`useFieldGroupErrors(group)` = `useWatch`（依赖根 `:errors`）按组成员过滤 `form.errors`。
+   - `<ArrayField>` = `useArray` + `ArrayScope`（供 `useArray()`）+ 每行 `RowScope`（供 `useIndex()` / `useRecord()`）+ 可选的容器 `component`（`[C, props]`，在 `ArrayScope` 内以各行为 `children` 渲染；类型 `ArrayContainerSlot<C>` 按容器检查 props）或可选的 `virtualScroll`（各行包进 `VirtualRows`；二者互斥，同用开发期抛 `ShikiUsageError`）。数组 UI 只有这一种接法：`ArrayItems` / `ArrayCards` / `ArrayTable` 都是容器，没有自带 `name` 的数组组件；`<TreeField>` = `useTree` + `TreeScope`（供 `useTree()`）+ 按节点 ID 为 key 递归包裹内部 `RowScope`（供 `useTreeNode()` / `useIndex()` / 相对字段使用，`node.children` 为已渲染子树），`RowScope` / `ArrayScope` / `TreeScope` / `VirtualRows` 均只从 `@shikiform/react/internal` 导出；`<Watch>` = `useWatch`；`<Form>` = Context Provider + `form.submit()`。
    - **DOM id**：引擎的字段 id 就是路径（`<path>--<ui>` 给 UI 实例，`core/engine/dom-id.ts`）；`<Form>` 和影子草稿经内部 `IdPrefixProvider`（`react/id-prefix.tsx`）给控件 id 加前缀 `<form id 或 useId()>-`，`useField` 叠加到 binding，失败提交聚焦也用同一个 id。所以同页两张表单（或文档里两个同字段名的示例）不共用 `id`，`label for` 各指各的。前缀不是公开 API。
    - `typed(form)` / `typed<T>()` = 同一批组件和 Hook 加上类型（名字按作用域检查），没有新的运行时。`typed<T>().createForm` / `typed<T>().useForm` 是同一对函数，T 已固定，`fields` 仍决定提交类型里哪些 `virtual` / `none` 可选；`useForm<T>(options)` 的提交类型就是 T。字段只有 `<Field>` 一种写法。控件登记是 `<FieldKit>` / `<Form kit>`：默认 decorator，`component` / `decorator` 可以写字符串名字或原来的组件引用，类型用 `interface FieldComponents` / `FieldDecorators` 模块扩充。没有第二套 Field。片段复用是普通组件 + `<ObjectField>` + `typed<T>()`。
 3. **Ant Design 适配层是 `useField` 之上的 Formily 式 connect 层。** `<Field>` 是字段唯一的拥有者；装饰器和控件都从 `FieldContext` 读同一个 binding。
@@ -42,8 +42,8 @@ packages/
     field-group.tsx        FieldGroup / useFieldGroup / useFieldGroupErrors（收集一块 JSX 里挂载的字段路径；分组容器的错误数与分步校验）
     field-context.ts       内部 FieldContext / useFieldContextOrNull（<Field> 提供；公开读取走无参 useField()）
     adapter/               connect.tsx（公开 `connect` / `mapProps`；内部 `mapFieldProps`：UI 无关，antd 再导出）
-    hooks/                 use-form、use-field、use-field-decorator（`useFieldDecorator`）、use-array（useArrayField / useArray / useArrayErrors，句柄含 push/remove/move/dragProps）、drag（句柄共用的 HTML5 拖放，内部）、use-row（useIndex / useRecord / useTreeNode）、
-                           use-tree（useTreeField / useTree，句柄含 move/dragProps）、use-watch、use-form-message、use-submit（`useSubmit` / `useReset`）、field-lifecycle（JSX lease）、resolve-name（相对名 → path，开发期查重复前缀）
+    hooks/                 use-form、use-field、use-field-decorator（`useFieldDecorator`）、use-array（useArray(name?) / useArrayErrors，句柄含 push/remove/move/dragProps）、drag（句柄共用的 HTML5 拖放，内部）、use-row（useIndex / useRecord / useTreeNode）、
+                           use-tree（useTree(name?)，句柄含 push/insert/remove/replace/move/dragProps）、use-watch、use-form-message、use-submit（`useSubmit` / `useReset`）、field-lifecycle（JSX lease）、resolve-name（相对名 → path，开发期查重复前缀）
     components/            fields.tsx（Form/Field/ObjectField/ArrayField/TreeField/Watch 及内部 RowScope/ArrayScope/TreeScope）、buttons.tsx（headless `Submit` / `Reset`）、ui.tsx（UI 节点 `<UI>`）、virtual-rows.tsx（内部 VirtualRows）
     field-kit.tsx          FieldKit / `<Form kit>`：默认装饰器，component / decorator 字符串名（运行时）；类型 FieldComponents / FieldDecorators
     factory/               typed.tsx（typed(form) / typed<T>()：按类型检查名字的同一组组件 / Hooks，类型随作用域）
@@ -132,7 +132,7 @@ Formily 的 `field.title` / `description` / `decorator` / `component` / `setComp
 
 | 误用 | 检测位置 | 提示 |
 |---|---|---|
-| 修改 `$value` 返回的对象 / 数组（`d.user.$value.name = 'x'`、`d.items.$value.push(row)`） | `readState('$value')` 在 reaction / watch 执行中（tracker `recordWrites`）返回 `draft/readonly.ts` 的只读视图：`set` / `delete` / `defineProperty` / 数组变更方法抛错。selector（`useWatch`）与引擎外读取不包装。 | 写子路径 `d.user.name.$value = …`，或整体替换；联动里数组赋新数组，组件里用 `useArray().push` / `useArrayField(name).push` |
+| 修改 `$value` 返回的对象 / 数组（`d.user.$value.name = 'x'`、`d.items.$value.push(row)`） | `readState('$value')` 在 reaction / watch 执行中（tracker `recordWrites`）返回 `draft/readonly.ts` 的只读视图：`set` / `delete` / `defineProperty` / 数组变更方法抛错。selector（`useWatch`）与引擎外读取不包装。 | 写子路径 `d.user.name.$value = …`，或整体替换；联动里数组赋新数组，组件里用 `useArray().push` / `useArray(name).push` |
 | 同一轮读回刚写的 `$` 状态 | `Scheduler.assertNotWritten`：读键映射到写操作键（`$value`→`value`，`$visible`/`$hidden`/`$display`→`display`，`$pattern`/`$disabled`→`pattern`，`$required`/`$enum`/`$rules`），若本 tracker 已缓冲同键写操作则抛错。UI 状态不检查（会重放）。 | `const next = …; d.x.$value = next;` 之后用 `next` |
 | 把 handle 当数组 / 值（`d.items.map(…)`、`for…of d.items`、`const [row] = d.items`、`d.items.length`、`d.count + 1`） | `draft/handle.ts`：调用 handle（`apply` 陷阱，始终抛错——调用 handle 没有合法用途）；开发期读 `Symbol.iterator` / `Symbol.toPrimitive`；开发期读 `length` 且该路径当前值是数组（经 `DraftHost.peekValue`，不登记依赖；值不是数组时 `length` 仍是普通子字段）。 | `d.items.$value.map(…)` 或 `reaction.each((d) => d.items, (row, ctx) => …)` |
 | 枚举 handle（`Object.keys(d.user)`、`{ ...d.user }`、`{ name, ...rest } = d.user`） | 开发期 `ownKeys` 抛 `ShikiUsageError`。生产环境 `ownKeys` 返回函数目标自身的键（`prototype` 不可配置，陷阱必须列出）；这些键不可枚举，所以 `Object.keys` 是 `[]`，对象展开是 `{}`，不抛错。数组解构走 `Symbol.iterator`：开发期有提示，生产环境是原生 `TypeError`。 | 只解构子字段 handle：`const { name } = d.user`，然后 `name.$value`。`$` 状态一律经 handle 读写。复制数据用 `d.user.$value`。 |
@@ -229,8 +229,8 @@ const Rate = connect(AntRate, mapProps({ status: false }))
 
 ## 10. 行上下文 Hook（`react/hooks/use-row.ts`、`use-array.ts`）
 
-- `ArrayContext`（`react/context.tsx`）记录最近一层数组的绝对路径与 `rowKey`，由 `ArrayScope` 提供；只有 `<ArrayField>` 渲染它（容器 `component` 在它里面，`ArrayTable` 从这里读路径和 `rowKey`）。`useArray()` 读它，再走与 `useArrayField` 相同的 `useArrayAt(path, rowKey)`（订阅结构）。
-- `TreeContext` 记录最近一层树的绝对路径和调用方传入的 `childrenKey` / `rowKey`（省略则留给已有注册），由 `TreeScope` 提供；`<TreeField>` 渲染它。`useTree()` 读它，再走与 `useTreeField` 相同的 `useTreeAt`。不在树内开发期抛 `ShikiUsageError`。
+- `ArrayContext`（`react/context.tsx`）记录最近一层数组的绝对路径与 `rowKey`，由 `ArrayScope` 提供；`<ArrayField>` 渲染它（容器 `component` 在它里面，`ArrayTable` 从这里读路径和 `rowKey`）。`useArray()` 读它；`useArray(name)` 解析名字并登记 FieldGroup。两者都走 `useArrayAt`（订阅结构）。
+- `TreeContext` 记录最近一层树的绝对路径和调用方传入的 `childrenKey` / `rowKey`（省略则留给已有注册），由 `TreeScope` 提供；`<TreeField>` 渲染它。`useTree()` 读它；`useTree(name)` 解析名字并登记 FieldGroup。不在树内且没传 name 时开发期抛 `ShikiUsageError`。句柄还有 `push` / `insert` / `remove` / `replace`，字段模型按节点 id 迁移（`TreeOps.commit`）。
 - `ScopeContext` 的值扩展为 `{ path, index, itemKey?, pos? }`；`RowScope` 接受 `itemKey`（行 id）与 `pos`（树坐标）。`useIndex()` 读 `index`（树节点里是兄弟下标）；`useTreeNode()` 读 `path` / `pos` / `index`；二者在行 / 节点外抛错。
 - `useRecord()` = `useWatch(() => form.query(scope.path).$value)`：单元格写入会把祖先的 `:value` 依赖标脏，所以这一行任一单元格变化都会重渲染，其他行不会；行移动后 `RowScope` 的 path 变化，selector 跟着换。
 - `ArrayTable.useRow()` = `{ key: scope.itemKey, index: useIndex(), position: table.positionOf(index), record: useRecord() }`，antd 层没有自己的行 Context；`useTable()` 只是表格状态（`useArrayTable` + `useColumnSettings`）的 Context。

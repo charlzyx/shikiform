@@ -56,7 +56,7 @@ export interface ArrayTableRow extends ArrayKey {
 
 /**
  * Headless state for an array table (`ArrayTable`): page slice, row selection,
- * expansion, and row actions over {@link useArrayField}. No UI. `ArrayTable` in `@shikiform/antd` renders it.
+ * expansion, and row actions over {@link useArray}. No UI. `ArrayTable` in `@shikiform/antd` renders it.
  */
 export interface ArrayTableApi<TRow = any> {
   path: string

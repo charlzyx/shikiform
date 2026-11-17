@@ -8,8 +8,8 @@ description: 使用 ObjectField、ArrayField 和 TreeField 建立相对路径作
 | 结构组件 | 提供的路径作用域 | 常用操作方式 |
 |---|---|---|
 | `<ObjectField name="profile">` | `profile.*` | — |
-| `<ArrayField name="items" rowKey="id">` | 每行内为 `items.N.*` | `useArray()`（行内或 `component` 容器里）/ `useArrayField(name)`：`push` / `insert` / `remove` / `move` / `swap` / `replace` |
-| `<TreeField name="nodes">` | 每个树节点内为对应节点路径，子节点传入 `node.children` | `useTree()` / `useTreeField(name)` 的 `move`、`dragProps`；当前节点 `useTreeNode()`（`path`、`pos`、`index`） |
+| `<ArrayField name="items" rowKey="id">` | 每行内为 `items.N.*` | `useArray(name?)`：`push` / `insert` / `remove` / `move` / `swap` / `replace`。不传 name 取最近一层 |
+| `<TreeField name="nodes">` | 每个树节点内为对应节点路径，子节点传入 `node.children` | `useTree(name?)`：`push` / `insert` / `remove` / `replace` / `move` / `dragProps`。当前节点 `useTreeNode()`（`path`、`pos`、`index`） |
 
 ## 对象与数组示例
 
@@ -84,7 +84,7 @@ export default function App() {
 使用数组和结构组件时，有几个关键机制需要留意：
 - **行身份与状态跟随**：指定 `rowKey="id"` 后，每一行在引擎中都会绑定一个稳定的身份标识；如果行数据本身没有业务主键，引擎也会自动以对象引用作为唯一标识，因此通常无需刻意伪造 id。当发生上移、下移或删除操作时，错误提示和 `touched` 等字段状态会跟着数据行一起移动。
 - **行模板与固定下标的区别**：在 `fields` 中使用 `'contacts.*.name'` 声明的是行模板，它会自动应用到当前及未来新增的所有行上；而写死下标的配置（如 `'contacts.0.name'`）绑定的是「第 0 个位置」本身，行顺序变化后会作用于新的第 0 行。需要让配置跟随具体数据行移动时，请使用行模板或 [`reaction.each`](/guide/linkage#reactioneach每一行一个实例)。
-- **使用数组句柄**：增删或调整行顺序时调用 `useArray()` / `useArrayField(name)` 上的 `push` / `remove` / `move` 等方法，不要直接原地修改 `getValue` 返回的数组引用，也不要调用 `form.pushArray`。`<ArrayField>` 只订阅数组的长度与行键变化，修改某个单元格不会导致整张列表重渲染。
+- **使用数组句柄**：增删或调整行顺序时调用 `useArray()` / `useArray(name)` 上的 `push` / `remove` / `move` 等方法，不要直接原地修改 `getValue` 返回的数组引用，也不要调用 `form.pushArray`。`<ArrayField>` 只订阅数组的长度与行键变化，修改某个单元格不会导致整张列表重渲染。
 
 如果需要现成的添加、删除、上下移动和拖拽排序按钮，可以使用 [数组容器 ArrayItems / ArrayCards](/guide/arrays)。
 

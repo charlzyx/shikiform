@@ -30,7 +30,7 @@ export function readonlyValue<V>(value: V, path: string): V {
           throw new ShikiUsageError(
             `${shown}.${prop}(…) mutates the stored array, so nothing is notified. ` +
               `Assign a new array instead: ${shown} = [...${shown}, row] (or ${shown}.filter(…) / .toSorted(…)). ` +
-              `In a component, call push / remove / move on the handle from useArray() or useArrayField(name).`,
+              `In a component, call push / remove / move on the handle from useArray() or useArray(name).`,
           )
         }
       }

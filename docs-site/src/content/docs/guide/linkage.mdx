@@ -213,7 +213,7 @@ export default function App() {
 
 ```tsx preview
 import { Button, Space } from 'antd';
-import { Field, Form, TreeField, defineEffects, useForm, useTreeField } from '@shikiform/react';
+import { Field, Form, TreeField, defineEffects, useForm, useTree } from '@shikiform/react';
 import { Input } from '@shikiform/antd';
 
 type Node = { id: string; code: string; name: string; children?: Node[] };
@@ -228,7 +228,7 @@ const effects = defineEffects<Values>(({ reaction }) => {
 });
 
 function NodeTree() {
-  const tree = useTreeField('nodes', { rowKey: 'id' });
+  const tree = useTree('nodes', { rowKey: 'id' });
   return (
     <>
       <ul style={{ paddingLeft: 0, listStyle: 'none' }}>

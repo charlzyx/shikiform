@@ -8,7 +8,7 @@ description: 四个入口、createForm 选项、引擎方法、React 组件与�
 | 要查什么 | 参考页 |
 |---|---|
 | `createForm`、`get`、`set`、`defineEffects`、`EnumSource`、错误类、文案 | [Core](/reference/core) |
-| `useForm`、`typed`、`useFormContext`、`useFormMessage`、`useField`（无参即当前字段）、`useFieldDecorator`、`useSubmit`、`useReset`（+ headless `<Submit>` / `<Reset>`）、`useWatch`、`useArrayField`、`useArray`、`useArrayErrors`、`useIndex`、`useRecord`、`useTreeField`、`useTree`、`useTreeNode`、`useFieldGroup`、`useFieldGroupErrors`（+ `<FieldGroup>`） | [React Hooks](/reference/react-hooks) |
+| `useForm`、`typed`、`useFormContext`、`useFormMessage`、`useField`（无参即当前字段）、`useFieldDecorator`、`useSubmit`、`useReset`（+ headless `<Submit>` / `<Reset>`）、`useWatch`、`useArray`（可传 name）、`useArrayErrors`、`useIndex`、`useRecord`、`useTree`（可传 name）、`useTreeNode`、`useFieldGroup`、`useFieldGroupErrors`（+ `<FieldGroup>`） | [React Hooks](/reference/react-hooks) |
 | `connect`、`mapProps`（定义在 `@shikiform/react`，antd 再导出）、`FormItem`、`FormLayout`、`useFormLayout`、`FormGrid`、`GridColumn`、`useFormGrid`、`FormButtonGroup`、`PreviewText`（及 `.Select` 等阅读态视图）、接好的控件（`Input` … `TimePicker`、`TreeSelect`、`Cascader`、`Upload`、`Slider`、`Rate`、`Transfer`、`AutoComplete`、`ColorPicker`） | [Ant Design 适配层](/reference/antd-adapter) |
 | `Submit`、`Reset`、控件取值契约、`ArrayItems`、`ArrayCards`、`ArrayTable`、`useArrayEditable`、`FormTab`、`FormCollapse`、`FormStep`、`useFormStep`、`MergedTable`、`groupRowSpan` | [Ant Design 参考](/reference/antd) |
 | `useQueryTable`、`useBuiltinQuery` | [查询 Hooks](/reference/query-hooks) |
@@ -75,9 +75,9 @@ createForm<T, TSubmit = T>(options?: FormOptions<T>): FormInstance<T, TSubmit>  
 
 ```ts
 useArray<TRow = unknown>(): ArrayHandle<TRow>
-useArrayField(name, opts?: { rowKey?: string }): ArrayHandle<行类型>
+useArray(name, opts?: { rowKey?: string }): ArrayHandle<行类型>
 useTree<TNode = unknown>(): TreeHandle<TNode>
-useTreeField(name, opts?: { childrenKey?: string; rowKey?: string }): TreeHandle<unknown>
+useTree(name, opts?: { childrenKey?: string; rowKey?: string }): TreeHandle<unknown>
 
 interface ArrayHandle<TRow> {
   path: string
@@ -94,6 +94,10 @@ interface ArrayHandle<TRow> {
 interface TreeHandle<TNode> {
   path: string
   value: TNode[]
+  push(node: TNode, parentPos?: Pos): void  // 追加到根，或作为 parentPos 的最后一个孩子
+  insert(pos: Pos, node: TNode): void
+  remove(pos: Pos): void
+  replace(pos: Pos, node: TNode): void
   move(from: Pos, to: Pos): MoveResult   // 最终坐标；拒绝移入自身子孙，reason 说明原因
   dragProps(pos: Pos): DragProps
 }
@@ -196,7 +200,7 @@ comboMatch(table, selection): boolean                                     // 组
 comboOptions(table, selection, dim, { disabledWhen? }?): ComboOption[]    // 其余维度已选时，dim 还能选哪些值
 ```
 
-`moveNode` 的拒绝原因（移到自己的子树里、坐标不存在）走表单 `messages`（`treeIntoSelf` …）。树句柄 `useTree().move` / `useTreeField().move` 返回的 `reason` 用的就是它。组合表的完整例子在 [示例 · 联动](/examples/linkage)。外部校验库直接传给 `rules` / `validate`（Standard Schema），不需要额外的工具函数。
+`moveNode` 的拒绝原因（移到自己的子树里、坐标不存在）走表单 `messages`（`treeIntoSelf` …）。树句柄 `useTree().move` / `useTree().move` 返回的 `reason` 用的就是它。组合表的完整例子在 [示例 · 联动](/examples/linkage)。外部校验库直接传给 `rules` / `validate`（Standard Schema），不需要额外的工具函数。
 
 ## 错误类与文案
 

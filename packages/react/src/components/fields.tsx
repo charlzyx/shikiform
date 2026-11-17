@@ -4,10 +4,10 @@ import type { ArrayPath, Display, Draft, FieldEnum, FieldError, FieldPath, FormI
 import type { RulesInput } from '@shikiform/core/internal'
 import { pathOf, type Pos } from '@shikiform/core/internal'
 import { ArrayContext, FormContext, RowWrapContext, ScopeContext, TreeContext, useRequiredForm, useScope } from '../context'
-import { useArrayField } from '../hooks/use-array'
+import { useArray } from '../hooks/use-array'
 import { FieldContext } from '../field-context'
 import { useField, type ControlValueGuard, type FieldBinding, type FieldSlot, type RegisteredComponentSlot, type RegisteredDecoratorSlot } from '../hooks/use-field'
-import { useTreeField } from '../hooks/use-tree'
+import { useTree } from '../hooks/use-tree'
 import { useWatch } from '../hooks/use-watch'
 import { resolveName } from '../hooks/resolve-name'
 import { ShikiUsageError } from '@shikiform/core/internal'
@@ -319,7 +319,7 @@ export function ArrayField<TScope = any, C extends ComponentType<any> = Componen
   /** One row. Optional when `component` renders the rows itself (`ArrayTable` columns). */
   children?: (row: { index: number; key: string }) => ReactNode
 }) {
-  const array = useArrayField(String(name), { rowKey })
+  const array = useArray(String(name), { rowKey })
   const [Container, props] = Array.isArray(component) ? component : [component as ComponentType<any> | undefined, undefined]
   if (Array.isArray(component) && Container == null && process.env.NODE_ENV !== 'production') {
     throw emptySlot(`<ArrayField name="${String(name)}">`, 'component', Container)
@@ -370,7 +370,7 @@ const ArrayRow = memo(function ArrayRow({ path, index, itemKey, render }: {
 
 /**
  * Mark the nearest array for {@link useArray} (`path` is absolute). `<ArrayField>` renders it; use it in a custom
- * array component built on `useArrayField`.
+ * array component built on `useArray(name)`.
  */
 export function ArrayScope({ path, rowKey, children }: { path: string; rowKey?: string; children?: ReactNode }) {
   const value = useMemo(() => ({ path, rowKey }), [path, rowKey])
@@ -452,7 +452,7 @@ export function TreeField<TScope = any>({
   rowKey?: string
   children: (node: TreeNodeRender) => ReactNode
 }) {
-  const tree = useTreeField(String(name), { childrenKey, rowKey })
+  const tree = useTree(String(name), { childrenKey, rowKey })
   const identMap = useRef(new WeakMap<object, string>())
   const identSeq = useRef(0)
   const resolvedChildrenKey = childrenKey ?? 'children'

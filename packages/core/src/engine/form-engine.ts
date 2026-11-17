@@ -280,7 +280,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   }
 
   // —— structure ——
-  // Not on FormInstance. React reaches these through useArray / useArrayField / useTree / useTreeField
+  // Not on FormInstance. React reaches these through useArray(name?) / useTree(name?)
   // (and useArrayTable / useShadowForm). Tests of the engine call them on createEngine / engineOf.
 
   /** @internal Move an array row. `to` is the final index. Field models follow the row id. */
@@ -313,13 +313,12 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     this.arrays.push(path, row)
   }
 
-  /**
-   * @internal Move a tree node to its final `pos`.
-   * Refuses a move into the node's own descendant. Field models follow `rowKey`.
-   */
-  moveTree(path: string, from: Pos, to: Pos): MoveResult {
-    return this.trees.move(path, from, to)
-  }
+  /** @internal Tree edits. Field models follow the node id. `move` refuses a move into a descendant. */
+  moveTree(path: string, from: Pos, to: Pos): MoveResult { return this.trees.move(path, from, to) }
+  pushTree(path: string, node: unknown, parentPos?: Pos): void { this.trees.push(path, node, parentPos) }
+  insertTree(path: string, pos: Pos, node: unknown): void { this.trees.insert(path, pos, node) }
+  removeTree(path: string, pos: Pos): void { this.trees.remove(path, pos) }
+  replaceTree(path: string, pos: Pos, node: unknown): void { this.trees.replace(path, pos, node) }
 
   /** Remember which key identifies a row so field models follow that id across moves. */
   registerArray(path: string, rowKey?: string): void {

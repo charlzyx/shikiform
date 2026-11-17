@@ -18,6 +18,8 @@ describe('public surface', () => {
       'posKey', 'samePos',
     ]) expect(name in core).toBe(false)
     for (const name of ['normalizeSort', 'normalizeFilters', 'cascaderPaths']) expect(name in pro).toBe(false)
+    expect('useArrayField' in root).toBe(false)
+    expect('useTreeField' in root).toBe(false)
     expect('SuggestionSelect' in antd).toBe(false)
     expect(Object.keys(antd)).toEqual(expect.arrayContaining(['SuggestionView', 'CascaderPlusView']))
   })
@@ -36,19 +38,19 @@ describe('public surface', () => {
     void form.setFieldError
     // @ts-expect-error removed: use the form-level `validate` function
     createForm({ initialValues: { a: '' }, resolver: () => ({}) })
-    // @ts-expect-error array edits are on useArray() / useArrayField(name), not the form
+    // @ts-expect-error array edits are on useArray() / useArray(name), not the form
     void form.pushArray
-    // @ts-expect-error array edits are on useArray() / useArrayField(name), not the form
+    // @ts-expect-error array edits are on useArray() / useArray(name), not the form
     void form.insertArray
-    // @ts-expect-error array edits are on useArray() / useArrayField(name), not the form
+    // @ts-expect-error array edits are on useArray() / useArray(name), not the form
     void form.removeArray
-    // @ts-expect-error array edits are on useArray() / useArrayField(name), not the form
+    // @ts-expect-error array edits are on useArray() / useArray(name), not the form
     void form.moveArray
-    // @ts-expect-error array edits are on useArray() / useArrayField(name), not the form
+    // @ts-expect-error array edits are on useArray() / useArray(name), not the form
     void form.swapArray
-    // @ts-expect-error array edits are on useArray() / useArrayField(name), not the form
+    // @ts-expect-error array edits are on useArray() / useArray(name), not the form
     void form.replaceArray
-    // @ts-expect-error tree moves are on useTree() / useTreeField(name), not the form
+    // @ts-expect-error tree moves are on useTree() / useTree(name), not the form
     void form.moveTree
   })
 })

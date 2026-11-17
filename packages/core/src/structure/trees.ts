@@ -1,10 +1,11 @@
+import { unwrapReadonly } from '../draft/readonly'
 import type { Scheduler } from '../effects/scheduler'
-import { setAt } from '../shared/path'
+import { parentPath, setAt } from '../shared/path'
 import type { FieldStore } from '../state/field-store'
 import type { MoveResult } from '../types'
 import type { FormMessages } from '../validation/messages'
 import { reindexById } from './migrate'
-import { listPositions, locateIds, moveNode, posKey, posOf, type Pos } from '../shared/tree-ops'
+import { deleteNode, insertNode, listPositions, locateIds, moveNode, posKey, posOf, pushNode, replaceNode, type Pos } from '../shared/tree-ops'
 
 export interface TreeConfig {
   childrenKey: string
@@ -76,13 +77,52 @@ export class TreeOps {
   }
 
   move(path: string, from: Pos, to: Pos): MoveResult {
-    const { store, scheduler } = this
     const cfg = this.config(path)
-    const before = store.arrayOf(path)
-    const oldIds = locateIds(before, path, cfg.childrenKey, cfg.rowKey)
+    const before = this.store.arrayOf(path)
     const result = moveNode(before, from, to, cfg.childrenKey, cfg.canMove, this.messages)
     if (!result.ok || !result.tree) return { ok: false, reason: result.reason }
-    const next = result.tree
+    this.commit(path, before, result.tree)
+    return { ok: true }
+  }
+
+  /** Append `node` at the root, or as the last child of `parentPos`. A missing children array is created. */
+  push(path: string, node: unknown, parentPos?: Pos): void {
+    const cfg = this.config(path)
+    const before = this.store.arrayOf(path)
+    const next = pushNode(before, node, parentPos, cfg.childrenKey)
+    if (next) this.commit(path, before, next)
+  }
+
+  /** Insert `node` so it sits at `pos`. Later siblings shift. A missing children array on an existing parent is created. */
+  insert(path: string, pos: Pos, node: unknown): void {
+    const cfg = this.config(path)
+    const before = this.store.arrayOf(path)
+    const next = insertNode(before, pos, node, cfg.childrenKey)
+    if (next) this.commit(path, before, next)
+  }
+
+  /** Remove the node at `pos`. Its field model is dropped. Later siblings follow their ids. */
+  remove(path: string, pos: Pos): void {
+    const cfg = this.config(path)
+    const before = this.store.arrayOf(path)
+    const next = deleteNode(before, pos, cfg.childrenKey)
+    if (next) this.commit(path, before, next)
+  }
+
+  /** Replace the node at `pos`. The previous node's field model is dropped. */
+  replace(path: string, pos: Pos, node: unknown): void {
+    const cfg = this.config(path)
+    const before = this.store.arrayOf(path)
+    const next = replaceNode(before, pos, node, cfg.childrenKey)
+    if (next) this.commit(path, before, next)
+  }
+
+  /** Migrate field models by node id, then notify structure and value readers. `before` / `next` are the root arrays. */
+  private commit(path: string, before: any[], next: any[]): void {
+    const { store, scheduler } = this
+    const cfg = this.config(path)
+    if (process.env.NODE_ENV !== 'production') next = unwrapReadonly(next)
+    const oldIds = locateIds(before, path, cfg.childrenKey, cfg.rowKey)
     const newIds = locateIds(next, path, cfg.childrenKey, cfg.rowKey)
     store.onReindex?.(reindexById(store.fields, oldIds, newIds))
     store.onReindexIds?.(oldIds, newIds)
@@ -96,8 +136,9 @@ export class TreeOps {
     }
     scheduler.dirtyPos.set(path, dirty)
     scheduler.markStructure(path)
+    for (let cursor: string | null = path; cursor; cursor = parentPath(cursor)) scheduler.markDirty(`${cursor}:value`)
+    scheduler.markDirty(':value')
     scheduler.enqueueFromDirty()
     scheduler.flush()
-    return { ok: true }
   }
 }

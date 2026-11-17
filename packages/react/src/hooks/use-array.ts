@@ -33,29 +33,16 @@ export type ArrayHandle<TRow> = {
  * Array handle. Subscribes to row structure (length and ids), not to cell values.
  * `keys` use the row id when the row has one, otherwise a stable object identity.
  * `to` on `move` is the final index.
- * `useArrayField<Values, 'rows'>('rows')` checks the name and types `push` / `replace` as one row.
- * `useArrayField<Values>('rows')` only checks the name. A bare `useArrayField('rows')` accepts any row.
- * Options are the second argument's object: `useArrayField('rows', { rowKey: 'id' })` (same shape as `useTreeField`).
- */
-export function useArrayField(name: string, opts?: { rowKey?: string }): ArrayHandle<unknown>
-export function useArrayField<TScope>(name: ArrayPath<TScope>, opts?: { rowKey?: string }): ArrayHandle<unknown>
-export function useArrayField<TScope, N extends ArrayPath<TScope>>(
-  name: N,
-  opts?: { rowKey?: string },
-): ArrayHandle<ArrayItemOf<TScope, N & string>>
-export function useArrayField(name: string, opts?: { rowKey?: string }): ArrayHandle<unknown> {
-  const scope = useScope()
-  const form = useRequiredForm(`useArrayField('${name}') / <ArrayField name="${name}">`)
-  const path = resolveName(form, scope, name)
-  if (process.env.NODE_ENV !== 'production') assertArrayValue(path, form.getValue(path))
-  useFieldGroupRegistration(path)
-  return useArrayAt(path, opts?.rowKey)
-}
-
-/**
- * The nearest enclosing array, no name needed (Formily `ArrayBase.useArray`): inside an `<ArrayField>` row or its container
- * (`ArrayItems` / `ArrayCards` / `ArrayTable`, toolbar included), the same handle {@link useArrayField} returns for that array.
- * Throws outside an array.
+ *
+ * `useArray()` is the nearest `<ArrayField>` (Formily `ArrayBase.useArray`): a row, or the container
+ * (`ArrayItems` / `ArrayCards` / `ArrayTable`, toolbar included). Nested arrays resolve to the inner one.
+ * Outside an array it throws.
+ *
+ * `useArray(name)` resolves `name` against the current scope (a repeated scope prefix throws in development),
+ * registers that path into the nearest `FieldGroup`, and returns the same handle.
+ * `useArray<Values, 'rows'>('rows')` checks the name and types `push` / `replace` as one row.
+ * `useArray<Values>('rows')` only checks the name. A bare `useArray('rows')` accepts any row.
+ * Options are the second argument's object: `useArray('rows', { rowKey: 'id' })`.
  *
  * ```tsx
  * function RemoveButton() {
@@ -65,15 +52,32 @@ export function useArrayField(name: string, opts?: { rowKey?: string }): ArrayHa
  * }
  * ```
  */
-export function useArray<TRow = unknown>(): ArrayHandle<TRow> {
+export function useArray<TRow = unknown>(): ArrayHandle<TRow>
+export function useArray(name: string, opts?: { rowKey?: string }): ArrayHandle<unknown>
+export function useArray<TScope>(name: ArrayPath<TScope>, opts?: { rowKey?: string }): ArrayHandle<unknown>
+export function useArray<TScope, N extends ArrayPath<TScope>>(
+  name: N,
+  opts?: { rowKey?: string },
+): ArrayHandle<ArrayItemOf<TScope, N & string>>
+export function useArray(name?: string, opts?: { rowKey?: string }): ArrayHandle<unknown> {
   const ctx = useContext(ArrayContext)
-  if (!ctx) {
+  const scope = useScope()
+  if (name == null && !ctx) {
     if (process.env.NODE_ENV !== 'production') {
       throw new ShikiUsageError('useArray() must render inside <ArrayField> (a row or its container component: ArrayItems / ArrayCards / ArrayTable).')
     }
     throw new Error('useArray() must render inside <ArrayField>')
   }
-  return useArrayAt(ctx.path, ctx.rowKey) as ArrayHandle<TRow>
+  const form = useRequiredForm(name != null ? `useArray('${name}') / <ArrayField name="${name}">` : 'useArray()')
+  let path: string | undefined
+  if (name != null) {
+    path = resolveName(form, scope, name)
+    if (process.env.NODE_ENV !== 'production') assertArrayValue(path, form.getValue(path))
+  } else {
+    path = ctx?.path
+  }
+  useFieldGroupRegistration(name != null ? path : undefined)
+  return useArrayAt(path ?? null, name != null ? opts?.rowKey : ctx?.rowKey)
 }
 
 /** `<ArrayField name="title">` on a string renders no rows and no error: say so in development. */
@@ -81,32 +85,33 @@ function assertArrayValue(path: string, value: unknown): void {
   if (value == null || Array.isArray(value)) return
   const shown = typeof value === 'object' ? 'an object' : `${typeof value} ${JSON.stringify(value)?.slice(0, 40)}`
   throw new ShikiUsageError(
-    `<ArrayField name="${path}"> / useArrayField('${path}'): ${showDraftPath(path)}.$value is ${shown}, not an array. ` +
+    `<ArrayField name="${path}"> / useArray('${path}'): ${showDraftPath(path)}.$value is ${shown}, not an array. ` +
       `Start it as an array in initialValues (\`${path.split('.').pop()}: []\`), or use <Field> / <ObjectField> for a non-array value.`,
   )
 }
 
-/** {@link useArrayField} for an absolute path, without field-group registration (internal: containers, `useArrayTable`). */
-export function useArrayAt(path: string, rowKey?: string): ArrayHandle<unknown> {
-  const form = useRequiredForm(`the array '${path}'`)
+/** {@link useArray} for an absolute path, without field-group registration (internal: containers, `useArrayTable`). `null` subscribes to nothing. */
+export function useArrayAt(path: string | null, rowKey?: string): ArrayHandle<unknown> {
+  const form = useRequiredForm(path ? `the array '${path}'` : 'useArray()')
   const version = useSyncExternalStore(
-    (onStoreChange) => form.subscribeStructure(path, onStoreChange),
-    () => form.getStructureVersion(path),
-    () => form.getStructureVersion(path),
+    (onStoreChange) => (path ? form.subscribeStructure(path, onStoreChange) : () => {}),
+    () => (path ? form.getStructureVersion(path) : 0),
+    () => (path ? form.getStructureVersion(path) : 0),
   )
   void version
-  form.registerArray(path, rowKey)
-  const dragProps = useDragProps<number>(path, (from, to) => form.moveArray(path, from, to), String, toIndex)
+  if (path) form.registerArray(path, rowKey)
+  const dragProps = useDragProps<number>(path ?? '', (from, to) => { if (path) form.moveArray(path, from, to) }, String, toIndex)
+  const at = path ?? ''
   return {
-    path,
-    keys: form.structureKeys(path, rowKey) as ArrayKey[],
-    push: (row: unknown) => form.pushArray(path, row),
-    insert: (index: number, row: unknown) => form.insertArray(path, index, row),
-    remove: (index: number) => form.removeArray(path, index),
+    path: at,
+    keys: path ? form.structureKeys(path, rowKey) as ArrayKey[] : [],
+    push: (row: unknown) => { if (path) form.pushArray(path, row) },
+    insert: (index: number, row: unknown) => { if (path) form.insertArray(path, index, row) },
+    remove: (index: number) => { if (path) form.removeArray(path, index) },
     /** `to` is the final index. */
-    move: (from: number, to: number) => form.moveArray(path, from, to),
-    swap: (indexA: number, indexB: number) => form.swapArray(path, indexA, indexB),
-    replace: (index: number, row: unknown) => form.replaceArray(path, index, row),
+    move: (from: number, to: number) => { if (path) form.moveArray(path, from, to) },
+    swap: (indexA: number, indexB: number) => { if (path) form.swapArray(path, indexA, indexB) },
+    replace: (index: number, row: unknown) => { if (path) form.replaceArray(path, index, row) },
     dragProps,
   }
 }

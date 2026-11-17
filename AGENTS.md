@@ -79,10 +79,10 @@ move / swap / insert / remove it stays on `rows.0.x` and applies to whichever ro
 
 In React, a row component reads its row without names: `useArray()` (nearest array handle: `push`, `insert`, `remove`,
 `move`, `swap`, `replace`, `dragProps(index)`), `useIndex()`, `useRecord()` (reactive row value). A tree node uses
-`useTree()` (nearest tree: `move(from, to)`, `dragProps(pos)`; throws outside `<TreeField>`) and `useTreeNode()`
+`useTree(name?)` (nearest tree when `name` is omitted: `push` / `insert` / `remove` / `replace` / `move(from, to)` / `dragProps(pos)`; throws outside `<TreeField>`) and `useTreeNode()`
 (`path`, `pos`, `index`, reactive `record`, plus the same `move` / `dragProps` for this node). `useIndex()` in a tree
-node is that sibling index. `useArrayField(name, opts?: { rowKey })` and
-`useTreeField(name, { childrenKey?, rowKey? })` are the named handles; both resolve
+node is that sibling index. `useArray(name, opts?: { rowKey })` and
+`useTree(name, { childrenKey?, rowKey? })` are the named handles; both resolve
 the name against the scope (a repeated scope prefix throws in dev) and register the path into the nearest `FieldGroup`,
 like `useField`. Drag-and-drop is `{...handle.dragProps(i)}` on the row; there is no separate drag hook.
 There is no `form.pushArray` / `form.moveTree`: those engine methods stay internal.
@@ -297,7 +297,7 @@ reaction((d) => {
 - A rule with `level: 'warning'` (`{ validator: weak, level: 'warning' }`) reports to `$warnings` / `field.warnings`
   (FormItem shows it in the warning colour) and never blocks `submit` / `canSubmit` (antd `warningOnly`).
 - Built-in messages default to Chinese. Override per form with `messages` (partial; functions get params:
-  `minLength: ({ minLength }) => …`), app-wide with `setDefaultMessages(enUS)`. A rule's own `message` wins. The same `messages` cover tree-move refusal reasons (`useTree().move` / `useTreeField().move`)
+  `minLength: ({ minLength }) => …`), app-wide with `setDefaultMessages(enUS)`. A rule's own `message` wins. The same `messages` cover tree-move refusal reasons (`useTree().move`)
   and every `@shikiform/antd` label (提交 / 重置 / 查询 / 删除 …); a component's own prop (`title`, `okText`) wins.
   Custom components read them with `useFormMessage()` (`t('submit')`) or `form.message('submit')`.
 
@@ -387,7 +387,7 @@ reaction((d) => { d.city.$componentProps.disabled = d.kind.$value === 'b' })    
 - `useForm()` / `createForm()` return a `FormInstance` (no arguments and `undefined` are `{}`): state getters, `getValue` / `setValue` / `batch`, `submit` /
   `validate` / `reset` / `setInitialValues` / `getSubmitValues`, `setErrors` / `clearErrors`, `message`,
   `subscribe*`. Nothing else: there is no `pushArray` / `moveArray` / `moveTree` / `binding()` / `query()` / `registerField()` on it
-  (array and tree edits go through `useArray` / `useArrayField` / `useTree` / `useTreeField`; declare fields in `fields`, read them in a
+  (array and tree edits go through `useArray(name?)` / `useTree(name?)`; declare fields in `fields`, read them in a
   reaction or `useWatch`).
 - `form.values`, `submitting`, `dirty`, `submitCount`, `validating` are read-only getters. Write values with
   `setValue` / `batch`, never `form.values = x` (a TS error, and a `TypeError` at runtime).

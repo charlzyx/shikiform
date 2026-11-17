@@ -3,7 +3,7 @@ import { createForm, type DefaultSubmit, type FieldsInput, type FormInstance, ty
 import type { ArrayItemOf, ArrayPath, Draft, FieldPath, PathValue } from '@shikiform/core/internal'
 import { useForm, type UseFormOptions } from '../hooks/use-form'
 import { ArrayField, Field, ObjectField, TreeField, Watch, type ArrayContainerSlot, type CheckedFieldProps, type FieldProps, type TreeNodeRender } from '../components/fields'
-import { useArrayField, type ArrayHandle, type ArrayKey } from '../hooks/use-array'
+import { useArray, type ArrayHandle, type ArrayKey } from '../hooks/use-array'
 import { useField, type FieldBinding, type UseFieldOptions } from '../hooks/use-field'
 import { useWatch } from '../hooks/use-watch'
 
@@ -39,14 +39,14 @@ export type ScopeFields<T> = {
 
 /**
  * {@link typed}'s return: {@link ScopeFields} for the form root plus typed hooks.
- * `useField` / `useArrayField` names are relative to the calling component's scope, typed against `T`.
+ * `useField` / `useArray` names are relative to the calling component's scope, typed against `T`.
  * `useWatch` / `Watch` select from the root draft (`Draft<TRoot>`).
  */
 type FieldsOf<T, F> = { fields?: F & FieldsInput<T> }
 
 export type TypedForm<T, TRoot = T> = ScopeFields<T> & {
   useField: <N extends FieldPath<T>>(name: N, options?: UseFieldOptions<PathValue<T, N & string>>) => FieldBinding<PathValue<T, N & string>>
-  useArrayField: <N extends ArrayPath<T>>(name: N, rowKey?: string) => ArrayHandle<ArrayItemOf<T, N & string>>
+  useArray: (<N extends ArrayPath<T>>(name: N, opts?: { rowKey?: string }) => ArrayHandle<ArrayItemOf<T, N & string>>) & (() => ArrayHandle<unknown>)
   useWatch: <S>(select: (d: Draft<TRoot>) => S) => S
   Watch: <S>(props: { select: (d: Draft<TRoot>) => S; children: (value: S) => ReactNode }) => ReactNode
   /**
@@ -102,4 +102,4 @@ function TypedTreeField({ children, ...props }: { name: string; childrenKey?: st
 }
 
 const scope = { Field, ObjectField: TypedObjectField, ArrayField: TypedArrayField, TreeField: TypedTreeField }
-const handles = { ...scope, useField, useArrayField, useWatch, Watch, createForm, useForm } as unknown as TypedForm<any>
+const handles = { ...scope, useField, useArray, useWatch, Watch, createForm, useForm } as unknown as TypedForm<any>

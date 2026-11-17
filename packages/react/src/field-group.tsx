@@ -99,10 +99,10 @@ export function FieldGroup({ value, children }: { value: FieldGroupHandle; child
   return <FieldGroupContext.Provider value={registrar}>{children}</FieldGroupContext.Provider>
 }
 
-/** Internal: register `path` with the enclosing groups while mounted (`useField(name)`, `useArrayField`). */
-export function useFieldGroupRegistration(path: string): void {
+/** Internal: register `path` with the enclosing groups while mounted (`useField(name)`, `useArray(name)`). No path skips it. */
+export function useFieldGroupRegistration(path: string | undefined): void {
   const registrar = useContext(FieldGroupContext)
-  useEffect(() => (registrar ? registrar.add(path) : undefined), [registrar, path])
+  useEffect(() => (path && registrar ? registrar.add(path) : undefined), [registrar, path])
 }
 
 const ids = new WeakMap<object, number>()
