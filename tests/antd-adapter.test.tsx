@@ -25,10 +25,8 @@ import * as AntdPublic from '@shikiform/antd'
 import { mapFormItemProps } from '../packages/antd/src/adapter/form-item'
 import { createEngine } from '../packages/core/src/engine/create'
 
-type Pattern = 'editable' | 'disabled' | 'readOnly' | 'readPretty'
-
-function binding(value: unknown, extra: { pattern?: Pattern; enum?: { label: string; value: unknown }[] } = {}) {
-  const form = createEngine<{ x: unknown }>({ initialValues: { x: value }, fields: { x: { pattern: extra.pattern, enum: extra.enum } } })
+function binding(value: unknown, extra: { readOnly?: boolean; disabled?: boolean; enum?: { label: string; value: unknown }[] } = {}) {
+  const form = createEngine<{ x: unknown }>({ initialValues: { x: value }, fields: { x: { readOnly: extra.readOnly, disabled: extra.disabled, enum: extra.enum } } })
   return { form, field: form.binding('x') as FieldBinding<any> }
 }
 
@@ -88,7 +86,7 @@ describe('connect + mapProps prop mapping', () => {
       (props: Record<string, any>) => { seen.push(props); return null },
       mapProps({ value: 'checked', readOnly: 'disabled', status: false }),
     )
-    const form = createEngine({ initialValues: { x: true }, fields: { x: { pattern: 'readOnly' } } })
+    const form = createEngine({ initialValues: { x: true }, fields: { x: { readOnly: true } } })
     renderToStaticMarkup(<Form form={form}><Probe name="x" /></Form>)
     const props = seen.at(-1)!
     expect(props.checked).toBe(true)
@@ -143,7 +141,7 @@ describe('connect + mapProps prop mapping', () => {
   it('treats readPretty as readOnly when there is no read-pretty view', () => {
     const seen: Record<string, any>[] = []
     const Probe = connect((props: Record<string, any>) => { seen.push(props); return null })
-    const form = createEngine({ initialValues: { x: 'x' }, fields: { x: { pattern: 'readPretty' } } })
+    const form = createEngine({ initialValues: { x: 'x' }, fields: { x: { readOnly: true } } })
     renderToStaticMarkup(<Form form={form}><Probe name="x" /></Form>)
     expect(seen.at(-1)!.readOnly).toBe(true)
   })
@@ -157,14 +155,14 @@ describe('connect + mapProps prop mapping', () => {
     )
     const WithTuple = connect(
       (props: { value?: string; onBlur?: () => void }) => <input readOnly value={props.value} />,
-      mapProps({ readPretty: [FirstView, { badge: 'default' }] }),
+      mapProps({ preview: [FirstView, { badge: 'default' }] }),
     )
     const Overridden = connect(
       (props: { value?: string; badge?: string; onBlur?: () => void }) => <input readOnly value={props.value} />,
-      mapProps({ readPretty: [FirstView, { badge: 'first' }] }),
-      mapProps({ readPretty: [SecondView, { badge: 'second', tone: 'blue' }] }),
+      mapProps({ preview: [FirstView, { badge: 'first' }] }),
+      mapProps({ preview: [SecondView, { badge: 'second', tone: 'blue' }] }),
     )
-    const form = createEngine({ initialValues: { x: 'hi' }, fields: { x: { pattern: 'readPretty' } } })
+    const form = createEngine({ initialValues: { x: 'hi' }, fields: { x: { readOnly: true } } })
     const tupleHtml = renderToStaticMarkup(<Form form={form}><WithTuple name="x" /></Form>)
     expect(tupleHtml).toContain('data-view="first"')
     expect(tupleHtml).toContain('data-badge="default"')
@@ -224,9 +222,9 @@ describe('connect', () => {
   })
 
   it('renders the readPretty view in readPretty and the control otherwise', () => {
-    const Control = connect((props: { value?: string; onBlur?: () => void }) => <input data-control value={props.value} readOnly />, mapProps({ readPretty: PreviewText }))
+    const Control = connect((props: { value?: string; onBlur?: () => void }) => <input data-control value={props.value} readOnly />, mapProps({ preview: PreviewText }))
     const editable = createEngine({ initialValues: { x: 'hi' } })
-    const pretty = createEngine({ initialValues: { x: 'hi' }, fields: { x: { pattern: 'readPretty' } } })
+    const pretty = createEngine({ initialValues: { x: 'hi' }, fields: { x: { readOnly: true } } })
     expect(renderToStaticMarkup(<Form form={editable}><Control name="x" /></Form>)).toContain('data-control')
     const html = renderToStaticMarkup(<Form form={pretty}><Control name="x" /></Form>)
     expect(html).toContain('data-read-pretty')
@@ -318,9 +316,9 @@ describe('FormItem', () => {
   })
 
   it('renders nothing for display hidden / none and hides the required mark in readPretty', () => {
-    const hidden = createEngine({ initialValues: { a: 1 }, fields: { a: { display: 'hidden' } } })
+    const hidden = createEngine({ initialValues: { a: 1 }, fields: { a: { visible: false } } })
     expect(renderToStaticMarkup(<Form form={hidden}><Field name="a" title="A" decorator={[FormItem]}><InputNumber /></Field></Form>)).not.toContain('A')
-    const pretty = createEngine({ initialValues: { a: 1 }, fields: { a: { pattern: 'readPretty', required: true } } })
+    const pretty = createEngine({ initialValues: { a: 1 }, fields: { a: { readOnly: true, required: true } } })
     const html = renderToStaticMarkup(<Form form={pretty}><Field name="a" title="A" decorator={[FormItem]}><InputNumber /></Field></Form>)
     expect(html).not.toContain('ant-form-item-required')
     expect(html).toContain('data-read-pretty')
@@ -520,14 +518,14 @@ describe('connected Ant Design controls', () => {
     expect(form.getValue('x')).toBe(null)
   })
 
-  it('Select takes enum options, maps readOnly to disabled, and shows labels in readPretty', () => {
-    const { form, field } = binding('red', { enum: options, pattern: 'readOnly' })
+  it('Select takes enum options, disables when the field is disabled, and shows labels when readOnly', () => {
+    const { form, field } = binding('red', { enum: options, disabled: true })
     const el = target(Select, { field })
     expect(el.props.options.map((o: any) => o.value)).toEqual(['red', 'blue'])
     expect(el.props.disabled).toBe(true)
     el.props.onChange('blue', options[1])
     expect(form.getValue('x')).toBe('blue')
-    const pretty = createEngine({ initialValues: { x: 'blue' }, fields: { x: { enum: options, pattern: 'readPretty' } } })
+    const pretty = createEngine({ initialValues: { x: 'blue' }, fields: { x: { enum: options, readOnly: true } } })
     const html = renderToStaticMarkup(<Form form={pretty}><Select name="x" /></Form>)
     expect(html).toContain('蓝')
     expect(html).not.toContain('blue')
@@ -541,7 +539,7 @@ describe('connected Ant Design controls', () => {
       expect(el.props.status).toBeUndefined()
       el.props.onChange(Control === Switch ? true : { target: { type: 'checkbox', checked: true } })
       expect(form.getValue('x')).toBe(true)
-      const pretty = createEngine({ initialValues: { x: true, y: false }, fields: { x: { pattern: 'readPretty' }, y: { pattern: 'readPretty' } } })
+      const pretty = createEngine({ initialValues: { x: true, y: false }, fields: { x: { readOnly: true }, y: { readOnly: true } } })
       const html = renderToStaticMarkup(<Form form={pretty}><Control name="x" /><Control name="y" /></Form>)
       expect(html).toContain(zhCN.yes)
       expect(html).toContain(zhCN.no)
@@ -560,7 +558,7 @@ describe('connected Ant Design controls', () => {
     const r = target(Radio.Group, { field: radio.field })
     r.props.onChange({ target: { type: 'radio', value: 'blue', checked: true } })
     expect(radio.form.getValue('x')).toBe('blue')
-    const pretty = createEngine({ initialValues: { x: ['red', 'blue'] }, fields: { x: { enum: options, pattern: 'readPretty' } } })
+    const pretty = createEngine({ initialValues: { x: ['red', 'blue'] }, fields: { x: { enum: options, readOnly: true } } })
     const groupHtml = renderToStaticMarkup(<Form form={pretty}><Checkbox.Group name="x" /></Form>)
     expect(groupHtml).toContain('ant-tag')
     expect(groupHtml).toContain('红')
@@ -581,7 +579,7 @@ describe('connected Ant Design controls', () => {
     expect(r.props.value.map((d: any) => d.format('YYYY-MM-DD'))).toEqual(['2026-01-01', '2026-01-31'])
     r.props.onChange([dayjs('2026-02-01'), dayjs('2026-02-02')], ['2026-02-01', '2026-02-02'])
     expect(range.form.getValue('x')).toEqual(['2026-02-01', '2026-02-02'])
-    const pretty = createEngine({ initialValues: { x: '2026-10-29', y: ['2026-01-01', '2026-01-31'] }, fields: { x: { pattern: 'readPretty' }, y: { pattern: 'readPretty' } } })
+    const pretty = createEngine({ initialValues: { x: '2026-10-29', y: ['2026-01-01', '2026-01-31'] }, fields: { x: { readOnly: true }, y: { readOnly: true } } })
     const html = renderToStaticMarkup(<Form form={pretty}><DatePicker name="x" /><DatePicker.RangePicker name="y" /></Form>)
     expect(html).toContain('2026-10-29')
     expect(html).toContain('2026-01-01 ~ 2026-01-31')

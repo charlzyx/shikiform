@@ -1,6 +1,7 @@
 import { ShikiUsageError } from '../errors'
 import type { EnumBinding, EnumOption } from '../enum/enum-source'
-import type { Display, FieldSpec, FieldUiSpec, Pattern, ValidateTrigger } from '../types'
+import type { FieldSpec, FieldUiSpec, ValidateTrigger } from '../types'
+import { emptyFlags, type FlagLayers, type FlagName } from './flags'
 import type { Rule } from '../validation/rules'
 
 /**
@@ -11,34 +12,14 @@ import type { Rule } from '../validation/rules'
 export interface FieldModel {
   path: string
   /**
-   * This node's own display. Effective render / submit are derived by walking ancestors
-   * ({@link FieldStore.displayFlags}); do not treat this as the collapsed `$display` read.
+   * Own `visible` / `disabled` / `readOnly` / `omit`, each layered reaction > JSX > declaration.
+   * Effective `visible` / `disabled` / `readOnly` walk ancestors ({@link effectiveFlag}); `omit` does not.
+   * An explicit `false` exits an inherited `true`. `undefined` on a layer means that layer did not set it.
    */
-  display?: Display
-  hasDisplay: boolean
-  displayFromEffect: boolean
-  /**
-   * Display from `fields` / JSX / a template. A reaction overlay replaces `display` but leaves this,
-   * so `$visible = true` can put the declaration back.
-   */
-  baseDisplay?: Display
-  hasBaseDisplay: boolean
-  pattern?: Pattern
-  hasPattern: boolean
-  patternFromEffect: boolean
-  /**
-   * The explicit pattern was installed by `$disabled = true` and has not been replaced by `$pattern`.
-   * `$disabled = false` clears the pattern only while this is set, so the field inherits again.
-   */
-  patternFromDisabled: boolean
+  flags: Record<FlagName, FlagLayers>
   required: boolean
   requiredFromEffect: boolean
   computed: boolean
-  /**
-   * Omit this node (and its subtree) from submit without changing its display.
-   * `useQueryTable` uses it for client paging and `selectedKeys`, so a caller's `hidden` / `none` stays.
-   */
-  omitSubmit: boolean
   rules: Rule[]
   /** Exact configuration, kept separately from a disappearing template instance. */
   declaration?: FieldSpec
@@ -122,16 +103,10 @@ export function emptySlot(where: string | undefined, slot: string, value: unknow
 export function createFieldModel(path: string): FieldModel {
   return {
     path,
-    hasDisplay: false,
-    displayFromEffect: false,
-    hasBaseDisplay: false,
-    hasPattern: false,
-    patternFromEffect: false,
-    patternFromDisabled: false,
+    flags: emptyFlags(),
     required: false,
     requiredFromEffect: false,
     computed: false,
-    omitSubmit: false,
     rules: [],
     jsxActive: false,
     rulesFromEffect: false,

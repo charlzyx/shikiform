@@ -42,13 +42,16 @@ function useArrayPath(caller: string): string {
 }
 
 /**
- * Whether the surrounding array can be edited: its effective pattern (own, ancestors, root, `useForm({ pattern })`)
- * is `editable`. The action buttons render nothing otherwise (readPretty, readOnly, disabled), like Formily.
+ * Whether the surrounding array can be edited: shown, and neither `readOnly` nor `disabled`
+ * (own, ancestors, root, `useForm({ readOnly })` / `{ disabled }`). The action buttons render nothing otherwise.
  */
 export function useArrayEditable(): boolean {
   const form = useRequiredForm('useArrayEditable()')
   const path = useArrayPath('useArrayEditable()')
-  const select = useCallback((_d: Draft<any>) => form.query(path).$pattern === 'editable', [form, path])
+  const select = useCallback((_d: Draft<any>) => {
+    const field = form.query(path)
+    return field.$visible && !field.$disabled && !field.$readOnly
+  }, [form, path])
   return useWatch(select)
 }
 

@@ -77,7 +77,7 @@ function FormTabRoot({ activeKey, defaultActiveKey, onChange, children, ...rest 
  * </FormTab>
  * ```
  *
- * It is layout only: no value path, so `$pattern` / `$display` inherit along field paths as everywhere else
- * (switch a whole tab with a reaction on its fields, or the root `$pattern`).
+ * It is layout only: no value path, so `$visible` / `$disabled` / `$readOnly` inherit along field paths as everywhere else
+ * (switch a whole tab with a reaction on its fields, or `useForm({ readOnly: true })`).
  */
 export const FormTab = Object.assign(FormTabRoot, { Pane })

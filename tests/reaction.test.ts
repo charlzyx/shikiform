@@ -90,8 +90,8 @@ describe('reaction', () => {
       ],
     })
     expect(form.getValue('line')).toBe(12)
-    expect(form.binding('line').pattern).toBe('readPretty')
-    expect(form.binding('other').pattern).toBe('editable')
+    expect(form.binding('line').readOnly).toBe(false)
+    expect(form.binding('other').readOnly).toBe(false)
   })
 
   it('does not run watch on init and does not mark the target computed', () => {
@@ -115,7 +115,7 @@ describe('reaction', () => {
     form.setValue('a', 2)
     expect(runs).toBe(1)
     expect(form.getValue('b')).toBe(0)
-    expect(form.binding('b').pattern).toBe('editable')
+    expect(form.binding('b').readOnly).toBe(false)
   })
 
   it('skips a reaction whose reads did not change', () => {

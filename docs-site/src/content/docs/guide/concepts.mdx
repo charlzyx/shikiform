@@ -14,12 +14,11 @@ ShikiForm 的核心思路是把所有表单状态（值、显隐、只读、校�
 | **表单实例** | 由 `useForm` 或 `createForm` 返回的 `FormInstance`，统一持有表单数据树与各路径的字段状态 |
 | **draft** | `reaction`、`watch` 和 `form.batch` 回调收到的参数 `d`，用来安全地追踪依赖并读写引擎状态 |
 | **handle** | draft 上的路径句柄（如 `d.user.name`）。属性访问只用于定位路径，不会直接读取数据 |
-| **`$` 状态** | 挂在 handle 上以 `$` 开头的成员（如 `$value`、`$required`、`$display`），用于读写具体的字段状态 |
+| **`$` 状态** | 挂在 handle 上以 `$` 开头的成员（如 `$value`、`$required`、`$visible`），用于读写具体的字段状态 |
 | **`decorator` / `component`** | `<Field>` 渲染的两层结构：`decorator`（如 `FormItem`）负责标签和错误展示，`component`（如 `Input`）负责输入交互 |
 | **`reaction` / `watch`** | `reaction` 用于派生状态，初始化即运行并自动追踪依赖；`watch` 用于副作用动作，仅在监听源变化后触发 |
 | **`each`** | `reaction.each` 与 `watch.each` 只接受两个参数，会为选中数组的每一行建立独立实例，并自动递归进入嵌套对象数组（嵌套在对象上的基本类型数组除外；若直接对基本类型数组本身调用 `each`，则会在 `depth === 0` 触发回调），可在回调内按 `ctx.key` / `ctx.depth` 过滤 |
-| **`display`** | 控制显隐及校验提交行为，包含 `visible`、`hidden`、`virtual`、`none` 四种模式 |
-| **`pattern`** | 控制交互形态（`editable`、`disabled`、`readOnly`、`readPretty`），支持从父级向下继承 |
+| **四个布尔** | `visible`、`disabled`、`readOnly`、`omit`。前三个按字段路径继承，`omit` 只决定是否提交 |
 
 ## handle 与 value 的区别
 
@@ -64,7 +63,7 @@ export default function App() {
       <Space wrap>
         <Button onClick={() => form.batch((d) => { d.user.name.$value = 'Grace'; })}>写 user.name</Button>
         <Button onClick={() => form.batch((d) => { d.user.email.$required = !d.user.email.$required; })}>切换邮箱必填</Button>
-        <Button onClick={() => form.batch((d) => { d.user.email.$pattern = d.user.email.$pattern === 'readPretty' ? undefined : 'readPretty'; })}>切换阅读态</Button>
+        <Button onClick={() => form.batch((d) => { d.user.email.$readOnly = !d.user.email.$readOnly; })}>切换阅读态</Button>
       </Space>
       <Watch select={(d: Draft<Values>) => d.user.$value}>{(user) => <pre>{JSON.stringify(user)}</pre>}</Watch>
     </Form>
@@ -78,35 +77,33 @@ export default function App() {
 
 | 状态 | 作用说明 |
 |---|---|
-| `$value` | 字段的值。被 `reaction` 写入 `$value` 的字段会自动成为**计算字段**（默认展示为 `readPretty`、跳过校验，提交时默认保留值） |
-| `$display` / `$visible` / `$hidden` | 控制显隐及校验提交行为，详见下方 [显隐、pattern 与提交](#显隐pattern-与提交) |
-| `$pattern` / `$disabled` | 控制交互模式；`$pattern = undefined` 可恢复继承父级；`$disabled = true/false` 仅控制由它写入的禁用状态 |
+| `$value` | 字段的值。`reaction` 写入 `$value` 的字段是计算字段：仍然可编辑、仍然提交、不计入 dirty。要预览再写 `readOnly`，不要提交再写 `omit` |
+| `$visible` / `$disabled` / `$readOnly` / `$omit` | 四个独立布尔，详见下方 [四个布尔](#四个布尔) |
 | `$required` / `$rules` | 控制必填与校验规则；由 `reaction` 写入的规则不受组件卸载影响 |
 | `$enum` | 枚举选项（支持静态数组或 `EnumSource.with(params)`），优先级高于 JSX `enum` 与 `fields` 声明；赋 `undefined` 撤销 reaction 层覆盖，赋 `[]` 清空选项 |
 | `$title` / `$description` | 字段标题与辅助说明（映射至 `FormItem` 的 `label` 与 `extra`） |
 | `$component` / `$decorator` | 动态替换 `<Field>` 渲染的控件或装饰器 |
 | `$componentProps` / `$decoratorProps` | 控件与装饰器的透传属性，支持按键打补丁，详见 [UI 状态三层叠加](/guide/field#ui-状态三层叠加) |
 | `$errors` / `$warnings` / `$validating` / `$touched` | 只读状态，分别表示错误列表、警告列表、异步校验中状态及失焦触碰标记 |
-| `$dirty` / `$edited` | 只读状态。`$dirty` 通过深比较判断当前值是否偏离初始值（改回原值即恢复 `false`；表单根上的 `d.$dirty` 不计入 `virtual` 与计算字段，但计入 `none`）；`$edited` 记录用户是否手动编辑过，直到 `reset` 才重置 |
+| `$dirty` / `$edited` | 只读状态。`$dirty` 通过深比较判断当前值是否偏离初始值（改回原值即恢复 `false`；表单根上的 `d.$dirty` 不计入 `omit` 与计算字段；`visible: false` 仍计入）；`$edited` 记录用户是否手动编辑过，直到 `reset` 才重置 |
 | `d.$canSubmit` / `d.$submitting` / `d.$submitCount` | 表单级只读状态，只能在根 draft `d` 上读取 |
 
-## 显隐、pattern 与提交
+## 四个布尔
 
-在实际表单中，「隐藏一个字段」往往对应不同的业务诉求。ShikiForm 用四种 `display` 值精确区分渲染、校验和提交行为（可交互演示见 [字段状态](/basics/state)）：
+字段状态是四个独立布尔（可交互演示见 [字段状态](/basics/state)）：
 
-| 配置方式 | 界面渲染 | 参与校验 | 参与提交 |
+| 配置 | 界面 | 校验 | 提交 |
 |---|---|---|---|
-| `display: 'visible'` | 渲染 | 校验 | 保留在提交结果中，计入 dirty |
-| `display: 'hidden'`（`$hidden = true`） | 不渲染（仍保留注册） | **仍然校验** | **保留在提交结果中**，计入 dirty |
-| `display: 'virtual'` | 渲染 | **仍然校验**（如确认密码） | 剔除该字段及全部子节点，不计入 dirty |
-| `display: 'none'`（`$visible = false`） | 不渲染 | 跳过校验并清除错误 | 剔除；值仍保留在 store 中以便切回时恢复，计入 dirty |
-| `reaction` 写过 `$value` | `readPretty` | 跳过校验 | 保留（声明 `display: 'virtual'` 时才剔除） |
+| 默认 | 渲染 | 校验 | 提交，计入 dirty |
+| `visible: false` | 不渲染（仍注册） | 跳过，并清掉已有错误 | **仍然提交**，计入 dirty |
+| `disabled: true` | 置灰、不可编辑 | 跳过，并清掉已有错误 | 提交 |
+| `readOnly: true` | 渲染预览。和 `disabled` 同时为真时预览优先 | 跳过，并清掉已有错误 | 提交 |
+| `omit: true` | 不影响渲染 | 不影响校验 | 剔除该字段。不计入 dirty |
+| `reaction` 写过 `$value` | 仍可编辑（要预览就再写 `readOnly`） | 按上面三个开关 | 提交，除非 `omit` |
 
-如果之前用过 Formily，需要注意一个关键区别：Formily 中的 `hidden` 会跳过校验，而 ShikiForm 中的 `hidden` 只是隐藏界面，依然会参与校验并随表单提交（适用于未激活的标签页等场景）；想要跳过校验且不提交，请使用 `none`（即 `$visible = false`）。此外，`$visible = true` 的语义是撤销联动层覆盖并回到字段声明时的 `display`，并非强制改成 `visible`。
+`visible` / `disabled` / `readOnly` 按 OR 从父级继承，子级写显式 `false` 可以退出。`omit` 不继承：父级 `omit` 不会把子级的 `$omit` 读成 `true`；删掉一个被 omit 的对象时，嵌套的键会跟着对象一起离开提交结果。
 
-关于继承与叠加机制：祖先节点设为 `none` 时，整棵子树都不会渲染、校验和提交；其余情况下，`hidden` 只关闭渲染、`virtual` 只关闭提交，两者相互独立可以叠加（例如父级 `hidden`、子级 `virtual` 时，子级既不渲染也不提交，但依然会参与校验）。读取 `$display` 时按 `none > hidden > virtual > visible` 的优先级合并。命名 UI 节点（`$ui`）不支持 `virtual`。
-
-`pattern` 同样遵循从父级向下继承的规则：子级显式设置了 `$pattern` 时以自身为准；`$disabled = false` 只会撤销 `$disabled = true` 写入的禁用状态，不会干扰显式指定的 `$pattern`。注意 `disabled` 和 `readOnly` 只限制界面上的用户输入，不影响程序代码通过 `setValue` 或 `reaction` 修改字段值。
+`$flag = undefined` 丢掉 reaction 这一层，回到 JSX / `fields` / 继承。详情页用 `useForm({ readOnly: true })`。
 
 ## 用 `fields` 预声明字段
 
@@ -152,6 +149,6 @@ export default function App() {
 2. 引擎标记受影响的状态，并重新执行订阅了这些状态的 `reaction`；如果有下游依赖，会持续传递直到整个状态树收敛。来源发生变化的 `watch` 也会随后触发一次。
 3. 订阅了相关字段路径的 React 组件收到通知并完成局部重渲染。
 4. 按照触发时机（默认失焦或提交时，可配置为输入时）执行同步及异步校验。
-5. 调用提交时，引擎会先等待尚未完成的异步规则并做最终校验，全部通过后过滤掉 `virtual` 与 `none` 字段（保留 `hidden` 字段），将最终数据交给 `onSubmit` 回调。
+5. 调用提交时，引擎会先等待尚未完成的异步规则并做最终校验，全部通过后去掉 `omit` 的字段（`visible: false` 的值仍在），将最终数据交给 `onSubmit` 回调。
 
 下一步建议阅读 [表单与字段](/guide/field)，了解 `<Field>`、装饰器与控件之间的属性合并和绑定方式。

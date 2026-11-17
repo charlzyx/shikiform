@@ -31,11 +31,11 @@ function itemColumns<T extends Item>(): ArrayTableColumn<T>[] {
   ];
 }
 
-// 子表是只读的：pattern 属于字段，逐个给 <Field> 标 readPretty
+// 子表是只读的：给每个 <Field readOnly>
 function readonlyItemColumns<T extends Item>(): ArrayTableColumn<T>[] {
   return itemColumns<T>().map((column) => column.key === 'index' ? column : {
     ...column,
-    render: () => <Field name={column.key as keyof T & string} pattern="readPretty" decorator={cell} component={[Input]} />,
+    render: () => <Field name={column.key as keyof T & string} readOnly decorator={cell} component={[Input]} />,
   });
 }
 
@@ -124,8 +124,8 @@ export default function App() {
       <ArrayField name="list" rowKey="id" component={[ArrayTable, {
         pagination: { pageSize: 5 },
         columns: [
-          { key: 'id', title: 'ID', width: 80, render: () => <Field name="id" pattern="readPretty" component={[Input]} /> },
-          { key: 'domain', title: '域名', render: () => <Field name="domain" pattern="readPretty" component={[Input]} /> },
+          { key: 'id', title: 'ID', width: 80, render: () => <Field name="id" readOnly component={[Input]} /> },
+          { key: 'domain', title: '域名', render: () => <Field name="domain" readOnly component={[Input]} /> },
           {
             key: 'edit',
             title: '操作',
@@ -242,9 +242,9 @@ async function service(query: Query, page: number, pageSize: number, desc: boole
 const cell = [FormItem, { style: { margin: 0 } }] as const;
 const columns: ArrayTableColumn<Row>[] = [
   { key: 'id', title: 'ID', width: 80, sorter: true, render: ({ record }) => record.id },
-  { key: 'status', title: '状态', width: 120, render: () => <Field name="status" pattern="readPretty" decorator={cell} component={[Select, { prettyType: 'badge' }]} /> },
+  { key: 'status', title: '状态', width: 120, render: () => <Field name="status" readOnly decorator={cell} component={[Select, { prettyType: 'badge' }]} /> },
   { key: 'domain', title: '域名', render: () => <Field name="domain" required decorator={cell} component={[Input]} /> },
-  { key: 'classify', title: '分类', width: 140, hidden: true, render: () => <Field name="classify" pattern="readPretty" decorator={cell} component={[Select, { mode: 'multiple', prettyType: 'tag' }]} /> },
+  { key: 'classify', title: '分类', width: 140, hidden: true, render: () => <Field name="classify" readOnly decorator={cell} component={[Select, { mode: 'multiple', prettyType: 'tag' }]} /> },
 ];
 
 export default function App() {
@@ -360,12 +360,12 @@ export default function App() {
   const form = useForm<Values>({
     initialValues: { demo: { select: 'a', lazySelect: ['o'], radio: 'e', lazyCheckbox: ['a'], badge: ['a', 'o'], tag: ['a', 'e'] } },
   });
-  const setPattern = (pattern?: 'readPretty') => form.batch((d) => { d.demo.$pattern = pattern; });
+  const setReadOnly = (readOnly?: true) => form.batch((d) => { d.demo.$readOnly = readOnly; });
   return (
     <Form form={form}>
       <Space style={{ marginBottom: 12 }}>
-        <Button onClick={() => setPattern('readPretty')}>阅读态</Button>
-        <Button onClick={() => setPattern()}>编辑态</Button>
+        <Button onClick={() => setReadOnly(true)}>阅读态</Button>
+        <Button onClick={() => setReadOnly()}>编辑态</Button>
       </Space>
       <FormLayout labelCol={{ span: 6 }} wrapperCol={{ span: 18 }}>
         <ObjectField name="demo">
@@ -374,9 +374,9 @@ export default function App() {
             component={[Select, { mode: 'multiple', prettyType: 'tag', style: { width: 200 } }]} />
           <Field name="radio" title="Radio" enum={LIST} decorator={[FormItem]} component={[Radio]} />
           <Field name="lazyCheckbox" title="懒加载 Checkbox" enum={remote.with(null)} decorator={[FormItem]} component={[Checkbox.Group]} />
-          <Field name="badge" title="徽标（阅读态）" enum={LIST} pattern="readPretty" decorator={[FormItem]}
+          <Field name="badge" title="徽标（阅读态）" enum={LIST} readOnly decorator={[FormItem]}
             component={[Select, { mode: 'multiple', prettyType: 'badge' }]} />
-          <Field name="tag" title="标签（阅读态）" enum={LIST} pattern="readPretty" decorator={[FormItem]}
+          <Field name="tag" title="标签（阅读态）" enum={LIST} readOnly decorator={[FormItem]}
             component={[Select, { mode: 'multiple', prettyType: 'tag' }]} />
         </ObjectField>
       </FormLayout>
@@ -386,8 +386,8 @@ export default function App() {
 ```
 
 - 通过 `EnumSource.from(loader).with(params)` 定义的远程枚举会在相同参数下共享加载结果，加载期间下拉控件自动展示 `loading`；若参数依赖其他字段，在 `reaction` 中赋值 `d.city.$enum = Cities.with(d.province.$value)` 即可在参数变化时自动重新加载并作废过期请求。
-- 切换到 `readPretty` 模式后，选择类控件会自动根据枚举翻译出 `label`（多选展示为标签），传入 `prettyType="badge"` 或 `prettyType="tag"` 可以配合选项上的 `color` 渲染为徽标或彩色标签。
-- 表格中的纯展示状态列可以直接给字段传入 `pattern="readPretty"`；在表单上下文之外单独展示枚举标签时，使用 `<PreviewText.Select value options prettyType />`。
+- `readOnly` 时选择类控件把值翻译成 `label`（多选是标签）。`prettyType="badge"` 或 `"tag"` 配合选项上的 `color` 画成徽标或彩色标签。
+- 表格中的纯展示状态列可以直接给字段传入 `readOnly`；在表单上下文之外单独展示枚举标签时，使用 `<PreviewText.Select value options prettyType />`。
 
 ## Suggestion：远程联想
 
@@ -459,12 +459,12 @@ export default function App() {
       labeled: [{ label: '浙江省', value: '330000' }, { label: '杭州市', value: '330100' }, { label: '西湖区', value: '330106' }],
     },
   });
-  const setPattern = (pattern?: 'readPretty') => form.batch((d) => { d.area.$pattern = pattern; d.labeled.$pattern = pattern; });
+  const setReadOnly = (readOnly?: true) => form.batch((d) => { d.area.$readOnly = readOnly; d.labeled.$readOnly = readOnly; });
   return (
     <Form form={form}>
       <Space style={{ marginBottom: 12 }}>
-        <Button onClick={() => setPattern('readPretty')}>阅读态</Button>
-        <Button onClick={() => setPattern()}>编辑态</Button>
+        <Button onClick={() => setReadOnly(true)}>阅读态</Button>
+        <Button onClick={() => setReadOnly()}>编辑态</Button>
       </Space>
       <FormLayout labelCol={{ span: 6 }} wrapperCol={{ span: 18 }}>
         <Field name="area" title="编码" decorator={[FormItem]} component={[CascaderPlus, { loadData: loadArea, style: { width: 280 } }]} />

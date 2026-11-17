@@ -68,11 +68,11 @@ describe('format / parse', () => {
     const Pretty = connect(DateInput, mapProps({
       format: (value: string | undefined) => (value ? new Date(value) : null),
       parse: (next: Date | null) => next?.toISOString(),
-      readPretty: function View({ value }: { value?: string }) {
+      preview: function View({ value }: { value?: string }) {
         return <span data-read-pretty>{value}</span>
       },
     }))
-    const form = createEngine({ initialValues: { day: '2026-11-09', shown: '2026-11-09' }, fields: { shown: { pattern: 'readPretty' } } })
+    const form = createEngine({ initialValues: { day: '2026-11-09', shown: '2026-11-09' }, fields: { shown: { readOnly: true } } })
     const view = render(
       <Form form={form}>
         <Field name="day" component={[Picker]} />

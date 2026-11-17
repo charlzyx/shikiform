@@ -101,13 +101,13 @@ export interface FormMessages {
   ok: MessageTemplate<NoParams>
   /** Shadow drawer cancel. */
   cancel: MessageTemplate<NoParams>
-  /** Shadow modal / drawer / popconfirm close in `readPretty` / `readOnly`. */
+  /** Shadow modal / drawer / popconfirm close when the form is `readOnly`. */
   close: MessageTemplate<NoParams>
   /** `PreviewText` for `true`. */
   yes: MessageTemplate<NoParams>
   /** `PreviewText` for `false`. */
   no: MessageTemplate<NoParams>
-  /** Read views (`PreviewText.*`, every control's `readPretty`) for an empty value. Default `-`. */
+  /** Preview views (`PreviewText.*`, every control's `readOnly` view) for an empty value. Default `-`. */
   empty: MessageTemplate<NoParams>
 }
 

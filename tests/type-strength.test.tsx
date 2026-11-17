@@ -110,9 +110,9 @@ function submitInference() {
   const form = createForm({
     initialValues: { name: '', confirm: '', ghost: '', tab: '' },
     fields: {
-      confirm: { display: 'virtual' },
-      ghost: { display: 'none' },
-      tab: { display: 'hidden' },
+      confirm: { omit: true },
+      ghost: { visible: false, omit: true },
+      tab: { visible: false },
     },
   })
   void form.submit((values) => {
@@ -170,9 +170,9 @@ function submitWithTypeArg() {
   type V = { name: string; confirm: string; ghost: string; tab: string }
   const init = { name: '', confirm: '', ghost: '', tab: '' }
   const fields = {
-    confirm: { display: 'virtual' as const },
-    ghost: { display: 'none' as const },
-    tab: { display: 'hidden' as const },
+    confirm: { omit: true as const },
+    ghost: { visible: false, omit: true as const },
+    tab: { visible: false as const },
   }
   const inferred = typed<V>().createForm({ initialValues: init, fields })
   void inferred.submit((values) => {

@@ -43,11 +43,10 @@ export interface RunOptions {
 /** Draft key → the write-op state it would read back. */
 const WRITTEN_STATE: Record<string, string> = {
   $value: 'value',
-  $visible: 'display',
-  $hidden: 'display',
-  $display: 'display',
-  $pattern: 'pattern',
-  $disabled: 'pattern',
+  $visible: 'visible',
+  $disabled: 'disabled',
+  $readOnly: 'readOnly',
+  $omit: 'omit',
   $required: 'required',
   $enum: 'enum',
   $rules: 'rules',
@@ -178,7 +177,7 @@ export class Scheduler {
     tracker.deps.add(`${path}:${state}`)
   }
 
-  /** Record reads on `path`, every ancestor and the root (inherited states: display, pattern). */
+  /** Record reads on `path`, every ancestor and the root (inherited flags: visible, disabled, readOnly). */
   trackChain(path: string, state: string): void {
     for (const cursor of selfAndAncestors(path)) this.track(cursor, state)
   }

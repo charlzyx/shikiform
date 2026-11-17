@@ -48,9 +48,9 @@ const cell = { style: { margin: 0 } }
 
 const columns: ArrayTableColumn<DomainRow>[] = [
   { key: 'id', title: 'ID', width: 80, align: 'center', sorter: true, render: ({ record }) => <span data-testid="row-id">{record.id}</span> },
-  { key: 'status', title: '状态', width: 110, align: 'center', render: () => <Field name="status" pattern="readPretty" decorator={[FormItem, cell]}><Select prettyType="badge" /></Field> },
+  { key: 'status', title: '状态', width: 110, align: 'center', render: () => <Field name="status" readOnly decorator={[FormItem, cell]}><Select prettyType="badge" /></Field> },
   { key: 'domain', title: '域名', align: 'center', render: ({ index }) => <Field name="domain" decorator={[FormItem, cell]}><Input data-testid={`domain-${index}`} /></Field> },
-  { key: 'classify', title: '分类', width: 160, hidden: true, render: () => <Field name="classify" pattern="readPretty" decorator={[FormItem, cell]}><Select mode="multiple" prettyType="tag" /></Field> },
+  { key: 'classify', title: '分类', width: 160, hidden: true, render: () => <Field name="classify" readOnly decorator={[FormItem, cell]}><Select mode="multiple" prettyType="tag" /></Field> },
   { key: 'date', title: '日期', width: 120, render: ({ record }) => record.date },
 ]
 

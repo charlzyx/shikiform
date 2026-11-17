@@ -7,6 +7,7 @@ import { Scheduler } from '../effects/scheduler'
 import { clone } from '../shared/equal'
 import { deleteAt, getAt, normalizePath, setAt } from '../shared/path'
 import { shownErrors } from '../state/field-model'
+import { setRootFlag } from '../state/flags'
 import { FieldStore } from '../state/field-store'
 import { Notifier } from '../state/notifier'
 import { ArrayOps } from '../structure/arrays'
@@ -86,7 +87,9 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     for (const [path, spec] of Object.entries(options.fields ?? {}) as [string, FieldSpec | undefined][]) {
       if (spec) this.registerField(path, spec)
     }
-    if (options.pattern) this.writeState('', '$pattern', options.pattern)
+    const root = store.ensure('')
+    setRootFlag(root, 'readOnly', options.readOnly)
+    setRootFlag(root, 'disabled', options.disabled)
     for (const effect of options.effects ?? []) effect.install(this)
     scheduler.flush()
     declarations.applyItemTemplates()
@@ -108,7 +111,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   /** True while a validate pass is running, including the async rules it waits for. */
   get validating(): boolean { return this.store.validating }
 
-  /** Values differ from {@link FormEngine.initial} (deep; reverting clears it). `display: 'virtual'` / computed fields are ignored. `none` counts. */
+  /** Values differ from {@link FormEngine.initial} (deep; reverting clears it). `omit` and computed fields are ignored. Hidden fields count. */
   get dirty(): boolean { return this.baseline.formDirty() }
 
   /** Sticky: a user edit (`setValue`, `binding().onChange`) happened since `reset`. A reaction write does not count. */
@@ -125,13 +128,13 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     this.scheduler.devtools = on
   }
 
-  /** Messages for every field whose effective display is not `none`. */
+  /** Messages for every field that still validates (`visible && !disabled && !readOnly`). */
   get errors(): FieldError[] {
     return this.validator.errors()
   }
 
   /**
-   * False during submit/validation, or when a field that is not display `none` has errors.
+   * False during submit/validation, or when a field that still validates has errors.
    * Fields that have not been validated yet do not block.
    */
   get canSubmit(): boolean {
@@ -139,7 +142,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     if (store.submitting || store.validating) return false
     for (const field of store.fields.values()) {
       if (field.validating) return false
-      if (store.effectiveDisplay(field.path) === 'none') continue
+      if (!store.acceptsValidation(field.path)) continue
       if (shownErrors(field).length) return false
     }
     return true
@@ -179,14 +182,14 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   }
 
   /**
-   * Values with the submit switch off removed (`virtual`, `none`, and everything under them).
-   * `hidden` is kept. A node that reads as `hidden` because a hidden ancestor outranks its own `virtual`
-   * is still omitted. Typed `TSubmit` (default `T`, see `SubmitValues`).
+   * Values with each field whose own `omit` is set removed. `omit` does not inherit; removing an
+   * omitted object drops the nested keys with it. Hidden / disabled / read-only values are kept.
+   * Typed `TSubmit` (default `T`, see `SubmitValues`).
    */
   getSubmitValues(): TSubmit {
     let out = clone(this.store.values)
     const omit = [...this.store.fields.keys()]
-      .filter((path) => path && !this.store.displayFlags(path).submit)
+      .filter((path) => path && this.store.effective(path, 'omit'))
       .sort((a, b) => b.length - a.length)
     for (const path of omit) out = deleteAt(out, path)
     return out as unknown as TSubmit
@@ -265,7 +268,8 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
 
   /**
    * Validate `path` and its descendants, or the whole form. An array validates those paths in one pass.
-   * Resolves when the scope is clean. Rejects `FieldError[]` when it is not. Display `none` is skipped; `hidden` is not.
+   * Resolves when the scope is clean. Rejects `FieldError[]` when it is not.
+   * Hidden, disabled and read-only fields are skipped and their errors cleared.
    */
   async validate(path?: FieldPath<T> | readonly FieldPath<T>[]): Promise<void> {
     const errors = await this.validator.validate(path as string | readonly string[] | undefined)
@@ -522,26 +526,14 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     if (key === '$errors') return this.validator.aggregate(path, 'errors')
     if (key === '$warnings') return this.validator.aggregate(path, 'warnings')
     const field = store.ensure(path)
-    if (key === '$visible') {
-      scheduler.trackChain(path, 'display')
-      // True whenever the field renders: `visible` or `virtual`, and no ancestor `hidden` / `none`.
-      return store.displayFlags(path).render
+    if (key === '$visible' || key === '$disabled' || key === '$readOnly') {
+      const name = key.slice(1) as 'visible' | 'disabled' | 'readOnly'
+      scheduler.trackChain(path, name)
+      return store.effective(path, name)
     }
-    if (key === '$hidden') {
-      scheduler.trackChain(path, 'display')
-      return store.effectiveDisplay(path) === 'hidden'
-    }
-    if (key === '$display') {
-      scheduler.trackChain(path, 'display')
-      return store.effectiveDisplay(path)
-    }
-    if (key === '$pattern') {
-      scheduler.trackChain(path, 'pattern')
-      return store.effectivePattern(path)
-    }
-    if (key === '$disabled') {
-      scheduler.trackChain(path, 'pattern')
-      return store.effectivePattern(path) === 'disabled'
+    if (key === '$omit') {
+      scheduler.track(path, 'omit')
+      return store.effective(path, 'omit')
     }
     if (key === '$required') {
       scheduler.track(path, 'required')
@@ -625,6 +617,11 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     this.declarations.releaseJsxField(path, lease)
   }
 
+  /** Drop JSX `visible` / `disabled` / `readOnly` / `omit` on `path` (the declaration shows through again). */
+  releaseJsxFlags(path: string): void {
+    this.declarations.releaseJsxFlags(path)
+  }
+
   /**
    * Apply a JSX `<Field enum>` (static list, primitives, or `EnumSource.with(params)`) to `path`.
    * Precedence: reaction `$enum` > JSX `enum` > `fields` / `registerField` > item template. `useField` calls it with
@@ -641,26 +638,26 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   }
 
   /**
-   * Input props for `path`: value, errors, display, pattern, touched, dirty, validating, and UI state.
-   * `errors` is empty when the effective display is `none`. `ui` is the render-time JSX layer (`<Field title>`).
+   * Input props for `path`: value, errors, the four flags, touched, dirty, validating, and UI state.
+   * `errors` is empty when the field does not validate. `ui` is the render-time JSX layer (`<Field title>`).
    */
   binding(path: string, ui?: FieldUiSpec) {
     const store = this.store
     const field = store.get(path)
-    const pattern = store.effectivePattern(path)
-    const display = store.effectiveDisplay(path)
+    const active = store.acceptsValidation(path)
+    const readOnly = store.effective(path, 'readOnly')
     return {
       path,
       value: getAt(store.values, path),
       onChange: (value: unknown) => this.writer.commitExternal(path, value),
       onBlur: () => this.blur(path),
-      errors: field ? shownErrors(field) : [],
-      warnings: field?.warnings.slice() ?? [],
-      display,
-      pattern,
+      errors: field && active ? shownErrors(field) : [],
+      warnings: field && active ? field.warnings.slice() : [],
+      visible: store.effective(path, 'visible'),
+      disabled: store.effective(path, 'disabled'),
+      readOnly,
+      omit: store.effective(path, 'omit'),
       required: !!field?.required,
-      disabled: pattern === 'disabled',
-      readOnly: pattern === 'readOnly',
       touched: field?.touched ?? false,
       dirty: path ? this.baseline.fieldDirty(path) : this.baseline.formDirty(),
       edited: path ? (field?.edited ?? false) : store.edited,
@@ -676,7 +673,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   blur(path: string): void { this.writer.blur(path) }
 
   /**
-   * A named UI on `path`: `'field'` (`<Field ui>`) = the field binding with this instance's display / pattern / UI
+   * A named UI on `path`: `'field'` (`<Field ui>`) = the field binding with this instance's flags / UI
    * state and id `<path>--<ui>` (React then adds the `<Form>` prefix: `id` prop or `useId()`); `'node'` (`<UI>`) = only UI state. Subscribe to `uiId(path, name)` and `path`.
    */
   uiBinding(path: string, name: string, jsx: UiJsx | undefined, kind: 'field'): ReturnType<FormEngine['binding']> & { ui: string }
@@ -685,7 +682,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     const view = this.uiNodes.view(path, name, jsx, kind)
     const id = uiDomId(path, name)
     if (kind === 'node') return { ...view, id, ui: name }
-    return { ...this.binding(path), ...view, id, ui: name, disabled: view.pattern === 'disabled', readOnly: view.pattern === 'readOnly' }
+    return { ...this.binding(path), ...view, id, ui: name }
   }
 
   /** @internal A mounted `<Field ui>` / `<UI>`; returns the release. */

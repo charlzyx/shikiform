@@ -18,17 +18,17 @@ describe('named UI nodes (core)', () => {
         }),
       ],
     })
-    const echo = form.uiBinding('name', 'echo', { pattern: 'readPretty' }, 'field')
-    expect(echo.pattern).toBe('readPretty')
-    expect(echo.display).toBe('visible')
+    const echo = form.uiBinding('name', 'echo', { readOnly: true }, 'field')
+    expect(echo.readOnly).toBe(true)
+    expect(echo.visible).toBe(true)
     expect(echo.componentProps).toEqual({})
     form.setValue('name', 'red')
     expect(form.uiBinding('name', 'echo', undefined, 'field').componentProps).toEqual({ style: { color: 'red' } })
     // the field itself is untouched
     expect(form.binding('name').componentProps).toEqual({})
     // pattern falls back to the field (inherits root) when the instance sets none
-    form.batch((d) => { d.$pattern = 'disabled' })
-    expect(form.uiBinding('name', 'echo', undefined, 'field').pattern).toBe('disabled')
+    form.batch((d) => { d.$disabled = true })
+    expect(form.uiBinding('name', 'echo', undefined, 'field').disabled).toBe(true)
     // title falls back to the field's for a field instance, not for a pure node
     form.claimUi('name', 'echo', 'field')
     expect(form.uiBinding('name', 'echo', undefined, 'field').title).toBe('姓名')
@@ -40,18 +40,18 @@ describe('named UI nodes (core)', () => {
       initialValues: { amount: 0, flag: false },
       effects: [
         defineEffects<{ amount: number; flag: boolean }>(({ reaction }) => {
-          reaction((d) => { d.amount.$ui('slider').$pattern = d.flag.$value ? 'disabled' : undefined })
-          reaction((d) => { seen.push(d.amount.$ui('slider').$pattern) })
+          reaction((d) => { d.amount.$ui('slider').$disabled = d.flag.$value ? true : undefined })
+          reaction((d) => { seen.push(d.amount.$ui('slider').$disabled) })
         }),
       ],
     })
-    expect(form.uiBinding('amount', 'slider', { pattern: 'readOnly' }, 'field').pattern).toBe('readOnly')
+    expect(form.uiBinding('amount', 'slider', { readOnly: true }, 'field').readOnly).toBe(true)
     form.setValue('flag', true)
-    expect(form.uiBinding('amount', 'slider', { pattern: 'readOnly' }, 'field').pattern).toBe('disabled')
-    expect(form.binding('amount').pattern).toBe('editable')
-    expect(seen.at(-1)).toBe('disabled')
+    expect(form.uiBinding('amount', 'slider', { readOnly: true }, 'field').disabled).toBe(true)
+    expect(form.binding('amount').readOnly).toBe(false)
+    expect(seen.at(-1)).toBe(true)
     form.setValue('flag', false)
-    expect(seen.at(-1)).toBe('editable')
+    expect(seen.at(-1)).toBe(false)
   })
 
   it('a pure UI node is never in values / submit / validation', async () => {
@@ -63,9 +63,9 @@ describe('named UI nodes (core)', () => {
         }),
       ],
     })
-    expect(form.uiBinding('', 'approvalTip', undefined, 'node').display).toBe('none')
+    expect(form.uiBinding('', 'approvalTip', undefined, 'node').visible).toBe(false)
     form.setValue('amount', 60000)
-    expect(form.uiBinding('', 'approvalTip', undefined, 'node').display).toBe('visible')
+    expect(form.uiBinding('', 'approvalTip', undefined, 'node').visible).toBe(true)
     const result = await form.submit()
     expect(result).toEqual({ amount: 60000 })
     expect(form.values).toEqual({ amount: 60000 })
@@ -74,7 +74,7 @@ describe('named UI nodes (core)', () => {
   it('hiding a UI node does not change any field', async () => {
     const form = createEngine({ initialValues: { a: '' }, fields: { a: { required: true } } })
     form.batch((d) => { d.$ui('box').$visible = false; d.a.$ui('echo').$visible = false })
-    expect(form.binding('a').display).toBe('visible')
+    expect(form.binding('a').visible).toBe(true)
     await expect(form.submit()).rejects.toEqual(expect.any(Array))
   })
 

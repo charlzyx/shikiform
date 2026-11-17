@@ -3,7 +3,7 @@
  * - `useQueryTable` → `QueryList`;
  * - `useArrayTable` + `useColumnSettings` → `ArrayTable`;
  * - `useShadowForm` → `ShadowForm`, `ShadowModal`, `ShadowDrawer`, `ShadowPopconfirm`;
- * - `useSuggestion` → `Suggestion`; `useLazyCascader` / `useCascaderLabels` → `CascaderPlus`; `enumItems` → `PreviewText.Select` (choice controls' `readPretty`).
+ * - `useSuggestion` → `Suggestion`; `useLazyCascader` / `useCascaderLabels` → `CascaderPlus`; `enumItems` → `PreviewText.Select` (choice controls' `preview`).
  *
  * @packageDocumentation
  */

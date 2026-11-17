@@ -2,11 +2,10 @@ import type { EnumPolicy, ArrayPath, EffectDef, ValidateTrigger } from './types'
 import type { FieldsInput } from './types-submit'
 import type { StandardSchemaV1 } from './validation/schema'
 import type { FormMessages } from './validation/messages'
-import type { Pattern } from './types-display'
 
 /**
  * Options for {@link createForm} / `useForm`. `T` is the form value.
- * `fields` checks `rules` / `enum` against each path. `display: 'virtual'` and `'none'` become optional on submit
+ * `fields` checks `rules` / `enum` against each path. `omit: true` becomes optional on submit
  * when the second type argument is omitted.
  */
 export interface FormOptions<T> {
@@ -20,14 +19,14 @@ export interface FormOptions<T> {
    * A key such as `rows.*.name` is an item template: the spec is applied to every current index.
    * An exact path, `registerField`, and `$rules` / `$required` win over the template.
    * JSX `rules` and `required` apply only while that `<Field>` is mounted and do not erase this spec on unmount.
-   * `selectedKeys` and client-paging `page` are usually `{ display: 'virtual' }`.
+   * `selectedKeys` and client-paging `page` are usually `{ omit: true }`.
    */
   fields?: FieldsInput<T>
   /**
    * Cross-field check. A Standard Schema's issue `path` is written onto that field's `$errors`
    * (`['items', 0, 'name']` → `items.0.name`, `['nodes', 0, 'children', 1, 'name']` → `nodes.0.children.1.name`).
-   * Display `none` drops the issue (the field is not validated and does not block submit).
-   * Display `hidden` keeps the issue. A function return is the same path → message map.
+   * A field that is hidden, disabled or read-only drops the issue (it is not validated and does not block submit).
+   * A function return is the same path → message map.
    */
   validate?:
     | StandardSchemaV1<T>
@@ -52,11 +51,17 @@ export interface FormOptions<T> {
    */
   messages?: Partial<FormMessages>
   /**
-   * Initial pattern of the whole form: the root `$pattern`, inherited by every field without its own pattern
-   * (`'readPretty'` for a detail page, `'disabled'` while loading). Change it later with `d.$pattern = …`;
-   * `d.$pattern = undefined` makes the form editable again.
+   * Initial read-only of the whole form: the root `$readOnly`, inherited by every field (OR).
+   * A detail page passes `true` so every control renders its preview. A field's own `readOnly: false`
+   * exits it. Change it later with `d.$readOnly = …`; `d.$readOnly = undefined` inherits again
+   * (the root then goes back to editable).
    */
-  pattern?: Pattern
+  readOnly?: boolean
+  /**
+   * Initial disabled of the whole form: the root `$disabled`, inherited by every field (OR).
+   * A field's own `disabled: false` exits it. `readOnly` wins on a field where both are set.
+   */
+  disabled?: boolean
   /** Log each pass when true. */
   devtools?: boolean
   /** Tree roots that effects address before React mounts. Keys are array paths (`ArrayPath<T>`). */

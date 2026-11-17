@@ -1,44 +1,37 @@
 ---
 title: 字段状态
-description: 详解 $value、四种 display 显隐模式以及 pattern 交互态的继承与覆盖规则。
+description: 详解 $value 以及 visible、disabled、readOnly、omit 四个独立布尔。
 ---
 
-在 ShikiForm 的表单模型中，字段的所有自身状态都以 `$` 开头挂在 handle 上，最常打交道的是 `$value`、`$display` 和 `$pattern`。
+在 ShikiForm 的表单模型中，字段的所有自身状态都以 `$` 开头挂在 handle 上。显隐和能否编辑是四个独立布尔：`$visible`、`$disabled`、`$readOnly`、`$omit`。
 
-另外，如果某个字段的 `$value` 由 `reaction` 写入，引擎会自动将其视为「计算字段」：界面上默认切换为只读展示（`readPretty`），提交时默认保留它的计算结果。如果你希望计算结果只做前端展示而不随表单提交，为该字段声明 `display: 'virtual'` 即可。
+`reaction` 写入 `$value` 的字段是计算字段：仍然可编辑，也仍然提交，不计入 dirty。要预览就再写 `readOnly`；不要提交就声明 `omit: true`。
 
-## 四种 display
+## 四个布尔
 
-表单中的隐藏逻辑往往不只「看不见」这么简单，有时希望藏起来但仍要校验提交（例如多标签页表单），有时希望显示出来校验但不要提交（例如确认密码）。为此，ShikiForm 将 `display` 细分为四种模式：
-
-| 模式 | 界面渲染 | 参与校验 | 参与提交 | 计入 dirty |
+| 开关 | 默认 | 界面 | 校验 | 提交 |
 |---|---|---|---|---|
-| `visible` | 是 | 是 | 是 | 是 |
-| `hidden` | 否（字段仍注册） | 是 | 是 | 是 |
-| `virtual` | 是 | 是（报错会阻止提交） | 否（整棵子树剔除） | 否 |
-| `none` | 否 | 否（并清空已有错误） | 否 | 是 |
+| `visible` | `true` | 是否渲染 | `false` 时跳过并清错 | 仍然提交，计入 dirty |
+| `disabled` | `false` | 置灰、不可编辑 | 跳过并清错 | 提交 |
+| `readOnly` | `false` | 渲染预览。与 `disabled` 同时为真时预览优先 | 跳过并清错 | 提交 |
+| `omit` | `false` | 不影响 | 不影响 | 剔除该字段，不计入 dirty |
 
-当字段处于 `none` 状态时，它的值依然保留在引擎的 store 中不会被清空；之后重新切回可见时，用户之前输入的内容还在。
-
-为了方便日常编写，引擎提供了两个快捷属性：
-- **`$visible`**：设置 `$visible = false` 等价于切换为 `none`；设置 `$visible = true` 会清除当前联动写入的 display，恢复到字段声明的默认状态（而非强制设为 `visible`）。读取 `$visible` 时，只要字段在界面上实际可见（自身为 `visible` 或 `virtual`，且所有祖先均不为 `hidden` / `none`），结果就为 `true`。
-- **`$hidden`**：设置 `$hidden = true` 等价于设为 `hidden`；设置 `$hidden = false` 只会取消 `hidden` 标记，如果字段原先是 `none` 或 `virtual` 则保持不变。
-
-在层级嵌套时，祖先的 `none` 会直接覆盖整个子树。其余情况下，`hidden` 只控制是否渲染，`virtual` 只控制是否提交，两者可以叠加生效——例如父级是 `hidden`、子级是 `virtual` 时，子级既不渲染也不参与提交，但依然会参与校验。读取 `$display` 时按 `none > hidden > virtual > visible` 的优先级合并。
-
-按场景选用的经验法则：条件显隐字段用 `$visible`；未激活的标签页内容用 `$hidden`；确认密码或前端分页页码等纯辅助字段用 `display: 'virtual'`。
+沿字段路径从根走到自己：这一层写了 `true` 或 `false` 就用这一层，没写就保持上一层。所以父级 `disabled: true`、子级 `disabled: false` 时，子级可以编辑。`FormLayout` / `FormTab` 不是字段路径上的父级。`omit` 不继承。赋 `undefined` 丢掉 reaction 层。隐藏后再显示，值还在。关掉校验门会清掉已有错误；再打开时不会自动重跑，要等下一次 blur、`validate` 或 `submit`。`disabled` 的字段照常提交，这和 react-hook-form 相反。
 
 ```tsx preview
 import { useState } from 'react';
 import { defineEffects, Form, typed, useForm, Watch, type Draft } from '@shikiform/react';
 import { FormItem, Input, Select, Submit } from '@shikiform/antd';
 
-type Mode = 'visible' | 'hidden' | 'virtual' | 'none';
+type Mode = 'visible' | 'hidden' | 'omit' | 'readOnly';
 type Values = { mode: Mode; nick: string };
 
 const effects = defineEffects<Values>(({ reaction }) => {
   reaction((d) => {
-    d.nick.$display = d.mode.$value;
+    const mode = d.mode.$value;
+    d.nick.$visible = mode !== 'hidden';
+    d.nick.$omit = mode === 'omit';
+    d.nick.$readOnly = mode === 'readOnly';
   });
 });
 
@@ -50,8 +43,8 @@ export default function App() {
     <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
       <F.Field
         name="mode"
-        title="display"
-        enum={['visible', 'hidden', 'virtual', 'none']}
+        title="状态"
+        enum={['visible', 'hidden', 'omit', 'readOnly']}
         decorator={[FormItem]}
         component={[Select, { style: { width: 160 } }]}
       />
@@ -65,20 +58,16 @@ export default function App() {
 ```
 
 可以在上面的例子中切换选项观察差异：
-- 选 `hidden` 时，输入框从界面消失，但清空后再提交依然会报必填错误；填入内容后，提交的 JSON 中仍会包含 `nick`。
-- 选 `virtual` 时，输入框正常显示、`$visible` 为 `true`，但提交的 JSON 中不会包含 `nick`。
-- 选 `none` 时，输入框消失，既不校验也不会出现在提交结果中。
+- 选 `hidden` 时，输入框消失，也不再校验；提交的 JSON 里仍然有 `nick`。
+- 选 `omit` 时，输入框还在、空值会拦住提交，通过之后 JSON 里没有 `nick`。
+- 选 `readOnly` 时，输入框换成预览，不校验，值照常提交。
 
-<Aside type="caution" title="区分 $visible = false 与 hidden">
-`$visible = false` 对应的是 `none`（不渲染、不校验、不提交），而 `hidden` 仅仅是不渲染界面，依然会校验并参与提交。需要「隐藏但保留校验和提交」时，请使用 `$hidden = true` 或 `$display = 'hidden'`。
+<Aside type="caution" title="隐藏不等于不提交">
+`$visible = false` 只是不渲染、不校验。值仍然提交。不进提交结果要再写 `$omit = true`。`omit` 不从父级继承。
 </Aside>
 
-## 交互形态（pattern）
+## 禁用和只读
 
-`pattern` 用于控制字段的交互模式，支持四种取值：`editable`（可编辑）、`disabled`（禁用）、`readOnly`（只读）和 `readPretty`（阅读态）。
+`disabled` 把控件置灰。`readOnly` 换成预览组件。两个都是 `true` 时渲染预览。
 
-`pattern` 支持沿着字段路径从父级向子级继承（包括根表单本身）。如果子字段显式设置了自己的 `$pattern`，则会优先使用自身的值；赋值为 `undefined` 时重新恢复继承。
-
-在详情页等只读展示场景中，可以在创建表单时直接设置 `useForm({ initialValues, pattern: 'readPretty' })`；如果需要在运行时一键切换整张表单的编辑/阅读状态，只需在批量更新中修改根节点：`form.batch((d) => { d.$pattern = 'readPretty' })`。
-
-对于常用的禁用切换，还可以使用快捷属性 `$disabled`：`$disabled = true` 会写入 `disabled`，`$disabled = false` 则撤销这一层禁用标记并恢复继承。
+它们和 `visible` 一样按 OR 从父级继承，显式 `false` 退出。赋 `undefined` 丢掉 reaction 层。详情页：`useForm({ readOnly: true })`，或运行时 `form.batch((d) => { d.$readOnly = true })`。

@@ -24,7 +24,9 @@ describe('self-review: realistic signup form', () => {
     expect(onSubmit).not.toHaveBeenCalled()
     const text = view.container.textContent!
     expect(text).not.toContain('至少 3 个字符')
-    expect(text).toContain('地址必填必填')
+    // City stays disabled until a province is chosen, so it does not validate.
+    expect(text).toContain('地址必填')
+    expect(text).not.toContain('地址必填必填')
     expect(text).toContain('联系人必填')
   })
 
@@ -53,20 +55,20 @@ describe('self-review: realistic signup form', () => {
 
 describe('root draft pattern / display', () => {
   it('d.$pattern on the root is inherited by every field; a field with its own pattern wins; undefined clears', () => {
-    const form = createEngine({ initialValues: { a: '', b: { c: '' } }, fields: { a: { pattern: 'editable' } } })
-    form.batch((d) => { d.$pattern = 'disabled' })
-    expect(form.binding('b.c').pattern).toBe('disabled')
-    expect(form.binding('a').pattern).toBe('editable')
-    form.batch((d) => { d.$pattern = undefined })
-    expect(form.binding('b.c').pattern).toBe('editable')
+    const form = createEngine({ initialValues: { a: '', b: { c: '' } }, fields: { a: { readOnly: false, disabled: false } } })
+    form.batch((d) => { d.$disabled = true })
+    expect(form.binding('b.c').disabled).toBe(true)
+    expect(form.binding('a').readOnly).toBe(false)
+    form.batch((d) => { d.$readOnly = undefined; d.$disabled = undefined })
+    expect(form.binding('b.c').readOnly).toBe(false)
   })
 
   it('a reaction reading a field pattern re-runs when the root pattern changes', () => {
-    const seen: string[] = []
-    const effects = defineEffects<{ a: string }>(({ reaction }) => reaction((d) => { seen.push(d.a.$pattern ?? '') }))
+    const seen: boolean[] = []
+    const effects = defineEffects<{ a: string }>(({ reaction }) => reaction((d) => { seen.push(d.a.$readOnly) }))
     const form = createEngine({ initialValues: { a: '' }, effects: [effects] })
-    form.batch((d) => { d.$pattern = 'readPretty' })
-    expect(seen.at(-1)).toBe('readPretty')
+    form.batch((d) => { d.$readOnly = true })
+    expect(seen.at(-1)).toBe(true)
   })
 
   it('empty values pass length / pattern / range constraints; required still reports them', async () => {

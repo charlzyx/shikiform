@@ -8,11 +8,10 @@ export const PATH = Symbol('shikiform.path')
 const STATE = new Set([
   '$value',
   '$visible',
-  '$hidden',
-  '$display',
-  '$required',
   '$disabled',
-  '$pattern',
+  '$readOnly',
+  '$omit',
+  '$required',
   '$enum',
   '$rules',
   '$title',
@@ -41,11 +40,10 @@ const STATE = new Set([
 const WRITABLE = new Set([
   '$value',
   '$visible',
-  '$hidden',
-  '$display',
-  '$required',
   '$disabled',
-  '$pattern',
+  '$readOnly',
+  '$omit',
+  '$required',
   '$enum',
   '$rules',
   '$title',
@@ -165,7 +163,7 @@ export function createHandle(host: DraftHost, path: string): any {
 }
 
 /**
- * `d.x.$ui('echo')` / `d.$ui('tip')`: a handle on one named UI node. Only UI state (`$visible`, `$pattern`,
+ * `d.x.$ui('echo')` / `d.$ui('tip')`: a handle on one named UI node. Only UI state (`$visible`, `$readOnly`,
  * `$componentProps` …); the node has no value or children.
  */
 export function createUiHandle(host: DraftHost, path: string, name: string): any {

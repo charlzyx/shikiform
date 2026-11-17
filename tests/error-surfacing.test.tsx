@@ -274,14 +274,14 @@ describe('pure-layout FormItem shows the errors inside it', () => {
 
 describe('array row actions follow the pattern', () => {
   function Table({ form }: { form: FormInstance<{ list: { a: string }[] }> }) {
-    const [pattern, setPattern] = useState<'editable' | 'readPretty'>('editable')
+    const [readOnly, setReadOnly] = useState(false)
     return (
       <Form form={form}>
         <button data-testid="toggle" type="button" onClick={() => {
-          const next = pattern === 'editable' ? 'readPretty' : 'editable'
-          setPattern(next)
+          const next = !readOnly
+          setReadOnly(next)
           form.batch((d) => {
-            d.$pattern = next
+            d.$readOnly = next
           })
         }} />
         <ArrayField name="list" component={[ArrayTable, {
@@ -311,7 +311,7 @@ describe('array row actions follow the pattern', () => {
   })
 
   it('ArrayItems keeps the same rule (reference)', async () => {
-    const form = createForm({ initialValues: { list: [{ a: '1' }] }, pattern: 'disabled' })
+    const form = createForm({ initialValues: { list: [{ a: '1' }] }, disabled: true })
     const view = render(
       <Form form={form}>
         <ArrayField name="list" component={[ArrayItems, { addition: <ArrayItems.Addition /> }]}>

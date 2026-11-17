@@ -43,7 +43,7 @@ describe('draft typos and read-only writes throw in development', () => {
       d.email.$value = 'x'
       d.email.$required = true
       d.email.$visible = true
-      d.email.$pattern = 'editable'
+      d.email.$readOnly = false; d.email.$disabled = false
       d.email.$rules = []
       d.email.$title = 'Email'
       d.email.$componentProps.placeholder = 'p'

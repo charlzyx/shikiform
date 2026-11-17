@@ -147,7 +147,7 @@ export default function App() {
       rows: [{ id: 'a', name: '钢笔', price: 12 }, { id: 'b', name: '墨水', price: 8 }],
       editor: { open: false, id: '', name: '', price: 0 },
     },
-    fields: { editor: { display: 'virtual' } }, // 编辑区不进提交结果
+    fields: { editor: { omit: true } }, // 编辑区不进提交结果
   });
   const open = (row: Row) => form.setValue('editor', { ...row, open: true });
   const close = () => form.setValue('editor.open', false);
@@ -190,7 +190,7 @@ export default function App() {
 }
 ```
 
-- 这里的编辑区利用了同一个引擎中声明为 `display: 'virtual'` 的 `editor` 对象：既支持通过 `form.validate('editor')` 局部校验该子树，又不会混入最终提交的 JSON 中。
+- 这里的编辑区利用了同一个引擎中声明为 `omit: true` 的 `editor` 对象：既支持通过 `form.validate('editor')` 局部校验该子树，又不会混入最终提交的 JSON 中。
 - 写回时使用 `form.batch` 一次性更新原行字段并关闭抽屉，仅触发一轮联动与一次视图通知。
 - 如果希望弹窗/抽屉拥有**完全独立的表单实例**且开箱即用，推荐使用 [草稿表单（ShadowForm）](/examples/pro#草稿表单的几种容器)（`ShadowModal` / `useShadowForm`）。
 

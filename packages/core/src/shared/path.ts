@@ -104,7 +104,7 @@ export function deleteAt<T>(root: T, path: string): T {
   const write = (node: unknown, index: number): unknown => {
     if (node == null || typeof node !== 'object') return node
     const key = parts[index]!
-    // Omitting an absent virtual/none field must not create an object key or array slot.
+    // Omitting an absent field must not create an object key or array slot.
     if (!Object.prototype.hasOwnProperty.call(node, key)) return node
     if (index === parts.length - 1) {
       if (Array.isArray(node)) {

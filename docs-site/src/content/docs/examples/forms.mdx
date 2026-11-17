@@ -11,6 +11,7 @@ description: 演示整表 Standard Schema（Zod）校验、四种显隐模式对
 import { useState } from 'react';
 import { Button, Space } from 'antd';
 import { z } from 'zod';
+import { isFieldErrors } from '@shikiform/core';
 import { Field, Form, ObjectField, useForm } from '@shikiform/react';
 import { FormItem, FormLayout, Input } from '@shikiform/antd';
 
@@ -37,11 +38,14 @@ export default function App() {
       const values = await form.submit();
       setOut(`提交：${JSON.stringify(values)}`);
     } catch (error) {
-      const errors = Array.isArray(error) ? error as { path: string }[] : [];
+      const errors = isFieldErrors(error) ? error : [];
       setOut(`错误：${errors.map((item) => item.path).join('、')}`);
     }
   };
-  const setNick = (display: 'visible' | 'hidden' | 'virtual' | 'none') => form.batch((d) => { d.nick.$display = display; });
+  const setNick = (mode: 'visible' | 'hidden' | 'omit') => form.batch((d) => {
+    d.nick.$visible = mode !== 'hidden';
+    d.nick.$omit = mode === 'omit';
+  });
   return (
     <Form form={form}>
       <FormLayout labelCol={{ span: 5 }} wrapperCol={{ span: 19 }}>
@@ -57,8 +61,7 @@ export default function App() {
       <Space wrap>
         <Button type="primary" onClick={submit}>提交</Button>
         <Button onClick={() => setNick('hidden')}>昵称 hidden</Button>
-        <Button onClick={() => setNick('virtual')}>昵称 virtual</Button>
-        <Button onClick={() => setNick('none')}>昵称 none</Button>
+        <Button onClick={() => setNick('omit')}>昵称 omit</Button>
         <Button onClick={() => setNick('visible')}>昵称 visible</Button>
       </Space>
       <pre aria-live="polite">{out}</pre>
@@ -68,24 +71,29 @@ export default function App() {
 ```
 
 - `useForm({ validate: schema })` 支持任何实现 [Standard Schema](https://standardschema.dev) 规范的校验库；校验问题中的路径会自动映射回对应字段（例如 `['address', 'city']` 会显示在 `address.city` 下方）。
-- 可以通过底部按钮分别切换「昵称」的 `hidden`、`virtual`、`none` 状态，观察校验与提交结果的差异，完整规则见 [显隐、pattern 与提交](/guide/concepts#显隐pattern-与提交)。
+- 底部按钮把「昵称」切到 `hidden`（不渲染、仍提交）、`omit`（仍渲染、不提交）或 `visible`。完整规则见 [四个布尔](/guide/concepts#四个布尔)。
 - 更多字段级规则与异步校验用法请参考 [校验](/guide/validation)。
 
 ## 显隐对照
 
-**场景**：联系方式分组需要随顶部开关切换展示模式，直观对比四种 `display` 状态对渲染、校验和提交的影响。
+**场景**：联系方式分组随顶部开关切换 `visible` / `omit` / `readOnly`，对照渲染、校验和提交。
 
 ```tsx preview play=display
 import { useState } from 'react';
 import { Button } from 'antd';
-import { Field, Form, ObjectField, defineEffects, useForm, type Display } from '@shikiform/react';
+import { isFieldErrors } from '@shikiform/core';
+import { Field, Form, ObjectField, defineEffects, useForm } from '@shikiform/react';
 import { FormItem, FormLayout, Input, Radio } from '@shikiform/antd';
 
-type Values = { mode: Display; contact: { email: string; phone: string } };
+type Mode = 'visible' | 'hidden' | 'omit' | 'readOnly';
+type Values = { mode: Mode; contact: { email: string; phone: string } };
 
 const effects = defineEffects<Values>(({ reaction }) => {
   reaction((d) => {
-    d.contact.$display = d.mode.$value; // 子字段继承父级的 display
+    const mode = d.mode.$value;
+    d.contact.$visible = mode !== 'hidden';
+    d.contact.$omit = mode === 'omit';
+    d.contact.$readOnly = mode === 'readOnly';
   });
 });
 
@@ -101,14 +109,14 @@ export default function App() {
       const values = await form.submit();
       setOut(`提交：${JSON.stringify(values)}`);
     } catch (error) {
-      const errors = Array.isArray(error) ? error as { path: string }[] : [];
+      const errors = isFieldErrors(error) ? error : [];
       setOut(`被挡住：${errors.map((item) => item.path).join('、')}`);
     }
   };
   return (
     <Form form={form}>
       <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }}>
-        <Field name="mode" title="contact" display="virtual" enum={['visible', 'hidden', 'virtual', 'none']}
+        <Field name="mode" title="contact" omit enum={['visible', 'hidden', 'omit', 'readOnly']}
           decorator={[FormItem]} component={[Radio, { optionType: 'button' }]} />
         <ObjectField name="contact">
           <Field name="email" title="邮箱" decorator={[FormItem]} component={[Input]} />
@@ -122,16 +130,15 @@ export default function App() {
 }
 ```
 
-| `contact.$display` | 是否渲染 | 空邮箱是否阻止提交 | 提交结果是否包含 `contact` |
+| 状态 | 是否渲染 | 空邮箱是否阻止提交 | 提交结果是否包含 `contact` |
 |---|---|---|---|
 | `visible` | ✓ | ✓ | ✓ |
-| `hidden`（`$hidden = true`） | ✗ | ✓ | ✓ |
-| `virtual` | ✓ | ✓ | ✗ |
-| `none`（`$visible = false`） | ✗ | ✗ | ✗ |
+| `hidden`（`$visible = false`） | ✗ | ✗ | ✓ |
+| `omit` | ✓ | ✓ | ✗ |
+| `readOnly` | 预览 | ✗ | ✓ |
 
-- `virtual` 字段会正常渲染并参与校验（此时 `$visible` 为 `true`），但在提交时会被剔除。
-- 顶部的 `mode` 开关声明了 `display="virtual"`，因此可以正常驱动联动而不会混入最终提交的数据。
-- 给父级 `d.contact.$display` 赋值会自动向下继承给所有子字段；若某个子字段单独指定了自己的 `$display`，则会优先遵循自身的设置。
+- `omit` 不继承。这里写在 `contact` 上，整段对象离开提交结果；`visible` / `readOnly` 会按 OR 传给里面的邮箱和电话，子字段写 `false` 可以退出。
+- 顶部的 `mode` 开关自己也声明了 `omit`，所以它不进提交结果。
 
 ## 标签页与未挂载字段
 
@@ -140,6 +147,7 @@ export default function App() {
 ```tsx preview play=tabs
 import { useState } from 'react';
 import { Button } from 'antd';
+import { isFieldErrors } from '@shikiform/core';
 import { Field, Form, Watch, useForm, type Draft } from '@shikiform/react';
 import { FormItem, FormLayout, Input, Radio } from '@shikiform/antd';
 
@@ -159,13 +167,13 @@ export default function App() {
       await form.submit();
       setOut('通过');
     } catch (error) {
-      const errors = Array.isArray(error) ? error as { path: string }[] : [];
+      const errors = isFieldErrors(error) ? error : [];
       setOut(`被挡住：${errors.map((item) => item.path).join('、')}`);
     }
   };
   return (
     <Form form={form}>
-      <Field name="tab" display="virtual" enum={[{ label: '基本', value: 'base' }, { label: '附加', value: 'extra' }]}
+      <Field name="tab" omit enum={[{ label: '基本', value: 'base' }, { label: '附加', value: 'extra' }]}
         component={[Radio, { optionType: 'button' }]} />
       <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }} style={{ marginTop: 16 }}>
         <Watch select={(d: Draft<Values>) => d.tab.$value}>

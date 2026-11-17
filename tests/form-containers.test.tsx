@@ -166,7 +166,7 @@ describe('FormTab', () => {
   })
 
   it('panes inherit the root pattern (readPretty) like any field', async () => {
-    const form = createForm<Values>({ initialValues: { ...initial, name: 'Ada', email: 'a@b.c' }, pattern: 'readPretty' })
+    const form = createForm<Values>({ initialValues: { ...initial, name: 'Ada', email: 'a@b.c' }, readOnly: true })
     const view = render(<TabForm form={form} />)
     await settle()
     expect(view.queryByTestId('name')).toBeNull()
@@ -338,7 +338,7 @@ describe('FormStep', () => {
   })
 
   it('does not block on fields that are not editable (readPretty detail page)', async () => {
-    const form = createForm<Values>({ initialValues: initial, pattern: 'readPretty' })
+    const form = createForm<Values>({ initialValues: initial, readOnly: true })
     render(<Wizard form={form} />)
     await settle()
     let moved: boolean | undefined

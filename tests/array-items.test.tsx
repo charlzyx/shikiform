@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { Form, typed, useForm, useRecord, type Pattern, type FormInstance } from '@shikiform/react'
+import { Form, typed, useForm, useRecord, type FormInstance } from '@shikiform/react'
 import { ArrayCards, ArrayItems, FormItem, Input } from '@shikiform/antd'
 import { createEngine, type Engine } from '../packages/core/src/engine/create'
 import { fieldErrorsOf } from './field-errors'
@@ -108,15 +108,15 @@ describe('ArrayItems', () => {
     expect(other.queryByTestId('array-empty')).toBeNull()
   })
 
-  it.each<Pattern>(['readPretty', 'disabled', 'readOnly'])('hides every action when the array is %s; Index stays', async (pattern) => {
+  it.each(['readOnly', 'disabled'] as const)('hides every action when the array is %s; Index stays', async (flag) => {
     const form = createEngine<Values>({ initialValues: { rows: [{ name: 'a' }, { name: 'b' }] } })
     const view = render(<Items form={form} />)
     expect(all(view, 'row-remove')).toHaveLength(2)
-    act(() => form.batch((d) => { d.rows.$pattern = pattern }))
+    act(() => form.batch((d) => { if (flag === 'readOnly') d.rows.$readOnly = true; else d.rows.$disabled = true }))
     await settle()
     for (const id of ['row-add', 'row-remove', 'row-up', 'row-down', 'sort-handle']) expect(all(view, id)).toHaveLength(0)
     expect(all(view, 'row-index')).toHaveLength(2)
-    act(() => form.batch((d) => { d.rows.$pattern = undefined }))
+    act(() => form.batch((d) => { d.rows.$readOnly = undefined; d.rows.$disabled = undefined }))
     await settle()
     expect(all(view, 'row-remove')).toHaveLength(2)
   })
@@ -142,7 +142,7 @@ describe('ArrayCards', () => {
     fireEvent.click(view.getByTestId('row-add'))
     await settle()
     expect(form.values.rows).toEqual([{ name: 'b' }, {}])
-    act(() => form.batch((d) => { d.$pattern = 'readPretty' }))
+    act(() => form.batch((d) => { d.$readOnly = true }))
     await settle()
     expect(all(view, 'row-remove')).toHaveLength(0)
     expect(all(view, 'row-add')).toHaveLength(0)
@@ -151,18 +151,18 @@ describe('ArrayCards', () => {
 
 describe('useForm({ pattern })', () => {
   it('starts the whole form in that pattern (root $pattern); undefined makes it editable again', () => {
-    const form = createEngine({ initialValues: { a: '', rows: [{ name: '' }] }, pattern: 'readPretty' })
-    expect(form.binding('a').pattern).toBe('readPretty')
-    expect(form.binding('rows.0.name').pattern).toBe('readPretty')
+    const form = createEngine({ initialValues: { a: '', rows: [{ name: '' }] }, readOnly: true })
+    expect(form.binding('a').readOnly).toBe(true)
+    expect(form.binding('rows.0.name').readOnly).toBe(true)
     form.reset()
-    expect(form.binding('a').pattern).toBe('readPretty')
-    form.batch((d) => { d.$pattern = undefined })
-    expect(form.binding('a').pattern).toBe('editable')
+    expect(form.binding('a').readOnly).toBe(true)
+    form.batch((d) => { d.$readOnly = undefined; d.$disabled = undefined })
+    expect(form.binding('a').readOnly).toBe(false)
   })
 
   it('useForm passes it through: ArrayItems renders without actions', () => {
     function Detail() {
-      const form = useForm<Values>({ initialValues: { rows: [{ name: 'a' }] }, pattern: 'readPretty' })
+      const form = useForm<Values>({ initialValues: { rows: [{ name: 'a' }] }, readOnly: true })
       return <Items form={form} />
     }
     const view = render(<Detail />)

@@ -5,7 +5,7 @@ import * as root from '@shikiform/react'
 import * as core from '@shikiform/core'
 import { QueryList } from '@shikiform/antd'
 import { useQueryTable } from '@shikiform/hooks'
-import type { FormInstance, Pattern, Rule } from '@shikiform/react'
+import type { FormInstance, Rule } from '@shikiform/react'
 
 afterEach(cleanup)
 
@@ -47,9 +47,9 @@ describe('root entry re-exports the engine names an app needs', () => {
   })
 
   it('types compile from the root entry', () => {
-    const pattern: Pattern = 'readPretty'
+    const readOnly = true
     const rule: Rule = { required: true }
     const takesForm = (form: FormInstance<{ a: string }>) => form.getValue('a')
-    expect([pattern, rule.required, typeof takesForm]).toEqual(['readPretty', true, 'function'])
+    expect([readOnly, rule.required, typeof takesForm]).toEqual([true, true, 'function'])
   })
 })

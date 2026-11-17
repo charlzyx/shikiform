@@ -16,7 +16,7 @@ describe('Watch on a descendant of a replaced object', () => {
     it(`re-renders when the parent is written whole (virtual: ${virtual})`, async () => {
       let form!: FormInstance<Values>
       function App() {
-        form = useForm<Values>({ initialValues: { editor: { id: '', open: false } }, fields: virtual ? { editor: { display: 'virtual' } } : {} })
+        form = useForm<Values>({ initialValues: { editor: { id: '', open: false } }, fields: virtual ? { editor: { omit: true } } : {} })
         return <Form form={form}><Watch select={(d: Draft<Values>) => d.editor.open.$value}>{(open) => <i>{String(open)}</i>}</Watch></Form>
       }
       const view = render(<App />)
@@ -40,7 +40,7 @@ describe('the root `d.$value`', () => {
       reaction((d) => { d.snapshot.$value = JSON.stringify({ a: d.$value.a, text: d.$value.text, list: d.$value.list }) })
     })
     function App() {
-      form = useForm<Root>({ initialValues: { a: 1, list: [] }, fields: { snapshot: { display: 'virtual' } }, effects: [effects] })
+      form = useForm<Root>({ initialValues: { a: 1, list: [] }, fields: { snapshot: { omit: true } }, effects: [effects] })
       return <Form form={form}><Watch select={(d: Draft<Root>) => d.$value}>{(v) => <i>{`${v.a}|${v.text ?? ''}|${v.list.length}`}</i>}</Watch></Form>
     }
     const view = render(<App />)

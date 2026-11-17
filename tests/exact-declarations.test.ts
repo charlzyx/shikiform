@@ -10,9 +10,9 @@ function make() {
     initialValues: { rows: [row()] },
     fields: {
       'rows.*.token': { required: true },
-      'rows.0.token': { display: 'virtual' },
-      'rows.0.note': { display: 'none' },
-      'rows.0.extra': { display: 'virtual' },
+      'rows.0.token': { omit: true },
+      'rows.0.note': { visible: false, omit: true },
+      'rows.0.extra': { omit: true },
     },
   })
 }
@@ -72,8 +72,8 @@ describe('exact declarations stay on their path on move / swap / insert', () => 
     return createEngine({
       initialValues: { rows: rows() },
       fields: {
-        'rows.0.token': { display: 'virtual' },
-        'rows.0.note': { display: 'none', title: 'First note' },
+        'rows.0.token': { omit: true },
+        'rows.0.note': { visible: false, omit: true, title: 'First note' },
       },
     })
   }
@@ -86,7 +86,7 @@ describe('exact declarations stay on their path on move / swap / insert', () => 
     })
     expect(form.query('rows.0.note').$title).toBe('First note')
     expect(form.query('rows.2.note').$title).toBeUndefined()
-    expect(form.query('rows.2.note').$display).toBe('visible')
+    expect(form.query('rows.2.note').$visible).toBe(true)
   })
 
   it('swapArray: the declaration stays on rows.0', () => {
@@ -115,7 +115,7 @@ describe('exact declarations stay on their path on move / swap / insert', () => 
   })
 
   it('wildcard declarations still apply to every row after a move', () => {
-    const form = createEngine({ initialValues: { rows: rows() }, fields: { 'rows.*.token': { display: 'virtual' } } })
+    const form = createEngine({ initialValues: { rows: rows() }, fields: { 'rows.*.token': { omit: true } } })
     form.moveArray('rows', 0, 2)
     expect(form.getSubmitValues()).toEqual({ rows: [{ id: 'b', note: 'nb' }, { id: 'c', note: 'nc' }, { id: 'a', note: 'na' }] })
   })
@@ -123,7 +123,7 @@ describe('exact declarations stay on their path on move / swap / insert', () => 
   it('moveTree: a declaration on an exact node path stays there', () => {
     const form = createEngine({
       initialValues: { menus: [{ id: 'm1', name: 'one', children: [] }, { id: 'm2', name: 'two', children: [] }] },
-      fields: { 'menus.0.name': { display: 'virtual' } },
+      fields: { 'menus.0.name': { omit: true } },
     })
     form.registerTree('menus')
     form.moveTree('menus', [0], [1])

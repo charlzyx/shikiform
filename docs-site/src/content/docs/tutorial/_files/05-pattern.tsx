@@ -1,13 +1,13 @@
-import { Field, Form, defineEffects, useForm, type Pattern } from '@shikiform/react';
+import { Field, Form, defineEffects, useForm } from '@shikiform/react';
 import { FormItem, Input, Select } from '@shikiform/antd';
 
-type Values = { mode: Pattern; name: string };
+type Mode = 'editable' | 'disabled' | 'readOnly';
+type Values = { mode: Mode; name: string };
 
-const MODES: { label: string; value: Pattern }[] = [
+const MODES: { label: string; value: Mode }[] = [
   { label: '可编辑', value: 'editable' },
   { label: '禁用', value: 'disabled' },
   { label: '只读', value: 'readOnly' },
-  { label: '阅读态', value: 'readPretty' },
 ];
 
 export const effects = defineEffects<Values>(({ reaction }) => {
@@ -20,7 +20,7 @@ export default function App() {
   const form = useForm<Values>({ initialValues: { mode: 'editable', name: 'Ada' }, effects: [effects] });
   return (
     <Form form={form}>
-      <Field name="mode" title="姓名的 pattern" enum={MODES} decorator={[FormItem]} component={[Select, { style: { width: 160 } }]} />
+      <Field name="mode" title="姓名的状态" enum={MODES} decorator={[FormItem]} component={[Select, { style: { width: 160 } }]} />
       <Field name="name" title="姓名" decorator={[FormItem]} component={[Input]} />
     </Form>
   );

@@ -3,14 +3,14 @@ import type { FieldEnum, FieldPath, FieldSpec, RulesInput, TemplatePath } from '
 /**
  * The submitted shape of `T` when the paths in `P` may be dropped from submit: each listed path becomes optional
  * (`?:`), at any depth. An array index may be `*` (or a number, which also makes it optional on every row).
- * Use it as the form's second type argument for `display: 'virtual'`, `display: 'none'` and computed fields:
+ * Use it as the form's second type argument for `omit: true` fields that are not declared in `fields`:
  *
  * ```ts
  * const form = createForm<V, SubmitValues<V, 'tmp' | 'rows.*.total'>>({ … })
  * form.submit((values) => values.tmp) // string | undefined
  * ```
  *
- * With no `P` this is `T`. Paths declared `display: 'virtual'` or `'none'` in `fields` are filled in automatically
+ * With no `P` this is `T`. Paths declared `omit: true` in `fields` are filled in automatically
  * when the form's second type argument is omitted ({@link SubmitFromFields}).
  */
 export type SubmitValues<T, P extends TemplatePath<T> = never> = [P] extends [never] ? T : OptionalPaths<T, P & string>
@@ -50,16 +50,16 @@ export type FieldsInput<T> = {
   [K in FieldPath<T> | TemplatePath<T>]?: FieldSpecFor<TemplateValue<T, K & string>>
 }
 
-type DropDisplay<D> = [D] extends ['virtual' | 'none'] ? true : false
+type DropOmit<D> = [D] extends [true] ? true : false
 
-/** Paths in a `fields` map whose `display` is exactly `'virtual'` or `'none'` (both are omitted from submit). */
+/** Paths in a `fields` map whose `omit` is exactly `true` (those values are left out of submit). */
 export type DroppedByFields<F> = {
-  [K in keyof F]-?: F[K] extends { display: infer D } ? (DropDisplay<D> extends true ? K & string : never) : never
+  [K in keyof F]-?: F[K] extends { omit: infer D } ? (DropOmit<D> extends true ? K & string : never) : never
 }[keyof F]
 
 /**
- * Submit type implied by `fields`: paths declared `display: 'virtual'` or `display: 'none'` become optional.
- * JSX `display` and reaction `$display` are not visible here. With no such path this is `T`.
+ * Submit type implied by `fields`: paths declared `omit: true` become optional.
+ * JSX `omit` and a reaction `$omit` are not visible here. With no such path this is `T`.
  */
 export type SubmitFromFields<T, F> = [DroppedByFields<F>] extends [never]
   ? T

@@ -71,7 +71,7 @@ export default function App() {
 |---|---|---|---|
 | 状态与联动 | 集中在一个引擎内，在 `reaction` 中通过 `$` 状态直接赋值 | 多在组件内调用 `watch` / `setValue` | 依赖 `reactions`，常与 Schema 耦合 |
 | UI 绑定 | 引擎本身无 UI，`@shikiform/antd` 作为独立适配层按需引入 | 无 UI，需配合 `Controller` 手动桥接 | 自带整套 Ant Design 适配组件 |
-| 显隐控制 | 区分 `visible`、`hidden`、`virtual`、`none` 四种模式，`hidden` 仅隐藏界面但仍参与校验与提交 | 由组件是否挂载决定 | `hidden` 默认跳过校验 |
+| 显隐与提交 | `visible` 决定是否渲染（`false` 跳过校验，值仍提交）；是否提交只看 `omit`。`disabled` 置灰但仍提交 | 由组件是否挂载决定；`disabled` 默认不提交 | `hidden` 默认跳过校验 |
 
 ## 安装与模块划分
 

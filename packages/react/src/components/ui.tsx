@@ -1,19 +1,20 @@
 import { createContext, useContext, type ComponentType, type ReactNode } from 'react'
-import type { FieldUiSpec, Pattern, UiDisplay, UiName } from '@shikiform/core/internal'
+import type { FieldUiSpec, UiName } from '@shikiform/core/internal'
 import { useRequiredForm, useScope } from '../context'
 import { useFieldKit, withResolvedSlots } from '../field-kit'
 import { useUiNode, type FieldSlot, type RegisteredComponentSlot, type RegisteredDecoratorSlot } from '../hooks/use-field'
 import { normalizeUiSpec } from '@shikiform/core/internal'
 import { useIdPrefix, withDomId } from '../id-prefix'
 
-/** What `<UI>` renders with: the node's effective state (reaction > JSX props > the scope's display / pattern). */
+/** What `<UI>` renders with: the node's effective state (reaction > JSX props > the scope's flags). */
 export interface UiBinding {
   /** The node name (`d.$ui(name)`). */
   ui: string
   /** DOM id: `<prefix>-<scope>--<name>` (`<prefix>-ui--approvalTip` at the root). */
   id: string
-  display: UiDisplay
-  pattern: Pattern
+  visible: boolean
+  disabled: boolean
+  readOnly: boolean
   title: ReactNode
   description: ReactNode
   component: ComponentType<any> | undefined
@@ -32,10 +33,12 @@ export interface UIProps<C extends ComponentType<any> = ComponentType<any>, D ex
   decorator?: FieldSlot<D> | RegisteredDecoratorSlot | false
   title?: ReactNode
   description?: ReactNode
-  /** Initial display when no reaction wrote `$visible` / `$display` (default: the scope's). */
-  display?: UiDisplay
-  /** Initial pattern when no reaction wrote `$pattern` (default: inherited from the scope / form). */
-  pattern?: Pattern
+  /** `false` hides this UI (default: the scope's `visible`). An explicit `false` exits that fallback. */
+  visible?: boolean
+  /** Gray this UI out (default: the scope's `disabled`). */
+  disabled?: boolean
+  /** Render this UI's preview (default: the scope's `readOnly`). Wins over `disabled`. */
+  readOnly?: boolean
   /** Rendered inside `component` (or alone), or a render prop `(ui) => …`. */
   children?: ReactNode | ((ui: UiBinding) => ReactNode)
 }
@@ -55,15 +58,16 @@ export function useUiNodeOrNull(): UiBinding | null {
  * <UI name="approvalTip" component={[Alert, { type: 'warning', message: '金额 ≥ 5 万需要审批' }]} />
  * ```
  *
- * `$visible` / `$display` / `$pattern` / `$title` / `$description` / `$componentProps` / `$decoratorProps`, same
+ * `$visible` / `$disabled` / `$readOnly` / `$title` / `$description` / `$componentProps` / `$decoratorProps`, same
  * priority as a field's UI layer (reaction > these props). Hiding it unmounts its children but does **not** hide,
- * skip or drop the fields inside: a field's validation and submit depend only on its own `$visible` / display.
+ * skip or drop the fields inside: a field's validation and submit depend only on its own flags.
  */
 export function UI<C extends ComponentType<any> = ComponentType<any>, D extends ComponentType<any> = ComponentType<any>>({
   name,
   children,
-  display,
-  pattern,
+  visible,
+  disabled,
+  readOnly,
   ...slots
 }: UIProps<C, D>) {
   const form = useRequiredForm(`<UI name="${String(name)}">`)
@@ -72,8 +76,8 @@ export function UI<C extends ComponentType<any> = ComponentType<any>, D extends 
   useUiNode(form, path, name, 'node')
   const kit = useFieldKit()
   // No default decorator: a `<UI>` is not a field, and the kit's FormItem would wrap a tip.
-  const ui = withResolvedSlots(withDomId(form.uiBinding(path, name, { ...(normalizeUiSpec(slots, `<UI name="${String(name)}">`) as FieldUiSpec), display, pattern }, 'node') as UiBinding, prefix), kit, false)
-  if (ui.display !== 'visible') return null
+  const ui = withResolvedSlots(withDomId(form.uiBinding(path, name, { ...(normalizeUiSpec(slots, `<UI name="${String(name)}">`) as FieldUiSpec), visible, disabled, readOnly }, 'node') as UiBinding, prefix), kit, false)
+  if (!ui.visible) return null
   const Component = ui.component
   const Decorator = ui.decorator
   const inner = typeof children === 'function' ? children(ui) : children

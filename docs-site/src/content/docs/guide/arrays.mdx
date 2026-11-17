@@ -32,7 +32,7 @@ export default function App() {
   return (
     <Form form={form}>
       <p>
-        阅读态 <Switch aria-label="阅读态" onChange={(on) => form.batch((d) => { d.$pattern = on ? 'readPretty' : undefined; })} />
+        阅读态 <Switch aria-label="阅读态" onChange={(on) => form.batch((d) => { d.$readOnly = on ? true : undefined; })} />
       </p>
       <F.ArrayField name="contacts" component={[ArrayItems, { addition: <ArrayItems.Addition title="添加联系人" /> }]}>
         {(row) => (
@@ -63,9 +63,9 @@ export default function App() {
 `Addition`、`Remove`、`MoveUp`、`MoveDown` 和 `SortHandle` 会检查当前数组的有效 `pattern`，只有在 `editable` 状态下才会渲染（`Index` 序号始终保留）。由于 `pattern` 会沿路径从祖先向下继承，以下几种写法都会自动收起全部操作按钮：
 
 ```ts
-useForm({ initialValues, pattern: 'readPretty' })        // 详情页：整张表单初始化为阅读态
-form.batch((d) => { d.$pattern = 'disabled' })            // 运行时全局禁用（赋 undefined 恢复）
-form.batch((d) => { d.contacts.$pattern = 'readOnly' })   // 仅将当前数组设为只读
+useForm({ initialValues, readOnly: true })        // 详情页：整张表单初始化为阅读态
+form.batch((d) => { d.$disabled = true })            // 运行时全局禁用（赋 undefined 恢复）
+form.batch((d) => { d.contacts.$readOnly = true })   // 仅将当前数组设为只读
 ```
 
 `ArrayTable` 中的全套操作按钮（含 `Copy` 与 `ShadowAddition`）同样遵循该规则；自定义行操作按钮可以调用 `useArrayEditable()` 获取相同的编辑权限状态。

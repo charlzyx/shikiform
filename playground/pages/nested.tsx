@@ -19,13 +19,13 @@ interface Values {
 
 const effects = defineEffects<Values>(({ reaction }) => {
   reaction((d) => {
-    d.orders.$pattern = d.editMode.$value ? undefined : 'readPretty'
+    d.orders.$readOnly = d.editMode.$value ? undefined : true
   })
-  // One instance per row: a locked row's qty reads, the others inherit the array's pattern.
+  // One instance per row: a locked row's qty is a preview, the others inherit the array's readOnly.
   reaction.each(
     (d) => d.orders,
     (row) => {
-      row.qty.$pattern = row.locked.$value ? 'readPretty' : undefined
+      row.qty.$readOnly = row.locked.$value ? true : undefined
     },
   )
 })
@@ -46,7 +46,7 @@ export function NestedPage() {
       ],
     },
     effects: [effects],
-    fields: { open: { display: 'virtual' }, editMode: { display: 'virtual' } },
+    fields: { open: { omit: true }, editMode: { omit: true } },
   })
   return (
     <Form form={form}>

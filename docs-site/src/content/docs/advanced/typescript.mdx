@@ -47,9 +47,9 @@ declare module '@shikiform/react' {
 
 `submit`、`getSubmitValues` 与 `onSubmit` 回调接收的值类型支持以下三种推导方式：
 
-- **自动排除 `fields` 中的非提交字段**：直接调用 `createForm({ fields })` / `useForm({ fields })`，或者通过 `typed<Values>().createForm({ fields })` / `typed<Values>().useForm({ fields })` 显式指定原始值类型时，在 `fields` 中声明为 `display: 'virtual'` 或 `display: 'none'` 的路径在提交类型中会自动变为可选（`hidden` 字段依然保留为必填）。
+- **自动排除 `fields` 中的非提交字段**：直接调用 `createForm({ fields })` / `useForm({ fields })`，或者通过 `typed<Values>().createForm({ fields })` / `typed<Values>().useForm({ fields })` 显式指定原始值类型时，在 `fields` 中声明为 `omit: true` 的路径在提交类型中会自动变为可选。`visible: false` 本身仍提交，类型上仍是必填，除非同时 `omit: true`。
 - **保持与原始值一致**：使用 `createForm<Values>(options)` / `useForm<Values>(options)` 时，提交类型直接沿用 `Values`。
-- **手动指定可选路径**：如果字段是在 JSX `display` 或 `reaction` 中动态设为 `virtual` / `none` 的，可以通过第二个泛型参数结合 `SubmitValues` 工具类型精确剔除：
+- **手动指定可选路径**：JSX 或 `reaction` 里动态写的 `omit` 类型上看不到，用第二个泛型参数和 `SubmitValues` 自己列路径：
 
 ```ts
 import { createForm, type SubmitValues } from '@shikiform/react'

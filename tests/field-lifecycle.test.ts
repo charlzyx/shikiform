@@ -22,9 +22,9 @@ describe('React JSX lease sequences over the real engine (not a browser effect t
   it('a flags-only view applies display without acquiring or releasing validation', async () => {
     const form = createEngine({ initialValues: { email: '' } })
     form.mountJsxField('email', { required: true })
-    const cleanup = applyJsxField(form, 'email', { display: 'virtual' })
+    const cleanup = applyJsxField(form, 'email', { omit: true })
     cleanup?.()
-    expect(form.binding('email')).toMatchObject({ required: true, display: 'virtual' })
+    expect(form.binding('email')).toMatchObject({ required: true, omit: true })
     expect((await fieldErrorsOf(form.validate()))[0]?.path).toBe('email')
     expect(form.getSubmitValues()).toEqual({})
     expect(cleanup).toBeUndefined()

@@ -1,6 +1,6 @@
 ---
 title: 数组与树
-description: 嵌套对象与 pattern 继承、树节点跨层拖拽移动，以及基于虚拟滚动的长列表校验。
+description: 嵌套对象与 readOnly 继承、树节点跨层拖拽移动，以及基于虚拟滚动的长列表校验。
 ---
 
 ## 嵌套对象与只读行
@@ -18,12 +18,12 @@ type Values = { editable: boolean; profile: { name: string; address: { city: str
 
 const effects = defineEffects<Values>(({ reaction }) => {
   reaction((d) => {
-    const pattern = d.editable.$value ? undefined : 'readPretty'; // undefined = 继承上级
-    d.profile.$pattern = pattern;
-    d.orders.$pattern = pattern;
+    const readOnly = d.editable.$value ? undefined : true; // undefined = 继承上级
+    d.profile.$readOnly = readOnly;
+    d.orders.$readOnly = readOnly;
   });
   reaction.each((d) => d.orders, (row) => {
-    row.qty.$pattern = row.shipped.$value ? 'readPretty' : undefined;
+    row.qty.$readOnly = row.shipped.$value ? true : undefined;
   });
 });
 
@@ -35,7 +35,7 @@ export default function App() {
       profile: { name: 'Ada', address: { city: '伦敦', street: '贝克街 221B' } },
       orders: [{ id: 'o1', title: '未发货', qty: 1, shipped: false }, { id: 'o2', title: '已发货', qty: 2, shipped: true }],
     },
-    fields: { editable: { display: 'virtual' } },
+    fields: { editable: { omit: true } },
     effects: [effects],
   });
   return (
@@ -59,7 +59,7 @@ export default function App() {
       <ArrayField name="orders" rowKey="id">
         {() => (
           <FormLayout layout="inline" feedbackLayout="terse" style={{ marginBottom: 8 }}>
-            <Field name="title" pattern="readPretty" component={[Input]} />
+            <Field name="title" readOnly component={[Input]} />
             <Field name="qty" title="数量" decorator={[FormItem]} component={[InputNumber, { min: 1 }]} />
             <Field name="shipped" title="已发货" decorator={[FormItem]} component={[Switch]} />
           </FormLayout>
@@ -70,8 +70,8 @@ export default function App() {
 }
 ```
 
-- `$pattern` 具有沿路径向下继承的特性：只需设置 `d.profile` 和 `d.orders`，它们内部的所有子字段都会跟着切换；赋值为 `undefined` 表示恢复跟随上级。
-- 订单行中的 `qty` 单独设置了 `$pattern`，因此在表单整体可编辑时，已发货行的数量依然处于只读态；试着切换「已发货」开关即可观察效果。
+- `$readOnly` 沿字段路径向下走：写 `d.profile` 和 `d.orders`，里面的字段跟着变。赋 `undefined` 丢掉这一层，回到上一级。
+- 已发货行单独写了 `row.qty.$readOnly = true`，整表可编辑时这一格仍是预览。
 - 抽屉中的 `<ObjectField name="address">` 通过 React 上下文穿透 Portal 保持在 `profile` 作用域内，关闭抽屉后字段的值和状态依然保留在表单引擎中。
 - 「地址」这一行使用不带 `name` 的 `<FormItem label="地址">` 做纯布局容器，标签与列宽依然会自动对齐外层的 `FormLayout`，参见 [一个标签放几个字段](/guide/layout#一个标签放几个字段)。
 

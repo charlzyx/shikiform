@@ -75,4 +75,4 @@ function SuggestionPreview({ value }: { value?: unknown }) {
  * <Field name="keyword" title="淘宝搜索" decorator={[FormItem]} component={[Suggestion, { fetch: search, multiple: true, labelInValue: true }]} />
  * ```
  */
-export const Suggestion = connect(SuggestionView, mapProps({ status: 'status', readPretty: SuggestionPreview }))
+export const Suggestion = connect(SuggestionView, mapProps({ status: 'status', preview: SuggestionPreview }))

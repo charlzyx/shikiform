@@ -23,7 +23,7 @@ export interface FormItemProps
       | 'getValueProps' | 'normalize' | 'initialValue' | 'messageVariables' | 'validateDebounce'
     >,
     Omit<FormLayoutValue, 'labelCol' | 'wrapperCol' | 'labelAlign' | 'colon'> {
-  /** Force the required mark on (`true`) or off (`false`). Default: the field's `required`, hidden in `readPretty`. */
+  /** Force the required mark on (`true`) or off (`false`). Default: the field's `required`, hidden when `readOnly`. */
   asterisk?: boolean
   /** Content before the control, on the same line (a unit, a prefix select …). */
   addonBefore?: ReactNode
@@ -63,7 +63,9 @@ const NO_FIELD = {
   warnings: [] as string[],
   validating: false,
   required: false,
-  pattern: 'editable',
+  visible: true,
+  readOnly: false,
+  disabled: false,
   decoratorProps: {} as Record<string, any>,
 } as const
 
@@ -79,13 +81,13 @@ function feedback(messages: readonly string[]): ReactNode {
  * `layout` (from `FormLayout`) ← `field.decoratorProps` (`fields` ← JSX ← `$decoratorProps`) ← `props`.
  *
  * - `label` ← `field.title`, `extra` ← `field.description` (an explicit `label` / `extra` wins);
- * - required mark ← `field.required`, hidden in `readPretty` (override with `asterisk`; `requiredMark: false` hides it,
+ * - required mark ← `field.required`, hidden when `readOnly` (override with `asterisk`; `requiredMark: false` hides it,
  *   `'optional'` hides it and appends `env.optionalText` to the labels of optional fields);
  * - `validateStatus`: `error` → `validating` → `warning`; `help`: **all** errors, else all warnings, one per line
  *   (`feedbackLayout: 'none'` / `'popover'` drop the help row, `'terse'` drops the bottom margin while there is none);
  * - `labelWidth` / `wrapperWidth` become `labelCol` / `wrapperCol` `flex`; `labelWrap` adds Ant Design's wrap class;
  *   `tooltipLayout: 'text'` puts `tooltip` after the label as text; `gridSpan` sets `gridColumn`;
- * - `htmlFor` ← `field.id`, except in `readPretty` (the view is text) or when `env.labelFor` is `false`;
+ * - `htmlFor` ← `field.id`, except when `readOnly` (the view is text) or when `env.labelFor` is `false`;
  * - an item with no label ignores the layout's `labelCol` / `wrapperCol` / `labelWidth` / `wrapperWidth` (Formily).
  *
  * `field` may be `null`: pure layout, no status. A hook user renders the same item without the component:
@@ -121,7 +123,7 @@ export function mapFormItemProps(
     : inner
       ? inner.map((message, index) => <div key={index} className={errorCls}>{message}</div>)
       : feedback(messages)
-  const isRequired = asterisk ?? (binding.required && binding.pattern !== 'readPretty')
+  const isRequired = asterisk ?? (binding.required && !binding.readOnly)
   let text: ReactNode = label ?? (field?.title as ReactNode)
   if (tooltipLayout === 'text' && tooltip && text) {
     text = <>{text}<span data-tooltip-text style={{ marginInlineStart: 4, opacity: 0.65 }}>{tooltip as ReactNode}</span></>
@@ -147,7 +149,7 @@ export function mapFormItemProps(
   }
   if (inner) rest.className = [rest.className, `${env.prefixCls ?? 'ant-form'}-item-has-error`].filter(Boolean).join(' ')
   const out: AntFormItemProps = {
-    ...(field && field.pattern !== 'readPretty' && env.labelFor !== false ? { htmlFor: field.id } : {}),
+    ...(field && !field.readOnly && env.labelFor !== false ? { htmlFor: field.id } : {}),
     ...rest,
     label: text,
     extra: extra ?? (field?.description as ReactNode),
@@ -227,7 +229,7 @@ function useClaim(path: string | undefined, deep: boolean): void {
  *
  * or inside a `<Field>`. It reads the field from context and renders an Ant Design `Form.Item` from
  * {@link mapFormItemProps}: label (`title`), extra (`description`), the required mark, status and every message, plus
- * the inherited {@link FormLayout}. Display `hidden` / `none` renders nothing. `virtual` still renders (it validates and shows errors).
+ * the inherited {@link FormLayout}. `visible: false` renders nothing. `omit` still renders (it can show errors while it validates).
  *
  * Outside a field it is pure layout (Formily `FormItem.BaseItem`): a label and the layout's columns around anything,
  * e.g. one label over two fields. It shows the errors of the fields inside that no inner `FormItem` shows (a field
@@ -250,7 +252,7 @@ export function FormItem(props: FormItemProps) {
 function FieldFormItem({ field, props }: { field: FieldBinding<any>; props: FormItemProps }) {
   const layout = useFormLayout()
   const feedbackLayout = props.feedbackLayout ?? field.decoratorProps.feedbackLayout ?? layout.feedbackLayout
-  const shown = field.display === 'visible' || field.display === 'virtual'
+  const shown = field.visible
   useClaim(shown && feedbackLayout !== 'none' ? field.path : undefined, false)
   if (!shown) return null
   return <FormItemView field={field} props={props} errors={undefined} />
@@ -341,7 +343,7 @@ function FormItemView({
   const feedbackLayout = pick('feedbackLayout') ?? layout.feedbackLayout
   const addonBefore = pick('addonBefore')
   const addonAfter = pick('addonAfter')
-  const labelFor = useLabelTarget(field && field.pattern !== 'readPretty' ? field.id : undefined)
+  const labelFor = useLabelTarget(field && !field.readOnly ? field.id : undefined)
   const itemProps = mapFormItemProps(field, props, layout, {
     labelFor,
     prefixCls: getPrefixCls('form'),

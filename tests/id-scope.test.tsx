@@ -229,10 +229,10 @@ describe('FormItem label for', () => {
       </Form>,
     )
     expect(labelFors(view.container)).toEqual(['rp-name'])
-    act(() => form.batch((d: any) => { d.$pattern = 'readPretty' }))
+    act(() => form.batch((d: any) => { d.$readOnly = true }))
     await settle()
     expect(labelFors(view.container)).toEqual([null])
-    act(() => form.batch((d: any) => { d.$pattern = undefined }))
+    act(() => form.batch((d: any) => { d.$readOnly = undefined; d.$disabled = undefined }))
     await settle()
     expect(labelFors(view.container)).toEqual(['rp-name'])
   })

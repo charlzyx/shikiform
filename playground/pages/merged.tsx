@@ -39,7 +39,7 @@ const cell = [FormItem, { style: { margin: 0 } }] as const
 export function MergedPage() {
   const form = useForm<Values>({
     initialValues: { onlyActive: false, suppliers: INITIAL },
-    fields: { onlyActive: { display: 'virtual' } },
+    fields: { onlyActive: { omit: true } },
   })
   return (
     <Form form={form}>
@@ -84,7 +84,7 @@ function MergedBody() {
                 </span>
               ) : (
                 <span data-testid={`name-${row.id}`}>
-                  <Field name={`suppliers.${row.supplierIndex}.products.${row.productIndex}.name`} pattern="readPretty" component={[Input]} />
+                  <Field name={`suppliers.${row.supplierIndex}.products.${row.productIndex}.name`} readOnly component={[Input]} />
                 </span>
               ),
           },

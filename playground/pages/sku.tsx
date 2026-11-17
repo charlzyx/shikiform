@@ -60,14 +60,14 @@ const columns: ArrayTableColumn<SkuRow>[] = [
   { key: 'label', title: '组合', render: ({ record }) => record.label },
   { key: 'price', title: '单价', render: () => <Field name="price" component={[InputNumber, { min: 0 }]} /> },
   { key: 'qty', title: '数量', render: () => <Field name="qty" component={[InputNumber, { min: 1 }]} /> },
-  { key: 'line', title: '小计', render: () => <Field name="line" component={[InputNumber]} /> },
+  { key: 'line', title: '小计', render: () => <Field name="line" readOnly component={[InputNumber]} /> },
 ]
 
 /** Ticked combos become rows; a price edited by hand survives unticking and ticking the combo again. */
 export function SkuPage() {
   const form = useForm<Values>({
     initialValues: { picked: [], overrides: {}, skuRows: [] },
-    fields: { overrides: { display: 'virtual' } },
+    fields: { overrides: { omit: true } },
     effects: [effects],
   })
   const [result, setResult] = useState('')

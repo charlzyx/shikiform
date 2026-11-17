@@ -151,7 +151,7 @@ export function useGroupsErrors(form: FormEngine<any, any>, groups: readonly Fie
 
 /**
  * The errors of the fields inside a {@link FieldGroup}: one `{ path, messages }` per field with shown errors
- * (display `none` excluded), re-rendering only when that list changes. `errors.length` is a tab's badge count.
+ * (hidden, disabled and read-only fields excluded), re-rendering only when that list changes. `errors.length` is a tab's badge count.
  */
 export function useFieldGroupErrors(group: FieldGroupHandle): FieldError[] {
   const form = useRequiredForm('useFieldGroupErrors()')

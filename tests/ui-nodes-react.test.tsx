@@ -59,7 +59,7 @@ describe('<Field ui> — several UIs of one field', () => {
       form = useForm<V>({
         initialValues: { amount: 10, lock: false },
         effects: [defineEffects<V>(({ reaction }) => {
-          reaction((d) => { d.amount.$ui('slider').$pattern = d.lock.$value ? 'disabled' : undefined })
+          reaction((d) => { d.amount.$ui('slider').$disabled = d.lock.$value ? true : undefined })
         })],
       })
       return (
@@ -80,7 +80,7 @@ describe('<Field ui> — several UIs of one field', () => {
     expect((view.container.querySelector('input') as HTMLInputElement).disabled).toBe(false)
     // unset falls back: a form-wide pattern reaches the instance
     act(() => form.setValue('lock', false))
-    act(() => form.batch((d) => { d.$pattern = 'disabled' }))
+    act(() => form.batch((d) => { d.$disabled = true }))
     expect(slider().className).toContain('ant-slider-disabled')
   })
 
@@ -95,14 +95,14 @@ describe('<Field ui> — several UIs of one field', () => {
       return (
         <Form form={form}>
           <Field name="name" required component={[Input]} />
-          <Field name="name" ui="echo" pattern="readPretty" title="回显" component={[Probe]} />
+          <Field name="name" ui="echo" readOnly title="回显" component={[Probe]} />
         </Form>
       )
     }
     render(<App />)
     expect(seen.ui).toBe('echo')
     expect(seen.value).toBe('x')
-    expect(seen.pattern).toBe('readPretty')
+    expect(seen.readOnly).toBe(true)
     expect(seen.required).toBe(true)
     expect(seen.title).toBe('回显')
   })

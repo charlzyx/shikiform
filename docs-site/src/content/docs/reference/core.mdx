@@ -24,7 +24,7 @@ typed<V>().useForm<TSubmit = DefaultSubmit, const F extends FieldsInput<V> = {}>
 
 用于在组件外部创建表单引擎实例，配置项与 `useForm` 完全一致（包括 `initialValues`、`effects`、`fields`、`validate`、`pattern`、`messages`）。返回的 `FormInstance` 提供 `getValue`、`setValue`、`batch`、`submit`、`validate`、`reset` 等方法。无参调用 `createForm()` 或传入 `undefined` 与传入 `{}` 等价。
 
-在类型推导上：不传泛型参数时，`fields` 中声明了 `display: 'virtual'` 或 `display: 'none'` 的路径在提交类型里会自动变为可选；显式传入 `createForm<V>(options)` 时提交类型固定为 `V`；如果既想显式指定原始值类型 `V`，又想根据 `fields` 自动剔除虚拟/隐藏字段，请使用 `typed<V>().createForm({ fields })`（或 `typed<V>().useForm({ fields })`）；需要手动列举可选路径时，可以通过第二个泛型参数传 `SubmitValues<V, 'tmp'>`。`DefaultSubmit`、`FieldsInput` 和 `ResolveSubmit` 为内部推导辅助类型，不作为公开类型导出。
+在类型推导上：不传泛型参数时，`fields` 中声明了 `omit: true` 或 `visible: false, omit: true` 的路径在提交类型里会自动变为可选；显式传入 `createForm<V>(options)` 时提交类型固定为 `V`；如果既想显式指定原始值类型 `V`，又想根据 `fields` 自动剔除虚拟/隐藏字段，请使用 `typed<V>().createForm({ fields })`（或 `typed<V>().useForm({ fields })`）；需要手动列举可选路径时，可以通过第二个泛型参数传 `SubmitValues<V, 'tmp'>`。`DefaultSubmit`、`FieldsInput` 和 `ResolveSubmit` 为内部推导辅助类型，不作为公开类型导出。
 
 ```ts
 import { createForm } from '@shikiform/core'
@@ -37,7 +37,7 @@ form.setValue('name', 'Ada')
 import { typed } from '@shikiform/react'
 
 type Values = { name: string; confirm: string }
-const fields = { confirm: { display: 'virtual' as const } }
+const fields = { confirm: { omit: true as const } }
 
 const form = typed<Values>().createForm({ initialValues: { name: '', confirm: '' }, fields })
 

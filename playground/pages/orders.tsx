@@ -9,12 +9,12 @@ const STATUS = [{ label: '待付款', value: 'pending' }, { label: '已付款', 
 
 const effects = defineEffects<Values>(({ reaction }) => {
   reaction((d) => {
-    d.orders.$pattern = d.editable.$value ? undefined : 'readPretty'
+    d.orders.$readOnly = d.editable.$value ? undefined : true
   })
   reaction.each((d) => d.orders, (order, { d, depth }) => {
     if (depth !== 0) return // items 也是对象数组；这一轮只处理订单
-    order.$pattern = order.status.$value === 'shipped' ? 'readPretty' : undefined // 已发货：整单只读
-    order.status.$pattern = d.editable.$value ? 'editable' : 'readPretty' // 状态本身始终跟随总开关
+    order.$readOnly = order.status.$value === 'shipped' ? true : undefined // 已发货：整单预览
+    order.status.$readOnly = !d.editable.$value // 状态本身始终跟随总开关；false 退出父级只读
     let amount = 0
     order.items.$value.forEach((item, index) => {
       const line = item.qty * item.price
@@ -36,13 +36,13 @@ const itemColumns: ArrayTableColumn<Item>[] = [
     ),
   },
   { key: 'price', title: '单价', render: () => <Field name="price" component={[InputNumber, { min: 0 }]} /> },
-  { key: 'line', title: '行金额', render: () => <Field name="line" component={[InputNumber]} /> },
+  { key: 'line', title: '行金额', render: () => <Field name="line" readOnly component={[InputNumber]} /> },
 ]
 
 const orderColumns: ArrayTableColumn<Order>[] = [
   { key: 'no', title: '订单号', render: ({ record }) => record.no },
   { key: 'status', title: '状态', render: () => <Field name="status" enum={STATUS} component={[Select, { style: { width: 110 } }]} /> },
-  { key: 'amount', title: '合计', render: () => <Field name="amount" component={[InputNumber]} /> },
+  { key: 'amount', title: '合计', render: () => <Field name="amount" readOnly component={[InputNumber]} /> },
 ]
 
 /**
@@ -58,7 +58,7 @@ export function OrdersPage() {
         { id: 'o2', no: 'A002', status: 'shipped', amount: 0, items: [{ id: 'i3', sku: 'box', qty: 1, price: 20, line: 0 }] },
       ],
     },
-    fields: { editable: { display: 'virtual' } },
+    fields: { editable: { omit: true } },
     effects: [effects],
   })
   return (

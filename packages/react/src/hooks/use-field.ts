@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useRef, useSyncExternalStore, typ
 import type { FormEngine } from '@shikiform/core/internal'
 import type { EnumOption } from '@shikiform/core/internal'
 import { normalizeUiSpec } from '@shikiform/core/internal'
-import type { Display, FieldEnum, FieldPath, FieldUiSpec, PathValue, Pattern, UiName } from '@shikiform/core/internal'
+import type { FieldEnum, FieldPath, FieldUiSpec, PathValue, UiName } from '@shikiform/core/internal'
 import { uiId } from '@shikiform/core/internal'
 import type { RulesInput } from '@shikiform/core/internal'
 import { ShikiUsageError } from '@shikiform/core/internal'
@@ -29,11 +29,15 @@ export interface FieldBinding<TValue> {
   onBlur(): void
   errors: string[]
   warnings: string[]
-  display: Display
-  pattern: Pattern
-  required: boolean
+  /** Effective render flag (OR-inherited). `false` does not render; the value is still submitted unless `omit`. */
+  visible: boolean
+  /** Effective disabled (OR-inherited). The preview wins when `readOnly` is also set. */
   disabled: boolean
+  /** Effective read-only (OR-inherited). Renders the preview. Wins over `disabled`. */
   readOnly: boolean
+  /** This field is left out of submit. Not inherited. */
+  omit: boolean
+  required: boolean
   /** True after blur. `reset` clears it. */
   touched: boolean
   /** The value differs from its initial value (deep compare). Changing it back clears it. */
@@ -59,7 +63,7 @@ export interface FieldBinding<TValue> {
   decoratorProps: Record<string, any>
   /**
    * The UI instance name when this binding comes from `<Field name ui="echo">` / `useField(name, { ui })`: value,
-   * errors and `onChange` are the field's; display, pattern, title, props and `id` (`<prefix>-<path>--<ui>`) are the instance's.
+   * errors and `onChange` are the field's; visible, disabled, readOnly, title, props and `id` (`<prefix>-<path>--<ui>`) are the instance's.
    */
   ui?: string
 }
@@ -146,14 +150,14 @@ export type RegisteredDecoratorSlot = RegisteredSlot<FieldDecorators>
 /**
  * Field options a hook caller can pass. Same semantics as the `<Field>` props of the same name:
  * `rules` / `required` are a mount-scoped lease (applied while the calling component is mounted, released on unmount,
- * restoring a declaration, item template, or `$rules`). `display` and `pattern` are persistent flags.
+ * restoring a declaration, item template, or `$rules`). `visible` / `disabled` / `readOnly` / `omit` are the same lease.
  */
 export interface UseFieldOptions<TValue = any> {
   /**
    * A second (third …) UI of the same field: `<Field name="amount" ui="slider" component={[Slider]} />`.
-   * Shares the value, errors and rules; has its own display / pattern / title / props, addressed in effects as
-   * `d.amount.$ui('slider')` (unset falls back to the field: pattern inherits). Own DOM id `<prefix>-<path>--<ui>`.
-   * `rules` / `required` / `enum` belong on the field itself (the `<Field>` without `ui`). `display` is this instance's.
+   * Shares the value, errors and rules; has its own visible / disabled / readOnly / title / props, addressed in effects as
+   * `d.amount.$ui('slider')` (unset falls back to the field). Own DOM id `<prefix>-<path>--<ui>`.
+   * `rules` / `required` / `enum` / `omit` belong on the field itself (the `<Field>` without `ui`).
    */
   ui?: UiName
   /**
@@ -164,9 +168,14 @@ export interface UseFieldOptions<TValue = any> {
   enum?: FieldEnum<TValue>
   rules?: RulesInput<TValue>
   required?: boolean
-  /** `virtual` renders and validates but is not submitted. `hidden` / `none` do not render. */
-  display?: Display
-  pattern?: Pattern
+  /** `false` does not render. Inherited (OR); explicit `false` exits a shown parent. Still submitted unless `omit`. */
+  visible?: boolean
+  /** Gray the control out. Inherited (OR); explicit `false` exits. Skips validation. */
+  disabled?: boolean
+  /** Render the preview. Inherited (OR); explicit `false` exits. Wins over `disabled`. Skips validation. */
+  readOnly?: boolean
+  /** Leave this field out of submit. Not inherited. */
+  omit?: boolean
   /**
    * UI state, the render-time JSX layer: not stored on the model, so inline objects and handlers are free.
    * A reaction (`$title`, `$componentProps.x = …`) wins over it; it wins over `fields` declarations.
@@ -218,7 +227,14 @@ export function useField(name?: string, options?: UseFieldOptions): FieldBinding
   const ui = options?.ui
   if (ui && process.env.NODE_ENV !== 'production') warnInstanceOptions(path, ui, options!)
   const spec = options && !ui
-    ? { rules: options.rules, required: options.required, display: options.display, pattern: options.pattern }
+    ? {
+        rules: options.rules,
+        required: options.required,
+        visible: options.visible,
+        disabled: options.disabled,
+        readOnly: options.readOnly,
+        omit: options.omit,
+      }
     : undefined
   const ownsValidation = !!spec && (spec.rules !== undefined || spec.required !== undefined)
   const latestSpec = useRef(spec)
@@ -271,7 +287,7 @@ export function useUiNode(form: FormEngine<any, any>, path: string, ui: string |
 const warnedInstance = new Set<string>()
 
 function warnInstanceOptions(path: string, ui: string, options: UseFieldOptions): void {
-  const owned = (['rules', 'required', 'enum'] as const).filter((key) => options[key] !== undefined)
+  const owned = (['rules', 'required', 'enum', 'omit'] as const).filter((key) => options[key] !== undefined)
   const key = `${path}#${ui}`
   if (!owned.length || warnedInstance.has(key)) return
   warnedInstance.add(key)
@@ -307,9 +323,12 @@ const NO_FIELD =
   "or pass a name: useField('email')."
 
 function uiJsx(options: UseFieldOptions, path: string) {
-  // A UI instance has no submit switch. `virtual` is the field's display; on an instance it means "shown".
-  const display = options.display === 'virtual' ? 'visible' : options.display
-  return { ...uiLayer(options, path), display, pattern: options.pattern }
+  return {
+    ...uiLayer(options, path),
+    visible: options.visible,
+    disabled: options.disabled,
+    readOnly: options.readOnly,
+  }
 }
 
 function uiLayer(options: UseFieldOptions, path: string): FieldUiSpec | undefined {

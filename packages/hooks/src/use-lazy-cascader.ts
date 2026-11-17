@@ -169,7 +169,7 @@ export interface CascaderLabelsApi {
 }
 
 /**
- * Labels for a cascader value, for a read view (`readPretty`). A `labelInValue` value already carries its labels and
+ * Labels for a cascader value, for a read view (`preview`). A `labelInValue` value already carries its labels and
  * loads nothing. A bare value (`['zj', 'hz']`) is resolved by loading each ancestor level through `load`, the same way
  * {@link useLazyCascader} echoes a value into the editor.
  */

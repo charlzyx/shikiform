@@ -3,7 +3,7 @@ title: 控件与阅读态
 description: "@shikiform/antd 提供的全套 Ant Design 适配控件、树形 enum 配置以及对应的 PreviewText 阅读态与空值占位。"
 ---
 
-`@shikiform/antd` 内置了全套常用 Ant Design 控件的适配版本，可以直接传给 `<Field>` 的 `component` 属性。当某个字段、父级对象或整张表单的 `pattern` 设为 `readPretty` 时，这些控件会自动切换为只读的「阅读态」文本：选项自动反显为 `label`、日期按格式展示、密码打码、多选展示为标签，空值则统一显示为空值占位符。
+`@shikiform/antd` 内置了全套常用 Ant Design 控件的适配版本，可以直接传给 `<Field>` 的 `component` 属性。字段、父对象或整张表单的 `readOnly` 为 true 时，这些控件换成阅读态文本：选项反显为 `label`、日期按格式展示、密码打码、多选展示为标签，空值显示空值占位符。详情页写 `useForm({ readOnly: true })`。
 
 | 控件 | 字段值类型 | 枚举来源（`<Field enum>`） | 阅读态表现 |
 |---|---|---|---|
@@ -21,11 +21,11 @@ description: "@shikiform/antd 提供的全套 Ant Design 适配控件、树形 e
 
 ## 控件总览与交互态切换
 
-在下面的演示中，切换顶部状态只需修改根节点一处 `d.$pattern`，所有子字段都会自动继承生效；如果有个别字段需要例外，只需单独设置该字段的 `pattern`。
+在下面的演示中，切换顶部状态只需修改根节点的 `$readOnly` / `$disabled`，所有子字段都会自动继承；某个字段写上自己的 `readOnly={false}` 可以退出。
 
 ```tsx preview
 import { Button, Segmented } from 'antd';
-import { Form, typed, useForm, Watch, type Draft, type Pattern } from '@shikiform/react';
+import { Form, typed, useForm, Watch, type Draft } from '@shikiform/react';
 import {
   AutoComplete, Cascader, Checkbox, ColorPicker, DatePicker, FormItem, FormLayout, Input, InputNumber, Radio, Rate,
   Select, Slider, Switch, TimePicker, Transfer, TreeSelect, Upload,
@@ -62,8 +62,11 @@ export default function App() {
   const F = typed(form);
   return (
     <Form form={form} data-controls-demo="">
-      <Segmented<Pattern> style={{ marginBottom: 16 }} options={['editable', 'readPretty', 'readOnly', 'disabled']}
-        onChange={(pattern) => form.batch((d) => { d.$pattern = pattern; })} />
+      <Segmented style={{ marginBottom: 16 }} options={['editable', 'readOnly', 'disabled']}
+        onChange={(mode) => form.batch((d) => {
+          d.$readOnly = mode === 'readOnly' ? true : undefined;
+          d.$disabled = mode === 'disabled' ? true : undefined;
+        })} />
       <FormLayout labelCol={{ span: 5 }} wrapperCol={{ span: 17 }}>
         <F.Field name="nickname" title="昵称" decorator={[FormItem]} component={[Input, { prefix: '@' }]} />
         <F.Field name="bio" title="简介" decorator={[FormItem]} component={[Input.TextArea]} />
@@ -99,7 +102,7 @@ export default function App() {
 
 ## 详情页：全表只读与空值占位
 
-构建详情页时，只需在创建表单时传入 `useForm({ pattern: 'readPretty' })` 即可。对于 `undefined`、`null`、`''`、`[]` 等空值，所有控件在阅读态下都会统一显示 `messages.empty`（默认为 `-`），可以通过单表的 `messages` 或全局的 `setDefaultMessages({ empty: '…' })` 修改。
+构建详情页时，只需在创建表单时传入 `useForm({ readOnly: true })` 即可。对于 `undefined`、`null`、`''`、`[]` 等空值，所有控件在阅读态下都会统一显示 `messages.empty`（默认为 `-`），可以通过单表的 `messages` 或全局的 `setDefaultMessages({ empty: '…' })` 修改。
 
 ```tsx preview
 import { Form, typed, useForm } from '@shikiform/react';
@@ -113,7 +116,7 @@ type Detail = { title: string; state: number; region: string[]; due?: string; ow
 export default function App() {
   const form = useForm<Detail>({
     initialValues: { title: '采购申请 #1024', state: 1, region: ['zj', 'nb'], attachments: [] },
-    pattern: 'readPretty',
+    readOnly: true,
     messages: { empty: '暂无' },
   });
   const F = typed(form);
@@ -133,7 +136,7 @@ export default function App() {
 ```
 
 - 如果在普通表格单元格或详情卡片等**表单外部**场景需要同款展示效果，可以直接渲染纯视图组件 `<PreviewText.Select value={row.state} options={STATUS} prettyType="badge" />`（还包括 `.Input`、`.TreeSelect`、`.Cascader`、`.DatePicker`、`.TimePicker` 等，完整列表见 [PreviewText](/reference/antd-adapter#previewtext)）。
-- 封装自定义控件时，使用 `connect(MyPicker, mapProps({ readPretty: PreviewText.TreeSelect }))` 即可直接复用现成的阅读态视图。
+- 封装自定义控件时，使用 `connect(MyPicker, mapProps({ preview: PreviewText.TreeSelect }))` 即可直接复用现成的阅读态视图。
 
 关于每个控件具体的属性映射细节，请参考 [Ant Design 适配层参考](/reference/antd-adapter#previewtext)。
 

@@ -109,19 +109,22 @@ d.tax.$value = total * 0.1
 
 在数组行中同理，应当直接写 `name`，而不是 `items.0.name`。
 
-## 误把 `$visible = false` 当成 `hidden`
+## 误以为 `$visible = false` 会从提交结果里去掉
 
 ```ts
 d.taxId.$visible = false
 ```
 
-`$visible = false` 对应的是 `display: 'none'`——不仅不渲染，还会**跳过校验并从提交结果中剔除**（虽然值仍留在引擎里）。如果你的目的是「隐藏界面但依然参与校验和提交」，应当使用 `$hidden = true`：
+`$visible = false` 只是不渲染、跳过校验。值仍然提交。不进提交结果要再写 `$omit`：
 
 ```ts
-d.taxId.$hidden = true       // 隐藏界面，但保留校验与提交
-d.taxId.$display = 'virtual' // 正常渲染并校验，但不提交（$visible 仍为 true）
-d.taxId.$visible = false     // 即 none：不渲染、不校验、不提交
+d.taxId.$visible = false   // 不渲染、不校验，仍然提交
+d.taxId.$omit = true       // 仍然渲染、仍然校验，不提交
+d.taxId.$visible = false   // 两个一起：不渲染、不校验、不提交
+d.taxId.$omit = true
 ```
+
+没有「藏起来但继续校验」的开关。还要校验的字段保持挂载（`FormTab` 的非当前页就是这样）。
 
 ## 把 `useFieldDecorator().control` 当成数据绑定传给控件
 

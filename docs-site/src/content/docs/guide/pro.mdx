@@ -86,7 +86,7 @@ const table = useQueryTable({ initialValues: { query: {}, list: [] }, params: 'q
 
 ## 枚举展示、远程联想与懒加载级联
 
-- **枚举阅读态标签**：选择类控件在 `readPretty` 模式下会自动将值反显为标签文案，传入 `prettyType="badge" | "tag"` 可渲染为状态徽标或彩色标签；单独在列表或卡片中使用时可配合 `PreviewText.Select`（详见 [/play/pro-enum](/play/pro-enum) 与 [控件与阅读态](/guide/controls)）。
+- **枚举阅读态标签**：选择类控件在 `readOnly` 时把值反显为标签，`prettyType="badge" | "tag"` 画成徽标或彩色标签。表单外用 `PreviewText.Select`（[/play/pro-enum](/play/pro-enum)、[控件与阅读态](/guide/controls)）。
 - **远程搜索联想（`Suggestion`）**：自带输入防抖并自动丢弃过期的并发响应，支持单选、多选以及 `labelInValue` 等多种值格式（[/play/suggestion](/play/suggestion)）。
 - **懒加载级联（`CascaderPlus`）**：只需提供一个 `loadData(path)` 函数即可按需加载每一级选项，回显已有数据时支持逐级自动拉取并翻译为完整路径标签（[/play/cascader-plus](/play/cascader-plus)）。
 

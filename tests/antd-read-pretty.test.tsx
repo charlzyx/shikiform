@@ -94,7 +94,7 @@ const VALUES: Values = {
 function mount(values: Partial<Values> = VALUES, messages?: { empty: string }) {
   let form!: FormInstance<Values>
   function App() {
-    form = useForm<Values>({ initialValues: values as Values, pattern: 'readPretty', messages })
+    form = useForm<Values>({ initialValues: values as Values, readOnly: true, messages })
     const F = typed(form)
     return (
       <Form form={form}>
@@ -202,7 +202,7 @@ describe('readPretty: every control has a read view (root pattern inherited via 
 
   it('switching the root pattern back to editable restores the controls', () => {
     const { view, form } = mount()
-    act(() => form().batch((d) => { d.$pattern = 'editable' }))
+    act(() => form().batch((d) => { d.$readOnly = false; d.$disabled = false }))
     expect(view.container.querySelectorAll('[data-read-pretty]').length).toBe(0)
     expect(view.container.querySelectorAll('input').length).toBeGreaterThan(10)
   })

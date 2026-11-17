@@ -36,10 +36,10 @@ const EMPTY_EDITOR: Editor = { open: false, loading: false, action: '', rowId: '
 
 const effects = defineEffects<Values>(({ reaction }) => {
   reaction((d) => {
-    const pattern = d.editor.action.$value === 'detail' ? 'readPretty' : undefined
-    d.editor.name.$pattern = pattern
-    d.editor.price.$pattern = pattern
-    d.editor.note.$pattern = pattern
+    const readOnly = d.editor.action.$value === 'detail' ? true : undefined
+    d.editor.name.$readOnly = readOnly
+    d.editor.price.$readOnly = readOnly
+    d.editor.note.$readOnly = readOnly
   })
 })
 
@@ -47,7 +47,7 @@ export function RowEditPage() {
   const form = useForm<Values>({
     initialValues: { rows: ROWS, editor: EMPTY_EDITOR },
     effects: [effects],
-    fields: { editor: { display: 'virtual' } },
+    fields: { editor: { omit: true } },
   })
   return (
     <Form form={form}>
@@ -136,7 +136,7 @@ function RowEditBody() {
     <main>
       <h1>抽屉里编辑一行</h1>
       <p>
-        编辑区是同一个引擎里的一个 <code>display: virtual</code> 对象（<code>editor</code>，不进提交值）。打开时异步加载这一行，较新的打开会作废旧的加载；
+        编辑区是同一个引擎里的一个 <code>omit</code> 对象（<code>editor</code>，不进提交值）。打开时异步加载这一行，较新的打开会作废旧的加载；
         「确定」用 <code>form.batch</code> 按 id 找到原行写回；「详情」把同一组字段切成阅读态。
       </p>
       <div data-testid="row-table" onClick={onTableClick}>
@@ -218,9 +218,9 @@ function RowEditBody() {
 function EditorFields() {
   const loading = useWatch((d: Draft<Values>) => d.editor.loading.$value === true)
   if (loading) return <Spin data-testid="editor-loading" />
-  // Detail = the same fields with `$pattern = 'readPretty'` (see the reaction); FormItem / Input render the text view.
+  // Detail sets `$readOnly` (see the reaction); FormItem / Input render the preview.
   return (
-    <ObjectField name="editor" display="virtual">
+    <ObjectField name="editor" omit>
       <FormLayout layout="vertical">
         <Field name="name" title="名称" decorator={[FormItem]} component={[Input, { 'data-testid': 'editor-name' }]} />
         <Field name="price" title="价格" decorator={[FormItem]} component={[InputNumber, { 'data-testid': 'editor-price', min: 0 }]} />

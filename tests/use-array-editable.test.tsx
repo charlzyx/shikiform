@@ -42,18 +42,18 @@ describe('useArrayEditable', () => {
     expect(text(form)).toBe('true')
   })
 
-  it('is false in readPretty / disabled / readOnly set on the array itself', () => {
-    for (const pattern of ['readPretty', 'disabled', 'readOnly'] as const) {
+  it('is false when the array is readOnly or disabled', () => {
+    for (const fields of [{ readOnly: true }, { disabled: true }] as const) {
       const form = createForm<Values>({
         initialValues: { rows: [{ name: 'a' }] },
-        fields: { rows: { pattern } },
+        fields: { rows: fields },
       })
-      expect(text(form), pattern).toBe('false')
+      expect(text(form), JSON.stringify(fields)).toBe('false')
     }
   })
 
   it('is false when a pattern is inherited from an ancestor (root included)', async () => {
-    const root = createForm<Values>({ initialValues: { rows: [{ name: 'a' }] }, pattern: 'readPretty' })
+    const root = createForm<Values>({ initialValues: { rows: [{ name: 'a' }] }, readOnly: true })
     expect(text(root)).toBe('false')
   })
 
@@ -61,9 +61,9 @@ describe('useArrayEditable', () => {
     const form = createForm<Values>({ initialValues: { rows: [{ name: 'a' }] } })
     const view = render(<View form={form} />)
     expect(view.getByTestId('editable').textContent).toBe('true')
-    await act(() => form.batch((d) => { d.$pattern = 'readPretty' }))
+    await act(() => form.batch((d) => { d.$readOnly = true }))
     expect(view.getByTestId('editable').textContent).toBe('false')
-    await act(() => form.batch((d) => { d.rows.$pattern = 'editable' }))
+    await act(() => form.batch((d) => { d.rows.$readOnly = false; d.rows.$disabled = false }))
     // 自己的 pattern 覆盖祖先继承
     expect(view.getByTestId('editable').textContent).toBe('true')
   })

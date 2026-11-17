@@ -31,7 +31,7 @@ export interface FormStepHandle {
   /**
    * Validate the current step's editable fields (`form.validate(paths)`, one pass) and go forward when they are clean.
    * Resolves `false` (and stays) on errors, on the last step, or before `<FormStep>` mounted. Never rejects.
-   * Fields that are not editable (readPretty / readOnly / disabled, own or inherited) do not block: the user
+   * Fields that are hidden, read-only or disabled (own or inherited) do not block: the user
    * cannot fix them here, and submit still validates every field.
    */
   next(): Promise<boolean>
@@ -85,7 +85,12 @@ export function useFormStep(options: UseFormStepOptions = {}): FormStepHandle {
     const attached = link.current
     if (!attached || from >= total - 1) return false
     const group = attached.groups[from]
-    const paths = group ? group.paths().filter((path) => attached.form.query(path).$pattern === 'editable') : []
+    const paths = group
+      ? group.paths().filter((path) => {
+          const field = attached.form.query(path)
+          return field.$visible && !field.$disabled && !field.$readOnly
+        })
+      : []
     try {
       await attached.form.validate(paths)
     } catch (error) {

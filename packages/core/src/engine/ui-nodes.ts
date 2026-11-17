@@ -4,49 +4,47 @@ import { unwrapReadonly } from '../draft/readonly'
 import type { UiEffect, UiKey } from '../state/field-model'
 import type { FieldStore } from '../state/field-store'
 import type { Notifier } from '../state/notifier'
-import type { Display, FieldUiSpec, Pattern, UiDisplay, WriteOp } from '../types'
-
-/** UI nodes have no submit switch. A field that reads as `virtual` still renders, so the fallback is `visible`. */
-function asUiDisplay(display: Display): UiDisplay {
-  return display === 'virtual' ? 'visible' : display
-}
+import type { FieldUiSpec, WriteOp } from '../types'
 import { FieldUi, type FieldUiView, type UiHolder } from './field-ui'
 import type { StateWriter } from './writes'
 import { reindexKeyed } from '../structure/migrate'
 
+/** Flags a named UI can set. No `omit`: a UI node is not submitted. */
+type UiFlag = 'visible' | 'disabled' | 'readOnly'
+
 /** `field`: `<Field name ui>`, a second UI of a field. `node`: `<UI name>`, a UI with no value. */
 export type UiKind = 'field' | 'node'
 
-/** The render-time JSX layer of a UI node: the field UI keys plus its own initial display / pattern. */
+/** The render-time JSX layer of a UI node: the field UI keys plus its own flags. */
 export interface UiJsx extends FieldUiSpec {
-  display?: UiDisplay
-  pattern?: Pattern
+  visible?: boolean
+  disabled?: boolean
+  readOnly?: boolean
 }
 
-/** Effective state of one UI node. UI nodes have no `virtual` (a virtual field falls back as `visible`). */
+/** Effective state of one UI node. Unset flags fall back to the path's effective flags. */
 export interface UiNodeView extends FieldUiView {
-  display: UiDisplay
-  pattern: Pattern
+  visible: boolean
+  disabled: boolean
+  readOnly: boolean
 }
 
 interface UiModel extends UiHolder {
   path: string
   name: string
   kind?: UiKind
-  display?: UiDisplay
-  pattern?: Pattern
-  /** `$disabled = true` installed the current pattern (`false` then clears it, like a field). */
-  patternFromDisabled?: boolean
+  /** Reaction layer. `undefined` falls back to JSX, then to the path. */
+  visible?: boolean
+  disabled?: boolean
+  readOnly?: boolean
   uiEffect?: Partial<Record<UiKey, UiEffect>>
 }
 
 /** States a `$ui(name)` handle reads and writes. */
 export const UI_NODE_STATE = new Set([
   '$visible',
-  '$hidden',
-  '$display',
-  '$pattern',
   '$disabled',
+  '$readOnly',
   '$title',
   '$description',
   '$componentProps',
@@ -54,7 +52,7 @@ export const UI_NODE_STATE = new Set([
 ])
 
 /** Dep keys a UI node's reads track (`<id>:<state>`). */
-const UI_DEPS = ['display', 'pattern', 'title', 'description', 'componentProps', 'decoratorProps', 'component', 'decorator']
+const UI_DEPS = ['visible', 'disabled', 'readOnly', 'title', 'description', 'componentProps', 'decoratorProps', 'component', 'decorator']
 
 /** Model / dep / notifier key of the UI `name` on `path` (`''` is the root). Never a data path: `#` separates. */
 export function uiId(path: string, name: string): string {
@@ -63,13 +61,13 @@ export function uiId(path: string, name: string): string {
 
 /**
  * Named UI nodes (`d.x.$ui('echo')`, `d.$ui('tip')`). Each is keyed by (path, name) and owns only a UI layer:
- * display, pattern, title, description, componentProps, decoratorProps. Value, errors, rules and options stay
- * on the field. Layers, highest first: reaction > JSX (`<Field ui … pattern>`, render time) > fallback, where the
- * fallback for display / pattern is the path's effective state (a field instance inherits its field; a `<UI>`
- * its scope), and for title / description (field instances only) the field's own declaration + reaction value.
- * componentProps / decoratorProps never inherit: they belong to a different component.
+ * visible, disabled, readOnly, title, description, componentProps, decoratorProps. Value, errors, rules and
+ * options stay on the field. Layers, highest first: reaction > JSX (`<Field ui …>`, render time) > fallback,
+ * where the fallback for the three flags is the path's effective state (a field instance follows its field; a
+ * `<UI>` its scope). An explicit `false` exits that fallback. Title / description (field instances only) fall
+ * back to the field's own declaration + reaction value. componentProps / decoratorProps never inherit.
  *
- * A node's display does not reach anything else: hiding a `<UI>` unmounts what it wraps but does not change any
+ * A node's flags do not reach anything else: hiding a `<UI>` unmounts what it wraps but does not change any
  * field's `$visible`, validation or submit.
  */
 export class UiNodes {
@@ -128,17 +126,12 @@ export class UiNodes {
     const id = uiId(path, name)
     const model = this.ensure(path, name)
     const { scheduler, store } = this
-    if (key === '$visible' || key === '$hidden' || key === '$display') {
-      scheduler.track(id, 'display')
-      scheduler.trackChain(path, 'display')
-      const display = model.display ?? asUiDisplay(store.effectiveDisplay(path))
-      return key === '$display' ? display : key === '$visible' ? display === 'visible' : display === 'hidden'
-    }
-    if (key === '$pattern' || key === '$disabled') {
-      scheduler.track(id, 'pattern')
-      scheduler.trackChain(path, 'pattern')
-      const pattern = model.pattern ?? store.effectivePattern(path)
-      return key === '$pattern' ? pattern : pattern === 'disabled'
+    if (key === '$visible' || key === '$disabled' || key === '$readOnly') {
+      const name = key.slice(1) as UiFlag
+      scheduler.track(id, name)
+      scheduler.trackChain(path, name)
+      const own = model[name]
+      return own === undefined ? store.effective(path, name) : own
     }
     const uiKey = key.slice(1) as UiKey
     const own = this.ui.read(id, uiKey)
@@ -157,42 +150,11 @@ export class UiNodes {
     const id = uiId(path, name)
     const model = this.ensure(path, name)
     let op: WriteOp
-    if (key === '$visible' || key === '$hidden' || key === '$display') {
+    if (key === '$visible' || key === '$disabled' || key === '$readOnly') {
+      const name = key.slice(1) as UiFlag
       op = {
-        key: `${id}:display`,
-        apply: () => {
-          // `$hidden = false` only clears an explicit hidden. `none` stays none (it is not hidden).
-          if (key === '$hidden' && value === false) {
-            if (model.display !== 'hidden') return false
-            return this.set(model, 'display', 'visible')
-          }
-          const display: UiDisplay | undefined =
-            key === '$display' ? (value as UiDisplay | undefined)
-              : value === undefined ? undefined
-                : key === '$visible' ? (value ? 'visible' : 'none') : 'hidden'
-          return this.set(model, 'display', display)
-        },
-      }
-    } else if (key === '$pattern') {
-      op = {
-        key: `${id}:pattern`,
-        apply: () => {
-          model.patternFromDisabled = false
-          return this.set(model, 'pattern', value as Pattern | undefined)
-        },
-      }
-    } else if (key === '$disabled') {
-      op = {
-        key: `${id}:pattern`,
-        apply: () => {
-          if (!value) {
-            if (!model.patternFromDisabled) return false
-            model.patternFromDisabled = false
-            return this.set(model, 'pattern', undefined)
-          }
-          model.patternFromDisabled = true
-          return this.set(model, 'pattern', 'disabled')
-        },
+        key: `${id}:${name}`,
+        apply: () => this.setFlag(model, name, value as boolean | undefined),
       }
     } else {
       op = this.ui.makeOp(id, key.slice(1) as UiKey, value)
@@ -210,8 +172,9 @@ export class UiNodes {
     const id = uiId(path, name)
     const model = this.models.get(id)
     const out = this.ui.view(id, jsx) as UiNodeView
-    out.display = model?.display ?? jsx?.display ?? asUiDisplay(this.store.effectiveDisplay(path))
-    out.pattern = model?.pattern ?? jsx?.pattern ?? this.store.effectivePattern(path)
+    out.visible = uiFlag(model?.visible, jsx?.visible, this.store.effective(path, 'visible'))
+    out.disabled = uiFlag(model?.disabled, jsx?.disabled, this.store.effective(path, 'disabled'))
+    out.readOnly = uiFlag(model?.readOnly, jsx?.readOnly, this.store.effective(path, 'readOnly'))
     if (kind === 'field') {
       if (out.title === undefined || out.description === undefined) {
         const field = this.fieldUi.view(path)
@@ -226,7 +189,7 @@ export class UiNodes {
   claim(path: string, name: string, kind: UiKind): () => void {
     const id = uiId(path, name)
     this.ensure(path, name).kind = kind
-    this.store.ensure(path) // ancestor display / pattern writes bump this path, so the node re-renders with it
+    this.store.ensure(path) // ancestor flag writes bump this path, so the node re-renders with them
     const count = (this.mounts.get(id) ?? 0) + 1
     this.mounts.set(id, count)
     this.everMounted.add(id)
@@ -280,7 +243,7 @@ export class UiNodes {
     return names
   }
 
-  private set<K extends 'display' | 'pattern'>(model: UiModel, key: K, value: UiModel[K]): boolean {
+  private setFlag(model: UiModel, key: UiFlag, value: boolean | undefined): boolean {
     if (model[key] === value) return false
     model[key] = value
     const id = uiId(model.path, model.name)
@@ -295,6 +258,13 @@ export class UiNodes {
     if (!model) this.models.set(id, (model = { path, name }))
     return model
   }
+}
+
+/** Reaction value, else the JSX prop, else the path's effective flag. `false` is explicit and wins. */
+function uiFlag(reaction: boolean | undefined, jsx: boolean | undefined, fallback: boolean): boolean {
+  if (reaction !== undefined) return reaction
+  if (jsx !== undefined) return jsx
+  return fallback
 }
 
 function assertUiState(path: string, name: string, key: string): void {

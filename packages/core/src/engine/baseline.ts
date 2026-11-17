@@ -11,8 +11,8 @@ import type { Validator } from '../validation/validator'
 /**
  * The initial-values baseline: derived `dirty` (#39) and the notifications when values or the baseline are
  * replaced wholesale (`reset`, `reset(values)`, `setInitialValues`, #33).
- * `dirty` is never stored: it is values vs `initial`, deep compared, ignoring `display: 'virtual'` and computed fields.
- * `none` still counts.
+ * `dirty` is never stored: it is values vs `initial`, deep compared, ignoring `omit` and computed fields.
+ * A hidden field still counts.
  */
 export class Baseline {
   /** Last derived form-level `dirty`, with the inputs it was derived from (values / initial are replaced, never mutated). */
@@ -80,11 +80,11 @@ export class Baseline {
   }
 
 
-  /** Exact paths whose values never count as a change: own `display: 'virtual'` and computed fields. Sorted for the cache key. */
+  /** Exact paths whose values never count as a change: own `omit` and computed fields. Sorted for the cache key. */
   private skipPaths(): string[] {
     const out: string[] = []
     for (const [path, field] of this.store.fields) {
-      if (path && (field.computed || field.omitSubmit || (field.hasDisplay && field.display === 'virtual'))) out.push(path)
+      if (path && (field.computed || this.store.own(path, 'omit') === true)) out.push(path)
     }
     return out.sort()
   }
@@ -100,7 +100,7 @@ export class Baseline {
     return dirty
   }
 
-  /** The value at `path` differs from its initial value, ignoring `virtual` display / computed descendants. */
+  /** The value at `path` differs from its initial value, ignoring `omit` / computed descendants. */
   fieldDirty(path: string): boolean {
     return differsExcept(getAt(this.store.values, path), getAt(this.store.initial, path), path, this.skipPaths())
   }

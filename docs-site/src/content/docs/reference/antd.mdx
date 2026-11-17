@@ -77,11 +77,11 @@ export default function App() {
 
 `InputNumber` 的转换是正式适配器契约。需要不同的空值、字符串精度策略时，用 `connect(AntInputNumber, mapProps({ parse }))`，或 `<Field>` + 无参 `useField()` 自己接线。
 
-字段 `disabled` 和控件 `disabled` 合并。Input/InputNumber 的 readOnly 使用原生只读属性，Select 的 readOnly 映射为 disabled；Switch/Checkbox 在 readOnly 和 readPretty 时都保留 checked 外观并禁用交互。Input/Select/InputNumber 的 readPretty 改为文本展示（Select 显示选项 label）。这些 UI 状态不禁止程序调用 `form.setValue()`。
+字段 `disabled` 和控件 `disabled` 合并。`readOnly` 渲染 `preview`：Switch / Checkbox 显示「是 / 否」，Input 显示文本，Select 显示选项 label。`disabled` 与 `readOnly` 同时为真时以阅读态为准。这些 UI 状态不禁止程序调用 `form.setValue()`。
 
 ### 完整例子：状态与事件回调
 
-点击开关一次，change 计数只加一次；聚焦开关后按 Tab，blur 计数只加一次且 `currentTarget` 是真实 button。只读/阅读态禁止交互，隐藏后再显示仍是同一字段值。
+点击开关一次，change 计数只加一次；聚焦开关后按 Tab，blur 计数只加一次且 `currentTarget` 是真实 button。设为只读后开关换成阅读态文本（是 / 否），隐藏后再显示仍是同一字段值。
 
 ```tsx preview
 import { useState } from 'react';
@@ -104,11 +104,11 @@ export default function App() {
               setTarget(event.currentTarget.tagName);
             }} />
         </Field>
-        <button type="button" onClick={() => form.batch((d) => { d.notify.$pattern = 'readOnly'; })}>设为只读</button>
-        <button type="button" onClick={() => form.batch((d) => { d.notify.$pattern = 'readPretty'; })}>设为展示</button>
-        <button type="button" onClick={() => form.batch((d) => { d.notify.$pattern = 'editable'; })}>恢复编辑</button>
-        <button type="button" onClick={() => form.batch((d) => { d.notify.$display = 'hidden'; })}>隐藏通知控件</button>
-        <button type="button" onClick={() => form.batch((d) => { d.notify.$display = 'visible'; })}>显示通知控件</button>
+        <button type="button" onClick={() => form.batch((d) => { d.notify.$readOnly = true; })}>设为只读</button>
+        <button type="button" onClick={() => form.batch((d) => { d.notify.$readOnly = true; })}>设为展示</button>
+        <button type="button" onClick={() => form.batch((d) => { d.notify.$readOnly = false; d.notify.$disabled = false; })}>恢复编辑</button>
+        <button type="button" onClick={() => form.batch((d) => { d.notify.$visible = false; })}>隐藏通知控件</button>
+        <button type="button" onClick={() => form.batch((d) => { d.notify.$visible = true; })}>显示通知控件</button>
         <pre data-testid="adapter-event-counts">{JSON.stringify({ changes, blurs, target })}</pre>
       </section>
     </Form>
@@ -195,7 +195,7 @@ groupRowSpan<T>(rows: readonly T[], groupOf: (row: T) => string): number[]
   rowSelection: true,
   expandable: {
     rowExpandable: (record) => !!record.children,
-    render: () => <ArrayField name="children" component={[ArrayTable, { columns: childColumns }]} />,   // 只读：childColumns 的单元格写 pattern="readPretty"
+    render: () => <ArrayField name="children" component={[ArrayTable, { columns: childColumns }]} />,   // 只读：childColumns 的单元格写 readOnly
   },
   extra: <ArrayTable.Addition />,
   onRemove: (index, record) => api.remove(record.id),
@@ -234,7 +234,7 @@ groupRowSpan<T>(rows: readonly T[], groupOf: (row: T) => string): number[]
 | `ArrayTable.useTable()` | 在 `toolbar` / `footer` / 单元格里读表格状态 + 列配置（`useArrayTable` 的返回值加 `settings`） |
 | `ArrayTable.useRow()` | 单元格里的 `{ key, index, position, record }`，建立在 [`useIndex`](/reference/react-hooks#useindex) / [`useRecord`](/reference/react-hooks#userecord) 上，`record` 是响应式的 |
 
-行操作（`SortHandle`、`Remove`、`MoveUp`、`MoveDown`、`Copy`、`Addition`、`ShadowAddition`）和 `ArrayItems` 一样，只在数组的有效 pattern 为 `editable` 时渲染（外层或根的 `readPretty` / `readOnly` / `disabled` 都会隐藏它们；整个数组的 pattern 写在 `d.list.$pattern` 或 `fields: { list: { pattern } }` 上，单元格各自的用 `<Field pattern>`）；`Index` 一直显示。
+行操作（`SortHandle`、`Remove`、`MoveUp`、`MoveDown`、`Copy`、`Addition`、`ShadowAddition`）和 `ArrayItems` 一样，只在数组可见、且不是 `readOnly` / `disabled` 时渲染（写在 `d.list.$readOnly` / `$disabled`，或 `fields: { list: { readOnly } }`；单元格各自用 `<Field readOnly>`）。`Index` 一直显示。
 
 单元格里同样可以直接用 [`useArrayField()`](/reference/react-hooks#usearrayfield) / `useIndex()` / `useRecord()`。行操作按钮的文案走表单 `messages`（`add`、`remove`、`removeConfirm`、`moveUp`、`moveDown`、`copy`、`dragSort`、`selection*`、`density`、`columnSettings`）。可点的例子：[/play/array-table](/play/array-table)、[/play/array-table-shadow](/play/array-table-shadow)。
 
@@ -244,7 +244,7 @@ groupRowSpan<T>(rows: readonly T[], groupOf: (row: T) => string): number[]
 useArrayEditable(): boolean
 ```
 
-最近一层数组（`<ArrayField>` 的容器或行内）的有效 pattern 是否为 `editable`。有效 pattern 沿祖先继承到根：`useForm({ pattern: 'readPretty' })`、`d.$pattern = 'disabled'`、`d.contacts.$pattern = 'readOnly'` 都让它变成 `false`。`ArrayItems` / `ArrayCards` / `ArrayTable` 的动作按钮靠它隐藏；自己写的行操作也用它。在数组外调用抛错。
+最近一层数组（`<ArrayField>` 的容器或行内）的有效 pattern 是否为 `editable`。有效 pattern 沿祖先继承到根：`useForm({ readOnly: true })`、`d.$disabled = true`、`d.contacts.$readOnly = true` 都让它变成 `false`。`ArrayItems` / `ArrayCards` / `ArrayTable` 的动作按钮靠它隐藏；自己写的行操作也用它。在数组外调用抛错。
 
 ## FormTab
 
@@ -254,7 +254,7 @@ useArrayEditable(): boolean
 </FormTab>
 ```
 
-标签页容器（Formily `FormTab`）。子元素必须是 `FormTab.Pane`（可包在 Fragment 里，`false` / `null` 跳过；其他元素抛错）。每个面板都渲染（antd `forceRender`），不活动的只是隐藏：字段的值、JSX 规则、错误都在，提交照常校验和提交。标签标题带错误数徽标：面板里有错（不含 display `none`）的字段数，`0` 时不显示。`submit()` 校验失败或 `form.validate()` 发现错误时，切到**第一个**含有这次错误的面板（受控时只调用 `onChange`），随后 `<Form>` 聚焦第一个有错的字段。
+标签页容器（Formily `FormTab`）。子元素必须是 `FormTab.Pane`（可包在 Fragment 里，`false` / `null` 跳过；其他元素抛错）。每个面板都渲染（antd `forceRender`），不活动的只是隐藏：字段的值、JSX 规则、错误都在，提交照常校验和提交。标签标题带错误数徽标：面板里有错的字段数（`visible: false` 的字段错误已清掉，不会计入），`0` 时不显示。`submit()` 校验失败或 `form.validate()` 发现错误时，切到**第一个**含有这次错误的面板（受控时只调用 `onChange`），随后 `<Form>` 聚焦第一个有错的字段。
 
 | 参数 | 行为 |
 |---|---|
@@ -264,7 +264,7 @@ useArrayEditable(): boolean
 | `defaultActiveKey` | 不受控初始页；默认第一个 |
 | 其余 | 交给 antd `Tabs`（`items` 由面板生成） |
 
-只是布局：不占值路径，不写 `$display` / `$pattern`；字段的 pattern 照常沿字段路径继承（根 `$pattern = 'readPretty'` 时面板里的字段也是阅读态）。
+只是布局：不占值路径，也不改字段的四个布尔。`visible` / `disabled` / `readOnly` 沿字段路径继承（`useForm({ readOnly: true })` 时面板里的字段也是阅读态）。
 
 ## FormCollapse
 

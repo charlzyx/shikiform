@@ -11,13 +11,16 @@ and SSR-rendered against the packed library); the site's `/llms.txt` serves this
 ## 1. Handle vs value
 
 `d.user.name` is a **handle**: a path, not data. Property access never reads values. `$` members are state:
-`$value`, `$display`, `$visible`, `$hidden`, `$pattern`, `$disabled`, `$required`, `$rules`, `$enum`, `$errors`, UI state
+`$value`, `$visible`, `$disabled`, `$readOnly`, `$omit`, `$required`, `$rules`, `$enum`, `$errors`, UI state
 (`$title`, `$description`, `$componentProps`, `$decoratorProps`, `$component`, `$decorator`), named UI nodes
 `d.x.$ui('echo')` / `d.$ui('tip')` (§5), and form-level `d.$canSubmit` / `d.$submitting`. A field literally named `value` is `d.value.$value`.
 
-- `$pattern` / `$display` inherit from ancestors, the root included: `form.batch((d) => { d.$pattern = 'readPretty' })`
-  switches the whole form (a field with its own pattern wins; `undefined` inherits again). To start that way (a detail
-  page), `useForm({ initialValues, pattern: 'readPretty' })` sets the root `$pattern` at creation.
+- Four independent booleans. `visible` (default true) renders. `disabled` grays the control out. `readOnly` renders the
+ preview (`disabled` and `readOnly` together: `readOnly` wins). `omit` leaves the field out of submit. Validation runs
+ only when `visible && !disabled && !readOnly`; otherwise existing errors clear. Submit looks only at `omit`
+ (`visible: false` still submits). Reaction-written fields submit unless `omit`.
+ `visible` / `disabled` / `readOnly` inherit by OR from ancestors; an explicit `false` exits. `omit` does not inherit.
+ `useForm({ readOnly: true })` (and `disabled`) sets the root. `undefined` drops the reaction layer.
 - Empty values (`''`, `null`, `undefined`) are judged only by `required`: `minLength`, `pattern`, `min`, `format` pass them.
 
 - Read data with `$value`; write a field by assigning its own path: `d.user.name.$value = 'x'`.
@@ -28,19 +31,7 @@ and SSR-rendered against the packed library); the site's `/llms.txt` serves this
 - A handle is not an array: no `.map`, `.length`, `for…of`, or `const [row] = d.items`. Use `d.items.$value` or `reaction.each`.
 - Destructuring takes child field handles only (`const { name } = d.user`, then `name.$value`). `$` state is always read and written on the handle. Object rest, object spread, and `Object.keys(handle)` throw in development.
 - `get` / `set` (`@shikiform/core`, re-exported by `@shikiform/react`) read and copy plain data with lodash-style paths (`a.b[0].c`, `a['name']`). `set` returns a new tree. `form.getValue` / `form.setValue` use the same syntax. On a draft, `get` returns a child handle: `get(d, 'user.name').$value` and `get(d, 'items[0].qty').$value` (`orders.0.qty` is the same path). Do not `set` a draft.
-- Display is `visible` | `hidden` | `virtual` | `none` (no separate `virtual` flag). `visible` renders, validates,
-  submits, and counts as dirty. `hidden` does not render (stays registered) but still validates, submits, and counts as
-  dirty — unlike Formily, whose `hidden` skips validation. `virtual` renders and validates (errors block submit, e.g. a
-  confirm password) but is not submitted (the whole subtree) and does not count as dirty. `none` does not render, skips
-  validation (errors clear), and is not submitted; the value stays in the store and comes back when shown, and it still
-  counts as dirty (Formily drops the value). `$visible = false` is `none`. `$visible = true` clears a reaction's display
-  and restores the declaration (it does not force `visible`). Reading `$visible` is true whenever the field renders
-  (`visible` or `virtual`, and no ancestor `hidden` / `none`). `$hidden = true` is `hidden`. `$hidden = false` only clears
-  hidden (`none` and `virtual` stay). `$display = 'virtual'` switches at runtime. Inheritance keeps two switches: an
-  ancestor `none` wins; otherwise `hidden` only turns render off and `virtual` only turns submit off, so they stack
-  (parent hidden + child virtual = no render, still validated, not submitted). Reading `$display` collapses
-  `none` > `hidden` > `virtual` > `visible`. A conditional field is `$visible`; an inactive tab is `$hidden`; a confirm
-  password or client-paging `page` is `display: 'virtual'`. Named UI `$display` has no `'virtual'`.
+- A confirm password or a client-only paging `page` is `omit: true`. `visible: false` still submits and still counts as dirty; `omit` does not count as dirty. An inactive tab stays mounted (the container only hides it) so its fields keep validating.
 
 Development builds throw `ShikiUsageError` with the fix for these mistakes (mutating `$value`, using a handle
 as an array, enumerating it with `Object.keys` / object spread / rest, and reading back a `$` state you wrote in the same pass), and for a misspelled state (`$valeu`,
@@ -53,7 +44,7 @@ call site, the states it reads and the states it writes. Production skips the ch
 
 - `reaction((d) => …)` **derives** state. Every `$` read is a dependency; writes are not. It re-runs only when a key
   it read changes, and its writes wake downstream reactions in the same flush. A field whose `$value` a reaction
-  writes becomes computed (`readPretty` by default, still submitted). Declare `display: 'virtual'` to omit it. Two reactions writing the same state is an error.
+  writes becomes computed (still editable and still submitted; set `readOnly` or `omit` yourself). Two reactions writing the same state is an error.
 - `watch(source, effect)` is an **action**: it runs after `source`'s reads change, never on the first pass; reads
   inside `effect` are not dependencies. Use it for "when X changes, do Y once" (reset a dependent field, fetch).
 - Writes are buffered until the pass returns: keep a new value in a local instead of reading it back. UI state is
@@ -92,8 +83,7 @@ Rows need no id: object rows without `rowKey` / `id` keep a stable object identi
 
 Ready-made array UI: give `<ArrayField>` a container `component` from `@shikiform/antd` (Formily `ArrayItems` /
 `ArrayCards` / `ArrayTable`) instead of writing `useArrayField()` buttons by hand. That is the only way to attach one: there
-is no `<ArrayTable name>`; the container's props are type-checked (`[ArrayTable, {}]` without `columns` is an error). Action buttons render only while the array's effective
-pattern is `editable` (readPretty / readOnly / disabled anywhere above hides them; same for every `ArrayTable` row action and
+is no `<ArrayTable name>`; the container's props are type-checked (`[ArrayTable, {}]` without `columns` is an error). Action buttons render only while the array is visible and neither `readOnly` nor `disabled` (the same for every `ArrayTable` row action and
 `Addition`; `useArrayEditable()` for your own).
 
 ```tsx
@@ -147,7 +137,7 @@ field through context; `FormItem` is a pure decorator and `connect()`ed controls
 `@shikiform/antd` re-exports them. Headless `connect` does not pass Ant Design `status`; the antd controls opt in with
 `mapProps({ status: 'status' })`. `mapProps({ format, parse })` converts both ways: the field keeps a serializable
 value, `format(value, props)` is what the control receives, `parse(...onChangeArgs)` is what gets stored (`parse`
-replaces the old `getValueFromEvent`). `readPretty` is not formatted. antd `DatePicker` / `TimePicker` / `Upload` /
+replaces the old `getValueFromEvent`). The `readOnly` preview is not formatted. antd `DatePicker` / `TimePicker` / `Upload` /
 `ColorPicker` use this. A control whose props omit `onBlur` must pass `blurOn` in `mapProps` (or `onBlur: false`):
 `blurOn: 'onOpenChange'` blurs when the popup closes, `blurOn: 'onChange'` blurs after each change. Otherwise blur
 validation never runs and TypeScript reports it.
@@ -188,29 +178,29 @@ const form = createForm({
 
 - Options inline: `<Field enum={[{ label, value }] | ['a', 'b'] | Source.with(params)}>` (Formily `enum`); Select /
   Radio / Checkbox.Group / AutoComplete (`options`), TreeSelect (`treeData`), Cascader (`options`), Transfer (`dataSource`)
-  and their readPretty views read it; tree options are `{ label, value, children }`. Precedence: reaction `$enum` > JSX `enum` > `fields.x.enum`
+  and their read-only previews read it; tree options are `{ label, value, children }`. Precedence: reaction `$enum` > JSX `enum` > `fields.x.enum`
   > `rows.*.x` template. The JSX layer is mount-scoped (unmount restores the declaration) and re-applied when the prop
   changes (deep compare, inline arrays are fine). With `typed(form).Field` / `row.Field` option values are checked
   against the field value (element type for arrays). Options that depend on another field stay in a reaction.
   Reading `d.x.$enum` gives the effective options as `{ label, value }[]` (an async source: its loaded options, `[]` before).
-  `d.x.$enum = undefined` drops the reaction layer like `$title` / `$pattern = undefined`: back to the mounted JSX `enum`
+  `d.x.$enum = undefined` drops the reaction layer like `$title` / `$readOnly = undefined`: back to the mounted JSX `enum`
   (an async source re-binds), else `fields.x.enum`, else the template, else no options; a reaction load in flight is
   aborted and `loading` resets; `enumPolicy` applies to the change. Clear explicitly with `$enum = []`.
 - Controls (`@shikiform/antd`, Formily `@formily/antd`): Input (.TextArea .Password), InputNumber, Select, AutoComplete,
   TreeSelect, Cascader (value = path), Switch, Checkbox (.Group), Radio, DatePicker / TimePicker (.RangePicker; the field
   holds the formatted string, not dayjs), Slider, Rate, Transfer (value = target keys), Upload (.Dragger; value = antd
   `fileList`), ColorPicker (value = color text). Lazy per-level cascader: `CascaderPlus`; remote-search select: `Suggestion`.
-- readPretty: every control has a read view (`PreviewText.*`): enum labels, several values as tags (`prettyType="badge" |
+- Preview (`readOnly`): every control has a read view (`PreviewText.*`): enum labels, several values as tags (`prettyType="badge" |
   "tag"` on choice controls), dates as text, password `******`. Empty values show `messages.empty` (default `-`; set it once
   per form `useForm({ messages: { empty } })` or app-wide `setDefaultMessages`). A display-only enum cell is
-  `<Field pattern="readPretty" component={[Select, { prettyType: 'badge' }]} />`; outside a form `<PreviewText.Select value options />`;
-  a custom control reuses a view: `connect(MyPicker, mapProps({ readPretty: PreviewText.TreeSelect }))`.
+  `<Field readOnly component={[Select, { prettyType: 'badge' }]} />`; outside a form `<PreviewText.Select value options />`;
+  a custom control reuses a view: `connect(MyPicker, mapProps({ preview: PreviewText.TreeSelect }))`.
 
 ```tsx
 <F.Field name="area" enum={[{ label: '浙江', value: 'zj', children: [{ label: '杭州', value: 'hz' }] }]}
-  decorator={[FormItem]} component={[Cascader]} />                       // value ['zj', 'hz'], readPretty '浙江 / 杭州'
+  decorator={[FormItem]} component={[Cascader]} />                       // value ['zj', 'hz'], preview '浙江 / 杭州'
 <F.Field name="files" decorator={[FormItem]} component={[Upload, { action: '/upload' }]} />   // value = fileList
-const form = useForm<Detail>({ initialValues, pattern: 'readPretty' })   // a detail page: every control reads
+const form = useForm<Detail>({ initialValues, readOnly: true })   // a detail page: every control reads
 ```
 - Register controls once with `<FieldKit components={{ Input }} decorator={FormItem}>` or `<Form kit={{ … }}>`, then
   `<Field component="Input" />` / `component={["Input", props]}` (string) or `component={Input}` / `component={[Input, props]}`
@@ -261,12 +251,12 @@ const step = useFormStep()   // in the component with the buttons; { current, co
 
 - Named UI nodes (`/guide/ui`): a second UI of the **same field** is `<Field name="x" ui="echo" component={[Echo]} />`
   (shared value / errors / rules / options; its own display, pattern, title, componentProps, decoratorProps; DOM id
-  `<form id>-x--echo`, or a `useId()` prefix when `<Form>` has no `id`); in effects `d.x.$ui('echo').$pattern = 'disabled'`. Inside it `useField()` returns the shared field with
+  `<form id>-x--echo`, or a `useId()` prefix when `<Form>` has no `id`); in effects `d.x.$ui('echo').$disabled = true`. Inside it `useField()` returns the shared field with
   the instance's UI state (`field.ui === 'echo'`). Put `rules` / `required` / `enum` / `display` on the `<Field>`
   without `ui` (an instance ignores them, dev warning). A UI with **no value** (a tip, a group box) is
   `<UI name="tip" component={[Alert, props]}>children</UI>` → `d.$ui('tip')` (in a row: `row.$ui('tip')`); never in
   values / submit / validation. Priority reaction > JSX > fallback; unset display / pattern fall back to the field's
-  (a `<UI>`: its scope's), so a form-wide `$pattern` still reaches them; componentProps never inherit.
+  (a `<UI>`: its scope's), so a form-wide `$readOnly` still reaches them; componentProps never inherit.
   **Hiding a UI does not cascade**: a `<UI>` that hides unmounts its children, but each field inside keeps its own
   `$visible`, validation and submit — hide the field too (`d.x.$visible = false`) if its data should go.
   A `$ui(name)` written but never mounted warns once in development. Typo-checked names: register them once,
@@ -277,7 +267,7 @@ const step = useFormStep()   // in the component with the buttons; { current, co
 <F.Field name="amount" ui="slider" component={[Slider]} />
 <UI name="approvalTip" component={[Alert, { type: 'warning', message: '需要审批' }]} />
 reaction((d) => {
-  d.amount.$ui('slider').$pattern = d.locked.$value ? 'disabled' : undefined   // only the slider
+  d.amount.$ui('slider').$disabled = d.locked.$value ? true : undefined   // only the slider
   d.$ui('approvalTip').$visible = d.amount.$value >= 50000                      // not a field: not submitted
 })
 ```
@@ -322,10 +312,10 @@ reaction((d) => {
   `useWatch<Values>()((d) => d.email.$value)` types the draft and still infers the result; `useWatch<Values>(…)` does not.
 - `submit` / `getSubmitValues` / `onSubmit` follow `fields` in two forms: no type argument
   (`createForm({ fields })` / `useForm({ fields })`), or `typed<V>().createForm({ fields })` / `typed<V>().useForm({ fields })`
-  (V is fixed, and `fields` is still inferred). Paths declared `display: 'virtual'` or `display: 'none'` become optional;
-  `hidden` stays. `createForm<V>(options)` / `useForm<V>(options)` keep the submit type as `V` (the `fields` display is not
+  (V is fixed, and `fields` is still inferred). Paths declared `omit: true` become optional.
+  `createForm<V>(options)` / `useForm<V>(options)` keep the submit type as `V` (`fields` omit is not
   inferred). An explicit second argument is used as written: `createForm<V, SubmitValues<V, 'tmp' | 'rows.*.total'>>(options)`.
-  JSX `display` and a reaction `$display` are never visible to that inference.
+  JSX `omit` and a reaction `$omit` are never visible to that inference.
   `createForm()` / `useForm()` / `useForm(undefined)` are the same as `{}`: each returns a `FormInstance`. `useForm` runs
   the same hooks for all three, so switching between them does not change the hook count.
 
@@ -397,7 +387,7 @@ reaction((d) => { d.city.$componentProps.disabled = d.kind.$value === 'b' })    
 - `form.values`, `submitting`, `dirty`, `submitCount`, `validating` are read-only getters. Write values with
   `setValue` / `batch`, never `form.values = x` (a TS error, and a `TypeError` at runtime).
 - `dirty` / `$dirty` / `binding.dirty` = the value differs from `initial` (deep compare; changing it back clears it;
-  `display: 'virtual'` and computed fields do not count at form level; `none` does). `edited` / `$edited` is the sticky "a user edited it" flag.
+  `omit` and computed fields do not count at form level; `visible: false` does). `edited` / `$edited` is the sticky "a user edited it" flag.
 - Edit page: `useForm({ values: record })` resets to `record` whenever its content changes (new baseline, not dirty;
   `initialValues` is read once). Without React, `form.reset(record)` does the same; a later `reset()` returns to it.
   After a save, `form.setInitialValues(form.values)` moves the baseline without changing values.

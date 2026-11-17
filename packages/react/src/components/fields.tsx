@@ -1,7 +1,7 @@
 import { memo, useContext, useEffect, useMemo, useRef, type ComponentProps, type ComponentType, type FormEvent, type FormHTMLAttributes, type ReactNode } from 'react'
 import { isFieldErrors, SubmitSupersededError } from '@shikiform/core'
 import { engineOf } from '@shikiform/core/internal'
-import type { ArrayPath, Display, Draft, FieldEnum, FieldError, FieldPath, FormInstance, PathValue, Pattern, UiName } from '@shikiform/core/internal'
+import type { ArrayPath, Draft, FieldEnum, FieldError, FieldPath, FormInstance, PathValue, UiName } from '@shikiform/core/internal'
 import type { RulesInput } from '@shikiform/core/internal'
 import { pathOf, type Pos } from '@shikiform/core/internal'
 import { ArrayContext, FormContext, RowWrapContext, ScopeContext, TreeContext, useRequiredForm, useScope } from '../context'
@@ -93,8 +93,8 @@ export function runSubmit<T, TSubmit = T>(form: FormInstance<T, TSubmit>, handle
  * Field DOM ids are prefixed with this form's `id`, or with React `useId()` when `id` is omitted, so two forms
  * do not share `id="email"`. The engine's `binding().id` stays the sanitized path (`user.name` → `user-name`);
  * the control's id is `<prefix>-user-name`.
- * `<Field>` returns null for display `hidden` and `none` after subscribing, so a mounted model stays registered.
- * `virtual` stays mounted: it renders and validates, and is omitted from submit.
+ * `<Field>` returns null when `visible` is false after subscribing, so a mounted model stays registered.
+ * `omit` still renders: the value is left out of submit only.
  * A field declared on the form, or given `$rules` / `registerField`, still validates when this component is not rendered.
  */
 export function Form<T, TSubmit = T>({ form, children, onSubmit, onInvalid, onSubmitError, id, kit, ...rest }: FormProps<T, TSubmit>) {
@@ -166,9 +166,9 @@ export interface FieldProps<
   /** Name relative to the current `<ObjectField>` / `<ArrayField>` / `<TreeField>` scope. */
   name: N
   /**
-   * Another UI of the same field (`d.name.$ui('echo')` in effects): shared value / errors / rules, its own display,
-   * pattern, title and props (unset falls back to the field's). Own DOM id `<prefix>-<path>--<ui>`. Leave rules / required /
-   * enum to the `<Field>` without `ui`. `display` here is this instance's, not the field's.
+   * Another UI of the same field (`d.name.$ui('echo')` in effects): shared value / errors / rules, its own visible /
+   * disabled / readOnly, title and props (unset falls back to the field's). Own DOM id `<prefix>-<path>--<ui>`.
+   * Leave rules / required / enum / omit to the `<Field>` without `ui`.
    */
   ui?: UiName
   /**
@@ -176,20 +176,21 @@ export interface FieldProps<
    * Option values are typed against the field value (its element type for an array field) when the name is typed
    * (`typed(form).Field`, `row.Field`). Wins over `fields.x.enum` while mounted; a reaction's `$enum` wins over it.
    * Changing the prop re-applies it; unmount restores the declared enum. Select / Radio / Checkbox.Group and their
-   * readPretty views read it as `options`.
+   * read-only previews read it as `options`.
    */
   enum?: FieldEnum<PathValue<TScope, N & string>>
   /** Mount-scoped rules. Cleared on unmount. Does not erase a declaration, a template, or `$rules`. `validator` receives this field's value. */
   rules?: RulesInput<PathValue<TScope, N & string>>
   /** Mount-scoped required flag. Cleared on unmount. A declared or `$required` flag stays. */
   required?: boolean
-  /**
-   * Initial display when no reaction has written `$display`. `virtual` renders and validates but is not submitted.
-   * On `<Field ui>` this is the instance's display (`visible` | `hidden` | `none`); `virtual` belongs on the field.
-   */
-  display?: Display
-  /** Initial pattern when no reaction has written `$pattern`. `$pattern = undefined` inherits again. */
-  pattern?: Pattern
+  /** `false` does not render. Inherited (OR). Still submitted unless `omit`. On `<Field ui>` this is the instance's. */
+  visible?: boolean
+  /** Gray the control out. Inherited (OR). Skips validation. Still submitted. */
+  disabled?: boolean
+  /** Render the preview. Inherited (OR). Wins over `disabled`. Skips validation. Still submitted. */
+  readOnly?: boolean
+  /** Leave this field out of submit. Not inherited. On `<Field ui>` this is ignored (it belongs to the field). */
+  omit?: boolean
   /** Decorator label (`FormItem` shows it as `label`). A reaction's `$title` wins. */
   title?: ReactNode
   /** Decorator help text (`FormItem` shows it as `extra`). A reaction's `$description` wins. */
@@ -233,11 +234,12 @@ export type CheckedFieldProps<
  *
  * `rules` may be a built-in rule, a Standard Schema, or a mix. JSX `rules` and `required` apply only while this
  * component is mounted; unmount restores rules from `useForm({ fields })`, `registerField`, an item template, or `$rules`.
- * `display="virtual"` renders and validates but omits the value from submit. `display="hidden"` still validates.
- * `display="none"` skips validation. `<Field<Row> name="price">` checks the name.
+ * `visible={false}` does not render and skips validation; the value is still submitted unless `omit`.
+ * `readOnly` renders the preview and skips validation. `omit` leaves the value out of submit.
+ * `<Field<Row> name="price">` checks the name.
  * `<Field<Row, 'price'> name="price">` types the value.
- * `<Field>` is a thin wrapper around {@link useField}: `useField(name, options)` + not rendered (`hidden` / `none`) → `null`
- * + the two slots. `virtual` still renders.
+ * `<Field>` is a thin wrapper around {@link useField}: `useField(name, options)` + `visible === false` → `null`
+ * + the two slots. `omit` still renders.
  */
 export function Field<
   TScope = any,
@@ -247,7 +249,7 @@ export function Field<
 >({ name, children, ...options }: CheckedFieldProps<TScope, N, C, D>) {
   // Sugar over the hook: everything <Field> does is reachable through useField(name, options).
   const field = useField<TScope, N>(name, options)
-  if (field.display !== 'visible' && field.display !== 'virtual') return null
+  if (!field.visible) return null
   const Component = field.component
   const Decorator = field.decorator
   const content =
@@ -267,24 +269,36 @@ export function Field<
 
 /**
  * Scope child names under an object path. Does not subscribe to child values.
- * `display="virtual"` omits this object (and its subtree) from submit (`getSubmitValues`).
- * Also list it in `useForm({ fields })` so the omission holds before this component mounts.
+ * `omit` leaves this object out of submit (`getSubmitValues`; nested keys go with it). `omit` does not inherit,
+ * so list the object in `useForm({ fields })` when the omission must hold before this component mounts.
+ * `visible` / `disabled` / `readOnly` are inherited by the fields inside (OR; a child `false` exits).
  * `<ObjectField<Values> name="address">` checks the name; `typed(form).ObjectField` also types the children.
  */
 export function ObjectField<TScope = any>({
   name,
-  display,
+  visible,
+  disabled,
+  readOnly,
+  omit,
   children,
 }: {
   name: FieldPath<TScope>
-  /** `virtual` omits this object from submit. `hidden` / `none` are inherited by the fields inside. */
-  display?: Display
+  /** `false` hides this object and, by inheritance, the fields inside. Explicit `false` on a child exits. */
+  visible?: boolean
+  /** Disables this object and, by inheritance, the fields inside. */
+  disabled?: boolean
+  /** Read-only preview for this object and, by inheritance, the fields inside. */
+  readOnly?: boolean
+  /** Leave this object out of submit. Not inherited; nested keys disappear with the object. */
+  omit?: boolean
   children?: ReactNode
 }) {
   const form = useRequiredForm(`<ObjectField name="${String(name)}">`)
   const scope = useScope()
   const path = resolveName(form, scope, String(name))
-  if (display !== undefined) form.registerField(path, { display })
+  if (visible !== undefined || disabled !== undefined || readOnly !== undefined || omit !== undefined) {
+    form.registerField(path, { visible, disabled, readOnly, omit })
+  }
   const next = useMemo(() => ({ path, index: -1 }), [path])
   return <ScopeContext.Provider value={next}>{children}</ScopeContext.Provider>
 }
