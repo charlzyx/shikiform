@@ -13,7 +13,7 @@ import { ArrayOps } from '../structure/arrays'
 import { findPos, pathOf, type Pos } from '../shared/tree-ops'
 import { TreeOps, type TreeConfig } from '../structure/trees'
 import { formatMessage, type FormMessageKey, type MessageArgs } from '../validation/messages'
-import { SubmitSupersededError } from '../errors'
+import { SubmitSupersededError, SubmitUnstableError } from '../errors'
 import type {
   FieldUiSpec,
   ArrayItemOf,
@@ -198,7 +198,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
    * Validate, then call `onValid` with {@link FormEngine.getSubmitValues}.
    * Resolves the submit values, or `onValid`'s return when that is not `undefined`.
    * Rejects `FieldError[]` on validation failure. `onValid` and a form-level `validate` reject as-is.
-   * A later `submit`, or values that never settle, reject `SubmitSupersededError` before `onValid`.
+   * A later `submit` rejects `SubmitSupersededError`. Values that never settle reject `SubmitUnstableError`.
    */
   submit(): Promise<TSubmit>
   submit<R>(onValid: (values: TSubmit) => R | Promise<R>): Promise<SubmitResolved<TSubmit, R>>
@@ -212,9 +212,9 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     notifier.emit()
     try {
       const errors = await validator.submitVerdict()
-      if (serial !== this.submitSerial || errors === null) {
-        throw new SubmitSupersededError(this.message('superseded', { path: '', value: store.values }))
-      }
+      const unsettled = this.message('superseded', { path: '', value: store.values })
+      if (serial !== this.submitSerial) throw new SubmitSupersededError(unsettled)
+      if (errors === null) throw new SubmitUnstableError(unsettled)
       if (errors.length) {
         notifier.validateFailed(errors)
         throw errors

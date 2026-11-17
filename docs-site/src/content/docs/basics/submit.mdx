@@ -13,7 +13,8 @@ description: 了解 form.submit 的 Promise、Submit 与 Reset 按钮行为以�
 | resolve `onValid` 的返回值 | 传了 `onValid` 且它返回了非 `undefined` 的值（`await` 之后） |
 | reject `FieldError[]` | 校验未通过，不会调用 `onValid` |
 | reject `onValid` 抛出的那个错误 | `onValid` 或表单级 `validate` 自己抛错，原样 reject |
-| reject `SubmitSupersededError` | 这次提交被后一次 `submit()` 取代，或校验期间值连续 3 轮都没稳定。`code` 是 `'superseded'`，`message` 来自 `messages.superseded`。它不是 `FieldError[]` |
+| reject `SubmitSupersededError` | 这次提交被后一次 `submit()` 取代。`code` 是 `'superseded'`，`message` 来自 `messages.superseded`。不是 `FieldError[]` |
+| reject `SubmitUnstableError` | 校验期间值连续 3 轮都没稳定（不是被后一次提交取代）。`code` 是 `'unstable'`，`message` 同样来自 `messages.superseded` |
 
 ```ts
 try {
@@ -21,6 +22,7 @@ try {
   save(values)
 } catch (error) {
   if (error instanceof SubmitSupersededError) return // 后一次提交会给出结论
+  if (error instanceof SubmitUnstableError) return report(error)
   if (isFieldErrors(error)) showErrors(error)
   else report(error)
 }
@@ -31,7 +33,7 @@ form.submit(async (values) => {
 }).then((id) => setId(id)).catch((errors) => scrollTo(errors[0]?.path))
 ```
 
-`<Form>` 和 `<Submit>` 会在内部 catch 这次 rejection：校验失败走 `onInvalid(errors)`，`onSubmit` 抛错走 `onSubmitError`（不传则 `console.error`），被取代的那次提交被吞掉，不会变成未处理的 rejection。
+`<Form>` 和 `<Submit>` 会在内部 catch 这次 rejection：校验失败走 `onInvalid(errors)`，`onSubmit` 抛错和 `SubmitUnstableError` 走 `onSubmitError`（不传则 `console.error`），被取代的那次提交被吞掉，不会变成未处理的 rejection。
 
 当校验失败时，`<Form>` 会按 DOM 文档顺序自动将焦点移动至第一个出错的字段；如果表单内使用了 `FormTab`、`FormCollapse` 或 `FormStep`，容器还会先自动切换到包含错误字段的面板或步骤，再执行聚焦。因此，无需在 `onInvalid` 回调里手动编写切换标签页的逻辑。
 

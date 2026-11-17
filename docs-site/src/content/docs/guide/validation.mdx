@@ -98,7 +98,8 @@ export default function App() {
 | resolve `onValid` 的返回值 | `await onValid(values)` 得到了非 `undefined` 的值 |
 | reject `FieldError[]` | 校验未通过，`onValid` 不会被调用 |
 | reject 原错误 | `onValid` 或表单级 `validate` 自己抛出的异常 |
-| reject `SubmitSupersededError` | 被后一次 `submit()` 取代，或值连续 3 轮未稳定（`message` 为 `messages.superseded`） |
+| reject `SubmitSupersededError` | 被后一次 `submit()` 取代（`code: 'superseded'`，`message` 为 `messages.superseded`） |
+| reject `SubmitUnstableError` | 值连续 3 轮未稳定，不是被取代（`code: 'unstable'`，`message` 同样为 `messages.superseded`）。`<Form>` / `<Submit>` 把它交给 `onSubmitError` |
 
 ```ts
 try {
@@ -153,7 +154,7 @@ setDefaultMessages(enUS)                              // 全局默认配置，�
 | `min` / `max` | 数值范围校验 | `min` / `max` |
 | `enum` | `enumPolicy: 'error'` 且值不在 `$enum` 选项中时 | `options` |
 | `fallback` | `validator` 抛出的错误缺少 `message`，或 schema issue 文案为空时 | `error` |
-| `superseded` | `SubmitSupersededError` 的 `message`（被后一次提交取代，或值一直没稳定） | — |
+| `superseded` | `SubmitSupersededError` 与 `SubmitUnstableError` 的 `message` | — |
 | `treeIntoSelf` / `treeSourceMissing` / `treeTargetMissing` / `treeEmptyPos` | 树句柄 `move` 被拒绝时的原因说明 | `from`、`to`（不含 `path` 与 `value`） |
 | `submit` / `reset` / `search` / `refresh` / `expand` / `collapse` | `Submit` / `Reset` 及 `QueryList` 等按钮文案 | — |
 | `optional` | `requiredMark: 'optional'` 时非必填项标签后缀（默认 `（可选）`） | — |

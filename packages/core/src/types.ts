@@ -595,8 +595,8 @@ export interface FormInstance<T, TSubmit = T> {
    * its return value, or to the submit values when that return is `undefined`.
    * Rejects `FieldError[]` when validation fails (`onValid` is not called).
    * A throw or rejection from `onValid`, or from a form-level `validate`, rejects as-is.
-   * An earlier call replaced by a later `submit()`, and a submit whose values never settle, reject
-   * `SubmitSupersededError` (`messages.superseded`) — not a `FieldError[]`.
+   * An earlier call replaced by a later `submit()` rejects `SubmitSupersededError`.
+   * Values that never settle reject `SubmitUnstableError`. Both use `messages.superseded`, and neither is a `FieldError[]`.
    */
   submit(): Promise<TSubmit>
   submit<R>(onValid: (values: TSubmit) => R | Promise<R>): Promise<SubmitResolved<TSubmit, R>>

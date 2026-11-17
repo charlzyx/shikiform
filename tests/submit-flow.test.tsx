@@ -2,7 +2,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fieldErrorsOf } from './field-errors'
-import { SubmitSupersededError, isFieldErrors } from '@shikiform/react'
+import { SubmitSupersededError, SubmitUnstableError, isFieldErrors } from '@shikiform/react'
 import {
   Form,
   createForm,
@@ -303,7 +303,7 @@ describe('built-in messages (#44)', () => {
     ])
   })
 
-  it('superseded message is configurable and the result is structured', async () => {
+  it('values that never settle reject SubmitUnstableError, not SubmitSupersededError', async () => {
     let calls = 0
     const form = createForm({
       initialValues: { n: 0 },
@@ -314,7 +314,11 @@ describe('built-in messages (#44)', () => {
         return {}
       },
     })
-    await expect(form.submit()).rejects.toMatchObject({ name: 'SubmitSupersededError', code: 'superseded', message: 'Form changed, please submit again' })
+    const error = await form.submit().then(() => null, (reason) => reason)
+    expect(error).toBeInstanceOf(SubmitUnstableError)
+    expect(error).not.toBeInstanceOf(SubmitSupersededError)
+    expect(error).toMatchObject({ code: 'unstable', message: 'Form changed, please submit again' })
+    expect(calls).toBe(3)
   })
 
   it('setDefaultMessages changes the app-wide defaults; form messages still win', async () => {
@@ -359,6 +363,48 @@ describe('antd Submit / Reset', () => {
     })
     expect(onInvalid).toHaveBeenCalledOnce()
     expect(api.errors).toEqual([{ path: 'a', messages: ['必填'] }])
+  })
+
+  it('<Form> and <Submit> send an unstable submit to onSubmitError, not onInvalid', async () => {
+    const unhandled = vi.fn()
+    process.on('unhandledRejection', unhandled)
+    try {
+      let calls = 0
+      const form = createForm({
+        initialValues: { n: 0 },
+        validate: async () => {
+          calls += 1
+          form.setValue('n', calls)
+          return {}
+        },
+      })
+      const onSubmitError = vi.fn()
+      const onInvalid = vi.fn()
+      const view = render(
+        <Form form={form} onSubmitError={onSubmitError} onInvalid={onInvalid}>
+          <button type="submit">go</button>
+          <Submit onSubmit={() => undefined} onSubmitError={onSubmitError} onInvalid={onInvalid}>save</Submit>
+        </Form>,
+      )
+      await act(async () => {
+        fireEvent.submit(view.container.querySelector('form')!)
+        await new Promise((r) => setTimeout(r, 20))
+      })
+      expect(onInvalid).not.toHaveBeenCalled()
+      expect(onSubmitError).toHaveBeenCalledOnce()
+      expect(onSubmitError.mock.calls[0]?.[0]).toBeInstanceOf(SubmitUnstableError)
+      onSubmitError.mockClear()
+      await act(async () => {
+        fireEvent.click(view.getByText('save'))
+        await new Promise((r) => setTimeout(r, 20))
+      })
+      expect(onInvalid).not.toHaveBeenCalled()
+      expect(onSubmitError).toHaveBeenCalledOnce()
+      expect(onSubmitError.mock.calls[0]?.[0]).toBeInstanceOf(SubmitUnstableError)
+      expect(unhandled).not.toHaveBeenCalled()
+    } finally {
+      process.off('unhandledRejection', unhandled)
+    }
   })
 
   it('Submit catches a throwing onSubmit and a failed validation; neither is an unhandled rejection', async () => {

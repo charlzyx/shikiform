@@ -56,7 +56,7 @@ createForm<T, TSubmit = T>(options?: FormOptions<T>): FormInstance<T, TSubmit>  
 | `batch((d) => { … })` | 用一个 draft 做多次写入，一轮联动、一次通知 |
 | 数组 / 树增删移动 | 不在表单上。见下面的 [数组与树句柄](#数组与树句柄) |
 | `validate(path?)` | 校验全表、一棵子树，或一组路径（`validate(['a', 'b'])`，一次校验，`FormStep` 的「下一步」就是它）。通过 resolve `undefined`，失败 reject `FieldError[]` |
-| `submit(onValid?)` | 等异步规则、校验，通过才调用 `onValid`。resolve 提交值；`onValid` 返回非 `undefined` 时 resolve 那个返回值。失败 reject `FieldError[]`。`onValid` 抛错原样 reject。被后一次 `submit` 取代、或值一直没稳定，reject `SubmitSupersededError` |
+| `submit(onValid?)` | 等异步规则、校验，通过才调用 `onValid`。resolve 提交值；`onValid` 返回非 `undefined` 时 resolve 那个返回值。失败 reject `FieldError[]`。`onValid` 抛错原样 reject。被后一次 `submit` 取代 reject `SubmitSupersededError`（`code: 'superseded'`）。值连续 3 轮没稳定 reject `SubmitUnstableError`（`code: 'unstable'`） |
 | `getSubmitValues()` | 去掉 `display: 'virtual'` 和 `display: 'none'` 后的值。reaction 写过的字段默认留下 |
 | `reset(path?)` | 恢复初始值（全表或子树），计算字段重新算；touched、edited、错误清空 |
 | `reset(values)` | 编辑页回填：`values` 同时成为新的初始值，之后 `reset()` 回到它，`dirty` 以它为基线 |
@@ -212,7 +212,8 @@ class ShikiUsageError extends Error      // 开发期写法错误：改 $value �
                                          // 未知规则键（minLenght）、component={[undefined]}、<ArrayField> 用在非数组上…；消息里写了正确写法
 class ShikiCycleError extends Error      // reaction / watch 10 轮仍未收敛；cycle: readonly string[] 是互相触发的链
 class ShikiConflictError extends Error   // 开发期：两个 reaction 写了同一个 $ 状态；state、first、second 指出是谁
-class SubmitSupersededError extends Error // submit 被后一次 submit 取代，或值一直没稳定；code = 'superseded'
+class SubmitSupersededError extends Error // submit 被后一次 submit 取代；code = 'superseded'
+class SubmitUnstableError extends Error   // 值连续 3 轮没稳定，不是被取代；code = 'unstable'
 function isFieldErrors(value): value is FieldError[]  // validate / submit 失败时 reject 的就是这个数组
 
 zhCN / enUS: FormMessages                // 内置文案（默认 zhCN）
@@ -220,7 +221,7 @@ setDefaultMessages(messages: Partial<FormMessages>): void   // 全应用默认�
 getDefaultMessages(): FormMessages       // 当前的全应用默认（setDefaultMessages 之后的结果）
 ```
 
-`ShikiCycleError`、`ShikiUsageError`、`ShikiConflictError`、`SubmitSupersededError` 和 `isFieldErrors` 都从 `@shikiform/react` 和 `@shikiform/core` 导出。错误类可以 `instanceof` 判断。`SubmitSupersededError`（`code: 'superseded'`）是被后一次提交取代、或值一直没稳定；不要把它和 `FieldError[]` 混在一起，用 `isFieldErrors` 区分校验失败。`ShikiCycleError` 在生产构建里也会抛（联动循环触发）；`ShikiUsageError` 和 `ShikiConflictError` 只在开发构建检查。开发构建里，冲突和循环的消息逐个列出涉及的 reaction：声明位置（`文件:行:列`）、它读了哪些状态、写了哪些状态。两个写者的冲突改成一个写者，或把动作移到 `watch`。文案的优先级是规则自己的 `message` > 表单 `messages` > `setDefaultMessages` > `zhCN`，见 [内置文案](/guide/validation#内置文案)。
+`ShikiCycleError`、`ShikiUsageError`、`ShikiConflictError`、`SubmitSupersededError`、`SubmitUnstableError` 和 `isFieldErrors` 都从 `@shikiform/react` 和 `@shikiform/core` 导出。错误类可以 `instanceof` 判断。`SubmitSupersededError`（`code: 'superseded'`）是被后一次提交取代。`SubmitUnstableError`（`code: 'unstable'`）是值连续 3 轮没稳定，不是被取代；`<Form>` / `<Submit>` 把它交给 `onSubmitError`。两者都不要和 `FieldError[]` 混在一起，用 `isFieldErrors` 区分校验失败。`ShikiCycleError` 在生产构建里也会抛（联动循环触发）；`ShikiUsageError` 和 `ShikiConflictError` 只在开发构建检查。开发构建里，冲突和循环的消息逐个列出涉及的 reaction：声明位置（`文件:行:列`）、它读了哪些状态、写了哪些状态。两个写者的冲突改成一个写者，或把动作移到 `watch`。文案的优先级是规则自己的 `message` > 表单 `messages` > `setDefaultMessages` > `zhCN`，见 [内置文案](/guide/validation#内置文案)。
 
 ## 类型索引
 

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { defineEffects, type StandardSchemaV1, type ValidateCtx } from '@shikiform/core'
+import { defineEffects, SubmitSupersededError, SubmitUnstableError, type StandardSchemaV1, type ValidateCtx } from '@shikiform/core'
 import { createEngine } from '../packages/core/src/engine/create'
 import { fieldErrorsOf } from './field-errors'
 
@@ -207,7 +207,10 @@ describe('submit returns only values its pass validated (#6)', () => {
         return {}
       },
     })
-    await expect(form.submit()).rejects.toMatchObject({ name: 'SubmitSupersededError', code: 'superseded', message: '表单或校验已更新，请重新提交' })
+    const error = await form.submit().then(() => null, (reason) => reason)
+    expect(error).toBeInstanceOf(SubmitUnstableError)
+    expect(error).toMatchObject({ code: 'unstable', message: '表单或校验已更新，请重新提交' })
+    expect(error).not.toBeInstanceOf(SubmitSupersededError)
     expect(calls).toBe(3)
     expect(form.submitting).toBe(false)
   })

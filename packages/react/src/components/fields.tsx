@@ -28,7 +28,8 @@ export interface FormSubmitHandlers<T> {
   /**
    * Called when `onSubmit` (or a form-level `validate`) throws or rejects.
    * Without it the error is reported with `console.error`; it never becomes an unhandled rejection.
-   * A `SubmitSupersededError` (a later submit replaced this one) is swallowed: the newer submit owns the outcome.
+   * Includes `SubmitUnstableError` (values never settled). A `SubmitSupersededError` is swallowed:
+   * the newer submit owns that outcome.
    */
   onSubmitError?: (error: unknown) => void
 }
@@ -76,6 +77,7 @@ export function runSubmit<T, TSubmit = T>(form: FormInstance<T, TSubmit>, handle
         handlers.onInvalid?.(error)
         return
       }
+      // Replaced by a later submit: that call reports the outcome. SubmitUnstableError falls through.
       if (error instanceof SubmitSupersededError) return
       if (handlers.onSubmitError) handlers.onSubmitError(error)
       else console.error('[shikiform] onSubmit failed', error)
