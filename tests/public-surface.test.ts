@@ -37,6 +37,8 @@ describe('public surface', () => {
     void typed
     // @ts-expect-error engine plumbing is not on the public form
     void form.binding
+    // @ts-expect-error query(path) is passed to defineEffects, not the form
+    void form.query
     // @ts-expect-error engine plumbing is not on the public form
     void form.registerField
     // @ts-expect-error engine plumbing is not on the public form
