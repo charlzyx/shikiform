@@ -57,7 +57,7 @@ reaction.each((d) => d.items, (row) => {
 })
 ```
 
-对于动态嵌套路径，也可以使用 [`get`](/basics/path)：`get(d, 'user.name').$value` 或 `get(d, 'items[0].name').$value`。
+动态路径在联动里用 `query('user.name').$value`，在组件里用 `form.getValue('items[0].name')`。固定路径直接写 `d.user.name.$value`，见 [按路径读写](/basics/path)。
 
 ## 直接修改 `$value` 上的对象或数组
 

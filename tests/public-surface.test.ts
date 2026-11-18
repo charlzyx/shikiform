@@ -8,9 +8,9 @@ import { createForm, type FormInstance } from '@shikiform/react'
 /** The public surface is a semver promise once published: removing a name later is a major. Grow it on purpose. */
 describe('public surface', () => {
   it('does not export the engine class or engine-internal helpers', () => {
-    for (const name of ['FormEngine', 'createEngine', 'engineOf']) {
-      expect(name in root).toBe(false)
-      expect(name in core).toBe(false)
+    for (const name of ['FormEngine', 'createEngine', 'engineOf', 'get', 'set']) {
+      expect(name in root, name).toBe(false)
+      expect(name in core, name).toBe(false)
     }
     for (const name of [
       'asOptions', 'isEnumBinding', 'collectSchemaIssues', 'groupSchemaIssues', 'isStandardSchema', 'schemaIssuePath',

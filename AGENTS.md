@@ -30,7 +30,7 @@ and SSR-rendered against the packed library); the site's `/llms.txt` serves this
   Inside `reaction`, `watch` and `form.batch` the snapshot is read-only in development (mutation throws).
 - A handle is not an array: no `.map`, `.length`, `for…of`, or `const [row] = d.items`. Use `d.items.$value` or `reaction.each`.
 - Destructuring takes child field handles only (`const { name } = d.user`, then `name.$value`). `$` state is always read and written on the handle. Object rest, object spread, and `Object.keys(handle)` throw in development.
-- `get` / `set` (`@shikiform/core`, re-exported by `@shikiform/react`) read and copy plain data with lodash-style paths (`a.b[0].c`, `a['name']`). `set` returns a new tree. `form.getValue` / `form.setValue` use the same syntax. On a draft, `get` returns a child handle: `get(d, 'user.name').$value` and `get(d, 'items[0].qty').$value` (`orders.0.qty` is the same path). Do not `set` a draft.
+- Outside a reaction, read and write with `form.getValue` / `form.setValue`. Paths are `a.b.c`, `a.b[0].c`, or `a['name']` (`orders.0.qty` and `orders[0].qty` are the same field). Inside `reaction`, `watch`, and `form.batch`, walk the draft: `d.user.name.$value`, `d.items[0].qty.$value`. A dynamic path inside effects is `query(path)` (untyped).
 - A confirm password or a client-only paging `page` is `omit: true`. `visible: false` still submits and still counts as dirty; `omit` does not count as dirty. An inactive tab stays mounted (the container only hides it) so its fields keep validating.
 
 Development builds throw `ShikiUsageError` with the fix for these mistakes (mutating `$value`, using a handle
