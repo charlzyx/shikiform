@@ -1,77 +1,57 @@
 ---
 title: 按路径读写
-description: 通过 handle 链、get / set 以及 form.getValue / form.setValue 精准读写深层嵌套路径。
+description: 通过 draft handle 链以及 form.getValue / form.setValue 读写深层嵌套路径。
 ---
 
-当需要读写深层嵌套的数据（例如 `orders[0].lines[2].qty`）时，ShikiForm 提供了两种常用方式：在联动回调中顺着 draft handle 逐层访问，或者在组件及外部逻辑中使用 lodash 风格的路径字符串。`get` 和 `set` 从 `@shikiform/core` 导出，同时在 `@shikiform/react` 中做了重导出。
+读写深层嵌套的数据（例如 `orders[0].lines[2].qty`）有两种写法：在联动回调里顺着 draft handle 逐层访问，在组件或外部逻辑里调用 `form.getValue` / `form.setValue`。
 
-路径字符串支持 `a.b.c`、`a.b[0].c`、`a.b.0.c` 以及带特殊字符的 `a['b-c']`。当路径中间缺少某一层时，`get` 会安全地返回 `undefined`；`set` 则在不修改原对象的前提下返回一棵全新的数据树，并自动补全沿途缺失的对象或数组结构。
+路径字符串支持 `a.b.c`、`a.b[0].c`、`a.b.0.c` 以及带特殊字符的 `a['b-c']`。`a.b[0].c` 与 `a.b.0.c` 是同一个字段。路径中间缺一层时，`getValue` 返回 `undefined`；`setValue` 写入表单，并补上沿途缺失的对象或数组。
 
 ## 读写单个嵌套路径
 
-如果只是想操作某个具体位置的字段，无需使用 `reaction.each` 遍历整个数组，直接按路径访问即可：
+只操作某一个位置时，不必用 `reaction.each` 遍历整个数组，直接按路径访问即可：
 
 ```ts
 // 在 reaction / watch / batch 中使用 draft handle
 d.orders[0].lines[2].qty.$value
-get(d, 'orders[0].lines[2].qty').$value
-get(d, 'user.name').$value
+d.orders[0].lines[2].qty.$value = 4
 
 // 在组件或普通逻辑中直接读写表单实例
 form.getValue('orders[0].lines[2].qty')
 form.setValue('orders[0].lines[2].qty', 4)
+form.getValue('orders.0.lines.2.qty')
 ```
 
-在联动函数中，`d.orders[0].lines[2].qty` 依然是一个 handle，只有读取或赋值其 `$value` 时，才会真正获取数值并被追踪为联动依赖。
-
-`get` 同时兼容普通对象和 draft：传入普通对象（如 `get(order, 'lines[0].qty')`）时直接返回对应的值；传入 draft 时则返回目标路径的子 handle，需要继续访问 `.$value` 才能取到数据（例如 `get(d, 'orders[0].lines[2].qty').$value` 与 `get(d, 'orders.0.lines.2.qty').$value` 效果一致）。`form.getValue` 和 `form.setValue` 也支持同样的路径格式，直接读写字段值本身。
+在联动函数中，`d.orders[0].lines[2].qty` 依然是一个 handle，只有读取或赋值其 `$value` 时，才会真正获取数值并被追踪为联动依赖。动态路径在联动里用 `query('orders.0.lines.2.qty').$value`（没有类型）；平时写 `d.orders[0].lines[2].qty`。
 
 ```tsx preview
-import { useState } from 'react';
-import { Button, Space } from 'antd';
-import { Field, Form, get, set, useForm } from '@shikiform/react';
+import { Button } from 'antd';
+import { Field, Form, useForm } from '@shikiform/react';
 import { FormItem, InputNumber } from '@shikiform/antd';
 
 type Values = { orders: { lines: { sku: string; qty: number }[] }[] };
 
 export default function App() {
-  const [copy, setCopy] = useState('');
   const form = useForm<Values>({
     initialValues: { orders: [{ lines: [{ sku: 'pen', qty: 1 }, { sku: 'book', qty: 2 }] }] },
   });
   return (
     <Form form={form}>
       <Field name="orders.0.lines.0.qty" title="第一行数量" decorator={[FormItem]} component={[InputNumber]} />
-      <Space wrap>
-        <Button
-          htmlType="button"
-          onClick={() => {
-            const qty = form.getValue('orders[0].lines[0].qty');
-            form.setValue('orders[0].lines[0].qty', (qty ?? 0) + 1);
-          }}
-        >
-          路径加一
-        </Button>
-        <Button
-          htmlType="button"
-          onClick={() => {
-            const next = set(form.values, 'orders[0].lines[1].qty', 9);
-            setCopy(JSON.stringify(get(next, 'orders[0].lines')));
-          }}
-        >
-          set 出一棵新树
-        </Button>
-      </Space>
-      <pre>{copy}</pre>
+      <Button
+        htmlType="button"
+        onClick={() => {
+          const qty = form.getValue('orders[0].lines[0].qty');
+          form.setValue('orders[0].lines[0].qty', (qty ?? 0) + 1);
+        }}
+      >
+        路径加一
+      </Button>
     </Form>
   );
 }
 ```
 
-点击「路径加一」时，程序调用 `form.setValue` 更新表单数据，输入框中的数值会同步递增。点击「set 出一棵新树」时，`set` 仅基于当前 `form.values` 拷贝并生成了一棵新对象，不会写回表单引擎，因此页面上的输入框保持不变，只有下方展示的 JSON 数据发生了变化。
-
-<Aside type="caution" title="不要对 draft 调用 set">
-`set` 用于不可变更新普通 JavaScript 对象，不能用来修改 draft。在开发环境下，对 draft 进行对象展开或误用都会触发 `ShikiUsageError` 报错。在 `reaction` 或 `batch` 中更新值，请直接对目标路径的 `$value` 赋值（如 `d.orders[0].lines[2].qty.$value = 4`）。
-</Aside>
+点击「路径加一」时，程序用 `form.getValue` 读出当前数量，再用 `form.setValue` 写回同一字段。`orders[0].lines[0].qty` 与字段名 `orders.0.lines.0.qty` 指向同一个值，输入框中的数值会同步递增。在 `reaction` 或 `batch` 中更新值，直接对目标路径的 `$value` 赋值（如 `d.orders[0].lines[2].qty.$value = 4`）。
 
 当需要对多层嵌套结构中的「每一项的某个字段」批量建立联动时，才需要用到 `reaction.each`，具体过滤方式见 [用 ctx 过滤](/guide/linkage#用-ctx-过滤)。

@@ -1,31 +1,41 @@
 import { describe, expect, it } from 'vitest'
-import { defineEffects, get, set } from '@shikiform/core'
+import { defineEffects } from '@shikiform/core'
 import { createEngine } from '../packages/core/src/engine/create'
 
-describe('get / set', () => {
-  const data = { user: { name: 'Ada', tags: ['a', 'b'] }, items: [{ sku: 'pen', qty: 1 }] }
-
-  it('reads dot and bracket paths, including quoted keys', () => {
-    expect(get(data, 'user.name')).toBe('Ada')
-    expect(get(data, 'user.tags[0]')).toBe('a')
-    expect(get(data, 'items[0].sku')).toBe('pen')
-    expect(get(data, 'items.0.qty')).toBe(1)
-    expect(get({ a: { 'b-c': 2 } }, "a['b-c']")).toBe(2)
-    expect(get(data, 'user.missing.sku' as never)).toBeUndefined()
-    expect(get(data, '' as never)).toBe(data)
-  })
-
-  it('returns a new tree and does not mutate the input', () => {
-    const next = set(data, 'items[0].qty', 4)
-    expect(data.items[0]!.qty).toBe(1)
-    expect(next.items[0]!.qty).toBe(4)
-    expect(next.user).toBe(data.user)
-    expect(set({} as { a?: { b: { c: number }[] } }, 'a.b[0].c', 1)).toEqual({ a: { b: [{ c: 1 }] } })
-    expect(set(data, "user['name']", 'Grace').user.name).toBe('Grace')
-  })
-})
-
 describe('form.getValue / setValue path syntax', () => {
+  it('reads dot, bracket, and quoted paths', () => {
+    const form = createEngine({
+      initialValues: {
+        a: { 'b-c': 2 },
+        user: { name: 'Ada', tags: ['a', 'b'] },
+        items: [{ sku: 'pen', qty: 1 }],
+      } as {
+        a: { 'b-c': number }
+        user: { name: string; tags: string[]; missing?: { sku?: string } }
+        items: { sku: string; qty: number }[]
+      },
+    })
+    expect(form.getValue('user.name')).toBe('Ada')
+    expect(form.getValue('user.tags[0]')).toBe('a')
+    expect(form.getValue('items[0].sku')).toBe('pen')
+    expect(form.getValue('items.0.qty')).toBe(1)
+    expect(form.getValue("a['b-c']")).toBe(2)
+    expect(form.getValue('user.missing.sku')).toBeUndefined()
+  })
+
+  it('writes quoted keys and creates missing objects and arrays', () => {
+    const form = createEngine<{ user: { name: string }; extra?: { b: { c: number }[] } }>({
+      initialValues: { user: { name: 'Ada' } },
+    })
+    const before = form.values.user
+    form.setValue("user['name']", 'Grace')
+    expect(form.getValue('user.name')).toBe('Grace')
+    expect(form.values.user).not.toBe(before)
+    form.setValue('extra.b[0].c', 1)
+    expect(form.getValue('extra.b.0.c')).toBe(1)
+    expect(form.values.extra).toEqual({ b: [{ c: 1 }] })
+  })
+
   it('reads and writes bracket paths on the same field as dot paths', () => {
     const form = createEngine<{ user: { tags: string[] }; echo: string }>({
       initialValues: { user: { tags: ['a', 'b'] }, echo: '' },

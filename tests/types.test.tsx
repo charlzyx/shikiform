@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { createForm, defineEffects, get, set, EnumSource, type Draft, type EnumOption } from '@shikiform/core'
+import { createForm, defineEffects, EnumSource, type Draft, type EnumOption } from '@shikiform/core'
 import { useQueryTable } from '../packages/hooks/src/use-query-table'
 import { Field, ObjectField, typed, useArrayField, useField, useForm, useWatch } from '@shikiform/react'
 
@@ -84,15 +84,6 @@ const effects = defineEffects<{ rows: { name: string }[]; nodes: { label: string
     },
   )
 })
-
-const readSku = get({ items: [{ sku: 'pen' }] }, 'items[0].sku')
-const _sku: Expect<Equal<typeof readSku, string>> = true
-void _sku
-const nextItems = set({ items: [{ sku: 'pen' }] }, 'items[0].sku', 'book')
-const _next: Expect<Equal<typeof nextItems.items[0]['sku'], string>> = true
-void _next
-// @ts-expect-error sku is a string
-set({ items: [{ sku: 'pen' }] }, 'items[0].sku', 1)
 
 function rejectBadBracket(target: typeof form) {
   // @ts-expect-error price is a number

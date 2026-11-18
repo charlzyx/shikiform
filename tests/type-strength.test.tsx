@@ -1,6 +1,6 @@
 // Type contracts for #95. Assertions run under `npm run check`; vitest only loads the file.
 import { it } from 'vitest'
-import { createForm, defineEffects, get, type FieldEnum } from '@shikiform/core'
+import { createForm, defineEffects, type FieldEnum } from '@shikiform/core'
 import { useQueryTable } from '@shikiform/hooks'
 import { Checkbox, DatePicker, Input, InputNumber, Switch } from '@shikiform/antd'
 import { typed, useForm, useWatch, type FieldBinding } from '@shikiform/react'
@@ -125,18 +125,21 @@ function submitInference() {
   })
 }
 
-// 7. indexed get on a draft, and each sees nested object-array fields
+// 7. indexed paths on a draft, and each sees nested object-array fields
 function pathsAndEach() {
   const form = createForm({
     initialValues: { orders: [{ id: 'a', lines: [{ sku: 'pen', qty: 1 }] }] },
   })
   form.batch((d) => {
-    const qty = get(d, 'orders[0].lines[0].qty').$value
-    const dotted = get(d, 'orders.0.lines.0.qty').$value
+    const qty = d.orders[0].lines[0].qty.$value
+    const dotted = form.getValue('orders.0.lines.0.qty')
+    const bracket = form.getValue('orders[0].lines[0].qty')
     const _q: Expect<Equal<typeof qty, number>> = true
     const _d: Expect<Equal<typeof dotted, number>> = true
+    const _b: Expect<Equal<typeof bracket, number>> = true
     void _q
     void _d
+    void _b
   })
   defineEffects<{ orders: Order[] }>(({ reaction, watch }) => {
     reaction.each((d) => d.orders, (node, ctx) => {

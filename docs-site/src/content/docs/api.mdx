@@ -7,7 +7,7 @@ description: 四个入口、createForm 选项、引擎方法、React 组件与�
 
 | 要查什么 | 参考页 |
 |---|---|
-| `createForm`、`get`、`set`、`defineEffects`、`EnumSource`、错误类、文案 | [Core](/reference/core) |
+| `createForm`、`defineEffects`、`EnumSource`、错误类、文案 | [Core](/reference/core) |
 | `useForm`、`useFormContext`、`typed`、`useField`（无参即当前字段）、`useFieldDecorator`、`useWatch`、`useArrayField(name?)`、`useTreeField(name?)`、`useIndex`、`useRecord`；headless `<Submit>` / `<Reset>` | [React Hooks](/reference/react-hooks) |
 | `connect`、`mapProps`（定义在 `@shikiform/react`，antd 再导出）、`FormItem`、`FormLayout`、`useFormLayout`、`FormGrid`、`GridColumn`、`useFormGrid`、`FormButtonGroup`、`PreviewText`（及 `.Select` 等阅读态视图）、接好的控件（`Input` … `TimePicker`、`TreeSelect`、`Cascader`、`Upload`、`Slider`、`Rate`、`Transfer`、`AutoComplete`、`ColorPicker`） | [Ant Design 适配层](/reference/antd-adapter) |
 | `Submit`、`Reset`、控件取值契约、`ArrayItems`、`ArrayCards`、`ArrayTable`、`useArrayEditable`、`FormTab`、`FormCollapse`、`FormStep`、`useFormStep`、`MergedTable`、`groupRowSpan` | [Ant Design 参考](/reference/antd) |
@@ -189,10 +189,6 @@ const effects = defineEffects<Values>(({ reaction, watch, query }) => {
 联动、组件都用不到它们；写自己的树组件或做组合选择时才需要。全部是纯函数，不依赖 React。
 
 ```ts
-// 普通数据上的 lodash 风格路径。不改入参，set 返回新对象。
-get(data, 'a.b[0].c')
-set(data, 'a.b[0].c', value)
-
 // 树坐标：pos 是下标路径（[0, 2] = 第 1 个节点的第 3 个子节点）
 pathOf(root: string, pos: Pos, childrenKey = 'children'): string          // pathOf('menus', [0, 2]) → 'menus.0.children.2'
 posOf(root: string, path: string, childrenKey = 'children'): Pos | undefined

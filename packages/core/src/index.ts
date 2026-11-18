@@ -6,7 +6,6 @@
  * @packageDocumentation
  */
 export { createForm } from './engine/create'
-export { get, set } from './get-set'
 export { defineEffects } from './effects/define-effects'
 export { comboMatch, comboOptions } from './enum/combo'
 export { EnumSource } from './enum/enum-source'

@@ -1,6 +1,6 @@
 ---
 title: Core
-description: "@shikiform/core 的 createForm、get、set、defineEffects 和错误类。不依赖 React。"
+description: "@shikiform/core 的 createForm、defineEffects 和错误类。不依赖 React。"
 ---
 
 `@shikiform/core` 是纯 TypeScript 表单引擎，不依赖 React 或任何 UI 库。`@shikiform/react` 重新导出了本页中常用的运行时 API，因此在 React 组件中也可以直接从 `@shikiform/react` 导入。
@@ -55,38 +55,6 @@ function Demo() {
   return null
 }
 ```
-
-## get
-
-```ts
-function get<T, P extends FieldPath<T>>(data: T, path: P): PathValue<T, P>
-```
-
-从普通数据上按路径读取。`a.b[0].c`、`a.b.0.c`、`a['name']` 都可以。缺的段落是 `undefined`。不改入参。
-
-在 draft 上，`get` 沿属性走，返回子 handle，读值再写 `.$value`。带下标同样可以。
-
-```ts
-get(order, 'items[0].sku')
-get(d, 'user.name').$value
-get(d, 'orders[0].lines[2].qty').$value
-d.orders[0].lines[2].qty.$value
-form.getValue('orders[0].lines[2].qty')
-```
-
-## set
-
-```ts
-function set<T, P extends FieldPath<T>>(data: T, path: P, value: PathValue<T, P>): T
-```
-
-返回一棵把 `path` 设成 `value` 的新树，不改入参。缺的中间对象和数组会建出来。
-
-```ts
-const next = set(order, 'items[0].qty', 2)
-```
-
-写进表单用 `form.setValue('items[0].qty', 2)`，或在 reaction 里给 handle 的 `$value` 赋值。不要对 draft 调用 `set`。
 
 ## defineEffects
 
