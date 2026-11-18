@@ -19,7 +19,7 @@ and SSR-rendered against the packed library); the site's `/llms.txt` serves this
  preview (`disabled` and `readOnly` together: `readOnly` wins). `omit` leaves the field out of submit. Validation runs
  only when `visible && !disabled && !readOnly`; otherwise existing errors clear. Submit looks only at `omit`
  (`visible: false` still submits). Reaction-written fields submit unless `omit`.
- `visible` / `disabled` / `readOnly` inherit by OR from ancestors; an explicit `false` exits. `omit` does not inherit.
+ `visible` / `disabled` / `readOnly` inherit by OR from ancestors; an explicit `false` exits. `omit` inherits too: any ancestor `true` wins, and a child's `omit: false` cannot opt that subtree back into submit (the ancestor is removed whole).
  `useForm({ readOnly: true })` (and `disabled`) sets the root. `undefined` drops the reaction layer.
 - Empty values (`''`, `null`, `undefined`) are judged only by `required`: `minLength`, `pattern`, `min`, `format` pass them.
 

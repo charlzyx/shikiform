@@ -199,9 +199,9 @@ export interface FieldSpec extends FieldUiSpec {
    */
   readOnly?: boolean
   /**
-   * Drop this field from submit. Not inherited: a parent `omit` does not mark the child, and a child
-   * `omit` does not change the parent. Default `false` (submitted), including values a reaction wrote.
-   * Does not affect render or validation. Does not count toward `dirty`.
+   * Drop this field from submit. Inherited: any ancestor `true` omits the subtree, and a child `false`
+   * does not submit on its own (the ancestor is removed whole). Unset means submitted, unless an ancestor
+   * is omitted. Does not affect render, validation, or form-level `dirty`.
    */
   omit?: boolean
   /**
@@ -410,7 +410,7 @@ export type Draft<T> = IsAny<T> extends true ? any : DraftState<T> & DraftNav<T>
 export interface DraftState<T> {
   /**
    * Current value. Reading tracks a dependency. A reaction write marks the field computed
-   * (it does not count toward `dirty`). The value is still submitted unless this field's `$omit` is set.
+   * (it does not count toward `dirty`). The value is still submitted unless `$omit` is set (own or inherited).
    */
   $value: T
   /**
@@ -438,9 +438,9 @@ export interface DraftState<T> {
   get $readOnly(): boolean
   set $readOnly(value: boolean | undefined)
   /**
-   * Drop this field from submit. Not inherited. `undefined` drops the reaction layer (back to JSX /
-   * `fields`, or submitted). Does not change render or validation. An omitted field does not count
-   * toward `dirty`.
+   * Drop this field from submit. Reading is effective: `true` when this node or any ancestor is omitted.
+   * A child `false` does not opt back in (submit removes the ancestor). `undefined` drops the reaction
+   * layer. Does not change render or validation. Omitted fields do not count toward form-level `dirty`.
    */
   get $omit(): boolean
   set $omit(value: boolean | undefined)
@@ -486,8 +486,8 @@ export interface DraftState<T> {
   /** True after blur (or a touch from the binding). Reset clears it. */
   readonly $touched: boolean
   /**
-   * The value differs from its initial value (deep compare); changing it back clears it.
-   * On the root (`d.$dirty`): any non-`omit`, non-computed value differs. A hidden field still counts.
+   * The value differs from its initial value (deep compare); changing it back clears it. A descendant of an omitted field is `false`.
+   * On the root (`d.$dirty`): any non-omitted, non-computed value differs (an ancestor `omit` ignores the subtree). A hidden field still counts.
    * Follows `reset(values)` / `setInitialValues`.
    */
   readonly $dirty: boolean
@@ -569,7 +569,7 @@ export interface FormInstance<T, TSubmit = T> {
   readonly initial: T
   /**
    * Values differ from `initial` (deep compare). Changing a value back clears it.
-   * `omit` and computed (reaction-written) fields do not count. A hidden field does.
+   * Effective `omit` (including descendants of an omitted field) and computed (reaction-written) fields do not count. A hidden field does.
    */
   readonly dirty: boolean
   /** Sticky: true after a user edit (`setValue`, input `onChange`) until `reset`. */
@@ -597,8 +597,8 @@ export interface FormInstance<T, TSubmit = T> {
   /** One draft, one reaction pass, one notification. */
   batch(fn: (d: Draft<T>) => void): void
   /**
-   * Wait for in-flight async rules, validate, then drop fields whose own `omit` is set.
-   * Hidden, disabled and read-only values are kept. A reaction-written value is kept unless that field's `omit` is set.
+   * Wait for in-flight async rules, validate, then drop omitted fields (an ancestor `omit` removes the nested keys; a child `false` does not put them back).
+   * Hidden, disabled and read-only values are kept. A reaction-written value is kept unless that field is omitted.
    * Values changed during validation are validated again (bounded).
    *
    * Resolves the submit values (`TSubmit`; see {@link SubmitValues}). Pass `onValid` and the promise resolves to
@@ -638,8 +638,8 @@ export interface FormInstance<T, TSubmit = T> {
    */
   validate(path?: FieldPath<T> | readonly FieldPath<T>[]): Promise<void>
   /**
-   * Clone of the values with each field whose own `omit` is set removed (`omit` does not inherit; deleting
-   * an omitted object removes the nested keys with it). Hidden fields are kept. The static type is `TSubmit`.
+   * Clone of the values with omitted fields removed. `omit` inherits: deleting an omitted ancestor already
+   * drops nested keys, and a child `omit: false` does not put them back. Hidden fields are kept. The static type is `TSubmit`.
    * With no type argument, or `typed<T>().createForm`, paths declared `omit: true` in `fields` are optional.
    * `createForm<T>(options)` stays `T`. JSX `omit` and a reaction `$omit` are not visible to that inference;
    * list those with `createForm<T, SubmitValues<T, 'tmp'>>()`.

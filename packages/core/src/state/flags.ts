@@ -1,10 +1,13 @@
 import { selfAndAncestors } from '../shared/path'
 
-/** The four field flags. `visible` / `disabled` / `readOnly` inherit; `omit` does not. */
+/** The four field flags. All four inherit from ancestors; `omit` does not let a child `false` opt back in. */
 export const FLAG_NAMES = ['visible', 'disabled', 'readOnly', 'omit'] as const
 export type FlagName = (typeof FLAG_NAMES)[number]
 
-/** Flags whose effective value is OR-inherited from ancestors. `omit` is own-only. */
+/**
+ * Flags whose effective value is OR-inherited and whose explicit `false` exits an ancestor `true`.
+ * `omit` also inherits, but any ancestor `true` wins ({@link effectiveFlag}).
+ */
 export const INHERITED_FLAGS: readonly FlagName[] = ['visible', 'disabled', 'readOnly']
 
 /**
@@ -37,7 +40,7 @@ export interface FlagCarrier {
 
 /**
  * This node's own flag, before inheritance.
- * `undefined` means "not set here" (inherit, or the `omit` default of false).
+ * `undefined` means "not set here" (inherit for every flag; an unset `omit` with no omitted ancestor reads as false).
  */
 export function ownFlag(field: FlagCarrier | undefined, name: FlagName): boolean | undefined {
   if (!field) return undefined
@@ -62,10 +65,17 @@ export interface FlagReader {
  * `visible` / `disabled` / `readOnly`: walk root → self. An explicit `true` turns the flag on,
  * an explicit `false` turns it off (the exit from an inherited `true`), and an unset node keeps
  * the parent value. That is OR from the parent, with an explicit `false` opt-out.
- * `omit` is never inherited: only this node's own `true` omits it.
+ * `omit`: any `true` on this node or an ancestor omits it. A child's explicit `false` does not
+ * opt back in — submit deletes the ancestor, so the subtree cannot be submitted on its own.
+ * An unset node with no omitted ancestor stays submitted (`false`).
  */
 export function effectiveFlag(store: FlagReader, path: string, name: FlagName): boolean {
-  if (name === 'omit') return ownFlag(store.get(path), 'omit') === true
+  if (name === 'omit') {
+    for (const cursor of selfAndAncestors(path)) {
+      if (ownFlag(store.get(cursor), 'omit') === true) return true
+    }
+    return false
+  }
   let value = flagDefault(name)
   const chain = selfAndAncestors(path)
   for (let i = chain.length - 1; i >= 0; i--) {

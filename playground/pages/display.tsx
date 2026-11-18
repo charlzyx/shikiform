@@ -42,7 +42,7 @@ function ClearOnMode({ clear }: { clear: () => void }) {
   return null
 }
 
-/** `hidden` does not render or validate, and still submits. `omit` renders and validates but drops the subtree. `readOnly` shows the preview and skips validation. The child follows visible / readOnly; omit does not inherit, so it is set on the object. */
+/** `hidden` does not render or validate, and still submits. `omit` renders and validates but drops the subtree (children read `$omit` as true and cannot opt back in). `readOnly` shows the preview and skips validation. The child follows visible / readOnly / omit. */
 export function DisplayPage() {
   const form = useForm<Values>({
     initialValues: { mode: 'visible', box: { email: 'a@b.co' } },
@@ -69,7 +69,7 @@ export function DisplayPage() {
       <ClearOnMode clear={() => { setPayload(''); setErrors('') }} />
       <h1>显隐</h1>
       <p>
-        reaction 写 <code>d.box</code> 的四个开关，里面的邮箱跟着 <code>visible</code> / <code>readOnly</code>（<code>omit</code> 不继承，写在对象上，子树随对象一起不提交）。
+        reaction 写 <code>d.box</code> 的四个开关，里面的邮箱跟着 <code>visible</code> / <code>readOnly</code> / <code>omit</code>（父级 <code>omit</code> 时子字段读到的也是 true，不能用 <code>omit: false</code> 单独提交）。
         <b>hidden</b>：不渲染、不校验，值照常提交；
         <b>omit</b>：仍渲染、仍校验，整棵子树不提交；
         <b>readOnly</b>：渲染预览、不校验、照常提交。清空邮箱再切到「不提交」提交，会看到「邮箱必填」。

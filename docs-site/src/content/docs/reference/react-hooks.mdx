@@ -147,7 +147,7 @@ interface UseFieldOptions<TValue = any> {
   visible?: boolean              // false 不渲染；仍提交，除非 omit。继承，显式 false 退出
   disabled?: boolean             // 置灰。继承，显式 false 退出。跳过校验
   readOnly?: boolean             // 渲染预览，优先于 disabled。继承，显式 false 退出。跳过校验
-  omit?: boolean                 // 不提交。不继承
+  omit?: boolean                 // 不提交。从祖先继承；父级为 true 时子级 false 不能单独提交
   // UI 状态（渲染期的 JSX 层，不写进模型；reaction 的 $title / $componentProps 优先，fields 声明在下）
   title?: ReactNode
   description?: ReactNode
@@ -186,7 +186,7 @@ type FieldSlot<C extends ComponentType<any> = ComponentType<any>> =
 | `onChange(value)` | `(value: TValue) => void`；写入值，不接收 DOM event |
 | `onBlur()` | `() => void`；标记 touched，并按配置触发校验 |
 | `errors` / `warnings` | `string[]`；交给 UI 展示 |
-| `visible` / `disabled` / `readOnly` / `omit` | `boolean`。前三个是沿字段路径算出的有效值；`omit` 只看自己 |
+| `visible` / `disabled` / `readOnly` / `omit` | `boolean`。四个都是沿字段路径算出的有效值。前三个显式 `false` 可退出；`omit` 任一祖先为 `true` 则子孙为 `true` |
 | `required` | `boolean`；有效必填 |
 | `touched` / `dirty` / `edited` / `validating` | `boolean`；失焦过、值与初始值不同（改回即 `false`）、用户编辑过（粘滞）、异步校验中 |
 | `options` / `loading` | 枚举选项数组 / 枚举加载状态 |

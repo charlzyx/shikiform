@@ -189,7 +189,10 @@ export interface FieldProps<
   disabled?: boolean
   /** Render the preview. Inherited (OR). Wins over `disabled`. Skips validation. Still submitted. */
   readOnly?: boolean
-  /** Leave this field out of submit. Not inherited. On `<Field ui>` this is ignored (it belongs to the field). */
+  /**
+   * Leave this field out of submit. Inherited from ancestors; `false` does not opt out of a parent's `omit`.
+   * On `<Field ui>` this is ignored (it belongs to the field).
+   */
   omit?: boolean
   /** Decorator label (`FormItem` shows it as `label`). A reaction's `$title` wins. */
   title?: ReactNode
@@ -269,8 +272,9 @@ export function Field<
 
 /**
  * Scope child names under an object path. Does not subscribe to child values.
- * `omit` leaves this object out of submit (`getSubmitValues`; nested keys go with it). `omit` does not inherit,
- * so list the object in `useForm({ fields })` when the omission must hold before this component mounts.
+ * `omit` leaves this object out of submit (`getSubmitValues`; nested keys go with it). Descendants read
+ * `$omit` as true and cannot opt back in with `omit: false`. List the object in `useForm({ fields })`
+ * when the omission must hold before this component mounts.
  * `visible` / `disabled` / `readOnly` are inherited by the fields inside (OR; a child `false` exits).
  * `<ObjectField<Values> name="address">` checks the name; `typed(form).ObjectField` also types the children.
  */
@@ -289,7 +293,7 @@ export function ObjectField<TScope = any>({
   disabled?: boolean
   /** Read-only preview for this object and, by inheritance, the fields inside. */
   readOnly?: boolean
-  /** Leave this object out of submit. Not inherited; nested keys disappear with the object. */
+  /** Leave this object out of submit. Nested keys go with it; children read `omit` as true and `false` cannot opt them back in. */
   omit?: boolean
   children?: ReactNode
 }) {

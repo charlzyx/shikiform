@@ -177,7 +177,7 @@ export class Scheduler {
     tracker.deps.add(`${path}:${state}`)
   }
 
-  /** Record reads on `path`, every ancestor and the root (inherited flags: visible, disabled, readOnly). */
+  /** Record reads on `path`, every ancestor and the root (inherited flags: visible, disabled, readOnly, omit). */
   trackChain(path: string, state: string): void {
     for (const cursor of selfAndAncestors(path)) this.track(cursor, state)
   }

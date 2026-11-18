@@ -11,7 +11,7 @@ export interface ReindexResult {
 
 /**
  * The form's state: current values, form-level flags, and the field-model map.
- * Pure data plus inherited flag reads (`visible`, `disabled`, `readOnly`). It does not notify or schedule.
+ * Pure data plus inherited flag reads (`visible`, `disabled`, `readOnly`, `omit`). It does not notify or schedule.
  */
 export class FieldStore<T = any> {
   values: T
@@ -67,7 +67,10 @@ export class FieldStore<T = any> {
     return Array.isArray(value) ? value : []
   }
 
-  /** Effective flag. `visible` / `disabled` / `readOnly` inherit (OR, explicit `false` exits); `omit` does not. */
+  /**
+   * Effective flag. `visible` / `disabled` / `readOnly` inherit (OR, explicit `false` exits).
+   * `omit` inherits too: any ancestor `true` wins, and a child `false` does not opt back in.
+   */
   effective(path: string, name: FlagName): boolean {
     return effectiveFlag(this, path, name)
   }
