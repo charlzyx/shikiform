@@ -10,7 +10,7 @@
  * - buttons: `Submit` / `Reset` for the surrounding form;
  * - arrays: `ArrayItems` / `ArrayCards` / `ArrayTable`, containers for `<ArrayField component>` (add / remove / move /
  *   drag rows; `ArrayItems` / `ArrayCards` also show that array path's own errors; `ArrayTable` adds paging, selection,
- *   expansion, column settings over `useArrayTable` / `useColumnSettings`);
+ *   expansion; column settings stay inside `ArrayTable`);
  * - containers: `FormTab`, `FormCollapse`, `FormStep` / `useFormStep` (panes keep their fields mounted; error badges
  *   and per-step validation come from `FieldGroup` in `@shikiform/react`);
  * - tables: `QueryList` (search grid + `ArrayTable` over `useQueryTable({ rows })`), `MergedTable` (read-only rowspan);
@@ -25,8 +25,8 @@ export { FormItem } from './adapter/form-item'
 export type { FormItemEnv, FormItemProps } from './adapter/form-item'
 export { FormLayout, useFormLayout } from './adapter/form-layout'
 export type { FeedbackLayout, FormLayoutProps, FormLayoutValue, Responsive } from './adapter/form-layout'
-export { FormGrid, GridColumn, useFormGrid } from './adapter/form-grid'
-export type { FormGridProps, FormGridValue } from './adapter/form-grid'
+export { FormGrid, GridColumn } from './adapter/form-grid'
+export type { FormGridProps } from './adapter/form-grid'
 export { FormButtonGroup } from './adapter/form-button-group'
 export type { FormButtonGroupProps, FormButtonGroupStickyProps } from './adapter/form-button-group'
 export { PreviewText } from './adapter/preview'

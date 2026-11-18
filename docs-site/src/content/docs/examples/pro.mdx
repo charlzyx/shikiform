@@ -478,6 +478,6 @@ export default function App() {
 
 - `loadData(path)` 接收当前已选节点值数组（根节点为 `[]`），返回下一级选项列表，最末级需要标记 `isLeaf: true`。
 - 对于只有编码数组（非 `labelInValue`）的初始值，组件和阅读态都会自动调用 `loadData` 逐级解析出文本标签。
-- 如果选项本身就是一份静态完整的树形数据，直接把树赋给 `<Field enum>` 并配合标准 [`Cascader`](/guide/controls) 即可。`CascaderPlusView` 是不绑字段的独立版本，无 UI 状态逻辑见 `useLazyCascader` 与 `useCascaderLabels`。
+- 如果选项本身就是一份静态完整的树形数据，直接把树赋给 `<Field enum>` 并配合标准 [`Cascader`](/guide/controls) 即可。`CascaderPlusView` 是不绑字段的独立版本，无 UI 状态逻辑见 `useLazyCascader`。
 
 下一组：[业务场景](/examples/business)。

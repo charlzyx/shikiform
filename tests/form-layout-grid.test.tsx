@@ -2,7 +2,8 @@
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { Form, createForm } from '@shikiform/react'
-import { FormGrid, FormLayout, GridColumn, useFormGrid, useFormLayout } from '@shikiform/antd'
+import { FormGrid, FormLayout, GridColumn, useFormLayout } from '@shikiform/antd'
+import { useFormGrid } from '../packages/antd/src/adapter/form-grid'
 
 afterEach(cleanup)
 

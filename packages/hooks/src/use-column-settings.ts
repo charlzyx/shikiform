@@ -63,8 +63,8 @@ export interface ColumnDragProps {
 }
 
 /**
- * Headless column settings (Pro.formily `ProSettings`): show / hide, reorder (`move` by index, or drag-and-drop through
- * `dragProps`), resize, density.
+ * Column settings for `ArrayTable` (show / hide, reorder, resize, density).
+ * Exported from `@shikiform/hooks/internal` only. Inside the table, read `ArrayTable.useTable().settings`.
  * Columns added later are appended; removed columns drop out.
  */
 export function useColumnSettings(columns: readonly ColumnSettingInput[]): ColumnSettingsApi {

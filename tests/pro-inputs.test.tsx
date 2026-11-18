@@ -3,7 +3,8 @@ import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@t
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createForm, Field, Form } from '@shikiform/react'
 import { CascaderPlus, FormItem, Input, PreviewText, QueryList, Select } from '@shikiform/antd'
-import { enumItems, useCascaderLabels, useColumnSettings, useLazyCascader, useQueryTable, useSuggestion, type CascaderOption } from '@shikiform/hooks'
+import { enumItems, useLazyCascader, useQueryTable, useSuggestion, type CascaderOption } from '@shikiform/hooks'
+import { useCascaderLabels, useColumnSettings } from '@shikiform/hooks/internal'
 import { cascaderPaths } from '../packages/hooks/src/use-lazy-cascader'
 
 afterEach(() => {
