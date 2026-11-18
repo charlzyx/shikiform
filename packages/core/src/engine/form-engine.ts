@@ -111,7 +111,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   /** True while a validate pass is running, including the async rules it waits for. */
   get validating(): boolean { return this.store.validating }
 
-  /** Values differ from {@link FormEngine.initial} (deep; reverting clears it). Effective `omit` (the field and descendants of an omitted ancestor) and computed fields are ignored. Hidden fields count. */
+  /** Values differ from {@link FormEngine.initial} (deep; reverting clears it). Effective `omit` (the field and descendants of an omitted ancestor) and computed fields are ignored. Hidden fields count. The omitted field's own field-level dirty can still be true. */
   get dirty(): boolean { return this.baseline.formDirty() }
 
   /** Sticky: a user edit (`setValue`, `binding().onChange`) happened since `reset`. A reaction write does not count. */

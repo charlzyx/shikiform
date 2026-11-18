@@ -107,7 +107,8 @@ export class Baseline {
 
   /**
    * The value at `path` differs from its initial value, ignoring own-`omit` / computed descendants.
-   * A descendant of an omitted field is not dirty (it reads `$omit` as true and is not submitted).
+   * A descendant of an omitted field is not dirty. This node's own `omit` does not short-circuit,
+   * so the field can be dirty while {@link Baseline.formDirty} skips the path and its subtree.
    * Walking ancestors is O(depth); the form-level compare still uses {@link skipPaths}.
    */
   fieldDirty(path: string): boolean {

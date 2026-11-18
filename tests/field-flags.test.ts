@@ -220,6 +220,9 @@ describe('field flags', () => {
     expect(form.dirty).toBe(false)
     expect(form.binding('box.child').dirty).toBe(false)
     expect(form.binding('rows.0.name').dirty).toBe(false)
+    // The omitted ancestor still compares its own value, so field-level dirty can be true.
+    expect(form.binding('box').dirty).toBe(true)
+    expect(form.binding('rows').dirty).toBe(true)
     form.setValue('keep', 'changed')
     expect(form.dirty).toBe(true)
     form.setValue('keep', 'k')
@@ -263,5 +266,31 @@ describe('field flags', () => {
     expect(form.dirty).toBe(true)
     form.setValue('gone', 'a')
     expect(form.dirty).toBe(false)
+  })
+
+  it('descendants of an omitted ancestor still validate, and submit rejects while they have errors', async () => {
+    const form = createEngine<{ box: { name: string; code: string }; rows: { title: string }[]; keep: string }>({
+      initialValues: { box: { name: '', code: 'ab' }, rows: [{ title: '' }], keep: 'k' },
+      fields: {
+        box: { omit: true },
+        'box.name': { required: true },
+        'box.code': { rules: { minLength: 3 } },
+        rows: { omit: true },
+        'rows.*.title': { required: true },
+      },
+    })
+    expect(form.binding('box.name').omit).toBe(true)
+    expect(form.binding('rows.0.title').omit).toBe(true)
+    const errors = await fieldErrorsOf(form.validate())
+    expect(errors).toEqual([
+      expect.objectContaining({ path: 'box.name', messages: ['必填'] }),
+      expect.objectContaining({ path: 'box.code', messages: ['至少 3 个字符'] }),
+      expect.objectContaining({ path: 'rows.0.title', messages: ['必填'] }),
+    ])
+    await expect(form.submit()).rejects.toEqual(errors)
+    form.setValue('box.name', 'Ada')
+    form.setValue('box.code', 'abc')
+    form.setValue('rows.0.title', 'row')
+    expect(await form.submit()).toEqual({ keep: 'k' })
   })
 })
