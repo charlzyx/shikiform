@@ -127,7 +127,7 @@ export class StateWriter {
     const { store, notifier, scheduler, declarations } = this.deps
     // A reaction write marks the field computed (excluded from `dirty`), also when the derived value already
     // equals the current one (an initial value that is already right). It stays in the submit payload unless
-    // this field's own `omit` is set.
+    // this field is omitted (its own `omit`, or an ancestor's).
     if (fromReaction) store.ensure(path).computed = true
     const old = getAt(store.values, path)
     if (deepEqual(old, value)) return false
@@ -176,7 +176,8 @@ export class StateWriter {
     }
     if (key === '$visible' || key === '$disabled' || key === '$readOnly' || key === '$omit') {
       const name = key.slice(1) as FlagName
-      // `undefined` drops the reaction layer. `true` / `false` set it (`false` exits an inherited `true`).
+      // `undefined` drops the reaction layer. `true` / `false` set this node's own flag
+      // (`false` exits an inherited `true` for visible / disabled / readOnly; an ancestor `omit` still wins).
       return { key: `${path}:${name}`, apply: () => this.setFlag(path, name, value as boolean | undefined) }
     }
     if (key === '$required') {
@@ -194,7 +195,8 @@ export class StateWriter {
   /**
    * Reaction / batch write of one flag.
    * `undefined` drops the reaction layer (JSX / `fields` / inheritance show through).
-   * `true` and `false` are both explicit; `false` is what exits an inherited `true`.
+   * `true` and `false` are both explicit. For `visible` / `disabled` / `readOnly`, `false` exits an
+   * inherited `true`. For `omit`, the stored `false` does not opt out of an ancestor `true`.
    */
   private setFlag(path: string, name: FlagName, value: boolean | undefined): boolean {
     const field = this.deps.store.ensure(path)

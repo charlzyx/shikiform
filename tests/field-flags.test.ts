@@ -130,15 +130,103 @@ describe('field flags', () => {
     expect(form.binding('box.child').visible).toBe(false)
   })
 
-  it('does not inherit omit', () => {
-    const form = createEngine<{ box: { child: string } }>({ initialValues: { box: { child: 'v' } } })
-    form.batch((d) => { d.box.$omit = true })
-    expect(form.binding('box').omit).toBe(true)
+  it('inherits omit from an ancestor; a child omit: false does not opt back in', () => {
+    const childOmit: boolean[] = []
+    const rowOmit: boolean[] = []
+    const form = createEngine<{ box: { child: string; nested: { leaf: string } }; rows: { name: string }[] }>({
+      initialValues: { box: { child: 'v', nested: { leaf: 'l' } }, rows: [{ name: 'a' }] },
+      fields: { 'box.child': { omit: false } },
+      effects: [
+        defineEffects<{ box: { child: string; nested: { leaf: string } }; rows: { name: string }[] }>(({ reaction }) => {
+          reaction((d) => { childOmit.push(d.box.child.$omit) })
+          reaction((d) => { rowOmit.push(d.rows[0].name.$omit) })
+        }),
+      ],
+    })
+    expect(childOmit.length).toBeGreaterThan(0)
+    expect(childOmit.every((value) => value === false)).toBe(true)
+    expect(rowOmit.every((value) => value === false)).toBe(true)
     expect(form.binding('box.child').omit).toBe(false)
-    expect(form.getSubmitValues()).toEqual({})
-    form.batch((d) => { d.box.$omit = false; d.box.child.$omit = true })
+
+    const childRuns = () => childOmit.length
+    const rowRuns = () => rowOmit.length
+    const beforeParent = childRuns()
+    form.batch((d) => { d.box.$omit = true })
+    expect(childRuns()).toBeGreaterThan(beforeParent)
+    expect(childOmit.at(-1)).toBe(true)
+    expect(rowOmit.at(-1)).toBe(false)
+    expect(form.binding('box').omit).toBe(true)
+    expect(form.binding('box.child').omit).toBe(true)
+    expect(form.binding('box.nested.leaf').omit).toBe(true)
+    let draftOmit = false
+    form.batch((d) => { draftOmit = d.box.nested.leaf.$omit })
+    expect(draftOmit).toBe(true)
+    expect(form.getSubmitValues()).toEqual({ rows: [{ name: 'a' }] })
+
+    // The declaration and a reaction `false` are stored, but the ancestor still wins.
+    const afterParent = childRuns()
+    form.batch((d) => { d.box.child.$omit = false })
+    expect(childRuns()).toBeGreaterThan(afterParent)
+    expect(childOmit.at(-1)).toBe(true)
+    expect(form.binding('box.child').omit).toBe(true)
+    expect(form.binding('box.nested.leaf').omit).toBe(true)
+    expect(form.getSubmitValues()).toEqual({ rows: [{ name: 'a' }] })
+
+    form.batch((d) => { d.box.$omit = false })
+    expect(childOmit.at(-1)).toBe(false)
     expect(form.binding('box').omit).toBe(false)
-    expect(form.getSubmitValues()).toEqual({ box: {} })
+    expect(form.binding('box.child').omit).toBe(false)
+    expect(form.binding('box.nested.leaf').omit).toBe(false)
+    expect(form.getSubmitValues()).toEqual({ box: { child: 'v', nested: { leaf: 'l' } }, rows: [{ name: 'a' }] })
+
+    // A child's own omit still drops just that field. The parent stays submitted.
+    form.batch((d) => { d.box.child.$omit = true })
+    expect(form.binding('box').omit).toBe(false)
+    expect(childOmit.at(-1)).toBe(true)
+    expect(form.getSubmitValues()).toEqual({ box: { nested: { leaf: 'l' } }, rows: [{ name: 'a' }] })
+
+    const childBeforeRows = childRuns()
+    const rowBefore = rowRuns()
+    form.batch((d) => { d.rows.$omit = true })
+    expect(rowRuns()).toBeGreaterThan(rowBefore)
+    expect(rowOmit.at(-1)).toBe(true)
+    expect(childRuns()).toBe(childBeforeRows)
+    expect(form.binding('rows').omit).toBe(true)
+    expect(form.binding('rows.0.name').omit).toBe(true)
+    let rowDraft = false
+    form.batch((d) => { rowDraft = d.rows[0].name.$omit })
+    expect(rowDraft).toBe(true)
+    form.batch((d) => { d.rows[0].name.$omit = false })
+    expect(form.binding('rows.0.name').omit).toBe(true)
+    expect(rowOmit.at(-1)).toBe(true)
+    expect(form.getSubmitValues()).toEqual({ box: { nested: { leaf: 'l' } } })
+    form.batch((d) => { d.rows.$omit = false })
+    expect(rowOmit.at(-1)).toBe(false)
+    expect(form.binding('rows.0.name').omit).toBe(false)
+    expect(form.getSubmitValues()).toEqual({ box: { nested: { leaf: 'l' } }, rows: [{ name: 'a' }] })
+    expect(childRuns()).toBe(childBeforeRows)
+  })
+
+  it('edits under an omitted object or array do not count as dirty', () => {
+    const form = createEngine<{ box: { child: string }; rows: { name: string }[]; keep: string }>({
+      initialValues: { box: { child: 'v' }, rows: [{ name: 'a' }], keep: 'k' },
+    })
+    form.batch((d) => {
+      d.box.$omit = true
+      d.rows.$omit = true
+    })
+    form.setValue('box.child', 'x')
+    form.setValue('rows.0.name', 'b')
+    expect(form.dirty).toBe(false)
+    expect(form.binding('box.child').dirty).toBe(false)
+    expect(form.binding('rows.0.name').dirty).toBe(false)
+    form.setValue('keep', 'changed')
+    expect(form.dirty).toBe(true)
+    form.setValue('keep', 'k')
+    expect(form.dirty).toBe(false)
+    form.batch((d) => { d.box.$omit = false })
+    expect(form.dirty).toBe(true)
+    expect(form.binding('box.child').dirty).toBe(true)
   })
 
   it('useForm({ readOnly: true }) and { disabled: true } set the root and inherit', () => {

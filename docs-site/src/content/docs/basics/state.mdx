@@ -16,7 +16,7 @@ description: 详解 $value 以及 visible、disabled、readOnly、omit 四个独
 | `readOnly` | `false` | 渲染预览。与 `disabled` 同时为真时预览优先 | 跳过并清错 | 提交 |
 | `omit` | `false` | 不影响 | 不影响 | 剔除该字段，不计入 dirty |
 
-沿字段路径从根走到自己：这一层写了 `true` 或 `false` 就用这一层，没写就保持上一层。所以父级 `disabled: true`、子级 `disabled: false` 时，子级可以编辑。`FormLayout` / `FormTab` 不是字段路径上的父级。`omit` 不继承。赋 `undefined` 丢掉 reaction 层。隐藏后再显示，值还在。关掉校验门会清掉已有错误；再打开时不会自动重跑，要等下一次 blur、`validate` 或 `submit`。`disabled` 的字段照常提交，这和 react-hook-form 相反。
+四个布尔都沿字段路径继承。`visible` / `disabled` / `readOnly`：这一层写了 `true` 或 `false` 就用这一层，没写就保持上一层。所以父级 `disabled: true`、子级 `disabled: false` 时，子级可以编辑。`omit`：任一祖先为 `true`，子孙读到的 `$omit` 就是 `true`；子级写 `omit: false` 不能单独提交，因为父级被删掉时整棵子树一起离开提交结果。父级取消 `omit` 后，子级回到自己的值（没写就是提交）。`FormLayout` / `FormTab` 不是字段路径上的父级。赋 `undefined` 丢掉 reaction 层。隐藏后再显示，值还在。关掉校验门会清掉已有错误；再打开时不会自动重跑，要等下一次 blur、`validate` 或 `submit`。`disabled` 的字段照常提交，这和 react-hook-form 相反。
 
 ```tsx preview
 import { useState } from 'react';
@@ -63,7 +63,7 @@ export default function App() {
 - 选 `readOnly` 时，输入框换成预览，不校验，值照常提交。
 
 <Aside type="caution" title="隐藏不等于不提交">
-`$visible = false` 只是不渲染、不校验。值仍然提交。不进提交结果要再写 `$omit = true`。`omit` 不从父级继承。
+`$visible = false` 只是不渲染、不校验。值仍然提交。不进提交结果要再写 `$omit = true`。父级 `omit` 时，子字段的 `$omit` 也是 `true`，不能用 `omit: false` 单独提交。
 </Aside>
 
 ## 禁用和只读

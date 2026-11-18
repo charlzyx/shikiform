@@ -16,17 +16,19 @@ function hasDescendants(store: FieldStore<any>, path: string): boolean {
   return !path || store.parents.has(path)
 }
 
-/** A flag changed: re-render descendants of an inherited flag, wake readers, and clear errors that no longer apply. */
+/** A flag changed: re-render descendants (all four flags inherit), wake readers, and clear errors that no longer apply. */
 export function noteFlagChange(host: InactiveHost, path: string, names: readonly FlagName[]): void {
   const { notifier, scheduler, store } = host.deps
   notifier.bumpPath(path)
-  if (names.some((name) => name !== 'omit') && hasDescendants(store, path)) {
+  // `omit` included: a parent's omit changes every descendant's effective value, so their bindings re-render.
+  if (hasDescendants(store, path)) {
     const prefix = path ? path + '.' : ''
     for (const fieldPath of store.fields.keys()) {
       if (fieldPath && fieldPath !== path && fieldPath.startsWith(prefix)) notifier.bumpPath(fieldPath)
     }
   }
   for (const name of names) scheduler.markDirty(`${path}:${name}`)
+  // `omit` still validates. Only the three gates clear errors.
   if (names.some((name) => name === 'visible' || name === 'disabled' || name === 'readOnly')) clearInactiveErrors(host, path)
 }
 

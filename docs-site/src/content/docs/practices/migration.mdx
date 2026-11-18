@@ -23,7 +23,7 @@ description: 对照 Formily 与 react-hook-form 的核心概念差异，快速�
 | `mapProps({ readPretty })` | `mapProps({ preview })` |
 | 计算字段默认 `readPretty` | 不再自动只读。要预览再写 `readOnly`，不提交再写 `omit` |
 
-`visible` / `disabled` / `readOnly` 沿字段路径继承：这一层写了 `true` 或 `false` 就用这一层。`omit` 不继承。校验只在 `visible && !disabled && !readOnly` 时运行，否则清掉已有错误；重新打开后不会自动重跑。
+四个布尔都沿字段路径继承。`visible` / `disabled` / `readOnly` 这一层写了 `true` 或 `false` 就用这一层。`omit` 任一祖先为 `true`，子孙读到的就是 `true`，子级 `omit: false` 不能把这段数据单独提交回来。校验只在 `visible && !disabled && !readOnly` 时运行，否则清掉已有错误；重新打开后不会自动重跑。
 
 ## 从 Formily 迁移
 

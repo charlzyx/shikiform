@@ -20,7 +20,7 @@ tableOfContents: false
 | `readOnly: true` | 预览（同时 `disabled` 时预览优先） | 跳过 | 提交 |
 | `omit: true` | 不影响 | 不影响 | 不提交 |
 
-`visible` / `disabled` / `readOnly` 沿字段路径继承，这一层写了 `true` 或 `false` 就用这一层。`omit` 不继承。校验只在 `visible && !disabled && !readOnly` 时运行。
+四个布尔都沿字段路径继承。`visible` / `disabled` / `readOnly` 这一层写了 `true` 或 `false` 就用这一层。`omit` 是任一祖先为 `true` 则子孙为 `true`：子级写 `omit: false` 不能单独把这一段提交回来，因为父级被删掉时整棵子树一起离开提交结果。校验只在 `visible && !disabled && !readOnly` 时运行。
 
 **这一步：** 在 `reaction` 中补充 `d.email.$visible = d.contact.$value`。
 

@@ -111,7 +111,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   /** True while a validate pass is running, including the async rules it waits for. */
   get validating(): boolean { return this.store.validating }
 
-  /** Values differ from {@link FormEngine.initial} (deep; reverting clears it). `omit` and computed fields are ignored. Hidden fields count. */
+  /** Values differ from {@link FormEngine.initial} (deep; reverting clears it). Effective `omit` (the field and descendants of an omitted ancestor) and computed fields are ignored. Hidden fields count. */
   get dirty(): boolean { return this.baseline.formDirty() }
 
   /** Sticky: a user edit (`setValue`, `binding().onChange`) happened since `reset`. A reaction write does not count. */
@@ -182,8 +182,10 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   }
 
   /**
-   * Values with each field whose own `omit` is set removed. `omit` does not inherit; removing an
-   * omitted object drops the nested keys with it. Hidden / disabled / read-only values are kept.
+   * Values with each effectively omitted field removed. `omit` inherits, so a descendant reads as
+   * omitted when an ancestor is; deleting that ancestor already drops the nested keys (deleting the
+   * descendants too does not change the result, and a child `omit: false` does not put them back).
+   * Hidden / disabled / read-only values are kept.
    * Typed `TSubmit` (default `T`, see `SubmitValues`).
    */
   getSubmitValues(): TSubmit {
@@ -526,14 +528,11 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     if (key === '$errors') return this.validator.aggregate(path, 'errors')
     if (key === '$warnings') return this.validator.aggregate(path, 'warnings')
     const field = store.ensure(path)
-    if (key === '$visible' || key === '$disabled' || key === '$readOnly') {
-      const name = key.slice(1) as 'visible' | 'disabled' | 'readOnly'
+    if (key === '$visible' || key === '$disabled' || key === '$readOnly' || key === '$omit') {
+      const name = key.slice(1) as 'visible' | 'disabled' | 'readOnly' | 'omit'
+      // Ancestors too: a parent flag change must re-run readers of the child's effective value.
       scheduler.trackChain(path, name)
       return store.effective(path, name)
-    }
-    if (key === '$omit') {
-      scheduler.track(path, 'omit')
-      return store.effective(path, 'omit')
     }
     if (key === '$required') {
       scheduler.track(path, 'required')

@@ -27,7 +27,7 @@ export function clone<T>(value: T): T {
 
 /**
  * `!deepEqual(a, b)` where `a` / `b` sit at `path`, ignoring every subtree in `skip` (exact data paths).
- * Used by `dirty`: `omit` and computed fields do not count as a change. A hidden field does.
+ * Used by `dirty`: effective `omit` (including a descendant of an omitted field) and computed fields do not count as a change. A hidden field does.
  */
 export function differsExcept(a: unknown, b: unknown, path: string, skip: readonly string[]): boolean {
   if (Object.is(a, b)) return false

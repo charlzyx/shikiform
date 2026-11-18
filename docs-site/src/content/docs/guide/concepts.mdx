@@ -18,7 +18,7 @@ ShikiForm 的核心思路是把所有表单状态（值、显隐、只读、校�
 | **`decorator` / `component`** | `<Field>` 渲染的两层结构：`decorator`（如 `FormItem`）负责标签和错误展示，`component`（如 `Input`）负责输入交互 |
 | **`reaction` / `watch`** | `reaction` 用于派生状态，初始化即运行并自动追踪依赖；`watch` 用于副作用动作，仅在监听源变化后触发 |
 | **`each`** | `reaction.each` 与 `watch.each` 只接受两个参数，会为选中数组的每一行建立独立实例，并自动递归进入嵌套对象数组（嵌套在对象上的基本类型数组除外；若直接对基本类型数组本身调用 `each`，则会在 `depth === 0` 触发回调），可在回调内按 `ctx.key` / `ctx.depth` 过滤 |
-| **四个布尔** | `visible`、`disabled`、`readOnly`、`omit`。前三个按字段路径继承，`omit` 只决定是否提交 |
+| **四个布尔** | `visible`、`disabled`、`readOnly`、`omit`。四个都按字段路径继承；`omit` 决定是否提交，父级为 `true` 时子级 `false` 不能单独提交 |
 
 ## handle 与 value 的区别
 
@@ -85,7 +85,7 @@ export default function App() {
 | `$component` / `$decorator` | 动态替换 `<Field>` 渲染的控件或装饰器 |
 | `$componentProps` / `$decoratorProps` | 控件与装饰器的透传属性，支持按键打补丁，详见 [UI 状态三层叠加](/guide/field#ui-状态三层叠加) |
 | `$errors` / `$warnings` / `$validating` / `$touched` | 只读状态，分别表示错误列表、警告列表、异步校验中状态及失焦触碰标记 |
-| `$dirty` / `$edited` | 只读状态。`$dirty` 通过深比较判断当前值是否偏离初始值（改回原值即恢复 `false`；表单根上的 `d.$dirty` 不计入 `omit` 与计算字段；`visible: false` 仍计入）；`$edited` 记录用户是否手动编辑过，直到 `reset` 才重置 |
+| `$dirty` / `$edited` | 只读状态。`$dirty` 通过深比较判断当前值是否偏离初始值（改回原值即恢复 `false`；表单根上的 `d.$dirty` 不计入 `omit`（含被祖先 omit 的子孙）与计算字段；`visible: false` 仍计入）；`$edited` 记录用户是否手动编辑过，直到 `reset` 才重置 |
 | `d.$canSubmit` / `d.$submitting` / `d.$submitCount` | 表单级只读状态，只能在根 draft `d` 上读取 |
 
 ## 四个布尔
@@ -101,7 +101,7 @@ export default function App() {
 | `omit: true` | 不影响渲染 | 不影响校验 | 剔除该字段。不计入 dirty |
 | `reaction` 写过 `$value` | 仍可编辑（要预览就再写 `readOnly`） | 按上面三个开关 | 提交，除非 `omit` |
 
-`visible` / `disabled` / `readOnly` 沿字段路径从根走到自己：这一层写了 `true` 或 `false` 就用这一层，没写就保持上一层。所以父级 `disabled: true`、子级 `disabled: false` 时，子级可以编辑。`omit` 不继承：父级 `omit` 不会把子级的 `$omit` 读成 `true`；删掉一个被 omit 的对象时，嵌套的键会跟着对象一起离开提交结果。
+四个布尔都沿字段路径继承。`visible` / `disabled` / `readOnly` 从根走到自己：这一层写了 `true` 或 `false` 就用这一层，没写就保持上一层。所以父级 `disabled: true`、子级 `disabled: false` 时，子级可以编辑。`omit` 是任一祖先为 `true` 则子孙为 `true`（`$omit` 和 binding 上的 `omit` 都一样）。子级写 `omit: false` 不能把自己捞回来：提交时被 omit 的对象整棵删掉，嵌套的键跟着离开，子字段没有可以单独提交的值。父级 `omit` 取消后，子级回到自己的值（没写就是 `false`）。
 
 `$flag = undefined` 丢掉 reaction 这一层，回到 JSX / `fields` / 继承。详情页用 `useForm({ readOnly: true })`。
 

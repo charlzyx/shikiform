@@ -13,8 +13,9 @@ export interface FieldModel {
   path: string
   /**
    * Own `visible` / `disabled` / `readOnly` / `omit`, each layered reaction > JSX > declaration.
-   * Effective `visible` / `disabled` / `readOnly` walk ancestors ({@link effectiveFlag}); `omit` does not.
-   * An explicit `false` exits an inherited `true`. `undefined` on a layer means that layer did not set it.
+   * Effective values walk ancestors ({@link effectiveFlag}). For `visible` / `disabled` / `readOnly`,
+   * an explicit `false` exits an inherited `true`. For `omit`, any ancestor `true` wins.
+   * `undefined` on a layer means that layer did not set it.
    */
   flags: Record<FlagName, FlagLayers>
   required: boolean

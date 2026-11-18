@@ -139,7 +139,7 @@ export default function App() {
 
 ## 隐藏 `<UI>` 不会自动隐藏内部字段
 
-用 `<UI>` 包裹一组字段作为视觉分组时，把 `<UI>` 隐藏仅仅是卸载了这层容器界面；里面的字段是否渲染、是否校验看它自己的 `$visible`，是否提交看它自己的 `$omit`。
+用 `<UI>` 包裹一组字段作为视觉分组时，把 `<UI>` 隐藏仅仅是卸载了这层容器界面。里面的字段是否渲染、是否校验看它的有效 `$visible`（字段路径上的祖先也会传下来）。是否提交看有效 `$omit`：字段自己的，或字段路径上祖先的。`<UI>` 不在字段路径上，藏起它不会让里面的字段变成 omit。
 
 ```tsx preview
 import { Card } from 'antd';
@@ -183,7 +183,7 @@ export default function App() {
 }
 ```
 
-在这个示例里，关闭「开发票」后提交：`invoiceTitle` 同时设了 `$visible = false` 和 `$omit = true`，所以不渲染、不校验，也不会出现在提交结果中。`remark` 没有改这两个开关，卡片被隐藏后提交 JSON 里依然包含 `"remark": "保留"`。`$visible = false` 本身仍会提交；要整组数据都不提交，需要给里面的字段各自设置 `$omit`。
+在这个示例里，关闭「开发票」后提交：`invoiceTitle` 同时设了 `$visible = false` 和 `$omit = true`，所以不渲染、不校验，也不会出现在提交结果中。`remark` 没有改这两个开关，卡片被隐藏后提交 JSON 里依然包含 `"remark": "保留"`。`$visible = false` 本身仍会提交。这两个字段都在根上，没有共同的对象父级，所以要各自设置 `$omit`。如果它们在同一个对象里，给这个对象设置 `$omit` 即可：子字段读到的 `$omit` 也是 `true`，写 `omit: false` 不能单独提交。
 
 ## 回退规则一览
 

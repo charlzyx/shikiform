@@ -35,12 +35,12 @@ export interface FieldBinding<TValue> {
   disabled: boolean
   /** Effective read-only (OR-inherited). Renders the preview. Wins over `disabled`. */
   readOnly: boolean
-  /** This field is left out of submit. Not inherited. */
+  /** Left out of submit. Inherited: an ancestor `true` wins, and this field's `false` does not opt back in. */
   omit: boolean
   required: boolean
   /** True after blur. `reset` clears it. */
   touched: boolean
-  /** The value differs from its initial value (deep compare). Changing it back clears it. */
+  /** The value differs from its initial value (deep compare). Changing it back clears it. `false` when an ancestor is omitted. */
   dirty: boolean
   /** Sticky: a user edit happened since the last reset. A reaction writing `$value` does not set it. */
   edited: boolean
@@ -174,7 +174,7 @@ export interface UseFieldOptions<TValue = any> {
   disabled?: boolean
   /** Render the preview. Inherited (OR); explicit `false` exits. Wins over `disabled`. Skips validation. */
   readOnly?: boolean
-  /** Leave this field out of submit. Not inherited. */
+  /** Leave this field out of submit. Inherited from ancestors; `false` does not opt out of a parent's `omit`. */
   omit?: boolean
   /**
    * UI state, the render-time JSX layer: not stored on the model, so inline objects and handlers are free.

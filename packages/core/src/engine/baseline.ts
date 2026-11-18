@@ -2,7 +2,7 @@ import type { Declarations } from '../declarations/declarations'
 import { unwrapReadonly } from '../draft/readonly'
 import type { Scheduler } from '../effects/scheduler'
 import { clone, differsExcept } from '../shared/equal'
-import { getAt, setAt } from '../shared/path'
+import { getAt, selfAndAncestors, setAt } from '../shared/path'
 import type { FieldStore } from '../state/field-store'
 import type { Notifier } from '../state/notifier'
 import type { FieldError } from '../types'
@@ -11,7 +11,8 @@ import type { Validator } from '../validation/validator'
 /**
  * The initial-values baseline: derived `dirty` (#39) and the notifications when values or the baseline are
  * replaced wholesale (`reset`, `reset(values)`, `setInitialValues`, #33).
- * `dirty` is never stored: it is values vs `initial`, deep compared, ignoring `omit` and computed fields.
+ * `dirty` is never stored: it is values vs `initial`, deep compared, ignoring own `omit` and computed fields.
+ * An omitted path is skipped whole, so descendants are ignored with it (they also read `$omit` as true).
  * A hidden field still counts.
  */
 export class Baseline {
@@ -80,7 +81,11 @@ export class Baseline {
   }
 
 
-  /** Exact paths whose values never count as a change: own `omit` and computed fields. Sorted for the cache key. */
+  /**
+   * Exact paths whose values never count as a change: own `omit` and computed fields. Sorted for the cache key.
+   * Descendants are not listed: {@link differsExcept} skips an omitted path's whole subtree, which is the
+   * inherited-`omit` set. Listing every descendant would walk ancestors once per field on every compare.
+   */
   private skipPaths(): string[] {
     const out: string[] = []
     for (const [path, field] of this.store.fields) {
@@ -100,9 +105,23 @@ export class Baseline {
     return dirty
   }
 
-  /** The value at `path` differs from its initial value, ignoring `omit` / computed descendants. */
+  /**
+   * The value at `path` differs from its initial value, ignoring own-`omit` / computed descendants.
+   * A descendant of an omitted field is not dirty (it reads `$omit` as true and is not submitted).
+   * Walking ancestors is O(depth); the form-level compare still uses {@link skipPaths}.
+   */
   fieldDirty(path: string): boolean {
+    if (this.inheritedOmit(path)) return false
     return differsExcept(getAt(this.store.values, path), getAt(this.store.initial, path), path, this.skipPaths())
+  }
+
+  /** Some ancestor's own `omit` is set. This node's own `omit` does not count. */
+  private inheritedOmit(path: string): boolean {
+    const chain = selfAndAncestors(path)
+    for (let i = 1; i < chain.length; i++) {
+      if (this.store.own(chain[i]!, 'omit') === true) return true
+    }
+    return false
   }
 
   /** After a flush: tell meta subscribers (`useFormState`, `subscribeMeta`) when form-level `dirty` flipped. */
