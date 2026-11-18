@@ -98,7 +98,7 @@ useShadow<TValues, TContext>(): ShadowFormApi<TValues, TContext>
 <Field name="area" title="地区" decorator={[FormItem]} component={[CascaderPlus, { loadData: (path) => api.children(path), labelInValue: true }]} />
 ```
 
-字段绑定的懒加载级联（Pro.formily `CascaderPlus`），建立在 `useLazyCascader` 上：一个 `loadData(path)` 服务所有层级，已有值打开时逐级加载以反显标签（已带 `children` 的节点不再加载，所以 `loadData([])` 一次返回整棵树也行，但选项一开始就齐全时用 [`Cascader`](/reference/antd-adapter#cascader) + `<Field enum>`）；支持 `multiple` 和 `labelInValue`（每一级 `{ label, value }`）。默认 `changeOnSelect`。阅读态（`readOnly`）与 `Cascader` 一样显示 `省 / 市 / 区`：`labelInValue` 的值自带标签；裸值（`['410000', '410600']`）用同一个 `loadData` 逐级加载后显示标签而不是编码（[`useCascaderLabels`](/reference/pro-hooks#usecascaderlabels)）。
+字段绑定的懒加载级联（Pro.formily `CascaderPlus`），建立在 `useLazyCascader` 上：一个 `loadData(path)` 服务所有层级，已有值打开时逐级加载以反显标签（已带 `children` 的节点不再加载，所以 `loadData([])` 一次返回整棵树也行，但选项一开始就齐全时用 [`Cascader`](/reference/antd-adapter#cascader) + `<Field enum>`）；支持 `multiple` 和 `labelInValue`（每一级 `{ label, value }`）。默认 `changeOnSelect`。阅读态（`readOnly`）与 `Cascader` 一样显示 `省 / 市 / 区`：`labelInValue` 的值自带标签；裸值（`['410000', '410600']`）用同一个 `loadData` 逐级加载后显示标签而不是编码。自绘阅读态对裸路径用 [`useLazyCascader`](/reference/pro-hooks#uselazycascader) 的 `labelsOf`。
 
 ## CascaderPlusView
 

@@ -14,11 +14,9 @@
   "@shikiform/hooks": {
     "useQueryTable": "reference/query-hooks.mdx",
     "useArrayTable": "reference/pro-hooks.mdx",
-    "useColumnSettings": "reference/pro-hooks.mdx",
     "useShadowForm": "reference/pro-hooks.mdx",
     "useSuggestion": "reference/pro-hooks.mdx",
     "useLazyCascader": "reference/pro-hooks.mdx",
-    "useCascaderLabels": "reference/pro-hooks.mdx",
     "enumItems": "reference/pro-hooks.mdx",
     "ENUM_COLORS": "reference/pro-hooks.mdx"
   },
@@ -62,7 +60,6 @@
     "useFormLayout": "reference/antd-adapter.mdx",
     "FormGrid": "reference/antd-adapter.mdx",
     "GridColumn": "reference/antd-adapter.mdx",
-    "useFormGrid": "reference/antd-adapter.mdx",
     "FormButtonGroup": "reference/antd-adapter.mdx",
     "ArrayItems": "reference/antd.mdx",
     "ArrayCards": "reference/antd.mdx",

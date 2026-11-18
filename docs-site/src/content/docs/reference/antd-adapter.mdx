@@ -278,15 +278,7 @@ export default function App() {
 GridColumn(props: { gridSpan?: number; style?: CSSProperties; children?: ReactNode }): ReactElement
 ```
 
-`FormGrid` 里不是 `FormItem` 的一格（一段说明、一组按钮），占 `gridSpan` 列（默认 1，按当前列数截断，`-1` 占满一行）。
-
-## useFormGrid
-
-```ts
-useFormGrid(): { columns: number } | null
-```
-
-外层 `FormGrid` 当前的列数（随容器宽度变化，未测量前是 `maxColumns`）；不在 `FormGrid` 里时返回 `null`。自定义装饰器用它把自己的跨列截断到当前列数：`Math.min(span, grid?.columns ?? span)`。
+`FormGrid` 里不是 `FormItem` 的一格（一段说明、一组按钮），占 `gridSpan` 列（默认 1，按当前列数截断，`-1` 占满一行）。字段跨列写 `decorator={[FormItem, { gridSpan }]}`。
 
 ## FormButtonGroup
 

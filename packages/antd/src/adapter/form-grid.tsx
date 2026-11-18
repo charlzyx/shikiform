@@ -10,7 +10,11 @@ export interface FormGridValue {
 
 export const FormGridContext = createContext<FormGridValue | null>(null)
 
-/** The surrounding {@link FormGrid} (its current column count), or `null` outside one. */
+/**
+ * Column count of the surrounding {@link FormGrid}, or `null` outside one.
+ * Same-package helper for `FormItem`, `GridColumn`, and `QueryList`. Not a public export:
+ * a cell spans with `gridSpan` or {@link GridColumn}.
+ */
 export function useFormGrid(): FormGridValue | null {
   return useContext(FormGridContext)
 }

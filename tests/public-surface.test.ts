@@ -17,7 +17,8 @@ describe('public surface', () => {
       'normalizeRules', 'runRules', 'findPos', 'getNode', 'isPosPrefix', 'listPositions', 'locateIds', 'mapMoveIndex',
       'posKey', 'samePos',
     ]) expect(name in core).toBe(false)
-    for (const name of ['normalizeSort', 'normalizeFilters', 'cascaderPaths']) expect(name in pro).toBe(false)
+    for (const name of ['normalizeSort', 'normalizeFilters', 'cascaderPaths', 'useColumnSettings', 'useCascaderLabels']) expect(name in pro).toBe(false)
+    for (const name of ['useFormGrid']) expect(name in antd, name).toBe(false)
     for (const name of [
       'useArray', 'useTree', 'useTreeNode', 'useArrayErrors', 'useFormMessage',
       'useSubmit', 'useReset', 'useFieldGroup', 'useFieldGroupErrors', 'FieldGroup',

@@ -99,7 +99,8 @@ is no `<ArrayTable name>`; the container's props are type-checked (`[ArrayTable,
 // ArrayCards: each row's fields become a card body, header `title #n`, default extra = up / down / remove
 <F.ArrayField name="items" component={[ArrayCards, { title: '商品' }]}>{(row) => <row.Field name="sku" … />}</F.ArrayField>
 // ArrayTable: an antd table; cells come from `columns` (render runs in the row scope), so no row children.
-// Paging, selection, expand, column settings, Copy / ShadowAddition (shadow-form add); headless state = useArrayTable.
+// Paging, selection, expand, Copy / ShadowAddition (shadow-form add). Column settings stay on ArrayTable
+// (`useTable().settings`). Headless table state = useArrayTable.
 <F.ArrayField name="lines" rowKey="id" component={[ArrayTable, {
   columns: [{ key: 'qty', title: '数量', render: () => <Field name="qty" component={[InputNumber]} /> },
             { key: 'op', render: () => <ArrayTable.Remove confirm /> }],

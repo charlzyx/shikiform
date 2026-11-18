@@ -262,7 +262,7 @@ export default function App() {
 }
 ```
 
-表格自带行拖拽排序、批量勾选、弹窗草稿添加（校验通过后才写入列表）、单行复制和确认删除。更多高级功能（如展开子表、拖拽列宽、异步删除及大数据量虚拟滚动）请看 [/play/array-table](/play/array-table)。分页、勾选、展开和列设置等表格交互状态不会混入表单值；如果需要脱离 Ant Design 复用同款表格状态管理，可以使用 `@shikiform/hooks` 中的 `useArrayTable`。
+表格自带行拖拽排序、批量勾选、弹窗草稿添加（校验通过后才写入列表）、单行复制和确认删除。更多高级功能（如展开子表、拖拽列宽、异步删除及大数据量虚拟滚动）请看 [/play/array-table](/play/array-table)。分页、勾选、展开不会混入表单值；脱离 Ant Design 复用这三块状态用 `@shikiform/hooks` 的 `useArrayTable`。列的显隐、排序和密度留在 `ArrayTable` 上，在 `toolbar` / `footer` / 单元格里用 `ArrayTable.useTable().settings` 读取。
 
 ## 其他数组方案的选择
 
