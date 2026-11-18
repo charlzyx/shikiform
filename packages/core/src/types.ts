@@ -201,7 +201,7 @@ export interface FieldSpec extends FieldUiSpec {
   /**
    * Drop this field from submit. Inherited: any ancestor `true` omits the subtree, and a child `false`
    * does not submit on its own (the ancestor is removed whole). Unset means submitted, unless an ancestor
-   * is omitted. Does not affect render, validation, or form-level `dirty`.
+   * is omitted. Does not affect render or validation. This field and its descendants do not count toward form-level `dirty`.
    */
   omit?: boolean
   /**
@@ -440,7 +440,7 @@ export interface DraftState<T> {
   /**
    * Drop this field from submit. Reading is effective: `true` when this node or any ancestor is omitted.
    * A child `false` does not opt back in (submit removes the ancestor). `undefined` drops the reaction
-   * layer. Does not change render or validation. Omitted fields do not count toward form-level `dirty`.
+   * layer. Does not change render or validation. This field and its descendants do not count toward form-level `dirty`. With no omitted ancestor, this field's own `$dirty` can still be `true`.
    */
   get $omit(): boolean
   set $omit(value: boolean | undefined)
@@ -487,6 +487,7 @@ export interface DraftState<T> {
   readonly $touched: boolean
   /**
    * The value differs from its initial value (deep compare); changing it back clears it. A descendant of an omitted field is `false`.
+   * The omitted field itself can still be `true` when its value changes: form-level `dirty` ignores that field and its descendants either way.
    * On the root (`d.$dirty`): any non-omitted, non-computed value differs (an ancestor `omit` ignores the subtree). A hidden field still counts.
    * Follows `reset(values)` / `setInitialValues`.
    */
@@ -569,7 +570,7 @@ export interface FormInstance<T, TSubmit = T> {
   readonly initial: T
   /**
    * Values differ from `initial` (deep compare). Changing a value back clears it.
-   * Effective `omit` (including descendants of an omitted field) and computed (reaction-written) fields do not count. A hidden field does.
+   * Effective `omit` (including descendants of an omitted field) and computed (reaction-written) fields do not count. A hidden field does. The omitted field's own `$dirty` can still be `true` when its value changed and no ancestor is omitted.
    */
   readonly dirty: boolean
   /** Sticky: true after a user edit (`setValue`, input `onChange`) until `reset`. */

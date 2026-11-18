@@ -40,7 +40,11 @@ export interface FieldBinding<TValue> {
   required: boolean
   /** True after blur. `reset` clears it. */
   touched: boolean
-  /** The value differs from its initial value (deep compare). Changing it back clears it. `false` when an ancestor is omitted. */
+  /**
+   * The value differs from its initial value (deep compare). Changing it back clears it.
+   * `false` when an ancestor is omitted. This field's own `omit` does not force `false`, so it can be
+   * `true` while form-level `dirty` ignores the field and its descendants.
+   */
   dirty: boolean
   /** Sticky: a user edit happened since the last reset. A reaction writing `$value` does not set it. */
   edited: boolean
