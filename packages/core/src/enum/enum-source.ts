@@ -102,6 +102,18 @@ export function isEnumBinding(value: unknown): value is EnumBinding {
   return !!value && typeof value === 'object' && (value as EnumBinding).kind === 'enum'
 }
 
+/** True when `value` is an `EnumSource` instance (e.g. `EnumSource.from(async () => ...)`). */
+export function isEnumSource(value: unknown): value is EnumSource<any> {
+  return value instanceof EnumSource
+}
+
+/** Normalize an `EnumBinding` or a zero-arg `EnumSource` into an `EnumBinding`. */
+export function toEnumBinding(value: unknown): EnumBinding | undefined {
+  if (isEnumBinding(value)) return value
+  if (isEnumSource(value)) return value.with(undefined)
+  return undefined
+}
+
 /** Normalize a static list, a bare string list, or an enum binding's cached options. */
 export function asOptions(value: unknown): EnumOption[] | undefined {
   if (!Array.isArray(value)) return undefined

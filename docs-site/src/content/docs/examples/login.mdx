@@ -49,5 +49,5 @@ export default function App() {
 直接点击「登录」，三个必填字段都会立即提示错误；如果只填了账号而邮箱留空，邮箱触发的仍是必填提示，而不会报格式错误。当输入合法邮箱（如 `a@b.co`）和至少 8 位密码后提交，表单值会打印在下方。
 
 <Aside type="tip" title="空值校验分工">
-`''`、`null` 和 `undefined` 等空值仅由 `required` 规则拦截。`minLength`、`pattern`、`format` 等格式或长度规则遇到空值会直接放行，因此非必填字段可以安全地叠加格式校验。
+`''`、`null` 和 `undefined` 等空值仅由 `required` 规则拦截。`minLength`、`pattern`、`format` 等格式或长度规则遇到空值直接放行，选填字段可直接搭配这些规则。
 </Aside>

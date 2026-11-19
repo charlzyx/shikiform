@@ -1,13 +1,11 @@
 ---
 title: 校验
-description: 使用内置规则、Standard Schema（如 Zod）进行同步与异步校验，理解规则声明位置对未挂载字段的影响。
+description: 使用内置规则、Standard Schema（如 Zod）进行同步与异步校验，以及规则声明位置对未挂载字段的影响。
 ---
-
-在编写表单校验时，核心需要关注两件事：一是校验规则如何定义，二是当字段没有挂载到页面上（例如折叠面板、未打开的标签页）时规则是否依然生效。
 
 ## 规则配置
 
-字段的 `rules` 支持传入单条内置规则、实现了 [Standard Schema](https://standardschema.dev) 规范的校验器（如 Zod、Valibot、ArkType），或者由它们组成的数组：
+字段的 `rules` 接受单条内置规则、实现 [Standard Schema](https://standardschema.dev) 的校验器（Zod、Valibot、ArkType），或它们的数组：
 
 | 内置规则 | 说明 |
 |---|---|
@@ -84,9 +82,9 @@ export default function App() {
 
 ## 校验时机与竞态处理
 
-- **默认时机**：默认在控件失焦（`onBlur`）和表单提交（`onSubmit`）时触发校验，可通过 `validateTrigger: ['onChange', 'onBlur', 'onSubmit']` 调整。如果字段已经处于报错状态，后续每次修改值都会实时重新校验，输入合法后错误会立即消除。
-- **手动触发**：`await form.validate()` 校验整张表单，传入路径前缀（如 `form.validate('items')`）则只校验指定子树。通过时 resolve `undefined`，失败时 reject `FieldError[]`（`{ path, messages }[]`）。
-- **提交与并发**：`submit()` 会等待进行中的异步校验完成后再执行最终检查。如果在校验过程中用户又修改了表单值，引擎会基于最新值重新校验（最多自动重试 3 轮），确保最终提交的数据一定经过了完整校验。后一次 `submit()` 会取代还在校验的前一次：旧的那次 reject `SubmitSupersededError`，只有最新的一次调用 `onValid`。若需防止重复提交，可根据 `$submitting` 禁用按钮。
+- 默认在失焦（`onBlur`）和提交（`onSubmit`）时触发校验，可通过 `validateTrigger: ['onChange', 'onBlur', 'onSubmit']` 调整。已报错的字段在后续每次值变更时都会立即重验，合法后即时消除错误。
+- `await form.validate()` 校验全表，传入路径前缀（如 `form.validate('items')`）或路径数组则只校验对应范围；通过时 resolve `undefined`，失败时 reject `FieldError[]`（`{ path, messages }[]`）。
+- `submit()` 会等待在途异步规则完成后再做最终判定。若校验期间表单值再次改变，引擎会基于新值重跑校验（最多 3 轮）。新的 `submit()` 会取代尚在校验的前一次调用：旧调用 reject `SubmitSupersededError`，只有最新一次触发 `onValid`。防止重复点击可根据 `$submitting` 禁用按钮。
 
 ## 提交返回值处理
 
@@ -196,15 +194,15 @@ ShikiForm 支持在三个地方定义校验规则，它们在 `<Field>` 卸载�
 
 ### 练一练：未挂载字段的校验
 
-下面的练习中，关闭「填写更多」开关后，昵称和邀请码都会从页面上卸载，直接点击提交目前不会报错。你可以动手改造一下：
+下方练习中，关闭「填写更多」后昵称与邀请码都会从 DOM 卸载，此时点击提交不会报错。按下面两步修改：
 
-1. 在 `defineEffects` 中添加 `d.code.$rules = [{ required: true, message: '邀请码必填' }]`，并把 `effects` 传给 `useForm`；
-2. 移除邀请码 `<Field>` 上的 `rules` 属性，保留昵称的 JSX 规则。
+1. 在 `defineEffects` 中写入 `d.code.$rules = [{ required: true, message: '邀请码必填' }]`，并将 `effects` 传给 `useForm`；
+2. 去掉邀请码 `<Field>` 上的 `rules` 属性，保留昵称的 JSX 规则。
 
-再次关闭开关并提交，就会发现邀请码即使不在界面上也依然会拦截提交，而昵称因为使用 JSX 规则已停止校验。点击 **看答案** 可以核对写法。
+再次关闭开关并提交：邀请码虽然未挂载仍会拦截提交，而昵称的 JSX 规则已随卸载释放。点击 **看答案** 可对照参考写法。
 
 <div>
 <TutorialPlay id="10-declared" />
 </div>
 
-下一步：[示例库](/examples)，查看真实业务场景中的综合表单实践。
+下一步：[示例库](/examples)。

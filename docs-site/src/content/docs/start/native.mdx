@@ -7,9 +7,9 @@ description: 只安装 @shikiform/react，配合原生表单元素实现数据�
 npm i @shikiform/react
 ```
 
-如果项目不需要第三方组件库，只安装 `@shikiform/react` 即可使用。控件使用原生 HTML 元素，字段值、校验和联动状态依然由 ShikiForm 引擎统一维护。
+不引入第三方 UI 库时只需安装 `@shikiform/react`。输入元素使用原生 HTML，表单值、校验规则与联动状态由引擎管理。
 
-在自定义的输入组件中调用无参数的 `useField()`，就能拿到外层 `<Field>` 提供的字段绑定对象（包含 `id`、`value`、`onChange`、`onBlur`、`required` 和 `errors`），把它们直接接到原生 `<input>` 上即可。
+自定义输入组件内调用无参 `useField()` 可读取外层 `<Field>` 的绑定对象（`id`、`value`、`onChange`、`onBlur`、`required`、`errors`），直接传给原生 `<input>` 即可。
 
 ```tsx preview
 import { useState } from 'react';
@@ -50,10 +50,10 @@ export default function App() {
 }
 ```
 
-直接点击提交时，姓名和邮箱都会提示必填；将邮箱改为 `ada@example.com` 并填好姓名后，即可正常输出提交的 JSON 数据。
+直接点击提交会触发姓名与邮箱的必填报错；将邮箱改为 `ada@example.com` 并填入姓名后提交，下方会输出表单值 JSON。
 
-<Aside type="tip" title="关于 useField() 的调用位置">
-不传参数的 `useField()` 依赖外层 `<Field>` 提供的上下文，只能在 `component`、`decorator` 或 `<Field>` 的子元素中使用。如果在字段组件之外读取某个字段状态，请传入路径（如 `useField('email')`）或使用 `useWatch`。
+<Aside type="tip" title="useField() 的调用位置">
+无参 `useField()` 读取外层 `<Field>` 的上下文，只能在 `component`、`decorator` 或 `<Field>` 子元素内调用。在字段组件外读取指定路径请传入字段名（如 `useField('email')`）或使用 `useWatch`。
 </Aside>
 
-如果要封装一整套自己的组件库（包含标签、错误提示和属性映射），请参考 [接入组件库](/guide/headless#接自己的组件库)；如需配合 Ant Design 使用，请参考 [快速开始](/guide/quick-start)。
+封装完整的自定义组件集见 [接入组件库](/guide/headless#接自己的组件库)；配合 Ant Design 使用见 [快速开始](/guide/quick-start)。

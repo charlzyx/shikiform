@@ -1,21 +1,21 @@
 ---
 title: 查询列表与 Pro 组件
-description: 介绍 @shikiform/hooks 与 @shikiform/antd 中的草稿表单、查询列表、远程联想及懒加载级联组件。
+description: "@shikiform/hooks 与 @shikiform/antd 中的草稿表单、查询列表、远程联想与懒加载级联组件。"
 ---
 
-在复杂后台页面中常见的查询列表、弹窗/抽屉编辑以及远程异步输入控件，无 UI 的状态逻辑都封装在 `@shikiform/hooks` 中，`@shikiform/antd` 则提供了对应的 Ant Design 视图组件。至于行内可编辑表格 `ArrayTable`，它属于数组容器，详情请参考 [数组容器](/guide/arrays#arraytable)。
+查询列表、弹窗/抽屉草稿表单以及远程异步输入控件的状态逻辑位于 `@shikiform/hooks`（无 UI 依赖），对应的 Ant Design 视图组件位于 `@shikiform/antd`。行内可编辑表格 `ArrayTable` 属于数组容器，见 [数组容器](/guide/arrays#arraytable)。
 
-| Ant Design 组件（`@shikiform/antd`） | 底层 Hook（`@shikiform/hooks`） | 适用场景 |
+| Ant Design 组件（`@shikiform/antd`） | 底层 Hook（`@shikiform/hooks`） | 职责 |
 |---|---|---|
-| `ShadowModal` / `ShadowDrawer` / `ShadowPopconfirm` / `ShadowForm` | `useShadowForm` | **草稿表单**：在独立的临时表单实例中编辑，确认校验通过后再写回主表单 |
-| `QueryList` | `useQueryTable` | **查询列表**：上方可折叠筛选区 + 下方服务端分页 `ArrayTable` |
-| 选择控件 `prettyType` / `Suggestion` / `CascaderPlus` | `enumItems` / `useSuggestion` / `useLazyCascader` | 枚举阅读态徽标/标签、防抖远程联想、按需懒加载级联 |
+| `ShadowModal` / `ShadowDrawer` / `ShadowPopconfirm` / `ShadowForm` | `useShadowForm` | 在独立临时表单中编辑副本，确认并校验通过后再写回宿主表单 |
+| `QueryList` | `useQueryTable` | 可折叠筛选栅格 + 服务端分页 `ArrayTable` |
+| 选择控件 `prettyType` / `Suggestion` / `CascaderPlus` | `enumItems` / `useSuggestion` / `useLazyCascader` | 枚举阅读态徽标与标签、防抖远程联想、按需懒加载级联 |
 
 ## 草稿表单（ShadowForm）
 
-很多业务需要在弹窗或抽屉里编辑一条数据或数组中的某一行：如果用户改到一半点「取消」，主表单的数据和 `dirty` 状态不能受到任何影响。
+在弹窗或抽屉中编辑单条记录或表格行时，取消操作不应修改主表单的值或 `dirty` 状态。
 
-草稿表单（对应 API 为 `ShadowModal` / `ShadowDrawer` 等）会在打开时创建一个**完全独立的表单引擎实例**，并在确认提交时先执行草稿内部的校验，全部通过后把值交给 `onOk` 回调，由你决定如何更新主表单或调用接口；点击取消则会直接丢弃这份草稿，不会污染原表单。
+`ShadowModal`、`ShadowDrawer` 等草稿组件在打开时创建一个独立的 `FormInstance`；点击确认时先校验草稿内部字段，通过后将草稿值交给 `onOk`（或写回绑定路径）；点击取消则直接丢弃该实例，主表单保持不变。
 
 ```tsx preview play=shadow-form
 import { Button, Descriptions } from 'antd';
@@ -78,18 +78,18 @@ const table = useQueryTable({ initialValues: { query: {}, list: [] }, params: 'q
 </QueryList>
 ```
 
-顶部的筛选栏底层使用 [`FormGrid`](/guide/layout#栅格formgrid)，列数随容器宽度自动调整。收起状态下只保留第一行，并将「重置 / 查询」按钮放在行末，只有筛选条件放不下时才会出现「展开 / 收起」开关；需要自定义列数或横跨多列时，可以配置 `grid` 和 `gridSpan`。
+顶部筛选区基于 [`FormGrid`](/guide/layout#栅格布局formgrid) 布局，列数随容器宽度变化。收起时只保留第一行并将「重置 / 查询」置于行末，仅在筛选字段超出单行时展示「展开 / 收起」按钮；列数与跨列通过 `grid` 和 `gridSpan` 配置。
 
-如果在列定义中开启了 `sorter: true` 或 `filters`，操作表头排序和列筛选时会自动携带参数重新请求并重置到第 1 页；为防止批量操作误触已被过滤掉的数据，触发列筛选或点击「查询」时会自动清空当前勾选（仅翻页或排序时保留勾选）。
+列定义配置 `sorter: true` 或 `filters` 后，操作表头排序与列筛选会携带参数重新请求并回到第 1 页；触发列筛选或点击「查询」会清空已勾选项，单纯翻页或排序则保留勾选。
 
-完整的协议定义与返回值说明见 [查询 Hooks](/reference/query-hooks)，完整可交互示例见 [/play/query-list](/play/query-list) 以及无 Ant Design 依赖的 [/play/query-native](/play/query-native)。
+协议与返回值见 [查询 Hooks](/reference/query-hooks)，在线演示见 [/play/query-list](/play/query-list) 与无 Ant Design 依赖的 [/play/query-native](/play/query-native)。
 
 ## 枚举展示、远程联想与懒加载级联
 
-- **枚举阅读态标签**：选择类控件在 `readOnly` 时把值反显为标签，`prettyType="badge" | "tag"` 画成徽标或彩色标签。表单外用 `PreviewText.Select`（[/play/pro-enum](/play/pro-enum)、[控件与阅读态](/guide/controls)）。
-- **远程搜索联想（`Suggestion`）**：自带输入防抖并自动丢弃过期的并发响应，支持单选、多选以及 `labelInValue` 等多种值格式（[/play/suggestion](/play/suggestion)）。
-- **懒加载级联（`CascaderPlus`）**：只需提供一个 `loadData(path)` 函数即可按需加载每一级选项，回显已有数据时支持逐级自动拉取并翻译为完整路径标签（[/play/cascader-plus](/play/cascader-plus)）。
+- 枚举阅读态：选择类控件在 `readOnly` 下将值反显为 `label`，传 `prettyType="badge" | "tag"` 可渲染为徽标或彩色标签；表单外使用 `PreviewText.Select`（[/play/pro-enum](/play/pro-enum)、[控件与阅读态](/guide/controls)）。
+- `Suggestion`：输入防抖并丢弃过期的并发响应，支持单选、多选与 `labelInValue`（[/play/suggestion](/play/suggestion)）。
+- `CascaderPlus`：传入 `loadData(path)` 按需加载各级选项，已有值回显时自动逐级拉取并拼接路径标签（[/play/cascader-plus](/play/cascader-plus)）。
 
-上述输入组件均提供不绑定表单的 `…View`（如 `SuggestionView`）独立版本。详细参数见 [Pro 组件参考](/reference/pro-components) 与 [Pro Hooks 参考](/reference/pro-hooks)，更多业务案例见 [Pro 示例](/examples/pro)。
+上述输入组件均提供不绑定字段的受控版本（`SuggestionView`、`CascaderPlusView`）。参数说明见 [Pro 组件参考](/reference/pro-components) 与 [Pro Hooks 参考](/reference/pro-hooks)，示例见 [Pro 示例](/examples/pro)。
 
-下一步：[校验](/guide/validation)，系统了解内置规则、Schema 校验与提交返回值处理。
+下一步：[校验](/guide/validation)。

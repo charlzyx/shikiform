@@ -1,3 +1,14 @@
+type IsAny<T> = 0 extends 1 & T ? true : false
+
+/** Recursively partial over plain objects; arrays, functions, Dates and primitives are replaced whole. */
+export type DeepPartial<T> = IsAny<T> extends true
+  ? any
+  : T extends readonly unknown[] | ((...args: never[]) => unknown) | Date | RegExp
+    ? T
+    : T extends object
+      ? { [K in keyof T]?: DeepPartial<T[K]> }
+      : T
+
 /** `a.b[0].c` / `a['name']` → `a.b.0.c` / `a.name`. A non-literal `string` stays `string`. */
 export type NormalizePath<P extends string> = string extends P ? string : NormPath<P>
 

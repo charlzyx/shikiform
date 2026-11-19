@@ -23,7 +23,7 @@ form.setValue('orders[0].lines[2].qty', 4)
 form.getValue('orders.0.lines.2.qty')
 ```
 
-在联动函数中，`d.orders[0].lines[2].qty` 依然是一个 handle，只有读取或赋值其 `$value` 时，才会真正获取数值并被追踪为联动依赖。动态路径在联动里用 `query('orders.0.lines.2.qty').$value`（没有类型）；平时写 `d.orders[0].lines[2].qty`。
+在联动函数中，`d.orders[0].lines[2].qty` 是路径 handle，读写其 `$value` 时才访问数据并登记依赖。动态拼接的路径在联动中用 `query('orders.0.lines.2.qty').$value`（无静态类型），固定路径直接写 `d.orders[0].lines[2].qty`。
 
 ```tsx preview
 import { Button } from 'antd';
@@ -53,6 +53,6 @@ export default function App() {
 }
 ```
 
-点击「路径加一」时，程序用 `form.getValue` 读出当前数量，再用 `form.setValue` 写回同一字段。`orders[0].lines[0].qty` 与字段名 `orders.0.lines.0.qty` 指向同一个值，输入框中的数值会同步递增。在 `reaction` 或 `batch` 中更新值，直接对目标路径的 `$value` 赋值（如 `d.orders[0].lines[2].qty.$value = 4`）。
+点击「路径加一」时，`form.getValue` 读出当前数量，`form.setValue` 写回同一路径。`orders[0].lines[0].qty` 与 `orders.0.lines.0.qty` 指向同一个字段。在 `reaction` 或 `batch` 中则直接赋值 `d.orders[0].lines[2].qty.$value = 4`。
 
-当需要对多层嵌套结构中的「每一项的某个字段」批量建立联动时，才需要用到 `reaction.each`，具体过滤方式见 [用 ctx 过滤](/guide/linkage#用-ctx-过滤)。
+需要对数组或嵌套集合中的每一项建立联动时使用 `reaction.each`，过滤方式见 [用 ctx 过滤](/guide/linkage#用-ctx-过滤)。

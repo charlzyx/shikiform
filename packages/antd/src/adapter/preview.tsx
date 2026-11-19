@@ -192,7 +192,7 @@ function SelectPreview(props: PreviewSelectProps) {
   if (isEmptyValue(value)) return <Empty empty={empty} />
   const names = namesOf(fieldNames, 'label')
   const list = ((options ?? []) as readonly any[]).map((option) => ({ label: nodeLabel(option, names), value: option?.[names.value], color: option?.color }))
-  const items = enumItems(value, list as EnumOption[]).map((item, position) => ({
+  const items = enumItems(value, list as EnumOption[], { colorful: Boolean(prettyType) }).map((item, position) => ({
     key: `${String(item.value)}:${position}`,
     label: item.label as ReactNode,
     color: item.color || undefined,

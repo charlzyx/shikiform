@@ -247,7 +247,7 @@ FormGrid(props: {
 }): ReactElement
 ```
 
-Formily `FormGrid`：CSS grid，列数跟随**自身宽度**——能放下几个 `minWidth` 宽的列就放几列，夹在 `minColumns` 与 `maxColumns` 之间；没量到宽度前（SSR）按 `maxColumns`。每个直接子元素占一格；`FormItem` 用 `gridSpan` 多占几格（超过当前列数时截断，`-1` 占满一行），其他内容用 [GridColumn](#gridcolumn)。
+Formily `FormGrid`：CSS grid，列数跟随**自身宽度**，能放下几个 `minWidth` 宽的列就放几列，夹在 `minColumns` 与 `maxColumns` 之间；没量到宽度前（SSR）按 `maxColumns`。每个直接子元素占一格；`FormItem` 用 `gridSpan` 多占几格（超过当前列数时截断，`-1` 占满一行），其他内容用 [GridColumn](#gridcolumn)。
 
 ```tsx preview
 import { Field, Form, useForm } from '@shikiform/react';
@@ -290,7 +290,7 @@ FormButtonGroup.Sticky(props: { position?: 'top' | 'bottom'; offset?: number; cl
 
 Formily `FormButtonGroup`：一行按钮，`gap` 默认 8，可换行。
 
-- **`.FormItem`**：放在一个空标签的纯布局 `FormItem` 里，所以按钮自动对齐到 `FormLayout` 的控件列——`labelCol` 和 `labelWidth` 都不用再写一遍偏移；`vertical` / `inline` 布局下没有空标签。
+- **`.FormItem`**：放在一个空标签的纯布局 `FormItem` 里，按钮对齐到 `FormLayout` 的控件列，`labelCol` 和 `labelWidth` 不用再写偏移；`vertical` / `inline` 布局下没有空标签。
 - **`.Sticky`**：`position: sticky` 的底栏（或顶栏），长表单滚动时按钮一直可见；背景和分隔线取 antd 主题。
 
 ```tsx preview

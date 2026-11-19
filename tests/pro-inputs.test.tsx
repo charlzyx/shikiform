@@ -21,6 +21,10 @@ const LIST = [
 describe('enumItems / prettyType', () => {
   it('resolves labels and colors loosely; an unknown value keeps its own text', () => {
     expect(enumItems(['a', 'o'], LIST).map((item) => [item.label, item.color])).toEqual([
+      ['啊', ''],
+      ['哦', 'green'],
+    ])
+    expect(enumItems(['a', 'o'], LIST, { colorful: true }).map((item) => [item.label, item.color])).toEqual([
       ['啊', 'blue'],
       ['哦', 'green'],
     ])

@@ -39,10 +39,11 @@ export interface TableSorterLike {
   order?: 'ascend' | 'descend' | null
 }
 
-/** `data` is the rows for this response. `total` is the unpaged count in server mode. */
-export interface QueryRequestResult<TRow> {
+/** `data` is the rows for this response. `total` is the unpaged count in server mode. `extra` carries optional summary metadata. */
+export interface QueryRequestResult<TRow, TExtra = unknown> {
   data: TRow[]
   total: number
+  extra?: TExtra
 }
 
 /**
@@ -52,20 +53,20 @@ export interface QueryRequestResult<TRow> {
  *
  * Pass the same hook on every render. Omit it to use the built-in request runner, which already keeps the previous result.
  */
-export interface QueryHookArgs<TRow> {
+export interface QueryHookArgs<TRow, TExtra = unknown> {
   queryKey: readonly unknown[]
-  queryFn: (ctx: { signal: AbortSignal }) => Promise<QueryRequestResult<TRow>>
+  queryFn: (ctx: { signal: AbortSignal }) => Promise<QueryRequestResult<TRow, TExtra>>
   placeholderData: <T>(previous: T | undefined) => T | undefined
 }
 
 /** Result shape a compatible `useQuery` hook should return to {@link useQueryTable}. */
-export interface QueryHookResult<TRow> {
-  data: QueryRequestResult<TRow> | undefined
+export interface QueryHookResult<TRow, TExtra = unknown> {
+  data: QueryRequestResult<TRow, TExtra> | undefined
   isFetching: boolean
   isPlaceholderData?: boolean
 }
 
-export interface UseQueryTableOptions<TValues, TParams, TRow> {
+export interface UseQueryTableOptions<TValues, TParams, TRow, TExtra = unknown> {
   /** Existing form. When omitted, one is created from `initialValues`. */
   form?: FormInstance<TValues>
   initialValues?: TValues
@@ -87,7 +88,12 @@ export interface UseQueryTableOptions<TValues, TParams, TRow> {
    * `client` refetches when filters are submitted and slices the cached rows. `page` is omitted from submit.
    */
   mode?: 'server' | 'client'
-  request: (args: QueryRequestArgs<TParams>) => Promise<QueryRequestResult<TRow>>
+  /**
+   * Validate the filter fields before `submit()` dispatches a query. Default `true`.
+   * When `params` is a field path (`'filters'`), only that subtree is validated so inline-editable `rows` do not block search.
+   */
+  validateOnSubmit?: boolean
+  request: (args: QueryRequestArgs<TParams>) => Promise<QueryRequestResult<TRow, TExtra>>
   /**
    * Optional TanStack Query (or compatible) hook.
    *
@@ -98,7 +104,7 @@ export interface UseQueryTableOptions<TValues, TParams, TRow> {
    * }
    * ```
    */
-  useQuery?: (args: QueryHookArgs<TRow>) => QueryHookResult<TRow>
+  useQuery?: (args: QueryHookArgs<TRow, TExtra>) => QueryHookResult<TRow, TExtra>
   defaultPageSize?: number
   /**
    * Array field that receives each response's rows (`data`), so the page can be edited in place
@@ -108,21 +114,23 @@ export interface UseQueryTableOptions<TValues, TParams, TRow> {
   rows?: FieldPath<TValues>
 }
 
-export interface QueryTableApi<TValues, TParams, TRow> {
+export interface QueryTableApi<TValues, TParams, TRow, TExtra = unknown> {
   form: FormInstance<TValues>
   /** The `rows` option: the array field each page is written into (`undefined` without it). `QueryList` renders it. */
   rows?: string
   /** Rows for the current page. The previous page stays up while the next request is in flight. */
   data: TRow[]
   total: number
+  /** Extra metadata returned alongside `{ data, total }` from the latest resolved `request`. */
+  extra: TExtra | undefined
   loading: boolean
   fetching: boolean
   isPlaceholderData: boolean
   page: number
   pageSize: number
   selectedKeys: string[]
-  /** Apply the current filters, go to page 1, clear the selection, reload. */
-  submit: () => void
+  /** Validate filter fields (unless `validateOnSubmit: false`), go to page 1, clear the selection, reload. Skips reload when validation fails. */
+  submit: () => Promise<void>
   /** Restore initial values, clear the selection, reload. */
   reset: () => void
   /** Reload the current page. Filters and selection stay. */
@@ -166,31 +174,31 @@ export interface QueryTableApi<TValues, TParams, TRow> {
  * one explicit type argument stops inference of the rest.
  */
 export function useQueryTable<TValues>(): {
-  <TRow, const P extends FieldPath<TValues>>(
-    options: UseQueryTableOptions<TValues, PathValue<TValues, P & string>, TRow> & { params: P },
-  ): QueryTableApi<TValues, PathValue<TValues, P & string>, TRow>
-  <TParams, TRow>(
-    options: UseQueryTableOptions<TValues, TParams, TRow> & { params: (values: TValues) => TParams },
-  ): QueryTableApi<TValues, TParams, TRow>
-  <TRow = unknown>(
-    options: Omit<UseQueryTableOptions<TValues, TValues, TRow>, 'params'> & { params?: undefined },
-  ): QueryTableApi<TValues, TValues, TRow>
+  <TRow, const P extends FieldPath<TValues>, TExtra = unknown>(
+    options: UseQueryTableOptions<TValues, PathValue<TValues, P & string>, TRow, TExtra> & { params: P },
+  ): QueryTableApi<TValues, PathValue<TValues, P & string>, TRow, TExtra>
+  <TParams, TRow, TExtra = unknown>(
+    options: UseQueryTableOptions<TValues, TParams, TRow, TExtra> & { params: (values: TValues) => TParams },
+  ): QueryTableApi<TValues, TParams, TRow, TExtra>
+  <TRow = unknown, TExtra = unknown>(
+    options: Omit<UseQueryTableOptions<TValues, TValues, TRow, TExtra>, 'params'> & { params?: undefined },
+  ): QueryTableApi<TValues, TValues, TRow, TExtra>
 }
-export function useQueryTable<TValues, TRow, const P extends FieldPath<TValues>>(
-  options: UseQueryTableOptions<TValues, PathValue<TValues, P & string>, TRow> & { params: P },
-): QueryTableApi<TValues, PathValue<TValues, P & string>, TRow>
-export function useQueryTable<TValues, TParams, TRow>(
-  options: UseQueryTableOptions<TValues, TParams, TRow> & { params: (values: TValues) => TParams },
-): QueryTableApi<TValues, TParams, TRow>
-export function useQueryTable<TValues, TRow = unknown>(
-  options: Omit<UseQueryTableOptions<TValues, TValues, TRow>, 'params'> & { params?: undefined },
-): QueryTableApi<TValues, TValues, TRow>
-export function useQueryTable<TValues, TParams = TValues, TRow = unknown>(
-  options?: UseQueryTableOptions<TValues, TParams, TRow>,
+export function useQueryTable<TValues, TRow, const P extends FieldPath<TValues>, TExtra = unknown>(
+  options: UseQueryTableOptions<TValues, PathValue<TValues, P & string>, TRow, TExtra> & { params: P },
+): QueryTableApi<TValues, PathValue<TValues, P & string>, TRow, TExtra>
+export function useQueryTable<TValues, TParams, TRow, TExtra = unknown>(
+  options: UseQueryTableOptions<TValues, TParams, TRow, TExtra> & { params: (values: TValues) => TParams },
+): QueryTableApi<TValues, TParams, TRow, TExtra>
+export function useQueryTable<TValues, TRow = unknown, TExtra = unknown>(
+  options: Omit<UseQueryTableOptions<TValues, TValues, TRow, TExtra>, 'params'> & { params?: undefined },
+): QueryTableApi<TValues, TValues, TRow, TExtra>
+export function useQueryTable<TValues, TParams = TValues, TRow = unknown, TExtra = unknown>(
+  options?: UseQueryTableOptions<TValues, TParams, TRow, TExtra>,
 ): any {
   if (options === undefined) {
-    const call = useQueryTable as (options: UseQueryTableOptions<any, any, any>) => QueryTableApi<any, any, any>
-    return (next: UseQueryTableOptions<any, any, any>) => call(next)
+    const call = useQueryTable as (options: UseQueryTableOptions<any, any, any, any>) => QueryTableApi<any, any, any, any>
+    return (next: UseQueryTableOptions<any, any, any, any>) => call(next)
   }
   // Always one useForm, including when `form` is passed (`undefined` is an empty form, same hooks as `{}`).
   const created = useForm<TValues>(
@@ -323,22 +331,39 @@ export function useQueryTable<TValues, TParams = TValues, TRow = unknown>(
     publish(1, pageSize, submitted.current ?? readParams(), 'filters')
   }
 
-  const api: QueryTableApi<TValues, TParams, TRow> = {
+  const api: QueryTableApi<TValues, TParams, TRow, TExtra> = {
     form,
     rows: rowsPath || undefined,
     data,
     total,
+    extra: queried.data?.extra,
     loading: queried.isFetching && queried.data == null,
     fetching: queried.isFetching,
     isPlaceholderData: !!queried.isPlaceholderData,
     page,
     pageSize,
     selectedKeys,
-    submit: () => {
-      const params = readParams()
+    submit: async () => {
+      if (options.validateOnSubmit !== false) {
+        try {
+          if (typeof options.params === 'string' && options.params) {
+            await form.validate(options.params)
+          } else if (rowsPath && form.values && typeof form.values === 'object') {
+            const skip = new Set([rowsPath, pagePath, sizePath, selectedPath])
+            const filterKeys = Object.keys(form.values as object).filter((k) => !skip.has(k))
+            if (filterKeys.length) await form.validate(filterKeys as never)
+          } else {
+            await form.validate()
+          }
+        } catch {
+          return
+        }
+      }
+      const params = readRef.current()
+      const currentSize = sizeRef.current
       form.setValue(pagePath as never, 1 as never)
       form.setValue(selectedPath as never, [] as never)
-      publish(1, pageSize, params, 'filters', true)
+      publish(1, currentSize, params, 'filters', true)
     },
     reset: () => {
       sortRef.current = []
@@ -401,8 +426,8 @@ export function normalizeFilters(filters: Record<string, unknown> | null | undef
 }
 
 /** Built-in runner. Keeps the previous `data` while `isFetching` is true. */
-export function useBuiltinQuery<TRow>(args: QueryHookArgs<TRow>): QueryHookResult<TRow> {
-  const [state, setState] = useState<QueryHookResult<TRow>>({
+export function useBuiltinQuery<TRow, TExtra = unknown>(args: QueryHookArgs<TRow, TExtra>): QueryHookResult<TRow, TExtra> {
+  const [state, setState] = useState<QueryHookResult<TRow, TExtra>>({
     data: undefined,
     isFetching: false,
     isPlaceholderData: false,

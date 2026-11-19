@@ -1,6 +1,6 @@
 # ShikiForm
 
-ShikiForm 是一个面向 TypeScript 的表单引擎，将表单值、显隐状态、校验规则和联动逻辑统一放在引擎中管理。你可以直接在联动中修改字段的 `$` 状态，React 组件只负责声明界面结构。引擎本身不绑定特定 UI 库，同时提供开箱即用的 Ant Design 适配层。
+ShikiForm 是一个面向 TypeScript 的无 UI 表单引擎，集中管理表单值、字段状态、校验规则与联动逻辑。联动中通过 draft 直接读写字段的 `$` 状态，React 组件只负责渲染界面。核心引擎不依赖特定组件库，另提供 Ant Design 适配包与业务 Hooks。
 
 官网文档：<https://shikiform.pages.dev>
 
@@ -10,7 +10,7 @@ ShikiForm 是一个面向 TypeScript 的表单引擎，将表单值、显隐状�
 npm i @shikiform/react
 ```
 
-如需配合 Ant Design 使用，请继续安装 `@shikiform/antd`；需要查询列表、草稿表单等高阶 Hooks 时，安装 `@shikiform/hooks`。
+配合 Ant Design 使用时安装 `@shikiform/antd`；使用查询列表、草稿表单等业务 Hooks 时安装 `@shikiform/hooks`。
 
 ## 快速示例
 
@@ -40,7 +40,7 @@ export default function App() {
 }
 ```
 
-`typed(form)` 会返回带表单值类型提示的 `Field` 组件，在编写 `name` 时即可获得自动补全与静态类型检查。
+`typed(form)` 返回绑定了表单值类型的 `Field` 组件，在编译期检查字段路径 `name`。
 
 ## 文档导航
 

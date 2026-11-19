@@ -1,4 +1,4 @@
-import { asOptions, type EnumOption } from '../enum/enum-source'
+import { asOptions, toEnumBinding, type EnumBinding, type EnumOption } from '../enum/enum-source'
 import { deepEqual } from '../shared/equal'
 import { parentPath } from '../shared/path'
 import { FLAG_NAMES, type FlagName } from '../state/flags'
@@ -37,6 +37,8 @@ export class Declarations {
   private dormantDeclarations = new Map<string, FieldSpec>()
   /** Moved models that lost an exact declaration; their built-in messages are recomputed after the restructure. */
   private strippedPaths = new Set<string>()
+  /** Hooked by FormEngine so `fields.x.enum: EnumSource | EnumBinding` triggers async loading. */
+  onDeclaredEnum?: (path: string, binding: EnumBinding) => void
 
   constructor(
     private readonly store: FieldStore<any>,
@@ -256,11 +258,20 @@ export class Declarations {
     if (mode === 'explicit') {
       if (spec.trigger) field.triggers = spec.trigger
       if (spec.asyncDebounceMs !== undefined) field.asyncDebounceMs = spec.asyncDebounceMs
-      if (spec.enum && !field.enumFromEffect && field.jsxEnum === undefined) field.enumOptions = asOptions(spec.enum) ?? []
-    } else if (spec.enum && !field.enumFromEffect && field.jsxEnum === undefined && field.declaration?.enum === undefined && field.enumOptions === undefined) {
+      if (spec.enum && !field.enumFromEffect && field.jsxEnum === undefined) {
+        const binding = toEnumBinding(spec.enum)
+        if (binding) this.onDeclaredEnum?.(field.path, binding)
+        else field.enumOptions = asOptions(spec.enum) ?? []
+      }
+    } else if (spec.enum && !field.enumFromEffect && field.jsxEnum === undefined && field.declaration?.enum === undefined && field.enumOptions === undefined && !field.enumLoading) {
       // `rows.*.status: { enum }`: a template fills the enum only where no exact declaration or effect set one.
-      field.enumOptions = asOptions(spec.enum) ?? []
-      this.notifier.bumpPath(field.path)
+      const binding = toEnumBinding(spec.enum)
+      if (binding) {
+        this.onDeclaredEnum?.(field.path, binding)
+      } else {
+        field.enumOptions = asOptions(spec.enum) ?? []
+        this.notifier.bumpPath(field.path)
+      }
     }
     const changed: FlagName[] = []
     for (const name of FLAG_NAMES) {
@@ -352,7 +363,14 @@ export class Declarations {
   /** The enum `fields` / `registerField` or an item template gives `path` (what a released `<Field enum>` falls back to). */
   declaredEnum(path: string): EnumOption[] | undefined {
     const spec = this.store.get(path)?.declaration?.enum ?? this.templateSpec(path)?.enum
-    return spec ? (asOptions(spec) ?? []) : undefined
+    if (!spec || toEnumBinding(spec)) return undefined
+    return asOptions(spec) ?? []
+  }
+
+  /** Async enum binding declared via `fields` or an item template on `path`, if any. */
+  declaredEnumBinding(path: string): EnumBinding | undefined {
+    const spec = this.store.get(path)?.declaration?.enum ?? this.templateSpec(path)?.enum
+    return spec ? toEnumBinding(spec) : undefined
   }
 
   /** Active exact declarations, dormant declarations, and item templates merged over `options.fields`. */

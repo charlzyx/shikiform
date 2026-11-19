@@ -7,11 +7,11 @@ tableOfContents: false
 <div className="tutorial-step">
 <div className="tutorial-copy">
 
-预览里的表单是一份个人资料：姓名是一个顶层字段，地址是一个嵌套对象（目前只有「城市」）。直接点击提交，可以看到输出结果里已经带上了 `name` 和 `address.city`。
+当前表单中，`name` 是顶层字段，`address` 是嵌套对象（目前仅含 `city`）。点击提交可看到输出中包含 `name` 与 `address.city`。
 
-`<ObjectField name="address">` 会为内部的字段建立一层路径作用域。在这个作用域内，子字段只需填写相对名称（例如 `city`），引擎会自动拼接为完整路径 `address.city`。如果在这里又写成 `address.city`，就会被拼成 `address.address.city`。
+`<ObjectField name="address">` 为子组件提供一层路径作用域。作用域内的字段名按相对路径解析，写 `name="city"` 即对应 `address.city`；若再写 `address.city`，运行时会拼成 `address.address.city`。
 
-**这一步：** 在地址对象内补充一个「街道」字段（`street`）。提交表单后，确认输出 JSON 中的 `address` 对象同时包含 `city` 和 `street`。
+**这一步：** 在 `initialValues.address` 与 `<ObjectField name="address">` 内补上 `street` 字段。提交后确认 `address` 对象同时包含 `city` 和 `street`。
 
 </div>
 

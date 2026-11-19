@@ -7,13 +7,13 @@ tableOfContents: false
 <div className="tutorial-step">
 <div className="tutorial-copy">
 
-构建一张表单主要依赖三个部分：`useForm` 创建表单引擎实例，`<Form>` 提供上下文并接管提交事件，`<Field>` 负责将具体的字段路径与 UI 控件绑定起来。
+`useForm` 创建表单引擎实例，`<Form>` 提供上下文并处理原生提交事件，`<Field>` 将字段路径绑定到 UI 控件。
 
-在 `<Field>` 上，`decorator={[FormItem]}` 用来渲染标签和报错提示，`component={[Input]}` 是具体的输入控件。它们会自动从外层 `<Field>` 读取字段状态，不需要重复传入 `name`。`FormItem`、`Input`、`Submit` 均来自 `@shikiform/antd`。
+`<Field>` 上的 `decorator={[FormItem]}` 渲染标签和错误提示，`component={[Input]}` 渲染输入控件；两者从外层 `<Field>` 上下文读取绑定，不需重复传入 `name`。`FormItem`、`Input`、`Submit` 来自 `@shikiform/antd`。
 
-表单数据的结构决定了使用哪种字段组件：单个基础值用 `Field`，嵌套对象用 `ObjectField`，动态列表用 `ArrayField`，树形数据用 `TreeField`；标题、提示语和提交按钮本身不对应数据路径，无需作为字段声明。
+按数据形状选用字段组件：单值用 `Field`，嵌套对象用 `ObjectField`，数组用 `ArrayField`，树形数据用 `TreeField`；标题、提示文案和提交按钮不对应数据路径，无需声明为字段。
 
-**这一步：** 为表单补上邮箱输入框。在 `initialValues` 中增加 `email` 字段，并添加一个 `name="email"` 的 `Field`。点击提交后，确认下方输出的 JSON 中同时包含 `name` 和 `email`。
+**这一步：** 在 `initialValues` 中增加 `email: ''`，并添加一个 `name="email"` 的 `Field`。点击提交，确认输出 JSON 同时包含 `name` 和 `email`。
 
 </div>
 

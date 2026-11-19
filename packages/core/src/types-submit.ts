@@ -39,15 +39,34 @@ type TemplateSegment<T, H extends string> = H extends '*' | `${number}`
     ? T[H]
     : never
 
-/** `FieldSpec` whose `rules` / `enum` are checked against the field value. */
-export type FieldSpecFor<V> = Omit<FieldSpec, 'rules' | 'enum'> & {
-  rules?: RulesInput<V>
+/** Nearest enclosing object (`ctx.record`) for a field or template path (`rows.*.qty` → row type, `name` → `T`). */
+export type TemplateRecord<T, P extends string> = P extends `${infer H}.${infer R}`
+  ? TemplateSegment<T, H> extends infer V
+    ? [V] extends [never]
+      ? T
+      : R extends `${string}.${string}`
+        ? TemplateRecord<NonNullable<V>, R>
+        : NonNullable<V> extends readonly unknown[]
+          ? T
+          : NonNullable<V> extends object
+            ? NonNullable<V>
+            : T
+    : T
+  : T
+
+/** `FieldSpec` whose `rules` / `enum` are checked against the field value and enclosing record/root. */
+export type FieldSpecFor<V, TRecord = any, TRoot = any> = Omit<FieldSpec, 'rules' | 'enum'> & {
+  rules?: RulesInput<V, TRecord, TRoot>
   enum?: FieldEnum<V>
 }
 
 /** `fields` map with per-path `rules` / `enum`. */
 export type FieldsInput<T> = {
-  [K in FieldPath<T> | TemplatePath<T>]?: FieldSpecFor<TemplateValue<T, K & string>>
+  [K in FieldPath<T> | TemplatePath<T>]?: FieldSpecFor<
+    TemplateValue<T, K & string>,
+    TemplateRecord<T, K & string>,
+    T
+  >
 }
 
 type DropOmit<D> = [D] extends [true] ? true : false

@@ -1,31 +1,34 @@
-import { useRef, useSyncExternalStore } from 'react'
-import { deepEqual } from '@shikiform/core/internal'
-import type { Draft } from '@shikiform/core/internal'
-import { useRequiredForm } from '../context'
+import { useContext, useRef, useSyncExternalStore } from 'react'
+import { deepEqual, engineOf } from '@shikiform/core/internal'
+import type { Draft, FormInstance } from '@shikiform/core/internal'
+import { FormContext } from '../context'
 
 /**
  * Subscribe to the `$` reads inside `select`.
- * An unannotated draft compiles and is untyped (`useWatch((d) => d.$submitting)`, `d` is `any`).
- * Prefer the form's typed handle. `useWatch<Values>()(select)` types the draft and still infers the result
- * (`useWatch<Values>(select)` does not: one explicit type argument stops inference of the result).
- *
- * ```tsx
- * const F = typed(form)
- * const name = F.useWatch((d) => d.name.$value)             // string
- * const email = useWatch<Values>()((d) => d.email.$value)   // string
- * const can = useWatch((d: Draft<Values>) => d.$canSubmit)  // boolean
- * ```
- * `select={(d) => d.email.$errors}` re-renders when that field's errors change.
- * `select={(d) => d.$canSubmit}` re-renders when submit, validation, or errors change, not on unrelated keystrokes.
- * Return data, not a new function. The snapshot is cached with {@link deepEqual}.
+ * Reads the form from `<Form>` context, or takes `form` explicitly as the first argument (`useWatch(form, select)`)
+ * so a component that holds `const form = useForm(...)` can subscribe above `<Form>`.
+ * `typed(form).useWatch(select)` binds `form` automatically.
  */
 export function useWatch<T>(): <S>(select: (d: Draft<T>) => S) => S
+export function useWatch<T, S>(form: FormInstance<T, any>, select: (d: Draft<T>) => S): S
 export function useWatch<T = any, S = unknown>(select: (d: Draft<T>) => S): S
-export function useWatch<T = any, S = unknown>(select?: (d: Draft<T>) => S): S | (<U>(select: (d: Draft<T>) => U) => U) {
-  if (select === undefined) {
+export function useWatch<T = any, S = unknown>(
+  first?: FormInstance<T, any> | ((d: Draft<T>) => S),
+  second?: (d: Draft<T>) => S,
+): S | (<U>(select: (d: Draft<T>) => U) => U) {
+  if (first === undefined) {
     return ((next: (d: Draft<T>) => S) => useWatch(next)) as <U>(select: (d: Draft<T>) => U) => U
   }
-  const form = useRequiredForm<T>('useWatch()')
+  const hasExplicitForm = typeof first !== 'function'
+  const select = (hasExplicitForm ? second! : first) as (d: Draft<T>) => S
+  const ctxForm = useContext(FormContext)
+  const form = hasExplicitForm ? engineOf(first as FormInstance<T, any>) : ctxForm
+  if (!form) {
+    throw new Error(
+      '[shikiform] useWatch() has no form. Render it inside <Form form={form}> (useForm / createForm), ' +
+        'or pass the form explicitly: useWatch(form, select) / typed(form).useWatch(select).',
+    )
+  }
   const selectRef = useRef(select)
   selectRef.current = select
   const cache = useRef<{ value: S } | null>(null)

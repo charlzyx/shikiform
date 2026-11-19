@@ -1,6 +1,6 @@
 import type { Declarations } from '../declarations/declarations'
 import { isReactionId, type Scheduler } from '../effects/scheduler'
-import { asOptions, isEnumBinding, type EnumBinding, type EnumOption } from '../enum/enum-source'
+import { asOptions, isEnumBinding, toEnumBinding, type EnumBinding, type EnumOption } from '../enum/enum-source'
 import { unwrapReadonly } from '../draft/readonly'
 import { showDraftPath } from '../errors'
 import { deepEqual } from '../shared/equal'
@@ -110,6 +110,50 @@ export class StateWriter {
     // flight (or waiting out its debounce) is aborted too, so a late result cannot land on the new value (#122).
     // `$canSubmit` / the `Submit` button come back when that replacement check passes.
     validator.onEdit(path)
+  }
+
+  /** Apply a deep partial object update in a single reaction/watch flush (`form.patchValues`). */
+  patchValues(partial: unknown): void {
+    if (!partial || typeof partial !== 'object') return
+    const entries: [string, unknown][] = []
+    collectPatchEntries(partial as Record<string, unknown>, '', entries)
+    this.commitPatch(entries)
+  }
+
+  /** Apply multiple external leaf updates in a single reaction/watch flush. */
+  commitPatch(entries: readonly [string, unknown][]): void {
+    if (!entries.length) return
+    const { store, notifier, scheduler, validator } = this.deps
+    const changed: string[] = []
+    for (const [rawPath, rawValue] of entries) {
+      const path = normalizePath(rawPath)
+      const value = process.env.NODE_ENV !== 'production' ? unwrapReadonly(rawValue) : rawValue
+      if (!this.commitValue(path, value, false)) continue
+      changed.push(path)
+      const field = store.ensure(path)
+      if (!field.edited) {
+        field.edited = true
+        scheduler.markDirty(`${path}:edited`)
+        notifier.bumpPath(path)
+      }
+    }
+    if (!changed.length) return
+    if (!store.edited) {
+      store.edited = true
+      scheduler.bumpMeta()
+    }
+    scheduler.enqueueFromDirty()
+    scheduler.flush()
+    for (const path of changed) validator.onEdit(path)
+  }
+
+  /** Start or hit cache for an `EnumSource` / `EnumBinding` declared via `fields` or an item template. */
+  loadDeclaredEnum(path: string, binding: EnumBinding): void {
+    const field = this.deps.store.ensure(path)
+    if (field.enumFromEffect || field.jsxEnum !== undefined) return
+    const cached = binding.source.cached(binding.params)
+    if (cached && deepEqual(field.enumOptions, cached)) return
+    this.loadEnum(path, binding)
   }
 
   /** Mark the field touched. Validates when the trigger list includes `onBlur`. */
@@ -252,6 +296,15 @@ export class StateWriter {
         this.loadEnum(path, field.jsxEnum)
         return true
       }
+      if (field.jsxEnum === undefined) {
+        const declBinding = this.deps.declarations.declaredEnumBinding(path)
+        if (declBinding) {
+          const cached = declBinding.source.cached(declBinding.params)
+          if (cached && deepEqual(field.enumOptions, cached)) return false
+          this.loadEnum(path, declBinding)
+          return true
+        }
+      }
       const next = field.jsxEnum ?? this.deps.declarations.declaredEnum(path)
       if (deepEqual(field.enumOptions, next)) return false
       field.enumOptions = next
@@ -259,13 +312,14 @@ export class StateWriter {
       return true
     }
     field.enumFromEffect = true
-    if (isEnumBinding(value)) {
-      const cached = value.source.cached(value.params)
+    const effectBinding = toEnumBinding(value)
+    if (effectBinding) {
+      const cached = effectBinding.source.cached(effectBinding.params)
       if (cached && deepEqual(field.enumOptions, cached)) {
         this.cancelEnumLoad(path, field)
         return false
       }
-      this.loadEnum(path, value)
+      this.loadEnum(path, effectBinding)
       return true
     }
     this.cancelEnumLoad(path, field)
@@ -302,7 +356,7 @@ export class StateWriter {
   applyJsxEnum(path: string, input: unknown, phase: 'render' | 'commit'): FieldModel {
     const { store, notifier, scheduler } = this.deps
     const field = store.ensure(path)
-    const binding = isEnumBinding(input) ? input : undefined
+    const binding = toEnumBinding(input)
     if (binding && phase === 'render') return field
     const next = binding ?? asOptions(input) ?? []
     let changed = false
@@ -346,6 +400,11 @@ export class StateWriter {
     if (field.enumFromEffect) return
     const wasLoading = field.enumLoading
     this.cancelEnumLoad(path, field)
+    const declBinding = declarations.declaredEnumBinding(path)
+    if (declBinding) {
+      this.loadEnum(path, declBinding)
+      return
+    }
     const next = declarations.declaredEnum(path)
     if (wasLoading || !deepEqual(field.enumOptions, next)) {
       field.enumOptions = next
@@ -415,4 +474,24 @@ function sameJsxEnum(prev: EnumOption[] | EnumBinding | undefined, next: EnumOpt
     return isEnumBinding(prev) && isEnumBinding(next) && prev.source === next.source && deepEqual(prev.params, next.params)
   }
   return deepEqual(prev, next)
+}
+
+function isPlainPatchObject(value: unknown): value is Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const proto = Object.getPrototypeOf(value)
+  return proto === Object.prototype || proto === null
+}
+
+function collectPatchEntries(node: Record<string, unknown>, prefix: string, out: [string, unknown][]): void {
+  const keys = Object.keys(node)
+  if (!keys.length) {
+    if (prefix) out.push([prefix, {}])
+    return
+  }
+  for (const key of keys) {
+    const path = prefix ? `${prefix}.${key}` : key
+    const val = node[key]
+    if (isPlainPatchObject(val)) collectPatchEntries(val, path, out)
+    else out.push([path, val])
+  }
 }

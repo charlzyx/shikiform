@@ -3,9 +3,9 @@ title: 测试
 description: 使用 Testing Library 模拟用户输入、失焦与提交动作，并断言 onSubmit 接收到的表单数据。
 ---
 
-编写表单测试时，建议从用户的真实交互视角出发（输入内容、触发失焦、点击提交按钮），而不要去耦合引擎内部的状态结构。
+表单测试可直接通过 Testing Library 模拟输入、失焦和点击提交，断言 `onSubmit` 收到的值，无需依赖引擎内部结构。
 
-测试组件时照常使用 `useForm` 与 `<Field>`，点击提交按钮后，只有当全部校验规则通过时，`onSubmit` 回调才会被触发。
+组件照常使用 `useForm` 与 `<Field>`；点击提交按钮后，全部校验规则通过时才会调用 `onSubmit`。
 
 ```tsx
 import { fireEvent, render, screen } from '@testing-library/react'

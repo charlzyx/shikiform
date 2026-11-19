@@ -3,7 +3,7 @@ title: 字段路径与结构
 description: 使用 ObjectField、ArrayField 和 TreeField 建立相对路径作用域，通过 rowKey 或行模板保持行状态随数据移动。
 ---
 
-当表单数据结构包含多层嵌套对象、动态列表或树形结构时，把所有 `<Field>` 都写成 `profile.address.city`、`contacts.2.phone` 这样的绝对路径既繁琐，又难以应对数组行的增删和排序。ShikiForm 提供了三个结构组件，用来为子字段划定路径作用域：
+表单包含嵌套对象、动态数组或树结构时，使用以下三个结构组件为内部字段建立相对路径作用域，避免手写 `profile.address.city`、`contacts.2.phone` 这类绝对路径：
 
 | 结构组件 | 提供的路径作用域 | 常用操作方式 |
 |---|---|---|
@@ -81,46 +81,47 @@ export default function App() {
 }
 ```
 
-使用数组和结构组件时，有几个关键机制需要留意：
-- **行身份与状态跟随**：指定 `rowKey="id"` 后，每一行在引擎中都会绑定一个稳定的身份标识；如果行数据本身没有业务主键，引擎也会自动以对象引用作为唯一标识，因此通常无需刻意伪造 id。当发生上移、下移或删除操作时，错误提示和 `touched` 等字段状态会跟着数据行一起移动。
-- **行模板与固定下标的区别**：在 `fields` 中使用 `'contacts.*.name'` 声明的是行模板，它会自动应用到当前及未来新增的所有行上；而写死下标的配置（如 `'contacts.0.name'`）绑定的是「第 0 个位置」本身，行顺序变化后会作用于新的第 0 行。需要让配置跟随具体数据行移动时，请使用行模板或 [`reaction.each`](/guide/linkage#reactioneach每一行一个实例)。
-- **使用数组句柄**：增删或调整行顺序时调用 `useArrayField()` / `useArrayField(name)` 上的 `push` / `remove` / `move` 等方法，不要直接原地修改 `getValue` 返回的数组引用，也不要调用 `form.pushArray`。`<ArrayField>` 只订阅数组的长度与行键变化，修改某个单元格不会导致整张列表重渲染。
+数组与作用域的几个规则：
 
-如果需要现成的添加、删除、上下移动和拖拽排序按钮，可以使用 [数组容器 ArrayItems / ArrayCards](/guide/arrays)。
+- 指定 `rowKey="id"` 后，每行的字段状态绑定到该主键；若行对象没有业务主键，引擎以对象引用作为稳定标识，无需额外构造临时 id。上移、下移或删除行时，`errors`、`touched` 等状态随数据行一起移动。
+- `fields` 中的 `'contacts.*.name'` 是行模板，作用于当前及后续新增的所有行；固定下标 `'contacts.0.name'` 绑定第 0 个位置，行重排后作用于新的第 0 行。需要状态跟随数据行移动时使用行模板或 [`reaction.each`](/guide/linkage#reactioneach每一行一个实例)。
+- 数组增删改序请调用 `useArrayField()` / `useArrayField(name)` 的 `push` / `remove` / `move` 等方法，不要原地修改 `getValue` 返回的数组，也不要调用 `form.pushArray`。`<ArrayField>` 仅订阅数组长度与行键列表，修改单元格值不会重渲染整张列表。
+
+现成的增删、上下移动与拖拽排序容器见 [数组容器 ArrayItems / ArrayCards](/guide/arrays)。
 
 ### 作用域内的字段名不要重复前缀
 
-由于 `<ObjectField>` 和 `<ArrayField>` 会自动为内部字段拼接外层路径前缀，内部的子字段只能写相对路径。如果在一个 `<F.ObjectField name="group">` 内部，不小心又使用了表单根上解构出来的 `F.Field` 并写了 `name="group.inner"`，TypeScript 虽然能通过类型检查（因为根表单确实存在 `group.inner`），但运行时路径会被重复拼接成 `group.group.inner`。开发模式下，当拼接后的路径没有值而根路径存在值时，引擎会抛出 `ShikiUsageError` 提示。
+`<ObjectField>` 与 `<ArrayField>` 会为内部字段自动拼上当前作用域前缀，子字段必须写相对路径。如果在 `<F.ObjectField name="group">` 内误用根表单的 `F.Field` 写 `name="group.inner"`，TypeScript 按根类型检查能够通过，但运行时路径会被拼成 `group.group.inner`。开发环境下，当拼接路径无值而根路径有值时，引擎会抛出 `ShikiUsageError`。
 
 ```tsx
 const F = typed(form)
 
-// ✗ 类型检查能过，但运行时会被拼接成 group.group.inner 并报错
+// ✗ 类型检查通过，但运行时拼成 group.group.inner 并抛错
 <F.ObjectField name="group">
   <F.Field name="group.inner" />
 </F.ObjectField>
 
-// ✓ 使用函数子节点提供的 obj.Field，在享受类型检查的同时写相对路径
+// ✓ 使用函数子节点提供的 obj.Field，按当前对象类型检查相对路径
 <F.ObjectField name="group">
   {(obj) => <obj.Field name="inner" />}
 </F.ObjectField>
 ```
 
-同理，在数组行内也应直接写 `name` 而不是 `items.0.name`。关于作用域类型推导的详细说明见 [typed](/reference/react-hooks#typed)。
+数组行内同样直接写 `name` 而非 `items.0.name`，详见 [typed](/reference/react-hooks#typed)。
 
-对于树形数据，使用 `<TreeField name rowKey>` 为每个节点自动建立作用域并传入 `node.children` 递归渲染，同时在创建表单时通过 `trees` 选项注册树根路径，以便联动在挂载前就能识别树结构。具体示例见 [联动 · 嵌套对象数组与树](/guide/linkage#嵌套对象数组与树) 和 [Headless Hooks](/guide/headless)。
+树形数据使用 `<TreeField name rowKey>` 为每个节点建立作用域并传入 `node.children` 递归渲染；若联动需在组件挂载前识别树结构，在创建表单时传入 `trees` 选项。示例见 [联动 · 嵌套对象数组与树](/guide/linkage#嵌套对象数组与树) 与 [Headless Hooks](/guide/headless)。
 
 ## 按路径精准更新嵌套值
 
-在 `reaction` 中更新嵌套对象中的某个字段时，应当直接赋值到目标字段路径，这样只有订阅了该字段的组件和联动会重新执行；如果给父对象整体赋一个新对象，则所有读取父对象的订阅都会被唤醒：
+在 `reaction` 中修改嵌套对象内的某个属性时，直接写入目标子路径，这样只唤醒订阅了该子路径的联动和组件；若对父对象整体赋新引用，所有读取父对象的订阅都会重跑：
 
 ```ts
-d.user.name.$value = 'x'                              // ✓ 精准修改单个字段，影响范围最小
-d.user.$value = { ...d.user.$value, name: 'x' }       // 整体替换对象，会触发所有 user 读取者重跑
-d.user.$value.name = 'x'                              // ✗ 直接修改不可变快照，开发环境会报错
-d.items.$value = [...d.items.$value, row]             // 联动里整体替换数组。组件里用 useArrayField().push(row)
+d.user.name.$value = 'x'                              // ✓ 只更新 user.name
+d.user.$value = { ...d.user.$value, name: 'x' }       // 整体替换 user，唤醒所有读取 user 的订阅
+d.user.$value.name = 'x'                              // ✗ 原地修改不可变快照，开发环境抛错
+d.items.$value = [...d.items.$value, row]             // 联动内整体替换数组；组件内用 useArrayField().push(row)
 ```
 
-与表单值不同，`$componentProps` 这类对象型的 UI 状态支持按键深合并，具体规则见 [UI 状态三层叠加](/guide/field#ui-状态三层叠加)。
+`$componentProps` 等对象型 UI 状态支持按键深合并，见 [UI 状态三层叠加](/guide/field#ui-状态三层叠加)。
 
-下一步：[数组容器 ArrayItems / ArrayCards](/guide/arrays)，使用内置的增删改序容器组件。
+下一步：[数组容器 ArrayItems / ArrayCards](/guide/arrays)。

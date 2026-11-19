@@ -1,9 +1,9 @@
 ---
 title: TypeScript
-description: 使用 typed(form) 检查字段名，通过 FieldKit 注册控件类型，并用 SubmitValues 精确约束提交数据结构。
+description: 使用 typed(form) 检查字段路径，通过 FieldKit 注册控件类型，并用 SubmitValues 约束提交值类型。
 ---
 
-普通的 `<Field>` 通过 React 上下文读取表单实例，无法静态推导表单类型，因此 `name` 默认接受任意字符串，适合动态路径场景。如果希望在编译期就拦住字段名拼写错误，可以使用 `typed(form)`：它不会增加额外运行时开销，只是为同一批组件和 Hook 加上了完整的类型推导。
+普通 `<Field>` 从 React 上下文读取表单实例，编译期不知道表单类型，`name` 默认接受任意字符串（适用于动态路径）。`typed(form)` 返回同一组组件和 Hook 的带类型版本，不增加运行时开销：
 
 ```tsx
 const form = useForm<Values>({ initialValues })
@@ -45,11 +45,11 @@ declare module '@shikiform/react' {
 
 ## 推导提交值类型
 
-`submit`、`getSubmitValues` 与 `onSubmit` 回调接收的值类型支持以下三种推导方式：
+`submit`、`getSubmitValues` 与 `onSubmit` 的值类型按以下规则推导：
 
-- **自动排除 `fields` 中的非提交字段**：直接调用 `createForm({ fields })` / `useForm({ fields })`，或者通过 `typed<Values>().createForm({ fields })` / `typed<Values>().useForm({ fields })` 显式指定原始值类型时，在 `fields` 中声明为 `omit: true` 的路径在提交类型中会自动变为可选。`visible: false` 本身仍提交，类型上仍是必填，除非同时 `omit: true`。
-- **保持与原始值一致**：使用 `createForm<Values>(options)` / `useForm<Values>(options)` 时，提交类型直接沿用 `Values`。
-- **手动指定可选路径**：JSX 或 `reaction` 里动态写的 `omit` 类型上看不到，用第二个泛型参数和 `SubmitValues` 自己列路径：
+- 不传泛型调用 `createForm({ fields })` / `useForm({ fields })`，或通过 `typed<Values>().createForm({ fields })` / `typed<Values>().useForm({ fields })` 指定原始值类型时，`fields` 中声明了 `omit: true` 的路径在提交类型中变为可选属性。仅设置 `visible: false` 的字段仍参与提交，类型保持不变，除非同时声明 `omit: true`。
+- 调用 `createForm<Values>(options)` / `useForm<Values>(options)` 时，提交类型固定为 `Values`，不读取 `fields`。
+- JSX 或 `reaction` 中动态设置的 `omit` 无法在编译期推断，可通过第二个泛型参数配合 `SubmitValues` 显式列出路径：
 
 ```ts
 import { createForm, type SubmitValues } from '@shikiform/react'

@@ -19,6 +19,7 @@ import type {
   FieldUiSpec,
   ArrayItemOf,
   ArrayPath,
+  DeepPartial,
   Draft,
   EffectsRuntime,
   FieldError,
@@ -76,6 +77,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
       store, notifier, scheduler, validator, declarations, options,
       carryRowIdentity: (path, before, after) => this.arrays.carryIdentity(path, before, after),
     })
+    declarations.onDeclaredEnum = (path, binding) => this.writer.loadDeclaredEnum(path, binding)
     this.fieldUi = this.writer.attachUi(new FieldUi(store, notifier, scheduler, (path, key, value) => this.writeState(path, key, value)))
     this.uiNodes = new UiNodes(store, notifier, scheduler, this.writer, this.fieldUi)
     this.draft = createHandle(this, '') as Draft<T>
@@ -119,6 +121,12 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
 
   /** Incremented once per {@link FormEngine.submit}, including calls that fail validation. */
   get submitCount(): number { return this.store.submitCount }
+
+  /** Effective root `readOnly` flag. */
+  get readOnly(): boolean { return this.store.effective('', 'readOnly') }
+
+  /** Effective root `disabled` flag. */
+  get disabled(): boolean { return this.store.effective('', 'disabled') }
 
   /** When true, each reaction pass is traced. */
   get devtools(): boolean {
@@ -164,6 +172,12 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     this.writer.commitExternal(normalizePath(String(path)), value)
   }
 
+  /** Deep-merge partial values into the form in a single flush. */
+  patchValues(partial: DeepPartial<T>): void { this.writer.patchValues(partial) }
+  /** Set or clear (`undefined`) the root `$readOnly` / `$disabled` flag in one batch. */
+  setReadOnly(readOnly?: boolean): void { this.batch((d) => { d.$readOnly = readOnly }) }
+  setDisabled(disabled?: boolean): void { this.batch((d) => { d.$disabled = disabled }) }
+
   /** One draft, one reaction pass, one notification. */
   batch(fn: (d: Draft<T>) => void): void {
     const scheduler = this.scheduler
@@ -181,13 +195,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     }
   }
 
-  /**
-   * Values with each effectively omitted field removed. `omit` inherits, so a descendant reads as
-   * omitted when an ancestor is; deleting that ancestor already drops the nested keys (deleting the
-   * descendants too does not change the result, and a child `omit: false` does not put them back).
-   * Hidden / disabled / read-only values are kept.
-   * Typed `TSubmit` (default `T`, see `SubmitValues`).
-   */
+  /** Values with each effectively omitted field removed (`omit` inherits). Hidden / disabled / read-only values are kept. */
   getSubmitValues(): TSubmit {
     let out = clone(this.store.values)
     const omit = [...this.store.fields.keys()]
@@ -197,14 +205,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     return out as unknown as TSubmit
   }
 
-  // —— submit / reset / validate ——
-
-  /**
-   * Validate, then call `onValid` with {@link FormEngine.getSubmitValues}.
-   * Resolves the submit values, or `onValid`'s return when that is not `undefined`.
-   * Rejects `FieldError[]` on validation failure. `onValid` and a form-level `validate` reject as-is.
-   * A later `submit` rejects `SubmitSupersededError`. Values that never settle reject `SubmitUnstableError`.
-   */
+  /** Validate, then call `onValid` with {@link FormEngine.getSubmitValues}. Rejects `FieldError[]` on validation failure. */
   submit(): Promise<TSubmit>
   submit<R>(onValid: (values: TSubmit) => R | Promise<R>): Promise<SubmitResolved<TSubmit, R>>
   async submit<R>(onValid?: (values: TSubmit) => R | Promise<R>): Promise<TSubmit | SubmitResolved<TSubmit, R>> {

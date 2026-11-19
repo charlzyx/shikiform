@@ -3,7 +3,7 @@ title: Field、装饰器与组件
 description: 使用 Field 绑定字段路径，通过 decorator 与 component 分层渲染标签和控件，并按三层叠加规则管理 UI 属性。
 ---
 
-在 ShikiForm 中，`<Field>` 是单个表单项的唯一入口。它会绑定数据路径并渲染两层结构：外层的 `decorator` 负责展示标签、必填星号和校验报错，内层的 `component` 负责实际的数据输入。由于 `<Field>` 会把当前字段上下文向下传递，因此 `FormItem` 和接入后的控件都可以直接读取字段状态，无需再次传入 `name`。
+`<Field>` 绑定一条数据路径并渲染两层结构：外层 `decorator` 展示标签、必填标记和错误信息，内层 `component` 处理输入交互。`<Field>` 通过上下文向下传递字段绑定，`FormItem` 与已适配控件直接从中读取状态，无需再传 `name`。
 
 ```tsx
 <Field
@@ -149,22 +149,23 @@ export default function App() {
 }
 ```
 
-关于 JSX `enum` 的使用细节：
-- **覆盖优先级**：`reaction` 中的 `$enum` > JSX `enum` > `fields.x.enum` > 行模板（`rows.*.x`）。JSX 传入的选项仅在组件挂载期间生效，卸载或改为 `undefined` 后会自动回退到声明层。
-- **撤销与清空**：在 `reaction` 中设置 `$enum = undefined` 会撤掉联动层的选项并回退到下层（同时中止未完成的异步枚举加载并复位 `loading`）；如果要彻底清空选项，请赋值 `$enum = []`。
-- **变动更新策略**：引擎会对 JSX `enum` 做深比较，因此每次渲染传入新的数组字面量不会引起无效重置；选项变更后按 `enumPolicy` 处理（如 `'clear'` 会自动清掉不再合法的旧值，首次挂载则保持原值）。
-- **异步数据源**：可直接传入 `enum={Cities.with(province)}`；但如果选项依赖其他字段变化，推荐写在 `reaction` 中（`d.city.$enum = …`）。
-- **类型校验**：配合 `typed(form)` 或 `row.Field` 使用时，选项中的 `value` 类型会与字段值类型（数组字段为其元素类型）进行严格比对。
+JSX `enum` 的行为规则：
+
+- 优先级：`reaction` 的 `$enum` > JSX `enum` > `fields.x.enum` > 行模板（`rows.*.x`）。JSX `enum` 仅在组件挂载期间生效，卸载或改为 `undefined` 后回退到声明层。
+- 在 `reaction` 中赋值 `$enum = undefined` 会撤销联动层覆盖并回退到下层（同时中止未完成的异步枚举请求并复位 `loading`）；赋值 `$enum = []` 则将选项置为空列表。
+- JSX `enum` 按深比较判断变化，渲染期间传入内联数组字面量不会重复触发更新；选项变更后按 `enumPolicy` 处理当前值（例如 `'clear'` 清掉不在新选项中的旧值，首次挂载保留初始值）。
+- 支持直接传入异步源 `enum={Cities.with(province)}`；若参数依赖其他字段，放在 `reaction` 中写 `d.city.$enum = …`。
+- 在 `typed(form)` 或 `row.Field` 上，选项的 `value` 类型按字段值类型校验（数组字段按元素类型校验）。
 
 ## Field 与底层 Hooks 的对应关系
 
-`<Field>` 本质上是对 `useField(name, options)` 的一层轻量封装：`visible` 为 false 时返回 `null`，其余情况依次渲染 `decorator` 和 `component`。
+`<Field>` 内部调用 `useField(name, options)`：`visible` 为 `false` 时返回 `null`，否则渲染 `decorator` 包裹的 `component`。
 
-如果不希望通过 `<Field>` 包裹，可以直接调用 `useField(name)` 读取 `value`、`onChange`、`onBlur`、`disabled` 等字段状态，并配合 [`useFieldDecorator()`](/reference/react-hooks#usefielddecorator) 渲染标签与错误；而在自定义控件或装饰器内部，调用无参数的 `useField()` 即可拿到当前字段的绑定对象。完整签名请参考 [useField](/reference/react-hooks#usefield) 和 [Ant Design 适配层](/reference/antd-adapter)。
+不使用 `<Field>` 时，可直接调用 `useField(name)` 读取 `value`、`onChange`、`onBlur`、`disabled` 等状态，配合 [`useFieldDecorator()`](/reference/react-hooks#usefielddecorator) 渲染标签与错误；在自定义控件或装饰器内部调用无参 `useField()` 则读取外层 `<Field>` 的绑定对象。完整签名见 [useField](/reference/react-hooks#usefield) 与 [Ant Design 适配层](/reference/antd-adapter)。
 
 ## 字段名的类型检查
 
-普通的 `<Field>` 通过 React 上下文获取表单实例，无法静态得知表单值的类型结构，因此 `name` 默认接受任意字符串（这也保留了动态路径的灵活性）。如果希望在编译期捕获字段名拼写错误，使用 `typed(form)` 获取强类型版本即可：
+普通 `<Field>` 从 React 上下文获取表单实例，编译期不知道表单值类型，`name` 接受任意字符串（可用于动态路径）。需要在编译期检查字段路径时，调用 `typed(form)`：
 
 ```tsx
 const F = typed(form)

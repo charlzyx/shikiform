@@ -1,9 +1,9 @@
 ---
 title: Pro 组件与高阶场景
-description: 完整演示 ArrayTable、草稿表单（ShadowForm）、QueryList、枚举阅读态、远程联想与懒加载级联组件。
+description: ArrayTable、草稿表单（ShadowForm）、QueryList、枚举阅读态、远程联想与懒加载级联示例。
 ---
 
-本页汇总了 `@shikiform/antd` 与 `@shikiform/hooks` 中高阶业务组件的完整用法，底层概念介绍请参考 [查询列表与 Pro 组件](/guide/pro)。
+本页展示 `@shikiform/antd` 与 `@shikiform/hooks` 中 Pro 组件与 Hooks 的在线示例，概念说明见 [查询列表与 Pro 组件](/guide/pro)。
 
 ## ArrayTable 全功能
 
@@ -149,7 +149,7 @@ export default function App() {
 }
 ```
 
-- 在 `ArrayTable` 的列渲染内直接放置 `<ShadowModal>`（或 `ShadowDrawer`），它会自动绑定当前行作用域并继承宿主 `list.*` 的字段规则（如 `title`、`required`），确认后按 `rowKey`（或行引用）精确写回原行，即使行被移动也不会写错位置。
+- 在 `ArrayTable` 列渲染中放置 `<ShadowModal>`（或 `ShadowDrawer`）会自动绑定当前行作用域并继承宿主 `list.*` 的字段配置（如 `title`、`required`），确认后按 `rowKey`（或对象引用）写回原行，行重排后仍定位到同一行。
 - `ArrayTable.ShadowAddition` 内置了 `add: true` 的草稿表单：同样继承 `list.*` 规则，确认通过后自动向数组追加新行，并跳转到新行所在的页码。
 - 由于草稿内部是独立的表单引擎，其中的 `<Field>` 路径从草稿根路径解析，不会把草稿字段注册到宿主表单或外层 `FieldGroup` 中。
 

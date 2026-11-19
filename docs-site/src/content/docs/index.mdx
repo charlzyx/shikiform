@@ -3,7 +3,7 @@ title: ShikiForm
 description: 面向 TypeScript 的无 UI 表单引擎，集中管理状态与联动，通过 Field + FormItem 接入 Ant Design 等组件库。
 ---
 
-表单业务复杂起来之后，最容易失控的往往是散落在组件各处的条件判断：某个字段什么时候必填、什么时候隐藏、隐藏后是否还要参与校验和提交。ShikiForm 把表单值、字段状态、校验规则和联动逻辑统一收拢到表单引擎中管理。你可以用 `reaction` 直接给字段状态赋值，React 组件只负责声明界面结构。
+ShikiForm 将表单值、字段状态、校验规则与联动逻辑集中在同一个无 UI 表单引擎中维护。联动在 `defineEffects` 内通过 `reaction` 和 `watch` 直接读写字段的 `$` 状态，React 组件只负责声明字段路径与界面结构。
 
 ```tsx preview
 import { useEffect, useRef, useState } from 'react';
@@ -61,37 +61,37 @@ export default function App() {
 }
 ```
 
-在这段示例里，账号类型为「个人」时，邮箱可以留空提交；切换到「工作」后，`reaction` 会自动将邮箱设为必填、更新提示文本，并显示「公司」字段。切回「个人」时，「公司」字段隐藏，同时跳过校验且不会出现在最终提交数据中。所有联动规则都集中在 `effects` 里，JSX 中不需要掺杂条件分支。
+账号类型为「个人」时，邮箱可留空提交，「公司」字段隐藏并跳过必填校验；切到「工作」后，`reaction` 将邮箱设为必填、替换占位文本并显示「公司」。注意 `$visible = false` 只跳过渲染和校验，字段值默认仍包含在提交结果中；如需从提交数据中剔除，再设置 `d.company.$omit = !work`。
 
-在视图层，`typed(form)` 返回带类型约束的 `Field` 组件，用于绑定数据路径；`decorator`（如 `FormItem`）负责展示标签和报错信息，`component`（如 `Input`）负责具体的输入交互。关于这种写法的细节，请参考 [表单与字段](/guide/field) 和 [核心概念](/guide/concepts)。
+`typed(form)` 返回绑定了 `Values` 类型的 `Field` 组件。`decorator`（如 `FormItem`）渲染标签与错误信息，`component`（如 `Input`）渲染输入控件，详见 [表单与字段](/guide/field) 与 [核心概念](/guide/concepts)。
 
 ## 与常见表单方案的差异
 
 | 维度 | ShikiForm | react-hook-form | Formily |
 |---|---|---|---|
-| 状态与联动 | 集中在一个引擎内，在 `reaction` 中通过 `$` 状态直接赋值 | 多在组件内调用 `watch` / `setValue` | 依赖 `reactions`，常与 Schema 耦合 |
-| UI 绑定 | 引擎本身无 UI，`@shikiform/antd` 作为独立适配层按需引入 | 无 UI，需配合 `Controller` 手动桥接 | 自带整套 Ant Design 适配组件 |
-| 显隐与提交 | `visible` 决定是否渲染（`false` 跳过校验，值仍提交）；是否提交只看 `omit`。`disabled` 置灰但仍提交 | 由组件是否挂载决定；`disabled` 默认不提交 | `hidden` 默认跳过校验 |
+| 状态与联动 | 集中在引擎内，在 `reaction` 中对 `$` 状态直接赋值 | 多在组件内调用 `watch` / `setValue` | 使用 `reactions`，常与 Schema 配合 |
+| UI 绑定 | 引擎无 UI，`@shikiform/antd` 独立按需引入 | 无 UI，受控组件通过 `Controller` 桥接 | 提供独立 Ant Design 适配包 |
+| 显隐与提交 | `visible: false` 不渲染、跳过校验，值仍提交；是否提交只看 `omit`。`disabled` 置灰但仍提交 | 由组件挂载状态决定；`disabled` 默认不提交 | `hidden` 默认跳过校验并保留值，`none` 不提交 |
 
 ## 安装与模块划分
 
-日常使用推荐安装 React 绑定包，如需配合 Ant Design 或使用查询列表、草稿表单等高阶能力，再按需安装对应包：
+React 项目默认安装 `@shikiform/react`，再按需安装 Ant Design 适配包或业务 Hooks 包：
 
 ```bash
 npm i @shikiform/react
-# 如需使用 Ant Design 组件
+# Ant Design 适配组件
 npm i @shikiform/antd
-# 如需查询列表、草稿表单等高阶 Hooks
+# 查询列表、草稿表单等无 UI Hooks
 npm i @shikiform/hooks
 ```
 
 | 包名 | 职责 |
 |---|---|
-| `@shikiform/core` | 纯 TypeScript 表单引擎，提供状态管理、draft、`reaction` 和校验，不依赖 React |
-| `@shikiform/react` | 提供 `Form`、`Field`、`useField`、`connect` 等 React 绑定，并完整重导出了 `@shikiform/core` |
-| `@shikiform/hooks` | 提供 `useQueryTable`、`useShadowForm` 等无 UI 的高阶业务 Hooks |
-| `@shikiform/antd` | Ant Design 适配层，提供开箱即用的表单控件、布局容器与 Pro 组件（需安装 `antd` 与 `dayjs`） |
+| `@shikiform/core` | 纯 TypeScript 表单引擎：状态存储、draft、`reaction` / `watch` 与校验，不依赖 React |
+| `@shikiform/react` | `Form`、`Field`、`useField`、`connect` 等 React 绑定，并重导出 `@shikiform/core` |
+| `@shikiform/hooks` | `useQueryTable`、`useShadowForm`、`useArrayTable` 等无 UI 业务 Hooks |
+| `@shikiform/antd` | Ant Design 适配控件、布局容器、数组容器与 Pro 组件（需安装 `antd` 与 `dayjs`） |
 
-完整的导出清单见 [API 总览](/api)。如果你正在借助 AI 工具编写表单代码，可以把 [/llms.txt](/llms.txt) 提供给它作为上下文。
+完整导出清单见 [API 总览](/api)。使用 AI 编程工具时可将 [/llms.txt](/llms.txt) 作为上下文传入。
 
-接下来可以从 [快速开始](/guide/quick-start) 动手写出第一张表单，或者跟着交互式 [教程](/tutorial/) 边改边学，也可以直接浏览 [示例目录](/play)。
+继续阅读：[快速开始](/guide/quick-start)、[教程](/tutorial/)、[示例目录](/play)。

@@ -2,7 +2,7 @@ import type { ComponentType, ReactNode } from 'react'
 import { createForm, type DefaultSubmit, type FieldsInput, type FormInstance, type FormOptions, type ResolveSubmit } from '@shikiform/core/internal'
 import type { ArrayItemOf, ArrayPath, Draft, FieldPath, PathValue } from '@shikiform/core/internal'
 import { useForm, type UseFormOptions } from '../hooks/use-form'
-import { ArrayField, Field, ObjectField, TreeField, Watch, type ArrayContainerSlot, type CheckedFieldProps, type FieldProps, type TreeNodeRender } from '../components/fields'
+import { ArrayField, Field, ObjectField, RowScope, TreeField, Watch, type ArrayContainerSlot, type CheckedFieldProps, type FieldProps, type RowScopeProps, type TreeNodeRender } from '../components/fields'
 import { useArrayField, type ArrayHandle, type ArrayKey } from '../hooks/use-array'
 import { useField, type FieldBinding, type UseFieldOptions } from '../hooks/use-field'
 import { useWatch } from '../hooks/use-watch'
@@ -25,13 +25,13 @@ export type ScopeFields<T> = {
     omit?: FieldProps['omit']
     children?: ReactNode | ((scope: ScopeFields<NonNullable<PathValue<T, N & string>>>) => ReactNode)
   }) => ReactNode
-  ArrayField: <N extends ArrayPath<T>, C extends ComponentType<any> = ComponentType<any>>(props: {
+  ArrayField: (<N extends ArrayPath<T>, C extends ComponentType<any> = ComponentType<any>>(props: {
     name: N
     rowKey?: string
     component?: ArrayContainerSlot<C>
     virtualScroll?: { height: number; rowHeight?: number; overscan?: number }
     children?: (row: ArrayKey & ScopeFields<ArrayItemOf<T, N & string>>) => ReactNode
-  }) => ReactNode
+  }) => ReactNode) & { Row: (props: RowScopeProps) => ReactNode }
   TreeField: <N extends ArrayPath<T>>(props: {
     name: N
     childrenKey?: string
@@ -90,13 +90,26 @@ export type TypedForm<T, TRoot = T> = ScopeFields<T> & {
  */
 export function typed<T, TRoot = T>(): TypedForm<T, TRoot>
 export function typed<T>(form: FormInstance<T, any>): TypedForm<T>
-export function typed(_form?: FormInstance<any, any>): TypedForm<any> {
-  return handles
+export function typed(form?: FormInstance<any, any>): TypedForm<any> {
+  if (!form) return handles
+  let cached = boundCache.get(form)
+  if (!cached) {
+    const BoundWatch = ({ select, children }: { select: (d: Draft<any>) => any; children: (value: any) => ReactNode }) => (
+      <Watch form={form} select={select}>{children}</Watch>
+    )
+    const boundUseWatch = <S,>(select: (d: Draft<any>) => S): S => useWatch(form, select)
+    cached = { ...handles, useWatch: boundUseWatch, Watch: BoundWatch } as unknown as TypedForm<any>
+    boundCache.set(form, cached)
+  }
+  return cached
 }
 
-function TypedArrayField({ children, ...props }: { name: string; rowKey?: string; component?: ArrayContainerSlot; virtualScroll?: { height: number; rowHeight?: number; overscan?: number }; children?: (row: any) => ReactNode }) {
+const boundCache = new WeakMap<object, TypedForm<any>>()
+
+function TypedArrayFieldImpl({ children, ...props }: { name: string; rowKey?: string; component?: ArrayContainerSlot; virtualScroll?: { height: number; rowHeight?: number; overscan?: number }; children?: (row: any) => ReactNode }) {
   return <ArrayField {...props}>{children ? (row) => children({ ...row, ...scope }) : undefined}</ArrayField>
 }
+const TypedArrayField = Object.assign(TypedArrayFieldImpl, { Row: RowScope })
 function TypedObjectField({ children, ...props }: { name: string; visible?: boolean; disabled?: boolean; readOnly?: boolean; omit?: boolean; children?: ReactNode | ((scope: any) => ReactNode) }) {
   return <ObjectField {...props}>{typeof children === 'function' ? children(scope) : children}</ObjectField>
 }

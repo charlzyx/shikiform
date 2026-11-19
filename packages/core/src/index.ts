@@ -23,6 +23,7 @@ export type { Rule, RulesInput, ValidateCtx } from './validation/rules'
 export type {
   ArrayItemOf,
   ArrayPath,
+  DeepPartial,
   Draft,
   RowContext,
   RowDraft,

@@ -14,6 +14,7 @@
   "@shikiform/hooks": {
     "useQueryTable": "reference/query-hooks.mdx",
     "useArrayTable": "reference/pro-hooks.mdx",
+    "useColumnSettings": "reference/pro-hooks.mdx",
     "useShadowForm": "reference/pro-hooks.mdx",
     "useSuggestion": "reference/pro-hooks.mdx",
     "useLazyCascader": "reference/pro-hooks.mdx",

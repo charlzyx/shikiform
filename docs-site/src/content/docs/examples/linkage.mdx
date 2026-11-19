@@ -93,10 +93,10 @@ export default function App() {
 }
 ```
 
-- 三种机制各司其职：`reaction` 维护可选项与价格区间（[派生](/guide/linkage#reaction-与-watch)），`watch` 在某个维度变化时清理互斥选项（动作），`$rules` 让数量上限跟随库存实时更新。
-- `comboOptions` 与 `comboMatch`（由 `@shikiform/core` 提供）负责组合表过滤计算，组合数据源由业务侧提供。
-- 价格、库存、SKU 编码在 `reaction` 里写入 `$value`，字段声明 `readOnly` 后以阅读态展示；同时 `omit: true`，只展示、不随表单提交。
-- 试着先点选「白色」，可以看到缺货的「128G」自动变为禁用；先选「128G」再看「白色」也是同样的互斥效果。
+- `reaction` 计算可选项与价格区间（[派生](/guide/linkage#reaction-与-watch)），`watch` 在某个维度变更后清理互斥维度（动作），`$rules` 让数量上限跟随库存更新。
+- `comboOptions` 与 `comboMatch`（`@shikiform/core`）对组合表做过滤匹配，组合表数组由业务方传入。
+- 价格、库存、SKU 编码在 `reaction` 里写入 `$value`，字段声明 `readOnly` 后以阅读态展示；同时声明 `omit: true`，不随表单提交。
+- 先选「白色」时，库存为 0 的「128G」自动禁用；先选「128G」时「白色」同样禁用。
 
 ## 按勾选生成行
 
@@ -156,10 +156,10 @@ export default function App() {
 }
 ```
 
-- 这里使用 `watch` 而不是 `reaction` 来同步数组行：`watch` 只在 `picked` 发生变化时触发，回调中读取 `d.rows.$value` 获取旧行不会被追踪为依赖，因此可以安全地实现「保留旧行数据、同步新行结构」。
-- `reaction.each` 的回调接收 `(row, ctx)`，其中的 `row.total` 等句柄相对于当前行解析，详见 [reaction.each](/guide/linkage#reactioneach每一行一个实例)。
-- 缺货的组合在 `enum` 中设置了 `disabled: true`，`Checkbox.Group` 会自动禁用对应复选框。
-- 在更复杂的场景中，也可以单独维护一份 `overrides` 映射表记录修改过的单价，再通过 `reaction` 派生整张数组。
+- 同步数组行用 `watch` 而非 `reaction`：`watch` 仅在 `picked` 变化时运行，回调内读取 `d.rows.$value` 不会被收集为依赖，可在同步新行时保留已有行的单价修改。
+- `reaction.each` 回调签名为 `(row, ctx)`，`row.total` 等句柄相对于当前行解析，见 [reaction.each](/guide/linkage#reactioneach每一行一个实例)。
+- 缺货组合在 `enum` 中标记 `disabled: true`，`Checkbox.Group` 自动禁用对应项。
+- 也可单独维护一份 `overrides` 字典记录改过的单价，再用 `reaction` 派生整张数组。
 
 ## 上千个字段
 
@@ -223,8 +223,8 @@ export default function App() {
 }
 ```
 
-- 修改第 3 行的成本时，只有第 3 行的 `cost` 和 `suggested` 上标的渲染次数会加 1，其余 999 行均保持静止。`<ArrayField>` 只订阅数组的结构变更，不订阅单元格值变化。
-- `<ArrayField virtualScroll>` 仅挂载可视区域内的行组件，但未挂载行对应的 `reaction.each` 实例依然在引擎中运行，因此全表的建议价在初始化时就已经计算完成。
-- 完整演示页同时提供了 200 行与 1000 行两档切换，用于直观观察局部渲染次数。
+- 修改第 3 行成本时，只有第 3 行的 `cost` 和 `suggested` 上标计数加 1，其余 999 行不重渲染。`<ArrayField>` 只订阅数组结构变更，不订阅单元格值变化。
+- `<ArrayField virtualScroll>` 仅挂载视口内的行组件，未挂载行的 `reaction.each` 实例仍在引擎内运行，初始化时全表建议价已完成计算。
+- 独立演示页提供 200 行与 1000 行切换，用于对比局部渲染次数。
 
 下一组：[数组与树](/examples/arrays)。

@@ -3,15 +3,15 @@ title: 数组容器 ArrayItems / ArrayCards / ArrayTable
 description: 为 ArrayField 传入容器组件即可获得增删、排序、拖拽、序号和空状态；ArrayTable 提供分页、勾选和列配置等完整表格能力。
 ---
 
-基础的 [`<ArrayField>`](/guide/structures) 只负责建立行作用域和追踪行身份，如果自己手写列表，往往需要用 `useArrayField()` 和 `useIndex()` 拼接增删改序按钮并判断编辑权限。为了避免重复劳动，`@shikiform/antd` 提供了三种常用的数组容器组件：
+[`<ArrayField>`](/guide/structures) 负责建立行作用域与追踪行身份。`@shikiform/antd` 在此之上提供三种带增删改序控件的数组容器：
 
 | 容器 | 展示形式 | 内置功能 |
 |---|---|---|
-| `ArrayItems` | 配合 `ArrayItems.Item` 渲染紧凑的行列表 | `SortHandle`、`Index`、`Remove`、`MoveUp`、`MoveDown`、`Addition` 及空状态提示 |
-| `ArrayCards` | 自动将每行包装为卡片，标题形如 `title #序号` | 右上角自带上移 / 下移 / 删除按钮，支持拖拽排序与空状态提示 |
-| `ArrayTable` | 基于 Ant Design Table 的可编辑表格，单元格由 `columns` 定义 | 包含全套行操作、`Copy` / `ShadowAddition`（弹窗草稿添加）、分页、多选、展开子表、列配置与列宽调节 |
+| `ArrayItems` | 配合 `ArrayItems.Item` 渲染紧凑行列表 | `SortHandle`、`Index`、`Remove`、`MoveUp`、`MoveDown`、`Addition` 与空状态占位 |
+| `ArrayCards` | 每行包裹为一张卡片，标题为 `title #序号` | 右上角自带上移 / 下移 / 删除按钮，支持拖拽排序与空状态占位 |
+| `ArrayTable` | 基于 Ant Design `Table` 的可编辑表格，单元格由 `columns` 定义 | 行操作、`Copy` / `ShadowAddition`（草稿添加）、分页、多选、展开子表、列配置与列宽拖拽 |
 
-使用时只需将容器传给 `<ArrayField>` 的 `component` 属性（同样支持 `[容器, props]` 元组写法及严格的类型检查）。由于容器渲染在数组作用域内部，配套的操作按钮都能自动识别当前数组和行号。
+将容器传给 `<ArrayField>` 的 `component` 属性即可（支持 `[容器, props]` 元组及属性类型检查）。容器渲染在数组作用域内，子按钮自动读取当前数组与行下标。
 
 ## ArrayItems
 
@@ -53,10 +53,10 @@ export default function App() {
 }
 ```
 
-- **强类型行作用域**：通过 `F = typed(form)` 得到的 `F.ArrayField` 会把强类型的 `row.Field` 交给子函数，按单行类型检查字段名；在自定义行组件中可通过 `useIndex()` 和 `useRecord<Contact>()` 读取行号和当前行数据。
-- **无需手造 id**：对于没有业务主键的行对象，引擎直接以对象引用作为唯一 key，调整顺序后错误提示和 `touched` 状态依然跟随数据行，编辑单元格也不会丢失焦点或重置状态；仅在数据本身带有稳定主键时才需要传 `rowKey`。
-- **拖拽与键盘排序**：按住 `⋮⋮` 拖放到目标行即可触发重排（基于原生 HTML5 拖放，并自动隔离不同数组间的误拖放）；`MoveUp` 和 `MoveDown` 提供等价的按钮操作，在首行或末行会自动禁用。
-- **新增与空状态**：`Addition` 默认追加空对象 `{}`，可通过 `defaultValue` 指定初始值或生成函数，通过 `method="unshift"` 插入到列表顶部。列表为空时默认展示 Ant Design `Empty` 占位，也可传入自定义的 `empty` 节点或 `empty={false}` 关闭。
+- `F = typed(form)` 返回的 `F.ArrayField` 向子函数传入按行类型约束的 `row.Field`；自定义行组件内可用 `useIndex()` 与 `useRecord<Contact>()` 读取行号和行数据。
+- 没有业务主键的对象行以对象引用作为稳定 key，重排后错误和 `touched` 状态仍跟随原行，编辑单元格不会失焦重挂；数据自带稳定主键时再传 `rowKey`。
+- 按住 `⋮⋮` 拖放到目标行可执行重排（原生 HTML5 拖放，不同数组之间互不响应）；`MoveUp` 与 `MoveDown` 在首行或末行禁用。
+- `Addition` 默认追加 `{}`，可通过 `defaultValue` 指定初始值或工厂函数，`method="unshift"` 插入头部。空列表默认渲染 Ant Design `Empty`，可传 `empty` 自定义节点或 `empty={false}` 关闭。
 
 ## 不可编辑状态自动隐藏按钮
 
@@ -262,13 +262,13 @@ export default function App() {
 }
 ```
 
-表格自带行拖拽排序、批量勾选、弹窗草稿添加（校验通过后才写入列表）、单行复制和确认删除。更多高级功能（如展开子表、拖拽列宽、异步删除及大数据量虚拟滚动）请看 [/play/array-table](/play/array-table)。分页、勾选、展开不会混入表单值；脱离 Ant Design 复用这三块状态用 `@shikiform/hooks` 的 `useArrayTable`。列的显隐、排序和密度留在 `ArrayTable` 上，在 `toolbar` / `footer` / 单元格里用 `ArrayTable.useTable().settings` 读取。
+表格内置行拖拽排序、批量勾选、弹窗草稿添加（校验通过后写入数组）、单行复制与确认删除。展开子表、列宽拖拽与异步删除见 [/play/array-table](/play/array-table)。分页、勾选、展开状态不进入表单值；不使用 Ant Design 时可用 `@shikiform/hooks` 的 `useArrayTable` 管理这三项状态。列显隐、列顺序与密度由 `ArrayTable` 自身维护，在 `toolbar`、`footer` 或单元格内通过 `ArrayTable.useTable().settings` 读取。
 
 ## 其他数组方案的选择
 
-- **完全自定义行布局和按钮**：直接使用 `<ArrayField>` 配合 `useArrayField()` / `useIndex()`，参见 [字段路径与结构](/guide/structures)。
-- **带查询条件的分页表格**：使用 [`QueryList`](/guide/pro#查询列表)，其底层即由 `ArrayTable` 驱动。
-- **万行级超长列表**：使用不带容器的 `<ArrayField name virtualScroll={{ height }}>`，仅渲染视口内的可见行，参见 [数组示例 · 长列表](/examples/arrays)。
-- **详细属性参考**：[ArrayItems](/reference/antd#arrayitems)、[ArrayCards](/reference/antd#arraycards)、[ArrayTable](/reference/antd#arraytable)、[useArrayEditable](/reference/antd#usearrayeditable)。
+- 自定义行布局与按钮：直接使用 `<ArrayField>` 配合 `useArrayField()` / `useIndex()`，见 [字段路径与结构](/guide/structures)。
+- 带筛选条件的分页表格：使用 [`QueryList`](/guide/pro#查询列表)，内部基于 `ArrayTable` 渲染。
+- 大行数虚拟列表：使用不带容器的 `<ArrayField name virtualScroll={{ height }}>`，只挂载视口可见行，见 [数组示例 · 长列表](/examples/arrays)。
+- API 参考：[ArrayItems](/reference/antd#arrayitems)、[ArrayCards](/reference/antd#arraycards)、[ArrayTable](/reference/antd#arraytable)、[useArrayEditable](/reference/antd#usearrayeditable)。
 
-下一步：[接入组件库](/guide/headless)，不依赖 Ant Design 直接使用底层 Hooks。
+下一步：[接入组件库](/guide/headless)。

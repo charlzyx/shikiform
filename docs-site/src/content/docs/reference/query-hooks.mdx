@@ -40,7 +40,8 @@ useQueryTable<TValues, TRow = unknown>(
 | `defaultPageSize` | `10` | 缺失页大小时的默认值；已有字段值优先 |
 | `selectedKeys` | `'selectedKeys'` | 选择字段路径；初始缺失时为 `[]`，读取时转换为 string[] |
 | `mode` | `'server'` | server 模式由服务端分页；client 模式对请求结果的整个 data 做切片 |
-| `request` | **必填** | 异步返回 `{ data, total }`，见协议 |
+| `validateOnSubmit` | `true` | 调用 `submit()` 时先校验筛选字段（`params` 为字段路径时仅校验该子树，避免行内编辑 `rows` 的错误阻塞搜索），校验未通过则跳过请求 |
+| `request` | **必填** | 异步返回 `{ data, total, extra? }`，见协议 |
 | `rows` | 不写回 | 数组字段路径：每页 `data` 写进这个字段并作为它的初始值，单元格可直接编辑；`QueryList` 必须有它 |
 | `useQuery` | 内置 runner | 省略时用库内的最小请求实现（不从包入口导出）。可换成 TanStack Query 等兼容 Hook；每次渲染应传同一个 Hook，不要动态切换 Hook 实现 |
 
@@ -57,13 +58,14 @@ interface QueryRequestArgs<TParams> {
   filters: Record<string, (string | number | boolean)[]>;  // 表头列筛选，只含有选中值的列
   signal: AbortSignal;
 }
-interface QueryRequestResult<TRow> {
+interface QueryRequestResult<TRow, TExtra = unknown> {
   data: TRow[];
   total: number;
+  extra?: TExtra; // 可选附加返回数据（如金额汇总、状态计数），通过 table.extra 读取
 }
 ```
 
-server 返回当前页 data 和未分页的 total；client 返回本次筛选下的完整 data，页面 total 使用 `data.length`。把 signal 传给 fetch 等请求工具，才能实际取消网络工作；内置 runner 也会忽略已过期响应。
+server 返回当前页 data 和未分页的 total；client 返回本次筛选下的完整 data，页面 total 使用 `data.length`。若服务端一并返回汇总统计信息，可放入 `extra`，无需在 `request` 内部手写外部 `setState`。把 signal 传给 fetch 等请求工具，才能实际取消网络工作；内置 runner 也会忽略已过期响应。
 
 ### 返回值与操作
 
@@ -72,12 +74,13 @@ server 返回当前页 data 和未分页的 total；client 返回本次筛选下
 | `form` | 原表单实例，可以用正式 Field/Hook 接搜索控件 |
 | `rows` | `rows` 选项的字段路径（没传为 `undefined`）；`QueryList` 渲染的就是它 |
 | `data`、`total` | 当前页 `TRow[]`、总数；未取得数据时 `[]` / `0` |
+| `extra` | `TExtra \| undefined`；最近一次成功响应返回的 `extra` 字段 |
 | `loading` | 请求中且还没有旧数据时 true |
 | `fetching` | 所有进行中的请求都为 true，包含保留旧结果的刷新 |
 | `isPlaceholderData` | 是否正在展示兼容查询 Hook 标记的旧结果 |
 | `page`、`pageSize` | 当前表单中的数值页码 / 页大小 |
 | `selectedKeys` | `string[]`，跨页保留 |
-| `submit(): void` | 读当前筛选值，回第 1 页，清空选择并强制查询 |
+| `submit(): Promise<void>` | 默认先校验筛选字段（`validateOnSubmit: false` 时跳过），校验通过后回第 1 页、清空选择并强制查询；校验未通过时不发起请求 |
 | `reset(): void` | `form.reset()`，清空选择，再请求；建议初始页码设为 1 |
 | `refresh(): void` | 保留已提交的筛选、当前页和选择，强制查询 |
 | `onPageChange(page, pageSize?): void` | 更新分页；未传 pageSize 沿用当前值。server 请求，client 只切片 |
@@ -106,7 +109,7 @@ const table = useQueryTable({
 ]} />
 ```
 
-**这里的 `submit()` 是查询动作，不是表单 `form.submit()`。** 它不等待校验，也不返回请求 Promise。需要先验证筛选时，`try { await table.form.validate() } catch { return }`，通过后再 `table.submit()`。
+**这里的 `submit()` 是查询动作，不是整表 `form.submit()`。** 默认会先校验筛选参数路径（可通过 `validateOnSubmit: false` 关闭），校验未通过时不发送请求。
 
 输入过滤条件不会立刻请求；查询动作才采用当前筛选。翻页/刷新使用上一次提交的筛选。筛选对象来自表单值，不要原地修改 `form.values` 或请求参数。
 

@@ -33,7 +33,7 @@ export interface EnumDisplayItem {
 }
 
 export interface EnumItemsOptions {
-  /** Give options without a `color` a palette color by their position. Default true. */
+  /** Give options without a `color` a palette color by their position. Default false. */
   colorful?: boolean
 }
 
@@ -50,7 +50,7 @@ function sameValue(a: unknown, b: unknown): boolean {
 export function enumItems(value: unknown, options: readonly EnumOption[] | undefined, config: EnumItemsOptions = {}): EnumDisplayItem[] {
   if (value == null || value === '') return []
   const values = Array.isArray(value) ? value : [value]
-  const colorful = config.colorful ?? true
+  const colorful = config.colorful ?? false
   const out: EnumDisplayItem[] = []
   for (const item of values) {
     if (item == null || item === '') continue

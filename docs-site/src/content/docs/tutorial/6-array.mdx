@@ -7,13 +7,13 @@ tableOfContents: false
 <div className="tutorial-step">
 <div className="tutorial-copy">
 
-当前订单中已经有一条商品数据（贴纸，单价 2，数量 4），但小计还停留在 0，也不会随数量变化。
+起始订单中有一行商品（贴纸，单价 2，数量 4），小计仍为 0，不会随单价或数量更新。
 
-`<ArrayField>` 接收一个渲染函数作为子元素，函数内部渲染的字段名会自动相对于当前行解析。通过设置 `rowKey="id"`，引擎会在增删或拖拽排序时保留每行的状态。增删行用数组句柄：行里的 `<RemoveButton>` 调 `useArrayField().remove(useIndex())`，「添加一行」写在 `<ArrayField>` 的 `component` 里，同样用 `useArrayField().push(row)`。不要调用 `form.pushArray` / `form.removeArray`。
+`<ArrayField>` 接收渲染函数作为子元素，函数内的字段名相对于当前行解析。指定 `rowKey="id"` 后，增删或排序时字段状态跟随行 `id` 移动。结构变更通过数组句柄完成：行内 `<RemoveButton>` 调用 `useArrayField().remove(useIndex())`，「添加一行」放在 `<ArrayField component>` 内调用 `useArrayField().push(row)`，不要调用 `form.pushArray` / `form.removeArray`。
 
-在联动逻辑中，数组每一行的派生计算应当使用 `reaction.each(select, callback)`。其中第一个参数选中数组字段的 handle，第二个参数是每行对应的回调。引擎会为数组中的每一行建立独立的联动实例，编辑某一行时只会触发那一行的重算。
+数组每行的派生计算使用 `reaction.each(select, callback)`。引擎为每一行维护独立实例，修改某一行时只重算该行。
 
-**这一步：** 在 `effects` 中补充按行计算的逻辑：
+**这一步：** 在 `effects` 中补充按行计算：
 
 ```ts
 reaction.each(
@@ -25,7 +25,7 @@ reaction.each(
 );
 ```
 
-保存后，「贴纸」的小计会立刻变为 8；修改某一行或新增行时，对应行的小计也会实时更新并随表单一起提交。如果小计只用于前端展示、不需要随表单提交，只需为 `total` 字段声明 `omit: true`。
+修改后，「贴纸」的小计变为 8；修改已有行或新增行时，对应行的小计随之更新并参与提交。若小计仅在前端展示、不随表单提交，可为 `total` 声明 `omit: true`。
 
 </div>
 

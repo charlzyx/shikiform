@@ -27,7 +27,7 @@ export type { ArrayScopeValue, ScopeValue, TreeScopeValue } from './context'
 export { FieldKit } from './field-kit'
 export type { FieldComponents, FieldDecorators, FieldKitDecorator, FieldKitSpec } from './field-kit'
 export { ArrayField, Field, Form, ObjectField, TreeField, Watch } from './components/fields'
-export type { ArrayContainerSlot, FieldProps, FormDomProps, FormProps, FormSubmitHandlers, TreeNodeRender } from './components/fields'
+export type { ArrayContainerSlot, FieldProps, FormDomProps, FormProps, FormSubmitHandlers, RowScopeProps, TreeNodeRender, WatchProps } from './components/fields'
 export { UI } from './components/ui'
 export type { UIProps, UiBinding } from './components/ui'
 export { useArrayField } from './hooks/use-array'
@@ -66,6 +66,7 @@ export type {
   ArrayItemOf,
   TemplatePath,
   SubmitValues,
+  DeepPartial,
   Draft,
   UiDraft,
   UiName,

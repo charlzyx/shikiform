@@ -3,26 +3,24 @@ title: 核心概念
 description: 理解 ShikiForm 的统一表单引擎、draft 与 handle、$ 状态、显隐与提交机制、fields 声明及数据流转过程。
 ---
 
-ShikiForm 的核心思路是把所有表单状态（值、显隐、只读、校验规则、错误提示、UI 属性）和联动逻辑收拢到一个与视图框架解耦的引擎中。React 组件和 Ant Design 适配层本身不维护独立状态，它们只负责订阅对应路径的变化并把状态映射为组件属性。
-
-理解这套模型后，日常开发只需掌握以下几个核心概念。
+ShikiForm 将表单值、字段状态（显隐、禁用、只读、校验规则、错误提示、UI 属性）和联动逻辑放在一个独立于视图层的引擎中维护。React 组件与 Ant Design 适配层不持有自己的表单状态，仅按路径订阅引擎状态并映射为组件属性。
 
 ## 术语速览
 
 | 术语 | 说明 |
 |---|---|
-| **表单实例** | 由 `useForm` 或 `createForm` 返回的 `FormInstance`，统一持有表单数据树与各路径的字段状态 |
-| **draft** | `reaction`、`watch` 和 `form.batch` 回调收到的参数 `d`，用来安全地追踪依赖并读写引擎状态 |
-| **handle** | draft 上的路径句柄（如 `d.user.name`）。属性访问只用于定位路径，不会直接读取数据 |
-| **`$` 状态** | 挂在 handle 上以 `$` 开头的成员（如 `$value`、`$required`、`$visible`），用于读写具体的字段状态 |
-| **`decorator` / `component`** | `<Field>` 渲染的两层结构：`decorator`（如 `FormItem`）负责标签和错误展示，`component`（如 `Input`）负责输入交互 |
-| **`reaction` / `watch`** | `reaction` 用于派生状态，初始化即运行并自动追踪依赖；`watch` 用于副作用动作，仅在监听源变化后触发 |
-| **`each`** | `reaction.each` 与 `watch.each` 只接受两个参数，会为选中数组的每一行建立独立实例，并自动递归进入嵌套对象数组（嵌套在对象上的基本类型数组除外；若直接对基本类型数组本身调用 `each`，则会在 `depth === 0` 触发回调），可在回调内按 `ctx.key` / `ctx.depth` 过滤 |
-| **四个布尔** | `visible`、`disabled`、`readOnly`、`omit`。四个都按字段路径继承；`omit` 决定是否提交，父级为 `true` 时子级 `false` 不能单独提交 |
+| **表单实例** | `useForm` 或 `createForm` 返回的 `FormInstance`，持有表单值树与各路径的字段状态 |
+| **draft** | `reaction`、`watch` 和 `form.batch` 回调的参数 `d`，用于追踪依赖与读写状态 |
+| **handle** | draft 上的路径代理（如 `d.user.name`）；普通属性访问只定位路径，不读取值 |
+| **`$` 状态** | handle 上以 `$` 开头的成员（如 `$value`、`$required`、`$visible`），用于读写具体状态 |
+| **`decorator` / `component`** | `<Field>` 渲染的两层结构：`decorator`（如 `FormItem`）展示标签和错误，`component`（如 `Input`）负责输入 |
+| **`reaction` / `watch`** | `reaction` 计算派生状态，初始化即运行并自动追踪依赖；`watch` 执行变化后的动作，首次不运行 |
+| **`each`** | `reaction.each` 与 `watch.each` 接收 `(select, fn)` 两个参数，为数组每行建立独立实例并递归进入嵌套对象数组（跳过对象上的基本类型数组；直接对基本类型数组本身调用 `each` 时在 `depth === 0` 触发），可在回调内按 `ctx.key` / `ctx.depth` 过滤 |
+| **四个布尔** | `visible`、`disabled`、`readOnly`、`omit`，均沿字段路径继承；`omit` 控制是否提交，父级为 `true` 时子级 `false` 不能单独提交 |
 
 ## handle 与 value 的区别
 
-在 `reaction`、`watch` 或 `form.batch` 中，初学者最容易混淆「字段句柄（handle）」和「字段值（value）」。记住一条核心原则：**不带 `$` 的访问是在定位路径，带 `$` 的成员才是读写状态**。
+在 `reaction`、`watch` 或 `form.batch` 中，不带 `$` 的属性访问只定位字段路径，带 `$` 的成员才读写字段状态：
 
 ```ts
 d.user.name.$value            // 读取字段值（在 reaction 中会自动登记为依赖）
@@ -145,12 +143,12 @@ export default function App() {
 
 ## 一次用户输入如何流转
 
-当用户在页面上修改某个输入框时，数据会按以下顺序流过引擎：
+输入框变更后的执行顺序：
 
-1. 控件触发 `field.onChange(value)`，将新值写入表单引擎。
-2. 引擎标记受影响的状态，并重新执行订阅了这些状态的 `reaction`；如果有下游依赖，会持续传递直到整个状态树收敛。来源发生变化的 `watch` 也会随后触发一次。
-3. 订阅了相关字段路径的 React 组件收到通知并完成局部重渲染。
-4. 按照触发时机（默认失焦或提交时，可配置为输入时）执行同步及异步校验。
-5. 调用提交时，引擎会先等待尚未完成的异步规则并做最终校验，全部通过后去掉 `omit` 的字段（`visible: false` 的值仍在），将最终数据交给 `onSubmit` 回调。
+1. 控件调用 `field.onChange(value)` 将新值写入引擎。
+2. 引擎标记脏状态，重跑依赖这些状态的 `reaction` 直至收敛；监听源发生变化的 `watch` 随后执行一次。
+3. 订阅了变更路径的 React 组件收到通知并局部重渲染。
+4. 按 `validateTrigger`（默认 `onBlur` 与 `onSubmit`，可加入 `onChange`）执行同步与异步校验。
+5. 提交时等待在途异步规则并执行全表校验，通过后剔除 `omit` 字段（`visible: false` 的值仍保留），将结果传给 `onSubmit`。
 
-下一步建议阅读 [表单与字段](/guide/field)，了解 `<Field>`、装饰器与控件之间的属性合并和绑定方式。
+继续阅读：[表单与字段](/guide/field)。

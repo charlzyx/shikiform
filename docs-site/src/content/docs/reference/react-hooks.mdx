@@ -103,7 +103,7 @@ const F = typed(form)
 </F.ObjectField>
 ```
 
-普通 `<Field name="inner">` 也是相对路径。见 [数据结构](/guide/structures#作用域里的名字不要带前缀)。
+普通 `<Field name="inner">` 也是相对路径。见 [字段路径与结构](/guide/structures#作用域内的字段名不要重复前缀)。
 
 - 行组件里没有表单实例：`const Row = typed<RowValue>()`，`Row.useField('price')` 按行检查。它的 `useWatch` 仍读根 draft，需要类型时写 `typed<RowValue, Values>()`。
 - 可复用片段（地址块、联系人块）就是普通组件：`const A = typed<Address>()`，组件里写 `<A.Field name="city" …/>`，用的地方 `<ObjectField name="home"><AddressFields /></ObjectField>`。同一个片段放在不同的 `ObjectField` 里就绑定不同的路径；需要额外参数就是普通 props。
@@ -118,7 +118,7 @@ const F = typed(form)
 useFormContext<T = any>(): FormInstance<T>
 ```
 
-无参数。返回最近 `<Form>` 提供的同一个引擎；缺少 Provider 时抛错，不会偷偷创建表单。
+无参数。返回最近 `<Form>` 提供的同一个引擎；缺少 Provider 时抛错，不会隐式创建实例。
 
 `T` 是调用者对已有实例的类型说明，不做运行时转换。它不订阅字段值或 `submitting`，适合按钮事件里调用 `reset`、`submit`。要显示实时提交状态，配合 `useWatch`。
 
@@ -231,7 +231,7 @@ const field = useField('amount', { ui: 'slider' })                  // 同上的
 - 返回的 binding：`value` / `onChange` / `errors` / `required` / `options` 是字段的；`visible` / `disabled` / `readOnly` 和其余 UI 状态是实例的；`id` 是带表单前缀的 `<前缀>-<净化路径>--<ui>`（`<Form id="edit">` 下的 `amount` / `slider` 为 `edit-amount--slider`），label 不会指错；`ui` 是实例名。实例里的无参 `useField()` 返回这份 binding。
 - 优先级：reaction（`$ui(name).$disabled`）> JSX（实例上的 `disabled` / `componentProps` …）> 回退。回退：`visible` / `disabled` / `readOnly` 取字段的有效值（字段继承根上的同名开关，实例也跟着）；`title` / `description` 取字段的声明 + reaction 值；`componentProps` / `decoratorProps` 不回退（是另一个组件的）。
 - 实例**不**登记 JSX `rules` / `required` / `enum` / `omit`（开发期警告一次）：这些写在不带 `ui` 的 `<Field>` 上。
-- 名字类型：默认任意字符串；在 `UiNames` 里登记后 `ui` / `<UI name>` / `$ui()` 都检查拼写（见 [UI 节点](/guide/ui#名字的类型)）。
+- 名字类型：默认任意字符串；在 `UiNames` 里登记后 `ui` / `<UI name>` / `$ui()` 都检查拼写（见 [命名 UI](/guide/ui#为-ui-名称启用类型检查)）。
 
 
 ## UI 组件（`<UI>`）
@@ -263,17 +263,19 @@ reaction((d) => { d.$ui('approvalTip').$visible = d.amount.$value >= 50000 })
 
 ```ts
 useWatch<T = any, S = unknown>(select: (draft: Draft<T>) => S): S
+useWatch<T, S>(form: FormInstance<T>, select: (draft: Draft<T>) => S): S
 ```
 
 | 参数 / 返回 | 契约 |
 |---|---|
+| `form`（可选） | 显式传入表单实例时，可在 `<Form>` 外层（如创建 `useForm` 的同一组件顶层或卡片头部插槽）直接订阅；`typed(form).useWatch` 与 `typed(form).Watch` 已自动绑定该实例 |
 | `select` | 必填同步 selector；读取 `$value`、`$errors`、`$submitting` 等状态并返回数据，不在里面写值或执行副作用 |
 | 返回值 | selector 的结果 `S`；没有额外包装对象 |
 | 依赖 | 自动跟踪本轮读到的 `$` 状态；分支变化后调整订阅 |
 
 优先用 [`typed(form).useWatch((d) => d.name.$value)`](#typed)（`string`）。不注解时 `useWatch((d) => d.$submitting)` 可以编译，`d` 是 `any`，返回值也是 `any`。要给裸 `useWatch` 标表单类型，写成 `useWatch<Values>()((d) => d.name.$value)`：草稿是 `Draft<Values>`，返回值仍会推断。`useWatch<Values>(...)` 只写一个泛型时 TypeScript 不再推断返回值（它是 `unknown`），不要这样写。注解 `useWatch((d: Draft<Values>) => d.name.$value)` 也可以。
 
-返回对象/数组可用，快照通过 `Object.is` / 深比较复用；不要返回每次新建的函数。没有读到任何 `$` 依赖时会退回整表通知，因此它不适合作为“零订阅”的替代品。
+返回对象/数组可用，快照通过 `Object.is` / 深比较复用；不要返回每次新建的函数。没有读到任何 `$` 依赖时会退回整表通知，不订阅值请改用 `useFormContext`。
 
 `useWatch` 是 React 中的读取/渲染；effects 里的 `watch(source, effect)` 是值变化后的动作，两者不是同一 API。参见 [联动](/guide/linkage)。
 
@@ -499,6 +501,16 @@ function RowTitle() {
   return <b>{row.name} × {row.qty}</b>
 }
 ```
+
+## ArrayField.Row
+
+```tsx
+<ArrayField.Row path={`${array.path}.${index}`} index={index} itemKey={key}>
+  <Field name="price" component={[InputNumber]} />
+</ArrayField.Row>
+```
+
+当表格组件由自己接管行渲染（如原生 Ant Design `<Table>` 的 `columns.render`，不经过 `<ArrayField>{(row) => ...}</ArrayField>`）时，用 `<ArrayField.Row>` 包裹单元格子树以提供行级相对路径作用域，使内部的 `<Field name="price">`、`useIndex()` 与 `useRecord()` 指向对应行。
 
 
 ## useTreeField

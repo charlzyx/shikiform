@@ -1,9 +1,9 @@
 ---
 title: 字段状态
-description: 详解 $value 以及 visible、disabled、readOnly、omit 四个独立布尔。
+description: $value 与 visible、disabled、readOnly、omit 四个独立布尔的行为规则。
 ---
 
-在 ShikiForm 的表单模型中，字段的所有自身状态都以 `$` 开头挂在 handle 上。显隐和能否编辑是四个独立布尔：`$visible`、`$disabled`、`$readOnly`、`$omit`。
+字段自身状态以 `$` 开头挂在 handle 上。显隐、编辑与提交由四个独立布尔控制：`$visible`、`$disabled`、`$readOnly`、`$omit`。
 
 `reaction` 写入 `$value` 的字段是计算字段：仍然可编辑，也仍然提交，不计入 dirty。要预览就再写 `readOnly`；不要提交就声明 `omit: true`。
 

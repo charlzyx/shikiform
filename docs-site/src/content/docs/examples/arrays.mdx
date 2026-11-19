@@ -73,7 +73,7 @@ export default function App() {
 - `$readOnly` 沿字段路径向下走：写 `d.profile` 和 `d.orders`，里面的字段跟着变。赋 `undefined` 丢掉这一层，回到上一级。
 - 已发货行单独写了 `row.qty.$readOnly = true`，整表可编辑时这一格仍是预览。
 - 抽屉中的 `<ObjectField name="address">` 通过 React 上下文穿透 Portal 保持在 `profile` 作用域内，关闭抽屉后字段的值和状态依然保留在表单引擎中。
-- 「地址」这一行使用不带 `name` 的 `<FormItem label="地址">` 做纯布局容器，标签与列宽依然会自动对齐外层的 `FormLayout`，参见 [一个标签放几个字段](/guide/layout#一个标签放几个字段)。
+- 「地址」行使用不带 `name` 的 `<FormItem label="地址">` 作为纯布局容器，标签宽度与外层 `FormLayout` 对齐，见 [在一个标签下组合多个字段](/guide/layout#在一个标签下组合多个字段)。
 
 ## 树：跨层移动
 
@@ -143,7 +143,7 @@ export default function App() {
 
 ## 长列表：只挂载可见行
 
-**场景**：渲染包含 2000 行的名单列表，为了保证页面流畅只挂载视口可见的几行，但提交前所有 2000 行的必填校验规则都必须生效。
+**场景**：2000 行名单只挂载视口内可见行，提交前全部 2000 行的必填规则仍参与校验。
 
 ```tsx preview play=virtual
 import { useState } from 'react';
@@ -184,7 +184,7 @@ export default function App() {
 }
 ```
 
-- 虽然第 499、999、1499 和 1999 行位于屏幕之外并未挂载到 DOM，但点击校验后引擎依然能准确查出它们的空值错误——因为规则声明在 `fields` 的行模板 `rows.*.name` 上，独立于组件生命周期。
-- `<ArrayField virtualScroll>` 仅挂载视口可见的行并自动注入行作用域，仅用于自定义列表行，不可与 `ArrayTable` 等容器 `component` 同时使用。
+- 第 499、999、1499、1999 行处于视口外未挂载，点击校验仍会报出它们的空值错误：`fields` 中的行模板 `rows.*.name` 在引擎层生效，不依赖组件挂载。
+- `<ArrayField virtualScroll>` 仅挂载可见行并注入行作用域，只用于自定义列表行，不能与 `ArrayTable` 等容器 `component` 同时使用。
 
 下一组：[表格与查询](/examples/tables)。

@@ -1,9 +1,9 @@
 ---
 title: 从 Formily 或 react-hook-form 迁移
-description: 对照 Formily 与 react-hook-form 的核心概念差异，快速迁移字段模型、显隐控制与联动逻辑。
+description: 对照 Formily 与 react-hook-form 的字段模型、四个状态布尔与联动写法。
 ---
 
-迁移现有表单时，建议先保证数据结构与最终提交结果一致，再逐步将联动与校验逻辑迁移到 ShikiForm 的机制上。
+迁移现有表单时，可先对齐表单值结构与提交结果，再将联动和校验迁到 `defineEffects` 与 `fields`。
 
 ## 从 display / pattern 迁到四个布尔
 

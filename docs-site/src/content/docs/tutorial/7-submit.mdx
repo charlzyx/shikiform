@@ -7,15 +7,15 @@ tableOfContents: false
 <div className="tutorial-step">
 <div className="tutorial-copy">
 
-在这个表单里，如果把密码和确认密码都填成 `secret123` 再点提交，会发现 `confirmPassword` 也出现在了最终提交的 JSON 里。
+将密码和确认密码都填成 `secret123` 后点击提交，`confirmPassword` 会一并出现在提交结果中。
 
-在界面上，「确认密码」和普通字段一样需要渲染、也需要校验，但它只是前端用来做一致性比对的辅助字段，不应当提交给后端。此时只需给它设置 `omit`：字段仍会正常显示和参与校验（读取 `$visible` 仍为 `true`），但在提交与 `getSubmitValues()` 时会被自动剔除。
+「确认密码」需要正常渲染和校验，但不应提交给后端。声明 `omit` 后，字段照常渲染与校验（`$visible` 仍为 `true`），在提交和 `getSubmitValues()` 时被剔除。
 
-下方的 `Reset` 按钮会将表单值恢复到 `initialValues`，并触发 `afterReset` 回调（这里用来清掉刚才的提交结果）。注意界面里的「重置表单」按钮用来还原用户输入的数据，工具栏右侧的「重置」按钮则是把教程代码还原为初始状态。
+`Reset` 按钮将表单恢复到 `initialValues`，随后触发 `afterReset` 回调（本例用于清空已展示的提交结果）。表单内的「重置表单」用于恢复表单值，工具栏右侧的「重置」用于恢复练习代码。
 
-**这一步：** 为 `confirmPassword` 加上 `omit`，并在 `rules` 中补充校验：当输入值不等于 `ctx.record.password` 时，返回 `'两次密码不一致'`。
+**这一步：** 为 `confirmPassword` 加上 `omit`，并在 `rules` 中添加校验：当值不等于 `ctx.record.password` 时返回 `'两次密码不一致'`。
 
-修改完成后，输入相同的两次密码并提交，确认结果 JSON 中只包含 `profile` 和 `password`，不再出现 `confirmPassword`。
+修改后输入两次一致的密码并提交，确认输出 JSON 只含 `profile` 与 `password`。
 
 </div>
 

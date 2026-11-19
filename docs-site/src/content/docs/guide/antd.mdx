@@ -1,18 +1,19 @@
 ---
 title: Ant Design 适配
-description: 如何使用开箱即用的 Ant Design 控件、通过 connect / mapProps 接入自定义控件，以及使用 Submit / Reset 按钮。
+description: "@shikiform/antd 内置适配控件、connect / mapProps 自定义控件接入与 Submit / Reset 按钮。"
 ---
 
-Ant Design 控件通常接收 `value`、`onChange`、`status`、`disabled` 等属性。`@shikiform/antd` 负责将 ShikiForm 引擎里的字段状态映射成这些属性，数据本身依然统一存储在 ShikiForm 引擎中——因此请**不要同时使用 Ant Design 原生 `Form` 的 `name`、`rules` 或 `initialValues`**，以免两套状态互相冲突。
+`@shikiform/antd` 将 ShikiForm 引擎中的 `FieldBinding` 映射为 Ant Design 控件的 `value`、`onChange`、`status`、`disabled` 等属性，表单状态由 ShikiForm 引擎维护。不要混用 Ant Design 原生 `Form` 的 `name`、`rules` 或 `initialValues`。
 
-## 开箱即用的控件
+## 内置适配控件
 
-`@shikiform/antd` 提供了全套常用控件的适配版本，包括：`Input`（含 `TextArea`、`Password`）、`InputNumber`、`Select`、`AutoComplete`、`TreeSelect`、`Cascader`、`Switch`、`Checkbox`（含 `Group`）、`Radio`（直接作为单选组使用，等同于 `Radio.Group`）、`DatePicker` / `TimePicker`（含 `RangePicker`）、`Slider`、`Rate`、`Transfer`、`Upload`（含 `Dragger`）和 `ColorPicker`。完整清单与阅读态效果见 [控件与阅读态](/guide/controls)。
+`@shikiform/antd` 导出的适配控件包括：`Input`（含 `TextArea`、`Password`）、`InputNumber`、`Select`、`AutoComplete`、`TreeSelect`、`Cascader`、`Switch`、`Checkbox`（含 `Group`）、`Radio`（即单选组，等同于 `Radio.Group`）、`DatePicker` / `TimePicker`（含 `RangePicker`）、`Slider`、`Rate`、`Transfer`、`Upload`（含 `Dragger`）和 `ColorPicker`。完整清单与阅读态见 [控件与阅读态](/guide/controls)。
 
-这些适配控件具备以下统一特性：
-- **自动读取枚举**：选择类控件的 `options`（以及 `TreeSelect` 的 `treeData`、`Transfer` 的 `dataSource`）会自动对接字段配置的枚举（JSX `enum`、`fields.x.enum` 或 `$enum`），使用异步数据源时还会自动传入 `loading` 状态。
-- **自动响应交互态**：`disabled` 置灰；`readOnly` 换成阅读态文本（选择类控件可配置 `prettyType="badge" | "tag"`）。两个同时为真时渲染预览。
-- **日期存储字符串**：`DatePicker` 与 `TimePicker` 自动完成字符串与 `dayjs` 对象之间的转换，表单引擎中只保留格式化后的纯字符串（默认 `YYYY-MM-DD` / `HH:mm:ss`）。
+共同行为：
+
+- 选择类控件的 `options`（以及 `TreeSelect` 的 `treeData`、`Transfer` 的 `dataSource`）默认读取字段枚举（JSX `enum`、`fields.x.enum` 或 `$enum`），绑定异步 `EnumSource` 时自动同步 `loading`。
+- `disabled` 置灰控件；`readOnly` 渲染阅读态视图（选择类控件可配 `prettyType="badge" | "tag"`）。两者同时为 `true` 时渲染阅读态。
+- `DatePicker` 与 `TimePicker` 在控件边界转换字符串与 `dayjs`，引擎内保存格式化字符串（默认 `YYYY-MM-DD` / `HH:mm:ss`）。
 
 ```tsx preview
 import { Radio as AntRadio } from 'antd';

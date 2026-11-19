@@ -1,20 +1,20 @@
 ---
 title: Agent 指南
-description: 帮助 AI 编程助手快速理解 ShikiForm 的核心心智模型并避开常见误区，完整英文规范见 /llms.txt。
+description: 编写 ShikiForm 代码的六条规则与正误对照，完整英文规范见 /llms.txt。
 ---
 
-在使用 AI 编程助手编写 ShikiForm 代码时，大部分错误都源自把 draft handle 当成普通数据对象，或者混淆了 `reaction` 与 `watch` 的语义。你可以直接把 [/llms.txt](/llms.txt) 提供给它；本页汇总了最关键的六条开发规范。
+AI 编程工具生成 ShikiForm 代码时，常见错误集中在把 draft handle 当作普通对象操作，或混用 `reaction` 与 `watch`。可将 [/llms.txt](/llms.txt) 直接提供给工具作为上下文；以下为六条主要规则。
 
 ## 六条核心规范
 
-1. **handle 不是普通数据**：`d.user.name` 只是一个路径句柄，读取或修改数据必须通过 `$value`。不要直接修改 `$value` 返回的对象，而是直接向对应字段的 `$value` 赋值；同样，数组字段的 handle 不能直接调用 `.map` 或访问 `.length`。
-2. **`reaction` 用于派生，`watch` 用于副作用动作**：`reaction` 会在初始化时立即执行，并自动追踪内部读取的所有 `$` 状态；`watch` 在首次渲染时不执行，只监听第一个参数中读取的依赖。不要把派生计算写进 `watch` 里。
-3. **不要在同一轮联动中读回刚写入的值**：写入操作会缓冲到当前批次结束后才生效（`$componentProps` 等 UI 状态除外），需要复用计算结果时请先存入局部变量。
-4. **`reaction.each` / `watch.each` 只接受两个参数**：回调函数接收 `(row, ctx)`，其中 `ctx` 包含 `key`、`index`、`depth`、`parent`、`path`、`pos` 以及根 draft `d`。遍历时会自动进入元素为对象的嵌套数组，忽略嵌套在对象上的基本类型数组（除非直接对该基本类型数组调用 `each`，此时会在 `depth === 0` 触发回调）。需要限定层级或字段名时，请在回调内根据 `ctx.depth` 和 `ctx.key` 自行判断。在 React 行组件中，通过 `useArrayField()`、`useIndex()`、`useRecord()`、`useTreeField()` 读取上下文。
-5. **表单值按路径写入，对象型 UI 属性支持按键打补丁**：例如 `d.city.$componentProps.placeholder = '…'` 只会覆盖该属性，不会丢失下层声明的其它 props；如果直接对 `$componentProps` 整体赋值，则会替换掉下层。
-6. **`<Field>` 绑定路径，`FormItem` 仅作装饰器**：表单项统一写作 `<Field name title required decorator={[FormItem]} component={[Input]} />`，不要把 `name` 写在 `FormItem` 上。
+1. **handle 是路径代理而非数据对象**：`d.user.name` 只定位字段路径，读写值必须通过 `$value`。不要原地修改 `$value` 返回的对象，应直接对目标子字段的 `$value` 赋值；数组字段的 handle 也不能调用 `.map` 或读取 `.length`。
+2. **`reaction` 计算派生状态，`watch` 执行变化后的动作**：`reaction` 在初始化时立即运行，自动追踪内部读取的所有 `$` 状态；`watch` 首次不运行，仅追踪第一个参数读取的状态。派生值不要写进 `watch`。
+3. **同一轮联动内不要读回刚写入的值**：数据写入在当前批次结束后统一提交（`$componentProps` 等 UI 状态除外），中间结果请存入局部变量复用。
+4. **`reaction.each` / `watch.each` 只接受两个参数**：签名为 `(select, (row, ctx) => void)`，`ctx` 包含 `key`、`index`、`depth`、`parent`、`path`、`pos` 与根 draft `d`。遍历会自动递归进入对象数组，跳过对象上的基本类型数组（直接对基本类型数组本身调用 `each` 时，在 `depth === 0` 触发）。过滤层级或字段名请在回调内检查 `ctx.depth` 与 `ctx.key`。React 行组件内使用 `useArrayField()`、`useIndex()`、`useRecord()`、`useTreeField()`。
+5. **表单值按路径写入，对象型 UI 属性支持按键合并**：`d.city.$componentProps.placeholder = '…'` 仅覆盖 `placeholder`，保留下层其他属性；对 `$componentProps` 整体赋值则会替换整包下层属性。
+6. **`<Field>` 绑定路径，`FormItem` 只做装饰器**：统一写作 `<Field name title required decorator={[FormItem]} component={[Input]} />`，`FormItem` 不接收 `name`。
 
-在开发模式下，违反第 1、3 条规范或把 handle 当数组操作时，引擎会抛出 `ShikiUsageError` 并给出修改建议。
+开发环境下，违反第 1、3 条或将 handle 当数组操作会抛出 `ShikiUsageError`。
 
 ## 正误写法对照
 

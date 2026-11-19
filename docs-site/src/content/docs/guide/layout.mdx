@@ -3,7 +3,7 @@ title: 布局
 description: 使用 FormLayout 统一表单尺寸与标签宽度，通过 FormGrid 实现响应式多列栅格，并用 FormButtonGroup 对齐操作按钮。
 ---
 
-如果在每个 `FormItem` 上逐一配置 `labelCol` 和 `size`，代码会非常冗长。`@shikiform/antd` 提供的 `FormLayout` 可以统一控制内部所有 `FormItem` 的布局样式。`FormLayout` 本身不绑定任何字段路径，也支持多层嵌套——内层会与外层逐键合并，并以最近的一层为准。
+`@shikiform/antd` 的 `FormLayout` 统一配置内部 `FormItem` 的标签宽度、尺寸与错误反馈样式。`FormLayout` 不绑定字段路径，支持多层嵌套，内层与外层逐键合并并以最近一层为准。
 
 ```tsx preview
 import { useState } from 'react';
@@ -75,7 +75,7 @@ export default function App() {
 
 ## 栅格布局：FormGrid
 
-`FormGrid` 用于快速构建自适应的多列表单。它会根据容器宽度自动计算能容纳多少个 `minWidth` 宽度的列（并限制在 `minColumns` 与 `maxColumns` 之间）。需要让某个字段横跨多列时，在装饰器属性中设置 `gridSpan`（例如 `decorator={[FormItem, { gridSpan: 2 }]}`）；普通内容则可用 `GridColumn` 包裹。
+`FormGrid` 按自身容器宽度计算可容纳的 `minWidth` 列数（夹在 `minColumns` 与 `maxColumns` 之间）。单个字段跨多列时在装饰器属性中传 `gridSpan`（如 `decorator={[FormItem, { gridSpan: 2 }]}`）；非 `FormItem` 内容用 `GridColumn` 包裹。
 
 ```tsx preview
 import { useState } from 'react';
@@ -121,7 +121,7 @@ export default function App() {
 
 ### 省略内部装饰器，将错误汇总到外层
 
-对于区号加号码（`Space.Compact`）或日期范围这类紧挨在一起的组合控件，如果每个子字段都各自占一行显示报错，会把版面撑开。此时可以去掉内部 `<Field>` 的 `decorator`，外层的纯布局 `FormItem` 会自动收集并展示它们未被消化的错误信息：
+区号加号码（`Space.Compact`）或起止区间这类紧凑组合中，去掉内部 `<Field>` 的 `decorator` 后，外层纯布局 `FormItem` 会收集并展示内部尚未被其他 `FormItem` 渲染的错误文案：
 
 ```tsx preview
 import { useState } from 'react';
@@ -166,7 +166,7 @@ export default function App() {
 
 ## 按钮对齐
 
-使用 `FormButtonGroup.FormItem` 可以自动用空的标签列占位，使操作按钮精确对齐上方表单控件的起始位置（同时兼容 `labelCol` 和 `labelWidth`）；长表单还可以使用 `FormButtonGroup.Sticky` 让操作栏吸底展示。
+`FormButtonGroup.FormItem` 使用空标签列占位，使按钮与上方表单控件左边缘对齐（兼容 `labelCol` 与 `labelWidth`）；长表单可用 `FormButtonGroup.Sticky` 将操作栏固定在视口底部或顶部。
 
 ```tsx
 <FormLayout labelWidth={96}>
@@ -175,4 +175,4 @@ export default function App() {
 </FormLayout>
 ```
 
-下一步：[分组容器](/guide/containers)，用标签页、折叠面板或分步条组织大型表单。
+下一步：[分组容器](/guide/containers)。

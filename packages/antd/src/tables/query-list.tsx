@@ -11,7 +11,7 @@ export interface QueryListProps<TValues, TParams, TRow> {
    * From `useQueryTable({ …, rows: 'list' })`: the hook writes each page into that array field, and the table shows
    * it. Rows are form fields, so cells can be edited in place.
    */
-  table: QueryTableApi<TValues, TParams, TRow>
+  table: QueryTableApi<TValues, TParams, TRow, any>
   rowKey?: string
   columns: ArrayTableColumn<TRow>[]
   /**
@@ -50,7 +50,7 @@ export function QueryList<TValues, TParams, TRow>(props: QueryListProps<TValues,
   }
   const fields = Children.toArray(props.children)
   return (
-    <Form form={table.form} onSubmit={() => table.submit()}>
+    <Form form={table.form} onSubmit={() => { void table.submit() }}>
       {fields.length ? (
         <div data-testid="query-grid" style={{ marginBottom: 8 }}>
           <FormGrid maxColumns={4} minWidth={220} {...props.grid}>
@@ -118,7 +118,7 @@ function cellSpan(child: ReactNode, columns: number): number {
  * first row beside the buttons (at least one); expanded, all of them. The buttons always sit in the last column, on
  * the last row when it has room. Folded fields stay mounted with CSS `display: none`, so their values still search.
  */
-function QueryCells<TValues, TParams, TRow>({ table, children }: { table: QueryTableApi<TValues, TParams, TRow>; children: ReactNode[] }) {
+function QueryCells<TValues, TParams, TRow>({ table, children }: { table: QueryTableApi<TValues, TParams, TRow, any>; children: ReactNode[] }) {
   const columns = useFormGrid()?.columns ?? 1
   const [collapsed, setCollapsed] = useState(true)
   let used = 0

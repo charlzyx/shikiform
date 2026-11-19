@@ -129,9 +129,9 @@ reaction.each((d) => d.orders, (node, ctx) => {
 })
 ```
 
-普通的单层表格无需这些过滤判断；而对于递归的树形结构（`children?: Node[]`），过滤掉非子节点的其他对象数组后，即可直接安全地读写 `node` 上的字段。
+单层列表无需上述过滤；递归树结构（`children?: Node[]`）过滤掉非 `children` 的其他对象数组后即可读写 `node` 上的字段。
 
-同样地，`watch.each` 遵循相同的遍历规则，但具备 `watch` 的语义：初始化时不执行，仅当某一行回调内部读取的 `$` 状态发生变化时，针对那一行触发动作（兄弟行增删或移动不会误触发）。非常适合「当某行的商品切换时，重置该行数量」这类交互逻辑：
+`watch.each` 采用相同的遍历规则，具备 `watch` 的触发时机：初始化时不执行，仅当某一行回调内读取的 `$` 状态变化时对该行运行一次（兄弟行增删或移动不会触发）。可用于「某行切换商品后将该行数量重置为 1」等动作：
 
 ```tsx preview play=sku
 import { useState, type ReactNode } from 'react';
@@ -204,7 +204,7 @@ export default function App() {
 }
 ```
 
-在上面的例子中，修改某一行的数量只会触发该行重算；调整顶部的全局折扣时，由于所有行都读取了 `d.discount`，所有行都会同步重算。`price` 和 `total` 属于计算字段，界面上呈只读态，但仍会保留在提交数据里。
+修改某一行的数量只触发该行重算；修改顶部的全局折扣时，所有行都读取了 `d.discount`，因此全部重算。`price` 和 `total` 由 `reaction` 写入，属于计算字段，默认仍可编辑且随表单提交（如需只读展示可加 `readOnly`）。
 
 ## 嵌套对象数组与树
 
@@ -272,10 +272,10 @@ export default function App() {
 
 字段的显隐、必填、下拉选项、标签和占位符同样是 `$` 状态，可以直接在 `reaction` 中赋值（完整示范见 [首页](/)）。
 
-控制字段条件显隐时使用 `$visible`：`$visible = false` 不渲染、不校验，值仍然提交（详见 [四个布尔](/guide/concepts#四个布尔)）。不进提交结果再写 `$omit = true`。想撤销联动层对 `$title`、`$readOnly`、`$disabled` 或 `$enum` 的覆盖时，赋值为 `undefined` 即可回退到 JSX 或 `fields` 声明；对于 `$enum`，赋 `[]` 才会彻底清空选项。
+控制字段条件显隐使用 `$visible`：`$visible = false` 不渲染、跳过校验，值仍会提交（见 [四个布尔](/guide/concepts#四个布尔)）；不进入提交结果时再设置 `$omit = true`。撤销联动层对 `$title`、`$readOnly`、`$disabled` 或 `$enum` 的覆盖可赋 `undefined`，回退到 JSX 或 `fields` 声明；将选项置为空数组则赋 `$enum = []`。
 
-不要在组件渲染期间通过 `form.getValue(...)` 手动计算控件属性，这种写法无法自动响应联动更新。如果是需要为同一字段配置第二个 UI（例如回显文本、联动滑块），或者控制不绑定表单数据的提示横幅，可以使用命名 UI 节点 `d.x.$ui('echo')` / `d.$ui('tip')`，详见 [命名 UI](/guide/ui)。
+不要在组件渲染期间调用 `form.getValue(...)` 计算控件属性，该写法不订阅状态变化。同一字段需要挂载第二个 UI（如回显文本、联动滑块），或需要控制无数据提示横幅时，使用命名 UI 节点 `d.x.$ui('echo')` / `d.$ui('tip')`，见 [命名 UI](/guide/ui)。
 
-想看多维 SKU 选择、冲突清理、价格与库存联动等综合场景，请查看 [SKU 选择器](/play/sku-picker) 和 [联动示例](/examples/linkage)。
+多维 SKU 选择、冲突清理、价格与库存联动见 [SKU 选择器](/play/sku-picker) 与 [联动示例](/examples/linkage)。
 
-下一步：[命名 UI](/guide/ui)，为同一字段渲染多个控件或控制无数据节点。
+下一步：[命名 UI](/guide/ui)。

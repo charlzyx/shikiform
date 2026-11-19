@@ -4,9 +4,9 @@ import type { StandardSchemaV1 } from './validation/schema'
 import type { Rule, RulesInput, ValidateCtx } from './validation/rules'
 import type { FormMessageKey, MessageArgs } from './validation/messages'
 import type { Pos } from './shared/tree-ops'
-import type { NormalizePath } from './types-path'
+import type { DeepPartial, NormalizePath } from './types-path'
 
-export type { NormalizePath } from './types-path'
+export type { DeepPartial, NormalizePath } from './types-path'
 
 export type { StandardSchemaV1, RulesInput }
 export type { UiDraft, UiName, UiNames } from './types-state'
@@ -48,20 +48,21 @@ export interface TypedEnumOption<V> extends Omit<EnumOption, 'value' | 'children
 }
 
 /**
- * What `<Field enum>` / `useField(name, { enum })` accept, typed against the field value `V`:
+ * What `<Field enum>` / `useField(name, { enum })` / `fields.x.enum` accept, typed against the field value `V`:
  * `{ label, value }` options or bare primitives whose value matches the field (its element type for an array field),
- * or `SomeEnum.with(params)` (async, loaded by the engine like `$enum`). With an untyped `<Field>` (`V = any`) anything goes.
+ * `SomeEnum.with(params)`, or a zero-parameter `EnumSource<void>` directly. With an untyped `<Field>` (`V = any`) anything goes.
  */
 export type FieldEnum<V = any> = IsAny<V> extends true
-  ? EnumInput | EnumBinding<any>
+  ? EnumInput | EnumBinding<any> | EnumSource<void>
   : IsUnknown<V> extends true
-    ? EnumInput | EnumBinding<any>
+    ? EnumInput | EnumBinding<any> | EnumSource<void>
     : [unknown] extends [EnumValueOf<V>]
-      ? EnumInput | EnumBinding<any>
+      ? EnumInput | EnumBinding<any> | EnumSource<void>
       :
         | readonly TypedEnumOption<EnumOptionValue<V>>[]
         | readonly Extract<EnumOptionValue<V>, string | number | boolean>[]
         | EnumBinding<any>
+        | EnumSource<void>
 
 /**
  * Every readable/writable path of `T`, including array indexes (`items.0.price`).
@@ -213,10 +214,10 @@ export interface FieldSpec extends FieldUiSpec {
    */
   rules?: RulesInput
   /**
-   * Static options: `{ label, value }` objects or bare primitives (`['a', 'b']`).
-   * A JSX `<Field enum>` wins over it while mounted; a reaction's `$enum` (including `EnumSource.with(params)`) wins over both.
+   * Static options (`{ label, value }` objects or bare primitives) or an `EnumSource` / `EnumSource.with(params)`.
+   * A JSX `<Field enum>` wins over it while mounted; a reaction's `$enum` wins over both.
    */
-  enum?: EnumInput
+  enum?: EnumInput | EnumBinding<any> | EnumSource<void>
   /**
    * Empty values fail validation even without a `required` rule.
    * On `fields` / `registerField` this flag stays after `<Field>` unmounts.
@@ -347,32 +348,13 @@ type EachCtxOf<T, A> = Omit<RowContext<T>, 'key' | 'depth'> &
 
 export interface ReactionFn<T> {
   /**
-   * Derive `$` state. Reads are dependencies. Writes are not, so do not read a `$` state you just wrote.
-   * Synchronous only. The same `$` state written by two reactions is a dev error.
-   * A reaction that reads nothing runs once, then stays idle.
-   * After a batch, it runs again only when a dirty key (`path:value`, `path:visible`, `:meta`, …)
-   * intersects those reads. A write inside the reaction dirties its keys, so downstream reactions
-   * run in the same flush until the graph settles. A cycle still throws {@link ShikiCycleError}.
-   * An equal write does not dirty a key and does not wake anyone.
-   * `$rules` and `$required` written here validate even when the JSX `<Field>` is not mounted.
+   * Derive `$` state synchronously. Reads are dependencies; writes are not.
+   * Re-runs only when a dirty key intersects recorded reads. Cycles throw {@link ShikiCycleError}.
    */
   (effect: (d: Draft<T>) => void): void
   /**
-   * One reaction instance per element of the selected array, and per element of every nested array of objects.
-   * Arrays of primitives are not entered. Two arguments only: filter with `ctx.key` / `ctx.depth` / `ctx.pos`.
-   * Each instance records its own reads. A cell edit re-runs that element only, including rows that are not mounted.
-   * An element that did not read the dirty key stays idle, even if it sits in the same array.
-   * A structural edit (insert, remove, move) re-runs the indexes whose occupant changed.
-   * `$rules` / `$required` set here apply to every visited index, including virtualized rows.
-   *
-   * @example
-   * reaction.each(
-   *   (d) => d.rows,
-   *   (row, { d, index, depth }) => {
-   *     if (depth !== 0) return
-   *     row.name.$required = index === 0 || d.strict.$value
-   *   },
-   * )
+   * One reaction instance per element of the selected array and nested object arrays.
+   * Filter with `ctx.key` / `ctx.depth` / `ctx.pos`. Cell edits re-run that element only.
    */
   each<A>(select: (d: Draft<T>) => Draft<A>, effect: (row: EachRow<T, A>, ctx: EachCtxOf<T, A>) => void): void
 }
@@ -583,18 +565,23 @@ export interface FormInstance<T, TSubmit = T> {
    * Empty required fields do not block until a validation trigger has run.
    */
   readonly canSubmit: boolean
+  /** Effective root `readOnly` / `disabled` flags (inherited by every field unless overridden with `false`). */
+  readonly readOnly: boolean
+  readonly disabled: boolean
   /** Path-keyed errors, including descendants when you filter by prefix. */
   readonly errors: FieldError[]
 
-  /**
-   * Read one typed path (`items.0.price` or `items[0].price`).
-   * Object/array results are live references; use the write APIs instead of mutating them in place.
-   */
+  /** Read one typed path (`items.0.price` or `items[0].price`). Do not mutate object/array results in place. */
   getValue<P extends FieldPath<T>>(path: P): PathValue<T, P>
   getValue<P extends string>(path: ValuePath<T, P>): PathValue<T, P>
-  /** Write one path from outside a reaction (`items.0.price` or `items[0].price`). Marks the field dirty and runs `onChange` validation when configured. */
+  /** Write one path from outside a reaction (`items.0.price` or `items[0].price`). */
   setValue<P extends FieldPath<T>>(path: P, value: PathValue<T, P>): void
   setValue<P extends string>(path: ValuePath<T, P>, value: PathValue<T, P>): void
+  /** Deep-merge plain objects in one flush; arrays and primitives replace whole. */
+  patchValues(partial: DeepPartial<T>): void
+  /** Set or clear (`undefined`) the root `$readOnly` / `$disabled` flag in one batch. */
+  setReadOnly(readOnly?: boolean): void
+  setDisabled(disabled?: boolean): void
   /** One draft, one reaction pass, one notification. */
   batch(fn: (d: Draft<T>) => void): void
   /**

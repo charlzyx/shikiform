@@ -2,7 +2,7 @@ import { memo, useContext, useEffect, useMemo, useRef, type ComponentProps, type
 import { isFieldErrors, SubmitSupersededError } from '@shikiform/core'
 import { engineOf } from '@shikiform/core/internal'
 import type { ArrayPath, Draft, FieldEnum, FieldError, FieldPath, FormInstance, PathValue, UiName } from '@shikiform/core/internal'
-import type { RulesInput } from '@shikiform/core/internal'
+import type { RulesInput, TemplateRecord } from '@shikiform/core/internal'
 import { pathOf, type Pos } from '@shikiform/core/internal'
 import { ArrayContext, FormContext, RowWrapContext, ScopeContext, TreeContext, useRequiredForm, useScope } from '../context'
 import { useArrayField } from '../hooks/use-array'
@@ -180,7 +180,7 @@ export interface FieldProps<
    */
   enum?: FieldEnum<PathValue<TScope, N & string>>
   /** Mount-scoped rules. Cleared on unmount. Does not erase a declaration, a template, or `$rules`. `validator` receives this field's value. */
-  rules?: RulesInput<PathValue<TScope, N & string>>
+  rules?: RulesInput<PathValue<TScope, N & string>, TemplateRecord<TScope, N & string>>
   /** Mount-scoped required flag. Cleared on unmount. A declared or `$required` flag stays. */
   required?: boolean
   /** `false` does not render. Inherited (OR). Still submitted unless `omit`. On `<Field ui>` this is the instance's. */
@@ -328,7 +328,7 @@ export type ArrayContainerSlot<C extends ComponentType<any> = ComponentType<any>
   | readonly [C]
   | readonly [C, Omit<ComponentProps<C>, 'children'> | undefined]
 
-export function ArrayField<TScope = any, C extends ComponentType<any> = ComponentType<any>>({
+function ArrayFieldImpl<TScope = any, C extends ComponentType<any> = ComponentType<any>>({
   name,
   rowKey,
   component,
@@ -355,9 +355,6 @@ export function ArrayField<TScope = any, C extends ComponentType<any> = Componen
         'virtualScroll windows plain rows (`<ArrayField name virtualScroll>{(row) => …}</ArrayField>`).',
     )
   }
-  // Memoized rows: a push / insert renders only the new row (and rows whose index changed), not every row.
-  // `children` keeps its identity while the ArrayField's parent does not re-render; when it does, every row
-  // re-renders with the new closure.
   const row = (index: number, key: string) => (
     <ArrayRow key={key} path={`${array.path}.${index}`} index={index} itemKey={key} render={children!} />
   )
@@ -376,6 +373,8 @@ export function ArrayField<TScope = any, C extends ComponentType<any> = Componen
   }
   return <ArrayScope path={array.path} rowKey={rowKey}>{Container ? <Container {...props}>{rows}</Container> : rows}</ArrayScope>
 }
+
+export const ArrayField = Object.assign(ArrayFieldImpl, { Row: RowScope })
 
 /** One `<ArrayField>` row: re-renders only when its path / index / key or the row render function changes. */
 const ArrayRow = memo(function ArrayRow({ path, index, itemKey, render }: {
@@ -421,18 +420,7 @@ export function TreeScope({
   return <TreeContext.Provider value={value}>{children}</TreeContext.Provider>
 }
 
-/**
- * Scope for one row (or tree node): relative names resolve under `path`, and {@link useIndex} / {@link useRecord}
- * (/ {@link useTreeField} with `pos`) read it. Stable value, so a row that did not move does not wake its consumers.
- * For a tree node pass `pos` (and `index` = its last segment, or omit `index`).
- */
-export function RowScope({
-  path,
-  index,
-  itemKey,
-  pos,
-  children,
-}: {
+export interface RowScopeProps {
   path: string
   index?: number
   /** Row id (structure key). */
@@ -440,7 +428,20 @@ export function RowScope({
   /** Tree coordinate of this node. */
   pos?: Pos
   children?: ReactNode
-}) {
+}
+
+/**
+ * Scope for one row (or tree node): relative names resolve under `path`, and {@link useIndex} / {@link useRecord}
+ * (/ {@link useTreeField} with `pos`) read it. Stable value, so a row that did not move does not wake its consumers.
+ * Use it when rendering row cells outside `<ArrayField>`'s `children` (such as custom table `columns.render`).
+ */
+export function RowScope({
+  path,
+  index,
+  itemKey,
+  pos,
+  children,
+}: RowScopeProps) {
   const at = index ?? (pos ? (pos[pos.length - 1] ?? -1) : -1)
   const posKey = pos?.join('.')
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -635,13 +636,17 @@ function treeChildSig(nodes: unknown[], parentPos: readonly number[], ctx: TreeF
   return sig
 }
 
+export interface WatchProps<T = any, S = unknown> {
+  form?: FormInstance<T, any>
+  select: (d: Draft<T>) => S
+  children: (value: S) => ReactNode
+}
+
 /**
  * Render `children` with the current selector value. Same selectors and typing as {@link useWatch}:
- * an unannotated `select={(d) => d.$canSubmit}` compiles (`d` is untyped); `typed(form).Watch` or
- * `select={(d: Draft<Values>) => …}` types the draft and the value.
- * `select={(d) => d.$canSubmit}` subscribes a submit button without subscribing to every keystroke.
+ * reads `<Form>` context or an explicit `form` prop (`typed(form).Watch` binds `form` automatically).
  */
-export function Watch<T = any, S = unknown>({ select, children }: { select: (d: Draft<T>) => S; children: (value: S) => ReactNode }) {
-  const value = useWatch<T, S>(select)
+export function Watch<T = any, S = unknown>({ form, select, children }: WatchProps<T, S>) {
+  const value = form ? useWatch<T, S>(form, select) : useWatch<T, S>(select)
   return <>{children(value)}</>
 }

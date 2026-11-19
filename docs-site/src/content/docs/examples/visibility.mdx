@@ -45,7 +45,7 @@ export default function App() {
 }
 ```
 
-默认未开启开关时直接点击提交，输出 JSON 里只有 `invoice: false`；打开开关后税号出现且必填（留空会拦截提交）；填好税号再次关掉开关并提交，`taxId` 会被自动剔除，而重新打开开关时刚才填过的内容依然完整保留。
+初始开关关闭时直接点击提交，输出 JSON 中只有 `invoice: false`；打开开关后税号显示且必填（留空阻止提交）；填好税号再关掉开关提交，`taxId` 从结果中剔除，重新打开开关时原先输入的值仍在。
 
 <Aside type="caution" title="隐藏会跳过校验">
 `$visible = false` 不渲染、不校验，值仍然提交。还要校验的字段不要卸掉，`FormTab` / `FormCollapse` 的非当前页会保持挂载。不进提交结果再写 `$omit = true`。

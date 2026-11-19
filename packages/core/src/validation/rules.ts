@@ -5,11 +5,11 @@ import { nearestName } from '../shared/near'
 import { isStandardSchema, schemaIssuePath, type SchemaIssue, type StandardSchemaV1 } from './schema'
 
 /** Cross-field context. `record` is the nearest object. `parent` skips the enclosing array. */
-export interface ValidateCtx {
+export interface ValidateCtx<TRecord = any, TRoot = any> {
   path: string
   value: unknown
-  record: any
-  root: any
+  record: TRecord
+  root: TRoot
   parent: any
   array: any[] | undefined
   index: number
@@ -22,7 +22,7 @@ export interface ValidateCtx {
 
 export type RuleMessage = string | null | undefined | Promise<string | null | undefined>
 
-export interface Rule<V = unknown> {
+export interface Rule<V = unknown, TRecord = any, TRoot = any> {
   /** Empty values fail. The default message is `messages.required` (`必填`) unless `message` is set. */
   required?: boolean
   /** Inclusive lower bound for a number. */
@@ -51,7 +51,7 @@ export interface Rule<V = unknown> {
    * Custom check. Return a message, nothing, or a promise of those.
    * A newer edit aborts the previous `AbortSignal` and drops a late result when `asyncDebounceMs` is set.
    */
-  validator?: (value: V, ctx: ValidateCtx) => RuleMessage
+  validator?: (value: V, ctx: ValidateCtx<TRecord, TRoot>) => RuleMessage
   /**
    * `'warning'`: this rule's messages go to `$warnings` / `binding.warnings` (FormItem shows them in the warning
    * colour) instead of `$errors`. A warning never blocks `submit` or `canSubmit` (antd `warningOnly`), e.g. a weak
@@ -64,7 +64,10 @@ export interface Rule<V = unknown> {
  * What `<Field rules>` and `registerField` accept.
  * A bare schema (`rules={z.string().email()}`), a built-in rule, or a mix of both.
  */
-export type RulesInput<V = unknown> = Rule<V> | StandardSchemaV1 | ReadonlyArray<Rule<V> | StandardSchemaV1>
+export type RulesInput<V = unknown, TRecord = any, TRoot = any> =
+  | Rule<V, TRecord, TRoot>
+  | StandardSchemaV1
+  | ReadonlyArray<Rule<V, TRecord, TRoot> | StandardSchemaV1>
 
 /** Turn `rules={…}` into the internal list. Schemas become `{ schema }`. `where` names the field in dev errors. */
 export function normalizeRules(input: RulesInput | undefined, where?: string): Rule[] {

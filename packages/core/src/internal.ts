@@ -18,6 +18,7 @@ export { emptySlot, normalizeUiSpec } from './state/field-model'
 export type {
   ArrayItemOf,
   ArrayPath,
+  DeepPartial,
   Draft,
   EffectDef,
   FieldEnum,
@@ -31,7 +32,7 @@ export type {
   UiName,
 } from './types'
 export type { FormOptions } from './types-effects'
-export type { DefaultSubmit, FieldsInput, ResolveSubmit } from './types-submit'
+export type { DefaultSubmit, FieldsInput, ResolveSubmit, TemplateRecord } from './types-submit'
 export { formatMessage } from './validation/messages'
 export type { FormMessageKey, MessageArgs } from './validation/messages'
 export type { RulesInput } from './validation/rules'

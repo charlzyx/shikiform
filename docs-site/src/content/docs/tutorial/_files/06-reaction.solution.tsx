@@ -18,7 +18,7 @@ export default function App() {
     <Form form={form} onSubmit={(values) => setPayload(JSON.stringify(values, null, 2))}>
       <Field name="price" title="单价" decorator={[FormItem]} component={[InputNumber]} />
       <Field name="qty" title="数量" decorator={[FormItem]} component={[InputNumber]} />
-      <Field name="amount" title="金额" description="reaction 写 $value：阅读态，默认仍提交" decorator={[FormItem]} component={[InputNumber]} />
+      <Field name="amount" title="金额" description="reaction 写 $value：计算字段，默认仍提交" decorator={[FormItem]} component={[InputNumber]} />
       <Submit>提交</Submit>
       {payload ? <pre className="shiki-code">{payload}</pre> : null}
     </Form>

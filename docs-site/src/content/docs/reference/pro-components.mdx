@@ -36,7 +36,7 @@ Pro.formily `QueryList` + `QueryForm` + `QueryTable`：可折叠的查询栅格�
 </ShadowModal>
 ```
 
-在 antd `Modal` 中承载草稿表单进行编辑。支持 `name` / `add` / `rowKey` / `merge` 以及可选的 `record`（静态值或异步加载函数）与 `onOk`：绑定到宿主路径或数组行时，打开自动继承宿主值、剥离前缀后的 `fields` / `trees` 规则及该路径的 `readOnly` / `disabled`；确认校验通过后自动写回（`onOk` 返回 `false` 可跳过默认写回）；取消则直接丢弃草稿，不会影响原表单。传入由 `useShadowForm` 创建的 `shadow` 实例时受外部控制，否则组件内部会自动维护一个实例。当草稿处于 `readOnly` 且未自定义 `footer` 时，隐藏确定按钮，仅显示关闭按钮（文案取 `messages.close`，默认 `关闭` / `Close`）；其余情况默认读取 `messages.ok` / `messages.cancel`（`确定` / `取消`），也可通过 `okText` / `cancelText` 覆盖。草稿内部（`ShadowBody`）会隔离宿主的表单、作用域、字段、分组与栅格上下文，同时继承外层 `FieldKit` 与 `FormLayout`，因此草稿里的 `<Field>` 相对于草稿根路径解析。
+在 antd `Modal` 中渲染草稿表单。支持 `name` / `add` / `rowKey` / `merge` 及可选的 `record`（静态值或异步加载函数）与 `onOk`：绑定宿主路径或数组行时，打开自动复制宿主值、继承剥离前缀后的 `fields` / `trees` 配置及该路径的 `readOnly` / `disabled`；确认校验通过后写回宿主（`onOk` 返回 `false` 跳过默认写回）；取消则丢弃草稿，不修改原表单。传入 `useShadowForm` 创建的 `shadow` 时由外部受控，省略则组件内部维护实例。草稿处于 `readOnly` 且未传自定义 `footer` 时隐藏确定按钮，只显示关闭按钮（文案取 `messages.close`，默认 `关闭` / `Close`）；否则读取 `messages.ok` / `messages.cancel`（`确定` / `取消`），可用 `okText` / `cancelText` 覆盖。草稿内部（`ShadowBody`）隔离宿主表单、作用域、字段、分组与栅格上下文，保留外层 `FieldKit` 与 `FormLayout`，草稿内 `<Field>` 相对于草稿根路径解析。
 
 ## ShadowDrawer
 
@@ -66,7 +66,7 @@ Pro.formily `QueryList` + `QueryForm` + `QueryTable`：可折叠的查询栅格�
 </ShadowForm>
 ```
 
-内联渲染草稿表单：组件挂载时即初始化草稿（支持 `name` / `add` / `rowKey` / `merge` 或手动 `record` / `onOk`）并将子节点渲染在草稿引擎之上。既可以通过 render prop 接收 `shadow` 实例，也可以在任意子组件中调用 `useShadow()` 获取它，从而把提交按钮灵活放置到任意位置。由于本身不渲染原生 `<form>` 标签且隔离了宿主表单与作用域上下文（保留 `FieldKit` 与 `FormLayout`），可以直接嵌套在宿主 `<Form>` 内部。
+内联草稿表单：挂载时初始化草稿（支持 `name` / `add` / `rowKey` / `merge` 或手动 `record` / `onOk`）并将子节点渲染在草稿实例下。可通过 render prop 接收 `shadow`，也可在子组件内调用 `useShadow()` 读取它。`ShadowForm` 不渲染原生 `<form>` 标签，并隔离宿主表单与作用域上下文（保留 `FieldKit` 与 `FormLayout`），可直接嵌在宿主 `<Form>` 内部。
 
 ## useShadow
 

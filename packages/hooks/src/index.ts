@@ -32,5 +32,14 @@ export type {
   LazyCascaderApi,
   UseLazyCascaderOptions,
 } from './use-lazy-cascader'
+export { useColumnSettings } from './use-column-settings'
+export type {
+  ColumnDragEvent,
+  ColumnDragProps,
+  ColumnSetting,
+  ColumnSettingInput,
+  ColumnSettingsApi,
+  TableDensity,
+} from './use-column-settings'
 export { ENUM_COLORS, enumItems } from '@shikiform/core'
 export type { EnumDisplayItem, EnumItemsOptions } from '@shikiform/core'
