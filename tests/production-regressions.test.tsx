@@ -20,7 +20,7 @@ it('concurrent scope validation reports the missing field in its own region', as
   })
   expect(await Promise.allSettled([form.validate('address'), form.validate('note')])).toEqual([
     { status: 'rejected', reason: [{ path: 'address.street', messages: ['必填'] }] },
-    { status: 'fulfilled', value: undefined },
+    { status: 'fulfilled', value: 'ok' },
   ])
 })
 
@@ -118,7 +118,7 @@ it('a committed JSX rule validates only for the lifetime of the field', async ()
   const view = render(<Form form={form}><Field name="code" rules={{ minLength: 3 }} /></Form>)
   await expect(form.validate()).rejects.toEqual([{ path: 'code', messages: ['至少 3 个字符'] }])
   view.unmount()
-  await expect(form.validate()).resolves.toBeUndefined()
+  await expect(form.validate()).resolves.toEqual({ code: 'x' })
 })
 
 it('shadow reordering of anonymous rows preserves the matching live host metadata', async () => {

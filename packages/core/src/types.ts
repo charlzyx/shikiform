@@ -5,7 +5,7 @@ import type { Rule, RulesInput, ValidateCtx } from './validation/rules'
 import type { Pos } from './shared/tree-ops'
 import type { NormalizePath } from './types-path'
 
-export type { DeepPartial, NormalizePath } from './types-path'
+export type { DeepPartial, NormalizePath, ValidatePick } from './types-path'
 
 export type { StandardSchemaV1, RulesInput }
 export type { UiDraft, UiName, UiNames } from './types-state'

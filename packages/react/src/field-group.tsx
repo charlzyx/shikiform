@@ -78,7 +78,7 @@ export function useFieldGroup(): FieldGroupHandle {
  * const group = useFieldGroup()
  * const errors = useFieldGroupErrors(group)        // FieldError[] of the fields inside
  * <FieldGroup value={group}><Field name="a" … /><Field name="b" … /></FieldGroup>
- * await form.validate(group.paths())                // validate only those fields
+ * const values = await form.validate(group.paths()) // those fields only; resolves their values
  * ```
  */
 export function FieldGroup({ value, children }: { value: FieldGroupHandle; children?: ReactNode }) {

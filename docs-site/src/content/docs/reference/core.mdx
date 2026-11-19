@@ -26,6 +26,8 @@ typed<V>().useForm<TSubmit = DefaultSubmit, const F extends FieldsInput<V> = {}>
 
 类型推导：不传泛型参数时，`fields` 中声明了 `omit: true` 的路径在提交类型中变为可选；写 `createForm<V>(options)` 时提交类型固定为 `V`；既要显式标注 `V` 又要按 `fields` 将 `omit` 路径推导为可选时，使用 `typed<V>().createForm({ fields })`（或 `typed<V>().useForm({ fields })`）；手动列出可选路径可在第二个泛型参数传入 `SubmitValues<V, 'tmp'>`。签名中的 `DefaultSubmit`、`FieldsInput` 与 `ResolveSubmit` 为内部推导类型，不从公开入口导出。
 
+`validate()` 通过时 resolve 值：不传 path 是 `getSubmitValues()`（上面的提交类型）；一个 path 是该处的 `PathValue`（path 自身即使 `omit` 也返回，只因它而被 omit 的子孙仍在，子孙自己的 `omit` 才去掉）；路径数组是只含这些 path 的嵌套对象（`ValidatePick`）。失败 reject `FieldError[]`，表单级 `validate` 抛错原样 reject。详见 [API 总览](/api#读写和提交)。
+
 ```ts
 import { createForm } from '@shikiform/core'
 
