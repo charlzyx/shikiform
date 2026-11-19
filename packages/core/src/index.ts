@@ -13,6 +13,8 @@ export type { EnumBinding, EnumConfig, EnumLoadContext, EnumOption } from './enu
 export { ENUM_COLORS, enumItems } from './enum/enum-pretty'
 export type { EnumDisplayItem, EnumItemsOptions } from './enum/enum-pretty'
 export { ShikiConflictError, ShikiCycleError, ShikiUsageError, SubmitSupersededError, SubmitUnstableError } from './errors'
+export { toRaw } from './draft/readonly'
+export { snapshot } from './shared/equal'
 export { isFieldErrors } from './validation/field-errors'
 export type { StandardSchemaV1 } from './validation/schema'
 export { moveNode, pathOf, posOf } from './shared/tree-ops'
@@ -20,6 +22,7 @@ export type { Pos, TreeMoveResult } from './shared/tree-ops'
 export { enUS, getDefaultMessages, setDefaultMessages, zhCN } from './validation/messages'
 export type { FormMessageKey, FormMessages, MessageArgs, MessageBase, MessageParams, MessageTemplate, NoParams, TreeMoveParams } from './validation/messages'
 export type { Rule, RulesInput, ValidateCtx } from './validation/rules'
+export type { FormInstance } from './types-form'
 export type {
   ArrayItemOf,
   ArrayPath,
@@ -37,7 +40,6 @@ export type {
   FieldSpec,
   FieldUiSpec,
   TemplatePath,
-  FormInstance,
   MoveResult,
   PathValue,
   NormalizePath,

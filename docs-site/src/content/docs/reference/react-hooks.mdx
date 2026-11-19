@@ -354,7 +354,7 @@ useArrayField<TScope, N extends ArrayPath<TScope>>(
 
 写全 `useArrayField<Values, 'items'>('items')` 才能同时检查数组路径和行值类型；只写一个泛型时行操作参数为 `unknown`。
 
-它只订阅结构（长度/顺序/行身份），不会因为单元格编辑就更新整个列表。单元格另用 `useField`，汇总另用 `useWatch`。不要原地修改返回的数组或 `getValue` 引用来代替操作方法。需要为每行提供相对路径作用域时直接使用 `<ArrayField>`。
+它只订阅结构（长度/顺序/行身份），不会因为单元格编辑就更新整个列表。单元格另用 `useField`，汇总另用 `useWatch`。不要原地修改 `getValue` 返回的数组来代替操作方法：开发环境会抛 `ShikiUsageError`，用 `push` / `remove` / `move`。需要为每行提供相对路径作用域时直接使用 `<ArrayField>`。
 
 `dragProps` 函数对同一数组路径保持同一个引用（拖动起点记在句柄内部），所以可以经 context 交给 `memo` 的行而不让它们重渲染；没有隐藏的拖拽库，把手、键盘和触屏交互由应用决定。事件没有 `dataTransfer` 时用句柄记下的起点。
 
@@ -530,7 +530,7 @@ useTreeField(name: string, options?: { childrenKey?: string; rowKey?: string }):
 | `path` | 句柄指向的路径。传了 `name`：树根。没传：当前节点 |
 | `treePath` | 树根。树根句柄上和 `path` 相同 |
 | `errors` / `warnings` | `path` 这一层自己的消息，不含子孙字段 |
-| `value` | 当前根节点数组；当前值不是数组时返回 `[]`。不要原地修改 |
+| `value` | 当前根节点数组；当前值不是数组时返回 `[]`。开发环境是只读视图，原地修改抛 `ShikiUsageError`，改用 `push` / `replace` |
 | `push(node, parentPos?)` | 追加到根，或作为 `parentPos` 的最后一个孩子。父节点没有 children 数组时会建一个 |
 | `insert(pos, node)` | 插到 `pos`，后面的兄弟后移 |
 | `remove(pos)` | 删掉这个节点，它的字段状态一起去掉 |

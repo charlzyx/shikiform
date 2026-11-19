@@ -1,5 +1,12 @@
+import { peelReadonly, unwrapReadonly } from '../draft/readonly'
+
 /** Structural equality for plain form values (no functions, no class instances). */
 export function deepEqual(a: unknown, b: unknown): boolean {
+  // A development view and its stored object compare equal. Production never creates views.
+  if (process.env.NODE_ENV !== 'production') {
+    a = peelReadonly(a)
+    b = peelReadonly(b)
+  }
   if (Object.is(a, b)) return true
   if (typeof a !== 'object' || typeof b !== 'object' || a == null || b == null) return false
   if (a instanceof Date || b instanceof Date) {
@@ -21,8 +28,19 @@ export function deepEqual(a: unknown, b: unknown): boolean {
 }
 
 export function clone<T>(value: T): T {
-  if (typeof structuredClone === 'function') return structuredClone(value)
-  return JSON.parse(JSON.stringify(value)) as T
+  // Development views (`getValue`, `$value`) are proxies; structuredClone rejects them. Peel them first.
+  const plain = process.env.NODE_ENV !== 'production' ? unwrapReadonly(value) : value
+  if (typeof structuredClone === 'function') return structuredClone(plain)
+  return JSON.parse(JSON.stringify(plain)) as T
+}
+
+/**
+ * Plain copy of a form value, safe for `structuredClone`, `postMessage`, and IndexedDB.
+ * A development read-only view is peeled first. `getSubmitValues()` is the submit payload (omitted fields removed).
+ * `toRaw(value)` is the live stored object, not a copy.
+ */
+export function snapshot<T>(value: T): T {
+  return clone(value)
 }
 
 /**

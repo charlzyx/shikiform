@@ -6,7 +6,7 @@ Give coding assistants the full [agent instructions](/llms.txt) alongside the fo
 
 ## Six rules
 
-1. A draft handle locates a path. Read and write data through its `$value`. Write the child path to update one property.
+1. A draft handle locates a path. Read and write data through its `$value`. Write the child path to update one property. In development, `getValue` and `form.values` are read-only views: copy them with `snapshot(value)`, not `structuredClone` on the view.
 2. Use `reaction` to derive state and `watch` for actions after a change. Only a watch's source declares dependencies.
 3. Keep intermediate values in local variables. Data writes are buffered until the pass returns. UI prop patches can read their pending changes.
 4. `reaction.each` and `watch.each` take a selector and a callback. Filter nested object arrays inside the callback with `ctx.depth` or `ctx.key`.

@@ -1,4 +1,4 @@
-import type { FormInstance } from '../types'
+import type { FormInstance } from '../types-form'
 import type { FormOptions } from '../types-effects'
 import type { DefaultSubmit, FieldsInput, ResolveSubmit } from '../types-submit'
 import { FormEngine } from './form-engine'

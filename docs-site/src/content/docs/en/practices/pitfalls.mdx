@@ -66,6 +66,12 @@ d.items.$value = [...d.items.$value, row]
 // In a component use useArrayField().push(row) or the named array hook.
 ```
 
+In development, `$value`, `getValue`, and `form.values` are read-only views. The view is not `===` to the stored object (it is, in production). `indexOf` / `includes` and `deepEqual` peel the view, so `rows.indexOf(rawRow)` still matches. Do not pass `binding().value` to a table that `push`es or `sort`s it; the error names the field path.
+
+`structuredClone(form.values)`, `postMessage`, and IndexedDB throw `DataCloneError` on that view in development only. `snapshot(form.values)` from `@shikiform/core` is a plain copy, including omitted fields. `getSubmitValues()` is the submit payload. `toRaw(value)` is the live stored object.
+
+A deep-frozen tree (immer / Redux) can be read. A non-configurable, non-writable child is returned raw because wrapping it would throw a proxy `TypeError`.
+
 ## Reading a buffered write
 
 Keep an intermediate result in a local variable so every derived value uses the same new result.

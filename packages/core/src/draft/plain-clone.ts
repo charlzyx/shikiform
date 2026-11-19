@@ -49,10 +49,28 @@ function collect(node: unknown, known: Set<object>): void {
  * must not, or a later mutation of the caller's value would change the store.
  */
 function share(node: unknown, known: Set<object>, seen: WeakMap<object, unknown>): unknown {
+  if (process.env.NODE_ENV !== 'production') node = unwrapReadonly(node)
   if (node === null || typeof node !== 'object') return node
   if (known.has(node)) return node
   const cached = seen.get(node)
   if (cached) return cached
+  if (node instanceof Date) {
+    const copy = new Date(node.getTime())
+    seen.set(node, copy)
+    return copy
+  }
+  if (node instanceof Map) {
+    const copy = new Map()
+    seen.set(node, copy)
+    for (const [key, item] of node) copy.set(share(key, known, seen), share(item, known, seen))
+    return copy
+  }
+  if (node instanceof Set) {
+    const copy = new Set()
+    seen.set(node, copy)
+    for (const item of node) copy.add(share(item, known, seen))
+    return copy
+  }
   if (Array.isArray(node)) {
     const copy = new Array(node.length)
     seen.set(node, copy)
@@ -61,14 +79,9 @@ function share(node: unknown, known: Set<object>, seen: WeakMap<object, unknown>
     }
     return copy
   }
-  if (!isPlainRecord(node)) {
-    try {
-      return plainClone(node)
-    } catch {
-      // Dates clone; functions, class instances and React elements do not. Keep the reference.
-      return node
-    }
-  }
+  // Class instances, functions, and React elements stay the caller's object. structuredClone would
+  // turn a class instance into a plain object (it does not throw), which drops the prototype.
+  if (!isPlainRecord(node)) return node
   const copy: Record<string, unknown> = {}
   seen.set(node, copy)
   for (const key of Object.keys(node)) copy[key] = share(node[key], known, seen)

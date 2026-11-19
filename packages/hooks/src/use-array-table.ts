@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { snapshot } from '@shikiform/core'
 import { joinPath } from '@shikiform/core/internal'
 import { useRequiredForm, useScope } from '@shikiform/react/internal'
 import { useArrayAt, type ArrayKey } from '@shikiform/react/internal'
@@ -260,7 +261,8 @@ export function useArrayTableOver<TRow = any>(
       },
       copy: (index: number, transform?: (copy: TRow, source: TRow) => TRow) => {
         const source = record(index)
-        let next = (source && typeof source === 'object' ? structuredClone(source) : source) as TRow
+        // `record` is a development read-only view. Copy it; do not sort or push the view.
+        let next = (source && typeof source === 'object' ? snapshot(source) : source) as TRow
         const { rowKey, createRowKey } = optionsRef.current
         if (rowKey && isRecord(next)) {
           delete next[rowKey]

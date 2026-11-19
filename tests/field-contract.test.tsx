@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { Field, Form, ObjectField } from '../packages/react/src/components/fields'
 import { useForm } from '../packages/react/src/hooks/use-form'
 import { useField } from '../packages/react/src/hooks/use-field'
-import type { FormInstance } from '../packages/core/src/types'
+import type { FormInstance } from '@shikiform/core'
 import { engineOf } from '../packages/core/src/engine/create'
 import { fieldErrorsOf } from './field-errors'
 

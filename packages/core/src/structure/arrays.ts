@@ -1,5 +1,5 @@
 import { plainClone } from '../draft/plain-clone'
-import { unwrapReadonly } from '../draft/readonly'
+import { peelReadonly, unwrapReadonly } from '../draft/readonly'
 import type { Declarations } from '../declarations/declarations'
 import type { Scheduler } from '../effects/scheduler'
 import { joinPath, parentPath, setAt } from '../shared/path'
@@ -108,6 +108,8 @@ export class ArrayOps {
   }
 
   rowIdent(row: unknown, index: number, rowKey?: string): string {
+    // A row read through `getValue` / `form.values` is a view. Identity is stored on the underlying object.
+    if (process.env.NODE_ENV !== 'production') row = peelReadonly(row)
     const named = readRowId(row, index, rowKey)
     if (!named.startsWith('#')) return named
     if (row && typeof row === 'object') {

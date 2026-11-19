@@ -186,7 +186,8 @@ describe('#35 $value snapshots are read-only inside form.batch (development)', (
       d.profile.$value = { ...d.profile.$value, name: 'x' }
     })
     expect(form.values).toEqual({ profile: { name: 'x', city: '杭州' }, tags: ['a', 'b'] })
-    expect(structuredClone(form.values)).toEqual(form.values)
+    // `form.values` is a development view; submit clones the plain store object.
+    expect(structuredClone(form.getSubmitValues())).toEqual(form.values)
   })
 })
 

@@ -11,6 +11,7 @@ export { ShikiUsageError, showDraftPath } from './errors'
 export { ENUM_COLORS, enumItems } from './enum/enum-pretty'
 export type { EnumOption } from './enum/enum-source'
 export { deepEqual } from './shared/equal'
+export { peelReadonly, unwrapReadonly } from './draft/readonly'
 export { nearestName } from './shared/near'
 export { getAt, joinPath, setAt } from './shared/path'
 export { pathOf, type Pos } from './shared/tree-ops'
@@ -26,11 +27,11 @@ export type {
   FieldPath,
   FieldSpec,
   FieldUiSpec,
-  FormInstance,
   MoveResult,
   PathValue,
   UiName,
 } from './types'
+export type { FormInstance } from './types-form'
 export type { FormOptions } from './types-effects'
 export type { DefaultSubmit, FieldRecord, FieldsInput, ResolveSubmit, TemplateRecord } from './types-submit'
 export { formatMessage } from './validation/messages'
