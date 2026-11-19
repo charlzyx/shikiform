@@ -102,8 +102,10 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
 
   // —— form state (read-only, #36: writes go through setValue / batch / reset / submit so subscribers hear them) ——
 
-  /** Current values. Write with `setValue`, `batch`, or `reset(values)`. Array and tree structure ops stay on this engine for handles. */
-  get values(): T { return this.store.values }
+  /** Current values. Write with `setValue`, `batch`, or `reset(values)`. Development: a read-only view. */
+  get values(): T {
+    return (process.env.NODE_ENV !== 'production' ? readonlyValue(this.store.values, '') : this.store.values) as T
+  }
 
   /** Baseline `reset()` restores and `dirty` compares against. Cloned on create; replaced by `reset(values)` / `setInitialValues`. */
   get initial(): T { return this.store.initial }
@@ -159,11 +161,12 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
 
   // —— values ——
 
-  /** Read one typed path (`a.b.0` or `a.b[0]`). Object/array results are live references; use the write APIs instead of mutating them in place. */
+  /** Read one typed path (`a.b.0` or `a.b[0]`). Development: a read-only view, stable per object. Production: the stored value. */
   getValue<P extends FieldPath<T>>(path: P): PathValue<T, P>
   getValue<P extends string>(path: ValuePath<T, P>): PathValue<T, P>
   getValue(path: string): unknown {
-    return getAt(this.store.values, String(path))
+    const key = String(path)
+    return process.env.NODE_ENV !== 'production' ? readonlyValue(getAt(this.store.values, key), normalizePath(key)) : getAt(this.store.values, key)
   }
 
   /** Write one path from outside a reaction (`a.b.0` or `a.b[0]`). Marks the field dirty and runs `onChange` validation when configured. */
@@ -526,9 +529,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     if (key === '$value') {
       scheduler.track(path, 'value')
       const value = getAt(store.values, path)
-      // Development: reaction / watch / `batch` reads are read-only views, so `$value.y = 1` / `.push()` throw (#35).
-      const guard = process.env.NODE_ENV !== 'production' && (scheduler.current()?.recordWrites || scheduler.batchDepth > 0)
-      return (guard ? readonlyValue(value, path) : value) as never
+      return (process.env.NODE_ENV !== 'production' ? readonlyValue(value, path) : value) as never
     }
     const uiKey = uiKeyOf(key)
     if (uiKey) return this.fieldUi.read(path, uiKey)
@@ -650,7 +651,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     const active = visible && !disabled && !readOnly
     return {
       path,
-      value: getAt(store.values, path),
+      value: process.env.NODE_ENV !== 'production' ? readonlyValue(getAt(store.values, path), path) : getAt(store.values, path),
       onChange: (value: unknown) => this.writer.commitExternal(path, value),
       onBlur: () => this.blur(path),
       errors: field && active ? shownErrors(field) : [],

@@ -66,7 +66,7 @@ d.user.$value.name = 'Ada'
 d.items.$value.push(row)
 ```
 
-`$value` 返回的是不可变快照：直接原地修改它在开发环境的 `reaction`、`watch` 和 `form.batch` 中会直接报错，在其他地方也不会触发任何组件重渲染。更新时应直接给对应字段赋值，或在外部调用数组操作方法：
+`$value`、`getValue` 和 `form.values` 在开发环境返回只读视图：原地修改（包括 `form.getValue('tags').push('x')`、`form.values.user.name = 'x'`，以及校验器里改 `value` / `ctx.root` / `ctx.get()`）会抛 `ShikiUsageError`，不会通知订阅者。`Map` 的 `set` / `delete` / `clear`、`Set` 的 `add` / `delete` / `clear`、`Date` 的 `set*`、`Object.setPrototypeOf` 同样抛错。其它类实例不包装。生产环境返回原值。更新时应直接给对应字段赋值，或在外部调用数组操作方法：
 
 ```ts
 d.user.name.$value = 'Ada'

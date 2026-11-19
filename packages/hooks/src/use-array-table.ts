@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { joinPath } from '@shikiform/core/internal'
+import { joinPath, peelReadonly } from '@shikiform/core/internal'
 import { useRequiredForm, useScope } from '@shikiform/react/internal'
 import { useArrayAt, type ArrayKey } from '@shikiform/react/internal'
 import { useFieldGroupRegistration } from '@shikiform/react/internal'
@@ -260,7 +260,9 @@ export function useArrayTableOver<TRow = any>(
       },
       copy: (index: number, transform?: (copy: TRow, source: TRow) => TRow) => {
         const source = record(index)
-        let next = (source && typeof source === 'object' ? structuredClone(source) : source) as TRow
+        // `getValue` is a read-only view in development. Clone the stored row, not the proxy.
+        const raw = process.env.NODE_ENV !== 'production' ? peelReadonly(source) : source
+        let next = (raw && typeof raw === 'object' ? structuredClone(raw) : raw) as TRow
         const { rowKey, createRowKey } = optionsRef.current
         if (rowKey && isRecord(next)) {
           delete next[rowKey]

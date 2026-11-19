@@ -543,6 +543,7 @@ export interface MoveResult {
  * Inside a reaction, assign a new array.
  */
 export interface FormInstance<T, TSubmit = T> {
+  /** Current values. In development this is a read-only view: in-place writes throw `ShikiUsageError`. */
   readonly values: T
   /** True while {@link FormInstance.submit} is running, including the validation it waits for. */
   readonly submitting: boolean
@@ -571,7 +572,11 @@ export interface FormInstance<T, TSubmit = T> {
   /** Path-keyed errors, including descendants when you filter by prefix. */
   readonly errors: FieldError[]
 
-  /** Read one typed path (`items.0.price` or `items[0].price`). Do not mutate object/array results in place. */
+  /**
+   * Read one typed path (`items.0.price` or `items[0].price`).
+   * In development, object results are a read-only view: in-place writes throw `ShikiUsageError`.
+   * Write with `setValue`, `patchValues`, or `d.….$value = …`. Production returns the stored value.
+   */
   getValue<P extends FieldPath<T>>(path: P): PathValue<T, P>
   getValue<P extends string>(path: ValuePath<T, P>): PathValue<T, P>
   /** Write one path from outside a reaction (`items.0.price` or `items[0].price`). */

@@ -54,9 +54,9 @@ export class ShikiConflictError extends Error {
 }
 
 /**
- * A draft misuse caught in development (`process.env.NODE_ENV !== 'production'`): mutating a `$value` object,
- * reading a `$` state right after writing it in the same reaction, or treating a draft handle as an array.
- * The message says what to write instead.
+ * A draft misuse caught in development (`process.env.NODE_ENV !== 'production'`): mutating a value read from
+ * `$value`, `getValue`, `form.values`, or a validator, reading a `$` state right after writing it in the same
+ * reaction, or treating a draft handle as an array. The message says what to write instead.
  */
 export class ShikiUsageError extends Error {
   constructor(message: string) {

@@ -96,7 +96,7 @@ export default function App() {
 
 - 指定 `rowKey="id"` 后，每行的字段状态绑定到该主键；若行对象没有业务主键，引擎以对象引用作为稳定标识，无需额外构造临时 id。上移、下移或删除行时，`errors`、`touched` 等状态随数据行一起移动。
 - `fields` 中的 `'contacts.*.name'` 是行模板，作用于当前及后续新增的所有行；固定下标 `'contacts.0.name'` 绑定第 0 个位置，行重排后作用于新的第 0 行。需要状态跟随数据行移动时使用行模板或 [`reaction.each`](/guide/linkage#reactioneach每一行一个实例)。
-- 数组增删改序请调用 `useArrayField()` / `useArrayField(name)` 的 `push` / `remove` / `move` 等方法，不要原地修改 `getValue` 返回的数组，也不要调用 `form.pushArray`。`<ArrayField>` 仅订阅数组长度与行键列表，修改单元格值不会重渲染整张列表。
+- 数组增删改序请调用 `useArrayField()` / `useArrayField(name)` 的 `push` / `remove` / `move` 等方法。开发环境里原地修改 `getValue` / `form.values` 返回的数组会抛 `ShikiUsageError`，不会通知订阅者；也不要调用 `form.pushArray`。`<ArrayField>` 仅订阅数组长度与行键列表，修改单元格值不会重渲染整张列表。
 
 现成的增删、上下移动与拖拽排序容器见 [数组容器 ArrayItems / ArrayCards](/guide/arrays)。
 

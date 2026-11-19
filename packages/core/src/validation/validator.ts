@@ -1,6 +1,7 @@
 import type { Scheduler } from '../effects/scheduler'
+import { readonlyValue } from '../draft/readonly'
 import { deepEqual } from '../shared/equal'
-import { getAt, parentPath } from '../shared/path'
+import { getAt, normalizePath, parentPath } from '../shared/path'
 import type { FlagName } from '../state/flags'
 import { shownErrors, type FieldModel } from '../state/field-model'
 import type { FieldStore } from '../state/field-store'
@@ -161,7 +162,7 @@ export class Validator {
         if (gen !== this.validateGen) return scoped()
         collected.push(...issues)
       } else if (typeof validate === 'function') {
-        const extra = await validate(values)
+        const extra = await validate(process.env.NODE_ENV !== 'production' ? readonlyValue(values, '') : values)
         if (gen !== this.validateGen) return scoped()
         collected.push(...recordToIssues(extra))
       }
@@ -215,17 +216,23 @@ export class Validator {
    * `values`, so a rule never compares a pending value with another version of its row. A future
    * draft-row validation must pass a snapshot with the draft set at its real row path, not a side channel.
    */
+  /** Development read of one snapshot node. Production returns `value` unchanged. */
+  private expose<V>(value: V, path: string): V {
+    if (process.env.NODE_ENV === 'production') return value
+    return readonlyValue(value, path)
+  }
+
   private buildCtx(path: string, value: unknown, pos: Pos | undefined, values: unknown, signal?: AbortSignal): ValidateCtx {
     const scope = scopeOf(path)
     const ctx: ValidateCtx = {
       path,
-      value,
-      record: scope.recordPath ? getAt(values, scope.recordPath) : values,
-      root: values,
-      parent: scope.parentPath ? getAt(values, scope.parentPath) : values,
-      array: scope.arrayPath ? (getAt(values, scope.arrayPath) as any[]) : undefined,
+      value: this.expose(value, path),
+      record: scope.recordPath ? this.expose(getAt(values, scope.recordPath), scope.recordPath) : this.expose(values, ''),
+      root: this.expose(values, ''),
+      parent: scope.parentPath ? this.expose(getAt(values, scope.parentPath), scope.parentPath) : this.expose(values, ''),
+      array: scope.arrayPath ? (this.expose(getAt(values, scope.arrayPath), scope.arrayPath) as any[]) : undefined,
       index: scope.index,
-      get: (p) => getAt(values, p),
+      get: (p) => this.expose(getAt(values, p), normalizePath(p)),
       pos,
       depth: pos?.length,
     }

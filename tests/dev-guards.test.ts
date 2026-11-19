@@ -29,9 +29,9 @@ describe('development usage errors (with the fix in the message)', () => {
     expect(form.getValue('total')).toBe(3)
     const copy = form.getValue('copy')!
     expect(copy).toEqual({ name: 'a', tags: ['x'] })
-    expect(() => structuredClone(copy)).not.toThrow()
-    copy.name = 'outside' // values outside a reaction are not wrapped
-    expect(() => form.getSubmitValues()).not.toThrow()
+    expect(() => { copy.name = 'outside' }).toThrow(ShikiUsageError)
+    expect(form.getValue('copy')).toEqual({ name: 'a', tags: ['x'] })
+    expect(() => structuredClone(form.getSubmitValues())).not.toThrow()
   })
 
   it('reading a $ state after writing it in the same reaction throws', () => {

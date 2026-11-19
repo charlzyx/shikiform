@@ -1,3 +1,5 @@
+import { unwrapReadonly } from '../draft/readonly'
+
 /** Structural equality for plain form values (no functions, no class instances). */
 export function deepEqual(a: unknown, b: unknown): boolean {
   if (Object.is(a, b)) return true
@@ -21,8 +23,10 @@ export function deepEqual(a: unknown, b: unknown): boolean {
 }
 
 export function clone<T>(value: T): T {
-  if (typeof structuredClone === 'function') return structuredClone(value)
-  return JSON.parse(JSON.stringify(value)) as T
+  // Development views (`getValue`, `$value`) are proxies; structuredClone rejects them. Peel them first.
+  const plain = process.env.NODE_ENV !== 'production' ? unwrapReadonly(value) : value
+  if (typeof structuredClone === 'function') return structuredClone(plain)
+  return JSON.parse(JSON.stringify(plain)) as T
 }
 
 /**

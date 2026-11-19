@@ -27,7 +27,7 @@ and SSR-rendered against the packed library); the site's `/llms.txt` serves this
   A nullable field keeps its null in the type: `qty: number | null` makes `d.qty.$value` `number | null`
   (assigning `null` — what InputNumber writes when cleared — type-checks); an optional field accepts `undefined`.
 - A `$value` object is a snapshot of immutable data. Never mutate it; assign a new value or write the child path.
-  Inside `reaction`, `watch` and `form.batch` the snapshot is read-only in development (mutation throws).
+  In development, `$value`, `getValue`, `form.values`, and validator `value` / `ctx.root` / `ctx.get()` are read-only views (mutation throws `ShikiUsageError`). The view is cached per object, so repeated reads keep the same identity. Production returns the raw value.
 - A handle is not an array: no `.map`, `.length`, `for…of`, or `const [row] = d.items`. Use `d.items.$value` or `reaction.each`.
 - Destructuring takes child field handles only (`const { name } = d.user`, then `name.$value`). `$` state is always read and written on the handle. Object rest, object spread, and `Object.keys(handle)` throw in development.
 - Outside a reaction, read and write with `form.getValue` / `form.setValue`. Paths are `a.b.c`, `a.b[0].c`, or `a['name']` (`orders.0.qty` and `orders[0].qty` are the same field). Inside `reaction`, `watch`, and `form.batch`, walk the draft: `d.user.name.$value`, `d.items[0].qty.$value`. A dynamic path inside effects is `query(path)` (untyped).

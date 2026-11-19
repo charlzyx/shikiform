@@ -1,4 +1,5 @@
 import type { EnumOption } from '../enum/enum-source'
+import { readonlyValue } from '../draft/readonly'
 import { formatMessage, type FormMessages } from './messages'
 import { ShikiUsageError } from '../errors'
 import { nearestName } from '../shared/near'
@@ -170,7 +171,9 @@ export function runRules(
       // A synchronous throw is that rule's message, like a rejection (#2, #7): a pass never rejects on a field rule.
       let result: RuleMessage
       try {
-        result = rule.validator(value, ctx)
+        // Development: the value handed to user code is the same read-only view as `getValue` / `$value`.
+        const seen = process.env.NODE_ENV !== 'production' ? readonlyValue(value, ctx.path) : value
+        result = rule.validator(seen, ctx)
       } catch (err) {
         out.push(err instanceof Error && err.message ? err.message : formatMessage(messages, 'fallback', { ...base, error: err }))
         continue
