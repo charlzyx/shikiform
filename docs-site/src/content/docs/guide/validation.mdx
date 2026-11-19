@@ -15,7 +15,7 @@ description: 使用内置规则、Standard Schema（如 Zod）进行同步与异
 | `pattern` | 正则表达式匹配 |
 | `format: 'email' \| 'url'` | 内置格式校验 |
 | `isTrue` | 值必须为 `true`（常用于勾选同意协议） |
-| `validator(value, ctx)` | 自定义校验函数，返回错误文案、空值或对应 Promise。`ctx` 提供 `record`（所属对象）、`parent`（跳过数组层的上级对象）、`root`、`get(path)` 以及 `signal`（读到的是本轮校验开始时的快照）。函数抛错或 reject 时，异常的 `message` 会作为报错文案 |
+| `validator(value, ctx)` | 自定义校验函数，返回错误文案、空值或对应 Promise。`ctx.record` 在路径含数组下标时是最后一个下标对应的那一行，否则是包住该字段的对象；`parent` 跳过数组层的上级对象；另有 `root`、`get(path)` 与 `signal`（读到的是本轮校验开始时的快照）。函数抛错或 reject 时，异常的 `message` 会作为报错文案 |
 | `message` | 自定义该条规则的错误提示文案 |
 | `level: 'warning'` | 设为警告级别：提示信息写入 `$warnings` / `field.warnings` 并以警告色展示，但**不会阻止提交**，也不会影响 `canSubmit`（类似 Ant Design 的 `warningOnly`），适合「密码强度偏弱」等软提醒 |
 

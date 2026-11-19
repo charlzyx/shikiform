@@ -1,7 +1,7 @@
 /**
  * Headless "pro" hooks. No Ant Design. The components in `@shikiform/antd` render these:
  * - `useQueryTable` → `QueryList`;
- * - `useArrayTable` → headless array-table state (`ArrayTable` keeps column settings on `@shikiform/hooks/internal`);
+ * - `useArrayTable` → headless array-table state; `useColumnSettings` is a public export (ArrayTable reads it via `useTable().settings`);
  * - `useShadowForm` → `ShadowForm`, `ShadowModal`, `ShadowDrawer`, `ShadowPopconfirm`;
  * - `useSuggestion` → `Suggestion`; `useLazyCascader` → `CascaderPlus` (its read-view labels stay on `@shikiform/hooks/internal`); `enumItems` → `PreviewText.Select` (choice controls' `preview`).
  *

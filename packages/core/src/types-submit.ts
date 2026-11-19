@@ -39,20 +39,53 @@ type TemplateSegment<T, H extends string> = H extends '*' | `${number}`
     ? T[H]
     : never
 
-/** Nearest enclosing object (`ctx.record`) for a field or template path (`rows.*.qty` → row type, `name` → `T`). */
-export type TemplateRecord<T, P extends string> = P extends `${infer H}.${infer R}`
+type IndexSegment = '*' | `${number}`
+
+/**
+ * `ctx.record` for a field or template path. Matches `scopeOf`:
+ * an array index (`*` or a number) selects the element at the **last** index
+ * (`rows.*.name`, `rows.*.address.city`, and `rows.0.address.city` are all the row);
+ * a path with no index is the object that contains the field
+ * (`filters.max` → `filters`, `user.address.city` → `address`, `name` → `T`).
+ */
+export type TemplateRecord<T, P extends string> = RecordOf<T, P, never>
+
+/**
+ * `ctx.record` for a name relative to the current scope.
+ * `TRow` is the enclosing array element when that scope is already inside a row
+ * (`<row.Field name="address.city">` → the row). A further index in `P` (`lines.*.sku`)
+ * still selects that later element. Outside a row, `TRow` is `never` and this is {@link TemplateRecord}.
+ */
+export type FieldRecord<T, P extends string, TRow = never> = PathHasIndex<P> extends true
+  ? TemplateRecord<T, P>
+  : [TRow] extends [never]
+    ? TemplateRecord<T, P>
+    : TRow
+
+type PathHasIndex<P extends string> = P extends `${infer H}.${infer R}`
+  ? H extends IndexSegment
+    ? true
+    : PathHasIndex<R>
+  : P extends IndexSegment
+    ? true
+    : false
+
+/** `Seen` is the element of the last index already passed, or `never` when the path has none. */
+type RecordOf<T, P extends string, Seen> = P extends `${infer H}.${infer R}`
   ? TemplateSegment<T, H> extends infer V
     ? [V] extends [never]
-      ? T
-      : R extends `${string}.${string}`
-        ? TemplateRecord<NonNullable<V>, R>
-        : NonNullable<V> extends readonly unknown[]
-          ? T
-          : NonNullable<V> extends object
-            ? NonNullable<V>
-            : T
-    : T
-  : T
+      ? RecordFallback<T, Seen>
+      : RecordOf<NonNullable<V>, R, H extends IndexSegment ? NonNullable<V> : Seen>
+    : RecordFallback<T, Seen>
+  : P extends IndexSegment
+    ? TemplateSegment<T, P> extends infer V
+      ? [V] extends [never]
+        ? RecordFallback<T, Seen>
+        : NonNullable<V>
+      : RecordFallback<T, Seen>
+    : RecordFallback<T, Seen>
+
+type RecordFallback<T, Seen> = [Seen] extends [never] ? T : Seen
 
 /** `FieldSpec` whose `rules` / `enum` are checked against the field value and enclosing record/root. */
 export type FieldSpecFor<V, TRecord = any, TRoot = any> = Omit<FieldSpec, 'rules' | 'enum'> & {
@@ -87,7 +120,6 @@ export type SubmitFromFields<T, F> = [DroppedByFields<F>] extends [never]
 /** `TSubmit` when the caller omitted it, otherwise the explicit argument. */
 export type ResolveSubmit<T, TSubmit, F> = [TSubmit] extends [DefaultSubmit] ? SubmitFromFields<T, F> : TSubmit
 
-type IndexSegment = `${number}` | '*'
 type HeadKey<P extends string> = P extends `${string}.${string}` ? never : P
 type RestOf<P extends string, K extends string> = P extends `${K}.${infer R}` ? R : never
 type OptionalAt<V, R extends string> = [R] extends [never] ? V : OptionalPaths<V, R>

@@ -26,7 +26,7 @@ export interface EnumDisplayItem {
   value: unknown
   /** The option label; a `labelInValue` item's own label; else the value as text. */
   label: string
-  /** The option color (named colors resolved), else a palette color by option position; `''` for no color. */
+  /** Named color resolved through {@link ENUM_COLORS}, or `''` when the option sets none. `{ colorful: true }` adds a palette color by position. */
   color: string
   /** False when no option has this value. */
   matched: boolean

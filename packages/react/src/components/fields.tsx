@@ -2,7 +2,7 @@ import { memo, useContext, useEffect, useMemo, useRef, type ComponentProps, type
 import { isFieldErrors, SubmitSupersededError } from '@shikiform/core'
 import { engineOf } from '@shikiform/core/internal'
 import type { ArrayPath, Draft, FieldEnum, FieldError, FieldPath, FormInstance, PathValue, UiName } from '@shikiform/core/internal'
-import type { RulesInput, TemplateRecord } from '@shikiform/core/internal'
+import type { FieldRecord, RulesInput } from '@shikiform/core/internal'
 import { pathOf, type Pos } from '@shikiform/core/internal'
 import { ArrayContext, FormContext, RowWrapContext, ScopeContext, TreeContext, useRequiredForm, useScope } from '../context'
 import { useArrayField } from '../hooks/use-array'
@@ -162,6 +162,9 @@ export interface FieldProps<
   N extends FieldPath<TScope> = FieldPath<TScope>,
   C extends ComponentType<any> = ComponentType<any>,
   D extends ComponentType<any> = ComponentType<any>,
+  TRoot = any,
+  /** Enclosing array element when this field renders inside a row; `never` otherwise. */
+  TRow = never,
 > {
   /** Name relative to the current `<ObjectField>` / `<ArrayField>` / `<TreeField>` scope. */
   name: N
@@ -179,8 +182,12 @@ export interface FieldProps<
    * read-only previews read it as `options`.
    */
   enum?: FieldEnum<PathValue<TScope, N & string>>
-  /** Mount-scoped rules. Cleared on unmount. Does not erase a declaration, a template, or `$rules`. `validator` receives this field's value. */
-  rules?: RulesInput<PathValue<TScope, N & string>, TemplateRecord<TScope, N & string>>
+  /**
+   * Mount-scoped rules. Cleared on unmount. Does not erase a declaration, a template, or `$rules`.
+   * `validator` receives this field's value. `ctx.record` follows the path (the row, when this field sits in one);
+   * `ctx.root` is `TRoot` (the form values for `typed(form).Field`).
+   */
+  rules?: RulesInput<PathValue<TScope, N & string>, FieldRecord<TScope, N & string, TRow>, TRoot>
   /** Mount-scoped required flag. Cleared on unmount. A declared or `$required` flag stays. */
   required?: boolean
   /** `false` does not render. Inherited (OR). Still submitted unless `omit`. On `<Field ui>` this is the instance's. */
@@ -220,7 +227,9 @@ export type CheckedFieldProps<
   N extends FieldPath<TScope> = FieldPath<TScope>,
   C extends ComponentType<any> = ComponentType<any>,
   D extends ComponentType<any> = ComponentType<any>,
-> = FieldProps<TScope, N, C, D> & ControlValueGuard<C, PathValue<TScope, N & string>>
+  TRoot = any,
+  TRow = never,
+> = FieldProps<TScope, N, C, D, TRoot, TRow> & ControlValueGuard<C, PathValue<TScope, N & string>>
 
 /**
  * One field: the single owner of a path's JSX config (Formily `<Field>`).

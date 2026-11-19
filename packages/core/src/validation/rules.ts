@@ -4,7 +4,10 @@ import { ShikiUsageError } from '../errors'
 import { nearestName } from '../shared/near'
 import { isStandardSchema, schemaIssuePath, type SchemaIssue, type StandardSchemaV1 } from './schema'
 
-/** Cross-field context. `record` is the nearest object. `parent` skips the enclosing array. */
+/**
+ * Cross-field context. `record` is the element at the last array index on the path,
+ * or the object that contains the field when the path has no index. `parent` skips the enclosing array.
+ */
 export interface ValidateCtx<TRecord = any, TRoot = any> {
   path: string
   value: unknown
