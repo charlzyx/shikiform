@@ -3,7 +3,8 @@ import { render } from '@testing-library/react'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { useWatch } from '@shikiform/react'
-import { ShikiUsageError, type ValidateCtx } from '@shikiform/core'
+import { ShikiUsageError, toRaw, type ValidateCtx } from '@shikiform/core'
+import { deepEqual } from '@shikiform/core/internal'
 import { createEngine } from '../packages/core/src/engine/create'
 
 const DATE_SETTERS = [
@@ -81,6 +82,11 @@ describe('development read-only views over live store values', () => {
     expect(date).toBeInstanceOf(Date)
     expect(date.getTime()).toBe(at.getTime())
     expect(date.constructor).toBe(Date)
+    expect(Object.prototype.toString.call(date)).toBe('[object Date]')
+    expect(new Date(date).getTime()).toBe(at.getTime())
+    expect(Number(date)).toBe(at.getTime())
+    expect(date.toISOString()).toBe(at.toISOString())
+    expect(Intl.DateTimeFormat('en-US', { timeZone: 'UTC', year: 'numeric' }).format(date)).toBe('2020')
     for (const name of DATE_SETTERS) expect(() => (date as unknown as Record<string, (v: number) => void>)[name]!(1)).toThrow(ShikiUsageError)
     expect(date.getTime()).toBe(at.getTime())
 
@@ -92,6 +98,10 @@ describe('development read-only views over live store values', () => {
     expect(() => map.clear()).toThrow(ShikiUsageError)
     expect(map.size).toBe(1)
     expect([...map.keys()]).toEqual(['a'])
+    map.forEach((item) => {
+      expect(item.n).toBe(1)
+      expect(() => { item.n = 3 }).toThrow(/toRaw/)
+    })
 
     expect(set.has('on')).toBe(true)
     expect(() => set.add('off')).toThrow(/\.add\(/)
@@ -171,6 +181,116 @@ describe('development read-only views over live store values', () => {
   })
 })
 
+function deepFreeze<T>(value: T): T {
+  if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value
+  Object.freeze(value)
+  for (const key of Reflect.ownKeys(value as object)) deepFreeze((value as Record<PropertyKey, unknown>)[key])
+  return value
+}
+
+const frozenRecord = () => deepFreeze({
+  user: { name: 'Ada', addr: { city: '杭州' } },
+  tags: ['a', { n: 1 }] as ['a', { n: number }],
+  rows: [{ name: 'r', child: { n: 2 } }],
+})
+
+function expectFrozenReadable(form: { getValue(path: string): any; values: any }) {
+  expect(form.values.user.addr.city).toBe('杭州')
+  expect(form.getValue('user').name).toBe('Ada')
+  expect(form.getValue('tags')[1].n).toBe(1)
+  expect(form.getValue('rows')[0].child.n).toBe(2)
+  expect(Object.keys(form.getValue('user'))).toEqual(['name', 'addr'])
+  expect(JSON.parse(JSON.stringify(form.getValue('user')))).toEqual({ name: 'Ada', addr: { city: '杭州' } })
+  expect(Object.getOwnPropertyDescriptor(form.getValue('user'), 'addr')?.enumerable).toBe(true)
+}
+
+describe('frozen values, identity, and copy', () => {
+  it('reads deep-frozen data from every entry that can store it', () => {
+    const init = frozenRecord()
+    const created = createEngine({ initialValues: init })
+    expectFrozenReadable(created)
+    expect(init.user.name).toBe('Ada')
+
+    const replaced = createEngine<any>({ initialValues: { user: { name: '', addr: { city: '' } }, tags: [], rows: [] } })
+    const next = frozenRecord()
+    replaced.setValue('user', next.user)
+    replaced.setValue('tags', next.tags)
+    replaced.setValue('rows', next.rows)
+    expectFrozenReadable(replaced)
+
+    replaced.reset(frozenRecord())
+    expectFrozenReadable(replaced)
+
+    replaced.patchValues({ tags: deepFreeze(['a', { n: 1 }]), rows: deepFreeze([{ name: 'r', child: { n: 2 } }]) })
+    expect(replaced.getValue('tags')[1].n).toBe(1)
+    expect(replaced.getValue('rows')[0].child.n).toBe(2)
+
+    replaced.pushArray('rows', deepFreeze({ name: 's', child: { n: 9 } }))
+    expect(replaced.getValue('rows').at(-1)!.child.n).toBe(9)
+    replaced.insertArray('rows', 0, deepFreeze({ name: 't', child: { n: 8 } }))
+    expect(replaced.getValue('rows')[0].child.n).toBe(8)
+    replaced.replaceArray('rows', 0, deepFreeze({ name: 'u', child: { n: 7 } }))
+    expect(replaced.getValue('rows')[0].child.n).toBe(7)
+
+    const boxed = createEngine<{ box: { n: number; child: { x: number } } | null }>({ initialValues: { box: null } })
+    boxed.batch((d) => { d.box.$value = deepFreeze({ n: 1, child: { x: 4 } }) })
+    expect(boxed.getValue('box')!.child.x).toBe(4)
+    expect(boxed.values.box!.n).toBe(1)
+  })
+
+  it('peels views for indexOf, includes, and deepEqual, and copies through toRaw', () => {
+    const form = createEngine({ initialValues: { rows: [{ id: 'a' }, { id: 'b' }], user: { name: 'Ada' } } })
+    const rows = form.getValue('rows')
+    const rawRow = toRaw(rows[0])
+    expect(rows.indexOf(rows[0])).toBe(0)
+    expect(rows.indexOf(rawRow)).toBe(0)
+    expect(rows.includes(rawRow)).toBe(true)
+    expect(rows.lastIndexOf(rawRow)).toBe(0)
+    expect(rows[0]).not.toBe(rawRow)
+    expect(deepEqual(rows, toRaw(rows))).toBe(true)
+    expect(deepEqual(form.getValue('user'), toRaw(form.getValue('user')))).toBe(true)
+    expect(() => structuredClone(form.values)).toThrow()
+    expect(structuredClone(toRaw(form.values))).toEqual(form.getSubmitValues())
+    expect(() => form.getValue('rows').push({ id: 'c' })).toThrow(/toRaw\(value\)/)
+  })
+
+  it('guards forEach arguments and iterates a Set of objects', () => {
+    const item = { id: 1 }
+    const form = createEngine({ initialValues: { flags: new Set([item]) } })
+    const flags = form.getValue('flags')
+    expect(flags.size).toBe(1)
+    const spread = [...flags]
+    expect(spread).toHaveLength(1)
+    expect(() => { spread[0]!.id = 2 }).toThrow(ShikiUsageError)
+    flags.forEach((value) => {
+      expect(value.id).toBe(1)
+      expect(() => { value.id = 3 }).toThrow(ShikiUsageError)
+    })
+    expect(item.id).toBe(1)
+  })
+
+  it('reuses one view per stored object while reading a long list', () => {
+    const rows = Array.from({ length: 2000 }, (_, id) => ({ id, name: 'n' + id }))
+    const form = createEngine({ initialValues: { rows } })
+    const first = form.getValue('rows')
+    const again = form.getValue('rows')
+    expect(again).toBe(first)
+    for (let i = 0; i < first.length; i++) {
+      expect(again[i]).toBe(first[i])
+      expect(typeof again[i]!.id).toBe('number')
+      expect(typeof again[i]!.name).toBe('string')
+    }
+    const started = performance.now()
+    for (let pass = 0; pass < 20; pass++) {
+      const list = form.getValue('rows')
+      for (let i = 0; i < list.length; i++) {
+        if (list[i]!.id !== i || list[i]!.name !== 'n' + i) throw new Error('row changed')
+      }
+    }
+    expect(performance.now() - started).toBeLessThan(1000)
+  })
+})
+
 describe('production returns the stored objects', () => {
   it('does not wrap getValue or form.values', () => {
     vi.stubEnv('NODE_ENV', 'production')
@@ -182,6 +302,8 @@ describe('production returns the stored objects', () => {
       expect(form.getValue('tags')).toEqual(['a', 'x'])
       expect(form.values.user.name).toBe('Bea')
       expect(form.values).toBe(form.getValue('' as never))
+      expect(toRaw(form.values)).toBe(form.values)
+      expect(structuredClone(form.values)).toEqual({ tags: ['a', 'x'], user: { name: 'Bea' } })
     } finally {
       vi.unstubAllEnvs()
     }

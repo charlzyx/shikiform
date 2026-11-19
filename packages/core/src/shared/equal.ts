@@ -1,7 +1,12 @@
-import { unwrapReadonly } from '../draft/readonly'
+import { peelReadonly, unwrapReadonly } from '../draft/readonly'
 
 /** Structural equality for plain form values (no functions, no class instances). */
 export function deepEqual(a: unknown, b: unknown): boolean {
+  // A development view and its stored object compare equal. Production never creates views.
+  if (process.env.NODE_ENV !== 'production') {
+    a = peelReadonly(a)
+    b = peelReadonly(b)
+  }
   if (Object.is(a, b)) return true
   if (typeof a !== 'object' || typeof b !== 'object' || a == null || b == null) return false
   if (a instanceof Date || b instanceof Date) {

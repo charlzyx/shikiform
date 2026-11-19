@@ -48,7 +48,7 @@ createForm<T, TSubmit = T>(options?: FormOptions<T>): FormInstance<T, TSubmit>  
 
 | 方法 | 说明 |
 |---|---|
-| `getValue(path)` / `setValue(path, value)` | 读 / 写一个有类型的 path，`a.b.c` 与 `a.b[0].c` 都可以。开发环境读到的对象、数组、`Map`、`Set`、`Date` 是只读视图，原地修改抛 `ShikiUsageError`；同一底层对象多次读取是同一个引用。写入用 `setValue` / `patchValues`，联动里写 `d.x.$value = …`，数组在组件里用 `useArrayField().push`。生产环境返回存储的原值 |
+| `getValue(path)` / `setValue(path, value)` | 读 / 写一个有类型的 path，`a.b.c` 与 `a.b[0].c` 都可以。开发环境读到的对象、数组、`Map`、`Set`、`Date` 是只读视图，原地修改抛 `ShikiUsageError`（错误里有路径）；同一底层对象多次读取是同一个引用，但视图和存储对象 `===` 不相等（生产环境相等）。`rows.indexOf(rawRow)` / `includes` 仍能找到。写入用 `setValue` / `patchValues`，联动里写 `d.x.$value = …`，数组在组件里用 `useArrayField().push`。不要把视图交给会 `push` / `sort` 的控件。`structuredClone` / `postMessage` / IndexedDB 用 `structuredClone(toRaw(value))`；只要提交值用 `getSubmitValues()`。生产环境返回存储的原值 |
 | `batch((d) => { … })` | 用一个 draft 做多次写入，一轮联动、一次通知 |
 | 数组 / 树增删移动 | 不在表单上。见下面的 [数组与树句柄](#数组与树句柄) |
 | `validate(path?)` | 校验全表、一棵子树，或一组路径（`validate(['a', 'b'])`，一次校验，`FormStep` 的「下一步」就是它）。通过 resolve `undefined`，失败 reject `FieldError[]` |

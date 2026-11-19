@@ -12,6 +12,9 @@ import { ShikiUsageError, showDraftPath } from '../errors'
  *
  * `isGuardable` is independent of `isPatchable`. Patch drafts still wrap only plain objects and arrays.
  * `Map`, `Set`, and `Date` are guarded here; other class instances are returned as-is.
+ * A non-configurable, non-writable property (a frozen / sealed-frozen child, including immer and Redux state
+ * stored by reference) is returned raw: wrapping it would break the proxy invariant. The child is already immutable.
+ * Views are not structured-cloneable. `toRaw(value)` is the stored object; `structuredClone(toRaw(value))` is a plain copy.
  */
 
 const TARGETS = new WeakMap<object, object>()
@@ -55,17 +58,25 @@ export function readonlyValue<V>(value: V, path: string): V {
   // A view handed back to a read (round trip that skipped unwrap) is already guarded.
   if (TARGETS.has(value)) return value
   const at = (prop: PropertyKey) => childPath(path, prop)
+  // One trio per array view, so `rows.indexOf` does not allocate on every read.
+  const locate = Array.isArray(value) ? locateMethods(value) : undefined
   // Assigned before any trap runs. The collection `forEach` reports this view as its collection.
   let view!: object
   view = new Proxy(value, {
     get(target, prop, receiver) {
       if (prop === '__proto__' || prop === 'constructor') return Reflect.get(target, prop, target)
       if (target instanceof Map || target instanceof Set || target instanceof Date) return readCollection(target, prop, path, view)
-      if (Array.isArray(target) && typeof prop === 'string' && ARRAY_MUTATORS.has(prop)) return () => { throw arrayMutation(path, prop) }
+      if (locate) {
+        if (typeof prop === 'string' && ARRAY_MUTATORS.has(prop)) return () => { throw arrayMutation(path, prop) }
+        if (prop === 'indexOf' || prop === 'includes' || prop === 'lastIndexOf') return locate[prop]
+      }
       const raw = Reflect.get(target, prop, receiver)
+      // Primitives and functions: no descriptor object, no view.
+      if (!isGuardable(raw)) return raw
       const desc = Reflect.getOwnPropertyDescriptor(target, prop)
-      if (desc && !desc.configurable && !desc.writable) return raw
-      return isGuardable(raw) ? readonlyValue(raw, at(prop)) : raw
+      // Frozen data (non-configurable and non-writable). A wrapper is a different value and the proxy throws TypeError.
+      if (desc && desc.configurable === false && desc.writable === false) return raw
+      return readonlyValue(raw, at(prop))
     },
     getOwnPropertyDescriptor(target, prop) {
       const desc = Reflect.getOwnPropertyDescriptor(target, prop)
@@ -99,18 +110,24 @@ export function readonlyValue<V>(value: V, path: string): V {
 }
 
 function readCollection(target: Map<unknown, unknown> | Set<unknown> | Date, prop: PropertyKey, path: string, view: object): unknown {
+  // Proxies have no Date/Map/Set internal slot, so Object.prototype.toString would say [object Object]
+  // unless @@toStringTag is present. date-fns and similar accept either the tag or instanceof.
+  if (prop === Symbol.toStringTag) return target instanceof Map ? 'Map' : target instanceof Set ? 'Set' : 'Date'
   const kind = target instanceof Map ? 'Map' : target instanceof Set ? 'Set' : 'Date'
   const mutators = target instanceof Map ? MAP_MUTATORS : target instanceof Set ? SET_MUTATORS : DATE_MUTATORS
   if (typeof prop === 'string' && mutators.has(prop)) return () => { throw collectionMutation(path, prop, kind) }
   const raw = Reflect.get(target, prop, target)
   if (typeof raw !== 'function') return isGuardable(raw) ? readonlyValue(raw, childPath(path, prop)) : raw
+  if (prop === 'has' && (target instanceof Map || target instanceof Set)) {
+    return (key: unknown) => raw.call(target, peelReadonly(key))
+  }
   if (prop === 'get' && target instanceof Map) {
-    return (key: unknown) => guard(raw.call(target, key), path)
+    return (key: unknown) => guard(raw.call(target, peelReadonly(key)), path)
   }
   if (prop === 'forEach' && (target instanceof Map || target instanceof Set)) {
     return (callback: (value: unknown, key: unknown, collection: object) => void, thisArg?: unknown) => {
       raw.call(target, (item: unknown, key: unknown) => {
-        callback.call(thisArg, guard(item, path), key, view)
+        callback.call(thisArg, guard(item, path), guard(key, path), view)
       })
     }
   }
@@ -122,6 +139,15 @@ function readCollection(target: Map<unknown, unknown> | Set<unknown> | Date, pro
   if (prop === 'values') return () => guardIter(raw.call(target), path, 'value')
   if (prop === 'keys') return () => guardIter(raw.call(target), path, 'key')
   return raw.bind(target)
+}
+
+function locateMethods(array: unknown[]) {
+  const at = (search: unknown) => peelReadonly(search)
+  return {
+    indexOf: (search: unknown, from?: number) => (from === undefined ? array.indexOf(at(search)) : array.indexOf(at(search), from)),
+    includes: (search: unknown, from?: number) => (from === undefined ? array.includes(at(search)) : array.includes(at(search), from)),
+    lastIndexOf: (search: unknown, from?: number) => (from === undefined ? array.lastIndexOf(at(search)) : array.lastIndexOf(at(search), from)),
+  }
 }
 
 function guard(value: unknown, path: string): unknown {
@@ -162,7 +188,7 @@ function assignMutation(path: string, prop: PropertyKey): ShikiUsageError {
     `${shown}.$value is read-only here: assigning ${key} would mutate the stored value without notifying anyone ` +
       `(no subscriber runs, dirty stays false). ` +
       `Write the field instead: ${child}.$value = …, or replace the whole value: ${shown}.$value = { ...${shown}.$value, ${key}: … }. ` +
-      `Outside an effect, form.setValue(${quote(childPath)}, …) or form.patchValues(…).`,
+      `Outside an effect, form.setValue(${quote(childPath)}, …) or form.patchValues(…).${CLONE_HINT}`,
   )
 }
 
@@ -173,7 +199,8 @@ function arrayMutation(path: string, prop: string): ShikiUsageError {
       `(no subscriber runs, dirty stays false). ` +
       `Assign a new array instead: ${shown} = [...${shown}, row] (or ${shown}.filter(…) / .toSorted(…)). ` +
       `Outside an effect, form.setValue(${quote(path)}, …) or form.patchValues(…). ` +
-      `In a component, call useArrayField().push / useArrayField(name).push (remove and move are on the same handle).`,
+      `In a component, call useArrayField().push / useArrayField(name).push (remove and move are on the same handle). ` +
+      `Do not hand this array to a control that sorts or pushes it.${CLONE_HINT}`,
   )
 }
 
@@ -182,8 +209,22 @@ function collectionMutation(path: string, method: string, kind: string): ShikiUs
   return new ShikiUsageError(
     `${shown}.${method}(…) mutates the stored ${kind}, so nothing is notified ` +
       `(no subscriber runs, dirty stays false). ` +
-      `Replace it: ${shown} = … in an effect, or form.setValue(${quote(path)}, …) / form.patchValues(…).`,
+      `Replace it: ${shown} = … in an effect, or form.setValue(${quote(path)}, …) / form.patchValues(…).${CLONE_HINT}`,
   )
+}
+
+const CLONE_HINT =
+  ' This view is not cloneable in development (structuredClone, postMessage, and IndexedDB throw). ' +
+  'Use structuredClone(toRaw(value)) from @shikiform/core, or getSubmitValues() for the submit payload.'
+
+/**
+ * Stored object behind a development read-only view (`getValue`, `form.values`, `$value`, a validator `value`).
+ * Returns `value` when it is not a view. The result is live store data: mutating it does not notify subscribers.
+ * `structuredClone(toRaw(form.values))` is a plain copy (omitted fields included). `getSubmitValues()` is the
+ * plain submit payload. In production no views are created, so this is the identity.
+ */
+export function toRaw<V>(value: V): V {
+  return peelReadonly(value)
 }
 
 /** The store object behind a read-only view, or `value` when it is not a view. Does not walk children. */

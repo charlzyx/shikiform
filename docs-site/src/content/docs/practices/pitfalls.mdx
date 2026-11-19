@@ -74,6 +74,12 @@ d.items.$value = [...d.items.$value, row]
 // 在组件里追加行：useArrayField().push(row)，或 useArrayField('items').push(row)
 ```
 
+开发环境的视图和底层对象不是同一个引用（`getValue('user') === toRaw(getValue('user'))` 为 false），生产环境则是。`indexOf` / `includes` 会先剥掉视图再比较，所以 `rows.indexOf(rawRow)` 仍然找得到。`deepEqual` 也把视图和原对象看成相等。不要把 `binding().value` 交给会原地 `push` / `sort` 的表格库；错误信息里有字段路径，改用 `useArrayField().push` 或 `form.setValue`。
+
+`structuredClone(form.values)`、`postMessage` 和 IndexedDB 在开发环境会抛 `DataCloneError`（视图是 Proxy），生产环境不会。要拷贝时用 `structuredClone(toRaw(form.values))`（含 `omit` 字段），只要提交结果时用 `getSubmitValues()`。
+
+被 `Object.freeze` 深冻结的数据（immer / Redux）读出来不会因为 Proxy 不变量抛 `TypeError`。不可配置且不可写的子属性按原对象返回，它本身已经不能改。
+
 ## 在同一轮联动中读回刚写入的 `$value`
 
 ```ts

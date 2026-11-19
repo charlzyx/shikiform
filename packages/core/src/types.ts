@@ -543,7 +543,11 @@ export interface MoveResult {
  * Inside a reaction, assign a new array.
  */
 export interface FormInstance<T, TSubmit = T> {
-  /** Current values. In development this is a read-only view: in-place writes throw `ShikiUsageError`. */
+  /**
+   * Current values. In development this is a read-only view: in-place writes throw `ShikiUsageError`.
+   * The view is not the stored object (`===` fails; production returns the stored object) and is not
+   * `structuredClone`able. Use `toRaw(values)` for the live object, `structuredClone(toRaw(values))` for a plain copy.
+   */
   readonly values: T
   /** True while {@link FormInstance.submit} is running, including the validation it waits for. */
   readonly submitting: boolean

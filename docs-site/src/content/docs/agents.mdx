@@ -7,7 +7,7 @@ AI 编程工具生成 ShikiForm 代码时，常见错误集中在把 draft handl
 
 ## 六条核心规范
 
-1. **handle 是路径代理而非数据对象**：`d.user.name` 只定位字段路径，读写值必须通过 `$value`。不要原地修改 `$value`、`getValue` 或 `form.values` 返回的对象（开发环境会抛错），应直接对目标子字段的 `$value` 赋值，或调用 `form.setValue` / `form.patchValues`；数组字段的 handle 也不能调用 `.map` 或读取 `.length`。
+1. **handle 是路径代理而非数据对象**：`d.user.name` 只定位字段路径，读写值必须通过 `$value`。不要原地修改 `$value`、`getValue` 或 `form.values` 返回的对象（开发环境会抛错），应直接对目标子字段的 `$value` 赋值，或调用 `form.setValue` / `form.patchValues`；数组字段的 handle 也不能调用 `.map` 或读取 `.length`。开发环境的视图不能 `structuredClone`，拷贝用 `structuredClone(toRaw(value))` 或 `getSubmitValues()`。
 2. **`reaction` 计算派生状态，`watch` 执行变化后的动作**：`reaction` 在初始化时立即运行，自动追踪内部读取的所有 `$` 状态；`watch` 首次不运行，仅追踪第一个参数读取的状态。派生值不要写进 `watch`。
 3. **同一轮联动内不要读回刚写入的值**：数据写入在当前批次结束后统一提交（`$componentProps` 等 UI 状态除外），中间结果请存入局部变量复用。
 4. **`reaction.each` / `watch.each` 只接受两个参数**：签名为 `(select, (row, ctx) => void)`，`ctx` 包含 `key`、`index`、`depth`、`parent`、`path`、`pos` 与根 draft `d`。遍历会自动递归进入对象数组，跳过对象上的基本类型数组（直接对基本类型数组本身调用 `each` 时，在 `depth === 0` 触发）。过滤层级或字段名请在回调内检查 `ctx.depth` 与 `ctx.key`。React 行组件内使用 `useArrayField()`、`useIndex()`、`useRecord()`、`useTreeField()`。
