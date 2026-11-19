@@ -87,6 +87,18 @@ d.total.$value = total
 d.tax.$value = total * 0.1
 ```
 
+## Do not mutate a Date, Map, Set, or class instance inside `$componentProps`
+
+Those values are not plain objects, so the draft returns them raw. `date.setMonth(1)`, `map.set(key, value)`, and `box.n = 1` edit the declared instance: nothing is written and no reaction is notified. Replace the value:
+
+```ts
+d.city.$componentProps.date = new Date('2021-05-01')
+const cache = d.city.$componentProps.cache as Map<string, number>
+d.city.$componentProps.cache = new Map(cache).set('a', 1)
+```
+
+`structuredClone` cannot clone a draft (`DataCloneError`). Spread or `JSON.stringify` copies the plain data you read; do not pass the draft proxy to `structuredClone`.
+
 ## Repeating the scope prefix
 
 Names inside object and row scopes are relative. Repeating the prefix creates an invalid nested path.

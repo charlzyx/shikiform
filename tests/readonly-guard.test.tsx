@@ -136,6 +136,35 @@ describe('development read-only views over live store values', () => {
     expect(form.getValue('box')!.n).toBe(2)
   })
 
+  it('setValue and onChange keep a class instance prototype and identity', () => {
+    class Box {
+      constructor(public n: number) {}
+      bump() { this.n += 1 }
+    }
+    const form = createEngine<any>({ initialValues: { box: null, echo: null, nest: null } })
+    const box = new Box(1)
+    form.setValue('box', box)
+    const read = form.getValue('box')
+    expect(read).toBe(box)
+    expect(Object.getPrototypeOf(read)).toBe(Box.prototype)
+    expect(read).toBeInstanceOf(Box)
+    read.bump()
+    expect(form.getValue('box').n).toBe(2)
+
+    const other = new Box(5)
+    form.binding('echo').onChange(other)
+    expect(form.getValue('echo')).toBe(other)
+    expect(form.getValue('echo')).toBeInstanceOf(Box)
+
+    form.setValue('nest', { box, label: 'kept' })
+    expect(form.getValue('nest').box).toBe(box)
+    expect(form.getValue('nest').box).toBeInstanceOf(Box)
+    expect(form.getValue('nest').label).toBe('kept')
+    const element = { $$typeof: Symbol.for('react.element'), type: 'span', props: { children: 'hi' } }
+    form.setValue('el', element)
+    expect(form.getValue('el')).toBe(element)
+  })
+
   it('guards validator value, ctx.root, and ctx.get without changing the snapshot', async () => {
     const seen: unknown[] = []
     const form = createEngine({

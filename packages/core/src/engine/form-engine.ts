@@ -26,13 +26,13 @@ import type {
   FieldError,
   FieldPath,
   FieldSpec,
-  FormInstance,
   MoveResult,
   PathValue,
   ValuePath,
   SubmitResolved,
   WriteOp,
 } from '../types'
+import type { FormInstance } from '../types-form'
 import type { FormOptions } from '../types-effects'
 import { Validator } from '../validation/validator'
 import { Baseline, errorEntries } from './baseline'

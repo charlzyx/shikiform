@@ -22,6 +22,7 @@ export type { Pos, TreeMoveResult } from './shared/tree-ops'
 export { enUS, getDefaultMessages, setDefaultMessages, zhCN } from './validation/messages'
 export type { FormMessageKey, FormMessages, MessageArgs, MessageBase, MessageParams, MessageTemplate, NoParams, TreeMoveParams } from './validation/messages'
 export type { Rule, RulesInput, ValidateCtx } from './validation/rules'
+export type { FormInstance } from './types-form'
 export type {
   ArrayItemOf,
   ArrayPath,
@@ -39,7 +40,6 @@ export type {
   FieldSpec,
   FieldUiSpec,
   TemplatePath,
-  FormInstance,
   MoveResult,
   PathValue,
   NormalizePath,

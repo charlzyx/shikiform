@@ -27,11 +27,11 @@ export type {
   FieldPath,
   FieldSpec,
   FieldUiSpec,
-  FormInstance,
   MoveResult,
   PathValue,
   UiName,
 } from './types'
+export type { FormInstance } from './types-form'
 export type { FormOptions } from './types-effects'
 export type { DefaultSubmit, FieldRecord, FieldsInput, ResolveSubmit, TemplateRecord } from './types-submit'
 export { formatMessage } from './validation/messages'

@@ -97,6 +97,18 @@ d.tax.$value = total * 0.1
 
 唯一的例外是 `$componentProps` / `$decoratorProps` 等 UI 状态：它们的写入会在当前轮次内即时叠加，因此可以先写 `props.style ??= {}` 再修改里面的样式属性。
 
+## 不要原地修改 `$componentProps` 里的 Date、Map、Set 或类实例
+
+这些值不是普通对象，draft 会原样交出来。`date.setMonth(1)`、`map.set(key, value)`、`box.n = 1` 改的是声明里的那一份，没有 `write`，也不会通知依赖它的 reaction。要换成新值：
+
+```ts
+d.city.$componentProps.date = new Date('2021-05-01')
+const cache = d.city.$componentProps.cache as Map<string, number>
+d.city.$componentProps.cache = new Map(cache).set('a', 1)
+```
+
+`structuredClone` 不能克隆 draft（抛 `DataCloneError`）。要拷贝读到的普通数据时，展开或 `JSON.stringify` 即可；别把 draft 代理本身交给 `structuredClone`。
+
 ## 在作用域内部重复书写父级路径前缀
 
 ```tsx
