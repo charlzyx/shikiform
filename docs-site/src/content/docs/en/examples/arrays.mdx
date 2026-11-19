@@ -296,8 +296,8 @@ export default function App() {
   });
   const validate = async () => {
     try {
-      await form.validate();
-      setErrors("None");
+      const values = await form.validate();
+      setErrors(`None (${values.rows.length} rows)`);
     } catch (error) {
       const errors = Array.isArray(error) ? error as { path: string }[] : [];
       setErrors(errors.map((item) => item.path).join(', ') || "None");
@@ -332,3 +332,5 @@ export default function App() {
   );
 }
 ```
+
+`const values = await form.validate()` resolves the submit values, here all 2,000 rows, when every row is valid. Failure still rejects `FieldError[]`, including rows that are not mounted.

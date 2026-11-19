@@ -107,7 +107,7 @@ const table = useQueryTable({
 // 筛选：table.setFilters({ status: [1] })
 ```
 
-**这里的 `submit()` 是查询动作，不是整表 `form.submit()`。** 默认会先校验筛选参数路径（可通过 `validateOnSubmit: false` 关闭），校验未通过时不发送请求。
+**这里的 `submit()` 是查询动作，不是整表 `form.submit()`，返回类型仍是 `Promise<void>`。** 默认会先调用 `form.validate` 校验筛选参数路径（一个路径、一组路径，或全表；可通过 `validateOnSubmit: false` 关闭）。那次 `form.validate` 通过时 resolve 提交形状的值，本方法不把那份值交给调用方。校验未通过时不发送请求。
 
 输入过滤条件不会立刻请求；查询动作才采用当前筛选。翻页/刷新使用上一次提交的筛选。筛选对象来自表单值，不要原地修改 `form.values` 或请求参数。
 

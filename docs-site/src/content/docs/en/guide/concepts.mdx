@@ -153,6 +153,8 @@ export default function App() {
 }
 ```
 
+The `void` on the button discards the returned promise. `form.validate()` still resolves the submit values when those unmounted rows are valid, and rejects `FieldError[]` otherwise. The messages are read from `d.items.$errors`.
+
 ## From input to render
 
 The control writes a value, dependent reactions run and their writes propagate in the same flush. Components subscribed to affected paths receive an update. A watch handles actions after a change. See [reactions and watches](/en/guide/linkage).

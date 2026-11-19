@@ -49,6 +49,23 @@ createForm<T, TSubmit = T>(options?: FormOptions<T>): FormInstance<T, TSubmit>  
 | `subscribePath`, `subscribeStructure`, `subscribeMeta` | Observe paths, array or tree structure, and form state. Each returns an unsubscribe function. |
 | `subscribeValidateFailed` | Observe validation failures from explicit validate and submit calls. |
 
+Three overloads. The resolved type follows the argument:
+
+```ts
+validate(): Promise<TSubmit>
+validate<P extends FieldPath<T>>(path: P): Promise<PathValue<T, P>>
+validate<const Paths extends readonly FieldPath<T>[]>(paths: Paths): Promise<ValidatePick<T, Paths>>
+```
+
+Success resolves a copy of the values current when the call finishes, with `omit` removed for that scope. Plain objects, arrays, `Date`, `Map`, and `Set` are copied. Class instances, functions, and React elements keep the same reference. Editing the copy does not write back to the form. In development, `getValue` and `form.values` are the read-only view that throws `ShikiUsageError` on mutation. Rules read the snapshot from the start of the pass. `validate()` does not rerun when values change during that pass, so the result can be newer than the snapshot. `submit()` reruns until the values settle, then resolves the values that were just checked. A missing path resolves `undefined`. Failure still rejects `FieldError[]`. A throw from a form-level `validate` rejects as-is.
+
+```ts
+const values = await form.validate()
+const city = await form.validate('user.city')
+const picked = await form.validate(['name', 'user.city'])
+values.name = 'Grace' // Edits the copy only.
+```
+
 ### Array and tree handles
 
 Use the scoped hooks for structural edits and native drag props.

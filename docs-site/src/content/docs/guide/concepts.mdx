@@ -180,7 +180,7 @@ export default function App() {
 }
 ```
 
-配置中的 `'items.*.name'` 属于行模板规则，会自动应用到 `items` 现有的及后续新增的每一行上。
+配置中的 `'items.*.name'` 属于行模板规则，会自动应用到 `items` 现有的及后续新增的每一行上。按钮上的 `void` 只表示这次不使用返回值：`form.validate()` 通过时仍 resolve 去掉 `omit` 后的提交值，失败 reject `FieldError[]`，错误从 `d.items.$errors` 读。
 
 ## 一次用户输入如何流转
 

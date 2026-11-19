@@ -98,7 +98,13 @@ The defaults are blur and submit. Add change validation where needed. `asyncDebo
 
 ## Handle submission
 
-`validate()` resolves `getSubmitValues()` (`TSubmit`). `validate(path)` resolves that cloned value (`PathValue`). The path itself is returned even when it is omitted, including descendants omitted only because of that path; a descendant's own `omit` is removed. `validate([paths])` resolves a cloned nested object of only those paths (`ValidatePick`). All three reject `FieldError[]` on failure; a throw from a form-level `validate` rejects as-is. `submit(onValid?)` waits for validation, then returns the callback's result or the submit values if the result is undefined. Later submits can supersede earlier ones.
+`validate()` resolves `getSubmitValues()` (`TSubmit`). `validate(path)` resolves that value (`PathValue`). The path itself is returned even when it is omitted, including descendants omitted only because of that path; a descendant's own `omit` is removed. `validate([paths])` resolves a nested object of only those paths (`ValidatePick`). Each result is a copy of the values current when the call finishes. Plain objects, arrays, `Date`, `Map`, and `Set` are copied. Class instances, functions, and React elements keep the same reference. Editing the copy does not write back. Rules read the snapshot from the start of the pass, and `validate()` does not rerun if values change during it. All three reject `FieldError[]` on failure; a throw from a form-level `validate` rejects as-is. `submit(onValid?)` waits for validation and reruns until the values settle, then returns the callback's result or the submit values if the result is undefined. Later submits can supersede earlier ones.
+
+```ts
+const values = await form.validate()
+const user = await form.validate('user')
+const picked = await form.validate(['name', 'user.city'])
+```
 
 ```ts
 try {

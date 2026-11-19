@@ -294,3 +294,5 @@ export default function App() {
   );
 }
 ```
+
+`form.validate('editor')` checks that subtree and resolves its value. The path itself is `omit`, so it is still returned here and stays out of the whole-form submit result. `form.batch` writes the row and closes the panel in one pass. For a separate form instance, see [draft forms](/en/examples/pro#draft-containers).
