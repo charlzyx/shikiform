@@ -153,6 +153,8 @@ export class StateWriter {
     if (field.enumFromEffect || field.jsxEnum !== undefined) return
     const cached = binding.source.cached(binding.params)
     if (cached && deepEqual(field.enumOptions, cached)) return
+    // Re-applying the same declaration (registerField, a revived path) must not abort the request already in flight.
+    if (field.enumLoading || this.enumTimers.has(path)) return
     this.loadEnum(path, binding)
   }
 
@@ -484,10 +486,8 @@ function isPlainPatchObject(value: unknown): value is Record<string, unknown> {
 
 function collectPatchEntries(node: Record<string, unknown>, prefix: string, out: [string, unknown][]): void {
   const keys = Object.keys(node)
-  if (!keys.length) {
-    if (prefix) out.push([prefix, {}])
-    return
-  }
+  // `{}` merges nothing: an empty object must not replace the value already at `prefix`.
+  if (!keys.length) return
   for (const key of keys) {
     const path = prefix ? `${prefix}.${key}` : key
     const val = node[key]

@@ -15,7 +15,7 @@
 3. **Ant Design 适配层是 `useField` 之上的 Formily 式 connect 层。** `<Field>` 是字段唯一的拥有者；装饰器和控件都从 `FieldContext` 读同一个 binding。
    - `connect(Control, mapProps(...))` 每次渲染通过内部 helper `mapFieldProps(binding, props)` 把 binding（来自 `field` 属性 / `name` / 外层 `<Field>`）映射到控件；`preview` 与 `blurOn` 均作为 `mapProps` 选项传入，`mapFieldProps` 不对外公开，Hook 用户直接读取 `useField()` 和 `useFieldDecorator()`。
    - `FormItem` 是纯装饰器：不拥有字段，内部 `mapFormItemProps(binding, props, useFormLayout())`（不对外公开）是它的纯函数核心。
-   - Pro 组件（复刻 Pro.formily）同样是 Hook 之上的薄封装，见 §9：`ArrayTable`（`<ArrayField>` 的容器）= 公开的 `useArrayTable` + 内部 `useColumnSettings`（只从 `@shikiform/hooks/internal` 导出）；`QueryList` = `useQueryTable({ rows })` + `<ArrayField name={rows} component={[ArrayTable, …]}>`；`ShadowModal` / `ShadowDrawer` / `ShadowPopconfirm` / `ShadowForm` = `useShadowForm`（支持 `name` / `add` 绑定宿主路径并从宿主派生上下文，不再另设 `useArrayShadow`）；`Suggestion` = `useSuggestion`；`CascaderPlus` = `useLazyCascader`（阅读态 `useCascaderLabels` 只从 `@shikiform/hooks/internal` 导出）；选择类控件阅读态 `PreviewText.Select` = `enumItems`。
+   - Pro 组件（复刻 Pro.formily）同样是 Hook 之上的薄封装，见 §9：`ArrayTable`（`<ArrayField>` 的容器）= 公开的 `useArrayTable` + 公开的 `useColumnSettings`（从 `@shikiform/hooks` 导出；表内通过 `useTable().settings` 读同一套状态）；`QueryList` = `useQueryTable({ rows })` + `<ArrayField name={rows} component={[ArrayTable, …]}>`；`ShadowModal` / `ShadowDrawer` / `ShadowPopconfirm` / `ShadowForm` = `useShadowForm`（支持 `name` / `add` 绑定宿主路径并从宿主派生上下文，不再另设 `useArrayShadow`）；`Suggestion` = `useSuggestion`；`CascaderPlus` = `useLazyCascader`（阅读态 `useCascaderLabels` 只从 `@shikiform/hooks/internal` 导出）；选择类控件阅读态 `PreviewText.Select` = `enumItems`。
 4. **公开导出。** 未发布前不留兼容别名，旧名字直接删除。`FormItem` 没有 `name` / `field` / `rules` / `required` 等属性，字段只由 `<Field>` 拥有（§8）。
 
 ## 2. 目录与依赖方向
@@ -50,7 +50,7 @@ packages/
   hooks/src/               无 UI 的高级 Hook（@shikiform/hooks，依赖 react / core）
     use-query-table.ts       查询表（请求、分页、选择；`rows` 把每页写进数组字段）
     use-array-table.ts       数组表格状态：分页切片 / 受控服务端页、选择、展开、行操作
-    use-column-settings.ts   列显隐、排序、列宽、密度（只从 `@shikiform/hooks/internal` 导出；`ArrayTable.useTable().settings`）
+    use-column-settings.ts   列显隐、排序、列宽、密度（从 `@shikiform/hooks` 公开导出；`ArrayTable.useTable().settings` 读同一套状态）
     use-shadow-form.ts       影子表单：支持 `name`/`add` 绑定宿主与 `forkOptions` 继承，每次 open 新建引擎，confirm 校验后写回宿主或交给 onOk
     use-suggestion.ts        远程联想：防抖、中止、最后一次请求胜出
     use-lazy-cascader.ts     懒加载级联：按路径加载、反显时逐级加载祖先（`useCascaderLabels` 只从 internal 导出，给 CascaderPlus 阅读态）
@@ -213,7 +213,7 @@ const Rate = connect(AntRate, mapProps({ status: false }))
 
 | Pro.formily | ShikiForm Hook（`@shikiform/hooks`） | antd 组件（`@shikiform/antd`） | Demo |
 |---|---|---|---|
-| ProArrayTable（分页、选择、展开、列配置、列宽、拖拽、异步删除、Addition） | `useArrayTable`（列配置 `useColumnSettings` 只在 `@shikiform/hooks/internal`） | `ArrayTable`，`<ArrayField component>` 容器（+ `SortHandle`/`Index`/`Remove`/`MoveUp`/`MoveDown`/`Copy`/`Addition`/`ShadowAddition`，`useTable`/`useRow`） | `/play/array-table` |
+| ProArrayTable（分页、选择、展开、列配置、列宽、拖拽、异步删除、Addition） | `useArrayTable`、公开的 `useColumnSettings` | `ArrayTable`，`<ArrayField component>` 容器（+ `SortHandle`/`Index`/`Remove`/`MoveUp`/`MoveDown`/`Copy`/`Addition`/`ShadowAddition`，`useTable`/`useRow`） | `/play/array-table` |
 | ShadowForm / ShadowModal / ShadowPopconfirm / ProAddition | `useShadowForm`（含 `name` / `add`） | `ShadowForm`、`ShadowModal`、`ShadowDrawer`、`ShadowPopconfirm`、`useShadow`、`ArrayTable.ShadowAddition` | `/play/shadow-form`、`/play/array-table-shadow`、`/play/query-list-add` |
 | ProEnum / ProEnumPretty | `EnumSource`（core）、`enumItems` | 选择类控件阅读态 + `prettyType`、`PreviewText.Select` | `/play/pro-enum` |
 | Suggestion | `useSuggestion` | `Suggestion` / `SuggestionView` | `/play/suggestion` |
@@ -223,7 +223,7 @@ const Rate = connect(AntRate, mapProps({ status: false }))
 - **影子表单默认通过 `forkOptions` 继承上下文并在确认后写回。** `useShadowForm` 传入 `name`（或在对象/行作用域内省略 `name`）时绑定宿主路径，`open()` 调用 `engine.forkOptions(path)` 深拷贝初始值并继承前缀剥离后的 `fields`/`trees`、有效 `readOnly`（为 true 时隐藏确定按钮并用 `messages.close`）、`messages`、`validateTrigger`、`asyncDebounceMs` 与 `enumPolicy`（不继承宿主 `effects` 与表单级 `validate`）；`confirm` 校验通过并执行 `onOk`（返回 `false` 时跳过）后按绑定类型写回（对象浅合并保留 `omit` 键，数组行按 `rowKey` 追踪，已删行提示并跳过，`add` 模式追加）。未绑定时（表单根上省略 `name`）只把值交给 `onOk`。`ShadowBody` 重置 9 个宿主上下文（`FormContext`、`ScopeContext`、`ArrayContext`、`RowWrapContext`、`FieldContext`、`UiNodeContext`、`FieldGroupContext`、`FormGridContext`、`ClaimContext`）并创建新 `IdPrefix`，同时继承 `FieldKit` 与 `FormLayout`，不渲染 `<form>`。
 - **`<Form>` 同样把作用域重置为根，并阻止 submit 事件冒泡到宿主表单**（React 合成事件会穿过 portal）。
 - **查询表的表头排序与列筛选在 `useQueryTable`。** `sorter: QuerySort[]`、`filters: QueryFilters` 是 Hook 的 React 状态（不进表单值），随 `queryKey` 与 `request` 参数一起发送。`onTableChange` 接 antd `Table onChange`（忽略 `paginate`，分页走 `onPageChange`），值没变不请求。排序变化：回第 1 页、保留选择（结果集不变）；列筛选变化：回第 1 页、清空选择（结果集变了，旧选择会让批量操作处理看不见的行，#3）；`submit` 保留二者，`reset` 清空。`QueryList` 只把列的 `sortOrder` / `filteredValue` 设为受控并转发 `onChange`。
-- **列配置拖拽在内部 `useColumnSettings`（`@shikiform/hooks/internal`）。** `dragProps(key)` 是无依赖的 HTML5 拖放属性（只接受从列表内开始的拖动），`moveKey(from, to)` 按 key 移动；antd 层只把它展开到每行并保留 ↑ ↓ 按钮（键盘可达）。单元格里读 `ArrayTable.useTable().settings`。
+- **列配置拖拽在公开的 `useColumnSettings`（`@shikiform/hooks`）。** `dragProps(key)` 是无依赖的 HTML5 拖放属性（只接受从列表内开始的拖动），`moveKey(from, to)` 按 key 移动；antd 层只把它展开到每行并保留 ↑ ↓ 按钮（键盘可达）。单元格里读 `ArrayTable.useTable().settings`（同一套状态）。
 - **级联阅读态在内部 `useCascaderLabels`（`@shikiform/hooks/internal`）。** `labelInValue` 值直接取标签、不加载；裸值复用 `useLazyCascader`（`enabled` 控制是否加载）逐级加载祖先后解析标签。`CascaderPlus` 的 `mapProps({ preview })` 视图只是它的渲染。自绘阅读态对裸路径用公开的 `useLazyCascader().labelsOf`。
 - **表格状态不进表单值。** 分页、选择、展开、列配置是 React 状态（`useArrayTable` 可受控传入 `selectedKeys`）；查询表的选择仍由 `useQueryTable` 从提交里拿掉（不改字段自己的 `omit`），`QueryList` 把它作为受控选择传给 `ArrayTable`。
 
@@ -233,4 +233,4 @@ const Rate = connect(AntRate, mapProps({ status: false }))
 - `TreeContext` 记录最近一层树的绝对路径和调用方传入的 `childrenKey` / `rowKey`（省略则留给已有注册），由 `TreeScope` 提供；`<TreeField>` 渲染它。`useTreeField(name)` 解析名字并登记 FieldGroup，返回树根句柄。`useTreeField()` 读当前节点的 `path` / `pos`（`ScopeContext`）和这棵树。不在节点里（scope 没有 `pos`）且没传 name 时开发期抛 `ShikiUsageError`。句柄还有 `push` / `insert` / `remove` / `replace`，字段模型按节点 id 迁移（`TreeOps.commit`）。
 - `ScopeContext` 的值扩展为 `{ path, index, itemKey?, pos? }`；`RowScope` 接受 `itemKey`（行 id）与 `pos`（树坐标）。`useIndex()` 读 `index`（树节点里是兄弟下标）；`useTreeField()` 读 `path` / `pos` / `index`；二者在行 / 节点外抛错。
 - `useRecord()` = `useWatch(() => form.query(scope.path).$value)`：单元格写入会把祖先的 `:value` 依赖标脏，所以这一行任一单元格变化都会重渲染，其他行不会；行移动后 `RowScope` 的 path 变化，selector 跟着换。
-- `ArrayTable.useRow()` = `{ key: scope.itemKey, index: useIndex(), position: table.positionOf(index), record: useRecord() }`，antd 层没有自己的行 Context；`useTable()` 只是表格状态（内部 `useArrayTableOver` + `useColumnSettings`）的 Context。
+- `ArrayTable.useRow()` = `{ key: scope.itemKey, index: useIndex(), position: table.positionOf(index), record: useRecord() }`，antd 层没有自己的行 Context；`useTable()` 只是表格状态（`useArrayTableOver` + 公开的 `useColumnSettings`）的 Context。

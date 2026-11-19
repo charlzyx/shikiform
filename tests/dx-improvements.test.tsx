@@ -142,6 +142,19 @@ describe('form.patchValues and setReadOnly / setDisabled', () => {
     })
     expect(form.dirty).toBe(true)
     expect(form.edited).toBe(true)
+
+    form.patchValues({ coverage: {} })
+    expect(form.getValue('coverage')).toEqual({ thirdParty: 300, damage: true })
+  })
+
+  it('leaves an object unchanged when the patch for it is empty', () => {
+    const form = createForm({
+      initialValues: { plateNo: '沪A', coverage: { thirdParty: 200, damage: true } },
+    })
+    form.patchValues({ coverage: {} })
+    form.patchValues({})
+    expect(form.values).toEqual({ plateNo: '沪A', coverage: { thirdParty: 200, damage: true } })
+    expect(form.dirty).toBe(false)
   })
 
   it('exposes readOnly / disabled getters and setReadOnly / setDisabled helpers', () => {
@@ -226,6 +239,40 @@ describe('useQueryTable validateOnSubmit and extra metadata', () => {
       await hook.result.current.submit()
     })
     await waitFor(() => expect(request).toHaveBeenCalledTimes(2))
+  })
+})
+
+describe('ctx.record follows the last array index', () => {
+  it('uses the whole row for a nested field, and the parent object when the path has no index', async () => {
+    let rowRecord: unknown
+    let addressRecord: unknown
+    const form = createForm({
+      initialValues: {
+        rows: [{ name: 'Ada', address: { city: 'hz', zip: '310000' } }],
+        user: { address: { city: 'sh', zip: '200000' } },
+      },
+      fields: {
+        'rows.*.address.city': {
+          rules: {
+            validator: (_value: unknown, ctx: { record: unknown }) => {
+              rowRecord = ctx.record
+              return null
+            },
+          },
+        },
+        'user.address.city': {
+          rules: {
+            validator: (_value: unknown, ctx: { record: unknown }) => {
+              addressRecord = ctx.record
+              return null
+            },
+          },
+        },
+      },
+    })
+    await form.validate()
+    expect(rowRecord).toEqual({ name: 'Ada', address: { city: 'hz', zip: '310000' } })
+    expect(addressRecord).toEqual({ city: 'sh', zip: '200000' })
   })
 })
 

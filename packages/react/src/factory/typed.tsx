@@ -13,9 +13,9 @@ import { useWatch } from '../hooks/use-watch'
  * `ArrayField` hands each row the same set typed as one row; `ObjectField` hands its function children the set
  * typed as that object.
  */
-export type ScopeFields<T> = {
+export type ScopeFields<T, TRoot = T, TRow = never> = {
   Field: <N extends FieldPath<T>, C extends ComponentType<any> = ComponentType<any>, D extends ComponentType<any> = ComponentType<any>>(
-    props: CheckedFieldProps<T, N, C, D>,
+    props: CheckedFieldProps<T, N, C, D, TRoot, TRow>,
   ) => ReactNode
   ObjectField: <N extends FieldPath<T>>(props: {
     name: N
@@ -23,20 +23,20 @@ export type ScopeFields<T> = {
     disabled?: FieldProps['disabled']
     readOnly?: FieldProps['readOnly']
     omit?: FieldProps['omit']
-    children?: ReactNode | ((scope: ScopeFields<NonNullable<PathValue<T, N & string>>>) => ReactNode)
+    children?: ReactNode | ((scope: ScopeFields<NonNullable<PathValue<T, N & string>>, TRoot, TRow>) => ReactNode)
   }) => ReactNode
   ArrayField: (<N extends ArrayPath<T>, C extends ComponentType<any> = ComponentType<any>>(props: {
     name: N
     rowKey?: string
     component?: ArrayContainerSlot<C>
     virtualScroll?: { height: number; rowHeight?: number; overscan?: number }
-    children?: (row: ArrayKey & ScopeFields<ArrayItemOf<T, N & string>>) => ReactNode
+    children?: (row: ArrayKey & ScopeFields<ArrayItemOf<T, N & string>, TRoot, ArrayItemOf<T, N & string>>) => ReactNode
   }) => ReactNode) & { Row: (props: RowScopeProps) => ReactNode }
   TreeField: <N extends ArrayPath<T>>(props: {
     name: N
     childrenKey?: string
     rowKey?: string
-    children: (node: TreeNodeRender & ScopeFields<ArrayItemOf<T, N & string>>) => ReactNode
+    children: (node: TreeNodeRender & ScopeFields<ArrayItemOf<T, N & string>, TRoot, ArrayItemOf<T, N & string>>) => ReactNode
   }) => ReactNode
 }
 
@@ -47,7 +47,7 @@ export type ScopeFields<T> = {
  */
 type FieldsOf<T, F> = { fields?: F & FieldsInput<T> }
 
-export type TypedForm<T, TRoot = T> = ScopeFields<T> & {
+export type TypedForm<T, TRoot = T> = ScopeFields<T, TRoot> & {
   useField: <N extends FieldPath<T>>(name: N, options?: UseFieldOptions<PathValue<T, N & string>>) => FieldBinding<PathValue<T, N & string>>
   useArrayField: (<N extends ArrayPath<T>>(name: N, opts?: { rowKey?: string }) => ArrayHandle<ArrayItemOf<T, N & string>>) & (() => ArrayHandle<unknown>)
   useWatch: <S>(select: (d: Draft<TRoot>) => S) => S

@@ -249,6 +249,101 @@ nullableForm.batch((d) => {
   d.note.$value = 'hi'
 })
 
+type Address = { city: string; zip: string }
+type PersonRow = { name: string; address: Address }
+type RecordValues = { rows: PersonRow[]; filters: { max: number; min: number }; user: { address: Address } }
+
+createForm<RecordValues>({
+  fields: {
+    'rows.*.name': {
+      rules: {
+        validator: (_value, ctx) => {
+          const _record: Expect<Equal<typeof ctx.record, PersonRow>> = true
+          const _root: Expect<Equal<typeof ctx.root, RecordValues>> = true
+          void _record
+          void _root
+          return ctx.record.name ? null : 'x'
+        },
+      },
+    },
+    'rows.*.address.city': {
+      rules: {
+        validator: (_value, ctx) => {
+          const _record: Expect<Equal<typeof ctx.record, PersonRow>> = true
+          const _root: Expect<Equal<typeof ctx.root, RecordValues>> = true
+          void ctx.record.address.city
+          void _record
+          void _root
+          // @ts-expect-error record is the row, not the address
+          return ctx.record.zip
+        },
+      },
+    },
+    'filters.max': {
+      rules: {
+        validator: (_value, ctx) => {
+          const _record: Expect<Equal<typeof ctx.record, RecordValues['filters']>> = true
+          const _root: Expect<Equal<typeof ctx.root, RecordValues>> = true
+          void _record
+          void _root
+          return ctx.record.min > _value ? 'x' : null
+        },
+      },
+    },
+    'user.address.city': {
+      rules: {
+        validator: (_value, ctx) => {
+          const _record: Expect<Equal<typeof ctx.record, Address>> = true
+          void _record
+          return ctx.record.zip ? null : 'x'
+        },
+      },
+    },
+  },
+})
+
+type Line = { sku: string; detail: { note: string } }
+createForm<{ rows: { lines: Line[] }[] }>({
+  fields: {
+    'rows.*.lines.*.detail.note': {
+      rules: {
+        validator: (_value, ctx) => {
+          const _record: Expect<Equal<typeof ctx.record, Line>> = true
+          void _record
+          return ctx.record.detail.note ? null : 'x'
+        },
+      },
+    },
+  },
+})
+
+function rowFieldRecord() {
+  const form = createForm<RecordValues>({
+    initialValues: { rows: [], filters: { max: 1, min: 0 }, user: { address: { city: '', zip: '' } } },
+  })
+  const F = typed(form)
+  return (
+    <F.ArrayField name="rows">
+      {(row) => (
+        <row.Field
+          name="address.city"
+          rules={{
+            validator: (_value, ctx) => {
+              const _record: Expect<Equal<typeof ctx.record, PersonRow>> = true
+              const _root: Expect<Equal<typeof ctx.root, RecordValues>> = true
+              void ctx.record.address.city
+              void _record
+              void _root
+              // @ts-expect-error record is the row, not the address
+              return ctx.record.zip
+            },
+          }}
+        />
+      )}
+    </F.ArrayField>
+  )
+}
+
 it('checks paths at compile time', () => {
   expect(form.getValue('items.0.price')).toBe(1)
   expect(typeof hookTypes).toBe('function')
@@ -259,6 +354,7 @@ it('checks paths at compile time', () => {
   expect(typeof badTypedField).toBe('function')
   expect(typeof badFragment).toBe('function')
   expect(typeof groupUse).toBe('function')
+  expect(typeof rowFieldRecord).toBe('function')
   expect(_name).toBe(true)
   expect(_price).toBe(true)
 })

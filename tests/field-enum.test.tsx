@@ -2,7 +2,7 @@
 import { act, cleanup, render } from '@testing-library/react'
 import { StrictMode, useState } from 'react'
 import { afterEach, describe, expect, expectTypeOf, it } from 'vitest'
-import { ArrayField, defineEffects, EnumSource, Field, Form, typed, useField, useForm, type FieldEnum } from '@shikiform/react'
+import { ArrayField, createForm, defineEffects, EnumSource, Field, Form, typed, useField, useForm, type FieldEnum } from '@shikiform/react'
 
 import { Checkbox, Radio, Select } from '@shikiform/antd'
 import type { FormInstance } from '@shikiform/react'
@@ -263,6 +263,26 @@ describe('reaction `$enum = undefined` falls back', () => {
     await act(async () => t.form().setValue('on', false))
     expect(t.labels()).toEqual(['声明'])
     expect(t.form().getValue('level')).toBeUndefined()
+  })
+
+  it('re-applying a fields EnumSource does not abort the load in flight', async () => {
+    let calls = 0
+    let signal!: AbortSignal
+    let release!: (list: { label: string; value: string }[]) => void
+    const cities = EnumSource.from<void>((_params, ctx) => {
+      calls += 1
+      signal = ctx.signal
+      return new Promise((resolve) => { release = resolve })
+    })
+    const form = createForm({ initialValues: { city: '' }, fields: { city: { enum: cities } } })
+    expect(calls).toBe(1)
+    expect(engineOf(form).binding('city').loading).toBe(true)
+    engineOf(form).registerField('city', { enum: cities })
+    expect(calls).toBe(1)
+    expect(signal.aborted).toBe(false)
+    await act(async () => { release([{ label: '上海', value: 'sh' }]) })
+    await settle()
+    expect(engineOf(form).binding('city').options.map((option) => option.label)).toEqual(['上海'])
   })
 
   it('cancels a reaction EnumSource load: abort, loading reset, late result ignored', async () => {
