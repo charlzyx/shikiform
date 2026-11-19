@@ -3,7 +3,7 @@ title: 核心概念
 description: 理解 ShikiForm 的统一表单引擎、draft 与 handle、$ 状态、显隐与提交机制、fields 声明及数据流转过程。
 ---
 
-ShikiForm 将表单值、字段状态（显隐、禁用、只读、校验规则、错误提示、UI 属性）和联动逻辑放在一个独立于视图层的引擎中维护。React 组件与 Ant Design 适配层不持有自己的表单状态，仅按路径订阅引擎状态并映射为组件属性。
+ShikiForm 将表单值、字段状态（显隐、禁用、只读、校验规则、错误提示、UI 属性）和联动逻辑放在一个独立于视图层的引擎中维护。React 组件与任意 UI 适配层都不持有自己的表单状态，仅按路径订阅引擎状态并映射为组件属性。
 
 ## 术语速览
 
@@ -46,23 +46,39 @@ name.$value = 'Ada'
 在开发模式下，对象展开（`{ ...d.user }`）、rest 剩余属性、`Object.keys(d.user)` 以及数组解构（`const [first] = d.items`）都会触发 `ShikiUsageError`，错误信息中会提示改用 `d.items[0]` 或 `d.user.$value` 等正确写法。更多案例见 [常见的坑](/practices/pitfalls#解构)。
 
 ```tsx preview
-import { Button, Space } from 'antd';
-import { Field, Form, Watch, useForm, type Draft } from '@shikiform/react';
-import { FormItem, Input } from '@shikiform/antd';
+import { Field, Form, Watch, useField, useForm, type Draft } from '@shikiform/react';
 
 type Values = { user: { name: string; email: string } };
+
+function TextField() {
+  const field = useField<string>();
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <label htmlFor={field.id} style={{ display: 'inline-block', width: 64 }}>
+        {field.required && <span style={{ color: 'crimson' }}>* </span>}
+        {field.title}
+      </label>
+      {field.readOnly ? (
+        <span>{field.value || '-'}</span>
+      ) : (
+        <input id={field.id} value={field.value ?? ''} disabled={field.disabled}
+          onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />
+      )}
+    </div>
+  );
+}
 
 export default function App() {
   const form = useForm<Values>({ initialValues: { user: { name: 'Ada', email: '' } } });
   return (
     <Form form={form}>
-      <Field name="user.name" title="姓名" decorator={[FormItem]} component={[Input]} />
-      <Field name="user.email" title="邮箱" decorator={[FormItem]} component={[Input]} />
-      <Space wrap>
-        <Button onClick={() => form.batch((d) => { d.user.name.$value = 'Grace'; })}>写 user.name</Button>
-        <Button onClick={() => form.batch((d) => { d.user.email.$required = !d.user.email.$required; })}>切换邮箱必填</Button>
-        <Button onClick={() => form.batch((d) => { d.user.email.$readOnly = !d.user.email.$readOnly; })}>切换阅读态</Button>
-      </Space>
+      <Field name="user.name" title="姓名" component={[TextField]} />
+      <Field name="user.email" title="邮箱" component={[TextField]} />
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+        <button type="button" onClick={() => form.batch((d) => { d.user.name.$value = 'Grace'; })}>写 user.name</button>
+        <button type="button" onClick={() => form.batch((d) => { d.user.email.$required = !d.user.email.$required; })}>切换邮箱必填</button>
+        <button type="button" onClick={() => form.batch((d) => { d.user.email.$readOnly = !d.user.email.$readOnly; })}>切换阅读态</button>
+      </div>
       <Watch select={(d: Draft<Values>) => d.user.$value}>{(user) => <pre>{JSON.stringify(user)}</pre>}</Watch>
     </Form>
   );
@@ -110,20 +126,45 @@ export default function App() {
 在 `useForm({ fields })` 中声明的字段在表单创建时即已生效，即使对应的 `<Field>` 组件尚未挂载（例如位于未打开的标签页、折叠面板或虚拟列表视口之外），其校验规则和联动依然有效。你也可以把 `title`、`decorator`、`component` 等 UI 配置一并声明在 `fields` 中，JSX 里只需写 `<Field name="city" />` 即可渲染：
 
 ```tsx preview play=tabs
-import { Field, Form, Watch, useForm, type Draft } from '@shikiform/react';
-import { FormItem, Input, Select } from '@shikiform/antd';
+import type { ReactNode } from 'react';
+import { Field, Form, Watch, useField, useFieldDecorator, useForm, type Draft } from '@shikiform/react';
 
 type Values = { city: string; note: string; items: { name: string }[] };
+
+function FieldItem({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <label {...d.labelProps} style={{ display: 'inline-block', width: 56 }}>{d.label}</label>
+      {children}
+      {d.descriptionProps && <small {...d.descriptionProps} style={{ marginLeft: 8, opacity: 0.7 }}>{d.description}</small>}
+    </div>
+  );
+}
+
+function SelectInput() {
+  const field = useField<string>();
+  return (
+    <select id={field.id} value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)}>
+      {field.options.map((o) => <option key={String(o.value)} value={String(o.value)}>{o.label}</option>)}
+    </select>
+  );
+}
+
+function TextArea() {
+  const field = useField<string>();
+  return <textarea id={field.id} rows={2} value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />;
+}
 
 export default function App() {
   const form = useForm<Values>({
     initialValues: { city: 'sh', note: '', items: [{ name: '' }, { name: '' }] },
     fields: {
       city: {
-        title: '城市', decorator: [FormItem], component: [Select, { style: { width: 160 } }],
+        title: '城市', decorator: [FieldItem], component: [SelectInput],
         enum: [{ label: '上海', value: 'sh' }, { label: '北京', value: 'bj' }],
       },
-      note: { title: '备注', description: '声明在 fields 里的说明', decorator: [FormItem], component: [Input.TextArea] },
+      note: { title: '备注', description: '声明在 fields 里的说明', decorator: [FieldItem], component: [TextArea] },
       // 行模板：作用于 items 的每一行（包括之后新增的行）
       'items.*.name': { required: true },
     },

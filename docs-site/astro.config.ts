@@ -21,7 +21,7 @@ const nimbusConfig = defineNimbusConfig({
   // CHANGE_ME: your project's name — used for <title>, the home H1, and OG.
   title: "ShikiForm",
   // CHANGE_ME: a one-line description of your docs — used for meta + OG.
-  description: "一个无 UI 的表单引擎：draft + $ 状态写联动，Field + FormItem 接 Ant Design。",
+  description: "一个无 UI 的表单引擎：draft + $ 状态写联动，Headless React Hooks 接任意 UI 组件库。",
   locale: "zh-CN",
   // The repository is still private. A header link would 404 for visitors, so the icon stays off.
   socialImageAlt: "Nimbus documentation preview",
@@ -33,21 +33,17 @@ const nimbusConfig = defineNimbusConfig({
         label: "开始",
         items: [
           { label: "快速开始", link: "/guide/quick-start" },
-          { label: "不用 UI 库", link: "/start/native" },
+          { label: "接入组件库", link: "/guide/headless" },
         ],
       },
       {
         label: "教程",
         items: [
           { label: "总览", link: "/tutorial" },
-          { label: "字段", link: "/tutorial/1-start" },
-          { label: "路径", link: "/tutorial/2-path" },
-          { label: "状态", link: "/tutorial/3-state" },
-          { label: "校验", link: "/tutorial/4-rules" },
-          { label: "联动", link: "/tutorial/5-linkage" },
-          { label: "数组", link: "/tutorial/6-array" },
-          { label: "提交与重置", link: "/tutorial/7-submit" },
-          { label: "接下来", link: "/tutorial/8-next" },
+          { label: "1. 字段与路径", link: "/tutorial/1-start" },
+          { label: "2. 状态与校验", link: "/tutorial/2-state-rules" },
+          { label: "3. 联动与数组", link: "/tutorial/3-linkage-array" },
+          { label: "4. 提交与进阶", link: "/tutorial/4-submit" },
         ],
       },
       {
@@ -67,12 +63,7 @@ const nimbusConfig = defineNimbusConfig({
         items: [
           { label: "联动", link: "/guide/linkage" },
           { label: "数组", link: "/guide/arrays" },
-          { label: "布局", link: "/guide/layout" },
-          { label: "容器", link: "/guide/containers" },
           { label: "命名 UI", link: "/guide/ui" },
-          { label: "控件", link: "/guide/controls" },
-          { label: "Ant Design", link: "/guide/antd" },
-          { label: "接入组件库", link: "/guide/headless" },
           { label: "查询列表", link: "/guide/pro" },
           { label: "TypeScript", link: "/advanced/typescript" },
         ],
@@ -81,28 +72,21 @@ const nimbusConfig = defineNimbusConfig({
         label: "场景示例",
         items: [
           { label: "总览", link: "/examples" },
+          { label: "表单与校验", link: "/examples/forms" },
+          { label: "联动与显隐", link: "/examples/linkage" },
+          { label: "数组与树", link: "/examples/arrays" },
+          { label: "表格与查询", link: "/examples/tables" },
+          { label: "业务场景", link: "/examples/business" },
+          { label: "Pro Hooks", link: "/examples/pro" },
           { label: "示例目录", link: "/play" },
-          { label: "登录校验", link: "/examples/login" },
-          { label: "联动计算", link: "/examples/computed" },
-          { label: "条件显隐", link: "/examples/visibility" },
-          { label: "动态表格", link: "/examples/dynamic-table" },
-          { label: "跨字段与异步校验", link: "/examples/async-rules" },
-          { label: "表单", link: "/examples/forms" },
-          { label: "联动", link: "/examples/linkage" },
-          { label: "数组", link: "/examples/arrays" },
-          { label: "表格", link: "/examples/tables" },
-          { label: "业务", link: "/examples/business" },
-          { label: "Pro", link: "/examples/pro" },
         ],
       },
       {
         label: "最佳实践",
         items: [
           { label: "常见的坑", link: "/practices/pitfalls" },
-          { label: "测试", link: "/practices/testing" },
-          { label: "性能与 SSR", link: "/practices/performance" },
-          { label: "迁移", link: "/practices/migration" },
-          { label: "FAQ", link: "/practices/faq" },
+          { label: "测试、性能与 SSR", link: "/practices/testing-performance" },
+          { label: "迁移与 FAQ", link: "/practices/migration-faq" },
         ],
       },
       {
@@ -111,11 +95,8 @@ const nimbusConfig = defineNimbusConfig({
           { label: "API 总览", link: "/api" },
           { label: "Core", link: "/reference/core" },
           { label: "React Hooks", link: "/reference/react-hooks" },
-          { label: "Ant Design 适配层", link: "/reference/antd-adapter" },
-          { label: "Ant Design 参考", link: "/reference/antd" },
           { label: "查询 Hooks", link: "/reference/query-hooks" },
           { label: "Pro Hooks", link: "/reference/pro-hooks" },
-          { label: "Pro 组件", link: "/reference/pro-components" },
         ],
       },
       { label: "Agent 指南", link: "/agents" },
@@ -134,9 +115,7 @@ export default defineConfig({
   // Astro 7's Vite 8 bundler).
   vite: {
     plugins: [tailwindcss(), shikiformDemoImports(), shikiformDemoComponentMap(), shikiformPreviews(), shikiformTutorials()],
-    // @shikiform/* 经 file: 链到 packages/*/，包里的 `import 'antd'` 会落到仓库根 node_modules（antd 5、另一份 React）。
-    // 站点只用自己的一份：否则客户端是 antd 5、SSR 是 antd 6，每个示例 island 水合失败（React #418）。
-    resolve: { dedupe: ['react', 'react-dom', 'antd', 'dayjs', '@tanstack/react-virtual'] },
+    resolve: { dedupe: ['react', 'react-dom', '@tanstack/react-virtual'] },
   },
   // Hover-prefetch link targets so full-page navigations feel instant without
   // a client-side router.

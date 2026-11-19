@@ -3,7 +3,7 @@ title: Pro Hooks 参考
 description: useArrayTable、useShadowForm、useSuggestion、useLazyCascader、enumItems。
 ---
 
-从 `@shikiform/hooks` 导入，没有 antd 依赖。`@shikiform/antd` 里的 [ArrayTable](/reference/antd#arraytable) 和 [ShadowModal、Suggestion、CascaderPlus](/reference/pro-components) 是它们的渲染层。可点的例子：[/play/array-table](/play/array-table)、[/play/shadow-form](/play/shadow-form)、[/play/pro-enum](/play/pro-enum)。
+从 `@shikiform/hooks` 导入，零 UI 库依赖，可配合原生 HTML 或任意 React UI 组件库使用。可点的例子：[/play/array-table](/play/array-table)、[/play/shadow-form](/play/shadow-form)、[/play/pro-enum](/play/pro-enum)。
 
 ## useArrayTable
 
@@ -29,7 +29,7 @@ table.copy(0)                                                   // { id: 1001, s
 table.copy(0, (row, source) => ({ ...row, sku: `${source.sku} (副本)` }))
 ```
 
-`ArrayTable` 同样接受 `createRowKey`（`rowKey` 来自外层 `<ArrayField rowKey>`），`ArrayTable.Copy` 按钮会用它。列的显隐、排序、列宽和密度是 `ArrayTable` 自己的状态，在 `toolbar` / `footer` / 单元格里用 `ArrayTable.useTable().settings` 读取。
+如果需要列的显隐、排序、列宽和密度管理，搭配本页的 `useColumnSettings` 即可。
 
 ## useShadowForm
 
@@ -80,7 +80,7 @@ useColumnSettings(columns: readonly ColumnSettingInput[]): ColumnSettingsApi
 // ColumnSettingsApi: { items, visibleKeys, toggle(key), move(from, to), moveKey(from, to), setWidth(key, width), density, setDensity(d), reset(), dragProps(key), drag }
 ```
 
-无 UI 的表格列展示状态管理：维护列的显隐（`toggle`）、顺序（`move` / `moveKey` 及原生 HTML5 拖拽属性 `dragProps(key)`）、列宽（`setWidth`，下限 40px）与三档行高密度（`density`: `'large' | 'middle' | 'small'`）。运行期新增的列追加在末尾，移除的列自动剔除；`reset()` 恢复初始列顺序、显隐、宽度与默认密度。在自建项目级表格封装时直接调用；使用 `@shikiform/antd` 的 `ArrayTable` 时可通过 `ArrayTable.useTable().settings` 读取同一套实例。
+无 UI 的表格列展示状态管理：维护列的显隐（`toggle`）、顺序（`move` / `moveKey` 及原生 HTML5 拖拽属性 `dragProps(key)`）、列宽（`setWidth`，下限 40px）与三档行高密度（`density`: `'large' | 'middle' | 'small'`）。运行期新增的列追加在末尾，移除的列自动剔除；`reset()` 恢复初始列顺序、显隐、宽度与默认密度。在自建项目级表格封装时直接调用即可。
 
 ## enumItems
 
@@ -97,4 +97,4 @@ enumItems(value: unknown, options?: EnumOption[], config?: { colorful?: boolean 
 const ENUM_COLORS: { success: 'green'; processing: 'blue'; error: 'red'; warning: 'gold'; default: '#d9d9d9'; … }
 ```
 
-枚举选项 `color` 可以写的语义色名（`success`、`processing`、`error`、`warning`、`default`）和 antd 预设色名；其他字符串（如 `#1677ff`）原样使用。`enumItems` 和 `PreviewText` 都按这张表把名字换成颜色。
+枚举选项 `color` 可以写的语义色名（`success`、`processing`、`error`、`warning`、`default`）和常见预设色名；其他字符串（如 `#1677ff`）原样使用。`enumItems` 会按这张表把名字换成对应颜色值。

@@ -1,0 +1,444 @@
+---
+import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
+import { getNavCatalog } from "@/lib/nav-catalog";
+
+const { groups } = getNavCatalog(import.meta.env.BASE_URL);
+---
+
+<dialog
+  id="sf-menu-map"
+  data-sf-menu-map
+  aria-label="文档目录总览"
+  class="sf-map-dialog"
+>
+  <div class="sf-map-shell">
+    <!-- 最近访问栏（由 localStorage 动态填充） -->
+    <div class="sf-map-recent" data-sf-map-recent hidden>
+      <span class="sf-map-recent-label">最近访问：</span>
+      <div class="sf-map-recent-chips" data-sf-map-recent-chips></div>
+    </div>
+
+    <!-- 菜单目录主容器（Niko 同款高密度风格） -->
+    <div class="sf-map-panel">
+      <div class="sf-map-head">
+        <div class="sf-map-title-wrap">
+          <span class="sf-map-bar" aria-hidden="true" />
+          <span class="sf-map-title">ShikiForm · 文档目录总览</span>
+        </div>
+
+        <div class="sf-map-head-right">
+          <label class="sf-map-filter">
+            <Icon name="ph:magnifying-glass" class="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+            <input
+              type="text"
+              data-sf-map-input
+              placeholder="筛选菜单名称..."
+              autocomplete="off"
+              spellcheck="false"
+            />
+          </label>
+          <button type="button" data-sf-map-close aria-label="关闭目录" class="sf-map-close">
+            <Icon name="ph:x" class="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      <div class="sf-map-body">
+        <div class="sf-map-grid" data-sf-map-grid>
+          {groups.map((group) => (
+            <section class="sf-map-group" data-sf-map-group data-group-label={group.label.toLowerCase()}>
+              <div class="sf-map-group-head">
+                <span class="sf-map-group-title">{group.label}</span>
+                <span class="sf-map-group-count" data-sf-map-group-count>{group.items.length}</span>
+              </div>
+              <div class="sf-map-links">
+                {group.items.map((item) => (
+                  <a
+                    href={item.href}
+                    class="sf-map-link"
+                    data-sf-map-link
+                    data-search={`${item.label} ${group.label} ${item.path}`.toLowerCase()}
+                    data-label={item.label}
+                    data-group-label={group.label}
+                    data-path={item.path}
+                  >
+                    <span class="truncate">{item.label}</span>
+                  </a>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+
+        <div class="sf-map-empty" data-sf-map-empty hidden>
+          未找到匹配的文档菜单
+        </div>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<script>
+  const RECENT_KEY = "sf-recent-visits-v1";
+
+  interface RecentEntry {
+    path: string;
+    href: string;
+    label: string;
+    groupLabel: string;
+  }
+
+  function readRecentVisits(): RecentEntry[] {
+    try {
+      const raw = localStorage.getItem(RECENT_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function recordRecentVisit(entry: RecentEntry) {
+    try {
+      const list = readRecentVisits();
+      const next = [entry, ...list.filter((i) => i.path !== entry.path)].slice(0, 8);
+      localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+      window.dispatchEvent(new CustomEvent("sf:recent-updated"));
+    } catch {
+      // ignore storage errors
+    }
+  }
+
+  function initMenuMap() {
+    const dialog = document.querySelector<HTMLDialogElement>("[data-sf-menu-map]");
+    if (!dialog || dialog.dataset.sfBound === "1") return;
+    dialog.dataset.sfBound = "1";
+
+    const input = dialog.querySelector<HTMLInputElement>("[data-sf-map-input]")!;
+    const closeBtn = dialog.querySelector<HTMLButtonElement>("[data-sf-map-close]")!;
+    const recentWrap = dialog.querySelector<HTMLElement>("[data-sf-map-recent]")!;
+    const recentChips = dialog.querySelector<HTMLElement>("[data-sf-map-recent-chips]")!;
+    const emptyEl = dialog.querySelector<HTMLElement>("[data-sf-map-empty]")!;
+    const groups = Array.from(dialog.querySelectorAll<HTMLElement>("[data-sf-map-group]"));
+    const links = Array.from(dialog.querySelectorAll<HTMLAnchorElement>("[data-sf-map-link]"));
+
+    function renderRecent() {
+      const items = readRecentVisits();
+      if (items.length === 0) {
+        recentWrap.hidden = true;
+        return;
+      }
+      recentWrap.hidden = false;
+      recentChips.innerHTML = "";
+      for (const item of items) {
+        const a = document.createElement("a");
+        a.href = item.href;
+        a.className = "sf-map-chip";
+        a.textContent = item.label;
+        a.addEventListener("click", () => dialog.close());
+        recentChips.appendChild(a);
+      }
+    }
+
+    function applyFilter() {
+      const q = input.value.trim().toLowerCase();
+      let visibleGroups = 0;
+
+      for (const group of groups) {
+        const groupLinks = Array.from(group.querySelectorAll<HTMLAnchorElement>("[data-sf-map-link]"));
+        let shown = 0;
+        for (const link of groupLinks) {
+          const match = !q || (link.dataset.search ?? "").includes(q);
+          link.hidden = !match;
+          if (match) shown++;
+        }
+        group.hidden = shown === 0;
+        const countEl = group.querySelector<HTMLElement>("[data-sf-map-group-count]");
+        if (countEl) countEl.textContent = String(shown);
+        if (shown > 0) visibleGroups++;
+      }
+
+      emptyEl.hidden = visibleGroups > 0;
+    }
+
+    function openMenuMap() {
+      const cmdDialog = document.querySelector<HTMLDialogElement>("[data-sf-cmd-palette]");
+      if (cmdDialog?.open) cmdDialog.close();
+      renderRecent();
+      input.value = "";
+      applyFilter();
+      if (!dialog.open) dialog.showModal();
+      requestAnimationFrame(() => input.focus());
+    }
+
+    input.addEventListener("input", applyFilter);
+    closeBtn.addEventListener("click", () => dialog.close());
+    dialog.addEventListener("click", (e) => {
+      if (e.target === dialog) dialog.close();
+    });
+
+    links.forEach((link) => {
+      link.addEventListener("click", () => {
+        recordRecentVisit({
+          path: link.dataset.path ?? "",
+          href: link.getAttribute("href") ?? "/",
+          label: link.dataset.label ?? "",
+          groupLabel: link.dataset.groupLabel ?? "",
+        });
+        dialog.close();
+      });
+    });
+
+    if (!(window as any).__sfMenuMapGlobalBound) {
+      (window as any).__sfMenuMapGlobalBound = true;
+      document.addEventListener("click", (e) => {
+        const trigger = (e.target as HTMLElement | null)?.closest("[data-sf-menu-map-trigger]");
+        if (trigger) {
+          e.preventDefault();
+          document.dispatchEvent(new CustomEvent("sf:open-menu-map"));
+        }
+      });
+    }
+
+    document.addEventListener("sf:open-menu-map", openMenuMap);
+    window.addEventListener("sf:recent-updated", renderRecent);
+  }
+
+  initMenuMap();
+  document.addEventListener("astro:page-load", initMenuMap);
+</script>
+
+<style>
+  .sf-map-dialog {
+    padding: 0;
+    margin: 56px auto 0;
+    width: min(880px, calc(100vw - 24px));
+    max-width: none;
+    max-height: calc(100vh - 80px);
+    border: 0;
+    background: transparent;
+    color: var(--nb-foreground);
+    overflow: visible;
+  }
+  .sf-map-dialog::backdrop {
+    background: rgba(20, 19, 26, 0.42);
+    backdrop-filter: blur(3px);
+  }
+  .sf-map-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: calc(100vh - 80px);
+  }
+  .sf-map-recent {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--nb-border);
+    background: var(--nb-card);
+    box-shadow: 0 12px 32px -12px rgba(20, 19, 26, 0.22);
+    overflow-x: auto;
+  }
+  .sf-map-recent[hidden] {
+    display: none;
+  }
+  .sf-map-recent-label {
+    font-size: 12px;
+    color: var(--nb-muted-foreground);
+    flex-shrink: 0;
+  }
+  .sf-map-recent-chips {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  :global(.sf-map-chip) {
+    padding: 2px 9px;
+    font-size: 12px;
+    line-height: 20px;
+    border-radius: 4px;
+    border: 1px solid var(--nb-border);
+    background: var(--nb-background);
+    color: var(--nb-muted-foreground);
+    text-decoration: none;
+    white-space: nowrap;
+    transition: all 0.14s ease;
+  }
+  :global(.sf-map-chip:hover) {
+    border-color: color-mix(in srgb, var(--nb-brand) 42%, transparent);
+    background: var(--nb-brand-wash);
+    color: var(--nb-brand);
+  }
+
+  .sf-map-panel {
+    display: flex;
+    flex-direction: column;
+    border-radius: 10px;
+    border: 1px solid var(--nb-border);
+    background: var(--nb-card);
+    box-shadow: 0 24px 64px -16px rgba(20, 19, 26, 0.28);
+    overflow: hidden;
+  }
+  :global([data-mode="dark"]) .sf-map-panel {
+    box-shadow: 0 28px 72px -12px rgba(0, 0, 0, 0.65);
+  }
+  .sf-map-head {
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--nb-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .sf-map-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .sf-map-bar {
+    width: 3px;
+    height: 14px;
+    border-radius: 1px;
+    background: var(--sf-cinnabar);
+  }
+  .sf-map-title {
+    font-family: var(--nb-font-display);
+    font-size: 14.5px;
+    font-weight: 800;
+    color: var(--nb-foreground);
+  }
+  .sf-map-head-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .sf-map-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 30px;
+    padding: 0 10px;
+    border-radius: 6px;
+    border: 1px solid var(--nb-border);
+    background: var(--nb-background);
+    width: 210px;
+  }
+  .sf-map-filter:focus-within {
+    border-color: var(--nb-brand);
+  }
+  .sf-map-filter input {
+    flex: 1;
+    min-width: 0;
+    font-size: 12.5px;
+    color: var(--nb-foreground);
+    background: transparent;
+    border: 0;
+    outline: none;
+  }
+  .sf-map-filter input::placeholder {
+    color: var(--nb-muted-foreground);
+  }
+  .sf-map-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    border: 0;
+    background: transparent;
+    color: var(--nb-muted-foreground);
+    cursor: pointer;
+    transition: background-color 0.14s ease, color 0.14s ease;
+  }
+  .sf-map-close:hover {
+    background: var(--nb-accent);
+    color: var(--nb-foreground);
+  }
+
+  .sf-map-body {
+    padding: 14px;
+    overflow-y: auto;
+    max-height: calc(100vh - 200px);
+  }
+  .sf-map-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+  @media (max-width: 820px) {
+    .sf-map-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 560px) {
+    .sf-map-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  .sf-map-group {
+    padding: 12px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--nb-border);
+    background: var(--nb-background);
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+  }
+  .sf-map-group[hidden] {
+    display: none;
+  }
+  .sf-map-group:hover {
+    border-color: color-mix(in srgb, var(--nb-brand) 38%, transparent);
+    background: var(--nb-card);
+  }
+  .sf-map-group-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--nb-border);
+  }
+  .sf-map-group-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--nb-foreground);
+  }
+  .sf-map-group-count {
+    font-family: var(--nb-font-mono);
+    font-size: 11px;
+    color: var(--nb-muted-foreground);
+  }
+  .sf-map-links {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .sf-map-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 6px;
+    margin: 0 -6px;
+    border-radius: 4px;
+    font-size: 13px;
+    line-height: 20px;
+    color: var(--nb-muted-foreground);
+    text-decoration: none;
+    transition: background-color 0.12s ease, color 0.12s ease;
+  }
+  .sf-map-link[hidden] {
+    display: none;
+  }
+  .sf-map-link:hover {
+    color: var(--nb-brand);
+    background: var(--nb-brand-wash);
+  }
+  .sf-map-empty {
+    padding: 40px 0;
+    text-align: center;
+    font-size: 13px;
+    color: var(--nb-muted-foreground);
+  }
+</style>

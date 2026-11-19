@@ -2,7 +2,7 @@
 // The assertions are type-level (`npm run check`); vitest only makes sure the file loads.
 import { it } from 'vitest'
 import { createForm, Field, typed, UI, type FieldSlot } from '@shikiform/react'
-import { FormItem, Input, InputNumber, Select } from '@shikiform/antd'
+import { FormItem, Input, InputNumber, Select } from './fixtures/native-kit'
 
 type V = { n: number | null; s: string; tags: string[]; rows: { name: string }[] }
 const form = createForm<V>({ initialValues: { n: null, s: '', tags: [], rows: [] } })
@@ -17,8 +17,8 @@ function Alert(props: { type: 'info' | 'warning'; children?: React.ReactNode }) 
 
 export const ok = (
   <>
-    <F.Field name="n" decorator={[FormItem, { tooltip: 'x', labelCol: { span: 4 } }]} component={[InputNumber, { min: 0, precision: 2 }]} />
-    <F.Field name="tags" component={[Select, { mode: 'multiple', allowClear: true }]} />
+    <F.Field name="n" decorator={[FormItem, { description: 'x', asterisk: true }]} component={[InputNumber, { min: 0, step: 0.01 }]} />
+    <F.Field name="tags" component={[Select, { multiple: true, placeholder: '选择' }]} />
     <F.Field name="s" component={Input} decorator={[FormItem]} />
     <F.Field name="s" component={[Input, undefined]} />
     <F.ArrayField name="rows">{(row) => <row.Field name="name" component={[Input, { placeholder: '姓名' }]} />}</F.ArrayField>
@@ -32,14 +32,14 @@ export const ok = (
 
 export const bad = (
   <>
-    {/* @ts-expect-error precision is a number */}
-    <F.Field name="n" component={[InputNumber, { precision: 'two' }]} />
+    {/* @ts-expect-error step is number | string */}
+    <F.Field name="n" component={[InputNumber, { step: true }]} />
     {/* @ts-expect-error not an InputNumber prop */}
     <F.Field name="n" component={[InputNumber, { bogus: true }]} />
-    {/* @ts-expect-error labelCol is a column object */}
-    <F.Field name="s" decorator={[FormItem, { labelCol: 'x' }]} />
-    {/* @ts-expect-error not a Select mode */}
-    <F.Field name="tags" component={[Select, { mode: 'nope' }]} />
+    {/* @ts-expect-error asterisk is a boolean */}
+    <F.Field name="s" decorator={[FormItem, { asterisk: 'x' }]} />
+    {/* @ts-expect-error multiple is a boolean */}
+    <F.Field name="tags" component={[Select, { multiple: 'nope' }]} />
     <F.ArrayField name="rows">
       {/* @ts-expect-error maxLength is a number */}
       {(row) => <row.Field name="name" component={[Input, { maxLength: 'x' }]} />}

@@ -2,11 +2,17 @@
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { StrictMode } from 'react'
 import { afterEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
-import { defineEffects, Field, Form, typed, UI, useField, useForm, type FieldBinding, type UiName } from '@shikiform/react'
+import { connect, defineEffects, Field, Form, mapProps, typed, UI, useField, useForm, type FieldBinding, type UiName } from '@shikiform/react'
 import { fieldErrorsOf } from './field-errors'
-
-import { FormItem, Input, InputNumber, Slider } from '@shikiform/antd'
+import { FormItem, Input, InputNumber } from './fixtures/native-kit'
 import type { FormInstance } from '@shikiform/react'
+
+const Slider = connect(
+  ({ value, onChange, disabled }: { value?: number; onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void; disabled?: boolean }) => (
+    <input type="range" data-slider value={value ?? 0} disabled={disabled} onChange={onChange} />
+  ),
+  mapProps({ parse: (e: React.ChangeEvent<HTMLInputElement>) => Number(e.target.value) }),
+)
 
 afterEach(() => {
   cleanup()
@@ -70,18 +76,18 @@ describe('<Field ui> — several UIs of one field', () => {
       )
     }
     const view = render(<App />)
-    const slider = () => view.container.querySelector('.ant-slider')!
-    const handle = () => view.container.querySelector('.ant-slider-handle')!
+    const slider = () => view.container.querySelector('[data-slider]') as HTMLInputElement
+    const numberInput = () => view.container.querySelector('input[type="number"]') as HTMLInputElement
     act(() => form.setValue('amount', 40))
-    expect(handle().getAttribute('aria-valuenow')).toBe('40')
-    expect((view.container.querySelector('input') as HTMLInputElement).value).toBe('40')
+    expect(slider().value).toBe('40')
+    expect(numberInput().value).toBe('40')
     act(() => form.setValue('lock', true))
-    expect(slider().className).toContain('ant-slider-disabled')
-    expect((view.container.querySelector('input') as HTMLInputElement).disabled).toBe(false)
+    expect(slider().disabled).toBe(true)
+    expect(numberInput().disabled).toBe(false)
     // unset falls back: a form-wide pattern reaches the instance
     act(() => form.setValue('lock', false))
     act(() => form.batch((d) => { d.$disabled = true }))
-    expect(slider().className).toContain('ant-slider-disabled')
+    expect(slider().disabled).toBe(true)
   })
 
   it('useField() inside an instance is the shared field plus the instance UI state', () => {
@@ -160,8 +166,13 @@ describe('<UI> — a UI with no data', () => {
       form = useForm({ initialValues: { note: 'kept' } })
       return (
         <Form form={form}>
-          <UI name="box" decorator={[FormItem]} title="备注区">
-            <Field name="note" component={[Input]} />
+          <UI name="box" title="备注区">
+            {(ui) => (
+              <div>
+                <label>{ui.title}</label>
+                <Field name="note" component={[Input]} />
+              </div>
+            )}
           </UI>
         </Form>
       )

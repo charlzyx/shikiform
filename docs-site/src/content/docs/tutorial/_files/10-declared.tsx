@@ -1,15 +1,26 @@
-import { Field, Form, Watch, useForm, type Draft } from '@shikiform/react';
-import { FormItem, Input, Submit, Switch } from '@shikiform/antd';
+import { Field, Form, Submit, Watch, useField, useForm, type Draft } from '@shikiform/react';
 
 type Values = { more: boolean; nickname: string; code: string };
+
+function TextInput() {
+  const f = useField<string>();
+  return (
+    <p>
+      <label htmlFor={f.id}>{f.title}：</label>
+      <input id={f.id} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} onBlur={f.onBlur} />
+      {f.description && <small style={{ marginLeft: 8, opacity: 0.7 }}>{f.description}</small>}
+      {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
+    </p>
+  );
+}
 
 function More() {
   return (
     <Watch select={(d: Draft<Values>) => d.more.$value}>
       {(more) => more ? (
         <>
-          <Field name="nickname" title="昵称" rules={{ required: true, message: '昵称必填' }} decorator={[FormItem]} component={[Input]} />
-          <Field name="code" title="邀请码" rules={{ required: true, message: '邀请码必填' }} decorator={[FormItem]} component={[Input]} />
+          <Field name="nickname" title="昵称" rules={{ required: true, message: '昵称必填' }} component={[TextInput]} />
+          <Field name="code" title="邀请码" rules={{ required: true, message: '邀请码必填' }} component={[TextInput]} />
         </>
       ) : null}
     </Watch>
@@ -22,7 +33,21 @@ export default function App() {
   });
   return (
     <Form form={form}>
-      <Field name="more" title="填写更多" decorator={[FormItem]} component={[Switch]} />
+      <Field<Values, 'more'> name="more" title="填写更多">
+        {(f) => (
+          <p>
+            <label htmlFor={f.id}>
+              <input
+                id={f.id}
+                type="checkbox"
+                checked={Boolean(f.value)}
+                onChange={(e) => f.onChange(e.target.checked)}
+              />{' '}
+              {f.title}
+            </label>
+          </p>
+        )}
+      </Field>
       <More />
       <Submit>提交</Submit>
       <Watch select={(d: Draft<Values>) => d.$errors}>

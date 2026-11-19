@@ -1,15 +1,17 @@
 ---
-title: 1. 字段
-description: 使用 useForm、Form 和 Field 为表单添加姓名与邮箱字段。
+title: 1. 字段与路径
+description: 使用 useForm、Form、Field 与 ObjectField 绑定顶层和嵌套对象字段。
 tableOfContents: false
 ---
 
 <div className="tutorial-step">
 <div className="tutorial-copy">
 
+## 1.1 最小表单与字段绑定
+
 `useForm` 创建表单引擎实例，`<Form>` 提供上下文并处理原生提交事件，`<Field>` 将字段路径绑定到 UI 控件。
 
-`<Field>` 上的 `decorator={[FormItem]}` 渲染标签和错误提示，`component={[Input]}` 渲染输入控件；两者从外层 `<Field>` 上下文读取绑定，不需重复传入 `name`。`FormItem`、`Input`、`Submit` 来自 `@shikiform/antd`。
+`<Field>` 的 `children` 渲染函数直接接收字段绑定对象（含 `id`、`title`、`value`、`onChange`、`onBlur`、`errors`），也可以将基于 `useField()` 封装的组件传给 `component`。`Submit` 来自 `@shikiform/react`，自动订阅表单的提交与校验状态。
 
 按数据形状选用字段组件：单值用 `Field`，嵌套对象用 `ObjectField`，数组用 `ArrayField`，树形数据用 `TreeField`；标题、提示文案和提交按钮不对应数据路径，无需声明为字段。
 
@@ -18,5 +20,22 @@ tableOfContents: false
 </div>
 
 <TutorialPlay id="01-start" />
+
+</div>
+
+<div className="tutorial-step">
+<div className="tutorial-copy">
+
+## 1.2 嵌套对象与相对路径
+
+当前表单中，`name` 是顶层字段，`address` 是嵌套对象（目前仅含 `city`）。点击提交可看到输出中包含 `name` 与 `address.city`。
+
+`<ObjectField name="address">` 为子组件提供一层路径作用域。作用域内的字段名按相对路径解析，写 `name="city"` 即对应 `address.city`；若再写 `address.city`，运行时会拼成 `address.address.city`。
+
+**这一步：** 在 `initialValues.address` 与 `<ObjectField name="address">` 内补上 `street` 字段。提交后确认 `address` 对象同时包含 `city` 和 `street`。
+
+</div>
+
+<TutorialPlay id="02-profile" />
 
 </div>

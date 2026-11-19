@@ -3,9 +3,8 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as root from '@shikiform/react'
-import { ArrayField, createForm, Field, Form, ShikiUsageError, useField, type FieldBinding } from '@shikiform/react'
-import * as antd from '@shikiform/antd'
-import { FormItem, ArrayTable } from '@shikiform/antd'
+import { ArrayField, createForm, Field, Form, ShikiUsageError, useField, useIndex, type FieldBinding } from '@shikiform/react'
+import { FormItem } from './fixtures/native-kit'
 
 afterEach(cleanup)
 
@@ -34,13 +33,15 @@ describe('useField() with no name reads the current field', () => {
     expect(form.getValue('a')).toBe('edited')
   })
 
-  it('inside a ArrayTable cell <Field>', () => {
+  it('inside an ArrayField row <Field>', () => {
+    function RowCell() {
+      const index = useIndex()
+      return <Field name="a1"><TextInput testId={`cell-${index}`} /></Field>
+    }
     const form = createForm({ initialValues: { list: [{ a1: 'r0' }, { a1: 'r1' }] } })
     render(
       <Form form={form}>
-        <ArrayField name="list" component={[ArrayTable, {
-          columns: [{ key: 'a1', title: 'A1', render: (cell) => <Field name="a1"><TextInput testId={`cell-${cell.index}`} /></Field> }],
-        }]} />
+        <ArrayField name="list">{() => <RowCell />}</ArrayField>
       </Form>,
     )
     expect(screen.getByTestId('cell-1').getAttribute('data-path')).toBe('list.1.a1')
@@ -70,8 +71,6 @@ describe('useField() with no name reads the current field', () => {
 
   it('is the only field-access hook: the old names and the factory are gone', () => {
     for (const name of ['useCurrentField', 'FieldContext', 'useFieldContext']) expect(name in root).toBe(false)
-    expect('useAntdField' in antd).toBe(false)
     for (const name of ['createFormHook', 'createFormHookContexts']) expect(name in root).toBe(false)
-    for (const name of ['useAntdForm', 'createAntdFormHook', 'antdForm', 'withAntdForm', 'withAntdFieldGroup']) expect(name in antd).toBe(false)
   })
 })

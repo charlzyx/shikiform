@@ -1,8 +1,10 @@
 ---
-import "@fontsource-variable/inter";
-import "@fontsource-variable/jetbrains-mono";
+import "@fontsource-variable/geist";
+import "@fontsource-variable/geist-mono";
+import "@fontsource/shippori-mincho-b1/latin-800.css";
+import "@fontsource/noto-serif-sc/800.css";
 // The body font starts downloading with the page instead of after the CSS.
-import interLatin from "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url";
+import geistLatin from "@fontsource-variable/geist/files/geist-latin-wght-normal.woff2?url";
 import "../styles/globals.css";
 import "../styles/prose.css";
 import "../styles/demo.css";
@@ -14,7 +16,8 @@ import {
   withBase,
 } from "@cloudflare/nimbus-docs/runtime";
 import AgentDirective from "@/components/AgentDirective.astro";
-import { SearchDialog } from "@/components/ui/search";
+import CommandPalette from "@/components/CommandPalette.astro";
+import MenuMapDialog from "@/components/MenuMapDialog.astro";
 import NimbusHead from "@cloudflare/nimbus-docs/components/NimbusHead.astro";
 import WebMCP from "@/components/WebMCP.astro";
 import type { BasePageProps } from "@cloudflare/nimbus-docs/types";
@@ -69,7 +72,7 @@ const resolvedMarkdownUrl =
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="preload" href={interLatin} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={geistLatin} as="font" type="font/woff2" crossorigin />
     <WebMCP />
 
     <script is:inline>
@@ -147,7 +150,8 @@ const resolvedMarkdownUrl =
       <AgentDirective markdownUrl={resolvedMarkdownUrl ?? null} llmsUrl={llmsUrl} />
     )}
     <slot />
-    {config.search !== false && <SearchDialog />}
+    {config.search !== false && <CommandPalette />}
+    <MenuMapDialog />
 
     <script>
       import { codeCopy, headingAnchors } from "@cloudflare/nimbus-docs/client";

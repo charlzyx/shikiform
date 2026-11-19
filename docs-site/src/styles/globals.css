@@ -20,44 +20,41 @@
  *     `shadow-lg`, etc. as color names — they collide with built-ins)
  * ============================================================ */
 
-/* ---- Light mode (default) ---- */
+/* ---- Light mode: 宣纸 Xuanzhi (Inkstone 墨观) ---- */
 :root {
 	color-scheme: light;
 
-	/* Surfaces (paired with foregrounds for contrast) */
-	--nb-background: oklch(0.99 0 0);
-	--nb-foreground: oklch(0.21 0 0);
+	/* Surfaces (宣纸暖白层级) */
+	--nb-background: #f7f4ed;
+	--nb-foreground: #1f1e24;
 
-	--nb-card: oklch(1 0 0);
+	--nb-card: #fcfbf7;
 	--nb-card-foreground: var(--nb-foreground);
 
-	--nb-muted: oklch(0.98 0 0);
-	/* 4.5:1 or better on every light surface, inline code included. */
-	--nb-muted-foreground: oklch(0.52 0 0);
+	--nb-muted: #efece3;
+	--nb-muted-foreground: #5d5952;
 
-	--nb-accent: oklch(0.967 0 0);
+	--nb-accent: #e8e3d6;
 	--nb-accent-foreground: var(--nb-foreground);
 
-	/* Primary action / brand */
-	--nb-primary: oklch(0.145 0 0);
-	--nb-primary-foreground: oklch(0.97 0 0);
-	--nb-primary-hover: oklch(0.371 0 0);
+	/* Primary action / brand — 红批蓝动：飞燕草蓝交互 + 鹤顶红朱批 */
+	--nb-primary: #1f1e24;
+	--nb-primary-foreground: #f7f4ed;
+	--nb-primary-hover: #35333d;
 
-	/* Brand — Nimbus steel, the accent of the Chrome palette: a grey with a
-	   trace of blue, so it reads apart from the pure-neutral ink. Used only
-	   for wayfinding: where you are (current page, section, tab) and what you
-	   can act on (focus, link hover). */
-	--nb-brand: oklch(0.373 0.034 260.2);
-	/* The current page's fill: a light wash of the brand. */
-	--nb-brand-wash: color-mix(in oklch, var(--nb-brand) 7%, transparent);
+	--nb-brand: #0f59a4;
+	--nb-brand-wash: color-mix(in srgb, var(--nb-brand) 9%, transparent);
+	--sf-cinnabar: #c34435;
+	--sf-jade: #1a6840;
+	--sf-ochre: #b14b28;
 
 	/* Borders / focus */
-	--nb-border: oklch(0.935 0 0);
-	--nb-border-strong: oklch(0.87 0 0);
-	--nb-selected: oklch(0.92 0 0);
+	--nb-border: #e4dfd3;
+	--nb-border-strong: #d2cbbd;
+	--nb-selected: #e5e0d4;
 	/* Inline code's tint. */
-	--nb-code-tint: color-mix(in oklch, var(--nb-foreground) 4.5%, transparent);
-	--nb-ring: oklch(0.373 0.034 260.2 / 0.4);
+	--nb-code-tint: color-mix(in srgb, #1f1e24 5.5%, transparent);
+	--nb-ring: color-mix(in srgb, var(--nb-brand) 38%, transparent);
 
 	/* Status colors — paired (saturated for text/border + muted for bg) */
 	--nb-info: oklch(0.424 0.199 265.638);
@@ -104,34 +101,33 @@
 	--nb-content-max: 43.5rem;
 	/* The sticky header's height: taller on phones when the section tabs take
 	   a row of their own (set below). Sticky bars and scroll margins read it. */
-	--nb-header-height: 3.5rem;
+	--nb-header-height: 3rem;
 	/* Used only by the API reference (registry: api-layout); harmless elsewhere. */
 	--nb-code-rail-width: 34rem;
 
-	/* Typography — self-hosted via @fontsource-variable in BaseLayout.astro */
+	/* Typography — self-hosted via Fontsource in BaseLayout.astro (Asuka 同款：Geist + Shippori Mincho B1 Latin + Noto Serif SC) */
 	--nb-font-sans:
-		"Inter Variable", "Inter", system-ui, -apple-system, "Segoe UI", Roboto,
-		sans-serif;
+		"Geist Variable", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+		ui-sans-serif, system-ui, -apple-system, sans-serif;
 	--nb-font-mono:
-		"JetBrains Mono Variable", "JetBrains Mono", ui-monospace, "Cascadia Code",
-		"Source Code Pro", Menlo, Consolas, monospace;
-	/* Type scale: one ratio, √1.5, stepping up from the 16px body. Two steps
-	   make 1.5, so body → h2 → h1 is the same interval twice and lands on
-	   whole pixels: 16 → 24 → 36, with h3 at the half step (19.6 → 20).
-	   Line heights sit on the 4px grid. Weight falls as size rises, since a
-	   larger glyph needs less stroke to carry the same visual weight. */
+		"Geist Mono Variable", ui-monospace, SFMono-Regular, Menlo, Monaco,
+		Consolas, monospace;
+	--nb-font-display:
+		"Shippori Mincho B1", "Noto Serif SC", "Songti SC", "STSong",
+		"Noto Serif CJK SC", "Source Han Serif SC", "SimSun", serif;
+	/* Type scale: one ratio, √1.5, stepping up from the 16px body. */
 	--nb-h1-size: 2.25rem;
 	--nb-h1-leading: 2.75rem;
-	--nb-h1-weight: 500;
-	--nb-h1-tracking: -0.025em;
+	--nb-h1-weight: 800;
+	--nb-h1-tracking: -0.015em;
 	--nb-h2-size: 1.5rem;
-	--nb-h2-leading: 2rem;
-	--nb-h2-weight: 550;
-	--nb-h2-tracking: -0.018em;
-	--nb-h3-size: 1.25rem;
+	--nb-h2-leading: 2.125rem;
+	--nb-h2-weight: 800;
+	--nb-h2-tracking: -0.01em;
+	--nb-h3-size: 1.1875rem;
 	--nb-h3-leading: 1.75rem;
 	--nb-h3-weight: 600;
-	--nb-h3-tracking: -0.012em;
+	--nb-h3-tracking: -0.01em;
 	--nb-h4-weight: 600;
 
 	/* Corners: surfaces (cards, callouts, code blocks, buttons, sidebar rows)
@@ -153,34 +149,37 @@
 	}
 }
 
-/* ---- Dark mode ---- */
+/* ---- Dark mode: 玄墨 Xuanmo (Inkstone 墨观) ---- */
 [data-mode="dark"] {
 	color-scheme: dark;
 
-	--nb-background: oklch(0.085 0 0);
-	--nb-foreground: oklch(0.97 0 0);
+	--nb-background: #14131a;
+	--nb-foreground: #eae6df;
 
-	--nb-card: #0F0F0F;
+	--nb-card: #1b1a23;
 	--nb-card-foreground: var(--nb-foreground);
 
-	--nb-muted: #060606;
-	--nb-muted-foreground: oklch(0.708 0 0);
+	--nb-muted: #1e1d27;
+	--nb-muted-foreground: #9a958c;
 
-	--nb-accent: oklch(0.269 0 0);
+	--nb-accent: #272534;
 	--nb-accent-foreground: var(--nb-foreground);
 
-	--nb-primary: oklch(0.9 0 0);
-	--nb-primary-foreground: oklch(0.085 0 0);
-	--nb-primary-hover: oklch(0.7 0 0);
+	--nb-primary: #eae6df;
+	--nb-primary-foreground: #14131a;
+	--nb-primary-hover: #d5d0c7;
 
-	--nb-brand: oklch(0.837 0.018 261.3);
-	--nb-brand-wash: color-mix(in oklch, var(--nb-brand) 10%, transparent);
+	--nb-brand: #619ac3;
+	--nb-brand-wash: color-mix(in srgb, var(--nb-brand) 14%, transparent);
+	--sf-cinnabar: #d8574a;
+	--sf-jade: #2bae85;
+	--sf-ochre: #d6a01d;
 
-	--nb-border: oklch(0.269 0 0);
-	--nb-border-strong: oklch(0.371 0 0);
-	--nb-selected: oklch(0.371 0 0);
-	--nb-code-tint: color-mix(in oklch, var(--nb-foreground) 6%, transparent);
-	--nb-ring: oklch(0.837 0.018 261.3 / 0.45);
+	--nb-border: #2c2a38;
+	--nb-border-strong: #3b384a;
+	--nb-selected: #2f2d3c;
+	--nb-code-tint: color-mix(in srgb, #eae6df 7%, transparent);
+	--nb-ring: color-mix(in srgb, var(--nb-brand) 42%, transparent);
 
 	--nb-info: oklch(0.707 0.165 254.624);
 	--nb-info-foreground: oklch(0.707 0.165 254.624);
@@ -255,6 +254,7 @@
 
 	--font-sans: var(--nb-font-sans);
 	--font-mono: var(--nb-font-mono);
+	--font-display: var(--nb-font-display);
 
 	--radius-lg: var(--nb-radius);
 	--radius-sm: var(--nb-radius-sm);
@@ -267,7 +267,9 @@
 /* ---- Minimal overrides the plugin doesn't cover ---- */
 html {
 	font-family: var(--nb-font-sans);
-	font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+	text-autospace: normal;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
 }
 
 body {

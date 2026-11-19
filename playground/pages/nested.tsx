@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import { Button, Drawer } from 'antd'
 import { ArrayField, defineEffects, Field, Form, useForm, useFormContext, useRecord, useWatch, type Draft } from '@shikiform/react'
-import { FormItem, FormLayout, Input, InputNumber, Switch } from '@shikiform/antd'
+import { Button, Drawer, FormItem, FormLayout, Input, InputNumber, Space, Switch } from '../kit'
 
 interface Order {
   id: string
@@ -49,9 +48,12 @@ export function NestedPage() {
     fields: { open: { omit: true }, editMode: { omit: true } },
   })
   return (
-    <Form form={form}>
-      <NestedBody />
-    </Form>
+    <main>
+      <h1>嵌套数组与抽屉编辑</h1>
+      <Form form={form}>
+        <NestedBody />
+      </Form>
+    </main>
   )
 }
 
@@ -60,11 +62,16 @@ function NestedBody() {
   const open = useWatch((d: Draft<Values>) => d.open.$value)
   const [expanded, setExpanded] = useState(true)
   return (
-    <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }}>
+    <FormLayout style={{ maxWidth: 520 }}>
       <Field name="editMode" title="可编辑" decorator={[FormItem]} component={[Switch, { 'data-testid': 'edit-mode' }]} />
-      <Button data-testid="toggle-orders" onClick={() => setExpanded((value) => !value)}>
-        {expanded ? '收起' : '展开'}
-      </Button>
+      <Space style={{ marginBottom: 12 }}>
+        <Button data-testid="toggle-orders" onClick={() => setExpanded((value) => !value)}>
+          {expanded ? '收起' : '展开'}
+        </Button>
+        <Button data-testid="open-drawer" onClick={() => form.setValue('open', true)}>
+          地址
+        </Button>
+      </Space>
       {expanded ? (
         <div data-testid="orders">
           <ArrayField name="orders" rowKey="id">
@@ -74,9 +81,6 @@ function NestedBody() {
       ) : (
         <div data-testid="orders-collapsed">已收起</div>
       )}
-      <Button data-testid="open-drawer" onClick={() => form.setValue('open', true)}>
-        地址
-      </Button>
       <Drawer open={!!open} onClose={() => form.setValue('open', false)} title="地址">
         <Field name="city" title="城市" decorator={[FormItem]} component={[Input, { 'data-testid': 'city' }]} />
       </Drawer>

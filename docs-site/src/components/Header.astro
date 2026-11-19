@@ -58,18 +58,68 @@ const showSections = sections.length >= 2;
 const homeHref = withBase("/", import.meta.env.BASE_URL);
 const resolveSectionHref = (href: string): string =>
   withBase(href, import.meta.env.BASE_URL);
+
+const primaryNav = [
+  {
+    label: "指南",
+    href: "/guide/quick-start",
+    isActive:
+      currentSlug.startsWith("/guide") ||
+      currentSlug.startsWith("/basics") ||
+      currentSlug.startsWith("/advanced") ||
+      currentSlug.startsWith("/practices"),
+  },
+  {
+    label: "教程",
+    href: "/tutorial/1-start",
+    isActive: currentSlug.startsWith("/tutorial"),
+  },
+  {
+    label: "示例",
+    href: "/examples",
+    isActive: currentSlug.startsWith("/examples") || currentSlug.startsWith("/play"),
+  },
+  {
+    label: "API",
+    href: "/api",
+    isActive: currentSlug.startsWith("/api") || currentSlug.startsWith("/reference"),
+  },
+];
 ---
 
-<header class="sticky top-0 z-30 border-b border-border bg-card/80 backdrop-blur-lg">
-  <div class="mx-auto flex items-center justify-between gap-3 h-14 px-4 lg:px-6">
+<header class="sticky top-0 z-30 border-b border-border bg-card/85 backdrop-blur-lg">
+  <div class="mx-auto flex items-center justify-between gap-4 h-12 px-4 lg:px-6">
     <div class="flex items-center gap-3 min-w-0">
       <slot name="brand">
-        {/* The mark alone; the site title stays as the link's accessible name. */}
-        <a href={homeHref} class="flex shrink-0 items-center text-foreground transition-opacity hover:opacity-70">
-          <Logo class="h-5 w-8 shrink-0" />
-          <span class="sr-only">{config.title}</span>
+        <a href={homeHref} class="group flex shrink-0 items-center gap-2.5 text-foreground no-underline transition-opacity hover:opacity-85">
+          <Logo class="h-5 w-5 shrink-0" />
+          <span class="font-display text-[1.0625rem] font-extrabold tracking-[-0.02em] leading-none">
+            {config.title}
+          </span>
+          <span
+            aria-hidden="true"
+            class="inline-flex items-center justify-center w-[18px] h-[18px] rounded-[3px] text-[11px] font-bold leading-none text-[#fcfbf7]"
+            style="background: var(--sf-cinnabar, #c34435);"
+          >式</span>
         </a>
       </slot>
+
+      <nav aria-label="主导航" class="hidden md:flex items-center gap-1 ms-3 ps-4 border-s border-border h-6 min-w-0">
+        {primaryNav.map((item) => (
+          <a
+            href={resolveSectionHref(item.href)}
+            aria-current={item.isActive ? "page" : undefined}
+            class:list={[
+              "px-2.5 py-1 rounded-md text-[0.8125rem] font-medium no-underline transition-colors shrink-0 whitespace-nowrap",
+              item.isActive
+                ? "text-brand bg-brand/10"
+                : "text-muted-foreground hover:text-foreground hover:bg-accent/70",
+            ]}
+          >
+            {item.label}
+          </a>
+        ))}
+      </nav>
 
       {showSections && (
         <nav aria-label="Sections" class="hidden md:flex items-center gap-1 ms-4 ps-4 border-s border-border h-6 min-w-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -93,6 +143,14 @@ const resolveSectionHref = (href: string): string =>
 
     <div class="flex items-center gap-2 shrink-0">
       <slot name="actions" />
+      <button
+        type="button"
+        data-sf-menu-map-trigger
+        class="px-2.5 py-1.5 rounded-md text-[0.8125rem] font-medium text-muted-foreground hover:text-foreground hover:bg-accent/70 transition-colors cursor-pointer shrink-0 whitespace-nowrap"
+        aria-label="打开文档目录总览"
+      >
+        目录
+      </button>
       {config.search !== false && <SearchTrigger />}
       {config.github && (
         <LinkButton

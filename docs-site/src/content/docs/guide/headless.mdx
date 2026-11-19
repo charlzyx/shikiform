@@ -3,14 +3,14 @@ title: Headless Hooks 与接入组件库
 description: 不依赖 UI 库直接使用 useField、useWatch、数组/树上下文 Hooks，以及如何接入 shadcn/ui、Mantine、MUI 等第三方组件库。
 ---
 
-不引入 Ant Design 或需要自定义表格与树编辑器时，可直接使用 `@shikiform/react` 导出的无 UI Hooks（`<Field>` 与 `<ArrayField>` 均基于这些 Hook 实现）：
+ShikiForm 本身零 UI 库依赖。需要自定义表格、树编辑器或接入自己的组件库时，直接使用 `@shikiform/react` 导出的无 UI Hooks（`<Field>` 与 `<ArrayField>` 均基于这些 Hook 实现）：
 
 - 单字段与状态订阅：`useField(name)` 绑定单个字段，`useWatch(select)` / `<Watch>` 订阅任意 `$` 状态。
-- 数组上下文：`useArrayField()` 获取最近一层数组句柄，`useIndex()` 获取当前行下标，`useRecord()` 获取当前行值，调用时无需传数组名。数组自身的校验消息在 `useArrayField().errors` / `warnings` 上（不含子字段），在列表容器或 `ArrayTable` 的 `footer` 中读取（必须位于 `<ArrayField>` 内，见 [数组自身的错误](/guide/arrays#数组自身的错误)）。
+- 数组上下文：`useArrayField()` 获取最近一层数组句柄，`useIndex()` 获取当前行下标，`useRecord()` 获取当前行值，调用时无需传数组名。数组自身的校验消息在 `useArrayField().errors` / `warnings` 上（不含子字段），在列表容器或页脚中读取（必须位于 `<ArrayField>` 内，见 [数组自身的错误](/guide/arrays#数组自身的错误)）。
 - 树结构：`useTreeField(name)` 获取整棵树句柄（`path` 与 `treePath` 均为树根，含 `push` / `insert` / `remove` / `replace` / `move` / `dragProps(pos)` 及该层 `errors` / `warnings`）。无参 `useTreeField()` 仅在 `<TreeField>` 节点内使用，`path` 为当前节点，`treePath` 为树根，额外提供 `{ pos, index, record }` 与指向当前节点的 `dragProps()`。移动节点时，位置与子树未变的兄弟及其他子树不重新渲染。
 - 拖拽排序：数组句柄的 `dragProps(index)` 与树句柄的 `dragProps(pos)`（或节点上的 `useTreeField().dragProps()`）返回原生 HTML5 拖放属性，配合同一句柄的 `move` 完成重排。
 
-`useArrayField`、`useIndex` 和 `useRecord` 在普通 `<ArrayField>` 渲染函数以及 `ArrayItems`、`ArrayCards`、`ArrayTable` 容器内均可通用。
+`useArrayField`、`useIndex` 和 `useRecord` 在 `<ArrayField>` 渲染函数以及 `<ArrayField.Row>` 内均可通用。
 
 ## 数组行组件：免传路径名
 
@@ -103,7 +103,33 @@ function NodeRow() {
 
 ## 接自己的组件库
 
-`connect` 和 `mapProps` 均直接由 `@shikiform/react` 导出，不依赖 `@shikiform/antd`（默认不传 Ant Design 专属的 `status`）。标签与错误提示使用 [`useFieldDecorator`](/reference/react-hooks#usefielddecorator)，提交和重置按钮可使用 headless 的 [`Submit` / `Reset`](/reference/react-hooks#submit)（支持 `asChild` 或 render prop，其中 `Reset` 通过 `afterReset` 接收重置后的值）。下面以 shadcn/ui、Mantine 和 MUI 为例展示接入方式，原生 HTML 最小起步见 [不用 UI 库](/start/native)。
+`connect` 和 `mapProps` 均直接由 `@shikiform/react` 导出，零 UI 依赖。标签与错误提示使用 [`useFieldDecorator`](/reference/react-hooks#usefielddecorator)，提交和重置按钮可使用 headless 的 [`Submit` / `Reset`](/reference/react-hooks#submit)（支持 `asChild` 或 render prop，其中 `Reset` 通过 `afterReset` 接收重置后的值）。
+
+接入任何 React UI 库（如 Ant Design、Arco Design、Radix / shadcn/ui、Mantine、MUI）通常只需要三步：
+
+1. **用 `connect(Comp, mapProps(...))` 包装输入控件**：自动将 `value`、`onChange`、`onBlur`、`disabled`、`id`、`options` 映射到组件属性；需要 `status`（如 Ant Design / Arco 的 `'error' | 'warning'`）或自定义 `preview` 阅读态时，在 `mapProps` 第二个回调里按 `field.errors` / `field.warnings` 补充即可：
+
+```ts
+// 适配 Ant Design / Arco Design 等带 status 属性的组件库示例：
+import { connect, mapProps } from '@shikiform/react'
+
+const withStatus = mapProps(
+  { options: 'options', loading: 'loading' },
+  (props, field) => ({
+    ...props,
+    status: field.errors.length ? 'error' : field.warnings.length ? 'warning' : undefined,
+  }),
+)
+
+// const Input = connect(UiInput, withStatus)
+// const Select = connect(UiSelect, withStatus)
+// const Switch = connect(UiSwitch, mapProps({ value: 'checked', onChange: 'onChange' }))
+```
+
+2. **用 `useFieldDecorator()` 封装一个 `FormItem` 装饰器**：把 `d.label`、`d.required`、`d.errors`、`d.warnings`、`d.description` 映射到 UI 库的表单项布局（如 `validateStatus` / `help` / `extra`）。
+3. **用 `<FieldKit>` 或 `<Form kit={{ decorator, components }}>` 集中注册**：业务页面即可直接写 `<Field name="email" title="邮箱" component="Input" />`。
+
+下面以 shadcn/ui、Mantine 和 MUI 为例展示具体接入代码，原生 HTML 最小起步见 [快速开始](/guide/quick-start)。
 
 ### 区分 `useFieldDecorator().control` 与 `connect`
 
@@ -154,7 +180,7 @@ connect(SelectControl, mapProps({ options: 'options', onChange: 'onValueChange',
 connect(Picker, mapProps({ onBlur: false }))
 ```
 
-完整参数签名见 [mapProps](/reference/antd-adapter#mapprops)。
+`mapProps(config, customMapper?)` 支持字段属性名重映射（`value`、`onChange`、`options`、`loading`、`blurOn`、`format`、`parse`、`preview`）以及可选的自定义映射函数 `(props, field) => nextProps`。
 
 ### shadcn/ui 接入模板
 

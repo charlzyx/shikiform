@@ -1,27 +1,67 @@
 ---
-title: 数组容器 ArrayItems / ArrayCards / ArrayTable
-description: 为 ArrayField 传入容器组件即可获得增删、排序、拖拽、序号和空状态；ArrayTable 提供分页、勾选和列配置等完整表格能力。
+title: 动态数组与表格
+description: 使用 ArrayField、useArrayField、useIndex 与 useArrayTable 构建支持增删、排序、拖拽、数组级校验与分页勾选的动态列表。
 ---
 
-[`<ArrayField>`](/guide/structures) 负责建立行作用域与追踪行身份。`@shikiform/antd` 在此之上提供三种带增删改序控件的数组容器：
+[`<ArrayField>`](/guide/structures) 负责建立行作用域与追踪行身份。搭配 `@shikiform/react` 的 `useArrayField` / `useIndex` / `useRecord` 以及 `@shikiform/hooks` 的 `useArrayTable`，可以用原生 HTML 或任意 UI 组件库搭建行列表、卡片列表和可编辑表格。
 
-| 容器 | 展示形式 | 内置功能 |
+| 能力 | API | 说明 |
 |---|---|---|
-| `ArrayItems` | 配合 `ArrayItems.Item` 渲染紧凑行列表 | `SortHandle`、`Index`、`Remove`、`MoveUp`、`MoveDown`、`Addition` 与空状态占位 |
-| `ArrayCards` | 每行包裹为一张卡片，标题为 `title #序号` | 右上角自带上移 / 下移 / 删除按钮，支持拖拽排序与空状态占位 |
-| `ArrayTable` | 基于 Ant Design `Table` 的可编辑表格，单元格由 `columns` 定义 | 行操作、`Copy` / `ShadowAddition`（草稿添加）、分页、多选、展开子表、列配置与列宽拖拽 |
+| 行作用域与身份追踪 | `<ArrayField name rowKey>` | 仅订阅数组结构变化，修改单元格不会重渲染整张列表 |
+| 增删排序与原生拖拽 | `useArrayField()` / `useIndex()` / `useRecord()` | `push`、`insert`、`remove`、`move`、`swap`、`replace` 与 `dragProps(index)` |
+| 表格分页 / 勾选 / 展开 / 复制 | `useArrayTable`（`@shikiform/hooks`） | 无 UI 的数组表格状态管理，适合搭配原生 `<table>` 或项目表格组件 |
 
-将容器传给 `<ArrayField>` 的 `component` 属性即可（支持 `[容器, props]` 元组及属性类型检查）。容器渲染在数组作用域内，子按钮自动读取当前数组与行下标。
-
-## ArrayItems
+## 行列表与拖拽排序
 
 ```tsx preview
-import { Switch } from 'antd';
-import { Form, typed, useForm } from '@shikiform/react';
-import { ArrayItems, FormItem, Input } from '@shikiform/antd';
+import type { ReactNode } from 'react';
+import { Form, typed, useArrayField, useField, useForm, useIndex, useWatch } from '@shikiform/react';
 
 type Contact = { name: string; phone: string };
 type Values = { contacts: Contact[] };
+
+function TextInput({ placeholder }: { placeholder?: string }) {
+  const field = useField<string>();
+  if (field.readOnly) return <span>{field.value || '-'}</span>;
+  return (
+    <span>
+      <input id={field.id} value={field.value ?? ''} placeholder={placeholder}
+        disabled={field.disabled} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />
+      {field.errors[0] && <small role="alert" style={{ color: 'crimson', marginLeft: 4 }}>{field.errors[0]}</small>}
+    </span>
+  );
+}
+
+function ContactRow({ children }: { children?: ReactNode }) {
+  const array = useArrayField<Contact>();
+  const index = useIndex();
+  const editable = useWatch((d) => !d.$readOnly && !d.$disabled);
+  return (
+    <div {...(editable ? array.dragProps(index) : {})}
+      style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+      {editable && <span style={{ cursor: 'grab' }} title="拖动排序">⋮⋮</span>}
+      <span>#{index + 1}</span>
+      {children}
+      {editable && (
+        <>
+          <button type="button" disabled={index === 0} onClick={() => array.move(index, index - 1)}>上移</button>
+          <button type="button" disabled={index === array.keys.length - 1} onClick={() => array.move(index, index + 1)}>下移</button>
+          <button type="button" onClick={() => array.remove(index)}>删除</button>
+        </>
+      )}
+    </div>
+  );
+}
+
+function ContactList({ children }: { children?: ReactNode }) {
+  const array = useArrayField<Contact>();
+  return (
+    <div>
+      {children}
+      <button type="button" onClick={() => array.push({ name: '', phone: '' })}>添加联系人</button>
+    </div>
+  );
+}
 
 export default function App() {
   const form = useForm<Values>({
@@ -32,19 +72,17 @@ export default function App() {
   return (
     <Form form={form}>
       <p>
-        阅读态 <Switch aria-label="阅读态" onChange={(on) => form.batch((d) => { d.$readOnly = on ? true : undefined; })} />
+        <label>
+          <input type="checkbox" onChange={(e) => form.batch((d) => { d.$readOnly = e.target.checked ? true : undefined; })} />
+          {' '}阅读态
+        </label>
       </p>
-      <F.ArrayField name="contacts" component={[ArrayItems, { addition: <ArrayItems.Addition title="添加联系人" /> }]}>
+      <F.ArrayField name="contacts" component={ContactList}>
         {(row) => (
-          <ArrayItems.Item>
-            <ArrayItems.SortHandle />
-            <ArrayItems.Index />
-            <row.Field name="name" decorator={[FormItem]} component={[Input, { placeholder: '姓名' }]} />
-            <row.Field name="phone" decorator={[FormItem]} component={[Input, { placeholder: '电话' }]} />
-            <ArrayItems.MoveUp />
-            <ArrayItems.MoveDown />
-            <ArrayItems.Remove />
-          </ArrayItems.Item>
+          <ContactRow>
+            <row.Field name="name" component={[TextInput, { placeholder: '姓名' }]} />
+            <row.Field name="phone" component={[TextInput, { placeholder: '电话' }]} />
+          </ContactRow>
         )}
       </F.ArrayField>
       <F.Watch select={(d) => d.contacts.$value}>{(rows) => <pre>{JSON.stringify(rows, null, 2)}</pre>}</F.Watch>
@@ -55,114 +93,58 @@ export default function App() {
 
 - `F = typed(form)` 返回的 `F.ArrayField` 向子函数传入按行类型约束的 `row.Field`；自定义行组件内可用 `useIndex()` 与 `useRecord<Contact>()` 读取行号和行数据。
 - 没有业务主键的对象行以对象引用作为稳定 key，重排后错误和 `touched` 状态仍跟随原行，编辑单元格不会失焦重挂；数据自带稳定主键时再传 `rowKey`。
-- 按住 `⋮⋮` 拖放到目标行可执行重排（原生 HTML5 拖放，不同数组之间互不响应）；`MoveUp` 与 `MoveDown` 在首行或末行禁用。
-- `Addition` 默认追加 `{}`，可通过 `defaultValue` 指定初始值或工厂函数，`method="unshift"` 插入头部。空列表默认渲染 Ant Design `Empty`，可传 `empty` 自定义节点或 `empty={false}` 关闭。
+- `array.dragProps(index)` 提供原生 HTML5 拖放属性（不同数组之间互不响应），拖放到目标行自动调用 `move`。
 
-## 不可编辑状态自动隐藏按钮
+## 不可编辑状态控制
 
-`Addition`、`Remove`、`MoveUp`、`MoveDown` 和 `SortHandle` 在数组不可编辑时不渲染（`visible` 为 false，或 `readOnly` / `disabled` 为 true，含从祖先继承来的值；`Index` 序号始终保留）。下面几种写法都会收起全部操作按钮：
+表单或数组处于 `readOnly` / `disabled` 时，行内字段与数组路径都会继承对应状态：
 
 ```ts
-useForm({ initialValues, readOnly: true })        // 详情页：整张表单初始化为阅读态
-form.batch((d) => { d.$disabled = true })            // 运行时全局禁用（赋 undefined 恢复）
-form.batch((d) => { d.contacts.$readOnly = true })   // 仅将当前数组设为只读
+useForm({ initialValues, readOnly: true })          // 详情页：整张表单初始化为阅读态
+form.batch((d) => { d.$disabled = true })           // 运行时全局禁用（赋 undefined 恢复）
+form.batch((d) => { d.contacts.$readOnly = true })  // 仅将当前数组设为只读
 ```
 
-`ArrayTable` 中的全套操作按钮（含 `Copy` 与 `ShadowAddition`）同样遵循该规则；自定义行操作按钮可以调用 `useArrayEditable()` 获取相同的编辑权限状态。
-
-## ArrayCards
-
-```tsx preview
-import { Form, typed, useForm } from '@shikiform/react';
-import { ArrayCards, FormItem, FormLayout, Input, InputNumber } from '@shikiform/antd';
-
-type Item = { sku: string; qty: number };
-
-export default function App() {
-  const form = useForm<{ items: Item[] }>({ initialValues: { items: [{ sku: 'A-1', qty: 2 }] } });
-  const F = typed(form);
-  return (
-    <Form form={form}>
-      <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }}>
-        <F.ArrayField
-          name="items"
-          component={[ArrayCards, { title: '商品', addition: <ArrayCards.Addition defaultValue={() => ({ sku: '', qty: 1 })} /> }]}
-        >
-          {(row) => (
-            <>
-              <row.Field name="sku" title="SKU" required decorator={[FormItem]} component={[Input]} />
-              <row.Field name="qty" title="数量" decorator={[FormItem]} component={[InputNumber, { min: 1 }]} />
-            </>
-          )}
-        </F.ArrayField>
-      </FormLayout>
-    </Form>
-  );
-}
-```
-
-每行的子字段会直接渲染为卡片内容，无需额外包裹；卡片右上角默认自带上移、下移和删除按钮，传入 `extra` 属性即可替换（如 `extra={<ArrayCards.Remove confirm />}`）。
+自定义数组操作按钮时，根据当前字段的 `readOnly` / `disabled`（或 `useWatch((d) => !d.contacts.$readOnly && !d.contacts.$disabled)`）决定是否渲染增删排序控件。
 
 ## 数组自身的错误
 
-当校验规则写在数组路径本身上时（例如 `fields` 中的 `members.*.phones` 或表单根的 `tags`），校验的是整个数组（如「至少添加一项」），而不是数组内部某个单元格。`ArrayItems` 和 `ArrayCards` 会将**数组层级自身的**错误与警告直接渲染在列表行与添加按钮之间（行内具体字段的错误依然展示在各自的 `FormItem` 下，互不干扰）。
+当校验规则写在数组路径本身上时（例如 `fields` 中的 `members.*.phones` 或表单根的 `tags`），校验的是整个数组（如「至少添加一项」），而不是数组内部某个单元格。
 
-数组层级的首次校验同样遵循默认的提交或指定时机；一旦报错显示出来，之后每次增删、移动或替换行都会立即重检该层数组，方便用户改对后即时消错（修改单个单元格不会触发整组重检）。如果不需要容器自带的反馈行，可以传入 `feedback={false}` 或在外层 `<FormLayout>` 设置 `feedbackLayout="none"`。
+在 `<ArrayField>` 的容器组件中调用 `useArrayField()`，读取句柄上的 `errors` 和 `warnings`（仅包含这一层数组自身的消息，不含子字段；要连子字段一起看，读 draft 的 `$errors`）。一旦报错显示出来，之后每次增删、移动或替换行都会立即重检该层数组，方便用户改对后即时消错（修改单个单元格不会触发整组重检）。
 
-自行封装列表容器时，在 `<ArrayField>` 里面调用 `useArrayField()`，读句柄上的 `errors` 和 `warnings`（这一层数组自己的消息，不含子字段）。要连子字段一起看，读 draft 的 `$errors`。
-
-`useArrayField()` 必须在 `<ArrayField>` 里面（容器或 `footer`）。和它平级会抛错。不要写在每一行的渲染函数里：数组为空时行函数不跑，有多行时又会重复画。
-
-```tsx
-import type { ReactNode } from 'react'
-import { ArrayField, useArrayField } from '@shikiform/react'
-import { ArrayTable, type ArrayTableColumn } from '@shikiform/antd'
-
-function ArrayMessage() {
-  const { errors } = useArrayField()
-  if (!errors.length) return null
-  return <p role="alert">{errors.join('、')}</p>
-}
-
-function MyList({ children }: { children?: ReactNode }) {
-  return (
-    <div>
-      {children}
-      <ArrayMessage />
-    </div>
-  )
-}
-
-const columns: ArrayTableColumn[] = [{ key: 'name', title: '名称', render: () => null }]
-
-// ✓ 放在容器或 footer 内部，处于 <ArrayField> 作用域内
-function Correct() {
-  return (
-    <>
-      <ArrayField name="tags" component={[MyList]}>{() => <span />}</ArrayField>
-      <ArrayField name="list" component={[ArrayTable, { columns, footer: <ArrayMessage /> }]} />
-    </>
-  )
-}
-
-// ✗ 与 <ArrayField> 平级调用，渲染时会抛出错误
-function Wrong() {
-  return (
-    <>
-      <ArrayField name="list" component={[ArrayTable, { columns }]} />
-      <ArrayMessage />
-    </>
-  )
-}
-```
+`useArrayField()` 必须在 `<ArrayField>` 里面（容器或子组件内），与 `<ArrayField>` 平级会抛错；不要把数组级错误写在每一行的渲染函数里（数组为空时行函数不跑，有多行时又会重复画）。
 
 ```tsx preview
-import { Form, typed, useForm } from '@shikiform/react';
-import { ArrayItems, FormItem, Input, Submit } from '@shikiform/antd';
+import type { ReactNode } from 'react';
+import { Form, Submit, typed, useArrayField, useField, useForm, useIndex } from '@shikiform/react';
 
 type Phone = { no: string };
 type Member = { name: string; phones: Phone[] };
 type Values = { members: Member[] };
+
+function TextInput({ placeholder }: { placeholder?: string }) {
+  const field = useField<string>();
+  return <input value={field.value ?? ''} placeholder={placeholder}
+    onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />;
+}
+
+function PhoneList({ children }: { children?: ReactNode }) {
+  const array = useArrayField<Phone>();
+  return (
+    <div>
+      {children}
+      {array.errors.length > 0 && <p role="alert" style={{ color: 'crimson', margin: '4px 0' }}>{array.errors.join('、')}</p>}
+      <button type="button" onClick={() => array.push({ no: '' })}>添加电话</button>
+    </div>
+  );
+}
+
+function RemovePhone() {
+  const array = useArrayField<Phone>();
+  const index = useIndex();
+  return <button type="button" onClick={() => array.remove(index)}>删除</button>;
+}
 
 export default function App() {
   const form = useForm<Values>({
@@ -176,27 +158,24 @@ export default function App() {
   const F = typed(form);
   return (
     <Form form={form}>
-      <F.ArrayField name="members" component={[ArrayItems]}>
+      <F.ArrayField name="members">
         {(member) => (
-          <ArrayItems.Item>
-            <member.Field name="name" decorator={[FormItem]} component={[Input, { placeholder: '姓名' }]} />
-            <div style={{ flex: 1 }}>
-              <member.ArrayField
-                name="phones"
-                component={[ArrayItems, { addition: <ArrayItems.Addition title="添加电话" defaultValue={{ no: '' }} /> }]}
-              >
-                {(phone) => (
-                  <ArrayItems.Item>
-                    <phone.Field name="no" decorator={[FormItem]} component={[Input, { placeholder: '电话' }]} />
-                    <ArrayItems.Remove />
-                  </ArrayItems.Item>
-                )}
-              </member.ArrayField>
+          <div style={{ border: '1px solid #ddd', padding: 10, marginBottom: 10 }}>
+            <div style={{ marginBottom: 8 }}>
+              <member.Field name="name" component={[TextInput, { placeholder: '姓名' }]} />
             </div>
-          </ArrayItems.Item>
+            <member.ArrayField name="phones" component={PhoneList}>
+              {(phone) => (
+                <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                  <phone.Field name="no" component={[TextInput, { placeholder: '电话' }]} />
+                  <RemovePhone />
+                </div>
+              )}
+            </member.ArrayField>
+          </div>
         )}
       </F.ArrayField>
-      <Submit />
+      <Submit>提交</Submit>
     </Form>
   );
 }
@@ -204,32 +183,70 @@ export default function App() {
 
 直接点击「提交」，空的电话列表下方会出现「至少一个电话」提示；点击「添加电话」新增一行后，提示随即消失。
 
-## ArrayTable
+## 可编辑表格：`useArrayTable`
 
-`ArrayTable` 封装了完整的 Ant Design Table，由于单元格内容通过 `columns` 定义，`<ArrayField>` 无需传递子元素函数。每一列的 `render` 方法都运行在当前行的作用域内，直接写 `<Field name="name" />` 就会自动绑定到 `list.N.name`，单元格内也可以省略 `FormItem` 装饰器。在自定义单元格组件中，可以通过 `ArrayTable.useRow()`（返回 `{ key, index, position, record }`）或 `useArrayField()` / `useIndex()` / `useRecord()` 获取行信息。
+需要分页切片、行勾选、单行复制（含 `createRowKey`）与展开子表时，使用 `@shikiform/hooks` 的 `useArrayTable` 配合 `<ArrayField.Row>` 提供行作用域：
 
 ```tsx preview play=array-table
-import { Field, Form, typed, useForm } from '@shikiform/react';
-import { ArrayTable, FormItem, Input, InputNumber, type ArrayTableColumn } from '@shikiform/antd';
+import { ArrayField, Field, Form, useField, useForm, useRecord } from '@shikiform/react';
+import { useArrayTable } from '@shikiform/hooks';
 
 type Row = { id: string; name: string; price: number; qty: number };
 let nextId = 4;
 const createRow = (): Row => ({ id: String(nextId++), name: '', price: 0, qty: 1 });
 
-function Subtotal() {
-  const { record } = ArrayTable.useRow();
-  return <span>{((record.price ?? 0) * (record.qty ?? 0)).toFixed(2)}</span>;
+function CellText() {
+  const field = useField<string>();
+  return <input value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />;
 }
 
-const columns: ArrayTableColumn<Row>[] = [
-  { key: 'sort', width: 48, render: () => <ArrayTable.SortHandle /> },
-  { key: 'index', title: '#', width: 48, render: () => <ArrayTable.Index /> },
-  { key: 'name', title: '名称', width: 200, render: () => <Field name="name" required decorator={[FormItem, { feedbackLayout: 'terse' }]} component={[Input]} /> },
-  { key: 'price', title: '单价', width: 120, render: () => <Field name="price" component={[InputNumber, { min: 0 }]} /> },
-  { key: 'qty', title: '数量', width: 100, render: () => <Field name="qty" component={[InputNumber, { min: 1 }]} /> },
-  { key: 'subtotal', title: '小计', width: 100, align: 'right', render: () => <Subtotal /> },
-  { key: 'actions', title: '操作', width: 140, render: () => <><ArrayTable.Copy /><ArrayTable.Remove confirm /></> },
-];
+function CellNumber() {
+  const field = useField<number>();
+  return <input type="number" style={{ width: 72 }} value={field.value ?? 0}
+    onChange={(e) => field.onChange(Number(e.target.value))} onBlur={field.onBlur} />;
+}
+
+function Subtotal() {
+  const row = useRecord<Row>();
+  return <span>{((row.price ?? 0) * (row.qty ?? 0)).toFixed(2)}</span>;
+}
+
+function PurchaseTable() {
+  const table = useArrayTable<Row>('list', {
+    rowKey: 'id',
+    createRowKey: () => String(nextId++),
+    pagination: { pageSize: 5 },
+  });
+  return (
+    <div>
+      <div style={{ marginBottom: 8 }}>
+        <button type="button" onClick={() => table.add(createRow())}>新增一行</button>
+      </div>
+      <table>
+        <thead>
+          <tr><th>#</th><th>名称</th><th>单价</th><th>数量</th><th>小计</th><th>操作</th></tr>
+        </thead>
+        <tbody>
+          {table.pageRows.map(({ key, index, position }) => (
+            <ArrayField.Row key={key} path={`list.${index}`} index={index} itemKey={key}>
+              <tr>
+                <td>{position}</td>
+                <td><Field name="name" required component={[CellText]} /></td>
+                <td><Field name="price" component={[CellNumber]} /></td>
+                <td><Field name="qty" component={[CellNumber]} /></td>
+                <td><Subtotal /></td>
+                <td>
+                  <button type="button" onClick={() => table.copy(index)}>复制</button>{' '}
+                  <button type="button" onClick={() => void table.remove(index)}>删除</button>
+                </td>
+              </tr>
+            </ArrayField.Row>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 export default function App() {
   const form = useForm<{ list: Row[] }>({
@@ -239,36 +256,17 @@ export default function App() {
       { id: '3', name: '墨水', price: 20, qty: 1 },
     ] },
   });
-  const F = typed(form);
-  return (
-    <Form form={form}>
-      <F.ArrayField name="list" rowKey="id" component={[ArrayTable, {
-        title: '采购清单',
-        rowSelection: true,
-        pagination: { pageSize: 5 },
-        columns,
-        extra: (
-          <>
-            <ArrayTable.Addition defaultValue={createRow} />
-            <ArrayTable.ShadowAddition<Row> title="弹窗添加" onOk={(values, table) => { table.add({ ...createRow(), ...values }); return false; }}>
-              <Field name="name" title="名称" required decorator={[FormItem]} component={[Input]} />
-              <Field name="price" title="单价" decorator={[FormItem]} component={[InputNumber, { min: 0 }]} />
-            </ArrayTable.ShadowAddition>
-          </>
-        ),
-      }]} />
-    </Form>
-  );
+  return <Form form={form}><PurchaseTable /></Form>;
 }
 ```
 
-表格内置行拖拽排序、批量勾选、弹窗草稿添加（校验通过后写入数组）、单行复制与确认删除。展开子表、列宽拖拽与异步删除见 [/play/array-table](/play/array-table)。分页、勾选、展开状态不进入表单值；不使用 Ant Design 时可用 `@shikiform/hooks` 的 `useArrayTable` 管理这三项状态。列显隐、列顺序与密度由 `ArrayTable` 自身维护，在 `toolbar`、`footer` 或单元格内通过 `ArrayTable.useTable().settings` 读取。
+分页、勾选、展开状态不进入表单值；如需列显隐、列宽和密度设置，搭配 `@shikiform/hooks` 的 [`useColumnSettings`](/reference/pro-hooks#usecolumnsettings)。
 
 ## 其他数组方案的选择
 
 - 自定义行布局与按钮：直接使用 `<ArrayField>` 配合 `useArrayField()` / `useIndex()`，见 [字段路径与结构](/guide/structures)。
-- 带筛选条件的分页表格：使用 [`QueryList`](/guide/pro#查询列表)，内部基于 `ArrayTable` 渲染。
-- 大行数虚拟列表：使用不带容器的 `<ArrayField name virtualScroll={{ height }}>`，只挂载视口可见行，见 [数组示例 · 长列表](/examples/arrays)。
-- API 参考：[ArrayItems](/reference/antd#arrayitems)、[ArrayCards](/reference/antd#arraycards)、[ArrayTable](/reference/antd#arraytable)、[useArrayEditable](/reference/antd#usearrayeditable)。
+- 带筛选条件的分页表格：使用 [`useQueryTable`](/guide/pro#查询列表)。
+- 大行数虚拟列表：使用 `<ArrayField name virtualScroll={{ height }}>`，只挂载视口可见行，见 [数组示例 · 长列表](/examples/arrays)。
+- API 参考：[useArrayField](/reference/react-hooks#usearrayfield)、[useArrayTable](/reference/pro-hooks#usearraytable)。
 
 下一步：[接入组件库](/guide/headless)。

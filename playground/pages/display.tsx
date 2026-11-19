@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { defineEffects, Field, Form, ObjectField, useForm, useWatch, type Draft } from '@shikiform/react'
-import { Button } from 'antd'
-import { FormButtonGroup, FormItem, FormLayout, Input, Radio } from '@shikiform/antd'
+import { Button, FormButtonGroup, FormItem, FormLayout, Input, Radio } from '../kit'
 import { tid } from '../testid'
 
 type Mode = 'visible' | 'hidden' | 'omit' | 'readOnly'
@@ -55,37 +54,39 @@ export function DisplayPage() {
   const [payload, setPayload] = useState('')
   const [errors, setErrors] = useState('')
   return (
-    <Form
-      form={form}
-      onSubmit={(values) => {
-        setPayload(JSON.stringify(values))
-        setErrors('')
-      }}
-      onInvalid={(failed) => {
-        setPayload('')
-        setErrors(failed.flatMap((error) => error.messages).join(' '))
-      }}
-    >
-      <ClearOnMode clear={() => { setPayload(''); setErrors('') }} />
-      <h1>显隐</h1>
-      <p>
-        reaction 写 <code>d.box</code> 的四个开关，里面的邮箱跟着 <code>visible</code> / <code>readOnly</code> / <code>omit</code>（父级 <code>omit</code> 时子字段读到的也是 true，不能用 <code>omit: false</code> 单独提交）。
-        <b>hidden</b>：不渲染、不校验，值照常提交；
-        <b>omit</b>：仍渲染、仍校验，整棵子树不提交；
-        <b>readOnly</b>：渲染预览、不校验、照常提交。清空邮箱再切到「不提交」提交，会看到「邮箱必填」。
-      </p>
-      <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 14 }}>
-        <Field name="mode" title="box 的状态" enum={MODES} decorator={[FormItem]} component={[Radio, { optionType: 'button' }]} />
-        <ObjectField name="box">
-          <Field name="email" title="邮箱" decorator={[FormItem]} component={[Input, tid('email')]} />
-        </ObjectField>
-        <FormButtonGroup.FormItem>
-          {/* A plain submit button: <Submit /> would stay disabled while the hidden field has an error. */}
-          <Button type="primary" htmlType="submit" data-testid="submit">提交</Button>
-        </FormButtonGroup.FormItem>
-      </FormLayout>
-      <p>错误：<span data-testid="errors">{errors}</span></p>
-      <p>提交值：<code data-testid="payload">{payload}</code></p>
-    </Form>
+    <main>
+      <Form
+        form={form}
+        onSubmit={(values) => {
+          setPayload(JSON.stringify(values))
+          setErrors('')
+        }}
+        onInvalid={(failed) => {
+          setPayload('')
+          setErrors(failed.flatMap((error) => error.messages).join(' '))
+        }}
+      >
+        <ClearOnMode clear={() => { setPayload(''); setErrors('') }} />
+        <h1>显隐</h1>
+        <p>
+          reaction 写 <code>d.box</code> 的四个开关，里面的邮箱跟着 <code>visible</code> / <code>readOnly</code> / <code>omit</code>（父级 <code>omit</code> 时子字段读到的也是 true，不能用 <code>omit: false</code> 单独提交）。
+          <b>hidden</b>：不渲染、不校验，值照常提交；
+          <b>omit</b>：仍渲染、仍校验，整棵子树不提交；
+          <b>readOnly</b>：渲染预览、不校验、照常提交。清空邮箱再切到「不提交」提交，会看到「邮箱必填」。
+        </p>
+        <FormLayout>
+          <Field name="mode" title="box 的状态" enum={MODES} decorator={[FormItem]} component={[Radio, { optionType: 'button' }]} />
+          <ObjectField name="box">
+            <Field name="email" title="邮箱" decorator={[FormItem]} component={[Input, tid('email')]} />
+          </ObjectField>
+          <FormButtonGroup>
+            {/* A plain submit button: <Submit /> would stay disabled while the hidden field has an error. */}
+            <Button variant="primary" htmlType="submit" data-testid="submit">提交</Button>
+          </FormButtonGroup>
+        </FormLayout>
+        <p>错误：<span data-testid="errors">{errors}</span></p>
+        <p>提交值：<code data-testid="payload">{payload}</code></p>
+      </Form>
+    </main>
   )
 }

@@ -7,7 +7,6 @@
     "moduleResolution": "bundler",
     "noEmit": true,
     "paths": {
-      "@shikiform/antd": ["packages/antd/src/index.ts"],
       "@shikiform/core": ["packages/core/src/index.ts"],
       "@shikiform/core/internal": ["packages/core/src/internal.ts"],
       "@shikiform/hooks": ["packages/hooks/src/index.ts"],

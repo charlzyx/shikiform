@@ -37,23 +37,150 @@
   min-width: 0;
 }
 
-/* Preview: the antd island renders inside; Nimbus' prose styles must not reach it. */
+/* Preview: shadcn-inspired minimal styling for headless / native HTML demos (follows Nimbus light/dark tokens). */
 .sf-demo__preview {
   position: relative;
   padding: 24px;
   overflow-x: auto;
   color: var(--nb-foreground);
   font-size: 14px;
-  line-height: 1.5715;
+  line-height: 1.5;
+}
+.sf-demo__preview form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.sf-demo__preview label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--nb-foreground);
+}
+.sf-demo__preview input:not([type='checkbox']):not([type='radio']):not([type='range']),
+.sf-demo__preview select,
+.sf-demo__preview textarea {
+  box-sizing: border-box;
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid var(--nb-border);
+  border-radius: 6px;
+  background: var(--nb-background, var(--nb-card));
+  color: var(--nb-foreground);
+  font-size: 13px;
+  line-height: 20px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.sf-demo__preview textarea {
+  min-height: 76px;
+  resize: vertical;
+}
+.sf-demo__preview select {
+  appearance: none;
+  -webkit-appearance: none;
+  min-width: 148px;
+  padding-right: 32px;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 14px 14px;
+}
+[data-mode="dark"] .sf-demo__preview select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+.sf-demo__preview input:not([type='checkbox']):not([type='radio']):focus,
+.sf-demo__preview select:focus,
+.sf-demo__preview textarea:focus {
+  border-color: var(--nb-ring, var(--nb-brand));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--nb-ring, var(--nb-brand)) 18%, transparent);
+}
+.sf-demo__preview input[aria-invalid='true'],
+.sf-demo__preview select[aria-invalid='true'],
+.sf-demo__preview textarea[aria-invalid='true'] {
+  border-color: #ef4444;
+}
+.sf-demo__preview input:disabled,
+.sf-demo__preview select:disabled,
+.sf-demo__preview textarea:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  background: var(--nb-muted);
+}
+.sf-demo__preview input[type='checkbox'],
+.sf-demo__preview input[type='radio'] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--nb-brand);
+  cursor: pointer;
+}
+.sf-demo__preview button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--nb-border);
+  border-radius: 6px;
+  background: var(--nb-card);
+  color: var(--nb-foreground);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+.sf-demo__preview button:hover:not(:disabled) {
+  background: var(--nb-accent);
+}
+.sf-demo__preview button[type='submit'] {
+  border-color: transparent;
+  background: var(--nb-brand);
+  color: #fff;
+}
+.sf-demo__preview button[type='submit']:hover:not(:disabled) {
+  opacity: 0.9;
+  background: var(--nb-brand);
+}
+.sf-demo__preview button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.sf-demo__preview table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.sf-demo__preview th,
+.sf-demo__preview td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--nb-border);
+  text-align: left;
+  vertical-align: middle;
+}
+.sf-demo__preview th {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--nb-muted-foreground);
+  background: var(--nb-muted);
+}
+.sf-demo__preview [role='alert'] {
+  color: #ef4444;
+  font-size: 12px;
+  line-height: 1.4;
 }
 .sf-demo__preview pre {
   max-width: 100%;
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--nb-border);
+  border-radius: 6px;
+  background: var(--nb-muted);
+  font: 12px / 1.55 var(--nb-font-mono, ui-monospace, monospace);
   overflow-x: auto;
-}
-/* antd 给两个汉字加字距。这里只收掉额外字距。文案里的空格仍在，无障碍名称还是「提 交」。 */
-.sf-demo__preview .ant-btn-two-chinese-chars > *:not(.anticon) {
-  letter-spacing: normal;
-  margin-inline-end: 0;
 }
 .sf-demo__loading {
   margin: 0;

@@ -1,7 +1,5 @@
-import { Button, ConfigProvider } from 'antd'
-import zhCN from 'antd/locale/zh_CN'
-import { ArrayField, Field, Form, useForm, useWatch, type Draft } from '@shikiform/react'
-import { FormItem, Input, ArrayTable, ShadowModal } from '@shikiform/antd'
+import { Field, Form, useForm, useWatch, type Draft } from '@shikiform/react'
+import { ArrayTable, Button, FormItem, Input, ShadowModal } from '../kit'
 
 /** Pro.formily `ProArrayTableWithShadow.tsx` demo: row editing and additions through shadow forms. */
 interface Row {
@@ -45,18 +43,16 @@ export function ArrayTableShadowPage() {
     },
   })
   return (
-    <ConfigProvider locale={zhCN}>
-      <main style={{ padding: 16 }}>
-        <h1>ArrayTable + ShadowForm</h1>
-        <p>
-          每行渲染列内直接放 ShadowModal（自动绑定当前行作用域并继承 list.* 规则），确定后按行 key 写回这一行，取消不动原数据。
-          两个「添加」共存：一个弹窗、一个抽屉，确定后追加并自动翻到新行所在页。
-        </p>
-        <Form form={form}>
-          <ShadowTable />
-        </Form>
-      </main>
-    </ConfigProvider>
+    <main>
+      <h1>ArrayTable + ShadowForm</h1>
+      <p>
+        每行渲染列内直接放 ShadowModal（自动绑定当前行作用域并继承 list.* 规则），确定后按行 key 写回这一行，取消不动原数据。
+        两个「添加」共存：一个弹窗、一个抽屉，确定后追加并自动翻到新行所在页。
+      </p>
+      <Form form={form}>
+        <ShadowTable />
+      </Form>
+    </main>
   )
 }
 
@@ -64,52 +60,47 @@ function ShadowTable() {
   const list = useWatch((d: Draft<Values>) => d.list.$value) ?? []
   return (
     <>
-      <ArrayField
+      <ArrayTable<Row>
         name="list"
         rowKey="id"
-        component={[
-          ArrayTable,
+        pagination={{ pageSize: 5 }}
+        columns={[
+          { key: 'id', title: 'ID', width: 80, align: 'center', render: () => <Field name="id" readOnly component={[Input]} /> },
           {
-            pagination: { pageSize: 5 },
-            columns: [
-              { key: 'id', title: 'ID', width: 80, align: 'center', render: () => <Field name="id" readOnly component={[Input]} /> },
-              {
-                key: 'domain',
-                title: 'DOMAIN',
-                width: 220,
-                align: 'center',
-                render: ({ index }) => <Field name="domain" readOnly component={[Input, { 'data-testid': `domain-${index}` }]} />,
-              },
-              {
-                key: 'edit',
-                title: '编辑',
-                align: 'center',
-                render: ({ index }) => (
-                  <ShadowModal<Row>
-                    title="编辑"
-                    trigger={
-                      <Button type="link" data-testid={`edit-${index}`}>
-                        编辑
-                      </Button>
-                    }
-                  >
-                    <RowFields prefix="edit" />
-                  </ShadowModal>
-                ),
-              },
-            ],
-            extra: (
-              <>
-                <ArrayTable.ShadowAddition<Row> title="添加条目" initialValues={{ id: '', domain: '', desc: '' }}>
-                  <RowFields prefix="add" />
-                </ArrayTable.ShadowAddition>
-                <ArrayTable.ShadowAddition<Row> title="演示多个添加共存" popType="drawer" initialValues={{ id: '', domain: '', desc: '' }}>
-                  <RowFields prefix="add2" />
-                </ArrayTable.ShadowAddition>
-              </>
+            key: 'domain',
+            title: 'DOMAIN',
+            width: 220,
+            align: 'center',
+            render: ({ index }) => <Field name="domain" readOnly component={[Input, { 'data-testid': `domain-${index}` }]} />,
+          },
+          {
+            key: 'edit',
+            title: '编辑',
+            align: 'center',
+            render: ({ index }) => (
+              <ShadowModal<Row>
+                title="编辑"
+                trigger={
+                  <Button variant="link" size="sm" data-testid={`edit-${index}`}>
+                    编辑
+                  </Button>
+                }
+              >
+                <RowFields prefix="edit" />
+              </ShadowModal>
             ),
           },
         ]}
+        extra={
+          <>
+            <ArrayTable.ShadowAddition<Row> title="添加条目" initialValues={{ id: '', domain: '', desc: '' }}>
+              <RowFields prefix="add" />
+            </ArrayTable.ShadowAddition>
+            <ArrayTable.ShadowAddition<Row> title="演示多个添加共存" popType="drawer" initialValues={{ id: '', domain: '', desc: '' }}>
+              <RowFields prefix="add2" />
+            </ArrayTable.ShadowAddition>
+          </>
+        }
       />
       <pre data-testid="list">{JSON.stringify(list.map((row) => `${row.id}:${row.domain}`))}</pre>
     </>

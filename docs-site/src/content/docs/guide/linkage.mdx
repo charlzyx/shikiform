@@ -15,9 +15,8 @@ const effects = defineEffects<Values>(({ reaction, watch }) => {
 ## reaction 与 watch
 
 ```tsx preview
-import { useState } from 'react';
-import { Field, Form, defineEffects, useForm } from '@shikiform/react';
-import { FormItem, FormLayout, InputNumber, Select } from '@shikiform/antd';
+import { useState, type ReactNode } from 'react';
+import { Field, Form, defineEffects, useField, useFieldDecorator, useForm } from '@shikiform/react';
 
 type Values = { price: number; qty: number; amount: number; province: string; city: string };
 
@@ -43,6 +42,35 @@ const effects = defineEffects<Values>(({ reaction, watch }) => {
   });
 });
 
+function FieldItem({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <label {...d.labelProps} style={{ display: 'inline-block', width: 56 }}>{d.label}</label>
+      {children}
+    </div>
+  );
+}
+
+function NumberInput() {
+  const field = useField<number>();
+  return (
+    <input id={field.id} type="number" value={field.value ?? 0} disabled={field.disabled}
+      onChange={(e) => field.onChange(Number(e.target.value))} onBlur={field.onBlur} />
+  );
+}
+
+function SelectInput() {
+  const field = useField<string>();
+  return (
+    <select id={field.id} value={field.value ?? ''} disabled={field.disabled}
+      onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur}>
+      <option value="">请选择</option>
+      {field.options.map((o) => <option key={String(o.value)} value={String(o.value)}>{o.label}</option>)}
+    </select>
+  );
+}
+
 export default function App() {
   const [result, setResult] = useState('');
   const form = useForm<Values>({
@@ -51,14 +79,12 @@ export default function App() {
   });
   return (
     <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
-      <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }}>
-        <Field name="price" title="单价" decorator={[FormItem]} component={[InputNumber]} />
-        <Field name="qty" title="数量" decorator={[FormItem]} component={[InputNumber]} />
-        <Field name="amount" title="金额" decorator={[FormItem]} component={[InputNumber]} />
-        <Field name="province" title="省" enum={[{ label: '浙江', value: 'zj' }, { label: '江苏', value: 'js' }]}
-          decorator={[FormItem]} component={[Select, { style: { width: 160 } }]} />
-        <Field name="city" title="市" decorator={[FormItem]} component={[Select, { style: { width: 160 } }]} />
-      </FormLayout>
+      <Field name="price" title="单价" decorator={[FieldItem]} component={[NumberInput]} />
+      <Field name="qty" title="数量" decorator={[FieldItem]} component={[NumberInput]} />
+      <Field name="amount" title="金额" decorator={[FieldItem]} component={[NumberInput]} />
+      <Field name="province" title="省" enum={[{ label: '浙江', value: 'zj' }, { label: '江苏', value: 'js' }]}
+        decorator={[FieldItem]} component={[SelectInput]} />
+      <Field name="city" title="市" decorator={[FieldItem]} component={[SelectInput]} />
       <pre>{result}</pre>
     </Form>
   );
@@ -135,9 +161,7 @@ reaction.each((d) => d.orders, (node, ctx) => {
 
 ```tsx preview play=sku
 import { useState, type ReactNode } from 'react';
-import { Button } from 'antd';
-import { ArrayField, Field, Form, defineEffects, useArrayField, useForm, useIndex } from '@shikiform/react';
-import { FormItem, FormLayout, InputNumber, Select } from '@shikiform/antd';
+import { ArrayField, Field, Form, defineEffects, useArrayField, useField, useForm, useIndex } from '@shikiform/react';
 
 type Item = { id: number; sku: string; price: number; qty: number; total: number };
 type Values = { discount: number; items: Item[] };
@@ -158,19 +182,44 @@ const effects = defineEffects<Values>(({ reaction, watch }) => {
   });
 });
 
+function InlineNumber({ min, max, width = 72 }: { min?: number; max?: number; width?: number }) {
+  const field = useField<number>();
+  return (
+    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      <span>{field.title}</span>
+      <input id={field.id} type="number" min={min} max={max} style={{ width }}
+        value={field.value ?? 0} onChange={(e) => field.onChange(Number(e.target.value))} onBlur={field.onBlur} />
+    </label>
+  );
+}
+
+function InlineSelect() {
+  const field = useField<string>();
+  return (
+    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      <span>{field.title}</span>
+      <select id={field.id} value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur}>
+        <option value="">请选择</option>
+        {field.options.map((o) => <option key={String(o.value)} value={String(o.value)}>{o.label}</option>)}
+      </select>
+    </label>
+  );
+}
+
 function RemoveButton() {
   const array = useArrayField<Item>();
   const index = useIndex();
-  return <Button danger onClick={() => array.remove(index)}>删除</Button>;
+  return <button type="button" onClick={() => array.remove(index)}>删除</button>;
 }
 
 function ItemList({ children }: { children?: ReactNode }) {
   const array = useArrayField<Item>();
   return (
-    <>
+    <div>
       {children}
-      <Button style={{ marginTop: 12 }} onClick={() => array.push({ id: nextId++, sku: '', price: 0, qty: 1, total: 0 })}>添加一行</Button>
-    </>
+      <button type="button" style={{ marginTop: 10 }}
+        onClick={() => array.push({ id: nextId++, sku: '', price: 0, qty: 1, total: 0 })}>添加一行</button>
+    </div>
   );
 }
 
@@ -183,21 +232,21 @@ export default function App() {
   });
   return (
     <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
-      <FormLayout layout="inline" feedbackLayout="terse">
-        <Field name="discount" title="折扣 %" decorator={[FormItem]} component={[InputNumber, { min: 0, max: 100 }]} />
-      </FormLayout>
+      <div style={{ marginBottom: 10 }}>
+        <Field name="discount" title="折扣 %" component={[InlineNumber, { min: 0, max: 100 }]} />
+      </div>
       <ArrayField name="items" rowKey="id" component={ItemList}>
         {() => (
-          <FormLayout layout="inline" feedbackLayout="terse" style={{ marginTop: 12 }}>
-            <Field name="sku" title="商品" decorator={[FormItem]} component={[Select, { style: { width: 100 } }]} />
-            <Field name="price" title="单价" decorator={[FormItem]} component={[InputNumber]} />
-            <Field name="qty" title="数量" decorator={[FormItem]} component={[InputNumber, { min: 1 }]} />
-            <Field name="total" title="小计" decorator={[FormItem]} component={[InputNumber]} />
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
+            <Field name="sku" title="商品" component={[InlineSelect]} />
+            <Field name="price" title="单价" component={[InlineNumber]} />
+            <Field name="qty" title="数量" component={[InlineNumber, { min: 1 }]} />
+            <Field name="total" title="小计" component={[InlineNumber]} />
             <RemoveButton />
-          </FormLayout>
+          </div>
         )}
       </ArrayField>
-      <Button style={{ marginTop: 12, marginLeft: 8 }} type="primary" htmlType="submit">提交</Button>
+      <button style={{ marginTop: 10 }} type="submit">提交</button>
       <pre>{result}</pre>
     </Form>
   );
@@ -211,9 +260,7 @@ export default function App() {
 对于包含 `children` 属性的树形数据，由于 `children` 本身也是对象数组，`reaction.each` 会自动遍历到树中的每一个节点。回调里的 `ctx.pos` 记录了节点当前的下标链（如 `[0, 1]`），适合用于生成大纲编号或判断层级；节点身份的稳定追踪依然依靠 `rowKey`。如果树节点上还挂载了其他对象数组字段，只需通过 `ctx.key === 'children'` 过滤一下即可。
 
 ```tsx preview
-import { Button, Space } from 'antd';
-import { Field, Form, TreeField, defineEffects, useForm, useTreeField } from '@shikiform/react';
-import { Input } from '@shikiform/antd';
+import { Field, Form, TreeField, defineEffects, useField, useForm, useTreeField } from '@shikiform/react';
 
 type Node = { id: string; code: string; name: string; children?: Node[] };
 type Values = { nodes: Node[] };
@@ -226,6 +273,14 @@ const effects = defineEffects<Values>(({ reaction }) => {
   });
 });
 
+function TextBox({ width }: { width?: number }) {
+  const field = useField<string>();
+  return (
+    <input style={width ? { width } : undefined} value={field.value ?? ''}
+      onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />
+  );
+}
+
 function NodeTree() {
   const tree = useTreeField('nodes', { rowKey: 'id' });
   return (
@@ -234,17 +289,19 @@ function NodeTree() {
         <TreeField name="nodes" rowKey="id">
           {(node) => (
             <li style={{ margin: '6px 0' }}>
-              <Space.Compact>
-                <Field name="code" component={[Input, { style: { width: 64 } }]} />
-                <Field name="name" component={[Input, { style: { width: 200 } }]} />
-              </Space.Compact>
+              <span style={{ display: 'inline-flex', gap: 6 }}>
+                <Field name="code" component={[TextBox, { width: 56 }]} />
+                <Field name="name" component={[TextBox, { width: 180 }]} />
+              </span>
               {node.children && <ul style={{ paddingLeft: 24, listStyle: 'none' }}>{node.children}</ul>}
             </li>
           )}
         </TreeField>
       </ul>
-      <Button onClick={() => tree.move([0, 1], [0, 0])}>把「洗菜」移到最前</Button>{' '}
-      <Button onClick={() => tree.move([0, 0], [1, 0])}>把第一个子节点移到「下厨」下</Button>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button type="button" onClick={() => tree.move([0, 1], [0, 0])}>把「洗菜」移到最前</button>
+        <button type="button" onClick={() => tree.move([0, 0], [1, 0])}>把第一个子节点移到「下厨」下</button>
+      </div>
     </>
   );
 }

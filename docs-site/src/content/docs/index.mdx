@@ -1,14 +1,20 @@
 ---
 title: ShikiForm
-description: 面向 TypeScript 的无 UI 表单引擎，集中管理状态与联动，通过 Field + FormItem 接入 Ant Design 等组件库。
+description: 面向 TypeScript 的无 UI 表单引擎，集中管理状态与联动，通过 Headless React Hooks 接入任意 UI 组件库。
+mode: custom
 ---
 
-ShikiForm 将表单值、字段状态、校验规则与联动逻辑集中在同一个无 UI 表单引擎中维护。联动在 `defineEffects` 内通过 `reaction` 和 `watch` 直接读写字段的 `$` 状态，React 组件只负责声明字段路径与界面结构。
+<HomeHero />
+
+<div className="docs-content" style={{ maxWidth: '1120px', margin: '0 auto', padding: '40px 24px 72px' }}>
+
+## 30 秒在线体验
+
+联动在 `defineEffects` 内通过 `reaction` 和 `watch` 直接读写字段的 `$` 状态，React 组件只负责声明字段路径与界面结构。切换下方「账号类型」观察必填校验、占位符与「公司」字段显隐联动：
 
 ```tsx preview
-import { useEffect, useRef, useState } from 'react';
-import { defineEffects, Form, typed, useForm, useWatch, type Draft } from '@shikiform/react';
-import { FormButtonGroup, FormItem, FormLayout, Input, Radio, Submit } from '@shikiform/antd';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { defineEffects, Form, Submit, typed, useField, useFieldDecorator, useForm, useWatch, type Draft } from '@shikiform/react';
 
 type Values = { kind: 'personal' | 'work'; email: string; company: string };
 
@@ -20,6 +26,43 @@ const effects = defineEffects<Values>(({ reaction }) => {
     d.company.$visible = work;
   });
 });
+
+function FieldItem({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <label {...d.labelProps} style={{ display: 'inline-block', width: 72 }}>
+        {d.required && <span style={{ color: 'crimson' }}>* </span>}
+        {d.label}
+      </label>
+      {children}
+      {d.errorProps && <small {...d.errorProps} style={{ color: 'crimson', marginLeft: 8 }}>{d.errors[0]}</small>}
+    </div>
+  );
+}
+
+function TextInput({ placeholder }: { placeholder?: string }) {
+  const field = useField<string>();
+  return (
+    <input id={field.id} value={field.value ?? ''} placeholder={placeholder}
+      onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />
+  );
+}
+
+function RadioGroup() {
+  const field = useField<string>();
+  return (
+    <span style={{ display: 'inline-flex', gap: 12 }}>
+      {field.options.map((o) => (
+        <label key={String(o.value)}>
+          <input type="radio" name={field.id} checked={field.value === o.value}
+            onChange={() => field.onChange(String(o.value))} />
+          {' '}{o.label}
+        </label>
+      ))}
+    </span>
+  );
+}
 
 function ForgetResult({ clear }: { clear: () => void }) {
   const kind = useWatch((d: Draft<Values>) => d.kind.$value);
@@ -46,15 +89,11 @@ export default function App() {
   return (
     <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))} onInvalid={() => setResult('')}>
       <ForgetResult clear={() => setResult('')} />
-      <FormLayout labelCol={{ span: 5 }} wrapperCol={{ span: 19 }}>
-        <F.Field name="kind" title="账号类型" enum={[{ label: '个人', value: 'personal' }, { label: '工作', value: 'work' }]}
-          decorator={[FormItem]} component={[Radio]} />
-        <F.Field name="email" title="邮箱" rules={{ format: 'email' }} decorator={[FormItem]} component={[Input]} />
-        <F.Field name="company" title="公司" required decorator={[FormItem]} component={[Input]} />
-        <FormButtonGroup.FormItem>
-          <Submit>提交</Submit>
-        </FormButtonGroup.FormItem>
-      </FormLayout>
+      <F.Field name="kind" title="账号类型" enum={[{ label: '个人', value: 'personal' }, { label: '工作', value: 'work' }]}
+        decorator={[FieldItem]} component={[RadioGroup]} />
+      <F.Field name="email" title="邮箱" rules={{ format: 'email' }} decorator={[FieldItem]} component={[TextInput]} />
+      <F.Field name="company" title="公司" required decorator={[FieldItem]} component={[TextInput]} />
+      <Submit>提交</Submit>
       <pre aria-live="polite">{result}</pre>
     </Form>
   );
@@ -63,35 +102,34 @@ export default function App() {
 
 账号类型为「个人」时，邮箱可留空提交，「公司」字段隐藏并跳过必填校验；切到「工作」后，`reaction` 将邮箱设为必填、替换占位文本并显示「公司」。注意 `$visible = false` 只跳过渲染和校验，字段值默认仍包含在提交结果中；如需从提交数据中剔除，再设置 `d.company.$omit = !work`。
 
-`typed(form)` 返回绑定了 `Values` 类型的 `Field` 组件。`decorator`（如 `FormItem`）渲染标签与错误信息，`component`（如 `Input`）渲染输入控件，详见 [表单与字段](/guide/field) 与 [核心概念](/guide/concepts)。
+`typed(form)` 返回绑定了 `Values` 类型的 `Field` 组件。`decorator` 渲染标签与错误信息，`component` 渲染输入控件，详见 [表单与字段](/guide/field) 与 [核心概念](/guide/concepts)。
 
 ## 与常见表单方案的差异
 
 | 维度 | ShikiForm | react-hook-form | Formily |
 |---|---|---|---|
 | 状态与联动 | 集中在引擎内，在 `reaction` 中对 `$` 状态直接赋值 | 多在组件内调用 `watch` / `setValue` | 使用 `reactions`，常与 Schema 配合 |
-| UI 绑定 | 引擎无 UI，`@shikiform/antd` 独立按需引入 | 无 UI，受控组件通过 `Controller` 桥接 | 提供独立 Ant Design 适配包 |
+| UI 绑定 | 引擎零 UI 依赖，通过 `useField` / `connect` / `useFieldDecorator` 接入任意组件库 | 无 UI，受控组件通过 `Controller` 桥接 | 提供独立 UI 适配包 |
 | 显隐与提交 | `visible: false` 不渲染、跳过校验，值仍提交；是否提交只看 `omit`。`disabled` 置灰但仍提交 | 由组件挂载状态决定；`disabled` 默认不提交 | `hidden` 默认跳过校验并保留值，`none` 不提交 |
 
 ## 安装与模块划分
 
-React 项目默认安装 `@shikiform/react`，再按需安装 Ant Design 适配包或业务 Hooks 包：
+React 项目默认安装 `@shikiform/react`，再按需安装无 UI 业务 Hooks 包：
 
 ```bash
 npm i @shikiform/react
-# Ant Design 适配组件
-npm i @shikiform/antd
-# 查询列表、草稿表单等无 UI Hooks
+# 查询列表、草稿表单、数组表格等无 UI Hooks
 npm i @shikiform/hooks
 ```
 
 | 包名 | 职责 |
 |---|---|
 | `@shikiform/core` | 纯 TypeScript 表单引擎：状态存储、draft、`reaction` / `watch` 与校验，不依赖 React |
-| `@shikiform/react` | `Form`、`Field`、`useField`、`connect` 等 React 绑定，并重导出 `@shikiform/core` |
-| `@shikiform/hooks` | `useQueryTable`、`useShadowForm`、`useArrayTable` 等无 UI 业务 Hooks |
-| `@shikiform/antd` | Ant Design 适配控件、布局容器、数组容器与 Pro 组件（需安装 `antd` 与 `dayjs`） |
+| `@shikiform/react` | `Form`、`Field`、`useField`、`connect`、`useFieldDecorator` 等 React 绑定，并重导出 `@shikiform/core` |
+| `@shikiform/hooks` | `useQueryTable`、`useShadowForm`、`useArrayTable`、`useColumnSettings` 等无 UI 业务 Hooks |
 
 完整导出清单见 [API 总览](/api)。使用 AI 编程工具时可将 [/llms.txt](/llms.txt) 作为上下文传入。
 
-继续阅读：[快速开始](/guide/quick-start)、[教程](/tutorial/)、[示例目录](/play)。
+继续阅读：[快速开始](/guide/quick-start)、[教程](/tutorial/1-start)、[示例目录](/play)。
+
+</div>

@@ -1,7 +1,6 @@
-import { useRef, useState, type HTMLAttributes, type MouseEvent } from 'react'
-import { Button, Drawer, Spin, Table } from 'antd'
-import { FormItem, FormLayout, Input, InputNumber } from '@shikiform/antd'
+import { useRef, useState, type MouseEvent } from 'react'
 import { defineEffects, Field, Form, ObjectField, useForm, useFormContext, useWatch, type Draft } from '@shikiform/react'
+import { Button, Drawer, FormItem, FormLayout, Input, InputNumber, Spin } from '../kit'
 
 interface Row {
   id: string
@@ -139,51 +138,45 @@ function RowEditBody() {
         编辑区是同一个引擎里的一个 <code>omit</code> 对象（<code>editor</code>，不进提交值）。打开时异步加载这一行，较新的打开会作废旧的加载；
         「确定」用 <code>form.batch</code> 按 id 找到原行写回；「详情」把同一组字段切成阅读态。
       </p>
-      <div data-testid="row-table" onClick={onTableClick}>
-        <Table<Row>
-          rowKey="id"
-          pagination={false}
-          dataSource={rows}
-          onRow={(record, index) =>
-            ({ 'data-index': index ?? -1, 'data-row-id': record.id }) as HTMLAttributes<HTMLTableRowElement>
-          }
-          columns={[
-            {
-              title: '名称',
-              render: (_, record) => <span data-testid={`row-name-${record.id}`}>{record.name}</span>,
-            },
-            {
-              title: '价格',
-              render: (_, record) => <span data-testid={`row-price-${record.id}`}>{record.price}</span>,
-            },
-            { title: '备注', dataIndex: 'note' },
-            {
-              title: '操作',
-              render: (_, record, index) => (
-                <>
-                  <Button type="link" size="small" data-action="edit" data-index={index} data-row-id={record.id} data-testid={`edit-${record.id}`}>
+      <div className="sk-table-wrap" data-testid="row-table" onClick={onTableClick}>
+        <table className="sk-table">
+          <thead>
+            <tr>
+              <th>名称</th>
+              <th>价格</th>
+              <th>备注</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((record, index) => (
+              <tr key={record.id} data-index={index} data-row-id={record.id}>
+                <td><span data-testid={`row-name-${record.id}`}>{record.name}</span></td>
+                <td><span data-testid={`row-price-${record.id}`}>{record.price}</span></td>
+                <td>{record.note}</td>
+                <td>
+                  <Button variant="link" size="sm" data-action="edit" data-index={index} data-row-id={record.id} data-testid={`edit-${record.id}`}>
                     编辑
                   </Button>
-                  <Button type="link" size="small" data-action="detail" data-index={index} data-row-id={record.id} data-testid={`detail-${record.id}`}>
+                  <Button variant="link" size="sm" data-action="detail" data-index={index} data-row-id={record.id} data-testid={`detail-${record.id}`}>
                     详情
                   </Button>
-                </>
-              ),
-            },
-          ]}
-        />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
       <Drawer
         title="编辑"
         open={open && action === 'edit'}
-        destroyOnClose
         onClose={closeEditor}
         footer={
           <>
             <Button data-testid="editor-cancel" onClick={closeEditor}>
               取消
             </Button>
-            <Button type="primary" data-testid="editor-confirm" onClick={confirmEditor} style={{ marginLeft: 8 }}>
+            <Button variant="primary" data-testid="editor-confirm" onClick={confirmEditor}>
               确定
             </Button>
           </>
@@ -191,14 +184,14 @@ function RowEditBody() {
       >
         <EditorFields />
       </Drawer>
-      <Drawer title="详情" open={open && action === 'detail'} destroyOnClose onClose={closeEditor}>
+      <Drawer title="详情" open={open && action === 'detail'} onClose={closeEditor}>
         <EditorFields />
         <Button data-testid="editor-close" onClick={closeEditor} style={{ marginTop: 12 }}>
           关闭
         </Button>
       </Drawer>
       <Button
-        type="primary"
+        variant="primary"
         data-testid="form-submit"
         style={{ marginTop: 16 }}
         onClick={() => {

@@ -34,9 +34,8 @@ describe('the editable tutorials use the public FormEngine and the one Field sty
     expect(renderToString(createElement(module.default))).toContain('<form')
   })
 
-  it.each(Object.entries(sources))('%s uses <Field decorator component> with @shikiform/antd, no local wrappers', (_file, source) => {
-    expect(source).toContain("from '@shikiform/antd'")
-    expect(source).toMatch(/Field name="\w+"[^>]*decorator=\{\[FormItem/)
-    expect(source).not.toMatch(/from '\.\/|Form\.Item|AntdForm/)
+  it.each(Object.entries(sources))('%s uses @shikiform/react without antd', (_file, source) => {
+    expect(source).toContain("from '@shikiform/react'")
+    expect(source).not.toMatch(/from ['"](@shikiform\/antd|antd)['"]/)
   })
 })

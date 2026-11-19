@@ -21,14 +21,12 @@ for (const arg of args.filter((arg) => arg.startsWith('--'))) {
 const entries = {
   '@shikiform/react': 'packages/react/src/index.ts',
   '@shikiform/hooks': 'packages/hooks/src/index.ts',
-  '@shikiform/antd': 'packages/antd/src/index.ts',
 }
 const program = ts.createProgram(Object.values(entries).map((file) => path.join(root, file)), {
   target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext,
   moduleResolution: ts.ModuleResolutionKind.Bundler, jsx: ts.JsxEmit.ReactJSX, skipLibCheck: true, noEmit: true,
   baseUrl: root,
   paths: {
-    '@shikiform/antd': ['packages/antd/src/index.ts'],
     '@shikiform/core': ['packages/core/src/index.ts'],
     '@shikiform/core/internal': ['packages/core/src/internal.ts'],
     '@shikiform/hooks': ['packages/hooks/src/index.ts'],
@@ -80,4 +78,4 @@ for (const [module, names] of Object.entries(actual)) {
   }
 }
 if (errors.length) throw new Error(errors.join('\n'))
-console.log(`API reference coverage passed: ${Object.values(actual).reduce((sum, names) => sum + names.length, 0)} public React hooks (+ typed) and hooks/antd runtime exports`)
+console.log(`API reference coverage passed: ${Object.values(actual).reduce((sum, names) => sum + names.length, 0)} public React hooks (+ typed) and hooks runtime exports`)

@@ -15,10 +15,6 @@ export default defineConfig({
       { find: /^react-dom/, replacement: path.resolve('node_modules/react-dom') },
       { find: /^react$/, replacement: path.resolve('node_modules/react') },
       { find: /^react\/jsx-runtime$/, replacement: path.resolve('node_modules/react/jsx-runtime') },
-      // 同理：antd 从 docs-site/node_modules 解析时会带进第二份 react 实例。
-      // \b 只替换包名本身，保留 /locale/zh_CN 等子路径。
-      { find: /^antd\b/, replacement: path.resolve('node_modules/antd') },
-      alias('@shikiform/antd', 'packages/antd/src/index.ts'),
       alias('@shikiform/core/internal', 'packages/core/src/internal.ts'),
       alias('@shikiform/core', 'packages/core/src/index.ts'),
       alias('@shikiform/hooks/internal', 'packages/hooks/src/internal.ts'),

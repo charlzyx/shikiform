@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ArrayField, Field, Form, ObjectField, createForm, useField, useForm } from '@shikiform/react'
+import { ArrayField, Field, Form, ObjectField, Submit, useField, useForm } from '@shikiform/react'
 import { ShikiUsageError } from '@shikiform/core'
-import { FormItem, Input, ArrayTable, Submit } from '@shikiform/antd'
+import { FormItem, Input } from './fixtures/native-kit'
 import { withReaction } from './fixtures/reaction-utils'
 import { createEngine, engineOf } from '../packages/core/src/engine/create'
 import { fieldErrorsOf } from './field-errors'
@@ -55,7 +55,7 @@ describe('draft typos and read-only writes throw in development', () => {
 })
 
 describe('a missing <Form> names the caller and the fix', () => {
-  it('Field / useField / ObjectField / ArrayField / ArrayTable', () => {
+  it('Field / useField / ObjectField / ArrayField', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
       expect(() => render(<Field name="email" component={[Input]} />)).toThrow(/useField\('email'\) \/ <Field name="email"> has no form\. Render it inside <Form form=\{form\}> \(useForm \/ createForm\)/)
@@ -63,8 +63,6 @@ describe('a missing <Form> names the caller and the fix', () => {
       expect(() => render(<Hook />)).toThrow(/useField\('age'\)/)
       expect(() => render(<ObjectField name="addr" />)).toThrow(/<ObjectField name="addr"> has no form/)
       expect(() => render(<ArrayField name="items">{() => null}</ArrayField>)).toThrow(/items/)
-      expect(() => render(<ArrayField name="rows" component={[ArrayTable, { columns: [] }]} />)).toThrow(/<ArrayField name="rows"> has no form/)
-      expect(() => render(<ArrayTable columns={[]} />)).toThrow(/ArrayTable is the container of an <ArrayField>/)
     } finally {
       spy.mockRestore()
     }
@@ -88,11 +86,10 @@ describe('an error on screen is re-checked on change', () => {
     await act(async () => { fireEvent.click(button); await new Promise((r) => setTimeout(r, 20)) })
     const input = view.getByRole('textbox')
     expect(view.container.textContent).toContain('必填')
-    expect(input.className).toContain('ant-input-status-error')
+    expect(view.container.querySelector('[data-invalid="true"]')).not.toBeNull()
     expect(button.disabled).toBe(true)
     await act(async () => { fireEvent.change(input, { target: { value: 'Ada' } }); await new Promise((r) => setTimeout(r, 20)) })
-    // antd keeps the old help text mounted for its leave animation; the field status is the signal.
-    expect(input.className).not.toContain('ant-input-status-error')
+    expect(view.container.querySelector('[data-invalid="true"]')).toBeNull()
     expect(button.disabled).toBe(false)
   })
 

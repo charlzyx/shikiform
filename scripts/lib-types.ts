@@ -1,5 +1,4 @@
 import { createForm, defineEffects, Field, useForm } from '@shikiform/react'
-import { QueryList } from '@shikiform/antd'
 import { createForm as createCoreForm, type FormInstance } from '@shikiform/core'
 import { useQueryTable } from '@shikiform/hooks'
 
@@ -15,10 +14,9 @@ type Built = [
   typeof useForm,
   typeof createCoreForm,
   typeof useQueryTable,
-  typeof QueryList,
 ]
 
-const built: Built = [createForm, defineEffects, Field, useForm, createCoreForm, useQueryTable, QueryList]
+const built: Built = [createForm, defineEffects, Field, useForm, createCoreForm, useQueryTable]
 const instance: FormInstance<{ rows: { name: string }[] }> = form
 void form
 void built

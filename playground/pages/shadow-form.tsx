@@ -1,9 +1,7 @@
-import { Button, Card, ConfigProvider, Divider, Space } from 'antd'
-import zhCN from 'antd/locale/zh_CN'
 import { useState } from 'react'
 import { Field, Form, useForm, useWatch, type Draft, type FormInstance } from '@shikiform/react'
-import { FormItem, Input, ShadowDrawer, ShadowForm, ShadowModal, ShadowPopconfirm, useShadow } from '@shikiform/antd'
 import { useShadowForm } from '@shikiform/hooks'
+import { Button, Card, Divider, FormItem, Input, ShadowDrawer, ShadowForm, ShadowModal, ShadowPopconfirm, Space, useShadow } from '../kit'
 
 /** Pro.formily `ShadowFormAll.tsx` demo. */
 interface Info {
@@ -40,46 +38,44 @@ export function ShadowFormPage() {
   const note = (label: string, values: unknown) => setLog((prev) => [`${label}: ${JSON.stringify(values)}`, ...prev].slice(0, 6))
   const record = () => form.getValue('info')
   return (
-    <ConfigProvider locale={zhCN}>
-      <main style={{ padding: 16, maxWidth: 900 }}>
-        <h1>ShadowForm</h1>
-        <p>影子表单：绑定路径（name="info"）时打开自动复制当前值与字段规则，确定自动浅合并写回，取消不动原数据。弹窗 / 气泡 / 抽屉 / 内联四种容器，同一个 useShadowForm。</p>
-        <Form form={form}>
-          <ShadowModal<Info> title="内置的 Modal" onOk={(values) => note('void modal', values)} trigger={<Button data-testid="open-void-modal">内置的 Modal</Button>}>
-            <ShadowFields prefix="void" />
-          </ShadowModal>
-          <Divider />
-          <Card title="info（阅读态）" size="small">
-            <Field name="info.domain" readOnly decorator={[FormItem]}>
-              <Input data-testid="info-domain" />
-            </Field>
-            <Field name="info.desc" readOnly decorator={[FormItem]}>
-              <Input.TextArea rows={4} />
-            </Field>
-            <Space wrap>
-              <ShadowModal<Info> name="info" title="内置的 Modal" onOk={(values) => note('modal', values)} trigger={<Button data-testid="open-modal">内置的 Modal</Button>}>
-                <ShadowFields prefix="modal" />
-              </ShadowModal>
-              <ShadowPopconfirm<Info> name="info" onOk={(values) => note('popconfirm', values)} trigger={<Button data-testid="open-popconfirm">内置的 Popconfirm</Button>}>
-                <ShadowFields prefix="pop" />
-              </ShadowPopconfirm>
-              <ShadowDrawer<Info> name="info" title="内置的 Drawer" onOk={(values) => note('drawer', values)} trigger={<Button data-testid="open-drawer">内置的 Drawer</Button>}>
-                <ShadowFields prefix="drawer" />
-              </ShadowDrawer>
-            </Space>
-          </Card>
-        </Form>
+    <main style={{ maxWidth: 900 }}>
+      <h1>ShadowForm</h1>
+      <p>影子表单：绑定路径（name="info"）时打开自动复制当前值与字段规则，确定自动浅合并写回，取消不动原数据。弹窗 / 气泡 / 抽屉 / 内联四种容器，同一个 useShadowForm。</p>
+      <Form form={form}>
+        <ShadowModal<Info> title="内置的 Modal" onOk={(values) => note('void modal', values)} trigger={<Button data-testid="open-void-modal">内置的 Modal</Button>}>
+          <ShadowFields prefix="void" />
+        </ShadowModal>
         <Divider />
-        <DecoratorStyle record={record} onSubmit={(values) => note('decorator 查看', values)} />
-        <Divider />
-        <ComponentStyle record={record} onSubmit={(values) => note('component 提交', values)} />
-        <Divider />
-        <HeadlessStyle form={form} onSave={(values) => note('headless', values)} />
-        <Divider />
-        <h3>最近提交</h3>
-        <pre data-testid="shadow-log">{log.join('\n')}</pre>
-      </main>
-    </ConfigProvider>
+        <Card title="info（阅读态）">
+          <Field name="info.domain" readOnly decorator={[FormItem]}>
+            <Input data-testid="info-domain" />
+          </Field>
+          <Field name="info.desc" readOnly decorator={[FormItem]}>
+            <Input.TextArea rows={4} />
+          </Field>
+          <Space wrap>
+            <ShadowModal<Info> name="info" title="内置的 Modal" onOk={(values) => note('modal', values)} trigger={<Button data-testid="open-modal">内置的 Modal</Button>}>
+              <ShadowFields prefix="modal" />
+            </ShadowModal>
+            <ShadowPopconfirm<Info> name="info" onOk={(values) => note('popconfirm', values)} trigger={<Button data-testid="open-popconfirm">内置的 Popconfirm</Button>}>
+              <ShadowFields prefix="pop" />
+            </ShadowPopconfirm>
+            <ShadowDrawer<Info> name="info" title="内置的 Drawer" onOk={(values) => note('drawer', values)} trigger={<Button data-testid="open-drawer">内置的 Drawer</Button>}>
+              <ShadowFields prefix="drawer" />
+            </ShadowDrawer>
+          </Space>
+        </Card>
+      </Form>
+      <Divider />
+      <DecoratorStyle record={record} onSubmit={(values) => note('decorator 查看', values)} />
+      <Divider />
+      <ComponentStyle record={record} onSubmit={(values) => note('component 提交', values)} />
+      <Divider />
+      <HeadlessStyle form={form} onSave={(values) => note('headless', values)} />
+      <Divider />
+      <h3>最近提交</h3>
+      <pre data-testid="shadow-log">{log.join('\n')}</pre>
+    </main>
   )
 }
 

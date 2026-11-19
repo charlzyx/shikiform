@@ -1,0 +1,82 @@
+---
+title: 3. 联动与数组
+description: 使用 reaction 派生状态、watch 执行一次性动作，以及用 reaction.each 与 ArrayField 管理动态数组行。
+tableOfContents: false
+---
+
+<div className="tutorial-step">
+<div className="tutorial-copy">
+
+## 3.1 用 `reaction` 派生计算值
+
+第一段练习中，单价和数量已有初始值，金额不会随输入自动重算。
+
+派生值使用 `reaction`：初始化时立即运行一次，自动追踪内部读取的所有 `$` 状态，依赖变化时重算。同一轮计算中若后续还要复用刚算出的值，请先存入局部变量，不要在同一轮内读回刚赋值的 `$value`。
+
+**这一步：** 用 `defineEffects` 注册一条 `reaction`：
+
+```ts
+const amount = (d.price.$value || 0) * (d.qty.$value || 0);
+d.amount.$value = amount;
+```
+
+将 `effects` 传给 `useForm` 后，修改单价或数量时金额随之重算。
+
+</div>
+
+<TutorialPlay id="06-reaction" />
+
+</div>
+
+<div className="tutorial-step">
+<div className="tutorial-copy">
+
+## 3.2 用 `watch` 触发一次性重置
+
+第二段练习中，初始省份为「浙江」、初始城市为「杭州」，但起始代码把清空城市写进了 `reaction`，导致表单初始化时就把「杭州」清空了。
+
+字段变更后触发一次性动作应使用 `watch`：首次渲染时不执行，仅在第一个参数读取的状态变化后运行回调。
+
+**这一步：** `reaction` 中只保留 `d.city.$disabled = !d.province.$value`，将清空城市移入 `watch`：
+
+```ts
+watch(
+  (d) => d.province.$value,
+  (d) => {
+    d.city.$value = '';
+  },
+);
+```
+
+</div>
+
+<TutorialPlay id="08-watch" />
+
+</div>
+
+<div className="tutorial-step">
+<div className="tutorial-copy">
+
+## 3.3 动态数组与 `reaction.each`
+
+`<ArrayField>` 接收渲染函数作为子元素，函数内的字段名相对于当前行解析。指定 `rowKey="id"` 后，增删或排序时字段状态跟随行 `id` 移动；结构变更通过 `useArrayField()` 的 `push` / `remove` / `move` 完成。
+
+数组每行的派生计算使用 `reaction.each(select, callback)`，引擎为每一行维护独立实例，修改某一行时只重算该行。
+
+**这一步：** 在 `effects` 中补充按行计算：
+
+```ts
+reaction.each(
+  (d) => d.items,
+  (row) => {
+    const total = (row.price.$value || 0) * (row.qty.$value || 0);
+    row.total.$value = total;
+  },
+);
+```
+
+</div>
+
+<TutorialPlay id="07-array" />
+
+</div>

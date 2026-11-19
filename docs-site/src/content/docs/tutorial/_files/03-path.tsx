@@ -1,6 +1,22 @@
 import { useState } from 'react';
-import { Field, Form, ObjectField, useForm } from '@shikiform/react';
-import { FormItem, Input, Reset, Submit } from '@shikiform/antd';
+import { Field, Form, ObjectField, Reset, Submit, useField, useForm } from '@shikiform/react';
+
+function TextInput({ type = 'text' }: { type?: string }) {
+  const f = useField<string>();
+  return (
+    <p>
+      <label htmlFor={f.id}>{f.title}：</label>
+      <input
+        id={f.id}
+        type={type}
+        value={f.value ?? ''}
+        onChange={(e) => f.onChange(e.target.value)}
+        onBlur={f.onBlur}
+      />
+      {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
+    </p>
+  );
+}
 
 export default function App() {
   const [payload, setPayload] = useState('');
@@ -8,13 +24,20 @@ export default function App() {
   return (
     <Form form={form} onSubmit={(values) => setPayload(JSON.stringify(values, null, 2))}>
       <ObjectField name="profile">
-        <Field name="name" title="昵称" decorator={[FormItem]} component={[Input]} />
+        <Field name="name" title="昵称" component={[TextInput]} />
       </ObjectField>
-      <Field name="password" title="密码" required rules={{ minLength: 8, message: '至少 8 位' }}
-        decorator={[FormItem]} component={[Input.Password]} />
-      <Field name="confirmPassword" title="确认密码" decorator={[FormItem]} component={[Input.Password]} />
-      <Submit>提交</Submit>
-      <Reset afterReset={() => setPayload('')}>重置表单</Reset>
+      <Field
+        name="password"
+        title="密码"
+        required
+        rules={{ minLength: 8, message: '至少 8 位' }}
+        component={[TextInput, { type: 'password' }]}
+      />
+      <Field name="confirmPassword" title="确认密码" component={[TextInput, { type: 'password' }]} />
+      <div style={{ display: 'flex', gap: 8 }}>
+        <Submit>提交</Submit>
+        <Reset afterReset={() => setPayload('')}>重置表单</Reset>
+      </div>
       {payload ? <pre className="shiki-code">{payload}</pre> : null}
     </Form>
   );

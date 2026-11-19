@@ -7,6 +7,7 @@
 import { Aside } from "./components/ui/aside";
 import Render from "./components/Render.astro";
 import Demo from "./components/DemoIsland.astro";
+import HomeHero from "./components/HomeHero.astro";
 import TutorialPlay from "./components/TutorialIsland.astro";
 import { Card } from "./components/ui/card";
 import { CardGrid } from "./components/ui/card-grid";
@@ -21,6 +22,7 @@ import { Tabs, TabItem } from "./components/ui/tabs";
 export const components = {
   Aside,
   Demo,
+  HomeHero,
   TutorialPlay,
   Card,
   CardGrid,

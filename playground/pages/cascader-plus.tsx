@@ -1,34 +1,30 @@
-import { Button, ConfigProvider, Divider, Space } from 'antd'
-import zhCN from 'antd/locale/zh_CN'
 import { useState } from 'react'
-import { CascaderPlusView } from '@shikiform/antd'
+import { Button, CascaderPlusView, Divider, Space } from '../kit'
 import { loadArea, loadAreaAll } from '../pro-data'
 
 /** Pro.formily `CascaderPlus.tsx` demo: lazy / full tree, multiple, labelInValue, and echo of existing values. */
 export function CascaderPlusPage() {
   return (
-    <ConfigProvider locale={zhCN}>
-      <main style={{ padding: 16, maxWidth: 720 }}>
-        <h1>CascaderPlus</h1>
-        <p>一个 loadData(path) 服务所有层级；已有值打开时逐级加载祖先，标签能反显。数据是本地模拟的省市区。</p>
-        <Divider orientation="left">基本属性</Divider>
-        <Basic />
-        <Divider orientation="left">Lazy Load 反显</Divider>
-        <Echo />
-        <Divider orientation="left">Lazy Load &amp; labelInValue 反显</Divider>
-        <EchoLabels />
-      </main>
-    </ConfigProvider>
+    <main style={{ maxWidth: 720 }}>
+      <h1>CascaderPlus</h1>
+      <p>一个 loadData(path) 服务所有层级；已有值打开时逐级加载祖先，标签能反显。数据是本地模拟的省市区。</p>
+      <Divider>基本属性</Divider>
+      <Basic />
+      <Divider>Lazy Load 反显</Divider>
+      <Echo />
+      <Divider>Lazy Load &amp; labelInValue 反显</Divider>
+      <EchoLabels />
+    </main>
   )
 }
 
 function Toggle({ on, onChange, yes, no, id }: { on: boolean; onChange: (on: boolean) => void; yes: string; no: string; id: string }) {
   return (
     <>
-      <Button size="small" data-testid={`${id}-on`} type={on ? 'primary' : 'default'} onClick={() => onChange(true)}>
+      <Button size="sm" data-testid={`${id}-on`} variant={on ? 'primary' : 'default'} onClick={() => onChange(true)}>
         {yes}
       </Button>
-      <Button size="small" data-testid={`${id}-off`} type={!on ? 'primary' : 'default'} onClick={() => onChange(false)}>
+      <Button size="sm" data-testid={`${id}-off`} variant={!on ? 'primary' : 'default'} onClick={() => onChange(false)}>
         {no}
       </Button>
     </>

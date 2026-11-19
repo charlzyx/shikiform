@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { ArrayField, Form, typed, useArrayField } from '@shikiform/react'
-import { ArrayCards, ArrayItems, FormItem, FormLayout, Input } from '@shikiform/antd'
+import { FormItem, Input } from './fixtures/native-kit'
 import { createEngine, type Engine } from '../packages/core/src/engine/create'
 import { fieldErrorsOf } from './field-errors'
 
@@ -16,26 +16,60 @@ type Values = { members: Member[] }
 
 const phoneRule = { validator: (phones: unknown) => (Array.isArray(phones) && phones.length ? null : '至少一个电话') }
 
+function ArrayBox({
+  children,
+  defaultValue,
+  feedback = true,
+}: {
+  children?: ReactNode
+  defaultValue?: unknown
+  feedback?: boolean
+}) {
+  const array = useArrayField()
+  const showFeedback = feedback && (array.errors.length > 0 || array.warnings.length > 0)
+  return (
+    <div data-array-items={array.path}>
+      {children}
+      {defaultValue !== undefined && (
+        <button type="button" data-testid="row-add" onClick={() => array.push(defaultValue)}>
+          添加
+        </button>
+      )}
+      {showFeedback && (
+        <div data-testid="array-feedback">
+          {array.errors.map((msg, i) => (
+            <p key={`e-${i}`} role="alert" data-error="true">
+              {msg}
+            </p>
+          ))}
+          {array.errors.length === 0 &&
+            array.warnings.map((msg, i) => (
+              <p key={`w-${i}`} data-warning="true">
+                {msg}
+              </p>
+            ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Phones({ form }: { form: Engine<Values> }) {
   const F = typed(form)
   return (
     <Form form={form}>
-      <F.ArrayField name="members" component={[ArrayItems]}>
+      <F.ArrayField name="members" component={[ArrayBox]}>
         {(member) => (
-          <ArrayItems.Item>
+          <div>
             <member.Field name="name" required decorator={[FormItem]} component={[Input]} />
-            <member.ArrayField
-              name="phones"
-              component={[ArrayItems, { addition: <ArrayItems.Addition title="添加电话" defaultValue={{ no: '1' }} /> }]}
-            >
+            <member.ArrayField name="phones" component={[ArrayBox, { defaultValue: { no: '1' } }]}>
               {(phone) => (
-                <ArrayItems.Item>
+                <div>
                   <phone.Field name="no" required decorator={[FormItem]} component={[Input]} />
-                  <ArrayItems.Remove />
-                </ArrayItems.Item>
+                </div>
               )}
             </member.ArrayField>
-          </ArrayItems.Item>
+          </div>
         )}
       </F.ArrayField>
     </Form>
@@ -49,7 +83,7 @@ function feedback(view: ReturnType<typeof render>, path: string) {
 }
 
 describe('array-level errors', () => {
-  it('shows the nested array error on ArrayItems and not the child field error', async () => {
+  it('shows the nested array error on the array container and not the child field error', async () => {
     const form = createEngine<Values>({
       initialValues: { members: [{ name: '', phones: [] }, { name: 'Bea', phones: [{ no: '' }] }] },
       fields: { 'members.*.phones': { rules: phoneRule } },
@@ -61,7 +95,7 @@ describe('array-level errors', () => {
     await act(async () => { await fieldErrorsOf(form.validate()) })
     const empty = feedback(view, 'members.0.phones')
     expect(empty?.textContent).toBe('至少一个电话')
-    expect(empty?.querySelector('.ant-form-item-explain-error')).not.toBeNull()
+    expect(empty?.querySelector('[data-error="true"]')).not.toBeNull()
     expect(empty?.textContent).not.toContain('必填')
     expect(feedback(view, 'members.1.phones')).toBeNull()
     expect(feedback(view, 'members')).toBeNull()
@@ -73,53 +107,6 @@ describe('array-level errors', () => {
     expect(feedback(view, 'members.0.phones')).toBeNull()
     expect(form.binding('members.0.phones').errors).toEqual([])
     expect(form.binding('members.0.phones.0.no').errors).toEqual([])
-  })
-
-  it('ArrayCards shows the same row, and feedback={false} / feedbackLayout none hide it', async () => {
-    const form = createEngine<{ rows: { name: string }[] }>({
-      initialValues: { rows: [] },
-      fields: { rows: { rules: { validator: (rows: unknown) => (Array.isArray(rows) && rows.length ? null : '至少一行') } } },
-    })
-    const F = typed(form)
-    const view = render(
-      <Form form={form}>
-        <F.ArrayField name="rows" component={[ArrayCards, { title: '行' }]}>{() => null}</F.ArrayField>
-      </Form>,
-    )
-    await act(async () => { await fieldErrorsOf(form.validate()) })
-    expect(view.getByTestId('array-feedback').textContent).toBe('至少一行')
-    expect(view.getByTestId('array-empty')).toBeTruthy()
-
-    cleanup()
-    const hidden = createEngine<{ rows: { name: string }[] }>({
-      initialValues: { rows: [] },
-      fields: { rows: { rules: { validator: () => '至少一行' } } },
-    })
-    const H = typed(hidden)
-    const off = render(
-      <Form form={hidden}>
-        <FormLayout feedbackLayout="none">
-          <H.ArrayField name="rows" component={[ArrayItems, { feedback: true }]}>{() => null}</H.ArrayField>
-        </FormLayout>
-      </Form>,
-    )
-    await act(async () => { await fieldErrorsOf(hidden.validate()) })
-    expect(off.queryByTestId('array-feedback')).toBeNull()
-    expect(hidden.errors.flatMap((error) => error.messages)).toEqual(['至少一行'])
-
-    cleanup()
-    const bare = createEngine<{ rows: { name: string }[] }>({
-      initialValues: { rows: [] },
-      fields: { rows: { rules: { validator: () => '至少一行' } } },
-    })
-    const B = typed(bare)
-    const none = render(
-      <Form form={bare}>
-        <B.ArrayField name="rows" component={[ArrayItems, { feedback: false }]}>{() => null}</B.ArrayField>
-      </Form>,
-    )
-    await act(async () => { await fieldErrorsOf(bare.validate()) })
-    expect(none.queryByTestId('array-feedback')).toBeNull()
   })
 
   it('shows a warning without an error status, and stacks several messages', async () => {
@@ -137,15 +124,15 @@ describe('array-level errors', () => {
     const F = typed(form)
     const view = render(
       <Form form={form}>
-        <F.ArrayField name="rows" component={[ArrayItems]}>{() => null}</F.ArrayField>
+        <F.ArrayField name="rows" component={[ArrayBox]}>{() => null}</F.ArrayField>
       </Form>,
     )
     await act(async () => { await fieldErrorsOf(form.validate()) })
     const box = view.getByTestId('array-feedback')
     expect(box.textContent).toContain('偏少')
     expect(box.textContent).toContain('另一条')
-    expect(box.querySelector('.ant-form-item-explain-warning')).not.toBeNull()
-    expect(box.querySelector('.ant-form-item-explain-error')).toBeNull()
+    expect(box.querySelector('[data-warning="true"]')).not.toBeNull()
+    expect(box.querySelector('[data-error="true"]')).toBeNull()
     expect(form.canSubmit).toBe(true)
   })
 

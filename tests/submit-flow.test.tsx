@@ -5,6 +5,8 @@ import { fieldErrorsOf } from './field-errors'
 import { SubmitSupersededError, SubmitUnstableError, isFieldErrors } from '@shikiform/react'
 import {
   Form,
+  Reset,
+  Submit,
   createForm,
   Field,
   enUS,
@@ -16,7 +18,6 @@ import {
   type FieldError,
 } from '@shikiform/react'
 import type { StandardSchemaV1 } from '@shikiform/core'
-import { Reset, Submit } from '@shikiform/antd'
 
 afterEach(() => {
   cleanup()
@@ -333,7 +334,7 @@ describe('built-in messages (#44)', () => {
   })
 })
 
-describe('antd Submit / Reset', () => {
+describe('Submit / Reset', () => {
   it('Submit with onSubmit submits on click, without a native <form> around it', async () => {
     const onSubmit = vi.fn()
     const onInvalid = vi.fn()

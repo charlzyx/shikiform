@@ -33,7 +33,6 @@ export default defineConfig({
     alias: [
       // `/internal` must resolve to the same source as the public entry. Otherwise Vite
       // loads the built package for sibling imports and duplicates FormContext.
-      { find: /^@shikiform\/antd$/, replacement: path.resolve(__dirname, '../packages/antd/src/index.ts') },
       { find: /^@shikiform\/core\/internal$/, replacement: path.resolve(__dirname, '../packages/core/src/internal.ts') },
       { find: /^@shikiform\/core$/, replacement: path.resolve(__dirname, '../packages/core/src/index.ts') },
       { find: /^@shikiform\/hooks\/internal$/, replacement: path.resolve(__dirname, '../packages/hooks/src/internal.ts') },

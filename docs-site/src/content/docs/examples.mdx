@@ -3,15 +3,15 @@ title: 示例库
 description: 五个基础场景与查询表、数组、树、业务表格及 Pro 组件的在线可编辑示例。
 ---
 
-先看五个基础场景，每个示例均可在线编辑代码并提交验证：
+先看五个高频基础场景（已按主题聚合到对应专题页，每个示例均可在线编辑代码并提交验证）：
 
 | 场景 | 核心用法 |
 |---|---|
-| [登录校验](/examples/login) | `required`、`format`、`minLength` 等基础规则组合 |
-| [联动计算](/examples/computed) | 使用 `reaction` 派生计算字段的值 |
-| [条件显隐](/examples/visibility) | `$visible = false` 跳过校验；不提交再写 `$omit` |
-| [动态表格](/examples/dynamic-table) | 使用 `reaction.each` 为订单每一行独立计算小计 |
-| [跨字段与异步校验](/examples/async-rules) | 读取同记录密码比对，以及配合 `AbortSignal` 处理异步请求 |
+| [登录校验](/examples/forms#登录校验) | `required`、`format`、`minLength` 等基础规则组合 |
+| [跨字段与异步校验](/examples/forms#跨字段与异步校验) | 读取同记录密码比对，以及配合 `AbortSignal` 处理异步请求 |
+| [联动计算](/examples/linkage#联动计算) | 使用 `reaction` 派生计算字段的值 |
+| [条件显隐](/examples/linkage#条件显隐) | `$visible = false` 跳过校验；不提交再写 `$omit` |
+| [动态行按行计算](/examples/arrays#动态行按行计算) | 使用 `reaction.each` 为订单每一行独立计算小计 |
 
 下方按主题列出完整场景示例（代码支持在线编辑，独立页面汇总在 [示例目录](/play)，异步请求均为本地模拟）。
 
@@ -43,8 +43,8 @@ description: 五个基础场景与查询表、数组、树、业务表格及 Pro
 
 | 完整页面 | 场景 | 代码与讲解 |
 |---|---|---|
-| <a href="/play/query" target="_self">antd 查询表</a> | 条件联动、折叠不丢值、新查询回第一页、列筛选与表单共用状态 | [表格与查询 · 查询表](/examples/tables#查询表) |
-| <a href="/play/query-native" target="_self">原生查询表</a> | 同一个 `useQueryTable`，不用 antd | [表格与查询 · 不用 antd 的查询表](/examples/tables#不用-antd-的查询表) |
+| <a href="/play/query" target="_self">查询表</a> | 条件联动、折叠不丢值、新查询回第一页、列筛选与表单共用状态 | [表格与查询 · 查询表](/examples/tables) |
+| <a href="/play/query-native" target="_self">原生查询表</a> | 同一个 `useQueryTable`，纯原生表格渲染 | [表格与查询](/examples/tables) |
 | <a href="/play/row-edit" target="_self">抽屉行编辑</a> | 抽屉里编辑一行：加载、取消不写回、确定按 id 写回 | [表格与查询 · 抽屉里编辑一行](/examples/tables#抽屉里编辑一行) |
 
 ## 业务场景

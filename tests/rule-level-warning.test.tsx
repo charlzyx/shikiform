@@ -2,7 +2,7 @@
 import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { Field, Form, createForm, defineEffects } from '@shikiform/react'
-import { FormItem, Input } from '@shikiform/antd'
+import { FormItem, Input } from './fixtures/native-kit'
 import { createEngine } from '../packages/core/src/engine/create'
 import { fieldErrorsOf } from './field-errors'
 
@@ -82,7 +82,7 @@ describe("Rule.level: 'warning'", () => {
     expect(form.getValue('hint')).toBe('')
   })
 
-  it('FormItem shows the warning with antd warning status', async () => {
+  it('FormItem shows the warning with warning props', async () => {
     const form = createForm({ initialValues: { password: '123' } })
     const view = render(
       <Form form={form}>
@@ -90,7 +90,7 @@ describe("Rule.level: 'warning'", () => {
       </Form>,
     )
     await act(async () => { await fieldErrorsOf(form.validate()) })
-    expect(view.container.querySelector('.ant-form-item-has-warning')).not.toBeNull()
+    expect(view.container.querySelector('[data-warning="true"]')).not.toBeNull()
     expect(view.container.textContent).toContain('建议同时包含字母和数字')
   })
 })

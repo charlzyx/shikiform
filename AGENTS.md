@@ -1,7 +1,7 @@
 # ShikiForm for coding agents
 
-ShikiForm is a TypeScript form library: a React-free engine (`@shikiform/core`), headless React hooks and fields
-(`@shikiform/react`), headless pro hooks (`@shikiform/hooks`), and an Ant Design adapter (`@shikiform/antd`).
+ShikiForm is a headless TypeScript form library: a React-free engine (`@shikiform/core`), headless React hooks and fields
+(`@shikiform/react`), and headless pro hooks (`@shikiform/hooks`). Zero UI-library dependencies — connect native HTML or any React UI library via `useField`, `useFieldDecorator`, `connect`, and `mapProps`.
 State lives in one engine per form; linkage is written as `reaction` / `watch` over a **draft**.
 This page is the one-screen mental model plus the mistakes worth avoiding. Repo layout and module rules:
 `design/ARCHITECTURE.md`. Docs: `docs-site/src/content/docs/` (Nimbus / Astro MDX; `tsx preview` fences are type-checked
@@ -81,43 +81,22 @@ like `useField`. Drag-and-drop is `{...handle.dragProps(i)}` on the row; there i
 There is no `form.pushArray` / `form.moveTree`: those engine methods stay internal.
 Rows need no id: object rows without `rowKey` / `id` keep a stable object identity (state follows them on move).
 
-Ready-made array UI: give `<ArrayField>` a container `component` from `@shikiform/antd` (Formily `ArrayItems` /
-`ArrayCards` / `ArrayTable`) instead of writing `useArrayField()` buttons by hand. That is the only way to attach one: there
-is no `<ArrayTable name>`; the container's props are type-checked (`[ArrayTable, {}]` without `columns` is an error). Action buttons render only while the array is visible and neither `readOnly` nor `disabled` (the same for every `ArrayTable` row action and
-`Addition`; `useArrayEditable()` for your own).
+Custom array containers: pass a container `component` to `<ArrayField>` (or render rows directly). The container's props are type-checked. Inside the container or rows, `useArrayField()` reads the nearest array handle (including `errors` / `warnings` for the array path itself, not descendants; `d.items.$errors` also includes descendant fields). `useArrayField()` must render inside `<ArrayField>`; a sibling throws `ShikiUsageError`.
 
 ```tsx
-<F.ArrayField name="contacts" component={[ArrayItems, { addition: <ArrayItems.Addition /> }]}>
+<F.ArrayField name="contacts" component={ContactList}>
   {(row) => (
-    <ArrayItems.Item>
-      <ArrayItems.SortHandle /><ArrayItems.Index />
-      <row.Field name="name" decorator={[FormItem]} component={[Input]} />
-      <ArrayItems.MoveUp /><ArrayItems.MoveDown /><ArrayItems.Remove />
-    </ArrayItems.Item>
+    <div>
+      <row.Field name="name" component={[TextInput]} />
+      <RemoveButton />
+    </div>
   )}
 </F.ArrayField>
-// ArrayCards: each row's fields become a card body, header `title #n`, default extra = up / down / remove
-<F.ArrayField name="items" component={[ArrayCards, { title: '商品' }]}>{(row) => <row.Field name="sku" … />}</F.ArrayField>
-// ArrayTable: an antd table; cells come from `columns` (render runs in the row scope), so no row children.
-// Paging, selection, expand, Copy / ShadowAddition (shadow-form add). Column settings: public
-// `useColumnSettings` from `@shikiform/hooks` (ArrayTable reads the same state via `useTable().settings`).
-// Headless table state = useArrayTable.
-<F.ArrayField name="lines" rowKey="id" component={[ArrayTable, {
-  columns: [{ key: 'qty', title: '数量', render: () => <Field name="qty" component={[InputNumber]} /> },
-            { key: 'op', render: () => <ArrayTable.Remove confirm /> }],
-  extra: <ArrayTable.Addition />,
-}]} />
+// Headless table state (paging, selection, expand, copy): useArrayTable from `@shikiform/hooks`
+// Column visibility/order/width/density: useColumnSettings from `@shikiform/hooks`
 // Long plain lists: <ArrayField name="rows" virtualScroll={{ height: 400 }}>{(row) => …}</ArrayField> (no container)
-// Query page: useQueryTable({ …, rows: 'list' }) + <QueryList table columns>{search fields}</QueryList> (one ArrayTable)
-// Search fields sit in a FormGrid (`grid` = its column props): collapsed = first row + buttons at its end, 展开 shows the rest
+// Query page: useQueryTable({ …, rows: 'list' }) from `@shikiform/hooks`
 ```
-
-`ArrayItems` / `ArrayCards` show the array path's own errors under the rows (`feedback={false}` hides them; so does
-`FormLayout` `feedbackLayout: 'none'`). A custom list reads the same messages on the handle: `useArrayField().errors`
-(nearest array, own path only, not descendants). `d.items.$errors` also includes descendant fields. `ArrayTable` does not draw that row: pass the
-component as `footer` (or render it from the array's container `component`). The component must be a descendant
-of `<ArrayField>`. A sibling throws `ShikiUsageError`: `useArrayField() must render inside <ArrayField> (a row or its container component: ArrayItems / ArrayCards / ArrayTable).`
-A per-row child does not run when the array is empty, and repeats once per row.
 
 ## 4. Nested values: per-path writes vs `$componentProps` patches
 
@@ -134,13 +113,12 @@ A per-row child does not run when the array is empty, and repeats once per row.
 ## 5. Field + decorator + component (the adapter)
 
 `<Field>` is the single owner of a path (Formily style). It renders `decorator` around `component` and provides the
-field through context; `FormItem` is a pure decorator and `connect()`ed controls need no `name`.
-`connect` / `mapProps` are exported from `@shikiform/react` (no antd).
-`@shikiform/antd` re-exports them. Headless `connect` does not pass Ant Design `status`; the antd controls opt in with
-`mapProps({ status: 'status' })`. `mapProps({ format, parse })` converts both ways: the field keeps a serializable
+field through context; custom decorators (e.g. `FormItem` built with `useFieldDecorator()`) and `connect()`ed controls need no `name`.
+`connect` / `mapProps` are exported from `@shikiform/react` (zero UI dependencies).
+`mapProps({ format, parse })` converts both ways: the field keeps a serializable
 value, `format(value, props)` is what the control receives, `parse(...onChangeArgs)` is what gets stored (`parse`
-replaces the old `getValueFromEvent`). The `readOnly` preview is not formatted. antd `DatePicker` / `TimePicker` / `Upload` /
-`ColorPicker` use this. A control whose props omit `onBlur` must pass `blurOn` in `mapProps` (or `onBlur: false`):
+replaces the old `getValueFromEvent`). The `readOnly` preview is not formatted.
+A control whose props omit `onBlur` must pass `blurOn` in `mapProps` (or `onBlur: false`):
 `blurOn: 'onOpenChange'` blurs when the popup closes, `blurOn: 'onChange'` blurs after each change. Otherwise blur
 validation never runs and TypeScript reports it.
 A `connect()`ed control forwards `ref` and keeps the target's statics (`Select.Option`). Outside a field with no
@@ -148,12 +126,10 @@ A `connect()`ed control forwards `ref` and keeps the target's statics (`Select.O
 `mapProps` object keys also take field state: `mapProps({ title: 'placeholder' })`.
 `useFieldDecorator()` returns library-agnostic label / required / description / errors (`labelProps`, `errorProps`,
 and `control` for a widget that draws its own label). Headless `<Submit>` / `<Reset>` (`asChild` or a render prop)
-and headless `<Submit>` / `<Reset>` cover buttons; `afterReset` runs after `form.reset` with the restored values
-(antd `<Reset>` takes the same callback).
+cover buttons; `afterReset` runs after `form.reset` with the restored values.
 
 ```tsx
 import { createForm, defineEffects, Field, Form } from '@shikiform/react'
-import { FormItem, FormLayout, Input, Select } from '@shikiform/antd'
 
 const form = createForm({
   initialValues: { kind: 'personal', email: '', city: '' },
@@ -169,18 +145,14 @@ const form = createForm({
 })
 
 <Form form={form} onSubmit={(values) => save(values)}>
-  <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }}>
-    <Field name="email" title="邮箱" rules={{ format: 'email' }} decorator={[FormItem]} component={[Input]} />
-    <Field name="city" decorator={[FormItem]} component={[Select, { allowClear: true }]} />
-    <Field name="kind" enum={[{ label: '个人', value: 'personal' }, { label: '工作', value: 'work' }]}
-      decorator={[FormItem]} component={[Select]} />
-  </FormLayout>
+  <Field name="email" title="邮箱" rules={{ format: 'email' }} decorator={[FormItem]} component={[Input]} />
+  <Field name="city" decorator={[FormItem]} component={[Select]} />
+  <Field name="kind" enum={[{ label: '个人', value: 'personal' }, { label: '工作', value: 'work' }]}
+    decorator={[FormItem]} component={[Select]} />
 </Form>
 ```
 
-- Options inline: `<Field enum={[{ label, value }] | ['a', 'b'] | Source.with(params)}>` (Formily `enum`); Select /
-  Radio / Checkbox.Group / AutoComplete (`options`), TreeSelect (`treeData`), Cascader (`options`), Transfer (`dataSource`)
-  and their read-only previews read it; tree options are `{ label, value, children }`. Precedence: reaction `$enum` > JSX `enum` > `fields.x.enum`
+- Options inline: `<Field enum={[{ label, value }] | ['a', 'b'] | Source.with(params)}>` (Formily `enum`). Precedence: reaction `$enum` > JSX `enum` > `fields.x.enum`
   > `rows.*.x` template. The JSX layer is mount-scoped (unmount restores the declaration) and re-applied when the prop
   changes (deep compare, inline arrays are fine). With `typed(form).Field` / `row.Field` option values are checked
   against the field value (element type for arrays). Options that depend on another field stay in a reaction.
@@ -188,22 +160,6 @@ const form = createForm({
   `d.x.$enum = undefined` drops the reaction layer like `$title` / `$readOnly = undefined`: back to the mounted JSX `enum`
   (an async source re-binds), else `fields.x.enum`, else the template, else no options; a reaction load in flight is
   aborted and `loading` resets; `enumPolicy` applies to the change. Clear explicitly with `$enum = []`.
-- Controls (`@shikiform/antd`, Formily `@formily/antd`): Input (.TextArea .Password), InputNumber, Select, AutoComplete,
-  TreeSelect, Cascader (value = path), Switch, Checkbox (.Group), Radio, DatePicker / TimePicker (.RangePicker; the field
-  holds the formatted string, not dayjs), Slider, Rate, Transfer (value = target keys), Upload (.Dragger; value = antd
-  `fileList`), ColorPicker (value = color text). Lazy per-level cascader: `CascaderPlus`; remote-search select: `Suggestion`.
-- Preview (`readOnly`): every control has a read view (`PreviewText.*`): enum labels, several values as tags (`prettyType="badge" |
-  "tag"` on choice controls), dates as text, password `******`. Empty values show `messages.empty` (default `-`; set it once
-  per form `useForm({ messages: { empty } })` or app-wide `setDefaultMessages`). A read-only enum cell is
-  `<Field readOnly component={[Select, { prettyType: 'badge' }]} />`; outside a form `<PreviewText.Select value options />`;
-  a custom control reuses a view: `connect(MyPicker, mapProps({ preview: PreviewText.TreeSelect }))`.
-
-```tsx
-<F.Field name="area" enum={[{ label: '浙江', value: 'zj', children: [{ label: '杭州', value: 'hz' }] }]}
-  decorator={[FormItem]} component={[Cascader]} />                       // value ['zj', 'hz'], preview '浙江 / 杭州'
-<F.Field name="files" decorator={[FormItem]} component={[Upload, { action: '/upload' }]} />   // value = fileList
-const form = useForm<Detail>({ initialValues, readOnly: true })   // a detail page: every control reads
-```
 - Register controls once with `<FieldKit components={{ Input }} decorator={FormItem}>` or `<Form kit={{ … }}>`, then
   `<Field component="Input" />` / `component={["Input", props]}` (string) or `component={Input}` / `component={[Input, props]}`
   (the same slot, a component reference). Omitting `decorator` uses the kit default; `decorator={false}` opts out.
@@ -211,39 +167,7 @@ const form = useForm<Detail>({ initialValues, readOnly: true })   // a detail pa
   (and `FieldDecorators`). There is still one `<Field>`, not a second factory.
 - Slots take a component or `[Component, props]`; the tuple's props are the JSX layer of `componentProps` / `decoratorProps`
   and are type-checked against the component on `<Field>` / `typed(form).Field` / `row.Field` / `<UI>` (all optional,
-  `data-*` allowed): `[InputNumber, { precision: 'x' }]` and unknown keys do not compile. A generic control in a tuple
-  takes its widest type (`InputNumber`'s `formatter` gets `string | number`), so leave callback parameters unannotated.
-  There are no separate `componentProps` / `decoratorProps` JSX props. Children (`<Field …><Input /></Field>`) or a render prop also work.
-- Table cells can drop the decorator (`<Field name="qty" component={[InputNumber]} />`) or use another one.
-- `FormItem` outside a field is pure layout: `<FormItem label="地址" asterisk>…two Fields, each `decorator={[FormItem]}`…</FormItem>`.
-  A label-less `FormItem` takes no `labelCol` / `wrapperCol` / `labelWidth` from `FormLayout` (Formily), so the inner
-  items fill the row and show their own errors. It shows the errors inside it that **no inner `FormItem` shows**: give
-  the inner fields no decorator (a date range, `Space.Compact`) and their messages appear under the outer label, once
-  per distinct text, in error colour (no `validateStatus`: only the errored control turns red). Do not decorate inner
-  fields just to see their errors there. A field `FormItem` shows all errors;
-  `feedbackLayout: 'popover'`, `addonBefore/After`, `labelWidth`, `requiredMark: 'optional'` are props or `FormLayout` keys.
-- Layout: `FormLayout` (responsive arrays for layout / labelCol / labelWidth …), `FormGrid` + `gridSpan` / `GridColumn`,
-  buttons in `<FormButtonGroup.FormItem><Submit /><Reset /></FormButtonGroup.FormItem>` (aligned to the control column).
-- Tabs / collapse / steps (Formily `FormTab` / `FormCollapse` / `FormStep`): panes are direct children; every pane
-  stays mounted (inactive ones are only hidden), so values, JSX rules and errors survive and submit validates them.
-  Headers badge the number of fields with errors. A failed `submit()` / `form.validate()` shows the error by itself:
-  FormTab activates the first pane holding one, FormCollapse opens those panels, FormStep goes to the earliest such
-  step, then `<Form>` focuses the first errored field (no prop; controlled containers get `onChange`). Do not write an
-  `onInvalid` that switches tabs. Do not use bare antd `Tabs` / `Collapse` around fields (inactive panes do not mount). They own no value path: name fields as usual; `visible` / `disabled` / `readOnly` inherit along field paths (this level's `true` or `false` wins; unset keeps the parent).
-
-```tsx
-<FormTab><FormTab.Pane name="base" tab="基本">…fields…</FormTab.Pane><FormTab.Pane name="more" tab="更多">…</FormTab.Pane></FormTab>
-<FormCollapse><FormCollapse.Panel name="a" header="基本">…</FormCollapse.Panel></FormCollapse>   // all open by default
-const step = useFormStep()   // in the component with the buttons; { current, count, isFirst, isLast, next, back, goTo }
-<FormStep step={step}><FormStep.Step title="账号">…</FormStep.Step><FormStep.Step title="资料">…</FormStep.Step></FormStep>
-<Button disabled={step.isFirst} onClick={step.back}>上一步</Button>
-{step.isLast ? <Submit /> : <Button onClick={step.next}>下一步</Button>}   // next validates the current step only
-```
-
-  `step.next()` validates the current step's editable fields in one pass (`form.validate(paths[])`) and resolves
-  `false` on errors; the last step is a plain `<Submit />` (validates every step). Controlled: `activeKey` + `onChange`
-  (`FormTab` / `FormCollapse`), `useFormStep({ current, onChange })`. Field-group primitives are not a public export.
-  `form.subscribeValidateFailed((errors) => …)` is the hook the containers reveal from.
+  `data-*` allowed). There are no separate `componentProps` / `decoratorProps` JSX props. Children (`<Field …><Input /></Field>`) or a render prop also work.
 - Hooks are the complete API: `useForm`, `useFormContext`, `useField(name, options)`, `useFieldDecorator()`, `useWatch`,
   `useArrayField`, `useTreeField`, `useIndex`, `useRecord`. Components are thin sugar over them. `<Submit>` / `<Reset>` are the public buttons.
 - One field hook (Formily-style): `useField()` with no name returns the field the nearest `<Field>`
@@ -286,17 +210,15 @@ reaction((d) => {
 - `<Form>` takes the submit callbacks: `onSubmit(values)`, `onInvalid(errors)`,
   `onSubmitError(error)` (default `console.error`); other props go to the native `<form>` (`id`, `className`, `noValidate`).
   Enter, `type="submit"`, and `form.submit(onValid)` behave the same; do not add a second `<form>`.
-- Buttons: headless `<Submit>` / `<Reset>` from `@shikiform/react` (`asChild` or a render prop). antd `<Submit>` / `<Reset>`
-  are the Ant Design buttons. `<Submit>` is a native
+- Buttons: headless `<Submit>` / `<Reset>` from `@shikiform/react` (`asChild` or a render prop). `<Submit>` is a native
   submit for `<Form onSubmit>` (disabled while `$canSubmit` is false, loading while submitting); `<Submit onSubmit={fn}>`
   submits on click by itself. `<Reset>` calls `form.reset()`. `onClick` runs first (`preventDefault` skips the reset);
   `afterReset(values)` runs after, with the restored values.
 - A rule with `level: 'warning'` (`{ validator: weak, level: 'warning' }`) reports to `$warnings` / `field.warnings`
-  (FormItem shows it in the warning colour) and never blocks `submit` / `canSubmit` (antd `warningOnly`).
+  and never blocks `submit` / `canSubmit`.
 - Built-in messages default to Chinese. Override per form with `messages` (partial; functions get params:
   `minLength: ({ minLength }) => …`), app-wide with `setDefaultMessages(enUS)`. A rule's own `message` wins. The same `messages` cover tree-move refusal reasons (`useTreeField().move`)
-  and every `@shikiform/antd` label (提交 / 重置 / 查询 / 删除 …); a component's own prop (`title`, `okText`) wins.
-  Custom components read them with `form.message('submit')` (or `useFormContext().message`).
+  and default button labels (`Submit` / `Reset`). Custom components read them with `form.message('submit')` (or `useFormContext().message`).
 
 ## 7. Types: names, watch, submit
 

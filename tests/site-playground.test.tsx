@@ -3,11 +3,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, createElement, useState } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { renderToString } from 'react-dom/server'
-import { theme } from 'antd'
 import { EditorView } from '@codemirror/view'
 import { compileDemo, resolveFile } from '../docs-site/src/bridge/playground/runtime'
 import { Playground } from '../docs-site/src/bridge/playground/Playground'
-import { SiteThemeProvider } from '../docs-site/src/bridge/theme'
+import { SiteThemeProvider, useSiteDark } from '../docs-site/src/bridge/theme'
 
 ;(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true
 let root: Root | undefined
@@ -18,11 +17,11 @@ afterEach(async () => {
   vi.unstubAllGlobals()
 })
 
-/** Counter (local state) + the antd container color, which flips with the dark algorithm. */
+/** Counter (local state) + the site dark mode flag, which flips with data-mode. */
 function Probe() {
   const [count, setCount] = useState(0)
-  const { token } = theme.useToken()
-  return createElement('button', { 'data-bg': token.colorBgContainer, onClick: () => setCount(count + 1) }, `count:${count}`)
+  const dark = useSiteDark()
+  return createElement('button', { 'data-bg': dark ? 'dark' : 'light', onClick: () => setCount(count + 1) }, `count:${count}`)
 }
 
 function mount(element: () => React.ReactElement) {

@@ -2,7 +2,7 @@
 import { it } from 'vitest'
 import { createForm, defineEffects, type FieldEnum } from '@shikiform/core'
 import { useQueryTable } from '@shikiform/hooks'
-import { Checkbox, DatePicker, Input, InputNumber, Switch } from '@shikiform/antd'
+import { Checkbox, Input, InputNumber, Switch } from './fixtures/native-kit'
 import { typed, useForm, useWatch, type FieldBinding } from '@shikiform/react'
 
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false
@@ -68,7 +68,6 @@ function controlValue() {
       <F.Field name="nick" component={[Input]} />
       <F.Field name="on" component={[Switch]} />
       <F.Field name="on" component={[Checkbox]} />
-      <F.Field name="name" component={[DatePicker]} />
       {/* @ts-expect-error InputNumber stores number | null */}
       <F.Field name="name" component={[InputNumber]} />
       {/* @ts-expect-error Switch stores a boolean */}

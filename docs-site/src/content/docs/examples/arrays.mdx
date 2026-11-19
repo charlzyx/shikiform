@@ -1,7 +1,91 @@
 ---
 title: 数组与树
-description: 嵌套对象与 readOnly 继承、树节点跨层拖拽移动，以及基于虚拟滚动的长列表校验。
+description: reaction.each 按行独立计算、嵌套对象与 readOnly 继承、树节点跨层拖拽移动，以及基于虚拟滚动的长列表校验。
 ---
+
+## 动态行按行计算
+
+订单明细中每一行有各自的单价、数量和小计。通过 `reaction.each` 为每一行建立独立联动实例，修改任意一行的单价或数量时，只重算该行小计；嵌套多层数组时可通过 `ctx.key`、`ctx.depth` 过滤，详见 [用 ctx 过滤](/guide/linkage#用-ctx-过滤)。
+
+```tsx preview
+import { useState, type ReactNode } from 'react';
+import { defineEffects, Form, Submit, typed, useArrayField, useField, useForm } from '@shikiform/react';
+
+type Line = { sku: string; price: number | null; qty: number | null; total: number };
+type Values = { lines: Line[] };
+
+const effects = defineEffects<Values>(({ reaction }) => {
+  reaction.each((d) => d.lines, (row) => {
+    const total = (row.price.$value ?? 0) * (row.qty.$value ?? 0);
+    row.total.$value = total;
+  });
+});
+
+const blank = (): Line => ({ sku: '', price: 0, qty: 1, total: 0 });
+
+function TextCell() {
+  const f = useField<string>();
+  return (
+    <label htmlFor={f.id}>
+      {f.title}
+      <input id={f.id} style={{ width: 96 }} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} onBlur={f.onBlur} />
+    </label>
+  );
+}
+
+function NumberCell({ min }: { min?: number }) {
+  const f = useField<number | null>();
+  return (
+    <label htmlFor={f.id}>
+      {f.title}
+      <input
+        id={f.id}
+        type="number"
+        min={min}
+        style={{ width: 72 }}
+        value={f.value ?? ''}
+        onChange={(e) => f.onChange(e.target.value === '' ? null : Number(e.target.value))}
+        onBlur={f.onBlur}
+      />
+    </label>
+  );
+}
+
+function Lines({ children }: { children?: ReactNode }) {
+  const lines = useArrayField<Line>();
+  return (
+    <>
+      {children}
+      <button type="button" onClick={() => lines.push(blank())}>添加一行</button>
+    </>
+  );
+}
+
+export default function App() {
+  const [result, setResult] = useState('');
+  const form = useForm<Values>({
+    initialValues: { lines: [{ sku: '贴纸', price: 2, qty: 4, total: 0 }] },
+    effects: [effects],
+  });
+  const F = typed(form);
+  return (
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
+      <F.ArrayField name="lines" component={Lines}>
+        {(row) => (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+            <row.Field name="sku" title="商品" component={[TextCell]} />
+            <row.Field name="price" title="单价" component={[NumberCell, { min: 0 }]} />
+            <row.Field name="qty" title="数量" component={[NumberCell, { min: 0 }]} />
+            <row.Field name="total" title="小计" component={[NumberCell]} />
+          </div>
+        )}
+      </F.ArrayField>
+      <Submit style={{ marginLeft: 8 }}>提交</Submit>
+      <pre aria-live="polite">{result}</pre>
+    </Form>
+  );
+}
+```
 
 ## 嵌套对象与只读行
 
@@ -9,9 +93,7 @@ description: 嵌套对象与 readOnly 继承、树节点跨层拖拽移动，以
 
 ```tsx preview play=nested
 import { useState } from 'react';
-import { Button, Drawer } from 'antd';
-import { ArrayField, Field, Form, ObjectField, Watch, defineEffects, useForm, type Draft } from '@shikiform/react';
-import { FormItem, FormLayout, Input, InputNumber, Switch } from '@shikiform/antd';
+import { ArrayField, Field, Form, ObjectField, Watch, defineEffects, useField, useForm, type Draft } from '@shikiform/react';
 
 type Order = { id: string; title: string; qty: number; shipped: boolean };
 type Values = { editable: boolean; profile: { name: string; address: { city: string; street: string } }; orders: Order[] };
@@ -27,6 +109,58 @@ const effects = defineEffects<Values>(({ reaction }) => {
   });
 });
 
+function TextField() {
+  const f = useField<string>();
+  return (
+    <p>
+      <label htmlFor={f.id}>{f.title}：</label>
+      {f.readOnly ? (
+        <span>{f.value || '-'}</span>
+      ) : (
+        <input id={f.id} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} onBlur={f.onBlur} />
+      )}
+    </p>
+  );
+}
+
+function NumberInline({ min }: { min?: number }) {
+  const f = useField<number>();
+  return (
+    <label htmlFor={f.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      {f.title}
+      {f.readOnly ? (
+        <span>{f.value}</span>
+      ) : (
+        <input
+          id={f.id}
+          type="number"
+          min={min}
+          style={{ width: 64 }}
+          value={f.value ?? 0}
+          onChange={(e) => f.onChange(Number(e.target.value))}
+          onBlur={f.onBlur}
+        />
+      )}
+    </label>
+  );
+}
+
+function ToggleInline() {
+  const f = useField<boolean>();
+  return (
+    <label htmlFor={f.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      <input
+        id={f.id}
+        type="checkbox"
+        checked={Boolean(f.value)}
+        disabled={f.readOnly || f.disabled}
+        onChange={(e) => f.onChange(e.target.checked)}
+      />
+      {f.title}
+    </label>
+  );
+}
+
 export default function App() {
   const [open, setOpen] = useState(false);
   const form = useForm<Values>({
@@ -40,29 +174,37 @@ export default function App() {
   });
   return (
     <Form form={form}>
-      <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }}>
-        <Field name="editable" title="可编辑" decorator={[FormItem]} component={[Switch]} />
-        <ObjectField name="profile">
-          <Field name="name" title="姓名" decorator={[FormItem]} component={[Input]} />
-          <FormItem label="地址">
-            <Watch select={(d: Draft<Values>) => d.profile.address.$value}>{(address) => <span>{address.city} · {address.street} </span>}</Watch>
-            <Button size="small" onClick={() => setOpen(true)}>编辑</Button>
-          </FormItem>
-          <Drawer title="地址" open={open} onClose={() => setOpen(false)}>
+      <p>
+        <Field name="editable" title="可编辑" component={[ToggleInline]} />
+      </p>
+      <ObjectField name="profile">
+        <Field name="name" title="姓名" component={[TextField]} />
+        <p>
+          <span>地址：</span>
+          <Watch select={(d: Draft<Values>) => d.profile.address.$value}>
+            {(address) => <span>{address.city} · {address.street} </span>}
+          </Watch>
+          <button type="button" onClick={() => setOpen((prev) => !prev)}>
+            {open ? '收起' : '编辑'}
+          </button>
+        </p>
+        {open && (
+          <fieldset style={{ marginBottom: 12 }}>
+            <legend>地址</legend>
             <ObjectField name="address">
-              <Field name="city" title="城市" decorator={[FormItem]} component={[Input]} />
-              <Field name="street" title="街道" decorator={[FormItem]} component={[Input]} />
+              <Field name="city" title="城市" component={[TextField]} />
+              <Field name="street" title="街道" component={[TextField]} />
             </ObjectField>
-          </Drawer>
-        </ObjectField>
-      </FormLayout>
+          </fieldset>
+        )}
+      </ObjectField>
       <ArrayField name="orders" rowKey="id">
         {() => (
-          <FormLayout layout="inline" feedbackLayout="terse" style={{ marginBottom: 8 }}>
-            <Field name="title" readOnly component={[Input]} />
-            <Field name="qty" title="数量" decorator={[FormItem]} component={[InputNumber, { min: 1 }]} />
-            <Field name="shipped" title="已发货" decorator={[FormItem]} component={[Switch]} />
-          </FormLayout>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 8 }}>
+            <Field name="title" readOnly>{(f) => <strong>{String(f.value ?? '')}</strong>}</Field>
+            <Field name="qty" title="数量" component={[NumberInline, { min: 1 }]} />
+            <Field name="shipped" title="已发货" component={[ToggleInline]} />
+          </div>
         )}
       </ArrayField>
     </Form>
@@ -72,8 +214,7 @@ export default function App() {
 
 - `$readOnly` 沿字段路径向下走：写 `d.profile` 和 `d.orders`，里面的字段跟着变。赋 `undefined` 丢掉这一层，回到上一级。
 - 已发货行单独写了 `row.qty.$readOnly = true`，整表可编辑时这一格仍是预览。
-- 抽屉中的 `<ObjectField name="address">` 通过 React 上下文穿透 Portal 保持在 `profile` 作用域内，关闭抽屉后字段的值和状态依然保留在表单引擎中。
-- 「地址」行使用不带 `name` 的 `<FormItem label="地址">` 作为纯布局容器，标签宽度与外层 `FormLayout` 对齐，见 [在一个标签下组合多个字段](/guide/layout#在一个标签下组合多个字段)。
+- 弹出面板中的 `<ObjectField name="address">` 通过 React 上下文保持在 `profile` 作用域内，收起面板后字段的值和状态依然保留在表单引擎中。
 
 ## 树：跨层移动
 
@@ -148,7 +289,6 @@ export default function App() {
 ```tsx preview play=virtual
 import { useState } from 'react';
 import { ArrayField, Field, Form, useForm } from '@shikiform/react';
-import { Input } from '@shikiform/antd';
 
 type Row = { id: string; name: string };
 
@@ -173,7 +313,20 @@ export default function App() {
         {({ index }) => (
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', height: 40 }}>
             <code style={{ width: 48 }}>#{index}</code>
-            <Field name="name" component={[Input, { style: { width: 200 } }]} />
+            <Field<Row, 'name'> name="name">
+              {(f) => (
+                <>
+                  <input
+                    aria-label={`第 ${index} 行名称`}
+                    style={{ width: 200 }}
+                    value={f.value ?? ''}
+                    onChange={(e) => f.onChange(e.target.value)}
+                    onBlur={f.onBlur}
+                  />
+                  {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}>{f.errors[0]}</small>}
+                </>
+              )}
+            </Field>
           </div>
         )}
       </ArrayField>
@@ -185,6 +338,6 @@ export default function App() {
 ```
 
 - 第 499、999、1499、1999 行处于视口外未挂载，点击校验仍会报出它们的空值错误：`fields` 中的行模板 `rows.*.name` 在引擎层生效，不依赖组件挂载。
-- `<ArrayField virtualScroll>` 仅挂载可见行并注入行作用域，只用于自定义列表行，不能与 `ArrayTable` 等容器 `component` 同时使用。
+- `<ArrayField virtualScroll>` 仅挂载可见行并注入行作用域，只用于自定义列表行，不能与整表容器 `component` 同时使用。
 
 下一组：[表格与查询](/examples/tables)。

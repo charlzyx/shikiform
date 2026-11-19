@@ -1,8 +1,9 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { ArrayField, createForm, Field, Form, useField, useForm } from '@shikiform/react'
-import { Checkbox, FormItem, Input, Radio, ShadowForm, Transfer } from '@shikiform/antd'
+import { ArrayField, createForm, Field, Form, useForm } from '@shikiform/react'
+import { useShadowForm } from '@shikiform/hooks'
+import { FormItem, Input } from './fixtures/native-kit'
 
 afterEach(cleanup)
 
@@ -61,13 +62,19 @@ describe('form id prefix', () => {
   })
 
   it('a shadow draft does not reuse the host form prefix', async () => {
+    function DraftBox() {
+      const shadow = useShadowForm({ initialValues: { name: 'draft' } })
+      return (
+        <Form form={shadow.form}>
+          <Field name="name" component={[Input]} />
+        </Form>
+      )
+    }
     const form = createForm({ initialValues: { name: 'host' } })
     const view = render(
       <Form form={form} id="host">
         <Field name="name" component={[Input]} />
-        <ShadowForm record={{ name: 'draft' }}>
-          <Field name="name" component={[Input]} />
-        </ShadowForm>
+        <DraftBox />
       </Form>,
     )
     await waitFor(() => expect(view.container.querySelectorAll('input')).toHaveLength(2))
@@ -126,100 +133,8 @@ describe('failed submit focuses nested paths', () => {
   })
 })
 
-describe('Radio / Checkbox group htmlFor', () => {
-  it('puts the field id on the first option input, which the label and failed submit use', async () => {
-    const form = createForm({ initialValues: { kind: undefined, tags: [] as string[] } })
-    const view = render(
-      <Form form={form} id="choice">
-        <Field
-          name="kind"
-          title="类型"
-          required
-          enum={[{ label: '个人', value: 'p' }, { label: '公司', value: 'c' }]}
-          decorator={[FormItem]}
-          component={[Radio.Group]}
-        />
-        <Field
-          name="tags"
-          title="标签"
-          required
-          enum={[{ label: '甲', value: 'a' }, { label: '乙', value: 'b' }]}
-          decorator={[FormItem]}
-          component={[Checkbox.Group]}
-        />
-        <button type="submit">保存</button>
-      </Form>,
-    )
-    expect(view.container.querySelectorAll('#choice-kind')).toHaveLength(1)
-    expect(view.container.querySelector('#choice-kind')?.tagName).toBe('INPUT')
-    expect(view.container.querySelectorAll('#choice-tags')).toHaveLength(1)
-    expect(view.container.querySelector('#choice-tags')?.tagName).toBe('INPUT')
-    expect(view.container.querySelector('.ant-radio-group')!.id).not.toBe('choice-kind')
-    expect(view.container.querySelector('.ant-checkbox-group')!.id).not.toBe('choice-tags')
-    expect([...view.container.querySelectorAll('.ant-form-item-label label')].map((label) => label.getAttribute('for'))).toEqual([
-      'choice-kind',
-      'choice-tags',
-    ])
-    fireEvent.click(view.getByText('保存'))
-    await settle()
-    await waitFor(() => expect(document.activeElement).toBe(view.container.querySelector('#choice-kind')))
-  })
-
-  it('puts the field id on the first hand-written Radio.Button / Checkbox, and not on the rest', async () => {
-    const form = createForm({ initialValues: { kind: undefined, agree: [] as string[] } })
-    const view = render(
-      <Form form={form} id="choice">
-        <Field name="kind" title="类型" required decorator={[FormItem]}>
-          <Radio.Group>
-            <Radio.Button value="p">个人</Radio.Button>
-            <Radio.Button value="c">公司</Radio.Button>
-          </Radio.Group>
-        </Field>
-        <Field name="agree" title="同意" required decorator={[FormItem]}>
-          <Checkbox.Group>
-            <>
-              <Checkbox value="a">甲</Checkbox>
-              <Checkbox value="b" id="custom-b">乙</Checkbox>
-            </>
-          </Checkbox.Group>
-        </Field>
-        <button type="submit">保存</button>
-      </Form>,
-    )
-    const radios = [...view.container.querySelectorAll('input[type="radio"]')]
-    expect(radios.map((el) => el.id)).toEqual(['choice-kind', ''])
-    expect(view.container.querySelector('.ant-radio-group')!.id).not.toBe('choice-kind')
-    const boxes = [...view.container.querySelectorAll('input[type="checkbox"]')]
-    expect(boxes.map((el) => el.id)).toEqual(['choice-agree', 'custom-b'])
-    expect(view.container.querySelector('.ant-checkbox-group')!.id).not.toBe('choice-agree')
-    expect([...view.container.querySelectorAll('.ant-form-item-label label')].map((label) => label.getAttribute('for'))).toEqual([
-      'choice-kind',
-      'choice-agree',
-    ])
-    fireEvent.click(view.getByText('保存'))
-    await settle()
-    await waitFor(() => expect(document.activeElement).toBe(view.container.querySelector('#choice-kind')))
-  })
-})
-
 describe('FormItem label for', () => {
-  const labelFors = (root: HTMLElement) => [...root.querySelectorAll('.ant-form-item-label label')].map((label) => label.getAttribute('for'))
-
-  it('points at the control only while an element with the field id is labelable', async () => {
-    const form = createForm({ initialValues: { name: 'Ada', team: [] as string[], size: 'm' } })
-    function DivControl() {
-      return <div id={useField().id} role="radiogroup">custom</div>
-    }
-    const view = render(
-      <Form form={form} id="lf">
-        <Field name="name" title="姓名" decorator={[FormItem]} component={[Input]} />
-        <Field name="team" title="组员" enum={[{ label: '甲', value: 'a' }]} decorator={[FormItem]} component={[Transfer]} />
-        <Field name="size" title="尺寸" decorator={[FormItem]} component={[DivControl]} />
-      </Form>,
-    )
-    await settle()
-    expect(labelFors(view.container)).toEqual(['lf-name', null, null])
-  })
+  const labelFors = (root: HTMLElement) => [...root.querySelectorAll('label')].map((label) => label.getAttribute('for'))
 
   it('drops for when readOnly and restores it when editable again', async () => {
     const form = createForm({ initialValues: { name: 'Ada' } })

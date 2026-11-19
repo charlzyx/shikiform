@@ -14,7 +14,6 @@ import {
   useForm,
 } from '@shikiform/react'
 import { useReset } from '@shikiform/react/internal'
-import { Reset as AntReset } from '@shikiform/antd'
 import { createEngine } from '../packages/core/src/engine/create'
 
 afterEach(() => cleanup())
@@ -335,27 +334,5 @@ describe('headless Submit and Reset', () => {
     fireEvent.click(cancelled.getByRole('button', { name: '重置' }))
     expect(api.getValue('a')).toBe('edited')
     expect(after).not.toHaveBeenCalled()
-  })
-
-  it('antd Reset afterReset runs after the reset, onClick still sees the old value', () => {
-    const seen: string[] = []
-    let api!: ReturnType<typeof useForm<{ a: string }>>
-    function App() {
-      const form = useForm({ initialValues: { a: 'init' } })
-      api = form
-      return (
-        <Form form={form}>
-          <AntReset
-            onClick={() => seen.push(api.getValue('a'))}
-            afterReset={(values) => seen.push(values.a)}
-          />
-        </Form>
-      )
-    }
-    const view = render(<App />)
-    act(() => api.setValue('a', 'edited'))
-    fireEvent.click(view.getByRole('button'))
-    expect(seen).toEqual(['edited', 'init'])
-    expect(api.getValue('a')).toBe('init')
   })
 })

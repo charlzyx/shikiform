@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Dry-run the public npm publish for all four packages.
+ * Dry-run the public npm publish for all three packages.
  * This never publishes. With an npm token for the shikiform org, publish for real with:
  *   npm publish --access public
  * in each `packages/<name>` directory (dist/ must already exist; `npm run build:lib`).
@@ -16,7 +16,7 @@ if (process.argv.includes('--publish')) {
 }
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const names = ['core', 'react', 'hooks', 'antd']
+const names = ['core', 'react', 'hooks']
 for (const name of names) {
   const cwd = path.join(root, 'packages', name)
   if (!existsSync(path.join(cwd, 'dist', 'index.js'))) {

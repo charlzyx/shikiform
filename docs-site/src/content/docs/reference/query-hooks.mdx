@@ -3,7 +3,7 @@ title: 查询 Hooks 参考
 description: useQueryTable 的参数、请求协议、分页选择、表头排序筛选和错误边界。
 ---
 
-从 `@shikiform/hooks` 导入。它们没有 antd 依赖：Hook 处理请求、分页和选择；[QueryList](/reference/pro-components#querylist) 只是 UI。完整场景见 [查询表](/play/query)。
+从 `@shikiform/hooks` 导入，零 UI 库依赖：Hook 处理请求、分页、排序筛选和选择，视图层可自由接原生 `<table>` 或任意 UI 表格组件。完整场景见 [查询表](/play/query)。
 
 ## useQueryTable
 
@@ -42,7 +42,7 @@ useQueryTable<TValues, TRow = unknown>(
 | `mode` | `'server'` | server 模式由服务端分页；client 模式对请求结果的整个 data 做切片 |
 | `validateOnSubmit` | `true` | 调用 `submit()` 时先校验筛选字段（`params` 为字段路径时仅校验该子树，避免行内编辑 `rows` 的错误阻塞搜索），校验未通过则跳过请求 |
 | `request` | **必填** | 异步返回 `{ data, total, extra? }`，见协议 |
-| `rows` | 不写回 | 数组字段路径：每页 `data` 写进这个字段并作为它的初始值，单元格可直接编辑；`QueryList` 必须有它 |
+| `rows` | 不写回 | 数组字段路径：每页 `data` 写进这个字段并作为它的初始值，单元格可直接编辑 |
 | `useQuery` | 内置 runner | 省略时用库内的最小请求实现（不从包入口导出）。可换成 TanStack Query 等兼容 Hook；每次渲染应传同一个 Hook，不要动态切换 Hook 实现 |
 
 初始化时，client 的 page、pageSize 以及 selectedKeys 只从提交结果里拿掉（写上 `omit`），不改它们的 `visible`。server 的 page、pageSize 连这个都不写：调用方声明的 `visible: false` 保持不渲染。路径和模式等配置在同一实例生命周期内保持稳定。首次请求在 effect 中发起，SSR 不发送请求。
@@ -72,7 +72,7 @@ server 返回当前页 data 和未分页的 total；client 返回本次筛选下
 | 返回成员 | 类型 / 行为 |
 |---|---|
 | `form` | 原表单实例，可以用正式 Field/Hook 接搜索控件 |
-| `rows` | `rows` 选项的字段路径（没传为 `undefined`）；`QueryList` 渲染的就是它 |
+| `rows` | `rows` 选项的字段路径（没传为 `undefined`） |
 | `data`、`total` | 当前页 `TRow[]`、总数；未取得数据时 `[]` / `0` |
 | `extra` | `TExtra \| undefined`；最近一次成功响应返回的 `extra` 字段 |
 | `loading` | 请求中且还没有旧数据时 true |
@@ -88,12 +88,12 @@ server 返回当前页 data 和未分页的 total；client 返回本次筛选下
 | `sorter`、`filters` | 当前表头排序 / 列筛选，与发给 `request` 的一致 |
 | `setSorter(sorter): void` | 改排序：回第 1 页并请求；**保留选择**（结果集还是那些行） |
 | `setFilters(filters): void` | 改列筛选：回第 1 页、**清空选择**并请求（结果集变了，旧选择可能指向看不见的行） |
-| `onTableChange(pagination, filters, sorter, extra)` | 直接交给 antd `Table` 的 `onChange`；`extra.action === 'paginate'` 时忽略（分页走 `onPageChange`），其余转成 `setSorter` / `setFilters`；值没变不请求 |
+| `onTableChange(pagination, filters, sorter, extra)` | 适配标准表格组件的 `onChange` 回调；`extra.action === 'paginate'` 时忽略（分页走 `onPageChange`），其余转成 `setSorter` / `setFilters`；值没变不请求 |
 | `sortOrderOf(key)`、`filteredValueOf(key)` | 给受控列用的 `sortOrder` / `filteredValue`，`重置` 后表头随之清空 |
 
 ### 表头排序与列筛选
 
-列上写 `sorter: true` / `filters`，表头的变化经 `onTableChange` 进入 Hook，再作为 `sorter` / `filters` 发给 `request`。`QueryList` 已经接好，并把列的 `sortOrder` / `filteredValue` 设为受控（列自己写了就用列的）。排序和列筛选都回到第 1 页；列筛选和查询按钮一样清空选择，只翻页或只排序保留选择。`submit()` 保留当前排序和列筛选，`reset()` 一并清空。client 模式下排序 / 列筛选变化同样重新请求，由 `request` 返回排好、筛好的完整数据。
+表格列的排序与筛选变化经 `onTableChange`（或直接调用 `setSorter` / `setFilters`）进入 Hook，再作为 `sorter` / `filters` 发给 `request`。排序和列筛选都回到第 1 页；列筛选和查询按钮一样清空选择，只翻页或只排序保留选择。`submit()` 保留当前排序和列筛选，`reset()` 一并清空。client 模式下排序 / 列筛选变化同样重新请求，由 `request` 返回排好、筛好的完整数据。
 
 ```tsx
 const table = useQueryTable({
@@ -103,10 +103,8 @@ const table = useQueryTable({
   request: ({ params, page, pageSize, sorter, filters }) =>
     api.list({ ...params, page, pageSize, orderBy: sorter[0]?.field, order: sorter[0]?.order, status: filters.status }),
 })
-<QueryList table={table} columns={[
-  { key: 'id', title: 'ID', sorter: true, render: ({ record }) => record.id },
-  { key: 'status', title: '状态', filters: [{ text: '运行中', value: 1 }], render: () => <Field name="status" /> },
-]} />
+// 排序：table.setSorter([{ field: 'id', order: 'descend' }])
+// 筛选：table.setFilters({ status: [1] })
 ```
 
 **这里的 `submit()` 是查询动作，不是整表 `form.submit()`。** 默认会先校验筛选参数路径（可通过 `validateOnSubmit: false` 关闭），校验未通过时不发送请求。
@@ -118,10 +116,8 @@ const table = useQueryTable({
 这个例子不访问服务器。输入名称后点查询；client 模式每次筛选取完整数据，再在浏览器分页。移动页码不会再次运行 request。
 
 ```tsx preview
-import { Input } from 'antd';
-import { Field } from '@shikiform/react';
+import { Field, Form } from '@shikiform/react';
 import { useQueryTable } from '@shikiform/hooks';
-import { QueryList } from '@shikiform/antd';
 
 type Row = { id: string; name: string };
 type Values = { filters: { name: string }; list: Row[]; page: number; pageSize: number; selectedKeys: string[] };
@@ -141,13 +137,31 @@ export default function App() {
       return { data, total: data.length };
     },
   });
+  const totalPages = Math.max(1, Math.ceil(table.total / table.pageSize));
   return (
-    <QueryList table={table} settings={false} rowSelection={false} columns={[{ key: 'name', title: '名称', render: ({ record }) => record.name }]}>
-      <Field<Values, 'filters.name'> name="filters.name">
-        {(field) => <Input aria-label="筛选名称" placeholder="输入后点查询" value={field.value}
-          onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} />}
-      </Field>
-    </QueryList>
+    <Form form={table.form} onSubmit={() => table.submit()}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+        <Field<Values, 'filters.name'> name="filters.name">
+          {(field) => (
+            <input aria-label="筛选名称" placeholder="输入后点查询" value={field.value}
+              onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} />
+          )}
+        </Field>
+        <button type="submit">查询</button>
+        <button type="button" onClick={() => table.reset()}>重置</button>
+      </div>
+      <table>
+        <thead><tr><th>名称</th></tr></thead>
+        <tbody>
+          {table.data.map((row) => <tr key={row.id}><td>{row.name}</td></tr>)}
+        </tbody>
+      </table>
+      <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
+        <button type="button" disabled={table.page <= 1} onClick={() => table.onPageChange(table.page - 1)}>上一页</button>
+        <span>第 {table.page} / {totalPages} 页（共 {table.total} 条）</span>
+        <button type="button" disabled={table.page >= totalPages} onClick={() => table.onPageChange(table.page + 1)}>下一页</button>
+      </div>
+    </Form>
   );
 }
 ```
@@ -170,4 +184,4 @@ export default function App() {
 
 ## 实现位置
 
-`packages/hooks/src/use-query-table.ts` 定义 `useQueryTable` 和默认请求。公开导出只有 `useQueryTable`（`packages/hooks/src/index.ts`）。UI 的分页/选择接线在 `packages/antd/src/tables/query-list.tsx`，参阅 [QueryList](/reference/pro-components#querylist)。
+`packages/hooks/src/use-query-table.ts` 定义 `useQueryTable` 和默认请求。公开导出在 `packages/hooks/src/index.ts`。

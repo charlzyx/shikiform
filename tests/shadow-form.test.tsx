@@ -1,6 +1,5 @@
 // @vitest-environment happy-dom
-import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react'
-import { Button } from 'antd'
+import { act, cleanup, render, renderHook, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { engineOf } from '@shikiform/core/internal'
@@ -11,22 +10,11 @@ import {
   enUS,
   Field,
   Form,
-  ObjectField,
   setDefaultMessages,
   useField,
   zhCN,
 } from '@shikiform/react'
-import { FieldGroup, useFieldGroup } from '@shikiform/react/internal'
-import {
-  ArrayTable,
-  FormItem,
-  Input,
-  ShadowDrawer,
-  ShadowForm,
-  ShadowModal,
-  ShadowPopconfirm,
-  useShadow,
-} from '@shikiform/antd'
+import { Input } from './fixtures/native-kit'
 import * as HooksPublic from '@shikiform/hooks'
 import { useShadowForm } from '@shikiform/hooks'
 
@@ -320,266 +308,28 @@ describe('useShadowForm', () => {
   })
 })
 
-describe('Shadow components', () => {
-  it('ShadowModal bound by name edits a copy and writes back only on OK', async () => {
-    const form = createForm({ initialValues: { info: { domain: 'www.baidu.com', desc: 'ping' } } })
-    render(
-      <Host form={form}>
-        <ShadowModal name="info" title="编辑" trigger={<Button data-testid="open">编辑</Button>}>
-          <Field name="domain" title="域名" decorator={[FormItem]}>
-            <Input data-testid="shadow-domain" />
-          </Field>
-        </ShadowModal>
-      </Host>,
-    )
-    fireEvent.click(screen.getByTestId('open'))
-    await waitFor(() => expect((screen.getByTestId('shadow-domain') as HTMLInputElement).value).toBe('www.baidu.com'))
-    fireEvent.change(screen.getByTestId('shadow-domain'), { target: { value: 'draft.com' } })
-    expect(form.getValue('info').domain).toBe('www.baidu.com')
-    fireEvent.click(screen.getByText(/^取\s*消$/))
-    expect(form.getValue('info').domain).toBe('www.baidu.com')
-    expect(form.dirty).toBe(false)
-    fireEvent.click(screen.getByTestId('open'))
-    await waitFor(() => expect((screen.getByTestId('shadow-domain') as HTMLInputElement).value).toBe('www.baidu.com'))
-    fireEvent.change(screen.getByTestId('shadow-domain'), { target: { value: 'saved.com' } })
-    fireEvent.click(screen.getByText(/^确\s*定$/))
-    await waitFor(() => expect(form.getValue('info')).toEqual({ domain: 'saved.com', desc: 'ping' }))
-  })
-
-  it('ShadowPopconfirm opens from its trigger and confirms', async () => {
-    const form = createForm({ initialValues: { info: { name: 'x' } } })
-    render(
-      <Host form={form}>
-        <ObjectField name="info">
-          <ShadowPopconfirm trigger={<Button data-testid="pop">改名</Button>}>
-            <Field name="name" decorator={[FormItem]}>
-              <Input data-testid="pop-name" />
-            </Field>
-          </ShadowPopconfirm>
-        </ObjectField>
-      </Host>,
-    )
-    fireEvent.click(screen.getByTestId('pop'))
-    await waitFor(() => expect((screen.getByTestId('pop-name') as HTMLInputElement).value).toBe('x'))
-    fireEvent.change(screen.getByTestId('pop-name'), { target: { value: 'y' } })
-    fireEvent.click(screen.getByText(/^确\s*定$/))
-    await waitFor(() => expect(form.getValue('info').name).toBe('y'))
-  })
-
-  it('ShadowForm inline exposes the draft to a render prop and to useShadow', async () => {
-    const submitted: unknown[] = []
-    function SubmitButton() {
-      const shadow = useShadow()
-      return (
-        <button data-testid="inline-submit" onClick={() => void shadow.confirm()}>
-          提交
-        </button>
-      )
-    }
-    render(
-      <ShadowForm record={{ domain: 'a.com' }} onOk={(values) => void submitted.push(values)}>
-        {(shadow) => (
-          <>
-            <Field name="domain" decorator={[FormItem]}>
-              <Input data-testid="inline-domain" />
-            </Field>
-            <span data-testid="dirty">{String(shadow.visible)}</span>
-            <SubmitButton />
-          </>
-        )}
-      </ShadowForm>,
-    )
-    await waitFor(() => expect((screen.getByTestId('inline-domain') as HTMLInputElement).value).toBe('a.com'))
-    fireEvent.change(screen.getByTestId('inline-domain'), { target: { value: 'b.com' } })
-    fireEvent.click(screen.getByTestId('inline-submit'))
-    await waitFor(() => expect(submitted).toEqual([{ domain: 'b.com' }]))
-  })
-
-  it('isolates draft fields from host row scope and host FieldGroup', async () => {
+describe('shadow form scope isolation', () => {
+  it('isolates draft fields from host row scope', async () => {
     const form = createForm({ initialValues: { hostField: 'h', list: [{ name: 'row' }] } })
-    let groupPaths: () => string[] = () => []
     function Inner() {
       const field = useField('name')
       return <span data-testid="scoped">{String(field.value)}</span>
     }
-    function GroupHost() {
-      const group = useFieldGroup()
-      groupPaths = () => group.paths()
+    function DraftBox() {
+      const shadow = useShadowForm({ initialValues: { name: 'draft' } })
       return (
-        <FieldGroup value={group}>
-          <Field name="hostField" component={[Input]} />
-          <ArrayField name="list">
-            {() => (
-              <ShadowForm record={{ name: 'draft' }}>
-                <Field name="draftOnly" component={[Input]} />
-                <Inner />
-              </ShadowForm>
-            )}
-          </ArrayField>
-        </FieldGroup>
+        <Form form={shadow.form}>
+          <Field name="draftOnly" component={[Input]} />
+          <Inner />
+        </Form>
       )
     }
     render(
       <Host form={form}>
-        <GroupHost />
+        <Field name="hostField" component={[Input]} />
+        <ArrayField name="list">{() => <DraftBox />}</ArrayField>
       </Host>,
     )
     await waitFor(() => expect(screen.getByTestId('scoped').textContent).toBe('draft'))
-    expect(groupPaths()).toEqual(['hostField', 'list'])
-  })
-
-  it('hides OK and uses messages.close when readOnly while respecting explicit modalProps/drawerProps footer', async () => {
-    const form = createForm({
-      initialValues: { info: { domain: 'readonly.dev' } },
-      readOnly: true,
-      messages: enUS,
-    })
-    render(
-      <Host form={form}>
-        <ShadowModal name="info" title="Detail" trigger={<Button data-testid="open-rp-modal">Modal</Button>}>
-          <Field name="domain" decorator={[FormItem]} component={[Input]} />
-        </ShadowModal>
-        <ShadowModal
-          name="info"
-          title="Custom Modal"
-          modalProps={{ footer: <div data-testid="custom-modal-footer">My Modal Footer</div> }}
-          trigger={<Button data-testid="open-custom-modal">CustomModal</Button>}
-        >
-          <Field name="domain" decorator={[FormItem]} component={[Input]} />
-        </ShadowModal>
-        <ShadowDrawer name="info" title="Drawer Detail" trigger={<Button data-testid="open-rp-drawer">Drawer</Button>}>
-          <Field name="domain" decorator={[FormItem]} component={[Input]} />
-        </ShadowDrawer>
-        <ShadowDrawer
-          name="info"
-          title="Custom Drawer"
-          drawerProps={{ footer: <div data-testid="custom-drawer-footer">My Drawer Footer</div> }}
-          trigger={<Button data-testid="open-custom-drawer">CustomDrawer</Button>}
-        >
-          <Field name="domain" decorator={[FormItem]} component={[Input]} />
-        </ShadowDrawer>
-      </Host>,
-    )
-
-    fireEvent.click(screen.getByTestId('open-rp-modal'))
-    await waitFor(() => expect(screen.getByText('Close')).toBeTruthy())
-    expect(screen.queryByText('OK')).toBeNull()
-    fireEvent.click(screen.getByText('Close'))
-
-    fireEvent.click(screen.getByTestId('open-custom-modal'))
-    await waitFor(() => expect(screen.getByTestId('custom-modal-footer').textContent).toBe('My Modal Footer'))
-
-    fireEvent.click(screen.getByTestId('open-rp-drawer'))
-    await waitFor(() => expect(screen.getAllByText('Close').length).toBeGreaterThan(0))
-    expect(screen.queryByText('OK')).toBeNull()
-
-    fireEvent.click(screen.getByTestId('open-custom-drawer'))
-    await waitFor(() => expect(screen.getByTestId('custom-drawer-footer').textContent).toBe('My Drawer Footer'))
-  })
-
-  it('reactively updates footer when draft root $readOnly switches at runtime and covers ShadowPopconfirm', async () => {
-    function SwitchableModal() {
-      const shadow = useShadowForm<{ domain: string }>({
-        initialValues: { domain: 'live.dev' },
-        formOptions: { messages: enUS },
-      })
-      return (
-        <>
-          <Button data-testid="toggle-rp" onClick={() => shadow.form.batch((d) => { d.$readOnly = true })}>
-            MakeReadOnly
-          </Button>
-          <ShadowModal shadow={shadow} title="Live" trigger={<Button data-testid="open-live">OpenLive</Button>}>
-            <Field name="domain" decorator={[FormItem]} component={[Input]} />
-          </ShadowModal>
-          <ShadowPopconfirm
-            formOptions={{ readOnly: true, messages: enUS }}
-            record={{ domain: 'pop.dev' }}
-            trigger={<Button data-testid="open-rp-pop">OpenPop</Button>}
-          >
-            <Field name="domain" decorator={[FormItem]} component={[Input]} />
-          </ShadowPopconfirm>
-        </>
-      )
-    }
-    render(<SwitchableModal />)
-    fireEvent.click(screen.getByTestId('open-live'))
-    await waitFor(() => expect(screen.getByText('OK')).toBeTruthy())
-    expect(screen.getByText('Cancel')).toBeTruthy()
-    fireEvent.click(screen.getByTestId('toggle-rp'))
-    await waitFor(() => expect(screen.queryByText('OK')).toBeNull())
-    expect(screen.getByText('Close')).toBeTruthy()
-    fireEvent.click(screen.getByText('Close'))
-
-    fireEvent.click(screen.getByTestId('open-rp-pop'))
-    await waitFor(() => expect(screen.getAllByText('Close').length).toBeGreaterThan(0))
-    const popOk = document.querySelector('.ant-popconfirm-buttons .ant-btn-primary') as HTMLElement | null
-    expect(popOk?.style.display).toBe('none')
-  })
-})
-
-describe('ArrayTable + bound ShadowModal & ShadowAddition', () => {
-  it('edits the row in-scope and ShadowAddition appends and pages', async () => {
-    const form = createForm({
-      initialValues: {
-        list: [
-          { id: 1, domain: 'a.com' },
-          { id: 2, domain: 'b.com' },
-        ],
-      },
-    })
-    render(
-      <Host form={form}>
-        <ArrayField
-          name="list"
-          rowKey="id"
-          component={[
-            ArrayTable,
-            {
-              pagination: { pageSize: 2 },
-              columns: [
-                {
-                  key: 'domain',
-                  title: '域名',
-                  render: () => (
-                    <Field name="domain" readOnly decorator={[FormItem]}>
-                      <Input />
-                    </Field>
-                  ),
-                },
-                {
-                  key: 'edit',
-                  title: '编辑',
-                  render: ({ index }) => (
-                    <ShadowModal title="编辑行" trigger={<Button data-testid={`edit-${index}`}>编辑</Button>}>
-                      <Field name="domain" decorator={[FormItem]}>
-                        <Input data-testid="edit-domain" />
-                      </Field>
-                    </ShadowModal>
-                  ),
-                },
-              ],
-              extra: (
-                <ArrayTable.ShadowAddition title="添加条目">
-                  <Field name="domain" decorator={[FormItem]}>
-                    <Input data-testid="add-domain" />
-                  </Field>
-                </ArrayTable.ShadowAddition>
-              ),
-            },
-          ]}
-        />
-      </Host>,
-    )
-    fireEvent.click(screen.getByTestId('edit-1'))
-    await waitFor(() => expect((screen.getByTestId('edit-domain') as HTMLInputElement).value).toBe('b.com'))
-    fireEvent.change(screen.getByTestId('edit-domain'), { target: { value: 'bb.com' } })
-    fireEvent.click(screen.getByText(/^确\s*定$/))
-    await waitFor(() => expect(form.getValue('list')[1]).toEqual({ id: 2, domain: 'bb.com' }))
-    fireEvent.click(screen.getByTestId('pro-addition'))
-    await waitFor(() => expect(screen.getByTestId('add-domain')).toBeTruthy())
-    fireEvent.change(screen.getByTestId('add-domain'), { target: { value: 'c.com' } })
-    fireEvent.click(screen.getAllByText(/^确\s*定$/).at(-1)!)
-    await waitFor(() => expect(form.getValue('list').map((row) => row.domain)).toEqual(['a.com', 'bb.com', 'c.com']))
-    await waitFor(() => expect(screen.getByText('c.com')).toBeTruthy())
   })
 })

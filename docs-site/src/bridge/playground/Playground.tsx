@@ -2,18 +2,12 @@ import {
   Component,
   useEffect,
   useId,
-  useMemo,
   useRef,
   useState,
   type ComponentType,
   type ReactNode,
 } from 'react'
-import { ConfigProvider, theme as antdTheme, type ThemeConfig } from 'antd'
-import zhCN from 'antd/locale/zh_CN'
-import dayjs from 'dayjs'
-import 'dayjs/locale/zh-cn'
 import type { EditorView } from '@codemirror/view'
-import { useSiteDark } from '../theme'
 import type { DemoFiles } from './runtime'
 import {
   CheckIcon, ChevronIcon, CollapseIcon, CopyIcon, EditIcon, ExpandIcon, ExternalIcon, RerunIcon, ResetIcon,
@@ -52,19 +46,6 @@ const errorText = (error: unknown) => (error instanceof Error ? error.message : 
 function sameFiles(a: DemoFiles, b: DemoFiles) {
   const keys = Object.keys(a)
   return keys.length === Object.keys(b).length && keys.every((key) => a[key] === b[key])
-}
-
-dayjs.locale('zh-cn')
-
-/** Antd follows the Nimbus appearance (data-mode); its built-in texts are Chinese like the site. A theme change re-renders the preview; it never remounts it. */
-function DemoTheme({ children }: { children: ReactNode }) {
-  const dark = useSiteDark()
-  const config = useMemo<ThemeConfig>(() => ({
-    algorithm: dark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
-    // Nimbus 的品牌色和正文字体。
-    token: { colorPrimary: dark ? '#5c73e7' : '#3451b2', fontFamily: 'var(--nb-font-sans, system-ui)' },
-  }), [dark])
-  return <ConfigProvider locale={zhCN} theme={config}>{children}</ConfigProvider>
 }
 
 /** Runtime errors of an edited demo stay inside its preview. */
@@ -236,11 +217,9 @@ export function Playground({
   return (
     <section ref={root} className="sf-demo" aria-label={label} data-editing={editing || undefined}>
       <div className="sf-demo__preview vp-raw" data-prebuilt={prebuilt || undefined}>
-        <DemoTheme>
-          {Preview
-            ? <PreviewBoundary key={`${prebuilt ? 'built' : compiled.version}:${run}`}><Preview /></PreviewBoundary>
-            : !compiled.error && <p className="sf-demo__loading">正在加载示例…</p>}
-        </DemoTheme>
+        {Preview
+          ? <PreviewBoundary key={`${prebuilt ? 'built' : compiled.version}:${run}`}><Preview /></PreviewBoundary>
+          : !compiled.error && <p className="sf-demo__loading">正在加载示例…</p>}
         {!prebuilt && compiled.error && <pre className="sf-demo__error" role="alert">{compiled.error}</pre>}
       </div>
 

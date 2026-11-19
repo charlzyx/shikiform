@@ -2,7 +2,7 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { Field, Form, useForm } from '@shikiform/react'
-import { FormItem, Input } from '@shikiform/antd'
+import { FormItem, Input } from './fixtures/native-kit'
 
 afterEach(cleanup)
 

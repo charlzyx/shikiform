@@ -1,11 +1,9 @@
 // @vitest-environment happy-dom
-import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ArrayField, enUS, Field, Form, setDefaultMessages, useForm, zhCN } from '@shikiform/react'
+import { act, cleanup, render, renderHook, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it } from 'vitest'
+import { enUS, Form, Reset, setDefaultMessages, Submit, useForm, zhCN } from '@shikiform/react'
 import { useFormMessage } from '@shikiform/react/internal'
 import { moveNode } from '@shikiform/core'
-import { PreviewText, ArrayTable, QueryList, Reset, ShadowDrawer, ShadowPopconfirm, Submit } from '@shikiform/antd'
-import { useQueryTable } from '@shikiform/hooks'
 import { createEngine } from '../packages/core/src/engine/create'
 
 afterEach(() => {
@@ -45,83 +43,23 @@ describe('built-in texts go through messages', () => {
     expect(result.current('density', { density: 'small' })).toBe('Density: Compact')
   })
 
-  it('antd Submit / Reset and PreviewText follow the form messages', () => {
+  it('Submit and Reset follow the form messages', () => {
     function Page({ en }: { en?: boolean }) {
-      const form = useForm({ initialValues: { ok: true, no: false, empty: '' }, messages: en ? { ...enUS, empty: '—' } : undefined })
+      const form = useForm({ initialValues: { ok: true }, messages: en ? enUS : undefined })
       return (
         <Form form={form}>
-          <span data-testid="yes"><PreviewText value={form.getValue('ok')} /></span>
-          <span data-testid="no"><PreviewText value={form.getValue('no')} /></span>
-          <span data-testid="empty"><PreviewText value={form.getValue('empty')} /></span>
           <Submit />
           <Reset data-testid="reset" />
         </Form>
       )
     }
     const zh = render(<Page />)
-    expect(screen.getAllByRole('button')[0]!.textContent?.replace(/\s/g, '')).toBe('提交')
-    expect(screen.getByTestId('reset').textContent?.replace(/\s/g, '')).toBe('重置')
-    expect(screen.getByTestId('yes').textContent).toBe('是')
-    expect(screen.getByTestId('empty').textContent).toBe('-')
+    expect(screen.getAllByRole('button')[0]!.textContent).toBe('提交')
+    expect(screen.getByTestId('reset').textContent).toBe('重置')
     zh.unmount()
     render(<Page en />)
     expect(screen.getAllByRole('button')[0]!.textContent).toBe('Submit')
     expect(screen.getByTestId('reset').textContent).toBe('Reset')
-    expect(screen.getByTestId('yes').textContent).toBe('Yes')
-    expect(screen.getByTestId('no').textContent).toBe('No')
-    expect(screen.getByTestId('empty').textContent).toBe('—')
-  })
-
-  it('ArrayTable labels follow enUS; component props still win', () => {
-    const form = createEngine({ initialValues: { list: [{ a: '1' }, { a: '2' }] }, messages: enUS })
-    render(
-      <Form form={form}>
-        <ArrayField name="list" component={[ArrayTable, {
-          rowSelection: true,
-          columns: [{ key: 'act', title: 'Act', render: () => <><ArrayTable.MoveUp /><ArrayTable.Copy /><ArrayTable.Remove title="Drop" /></> }],
-          extra: <ArrayTable.Addition />,
-        }]} />
-      </Form>,
-    )
-    expect(screen.getAllByTestId('row-up')[0]!.textContent).toBe('Move up')
-    expect(screen.getAllByTestId('row-copy')[0]!.textContent).toBe('Copy')
-    expect(screen.getAllByTestId('row-remove')[0]!.textContent).toBe('Drop')
-    expect(screen.getByTestId('row-add').textContent).toBe('Add item')
-    expect(screen.getByTestId('selection-count').textContent).toBe('0 selected')
-    expect(screen.getByTestId('selection-invert').textContent).toBe('Invert')
-  })
-
-  it('QueryList buttons read the query form messages', async () => {
-    const request = vi.fn(async () => ({ data: [], total: 0 }))
-    function Page() {
-      const form = useForm({ initialValues: { query: { a: '', b: '', c: '', d: '' }, list: [] as { id: string }[] }, messages: enUS })
-      const table = useQueryTable({ form, params: 'query', rows: 'list', request })
-      return (
-        <QueryList table={table} settings={false} columns={[]}>
-          <Field name="query.a" /><Field name="query.b" /><Field name="query.c" /><Field name="query.d" />
-        </QueryList>
-      )
-    }
-    render(<Page />)
-    await waitFor(() => expect(request).toHaveBeenCalled())
-    expect(screen.getByTestId('query-toggle').textContent).toBe('Expand')
-    expect(screen.getByTestId('query-submit').textContent).toBe('Search')
-    expect(screen.getByTestId('query-reset').textContent).toBe('Reset')
-    expect(screen.getByTestId('query-refresh').getAttribute('title')).toBe('Refresh')
-  })
-
-  it('shadow triggers and drawer footer use messages', async () => {
-    setDefaultMessages(enUS)
-    render(
-      <>
-        <ShadowPopconfirm record={{}} onOk={() => undefined} />
-        <ShadowDrawer record={{}} onOk={() => undefined} trigger={<button>open</button>} />
-      </>,
-    )
-    expect(screen.getByText('Edit')).toBeTruthy()
-    fireEvent.click(screen.getByText('open'))
-    await waitFor(() => expect(screen.getByText('Cancel')).toBeTruthy())
-    expect(screen.getByText('OK')).toBeTruthy()
   })
 })
 

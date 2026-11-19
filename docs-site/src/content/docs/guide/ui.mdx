@@ -20,11 +20,26 @@ description: 为同一个字段挂载多个独立控件（如输入框 + 滑块/
 ## 同一字段的独立 UI 实例
 
 ```tsx preview
-import type { CSSProperties } from 'react';
-import { defineEffects, Form, typed, useField, useForm } from '@shikiform/react';
-import { FormItem, FormLayout, Input } from '@shikiform/antd';
+import type { CSSProperties, ReactNode } from 'react';
+import { defineEffects, Form, typed, useField, useFieldDecorator, useForm } from '@shikiform/react';
 
 type Values = { nickname: string };
+
+function FieldItem({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <label {...d.labelProps} style={{ display: 'inline-block', width: 56 }}>{d.label}</label>
+      {children}
+    </div>
+  );
+}
+
+function TextInput({ placeholder }: { placeholder?: string }) {
+  const field = useField<string>();
+  return <input id={field.id} value={field.value ?? ''} placeholder={placeholder}
+    onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />;
+}
 
 // 显示组件从无参 useField() 拿值：在 <Field ui> 里它是共享的字段 + 这个实例的 UI 状态
 function Echo({ style }: { style?: CSSProperties }) {
@@ -47,10 +62,8 @@ export default function App() {
   const F = typed(form);
   return (
     <Form form={form} id="echo" data-ui-echo-demo="">
-      <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 16 }}>
-        <F.Field name="nickname" title="昵称" decorator={[FormItem]} component={[Input, { placeholder: '超过 8 个字回显变红' }]} />
-        <F.Field name="nickname" ui="echo" title="回显" decorator={[FormItem]} component={[Echo]} />
-      </FormLayout>
+      <F.Field name="nickname" title="昵称" decorator={[FieldItem]} component={[TextInput, { placeholder: '超过 8 个字回显变红' }]} />
+      <F.Field name="nickname" ui="echo" title="回显" decorator={[FieldItem]} component={[Echo]} />
     </Form>
   );
 }
@@ -63,10 +76,37 @@ export default function App() {
 ## 共享数据但独立控制交互形态
 
 ```tsx preview
-import { defineEffects, Form, typed, useForm } from '@shikiform/react';
-import { FormItem, FormLayout, InputNumber, Slider, Switch } from '@shikiform/antd';
+import type { ReactNode } from 'react';
+import { defineEffects, Form, typed, useField, useFieldDecorator, useForm } from '@shikiform/react';
 
 type Values = { budget: number; locked: boolean };
+
+function FieldItem({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <label {...d.labelProps} style={{ display: 'inline-block', width: 72 }}>{d.label}</label>
+      {children}
+    </div>
+  );
+}
+
+function Toggle() {
+  const field = useField<boolean>();
+  return <input id={field.id} type="checkbox" checked={Boolean(field.value)} onChange={(e) => field.onChange(e.target.checked)} />;
+}
+
+function NumberInput({ min, max }: { min?: number; max?: number }) {
+  const field = useField<number>();
+  return <input id={field.id} type="number" min={min} max={max} value={field.value ?? 0}
+    disabled={field.disabled} onChange={(e) => field.onChange(Number(e.target.value))} />;
+}
+
+function RangeSlider({ min = 0, max = 100 }: { min?: number; max?: number }) {
+  const field = useField<number>();
+  return <input id={field.id} type="range" min={min} max={max} value={field.value ?? 0}
+    disabled={field.disabled} onChange={(e) => field.onChange(Number(e.target.value))} />;
+}
 
 export default function App() {
   const form = useForm<Values>({
@@ -82,11 +122,9 @@ export default function App() {
   const F = typed(form);
   return (
     <Form form={form} data-ui-slider-demo="">
-      <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 16 }}>
-        <F.Field name="locked" title="锁定滑块" decorator={[FormItem]} component={[Switch]} />
-        <F.Field name="budget" title="预算" required decorator={[FormItem]} component={[InputNumber, { min: 0, max: 100 }]} />
-        <F.Field name="budget" ui="slider" decorator={[FormItem, { label: ' ', colon: false }]} component={[Slider]} />
-      </FormLayout>
+      <F.Field name="locked" title="锁定滑块" decorator={[FieldItem]} component={[Toggle]} />
+      <F.Field name="budget" title="预算" required decorator={[FieldItem]} component={[NumberInput, { min: 0, max: 100 }]} />
+      <F.Field name="budget" ui="slider" title=" " decorator={[FieldItem]} component={[RangeSlider]} />
     </Form>
   );
 }
@@ -99,12 +137,29 @@ export default function App() {
 ## 无数据的提示节点：`<UI>`
 
 ```tsx preview
-import { Alert } from 'antd';
 import { useState } from 'react';
-import { defineEffects, Form, typed, UI, useForm } from '@shikiform/react';
-import { FormButtonGroup, FormItem, FormLayout, InputNumber, Submit } from '@shikiform/antd';
+import { defineEffects, Form, Submit, typed, UI, useField, useForm } from '@shikiform/react';
 
 type Values = { amount: number | null };
+
+function NumberInput() {
+  const field = useField<number | null>();
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <label htmlFor={field.id} style={{ display: 'inline-block', width: 72 }}>{field.title}</label>
+      <input id={field.id} type="number" value={field.value ?? ''}
+        onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))} />
+    </div>
+  );
+}
+
+function WarningBanner({ message }: { message: string }) {
+  return (
+    <div role="status" style={{ padding: '6px 10px', marginBottom: 8, background: '#fffbeb', border: '1px solid #f59e0b', color: '#92400e' }}>
+      ⚠ {message}
+    </div>
+  );
+}
 
 export default function App() {
   const form = useForm<Values>({
@@ -121,14 +176,9 @@ export default function App() {
   const [saved, setSaved] = useState<Values>();
   return (
     <Form form={form} onSubmit={setSaved} data-ui-alert-demo="">
-      <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 16 }}>
-        <F.Field name="amount" title="报销金额" decorator={[FormItem]} component={[InputNumber, { style: { width: 200 } }]} />
-        <UI name="approvalTip" decorator={[FormItem, { label: ' ', colon: false }]}
-          component={[Alert, { type: 'warning', showIcon: true, message: '金额 ≥ 50000，提交后需要主管审批' }]} />
-        <FormButtonGroup.FormItem>
-          <Submit />
-        </FormButtonGroup.FormItem>
-      </FormLayout>
+      <F.Field name="amount" title="报销金额" component={[NumberInput]} />
+      <UI name="approvalTip" component={[WarningBanner, { message: '金额 ≥ 50000，提交后需要主管审批' }]} />
+      <Submit>提交</Submit>
       {saved && <pre>{JSON.stringify(saved)}</pre>}
     </Form>
   );
@@ -142,12 +192,42 @@ export default function App() {
 用 `<UI>` 包裹一组字段作为视觉分组时，把 `<UI>` 隐藏仅仅是卸载了这层容器界面。里面的字段是否渲染、是否校验看它的有效 `$visible`（字段路径上的祖先也会传下来）。是否提交看有效 `$omit`：字段自己的，或字段路径上祖先的。`<UI>` 不在字段路径上，藏起它不会让里面的字段变成 omit。
 
 ```tsx preview
-import { Card } from 'antd';
-import { useState } from 'react';
-import { defineEffects, Form, typed, UI, useForm } from '@shikiform/react';
-import { FormButtonGroup, FormItem, FormLayout, Input, Submit, Switch } from '@shikiform/antd';
+import { useState, type ReactNode } from 'react';
+import { defineEffects, Form, Submit, typed, UI, useField, useForm } from '@shikiform/react';
 
 type Values = { needInvoice: boolean; invoiceTitle: string; remark: string };
+
+function Toggle() {
+  const field = useField<boolean>();
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <label>
+        <input id={field.id} type="checkbox" checked={Boolean(field.value)} onChange={(e) => field.onChange(e.target.checked)} />
+        {' '}{field.title}
+      </label>
+    </div>
+  );
+}
+
+function TextInput() {
+  const field = useField<string>();
+  return (
+    <div style={{ marginBottom: 6 }}>
+      <label htmlFor={field.id} style={{ display: 'inline-block', width: 56 }}>{field.title}</label>
+      <input id={field.id} value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />
+      {field.errors[0] && <small role="alert" style={{ color: 'crimson', marginLeft: 6 }}>{field.errors[0]}</small>}
+    </div>
+  );
+}
+
+function GroupBox({ title, children }: { title: string; children?: ReactNode }) {
+  return (
+    <fieldset style={{ border: '1px solid #ccc', padding: 10, marginBottom: 10 }}>
+      <legend>{title}</legend>
+      {children}
+    </fieldset>
+  );
+}
 
 export default function App() {
   const form = useForm<Values>({
@@ -167,16 +247,12 @@ export default function App() {
   const [saved, setSaved] = useState<Values>();
   return (
     <Form form={form} onSubmit={setSaved} data-ui-box-demo="">
-      <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 16 }}>
-        <F.Field name="needInvoice" title="开发票" decorator={[FormItem]} component={[Switch]} />
-        <UI name="invoiceBox" component={[Card, { size: 'small', title: '发票信息', style: { marginBottom: 16 } }]}>
-          <F.Field name="invoiceTitle" title="抬头" required decorator={[FormItem]} component={[Input]} />
-          <F.Field name="remark" title="备注" decorator={[FormItem]} component={[Input]} />
-        </UI>
-        <FormButtonGroup.FormItem>
-          <Submit />
-        </FormButtonGroup.FormItem>
-      </FormLayout>
+      <F.Field name="needInvoice" title="开发票" component={[Toggle]} />
+      <UI name="invoiceBox" component={[GroupBox, { title: '发票信息' }]}>
+        <F.Field name="invoiceTitle" title="抬头" required component={[TextInput]} />
+        <F.Field name="remark" title="备注" component={[TextInput]} />
+      </UI>
+      <Submit>提交</Submit>
       {saved && <pre>{JSON.stringify(saved)}</pre>}
     </Form>
   );

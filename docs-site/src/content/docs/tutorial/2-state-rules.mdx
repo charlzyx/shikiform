@@ -1,0 +1,48 @@
+---
+title: 2. 状态与校验
+description: 掌握四个独立字段状态布尔（visible / disabled / readOnly / omit），并结合字段级 rules 与整表 Zod Schema 校验表单。
+tableOfContents: false
+---
+
+<div className="tutorial-step">
+<div className="tutorial-copy">
+
+## 2.1 字段状态与路径继承
+
+练习代码里有一个「需要联系」开关，目前无论开或关，下方的邮箱输入框始终显示在界面上。
+
+在联动函数中，字段自身状态统一带 `$` 前缀（例如 `$value` 读取当前值，`$required` 控制必填），不带 `$` 的属性名则代表子字段：
+
+| 开关 | 界面 | 校验 | 提交 |
+|---|---|---|---|
+| `visible: false` | 不渲染 | 跳过 | 仍然提交 |
+| `disabled: true` | 置灰 | 跳过 | 提交 |
+| `readOnly: true` | 预览（同时 `disabled` 时预览优先） | 跳过 | 提交 |
+| `omit: true` | 不影响 | 不影响 | 不提交 |
+
+四个布尔都沿字段路径继承。`visible` / `disabled` / `readOnly` 本层写了 `true` 或 `false` 就用本层；`omit` 则是任一祖先为 `true` 时整棵子树不提交。校验只在 `visible && !disabled && !readOnly` 时运行。
+
+**这一步：** 在 `reaction` 中补充 `d.email.$visible = d.contact.$value`。关闭开关即可隐藏邮箱且跳过校验；若同时不希望进入提交 JSON，再写 `d.email.$omit = !d.contact.$value`。
+
+</div>
+
+<TutorialPlay id="04-state" />
+
+</div>
+
+<div className="tutorial-step">
+<div className="tutorial-copy">
+
+## 2.2 字段规则与整表 Zod 校验
+
+单字段规则写在 `<Field rules>` 上；整表校验可将实现 Standard Schema 的校验器（如 Zod）传给 `useForm` 的 `validate`。默认在失焦（`onBlur`）与提交时执行校验。
+
+内置规则中，空值（`''`、`null`、`undefined`）只由 `required` 拦截，`minLength`、`format`、`min` 等规则遇到空值直接放行。起始代码中的 Zod Schema 同样放过了空值（邮箱包含 `z.literal('')`，年龄使用 `.nullable()` 兼容数字框清空后的 `null`）。
+
+**这一步：** 给 `useForm` 传入 `validate: schema`，为三个字段加上 `required`，并为姓名加上 `rules={{ minLength: 2, message: '至少 2 个字' }}`。
+
+</div>
+
+<TutorialPlay id="09-rules" />
+
+</div>

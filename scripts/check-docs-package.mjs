@@ -66,7 +66,7 @@ if (listOnly) {
   process.stdout.write(`${JSON.stringify(manifest, null, 2)}\n`)
   process.exit(0)
 }
-const packageNames = ['core', 'react', 'hooks', 'antd']
+const packageNames = ['core', 'react', 'hooks']
 for (const name of packageNames) {
   if (!existsSync(path.join(root, 'packages', name, 'dist', 'index.d.ts'))) throw new Error('Run npm run build:lib before this check')
 }
@@ -100,7 +100,6 @@ try {
     core: /^(react|react-dom|antd|dayjs)(\/|$)|@shikiform\/(react|hooks|antd)/,
     react: /^(antd|dayjs)(\/|$)|@shikiform\/(hooks|antd)/,
     hooks: /^(antd|dayjs)(\/|$)|@shikiform\/antd/,
-    antd: null,
   }
   for (const name of packageNames) {
     const sourceDir = path.join(root, 'packages', name)
@@ -157,8 +156,8 @@ try {
   writeFileSync(path.join(consumer, 'package-context.tsx'), readFileSync(path.join(root, 'scripts/fixtures/package-context.tsx'), 'utf8'))
   writeFileSync(path.join(consumer, 'public-entrypoints.ts'), [
     "import * as form from '@shikiform/react'", "import * as core from '@shikiform/core'",
-    "import * as pro from '@shikiform/hooks'", "import * as antd from '@shikiform/antd'",
-    'export const publicEntrypoints = { form, core, pro, antd }',
+    "import * as pro from '@shikiform/hooks'",
+    'export const publicEntrypoints = { form, core, pro }',
   ].join('\n'))
   writeFileSync(path.join(consumer, 'tsconfig.json'), JSON.stringify({
     compilerOptions: { target: 'ES2022', module: 'ESNext', moduleResolution: 'bundler', jsx: 'react-jsx', strict: true, skipLibCheck: true, noEmit: true, types: ['react', 'node'] },
@@ -193,7 +192,7 @@ try {
   writeFileSync(path.join(consumer, 'index.html'), '<!doctype html><html><head><meta charset="utf-8"></head><body><div id="root"></div><script type="module" src="/entry.tsx"></script></body></html>')
   writeFileSync(path.join(consumer, 'vite.config.mjs'), "export default { esbuild: { jsx: 'automatic' }, build: { outDir: 'dist', emptyOutDir: true } }\n")
   summary.packageResolution = JSON.parse(run(process.execPath, ['--input-type=module', '-e',
-    "console.log(JSON.stringify(Object.fromEntries(['@shikiform/react','@shikiform/core','@shikiform/hooks','@shikiform/antd'].map(name => [name,import.meta.resolve(name)]))))"], consumer, 'resolution.log'))
+    "console.log(JSON.stringify(Object.fromEntries(['@shikiform/react','@shikiform/core','@shikiform/hooks'].map(name => [name,import.meta.resolve(name)]))))"], consumer, 'resolution.log'))
   for (const [name, resolved] of Object.entries(summary.packageResolution)) {
     const packedUrl = pathToFileURL(`${packedDirs[name]}${path.sep}`).href
     if (!resolved.startsWith(packedUrl)) throw new Error(`Consumer resolved outside packed package: ${name} → ${resolved}`)

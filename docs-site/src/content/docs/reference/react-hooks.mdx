@@ -3,7 +3,7 @@ title: React Hooks
 description: useForm、useField、useWatch、数组与树 Hooks 的签名、返回值、订阅和完整示例。
 ---
 
-从 `@shikiform/react` 导入，不依赖 antd。用法见 [Headless Hooks](/guide/headless)。
+从 `@shikiform/react` 导入，零 UI 库依赖。用法见 [接入组件库](/guide/headless)。
 
 | 要做什么 | Hook | 是否订阅 |
 |---|---|---|
@@ -358,7 +358,7 @@ useArrayField<TScope, N extends ArrayPath<TScope>>(
 
 `dragProps` 函数对同一数组路径保持同一个引用（拖动起点记在句柄内部），所以可以经 context 交给 `memo` 的行而不让它们重渲染；没有隐藏的拖拽库，把手、键盘和触屏交互由应用决定。事件没有 `dataTransfer` 时用句柄记下的起点。
 
-[数组教程](/tutorial/6-array)
+[数组教程](/tutorial/3-linkage-array#33-动态数组与-reactioneach)
 
 ### 完整例子：拖动排序，键不变，路径随顺序变化
 
@@ -423,14 +423,13 @@ function RemoveButton() {
 
 只订阅该数组路径，改一个单元格不会让它重渲染。嵌套数组取最近的一层。
 
-读它的组件必须渲染在 `<ArrayField>` 的子树里（容器，或容器里的 `footer` / 工具栏）。和 `<ArrayField>` 平级时 `useArrayField()` 抛 `ShikiUsageError`。行 children 里调用也在作用域内，但数组为空时行函数不执行，有多行时每行各画一次。数组这一层的提示放在容器上。`ArrayTable` 不画这条反馈，交给它的 `footer`（仍在 `<ArrayField>` 内）。
+读它的组件必须渲染在 `<ArrayField>` 的子树里（容器，或容器里的 `footer` / 工具栏）。和 `<ArrayField>` 平级时 `useArrayField()` 抛 `ShikiUsageError`。行 children 里调用也在作用域内，但数组为空时行函数不执行，有多行时每行各画一次。数组这一层的提示放在容器上。
 
-`ArrayItems` / `ArrayCards` 用它画反馈行。自己画时：
+在自定义数组容器中画反馈行：
 
 ```tsx
 import type { ReactNode } from 'react'
 import { ArrayField, useArrayField } from '@shikiform/react'
-import { ArrayTable, type ArrayTableColumn } from '@shikiform/antd'
 
 function ListError() {
   const { errors, warnings } = useArrayField()
@@ -448,15 +447,12 @@ function MyList({ children }: { children?: ReactNode }) {
   )
 }
 
-const columns: ArrayTableColumn[] = [{ key: 'name', title: '名称', render: () => null }]
-
 // ✓
 function Correct() {
   return (
-    <>
-      <ArrayField name="tags" component={[MyList]}>{() => <span />}</ArrayField>
-      <ArrayField name="list" component={[ArrayTable, { columns, footer: <ListError /> }]} />
-    </>
+    <ArrayField name="tags" component={[MyList]}>
+      {() => <span />}
+    </ArrayField>
   )
 }
 
@@ -479,7 +475,7 @@ function Wrong() {
 useIndex(): number
 ```
 
-当前行在数组中的下标（Formily `ArrayBase.useIndex`），来自外层 `<ArrayField>` 行作用域（`<ArrayField>` 的每一行与 `ArrayTable` 的单元格都会提供）。行移动后随新位置更新。不在行内时抛错。
+当前行在数组中的下标（Formily `ArrayBase.useIndex`），来自外层 `<ArrayField>` 行作用域（`<ArrayField>` 的每一行与 `<ArrayField.Row>` 内都会提供）。行移动后随新位置更新。不在行内时抛错。
 
 ```tsx
 function RowNo() {
@@ -510,7 +506,7 @@ function RowTitle() {
 </ArrayField.Row>
 ```
 
-当表格组件由自己接管行渲染（如原生 Ant Design `<Table>` 的 `columns.render`，不经过 `<ArrayField>{(row) => ...}</ArrayField>`）时，用 `<ArrayField.Row>` 包裹单元格子树以提供行级相对路径作用域，使内部的 `<Field name="price">`、`useIndex()` 与 `useRecord()` 指向对应行。
+当表格组件由自己接管行渲染（如第三方 `<Table>` 的 `columns.render`，不经过 `<ArrayField>{(row) => ...}</ArrayField>`）时，用 `<ArrayField.Row>` 包裹单元格子树以提供行级相对路径作用域，使内部的 `<Field name="price">`、`useIndex()` 与 `useRecord()` 指向对应行。
 
 
 ## useTreeField
@@ -596,7 +592,7 @@ export default function TreeHookExample() {
 }
 ```
 
-需要 JSX 结构组件时看 [Field、ArrayField、TreeField](/api#react-组件)；需要把绑定封装成项目自己的输入组件时看 [connect](/reference/antd-adapter#connect) 和上面的无参 `useField()`。
+需要 JSX 结构组件时看 [Field、ArrayField、TreeField](/api#react-组件)；需要把绑定封装成项目自己的输入组件时看 [接入组件库](/guide/headless#接自己的组件库) 和上面的无参 `useField()`。
 
 ### 不传 name：当前节点
 
@@ -627,7 +623,7 @@ function NodeLabel() {
 </TreeField>
 ```
 
-分组、徽标和「只校验这一步」用 [FormTab / FormCollapse / FormStep](/guide/containers)。字段分组原语不从 `@shikiform/react` 公开导出。自己要在校验失败时切到某一块，用 `form.subscribeValidateFailed`。
+需要在校验失败时定位或切换到对应的面板/步骤，使用 `form.subscribeValidateFailed` 监听失败路径。
 
 ## useFieldDecorator
 
@@ -640,7 +636,7 @@ useFieldDecorator(options?: {
 }): FieldDecorator
 ```
 
-给自己的 UI 库画标签和错误，返回的是数据，不是 antd 的 `Form.Item` props。必须写在 `<Field>` 里，或传入 `useField(name)` 的 binding。
+给自己的 UI 库画标签和错误，返回的是通用无障碍与展示数据，不绑定特定 UI 库的 `Form.Item` props。必须写在 `<Field>` 里，或传入 `useField(name)` 的 binding。
 
 | 字段 | 含义 |
 |---|---|
@@ -683,7 +679,7 @@ function MantineInput() {
 
 ## Submit
 
-`<Submit>` 从 `@shikiform/react` 导入。三种外壳：默认 `<button>`（文案 `messages.submit`）、`asChild`（行为合并到唯一子元素）、render prop。不传 `onSubmit` 时是原生 submit，交给外层 `<Form onSubmit>`（回车同样提交），`$canSubmit` 为 false 时禁用，提交中显示 loading。传了 `onSubmit` 时点击自己跑 `form.submit`。`onClick` 先执行，`preventDefault` 会跳过这次自带的提交。`disabled` 覆盖「无效时不可点」；传 `false` 表示无效时仍可点。`@shikiform/antd` 的 `<Submit>` 是 antd `Button`，行为相同。
+`<Submit>` 从 `@shikiform/react` 导入。三种外壳：默认 `<button>`（文案 `messages.submit`）、`asChild`（行为合并到唯一子元素）、render prop。不传 `onSubmit` 时是原生 submit，交给外层 `<Form onSubmit>`（回车同样提交），`$canSubmit` 为 false 时禁用，提交中显示 loading。传了 `onSubmit` 时点击自己跑 `form.submit`。`onClick` 先执行，`preventDefault` 会跳过这次自带的提交。`disabled` 覆盖「无效时不可点」；传 `false` 表示无效时仍可点。
 
 ```tsx
 <Submit asChild><button>保存</button></Submit>
@@ -693,10 +689,8 @@ function MantineInput() {
 
 ## Reset
 
-`<Reset>` 从 `@shikiform/react` 导入，调用 `form.reset()`。`type` 固定 `'button'`，避免浏览器原生 reset 绕过 store。表单无效时仍然可点；`disabled` 只来自传入的选项。`onClick` 在重置前（读到的仍是旧值），`preventDefault` 跳过重置和 `afterReset`。`afterReset(values)` 在 `form.reset` 之后，参数已是重置后的值，查询页用它按清空后的条件再查。`asChild` / render prop 与 `<Submit>` 同一套外壳。antd 的 `<Reset>` 也接受 `afterReset` 和 `disabled`。
+`<Reset>` 从 `@shikiform/react` 导入，调用 `form.reset()`。`type` 固定 `'button'`，避免浏览器原生 reset 绕过 store。表单无效时仍然可点；`disabled` 只来自传入的选项。`onClick` 在重置前（读到的仍是旧值），`preventDefault` 跳过重置和 `afterReset`。`afterReset(values)` 在 `form.reset` 之后，参数已是重置后的值，查询页用它按清空后的条件再查。`asChild` / render prop 与 `<Submit>` 同一套外壳。
 
 ```tsx
 <Reset afterReset={(values) => search(values)} asChild><button>重置</button></Reset>
 ```
-
-[antd Reset](/reference/antd#reset)

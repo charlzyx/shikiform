@@ -1,0 +1,73 @@
+---
+title: 测试、性能与 SSR
+description: 使用 Testing Library 编写表单测试、利用细粒度路径订阅与虚拟滚动优化性能，以及服务端渲染注意事项。
+---
+
+## 表单测试
+
+表单测试可直接通过 Testing Library 模拟输入、失焦和点击提交，断言 `onSubmit` 收到的值，无需依赖引擎内部结构。
+
+```tsx
+import { fireEvent, render, screen } from '@testing-library/react'
+import { expect, test, vi } from 'vitest'
+import { Form, Submit, typed, useField, useForm } from '@shikiform/react'
+
+function EmailInput() {
+  const field = useField<string>()
+  return (
+    <div>
+      <label htmlFor={field.id}>{field.title}</label>
+      <input
+        id={field.id}
+        value={field.value ?? ''}
+        onChange={(e) => field.onChange(e.target.value)}
+        onBlur={field.onBlur}
+      />
+      {field.errors[0] && <span role="alert">{field.errors[0]}</span>}
+    </div>
+  )
+}
+
+function Login({ onSubmit }: { onSubmit: (values: { email: string }) => void }) {
+  const form = useForm({ initialValues: { email: '' } })
+  const F = typed(form)
+  return (
+    <Form form={form} onSubmit={onSubmit}>
+      <F.Field name="email" title="邮箱" required rules={{ format: 'email' }} component={[EmailInput]} />
+      <Submit>提交</Submit>
+    </Form>
+  )
+}
+
+test('邮箱通过之后才提交', async () => {
+  const onSubmit = vi.fn()
+  render(<Login onSubmit={onSubmit} />)
+  const email = screen.getByRole('textbox', { name: '邮箱' })
+  fireEvent.change(email, { target: { value: 'ada@example.com' } })
+  fireEvent.blur(email)
+  fireEvent.click(screen.getByRole('button', { name: '提交' }))
+  expect(onSubmit).toHaveBeenCalledWith({ email: 'ada@example.com' })
+})
+```
+
+通过 `label htmlFor={field.id}` 与 `<input id={field.id} />` 关联后，可以直接使用 `screen.getByRole('textbox', { name: '邮箱' })` 查询输入框。
+
+<Aside type="tip" title="留意失焦校验时机">
+字段默认在 `onBlur` 和表单提交时触发校验。断言错误文案前，记得先调用 `fireEvent.blur` 或直接触发一次提交。另外，`omit: true` 的字段不会出现在 `onSubmit` 参数里，`$visible = false` 仍然提交。
+</Aside>
+
+## 性能与大列表
+
+ShikiForm 的依赖追踪精确到字段状态键：修改某一个输入框的值，只会重新执行读取过它的 `reaction`，并只重渲染订阅了该字段的组件。
+
+- **避免整体订阅数组**：在联动中读取 `d.items.$value` 会把整张数组登记为依赖；行内字段联动请使用 `reaction.each`，引擎为每一行独立追踪依赖，修改第 3 行的数量只重跑第 3 行的回调。
+- **不要在父组件 `useWatch` 整张数组再 `.map`**：`<ArrayField>` 只订阅数组长度、顺序与行键，每个单元格通过各自的 `<Field>` 独立更新。
+- **长列表虚拟滚动**：数组行数较多时，可在 `<ArrayField>` 上开启 `virtualScroll={{ height: 400 }}`，仅挂载可视区域内的行组件，离屏行的规则和计算依然生效。
+
+## 服务端渲染（SSR）
+
+`useForm` 支持在服务端渲染环境中直接运行（本文档站的在线预览示例均先在服务端完成渲染再输出 HTML）。编写服务端兼容的表单代码时注意三点：
+
+- **`reaction` 保持同步**：不要在 `reaction` 内发起异步请求或读取 `window` 等浏览器全局对象；接口请求放在 `watch` 中，拿到响应后通过 `form.batch` 写回。
+- **响应异步校验中止**：异步校验被新输入中止（`signal.aborted`）后，校验函数内的 Promise 仍应调用 `resolve(undefined)` 并清理定时器，见 [跨字段与异步校验](/examples/forms#跨字段与异步校验)。
+- **保持表单值可序列化**：表单字段中保存纯 JSON 数据（如日期、颜色存为字符串，复杂对象仅在适配器 `format` / `parse` 中转换）。

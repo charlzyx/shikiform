@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { Field, Form, Watch, defineEffects, useForm, type Draft } from '@shikiform/react';
-import { FormItem, Input, Submit, Switch } from '@shikiform/antd';
+import { Field, Form, Submit, Watch, defineEffects, useForm, type Draft } from '@shikiform/react';
 
 type Values = { contact: boolean; email: string };
 
@@ -15,8 +14,35 @@ export default function App() {
   const form = useForm<Values>({ initialValues: { contact: false, email: 'ada@example.com' }, effects: [effects] });
   return (
     <Form form={form} onSubmit={(values) => setPayload(JSON.stringify(values, null, 2))}>
-      <Field name="contact" title="需要联系" decorator={[FormItem]} component={[Switch]} />
-      <Field name="email" title="邮箱" required decorator={[FormItem]} component={[Input]} />
+      <Field<Values, 'contact'> name="contact" title="需要联系">
+        {(f) => (
+          <p>
+            <label htmlFor={f.id}>
+              <input
+                id={f.id}
+                type="checkbox"
+                checked={Boolean(f.value)}
+                onChange={(e) => f.onChange(e.target.checked)}
+              />{' '}
+              {f.title}
+            </label>
+          </p>
+        )}
+      </Field>
+      <Field<Values, 'email'> name="email" title="邮箱" required>
+        {(f) => (
+          <p>
+            <label htmlFor={f.id}>{f.title}：</label>
+            <input
+              id={f.id}
+              value={f.value ?? ''}
+              onChange={(e) => f.onChange(e.target.value)}
+              onBlur={f.onBlur}
+            />
+            {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
+          </p>
+        )}
+      </Field>
       <Submit>提交</Submit>
       <Watch select={(d: Draft<Values>) => d.$errors}>
         {(errors) => (errors.length ? <p role="alert">错误：{errors.join('；')}</p> : null)}

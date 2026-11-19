@@ -15,25 +15,36 @@ description: 使用 ObjectField、ArrayField 和 TreeField 建立相对路径作
 
 ```tsx preview
 import { type ReactNode } from 'react';
-import { Button, Space } from 'antd';
-import { ArrayField, Field, Form, ObjectField, Watch, useArrayField, useIndex, useForm, type Draft } from '@shikiform/react';
-import { FormItem, FormLayout, Input } from '@shikiform/antd';
+import { ArrayField, Field, Form, ObjectField, Watch, useArrayField, useField, useIndex, useForm, type Draft } from '@shikiform/react';
 
 type Contact = { id: number; name: string; phone: string };
 type Values = { profile: { name: string; address: { city: string } }; contacts: Contact[] };
 
 let nextId = 3;
 
+function TextInput({ width }: { width?: number }) {
+  const field = useField<string>();
+  return (
+    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      <span>{field.title}</span>
+      <input id={field.id} style={width ? { width } : undefined} value={field.value ?? ''}
+        onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />
+      {field.description && <small style={{ opacity: 0.7 }}>{field.description}</small>}
+      {field.errors[0] && <small role="alert" style={{ color: 'crimson' }}>{field.errors[0]}</small>}
+    </label>
+  );
+}
+
 /** 行内操作：不需要知道数组名和行号，从作用域里拿。 */
 function RowActions() {
   const array = useArrayField<Contact>();
   const index = useIndex();
   return (
-    <Space.Compact>
-      <Button disabled={index === 0} onClick={() => array.move(index, index - 1)}>上移</Button>
-      <Button disabled={index === array.keys.length - 1} onClick={() => array.move(index, index + 1)}>下移</Button>
-      <Button danger onClick={() => array.remove(index)}>删除</Button>
-    </Space.Compact>
+    <span style={{ display: 'inline-flex', gap: 4 }}>
+      <button type="button" disabled={index === 0} onClick={() => array.move(index, index - 1)}>上移</button>
+      <button type="button" disabled={index === array.keys.length - 1} onClick={() => array.move(index, index + 1)}>下移</button>
+      <button type="button" onClick={() => array.remove(index)}>删除</button>
+    </span>
   );
 }
 
@@ -41,10 +52,10 @@ function RowActions() {
 function ContactList({ children }: { children?: ReactNode }) {
   const array = useArrayField<Contact>();
   return (
-    <>
+    <div>
       {children}
-      <Button onClick={() => array.push({ id: nextId++, name: '', phone: '' })}>添加联系人</Button>
-    </>
+      <button type="button" onClick={() => array.push({ id: nextId++, name: '', phone: '' })}>添加联系人</button>
+    </div>
   );
 }
 
@@ -58,21 +69,21 @@ export default function App() {
   });
   return (
     <Form form={form}>
-      <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }}>
-        <ObjectField name="profile">
-          <Field name="name" title="姓名" decorator={[FormItem]} component={[Input]} />
-          <ObjectField name="address">
-            <Field name="city" title="城市" description="path 是 profile.address.city" decorator={[FormItem]} component={[Input]} />
-          </ObjectField>
+      <ObjectField name="profile">
+        <div style={{ marginBottom: 6 }}><Field name="name" title="姓名" component={[TextInput]} /></div>
+        <ObjectField name="address">
+          <div style={{ marginBottom: 10 }}>
+            <Field name="city" title="城市" description="path 是 profile.address.city" component={[TextInput]} />
+          </div>
         </ObjectField>
-      </FormLayout>
+      </ObjectField>
       <ArrayField name="contacts" rowKey="id" component={ContactList}>
         {() => (
-          <FormLayout layout="inline" feedbackLayout="terse" style={{ marginBottom: 8 }}>
-            <Field name="name" title="联系人" decorator={[FormItem]} component={[Input, { style: { width: 120 } }]} />
-            <Field name="phone" title="电话" decorator={[FormItem]} component={[Input, { style: { width: 120 } }]} />
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
+            <Field name="name" title="联系人" component={[TextInput, { width: 110 }]} />
+            <Field name="phone" title="电话" component={[TextInput, { width: 110 }]} />
             <RowActions />
-          </FormLayout>
+          </div>
         )}
       </ArrayField>
       <Watch select={(d: Draft<Values>) => d.$value}>{(values) => <pre>{JSON.stringify(values, null, 2)}</pre>}</Watch>

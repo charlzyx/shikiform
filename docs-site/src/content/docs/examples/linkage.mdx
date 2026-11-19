@@ -1,16 +1,136 @@
 ---
-title: 联动
-description: SKU 规格选择器、按勾选动态生成数组行，以及上千个字段下的局部重算演示。
+title: 联动与显隐
+description: 派生计算、条件显隐与省略、SKU 规格选择器、按勾选动态生成数组行以及上千字段局部重算。
 ---
+
+## 联动计算
+
+金额由单价和数量派生时，使用 `reaction` 计算，不要放进 `watch`。
+
+```tsx preview
+import { useState } from 'react';
+import { defineEffects, Form, Submit, typed, useField, useForm } from '@shikiform/react';
+
+type Values = { price: number | null; qty: number | null; amount: number };
+
+const effects = defineEffects<Values>(({ reaction }) => {
+  reaction((d) => {
+    const amount = (d.price.$value ?? 0) * (d.qty.$value ?? 0);
+    d.amount.$value = amount;
+  });
+});
+
+function NumberInput({ min }: { min?: number }) {
+  const f = useField<number | null>();
+  return (
+    <p>
+      <label htmlFor={f.id}>{f.title}：</label>
+      <input
+        id={f.id}
+        type="number"
+        min={min}
+        value={f.value ?? ''}
+        onChange={(e) => f.onChange(e.target.value === '' ? null : Number(e.target.value))}
+        onBlur={f.onBlur}
+      />
+    </p>
+  );
+}
+
+export default function App() {
+  const [result, setResult] = useState('');
+  const form = useForm<Values>({
+    initialValues: { price: 10, qty: 2, amount: 0 },
+    effects: [effects],
+  });
+  const F = typed(form);
+  return (
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
+      <F.Field name="price" title="单价" component={[NumberInput, { min: 0 }]} />
+      <F.Field name="qty" title="数量" component={[NumberInput, { min: 0 }]} />
+      <F.Field name="amount" title="金额" component={[NumberInput]} />
+      <Submit>提交</Submit>
+      <pre aria-live="polite">{result}</pre>
+    </Form>
+  );
+}
+```
+
+<Aside type="tip" title="计算字段的编辑与提交">
+在 `reaction` 中写入 `$value` 的字段为计算字段：默认仍可编辑、仍随表单提交、不计入表单级 `dirty`。如需渲染为只读预览，加上 `readOnly`；仅展示不提交则声明 `omit: true`。
+</Aside>
+
+## 条件显隐
+
+`$visible = false` 只负责不渲染、不校验，值默认仍会提交。下面同时写了 `$omit = !need`，所以关掉开关后税号不进提交 JSON。
+
+```tsx preview
+import { useState } from 'react';
+import { defineEffects, Form, Submit, typed, useForm } from '@shikiform/react';
+
+type Values = { invoice: boolean; taxId: string };
+
+const effects = defineEffects<Values>(({ reaction }) => {
+  reaction((d) => {
+    const need = d.invoice.$value;
+    d.taxId.$visible = need;
+    d.taxId.$omit = !need;
+    d.taxId.$required = need;
+  });
+});
+
+export default function App() {
+  const [result, setResult] = useState('');
+  const form = useForm<Values>({
+    initialValues: { invoice: false, taxId: '' },
+    effects: [effects],
+  });
+  const F = typed(form);
+  return (
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
+      <F.Field name="invoice" title="需要发票">
+        {(f) => (
+          <p>
+            <label htmlFor={f.id}>
+              <input
+                id={f.id}
+                type="checkbox"
+                checked={Boolean(f.value)}
+                onChange={(e) => f.onChange(e.target.checked)}
+              />{' '}
+              {f.title}
+            </label>
+          </p>
+        )}
+      </F.Field>
+      <F.Field name="taxId" title="税号">
+        {(f) => (
+          <p>
+            <label htmlFor={f.id}>{f.title}：</label>
+            <input
+              id={f.id}
+              value={f.value ?? ''}
+              onChange={(e) => f.onChange(e.target.value)}
+              onBlur={f.onBlur}
+            />
+            {f.errors[0] && <small role="alert"> {f.errors[0]}</small>}
+          </p>
+        )}
+      </F.Field>
+      <Submit>提交</Submit>
+      <pre aria-live="polite">{result}</pre>
+    </Form>
+  );
+}
+```
 
 ## SKU 选择器
 
 **场景**：商品包含颜色、容量、版本三个规格维度，用户可以按任意顺序点选；需要根据库存自动禁用无货组合，并在切换时清理冲突选项，同时实时展示价格区间与可用库存。
 
 ```tsx preview play=sku-picker
-import { Field, Form, defineEffects, useForm, type Draft } from '@shikiform/react';
+import { Field, Form, defineEffects, useField, useForm, type Draft } from '@shikiform/react';
 import { comboMatch, comboOptions } from '@shikiform/core';
-import { FormItem, FormLayout, Input, InputNumber, Radio } from '@shikiform/antd';
 
 const SKUS = [
   { skuId: 'B-128-STD', color: '黑色', storage: '128G', edition: '标准版', price: 999, stock: 12 },
@@ -72,22 +192,69 @@ const effects = defineEffects<Values>(({ reaction, watch }) => {
   });
 });
 
+function RadioRow() {
+  const f = useField<string>();
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+      <span style={{ width: 48 }}>{f.title}：</span>
+      {f.options.map((opt) => (
+        <label key={String(opt.value)} style={{ opacity: opt.disabled ? 0.45 : 1 }}>
+          <input
+            type="radio"
+            name={f.id}
+            disabled={opt.disabled}
+            checked={f.value === String(opt.value)}
+            onChange={() => f.onChange(String(opt.value))}
+          />{' '}
+          {opt.label}
+        </label>
+      ))}
+    </div>
+  );
+}
+
+function ReadOnlyText() {
+  const f = useField<string>();
+  return (
+    <p style={{ margin: '4px 0' }}>
+      <span>{f.title}：</span>
+      <strong>{f.value || '—'}</strong>
+    </p>
+  );
+}
+
 export default function App() {
-  const form = useForm<Values>({ initialValues: { color: '', storage: '', edition: '', qty: 1, skuId: '', price: '', stock: '' },
+  const form = useForm<Values>({
+    initialValues: { color: '', storage: '', edition: '', qty: 1, skuId: '', price: '', stock: '' },
     fields: { skuId: { omit: true }, price: { omit: true }, stock: { omit: true } }, // 展示用，不进提交结果
     effects: [effects],
   });
   return (
     <Form form={form}>
-      <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }}>
-        <Field name="color" title="颜色" decorator={[FormItem]} component={[Radio, { optionType: 'button' }]} />
-        <Field name="storage" title="容量" decorator={[FormItem]} component={[Radio, { optionType: 'button' }]} />
-        <Field name="edition" title="版本" decorator={[FormItem]} component={[Radio, { optionType: 'button' }]} />
-        <Field name="price" title="价格" readOnly decorator={[FormItem]} component={[Input]} />
-        <Field name="stock" title="库存" readOnly decorator={[FormItem]} component={[Input]} />
-        <Field name="skuId" title="SKU" readOnly decorator={[FormItem]} component={[Input]} />
-        <Field name="qty" title="数量" decorator={[FormItem]} component={[InputNumber, { min: 1 }]} />
-      </FormLayout>
+      <Field name="color" title="颜色" component={[RadioRow]} />
+      <Field name="storage" title="容量" component={[RadioRow]} />
+      <Field name="edition" title="版本" component={[RadioRow]} />
+      <Field name="price" title="价格" readOnly component={[ReadOnlyText]} />
+      <Field name="stock" title="库存" readOnly component={[ReadOnlyText]} />
+      <Field name="skuId" title="SKU" readOnly component={[ReadOnlyText]} />
+      <Field<Values, 'qty'> name="qty" title="数量">
+        {(f) => (
+          <p style={{ margin: '8px 0 0' }}>
+            <label htmlFor={f.id}>{f.title}：</label>
+            <input
+              id={f.id}
+              type="number"
+              min={1}
+              style={{ width: 80 }}
+              disabled={f.disabled}
+              value={f.value ?? 1}
+              onChange={(e) => f.onChange(Number(e.target.value))}
+              onBlur={f.onBlur}
+            />
+            {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
+          </p>
+        )}
+      </Field>
     </Form>
   );
 }
@@ -104,8 +271,7 @@ export default function App() {
 
 ```tsx preview play=sku
 import { useState } from 'react';
-import { ArrayField, Field, Form, defineEffects, useForm } from '@shikiform/react';
-import { Checkbox, FormItem, FormLayout, Input, InputNumber } from '@shikiform/antd';
+import { ArrayField, Field, Form, defineEffects, useField, useForm } from '@shikiform/react';
 
 const CATALOG = [
   { id: '白色/128G', price: 10, stock: 0 },
@@ -130,6 +296,28 @@ const effects = defineEffects<Values>(({ reaction, watch }) => {
   });
 });
 
+function NumberInline({ min }: { min?: number }) {
+  const f = useField<number>();
+  return (
+    <label htmlFor={f.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      {f.title}
+      {f.readOnly ? (
+        <strong>{f.value}</strong>
+      ) : (
+        <input
+          id={f.id}
+          type="number"
+          min={min}
+          style={{ width: 64 }}
+          value={f.value ?? 0}
+          onChange={(e) => f.onChange(Number(e.target.value))}
+          onBlur={f.onBlur}
+        />
+      )}
+    </label>
+  );
+}
+
 export default function App() {
   const [result, setResult] = useState('');
   const form = useForm<Values>({
@@ -138,15 +326,41 @@ export default function App() {
   });
   return (
     <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values.rows))}>
-      <Field name="picked" title="组合" enum={PICKS} decorator={[FormItem]} component={[Checkbox.Group]} />
+      <Field<Values, 'picked'> name="picked" title="组合" enum={PICKS}>
+        {(f) => (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
+            <span>{f.title}：</span>
+            {f.options.map((opt) => {
+              const val = String(opt.value);
+              const checked = (f.value ?? []).includes(val);
+              return (
+                <label key={val} style={{ opacity: opt.disabled ? 0.45 : 1 }}>
+                  <input
+                    type="checkbox"
+                    disabled={opt.disabled}
+                    checked={checked}
+                    onChange={(e) => {
+                      const next = e.target.checked
+                        ? [...(f.value ?? []), val]
+                        : (f.value ?? []).filter((item) => item !== val);
+                      f.onChange(next);
+                    }}
+                  />{' '}
+                  {opt.label}
+                </label>
+              );
+            })}
+          </div>
+        )}
+      </Field>
       <ArrayField name="rows" rowKey="id">
         {() => (
-          <FormLayout layout="inline" feedbackLayout="terse" style={{ marginBottom: 8 }}>
-            <Field name="id" readOnly component={[Input]} />
-            <Field name="price" title="单价" decorator={[FormItem]} component={[InputNumber, { min: 0 }]} />
-            <Field name="qty" title="数量" decorator={[FormItem]} component={[InputNumber, { min: 1 }]} />
-            <Field name="total" title="小计" readOnly decorator={[FormItem]} component={[InputNumber]} />
-          </FormLayout>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 8 }}>
+            <Field name="id" readOnly>{(f) => <code style={{ width: 88 }}>{String(f.value ?? '')}</code>}</Field>
+            <Field name="price" title="单价" component={[NumberInline, { min: 0 }]} />
+            <Field name="qty" title="数量" component={[NumberInline, { min: 1 }]} />
+            <Field name="total" title="小计" readOnly component={[NumberInline]} />
+          </div>
         )}
       </ArrayField>
       <button type="submit">提交</button>
@@ -158,7 +372,7 @@ export default function App() {
 
 - 同步数组行用 `watch` 而非 `reaction`：`watch` 仅在 `picked` 变化时运行，回调内读取 `d.rows.$value` 不会被收集为依赖，可在同步新行时保留已有行的单价修改。
 - `reaction.each` 回调签名为 `(row, ctx)`，`row.total` 等句柄相对于当前行解析，见 [reaction.each](/guide/linkage#reactioneach每一行一个实例)。
-- 缺货组合在 `enum` 中标记 `disabled: true`，`Checkbox.Group` 自动禁用对应项。
+- 缺货组合在 `enum` 中标记 `disabled: true`，复选框组自动禁用对应项。
 - 也可单独维护一份 `overrides` 字典记录改过的单价，再用 `reaction` 派生整张数组。
 
 ## 上千个字段

@@ -31,28 +31,46 @@ description: 使用 Field 绑定字段路径，通过 decorator 与 component �
 ## 四种常用写法
 
 ```tsx preview
-import { Input as AntInput } from 'antd';
-import { Field, Form, useForm } from '@shikiform/react';
-import { FormItem, FormLayout, Input } from '@shikiform/antd';
+import type { ReactNode } from 'react';
+import { Field, Form, useField, useFieldDecorator, useForm } from '@shikiform/react';
+
+function FormItem({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <label {...d.labelProps} style={{ display: 'inline-block', width: 150 }}>{d.label}</label>
+      {children}
+    </div>
+  );
+}
+
+function TextInput({ placeholder, prefix }: { placeholder?: string; prefix?: string }) {
+  const field = useField<string>();
+  return (
+    <span>
+      {prefix && <span style={{ marginRight: 4 }}>{prefix}</span>}
+      <input id={field.id} value={field.value ?? ''} placeholder={placeholder}
+        onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />
+    </span>
+  );
+}
 
 export default function App() {
   const form = useForm({ initialValues: { a: '元组', b: '子元素', c: 'render prop', d: '无装饰器' } });
   return (
     <Form form={form}>
-      <FormLayout labelCol={{ span: 6 }} wrapperCol={{ span: 18 }}>
-        {/* 1. 槽位：最常用 */}
-        <Field name="a" title="decorator + component" decorator={[FormItem]} component={[Input, { allowClear: true }]} />
-        {/* 2. 子元素：控件从上下文读字段 */}
-        <Field name="b" title="children 元素" decorator={[FormItem]}>
-          <Input addonBefore="@" />
-        </Field>
-        {/* 3. render prop：完全自己接线（这里用原生 antd Input） */}
-        <Field name="c" title="render prop" decorator={[FormItem]}>
-          {(field) => <AntInput id={field.id} value={field.value} onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} />}
-        </Field>
-        {/* 4. 不要装饰器：表格单元格常用 */}
-        <Field name="d" component={[Input]} />
-      </FormLayout>
+      {/* 1. 槽位：最常用 */}
+      <Field name="a" title="decorator + component" decorator={[FormItem]} component={[TextInput, { placeholder: '输入内容' }]} />
+      {/* 2. 子元素：控件从上下文读字段 */}
+      <Field name="b" title="children 元素" decorator={[FormItem]}>
+        <TextInput prefix="@" />
+      </Field>
+      {/* 3. render prop：完全自己接线 */}
+      <Field name="c" title="render prop" decorator={[FormItem]}>
+        {(field) => <input id={field.id} value={field.value} onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} />}
+      </Field>
+      {/* 4. 不要装饰器：表格单元格常用 */}
+      <Field name="d" component={[TextInput]} />
     </Form>
   );
 }
@@ -71,8 +89,8 @@ export default function App() {
 其中 `componentProps` 和 `decoratorProps` 采用对象深合并策略：普通对象会递归合并各自的键，而数组、函数、React 元素或类实例则整体取最高层级的值。因此，如果需要根据其他字段动态调整控件属性，应当写在 `reaction` 中，而不是在 JSX 渲染期间计算后传入：
 
 ```tsx preview
-import { Field, Form, defineEffects, useForm } from '@shikiform/react';
-import { FormItem, FormLayout, Input, Switch } from '@shikiform/antd';
+import type { ReactNode } from 'react';
+import { Field, Form, defineEffects, useField, useFieldDecorator, useForm } from '@shikiform/react';
 
 type Values = { vip: boolean; code: string };
 
@@ -87,15 +105,40 @@ const effects = defineEffects<Values>(({ reaction }) => {
   });
 });
 
+function FormItem({ tooltip, children }: { tooltip?: string; children?: ReactNode }) {
+  const d = useFieldDecorator();
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <label {...d.labelProps} style={{ display: 'inline-block', width: 80 }}>
+        {d.required && <span style={{ color: 'crimson' }}>* </span>}
+        {d.label}
+      </label>
+      {children}
+      {tooltip && <small style={{ marginLeft: 8, opacity: 0.7 }}>（{tooltip}）</small>}
+    </div>
+  );
+}
+
+function Toggle() {
+  const field = useField<boolean>();
+  return <input id={field.id} type="checkbox" checked={Boolean(field.value)} onChange={(e) => field.onChange(e.target.checked)} />;
+}
+
+function TextInput({ placeholder, maxLength, disabled }: { placeholder?: string; maxLength?: number; disabled?: boolean }) {
+  const field = useField<string>();
+  return (
+    <input id={field.id} value={field.value ?? ''} placeholder={placeholder} maxLength={maxLength}
+      disabled={disabled ?? field.disabled} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />
+  );
+}
+
 export default function App() {
   const form = useForm<Values>({ initialValues: { vip: false, code: '' }, effects: [effects] });
   return (
     <Form form={form}>
-      <FormLayout labelCol={{ span: 5 }} wrapperCol={{ span: 19 }}>
-        <Field name="vip" title="会员" decorator={[FormItem]} component={[Switch]} />
-        {/* JSX 的 allowClear 保留：reaction 只覆盖它写到的键 */}
-        <Field name="code" title="（被 reaction 覆盖）" decorator={[FormItem]} component={[Input, { allowClear: true }]} />
-      </FormLayout>
+      <Field name="vip" title="会员" decorator={[FormItem]} component={[Toggle]} />
+      {/* JSX 的 maxLength 保留：reaction 只覆盖它写到的键 */}
+      <Field name="code" title="（被 reaction 覆盖）" decorator={[FormItem]} component={[TextInput, { maxLength: 16 }]} />
     </Form>
   );
 }
@@ -120,30 +163,94 @@ export default function App() {
 下拉框、单选框、多选框组等选择类字段，可以直接在 `<Field>` 上通过 `enum` 传入选项数据，无需提前在 `fields` 中声明。适配后的 `Select`、`Radio`、`Checkbox.Group` 会自动将其作为 `options`，阅读态下也会自动将其反显为对应的标签文案。
 
 ```tsx preview
-import { Switch } from 'antd';
-import { Form, typed, useForm } from '@shikiform/react';
-import { Checkbox, FormItem, FormLayout, Radio, Select } from '@shikiform/antd';
+import type { ReactNode } from 'react';
+import { Form, typed, useField, useFieldDecorator, useForm } from '@shikiform/react';
 
 type Values = { level: 'gold' | 'silver'; tags: string[]; size: number };
+
+function FormItem({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <label {...d.labelProps} style={{ display: 'inline-block', width: 64 }}>{d.label}</label>
+      {children}
+    </div>
+  );
+}
+
+function SelectInput() {
+  const field = useField<string>();
+  if (field.readOnly) {
+    const label = field.options.find((o) => o.value === field.value)?.label ?? field.value;
+    return <span>{String(label ?? '-')}</span>;
+  }
+  return (
+    <select id={field.id} value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)}>
+      {field.options.map((o) => <option key={String(o.value)} value={String(o.value)}>{o.label}</option>)}
+    </select>
+  );
+}
+
+function CheckboxGroup() {
+  const field = useField<string[]>();
+  const current = field.value ?? [];
+  if (field.readOnly) {
+    return <span>{current.map((v) => field.options.find((o) => o.value === v)?.label ?? v).join('、') || '-'}</span>;
+  }
+  return (
+    <span style={{ display: 'inline-flex', gap: 10 }}>
+      {field.options.map((o) => {
+        const val = String(o.value);
+        const checked = current.includes(val);
+        return (
+          <label key={val}>
+            <input type="checkbox" checked={checked}
+              onChange={(e) => field.onChange(e.target.checked ? [...current, val] : current.filter((v) => v !== val))} />
+            {' '}{o.label}
+          </label>
+        );
+      })}
+    </span>
+  );
+}
+
+function RadioGroup() {
+  const field = useField<number>();
+  if (field.readOnly) {
+    return <span>{String(field.options.find((o) => o.value === field.value)?.label ?? field.value)}</span>;
+  }
+  return (
+    <span style={{ display: 'inline-flex', gap: 10 }}>
+      {field.options.map((o) => (
+        <label key={String(o.value)}>
+          <input type="radio" name={field.id} checked={field.value === o.value}
+            onChange={() => field.onChange(Number(o.value))} />
+          {' '}{o.label}
+        </label>
+      ))}
+    </span>
+  );
+}
 
 export default function App() {
   const form = useForm<Values>({ initialValues: { level: 'gold', tags: ['math'], size: 2 } });
   const F = typed(form);
   return (
     <Form form={form}>
-      <FormLayout labelCol={{ span: 5 }} wrapperCol={{ span: 19 }}>
-        <FormItem label="阅读态">
-          <Switch onChange={(on) => form.batch((d) => { d.$readOnly = on ? true : undefined; })} />
-        </FormItem>
-        {/* value 按字段类型检查：写 'bronze' 编译不过 */}
-        <F.Field name="level" title="等级" enum={[{ label: '黄金', value: 'gold' }, { label: '白银', value: 'silver' }]}
-          decorator={[FormItem]} component={[Select, { style: { width: 160 } }]} />
-        {/* 数组字段按元素类型检查 */}
-        <F.Field name="tags" title="兴趣" enum={[{ label: '数学', value: 'math' }, { label: '诗歌', value: 'poetry' }]}
-          decorator={[FormItem]} component={[Checkbox.Group]} />
-        {/* 原始值：标签就是 String(value) */}
-        <F.Field name="size" title="尺码" enum={[1, 2, 3]} decorator={[FormItem]} component={[Radio]} />
-      </FormLayout>
+      <div style={{ marginBottom: 8 }}>
+        <label>
+          <input type="checkbox" onChange={(e) => form.batch((d) => { d.$readOnly = e.target.checked ? true : undefined; })} />
+          {' '}阅读态
+        </label>
+      </div>
+      {/* value 按字段类型检查：写 'bronze' 编译不过 */}
+      <F.Field name="level" title="等级" enum={[{ label: '黄金', value: 'gold' }, { label: '白银', value: 'silver' }]}
+        decorator={[FormItem]} component={[SelectInput]} />
+      {/* 数组字段按元素类型检查 */}
+      <F.Field name="tags" title="兴趣" enum={[{ label: '数学', value: 'math' }, { label: '诗歌', value: 'poetry' }]}
+        decorator={[FormItem]} component={[CheckboxGroup]} />
+      {/* 原始值：标签就是 String(value) */}
+      <F.Field name="size" title="尺码" enum={[1, 2, 3]} decorator={[FormItem]} component={[RadioGroup]} />
     </Form>
   );
 }
@@ -161,7 +268,7 @@ JSX `enum` 的行为规则：
 
 `<Field>` 内部调用 `useField(name, options)`：`visible` 为 `false` 时返回 `null`，否则渲染 `decorator` 包裹的 `component`。
 
-不使用 `<Field>` 时，可直接调用 `useField(name)` 读取 `value`、`onChange`、`onBlur`、`disabled` 等状态，配合 [`useFieldDecorator()`](/reference/react-hooks#usefielddecorator) 渲染标签与错误；在自定义控件或装饰器内部调用无参 `useField()` 则读取外层 `<Field>` 的绑定对象。完整签名见 [useField](/reference/react-hooks#usefield) 与 [Ant Design 适配层](/reference/antd-adapter)。
+不使用 `<Field>` 时，可直接调用 `useField(name)` 读取 `value`、`onChange`、`onBlur`、`disabled` 等状态，配合 [`useFieldDecorator()`](/reference/react-hooks#usefielddecorator) 渲染标签与错误；在自定义控件或装饰器内部调用无参 `useField()` 则读取外层 `<Field>` 的绑定对象。完整签名见 [useField](/reference/react-hooks#usefield) 与 [接入组件库](/guide/headless#接自己的组件库)。
 
 ## 字段名的类型检查
 
@@ -175,4 +282,4 @@ const F = typed(form)
 
 生成的组件依然遵守相对路径作用域规则，`row.Field` 会自动按单行数据类型进行字段名检查。详见 [typed](/reference/react-hooks#typed)。
 
-下一步：[布局](/guide/layout)，了解 `FormLayout`、`FormGrid` 以及提交按钮组的对齐方式。
+下一步：[字段路径与结构](/guide/structures)，了解 `ObjectField`、`ArrayField` 与 `TreeField` 的相对路径作用域。

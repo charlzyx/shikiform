@@ -1,6 +1,6 @@
 /**
  * The packages an editable demo may import. A Vite virtual module maps each name to a lazy `import()`, so the
- * page only downloads what a demo actually requires, and every demo shares the site's single React / antd copy.
+ * page only downloads what a demo actually requires, and every demo shares the site's single React copy.
  */
 export const DEMO_IMPORTS = [
   'react',
@@ -8,8 +8,6 @@ export const DEMO_IMPORTS = [
   '@shikiform/react',
   '@shikiform/core',
   '@shikiform/hooks',
-  '@shikiform/antd',
-  'antd',
   'zod',
 ] as const
 

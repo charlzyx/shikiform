@@ -26,9 +26,7 @@ form.getValue('orders.0.lines.2.qty')
 在联动函数中，`d.orders[0].lines[2].qty` 是路径 handle，读写其 `$value` 时才访问数据并登记依赖。动态拼接的路径在联动中用 `query('orders.0.lines.2.qty').$value`（无静态类型），固定路径直接写 `d.orders[0].lines[2].qty`。
 
 ```tsx preview
-import { Button } from 'antd';
 import { Field, Form, useForm } from '@shikiform/react';
-import { FormItem, InputNumber } from '@shikiform/antd';
 
 type Values = { orders: { lines: { sku: string; qty: number }[] }[] };
 
@@ -38,16 +36,29 @@ export default function App() {
   });
   return (
     <Form form={form}>
-      <Field name="orders.0.lines.0.qty" title="第一行数量" decorator={[FormItem]} component={[InputNumber]} />
-      <Button
-        htmlType="button"
+      <Field<Values, 'orders.0.lines.0.qty'> name="orders.0.lines.0.qty" title="第一行数量">
+        {(f) => (
+          <p>
+            <label htmlFor={f.id}>{f.title}：</label>
+            <input
+              id={f.id}
+              type="number"
+              value={f.value ?? 0}
+              onChange={(e) => f.onChange(Number(e.target.value))}
+              onBlur={f.onBlur}
+            />
+          </p>
+        )}
+      </Field>
+      <button
+        type="button"
         onClick={() => {
           const qty = form.getValue('orders[0].lines[0].qty');
           form.setValue('orders[0].lines[0].qty', (qty ?? 0) + 1);
         }}
       >
         路径加一
-      </Button>
+      </button>
     </Form>
   );
 }

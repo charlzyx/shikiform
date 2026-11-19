@@ -1,24 +1,27 @@
 ---
 title: 表格与查询
-description: 演示带条件联动的查询列表、脱离 antd 的原生查询实现，以及使用抽屉编辑表格行。
+description: 演示带条件联动的查询列表、轻量级原生查询实现，以及使用弹出面板编辑表格行。
 ---
 
 ## 查询表
 
-**场景**：日志查询页面。查询条件超过一行时自动折叠（折叠后依然保留已输入的值），选择「供应商」动态更新「模型」的可选项，同时支持表头状态筛选；发起新查询时重置到第 1 页，翻页时保留已勾选项。
+**场景**：日志查询页面。选择「供应商」动态更新「模型」的可选项，支持筛选区展开/收起（收起时保留已输入的值）以及按状态过滤；发起新查询时重置到第 1 页，翻页时保留已勾选项。
 
 ```tsx preview play=query
-import { Field, defineEffects } from '@shikiform/react';
+import { useState } from 'react';
+import { Field, Form, defineEffects, useField } from '@shikiform/react';
 import { useQueryTable } from '@shikiform/hooks';
-import { FormItem, FormLayout, Input, QueryList, Select, type ArrayTableColumn } from '@shikiform/antd';
 
 type Log = { id: string; keyword: string; provider: string; model: string; status: string };
 type Query = { keyword: string; provider: string; model: string; user: string };
 type Values = { query: Query; list: Log[] };
 
 const LOGS: Log[] = Array.from({ length: 12 }, (_, i) => ({
-  id: String(i + 1), keyword: `${i % 2 ? 'beta' : 'alpha'}-${i + 1}`,
-  provider: i % 2 ? 'anthropic' : 'openai', model: i % 2 ? 'claude' : 'gpt', status: i % 3 ? 'ok' : 'error',
+  id: String(i + 1),
+  keyword: `${i % 2 ? 'beta' : 'alpha'}-${i + 1}`,
+  provider: i % 2 ? 'anthropic' : 'openai',
+  model: i % 2 ? 'claude' : 'gpt',
+  status: i % 3 ? 'ok' : 'error',
 }));
 const MODELS: Record<string, string[]> = { openai: ['gpt'], anthropic: ['claude'], '': ['gpt', 'claude'] };
 const options = (values: string[]) => values.map((value) => ({ label: value, value }));
@@ -32,14 +35,33 @@ const effects = defineEffects<Values>(({ reaction, watch }) => {
   });
 });
 
-const columns: ArrayTableColumn<Log>[] = [
-  { key: 'keyword', title: '关键字', render: ({ record }) => record.keyword },
-  { key: 'provider', title: '供应商', render: ({ record }) => record.provider },
-  { key: 'model', title: '模型', render: ({ record }) => record.model },
-  { key: 'status', title: '状态', filters: [{ text: '成功', value: 'ok' }, { text: '失败', value: 'error' }], render: ({ record }) => record.status },
-];
+function TextFilter() {
+  const f = useField<string>();
+  return (
+    <label htmlFor={f.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      {f.title}
+      <input id={f.id} style={{ width: 100 }} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} />
+    </label>
+  );
+}
+
+function SelectFilter() {
+  const f = useField<string>();
+  return (
+    <label htmlFor={f.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      {f.title}
+      <select id={f.id} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)}>
+        <option value="">全部</option>
+        {f.options.map((opt) => (
+          <option key={String(opt.value)} value={String(opt.value)}>{opt.label}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
 
 export default function App() {
+  const [expanded, setExpanded] = useState(false);
   const table = useQueryTable({
     initialValues: { query: { keyword: '', provider: '', model: '', user: '' }, list: [] } as Values,
     fields: { 'query.provider': { enum: options(['openai', 'anthropic']) } },
@@ -57,27 +79,83 @@ export default function App() {
       return { data: rows.slice((page - 1) * pageSize, page * pageSize), total: rows.length };
     },
   });
+  const pages = Math.max(1, Math.ceil(table.total / table.pageSize));
+  const statusFilter = table.filteredValueOf('status')?.[0] ?? '';
+  const toggleSelect = (id: string, checked: boolean) =>
+    table.setSelectedKeys(checked ? [...table.selectedKeys, id] : table.selectedKeys.filter((k) => k !== id));
   return (
-    <FormLayout layout="vertical">
-      <QueryList table={table} columns={columns} settings={false}>
-        <Field name="query.keyword" title="关键字" decorator={[FormItem]} component={[Input]} />
-        <Field name="query.provider" title="供应商" decorator={[FormItem]} component={[Select, { allowClear: true }]} />
-        <Field name="query.model" title="模型" decorator={[FormItem]} component={[Select, { allowClear: true }]} />
-        <Field name="query.user" title="用户 ID" decorator={[FormItem]} component={[Input]} />
-      </QueryList>
-    </FormLayout>
+    <Form form={table.form} onSubmit={() => table.submit()}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+        <Field name="query.keyword" title="关键字" component={[TextFilter]} />
+        <Field name="query.provider" title="供应商" component={[SelectFilter]} />
+        <Field name="query.model" title="模型" component={[SelectFilter]} />
+        <span style={{ display: expanded ? 'inline-flex' : 'none' }}>
+          <Field name="query.user" title="用户 ID" component={[TextFilter]} />
+        </span>
+        <button type="submit">查询</button>
+        <button type="button" onClick={table.reset}>重置</button>
+        <button type="button" onClick={() => setExpanded((v) => !v)}>{expanded ? '收起' : '展开'}</button>
+      </div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+        <span>状态筛选：</span>
+        {(['', 'ok', 'error'] as const).map((status) => (
+          <button
+            key={status || 'all'}
+            type="button"
+            style={{ fontWeight: statusFilter === status ? 700 : 400 }}
+            onClick={() => table.setFilters(status ? { status: [status] } : {})}
+          >
+            {status === '' ? '全部' : status === 'ok' ? '成功' : '失败'}
+          </button>
+        ))}
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th />
+            <th>关键字</th>
+            <th>供应商</th>
+            <th>模型</th>
+            <th>状态</th>
+          </tr>
+        </thead>
+        <tbody>
+          {table.data.map((row) => (
+            <tr key={row.id}>
+              <td>
+                <input
+                  type="checkbox"
+                  aria-label={`选择 ${row.id}`}
+                  checked={table.selectedKeys.includes(row.id)}
+                  onChange={(e) => toggleSelect(row.id, e.target.checked)}
+                />
+              </td>
+              <td>{row.keyword}</td>
+              <td>{row.provider}</td>
+              <td>{row.model}</td>
+              <td>{row.status}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div style={{ marginTop: 8 }}>
+        <button type="button" disabled={table.page <= 1} onClick={() => table.onPageChange(table.page - 1)}>上一页</button>
+        <span> 第 {table.page} / {pages} 页 · 共 {table.total} 条 · 已选 {table.selectedKeys.length} </span>
+        <button type="button" disabled={table.page >= pages} onClick={() => table.onPageChange(table.page + 1)}>下一页</button>
+      </div>
+    </Form>
   );
 }
 ```
 
-- `useQueryTable`（`@shikiform/hooks`）统一托管查询条件、分页、勾选、表头筛选和请求竞态；`QueryList` 负责渲染顶部可折叠筛选栏和下方的受控 `ArrayTable`。由于底层仍是标准 ShikiForm 引擎，条件之间可以照常编写 `reaction` 和 `watch`。
+- `useQueryTable`（`@shikiform/hooks`）统一托管查询条件、分页、勾选、表头筛选和请求竞态；由于底层仍是标准 ShikiForm 引擎，条件之间可以照常编写 `reaction` 和 `watch`。
 - 配置 `rows: 'list'` 后，接口返回的每一页数据会写入表单的 `list` 数组字段，因此表格单元格也可以直接放置 `<Field>` 进行行内编辑。
-- 查询区底层采用 `FormGrid`，列数随容器宽度自动调整（默认最多 4 列、每列最小 220px，可通过 `grid` 调整）。收起时只保留第一行且按钮置于行末；只有超出单行时才出现「展开 / 收起」开关，且收起仅隐藏节点不卸载，输入值不会丢失。
-- 触发表头筛选时，筛选条件会传给 `request` 的 `filters` 参数，同时回到第 1 页并清空勾选项；单纯翻页时勾选项会保留。详见 [查询 Hooks](/reference/query-hooks)。
+- 收起额外筛选条件时通过 `display: none` 隐藏而不卸载节点，已输入的值不会丢失。
+- 调用 `table.setFilters` 切换筛选条件时，参数会传给 `request` 的 `filters`，同时回到第 1 页并清空勾选项；单纯翻页时勾选项会保留。详见 [查询 Hooks](/reference/query-hooks)。
 
-## 不用 antd 的查询表
+## 极简查询表
 
-**场景**：不引入 Ant Design，直接将同一个 `useQueryTable` Hook 接入原生 HTML 表单和表格。
+**场景**：直接将同一个 `useQueryTable` Hook 接入最精简的原生 HTML 表单和表格。
 
 ```tsx preview play=query-native
 import { Field, Form } from '@shikiform/react';
@@ -127,15 +205,13 @@ export default function App() {
 - `useQueryTable` 只返回纯状态与操作函数（`data`、`total`、`page`、`selectedKeys`、`submit`、`onPageChange` 等），对 UI 框架没有任何依赖。
 - 通过 `<Form form={table.form} onSubmit={() => table.submit()}>` 包装后，用户在输入框内按回车也能直接触发查询。
 
-## 抽屉里编辑一行
+## 面板里编辑一行
 
-**场景**：表格本身只读展示，点击某行的「编辑」在右侧抽屉中修改数据；点击取消放弃修改，点击确定校验通过后按 `id` 写回原行。
+**场景**：表格本身只读展示，点击某行的「编辑」在编辑面板中修改数据；点击取消放弃修改，点击确定校验通过后按 `id` 写回原行。
 
 ```tsx preview play=row-edit
 import { useState } from 'react';
-import { Button, Drawer, Table } from 'antd';
 import { Field, Form, ObjectField, Watch, useForm, type Draft } from '@shikiform/react';
-import { FormItem, Input, InputNumber } from '@shikiform/antd';
 
 type Row = { id: string; name: string; price: number };
 type Values = { rows: Row[]; editor: Row & { open: boolean } };
@@ -165,25 +241,60 @@ export default function App() {
     <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
       <Watch select={(d: Draft<Values>) => d.rows.$value}>
         {(rows) => (
-          <Table<Row> rowKey="id" pagination={false} dataSource={rows} columns={[
-            { title: '名称', dataIndex: 'name' },
-            { title: '价格', dataIndex: 'price' },
-            { title: '操作', render: (_, row) => <Button type="link" onClick={() => open(row)}>编辑</Button> },
-          ]} />
+          <table>
+            <thead>
+              <tr><th>名称</th><th>价格</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.id}>
+                  <td>{row.name}</td>
+                  <td>{row.price}</td>
+                  <td><button type="button" onClick={() => open(row)}>编辑</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </Watch>
       <Watch select={(d: Draft<Values>) => d.editor.open.$value}>
-        {(visible) => (
-          <Drawer title="编辑" open={visible} onClose={close} destroyOnHidden
-            extra={<><Button onClick={close}>取消</Button> <Button type="primary" onClick={save}>确定</Button></>}>
+        {(visible) => visible ? (
+          <fieldset style={{ marginTop: 12 }}>
+            <legend>编辑行</legend>
             <ObjectField name="editor">
-              <Field name="name" title="名称" required decorator={[FormItem]} component={[Input]} />
-              <Field name="price" title="价格" decorator={[FormItem]} component={[InputNumber, { min: 0 }]} />
+              <Field<Row, 'name'> name="name" title="名称" required>
+                {(f) => (
+                  <p>
+                    <label htmlFor={f.id}>{f.title}：</label>
+                    <input id={f.id} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} onBlur={f.onBlur} />
+                    {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
+                  </p>
+                )}
+              </Field>
+              <Field<Row, 'price'> name="price" title="价格">
+                {(f) => (
+                  <p>
+                    <label htmlFor={f.id}>{f.title}：</label>
+                    <input
+                      id={f.id}
+                      type="number"
+                      min={0}
+                      value={f.value ?? 0}
+                      onChange={(e) => f.onChange(Number(e.target.value))}
+                      onBlur={f.onBlur}
+                    />
+                  </p>
+                )}
+              </Field>
             </ObjectField>
-          </Drawer>
-        )}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" onClick={close}>取消</button>
+              <button type="button" onClick={() => void save()}>确定</button>
+            </div>
+          </fieldset>
+        ) : null}
       </Watch>
-      <Button htmlType="submit" style={{ marginTop: 12 }}>提交（看 editor 不在结果里）</Button>
+      <button type="submit" style={{ marginTop: 12 }}>提交（看 editor 不在结果里）</button>
       <pre>{result}</pre>
     </Form>
   );
@@ -191,7 +302,7 @@ export default function App() {
 ```
 
 - 编辑区使用同一个表单中声明为 `omit: true` 的 `editor` 子对象：可通过 `form.validate('editor')` 单独校验该子树，且不会进入提交结果。
-- 写回时用 `form.batch` 同时更新原行字段并关闭抽屉，合并为一轮联动与一次渲染通知。
-- 需要弹窗或抽屉使用独立的表单实例时，见 [草稿表单（ShadowForm）](/examples/pro#草稿表单的几种容器)（`ShadowModal` / `useShadowForm`）。
+- 写回时用 `form.batch` 同时更新原行字段并关闭编辑面板，合并为一轮联动与一次渲染通知。
+- 需要弹窗或面板使用独立的表单实例时，见 [草稿表单（useShadowForm）](/examples/pro#草稿表单useShadowForm)。
 
-下一组：[Pro 组件](/examples/pro)。
+下一组：[Pro Hooks 与高阶场景](/examples/pro)。

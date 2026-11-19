@@ -9,14 +9,13 @@
    - `<Field name rules required enum visible disabled readOnly omit title description decorator component>` = `useField(name, options)` + `visible` 为 false 时返回 `null`+ 渲染 `decorator` 包住 `component`（或 children），并用内部 `FieldContext` 提供 binding（经无参 `useField()` 读取，不导出）。
    - `<Field name ui="echo">` = `useField(name, { ui })`：同一字段的另一个 UI 实例（值 / 错误 / 规则共享，UI 层独立，见 §3.2）；`<UI name>` = `useUiNode` + `form.uiBinding(作用域, name, props, 'node')` + 渲染 `decorator` / `component`（无值）。
    - `<FieldGroup value>` = 内部 `FieldGroupContext`（`react/field-group.tsx`）：其中挂载的 `useField(name)` / `useArrayField` / `useTreeField` 在 effect 里把绝对路径登记进最近的组及所有外层组（引用计数，卸载移除）；`useFieldGroup()` 建句柄，`useFieldGroupErrors(group)` = `useWatch`（依赖根 `:errors`）按组成员过滤 `form.errors`。
-   - `<ArrayField>` = `useArrayField` + `ArrayScope`（供 `useArrayField()`）+ 每行 `RowScope`（供 `useIndex()` / `useRecord()`）+ 可选的容器 `component`（`[C, props]`，在 `ArrayScope` 内以各行为 `children` 渲染；类型 `ArrayContainerSlot<C>` 按容器检查 props）或可选的 `virtualScroll`（各行包进 `VirtualRows`；二者互斥，同用开发期抛 `ShikiUsageError`）。数组 UI 只有这一种接法：`ArrayItems` / `ArrayCards` / `ArrayTable` 都是容器，没有自带 `name` 的数组组件；`<TreeField>` = `useTreeField` + `TreeScope`（供 `useTreeField()`）+ 按节点 ID 为 key 递归包裹内部 `RowScope`（供 `useTreeField()` / `useIndex()` / 相对字段使用，`node.children` 为已渲染子树），`RowScope` / `ArrayScope` / `TreeScope` / `VirtualRows` 均只从 `@shikiform/react/internal` 导出；`<Watch>` = `useWatch`；`<Form>` = Context Provider + `form.submit()`。
+   - `<ArrayField>` = `useArrayField` + `ArrayScope`（供 `useArrayField()`）+ 每行 `RowScope`（供 `useIndex()` / `useRecord()`）+ 可选的容器 `component`（`[C, props]`，在 `ArrayScope` 内以各行为 `children` 渲染；类型 `ArrayContainerSlot<C>` 按容器检查 props）或可选的 `virtualScroll`（各行包进 `VirtualRows`；二者互斥，同用开发期抛 `ShikiUsageError`）；`<TreeField>` = `useTreeField` + `TreeScope`（供 `useTreeField()`）+ 按节点 ID 为 key 递归包裹内部 `RowScope`（供 `useTreeField()` / `useIndex()` / 相对字段使用，`node.children` 为已渲染子树），`RowScope` / `ArrayScope` / `TreeScope` / `VirtualRows` 均只从 `@shikiform/react/internal` 导出；`<Watch>` = `useWatch`；`<Form>` = Context Provider + `form.submit()`。
    - **DOM id**：引擎的字段 id 就是路径（`<path>--<ui>` 给 UI 实例，`core/engine/dom-id.ts`）；`<Form>` 和影子草稿经内部 `IdPrefixProvider`（`react/id-prefix.tsx`）给控件 id 加前缀 `<form id 或 useId()>-`，`useField` 叠加到 binding，失败提交聚焦也用同一个 id。所以同页两张表单（或文档里两个同字段名的示例）不共用 `id`，`label for` 各指各的。前缀不是公开 API。
    - `typed(form)` / `typed<T>()` = 同一批组件和 Hook 加上类型（名字按作用域检查），没有新的运行时。`typed<T>().createForm` / `typed<T>().useForm` 是同一对函数，T 已固定，`fields` 仍决定提交类型里哪些 `omit: true` 可选；`useForm<T>(options)` 的提交类型就是 T。字段只有 `<Field>` 一种写法。控件登记是 `<FieldKit>` / `<Form kit>`：默认 decorator，`component` / `decorator` 可以写字符串名字或原来的组件引用，类型用 `interface FieldComponents` / `FieldDecorators` 模块扩充。没有第二套 Field。片段复用是普通组件 + `<ObjectField>` + `typed<T>()`。
-3. **Ant Design 适配层是 `useField` 之上的 Formily 式 connect 层。** `<Field>` 是字段唯一的拥有者；装饰器和控件都从 `FieldContext` 读同一个 binding。
+3. **无 UI 适配层（`connect` / `mapProps` / `useFieldDecorator`）位于 `@shikiform/react`。** `<Field>` 是字段唯一的拥有者；装饰器和控件都从 `FieldContext` 读同一个 binding。
    - `connect(Control, mapProps(...))` 每次渲染通过内部 helper `mapFieldProps(binding, props)` 把 binding（来自 `field` 属性 / `name` / 外层 `<Field>`）映射到控件；`preview` 与 `blurOn` 均作为 `mapProps` 选项传入，`mapFieldProps` 不对外公开，Hook 用户直接读取 `useField()` 和 `useFieldDecorator()`。
-   - `FormItem` 是纯装饰器：不拥有字段，内部 `mapFormItemProps(binding, props, useFormLayout())`（不对外公开）是它的纯函数核心。
-   - Pro 组件（复刻 Pro.formily）同样是 Hook 之上的薄封装，见 §9：`ArrayTable`（`<ArrayField>` 的容器）= 公开的 `useArrayTable` + 公开的 `useColumnSettings`（从 `@shikiform/hooks` 导出；表内通过 `useTable().settings` 读同一套状态）；`QueryList` = `useQueryTable({ rows })` + `<ArrayField name={rows} component={[ArrayTable, …]}>`；`ShadowModal` / `ShadowDrawer` / `ShadowPopconfirm` / `ShadowForm` = `useShadowForm`（支持 `name` / `add` 绑定宿主路径并从宿主派生上下文，不再另设 `useArrayShadow`）；`Suggestion` = `useSuggestion`；`CascaderPlus` = `useLazyCascader`（阅读态 `useCascaderLabels` 只从 `@shikiform/hooks/internal` 导出）；选择类控件阅读态 `PreviewText.Select` = `enumItems`。
-4. **公开导出。** 未发布前不留兼容别名，旧名字直接删除。`FormItem` 没有 `name` / `field` / `rules` / `required` 等属性，字段只由 `<Field>` 拥有（§8）。
+   - Pro Hooks 位于 `@shikiform/hooks`（见 §9）：`useArrayTable`、`useColumnSettings`、`useQueryTable`、`useShadowForm`、`useSuggestion`、`useLazyCascader`、`enumItems`、`ENUM_COLORS`，均不依赖任何 UI 库。
+4. **公开导出。** 未发布前不留兼容别名，旧名字直接删除。字段只由 `<Field>` 拥有（§8）。
 
 ## 2. 目录与依赖方向
 
@@ -41,7 +40,7 @@ packages/
     context.tsx            FormContext / ScopeContext
     field-group.tsx        FieldGroup / useFieldGroup / useFieldGroupErrors（收集一块 JSX 里挂载的字段路径；分组容器的错误数与分步校验）
     field-context.ts       内部 FieldContext / useFieldContextOrNull（<Field> 提供；公开读取走无参 useField()）
-    adapter/               connect.tsx（公开 `connect` / `mapProps`；内部 `mapFieldProps`：UI 无关，antd 再导出）
+    adapter/               connect.tsx（公开 `connect` / `mapProps`；内部 `mapFieldProps`：UI 无关）
     hooks/                 use-form、use-field、use-field-decorator（`useFieldDecorator`）、use-array（useArrayField(name?)，句柄含 push/remove/move/dragProps 和本层 errors）、drag（句柄共用的 HTML5 拖放，内部）、use-row（useIndex / useRecord）、
                            use-tree（useTreeField(name) 是树；useTreeField() 是当前节点并带上树的 push/insert/remove/replace/move/dragProps）、use-watch、use-form-message、use-submit（`useSubmit` / `useReset`，只从 internal 导出）、field-lifecycle（JSX lease）、resolve-name（相对名 → path，开发期查重复前缀）
     components/            fields.tsx（Form/Field/ObjectField/ArrayField/TreeField/Watch 及内部 RowScope/ArrayScope/TreeScope）、buttons.tsx（headless `Submit` / `Reset`）、ui.tsx（UI 节点 `<UI>`）、virtual-rows.tsx（内部 VirtualRows）
@@ -50,32 +49,22 @@ packages/
   hooks/src/               无 UI 的高级 Hook（@shikiform/hooks，依赖 react / core）
     use-query-table.ts       查询表（请求、分页、选择；`rows` 把每页写进数组字段）
     use-array-table.ts       数组表格状态：分页切片 / 受控服务端页、选择、展开、行操作
-    use-column-settings.ts   列显隐、排序、列宽、密度（从 `@shikiform/hooks` 公开导出；`ArrayTable.useTable().settings` 读同一套状态）
+    use-column-settings.ts   列显隐、排序、列宽、密度（从 `@shikiform/hooks` 公开导出）
     use-shadow-form.ts       影子表单：支持 `name`/`add` 绑定宿主与 `forkOptions` 继承，每次 open 新建引擎，confirm 校验后写回宿主或交给 onOk
     use-suggestion.ts        远程联想：防抖、中止、最后一次请求胜出
-    use-lazy-cascader.ts     懒加载级联：按路径加载、反显时逐级加载祖先（`useCascaderLabels` 只从 internal 导出，给 CascaderPlus 阅读态）
-  antd/src/                Ant Design（@shikiform/antd，依赖 react / hooks）
-    adapter/               connect.tsx（再导出 react 的 connect / mapProps）、form-item.tsx（FormItem，内部 mapFormItemProps）、form-layout.tsx（FormLayout / useFormLayout）、
-                           form-grid.tsx（FormGrid / GridColumn；`useFormGrid` 同包内部，不从入口导出）、form-button-group.tsx、use-container-width.ts、preview.tsx（PreviewText 与 .Input/.Select/.TreeSelect/.Cascader/.DatePicker… 阅读态视图）
-    components/            controls.tsx（Input、InputNumber、Select、AutoComplete、TreeSelect、Cascader、Switch、Checkbox、Radio、
-                           DatePicker、TimePicker、Slider、Rate、Transfer、Upload、ColorPicker，各自挂一个阅读态视图）、
-                           suggestion.tsx（Suggestion）、cascader-plus.tsx（CascaderPlus）、buttons.tsx（Submit / Reset）
-    containers/            form-tab.tsx / form-collapse.tsx / form-step.tsx（FormTab / FormCollapse / FormStep + useFormStep）、panes.tsx（面板收集、每面板一个字段组、错误徽标）
-    arrays/                array-items.tsx（ArrayItems / ArrayCards / useArrayEditable：<ArrayField component> 容器，按钮 = useArrayField + useIndex；数组路径自身的错误行 = useArrayField().errors）
-    shadow/                shadow.tsx（ShadowModal / ShadowDrawer / ShadowPopconfirm / ShadowForm / useShadow）
-    tables/                array-table.tsx（ArrayTable：<ArrayField> 的 antd 表格容器）、query-list.tsx（QueryList：条件放在 `FormGrid` 里，收起只留第一行、按钮在行末）、merged-table.tsx
+    use-lazy-cascader.ts     懒加载级联：按路径加载、反显时逐级加载祖先
 ```
 
 依赖只能向下：
 
 ```
-@shikiform/antd ─► @shikiform/hooks ─► @shikiform/react ─► @shikiform/core
+@shikiform/hooks ─► @shikiform/react ─► @shikiform/core
 core 内部（有状态部分，编号小者在下）：
   state ◄─ effects ◄─ validation ◄─ declarations ◄─ structure ◄─ engine
 纯模块（shared / draft / enum / types / errors / validation/rules / validation/schema / validation/messages）可被任何层引用，自身不引用有状态部分。
 ```
 
-`tests/layering.test.ts` 机械地守住这些规则：无循环 import；有状态部分只向下依赖；core 不引用 React / antd / dayjs / hooks；react 与 hooks 不引用 antd / dayjs；core 单文件不超过 700 行。
+`tests/layering.test.ts` 机械地守住这些规则：无循环 import；有状态部分只向下依赖；core 不引用 React / hooks；core 单文件不超过 700 行。
 
 下层需要回调上层的地方一律注入，不反向 import：
 
@@ -172,65 +161,38 @@ Formily 的 `field.title` / `description` / `decorator` / `component` / `setComp
 - **外部错误**（#34）：`FieldModel.externalErrors`，与规则、schema 消息一起显示（`shownErrors`）；值变化、该字段重新校验、`reset`、`clearErrors` 时清除。
 - **`StateWriter`**（`writes.ts`）：所有写入的唯一入口。用户编辑 `commitExternal`（置粘滞的 `edited`、触发 `onChange` 校验）；`commitValue` 改值时清掉该 path 上下级的外部错误（`setErrors`）；draft 写 `writeState`（在 reaction/watch/batch 中缓冲，否则立即应用）；`$value` / 四个布尔 / `$required` / `$rules` / `$enum` 的落地；`EnumSource` 异步加载（防抖、abort、seq）与 `enumPolicy: 'clear'`；JSX `enum` 层的 `applyJsxEnum` / `releaseJsxEnum`（见 §8）。
 
-## 8. Ant Design 适配层（`src/antd`）
+## 8. Headless 适配层（`packages/react/src/adapter`）
 
-照搬 Formily 的分工：**`<Field>` 拥有字段，`FormItem` 装饰，`connect` 控件绑定**，三者通过 `FieldContext` 共享同一个 `FieldBinding`。只有一种写法（`FormItem` 没有 `name`）。
-
-```tsx
-import { Field, Form } from '@shikiform/react'
-import { FormItem, FormLayout, Input, Select, connect, mapProps } from '@shikiform/antd'
-
-const Rate = connect(AntRate, mapProps({ status: false }))
-
-<Form form={form}>
-  <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }}>
-    <Field name="email" title="邮箱" required rules={{ format: 'email' }}
-      decorator={[FormItem, { tooltip: '工作邮箱' }]} component={[Input, { placeholder: 'name@example.com' }]} />
-    <Field name="city" title="城市" decorator={[FormItem]} component={[Select]} />   {/* options 来自字段 enum */}
-    <Field name="level" title="等级" enum={[{ label: '黄金', value: 'gold' }]} decorator={[FormItem]} component={[Select]} />
-    <Field name="score" title="评分" decorator={[FormItem]}><Rate /></Field>        {/* children 也可以是控件 */}
-  </FormLayout>
-</Form>
-```
+照搬 Formily 的分工：**`<Field>` 拥有字段，装饰器（如 `useFieldDecorator()` 封装的 `FormItem`）装饰，`connect` 控件绑定**，三者通过 `FieldContext` 共享同一个 `FieldBinding`。
 
 - **`<Field>`**（react 层）：`useField(name, options)` → `visible === false` 返回 `null` → `FieldContext.Provider` 里渲染 `<Decorator {...decoratorProps}>{content}</Decorator>`，`content` 依次取 render prop、children、`<Component {...componentProps} />`。传给槽位的是**有效**的 props（`fields` ← JSX ← reaction），与组件自己从 binding 里再合并的是同一份值，所以没有新旧覆盖问题。槽位也可以在 `fields` 里声明，`<Field name="city" />` 即可渲染。
-- **`<Field enum>` / `useField(name, { enum })`**：JSX 层的选项，存在模型的 `jsxEnum` 上，优先级 reaction `$enum` > `jsxEnum` > 精确声明 `fields.x.enum` > 条目模板（`Declarations` 在 `jsxEnum` 存在时不覆盖 `enumOptions`）。渲染期的 binding 直接读取静态 JSX 选项；React 提交挂载后才把选项写入引擎、启动异步加载，并通知读取 `$enum` 的 reaction。首次挂载保留已有值，后续更新执行 `enumPolicy`。相等值（静态深比较；绑定比 source 身份 + params 深比较）是空操作，所以内联数组没问题。卸载、path 变化或属性改回 `undefined` 时 `releaseJsxEnum(path, lease)` 恢复声明 / 模板选项（`Declarations.declaredEnum`）；lease 是模型身份，行移动后旧 path 上的别的模型不会被释放。reaction / batch 写 `$enum = undefined` 时 `StateWriter.setEnum` 清 `enumFromEffect`、`cancelEnumLoad`（seq++、清防抖定时器、abort、`loading` 复位），然后回退：`jsxEnum` 是绑定就重新 `loadEnum`，否则取 `jsxEnum ?? Declarations.declaredEnum(path)`（都没有为 `undefined`，读 `$enum` 得 `[]`），变化走 `afterEnum`（`enumPolicy`）；`$enum = []` 仍是 reaction 层钉住的空列表。静态 `$enum`、JSX 静态列表、`releaseJsxEnum` 同样经 `cancelEnumLoad` 作废进行中的加载。类型：`FieldEnum<V>`，选项 `value` 是 `EnumValueOf<V>`（数组字段取元素类型，`any` 不检查）。
-- **字段来源（connect 控件）**：`field` 属性 → `name` 属性（`useField(name)`）→ 外层 `<Field>`（内部 `useFieldContextOrNull()`）；都没有时按普通控件渲染调用方 props，开发期警告一次（不抛错）。`connect` 用 `forwardRef` 把 ref 交给原控件，并把原控件的静态成员（除 React / Function 内建键）拷到结果上（`Select.Option`）。`mapProps` 对象写法除绑定键外，还能把任意字段状态（`title`、`required`、`componentProps.x` …）交给某个 prop，调用方显式 prop 优先。自定义控件用无参 `useField()`。
-- **默认映射**（内部 `mapFieldProps`，实现在 `react/adapter/connect.tsx`）：先把 `field.componentProps` 合并在调用方 props 之下，再映射 `value`、`onChange`（`parse`，默认 `valueFromEvent`：checkbox 取 `checked`，事件取 `target.value`，其他取第一个参数；然后以原始参数调用调用方 handler）。`format(value, props)` 在变换之后把字段值转成控件的 `value`（日期字符串 ↔ dayjs）；预览不转换。然后是 `onBlur`、`disabled`/`readOnly`（与调用方 OR）、`id`。`status` 默认不传（antd 语义）；接好的 antd 控件用 `mapProps({ status: 'status' })` 才得到 `'error'` / `'warning'`（调用方优先）。`options`/`loading` 需显式映射。控件 props 类型没有 `onBlur` 时 `connect` 要求 `mapProps({ blurOn })` 或 `mapProps({ onBlur: false })`：`blurOn: 'onOpenChange'` 在参数为 `false` 时失焦，`blurOn: 'onChange'` 在变更后失焦，并且不再把 `onBlur` 传出去。配置了 `preview` 且字段 `readOnly` 时渲染该视图（优先于 `disabled`）；否则控件收到 `readOnly`。
-- **内置控件**（对齐 `@formily/antd`）：`Input`（`.TextArea`、`.Password`）、`InputNumber`（清空写 `null`）、`Select` / `Radio`（本身就是单选组，`Radio.Group === Radio`）/ `Checkbox.Group` / `AutoComplete`（enum→`options`）、`TreeSelect`（enum→`treeData`）、`Cascader`（enum→`options`，值是路径）、`Transfer`（enum→`dataSource` `{ key, title }`，值↔`targetKeys`）、`Switch`/`Checkbox`（value↔checked）、`DatePicker` / `TimePicker`（`.RangePicker`；字段存格式化字符串，因为核心 `structuredClone` 会丢掉 dayjs 原型；`customParseFormat` 按 `format` 解析）、`Slider`、`Rate`、`Upload`（`.Dragger`；值↔`fileList`，`parse` 取 `fileList`、去掉不可克隆的 `xhr`、无 `url` 时取 `response.url`）、`ColorPicker`（值是颜色文本）。内部 `mapFieldProps` 给控件的枚举选项递归保留 `children`（树形选项就是带 `children` 的 `<Field enum>`）。不内置 `CascaderPlus` 以外的懒加载级联：选项一开始齐全用 `Cascader` + enum，逐级加载用 `CascaderPlus`（`useLazyCascader` 已有 `children` 的节点不再加载，所以去掉了重复的 `all` 选项）。
-- **校验失败事件**：`Notifier.validateFailed(errors)` 在 `Validator.submitVerdict` 得出 `invalid`、`FormEngine.validate()`（公开入口，不含触发器 / 防抖的 `validateDetached`）返回非空错误时同步调用 `subscribeValidateFailed` 的监听者（监听者抛错只 `console.error`）。React 层的两个用户：分组容器（`containers/panes.tsx` 的 `useRevealOnFail`：按面板顺序找含有这次错误路径的面板，`flushSync` 切换，受控时只调 `onChange`）；`<Form>`（`setTimeout(0)` 后在自己的 `<form>` 里按文档顺序找第一个 `id` 是错误路径且可见的元素，`focus()`，没拿到焦点就 `scrollIntoView`）。容器先同步切好，所以聚焦时面板已经显示。没有关闭开关（一种行为）。
-- **`FormItem`**（装饰器 / 纯布局）：没有 `name` / `field` / `rules` / `required` 属性。字段里：`mapFormItemProps(field, props, layout, env)`：合并 `layout`（`FormLayout`）← `field.decoratorProps` ← `props`；`label` ← `title`、`extra` ← `description`（显式优先）；必填星号 ← `required`（`readOnly` 隐藏，`asterisk` 强制；`requiredMark: false` 隐藏，`'optional'` 改为给非必填项标签加 `messages.optional`）；`validateStatus` 依次 error → validating → warning；`help` 是全部错误（否则全部警告），一条一行；`feedbackLayout`：`loose` / `terse`（无提示时去掉底部间距）/ `popover`（组件用 antd `Popover` 浮在控件上，不占行）/ `none`；`labelWidth` / `wrapperWidth` → `labelCol` / `wrapperCol` 的 `flex`；`labelWrap` → 给 label 列加 antd 自己的 `${prefixCls}-item-label-wrap` 类（antd 的 `labelWrap` 只能从 `Form` context 给，`labelCol.className` 是它读的公开入口）；`tooltipLayout: 'text'` 把 tooltip 拼进 label；`gridSpan` → `gridColumn`（按 `FormGrid` 当前列数截断）。`env`（类名前缀、可选文案、列数）由组件从 context 读，纯函数保持纯。字段外 `field = null`：纯布局，不设 `validateStatus`。组件分三支：字段里 `FieldFormItem`；`<Form>` 里的纯布局 `LayoutFormItem`：把子树包进自己的 `FieldGroup`，用 `useGroupsErrors` 取组内错误，减去「已有人显示」的路径（`FeedbackClaims`：字段 `FormItem` 显示提示时——可见且 `feedbackLayout !== 'none'`——向外层所有纯布局项登记自己的精确路径；纯布局项显示提示时把组内路径连同后代登记给更外层），剩下的按文案去重，经 `env.errors` 交给 `mapFormItemProps` 作为错误色 `help`（`${prefix}-item-explain-error`）并加 `has-error` 类——不设 `validateStatus`，否则 antd 会经 `FormItemInputContext` 把里面没错的控件也标红；出错的控件靠自己字段的 `status` 变红；`<Form>` 外的纯布局只是布局。`addonBefore/After` 与 popover 是组件自己的标记。`visible: false` 不渲染。
-- **`FormLayout`**：`layout`、`labelCol`、`wrapperCol`、`labelWidth`、`wrapperWidth`、`labelAlign`、`labelWrap`、`colon`、`requiredMark`、`tooltipLayout`、`size`、`feedbackLayout` 经 context 向下继承，嵌套时按键合并；前六个可按断点给数组，`FormLayout` 用 `ResizeObserver` 量**自身**宽度（`use-container-width.ts`；未测量时取最宽一档，SSR 一致）后解析成标量再下发；`size` 同时通过 antd `ConfigProvider componentSize` 作用于控件；`inline` 用一层 flex 容器排布。`useFormLayout()` 读当前合并结果。
-- **`FormGrid`**：CSS grid，列数 = 自身宽度能放下的 `minWidth` 列数，夹在 `[minColumns, maxColumns]`（均可按断点给数组），经同包内部的 `useFormGrid()`（不从包入口导出）交给 `FormItem` / `GridColumn` 截断跨列。跨列用 `gridSpan` 或 `GridColumn`。**`FormButtonGroup`**：flex 按钮行；`.FormItem` = 空标签（`label=" "`）的纯布局 `FormItem`，因此 `labelCol` / `labelWidth` 自动对齐；`.Sticky` = `position: sticky` 栏。
-- **数组容器**（`arrays/array-items.tsx`，Formily `ArrayItems` / `ArrayCards`；表格容器 `ArrayTable` 见 §9）：是 `<ArrayField component>`，没有自己的状态。容器用 `useArrayField()` 拿数组，把句柄的 `dragProps`（按路径稳定的函数，`react/hooks/drag.ts`）经 context 给行，所以行不必各自订阅结构；`Item` / 卡片是放置目标，`SortHandle` 是拖动源。`Addition` / `Remove` / `MoveUp` / `MoveDown` / `SortHandle`（`ArrayTable` 的同名按钮及 `Copy` / `ShadowAddition` 同样）由 `useArrayEditable()`（`useWatch` 数组路径 `visible && !disabled && !readOnly`，沿祖先继承到根）决定是否渲染；`Index` 总是显示。`ArrayCards` 不要求行包装：它 `cloneElement` `<ArrayField>` 给的每个 `RowScope`，把行内容换成卡片，卡片仍在该行作用域里（依赖 `<ArrayField>` 的子节点就是 `RowScope` 这一内部约定）。空状态是 antd `Empty`。不新增行 id：无 `rowKey` / `id` 的对象行已有 WeakMap 对象身份（§6），所以 `Addition` 默认推 `{}`。
-- **分组容器**（`containers/`，Formily `FormTab` / `FormCollapse` / `FormStep`）：子元素是标记组件（`FormTab.Pane` / `FormCollapse.Panel` / `FormStep.Step`，本身渲染即抛错），`collectPanes` 当数据读（展开 Fragment，跳过 `false`/`null`，其他元素抛错）。每个面板一个 `FieldGroupStore`（按面板 key 稳定），面板内容包在 `<FieldGroup>` 里；`useGroupsErrors` 一次订阅算出各面板的错误字段数（徽标 / 步骤 `error` 状态）。**所有面板都挂载**：Tabs / Collapse 用 antd `forceRender`，FormStep 非当前步加 `hidden`——字段的 JSX 规则与值一直在，提交照常校验（裸 antd `Tabs` 的未激活面板不挂载，JSX 规则会缺席）。容器不占值路径，也不写四个布尔；`visible` / `disabled` / `readOnly` 仍沿字段路径继承。`useFormStep()` 是放按钮那层的 React 状态（`current`/`count`），`<FormStep>` 在 layout effect 里把 `{ form, groups }` 和步数交给句柄（句柄可以在 `<Form>` 外创建）；`next()` = 当前步组里 `visible && !disabled && !readOnly` 的路径 → `form.validate(paths)` 一轮 → 无错才前进（不可编辑字段用户改不了，不拦；提交仍全量校验）。最后一步就是普通 `Submit`。提交 / `form.validate()` 失败时自动切到有错的面板（见上「校验失败事件」）；纯布局 `FormItem` 汇总子字段错误（见 `FormItem`）。
-- **表格**：单元格就是行作用域里的 `<Field>`，可以不要装饰器（`component={[Input]}`），或用别的装饰器 / `FormItem` 的 `feedbackLayout: 'terse'`。
-- **按钮**：headless `Submit` / `Reset`（`react/components/buttons.tsx`）从 `@shikiform/react` 公开导出：`asChild` 或 render prop，不依赖 antd。`useSubmit` / `useReset` 只从 `@shikiform/react/internal` 导出。antd `components/buttons.tsx` 是同一对 Hook 上的 `Button`。`Submit` 订阅 `$canSubmit` / `$submitting`；不传 `onSubmit` 时是原生 submit（交给 `<Form onSubmit>`），传了则点击时 `runSubmit(form, handlers)`。`Reset` = `form.reset(values)`，`onClick` 在前（`preventDefault` 跳过），`afterReset(values)` 在重置之后。文案走内部 `useFormMessage()`。
-- **装饰数据**（`useFieldDecorator`）：`{ id, label, description, required, errors, warnings, describedBy, labelProps, errorProps, control }`，不产出 antd props。`control` 给自带 label/error 的控件（Mantine）。
-- **阅读态**（Formily `PreviewText`）：`mapProps({ preview })` 指定的视图收到调用方 props + `value` / `options`；字段的 `readOnly` 是继承后的有效值，所以根 `readOnly`（`useForm({ readOnly: true })`）让所有控件一起切换。视图都在 `adapter/preview.tsx`：`PreviewText`（通用）及 `.Input`（前后缀、`formatter`）/ `.Password`（`******`）/ `.Select`（`enumItems`：label、宽松匹配、未知值显示自身、`labelInValue`；一个值是文字，多个是标签；`prettyType` badge / 彩色 tag）/ `.TreeSelect`（树里找，`fieldNames`）/ `.Cascader`（`a / b`，`multiple` 每条路径一个标签）/ `.DatePicker` `.TimePicker` 及区间（字符串原样，dayjs 按 `format`）/ `.Empty`；`Switch` / `Checkbox`（是 / 否，`checkedChildren` 优先）、`Slider`、`Rate`（禁用星星）、`Transfer`、`Upload`（文件链接 / 缩略图，无隐藏 input）、`ColorPicker` 的视图在 `controls.tsx` 里。空值（`undefined`/`null`/`''`/`[]`）统一显示 `messages.empty`（默认 `-`，经 `useFormMessage`：表单 `messages` → `setDefaultMessages`），视图的 `empty` 属性优先；不用 `placeholder`（否则控件的编辑态占位符会显示成值）。只读的枚举字段就是 `readOnly` 的选择控件，表单外用 `PreviewText.Select`。
+- **`<Field enum>` / `useField(name, { enum })`**：JSX 层的选项，存在模型的 `jsxEnum` 上，优先级 reaction `$enum` > `jsxEnum` > 精确声明 `fields.x.enum` > 条目模板。渲染期的 binding 直接读取静态 JSX 选项；React 提交挂载后才把选项写入引擎、启动异步加载，并通知读取 `$enum` 的 reaction。卸载、path 变化或属性改回 `undefined` 时 `releaseJsxEnum(path, lease)` 恢复声明 / 模板选项。
+- **字段来源（connect 控件）**：`field` 属性 → `name` 属性（`useField(name)`）→ 外层 `<Field>`（内部 `useFieldContextOrNull()`）；都没有时按普通控件渲染调用方 props，开发期警告一次（不抛错）。`connect` 用 `forwardRef` 把 ref 交给原控件，并把原控件的静态成员拷到结果上。自定义控件用无参 `useField()`。
+- **默认映射**（内部 `mapFieldProps`，实现在 `react/adapter/connect.tsx`）：先把 `field.componentProps` 合并在调用方 props 之下，再映射 `value`、`onChange`（`parse`，默认 `valueFromEvent`）、`format(value, props)`、`onBlur`、`disabled`/`readOnly`（与调用方 OR）、`id`。`options`/`loading` 需显式映射。控件 props 类型没有 `onBlur` 时 `connect` 要求 `mapProps({ blurOn })` 或 `mapProps({ onBlur: false })`。配置了 `preview` 且字段 `readOnly` 时渲染该视图（优先于 `disabled`）；否则控件收到 `readOnly`。
+- **校验失败事件**：`Notifier.validateFailed(errors)` 在 `Validator.submitVerdict` 得出 `invalid`、`FormEngine.validate()` 返回非空错误时同步调用 `subscribeValidateFailed` 的监听者。`<Form>` 在 `setTimeout(0)` 后在自己的 `<form>` 里按文档顺序找第一个 `id` 是错误路径且可见的元素，`focus()`，没拿到焦点就 `scrollIntoView`。
+- **按钮**：headless `Submit` / `Reset`（`react/components/buttons.tsx`）从 `@shikiform/react` 公开导出：`asChild` 或 render prop，零 UI 依赖。`useSubmit` / `useReset` 只从 `@shikiform/react/internal` 导出。`Submit` 订阅 `$canSubmit` / `$submitting`；`Reset` = `form.reset()`，`afterReset(values)` 在重置之后执行。
+- **装饰数据**（`useFieldDecorator`）：`{ id, label, description, required, errors, warnings, describedBy, labelProps, errorProps, control }`，UI 库无关。
 
-## 9. Pro 层（复刻 Pro.formily）
+## 9. Pro Hooks 层（`packages/hooks/src`）
 
-| Pro.formily | ShikiForm Hook（`@shikiform/hooks`） | antd 组件（`@shikiform/antd`） | Demo |
-|---|---|---|---|
-| ProArrayTable（分页、选择、展开、列配置、列宽、拖拽、异步删除、Addition） | `useArrayTable`、公开的 `useColumnSettings` | `ArrayTable`，`<ArrayField component>` 容器（+ `SortHandle`/`Index`/`Remove`/`MoveUp`/`MoveDown`/`Copy`/`Addition`/`ShadowAddition`，`useTable`/`useRow`） | `/play/array-table` |
-| ShadowForm / ShadowModal / ShadowPopconfirm / ProAddition | `useShadowForm`（含 `name` / `add`） | `ShadowForm`、`ShadowModal`、`ShadowDrawer`、`ShadowPopconfirm`、`useShadow`、`ArrayTable.ShadowAddition` | `/play/shadow-form`、`/play/array-table-shadow`、`/play/query-list-add` |
-| ProEnum / ProEnumPretty | `EnumSource`（core）、`enumItems` | 选择类控件阅读态 + `prettyType`、`PreviewText.Select` | `/play/pro-enum` |
-| Suggestion | `useSuggestion` | `Suggestion` / `SuggestionView` | `/play/suggestion` |
-| CascaderPlus | `useLazyCascader` | `CascaderPlus` / `CascaderPlusView` | `/play/cascader-plus` |
-| QueryList（含 Pro.formily QueryForm / QueryTable） | `useQueryTable({ rows })` | `QueryList`（`rows` 必填；条件栅格就是 `FormGrid`） | `/play/query`、`/play/query-list` |
+| 能力 | ShikiForm Hook（`@shikiform/hooks`） | 说明 |
+|---|---|---|
+| 数组表格 | `useArrayTable`、`useColumnSettings` | 分页切片、勾选、展开、行复制/删除/移动与列设置 |
+| 草稿表单 | `useShadowForm`（含 `name` / `add`） | 独立临时表单编辑副本，确认并校验通过后写回宿主路径 |
+| 枚举显示 | `EnumSource`（core）、`enumItems`、`ENUM_COLORS` | 枚举标签与语义色解析 |
+| 远程联想 | `useSuggestion` | 防抖、中止过期请求、保留已选项标签 |
+| 懒加载级联 | `useLazyCascader` | 按路径按需加载子节点与祖先反显 |
+| 查询列表 | `useQueryTable({ rows })` | 筛选、分页、表头排序、列筛选、请求竞态与跨页勾选 |
 
-- **影子表单默认通过 `forkOptions` 继承上下文并在确认后写回。** `useShadowForm` 传入 `name`（或在对象/行作用域内省略 `name`）时绑定宿主路径，`open()` 调用 `engine.forkOptions(path)` 深拷贝初始值并继承前缀剥离后的 `fields`/`trees`、有效 `readOnly`（为 true 时隐藏确定按钮并用 `messages.close`）、`messages`、`validateTrigger`、`asyncDebounceMs` 与 `enumPolicy`（不继承宿主 `effects` 与表单级 `validate`）；`confirm` 校验通过并执行 `onOk`（返回 `false` 时跳过）后按绑定类型写回（对象写回保留宿主的嵌套 `omit` 键，数组按草稿顺序及行身份匹配，数组行按 `rowKey` 追踪，已删行提示并跳过，`add` 模式追加）。未绑定时（表单根上省略 `name`）只把值交给 `onOk`。`ShadowBody` 重置 9 个宿主上下文（`FormContext`、`ScopeContext`、`ArrayContext`、`RowWrapContext`、`FieldContext`、`UiNodeContext`、`FieldGroupContext`、`FormGridContext`、`ClaimContext`）并创建新 `IdPrefix`，同时继承 `FieldKit` 与 `FormLayout`，不渲染 `<form>`。
-- **`<Form>` 同样把作用域重置为根，并阻止 submit 事件冒泡到宿主表单**（React 合成事件会穿过 portal）。
-- **查询表的表头排序与列筛选在 `useQueryTable`。** `sorter: QuerySort[]`、`filters: QueryFilters` 是 Hook 的 React 状态（不进表单值），随 `queryKey` 与 `request` 参数一起发送。`onTableChange` 接 antd `Table onChange`（忽略 `paginate`，分页走 `onPageChange`），值没变不请求。排序变化：回第 1 页、保留选择（结果集不变）；列筛选变化：回第 1 页、清空选择（结果集变了，旧选择会让批量操作处理看不见的行，#3）；`submit` 保留二者，`reset` 清空。`QueryList` 只把列的 `sortOrder` / `filteredValue` 设为受控并转发 `onChange`。
-- **列配置拖拽在公开的 `useColumnSettings`（`@shikiform/hooks`）。** `dragProps(key)` 是无依赖的 HTML5 拖放属性（只接受从列表内开始的拖动），`moveKey(from, to)` 按 key 移动；antd 层只把它展开到每行并保留 ↑ ↓ 按钮（键盘可达）。单元格里读 `ArrayTable.useTable().settings`（同一套状态）。
-- **级联阅读态在内部 `useCascaderLabels`（`@shikiform/hooks/internal`）。** `labelInValue` 值直接取标签、不加载；裸值复用 `useLazyCascader`（`enabled` 控制是否加载）逐级加载祖先后解析标签。`CascaderPlus` 的 `mapProps({ preview })` 视图只是它的渲染。自绘阅读态对裸路径用公开的 `useLazyCascader().labelsOf`。
-- **表格状态不进表单值。** 分页、选择、展开、列配置是 React 状态（`useArrayTable` 可受控传入 `selectedKeys`）；查询表的选择仍由 `useQueryTable` 从提交里拿掉（不改字段自己的 `omit`），`QueryList` 把它作为受控选择传给 `ArrayTable`。
+- **影子表单默认通过 `forkOptions` 继承上下文并在确认后写回。** `useShadowForm` 传入 `name`（或在对象/行作用域内省略 `name`）时绑定宿主路径，`open()` 调用 `engine.forkOptions(path)` 深拷贝初始值并继承前缀剥离后的 `fields`/`trees`、有效 `readOnly`、`messages`、`validateTrigger`、`asyncDebounceMs` 与 `enumPolicy`；`confirm` 校验通过并执行 `onOk`（返回 `false` 时跳过）后按绑定类型写回。
+- **`<Form>` 把作用域重置为根，并阻止 submit 事件冒泡到宿主表单**（React 合成事件会穿过 portal）。
+- **查询表的表头排序与列筛选在 `useQueryTable`。** `sorter: QuerySort[]`、`filters: QueryFilters` 是 Hook 的 React 状态（不进表单值），随 `queryKey` 与 `request` 参数一起发送。排序变化回第 1 页并保留选择；列筛选变化回第 1 页并清空选择；`submit` 保留二者，`reset` 清空。
+- **列配置拖拽在公开的 `useColumnSettings`（`@shikiform/hooks`）。** `dragProps(key)` 是无依赖的 HTML5 拖放属性，`moveKey(from, to)` 按 key 移动。
+- **表格状态不进表单值。** 分页、选择、展开、列配置是 React 状态（`useArrayTable` 可受控传入 `selectedKeys`）。
 
 ## 10. 行上下文 Hook（`react/hooks/use-row.ts`、`use-array.ts`）
 
-- `ArrayContext`（`react/context.tsx`）记录最近一层数组的绝对路径与 `rowKey`，由 `ArrayScope` 提供；`<ArrayField>` 渲染它（容器 `component` 在它里面，`ArrayTable` 从这里读路径和 `rowKey`）。`useArrayField()` 读它；`useArrayField(name)` 解析名字并登记 FieldGroup。两者都走 `useArrayAt`（订阅结构）。
-- `TreeContext` 记录最近一层树的绝对路径和调用方传入的 `childrenKey` / `rowKey`（省略则留给已有注册），由 `TreeScope` 提供；`<TreeField>` 渲染它。`useTreeField(name)` 解析名字并登记 FieldGroup，返回树根句柄。`useTreeField()` 读当前节点的 `path` / `pos`（`ScopeContext`）和这棵树。不在节点里（scope 没有 `pos`）且没传 name 时开发期抛 `ShikiUsageError`。句柄还有 `push` / `insert` / `remove` / `replace`，字段模型按节点 id 迁移（`TreeOps.commit`）。
+- `ArrayContext`（`react/context.tsx`）记录最近一层数组的绝对路径与 `rowKey`，由 `ArrayScope` 提供；`<ArrayField>` 渲染它。`useArrayField()` 读它；`useArrayField(name)` 解析名字并登记 FieldGroup。两者都走 `useArrayAt`（订阅结构）。
+- `TreeContext` 记录最近一层树的绝对路径和调用方传入的 `childrenKey` / `rowKey`，由 `TreeScope` 提供；`<TreeField>` 渲染它。`useTreeField(name)` 返回树根句柄；`useTreeField()` 读当前节点的 `path` / `pos`（`ScopeContext`）和这棵树。
 - `ScopeContext` 的值扩展为 `{ path, index, itemKey?, pos? }`；`RowScope` 接受 `itemKey`（行 id）与 `pos`（树坐标）。`useIndex()` 读 `index`（树节点里是兄弟下标）；`useTreeField()` 读 `path` / `pos` / `index`；二者在行 / 节点外抛错。
 - `useRecord()` = `useWatch(() => form.query(scope.path).$value)`：单元格写入会把祖先的 `:value` 依赖标脏，所以这一行任一单元格变化都会重渲染，其他行不会；行移动后 `RowScope` 的 path 变化，selector 跟着换。
-- `ArrayTable.useRow()` = `{ key: scope.itemKey, index: useIndex(), position: table.positionOf(index), record: useRecord() }`，antd 层没有自己的行 Context；`useTable()` 只是表格状态（`useArrayTableOver` + 公开的 `useColumnSettings`）的 Context。

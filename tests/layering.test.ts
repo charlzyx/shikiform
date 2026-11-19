@@ -3,7 +3,7 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 /** Guard the one-way module layout described in design/ARCHITECTURE.md. */
-const PACKAGES = ['core', 'react', 'hooks', 'antd'] as const
+const PACKAGES = ['core', 'react', 'hooks'] as const
 const ROOTS = PACKAGES.map((name) => ({ name, dir: path.resolve('packages', name, 'src') }))
 
 function files(dir: string): string[] {
@@ -85,8 +85,8 @@ describe('module layering', () => {
     expect(violations).toEqual([])
   })
 
-  it('core imports no React, react and hooks import no antd, pure modules import no stateful part', () => {
-    const rank: Record<string, number> = { core: 0, react: 1, hooks: 2, antd: 3 }
+  it('core imports no React, react and hooks import no UI libraries, pure modules import no stateful part', () => {
+    const rank: Record<string, number> = { core: 0, react: 1, hooks: 2 }
     const violations: string[] = []
     for (const [file, deps] of graph) {
       const from = rel(file)

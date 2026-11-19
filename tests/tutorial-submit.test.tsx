@@ -7,7 +7,7 @@ afterEach(() => cleanup())
 
 it('resetting the submit tutorial clears the previous JSON', async () => {
   const view = render(<App />)
-  fireEvent.change(screen.getByLabelText('密码'), { target: { value: 'secret123' } })
+  fireEvent.change(screen.getByLabelText(/^密码/), { target: { value: 'secret123' } })
   await act(async () => {
     fireEvent.submit(view.container.querySelector('form')!)
   })

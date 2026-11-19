@@ -21,13 +21,13 @@ afterEach(() => {
 
 // Each case spawns a full TypeScript program (~3s alone); under a loaded parallel run it can pass 5s.
 describe('public Hook and adapter reference coverage', { timeout: 30_000 }, () => {
-  it('maps every real public Hook, typed, and pro/antd export to a named signature section', () => {
+  it('maps every real public Hook, typed, and hooks export to a named signature section', () => {
     const result = check(path.resolve('docs-site/src/content/docs'))
     expect(result.status, result.stderr).toBe(0)
-    // 计数从 exports.json 派生。react hooks 9 个（含 useFieldDecorator）加 typed，再加上 hooks / antd 运行时导出，合计 64。
+    // 计数从 exports.json 派生（react hooks + typed + hooks 运行时导出）。
     const manifest = JSON.parse(readFileSync(path.resolve('docs-site/src/content/docs/reference/exports.json'), 'utf8'))
     const count = Object.values(manifest).reduce((sum: number, scope) => sum + Object.keys(scope as object).length, 0)
-    expect(count).toBeGreaterThanOrEqual(64)
+    expect(count).toBeGreaterThanOrEqual(15)
     expect(result.stdout).toContain(`${count} public`)
   })
   it('fails when an existing Hook disappears from the reference map', () => {

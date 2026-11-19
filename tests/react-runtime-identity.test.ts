@@ -8,7 +8,7 @@ const react = rootRequire('react');
 const reactDom = rootRequire.resolve('react-dom');
 
 describe('site React runtime dependency identity', () => {
-  for (const entry of ['react-dom', 'antd', '@tanstack/react-virtual']) {
+  for (const entry of ['react-dom']) {
     it(`${entry} resolves the same React as the form and island host`, () => {
       const dependencyRequire = createRequire(rootRequire.resolve(entry));
       expect(dependencyRequire('react')).toBe(react);

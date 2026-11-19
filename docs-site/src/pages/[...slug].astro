@@ -53,7 +53,7 @@ const socialImage = entry.data.socialImage ?? ogImageUrl;
   headings={toc}
   breadcrumbs={breadcrumbs}
   prevNext={prevNext}
-  mode={entry.data.mode}
+  mode={currentSlug === "/" ? "custom" : entry.data.mode}
   banner={entry.data.banner}
   head={entry.data.head}
   searchable={entry.data.searchable}

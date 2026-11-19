@@ -2,7 +2,6 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { ArrayField, createForm, Form, TreeField, useArrayField, useIndex, useRecord, useTreeField } from '@shikiform/react'
-import { ArrayTable } from '@shikiform/antd'
 
 afterEach(cleanup)
 
@@ -194,26 +193,5 @@ describe('headless row context hooks (useArrayField / useIndex / useRecord / use
     })
     expect(form.getValue('menu.0.children.0.id')).toBe('new')
     expect(form.getValue('menu.0.children.1.id')).toBe('undo')
-  })
-
-  it('ArrayTable cells get the same hooks; ArrayTable.useRow is built on them', () => {
-    const form = createForm({ initialValues: { list: [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }] as Row[] } })
-    function Cell() {
-      const row = ArrayTable.useRow()
-      const array = useArrayField()
-      return <span data-testid={`cell-${row.index}`}>{`${row.key}|${row.position}|${row.record.name}|${array.path}`}</span>
-    }
-    render(
-      <Form form={form}>
-        <ArrayField name="list" rowKey="id" component={[ArrayTable, {
-          settings: false,
-          pagination: false,
-          columns: [{ key: 'c', render: () => <Cell /> }],
-        }]} />
-      </Form>,
-    )
-    expect(screen.getByTestId('cell-1').textContent).toBe('b|2|B|list')
-    act(() => form.setValue('list.1.name', 'B3'))
-    expect(screen.getByTestId('cell-1').textContent).toBe('b|2|B3|list')
   })
 })

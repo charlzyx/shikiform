@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
-import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, renderHook, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Field, Form } from '@shikiform/react'
 import { engineOf } from '../packages/core/src/engine/create'
-import { FormItem, Input, QueryList } from '@shikiform/antd'
+import { Input } from './fixtures/native-kit'
 import { useQueryTable, type QueryRequestArgs } from '@shikiform/hooks'
 import { normalizeFilters, normalizeSort } from '../packages/hooks/src/use-query-table'
 
@@ -165,41 +165,5 @@ describe('useQueryTable sort and filter passthrough', () => {
       { field: 'd', order: 'descend' },
     ])
     expect(normalizeFilters({ a: null, b: [], c: ['x', 1], d: 'y' })).toEqual({ c: ['x', 1], d: ['y'] })
-  })
-})
-
-describe('antd tables forward header sort / filter to the request', () => {
-  it('QueryList: a sortable column header reaches the request through ArrayTable', async () => {
-    const request = backend()
-    function Page() {
-      const table = useQueryTable({
-        initialValues: { query: { q: '' }, list: [] as Row[] },
-        params: 'query',
-        rows: 'list',
-        request,
-        defaultPageSize: 5,
-      })
-      return (
-        <QueryList
-          table={table}
-          settings={false}
-          columns={[
-            { key: 'id', title: 'ID', render: ({ record }) => <span data-testid="row-id">{record.id}</span> },
-            { key: 'n', title: 'N', sorter: true, render: ({ record }) => record.n },
-          ]}
-        >
-          <Field name="query.q" title="Q" decorator={[FormItem]}><Input /></Field>
-        </QueryList>
-      )
-    }
-    render(<Page />)
-    await waitFor(() => expect(screen.getAllByTestId('row-id')).toHaveLength(5))
-    fireEvent.click(screen.getByText('N'))
-    await waitFor(() => expect(request.mock.calls.at(-1)![0]).toMatchObject({ page: 1, sorter: [{ field: 'n', order: 'ascend' }] }))
-    fireEvent.click(screen.getByText('N'))
-    await waitFor(() => expect(request.mock.calls.at(-1)![0]).toMatchObject({ sorter: [{ field: 'n', order: 'descend' }] }))
-    await waitFor(() => expect(screen.getAllByTestId('row-id')[0]!.textContent).toBe('row-025'))
-    fireEvent.click(screen.getByTestId('query-reset'))
-    await waitFor(() => expect(request.mock.calls.at(-1)![0]).toMatchObject({ sorter: [] }))
   })
 })

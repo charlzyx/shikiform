@@ -1,10 +1,8 @@
-import { Button, ConfigProvider, Divider, message, Space } from 'antd'
-import zhCN from 'antd/locale/zh_CN'
 import { useState } from 'react'
-import { ArrayField, Field, Form, useForm } from '@shikiform/react'
-import { FormItem, Input, ArrayTable, type ArrayTableColumn } from '@shikiform/antd'
+import { Field, Form, useForm } from '@shikiform/react'
+import { ArrayTable, Button, Divider, FormItem, Input, Space, type ArrayTableColumn } from '../kit'
 
-/** Pro.formily `ArrayTable.tsx` demo, on ShikiForm. */
+/** Pro.formily `ArrayTable.tsx` demo, on headless ShikiForm + native HTML controls. */
 interface Item {
   a1: string
   a2: string
@@ -17,27 +15,25 @@ interface Values {
   array: Row[]
 }
 
-/** Table cells: the FormItem decorator only for its error status, without margins. */
-const cell = { style: { margin: 0 } }
+const cell = { compact: true } as const
 
 function range(count: number): Row[] {
   return Array.from({ length: count }, (_, key) => {
     const row: Row = { a1: `${key}.1`, a2: `${key}.2`, a3: `${key}.3` }
-    // Pro.formily used Math.random() > 0.45; a fixed pattern keeps the demo reproducible.
     if (key % 3 !== 1) row.subitems = [{ a1: `c.${row.a1}`, a2: `c.${row.a2}`, a3: `c.${row.a3}` }]
     return row
   })
 }
 
 /** 自定义 toolbar：读同一个表格的选择状态。 */
-function CustomToolbar() {
+function CustomToolbar({ onNotify }: { onNotify: (msg: string) => void }) {
   const table = ArrayTable.useTable()
   return (
     <Button
-      type="primary"
-      size="small"
+      variant="primary"
+      size="sm"
       data-testid="custom-toolbar"
-      onClick={() => message.info(`selectedKeys: ${JSON.stringify(table.selectedKeys)}`)}
+      onClick={() => onNotify(`selectedKeys: ${JSON.stringify(table.selectedKeys)}`)}
     >
       自定义 toolbar，点我试试
     </Button>
@@ -56,16 +52,14 @@ function CustomFooter() {
 
 /** 自定义 row render：展开区域里读这一行的值。 */
 function RowSummary() {
-  const row = ArrayTable.useRow()
-  const record = row.record as Row
+  const row = ArrayTable.useRow<Row>()
   return (
-    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }} data-testid={`row-summary-${row.index}`}>
-      我是自定义 row render：{record.a1} + {record.a2} + {record.a3} 👇🏻 下面是只读的子表
+    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }} data-testid={`row-summary-${row.index}`}>
+      我是自定义 row render：{row.record.a1} + {row.record.a2} + {row.record.a3} 👇🏻 下面是只读的子表
     </div>
   )
 }
 
-/** 100,000 pretty-printed rows stall this panel (~15 MB, ~18 million px). At or under this count, list every row. */
 const FULL_RESULT_ROWS = 100
 const RESULT_PREVIEW_ROWS = 20
 
@@ -83,82 +77,88 @@ const itemColumns = (prefix: string): ArrayTableColumn<Item>[] => [
 ]
 
 export function ArrayTablePage() {
-  const form = useForm<Values>({ initialValues: { array: range(23) }, fields: { 'array.*.subitems.*.a1': { readOnly: true }, 'array.*.subitems.*.a2': { readOnly: true }, 'array.*.subitems.*.a3': { readOnly: true } } })
+  const form = useForm<Values>({
+    initialValues: { array: range(23) },
+    fields: {
+      'array.*.subitems.*.a1': { readOnly: true },
+      'array.*.subitems.*.a2': { readOnly: true },
+      'array.*.subitems.*.a3': { readOnly: true },
+    },
+  })
   const [submitted, setSubmitted] = useState('')
+  const [notice, setNotice] = useState('')
   const [loadMs, setLoadMs] = useState<number | null>(null)
   return (
-    <ConfigProvider locale={zhCN}>
-      <main style={{ padding: 16 }}>
-        <h1>ArrayTable</h1>
-        <p>对照 Pro.formily ArrayTable：拖拽排序、序号、行内编辑、删除（确认 + 异步）、上下移、行选择、展开行（自定义 render + 只读子表）、列配置、列宽拖拽、分页、自定义 toolbar / footer。</p>
-        <Form form={form} onSubmit={(values) => setSubmitted(submittedText(values.array))}>
-          <ArrayField name="array" component={[ArrayTable, {
-            title: 'Array Table Pro Max',
-            resizeable: true,
-            rowSelection: true,
-            scroll: { x: '100%' },
-            toolbar: <CustomToolbar />,
-            footer: <CustomFooter />,
-            extra: <ArrayTable.Addition title="添加条目" defaultValue={() => ({ a1: '', a2: '', a3: '' })} />,
-            onRemove: async () => {
-              const close = message.loading({ key: 'rmLoading', content: '删除中...' })
-              await new Promise((resolve) => setTimeout(resolve, 1000))
-              close()
-              message.success({ key: 'rmLoading', content: 'DONE!' })
-            },
-            expandable: {
-              rowExpandable: (record) => Array.isArray(record.subitems),
+    <main>
+      <h1>ArrayTable</h1>
+      <p>对照 Pro.formily ArrayTable：拖拽排序、序号、行内编辑、删除（确认 + 异步）、上下移、行选择、展开行（自定义 render + 只读子表）、列配置、分页、自定义 toolbar / footer。</p>
+      {notice ? <div data-testid="notice" style={{ marginBottom: 10, padding: '6px 10px', background: '#e6f4ff', borderRadius: 6 }}>{notice}</div> : null}
+      <Form form={form} onSubmit={(values) => setSubmitted(submittedText(values.array))}>
+        <ArrayTable<Row>
+          name="array"
+          title="Array Table Pro Max"
+          rowSelection
+          toolbar={<CustomToolbar onNotify={setNotice} />}
+          footer={<CustomFooter />}
+          extra={<ArrayTable.Addition title="添加条目" defaultValue={() => ({ a1: '', a2: '', a3: '' })} />}
+          onRemove={async () => {
+            setNotice('删除中...')
+            await new Promise((resolve) => setTimeout(resolve, 1000))
+            setNotice('DONE!')
+          }}
+          expandable={{
+            rowExpandable: (record) => Array.isArray(record.subitems),
+            render: () => (
+              <>
+                <RowSummary />
+                <ArrayTable<Item>
+                  name="subitems"
+                  showHeader={false}
+                  settings={false}
+                  pagination={false}
+                  size="small"
+                  columns={itemColumns('sub-')}
+                />
+              </>
+            ),
+          }}
+          columns={[
+            { key: 'sort', title: 'Sort', width: 60, align: 'center', render: () => <ArrayTable.SortHandle /> },
+            ...(itemColumns('') as ArrayTableColumn<Row>[]),
+            {
+              key: 'action',
+              title: 'Action',
+              width: 200,
               render: () => (
-                <>
-                  <RowSummary />
-                  <ArrayField name="subitems" component={[ArrayTable, {
-                    showHeader: false,
-                    settings: false,
-                    bordered: false,
-                    columns: itemColumns('sub-'),
-                  }]} />
-                </>
+                <Space gap={4}>
+                  <ArrayTable.Remove confirm />
+                  <ArrayTable.MoveDown />
+                  <ArrayTable.MoveUp />
+                </Space>
               ),
             },
-            columns: [
-              { key: 'sort', title: 'Sort', width: 60, align: 'center', render: () => <ArrayTable.SortHandle /> },
-              ...(itemColumns('') as ArrayTableColumn<Row>[]),
-              {
-                key: 'action',
-                title: 'Action',
-                width: 200,
-                fixed: 'right',
-                render: () => (
-                  <Space size={0}>
-                    <ArrayTable.Remove confirm />
-                    <ArrayTable.MoveDown />
-                    <ArrayTable.MoveUp />
-                  </Space>
-                ),
-              },
-            ],
-          }]} />
-          <Divider orientation="right">
-            <Button type="primary" htmlType="submit" data-testid="submit">
-              提交
-            </Button>
-          </Divider>
-        </Form>
-        <Space>
-          <Button
-            data-testid="load-big"
-            onClick={() => {
-              const started = performance.now()
-              form.setValue('array', range(10 * 10000))
-              requestAnimationFrame(() => setLoadMs(Math.round(performance.now() - started)))
-            }}
-          >
-            加载 10万条超大数据
+          ]}
+        />
+        <Divider>
+          <Button variant="primary" htmlType="submit" data-testid="submit">
+            提交
           </Button>
-          {loadMs !== null ? <span data-testid="load-ms">10 万行已载入（{loadMs} ms）</span> : null}
-        </Space>
-        {submitted ? <pre data-testid="submitted">{submitted}</pre> : null}
-      </main>
-    </ConfigProvider>
+        </Divider>
+      </Form>
+      <Space>
+        <Button
+          data-testid="load-big"
+          onClick={() => {
+            const started = performance.now()
+            form.setValue('array', range(10 * 10000))
+            requestAnimationFrame(() => setLoadMs(Math.round(performance.now() - started)))
+          }}
+        >
+          加载 10万条超大数据
+        </Button>
+        {loadMs !== null ? <span data-testid="load-ms">10 万行已载入（{loadMs} ms）</span> : null}
+      </Space>
+      {submitted ? <pre data-testid="submitted">{submitted}</pre> : null}
+    </main>
   )
 }

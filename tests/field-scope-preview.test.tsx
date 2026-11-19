@@ -2,7 +2,6 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { ArrayField, createForm, Field, Form, useField, useForm, useIndex, useRecord } from '@shikiform/react'
-import { Input, PreviewText, Select } from '@shikiform/antd'
 
 afterEach(cleanup)
 
@@ -64,23 +63,5 @@ describe('<Field> keeps the surrounding scope', () => {
       </Form>,
     )
     expect(path).toBe('title')
-  })
-})
-
-describe('readOnly never shows the edit-time placeholder as a value', () => {
-  it('Input / Select with an empty value render empty text, not their placeholder', () => {
-    const form = createForm({ initialValues: { a: '', b: undefined as string | undefined } })
-    const { container } = render(
-      <Form form={form}>
-        <Field name="a" readOnly component={[Input, { placeholder: '请输入邮箱' }]} />
-        <Field name="b" readOnly component={[Select, { placeholder: '请选择', prettyType: 'tag' }]} />
-      </Form>,
-    )
-    expect(container.textContent).toBe('--')
-  })
-
-  it('PreviewText takes the empty text as `empty`', () => {
-    const { container } = render(<PreviewText value="" empty="—" placeholder="请输入" />)
-    expect(container.textContent).toBe('—')
   })
 })

@@ -6,7 +6,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createForm, Form, useIndex, useRecord, useTreeField } from '@shikiform/react'
 import { useArrayField } from '../packages/react/src/hooks/use-array'
 import { ShikiUsageError } from '@shikiform/core'
-import { useShadow } from '../packages/antd/src/shadow/shadow'
 import { useShadowForm } from '@shikiform/hooks'
 
 afterEach(cleanup)
@@ -25,7 +24,6 @@ describe('scope hooks throw ShikiUsageError in development', () => {
     ['useArrayField', () => useArrayField()],
     ['useIndex', () => useIndex()],
     ['useTreeField', () => useTreeField()],
-    ['useShadow', () => useShadow()],
     ['useShadowForm({ name })', () => useShadowForm({ name: 'rows' })],
     ['useShadowForm({ add })', () => useShadowForm({ add: true })],
   ])('%s names the fix', (_name, hook) => {

@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import { Input as AntInput } from 'antd'
 import { Field, Form, useForm, useFormContext, useWatch, type Draft } from '@shikiform/react'
-import { FormButtonGroup, FormItem, Input, InputNumber, MergedTable, Submit, Switch } from '@shikiform/antd'
+import { FormButtonGroup, FormItem, Input, InputNumber, MergedTable, Submit, Switch } from '../kit'
 import { cloneSkus, paintGroupColor, type SkuRow } from '../skus'
 import { tid } from '../testid'
 
@@ -22,18 +21,20 @@ export function SkuEditorPage() {
   })
   const [result, setResult] = useState('')
   return (
-    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values, null, 2))}>
-      <h1>SKU 表格</h1>
-      <p data-testid="price-policy">
-        按颜色合并单元格；改合并格里的颜色就是改这一组的每一行。打开「渠道列」时按 skuId 留在原行，已改的价格和库存不动，不按新的维度组合重新生成行。
-      </p>
-      <Field name="channelOn" title="渠道列" decorator={[FormItem]} component={[Switch, tid('add-dim')]} />
-      <SkuTable />
-      <FormButtonGroup style={{ marginTop: 16 }}>
-        <Submit />
-      </FormButtonGroup>
-      {result && <pre data-testid="result">{result}</pre>}
-    </Form>
+    <main>
+      <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values, null, 2))}>
+        <h1>SKU 表格</h1>
+        <p data-testid="price-policy">
+          按颜色合并单元格；改合并格里的颜色就是改这一组的每一行。打开「渠道列」时按 skuId 留在原行，已改的价格和库存不动，不按新的维度组合重新生成行。
+        </p>
+        <Field name="channelOn" title="渠道列" decorator={[FormItem]} component={[Switch, tid('add-dim')]} />
+        <SkuTable />
+        <FormButtonGroup style={{ marginTop: 16 }}>
+          <Submit />
+        </FormButtonGroup>
+        {result && <pre data-testid="result">{result}</pre>}
+      </Form>
+    </main>
   )
 }
 
@@ -53,7 +54,8 @@ function SkuTable() {
           key: 'color',
           merge: true,
           render: (row) => (
-            <AntInput
+            <input
+              className="sk-input"
               data-testid={`color-${row.skuId}`}
               aria-label="颜色"
               value={row.color}

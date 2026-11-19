@@ -4,7 +4,7 @@ import { StrictMode, useState } from 'react'
 import { afterEach, describe, expect, expectTypeOf, it } from 'vitest'
 import { ArrayField, createForm, defineEffects, EnumSource, Field, Form, typed, useField, useForm, type FieldEnum } from '@shikiform/react'
 
-import { Checkbox, Radio, Select } from '@shikiform/antd'
+import { Select } from './fixtures/native-kit'
 import type { FormInstance } from '@shikiform/react'
 import { engineOf } from '../packages/core/src/engine/create'
 
@@ -340,7 +340,7 @@ describe('reaction `$enum = undefined` falls back', () => {
   })
 })
 
-describe('<Field enum> with antd choice controls (editable + readOnly)', () => {
+describe('<Field enum> with native Select (editable + readOnly)', () => {
   function mount(readOnly?: boolean) {
     function App() {
       const form = useForm<Values>({ initialValues: { level: 'silver', tags: ['gold'], n: 1 }, readOnly })
@@ -348,28 +348,24 @@ describe('<Field enum> with antd choice controls (editable + readOnly)', () => {
       return (
         <Form form={form}>
           <F.Field name="level" enum={LEVELS} component={[Select, { 'aria-label': 'level' }]} />
-          <F.Field name="tags" enum={LEVELS} component={[Checkbox.Group]} />
-          <F.Field name="level" enum={LEVELS} component={[Radio]} />
         </Form>
       )
     }
     return render(<App />)
   }
 
-  it('editable: Select / Checkbox.Group / Radio get the options', () => {
+  it('editable: Select gets the options', () => {
     const view = mount()
-    expect(view.container.querySelectorAll('.ant-checkbox-wrapper')).toHaveLength(2)
-    expect(view.container.querySelectorAll('.ant-radio-wrapper')).toHaveLength(2)
-    expect(view.container.querySelector('.ant-select-selection-item')?.textContent).toBe('白银')
+    expect(view.container.querySelectorAll('option')).toHaveLength(2)
+    expect((view.container.querySelector('select') as HTMLSelectElement).value).toBe('silver')
   })
 
   it('readOnly shows labels, not values', () => {
     const view = mount(true)
     const text = view.container.textContent!
     expect(text).toContain('白银')
-    expect(text).toContain('黄金')
     expect(text).not.toContain('silver')
-    expect(view.container.querySelectorAll('input')).toHaveLength(0)
+    expect(view.container.querySelectorAll('select')).toHaveLength(0)
   })
 })
 

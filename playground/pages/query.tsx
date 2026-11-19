@@ -1,8 +1,7 @@
 import { useState } from 'react'
-import { Button, Select as AntSelect, Space } from 'antd'
-import { FormItem, Input, PreviewText, QueryList, Select } from '@shikiform/antd'
 import { defineEffects, Field, useFormContext, useWatch, type Draft } from '@shikiform/react'
 import { useQueryTable } from '@shikiform/hooks'
+import { Button, FormItem, Input, PreviewText, QueryList, Select, Space } from '../kit'
 import { LOGS, type LogRow } from '../data'
 
 interface QueryParams {
@@ -98,6 +97,7 @@ export function QueryPage() {
     },
   })
   const select = { allowClear: true, placeholder: '全部' }
+  const search = { layout: 'vertical' } as const
   return (
     <main>
       <h1>查询表</h1>
@@ -108,7 +108,7 @@ export function QueryPage() {
         settings={false}
         toolbar={
           <Space>
-            <Button data-testid="batch-mark" disabled={table.selectedKeys.length === 0} onClick={() => setBatch(table.selectedKeys.join(','))}>
+            <Button size="sm" data-testid="batch-mark" disabled={table.selectedKeys.length === 0} onClick={() => setBatch(table.selectedKeys.join(','))}>
               批量标记
             </Button>
             {batch && <span>已标记：<span data-testid="batch-result">{batch}</span></span>}
@@ -126,11 +126,11 @@ export function QueryPage() {
           },
         ]}
       >
-        <Field name="keyword" title="关键字" decorator={[FormItem]} component={[Input, { 'data-testid': 'keyword' }]} />
-        <Field name="status" title="状态" enum={STATUS} decorator={[FormItem]} component={[Select, select]} />
-        <Field name="provider" title="供应商" enum={PROVIDERS} decorator={[FormItem]} component={[Select, select]} />
-        <Field name="model" title="模型" decorator={[FormItem]} component={[Select, select]} />
-        <Field name="userId" title="用户" decorator={[FormItem]} component={[Input, { 'data-testid': 'user-id' }]} />
+        <Field name="keyword" title="关键字" decorator={[FormItem, search]} component={[Input, { 'data-testid': 'keyword' }]} />
+        <Field name="status" title="状态" enum={STATUS} decorator={[FormItem, search]} component={[Select, select]} />
+        <Field name="provider" title="供应商" enum={PROVIDERS} decorator={[FormItem, search]} component={[Select, select]} />
+        <Field name="model" title="模型" decorator={[FormItem, search]} component={[Select, select]} />
+        <Field name="userId" title="用户" decorator={[FormItem, search]} component={[Input, { 'data-testid': 'user-id' }]} />
       </QueryList>
     </main>
   )
@@ -151,19 +151,25 @@ function StatusColumnFilter({ onSearch }: { onSearch: () => void }) {
   const form = useFormContext<QueryValues>()
   const status = useWatch((d: Draft<QueryValues>) => d.status.$value ?? '')
   return (
-    <Space size={4}>
+    <Space gap={4}>
       状态
-      <AntSelect
+      <select
         data-testid="col-status"
-        size="small"
-        style={{ width: 90 }}
+        className="sk-select"
+        style={{ width: 90, padding: '2px 6px', fontSize: 12 }}
         value={status}
-        options={[{ label: '全部', value: '' }, ...STATUS]}
-        onChange={(value: string) => {
-          form.setValue('status', value || undefined)
+        onChange={(e) => {
+          form.setValue('status', e.target.value || undefined)
           onSearch()
         }}
-      />
+      >
+        <option value="">全部</option>
+        {STATUS.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
     </Space>
   )
 }

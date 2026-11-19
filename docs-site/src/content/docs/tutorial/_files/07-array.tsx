@@ -1,19 +1,51 @@
 import { useState, type ReactNode } from 'react';
-import { Button } from 'antd';
-import { ArrayField, Field, Form, useArrayField, useForm, useIndex } from '@shikiform/react';
-import { FormItem, FormLayout, Input, InputNumber, Submit } from '@shikiform/antd';
+import { ArrayField, Field, Form, Submit, useArrayField, useField, useForm, useIndex } from '@shikiform/react';
 
 type Row = { id: string; name: string; price: number; qty: number; total: number };
 type Values = { items: Row[] };
 
+let nextRowId = 2;
 function createRow(): Row {
-  return { id: crypto.randomUUID(), name: '', price: 0, qty: 1, total: 0 };
+  return { id: `row-${nextRowId++}`, name: '', price: 0, qty: 1, total: 0 };
+}
+
+function TextInput({ width = 100 }: { width?: number }) {
+  const f = useField<string>();
+  return (
+    <label htmlFor={f.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      {f.title}
+      <input
+        id={f.id}
+        style={{ width }}
+        value={f.value ?? ''}
+        onChange={(e) => f.onChange(e.target.value)}
+        onBlur={f.onBlur}
+      />
+    </label>
+  );
+}
+
+function NumberInput() {
+  const f = useField<number>();
+  return (
+    <label htmlFor={f.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      {f.title}
+      <input
+        id={f.id}
+        type="number"
+        style={{ width: 72 }}
+        value={f.value ?? 0}
+        onChange={(e) => f.onChange(Number(e.target.value))}
+        onBlur={f.onBlur}
+      />
+    </label>
+  );
 }
 
 function RemoveButton() {
   const array = useArrayField<Row>();
   const index = useIndex();
-  return <Button danger onClick={() => array.remove(index)}>删除</Button>;
+  return <button type="button" onClick={() => array.remove(index)}>删除</button>;
 }
 
 function ItemList({ children }: { children?: ReactNode }) {
@@ -21,7 +53,7 @@ function ItemList({ children }: { children?: ReactNode }) {
   return (
     <>
       {children}
-      <Button onClick={() => array.push(createRow())}>添加一行</Button>{' '}
+      <button type="button" onClick={() => array.push(createRow())}>添加一行</button>{' '}
     </>
   );
 }
@@ -35,15 +67,15 @@ export default function App() {
     <Form form={form} onSubmit={(values) => setPayload(JSON.stringify(values, null, 2))}>
       <ArrayField name="items" rowKey="id" component={ItemList}>
         {({ index }) => (
-          <fieldset>
+          <fieldset style={{ marginBottom: 8 }}>
             <legend>第 {index + 1} 行</legend>
-            <FormLayout layout="inline" feedbackLayout="terse">
-              <Field name="name" title="名称" decorator={[FormItem]} component={[Input, { style: { width: 100 } }]} />
-              <Field name="price" title="单价" decorator={[FormItem]} component={[InputNumber]} />
-              <Field name="qty" title="数量" decorator={[FormItem]} component={[InputNumber]} />
-              <Field name="total" title="小计" decorator={[FormItem]} component={[InputNumber]} />
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+              <Field name="name" title="名称" component={[TextInput, { width: 100 }]} />
+              <Field name="price" title="单价" component={[NumberInput]} />
+              <Field name="qty" title="数量" component={[NumberInput]} />
+              <Field name="total" title="小计" component={[NumberInput]} />
               <RemoveButton />
-            </FormLayout>
+            </div>
           </fieldset>
         )}
       </ArrayField>

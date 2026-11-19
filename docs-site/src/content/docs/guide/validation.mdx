@@ -22,14 +22,47 @@ description: 使用内置规则、Standard Schema（如 Zod）进行同步与异
 与 Ant Design 和 Formily 一致，ShikiForm 的内置规则中，空值（`''`、`null`、`undefined`）统一只由 `required` 判定；`minLength`、`pattern`、`min`、`format` 等规则遇到空值会直接放行。这样既能保证选填项留空时不报错，也能避免必填项在留空时同时冒出多条错误。对于 Zod 等外部 Schema，空值是否放行取决于 Schema 自身定义（例如 `z.string().min(3)` 会拦截空串，若字段可留空需写 `.optional()` 或 `.or(z.literal(''))`）。
 
 ```tsx preview play=schema
-import { useState } from 'react';
-import { Button } from 'antd';
+import { useState, type ReactNode } from 'react';
 import { z } from 'zod';
-import { Field, Form, Watch, useForm, type Draft } from '@shikiform/react';
-import { Checkbox, FormButtonGroup, FormItem, FormLayout, Input } from '@shikiform/antd';
+import { Field, Form, Watch, useField, useFieldDecorator, useForm, type Draft } from '@shikiform/react';
 
 type Values = { username: string; email: string; password: string; confirm: string; agree: boolean };
 const TAKEN = ['admin', 'root'];
+
+function FieldItem({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
+  return (
+    <div style={{ marginBottom: 8 }}>
+      {d.label && (
+        <label {...d.labelProps} style={{ display: 'inline-block', width: 72 }}>
+          {d.required && <span style={{ color: 'crimson' }}>* </span>}
+          {d.label}
+        </label>
+      )}
+      {children}
+      {d.errorProps && <small {...d.errorProps} style={{ color: 'crimson', marginLeft: 8 }}>{d.errors[0]}</small>}
+      {!d.errorProps && d.warningProps && <small {...d.warningProps} style={{ color: '#b45309', marginLeft: 8 }}>{d.warnings[0]}</small>}
+    </div>
+  );
+}
+
+function TextInput({ type = 'text' }: { type?: string }) {
+  const field = useField<string>();
+  return (
+    <input id={field.id} type={type} value={field.value ?? ''}
+      onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />
+  );
+}
+
+function AgreeCheckbox({ children }: { children?: ReactNode }) {
+  const field = useField<boolean>();
+  return (
+    <label>
+      <input id={field.id} type="checkbox" checked={Boolean(field.value)} onChange={(e) => field.onChange(e.target.checked)} />
+      {' '}{children}
+    </label>
+  );
+}
 
 export default function App() {
   const [result, setResult] = useState('');
@@ -44,32 +77,28 @@ export default function App() {
   });
   return (
     <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
-      <FormLayout labelCol={{ span: 5 }} wrapperCol={{ span: 19 }}>
-        <Field name="username" title="用户名" required decorator={[FormItem]} component={[Input]}
-          rules={[
-            { minLength: 3, message: '至少 3 个字符' },
-            { validator: (value, { signal }) => new Promise<string | null>((resolve) => {
-              const timer = setTimeout(() => resolve(TAKEN.includes(String(value)) ? '用户名已被占用' : null), 400);
-              signal?.addEventListener('abort', () => clearTimeout(timer));
-            }) },
-          ]} />
-        <Field name="email" title="邮箱" required rules={z.string().email('邮箱格式不对').or(z.literal(''))} decorator={[FormItem]} component={[Input]} />
-        <Field name="password" title="密码" required decorator={[FormItem]} component={[Input.Password]}
-          rules={[
-            { minLength: 6, message: '至少 6 位' },
-            // 警告：提示但不挡提交
-            { validator: (value) => (/\d/.test(String(value)) && /[a-z]/i.test(String(value)) ? null : '建议同时包含字母和数字'), level: 'warning' },
-          ]} />
-        <Field name="confirm" title="确认密码" required decorator={[FormItem]} component={[Input.Password]} />
-        <Field name="agree" rules={{ isTrue: true, message: '请先同意条款' }} decorator={[FormItem, { wrapperCol: { offset: 5, span: 19 } }]}>
-          <Checkbox>我已阅读并同意条款</Checkbox>
-        </Field>
-        <FormButtonGroup.FormItem>
-          <Watch select={(d: Draft<Values>) => d.$submitting}>
-            {(submitting) => <Button type="primary" htmlType="submit" loading={submitting}>注册</Button>}
-          </Watch>
-        </FormButtonGroup.FormItem>
-      </FormLayout>
+      <Field name="username" title="用户名" required decorator={[FieldItem]} component={[TextInput]}
+        rules={[
+          { minLength: 3, message: '至少 3 个字符' },
+          { validator: (value, { signal }) => new Promise<string | null>((resolve) => {
+            const timer = setTimeout(() => resolve(TAKEN.includes(String(value)) ? '用户名已被占用' : null), 400);
+            signal?.addEventListener('abort', () => clearTimeout(timer));
+          }) },
+        ]} />
+      <Field name="email" title="邮箱" required rules={z.string().email('邮箱格式不对').or(z.literal(''))} decorator={[FieldItem]} component={[TextInput]} />
+      <Field name="password" title="密码" required decorator={[FieldItem]} component={[TextInput, { type: 'password' }]}
+        rules={[
+          { minLength: 6, message: '至少 6 位' },
+          // 警告：提示但不挡提交
+          { validator: (value) => (/\d/.test(String(value)) && /[a-z]/i.test(String(value)) ? null : '建议同时包含字母和数字'), level: 'warning' },
+        ]} />
+      <Field name="confirm" title="确认密码" required decorator={[FieldItem]} component={[TextInput, { type: 'password' }]} />
+      <Field name="agree" rules={{ isTrue: true, message: '请先同意条款' }} decorator={[FieldItem]}>
+        <AgreeCheckbox>我已阅读并同意条款</AgreeCheckbox>
+      </Field>
+      <Watch select={(d: Draft<Values>) => d.$submitting}>
+        {(submitting) => <button type="submit" disabled={submitting}>{submitting ? '提交中…' : '注册'}</button>}
+      </Watch>
       <pre aria-live="polite">{result}</pre>
     </Form>
   );
@@ -112,7 +141,7 @@ try {
 
 对于 `<Form>` 的提交类型推断：不传泛型（`useForm({ fields })`）或使用 `typed<Values>().useForm({ fields })` 时，在 `fields` 中声明了 `omit: true` 或 `visible: false, omit: true` 的路径会自动推导为可选字段；如果直接写 `useForm<Values>({ fields })`，提交类型则固定为 `Values`；对于只在 JSX 或 `reaction` 里动态 `omit` 的字段，可以通过第二个泛型参数 `SubmitValues<Values, 'confirm'>` 手动剔除。`useForm()` 不传参或传 `undefined` 等价于传入 `{}`。
 
-`<Form>` 支持通过属性直接绑定这几个回调（`@shikiform/antd` 的 `<Submit onSubmit>` 也支持相同用法）：
+`<Form>` 支持通过属性直接绑定这几个回调（`<Submit onSubmit>` 也支持相同用法）：
 
 ```tsx
 <Form
@@ -129,7 +158,7 @@ try {
 
 ## 内置文案与国际化
 
-内置校验提示、引擎错误信息以及 `@shikiform/antd` 按钮的默认文案均为简体中文。你可以通过 `messages` 按需覆盖单张表单的文案，或用 `setDefaultMessages` 全局修改：
+内置校验提示、引擎错误信息以及 `<Submit>` / `<Reset>` 等组件的默认文案均为简体中文。你可以通过 `messages` 按需覆盖单张表单的文案，或用 `setDefaultMessages` 全局修改：
 
 ```ts
 import { createForm, enUS, setDefaultMessages } from '@shikiform/react'

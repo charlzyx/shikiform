@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { ArrayField, defineEffects, Field, Form, useForm } from '@shikiform/react'
-import { ArrayTable, Checkbox, FormButtonGroup, FormItem, FormLayout, InputNumber, Submit, type ArrayTableColumn } from '@shikiform/antd'
+import { defineEffects, Field, Form, useForm } from '@shikiform/react'
+import { ArrayTable, Checkbox, FormButtonGroup, FormItem, FormLayout, InputNumber, Submit, type ArrayTableColumn } from '../kit'
 import { CATALOG, comboId } from '../data'
 
 interface SkuRow {
@@ -72,17 +72,19 @@ export function SkuPage() {
   })
   const [result, setResult] = useState('')
   return (
-    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values, null, 2))}>
-      <h1>SKU 组合</h1>
-      <p>勾选组合生成行（缺货的不能选）；改过的单价记在组合上，取消勾选再勾回来价格还在。小计由 reaction.each 逐行计算。</p>
-      <FormLayout labelCol={{ span: 3 }} wrapperCol={{ span: 18 }}>
-        <Field name="picked" title="组合" enum={PICKS} decorator={[FormItem]} component={[Checkbox.Group]} />
-      </FormLayout>
-      <ArrayField name="skuRows" rowKey="id" component={[ArrayTable, { columns, pagination: false, settings: false }]} />
-      <FormButtonGroup style={{ marginTop: 16 }}>
-        <Submit />
-      </FormButtonGroup>
-      {result && <pre data-testid="result">{result}</pre>}
-    </Form>
+    <main>
+      <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values, null, 2))}>
+        <h1>SKU 组合</h1>
+        <p>勾选组合生成行（缺货的不能选）；改过的单价记在组合上，取消勾选再勾回来价格还在。小计由 reaction.each 逐行计算。</p>
+        <FormLayout>
+          <Field name="picked" title="组合" enum={PICKS} decorator={[FormItem]} component={[Checkbox.Group]} />
+        </FormLayout>
+        <ArrayTable name="skuRows" rowKey="id" columns={columns} pagination={false} settings={false} />
+        <FormButtonGroup style={{ marginTop: 16 }}>
+          <Submit />
+        </FormButtonGroup>
+        {result && <pre data-testid="result">{result}</pre>}
+      </Form>
+    </main>
   )
 }

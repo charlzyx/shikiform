@@ -40,19 +40,18 @@ form.submit(async (values) => {
 
 `<Form>` 和 `<Submit>` 会在内部 catch 这次 rejection：校验失败走 `onInvalid(errors)`，`onSubmit` 抛错和 `SubmitUnstableError` 走 `onSubmitError`（不传则 `console.error`），被取代的那次提交被吞掉，不会变成未处理的 rejection。
 
-校验失败时，`<Form>` 按文档顺序聚焦第一个出错字段；配合 `FormTab`、`FormCollapse` 或 `FormStep` 时，容器先切换到含错面板或步骤再聚焦，无需在 `onInvalid` 中手动切页。
+校验失败时，`<Form>` 按文档顺序自动聚焦第一个出错字段，无需在 `onInvalid` 中手动定位。
 
 ## Submit 与 Reset 按钮
 
-`@shikiform/antd` 提供适配了 Ant Design `Button` 的 `Submit` 和 `Reset`；不使用 Ant Design 时可从 `@shikiform/react` 导入无样式同名组件（支持 `asChild` 或 render prop）。
+`@shikiform/react` 提供无样式的 `Submit` 和 `Reset` 按钮组件（默认渲染原生 `<button>`，也支持 `asChild` 或 render prop 接入任意 UI 库）。
 
-- `Submit`：订阅 `$canSubmit` 与 `$submitting`。存在已暴露的错误或正在提交时禁用或显示 loading；尚未触发校验的空必填项不会在初始渲染时禁用按钮，首次点击仍会执行校验。
+- `Submit`：订阅 `$canSubmit` 与 `$submitting`。存在已暴露的错误或正在提交时禁用并设置 `aria-busy` / `data-loading`；尚未触发校验的空必填项不会在初始渲染时禁用按钮，首次点击仍会执行校验。
 - `Reset`：点击调用 `form.reset()` 恢复初始值。`onClick` 在重置前执行，调用 `event.preventDefault()` 可取消重置；`afterReset(values)` 在重置完成后执行，参数为恢复后的表单值。
 
 ```tsx preview
 import { useState } from 'react';
-import { Form, typed, useForm } from '@shikiform/react';
-import { FormButtonGroup, FormItem, FormLayout, Input, Reset, Submit } from '@shikiform/antd';
+import { Form, Reset, Submit, typed, useForm } from '@shikiform/react';
 
 type Values = { name: string };
 
@@ -66,13 +65,24 @@ export default function App() {
       onSubmit={(values) => setLog(`提交 ${JSON.stringify(values)}`)}
       onInvalid={() => setLog('没有通过校验')}
     >
-      <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }}>
-        <F.Field name="name" title="姓名" required decorator={[FormItem]} component={[Input]} />
-        <FormButtonGroup.FormItem>
-          <Submit>提交</Submit>
-          <Reset afterReset={(values) => setLog(`重置 ${JSON.stringify(values)}`)} />
-        </FormButtonGroup.FormItem>
-      </FormLayout>
+      <F.Field name="name" title="姓名" required>
+        {(f) => (
+          <p>
+            <label htmlFor={f.id}>{f.title}：</label>
+            <input
+              id={f.id}
+              value={f.value ?? ''}
+              onChange={(e) => f.onChange(e.target.value)}
+              onBlur={f.onBlur}
+            />
+            {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
+          </p>
+        )}
+      </F.Field>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <Submit>提交</Submit>
+        <Reset afterReset={(values) => setLog(`重置 ${JSON.stringify(values)}`)} />
+      </div>
       <pre aria-live="polite">{log}</pre>
     </Form>
   );

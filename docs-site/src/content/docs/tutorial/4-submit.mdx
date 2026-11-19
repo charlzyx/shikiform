@@ -1,11 +1,13 @@
 ---
-title: 7. 提交与重置
-description: 用 omit 标记只校验不提交的确认密码，并了解 Reset 与 afterReset 的用法。
+title: 4. 提交与进阶
+description: 用 omit 标记只校验不提交的确认密码、使用 Reset 与 afterReset，以及完成教程后的进阶阅读路径。
 tableOfContents: false
 ---
 
 <div className="tutorial-step">
 <div className="tutorial-copy">
+
+## 4.1 裁剪提交字段与表单重置
 
 将密码和确认密码都填成 `secret123` 后点击提交，`confirmPassword` 会一并出现在提交结果中。
 
@@ -15,10 +17,14 @@ tableOfContents: false
 
 **这一步：** 为 `confirmPassword` 加上 `omit`，并在 `rules` 中添加校验：当值不等于 `ctx.record.password` 时返回 `'两次密码不一致'`。
 
-修改后输入两次一致的密码并提交，确认输出 JSON 只含 `profile` 与 `password`。
-
 </div>
 
 <TutorialPlay id="03-path" />
 
 </div>
+
+## 接下来去哪
+
+- **深入原理**：[核心概念](/guide/concepts)、[按路径读写](/basics/path)、[字段状态](/basics/state)、[联动进阶](/guide/linkage)、[接入组件库](/guide/headless)。
+- **避坑与参考**：[常见的坑](/practices/pitfalls)、[API 总览](/api)。
+- **场景示例**：[表单与校验](/examples/forms)、[联动与显隐](/examples/linkage)、[数组与树](/examples/arrays)、[表格与查询](/examples/tables)、[Pro Hooks](/examples/pro) 或 [示例目录](/play)。

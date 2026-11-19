@@ -1,0 +1,375 @@
+---
+---
+
+<section class="sf-hero">
+  <div class="sf-hero__inner">
+    <div class="sf-hero__top">
+      <!-- Left: 宣纸/玄墨东方几何编辑部排版 -->
+      <div class="sf-hero__copy">
+        <div class="sf-hero__eyebrow">
+          <span class="sf-hero__seal">式</span>
+          <span>SHIKIFORM · 无头表单引擎</span>
+        </div>
+
+        <h1 class="sf-hero__title">
+          式动而形随，<br />
+          <span class="sf-hero__accent">无 UI</span> 的 TypeScript 表单引擎
+        </h1>
+
+        <p class="sf-hero__desc">
+          取《唐六典》「律令格式」之<strong>式</strong>与汉代<strong>式盘</strong>联动之意：用 <code>draft</code> 与 <code>$</code> 状态集中描述复杂联动、校验与树形数组，通过薄薄一层 React Hooks 接入任意组件库。
+        </p>
+
+        <div class="sf-hero__actions">
+          <a href="/guide/quick-start" class="sf-hero__btn sf-hero__btn--primary">
+            快速开始 →
+          </a>
+          <a href="/tutorial/1-start" class="sf-hero__btn sf-hero__btn--secondary">
+            交互式教程
+          </a>
+          <a href="/examples" class="sf-hero__btn sf-hero__btn--ghost">
+            场景示例
+          </a>
+        </div>
+
+        <div class="sf-hero__install">
+          <span class="sf-hero__prompt">$</span>
+          <code>npm i @shikiform/react @shikiform/hooks</code>
+        </div>
+      </div>
+
+      <!-- Right: 宣纸 / 玄墨双色代码卡（Inkstone 墨观配色） -->
+      <div class="sf-hero__stage" aria-label="ShikiForm 核心联动示意">
+        <div class="sf-hero__terminal">
+          <div class="sf-hero__terminal-bar">
+            <span class="sf-hero__term-label">order-effects.ts</span>
+            <span class="sf-hero__term-tag">式 · defineEffects</span>
+          </div>
+          <pre class="sf-hero__code"><code><span class="t-kw">defineEffects</span>&lt;<span class="t-ty">Order</span>&gt;(({`{ `}<span class="t-fn">reaction</span>, <span class="t-fn">watch</span>{` }`}) =&gt; {`{`}
+  <span class="t-cm">// 联动：企业开票自动显示税号并设必填</span>
+  <span class="t-fn">reaction</span>((d) =&gt; {`{`}
+    <span class="t-kw">const</span> biz = d.invoice.<span class="t-st">$value</span> === <span class="t-str">'company'</span>
+    d.taxId.<span class="t-st">$visible</span> = d.taxId.<span class="t-st">$required</span> = biz
+    d.taxId.<span class="t-st">$omit</span> = !biz
+  {`}`})
+
+  <span class="t-cm">// 数组：按行独立重算，不牵连其他行</span>
+  <span class="t-fn">reaction.each</span>(<span class="t-str">'items'</span>, (row) =&gt; {`{`}
+    row.subtotal.<span class="t-st">$value</span> = row.price.<span class="t-st">$value</span> * row.qty.<span class="t-st">$value</span>
+  {`}`})
+
+  <span class="t-cm">// 副作用：切换类型时清空旧税号</span>
+  <span class="t-fn">watch</span>((d) =&gt; d.invoice.<span class="t-st">$value</span>, (_, d) =&gt; {`{`}
+    d.taxId.<span class="t-st">$value</span> = <span class="t-str">''</span>
+  {`}`})
+{`}`})</code></pre>
+          <div class="sf-hero__states">
+            <span class="sf-hero__pill sf-hero__pill--jade">$visible</span>
+            <span class="sf-hero__pill sf-hero__pill--blue">$required</span>
+            <span class="sf-hero__pill sf-hero__pill--red">$omit</span>
+            <span class="sf-hero__pill">reaction.each</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom: 无框三列卖点 -->
+    <div class="sf-hero__pillars">
+      <div class="sf-hero__pillar">
+        <div class="sf-hero__pillar-num">壹 · 联动</div>
+        <div class="sf-hero__pillar-title">式盘推演 · 集中响应</div>
+        <p class="sf-hero__pillar-body">
+          <code>reaction</code> 自动追踪依赖派生状态，<code>watch</code> 处理一次性副作用，<code>reaction.each</code> 按行独立重算，彻底告别满屏 <code>useEffect</code>。
+        </p>
+      </div>
+      <div class="sf-hero__pillar">
+        <div class="sf-hero__pillar-num">贰 · 四态</div>
+        <div class="sf-hero__pillar-title">正交清晰 · 沿径继承</div>
+        <p class="sf-hero__pillar-body">
+          <code>visible</code>、<code>disabled</code>、<code>readOnly</code>、<code>omit</code> 四个独立布尔各司其职，渲染、校验与提交裁剪所见即所得。
+        </p>
+      </div>
+      <div class="sf-hero__pillar">
+        <div class="sf-hero__pillar-num">叁 · 无头</div>
+        <div class="sf-hero__pillar-title">式形分离 · 接任意 UI</div>
+        <p class="sf-hero__pillar-body">
+          核心零 React 与 UI 依赖，搭配 <code>connect</code>、<code>useFieldDecorator</code> 与 <code>@shikiform/hooks</code>，轻松接入 Antd、shadcn 或原生 HTML。
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .sf-hero {
+    position: relative;
+    padding: 68px 24px 44px;
+  }
+  .sf-hero__inner {
+    max-width: 1120px;
+    margin: 0 auto;
+  }
+  .sf-hero__top {
+    display: grid;
+    grid-template-columns: minmax(0, 1.02fr) minmax(0, 1fr);
+    gap: 44px;
+    align-items: center;
+  }
+  .sf-hero__copy {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+  }
+  .sf-hero__eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--nb-font-mono, ui-monospace, monospace);
+    font-size: 11.5px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    color: var(--nb-muted-foreground);
+    margin-bottom: 18px;
+  }
+  .sf-hero__seal {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 3px;
+    background: var(--sf-cinnabar);
+    color: #fcfbf7;
+    font-family: var(--nb-font-display);
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1;
+  }
+  .sf-hero__title {
+    margin: 0;
+    font-family: var(--nb-font-display);
+    font-size: clamp(34px, 4.4vw, 48px);
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+    font-kerning: normal;
+    color: var(--nb-foreground);
+  }
+  .sf-hero__accent {
+    color: var(--sf-cinnabar);
+  }
+  .sf-hero__desc {
+    max-width: 530px;
+    margin: 18px 0 0;
+    font-size: 15px;
+    line-height: 1.75;
+    color: var(--nb-muted-foreground);
+  }
+  .sf-hero__desc strong {
+    color: var(--nb-foreground);
+    font-weight: 600;
+  }
+  .sf-hero__desc code {
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: var(--nb-muted);
+    color: var(--nb-foreground);
+    font-size: 0.9em;
+  }
+  .sf-hero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-top: 28px;
+  }
+  .sf-hero__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    padding: 0 22px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: transform 0.15s ease, opacity 0.15s ease, background-color 0.15s ease;
+  }
+  /* Inkstone「红批蓝动」：主操作按钮用飞燕草蓝 / 羽扇豆蓝 */
+  .sf-hero__btn--primary {
+    background: var(--nb-brand);
+    color: #fcfbf7;
+  }
+  :global([data-mode="dark"]) .sf-hero__btn--primary {
+    color: #14131a;
+    font-weight: 600;
+  }
+  .sf-hero__btn--primary:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+  }
+  .sf-hero__btn--secondary {
+    background: var(--nb-muted);
+    color: var(--nb-foreground);
+  }
+  .sf-hero__btn--secondary:hover {
+    background: var(--nb-accent);
+  }
+  .sf-hero__btn--ghost {
+    color: var(--nb-muted-foreground);
+  }
+  .sf-hero__btn--ghost:hover {
+    color: var(--nb-foreground);
+    background: var(--nb-muted);
+  }
+  .sf-hero__install {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 20px;
+    font-family: var(--nb-font-mono, ui-monospace, monospace);
+    font-size: 12.5px;
+    color: var(--nb-muted-foreground);
+  }
+  .sf-hero__prompt {
+    color: var(--sf-cinnabar);
+    font-weight: 700;
+    user-select: none;
+  }
+
+  /* Right Code Stage — 宣纸 (Light) & 玄墨 (Dark) 双主题自适应 */
+  .sf-hero__terminal {
+    border-radius: 10px;
+    background: var(--nb-card);
+    color: var(--nb-foreground);
+    padding: 18px 22px;
+    border: 1px solid var(--nb-border);
+    box-shadow: 0 18px 40px -28px rgba(31, 30, 36, 0.14);
+    overflow: hidden;
+  }
+  :global([data-mode="dark"]) .sf-hero__terminal {
+    box-shadow: 0 22px 48px -28px rgba(0, 0, 0, 0.55);
+  }
+  .sf-hero__terminal-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 11px;
+    margin-bottom: 13px;
+    border-bottom: 1px solid var(--nb-border);
+    font-family: var(--nb-font-mono, ui-monospace, monospace);
+    font-size: 11.5px;
+  }
+  .sf-hero__term-label {
+    color: var(--nb-muted-foreground);
+  }
+  .sf-hero__term-tag {
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--sf-cinnabar) 12%, transparent);
+    color: var(--sf-cinnabar);
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .sf-hero__code {
+    margin: 0;
+    font-family: var(--nb-font-mono, ui-monospace, monospace);
+    font-size: 12.5px;
+    line-height: 1.72;
+    overflow-x: auto;
+    background: transparent !important;
+    border: 0 !important;
+    padding: 0 !important;
+  }
+  /* Inkstone 宣纸 (Light) 语法色：鹤顶红 / 飞燕草蓝 / 紫棠 / 赭石 / 荷叶绿 / 墨灰注释 */
+  .sf-hero__code .t-kw { color: var(--sf-cinnabar); font-weight: 500; }
+  .sf-hero__code .t-fn { color: var(--nb-brand); }
+  .sf-hero__code .t-ty { color: #734284; }
+  .sf-hero__code .t-st { color: var(--sf-ochre); font-weight: 500; }
+  .sf-hero__code .t-str { color: var(--sf-jade); }
+  .sf-hero__code .t-cm { color: #8c867c; }
+  /* Inkstone 玄墨 (Dark) 类型与注释微调（其余 Token 已随 [data-mode="dark"] 自动切换） */
+  :global([data-mode="dark"]) .sf-hero__code .t-ty { color: #c08eaf; }
+  :global([data-mode="dark"]) .sf-hero__code .t-cm { color: #6e6a7a; }
+
+  .sf-hero__states {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+    padding-top: 13px;
+    border-top: 1px solid var(--nb-border);
+    font-family: var(--nb-font-mono, ui-monospace, monospace);
+    font-size: 11.5px;
+  }
+  .sf-hero__pill {
+    padding: 2px 9px;
+    border-radius: 4px;
+    background: var(--nb-muted);
+    color: var(--nb-muted-foreground);
+  }
+  .sf-hero__pill--jade {
+    background: color-mix(in srgb, var(--sf-jade) 13%, transparent);
+    color: var(--sf-jade);
+  }
+  .sf-hero__pill--blue {
+    background: color-mix(in srgb, var(--nb-brand) 12%, transparent);
+    color: var(--nb-brand);
+  }
+  .sf-hero__pill--red {
+    background: color-mix(in srgb, var(--sf-cinnabar) 13%, transparent);
+    color: var(--sf-cinnabar);
+  }
+
+  /* Bottom 3 borderless pillars */
+  .sf-hero__pillars {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 32px;
+    margin-top: 60px;
+    padding-top: 28px;
+    border-top: 1px solid var(--nb-border);
+  }
+  .sf-hero__pillar-num {
+    font-family: var(--nb-font-mono, ui-monospace, monospace);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--sf-cinnabar);
+    margin-bottom: 8px;
+  }
+  .sf-hero__pillar-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--nb-foreground);
+    margin-bottom: 8px;
+  }
+  .sf-hero__pillar-body {
+    margin: 0;
+    font-size: 13.5px;
+    line-height: 1.72;
+    color: var(--nb-muted-foreground);
+  }
+  .sf-hero__pillar-body code {
+    padding: 0 4px;
+    border-radius: 3px;
+    background: var(--nb-muted);
+    color: var(--nb-foreground);
+    font-size: 12px;
+  }
+
+  @media (max-width: 860px) {
+    .sf-hero {
+      padding: 40px 16px 28px;
+    }
+    .sf-hero__top {
+      grid-template-columns: 1fr;
+      gap: 32px;
+    }
+    .sf-hero__pillars {
+      grid-template-columns: 1fr;
+      gap: 24px;
+      margin-top: 40px;
+    }
+  }
+</style>

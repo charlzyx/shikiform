@@ -1,5 +1,5 @@
-import { ArrayField, Field, Form, defineEffects, useForm } from '@shikiform/react'
-import { ArrayTable, FormItem, InputNumber, Select, Switch, type ArrayTableColumn } from '@shikiform/antd'
+import { Field, Form, defineEffects, useForm } from '@shikiform/react'
+import { ArrayTable, FormItem, InputNumber, Select, Switch, type ArrayTableColumn } from '../kit'
 
 type Item = { id: string; sku: string; qty: number; price: number; line: number }
 type Order = { id: string; no: string; status: string; amount: number; items: Item[] }
@@ -29,10 +29,15 @@ const effects = defineEffects<Values>(({ reaction }) => {
 const itemColumns: ArrayTableColumn<Item>[] = [
   { key: 'sku', title: '商品', render: ({ record }) => <code>{record.sku}</code> },
   {
-    key: 'qty', title: '数量',
+    key: 'qty',
+    title: '数量',
     render: () => (
-      <Field name="qty" decorator={[FormItem, { feedbackLayout: 'terse', style: { margin: 0 } }]} component={[InputNumber, { min: 1 }]}
-        rules={{ validator: (value, ctx) => (ctx.parent?.status === 'pending' && Number(value) > 99 ? '待付款单行不能超过 99' : null) }} />
+      <Field
+        name="qty"
+        decorator={[FormItem, { compact: true }]}
+        component={[InputNumber, { min: 1 }]}
+        rules={{ validator: (value, ctx) => (ctx.parent?.status === 'pending' && Number(value) > 99 ? '待付款单行不能超过 99' : null) }}
+      />
     ),
   },
   { key: 'price', title: '单价', render: () => <Field name="price" component={[InputNumber, { min: 0 }]} /> },
@@ -41,12 +46,12 @@ const itemColumns: ArrayTableColumn<Item>[] = [
 
 const orderColumns: ArrayTableColumn<Order>[] = [
   { key: 'no', title: '订单号', render: ({ record }) => record.no },
-  { key: 'status', title: '状态', render: () => <Field name="status" enum={STATUS} component={[Select, { style: { width: 110 } }]} /> },
+  { key: 'status', title: '状态', render: () => <Field name="status" enum={STATUS} component={[Select, { style: { width: 120 } }]} /> },
   { key: 'amount', title: '合计', render: () => <Field name="amount" readOnly component={[InputNumber]} /> },
 ]
 
 /**
- * Orders with expandable line items: both levels are `<ArrayField component={[ArrayTable, { columns }]}>`, so cells and the
+ * Orders with expandable line items: both levels are `<ArrayTable>`, so cells and the
  * expanded area render in the row scope and use relative names. Values are written directly (no shadow draft).
  */
 export function OrdersPage() {
@@ -62,14 +67,24 @@ export function OrdersPage() {
     effects: [effects],
   })
   return (
-    <Form form={form}>
-      <h1>订单行</h1>
-      <Field name="editable" title="可编辑" decorator={[FormItem]} component={[Switch]} />
-      <ArrayField name="orders" rowKey="id" component={[ArrayTable, {
-        columns: orderColumns, pagination: false, settings: false,
-        // 展开区也在订单行的作用域里：<ArrayField name="items"> 就是 orders.N.items
-        expandable: { render: () => <ArrayField name="items" rowKey="id" component={[ArrayTable, { columns: itemColumns, pagination: false, settings: false, size: 'small' }]} /> },
-      }]} />
-    </Form>
+    <main>
+      <Form form={form}>
+        <h1>订单行</h1>
+        <Field name="editable" title="可编辑" decorator={[FormItem]} component={[Switch]} />
+        <ArrayTable
+          name="orders"
+          rowKey="id"
+          columns={orderColumns}
+          pagination={false}
+          settings={false}
+          expandable={{
+            // 展开区也在订单行的作用域里：<ArrayTable name="items"> 就是 orders.N.items
+            render: () => (
+              <ArrayTable name="items" rowKey="id" columns={itemColumns} pagination={false} settings={false} size="small" />
+            ),
+          }}
+        />
+      </Form>
+    </main>
   )
 }

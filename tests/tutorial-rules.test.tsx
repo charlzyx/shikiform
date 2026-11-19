@@ -5,11 +5,10 @@ import App from '../docs-site/src/content/docs/tutorial/_files/09-rules.solution
 
 afterEach(() => cleanup())
 
-/** The message on screen. antd keeps the previous explain node while the next one appears. */
+/** The message on screen for the field with this label. */
 function feedback(label: string): string {
-  const item = screen.getByText(label, { selector: 'label' }).closest('.ant-form-item')
-  const current = item?.querySelector('.ant-form-show-help-item-appear-active') ?? item?.querySelector('.ant-form-item-explain-error')
-  return current?.textContent ?? ''
+  const item = screen.getByText(new RegExp(`^${label}`), { selector: 'label' }).closest('p')
+  return item?.querySelector('[role="alert"]')?.textContent?.trim() ?? ''
 }
 
 async function submit(container: HTMLElement) {

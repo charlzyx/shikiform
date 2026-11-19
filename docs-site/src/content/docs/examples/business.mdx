@@ -11,9 +11,7 @@ description: SKU 价格表、供应商与产品合并单元格表格，以及可
 
 ```tsx preview play=sku-editor
 import { useState } from 'react';
-import { Input as AntInput, Switch as AntSwitch } from 'antd';
 import { Field, Form, useForm, useFormContext, useWatch, type Draft } from '@shikiform/react';
-import { Input, InputNumber, MergedTable } from '@shikiform/antd';
 
 type Sku = { skuId: string; color: string; storage: string; price: number; stock: number; channel: string };
 type Values = { rows: Sku[]; channel: boolean };
@@ -25,25 +23,99 @@ const SKUS: Sku[] = [
   { skuId: 'W-256', color: '白色', storage: '256G', price: 1499, stock: 8, channel: '' },
 ];
 
+function computeRowSpans<T>(rows: T[], groupOf: (row: T) => string): number[] {
+  const spans = new Array<number>(rows.length).fill(0);
+  let i = 0;
+  while (i < rows.length) {
+    const key = groupOf(rows[i]!);
+    let end = i + 1;
+    while (end < rows.length && groupOf(rows[end]!) === key) end++;
+    spans[i] = end - i;
+    i = end;
+  }
+  return spans;
+}
+
 function SkuTable() {
   const form = useFormContext<Values>();
   const rows = useWatch((d: Draft<Values>) => d.rows.$value);
   const channel = useWatch((d: Draft<Values>) => d.channel.$value);
-  const paint = (from: string, to: string) => form.setValue('rows', rows.map((row) => (row.color === from ? { ...row, color: to } : row)));
+  const spans = computeRowSpans(rows, (row) => row.color);
+  const paint = (from: string, to: string) =>
+    form.setValue('rows', rows.map((row) => (row.color === from ? { ...row, color: to } : row)));
   return (
     <>
-      <label>渠道列 <AntSwitch size="small" checked={channel} onChange={(on) => form.setValue('channel', on)} /></label>
-      <MergedTable
-        rows={rows.map((row) => ({ ...row, id: row.skuId }))}
-        groupOf={(row) => row.color}
-        columns={[
-          { title: '颜色', key: 'color', merge: true, render: (row) => <AntInput value={row.color} onChange={(event) => paint(row.color, event.target.value)} /> },
-          { title: '容量', key: 'storage', render: (row) => row.storage },
-          { title: '价格', key: 'price', render: (_, index) => <Field name={`rows.${index}.price`} component={[InputNumber, { min: 0 }]} /> },
-          { title: '库存', key: 'stock', render: (_, index) => <Field name={`rows.${index}.stock`} component={[InputNumber, { min: 0 }]} /> },
-          ...(channel ? [{ title: '渠道', key: 'channel', render: (_: unknown, index: number) => <Field name={`rows.${index}.channel`} component={[Input]} /> }] : []),
-        ]}
-      />
+      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+        <input type="checkbox" checked={channel} onChange={(e) => form.setValue('channel', e.target.checked)} />
+        显示渠道列
+      </label>
+      <table>
+        <thead>
+          <tr>
+            <th>颜色</th>
+            <th>容量</th>
+            <th>价格</th>
+            <th>库存</th>
+            {channel && <th>渠道</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, index) => (
+            <tr key={row.skuId}>
+              {spans[index]! > 0 && (
+                <td rowSpan={spans[index]}>
+                  <input
+                    aria-label="颜色"
+                    style={{ width: 72 }}
+                    value={row.color}
+                    onChange={(e) => paint(row.color, e.target.value)}
+                  />
+                </td>
+              )}
+              <td>{row.storage}</td>
+              <td>
+                <Field name={`rows.${index}.price`}>
+                  {(f) => (
+                    <input
+                      type="number"
+                      min={0}
+                      style={{ width: 72 }}
+                      value={Number(f.value ?? 0)}
+                      onChange={(e) => f.onChange(Number(e.target.value))}
+                    />
+                  )}
+                </Field>
+              </td>
+              <td>
+                <Field name={`rows.${index}.stock`}>
+                  {(f) => (
+                    <input
+                      type="number"
+                      min={0}
+                      style={{ width: 64 }}
+                      value={Number(f.value ?? 0)}
+                      onChange={(e) => f.onChange(Number(e.target.value))}
+                    />
+                  )}
+                </Field>
+              </td>
+              {channel && (
+                <td>
+                  <Field name={`rows.${index}.channel`}>
+                    {(f) => (
+                      <input
+                        style={{ width: 88 }}
+                        value={String(f.value ?? '')}
+                        onChange={(e) => f.onChange(e.target.value)}
+                      />
+                    )}
+                  </Field>
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </>
   );
 }
@@ -51,11 +123,17 @@ function SkuTable() {
 export default function App() {
   const [result, setResult] = useState('');
   const form = useForm<Values>({ initialValues: { rows: SKUS, channel: false }, fields: { channel: { omit: true } } });
-  return <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}><SkuTable /><button type="submit">提交</button><pre>{result}</pre></Form>;
+  return (
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
+      <SkuTable />
+      <button type="submit" style={{ marginTop: 8 }}>提交</button>
+      <pre>{result}</pre>
+    </Form>
+  );
 }
 ```
 
-- 数据保持平铺 SKU 数组，`MergedTable` 按 `groupOf` 计算相邻分组的 `rowSpan`，合并仅发生在展示层。
+- 数据保持平铺 SKU 数组，展示层按 `groupOf` 计算相邻分组的 `rowSpan`，合并仅发生在 `<table>` 渲染层。
 - 切换显示「渠道」列或修改单个价格时不会重建行对象，已有字段状态和错误信息保留在原 `skuId` 行上。
 - 修改合并单元格会更新同组行的 `color`（写入 `rows`），单个价格与库存输入框则按 `rows.N.price` 单独更新。
 
@@ -64,9 +142,7 @@ export default function App() {
 **场景**：供应商与产品为一对多嵌套结构，表格需要按供应商合并单元格；同时要求校验「供应商名称不能重复」，以及「C 级供应商的产品单价不能超过 1000」。
 
 ```tsx preview play=merged
-import { Button, Space } from 'antd';
-import { Field, Form, useArrayField, useForm, useFormContext, useWatch, type Draft } from '@shikiform/react';
-import { FormItem, Input, InputNumber, MergedTable, Select } from '@shikiform/antd';
+import { Field, Form, useArrayField, useField, useForm, useFormContext, useWatch, type Draft } from '@shikiform/react';
 
 type Product = { id: string; name: string; price: number };
 type Supplier = { id: string; name: string; level: 'A' | 'B' | 'C'; products: Product[] };
@@ -74,45 +150,111 @@ type Values = { suppliers: Supplier[] };
 /** 表格的一行 = 一个产品；记下它在嵌套数据里的位置。 */
 type Line = { id: string; s: number; p: number };
 
-const cell = [FormItem, { style: { margin: 0 } }] as const;
+let nextProductId = 4;
+
+function computeRowSpans<T>(rows: T[], groupOf: (row: T) => string): number[] {
+  const spans = new Array<number>(rows.length).fill(0);
+  let i = 0;
+  while (i < rows.length) {
+    const key = groupOf(rows[i]!);
+    let end = i + 1;
+    while (end < rows.length && groupOf(rows[end]!) === key) end++;
+    spans[i] = end - i;
+    i = end;
+  }
+  return spans;
+}
+
+function TextCell() {
+  const f = useField<string>();
+  return (
+    <div>
+      <input style={{ width: 96 }} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} onBlur={f.onBlur} />
+      {f.errors[0] && <div><small role="alert" style={{ color: 'crimson' }}>{f.errors[0]}</small></div>}
+    </div>
+  );
+}
+
+function NumberCell() {
+  const f = useField<number>();
+  return (
+    <div>
+      <input type="number" style={{ width: 80 }} value={f.value ?? 0} onChange={(e) => f.onChange(Number(e.target.value))} onBlur={f.onBlur} />
+      {f.errors[0] && <div><small role="alert" style={{ color: 'crimson' }}>{f.errors[0]}</small></div>}
+    </div>
+  );
+}
 
 function AddProduct({ supplierIndex }: { supplierIndex: number }) {
   const products = useArrayField(`suppliers.${supplierIndex}.products`);
-  return <Button size="small" onClick={() => products.push({ id: crypto.randomUUID(), name: '新产品', price: 1 })}>加产品</Button>;
+  return (
+    <button type="button" onClick={() => products.push({ id: `p${nextProductId++}`, name: '新产品', price: 1 })}>
+      加产品
+    </button>
+  );
 }
 
 function Suppliers() {
   const form = useFormContext<Values>();
   const suppliers = useWatch((d: Draft<Values>) => d.suppliers.$value);
   const lines: Line[] = suppliers.flatMap((supplier, s) => supplier.products.map((product, p) => ({ id: product.id, s, p })));
+  const spans = computeRowSpans(lines, (line) => suppliers[line.s]!.id);
   return (
     <>
-      <MergedTable
-        rows={lines}
-        groupOf={(line) => suppliers[line.s]!.id}
-        columns={[
-          {
-            title: '供应商', key: 'supplier', merge: true,
-            render: (line) => (
-              <Space direction="vertical">
-                <Field name={`suppliers.${line.s}.name`} decorator={cell} component={[Input]}
-                  rules={[{ required: true }, { validator: (value, ctx) => (ctx.array?.filter((item: Supplier) => item.name === value).length ?? 0) > 1 ? '供应商重名' : null }]} />
-                <Field name={`suppliers.${line.s}.level`} component={[Select, { options: ['A', 'B', 'C'].map((value) => ({ label: `${value} 级`, value })) }]} />
-                <AddProduct supplierIndex={line.s} />
-              </Space>
-            ),
-          },
-          { title: '产品', key: 'name', render: (line) => <Field name={`suppliers.${line.s}.products.${line.p}.name`} decorator={cell} component={[Input]} /> },
-          {
-            title: '单价', key: 'price',
-            render: (line) => (
-              <Field name={`suppliers.${line.s}.products.${line.p}.price`} decorator={cell} component={[InputNumber]}
-                rules={{ validator: (value, ctx) => (ctx.parent?.level === 'C' && Number(value) > 1000 ? 'C 级供应商单价不能超过 1000' : null) }} />
-            ),
-          },
-        ]}
-      />
-      <Button style={{ marginTop: 8 }} onClick={() => { void form.validate().catch(() => {}) }}>校验</Button>
+      <table>
+        <thead>
+          <tr>
+            <th>供应商</th>
+            <th>产品</th>
+            <th>单价</th>
+          </tr>
+        </thead>
+        <tbody>
+          {lines.map((line, index) => (
+            <tr key={line.id}>
+              {spans[index]! > 0 && (
+                <td rowSpan={spans[index]} style={{ verticalAlign: 'top' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <Field
+                      name={`suppliers.${line.s}.name`}
+                      component={[TextCell]}
+                      rules={[
+                        { required: true },
+                        { validator: (value, ctx) => ((ctx.array as Supplier[] | undefined)?.filter((item) => item.name === value).length ?? 0) > 1 ? '供应商重名' : null },
+                      ]}
+                    />
+                    <Field name={`suppliers.${line.s}.level`}>
+                      {(f) => (
+                        <select value={String(f.value ?? 'A')} onChange={(e) => f.onChange(e.target.value)}>
+                          {(['A', 'B', 'C'] as const).map((level) => (
+                            <option key={level} value={level}>{level} 级</option>
+                          ))}
+                        </select>
+                      )}
+                    </Field>
+                    <AddProduct supplierIndex={line.s} />
+                  </div>
+                </td>
+              )}
+              <td>
+                <Field name={`suppliers.${line.s}.products.${line.p}.name`} component={[TextCell]} />
+              </td>
+              <td>
+                <Field
+                  name={`suppliers.${line.s}.products.${line.p}.price`}
+                  component={[NumberCell]}
+                  rules={{
+                    validator: (value, ctx) => (ctx.parent?.level === 'C' && Number(value) > 1000 ? 'C 级供应商单价不能超过 1000' : null),
+                  }}
+                />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <button type="button" style={{ marginTop: 8 }} onClick={() => { void form.validate().catch(() => {}); }}>
+        校验
+      </button>
     </>
   );
 }
@@ -139,14 +281,18 @@ export default function App() {
 **场景**：订单列表展开每一行后可编辑其商品明细，要求实时计算行金额和订单总计；「已发货」的订单整单只读，「待付款」订单的单行商品数量不能超过 99。
 
 ```tsx preview play=orders
-import { ArrayField, Field, Form, defineEffects, useForm } from '@shikiform/react';
-import { ArrayTable, FormItem, InputNumber, Select, Switch, type ArrayTableColumn } from '@shikiform/antd';
+import { Fragment, useState } from 'react';
+import { ArrayField, Field, Form, defineEffects, useField, useForm, useRecord } from '@shikiform/react';
 
 type Item = { id: string; sku: string; qty: number; price: number; line: number };
 type Order = { id: string; no: string; status: string; amount: number; items: Item[] };
 type Values = { editable: boolean; orders: Order[] };
 
-const STATUS = [{ label: '待付款', value: 'pending' }, { label: '已付款', value: 'paid' }, { label: '已发货', value: 'shipped' }];
+const STATUS = [
+  { label: '待付款', value: 'pending' },
+  { label: '已付款', value: 'paid' },
+  { label: '已发货', value: 'shipped' },
+];
 
 const effects = defineEffects<Values>(({ reaction }) => {
   reaction((d) => {
@@ -166,27 +312,95 @@ const effects = defineEffects<Values>(({ reaction }) => {
   });
 });
 
-// 单元格渲染在行作用域里：name 相对这一行
-const itemColumns: ArrayTableColumn<Item>[] = [
-  { key: 'sku', title: '商品', render: ({ record }) => <code>{record.sku}</code> },
-  {
-    key: 'qty', title: '数量',
-    render: () => (
-      <Field name="qty" decorator={[FormItem, { feedbackLayout: 'terse', style: { margin: 0 } }]} component={[InputNumber, { min: 1 }]}
-        rules={{ validator: (value, ctx) => (ctx.parent?.status === 'pending' && Number(value) > 99 ? '待付款单行不能超过 99' : null) }} />
-    ),
-  },
-  { key: 'price', title: '单价', render: () => <Field name="price" component={[InputNumber, { min: 0 }]} /> },
-  { key: 'line', title: '行金额', render: () => <Field name="line" readOnly component={[InputNumber]} /> },
-];
+function NumberCell({ min }: { min?: number }) {
+  const f = useField<number>();
+  return (
+    <div>
+      {f.readOnly ? (
+        <span>{f.value}</span>
+      ) : (
+        <input
+          type="number"
+          min={min}
+          style={{ width: 68 }}
+          value={f.value ?? 0}
+          onChange={(e) => f.onChange(Number(e.target.value))}
+          onBlur={f.onBlur}
+        />
+      )}
+      {f.errors[0] && <div><small role="alert" style={{ color: 'crimson' }}>{f.errors[0]}</small></div>}
+    </div>
+  );
+}
 
-const orderColumns: ArrayTableColumn<Order>[] = [
-  { key: 'no', title: '订单号', render: ({ record }) => record.no },
-  { key: 'status', title: '状态', render: () => <Field name="status" enum={STATUS} component={[Select, { style: { width: 110 } }]} /> },
-  { key: 'amount', title: '合计', render: () => <Field name="amount" readOnly component={[InputNumber]} /> },
-];
+function ItemRow() {
+  const item = useRecord<Item>();
+  return (
+    <tr>
+      <td><code>{item.sku}</code></td>
+      <td>
+        <Field
+          name="qty"
+          component={[NumberCell, { min: 1 }]}
+          rules={{
+            validator: (value, ctx) => (ctx.parent?.status === 'pending' && Number(value) > 99 ? '待付款单行不能超过 99' : null),
+          }}
+        />
+      </td>
+      <td><Field name="price" component={[NumberCell, { min: 0 }]} /></td>
+      <td><Field name="line" readOnly component={[NumberCell]} /></td>
+    </tr>
+  );
+}
+
+function OrderRow({ expanded, onToggle }: { expanded: boolean; onToggle: () => void }) {
+  const record = useRecord<Order>();
+  return (
+    <Fragment>
+      <tr>
+        <td>
+          <button type="button" onClick={onToggle}>{expanded ? '▾' : '▸'}</button>
+        </td>
+        <td>{record.no}</td>
+        <td>
+          <Field name="status" enum={STATUS}>
+            {(f) => f.readOnly ? (
+              <span>{f.options.find((o) => o.value === f.value)?.label ?? String(f.value)}</span>
+            ) : (
+              <select value={String(f.value ?? '')} onChange={(e) => f.onChange(e.target.value)}>
+                {f.options.map((opt) => (
+                  <option key={String(opt.value)} value={String(opt.value)}>{opt.label}</option>
+                ))}
+              </select>
+            )}
+          </Field>
+        </td>
+        <td>
+          <Field name="amount" readOnly component={[NumberCell]} />
+        </td>
+      </tr>
+      {expanded && (
+        <tr>
+          <td colSpan={4} style={{ paddingLeft: 24 }}>
+            <table>
+              <thead>
+                <tr><th>商品</th><th>数量</th><th>单价</th><th>行金额</th></tr>
+              </thead>
+              <tbody>
+                <ArrayField name="items" rowKey="id">
+                  {() => <ItemRow />}
+                </ArrayField>
+              </tbody>
+            </table>
+          </td>
+        </tr>
+      )}
+    </Fragment>
+  );
+}
 
 export default function App() {
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({ o1: true });
   const form = useForm<Values>({
     initialValues: {
       editable: true,
@@ -198,22 +412,37 @@ export default function App() {
     fields: { editable: { omit: true } },
     effects: [effects],
   });
+  const toggle = (id: string) => setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
   return (
     <Form form={form}>
-      <Field name="editable" title="可编辑" decorator={[FormItem]} component={[Switch]} />
-      <ArrayField name="orders" rowKey="id" component={[ArrayTable, {
-        columns: orderColumns, pagination: false, settings: false,
-        // 展开区也在订单行的作用域里：<ArrayField name="items"> 就是 orders.N.items
-        expandable: { render: () => <ArrayField name="items" rowKey="id" component={[ArrayTable, { columns: itemColumns, pagination: false, settings: false, size: 'small' }]} /> },
-      }]} />
+      <Field<Values, 'editable'> name="editable" title="可编辑">
+        {(f) => (
+          <p>
+            <label htmlFor={f.id}>
+              <input id={f.id} type="checkbox" checked={Boolean(f.value)} onChange={(e) => f.onChange(e.target.checked)} />{' '}
+              {f.title}
+            </label>
+          </p>
+        )}
+      </Field>
+      <table>
+        <thead>
+          <tr><th /><th>订单号</th><th>状态</th><th>合计</th></tr>
+        </thead>
+        <tbody>
+          <ArrayField name="orders" rowKey="id">
+            {({ key }) => <OrderRow expanded={Boolean(expanded[key])} onToggle={() => toggle(key)} />}
+          </ArrayField>
+        </tbody>
+      </table>
     </Form>
   );
 }
 ```
 
 - 订单内的 `items` 也是对象数组，`reaction.each` 会递归进入内层；开头判断 `if (depth !== 0) return` 使该回调只处理外层订单，修改某张订单的状态或明细时只重算该订单。
-- 主表与展开子表都采用 `<ArrayField component={[ArrayTable, { columns }]}>`，因此无论是外层列还是展开区里的 `<ArrayField name="items">` 与 `<Field name="qty">`，都可以直接写相对路径。
+- 展开区位于外层 `<ArrayField name="orders">` 的行作用域内，因此 `<ArrayField name="items">` 会自动解析为 `orders.N.items`，内部的 `<Field name="qty">` 同样直接写相对路径。
 - 「已发货」订单整单只读，是因为子字段继承了 `order.$readOnly`。状态列在可编辑时写了 `order.status.$readOnly = false`，所以仍能改回「已付款」，整单恢复可编辑。合计和行金额自己声明了 `readOnly`，阅读态展示计算结果。
-- 上述表格直接在原数据上实时修改，若希望「确认后再写回、取消可丢弃」，请使用 [草稿表单（ShadowForm）](/examples/pro#用草稿表单编辑行)。
+- 上述表格直接在原数据上实时修改，若希望「确认后再写回、取消可丢弃」，请使用 [草稿表单（useShadowForm）](/examples/pro#草稿表单useShadowForm)。
 
 回到 [示例库](/examples)。

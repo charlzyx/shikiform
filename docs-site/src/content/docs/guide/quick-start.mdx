@@ -1,6 +1,6 @@
 ---
 title: 快速开始
-description: 安装依赖，使用 Field、FormItem 和 Submit 构建第一张支持校验与提交的表单。
+description: 安装依赖，使用 Field、useFieldDecorator 和 Submit 构建第一张支持校验与提交的表单。
 ---
 
 ## 安装
@@ -11,27 +11,58 @@ description: 安装依赖，使用 Field、FormItem 和 Submit 构建第一张�
 npm i @shikiform/react
 ```
 
-按需安装 Ant Design 适配包或无 UI 业务 Hooks 包：
+按需安装无 UI 业务 Hooks 包（查询表格、草稿表单、列设置等）：
 
 ```bash
-npm i @shikiform/antd
 npm i @shikiform/hooks
 ```
 
-版本要求：`react` 与 `react-dom` 为 `^18 || ^19`；使用 `@shikiform/antd` 需同时安装 `antd`（`^5.18`）与 `dayjs`（`^1`）。
+版本要求：`react` 与 `react-dom` 为 `^18 || ^19`。ShikiForm 零 UI 库依赖，可搭配原生 HTML 控件或任意 React UI 组件库使用。
 
 ## 第一张表单
 
 `useForm` 创建表单实例，`<Form>` 提供上下文并渲染原生 `<form>` 元素，`<Field>` 绑定数据路径。
 
-在 `<Field>` 上，`decorator`（如 `[FormItem]`）展示标签、必填标记与错误信息，`component`（如 `[Input]`）渲染输入控件。两者通过上下文读取外层 `<Field>` 的绑定状态，不需再传 `name`。`typed(form)` 返回的 `F.Field` 与 `<Field>` 运行时相同，额外按表单值类型校验 `name`。
+在 `<Field>` 上，`decorator`（如自定义的 `FieldItem`）展示标签、必填标记与错误信息，`component`（如自定义的 `TextInput`）渲染输入控件。两者通过上下文调用 `useField()` / `useFieldDecorator()` 读取外层 `<Field>` 的绑定状态，不需再传 `name`。`typed(form)` 返回的 `F.Field` 与 `<Field>` 运行时相同，额外按表单值类型校验 `name`。
 
 ```tsx preview
-import { useState } from 'react';
-import { Form, typed, useForm } from '@shikiform/react';
-import { FormButtonGroup, FormItem, FormLayout, Input, InputNumber, Reset, Submit } from '@shikiform/antd';
+import { useState, type ReactNode } from 'react';
+import { Form, Reset, Submit, typed, useField, useFieldDecorator, useForm } from '@shikiform/react';
 
 type Values = { name: string; email: string; age: number | null };
+
+function FieldItem({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <label {...d.labelProps} style={{ display: 'inline-block', width: 64 }}>
+        {d.required && <span style={{ color: 'crimson' }}>* </span>}
+        {d.label}
+      </label>
+      {children}
+      {d.errorProps && <small {...d.errorProps} style={{ color: 'crimson', marginLeft: 8 }}>{d.errors[0]}</small>}
+    </div>
+  );
+}
+
+function TextInput({ placeholder }: { placeholder?: string }) {
+  const field = useField<string>();
+  return (
+    <input id={field.id} value={field.value ?? ''} placeholder={placeholder}
+      disabled={field.disabled} readOnly={field.readOnly}
+      onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />
+  );
+}
+
+function NumberInput() {
+  const field = useField<number | null>();
+  return (
+    <input id={field.id} type="number" value={field.value ?? ''}
+      disabled={field.disabled} readOnly={field.readOnly}
+      onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
+      onBlur={field.onBlur} />
+  );
+}
 
 export default function App() {
   const [result, setResult] = useState('还没有提交');
@@ -39,16 +70,14 @@ export default function App() {
   const F = typed(form);
   return (
     <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
-      <FormLayout labelCol={{ span: 4 }} wrapperCol={{ span: 20 }}>
-        <F.Field name="name" title="姓名" required decorator={[FormItem]} component={[Input, { placeholder: 'Ada' }]} />
-        <F.Field name="email" title="邮箱" required rules={{ format: 'email', message: '邮箱格式不对' }}
-          decorator={[FormItem]} component={[Input]} />
-        <F.Field name="age" title="年龄" rules={{ min: 0, max: 150 }} decorator={[FormItem]} component={[InputNumber]} />
-        <FormButtonGroup.FormItem>
-          <Submit>提交</Submit>
-          <Reset afterReset={() => setResult('还没有提交')} />
-        </FormButtonGroup.FormItem>
-      </FormLayout>
+      <F.Field name="name" title="姓名" required decorator={[FieldItem]} component={[TextInput, { placeholder: 'Ada' }]} />
+      <F.Field name="email" title="邮箱" required rules={{ format: 'email', message: '邮箱格式不对' }}
+        decorator={[FieldItem]} component={[TextInput]} />
+      <F.Field name="age" title="年龄" rules={{ min: 0, max: 150 }} decorator={[FieldItem]} component={[NumberInput]} />
+      <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+        <Submit>提交</Submit>
+        <Reset afterReset={() => setResult('还没有提交')}>重置</Reset>
+      </div>
       <pre aria-live="polite">{result}</pre>
     </Form>
   );
@@ -59,14 +88,13 @@ export default function App() {
 
 几点约定：
 
-- `title`、`required`、`rules` 直接写在 `<Field>` 上；传给控件或装饰器的属性放在元组第二项，如 `component={[Input, props]}`、`decorator={[FormItem, props]}`。
+- `title`、`required`、`rules` 直接写在 `<Field>` 上；传给控件或装饰器的属性放在元组第二项，如 `component={[TextInput, props]}`、`decorator={[FieldItem, props]}`。
 - 存在已触发的错误或正在提交（`$canSubmit` 为 `false`）时，`<Submit>` 自动禁用。尚未校验过的空必填项不会在初始渲染时禁用按钮，首次点击仍会触发校验。`<Reset>` 将表单恢复到 `initialValues`。
-- `FormButtonGroup.FormItem` 按外层 `FormLayout` 的标签宽度留空，使按钮与输入框左边缘对齐。
 - `<Form>` 已渲染原生 `<form>`，不要再嵌套一层 `<form>`。在组件外创建实例可使用 `createForm`，参数与 `useForm` 相同。
 
-## 不使用 Ant Design
+## 直接用 `useField()`
 
-不使用第三方组件库时，在自定义控件内部调用无参 `useField()` 读取当前字段绑定（`value`、`onChange`、`onBlur`、`errors`、`id`），再将该组件传给 `component`。详见 [不用 UI 库](/start/native)。
+最简场景下，不需要拆分装饰器与控件，直接在组件内部调用无参 `useField()` 读取当前字段绑定（`value`、`onChange`、`onBlur`、`errors`、`id`），再将该组件传给 `component`。需要接入外部组件库时详见 [接入组件库](/guide/headless)。
 
 ```tsx preview
 import { useState } from 'react';
@@ -96,24 +124,33 @@ export default function App() {
 }
 ```
 
-无参 `useField()` 只能在 `<Field>` 渲染的 `component`、`decorator` 或 `children` 内调用。封装第三方组件库可使用 `@shikiform/react` 导出的 [`connect`](/reference/antd-adapter#connect)，见 [接入组件库](/guide/headless#接自己的组件库)。
+无参 `useField()` 只能在 `<Field>` 渲染的 `component`、`decorator` 或 `children` 内调用。封装第三方组件库（如 Ant Design / Arco / Radix）可使用 `@shikiform/react` 导出的 `connect` 与 `useFieldDecorator`，见 [接入组件库](/guide/headless#接自己的组件库)。
 
 ## 复用一段字段
 
 收货地址、联系人等子表单片段可写成普通组件。放在 `<ObjectField>` 或数组行作用域内时，内部字段名按相对路径解析；配合 `typed<Address>()` 可按片段自身类型检查字段名。
 
 ```tsx preview
-import { Form, ObjectField, typed, useForm } from '@shikiform/react';
-import { FormItem, Input } from '@shikiform/antd';
+import { Form, ObjectField, typed, useField, useForm } from '@shikiform/react';
 
 type Address = { city: string; street: string };
 const A = typed<Address>();
 
+function LabeledInput() {
+  const field = useField<string>();
+  return (
+    <div style={{ marginBottom: 6 }}>
+      <label htmlFor={field.id} style={{ display: 'inline-block', width: 56 }}>{field.title}</label>
+      <input id={field.id} value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />
+    </div>
+  );
+}
+
 function AddressFields() {
   return (
     <>
-      <A.Field name="city" title="城市" decorator={[FormItem]} component={[Input]} />
-      <A.Field name="street" title="街道" decorator={[FormItem]} component={[Input]} />
+      <A.Field name="city" title="城市" component={[LabeledInput]} />
+      <A.Field name="street" title="街道" component={[LabeledInput]} />
     </>
   );
 }
@@ -122,8 +159,8 @@ export default function App() {
   const form = useForm({ initialValues: { home: { city: '杭州', street: '' }, office: { city: '上海', street: '' } } });
   return (
     <Form form={form}>
-      <ObjectField name="home"><AddressFields /></ObjectField>
-      <ObjectField name="office"><AddressFields /></ObjectField>
+      <fieldset><legend>家庭地址</legend><ObjectField name="home"><AddressFields /></ObjectField></fieldset>
+      <fieldset><legend>公司地址</legend><ObjectField name="office"><AddressFields /></ObjectField></fieldset>
     </Form>
   );
 }

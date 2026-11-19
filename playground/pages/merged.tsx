@@ -1,6 +1,5 @@
-import { Button, Space } from 'antd'
 import { Field, Form, useArrayField, useForm, useWatch, type Draft } from '@shikiform/react'
-import { Checkbox, FormItem, Input, InputNumber, MergedTable, Select, Switch } from '@shikiform/antd'
+import { Button, Checkbox, FormItem, Input, InputNumber, MergedTable, Select, Space, Switch } from '../kit'
 import { newProduct, newSupplier, supplierRows, type FlatRow, type Supplier } from '../merged-model'
 import { tid } from '../testid'
 
@@ -29,7 +28,7 @@ const INITIAL: Supplier[] = [
 
 const LEVELS = ['A', 'B', 'C'].map((value) => ({ label: `${value} 级`, value }))
 /** A table cell: no label, errors right under the control. */
-const cell = [FormItem, { style: { margin: 0 } }] as const
+const cell = [FormItem, { compact: true }] as const
 
 /**
  * Values stay nested (`suppliers.N.products.M`); the table is a flat display model from `supplierRows`. A row only
@@ -113,7 +112,7 @@ function MergedBody() {
           },
         ]}
       />
-      <Button style={{ marginTop: 8 }} data-testid="add-supplier" onClick={() => suppliersHandle.push(newSupplier())}>
+      <Button style={{ marginTop: 10 }} data-testid="add-supplier" onClick={() => suppliersHandle.push(newSupplier())}>
         加供应商
       </Button>
     </main>
@@ -146,13 +145,13 @@ function SupplierCell({ supplierIndex, rowId }: { supplierIndex: number; rowId: 
           ]}
         />
       </div>
-      <Field name={`suppliers.${supplierIndex}.level`} enum={LEVELS} component={[Select, { ...tid(`level-${supplier.id}`), style: { width: 90 } }]} />
+      <Field name={`suppliers.${supplierIndex}.level`} enum={LEVELS} component={[Select, { ...tid(`level-${supplier.id}`), style: { width: 100 } }]} />
       <Space>
-        <Button size="small" data-testid={`up-${supplier.id}`} disabled={supplierIndex === 0} onClick={() => suppliersHandle.move(supplierIndex, supplierIndex - 1)}>
+        <Button size="sm" data-testid={`up-${supplier.id}`} disabled={supplierIndex === 0} onClick={() => suppliersHandle.move(supplierIndex, supplierIndex - 1)}>
           组上移
         </Button>
         <Button
-          size="small"
+          size="sm"
           data-testid={`add-product-${supplier.id}`}
           onClick={() => products.push(newProduct())}
         >
