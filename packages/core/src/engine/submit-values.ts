@@ -1,4 +1,4 @@
-import { clone } from '../shared/equal'
+import { plainClone } from '../draft/plain-clone'
 import { deleteAt, getAt, normalizePath, setAt } from '../shared/path'
 
 /** Enough of the field store to tell an own `omit` from one inherited from an ancestor. */
@@ -8,10 +8,13 @@ interface OmitSource {
   own(path: string, name: 'omit'): boolean | undefined
 }
 
-/** `structuredClone` rejects `undefined`. A missing path stays `undefined`. */
+/**
+ * `structuredClone` rejects `undefined`, and in development it also rejects a read-only view.
+ * Peel the view first (`plainClone`); a missing path stays `undefined`.
+ */
 function cloneValue(value: unknown): unknown {
   if (value === undefined) return undefined
-  return clone(value)
+  return plainClone(value)
 }
 
 /**

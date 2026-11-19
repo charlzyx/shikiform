@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createForm } from '@shikiform/core'
+import { readonlyValue } from '../packages/core/src/draft/readonly'
+import { submitValueAt } from '../packages/core/src/engine/submit-values'
 
 type Values = {
   name: string
@@ -105,6 +107,20 @@ describe('validate resolves submit-shaped values', () => {
     expect(await engine.validate(['editor.name', 'title'])).toEqual({ editor: { name: '墨水' }, title: 't' })
     const editor = await engine.validate('editor')
     expect(editor).not.toBe(engine.getValue('editor'))
+  })
+
+  it('clones through a development read-only view instead of throwing', () => {
+    const view = readonlyValue({ name: 'Ada', secret: 'hide', user: { city: 'sh' } }, '')
+    const source = {
+      fields: { keys: () => ['secret'] },
+      effective: (path: string) => path === 'secret',
+      own: (path: string) => (path === 'secret' ? true : undefined),
+    }
+    const values = submitValueAt(view, source) as { name: string; user: { city: string } }
+    expect(values).toEqual({ name: 'Ada', user: { city: 'sh' } })
+    expect(structuredClone(values)).toEqual(values)
+    values.user.city = 'changed'
+    expect(view.user.city).toBe('sh')
   })
 
   it('a missing path resolves undefined and does not invent a live object', async () => {
