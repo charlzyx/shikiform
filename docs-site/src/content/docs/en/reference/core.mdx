@@ -19,7 +19,7 @@ typed<V>().useForm<TSubmit = DefaultSubmit, const F extends FieldsInput<V> = {}>
 ): FormInstance<V, ResolveSubmit<V, TSubmit, F>>
 ```
 
-Instantiate an engine outside React with the same model options used by `useForm`. `patchValues` recursively merges plain objects and replaces arrays. `setReadOnly` and `setDisabled` change root-level state. Omitting options or passing undefined is equivalent to an empty object.
+Instantiate an engine outside React with the same model options used by `useForm`. In development `getValue` and `values` are read-only views. `snapshot(form.values)` is a plain copy for `structuredClone`, `postMessage`, and IndexedDB. `getSubmitValues()` is the submit payload. `toRaw(value)` is the live stored object. `patchValues` recursively merges plain objects and replaces arrays. `setReadOnly` and `setDisabled` change root-level state. Omitting options or passing undefined is equivalent to an empty object.
 
 ```ts
 import { createForm } from '@shikiform/core'

@@ -37,7 +37,7 @@ createForm<T, TSubmit = T>(options?: FormOptions<T>): FormInstance<T, TSubmit>  
 
 | Method | Contract |
 |---|---|
-| `getValue`, `setValue` | Read or update a single dot or bracket path. |
+| `getValue`, `setValue` | Read or update a single dot or bracket path. In development an object result is a read-only view (not `===` to the stored value; production returns the stored value). `indexOf` / `includes` still find a raw row. Copy with `snapshot(value)` for `structuredClone`, `postMessage`, or IndexedDB. `getSubmitValues()` is the submit payload. |
 | `patchValues`, `batch` | Merge partial data or write multiple paths in one transaction. |
 | `validate(path?)` | Validate the entire form, a subtree or selected paths. Rejects with field errors. |
 | `submit(onValid?)` | Validate and return the callback result or submit values. A later attempt can supersede it. |
