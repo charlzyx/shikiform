@@ -373,6 +373,48 @@ describe('external value inputs are cloned', () => {
     expect(form.getValue('rows.0')).toEqual({ name: 'r', tags: ['r'] })
   })
 
+  it('pushArray, insertArray, and replaceArray keep class instances and copy plain data', () => {
+    class Sku { constructor(public code: string) {} }
+    const form = createEngine<{ rows: { name: string; sku: Sku; when: Date; tags: string[]; mark: () => string }[] }>({
+      initialValues: { rows: [] },
+    })
+    const sku = new Sku('A')
+    const when = new Date('2020-01-02T00:00:00Z')
+    const mark = () => 'ok'
+    const row = { name: 'pen', sku, when, tags: ['a'], mark }
+    form.pushArray('rows', row)
+    const pushed = form.getValue('rows.0')
+    expect(pushed).not.toBe(row)
+    expect(pushed.sku).toBe(sku)
+    expect(pushed.sku).toBeInstanceOf(Sku)
+    expect(pushed.mark).toBe(mark)
+    expect(pushed.when).not.toBe(when)
+    expect(pushed.when.getTime()).toBe(when.getTime())
+    expect(pushed.tags).not.toBe(row.tags)
+    row.name = 'mut'
+    row.tags.push('z')
+    sku.code = 'changed'
+    expect(pushed.name).toBe('pen')
+    expect(pushed.tags).toEqual(['a'])
+    expect(pushed.sku.code).toBe('changed')
+
+    const insertedSku = new Sku('I')
+    const inserted = { name: 'in', sku: insertedSku, when, tags: ['i'], mark }
+    form.insertArray('rows', 0, inserted)
+    expect(form.getValue('rows.0').sku).toBe(insertedSku)
+    expect(form.getValue('rows.0')).not.toBe(inserted)
+    inserted.tags.push('no')
+    expect(form.getValue('rows.0').tags).toEqual(['i'])
+
+    const replacedSku = new Sku('R')
+    const replaced = { name: 're', sku: replacedSku, when, tags: ['r'], mark }
+    form.replaceArray('rows', 0, replaced)
+    expect(form.getValue('rows.0').sku).toBe(replacedSku)
+    expect(form.getValue('rows.0').sku).toBeInstanceOf(Sku)
+    replaced.name = 'no'
+    expect(form.getValue('rows.0').name).toBe('re')
+  })
+
   it('keeps row identity when setValue reorders rows that already live in the form', () => {
     const form = createEngine({ initialValues: { rows: [{ title: 'A' }, { title: 'B' }] } })
     const [first, second] = form.values.rows

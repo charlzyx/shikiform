@@ -109,18 +109,35 @@ describe('validate resolves submit-shaped values', () => {
     expect(editor).not.toBe(engine.getValue('editor'))
   })
 
-  it('clones through a development read-only view instead of throwing', () => {
-    const view = readonlyValue({ name: 'Ada', secret: 'hide', user: { city: 'sh' } }, '')
+  it('clones through a development read-only view and keeps class instances', () => {
+    class Sku { constructor(public code: string) {} }
+    const sku = new Sku('A')
+    const view = readonlyValue({ name: 'Ada', secret: 'hide', user: { city: 'sh' }, sku }, '')
     const source = {
       fields: { keys: () => ['secret'] },
       effective: (path: string) => path === 'secret',
       own: (path: string) => (path === 'secret' ? true : undefined),
     }
-    const values = submitValueAt(view, source) as { name: string; user: { city: string } }
-    expect(values).toEqual({ name: 'Ada', user: { city: 'sh' } })
-    expect(structuredClone(values)).toEqual(values)
+    const values = submitValueAt(view, source) as { name: string; user: { city: string }; sku: Sku }
+    expect(values).toEqual({ name: 'Ada', user: { city: 'sh' }, sku })
+    expect(values.sku).toBe(sku)
+    expect(values.sku).toBeInstanceOf(Sku)
     values.user.city = 'changed'
+    values.name = 'changed'
     expect(view.user.city).toBe('sh')
+    expect(view.name).toBe('Ada')
+  })
+
+  it('validate() keeps a class instance stored on the form', async () => {
+    class Sku { constructor(public code: string) {} }
+    const sku = new Sku('A')
+    const form = createForm<{ note: string; sku: Sku }>({ initialValues: { note: 'n', sku: new Sku('seed') } })
+    form.setValue('sku', sku)
+    const values = await form.validate()
+    expect(values.sku).toBe(sku)
+    expect(values.sku).toBeInstanceOf(Sku)
+    values.note = 'changed'
+    expect(form.getValue('note')).toBe('n')
   })
 
   it('a missing path resolves undefined and does not invent a live object', async () => {

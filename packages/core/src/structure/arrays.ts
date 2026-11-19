@@ -1,4 +1,4 @@
-import { plainClone } from '../draft/plain-clone'
+import { copyData } from '../draft/plain-clone'
 import { peelReadonly, unwrapReadonly } from '../draft/readonly'
 import type { Declarations } from '../declarations/declarations'
 import type { Scheduler } from '../effects/scheduler'
@@ -80,7 +80,7 @@ export class ArrayOps {
     const before = this.store.arrayOf(path)
     if (index < 0 || index >= before.length) return
     const next = before.slice()
-    next[index] = plainClone(row)
+    next[index] = copyData(row)
     this.commit(path, before, next, new Set([index]))
   }
 
@@ -88,7 +88,7 @@ export class ArrayOps {
     const before = this.store.arrayOf(path)
     const at = Math.min(Math.max(index, 0), before.length)
     const next = before.slice()
-    next.splice(at, 0, plainClone(row))
+    next.splice(at, 0, copyData(row))
     this.commit(path, before, next, new Set(Array.from({ length: next.length - at }, (_, i) => at + i)))
   }
 
@@ -104,7 +104,7 @@ export class ArrayOps {
 
   push(path: string, row: unknown): void {
     const before = this.store.arrayOf(path)
-    this.commit(path, before, [...before, plainClone(row)], new Set([before.length]))
+    this.commit(path, before, [...before, copyData(row)], new Set([before.length]))
   }
 
   rowIdent(row: unknown, index: number, rowKey?: string): string {

@@ -1,4 +1,4 @@
-import { plainClone } from '../draft/plain-clone'
+import { copyData } from '../draft/plain-clone'
 import { deleteAt, getAt, normalizePath, setAt } from '../shared/path'
 
 /** Enough of the field store to tell an own `omit` from one inherited from an ancestor. */
@@ -9,12 +9,11 @@ interface OmitSource {
 }
 
 /**
- * `structuredClone` rejects `undefined`, and in development it also rejects a read-only view.
- * Peel the view first (`plainClone`); a missing path stays `undefined`.
+ * Peel a development read-only view, then copy like {@link copyData}.
+ * Class instances stay by reference. A missing path (`undefined`) stays `undefined`.
  */
 function cloneValue(value: unknown): unknown {
-  if (value === undefined) return undefined
-  return plainClone(value)
+  return copyData(value)
 }
 
 /**

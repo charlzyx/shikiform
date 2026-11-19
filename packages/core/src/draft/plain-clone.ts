@@ -3,12 +3,20 @@ import { isPatchable } from './patch'
 import { unwrapReadonly } from './readonly'
 
 /**
- * Clone caller data, unwrapping development read-only views (`d.x.$value`) first.
- * `reset` / `setInitialValues` store this snapshot, and so do `pushArray` / `insertArray` / `replaceArray`
- * (a new row must not alias the object the caller still holds).
+ * Clone caller data with `structuredClone`, unwrapping development read-only views first.
+ * `reset` / `setInitialValues` store this snapshot. A class instance becomes a plain object.
  */
 export function plainClone<V>(value: V): V {
   return clone(process.env.NODE_ENV !== 'production' ? unwrapReadonly(value) : value)
+}
+
+/**
+ * Copy form data the way {@link cloneExternal} does, without preserving identities from the current store.
+ * Development read-only views are peeled. Plain objects, arrays, `Date`, `Map`, and `Set` are copied.
+ * Class instances, functions, and React elements stay the caller's object (`structuredClone` would drop the prototype).
+ */
+export function copyData<V>(value: V): V {
+  return share(value, new Set(), new WeakMap()) as V
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
