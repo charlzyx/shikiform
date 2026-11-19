@@ -1,0 +1,298 @@
+---
+title: "Reactions and watches"
+description: "Derive state, run actions after changes and scope effects to each row."
+---
+Use `defineEffects` to group related effects. In a draft, plain properties select a path and `$` properties access state.
+
+```ts
+const effects = defineEffects<Values>(({ reaction, watch }) => {
+  reaction((d) => { /* Track the states read during derivation. */ })
+  watch((d) => d.province.$value, (d) => { /* Run only after the source changes. */ })
+})
+```
+
+## Derive state and respond to changes
+
+A `reaction` runs immediately and tracks every state it reads. A `watch` tracks its source only and skips its first pass. For dependent dropdowns, derive the available cities and reset the selected city only after the province changes.
+
+```tsx preview
+import { useState, type ReactNode } from 'react';
+import { enUS, Field, Form, defineEffects, useField, useFieldDecorator, useForm } from '@shikiform/react';
+
+type Values = { price: number; qty: number; amount: number; province: string; city: string };
+
+const CITIES: Record<string, { label: string; value: string }[]> = {
+  zj: [{ label: "Hangzhou", value: 'hz' }, { label: "Ningbo", value: 'nb' }],
+  js: [{ label: "Nanjing", value: 'nj' }, { label: "Suzhou", value: 'sz' }],
+};
+
+const effects = defineEffects<Values>(({ reaction, watch }) => {
+  // Run immediately and recalculate when price or quantity changes.
+  reaction((d) => {
+    d.amount.$value = d.price.$value * d.qty.$value;
+  });
+  // City options depend on province.
+  reaction((d) => {
+    // Use an empty list here. Undefined would restore the options declared in JSX or fields.
+    d.city.$enum = CITIES[d.province.$value] ?? [];
+    d.city.$disabled = !d.province.$value;
+  });
+  // Clear the city after a province change. Keep the initial selection on mount.
+  watch((d) => d.province.$value, (d) => {
+    d.city.$value = '';
+  });
+});
+
+function FieldItem({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <label {...d.labelProps} style={{ display: 'inline-block', width: 56 }}>{d.label}</label>
+      {children}
+    </div>
+  );
+}
+
+function NumberInput() {
+  const field = useField<number>();
+  return (
+    <input id={field.id} type="number" value={field.value ?? 0} disabled={field.disabled}
+      onChange={(e) => field.onChange(Number(e.target.value))} onBlur={field.onBlur} />
+  );
+}
+
+function SelectInput() {
+  const field = useField<string>();
+  return (
+    <select id={field.id} value={field.value ?? ''} disabled={field.disabled}
+      onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur}>
+      <option value="">Choose an option</option>
+      {field.options.map((o) => <option key={String(o.value)} value={String(o.value)}>{o.label}</option>)}
+    </select>
+  );
+}
+
+export default function App() {
+  const [result, setResult] = useState('');
+  const form = useForm<Values>({
+    messages: enUS,
+    initialValues: { price: 10, qty: 2, amount: 0, province: 'zj', city: 'hz' },
+    effects: [effects],
+  });
+  return (
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
+      <Field name="price" title="Unit price" decorator={[FieldItem]} component={[NumberInput]} />
+      <Field name="qty" title="Quantity" decorator={[FieldItem]} component={[NumberInput]} />
+      <Field name="amount" title="Amount" decorator={[FieldItem]} component={[NumberInput]} />
+      <Field name="province" title="Province" enum={[{ label: "Zhejiang", value: 'zj' }, { label: "Jiangsu", value: 'js' }]}
+        decorator={[FieldItem]} component={[SelectInput]} />
+      <Field name="city" title="City" decorator={[FieldItem]} component={[SelectInput]} />
+      <pre>{result}</pre>
+    </Form>
+  );
+}
+```
+
+## One reaction per row
+
+`reaction.each(select, callback)` creates a separate instance for each row. Editing a quantity only recalculates that row's subtotal.
+
+```ts
+reaction.each((d) => d.items, (row, ctx) => { … })
+// ctx includes key, index, depth, parent, path, pos and the root draft d.
+```
+
+## Filter using the context
+
+`ctx` includes `key`, `index`, `depth`, `parent`, `path`, `pos` and the root draft `d`. Nested object arrays are traversed automatically. Filter the rows you need before reading state.
+
+```ts
+d.orders[0].lines[2].qty.$value
+form.getValue('orders[0].lines[2].qty')
+```
+
+```ts
+reaction.each((d) => d.orders, (order, ctx) => {
+  if (ctx.depth !== 0) return
+  order.lines[2].qty.$required = true
+})
+```
+
+```ts
+reaction.each((d) => d.orders, (node, ctx) => {
+  if (ctx.key !== 'lines' || ctx.index !== 2) return
+  node.qty.$required = true
+})
+```
+
+Use a watch to add or remove SKU combinations after selection changes, preserving existing rows and their edited prices.
+
+```tsx preview play=sku
+import { useState, type ReactNode } from 'react';
+import { enUS, ArrayField, Field, Form, defineEffects, useArrayField, useField, useForm, useIndex } from '@shikiform/react';
+
+type Item = { id: number; sku: string; price: number; qty: number; total: number };
+type Values = { discount: number; items: Item[] };
+
+const PRICES: Record<string, number> = { pen: 3, book: 25, bag: 80 };
+let nextId = 3;
+
+const effects = defineEffects<Values>(({ reaction, watch }) => {
+  reaction.each((d) => d.items, (row, { d, index }) => {
+    const price = PRICES[row.sku.$value] ?? 0;
+    row.price.$value = price;
+    row.total.$value = price * row.qty.$value * (1 - d.discount.$value / 100);
+    row.sku.$required = index === 0; // The first row requires a product.
+  });
+  // Reset quantity when the product changes.
+  watch.each((d) => d.items, (row) => {
+    if (row.sku.$value) row.qty.$value = 1;
+  });
+});
+
+function InlineNumber({ min, max, width = 72 }: { min?: number; max?: number; width?: number }) {
+  const field = useField<number>();
+  return (
+    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      <span>{field.title}</span>
+      <input id={field.id} type="number" min={min} max={max} style={{ width }}
+        value={field.value ?? 0} onChange={(e) => field.onChange(Number(e.target.value))} onBlur={field.onBlur} />
+    </label>
+  );
+}
+
+function InlineSelect() {
+  const field = useField<string>();
+  return (
+    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      <span>{field.title}</span>
+      <select id={field.id} value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur}>
+        <option value="">Choose an option</option>
+        {field.options.map((o) => <option key={String(o.value)} value={String(o.value)}>{o.label}</option>)}
+      </select>
+    </label>
+  );
+}
+
+function RemoveButton() {
+  const array = useArrayField<Item>();
+  const index = useIndex();
+  return <button type="button" onClick={() => array.remove(index)}>Delete</button>;
+}
+
+function ItemList({ children }: { children?: ReactNode }) {
+  const array = useArrayField<Item>();
+  return (
+    <div>
+      {children}
+      <button type="button" style={{ marginTop: 10 }}
+        onClick={() => array.push({ id: nextId++, sku: '', price: 0, qty: 1, total: 0 })}>Add row</button>
+    </div>
+  );
+}
+
+export default function App() {
+  const [result, setResult] = useState('');
+  const form = useForm<Values>({
+    messages: enUS,
+    initialValues: { discount: 10, items: [{ id: 1, sku: 'pen', price: 0, qty: 4, total: 0 }, { id: 2, sku: 'book', price: 0, qty: 1, total: 0 }] },
+    fields: { 'items.*.sku': { enum: Object.keys(PRICES).map((value) => ({ label: value, value })) } },
+    effects: [effects],
+  });
+  return (
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
+      <div style={{ marginBottom: 10 }}>
+        <Field name="discount" title="Discount (%)" component={[InlineNumber, { min: 0, max: 100 }]} />
+      </div>
+      <ArrayField name="items" rowKey="id" component={ItemList}>
+        {() => (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
+            <Field name="sku" title="Product" component={[InlineSelect]} />
+            <Field name="price" title="Unit price" component={[InlineNumber]} />
+            <Field name="qty" title="Quantity" component={[InlineNumber, { min: 1 }]} />
+            <Field name="total" title="Subtotal" component={[InlineNumber]} />
+            <RemoveButton />
+          </div>
+        )}
+      </ArrayField>
+      <button style={{ marginTop: 10 }} type="submit">Submit</button>
+      <pre>{result}</pre>
+    </Form>
+  );
+}
+```
+
+## Nested arrays and trees
+
+`each` also visits descendants in a tree. Nested primitive arrays are skipped during object traversal. Selecting a primitive array itself visits its elements at depth zero.
+
+```tsx preview
+import { enUS, Field, Form, TreeField, defineEffects, useField, useForm, useTreeField } from '@shikiform/react';
+
+type Node = { id: string; code: string; name: string; children?: Node[] };
+type Values = { nodes: Node[] };
+
+const effects = defineEffects<Values>(({ reaction }) => {
+  reaction.each((d) => d.nodes, (node, { pos, key, depth }) => {
+    if (depth > 0 && key !== 'children') return;
+    node.code.$value = pos.map((index) => index + 1).join('.'); // Outline numbering follows node positions.
+    node.name.$required = pos.length === 1; // Only top-level nodes are required.
+  });
+});
+
+function TextBox({ width }: { width?: number }) {
+  const field = useField<string>();
+  return (
+    <input style={width ? { width } : undefined} value={field.value ?? ''}
+      onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />
+  );
+}
+
+function NodeTree() {
+  const tree = useTreeField('nodes', { rowKey: 'id' });
+  return (
+    <>
+      <ul style={{ paddingLeft: 0, listStyle: 'none' }}>
+        <TreeField name="nodes" rowKey="id">
+          {(node) => (
+            <li style={{ margin: '6px 0' }}>
+              <span style={{ display: 'inline-flex', gap: 6 }}>
+                <Field name="code" component={[TextBox, { width: 56 }]} />
+                <Field name="name" component={[TextBox, { width: 180 }]} />
+              </span>
+              {node.children && <ul style={{ paddingLeft: 24, listStyle: 'none' }}>{node.children}</ul>}
+            </li>
+          )}
+        </TreeField>
+      </ul>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button type="button" onClick={() => tree.move([0, 1], [0, 0])}>Move Wash to the top</button>
+        <button type="button" onClick={() => tree.move([0, 0], [1, 0])}>Move the first child under Cook</button>
+      </div>
+    </>
+  );
+}
+
+export default function App() {
+  const form = useForm<Values>({
+    messages: enUS,
+    initialValues: {
+      nodes: [
+        { id: 'a', code: '', name: "Prepare", children: [{ id: 'a1', code: '', name: "Buy vegetables" }, { id: 'a2', code: '', name: "Wash" }] },
+        { id: 'b', code: '', name: "Cook", children: [{ id: 'b1', code: '', name: "Stir fry" }] },
+      ],
+    },
+    trees: { nodes: { rowKey: 'id' } },
+    effects: [effects],
+  });
+  return (
+    <Form form={form}>
+      <NodeTree />
+    </Form>
+  );
+}
+```
+
+## UI state in effects
+
+Write `$visible`, `$readOnly`, `$required` or a leaf of `$componentProps` on the relevant path. A named UI instance has its own presentation state. See [named UI nodes](/en/guide/ui).

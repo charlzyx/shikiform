@@ -15,7 +15,7 @@ description: 使用 ArrayField、useArrayField、useIndex 与 useArrayTable 构�
 
 ```tsx preview
 import type { ReactNode } from 'react';
-import { Form, typed, useArrayField, useField, useForm, useIndex, useWatch } from '@shikiform/react';
+import { Form, typed, useArrayField, useField, useForm, useIndex, useWatch, type Draft } from '@shikiform/react';
 
 type Contact = { name: string; phone: string };
 type Values = { contacts: Contact[] };
@@ -32,14 +32,12 @@ function TextInput({ placeholder }: { placeholder?: string }) {
   );
 }
 
-function useContactsEditable() {
-  return useWatch<Values>()((d) => !d.contacts.$readOnly && !d.contacts.$disabled);
-}
+const selectContactsEditable = (d: Draft<Values>) => !d.contacts.$readOnly && !d.contacts.$disabled;
 
 function ContactRow({ children }: { children?: ReactNode }) {
   const array = useArrayField<Contact>();
   const index = useIndex();
-  const editable = useContactsEditable();
+  const editable = useWatch(selectContactsEditable);
   return (
     <div {...(editable ? array.dragProps(index) : {})}
       style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
@@ -59,7 +57,7 @@ function ContactRow({ children }: { children?: ReactNode }) {
 
 function ContactList({ children }: { children?: ReactNode }) {
   const array = useArrayField<Contact>();
-  const editable = useContactsEditable();
+  const editable = useWatch(selectContactsEditable);
   return (
     <div>
       {children}
@@ -110,7 +108,7 @@ form.batch((d) => { d.$disabled = true })           // 运行时全局禁用（�
 form.batch((d) => { d.contacts.$readOnly = true })  // 仅将当前数组设为只读
 ```
 
-自定义数组操作按钮时，根据当前字段的 `readOnly` / `disabled`（或 `useWatch((d) => !d.contacts.$readOnly && !d.contacts.$disabled)`）决定是否渲染增删排序控件。
+自定义数组操作按钮时，根据当前字段的 `readOnly` / `disabled`（本例用 `useWatch(selectContactsEditable)` 订阅数组状态）决定是否渲染增删排序控件。
 
 ## 数组自身的错误
 

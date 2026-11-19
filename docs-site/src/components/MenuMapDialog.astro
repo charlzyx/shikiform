@@ -1,20 +1,22 @@
 ---
+import { pageLanguage } from "@/lib/language";
+const english = pageLanguage(Astro.url.pathname) === "en";
 import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
 import { getNavCatalog } from "@/lib/nav-catalog";
 
-const { groups } = getNavCatalog(import.meta.env.BASE_URL);
+const { groups } = getNavCatalog(import.meta.env.BASE_URL, pageLanguage(Astro.url.pathname));
 ---
 
 <dialog
   id="sf-menu-map"
   data-sf-menu-map
-  aria-label="文档目录总览"
+  aria-label={english ? "Documentation directory" : "文档目录总览"}
   class="sf-map-dialog"
 >
   <div class="sf-map-shell">
     <!-- 最近访问栏（由 localStorage 动态填充） -->
     <div class="sf-map-recent" data-sf-map-recent hidden>
-      <span class="sf-map-recent-label">最近访问：</span>
+      <span class="sf-map-recent-label">{english ? "Recently visited" : "最近访问："}</span>
       <div class="sf-map-recent-chips" data-sf-map-recent-chips></div>
     </div>
 
@@ -23,7 +25,7 @@ const { groups } = getNavCatalog(import.meta.env.BASE_URL);
       <div class="sf-map-head">
         <div class="sf-map-title-wrap">
           <span class="sf-map-bar" aria-hidden="true" />
-          <span class="sf-map-title">ShikiForm · 文档目录总览</span>
+          <span class="sf-map-title">{english ? "ShikiForm · Documentation directory" : "ShikiForm · 文档目录总览"}</span>
         </div>
 
         <div class="sf-map-head-right">
@@ -32,12 +34,12 @@ const { groups } = getNavCatalog(import.meta.env.BASE_URL);
             <input
               type="text"
               data-sf-map-input
-              placeholder="筛选菜单名称..."
+              placeholder={english ? "Filter pages…" : "筛选菜单名称..."}
               autocomplete="off"
               spellcheck="false"
             />
           </label>
-          <button type="button" data-sf-map-close aria-label="关闭目录" class="sf-map-close">
+          <button type="button" data-sf-map-close aria-label={english ? "Close directory" : "关闭目录"} class="sf-map-close">
             <Icon name="ph:x" class="w-4 h-4" />
           </button>
         </div>
@@ -71,7 +73,7 @@ const { groups } = getNavCatalog(import.meta.env.BASE_URL);
         </div>
 
         <div class="sf-map-empty" data-sf-map-empty hidden>
-          未找到匹配的文档菜单
+          {english ? "No matching pages" : "未找到匹配的文档菜单"}
         </div>
       </div>
     </div>
@@ -79,7 +81,7 @@ const { groups } = getNavCatalog(import.meta.env.BASE_URL);
 </dialog>
 
 <script>
-  const RECENT_KEY = "sf-recent-visits-v1";
+  const recentKey = () => "sf-recent-visits-v1-" + document.documentElement.lang;
 
   interface RecentEntry {
     path: string;
@@ -90,7 +92,7 @@ const { groups } = getNavCatalog(import.meta.env.BASE_URL);
 
   function readRecentVisits(): RecentEntry[] {
     try {
-      const raw = localStorage.getItem(RECENT_KEY);
+      const raw = localStorage.getItem(recentKey());
       return raw ? JSON.parse(raw) : [];
     } catch {
       return [];
@@ -101,16 +103,16 @@ const { groups } = getNavCatalog(import.meta.env.BASE_URL);
     try {
       const list = readRecentVisits();
       const next = [entry, ...list.filter((i) => i.path !== entry.path)].slice(0, 8);
-      localStorage.setItem(RECENT_KEY, JSON.stringify(next));
-      window.dispatchEvent(new CustomEvent("sf:recent-updated"));
+      localStorage.setItem(recentKey(), JSON.stringify(next));
     } catch {
       // ignore storage errors
     }
   }
 
   function initMenuMap() {
-    const dialog = document.querySelector<HTMLDialogElement>("[data-sf-menu-map]");
-    if (!dialog || dialog.dataset.sfBound === "1") return;
+    const element = document.querySelector<HTMLDialogElement>("[data-sf-menu-map]");
+    if (!element || element.dataset.sfBound === "1") return;
+    const dialog = element;
     dialog.dataset.sfBound = "1";
 
     const input = dialog.querySelector<HTMLInputElement>("[data-sf-map-input]")!;
@@ -194,13 +196,13 @@ const { groups } = getNavCatalog(import.meta.env.BASE_URL);
         const trigger = (e.target as HTMLElement | null)?.closest("[data-sf-menu-map-trigger]");
         if (trigger) {
           e.preventDefault();
-          document.dispatchEvent(new CustomEvent("sf:open-menu-map"));
+          document.querySelector("[data-sf-menu-map]")?.dispatchEvent(new Event("sf:open-menu-map"));
         }
       });
     }
 
-    document.addEventListener("sf:open-menu-map", openMenuMap);
-    window.addEventListener("sf:recent-updated", renderRecent);
+    dialog.addEventListener("sf:open-menu-map", openMenuMap);
+
   }
 
   initMenuMap();

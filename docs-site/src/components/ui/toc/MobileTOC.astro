@@ -1,4 +1,5 @@
 ---
+import { pageLanguage } from "@/lib/language";
 /**
  * MobileTOC — compact "jump to section" menu for narrow viewports.
  *
@@ -23,6 +24,7 @@ interface Props extends HTMLAttributes<"nav"> {
 const { headings, class: className, ...attrs } = Astro.props;
 
 const hasHeadings = headings.length > 0;
+const english = pageLanguage(Astro.url.pathname) === "en";
 ---
 
 {
@@ -30,16 +32,16 @@ const hasHeadings = headings.length > 0;
     <nav
       data-slot="mobile-toc"
       data-nb-mobile-toc
-      aria-label="On this page"
+      aria-label={english ? "On this page" : "本页目录"}
       class={cn("relative", className)}
       {...attrs}
     >
       <select
         data-nb-mobile-toc-select
-        aria-label="Jump to section"
+        aria-label={english ? "Jump to section" : "跳转到小节"}
         class="w-full appearance-none rounded-md border border-border bg-background py-2.5 ps-3 pe-9 text-sm font-medium text-foreground transition-colors hover:border-foreground/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
       >
-        <option value="_top">Overview</option>
+        <option value="_top">{english ? "Overview" : "概览"}</option>
         {headings.filter((heading) => heading.slug).map((heading) => (
           <option value={heading.slug}>
             {`${" ".repeat(Math.max(0, heading.depth - 2))}${heading.text}`}

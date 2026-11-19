@@ -1,0 +1,84 @@
+---
+title: "Core"
+description: "Create a React-independent engine, define effects and handle engine errors."
+---
+Common engine functions are also exported from `@shikiform/react`.
+
+## createForm
+
+```ts
+function createForm<T, TSubmit = T>(options?: FormOptions<T>): FormInstance<T, TSubmit>
+
+// From @shikiform/react. Set V on typed<V>().
+typed<V>().createForm<TSubmit = DefaultSubmit, const F extends FieldsInput<V> = {}>(
+  options?: Omit<FormOptions<V>, 'fields'> & { fields?: F & FieldsInput<V> },
+): FormInstance<V, ResolveSubmit<V, TSubmit, F>>
+
+typed<V>().useForm<TSubmit = DefaultSubmit, const F extends FieldsInput<V> = {}>(
+  options?: Omit<UseFormOptions<V>, 'fields'> & { fields?: F & FieldsInput<V> },
+): FormInstance<V, ResolveSubmit<V, TSubmit, F>>
+```
+
+Instantiate an engine outside React with the same model options used by `useForm`. `patchValues` recursively merges plain objects and replaces arrays. `setReadOnly` and `setDisabled` change root-level state. Omitting options or passing undefined is equivalent to an empty object.
+
+```ts
+import { createForm } from '@shikiform/core'
+
+const form = createForm<{ name: string }>({ initialValues: { name: '' } })
+form.setValue('name', 'Ada')
+```
+
+Use `typed<V>().createForm` to specify the shape while inferring omissions from declared fields. `createForm<V>(options)` fixes the submit type to `V`.
+
+```ts
+import { typed } from '@shikiform/react'
+
+type Values = { name: string; confirm: string }
+const fields = { confirm: { omit: true as const } }
+
+const form = typed<Values>().createForm({ initialValues: { name: '', confirm: '' }, fields })
+
+form.submit((values) => {
+  values.name // string
+  values.confirm // string | undefined
+})
+
+function Demo() {
+  const live = typed<Values>().useForm({ initialValues: { name: '', confirm: '' }, fields })
+  live.submit((values) => {
+    values.name // string
+    values.confirm // string | undefined
+  })
+  return null
+}
+```
+
+## defineEffects
+
+Register reactions for derived state and watches for one-time actions after a change. Both support `each(select, callback)`.
+
+```ts
+import { defineEffects } from '@shikiform/core'
+
+const effects = defineEffects<{ qty: number; total: number }>(({ reaction }) => {
+  reaction((d) => {
+    d.total.$value = (d.qty.$value ?? 0) * 2
+  })
+})
+```
+
+## EnumSource
+
+Use a static option list or bind a reusable source with `source.with(params)`. The engine manages loading, cancels obsolete requests and exposes the effective options on `$enum`.
+
+## Errors
+
+`ShikiUsageError` reports invalid draft operations. `ShikiConflictError` and `ShikiCycleError` identify conflicting or cyclic reactions. `isFieldErrors` recognizes validation failures. Superseded and unstable submits have distinct error classes.
+
+## Messages
+
+Use `zhCN`, `enUS`, `setDefaultMessages` and `getDefaultMessages` to configure application defaults. `form.message(key)` reads the effective text for one form.
+
+## Tree coordinates
+
+`pathOf` and `posOf` convert coordinates. `moveNode` returns the move result without mutating the original array.

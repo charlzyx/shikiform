@@ -1,3 +1,4 @@
+import { localize } from '../language'
 import { useQueryTable } from '@shikiform/hooks'
 import { Field, Form } from '@shikiform/react'
 import { LOGS, type LogRow } from '../data'
@@ -30,13 +31,13 @@ export function QueryNativePage() {
         )}
       </Field>
       <button type="button" data-testid="query-submit" onClick={() => table.submit()}>
-        查询
+        {localize("查询", "Search")}
       </button>
       <button type="button" data-testid="query-reset" onClick={() => table.reset()}>
-        重置
+        {localize("重置", "Reset")}
       </button>
       <button type="button" data-testid="query-refresh" onClick={() => table.refresh()}>
-        刷新
+        {localize("刷新", "Refresh")}
       </button>
       <div data-testid="selection-count">{table.selectedKeys.length}</div>
       <div data-testid="page">{table.page}</div>
@@ -63,10 +64,10 @@ export function QueryNativePage() {
         </tbody>
       </table>
       <button type="button" data-testid="page-2" onClick={() => table.onPageChange(2)}>
-        第2页
+        {localize("第2页", "Page 2")}
       </button>
       <button type="button" data-testid="page-1" onClick={() => table.onPageChange(1)}>
-        第1页
+        {localize("第1页", "Page 1")}
       </button>
     </Form>
   )

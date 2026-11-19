@@ -1,12 +1,13 @@
+import { localize } from '../language'
 import { EnumSource, Field, Form, ObjectField, useForm, useWatch, type Draft } from '@shikiform/react'
 import { Button, CascaderPlus, Checkbox, FormItem, FormLayout, Radio, Select, Space, Suggestion } from '../kit'
 import { loadArea, suggest, wait } from '../pro-data'
 
 /** Pro.formily `ProEnum.tsx` demo: one enum source per field, lazy enums, pretty read view, suggestion, linkage. */
 const LIST = [
-  { label: '啊', value: 'a' },
-  { label: '哦', value: 'o' },
-  { label: '呃', value: 'e' },
+  { label: localize("啊", "Alpha"), value: 'a' },
+  { label: localize("哦", "Beta"), value: 'o' },
+  { label: localize("呃", "Gamma"), value: 'e' },
 ]
 
 /** `EnumSource.from(() => Promise)` (Pro.formily `ProEnumSource.from`): loaded once, shared by every field that uses it. */
@@ -45,7 +46,7 @@ export function ProEnumPage() {
   return (
     <main style={{ maxWidth: 960 }}>
       <h1>ProEnum</h1>
-      <p>静态 / 懒加载枚举（同一个 EnumSource 只请求一次），阅读态显示为文字、徽标或标签，远程联想，级联懒加载。按钮切换整组的 readOnly。</p>
+      <p>{localize("静态 / 懒加载枚举（同一个 EnumSource 只请求一次），阅读态显示为文字、徽标或标签，远程联想，级联懒加载。按钮切换整组的 readOnly。", "Static and lazy enums share their option labels between edit and read-only views. Toggle the group's read-only state to display text, badges and tags. The shared EnumSource loads once.")}</p>
       <Space style={{ marginBottom: 16 }}>
         <Button data-testid="read-pretty" onClick={() => setReadOnly(true)}>
           READ ONLY
@@ -67,8 +68,8 @@ export function ProEnumPage() {
               <Field name="pretty" enum={LIST} title="Pretty" readOnly decorator={[FormItem]} component={[Select]} />
               <Field name="prettybadge" enum={LIST} title="Pretty Badge" readOnly decorator={[FormItem]} component={[Select, { prettyType: 'badge' }]} />
               <Field name="prettytag" enum={LIST} title="Pretty Tag" readOnly decorator={[FormItem]} component={[Select, { mode: 'multiple', prettyType: 'tag' }]} />
-              <Field name="suggest" title="Suggestion" decorator={[FormItem]} component={[Suggestion, { fetch: suggest, debounce: 200, multiple: true, placeholder: '查询商品..' }]} />
-              <Field name="linkage" title="Linkage" decorator={[FormItem]} component={[CascaderPlus, { loadData: loadArea, labelInValue: true, placeholder: '省 / 市 / 区' }]} />
+              <Field name="suggest" title="Suggestion" decorator={[FormItem]} component={[Suggestion, { fetch: suggest, debounce: 200, multiple: true, placeholder: localize("查询商品..", "Search products…") }]} />
+              <Field name="linkage" title="Linkage" decorator={[FormItem]} component={[CascaderPlus, { loadData: loadArea, labelInValue: true, placeholder: localize("省 / 市 / 区", "Province / city / district") }]} />
             </div>
           </FormLayout>
         </ObjectField>

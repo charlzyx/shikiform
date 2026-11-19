@@ -1,5 +1,6 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
+import { languagePath, pageLanguage } from "../lib/language";
 import Header from "../components/Header.astro";
 import { withBase } from "@cloudflare/nimbus-docs/runtime";
 
@@ -7,11 +8,14 @@ import { withBase } from "@cloudflare/nimbus-docs/runtime";
 // Hosts serve it via their not-found handling (e.g. Cloudflare
 // `not_found_handling: "404-page"`); the adapter adds no on-demand route.
 export const prerender = true;
-const homeHref = withBase("/", import.meta.env.BASE_URL);
-const playHref = withBase("/play/", import.meta.env.BASE_URL);
+const language = pageLanguage(Astro.url.pathname);
+const english = language === "en";
+const homeHref = withBase(languagePath("/", language), import.meta.env.BASE_URL);
+const playHref = withBase(languagePath("/play/", language), import.meta.env.BASE_URL);
+const title = english ? "Page not found" : "找不到这一页";
 ---
 
-<BaseLayout title="找不到这一页" description="这个地址没有对应的页面。" noindex>
+<BaseLayout title={title} description={english ? "There is no page at this address." : "这个地址没有对应的页面。"} noindex>
   <div class="flex flex-col min-h-screen">
     <Header />
     <main id="main-content" tabindex="-1" class="flex-1 mx-auto max-w-2xl w-full px-6 py-24 text-center">
@@ -21,33 +25,33 @@ const playHref = withBase("/play/", import.meta.env.BASE_URL);
         class="mt-2 text-foreground leading-tight"
         style="font-size: var(--nb-h1-size); font-weight: var(--nb-h1-weight); letter-spacing: var(--nb-h1-tracking);"
       >
-        找不到这一页
+        {title}
       </h1>
       <p id="nb-404-body" class="mt-2 text-[1.0625rem] text-muted-foreground leading-relaxed">
-        地址不存在，或者已经挪走了。
+        {english ? "This page has moved or the address is incorrect." : "地址不存在，或者已经挪走了。"}
       </p>
       <a
         id="nb-404-back"
         href={homeHref}
         class="mt-8 inline-block rounded-lg border border-border px-4 py-2 font-medium text-foreground no-underline transition-colors hover:border-border-strong"
       >
-        返回首页
+        {english ? "Back to home" : "返回首页"}
       </a>
     </main>
   </div>
 </BaseLayout>
 
-<script define:vars={{ playHref }}>
-  const path = location.pathname
+<script define:vars={{ playHref, english }}>
+  const path = location.pathname.replace(/^\/en(?=\/|$)/, "")
   if (path === "/play" || path.startsWith("/play/")) {
     const title = document.getElementById("nb-404-title")
     const body = document.getElementById("nb-404-body")
     const back = document.getElementById("nb-404-back")
-    if (title) title.textContent = "没有这个示例"
-    if (body) body.textContent = "这个演示地址不存在。"
+    if (title) title.textContent = english ? "Demo not found" : "没有这个示例"
+    if (body) body.textContent = english ? "There is no demo at this address." : "这个演示地址不存在。"
     if (back instanceof HTMLAnchorElement) {
       back.href = playHref
-      back.textContent = "返回示例目录"
+      back.textContent = english ? "Back to the playground" : "返回示例目录"
     }
   }
 </script>

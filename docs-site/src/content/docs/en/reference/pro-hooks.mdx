@@ -1,0 +1,89 @@
+---
+title: "Pro hooks reference"
+description: "Options and behavior for tables, draft editors and option loading."
+---
+Import these hooks and helpers from `@shikiform/hooks`. They work with native HTML or a UI library.
+
+## useArrayTable
+
+```ts
+useArrayTable<TRow>(name: string, options?: UseArrayTableOptions<TRow>): ArrayTableApi<TRow>
+// options: rowKey, createRowKey?(row), pagination (false | { pageSize, current, total, hideOnSinglePage, onChange }),
+//          preserveSelection, selectedKeys / onSelectionChange, defaultExpandAll, rowExpandable, onRemove
+// Row actions: remove, add, copy, moveUp, moveDown and move.
+```
+
+Subscribe to array structure and render `pageRows`. Its `position` is one-based across pages. Use `selectPage`, `invertPage` and `clearSelection` for selection. `preserveSelection` retains keys across pages. Supplying `pagination.total` enables controlled server pagination. `onRemove` can asynchronously reject deletion.
+
+```ts
+let seq = 1000
+const table = useArrayTable<Row>('rows', { rowKey: 'id', createRowKey: () => ++seq })
+table.copy(0)                                                   // { id: 1001, sku: 'a' }
+table.copy(0, (row, source) => ({ ...row, sku: `${source.sku} (copy)` }))
+```
+
+`copy` deep-copies the row and removes the source ID. `createRowKey` supplies a new ID for copies and for new rows missing one. An optional copy transform can change the final row. Use `useColumnSettings` for layout.
+
+## useShadowForm
+
+```ts
+useShadowForm<TValues = Record<string, any>, TContext = unknown>(options?: {
+  name?: string
+  form?: FormInstance<any>
+  add?: boolean
+  rowKey?: string | ((row: any) => string | number)
+  merge?: (current: TValues, values: TValues) => TValues
+  initialValues?: TValues
+  fields?, trees?, effects?, formOptions?,
+  onOk?: (values: TValues, context?: TContext) => void | false | Promise<void | false>,
+  onCancel?: (context?: TContext) => void,
+}): ShadowFormApi<TValues, TContext>
+// { form, visible, loading, submitting, context, open(init?, context?), confirm(onOk?), cancel() }
+```
+
+Each `open` creates a fresh draft with its own baseline, errors and effects. Opening again supersedes an outstanding load. A bound draft inherits path rules and effective read-only or disabled state. `confirm` validates before writing back or invoking `onOk`. A validation failure returns its errors and keeps the editor open. `cancel` discards the copy.
+
+## useSuggestion
+
+```ts
+useSuggestion({ fetch: (keyword, { signal }) => Promise<EnumOption[]>, debounce?: number, minLength?: number }): SuggestionApi
+// { keyword, options, loading, error, search(keyword), remember(options), labelOf(value) }
+```
+
+Debounce keyword searches, abort previous requests and discard stale results. `remember` retains labels for selections outside the latest options.
+
+## useLazyCascader
+
+```ts
+useLazyCascader({ load: (path: (string | number)[]) => Promise<CascaderOption[]>, paths?: (string | number)[][], enabled?: boolean }): LazyCascaderApi
+// { options, loading, loadChildren(path), ensure(paths), labelsOf(path) }
+```
+
+Load roots with an empty path and children with the selected path. Concurrent requests for the same path are shared. Provide existing paths to resolve their labels. Preloaded children are reused. Disable loading with `enabled: false`.
+
+## useColumnSettings
+
+```ts
+useColumnSettings(columns: readonly ColumnSettingInput[]): ColumnSettingsApi
+// ColumnSettingInput: { key: string; title?: unknown; width?: number; hidden?: boolean }
+// ColumnSettingsApi: { items, visibleKeys, toggle(key), move(from, to), moveKey(from, to), setWidth(key, width), density, setDensity(d), reset(), dragProps(key), drag }
+```
+
+Track visibility, order, width and density. Use `dragProps(key)` on column controls. Widths have a 40 px minimum. Added columns append to the current order. `reset` restores initial settings.
+
+## enumItems
+
+```ts
+enumItems(value: unknown, options?: EnumOption[], config?: { colorful?: boolean }): EnumDisplayItem[]
+// → [{ value, label, color, matched }]
+```
+
+Resolve one value or an array to display items. Numeric and string representations match. Missing options retain their value and label with `matched: false`. Colors come from the option unless `colorful` enables positional palette colors.
+
+## ENUM_COLORS
+
+```ts
+const ENUM_COLORS: { success: 'green'; processing: 'blue'; error: 'red'; warning: 'gold'; default: '#d9d9d9'; … }
+```
+
+Semantic names resolve to palette colors. Other strings, including custom CSS colors, pass through.

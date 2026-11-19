@@ -1,0 +1,168 @@
+---
+title: "Validation"
+description: "Configure rules, asynchronous validators, schemas and server errors."
+---
+
+## Configure rules
+
+Declare rules on a field or in `fields`. Empty strings, null and undefined are checked by `required` alone. Set `level: 'warning'` for a message that allows submission. Give a field or the whole form a Standard Schema validator for more complex checks.
+
+```tsx preview play=schema
+import { useState, type ReactNode } from 'react';
+import { z } from 'zod';
+import { enUS, Field, Form, Watch, useField, useFieldDecorator, useForm, type Draft } from '@shikiform/react';
+
+type Values = { username: string; email: string; password: string; confirm: string; agree: boolean };
+const TAKEN = ['admin', 'root'];
+
+function FieldItem({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
+  return (
+    <div style={{ marginBottom: 8 }}>
+      {d.label && (
+        <label {...d.labelProps} style={{ display: 'inline-block', width: 72 }}>
+          {d.required && <span style={{ color: 'crimson' }}>* </span>}
+          {d.label}
+        </label>
+      )}
+      {children}
+      {d.errorProps && <small {...d.errorProps} style={{ color: 'crimson', marginLeft: 8 }}>{d.errors[0]}</small>}
+      {!d.errorProps && d.warningProps && <small {...d.warningProps} style={{ color: '#b45309', marginLeft: 8 }}>{d.warnings[0]}</small>}
+    </div>
+  );
+}
+
+function TextInput({ type = 'text' }: { type?: string }) {
+  const field = useField<string>();
+  return (
+    <input id={field.id} type={type} value={field.value ?? ''}
+      onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />
+  );
+}
+
+function AgreeCheckbox({ children }: { children?: ReactNode }) {
+  const field = useField<boolean>();
+  return (
+    <label>
+      <input id={field.id} type="checkbox" checked={Boolean(field.value)} onChange={(e) => field.onChange(e.target.checked)} />
+      {' '}{children}
+    </label>
+  );
+}
+
+export default function App() {
+  const [result, setResult] = useState('');
+  const form = useForm<Values>({
+    messages: enUS,
+    initialValues: { username: '', email: '', password: '', confirm: '', agree: false },
+    fields: {
+      username: { asyncDebounceMs: 300 }, // Run async rules after 300 ms without new input.
+      confirm: { omit: true }, // Validate but exclude from submission.
+    },
+    // Cross-field validation returns messages by path.
+    validate: (values) => (values.confirm && values.confirm !== values.password ? { confirm: "Passwords do not match" } : undefined),
+  });
+  return (
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
+      <Field name="username" title="Username" required decorator={[FieldItem]} component={[TextInput]}
+        rules={[
+          { minLength: 3, message: "At least 3 characters" },
+          { validator: (value, { signal }) => new Promise<string | null>((resolve) => {
+            const timer = setTimeout(() => resolve(TAKEN.includes(String(value)) ? "Username already taken" : null), 400);
+            signal?.addEventListener('abort', () => clearTimeout(timer));
+          }) },
+        ]} />
+      <Field name="email" title="Email" required rules={z.string().email("Invalid email address").or(z.literal(''))} decorator={[FieldItem]} component={[TextInput]} />
+      <Field name="password" title="Password" required decorator={[FieldItem]} component={[TextInput, { type: 'password' }]}
+        rules={[
+          { minLength: 6, message: "At least 6 characters" },
+          // Show a warning and allow submission.
+          { validator: (value) => (/\d/.test(String(value)) && /[a-z]/i.test(String(value)) ? null : "Use both letters and digits"), level: 'warning' },
+        ]} />
+      <Field name="confirm" title="Confirm password" required decorator={[FieldItem]} component={[TextInput, { type: 'password' }]} />
+      <Field name="agree" rules={{ isTrue: true, message: "Confirm that you accept the terms" }} decorator={[FieldItem]}>
+        <AgreeCheckbox>I have read and accept the terms</AgreeCheckbox>
+      </Field>
+      <Watch select={(d: Draft<Values>) => d.$submitting}>
+        {(submitting) => <button type="submit" disabled={submitting}>{submitting ? "Submitting…" : "Register"}</button>}
+      </Watch>
+      <pre aria-live="polite">{result}</pre>
+    </Form>
+  );
+}
+```
+
+## Triggers and asynchronous validation
+
+The defaults are blur and submit. Add change validation where needed. `asyncDebounceMs` delays asynchronous rules. Pass the validator's abort signal to requests so newer input can cancel obsolete work. Hidden, disabled and read-only fields skip validation.
+
+## Handle submission
+
+`validate(path?)` resolves to `undefined` on success and rejects with field errors otherwise. `submit(onValid?)` waits for validation, then returns the callback's result or the submit values if the result is undefined. Later submits can supersede earlier ones.
+
+```ts
+try {
+  const values = await form.submit(async (draft) => {
+    await api.save(draft)
+  })
+  form.setInitialValues(form.values)
+} catch (error) {
+  if (isFieldErrors(error)) console.log(error[0]?.path)
+}
+```
+
+Use `onInvalid` for field errors and `onSubmitError` for other failures. The form focuses the first invalid control when its ID is connected correctly.
+
+```tsx
+<Form
+  form={form}
+  id="profile"
+  onSubmit={save}                                   // Called after validation. Async callbacks are supported.
+  onInvalid={(errors) => scrollToField(errors[0].path)}
+  onSubmitError={(error) => message.error(String(error))}  // Handles save errors. Defaults to console.error.
+>
+  …
+</Form>
+<button type="submit" form="profile">Save</button>   {/* Other native props pass through to the form. */}
+```
+
+## Built-in messages and localization
+
+The library defaults to Chinese. Set `messages: enUS` on an English form or use `setDefaultMessages(enUS)` for an application. Override individual messages with text or a function. A rule's own message takes precedence.
+
+```ts
+import { createForm, enUS, setDefaultMessages } from '@shikiform/react'
+
+createForm({ messages: enUS })                       // Select English for one form.
+createForm({
+  messages: {
+    required: 'Required',
+    minLength: ({ minLength }) => `At least ${minLength} characters`,  // Message functions receive rule parameters.
+    enum: ({ value }) => `${value} is not an option`,
+  },
+})
+setDefaultMessages(enUS)                              // Set the application default once at startup.
+```
+
+## Server errors
+
+Map server errors to field paths with `setErrors`. Use the empty path for a form-wide message and `null` to clear one field. Changing a related value, validating again or resetting can clear an external error.
+
+```ts
+await form.submit(async (values) => {
+  const res = await api.register(values)
+  if (res.status === 409) form.setErrors({ username: "Username already exists" })
+  // Set several errors at once. The empty path addresses the form.
+  // form.setErrors({ email: ['Invalid format'], '': 'Server busy' })
+})
+```
+
+## Validate unmounted fields
+
+Rules in `fields` or effects survive component unmounting. JSX declarations last for the current mount. A tab that only hides its content keeps the field mounted. For a virtual list, declare rules in the model so offscreen rows validate.
+
+### Exercise
+
+Move the rule into the form's `fields` declaration, leave the input unmounted and submit. Compare the result with the rule on the mounted field alone.
+
+<TutorialPlay id="10-declared" />

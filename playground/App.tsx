@@ -1,3 +1,5 @@
+import { languagePath } from '../docs-site/src/lib/language'
+import { english, localize } from './language'
 import type { ReactElement } from 'react'
 import { DisplayPage } from './pages/display'
 import { HeadlessPage } from './pages/headless'
@@ -51,36 +53,36 @@ const routes: Record<string, () => ReactElement> = {
 
 function playPath(): string {
   const base = import.meta.env.BASE_URL.replace(/\/$/, '')
-  let path = window.location.pathname
+  let path = languagePath(window.location.pathname, 'zh-CN')
   if (base && (path === base || path.startsWith(`${base}/`))) path = path.slice(base.length) || '/'
   if (path.length > 1 && path.endsWith('/')) path = path.slice(0, -1)
   return path || '/'
 }
 
 const TITLES: Record<string, string> = {
-  '/query': '查询表：折叠条件、表头筛选、翻页保留勾选',
-  '/query-native': '不用 antd 的查询表（同一个 useQueryTable）',
-  '/schema': 'Standard Schema 校验：字段 Zod、整表 Valibot、visible 与 omit',
-  '/sku': 'SKU 组合生成行，改过的价格跟着组合',
-  '/sku-picker': 'SKU 选择器：任意顺序选维度、冲突清空、缺货不可选',
-  '/sku-editor': 'SKU 表格：按颜色合并单元格',
-  '/orders': '订单与可展开明细（两级 ArrayTable）',
-  '/display': '显隐：visible / hidden / omit / readOnly',
-  '/merged': '供应商和产品：合并单元格、跨层校验',
-  '/nested': '嵌套数组与抽屉编辑',
-  '/tabs': '引擎行为：卸载的字段还校验吗',
-  '/large': '引擎行为：大表单只重渲染改动的行',
-  '/virtual': '虚拟滚动',
-  '/headless': 'Headless：只用原生 HTML 的数组与树',
-  '/row-edit': '抽屉里编辑一行（同引擎 omit 编辑区）',
-  '/array-table': 'ArrayTable 全功能',
-  '/array-table-shadow': 'ArrayTable + 影子表单编辑行',
-  '/shadow-form': '影子草稿：Modal / Drawer / Popconfirm / 内联',
-  '/pro-enum': '枚举阅读态（徽标 / 标签）',
-  '/cascader-plus': '懒加载级联 CascaderPlus',
-  '/suggestion': '远程联想 Suggestion',
-  '/query-list': 'QueryList：查询 + 服务端分页',
-  '/query-list-add': 'QueryList + 添加 / 编辑',
+  '/query': localize("查询表：折叠条件、表头筛选、翻页保留勾选", "Query table with collapsible filters and persistent selection"),
+  '/query-native': localize("不用 antd 的查询表（同一个 useQueryTable）", "Native query table with useQueryTable"),
+  '/schema': localize("Standard Schema 校验：字段 Zod、整表 Valibot、visible 与 omit", "Standard Schema validation with Zod and Valibot"),
+  '/sku': localize("SKU 组合生成行，改过的价格跟着组合", "SKU rows that remember edited prices"),
+  '/sku-picker': localize("SKU 选择器：任意顺序选维度、冲突清空、缺货不可选", "SKU picker with stock and compatibility checks"),
+  '/sku-editor': localize("SKU 表格：按颜色合并单元格", "SKU table grouped by color"),
+  '/orders': localize("订单与可展开明细（两级 ArrayTable）", "Orders with expandable line items"),
+  '/display': localize("显隐：visible / hidden / omit / readOnly", "Visibility, omission and read-only previews"),
+  '/merged': localize("供应商和产品：合并单元格、跨层校验", "Suppliers and products with cross-level validation"),
+  '/nested': localize("嵌套数组与抽屉编辑", "Nested arrays and an address drawer"),
+  '/tabs': localize("引擎行为：卸载的字段还校验吗", "Validating unmounted fields"),
+  '/large': localize("引擎行为：大表单只重渲染改动的行", "Independent updates in large forms"),
+  '/virtual': localize("虚拟滚动", "Virtual scrolling"),
+  '/headless': localize("Headless：只用原生 HTML 的数组与树", "Arrays and trees with native HTML"),
+  '/row-edit': localize("抽屉里编辑一行（同引擎 omit 编辑区）", "Edit a row in a drawer"),
+  '/array-table': localize("ArrayTable 全功能", "Array table"),
+  '/array-table-shadow': localize("ArrayTable + 影子表单编辑行", "Edit array rows with a shadow form"),
+  '/shadow-form': localize("影子草稿：Modal / Drawer / Popconfirm / 内联", "Modal, drawer, popover and inline drafts"),
+  '/pro-enum': localize("枚举阅读态（徽标 / 标签）", "Read-only option badges and tags"),
+  '/cascader-plus': localize("懒加载级联 CascaderPlus", "Lazy cascading options"),
+  '/suggestion': localize("远程联想 Suggestion", "Remote suggestions"),
+  '/query-list': localize("QueryList：查询 + 服务端分页", "Server-paged query list"),
+  '/query-list-add': localize("QueryList + 添加 / 编辑", "Add and edit query results"),
 }
 
 export function App() {
@@ -92,7 +94,7 @@ export function App() {
       <main>
         <h1>ShikiForm Playground</h1>
         <p>
-          文档示例的完整版和引擎行为页。文档在 <a href="/">shikiform.pages.dev</a>。
+          {localize("文档示例的完整版和引擎行为页。文档在", "Explore the full examples and engine behavior. Read the documentation at")} <a href={languagePath('/', english ? 'en' : 'zh-CN')}>shikiform.pages.dev</a>。
         </p>
         <ul>
           {Object.keys(routes).map((href) => (
@@ -105,5 +107,11 @@ export function App() {
       </main>
     )
   }
-  return <Page />
+  const alternate = languagePath(`/play${path}`, english ? 'zh-CN' : 'en')
+  return <>
+    <nav aria-label={localize('语言', 'Language')} style={{ textAlign: 'right', padding: '0.5rem 1rem' }}>
+      <a href={alternate + location.search + location.hash} hrefLang={english ? 'zh-CN' : 'en'}>{english ? '简体中文' : 'English'}</a>
+    </nav>
+    <Page />
+  </>
 }

@@ -1,0 +1,103 @@
+---
+title: "Query tables and draft editors"
+description: "Use headless hooks for pagination, row editing, suggestions and option labels."
+---
+`@shikiform/hooks` provides table and editor state. Render it with a native table, dialog or your project's components.
+
+## Draft editors with useShadowForm
+
+Open an independent form to edit a copy. Cancel discards it, and confirm validates before writing back. The host keeps its original value and dirty state while the draft is open.
+
+```tsx preview play=shadow-form
+import { enUS, Field, Form, Watch, useField, useForm, type Draft } from '@shikiform/react';
+import { useShadowForm } from '@shikiform/hooks';
+
+type Info = { domain: string; owner: string; env: string };
+type Values = { info: Info };
+
+function TextInput() {
+  const field = useField<string>();
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <label htmlFor={field.id} style={{ display: 'inline-block', width: 64 }}>{field.title}</label>
+      <input id={field.id} value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />
+      {field.errors[0] && <small role="alert" style={{ color: 'crimson', marginLeft: 6 }}>{field.errors[0]}</small>}
+    </div>
+  );
+}
+
+function SelectInput() {
+  const field = useField<string>();
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <label htmlFor={field.id} style={{ display: 'inline-block', width: 64 }}>{field.title}</label>
+      <select id={field.id} value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)}>
+        {field.options.map((o) => <option key={String(o.value)} value={String(o.value)}>{o.label}</option>)}
+      </select>
+    </div>
+  );
+}
+
+function EditPanel() {
+  const shadow = useShadowForm<Info>({ name: 'info' });
+  return (
+    <div style={{ marginTop: 12 }}>
+      <button type="button" onClick={() => void shadow.open()}>Edit draft</button>
+      {shadow.visible && (
+        <div style={{ marginTop: 10, padding: 12, border: '1px solid #999', borderRadius: 6 }}>
+          <Form form={shadow.form} onSubmit={() => void shadow.confirm()}>
+            <Field name="domain" component={[TextInput]} />
+            <Field name="owner" component={[TextInput]} />
+            <Field name="env" component={[SelectInput]} />
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button type="submit" disabled={shadow.submitting}>Confirm</button>
+              <button type="button" onClick={shadow.cancel}>Cancel</button>
+            </div>
+          </Form>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function App() {
+  const form = useForm<Values>({
+    messages: enUS,
+    initialValues: { info: { domain: 'shikiform.dev', owner: 'Ada', env: 'prod' } },
+    fields: {
+      'info.domain': { title: "Domain", required: true, rules: { pattern: /^[a-z0-9.-]+$/, message: "Use lowercase letters, numbers, dots and hyphens" } },
+      'info.owner': { title: "Owner", required: true },
+      'info.env': { title: "Environment", enum: [{ label: "Production", value: 'prod' }, { label: "Staging", value: 'staging' }] },
+    },
+  });
+  return (
+    <Form form={form}>
+      <Watch select={(d: Draft<Values>) => d.info.$value}>
+        {(info) => <pre>{JSON.stringify(info, null, 2)}</pre>}
+      </Watch>
+      <EditPanel />
+    </Form>
+  );
+}
+```
+
+With a bound `name`, fields in the draft use paths relative to the copied object. The draft inherits the host path's declared rules and effective read-only and disabled state.
+
+## Query tables
+
+Map filter values into request parameters. The hook manages requests, pagination, column filters, sorting and selection. Setting a sorter or filter resets the page. Searching and filtering clear selection, while sorting and paging preserve it.
+
+```tsx
+const table = useQueryTable({
+  initialValues: { query: { domain: '' }, list: [] },
+  params: 'query',
+  rows: 'list',
+  request,
+})
+```
+
+See the [request contract](/en/reference/query-hooks) and try the [native query table](/en/play/query-native).
+
+## Options, suggestions and cascaders
+
+Use `enumItems` for display labels and colors, `useSuggestion` for debounced requests and `useLazyCascader` to load option branches as needed. [Pro hooks reference](/en/reference/pro-hooks) · [Examples](/en/examples/pro)

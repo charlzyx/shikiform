@@ -36,7 +36,7 @@ function filesUnder(directory) {
 }
 
 const sources = []
-for (const file of filesUnder(path.join(docs, 'tutorial', '_files')).filter((file) => file.endsWith('.tsx'))) {
+for (const file of filesUnder(docs).filter((file) => file.endsWith('.tsx') && path.basename(path.dirname(file)) === '_files')) {
   sources.push({ source: path.relative(docs, file), file: path.relative(docs, file), code: readFileSync(file, 'utf8'), kind: 'tutorial' })
 }
 function pushCode(label, text, accept) {
@@ -57,8 +57,10 @@ for (const file of filesUnder(docs).filter((file) => file.endsWith('.mdx'))) {
 // The GitHub README is the user intro. Its ```tsx blocks are the same samples as the
 // quick-start previews; only the real docs dir is scanned, so fixture --docs-dir runs stay isolated.
 if (path.resolve(docs) === path.resolve(repoDocs)) {
-  const readme = path.join(root, 'README.md')
-  if (existsSync(readme)) pushCode('README.md', readFileSync(readme, 'utf8'), (node) => ['tsx', 'jsx'].includes(node.lang))
+  for (const name of ['README.md', 'README.en.md']) {
+    const readme = path.join(root, name)
+    if (existsSync(readme)) pushCode(name, readFileSync(readme, 'utf8'), (node) => ['tsx', 'jsx'].includes(node.lang))
+  }
 }
 if (!sources.some((source) => source.kind === 'tutorial')) throw new Error('No tutorial TSX found; refusing an empty contract check')
 const manifest = sources.map(({ source, file, code, kind }) => ({ source, file, kind, sha256: createHash('sha256').update(code).digest('hex') }))

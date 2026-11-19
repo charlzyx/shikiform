@@ -1,14 +1,16 @@
 ---
+import { pageLanguage } from "@/lib/language";
+const english = pageLanguage(Astro.url.pathname) === "en";
 import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
 import { getNavCatalog } from "@/lib/nav-catalog";
 
-const { groups, items } = getNavCatalog(import.meta.env.BASE_URL);
+const { groups, items } = getNavCatalog(import.meta.env.BASE_URL, pageLanguage(Astro.url.pathname));
 ---
 
 <dialog
   id="sf-cmd-palette"
   data-sf-cmd-palette
-  aria-label="快捷指令面板"
+  aria-label={english ? "Search documentation" : "快捷指令面板"}
   class="sf-overlay-dialog"
 >
   <div class="sf-cmd-box">
@@ -19,7 +21,7 @@ const { groups, items } = getNavCatalog(import.meta.env.BASE_URL);
         <input
           type="text"
           data-sf-cmd-input
-          placeholder="输入文档名称、所属模块或路径快速检索..."
+          placeholder={english ? "Search by title, section or path…" : "输入文档名称、所属模块或路径快速检索..."}
           autocomplete="off"
           spellcheck="false"
           class="sf-cmd-input"
@@ -28,7 +30,7 @@ const { groups, items } = getNavCatalog(import.meta.env.BASE_URL);
       </div>
 
       <div class="sf-cmd-tabs-row">
-        <div class="sf-cmd-tabs" role="tablist" aria-label="按模块筛选">
+        <div class="sf-cmd-tabs" role="tablist" aria-label={english ? "Filter by section" : "按模块筛选"}>
           <button
             type="button"
             role="tab"
@@ -36,7 +38,7 @@ const { groups, items } = getNavCatalog(import.meta.env.BASE_URL);
             aria-selected="true"
             class="sf-cmd-tab is-selected"
           >
-            全部 ({items.length})
+            {english ? "All" : "全部"} ({items.length})
           </button>
           {groups.map((g) => (
             <button
@@ -51,7 +53,7 @@ const { groups, items } = getNavCatalog(import.meta.env.BASE_URL);
           ))}
         </div>
         <span class="sf-cmd-count" data-sf-cmd-count>
-          匹配 {items.length} 项
+          {english ? `${items.length} matches` : `匹配 ${items.length} 项`}
         </span>
       </div>
     </div>
@@ -79,36 +81,36 @@ const { groups, items } = getNavCatalog(import.meta.env.BASE_URL);
         ))}
       </div>
       <div class="sf-cmd-empty" data-sf-cmd-empty hidden>
-        未找到匹配的文档入口
+        {english ? "No matching pages" : "未找到匹配的文档入口"}
       </div>
     </div>
 
     <!-- 底部方向键操作说明 -->
     <div class="sf-cmd-foot">
-      <span>方向键 ↑ ↓ ← → 移动焦点 · Enter 立即进入</span>
-      <span>⌘K 快捷面板</span>
+      <span>{english ? "Use the arrow keys to move and Enter to open" : "方向键 ↑ ↓ ← → 移动焦点 · Enter 立即进入"}</span>
+      <span>{english ? "⌘K Command palette" : "⌘K 快捷面板"}</span>
     </div>
   </div>
 </dialog>
 
 <script>
-  const RECENT_KEY = "sf-recent-visits-v1";
+  const recentKey = () => "sf-recent-visits-v1-" + document.documentElement.lang;
 
   function recordRecentVisit(entry: { path: string; href: string; label: string; groupLabel: string }) {
     try {
-      const raw = localStorage.getItem(RECENT_KEY);
+      const raw = localStorage.getItem(recentKey());
       const list: Array<typeof entry> = raw ? JSON.parse(raw) : [];
       const next = [entry, ...list.filter((i) => i.path !== entry.path)].slice(0, 8);
-      localStorage.setItem(RECENT_KEY, JSON.stringify(next));
-      window.dispatchEvent(new CustomEvent("sf:recent-updated"));
+      localStorage.setItem(recentKey(), JSON.stringify(next));
     } catch {
       // ignore storage errors
     }
   }
 
   function initCommandPalette() {
-    const dialog = document.querySelector<HTMLDialogElement>("[data-sf-cmd-palette]");
-    if (!dialog || dialog.dataset.sfBound === "1") return;
+    const element = document.querySelector<HTMLDialogElement>("[data-sf-cmd-palette]");
+    if (!element || element.dataset.sfBound === "1") return;
+    const dialog = element;
     dialog.dataset.sfBound = "1";
 
     const input = dialog.querySelector<HTMLInputElement>("[data-sf-cmd-input]")!;
@@ -151,7 +153,7 @@ const { groups, items } = getNavCatalog(import.meta.env.BASE_URL);
         card.hidden = !show;
         if (show) visibleCards.push(card);
       }
-      countEl.textContent = `匹配 ${visibleCards.length} 项`;
+      countEl.textContent = document.documentElement.lang === "en" ? `${visibleCards.length} matches` : `匹配 ${visibleCards.length} 项`;
       emptyEl.hidden = visibleCards.length > 0;
       setActive(0);
     }
@@ -255,7 +257,7 @@ const { groups, items } = getNavCatalog(import.meta.env.BASE_URL);
         const trigger = (e.target as HTMLElement | null)?.closest("[data-search-trigger]");
         if (trigger) {
           e.preventDefault();
-          document.dispatchEvent(new CustomEvent("sf:open-cmd-palette"));
+          document.querySelector("[data-sf-cmd-palette]")?.dispatchEvent(new Event("sf:open-cmd-palette"));
         }
       });
       window.addEventListener("keydown", (e) => {
@@ -263,12 +265,12 @@ const { groups, items } = getNavCatalog(import.meta.env.BASE_URL);
           e.preventDefault();
           const d = document.querySelector<HTMLDialogElement>("[data-sf-cmd-palette]");
           if (d?.open) d.close();
-          else document.dispatchEvent(new CustomEvent("sf:open-cmd-palette"));
+          else document.querySelector("[data-sf-cmd-palette]")?.dispatchEvent(new Event("sf:open-cmd-palette"));
         }
       });
     }
 
-    document.addEventListener("sf:open-cmd-palette", openPalette);
+    dialog.addEventListener("sf:open-cmd-palette", openPalette);
   }
 
   initCommandPalette();

@@ -1,4 +1,6 @@
 ---
+import { pageLanguage, languagePath, englishLabel } from "@/lib/language";
+import type { SidebarItem } from "@cloudflare/nimbus-docs/types";
 import DocsLayout from "../layouts/DocsLayout.astro";
 import {
   getDocsStaticPaths,
@@ -22,18 +24,31 @@ const { entry, Content, headings, markdownUrl, ogImageUrl } = page;
 
 const currentSlug = stripBase(Astro.url.pathname, import.meta.env.BASE_URL).replace(/\/$/, "") || "/";
 
+const english = pageLanguage(currentSlug) === "en";
+const originalPath = languagePath(currentSlug, "zh-CN");
+function englishSidebar(item: SidebarItem): SidebarItem {
+  const label = englishLabel(item.label);
+  if (item.type === "group") return { ...item, label, children: item.children.map(englishSidebar),
+    indexHref: item.indexHref && languagePath(item.indexHref, "en") };
+  return item.type === "link" ? { ...item, label, href: languagePath(item.href, "en") } : item;
+}
 const { sidebar: sidebarOn, tableOfContents: tocOn } = await getRouteFlags(entry);
 
-const sidebar = sidebarOn
-  ? await getSidebar(currentSlug, { collection: entry.collection })
+const originalSidebar = sidebarOn
+  ? await getSidebar(originalPath, { collection: entry.collection })
   : false;
+const sidebar = english && originalSidebar ? originalSidebar.map(englishSidebar) : originalSidebar;
 const prevNext = await getPrevNext(currentSlug, {
   sidebarTree: sidebar === false ? [] : sidebar,
   overrides: { prev: entry.data.prev, next: entry.data.next },
 });
 // Pass `collection` so versioned pages (docs-<v>) get version-prefixed
 // breadcrumb hrefs — parity with the getSidebar call above.
-const breadcrumbs = await getBreadcrumbs(currentSlug, { collection: entry.collection });
+const trail = await getBreadcrumbs(originalPath, { collection: entry.collection });
+const breadcrumbs = english ? trail.map((crumb, index) => ({ ...crumb,
+  label: index === trail.length - 1 ? entry.data.title : englishLabel(crumb.label),
+  href: crumb.href && languagePath(crumb.href, "en"),
+})) : trail.map(crumb => crumb.label === "Home" ? { ...crumb, label: "首页" } : crumb);
 const editUrl = await getEditUrl(entry);
 // Frontmatter wins; git is the fallback.
 const lastUpdated = entry.data.lastUpdated ??
@@ -53,7 +68,7 @@ const socialImage = entry.data.socialImage ?? ogImageUrl;
   headings={toc}
   breadcrumbs={breadcrumbs}
   prevNext={prevNext}
-  mode={currentSlug === "/" ? "custom" : entry.data.mode}
+  mode={originalPath === "/" ? "custom" : entry.data.mode}
   banner={entry.data.banner}
   head={entry.data.head}
   searchable={entry.data.searchable}

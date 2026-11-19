@@ -1,3 +1,4 @@
+import { localize } from '../language'
 import { Field, Form, defineEffects, useForm } from '@shikiform/react'
 import { ArrayTable, FormItem, InputNumber, Select, Switch, type ArrayTableColumn } from '../kit'
 
@@ -5,7 +6,7 @@ type Item = { id: string; sku: string; qty: number; price: number; line: number 
 type Order = { id: string; no: string; status: string; amount: number; items: Item[] }
 type Values = { editable: boolean; orders: Order[] }
 
-const STATUS = [{ label: '待付款', value: 'pending' }, { label: '已付款', value: 'paid' }, { label: '已发货', value: 'shipped' }]
+const STATUS = [{ label: localize("待付款", "Pending"), value: 'pending' }, { label: localize("已付款", "Paid"), value: 'paid' }, { label: localize("已发货", "Shipped"), value: 'shipped' }]
 
 const effects = defineEffects<Values>(({ reaction }) => {
   reaction((d) => {
@@ -27,27 +28,27 @@ const effects = defineEffects<Values>(({ reaction }) => {
 
 // 单元格渲染在行作用域里：name 相对这一行
 const itemColumns: ArrayTableColumn<Item>[] = [
-  { key: 'sku', title: '商品', render: ({ record }) => <code>{record.sku}</code> },
+  { key: 'sku', title: localize("商品", "Product"), render: ({ record }) => <code>{record.sku}</code> },
   {
     key: 'qty',
-    title: '数量',
+    title: localize("数量", "Quantity"),
     render: () => (
       <Field
         name="qty"
         decorator={[FormItem, { compact: true }]}
         component={[InputNumber, { min: 1 }]}
-        rules={{ validator: (value, ctx) => (ctx.parent?.status === 'pending' && Number(value) > 99 ? '待付款单行不能超过 99' : null) }}
+        rules={{ validator: (value, ctx) => (ctx.parent?.status === 'pending' && Number(value) > 99 ? localize("待付款单行不能超过 99", "A pending line cannot exceed 99 units") : null) }}
       />
     ),
   },
-  { key: 'price', title: '单价', render: () => <Field name="price" component={[InputNumber, { min: 0 }]} /> },
-  { key: 'line', title: '行金额', render: () => <Field name="line" readOnly component={[InputNumber]} /> },
+  { key: 'price', title: localize("单价", "Unit price"), render: () => <Field name="price" component={[InputNumber, { min: 0 }]} /> },
+  { key: 'line', title: localize("行金额", "Line total"), render: () => <Field name="line" readOnly component={[InputNumber]} /> },
 ]
 
 const orderColumns: ArrayTableColumn<Order>[] = [
-  { key: 'no', title: '订单号', render: ({ record }) => record.no },
-  { key: 'status', title: '状态', render: () => <Field name="status" enum={STATUS} component={[Select, { style: { width: 120 } }]} /> },
-  { key: 'amount', title: '合计', render: () => <Field name="amount" readOnly component={[InputNumber]} /> },
+  { key: 'no', title: localize("订单号", "Order number"), render: ({ record }) => record.no },
+  { key: 'status', title: localize("状态", "Status"), render: () => <Field name="status" enum={STATUS} component={[Select, { style: { width: 120 } }]} /> },
+  { key: 'amount', title: localize("合计", "Total"), render: () => <Field name="amount" readOnly component={[InputNumber]} /> },
 ]
 
 /**
@@ -69,8 +70,8 @@ export function OrdersPage() {
   return (
     <main>
       <Form form={form}>
-        <h1>订单行</h1>
-        <Field name="editable" title="可编辑" decorator={[FormItem]} component={[Switch]} />
+        <h1>{localize("订单行", "Order lines")}</h1>
+        <Field name="editable" title={localize("可编辑", "Editable")} decorator={[FormItem]} component={[Switch]} />
         <ArrayTable
           name="orders"
           rowKey="id"

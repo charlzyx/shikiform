@@ -16,15 +16,15 @@ function initPageActions(root: HTMLElement): () => void {
     if (state === "copied") {
       copyIcon.classList.add("hidden");
       checkIcon.classList.remove("hidden");
-      label.textContent = "已复制";
+      label.textContent = document.documentElement.lang === "en" ? "Copied" : "已复制";
     } else {
-      label.textContent = "复制失败";
+      label.textContent = document.documentElement.lang === "en" ? "Copy failed" : "复制失败";
     }
     if (resetTimer) window.clearTimeout(resetTimer);
     resetTimer = window.setTimeout(() => {
       copyIcon.classList.remove("hidden");
       checkIcon.classList.add("hidden");
-      label.textContent = "复制本页";
+      label.textContent = document.documentElement.lang === "en" ? "Copy page" : "复制本页";
     }, 1500);
   }
 

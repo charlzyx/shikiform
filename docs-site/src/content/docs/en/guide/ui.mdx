@@ -1,0 +1,262 @@
+---
+title: "Named UI nodes"
+description: "Render multiple controls for a field or control a presentation-only node from an effect."
+---
+
+## A second control for one field
+
+Set `ui` on an additional field control. It shares the value, rules, options and errors, while keeping its own DOM ID and presentation state. Put validation and options on the primary field.
+
+```tsx preview
+import type { CSSProperties, ReactNode } from 'react';
+import { enUS, defineEffects, Form, typed, useField, useFieldDecorator, useForm } from '@shikiform/react';
+
+type Values = { nickname: string };
+
+function FieldItem({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <label {...d.labelProps} style={{ display: 'inline-block', width: 56 }}>{d.label}</label>
+      {children}
+    </div>
+  );
+}
+
+function TextInput({ placeholder }: { placeholder?: string }) {
+  const field = useField<string>();
+  return <input id={field.id} value={field.value ?? ''} placeholder={placeholder}
+    onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />;
+}
+
+// A secondary UI receives the shared binding and its own presentation state.
+function Echo({ style }: { style?: CSSProperties }) {
+  const field = useField<string>();
+  return <span id={field.id} data-echo="" style={style}>{field.value || "(empty)"}</span>;
+}
+
+export default function App() {
+  const form = useForm<Values>({
+    messages: enUS,
+    initialValues: { nickname: '' },
+    effects: [
+      defineEffects<Values>(({ reaction }) => {
+        reaction((d) => {
+          d.nickname.$ui('echo').$componentProps.style =
+            d.nickname.$value.length > 8 ? { color: 'red' } : undefined;
+        });
+      }),
+    ],
+  });
+  const F = typed(form);
+  return (
+    <Form form={form} id="echo" data-ui-echo-demo="">
+      <F.Field name="nickname" title="Nickname" decorator={[FieldItem]} component={[TextInput, { placeholder: "The echo turns red after eight characters" }]} />
+      <F.Field name="nickname" ui="echo" title="Echo" decorator={[FieldItem]} component={[Echo]} />
+    </Form>
+  );
+}
+```
+
+## Control one instance
+
+Use `d.x.$ui('name')` to change one instance's title, props, visibility, disabled or read-only state. Inside it, `useField()` returns the shared value and that instance's UI state.
+
+```tsx preview
+import type { ReactNode } from 'react';
+import { enUS, defineEffects, Form, typed, useField, useFieldDecorator, useForm } from '@shikiform/react';
+
+type Values = { budget: number; locked: boolean };
+
+function FieldItem({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <label {...d.labelProps} style={{ display: 'inline-block', width: 72 }}>{d.label}</label>
+      {children}
+    </div>
+  );
+}
+
+function Toggle() {
+  const field = useField<boolean>();
+  return <input id={field.id} type="checkbox" checked={Boolean(field.value)} onChange={(e) => field.onChange(e.target.checked)} />;
+}
+
+function NumberInput({ min, max }: { min?: number; max?: number }) {
+  const field = useField<number>();
+  return <input id={field.id} type="number" min={min} max={max} value={field.value ?? 0}
+    disabled={field.disabled} onChange={(e) => field.onChange(Number(e.target.value))} />;
+}
+
+function RangeSlider({ min = 0, max = 100 }: { min?: number; max?: number }) {
+  const field = useField<number>();
+  return <input id={field.id} type="range" min={min} max={max} value={field.value ?? 0}
+    disabled={field.disabled} onChange={(e) => field.onChange(Number(e.target.value))} />;
+}
+
+export default function App() {
+  const form = useForm<Values>({
+    messages: enUS,
+    initialValues: { budget: 30, locked: false },
+    effects: [
+      defineEffects<Values>(({ reaction }) => {
+        reaction((d) => {
+          d.budget.$ui('slider').$disabled = d.locked.$value ? true : undefined;
+        });
+      }),
+    ],
+  });
+  const F = typed(form);
+  return (
+    <Form form={form} data-ui-slider-demo="">
+      <F.Field name="locked" title="Lock slider" decorator={[FieldItem]} component={[Toggle]} />
+      <F.Field name="budget" title="Budget" required decorator={[FieldItem]} component={[NumberInput, { min: 0, max: 100 }]} />
+      <F.Field name="budget" ui="slider" title=" " decorator={[FieldItem]} component={[RangeSlider]} />
+    </Form>
+  );
+}
+```
+
+## A node without a value
+
+Use `<UI>` for a tip or group box and address it as `d.$ui('name')`. It has no entry in the submitted data.
+
+```tsx preview
+import { useState } from 'react';
+import { enUS, defineEffects, Form, Submit, typed, UI, useField, useForm } from '@shikiform/react';
+
+type Values = { amount: number | null };
+
+function NumberInput() {
+  const field = useField<number | null>();
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <label htmlFor={field.id} style={{ display: 'inline-block', width: 72 }}>{field.title}</label>
+      <input id={field.id} type="number" value={field.value ?? ''}
+        onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))} />
+    </div>
+  );
+}
+
+function WarningBanner({ message }: { message: string }) {
+  return (
+    <div role="status" style={{ padding: '6px 10px', marginBottom: 8, background: '#fffbeb', border: '1px solid #f59e0b', color: '#92400e' }}>
+      ⚠ {message}
+    </div>
+  );
+}
+
+export default function App() {
+  const form = useForm<Values>({
+    messages: enUS,
+    initialValues: { amount: null },
+    effects: [
+      defineEffects<Values>(({ reaction }) => {
+        reaction((d) => {
+          d.$ui('approvalTip').$visible = (d.amount.$value ?? 0) >= 50000;
+        });
+      }),
+    ],
+  });
+  const F = typed(form);
+  const [saved, setSaved] = useState<Values>();
+  return (
+    <Form form={form} onSubmit={setSaved} data-ui-alert-demo="">
+      <F.Field name="amount" title="Expense amount" component={[NumberInput]} />
+      <UI name="approvalTip" component={[WarningBanner, { message: "Amounts of 50000 or more need manager approval" }]} />
+      <Submit>Submit</Submit>
+      {saved && <pre>{JSON.stringify(saved)}</pre>}
+    </Form>
+  );
+}
+```
+
+## Hiding a container
+
+Hiding a UI container unmounts its children. Their field-level visibility, validation and submit settings still apply. Set the field's own flags when those should change too.
+
+```tsx preview
+import { useState, type ReactNode } from 'react';
+import { enUS, defineEffects, Form, Submit, typed, UI, useField, useForm } from '@shikiform/react';
+
+type Values = { needInvoice: boolean; invoiceTitle: string; remark: string };
+
+function Toggle() {
+  const field = useField<boolean>();
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <label>
+        <input id={field.id} type="checkbox" checked={Boolean(field.value)} onChange={(e) => field.onChange(e.target.checked)} />
+        {' '}{field.title}
+      </label>
+    </div>
+  );
+}
+
+function TextInput() {
+  const field = useField<string>();
+  return (
+    <div style={{ marginBottom: 6 }}>
+      <label htmlFor={field.id} style={{ display: 'inline-block', width: 56 }}>{field.title}</label>
+      <input id={field.id} value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />
+      {field.errors[0] && <small role="alert" style={{ color: 'crimson', marginLeft: 6 }}>{field.errors[0]}</small>}
+    </div>
+  );
+}
+
+function GroupBox({ title, children }: { title: string; children?: ReactNode }) {
+  return (
+    <fieldset style={{ border: '1px solid #ccc', padding: 10, marginBottom: 10 }}>
+      <legend>{title}</legend>
+      {children}
+    </fieldset>
+  );
+}
+
+export default function App() {
+  const form = useForm<Values>({
+    messages: enUS,
+    initialValues: { needInvoice: false, invoiceTitle: '', remark: "Keep" },
+    effects: [
+      defineEffects<Values>(({ reaction }) => {
+        reaction((d) => {
+          const need = d.needInvoice.$value;
+          d.$ui('invoiceBox').$visible = need;   // Only controls whether the card is rendered.
+          d.invoiceTitle.$visible = need;        // Hide and skip validation. Visibility alone preserves submission.
+          d.invoiceTitle.$omit = !need;          // Exclude the invoice title when an invoice is unnecessary.
+        });
+      }),
+    ],
+  });
+  const F = typed(form);
+  const [saved, setSaved] = useState<Values>();
+  return (
+    <Form form={form} onSubmit={setSaved} data-ui-box-demo="">
+      <F.Field name="needInvoice" title="Request invoice" component={[Toggle]} />
+      <UI name="invoiceBox" component={[GroupBox, { title: "Invoice details" }]}>
+        <F.Field name="invoiceTitle" title="Bill to" required component={[TextInput]} />
+        <F.Field name="remark" title="Notes" component={[TextInput]} />
+      </UI>
+      <Submit>Submit</Submit>
+      {saved && <pre>{JSON.stringify(saved)}</pre>}
+    </Form>
+  );
+}
+```
+
+## Fallbacks
+
+A reaction overrides JSX. Unset visibility, disabled and read-only fall back to the underlying field or scope. Component props are specific to the instance. Assign `undefined` to release an override.
+
+## Check UI names
+
+Extend `UiNames` once to catch misspellings at compile time.
+
+```ts
+// src/shikiform.d.ts
+import '@shikiform/core'
+declare module '@shikiform/core' {
+  interface UiNames { echo: true; slider: true; approvalTip: true }
+}
+```

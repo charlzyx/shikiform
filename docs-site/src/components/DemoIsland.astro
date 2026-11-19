@@ -1,8 +1,9 @@
 ---
 // MDX 里不能直接写 client: 指令，用这个 Astro 包装层给 Demo 挂 island。
 import Demo from "./Demo";
+import { pageLanguage } from "@/lib/language";
 interface Props { code: string; language: string; mode: "preview" | "live"; id: string; play?: string }
 const { ...props } = Astro.props;
 ---
 
-<Demo {...props} client:load />
+<Demo {...props} english={pageLanguage(Astro.url.pathname) === "en"} client:load />

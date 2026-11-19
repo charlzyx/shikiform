@@ -1,3 +1,4 @@
+import { localize } from '../language'
 import { useRef, useState, type MouseEvent } from 'react'
 import { defineEffects, Field, Form, ObjectField, useForm, useFormContext, useWatch, type Draft } from '@shikiform/react'
 import { Button, Drawer, FormItem, FormLayout, Input, InputNumber, Spin } from '../kit'
@@ -27,8 +28,8 @@ interface Values {
 }
 
 const ROWS: Row[] = [
-  { id: 'a', name: '钢笔', price: 12, note: '黑色' },
-  { id: 'b', name: '墨水', price: 8, note: '蓝黑' },
+  { id: 'a', name: localize("钢笔", "Pen"), price: 12, note: localize("黑色", "Black") },
+  { id: 'b', name: localize("墨水", "Ink"), price: 8, note: localize("蓝黑", "Blue-black") },
 ]
 
 const EMPTY_EDITOR: Editor = { open: false, loading: false, action: '', rowId: '', name: '', price: 0, note: '' }
@@ -133,19 +134,18 @@ function RowEditBody() {
 
   return (
     <main>
-      <h1>抽屉里编辑一行</h1>
+      <h1>{localize("抽屉里编辑一行", "Edit a row in a drawer")}</h1>
       <p>
-        编辑区是同一个引擎里的一个 <code>omit</code> 对象（<code>editor</code>，不进提交值）。打开时异步加载这一行，较新的打开会作废旧的加载；
-        「确定」用 <code>form.batch</code> 按 id 找到原行写回；「详情」把同一组字段切成阅读态。
+        {localize("编辑区是同一个引擎里的一个", "The editor is an")} <code>omit</code> {localize("对象（", "object in the same form (")}<code>editor</code>{localize("，不进提交值）。打开时异步加载这一行，较新的打开会作废旧的加载；\n        「确定」用", ", excluded from submission). Opening a row loads its data. Opening another row supersedes the earlier request. Confirm uses")} <code>form.batch</code> {localize("按 id 找到原行写回；「详情」把同一组字段切成阅读态。", "to update the original row by ID. Details opens the fields in read-only mode.")}
       </p>
       <div className="sk-table-wrap" data-testid="row-table" onClick={onTableClick}>
         <table className="sk-table">
           <thead>
             <tr>
-              <th>名称</th>
-              <th>价格</th>
-              <th>备注</th>
-              <th>操作</th>
+              <th>{localize("名称", "Name")}</th>
+              <th>{localize("价格", "Price")}</th>
+              <th>{localize("备注", "Notes")}</th>
+              <th>{localize("操作", "Actions")}</th>
             </tr>
           </thead>
           <tbody>
@@ -156,10 +156,10 @@ function RowEditBody() {
                 <td>{record.note}</td>
                 <td>
                   <Button variant="link" size="sm" data-action="edit" data-index={index} data-row-id={record.id} data-testid={`edit-${record.id}`}>
-                    编辑
+                    {localize("编辑", "Edit")}
                   </Button>
                   <Button variant="link" size="sm" data-action="detail" data-index={index} data-row-id={record.id} data-testid={`detail-${record.id}`}>
-                    详情
+                    {localize("详情", "Details")}
                   </Button>
                 </td>
               </tr>
@@ -168,26 +168,26 @@ function RowEditBody() {
         </table>
       </div>
       <Drawer
-        title="编辑"
+        title={localize("编辑", "Edit")}
         open={open && action === 'edit'}
         onClose={closeEditor}
         footer={
           <>
             <Button data-testid="editor-cancel" onClick={closeEditor}>
-              取消
+              {localize("取消", "Cancel")}
             </Button>
             <Button variant="primary" data-testid="editor-confirm" onClick={confirmEditor}>
-              确定
+              {localize("确定", "Confirm")}
             </Button>
           </>
         }
       >
         <EditorFields />
       </Drawer>
-      <Drawer title="详情" open={open && action === 'detail'} onClose={closeEditor}>
+      <Drawer title={localize("详情", "Details")} open={open && action === 'detail'} onClose={closeEditor}>
         <EditorFields />
         <Button data-testid="editor-close" onClick={closeEditor} style={{ marginTop: 12 }}>
-          关闭
+          {localize("关闭", "Close")}
         </Button>
       </Drawer>
       <Button
@@ -201,7 +201,7 @@ function RowEditBody() {
           )
         }}
       >
-        提交
+        {localize("提交", "Submit")}
       </Button>
       <pre data-testid="submit-result">{result}</pre>
     </main>
@@ -215,9 +215,9 @@ function EditorFields() {
   return (
     <ObjectField name="editor" omit>
       <FormLayout layout="vertical">
-        <Field name="name" title="名称" decorator={[FormItem]} component={[Input, { 'data-testid': 'editor-name' }]} />
-        <Field name="price" title="价格" decorator={[FormItem]} component={[InputNumber, { 'data-testid': 'editor-price', min: 0 }]} />
-        <Field name="note" title="备注" decorator={[FormItem]} component={[Input, { 'data-testid': 'editor-note' }]} />
+        <Field name="name" title={localize("名称", "Name")} decorator={[FormItem]} component={[Input, { 'data-testid': 'editor-name' }]} />
+        <Field name="price" title={localize("价格", "Price")} decorator={[FormItem]} component={[InputNumber, { 'data-testid': 'editor-price', min: 0 }]} />
+        <Field name="note" title={localize("备注", "Notes")} decorator={[FormItem]} component={[Input, { 'data-testid': 'editor-note' }]} />
       </FormLayout>
     </ObjectField>
   )

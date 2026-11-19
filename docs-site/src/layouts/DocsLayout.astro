@@ -7,6 +7,7 @@
  */
 import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
 import BaseLayout from "./BaseLayout.astro";
+import { languagePath, pageLanguage } from "@/lib/language";
 import Header from "@/components/Header.astro";
 import Logo from "@/components/Logo.astro";
 import { config } from "virtual:nimbus/config";
@@ -48,7 +49,7 @@ const versionAlternates = collection && entryId
 const currentSiblingUrl = versionAlternates?.canonical?.url
   ? withBase(versionAlternates.canonical.url, import.meta.env.BASE_URL)
   : null;
-const homeHref = withBase("/", import.meta.env.BASE_URL);
+const homeHref = withBase(languagePath("/", pageLanguage(Astro.url.pathname)), import.meta.env.BASE_URL);
 
 // Page-body attribute resolution:
 //   - If the user opted out via `searchable: false` (or `noindex: true`
@@ -90,6 +91,7 @@ const hasPageTitle = Astro.slots.has("page-title");
 const hasContentFooter = Astro.slots.has("content-footer");
 const hasPagination = Astro.slots.has("pagination");
 const showToc = headings !== false && (hasToc || headings.length > 0);
+const english = pageLanguage(Astro.url.pathname) === "en";
 ---
 
 <BaseLayout title={title} description={description} noindex={noindex || draft} markdownUrl={markdownUrl} socialImage={socialImage} lastUpdated={lastUpdated} head={head} collection={collection} entryId={entryId}>
@@ -104,7 +106,7 @@ const showToc = headings !== false && (hasToc || headings.length > 0);
       <div class="flex-1 mx-auto w-full">
         <div class="flex">
           {showSidebar && (
-            <aside id="desktop-sidebar" aria-label="Sidebar" data-nb-desktop-sidebar class="hidden md:flex w-60 lg:w-(--nb-sidebar-width) shrink-0 border-e border-border bg-background sticky top-14 h-[calc(100vh-3.5rem)] flex-col relative">
+            <aside id="desktop-sidebar" aria-label={english ? "Sidebar" : "侧边栏"} data-nb-desktop-sidebar class="hidden md:flex w-60 lg:w-(--nb-sidebar-width) shrink-0 border-e border-border bg-background sticky top-14 h-[calc(100vh-3.5rem)] flex-col relative">
               {/* One tree per page: this node moves into the mobile drawer
                   while it is open and comes back on close. It owns the
                   scroll, so open-group and scroll state follow it. */}
@@ -269,7 +271,7 @@ const showToc = headings !== false && (hasToc || headings.length > 0);
           </main>
 
           {showToc && (
-            <aside aria-label="On this page" data-nb-toc-scroll-host class="hidden xl:block w-(--nb-toc-width) shrink-0 sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto">
+            <aside aria-label={english ? "On this page" : "本页目录"} data-nb-toc-scroll-host class="hidden xl:block w-(--nb-toc-width) shrink-0 sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto">
               <div class="pt-6 pb-8 ps-8 pe-6">
                 {hasToc ? <slot name="toc" /> : <TOC headings={headings} />}
               </div>
@@ -289,7 +291,7 @@ const showToc = headings !== false && (hasToc || headings.length > 0);
       data-mobile-sidebar
       data-state="closed"
       class="group fixed inset-0 m-0 h-full w-full max-h-full max-w-full border-0 bg-transparent p-0 transition-[background-color] duration-250 ease-out data-[state=open]:bg-black/40 motion-reduce:transition-none [&::backdrop]:bg-transparent"
-      aria-label="Site navigation"
+      aria-label={english ? "Site navigation" : "站点导航"}
     >
       <div data-mobile-sidebar-panel class="flex h-full w-(--nb-sidebar-width) max-w-[85vw] -translate-x-full flex-col border-e border-border bg-card transition-transform duration-250 ease-out group-data-[state=open]:translate-x-0 rtl:translate-x-full rtl:group-data-[state=open]:translate-x-0 motion-reduce:transition-none">
         <div class="sticky top-0 z-[1] flex items-center justify-between border-b border-border bg-card px-4 py-3">
@@ -298,7 +300,7 @@ const showToc = headings !== false && (hasToc || headings.length > 0);
             <Logo class="h-5 w-5 shrink-0" />
             <span class="sr-only">{config.title}</span>
           </a>
-          <button data-close-sidebar class="flex items-center justify-center w-8 h-8 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors" aria-label="Close sidebar">
+          <button data-close-sidebar class="flex items-center justify-center w-8 h-8 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors" aria-label={english ? "Close sidebar" : "关闭侧边栏"}>
             <Icon name="ph:x" class="w-5 h-5" />
           </button>
         </div>

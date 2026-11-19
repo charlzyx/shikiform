@@ -1,0 +1,166 @@
+---
+title: "API overview"
+description: "Package entry points, form options, submission methods, React components and exported types."
+---
+| Reference | Contents |
+|---|---|
+| [Core](/en/reference/core) | Engine, effects, enum sources, errors and messages |
+| [React hooks](/en/reference/react-hooks) | Field bindings, selectors, scoped arrays and trees, buttons |
+| [Query hooks](/en/reference/query-hooks) | Query arguments, paging, sorting and request lifecycle |
+| [Pro hooks](/en/reference/pro-hooks) | Array tables, column settings, draft forms, suggestions and cascaders |
+
+## Package entry points
+
+`@shikiform/core` is independent of React. `@shikiform/react` re-exports common engine APIs and supplies field components, hooks and adapters. `@shikiform/hooks` supplies higher-level headless hooks.
+
+## Create a form
+
+```ts
+useForm<T, TSubmit = T>(options?: UseFormOptions<T>): FormInstance<T, TSubmit>  // Stable across renders. Options default to an empty object.
+createForm<T, TSubmit = T>(options?: FormOptions<T>): FormInstance<T, TSubmit>  // Outside React. Options default to an empty object.
+```
+
+| Option | Behavior |
+|---|---|
+| `initialValues` | Initial data and reset baseline. Defaults to an empty object. |
+| `fields` | Persistent field rules, flags, presentation and options. Wildcard paths apply to each row. |
+| `effects` | Install effect modules in array order. |
+| `validate` | Whole-form Standard Schema or a function returning errors by path. |
+| `validateTrigger` | Defaults to blur and submit. May also include change. |
+| `asyncDebounceMs` | Delay asynchronous rules. Defaults to zero and can be overridden per field. |
+| `enumPolicy` | Ignore an out-of-range value by default, clear it or report an error. |
+| `readOnly`, `disabled` | Set root state inherited by descendants. |
+| `trees` | Declare tree roots, children keys and row keys before mounting. |
+| `messages` | Override all or part of the built-in Chinese messages. |
+
+### Read, write and submit
+
+| Method | Contract |
+|---|---|
+| `getValue`, `setValue` | Read or update a single dot or bracket path. |
+| `patchValues`, `batch` | Merge partial data or write multiple paths in one transaction. |
+| `validate(path?)` | Validate the entire form, a subtree or selected paths. Rejects with field errors. |
+| `submit(onValid?)` | Validate and return the callback result or submit values. A later attempt can supersede it. |
+| `getSubmitValues` | Return values with omitted subtrees removed. |
+| `reset(path?)`, `reset(record)` | Restore initial values or install a new record and baseline. |
+| `setInitialValues` | Replace the baseline while preserving current values. |
+| `setErrors`, `clearErrors` | Set external errors or clear errors at a path or across the form. |
+| `message` | Resolve a message using form, application and library defaults in order. |
+| `subscribePath`, `subscribeStructure`, `subscribeMeta` | Observe paths, array or tree structure, and form state. Each returns an unsubscribe function. |
+| `subscribeValidateFailed` | Observe validation failures from explicit validate and submit calls. |
+
+### Array and tree handles
+
+Use the scoped hooks for structural edits and native drag props.
+
+```ts
+useArrayField<TRow = unknown>(): ArrayHandle<TRow>
+useArrayField(name, opts?: { rowKey?: string }): ArrayHandle<Row>
+useTreeField<TNode = unknown>(): TreeNodeHandle<TNode>   // Inside a node, path targets that node.
+useTreeField(name, opts?: { childrenKey?: string; rowKey?: string }): TreeHandle<unknown>   // Both paths identify the tree root.
+
+interface ArrayHandle<TRow> {
+  path: string
+  keys: { key: string; index: number }[]
+  push(row: TRow): void
+  insert(index: number, row: TRow): void
+  remove(index: number): void
+  move(from: number, to: number): void   // to is the final index.
+  swap(indexA: number, indexB: number): void
+  replace(index: number, row: TRow): void
+  dragProps(index: number): DragProps
+}
+
+interface TreeHandle<TNode> {
+  path: string            // The root handle targets the tree. A node handle targets its node.
+  treePath: string        // Always points to the root. Equals path on the root handle.
+  errors: readonly string[]     // Messages for the array itself, excluding descendants.
+  warnings: readonly string[]
+  value: TNode[]
+  push(node: TNode, parentPos?: Pos): void  // Append to the root or as the last child of parentPos.
+  insert(pos: Pos, node: TNode): void
+  remove(pos: Pos): void
+  replace(pos: Pos, node: TNode): void
+  move(from: Pos, to: Pos): MoveResult   // Use final coordinates. A rejected move into a descendant returns a reason.
+  dragProps(pos: Pos): DragProps
+}
+```
+
+### Edit an existing record
+
+```ts
+const form = useForm<Values>({ values: query.data })            // Reset when the record arrives or reloads.
+const dirty = useWatch((d: Draft<Values>) => d.$dirty)          // Restoring the initial value clears dirty.
+
+<Button disabled={!dirty} onClick={() => form.submit(save)}>Save</Button>
+```
+
+### Submit value types
+
+Inferred `fields` make statically omitted paths optional. Use `typed<V>()` to fix the value type while preserving field inference. For dynamic omissions, specify the submit type explicitly.
+
+```ts
+import { createForm, type SubmitValues } from '@shikiform/react'
+
+type V = { a: string; tmp: string; b: string; rows: { qty: number; total: number }[] }
+const form = createForm<V, SubmitValues<V, 'tmp' | 'b' | 'rows.*.total'>>({
+  initialValues: { a: '1', tmp: 'x', b: '', rows: [] },
+  fields: { tmp: { omit: true }, 'rows.*.total': { omit: true } },
+})
+await form.submit((values) => {
+  values.tmp   // string | undefined
+  values.rows[0]?.total // number | undefined
+})
+```
+
+## React components
+
+`Form` provides context and handles native submit. `Field` binds a path and renders its decorator and control. `ObjectField`, `ArrayField` and `TreeField` establish relative scopes. `UI` creates a presentation-only node. `Watch` renders a selector result. See the [field guide](/en/guide/field) and [React reference](/en/reference/react-hooks).
+
+## Effects
+
+Derive state with `reaction`, react to a source change with `watch` and use `each` for rows. Use `query(path)` for a dynamic path inside effects.
+
+```ts
+const effects = defineEffects<Values>(({ reaction, watch, query }) => {
+  reaction((d) => { … })
+  reaction.each((d) => d.items, (row, ctx) => { … }) // Two arguments. Nested object arrays are also visited.
+  watch((d) => d.a.$value, (d) => { … })
+  watch.each((d) => d.items, (row, ctx) => { … })
+})
+```
+
+## Engine utilities
+
+Tree positions are arrays of indices. Use `pathOf` and `posOf` to translate between a data path and position. SKU helpers match value combinations and available options.
+
+```ts
+// Tree positions are index paths. [0, 2] is the third child of the first node.
+pathOf(root: string, pos: Pos, childrenKey = 'children'): string          // pathOf('menus', [0, 2]) → 'menus.0.children.2'
+posOf(root: string, path: string, childrenKey = 'children'): Pos | undefined
+moveNode(nodes: any[], from: Pos, to: Pos, childrenKey?, canMove?, messages?): TreeMoveResult  // Returns a new array. The destination is the final position.
+
+// Combination selection
+comboMatch(table, selection): boolean                                     // Check whether any combination matches every selected dimension.
+comboOptions(table, selection, dim, { disabledWhen? }?): ComboOption[]    // Available values for dim given the other selections.
+```
+
+## Errors and messages
+
+```ts
+class ShikiUsageError extends Error      // Development errors include mutating snapshots, rereading writes, treating handles as arrays, misspelled states,
+                                         // unknown rule keys, undefined components or an ArrayField on a non-array. The error suggests a correction.
+class ShikiCycleError extends Error      // Effects did not converge in ten passes. The cycle lists the chain.
+class ShikiConflictError extends Error   // Two reactions write the same state. Inspect state, first and second.
+class SubmitSupersededError extends Error // A later submit replaced this one (code = 'superseded').
+class SubmitUnstableError extends Error   // Values failed to settle for three passes (code = 'unstable').
+function isFieldErrors(value): value is FieldError[]  // Validation failures reject with this array.
+
+zhCN / enUS: FormMessages                // Built-in messages default to zhCN.
+setDefaultMessages(messages: Partial<FormMessages>): void   // Partial application-wide message overrides.
+getDefaultMessages(): FormMessages       // Current application defaults after setDefaultMessages.
+```
+
+## Type index
+
+`@shikiform/core` exports form, field, enum, rule, draft and path types. `@shikiform/react` adds typed components, bindings, scopes, array handles and form props. `@shikiform/hooks` exports option, result and handle types alongside its hooks. See the [TypeScript guide](/en/advanced/typescript).

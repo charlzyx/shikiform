@@ -1,0 +1,24 @@
+---
+title: "4. Submission and next steps"
+description: "Validate a confirmation password, exclude it from submission and reset a form."
+tableOfContents: false
+---
+
+<div className="tutorial-step">
+<div className="tutorial-copy">
+
+## 4.1 Choose which fields to submit
+
+Enter `secret123` in both password fields and submit. The starter includes the confirmation in the payload.
+
+**Try it.** Set `omit` on `confirmPassword`. Add a validator that compares it with `ctx.record.password` and returns an error if the two differ. Submit again and check the payload. The form's reset button restores field values and clears the displayed result through `afterReset`. The toolbar reset restores the exercise code.
+
+</div>
+
+<TutorialPlay id="03-path" />
+
+</div>
+
+## Next steps
+
+Explore [core concepts](/en/guide/concepts), [common pitfalls](/en/practices/pitfalls), the [API reference](/en/api) and [runnable examples](/en/examples).

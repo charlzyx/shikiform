@@ -1,0 +1,71 @@
+---
+title: "Submit and reset"
+description: "Validate a form, handle submission failures and restore the baseline."
+---
+`form.submit()` returns a promise. It validates before calling `onValid` and resolves to the callback result, or the submitted values when that result is undefined. Validation failures reject with `FieldError[]`. A later submit supersedes an earlier one. Other callback errors propagate.
+
+```ts
+try {
+  const values = await form.submit()
+  save(values)
+} catch (error) {
+  if (error instanceof SubmitSupersededError) return // The newer attempt will produce the result.
+  if (error instanceof SubmitUnstableError) return report(error)
+  if (isFieldErrors(error)) showErrors(error)
+  else report(error)
+}
+
+form.submit(async (values) => {
+  const saved = await api.save(values)
+  return saved.id
+}).then((id) => setId(id)).catch((error) => {
+  if (isFieldErrors(error)) scrollTo(error[0]?.path)
+  else report(error)
+})
+```
+
+## Submit and Reset buttons
+
+`<Form onSubmit>` handles native submission, including Enter. `<Submit>` tracks whether submission is available and in progress. `<Reset>` restores the baseline and calls `afterReset` with the restored values. Use `asChild` or a render prop to supply your own button.
+
+```tsx preview
+import { useState } from 'react';
+import { enUS, Form, Reset, Submit, typed, useForm } from '@shikiform/react';
+
+type Values = { name: string };
+
+export default function App() {
+  const [log, setLog] = useState('');
+  const form = useForm<Values>({ messages: enUS, initialValues: { name: 'Ada' } });
+  const F = typed(form);
+  return (
+    <Form
+      form={form}
+      onSubmit={(values) => setLog(`Submitted ${JSON.stringify(values)}`)}
+      onInvalid={() => setLog("Validation failed")}
+    >
+      <F.Field name="name" title="Name" required>
+        {(f) => (
+          <p>
+            <label htmlFor={f.id}>{f.title}：</label>
+            <input
+              id={f.id}
+              value={f.value ?? ''}
+              onChange={(e) => f.onChange(e.target.value)}
+              onBlur={f.onBlur}
+            />
+            {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
+          </p>
+        )}
+      </F.Field>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <Submit>Submit</Submit>
+        <Reset afterReset={(values) => setLog(`Reset ${JSON.stringify(values)}`)} />
+      </div>
+      <pre aria-live="polite">{log}</pre>
+    </Form>
+  );
+}
+```
+
+For an edit screen, `form.reset(record)` replaces both the values and baseline. After saving, call `form.setInitialValues(form.values)` to move the baseline to the saved values.

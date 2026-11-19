@@ -1,3 +1,4 @@
+import { localize } from './language'
 export interface Product {
   id: string
   name: string
@@ -42,5 +43,5 @@ export function newSupplier(): Supplier {
 }
 
 export function newProduct(): Product {
-  return { id: `product-${crypto.randomUUID()}`, name: '新产品', price: 1, active: true }
+  return { id: `product-${crypto.randomUUID()}`, name: localize("新产品", "New product"), price: 1, active: true }
 }

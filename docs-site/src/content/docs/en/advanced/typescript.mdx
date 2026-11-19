@@ -1,0 +1,53 @@
+---
+title: "TypeScript"
+description: "Check field paths, register typed controls and infer submit values."
+---
+Use `typed(form)` to bind components and hooks to the value type. Plain context fields accept dynamic strings.
+
+```tsx
+const form = useForm<Values>({ initialValues })
+const F = typed(form)
+const email = F.useWatch((d) => d.email.$value)
+
+<F.Field name="email" decorator={[FormItem]} component={[Input]} />
+```
+
+A row's `row.Field` is typed against one record. An object's `obj.Field` is typed against that object. For a reusable fragment, call `typed<Address>()` and mount its fields inside the appropriate scope.
+
+## Register controls
+
+Supply components and a default decorator through a kit. Extend the module's interfaces to check registered string names. Tuple props are checked against the selected component. Use `decorator={false}` for a field that needs no wrapper.
+
+```tsx
+import { Field, FieldKit, Form } from '@shikiform/react'
+
+declare module '@shikiform/react' {
+  interface FieldComponents {
+    Input: typeof Input
+  }
+  interface FieldDecorators {
+    FormItem: typeof FormItem
+  }
+}
+
+<FieldKit components={{ Input }} decorator={FormItem}>
+  <Form form={form}>
+    <Field name="name" title="Name" component="Input" />
+    <Field name="qty" component={[Input, { placeholder: "Quantity" }]} decorator={false} />
+  </Form>
+</FieldKit>
+```
+
+## Infer submitted values
+
+With inferred options or `typed<Values>().useForm({ fields })`, paths declared `omit: true` become optional. `useForm<Values>(options)` fixes the submit type to `Values`. Dynamic JSX and reaction overrides are invisible to inference. List the paths explicitly with `SubmitValues` when needed.
+
+```ts
+import { createForm, type SubmitValues } from '@shikiform/react'
+
+type Values = { name: string; confirm: string; rows: { total: number }[] }
+
+createForm<Values, SubmitValues<Values, 'confirm' | 'rows.*.total'>>({
+  initialValues: { name: '', confirm: '', rows: [] },
+})
+```

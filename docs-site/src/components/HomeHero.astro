@@ -1,4 +1,7 @@
 ---
+import { languagePath, pageLanguage } from "@/lib/language";
+const language = pageLanguage(Astro.url.pathname);
+const english = language === "en";
 ---
 
 <section class="sf-hero">
@@ -8,27 +11,27 @@
       <div class="sf-hero__copy">
         <div class="sf-hero__eyebrow">
           <span class="sf-hero__seal">式</span>
-          <span>SHIKIFORM · 无头表单引擎</span>
+          <span>{english ? "SHIKIFORM · FORM ENGINE" : "SHIKIFORM · 无头表单引擎"}</span>
         </div>
 
         <h1 class="sf-hero__title">
-          式动而形随，<br />
-          <span class="sf-hero__accent">无 UI</span> 的 TypeScript 表单引擎
+          {english ? "A TypeScript form engine" : "式动而形随，"}<br />
+          <span class="sf-hero__accent">{english ? "for your UI" : "无 UI"}</span>{english ? "" : " 的 TypeScript 表单引擎"}
         </h1>
 
         <p class="sf-hero__desc">
-          《说文》有云：「<strong>式，法也，从工。</strong>」专为前端工程师打造的表单法度——用极简的 <code>draft</code> 与 <code>$</code> 驯服复杂状态，让 UI 回归纯粹。
+          {english ? <> Define how fields respond to each other in TypeScript. Bind the resulting values, errors and options to the controls you already use. </> : <> 《说文》有云：「<strong>式，法也，从工。</strong>」专为前端工程师打造的表单法度——用极简的 <code>draft</code> 与 <code>$</code> 驯服复杂状态，让 UI 回归纯粹。 </>}
         </p>
 
         <div class="sf-hero__actions">
-          <a href="/guide/quick-start" class="sf-hero__btn sf-hero__btn--primary">
-            快速开始 →
+          <a href={languagePath("/guide/quick-start", language)} class="sf-hero__btn sf-hero__btn--primary">
+            {english ? "Quick start →" : "快速开始 →"}
           </a>
-          <a href="/tutorial/1-start" class="sf-hero__btn sf-hero__btn--secondary">
-            交互式教程
+          <a href={languagePath("/tutorial/1-start", language)} class="sf-hero__btn sf-hero__btn--secondary">
+            {english ? "Interactive tutorial" : "交互式教程"}
           </a>
-          <a href="/examples" class="sf-hero__btn sf-hero__btn--ghost">
-            场景示例
+          <a href={languagePath("/examples", language)} class="sf-hero__btn sf-hero__btn--ghost">
+            {english ? "Examples" : "场景示例"}
           </a>
         </div>
 
@@ -39,27 +42,27 @@
       </div>
 
       <!-- Right: 宣纸 / 玄墨双色代码卡（Inkstone 墨观配色） -->
-      <div class="sf-hero__stage" aria-label="ShikiForm 核心联动示意">
+      <div class="sf-hero__stage" aria-label={english ? "Order form effects" : "ShikiForm 核心联动示意"}>
         <div class="sf-hero__terminal">
           <div class="sf-hero__terminal-bar">
             <span class="sf-hero__term-label">order-effects.ts</span>
             <span class="sf-hero__term-tag">式 · defineEffects</span>
           </div>
           <pre class="sf-hero__code"><code><span class="t-kw">defineEffects</span>&lt;<span class="t-ty">Order</span>&gt;(({`{ `}<span class="t-fn">reaction</span>, <span class="t-fn">watch</span>{` }`}) =&gt; {`{`}
-  <span class="t-cm">// 联动：企业开票自动显示税号并设必填</span>
+  <span class="t-cm">{english ? "// Require a tax ID for company invoices." : "// 联动：企业开票自动显示税号并设必填"}</span>
   <span class="t-fn">reaction</span>((d) =&gt; {`{`}
     <span class="t-kw">const</span> biz = d.invoice.<span class="t-st">$value</span> === <span class="t-str">'company'</span>
     d.taxId.<span class="t-st">$visible</span> = d.taxId.<span class="t-st">$required</span> = biz
     d.taxId.<span class="t-st">$omit</span> = !biz
   {`}`})
 
-  <span class="t-cm">// 数组：按行独立重算，不牵连其他行</span>
-  <span class="t-fn">reaction.each</span>(<span class="t-str">'items'</span>, (row) =&gt; {`{`}
+  <span class="t-cm">{english ? "// Recalculate just the edited line." : "// 数组：按行独立重算，不牵连其他行"}</span>
+  <span class="t-fn">reaction.each</span>((d) =&gt; d.items, (row) =&gt; {`{`}
     row.subtotal.<span class="t-st">$value</span> = row.price.<span class="t-st">$value</span> * row.qty.<span class="t-st">$value</span>
   {`}`})
 
-  <span class="t-cm">// 副作用：切换类型时清空旧税号</span>
-  <span class="t-fn">watch</span>((d) =&gt; d.invoice.<span class="t-st">$value</span>, (_, d) =&gt; {`{`}
+  <span class="t-cm">{english ? "// Clear the tax ID when the invoice type changes." : "// 副作用：切换类型时清空旧税号"}</span>
+  <span class="t-fn">watch</span>((d) =&gt; d.invoice.<span class="t-st">$value</span>, (d) =&gt; {`{`}
     d.taxId.<span class="t-st">$value</span> = <span class="t-str">''</span>
   {`}`})
 {`}`})</code></pre>
@@ -76,24 +79,24 @@
     <!-- Bottom: 无框三列卖点 -->
     <div class="sf-hero__pillars">
       <div class="sf-hero__pillar">
-        <div class="sf-hero__pillar-num">壹 · 联动</div>
-        <div class="sf-hero__pillar-title">式盘推演 · 集中响应</div>
+        <div class="sf-hero__pillar-num">{english ? "Effects" : "壹 · 联动"}</div>
+        <div class="sf-hero__pillar-title">{english ? "Derive state as data changes" : "式盘推演 · 集中响应"}</div>
         <p class="sf-hero__pillar-body">
-          <code>reaction</code> 自动追踪依赖派生状态，<code>watch</code> 处理一次性副作用，<code>reaction.each</code> 按行独立重算，彻底告别满屏 <code>useEffect</code>。
+          {english ? <> Use <code>reaction</code> for derived values, <code>watch</code> for actions after a change and <code>reaction.each</code> to update one row at a time. </> : <> <code>reaction</code> 自动追踪依赖派生状态，<code>watch</code> 处理一次性副作用，<code>reaction.each</code> 按行独立重算，彻底告别满屏 <code>useEffect</code>。 </>}
         </p>
       </div>
       <div class="sf-hero__pillar">
-        <div class="sf-hero__pillar-num">贰 · 四态</div>
-        <div class="sf-hero__pillar-title">正交清晰 · 沿径继承</div>
+        <div class="sf-hero__pillar-num">{english ? "Field state" : "贰 · 四态"}</div>
+        <div class="sf-hero__pillar-title">{english ? "Control what users see and submit" : "正交清晰 · 沿径继承"}</div>
         <p class="sf-hero__pillar-body">
-          <code>visible</code>、<code>disabled</code>、<code>readOnly</code>、<code>omit</code> 四个独立布尔各司其职，渲染、校验与提交裁剪所见即所得。
+          {english ? <> Configure <code>visible</code>, <code>disabled</code>, <code>readOnly</code> and <code>omit</code> independently for each field or subtree. </> : <> <code>visible</code>、<code>disabled</code>、<code>readOnly</code>、<code>omit</code> 四个独立布尔各司其职，渲染、校验与提交裁剪所见即所得。 </>}
         </p>
       </div>
       <div class="sf-hero__pillar">
-        <div class="sf-hero__pillar-num">叁 · 无头</div>
-        <div class="sf-hero__pillar-title">式形分离 · 接任意 UI</div>
+        <div class="sf-hero__pillar-num">{english ? "Headless controls" : "叁 · 无头"}</div>
+        <div class="sf-hero__pillar-title">{english ? "Bring your own components" : "式形分离 · 接任意 UI"}</div>
         <p class="sf-hero__pillar-body">
-          核心零 React 与 UI 依赖，搭配 <code>connect</code>、<code>useFieldDecorator</code> 与 <code>@shikiform/hooks</code>，轻松接入 Antd、shadcn 或原生 HTML。
+          {english ? <> The engine runs without React. In React, use <code>connect</code> and <code>useFieldDecorator</code> to bind native inputs or your component library. </> : <> 核心零 React 与 UI 依赖，搭配 <code>connect</code>、<code>useFieldDecorator</code> 与 <code>@shikiform/hooks</code>，轻松接入 Antd、shadcn 或原生 HTML。 </>}
         </p>
       </div>
     </div>

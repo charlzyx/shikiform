@@ -1,0 +1,44 @@
+---
+title: "Migration and FAQ"
+description: "Map older display settings, Formily reactions and React Hook Form APIs to ShikiForm."
+---
+
+## Migrate display and pattern settings
+
+| Previous setting | Current setting |
+|---|---|
+| `display: 'visible'` | Default visibility |
+| `display: 'hidden'` | `visible: false` skips rendering and validation |
+| `display: 'none'` | Combine `visible: false` and `omit: true` to exclude data too |
+| `display: 'virtual'` | `omit: true` keeps rendering and validation |
+| `pattern: 'disabled'` | `disabled: true` |
+| `pattern: 'readOnly'` or `'readPretty'` | `readOnly: true` |
+| `mapProps({ readPretty })` | `mapProps({ preview })` |
+
+## Migrate from Formily or React Hook Form
+
+Use `defineEffects` and `reaction` for Formily reactions, `watch` for a dependent reset and `reaction.each` for per-row effects. Replace RHF's component watch with `useWatch`. Outside effects, use `form.setValue`. Pass a Standard Schema validator to `validate` for whole-form checks.
+
+## Are computed fields read-only?
+
+They remain editable and submit by default. Set `readOnly` to show the preview and `omit` to exclude them.
+
+## Do hidden fields submit?
+
+Yes. Hiding a field skips rendering and validation. Use `omit` to exclude a confirmation password or local paging state.
+
+## Can the engine run without React?
+
+Use `createForm` from `@shikiform/core`.
+
+## How do I check field names?
+
+Use `typed(form)` and names relative to the current scope. A row receives components typed to its record.
+
+## How do I connect custom controls?
+
+Read values with `useField` and label/error props with `useFieldDecorator`. Use `connect` and `mapProps` for reusable adapters.
+
+## Where are the table and draft hooks?
+
+Import `useQueryTable` and `useShadowForm` from `@shikiform/hooks`. See [query tables and draft editors](/en/guide/pro).

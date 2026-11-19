@@ -1,0 +1,429 @@
+---
+title: "Effects and visibility"
+description: "Derive totals, show fields conditionally and keep dependent SKU selections consistent."
+---
+
+## Calculated values
+
+Change the quantity or unit price. A reaction reads both inputs and writes the total on the initial pass and after each change.
+
+```tsx preview
+import { useState } from 'react';
+import { enUS, defineEffects, Form, Submit, typed, useField, useForm } from '@shikiform/react';
+
+type Values = { price: number | null; qty: number | null; amount: number };
+
+const effects = defineEffects<Values>(({ reaction }) => {
+  reaction((d) => {
+    const amount = (d.price.$value ?? 0) * (d.qty.$value ?? 0);
+    d.amount.$value = amount;
+  });
+});
+
+function NumberInput({ min }: { min?: number }) {
+  const f = useField<number | null>();
+  return (
+    <p>
+      <label htmlFor={f.id}>{f.title}：</label>
+      <input
+        id={f.id}
+        type="number"
+        min={min}
+        value={f.value ?? ''}
+        onChange={(e) => f.onChange(e.target.value === '' ? null : Number(e.target.value))}
+        onBlur={f.onBlur}
+      />
+    </p>
+  );
+}
+
+export default function App() {
+  const [result, setResult] = useState('');
+  const form = useForm<Values>({
+    messages: enUS,
+    initialValues: { price: 10, qty: 2, amount: 0 },
+    effects: [effects],
+  });
+  const F = typed(form);
+  return (
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
+      <F.Field name="price" title="Unit price" component={[NumberInput, { min: 0 }]} />
+      <F.Field name="qty" title="Quantity" component={[NumberInput, { min: 0 }]} />
+      <F.Field name="amount" title="Amount" component={[NumberInput]} />
+      <Submit>Submit</Submit>
+      <pre aria-live="polite">{result}</pre>
+    </Form>
+  );
+}
+```
+
+## Conditional visibility
+
+Show the fields for the selected account type. Set `$omit` separately when the hidden data should stay out of the payload.
+
+```tsx preview
+import { useState } from 'react';
+import { enUS, defineEffects, Form, Submit, typed, useForm } from '@shikiform/react';
+
+type Values = { invoice: boolean; taxId: string };
+
+const effects = defineEffects<Values>(({ reaction }) => {
+  reaction((d) => {
+    const need = d.invoice.$value;
+    d.taxId.$visible = need;
+    d.taxId.$omit = !need;
+    d.taxId.$required = need;
+  });
+});
+
+export default function App() {
+  const [result, setResult] = useState('');
+  const form = useForm<Values>({
+    messages: enUS,
+    initialValues: { invoice: false, taxId: '' },
+    effects: [effects],
+  });
+  const F = typed(form);
+  return (
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
+      <F.Field name="invoice" title="Invoice required">
+        {(f) => (
+          <p>
+            <label htmlFor={f.id}>
+              <input
+                id={f.id}
+                type="checkbox"
+                checked={Boolean(f.value)}
+                onChange={(e) => f.onChange(e.target.checked)}
+              />{' '}
+              {f.title}
+            </label>
+          </p>
+        )}
+      </F.Field>
+      <F.Field name="taxId" title="Tax ID">
+        {(f) => (
+          <p>
+            <label htmlFor={f.id}>{f.title}：</label>
+            <input
+              id={f.id}
+              value={f.value ?? ''}
+              onChange={(e) => f.onChange(e.target.value)}
+              onBlur={f.onBlur}
+            />
+            {f.errors[0] && <small role="alert"> {f.errors[0]}</small>}
+          </p>
+        )}
+      </F.Field>
+      <Submit>Submit</Submit>
+      <pre aria-live="polite">{result}</pre>
+    </Form>
+  );
+}
+```
+
+## SKU picker
+
+Select dimensions in any order. A change clears incompatible selections, disables unavailable choices and updates the price range and available stock.
+
+```tsx preview play=sku-picker
+import { enUS, Field, Form, defineEffects, useField, useForm, type Draft } from '@shikiform/react';
+import { comboMatch, comboOptions } from '@shikiform/core';
+
+const SKUS = [
+  { skuId: 'B-128-STD', color: "Black", storage: '128G', edition: "Standard", price: 999, stock: 12 },
+  { skuId: 'B-256-PRO', color: "Black", storage: '256G', edition: 'Pro', price: 1499, stock: 3 },
+  { skuId: 'W-256-PRO', color: "White", storage: '256G', edition: 'Pro', price: 1499, stock: 8 },
+  { skuId: 'W-128-STD', color: "White", storage: '128G', edition: "Standard", price: 999, stock: 0 },
+  { skuId: 'R-512-MAX', color: "Red", storage: '512G', edition: 'Max', price: 1999, stock: 5 },
+];
+const DIMS = ['color', 'storage', 'edition'] as const;
+type Dim = (typeof DIMS)[number];
+type Selection = Record<Dim, string>; // Empty means unselected
+type Values = Selection & { qty: number; skuId: string; price: string; stock: string };
+
+const selectionOf = (d: Draft<Values>): Selection => ({ color: d.color.$value, storage: d.storage.$value, edition: d.edition.$value });
+const matching = (sel: Selection) => SKUS.filter((row) => DIMS.every((dim) => !sel[dim] || row[dim] === sel[dim]));
+/** Keep the chosen dimension and clear incompatible selections. */
+function afterPick(sel: Selection, dim: Dim, value: string): Selection {
+  const next: Selection = { ...sel, [dim]: value };
+  for (const other of DIMS) {
+    if (other !== dim && next[other] && !comboMatch(SKUS, { [dim]: value, [other]: next[other] })) next[other] = '';
+  }
+  return next;
+}
+
+const effects = defineEffects<Values>(({ reaction, watch }) => {
+  // Disable an option when it has no in-stock combination.
+  reaction((d) => {
+    const sel = selectionOf(d);
+    for (const dim of DIMS) {
+      d[dim].$enum = comboOptions(SKUS, {}, dim).map((option) => {
+        const value = String(option.value);
+        return {
+          label: option.label,
+          value,
+          disabled: !matching(afterPick(sel, dim, value)).some((row) => row.stock > 0),
+        };
+      });
+    }
+  });
+  // Keep the changed dimension and clear incompatible choices.
+  for (const dim of DIMS) {
+    watch((d) => d[dim].$value, (d) => {
+      const sel = selectionOf(d);
+      const next = afterPick(sel, dim, sel[dim]);
+      for (const other of DIMS) if (next[other] !== sel[other]) d[other].$value = next[other];
+    });
+  }
+  // Derive the price range, stock and quantity limit.
+  reaction((d) => {
+    const rows = matching(selectionOf(d));
+    const sku = rows.length === 1 ? rows[0] : undefined;
+    const prices = rows.map((row) => row.price);
+    const [min, max] = [Math.min(...prices), Math.max(...prices)];
+    d.skuId.$value = sku?.skuId ?? '—';
+    d.price.$value = min === max ? `¥${min}` : `¥${min} ~ ¥${max}`;
+    d.stock.$value = sku ? `${sku.stock} items` : '—';
+    d.qty.$disabled = !sku;
+    d.qty.$rules = [{ max: sku?.stock ?? 1, message: `Only ${sku?.stock ?? 0} left in stock` }];
+  });
+});
+
+function RadioRow() {
+  const f = useField<string>();
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+      <span style={{ width: 48 }}>{f.title}：</span>
+      {f.options.map((opt) => (
+        <label key={String(opt.value)} style={{ opacity: opt.disabled ? 0.45 : 1 }}>
+          <input
+            type="radio"
+            name={f.id}
+            disabled={opt.disabled}
+            checked={f.value === String(opt.value)}
+            onChange={() => f.onChange(String(opt.value))}
+          />{' '}
+          {opt.label}
+        </label>
+      ))}
+    </div>
+  );
+}
+
+function ReadOnlyText() {
+  const f = useField<string>();
+  return (
+    <p style={{ margin: '4px 0' }}>
+      <span>{f.title}：</span>
+      <strong>{f.value || '—'}</strong>
+    </p>
+  );
+}
+
+export default function App() {
+  const form = useForm<Values>({
+    messages: enUS,
+    initialValues: { color: '', storage: '', edition: '', qty: 1, skuId: '', price: '', stock: '' },
+    fields: { skuId: { omit: true }, price: { omit: true }, stock: { omit: true } }, // Display only. Exclude from the payload.
+    effects: [effects],
+  });
+  return (
+    <Form form={form}>
+      <Field name="color" title="Color" component={[RadioRow]} />
+      <Field name="storage" title="Storage" component={[RadioRow]} />
+      <Field name="edition" title="Edition" component={[RadioRow]} />
+      <Field name="price" title="Price" readOnly component={[ReadOnlyText]} />
+      <Field name="stock" title="Stock" readOnly component={[ReadOnlyText]} />
+      <Field name="skuId" title="SKU" readOnly component={[ReadOnlyText]} />
+      <Field<Values, 'qty'> name="qty" title="Quantity">
+        {(f) => (
+          <p style={{ margin: '8px 0 0' }}>
+            <label htmlFor={f.id}>{f.title}：</label>
+            <input
+              id={f.id}
+              type="number"
+              min={1}
+              style={{ width: 80 }}
+              disabled={f.disabled}
+              value={f.value ?? 1}
+              onChange={(e) => f.onChange(Number(e.target.value))}
+              onBlur={f.onBlur}
+            />
+            {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
+          </p>
+        )}
+      </Field>
+    </Form>
+  );
+}
+```
+
+## Generate rows from selections
+
+Use a watch to synchronize the set of rows when combinations change. Keep existing records so that edited prices survive a change to another selection.
+
+```tsx preview play=sku
+import { useState } from 'react';
+import { enUS, ArrayField, Field, Form, defineEffects, useField, useForm } from '@shikiform/react';
+
+const CATALOG = [
+  { id: "White/128G", price: 10, stock: 0 },
+  { id: "White/256G", price: 20, stock: 2 },
+  { id: "Black/128G", price: 12, stock: 3 },
+  { id: "Black/256G", price: 22, stock: 9 },
+];
+const PICKS = CATALOG.map((item) => ({ label: item.id, value: item.id, disabled: item.stock === 0 }));
+type Row = { id: string; price: number; qty: number; total: number };
+type Values = { picked: string[]; rows: Row[] };
+
+const effects = defineEffects<Values>(({ reaction, watch }) => {
+  // Synchronize rows after selection changes and preserve edited prices.
+  watch((d) => d.picked.$value, (d) => {
+    const before = d.rows.$value;
+    d.rows.$value = d.picked.$value.map((id) =>
+      before.find((row) => row.id === id) ?? { id, price: CATALOG.find((item) => item.id === id)?.price ?? 0, qty: 1, total: 0 });
+  });
+  // Only the changed row recalculates.
+  reaction.each((d) => d.rows, (row) => {
+    row.total.$value = row.price.$value * row.qty.$value;
+  });
+});
+
+function NumberInline({ min }: { min?: number }) {
+  const f = useField<number>();
+  return (
+    <label htmlFor={f.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      {f.title}
+      {f.readOnly ? (
+        <strong>{f.value}</strong>
+      ) : (
+        <input
+          id={f.id}
+          type="number"
+          min={min}
+          style={{ width: 64 }}
+          value={f.value ?? 0}
+          onChange={(e) => f.onChange(Number(e.target.value))}
+          onBlur={f.onBlur}
+        />
+      )}
+    </label>
+  );
+}
+
+export default function App() {
+  const [result, setResult] = useState('');
+  const form = useForm<Values>({
+    messages: enUS,
+    initialValues: { picked: [], rows: [] },
+    effects: [effects],
+  });
+  return (
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values.rows))}>
+      <Field<Values, 'picked'> name="picked" title="Combination" enum={PICKS}>
+        {(f) => (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
+            <span>{f.title}：</span>
+            {f.options.map((opt) => {
+              const val = String(opt.value);
+              const checked = (f.value ?? []).includes(val);
+              return (
+                <label key={val} style={{ opacity: opt.disabled ? 0.45 : 1 }}>
+                  <input
+                    type="checkbox"
+                    disabled={opt.disabled}
+                    checked={checked}
+                    onChange={(e) => {
+                      const next = e.target.checked
+                        ? [...(f.value ?? []), val]
+                        : (f.value ?? []).filter((item) => item !== val);
+                      f.onChange(next);
+                    }}
+                  />{' '}
+                  {opt.label}
+                </label>
+              );
+            })}
+          </div>
+        )}
+      </Field>
+      <ArrayField name="rows" rowKey="id">
+        {() => (
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 8 }}>
+            <Field name="id" readOnly>{(f) => <code style={{ width: 88 }}>{String(f.value ?? '')}</code>}</Field>
+            <Field name="price" title="Unit price" component={[NumberInline, { min: 0 }]} />
+            <Field name="qty" title="Quantity" component={[NumberInline, { min: 1 }]} />
+            <Field name="total" title="Subtotal" readOnly component={[NumberInline]} />
+          </div>
+        )}
+      </ArrayField>
+      <button type="submit">Submit</button>
+      <pre>{result}</pre>
+    </Form>
+  );
+}
+```
+
+## Thousands of fields
+
+Edit one cell and inspect its render counter. This example illustrates subscription scope. Timing depends on the browser and build.
+
+```tsx preview play=large
+import { memo, useRef } from 'react';
+import { enUS, ArrayField, Form, defineEffects, useField, useForm } from '@shikiform/react';
+
+type Row = { id: string; cost: number; markup: number; suggested: number };
+type Values = { rows: Row[] };
+
+const effects = defineEffects<Values>(({ reaction }) => {
+  reaction.each((d) => d.rows, (row) => {
+    row.suggested.$value = Math.round(row.cost.$value * (1 + row.markup.$value / 100));
+  });
+});
+
+/** Each cell subscribes to its path and displays its render count. */
+function Cell({ name }: { name: keyof Row }) {
+  const field = useField(name);
+  const renders = useRef(0);
+  renders.current += 1;
+  return (
+    <label style={{ marginRight: 8 }}>
+      <input style={{ width: 72 }} aria-label={name} value={String(field.value ?? '')} readOnly={name === 'suggested'}
+        onChange={(event) => field.onChange(Number(event.target.value))} />
+      <sup>{renders.current}</sup>
+    </label>
+  );
+}
+
+const Line = memo(function Line({ index }: { index: number }) {
+  return (
+    <div style={{ height: 36 }}>
+      <code style={{ display: 'inline-block', width: 48 }}>#{index}</code>
+      <Cell name="cost" /><Cell name="markup" /><Cell name="suggested" />
+    </div>
+  );
+});
+
+function Table() {
+  return (
+    <ArrayField name="rows" virtualScroll={{ height: 300, rowHeight: 36, overscan: 4 }}>
+      {({ index }) => <Line index={index} />}
+    </ArrayField>
+  );
+}
+
+export default function App() {
+  const form = useForm<Values>({
+    messages: enUS,
+    initialValues: { rows: Array.from({ length: 1000 }, (_, index) => ({ id: `r${index}`, cost: 10 + (index % 7), markup: 20, suggested: 0 })) },
+    effects: [effects],
+  });
+  return (
+    <Form form={form}>
+      <p>Cost / markup (%) / suggested price (superscripts count renders)</p>
+      <Table />
+    </Form>
+  );
+}
+```

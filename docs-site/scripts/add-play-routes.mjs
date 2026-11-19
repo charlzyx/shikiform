@@ -16,7 +16,10 @@ if (!existsSync(file)) {
 }
 const data = JSON.parse(readFileSync(file, 'utf8'))
 const routes = new Set(data.knownRoutes)
-for (const route of PLAY_ROUTES) routes.add(`/play/${route}`)
+for (const route of PLAY_ROUTES) {
+  routes.add(`/play/${route}`)
+  routes.add(`/en/play/${route}`)
+}
 data.knownRoutes = [...routes].sort()
 writeFileSync(file, JSON.stringify(data, null, 2) + '\n')
 console.log(`added ${PLAY_ROUTES.length} /play routes to route truth`)

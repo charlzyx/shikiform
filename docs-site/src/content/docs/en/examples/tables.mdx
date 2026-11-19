@@ -1,0 +1,295 @@
+---
+title: "Tables and queries"
+description: "Connect a query form to a table and edit a row in a separate panel."
+---
+
+## Query table
+
+Choose a supplier to change the available models. Collapsing the filters preserves input. A new query starts on page one, while paging preserves row selection.
+
+```tsx preview play=query
+import { useState } from 'react';
+import { Field, Form, defineEffects, useField } from '@shikiform/react';
+import { useQueryTable } from '@shikiform/hooks';
+
+type Log = { id: string; keyword: string; provider: string; model: string; status: string };
+type Query = { keyword: string; provider: string; model: string; user: string };
+type Values = { query: Query; list: Log[] };
+
+const LOGS: Log[] = Array.from({ length: 12 }, (_, i) => ({
+  id: String(i + 1),
+  keyword: `${i % 2 ? 'beta' : 'alpha'}-${i + 1}`,
+  provider: i % 2 ? 'anthropic' : 'openai',
+  model: i % 2 ? 'claude' : 'gpt',
+  status: i % 3 ? 'ok' : 'error',
+}));
+const MODELS: Record<string, string[]> = { openai: ['gpt'], anthropic: ['claude'], '': ['gpt', 'claude'] };
+const options = (values: string[]) => values.map((value) => ({ label: value, value }));
+
+const effects = defineEffects<Values>(({ reaction, watch }) => {
+  reaction((d) => {
+    d.query.model.$enum = options(MODELS[d.query.provider.$value] ?? []);
+  });
+  watch((d) => d.query.provider.$value, (d) => {
+    if (!(MODELS[d.query.provider.$value] ?? []).includes(d.query.model.$value)) d.query.model.$value = '';
+  });
+});
+
+function TextFilter() {
+  const f = useField<string>();
+  return (
+    <label htmlFor={f.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      {f.title}
+      <input id={f.id} style={{ width: 100 }} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} />
+    </label>
+  );
+}
+
+function SelectFilter() {
+  const f = useField<string>();
+  return (
+    <label htmlFor={f.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      {f.title}
+      <select id={f.id} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)}>
+        <option value="">All</option>
+        {f.options.map((opt) => (
+          <option key={String(opt.value)} value={String(opt.value)}>{opt.label}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+export default function App() {
+  const [expanded, setExpanded] = useState(false);
+  const table = useQueryTable({
+    initialValues: { query: { keyword: '', provider: '', model: '', user: '' }, list: [] } as Values,
+    fields: { 'query.provider': { enum: options(['openai', 'anthropic']) } },
+    effects: [effects],
+    defaultPageSize: 5,
+    params: 'query',
+    rows: 'list',
+    request: async ({ params, page, pageSize, filters }) => {
+      const rows = LOGS.filter((row) =>
+        (!params.keyword || row.keyword.includes(params.keyword)) &&
+        (!params.provider || row.provider === params.provider) &&
+        (!params.model || row.model === params.model) &&
+        (!params.user || row.id === params.user) &&
+        (!filters.status || filters.status.includes(row.status)));
+      return { data: rows.slice((page - 1) * pageSize, page * pageSize), total: rows.length };
+    },
+  });
+  const pages = Math.max(1, Math.ceil(table.total / table.pageSize));
+  const statusFilter = table.filteredValueOf('status')?.[0] ?? '';
+  const toggleSelect = (id: string, checked: boolean) =>
+    table.setSelectedKeys(checked ? [...table.selectedKeys, id] : table.selectedKeys.filter((k) => k !== id));
+  return (
+    <Form form={table.form} onSubmit={() => table.submit()}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+        <Field name="query.keyword" title="Keyword" component={[TextFilter]} />
+        <Field name="query.provider" title="Supplier" component={[SelectFilter]} />
+        <Field name="query.model" title="Model" component={[SelectFilter]} />
+        <span style={{ display: expanded ? 'inline-flex' : 'none' }}>
+          <Field name="query.user" title="User ID" component={[TextFilter]} />
+        </span>
+        <button type="submit">Search</button>
+        <button type="button" onClick={table.reset}>Reset</button>
+        <button type="button" onClick={() => setExpanded((v) => !v)}>{expanded ? "Collapse" : "Expand"}</button>
+      </div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+        <span>Status filter:</span>
+        {(['', 'ok', 'error'] as const).map((status) => (
+          <button
+            key={status || 'all'}
+            type="button"
+            style={{ fontWeight: statusFilter === status ? 700 : 400 }}
+            onClick={() => table.setFilters(status ? { status: [status] } : {})}
+          >
+            {status === '' ? "All" : status === 'ok' ? "Success" : "Failed"}
+          </button>
+        ))}
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th />
+            <th>Keyword</th>
+            <th>Supplier</th>
+            <th>Model</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {table.data.map((row) => (
+            <tr key={row.id}>
+              <td>
+                <input
+                  type="checkbox"
+                  aria-label={`Select ${row.id}`}
+                  checked={table.selectedKeys.includes(row.id)}
+                  onChange={(e) => toggleSelect(row.id, e.target.checked)}
+                />
+              </td>
+              <td>{row.keyword}</td>
+              <td>{row.provider}</td>
+              <td>{row.model}</td>
+              <td>{row.status}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div style={{ marginTop: 8 }}>
+        <button type="button" disabled={table.page <= 1} onClick={() => table.onPageChange(table.page - 1)}>Previous</button>
+        <span> Page {table.page} / {pages} of {table.total} rows · selected {table.selectedKeys.length} </span>
+        <button type="button" disabled={table.page >= pages} onClick={() => table.onPageChange(table.page + 1)}>Next</button>
+      </div>
+    </Form>
+  );
+}
+```
+
+## Native query table
+
+Use the same `useQueryTable` hook with native HTML form controls and a table.
+
+```tsx preview play=query-native
+import { Field, Form } from '@shikiform/react';
+import { useQueryTable } from '@shikiform/hooks';
+
+type Log = { id: string; keyword: string };
+const LOGS: Log[] = Array.from({ length: 12 }, (_, i) => ({ id: String(i + 1), keyword: `${i % 2 ? 'beta' : 'alpha'}-${i + 1}` }));
+
+export default function App() {
+  const table = useQueryTable({
+    initialValues: { keyword: '' },
+    defaultPageSize: 5,
+    params: (values: { keyword: string }) => values,
+    request: async ({ params, page, pageSize }) => {
+      const rows = LOGS.filter((row) => row.keyword.includes(params.keyword));
+      return { data: rows.slice((page - 1) * pageSize, page * pageSize), total: rows.length };
+    },
+  });
+  const pages = Math.max(1, Math.ceil(table.total / table.pageSize));
+  const toggle = (id: string, on: boolean) =>
+    table.setSelectedKeys(on ? [...table.selectedKeys, id] : table.selectedKeys.filter((key) => key !== id));
+  return (
+    <Form form={table.form} onSubmit={() => table.submit()}>
+      <Field name="keyword">
+        {(field) => <input aria-label="Keyword" placeholder="alpha" value={field.value} onChange={(event) => field.onChange(event.target.value)} />}
+      </Field>{' '}
+      <button type="submit">Search</button> <button type="button" onClick={table.reset}>Reset</button>{' '}
+      <button type="button" onClick={table.refresh}>Refresh</button>
+      <table>
+        <tbody>
+          {table.data.map((row) => (
+            <tr key={row.id}>
+              <td><input type="checkbox" aria-label={`Select ${row.id}`} checked={table.selectedKeys.includes(row.id)} onChange={(event) => toggle(row.id, event.target.checked)} /></td>
+              <td>{row.keyword}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <button type="button" disabled={table.page <= 1} onClick={() => table.onPageChange(table.page - 1)}>Previous</button>
+      <span> {table.page} / {pages} · selected {table.selectedKeys.length} {table.loading ? "· Loading" : ''} </span>
+      <button type="button" disabled={table.page >= pages} onClick={() => table.onPageChange(table.page + 1)}>Next</button>
+    </Form>
+  );
+}
+```
+
+## Edit a row in a panel
+
+Open a draft for one row. Cancel discards edits. Confirm validates and writes back to the record with the same ID.
+
+```tsx preview play=row-edit
+import { useState } from 'react';
+import { enUS, Field, Form, ObjectField, Watch, useForm, type Draft } from '@shikiform/react';
+
+type Row = { id: string; name: string; price: number };
+type Values = { rows: Row[]; editor: Row & { open: boolean } };
+
+export default function App() {
+  const [result, setResult] = useState('');
+  const form = useForm<Values>({
+    messages: enUS,
+    initialValues: {
+      rows: [{ id: 'a', name: "Pen", price: 12 }, { id: 'b', name: "Ink", price: 8 }],
+      editor: { open: false, id: '', name: '', price: 0 },
+    },
+    fields: { editor: { omit: true } }, // Exclude the editor from submitted data.
+  });
+  const open = (row: Row) => form.setValue('editor', { ...row, open: true });
+  const close = () => form.setValue('editor.open', false);
+  const save = async () => {
+    try { await form.validate('editor'); } catch { return; }
+    const { id, name, price } = form.getValue('editor');
+    const index = form.getValue('rows').findIndex((row) => row.id === id);
+    form.batch((d) => {
+      d.rows[index].name.$value = name;
+      d.rows[index].price.$value = price;
+      d.editor.open.$value = false;
+    });
+  };
+  return (
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
+      <Watch select={(d: Draft<Values>) => d.rows.$value}>
+        {(rows) => (
+          <table>
+            <thead>
+              <tr><th>Name</th><th>Price</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.id}>
+                  <td>{row.name}</td>
+                  <td>{row.price}</td>
+                  <td><button type="button" onClick={() => open(row)}>Edit</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Watch>
+      <Watch select={(d: Draft<Values>) => d.editor.open.$value}>
+        {(visible) => visible ? (
+          <fieldset style={{ marginTop: 12 }}>
+            <legend>Edit row</legend>
+            <ObjectField name="editor">
+              <Field<Row, 'name'> name="name" title="Name" required>
+                {(f) => (
+                  <p>
+                    <label htmlFor={f.id}>{f.title}：</label>
+                    <input id={f.id} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} onBlur={f.onBlur} />
+                    {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
+                  </p>
+                )}
+              </Field>
+              <Field<Row, 'price'> name="price" title="Price">
+                {(f) => (
+                  <p>
+                    <label htmlFor={f.id}>{f.title}：</label>
+                    <input
+                      id={f.id}
+                      type="number"
+                      min={0}
+                      value={f.value ?? 0}
+                      onChange={(e) => f.onChange(Number(e.target.value))}
+                      onBlur={f.onBlur}
+                    />
+                  </p>
+                )}
+              </Field>
+            </ObjectField>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" onClick={close}>Cancel</button>
+              <button type="button" onClick={() => void save()}>Confirm</button>
+            </div>
+          </fieldset>
+        ) : null}
+      </Watch>
+      <button type="submit" style={{ marginTop: 12 }}>Submit without the editor</button>
+      <pre>{result}</pre>
+    </Form>
+  );
+}
+```
