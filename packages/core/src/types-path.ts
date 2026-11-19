@@ -39,7 +39,7 @@ type Simplify<T> = { [K in keyof T]: T[K] } & {}
  *
  * An array index is a numeric key (`{ 0: { name: string } }`), not one element type shared by every
  * index. `rows.0.name` and `rows.1.qty` would otherwise both be required on every row, or both optional.
- * The runtime value is still a sparse array, so `result.rows[0]` reads the same property.
+ * The runtime value is a dense array: an index that was not selected is `undefined`, so `result.rows[0]` reads that property.
  *
  * Declared `omit` is not part of this type. `validate()` with no path is `TSubmit`, where those paths
  * are optional. A path passed to `validate` is returned even when that path is omitted. At runtime a

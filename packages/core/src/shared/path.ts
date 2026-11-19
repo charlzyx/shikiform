@@ -1,3 +1,5 @@
+import { arrayIndex, removeArrayIndex, writeArrayIndex } from './dense-array'
+
 /** Parent path, or `null` for a root field. */
 export function parentPath(path: string): string | null {
   if (!path) return null
@@ -84,11 +86,18 @@ export function setAt<T>(root: T, path: string, value: unknown): T {
   const write = (node: unknown, index: number): unknown => {
     const key = parts[index]!
     const last = index === parts.length - 1
-    const nextIsIndex = !last && /^\d+$/.test(parts[index + 1] ?? '')
+    const nextIsIndex = !last && arrayIndex(parts[index + 1] ?? '') !== undefined
     if (Array.isArray(node)) {
       const copy = node.slice()
-      const i = Number(key)
-      copy[i] = last ? value : write(copy[i] ?? (nextIsIndex ? [] : {}), index + 1)
+      const at = arrayIndex(key)
+      const current = at === undefined ? (node as unknown as Record<string, unknown>)[key] : copy[at]
+      const next = last ? value : write(current ?? (nextIsIndex ? [] : {}), index + 1)
+      if (at === undefined) {
+        ;(copy as unknown as Record<string, unknown>)[key] = next
+        return copy
+      }
+      // `copy[at] = next` when `at > length` is a hole. Fill the gap with `undefined`.
+      writeArrayIndex(copy, at, next)
       return copy
     }
     const obj = node && typeof node === 'object' ? { ...(node as Record<string, unknown>) } : {}
@@ -109,7 +118,11 @@ export function deleteAt<T>(root: T, path: string): T {
     if (index === parts.length - 1) {
       if (Array.isArray(node)) {
         const copy = node.slice()
-        copy[Number(key)] = undefined
+        const at = arrayIndex(key)
+        // An index is removed and the tail shifts. `delete` would leave a hole; assigning
+        // `undefined` would keep an empty slot. A non-index property is deleted as a key.
+        if (at !== undefined) removeArrayIndex(copy, at)
+        else delete (copy as unknown as Record<string, unknown>)[key]
         return copy
       }
       const obj = { ...(node as Record<string, unknown>) }
@@ -118,8 +131,12 @@ export function deleteAt<T>(root: T, path: string): T {
     }
     if (Array.isArray(node)) {
       const copy = node.slice()
-      const i = Number(key)
-      copy[i] = write(copy[i], index + 1)
+      const at = arrayIndex(key)
+      if (at === undefined) {
+        ;(copy as unknown as Record<string, unknown>)[key] = write((node as unknown as Record<string, unknown>)[key], index + 1)
+        return copy
+      }
+      copy[at] = write(copy[at], index + 1)
       return copy
     }
     const obj = { ...(node as Record<string, unknown>) }

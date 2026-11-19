@@ -108,7 +108,7 @@ export interface FormInstance<T, TSubmit = T> {
    *   returns `editor.name` when `editor` is `omit`.
    * - several paths — a new object containing only those paths ({@link ValidatePick}). Same clone and omit rules.
    *   Each path must be a `FieldPath` (a `string[]` such as `group.paths()` matches only when the form value is `any`).
-   *   An array index is a numeric key (`{ rows: { 0: { name } } }`), which is how `result.rows[0]` reads the sparse array.
+   *   An array index is a numeric key (`{ rows: { 0: { name } } }`). The runtime array is dense, and an index that was not selected is `undefined`, so `result.rows[0]` reads that property.
    *
    * Rejects `FieldError[]` when the scope is not clean. A throw from a form-level `validate` rejects as-is.
    */

@@ -1,4 +1,5 @@
 import { copyData } from '../draft/plain-clone'
+import { arrayIndex } from '../shared/dense-array'
 import { deleteAt, getAt, normalizePath, setAt } from '../shared/path'
 
 /** Enough of the field store to tell an own `omit` from one inherited from an ancestor. */
@@ -44,7 +45,23 @@ function pathsToStrip(source: OmitSource, root: string): string[] {
     }
     if (strip) out.push(path.slice(prefix.length))
   }
-  return out.sort((a, b) => b.length - a.length)
+  // A child before its parent. Array indexes at one depth go high to low: `deleteAt` splices an
+  // index, so a later lower index still names the element it did before that splice.
+  return out.sort(compareStripPaths)
+}
+
+function compareStripPaths(a: string, b: string): number {
+  const as = a.split('.')
+  const bs = b.split('.')
+  const shared = Math.min(as.length, bs.length)
+  for (let i = 0; i < shared; i++) {
+    if (as[i] === bs[i]) continue
+    const ai = arrayIndex(as[i]!)
+    const bi = arrayIndex(bs[i]!)
+    if (ai !== undefined && bi !== undefined) return bi - ai
+    return as[i]! < bs[i]! ? -1 : 1
+  }
+  return bs.length - as.length
 }
 
 /**
