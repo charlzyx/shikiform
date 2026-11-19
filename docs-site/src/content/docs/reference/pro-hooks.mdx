@@ -52,7 +52,7 @@ useShadowForm<TValues = Record<string, any>, TContext = unknown>(options?: {
 
 - 路径绑定（`name` / `form`）：传入 `name`（或在 `<Form>` / 数组行 / 对象作用域内省略 `name` 或传相对路径）时，草稿绑定到宿主对应路径：
   - 继承：打开时从宿主复制当前路径值作为 `initialValues`，剥离路径前缀后继承 `fields` / `trees` 声明（含 `list.*` 行模板），并继承宿主的 `messages`、`validateTrigger`、`asyncDebounceMs`、`enumPolicy` 与该路径当前的有效 `readOnly` / `disabled`。
-  - 写回：确认并校验通过后写回宿主路径。对象默认按 `{ ...current, ...values }` 浅合并（可通过 `merge` 替换）；绑定数组且 `add: true` 时追加到末尾；绑定数组行时按 `rowKey`（或对象引用）定位原行写回。`onOk` 返回 `false` 时跳过默认写回。
+  - 写回：确认并校验通过后写回宿主路径。默认保留宿主对象及嵌套行内被 `omit` 省略的字段；数组沿用草稿的顺序和长度，可通过 `merge` 自定义写回；绑定数组且 `add: true` 时追加到末尾；绑定数组行时按 `rowKey`（或对象引用）定位原行写回。`onOk` 收到过滤后的提交值，返回 `false` 时跳过默认写回。取消或重新打开后，旧的异步确认停止后续回调和写回，返回 `{ ok: false, errors: [] }`。
 
 ## useSuggestion
 

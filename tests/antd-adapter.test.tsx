@@ -283,7 +283,7 @@ describe('connect', () => {
 
 describe('FormItem', () => {
   it('shows label, required mark, and the first error after validation', async () => {
-    const form = createEngine({ initialValues: { email: '' } })
+    const form = createEngine({ initialValues: { email: '' }, fields: { email: { required: true } } })
     const view = () =>
       renderToStaticMarkup(
         <Form form={form}>
@@ -303,7 +303,7 @@ describe('FormItem', () => {
     expect(form.binding('email').errors).toEqual(['必填'])
   })
 
-  it('is a pure decorator: the <Field> owns the rules as a mount lease', async () => {
+  it('renders a pure decorator on the server without mounting its field rules', async () => {
     const form = createEngine({ initialValues: { code: 'x' } })
     renderToStaticMarkup(
       <Form form={form}>
@@ -312,7 +312,7 @@ describe('FormItem', () => {
         </Field>
       </Form>,
     )
-    expect(await fieldErrorsOf(form.validate())).toEqual([{ path: 'code', messages: ['至少 3 个字符'] }])
+    expect(await fieldErrorsOf(form.validate())).toEqual([])
   })
 
   it('renders nothing when visible is false and hides the required mark when readOnly', () => {
@@ -325,7 +325,7 @@ describe('FormItem', () => {
   })
 
   it('accepts a binding from useField (hooks first, component as sugar)', async () => {
-    const form = createEngine({ initialValues: { name: '' } })
+    const form = createEngine({ initialValues: { name: '' }, fields: { name: { required: true } } })
     function Hooked() {
       const field = useField('name', { required: true, title: '姓名' })
       return (

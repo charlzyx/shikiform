@@ -7,7 +7,8 @@ import { Scheduler } from '../effects/scheduler'
 import { clone } from '../shared/equal'
 import { deleteAt, getAt, normalizePath, setAt } from '../shared/path'
 import { shownErrors } from '../state/field-model'
-import { setRootFlag } from '../state/flags'
+import { asOptions } from '../enum/enum-source'
+import { effectiveFlag, setRootFlag } from '../state/flags'
 import { FieldStore } from '../state/field-store'
 import { Notifier } from '../state/notifier'
 import { ArrayOps } from '../structure/arrays'
@@ -195,13 +196,14 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     }
   }
 
-  /** Values with each effectively omitted field removed (`omit` inherits). Hidden / disabled / read-only values are kept. */
+  omittedPaths(): string[] {
+    return [...this.store.fields.keys()].filter(path => path && this.store.effective(path, 'omit'))
+  }
+
+  /** Remove omitted paths deepest first so an omitted ancestor always wins. */
   getSubmitValues(): TSubmit {
     let out = clone(this.store.values)
-    const omit = [...this.store.fields.keys()]
-      .filter((path) => path && this.store.effective(path, 'omit'))
-      .sort((a, b) => b.length - a.length)
-    for (const path of omit) out = deleteAt(out, path)
+    for (const path of this.omittedPaths().sort((a, b) => b.length - a.length)) out = deleteAt(out, path)
     return out as unknown as TSubmit
   }
 
@@ -344,6 +346,12 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     this.trees.register(path, spec)
   }
 
+  /** Track an object row across immutable cell edits, including in a bound editing draft. */
+  rowIdentity(row: object): string {
+    const id = (row as { id?: unknown }).id
+    return id == null ? 'object:' + this.arrays.rowIdent(row, 0) : 'id:' + String(id)
+  }
+
   /** Row keys for rendering. Uses `rowKey` or `id` when present, otherwise a stable object identity. */
   structureKeys(path: string, rowKey?: string): { key: string; index: number }[] {
     return this.arrays.keys(path, rowKey)
@@ -415,8 +423,6 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     const tracked = this.trackOnly(() => selector(this.draft))
     return { value: tracked.value, deps: [...tracked.deps] }
   }
-
-  // —— effects runtime ——
 
   handle(path: string): Draft<any> {
     return createHandle(this, path)
@@ -596,40 +602,34 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     this.declarations.registerField(path, spec)
   }
 
-  /**
-   * Apply JSX `rules` and `required` while `<Field>` is mounted.
-   * Does not replace `$rules`. Pair with {@link releaseJsxField} on unmount so a declaration or item template is restored.
-   * Returns a lease to pass back to `releaseJsxField`.
-   */
+  /** Commit the field's JSX validation and flags. The model follows its row across a move. */
   mountJsxField(path: string, spec: FieldSpec = {}): unknown {
-    return this.declarations.mountJsxField(path, spec)
+    return this.commitJsx(path, () => this.declarations.mountJsxField(path, spec))
   }
 
-  /**
-   * Drop JSX `rules` / `required` for `path`.
-   * Restores a declaration or item template, recomputes built-in errors immediately, and drops an unresolved validator.
-   * Custom validators and schemas run once through the queued validation pass.
-   * Leaves `$rules` and `$required` from a reaction in place.
-   * With the `lease` from `mountJsxField`, does nothing once a row or tree move has put another field at `path`:
-   * the leased field moved with its row and its component re-mounts it at the new path.
-   */
   releaseJsxField(path: string, lease?: unknown): void {
-    this.declarations.releaseJsxField(path, lease)
+    this.commitJsx(path, () => this.declarations.releaseJsxField(path, lease))
   }
 
-  /** Drop JSX `visible` / `disabled` / `readOnly` / `omit` on `path` (the declaration shows through again). */
-  releaseJsxFlags(path: string): void {
-    this.declarations.releaseJsxFlags(path)
+  releaseJsxFlags(path: string, lease?: unknown): void {
+    this.commitJsx(path, () => this.declarations.releaseJsxFlags(path, lease))
   }
 
-  /**
-   * Apply a JSX `<Field enum>` (static list, primitives, or `EnumSource.with(params)`) to `path`.
-   * Precedence: reaction `$enum` > JSX `enum` > `fields` / `registerField` > item template. `useField` calls it with
-   * `'render'` during render (static lists only, so the first paint has options) and `'commit'` in an effect
-   * (async loads, `enumPolicy` on updates, reactions reading `$enum`). Returns a lease for {@link releaseJsxEnum}.
-   */
-  applyJsxEnum(path: string, input: unknown, phase: 'render' | 'commit' = 'commit'): unknown {
-    return this.writer.applyJsxEnum(path, input, phase)
+  private commitJsx<R>(path: string, update: () => R): R {
+    const before = this.getPathVersion(path)
+    const required = !!this.store.get(path)?.required
+    const result = update()
+    if (this.getPathVersion(path) !== before) {
+      if (required !== !!this.store.get(path)?.required) this.scheduler.markDirty(path + ':required')
+      this.scheduler.enqueueFromDirty()
+      this.scheduler.flush()
+    }
+    return result
+  }
+
+  /** Commit JSX enum options and start any async load. */
+  applyJsxEnum(path: string, input: unknown): unknown {
+    return this.writer.applyJsxEnum(path, input)
   }
 
   /** Drop the JSX `enum` on `path` and restore the declared / template enum. A lease from another row's model is ignored. */
@@ -641,11 +641,13 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
    * Input props for `path`: value, errors, the four flags, touched, dirty, validating, and UI state.
    * `errors` is empty when the field does not validate. `ui` is the render-time JSX layer (`<Field title>`).
    */
-  binding(path: string, ui?: FieldUiSpec) {
+  binding(path: string, ui?: FieldUiSpec, jsx?: Pick<FieldSpec, 'visible' | 'disabled' | 'readOnly' | 'omit' | 'required' | 'enum'>) {
     const store = this.store
     const field = store.get(path)
-    const active = store.acceptsValidation(path)
-    const readOnly = store.effective(path, 'readOnly')
+    const visible = effectiveFlag(store, path, 'visible', jsx?.visible)
+    const disabled = effectiveFlag(store, path, 'disabled', jsx?.disabled)
+    const readOnly = effectiveFlag(store, path, 'readOnly', jsx?.readOnly)
+    const active = visible && !disabled && !readOnly
     return {
       path,
       value: getAt(store.values, path),
@@ -653,16 +655,16 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
       onBlur: () => this.blur(path),
       errors: field && active ? shownErrors(field) : [],
       warnings: field && active ? field.warnings.slice() : [],
-      visible: store.effective(path, 'visible'),
-      disabled: store.effective(path, 'disabled'),
+      visible,
+      disabled,
       readOnly,
-      omit: store.effective(path, 'omit'),
-      required: !!field?.required,
+      omit: effectiveFlag(store, path, 'omit', jsx?.omit),
+      required: (!field?.requiredFromEffect ? jsx?.required : undefined) ?? !!field?.required,
       touched: field?.touched ?? false,
       dirty: path ? this.baseline.fieldDirty(path) : this.baseline.formDirty(),
       edited: path ? (field?.edited ?? false) : store.edited,
       validating: field?.validating ?? false,
-      options: field?.enumOptions ?? [],
+      options: (!field?.enumFromEffect ? asOptions(jsx?.enum) : undefined) ?? field?.enumOptions ?? [],
       loading: field?.enumLoading ?? false,
       id: pathDomId(path),
       ...this.fieldUi.view(path, ui),

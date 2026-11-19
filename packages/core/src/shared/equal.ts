@@ -33,16 +33,30 @@ export function clone<T>(value: T): T {
  */
 export function differsExcept(a: unknown, b: unknown, path: string, skip: readonly string[]): boolean {
   if (Object.is(a, b)) return false
-  const inside = skip.filter((p) => !path || p.startsWith(path + '.'))
-  if (!inside.length) return !deepEqual(a, b)
-  if (typeof a !== 'object' || typeof b !== 'object' || a == null || b == null) return !deepEqual(a, b)
-  if (Array.isArray(a) !== Array.isArray(b)) return true
-  if (Array.isArray(a) && (a as unknown[]).length !== (b as unknown[]).length) return true
-  const keys = new Set([...Object.keys(a), ...Object.keys(b as object)])
-  for (const key of keys) {
-    const child = path ? `${path}.${key}` : key
-    if (inside.includes(child)) continue
-    if (differsExcept((a as any)[key], (b as any)[key], child, inside)) return true
+  const excluded = new Set(skip)
+  const parents = new Set<string>()
+  for (let cursor of excluded) {
+    while (cursor) {
+      const end = cursor.lastIndexOf('.')
+      cursor = end < 0 ? '' : cursor.slice(0, end)
+      if (parents.has(cursor)) break
+      parents.add(cursor)
+    }
   }
-  return false
+
+  function differs(left: unknown, right: unknown, at: string): boolean {
+    if (Object.is(left, right)) return false
+    if (!parents.has(at) || left == null || right == null || typeof left !== 'object' || typeof right !== 'object') {
+      return !deepEqual(left, right)
+    }
+    if (Array.isArray(left) !== Array.isArray(right)) return true
+    if (Array.isArray(left) && Array.isArray(right) && left.length !== right.length) return true
+    const keys = new Set([...Object.keys(left), ...Object.keys(right)])
+    for (const key of keys) {
+      const child = at ? at + '.' + key : key
+      if (!excluded.has(child) && differs((left as Record<string, unknown>)[key], (right as Record<string, unknown>)[key], child)) return true
+    }
+    return false
+  }
+  return differs(a, b, path)
 }

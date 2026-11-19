@@ -149,14 +149,13 @@ export class Declarations {
 
   mountJsxField(path: string, spec: FieldSpec = {}): FieldModel {
     const field = this.store.ensure(path)
-    field.jsxActive = true
+    if (spec.required !== undefined || spec.rules !== undefined) field.jsxActive = true
     this.applyFieldFlags(field, { ...spec, jsx: true }, 'explicit')
     const rules = rulesFromSpec(spec, field.rules, `<Field name="${path}">`)
     if (rules && !field.rulesFromEffect) {
       field.jsxRules = rules.slice()
       if (!deepEqual(field.rules, rules)) {
         field.rules = rules.slice()
-        this.notifier.bumpPath(path)
       }
     }
     if (spec.required !== undefined && !field.requiredFromEffect) {
@@ -221,9 +220,9 @@ export class Declarations {
   }
 
   /** Drop the JSX flag layer (`<Field visible readOnly …>` unmounted) and let the declaration show through. */
-  releaseJsxFlags(path: string): void {
+  releaseJsxFlags(path: string, lease?: unknown): void {
     const field = this.store.get(path)
-    if (field) this.clearJsxFlags(field)
+    if (field && (lease === undefined || field === lease)) this.clearJsxFlags(field)
   }
 
   private clearJsxFlags(field: FieldModel): void {

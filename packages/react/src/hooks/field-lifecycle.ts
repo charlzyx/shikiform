@@ -10,14 +10,8 @@ export function applyJsxField(
   path: string,
   spec: Pick<FieldSpec, 'rules' | 'required' | 'visible' | 'disabled' | 'readOnly' | 'omit'>,
 ): (() => void) | undefined {
-  const flags: Partial<Pick<FieldSpec, 'visible' | 'disabled' | 'readOnly' | 'omit'>> = {}
-  for (const key of FLAG_KEYS) if (spec[key] !== undefined) flags[key] = spec[key]
-  const hasFlags = FLAG_KEYS.some((key) => spec[key] !== undefined)
-  if (spec.rules === undefined && spec.required === undefined) {
-    // Flags are not a validation lease: they stay when this call returns no cleanup.
-    if (hasFlags) form.registerField(path, { ...flags, jsx: true })
-    return undefined
-  }
+  const validation = spec.rules !== undefined || spec.required !== undefined
+  if (!validation && !FLAG_KEYS.some((key) => spec[key] !== undefined)) return
   const lease = form.mountJsxField(path, spec)
-  return () => form.releaseJsxField(path, lease)
+  return validation ? () => form.releaseJsxField(path, lease) : () => form.releaseJsxFlags(path, lease)
 }

@@ -1,7 +1,7 @@
 import type { Declarations } from '../declarations/declarations'
 import { unwrapReadonly } from '../draft/readonly'
 import type { Scheduler } from '../effects/scheduler'
-import { clone, differsExcept } from '../shared/equal'
+import { clone, deepEqual, differsExcept } from '../shared/equal'
 import { getAt, selfAndAncestors, setAt } from '../shared/path'
 import type { FieldStore } from '../state/field-store'
 import type { Notifier } from '../state/notifier'
@@ -97,7 +97,7 @@ export class Baseline {
   formDirty(): boolean {
     const { values, initial } = this.store
     const skip = this.skipPaths()
-    const key = skip.join('\n')
+    const key = JSON.stringify(skip)
     const cached = this.cache
     if (cached && cached.values === values && cached.initial === initial && cached.skip === key) return cached.dirty
     const dirty = differsExcept(values, initial, '', skip)
@@ -113,7 +113,10 @@ export class Baseline {
    */
   fieldDirty(path: string): boolean {
     if (this.inheritedOmit(path)) return false
-    return differsExcept(getAt(this.store.values, path), getAt(this.store.initial, path), path, this.skipPaths())
+    const current = getAt(this.store.values, path)
+    const initial = getAt(this.store.initial, path)
+    if (!this.store.parents.has(path)) return !deepEqual(current, initial)
+    return differsExcept(current, initial, path, this.skipPaths())
   }
 
   /** Some ancestor's own `omit` is set. This node's own `omit` does not count. */

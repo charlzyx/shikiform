@@ -69,17 +69,21 @@ export interface FlagReader {
  * opt back in — submit deletes the ancestor, so the subtree cannot be submitted on its own.
  * An unset node with no omitted ancestor stays submitted (`false`).
  */
-export function effectiveFlag(store: FlagReader, path: string, name: FlagName): boolean {
+export function effectiveFlag(store: FlagReader, path: string, name: FlagName, jsx?: boolean): boolean {
+  const ownAt = (cursor: string) => {
+    const field = store.get(cursor)
+    return cursor === path && jsx !== undefined && !field?.flags[name].fromEffect ? jsx : ownFlag(field, name)
+  }
   if (name === 'omit') {
     for (const cursor of selfAndAncestors(path)) {
-      if (ownFlag(store.get(cursor), 'omit') === true) return true
+      if (ownAt(cursor) === true) return true
     }
     return false
   }
   let value = flagDefault(name)
   const chain = selfAndAncestors(path)
   for (let i = chain.length - 1; i >= 0; i--) {
-    const own = ownFlag(store.get(chain[i]!), name)
+    const own = ownAt(chain[i]!)
     if (own === true) value = true
     else if (own === false) value = false
   }

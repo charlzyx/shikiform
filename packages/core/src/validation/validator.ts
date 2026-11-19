@@ -12,6 +12,7 @@ import { formatMessage, type FormMessageKey, type MessageArgs, type MessageParam
 import { fieldSchemaIssues, optionIncludes, runRules, type ValidateCtx } from './rules'
 import { runWarningRules } from './warnings'
 import { collectSchemaIssues, groupSchemaIssues, isStandardSchema, schemaIssuePath, type SchemaIssue, type StandardSchemaV1 } from './schema'
+import { scopeTest, validateScope, type RunResult, type ValidateScope, type ValidationPass } from './scope'
 import { AsyncAttempts } from './async-attempt'
 import { ignoreRejection, isPromise, settleUnlessAborted } from './settle'
 import { clearInactiveErrors, noteFlagChange, type InactiveHost } from './inactive'
@@ -53,7 +54,8 @@ export class Validator {
   /** Runs before every pass. The engine expands item templates here. */
   prepare: () => void = () => {}
   /** The newest whole-form pass. A superseded `runSettled` adopts its verdict instead of failing (#41). */
-  private latestFull: { gen: number; promise?: Promise<RunResult> } | undefined
+  private latestFull?: ValidationPass
+  private latest!: ValidationPass
 
   constructor(private readonly deps: ValidatorDeps) {
     const self = this
@@ -101,7 +103,7 @@ export class Validator {
   }
 
   async validate(path?: ValidateScope): Promise<FieldError[]> {
-    return (await this.run(path)).errors
+    return validateScope(path, () => this.run(path), () => this.latest)
   }
 
   /**
@@ -110,10 +112,11 @@ export class Validator {
    * `submit` compares `values` with the live values to know whether what it would submit was validated (#6).
    */
   run(path?: ValidateScope): Promise<RunResult> {
-    const record: { gen: number; promise?: Promise<RunResult> } = { gen: 0 }
+    const record: ValidationPass = { gen: 0, scope: path }
     // Registered when the pass takes its generation, before it notifies: a pass started from that
     // notification (re-entry) registers after it and is correctly the newer one.
     record.promise = this.runPass(path, (gen) => {
+      this.latest = record
       record.gen = gen
       if (!path) this.latestFull = record
     })
@@ -409,7 +412,7 @@ export class Validator {
    * left as an unhandled rejection. Awaited `validate()` / `submit()` pass those errors to the caller.
    */
   validateDetached(path: string): void {
-    this.validate(path).catch((err: unknown) => {
+    this.run(path).catch((err: unknown) => {
       console.error('[shikiform] validation pass failed', err)
     })
   }
@@ -656,27 +659,6 @@ export class Validator {
     for (let cursor: string | null = path; cursor; cursor = parentPath(cursor)) scheduler.markDirty(`${cursor}:${kind}`)
     scheduler.markDirty(`:${kind}`)
   }
-}
-
-/**
- * What one pass validates: the whole form (`undefined`), one path and its descendants, or several paths
- * and their descendants (a step of a `FormStep`, a field group). `''` is the whole form; `[]` validates no field.
- */
-export type ValidateScope = string | readonly string[]
-
-function scopeTest(scope: ValidateScope | undefined): (path: string) => boolean {
-  if (scope === undefined || scope === '') return () => true
-  const list = typeof scope === 'string' ? [scope] : scope
-  if (list.includes('')) return () => true
-  return (path) => list.some((one) => path === one || path.startsWith(one + '.'))
-}
-
-/** One pass's outcome. `gen` is its generation (see {@link Validator.validateGen}). */
-export interface RunResult {
-  errors: FieldError[]
-  values: unknown
-  current: boolean
-  gen: number
 }
 
 function recordToIssues(extra: Partial<Record<string, string>> | void): SchemaIssue[] {

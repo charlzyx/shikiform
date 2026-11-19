@@ -1,7 +1,7 @@
 import { unwrapReadonly } from '../draft/readonly'
 import type { Declarations } from '../declarations/declarations'
 import type { Scheduler } from '../effects/scheduler'
-import { getAt, joinPath, parentPath, setAt } from '../shared/path'
+import { joinPath, parentPath, setAt } from '../shared/path'
 import type { FieldStore } from '../state/field-store'
 import type { Validator } from '../validation/validator'
 import { reindexById } from './migrate'
@@ -29,20 +29,19 @@ export class ArrayOps {
   }
 
   /**
-   * A value write rebuilt the objects on its path (immutable `setAt`). Rows of registered arrays above the
-   * written path are new objects with the same occupant: hand their identity to the new object, so an
-   * id-less row keeps its render key (and its selection / expansion) after a cell edit.
+   * Immutable writes rebuild ancestors. Carry an observed row's identity to its copy along this path.
    */
   carryIdentity(writtenPath: string, before: unknown, after: unknown): void {
-    for (const path of this.arrays.keys()) {
-      if (!writtenPath.startsWith(path + '.')) continue
-      const index = Number(writtenPath.slice(path.length + 1).split('.')[0])
-      if (!Number.isInteger(index)) continue
-      const oldRow = getAt(before, joinPath(path, String(index)))
-      const newRow = getAt(after, joinPath(path, String(index)))
-      if (oldRow === newRow || !oldRow || !newRow || typeof oldRow !== 'object' || typeof newRow !== 'object') continue
-      const id = this.ident.get(oldRow)
-      if (id && !this.ident.has(newRow)) this.ident.set(newRow, id)
+    let oldNode = before
+    let newNode = after
+    for (const segment of writtenPath.split('.')) {
+      if (!oldNode || !newNode || typeof oldNode !== 'object' || typeof newNode !== 'object') break
+      const wasArray = Array.isArray(oldNode)
+      oldNode = (oldNode as Record<string, unknown>)[segment]
+      newNode = (newNode as Record<string, unknown>)[segment]
+      if (!wasArray || !oldNode || !newNode || typeof oldNode !== 'object' || typeof newNode !== 'object') continue
+      const id = this.ident.get(oldNode)
+      if (id && !this.ident.has(newNode)) this.ident.set(newNode, id)
     }
   }
 
@@ -107,7 +106,7 @@ export class ArrayOps {
     this.commit(path, before, [...before, row], new Set([before.length]))
   }
 
-  private rowIdent(row: unknown, index: number, rowKey?: string): string {
+  rowIdent(row: unknown, index: number, rowKey?: string): string {
     const named = readRowId(row, index, rowKey)
     if (!named.startsWith('#')) return named
     if (row && typeof row === 'object') {
@@ -133,7 +132,9 @@ export class ArrayOps {
     next.forEach((row, index) => newIds.set(this.rowIdent(row, index, rowKey), joinPath(path, String(index))))
     store.onReindex?.(reindexById(store.fields, oldIds, newIds))
     store.onReindexIds?.(oldIds, newIds)
-    store.values = setAt(store.values, path, next)
+    const previous = store.values
+    store.values = setAt(previous, path, next)
+    this.carryIdentity(path, previous, store.values)
     scheduler.dirtyRows.set(path, dirty)
     scheduler.markStructure(path)
     // The array value itself changed: wake readers of `$value` on it and its ancestors (useWatch, reactions).

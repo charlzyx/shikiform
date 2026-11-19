@@ -621,7 +621,7 @@ export interface FormInstance<T, TSubmit = T> {
    * Otherwise its errors are cleared and it does not block.
    * A form-level Standard Schema always runs. A scoped call refreshes schema issues under `path` only.
    * An array validates several paths in ONE pass (`validate(['name', 'address'])`, what `FormStep` does for a step);
-   * two concurrent scoped calls would supersede each other.
+   * concurrent calls await a covering pass or recheck their own scope if interrupted.
    * Resolves when the scope is clean. Rejects `FieldError[]` when it is not. A throw from a form-level `validate` rejects as-is.
    */
   validate(path?: FieldPath<T> | readonly FieldPath<T>[]): Promise<void>

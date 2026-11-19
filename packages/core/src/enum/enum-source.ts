@@ -28,7 +28,7 @@ export interface EnumConfig<P> {
  */
 export class EnumSource<P = unknown> {
   private cache = new Map<string, { at: number; options: EnumOption[] }>()
-  private inflight = new Map<string, Promise<EnumOption[]>>()
+  private inflight = new Map<string, { controller: AbortController; consumers: number; promise: Promise<EnumOption[]> }>()
 
   constructor(
     private readonly source: readonly EnumOption[] | ((params: P, ctx: EnumLoadContext) => Promise<readonly EnumOption[]> | readonly EnumOption[]),
@@ -72,21 +72,35 @@ export class EnumSource<P = unknown> {
     const key = this.key(params)
     const hit = this.cached(params)
     if (hit) return hit
-    const pending = this.inflight.get(key)
-    if (pending) return pending
-    const task = Promise.resolve(this.source(params, { signal })).then((options) => {
-      const list = options.slice()
-      this.cache.set(key, { at: Date.now(), options: list })
-      this.inflight.delete(key)
-      return list
-    })
-    this.inflight.set(key, task)
-    try {
-      return await task
-    } catch (err) {
-      this.inflight.delete(key)
-      throw err
+    signal.throwIfAborted()
+    let request = this.inflight.get(key)
+    if (!request) {
+      const controller = new AbortController()
+      const promise = Promise.resolve(this.source(params, { signal: controller.signal })).then((options) => {
+        controller.signal.throwIfAborted()
+        const list = options.slice()
+        this.cache.set(key, { at: Date.now(), options: list })
+        return list
+      }).finally(() => {
+        if (this.inflight.get(key)?.controller === controller) this.inflight.delete(key)
+      })
+      request = { controller, consumers: 0, promise }
+      this.inflight.set(key, request)
     }
+    const shared = request
+    shared.consumers++
+    return new Promise((resolve, reject) => {
+      const onAbort = () => {
+        if (--shared.consumers === 0) {
+          if (this.inflight.get(key) === shared) this.inflight.delete(key)
+          shared.controller.abort()
+        }
+        reject(signal.reason)
+      }
+      if (signal.aborted) onAbort()
+      else signal.addEventListener('abort', onAbort, { once: true })
+      shared.promise.then(resolve, reject).finally(() => signal.removeEventListener('abort', onAbort))
+    })
   }
 }
 

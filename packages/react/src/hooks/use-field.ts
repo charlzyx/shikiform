@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useSyncExternalStore, type ComponentProps, type ComponentType, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useSyncExternalStore, type ComponentProps, type ComponentType, type ReactNode } from 'react'
 import type { FormEngine } from '@shikiform/core/internal'
 import type { EnumOption } from '@shikiform/core/internal'
 import { normalizeUiSpec } from '@shikiform/core/internal'
@@ -240,16 +240,16 @@ export function useField(name?: string, options?: UseFieldOptions): FieldBinding
         omit: options.omit,
       }
     : undefined
-  const ownsValidation = !!spec && (spec.rules !== undefined || spec.required !== undefined)
-  const latestSpec = useRef(spec)
-  latestSpec.current = spec
-  if (spec) applyJsxField(form, path, spec)
-  useEffect(() => {
-    // Re-apply on effect setup as well, including React's setup/cleanup/setup probe.
-    // Pure binding consumers (no options) get no cleanup and cannot release another field's lease.
-    const current = latestSpec.current
-    return current ? applyJsxField(form, path, current) : undefined
-  }, [form, path, ownsValidation])
+  const release = useRef<(() => void) | undefined>(undefined)
+  // Releasing only when ownership changes keeps inline rules from running unmount validation on every render.
+  useCommitEffect(() => () => release.current?.(), [
+    form, path, spec?.rules !== undefined, spec?.required !== undefined, spec?.omit !== undefined,
+    spec?.visible !== undefined, spec?.disabled !== undefined, spec?.readOnly !== undefined,
+  ])
+  useCommitEffect(() => {
+    form.registerField(path, {})
+    release.current = spec && applyJsxField(form, path, spec)
+  })
   useJsxEnum(form, path, ui ? undefined : options?.enum)
   useFieldGroupRegistration(path)
   const version = useSyncExternalStore(
@@ -259,12 +259,11 @@ export function useField(name?: string, options?: UseFieldOptions): FieldBinding
   )
   void version
   useUiNode(form, path, ui, 'field')
-  form.registerField(path, {})
   if (ui) {
     // A second UI of a field brings its own decorator; the kit default is for the field itself.
     return withResolvedSlots(withDomId(form.uiBinding(path, ui, uiJsx(options!, path), 'field') as unknown as FieldBinding<any>, prefix), kit, false)
   }
-  return withResolvedSlots(withDomId(form.binding(path, options && uiLayer(options, path)) as FieldBinding<any>, prefix), kit, true)
+  return withResolvedSlots(withDomId(form.binding(path, options && uiLayer(options, path), options) as FieldBinding<any>, prefix), kit, true)
 }
 
 const NO_UI = () => () => {}
@@ -301,24 +300,17 @@ function warnInstanceOptions(path: string, ui: string, options: UseFieldOptions)
   )
 }
 
-/**
- * The `enum` option: a static list is applied during render (first paint has the options), the commit starts an
- * `EnumSource` load and applies `enumPolicy` to an update. Released on unmount, on a path change, or when the
- * option goes back to `undefined`; only the model this component leased is released (rows move with their models).
- */
-function useJsxEnum(form: FormEngine<any, any>, path: string, input: unknown): void {
-  const has = input !== undefined
+const useCommitEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
+
+function useJsxEnum(form: FormEngine<any, any>, path: string, uiOptions: unknown): void {
   const lease = useRef<unknown>(undefined)
-  const latest = useRef(input)
-  latest.current = input
-  if (has) lease.current = form.applyJsxEnum(path, input, 'render')
-  useEffect(() => {
-    if (latest.current !== undefined) lease.current = form.applyJsxEnum(path, latest.current, 'commit')
-  })
-  useEffect(() => {
-    if (!has) return
-    return () => form.releaseJsxEnum(path, lease.current)
+  const has = uiOptions !== undefined
+  useCommitEffect(() => {
+    if (has) return () => form.releaseJsxEnum(path, lease.current)
   }, [form, path, has])
+  useCommitEffect(() => {
+    if (has) lease.current = form.applyJsxEnum(path, uiOptions)
+  })
 }
 
 const NO_FIELD =

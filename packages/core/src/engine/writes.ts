@@ -45,8 +45,6 @@ export interface WriterDeps {
 export class StateWriter {
   private enumTimers = new Map<string, ReturnType<typeof setTimeout>>()
   private enumAbort = new Map<string, AbortController>()
-  /** Paths whose JSX enum changed in a render, waiting for the commit: `true` = an update, so `enumPolicy` applies. */
-  private jsxEnumPending = new Map<string, boolean>()
 
   constructor(private readonly deps: WriterDeps) {}
 
@@ -116,7 +114,7 @@ export class StateWriter {
   patchValues(partial: unknown): void {
     if (!partial || typeof partial !== 'object') return
     const entries: [string, unknown][] = []
-    collectPatchEntries(partial as Record<string, unknown>, '', entries)
+    collectPatchEntries(partial as Record<string, unknown>, this.deps.store.values, '', entries)
     this.commitPatch(entries)
   }
 
@@ -348,22 +346,13 @@ export class StateWriter {
     }
   }
 
-  /**
-   * `<Field enum>`: the JSX layer between a reaction's `$enum` and `fields` / template enums.
-   * `phase: 'render'` applies a static list synchronously (no flush, no `enumPolicy: 'clear'` on the first apply,
-   * no async load) so the first paint already has the options; `phase: 'commit'` (an effect) starts an `EnumSource`
-   * load and flushes reactions that read `$enum`. Re-applying an equal value is a no-op, so an inline array is fine.
-   * Returns the model as the lease for {@link StateWriter.releaseJsxEnum}.
-   */
-  applyJsxEnum(path: string, input: unknown, phase: 'render' | 'commit'): FieldModel {
+  /** Commit an enum lease. Binding previews static options during render without mutating the model. */
+  applyJsxEnum(path: string, input: unknown): FieldModel {
     const { store, notifier, scheduler } = this.deps
     const field = store.ensure(path)
     const binding = toEnumBinding(input)
-    if (binding && phase === 'render') return field
     const next = binding ?? asOptions(input) ?? []
-    let changed = false
     if (!sameJsxEnum(field.jsxEnum, next)) {
-      changed = true
       const first = field.jsxEnum === undefined
       field.jsxEnum = next
       if (!field.enumFromEffect) {
@@ -377,14 +366,10 @@ export class StateWriter {
             notifier.bumpPath(path)
             scheduler.markDirty(`${path}:enum`)
             // An update behaves like `$enum` (policy applies, in the commit); the first mount like a declaration.
-            this.jsxEnumPending.set(path, !first || this.jsxEnumPending.get(path) === true)
+            if (!first) this.afterEnum(path)
           }
         }
       }
-    }
-    if (phase === 'commit' && (changed || this.jsxEnumPending.has(path))) {
-      if (this.jsxEnumPending.get(path)) this.afterEnum(path)
-      this.jsxEnumPending.delete(path)
       scheduler.enqueueFromDirty()
       scheduler.flush()
     }
@@ -484,14 +469,16 @@ function isPlainPatchObject(value: unknown): value is Record<string, unknown> {
   return proto === Object.prototype || proto === null
 }
 
-function collectPatchEntries(node: Record<string, unknown>, prefix: string, out: [string, unknown][]): void {
+function collectPatchEntries(node: Record<string, unknown>, current: unknown, prefix: string, out: [string, unknown][]): void {
   const keys = Object.keys(node)
-  // `{}` merges nothing: an empty object must not replace the value already at `prefix`.
-  if (!keys.length) return
+  if (!keys.length) {
+    if (prefix && !isPlainPatchObject(current)) out.push([prefix, {}])
+    return
+  }
   for (const key of keys) {
     const path = prefix ? `${prefix}.${key}` : key
     const val = node[key]
-    if (isPlainPatchObject(val)) collectPatchEntries(val, path, out)
+    if (isPlainPatchObject(val)) collectPatchEntries(val, isPlainPatchObject(current) ? current[key] : undefined, path, out)
     else out.push([path, val])
   }
 }

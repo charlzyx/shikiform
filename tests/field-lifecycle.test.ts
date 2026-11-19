@@ -23,11 +23,11 @@ describe('React JSX lease sequences over the real engine (not a browser effect t
     const form = createEngine({ initialValues: { email: '' } })
     form.mountJsxField('email', { required: true })
     const cleanup = applyJsxField(form, 'email', { omit: true })
-    cleanup?.()
-    expect(form.binding('email')).toMatchObject({ required: true, omit: true })
-    expect((await fieldErrorsOf(form.validate()))[0]?.path).toBe('email')
     expect(form.getSubmitValues()).toEqual({})
-    expect(cleanup).toBeUndefined()
+    cleanup?.()
+    expect(form.binding('email')).toMatchObject({ required: true, omit: false })
+    expect((await fieldErrorsOf(form.validate()))[0]?.path).toBe('email')
+    expect(form.getSubmitValues()).toEqual({ email: '' })
   })
 
   it('explicit required=false still owns a lease and restores the declaration when released', async () => {
