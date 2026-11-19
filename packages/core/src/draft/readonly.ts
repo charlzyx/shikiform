@@ -20,6 +20,12 @@ import { ShikiUsageError, showDraftPath } from '../errors'
 const TARGETS = new WeakMap<object, object>()
 const VIEWS = new WeakMap<object, object>()
 let viewsCreated = false
+let viewsAllocated = 0
+
+/** How many read-only views have been created. Tests use this to check that repeated reads do not allocate. */
+export function readonlyViewCount(): number {
+  return viewsAllocated
+}
 
 const ARRAY_MUTATORS = new Set(['push', 'pop', 'shift', 'unshift', 'splice', 'sort', 'reverse', 'fill', 'copyWithin'])
 const MAP_MUTATORS = new Set(['set', 'delete', 'clear'])
@@ -104,6 +110,7 @@ export function readonlyValue<V>(value: V, path: string): V {
     },
   })
   viewsCreated = true
+  viewsAllocated += 1
   TARGETS.set(view, value)
   VIEWS.set(value, view)
   return view as V
@@ -215,7 +222,8 @@ function collectionMutation(path: string, method: string, kind: string): ShikiUs
 
 const CLONE_HINT =
   ' This view is not cloneable in development (structuredClone, postMessage, and IndexedDB throw). ' +
-  'Use structuredClone(toRaw(value)) from @shikiform/core, or getSubmitValues() for the submit payload.'
+  'Copy it with snapshot(value) from @shikiform/core. getSubmitValues() is the submit payload. ' +
+  'toRaw(value) is the live stored object; do not mutate it.'
 
 /**
  * Stored object behind a development read-only view (`getValue`, `form.values`, `$value`, a validator `value`).

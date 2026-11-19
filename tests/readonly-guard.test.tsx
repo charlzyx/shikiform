@@ -3,8 +3,10 @@ import { render } from '@testing-library/react'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { useWatch } from '@shikiform/react'
-import { ShikiUsageError, toRaw, type ValidateCtx } from '@shikiform/core'
+import dayjs from 'dayjs'
+import { ShikiUsageError, snapshot, toRaw, type ValidateCtx } from '@shikiform/core'
 import { deepEqual } from '@shikiform/core/internal'
+import { readonlyViewCount } from '../packages/core/src/draft/readonly'
 import { createEngine } from '../packages/core/src/engine/create'
 
 const DATE_SETTERS = [
@@ -86,6 +88,9 @@ describe('development read-only views over live store values', () => {
     expect(new Date(date).getTime()).toBe(at.getTime())
     expect(Number(date)).toBe(at.getTime())
     expect(date.toISOString()).toBe(at.toISOString())
+    expect(dayjs(date).isValid()).toBe(true)
+    expect(dayjs(date).valueOf()).toBe(at.getTime())
+    expect(dayjs(date).toDate().getTime()).toBe(at.getTime())
     expect(Intl.DateTimeFormat('en-US', { timeZone: 'UTC', year: 'numeric' }).format(date)).toBe('2020')
     for (const name of DATE_SETTERS) expect(() => (date as unknown as Record<string, (v: number) => void>)[name]!(1)).toThrow(ShikiUsageError)
     expect(date.getTime()).toBe(at.getTime())
@@ -238,7 +243,7 @@ describe('frozen values, identity, and copy', () => {
     expect(boxed.values.box!.n).toBe(1)
   })
 
-  it('peels views for indexOf, includes, and deepEqual, and copies through toRaw', () => {
+  it('peels views for indexOf, includes, and deepEqual, and copies through snapshot', async () => {
     const form = createEngine({ initialValues: { rows: [{ id: 'a' }, { id: 'b' }], user: { name: 'Ada' } } })
     const rows = form.getValue('rows')
     const rawRow = toRaw(rows[0])
@@ -250,8 +255,18 @@ describe('frozen values, identity, and copy', () => {
     expect(deepEqual(rows, toRaw(rows))).toBe(true)
     expect(deepEqual(form.getValue('user'), toRaw(form.getValue('user')))).toBe(true)
     expect(() => structuredClone(form.values)).toThrow()
-    expect(structuredClone(toRaw(form.values))).toEqual(form.getSubmitValues())
-    expect(() => form.getValue('rows').push({ id: 'c' })).toThrow(/toRaw\(value\)/)
+    expect(snapshot(form.values)).toEqual(form.getSubmitValues())
+    expect(structuredClone(snapshot(form.getValue('rows')))).toEqual([{ id: 'a' }, { id: 'b' }])
+    const channel = new MessageChannel()
+    const posted = await new Promise<unknown>((resolve, reject) => {
+      channel.port1.onmessage = (event) => resolve(event.data)
+      try { channel.port2.postMessage(snapshot(form.values)) } catch (err) { reject(err) }
+    })
+    expect(posted).toEqual(form.getSubmitValues())
+    expect(() => channel.port2.postMessage(form.values)).toThrow()
+    channel.port1.close()
+    channel.port2.close()
+    expect(() => form.getValue('rows').push({ id: 'c' })).toThrow(/snapshot\(value\)/)
   })
 
   it('guards forEach arguments and iterates a Set of objects', () => {
@@ -280,6 +295,7 @@ describe('frozen values, identity, and copy', () => {
       expect(typeof again[i]!.id).toBe('number')
       expect(typeof again[i]!.name).toBe('string')
     }
+    const allocated = readonlyViewCount()
     const started = performance.now()
     for (let pass = 0; pass < 20; pass++) {
       const list = form.getValue('rows')
@@ -287,6 +303,7 @@ describe('frozen values, identity, and copy', () => {
         if (list[i]!.id !== i || list[i]!.name !== 'n' + i) throw new Error('row changed')
       }
     }
+    expect(readonlyViewCount()).toBe(allocated)
     expect(performance.now() - started).toBeLessThan(1000)
   })
 })

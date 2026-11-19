@@ -1,5 +1,5 @@
 import type { Scheduler } from '../effects/scheduler'
-import { readonlyValue } from '../draft/readonly'
+import { peelReadonly, readonlyValue } from '../draft/readonly'
 import { deepEqual } from '../shared/equal'
 import { getAt, normalizePath, parentPath } from '../shared/path'
 import type { FlagName } from '../state/flags'
@@ -680,6 +680,10 @@ const SETTLE_PASSES = 3
 
 /** Writes replace the values object, so identity is the fast path; equal content counts as unchanged. */
 function sameValues(a: unknown, b: unknown): boolean {
+  if (process.env.NODE_ENV !== 'production') {
+    a = peelReadonly(a)
+    b = peelReadonly(b)
+  }
   return a === b || deepEqual(a, b)
 }
 

@@ -35,6 +35,15 @@ export function clone<T>(value: T): T {
 }
 
 /**
+ * Plain copy of a form value, safe for `structuredClone`, `postMessage`, and IndexedDB.
+ * A development read-only view is peeled first. `getSubmitValues()` is the submit payload (omitted fields removed).
+ * `toRaw(value)` is the live stored object, not a copy.
+ */
+export function snapshot<T>(value: T): T {
+  return clone(value)
+}
+
+/**
  * `!deepEqual(a, b)` where `a` / `b` sit at `path`, ignoring every subtree in `skip` (exact data paths).
  * Form-level `dirty` passes own `omit` and computed paths, so that field's subtree does not count.
  * Field-level dirty of the omitted node still sees changes under it that are not themselves in `skip`.
