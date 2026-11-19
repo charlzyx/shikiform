@@ -1,5 +1,5 @@
 import react from '@vitejs/plugin-react'
-import { cpSync, mkdirSync } from 'node:fs'
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import path from 'node:path'
 import { defineConfig, type Plugin } from 'vite'
 import { PLAY_ROUTES } from './routes'
@@ -11,10 +11,14 @@ function copyPlayRoutes(): Plugin {
     apply: 'build',
     closeBundle() {
       const index = path.resolve(__dirname, '../dist/play/index.html')
-      for (const route of PLAY_ROUTES) {
-        const dest = path.resolve(__dirname, '../dist/play', route, 'index.html')
-        mkdirSync(path.dirname(dest), { recursive: true })
-        cpSync(index, dest)
+      const html = readFileSync(index, 'utf8')
+      for (const prefix of ['play', 'en/play']) {
+        const shell = prefix === 'play' ? html : html.replace('lang="zh-CN"', 'lang="en"')
+        for (const route of PLAY_ROUTES) {
+          const dest = path.resolve(__dirname, '../dist', prefix, route, 'index.html')
+          mkdirSync(path.dirname(dest), { recursive: true })
+          writeFileSync(dest, shell)
+        }
       }
     },
   }

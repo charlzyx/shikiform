@@ -1,0 +1,35 @@
+---
+title: "2. State and validation"
+description: "Control visibility independently from submission and apply a Zod schema."
+tableOfContents: false
+---
+
+<div className="tutorial-step">
+<div className="tutorial-copy">
+
+## 2.1 Inherit field state
+
+A handle's `$value` reads data and `$visible` controls rendering. A hidden, disabled or read-only field skips validation. Read-only wins if combined with disabled. Omission independently removes a field or subtree from the payload.
+
+**Try it.** In the reaction, set `d.email.$visible = d.contact.$value`. Turn contact off. To remove the hidden email from the JSON as well, set `d.email.$omit = !d.contact.$value`.
+
+</div>
+
+<TutorialPlay id="04-state" />
+
+</div>
+
+<div className="tutorial-step">
+<div className="tutorial-copy">
+
+## 2.2 Combine field rules and a schema
+
+Pass a Standard Schema validator to `useForm` for whole-form checks. Built-in rules permit empty values unless the field is required. The starter schema accepts an empty email and a nullable age so clearing a number input works.
+
+**Try it.** Pass `validate: schema` to the form. Mark all three fields required and set a minimum name length of two characters. Blur an input and submit to see the errors.
+
+</div>
+
+<TutorialPlay id="09-rules" />
+
+</div>

@@ -1,3 +1,4 @@
+import { localize } from '../language'
 import { useState } from 'react'
 import { ArrayField, defineEffects, Field, Form, useForm, useFormContext, useRecord, useWatch, type Draft } from '@shikiform/react'
 import { Button, Drawer, FormItem, FormLayout, Input, InputNumber, Space, Switch } from '../kit'
@@ -40,8 +41,8 @@ export function NestedPage() {
       open: false,
       city: '',
       orders: [
-        { id: 'o1', title: '未发货', qty: 1, locked: false },
-        { id: 'o2', title: '已发货', qty: 2, locked: true },
+        { id: 'o1', title: localize("未发货", "Not shipped"), qty: 1, locked: false },
+        { id: 'o2', title: localize("已发货", "Shipped"), qty: 2, locked: true },
       ],
     },
     effects: [effects],
@@ -49,7 +50,7 @@ export function NestedPage() {
   })
   return (
     <main>
-      <h1>嵌套数组与抽屉编辑</h1>
+      <h1>{localize("嵌套数组与抽屉编辑", "Nested arrays and an address drawer")}</h1>
       <Form form={form}>
         <NestedBody />
       </Form>
@@ -63,13 +64,13 @@ function NestedBody() {
   const [expanded, setExpanded] = useState(true)
   return (
     <FormLayout style={{ maxWidth: 520 }}>
-      <Field name="editMode" title="可编辑" decorator={[FormItem]} component={[Switch, { 'data-testid': 'edit-mode' }]} />
+      <Field name="editMode" title={localize("可编辑", "Editable")} decorator={[FormItem]} component={[Switch, { 'data-testid': 'edit-mode' }]} />
       <Space style={{ marginBottom: 12 }}>
         <Button data-testid="toggle-orders" onClick={() => setExpanded((value) => !value)}>
-          {expanded ? '收起' : '展开'}
+          {expanded ? localize("收起", "Collapse") : localize("展开", "Expand")}
         </Button>
         <Button data-testid="open-drawer" onClick={() => form.setValue('open', true)}>
-          地址
+          {localize("地址", "Address")}
         </Button>
       </Space>
       {expanded ? (
@@ -79,10 +80,10 @@ function NestedBody() {
           </ArrayField>
         </div>
       ) : (
-        <div data-testid="orders-collapsed">已收起</div>
+        <div data-testid="orders-collapsed">{localize("已收起", "Collapsed")}</div>
       )}
-      <Drawer open={!!open} onClose={() => form.setValue('open', false)} title="地址">
-        <Field name="city" title="城市" decorator={[FormItem]} component={[Input, { 'data-testid': 'city' }]} />
+      <Drawer open={!!open} onClose={() => form.setValue('open', false)} title={localize("地址", "Address")}>
+        <Field name="city" title={localize("城市", "City")} decorator={[FormItem]} component={[Input, { 'data-testid': 'city' }]} />
       </Drawer>
     </FormLayout>
   )

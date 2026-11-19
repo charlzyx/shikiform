@@ -1,0 +1,64 @@
+---
+title: "Field paths"
+description: "Read and write individual values inside and outside an effect."
+---
+
+## Read and write a nested field
+
+Use `form.getValue` and `form.setValue` outside an effect. Inside a reaction, watch or batch, follow the draft to the target path. Numeric segments can be written as `items.0.qty` or `items[0].qty`.
+
+```ts
+// Use draft handles in effects and batches. Use query for a dynamic path in effects.
+d.orders[0].lines[2].qty.$value
+d.orders[0].lines[2].qty.$value = 4
+query('orders.0.lines.2.qty').$value
+
+// Read and write the form directly outside effects.
+form.getValue('orders[0].lines[2].qty')
+form.setValue('orders[0].lines[2].qty', 4)
+form.getValue('orders.0.lines.2.qty')
+```
+
+Updating `d.user.name.$value` notifies readers of that field. Replacing `d.user.$value` replaces the whole record. Never mutate the snapshot returned by `$value`.
+
+```tsx preview
+import { enUS, Field, Form, useForm } from '@shikiform/react';
+
+type Values = { orders: { lines: { sku: string; qty: number }[] }[] };
+
+export default function App() {
+  const form = useForm<Values>({
+    messages: enUS,
+    initialValues: { orders: [{ lines: [{ sku: 'pen', qty: 1 }, { sku: 'book', qty: 2 }] }] },
+  });
+  return (
+    <Form form={form}>
+      <Field<Values, 'orders.0.lines.0.qty'> name="orders.0.lines.0.qty" title="First row quantity">
+        {(f) => (
+          <p>
+            <label htmlFor={f.id}>{f.title}：</label>
+            <input
+              id={f.id}
+              type="number"
+              value={f.value ?? 0}
+              onChange={(e) => f.onChange(Number(e.target.value))}
+              onBlur={f.onBlur}
+            />
+          </p>
+        )}
+      </Field>
+      <button
+        type="button"
+        onClick={() => {
+          const qty = form.getValue('orders[0].lines[0].qty');
+          form.setValue('orders[0].lines[0].qty', (qty ?? 0) + 1);
+        }}
+      >
+        Increment by path
+      </button>
+    </Form>
+  );
+}
+```
+
+See [objects and arrays](/en/guide/structures) for relative names inside a scope.

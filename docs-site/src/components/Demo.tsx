@@ -11,6 +11,7 @@ import { Playground } from '../bridge/playground/Playground'
 import { SiteThemeProvider } from '../bridge/theme'
 
 export interface DemoProps {
+  english?: boolean
   code: string
   language: string
   mode: 'preview' | 'live'
@@ -19,13 +20,14 @@ export interface DemoProps {
   play?: string
 }
 
-export default function Demo({ code, language, mode, id, play }: DemoProps) {
+export default function Demo({ code, language, mode, id, play, english }: DemoProps) {
   const component = demoComponents[id]
   if (mode === 'preview' && !component) throw new Error(`Missing compiled preview: ${id}`)
   const files = useMemo(() => ({ [`App.${language}`]: code }), [code, language])
   // 源码变更即重开；主题切换原地重渲染、保留表单状态。
   return (
     <SiteThemeProvider>
-      <Playground key={`${id}:${code}`} files={files} language={language} component={component} editing={mode === 'live'} play={play} />    </SiteThemeProvider>
+      <Playground key={`${id}:${code}`} files={files} language={language} component={component} editing={mode === 'live'} play={play} english={english} />
+    </SiteThemeProvider>
   )
 }

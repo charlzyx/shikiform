@@ -1,3 +1,4 @@
+import { localize } from './language'
 import './kit.css'
 import {
   Children,
@@ -132,7 +133,7 @@ export function Divider({ children }: { children?: ReactNode }) {
 export function Spin({ 'data-testid': testId }: { 'data-testid'?: string }) {
   return (
     <div data-testid={testId} style={{ padding: 12, color: 'var(--sk-muted)', fontSize: 13 }}>
-      加载中…
+      {localize("加载中…", "Loading…")}
     </div>
   )
 }
@@ -156,7 +157,7 @@ export function Modal({
       <div className="sk-modal" onClick={(e) => e.stopPropagation()}>
         <div className="sk-dialog-head">
           <span>{title}</span>
-          <button type="button" className="sk-btn sk-btn--link sk-btn--sm" onClick={onClose} aria-label="关闭">
+          <button type="button" className="sk-btn sk-btn--link sk-btn--sm" onClick={onClose} aria-label={localize("关闭", "Close")}>
             ✕
           </button>
         </div>
@@ -186,7 +187,7 @@ export function Drawer({
       <div className="sk-drawer" onClick={(e) => e.stopPropagation()}>
         <div className="sk-dialog-head">
           <span>{title}</span>
-          <button type="button" className="sk-btn sk-btn--link sk-btn--sm" onClick={onClose} aria-label="关闭">
+          <button type="button" className="sk-btn sk-btn--link sk-btn--sm" onClick={onClose} aria-label={localize("关闭", "Close")}>
             ✕
           </button>
         </div>
@@ -495,7 +496,7 @@ function RawSelect({
         })}
         {allowClear && selected.length > 0 && !disabled ? (
           <button type="button" className="sk-btn sk-btn--link sk-btn--sm" onClick={() => onChange?.([])}>
-            清空
+            {localize("清空", "Clear")}
           </button>
         ) : null}
       </div>
@@ -523,7 +524,7 @@ function RawSelect({
         onChange?.(opt?.value)
       }}
     >
-      <option value="">{placeholder ?? (allowClear ? '全部' : '请选择')}</option>
+      <option value="">{placeholder ?? (allowClear ? localize("全部", "All") : localize("请选择", "Choose an option"))}</option>
       {options.map((opt, idx) => (
         <option key={String(opt.value)} value={String(idx)} disabled={opt.disabled}>
           {opt.label}
@@ -671,7 +672,7 @@ const BaseCheckbox = connect(
   RawCheckbox,
   mapProps({
     value: 'checked',
-    preview: ({ value }: { value?: boolean }) => <span>{value ? '是' : '否'}</span>,
+    preview: ({ value }: { value?: boolean }) => <span>{value ? localize("是", "Yes") : localize("否", "No")}</span>,
   }),
 )
 
@@ -715,7 +716,7 @@ export const Switch = connect(
   RawSwitch,
   mapProps({
     value: 'checked',
-    preview: ({ value }: { value?: boolean }) => <span>{value ? '开' : '关'}</span>,
+    preview: ({ value }: { value?: boolean }) => <span>{value ? localize("开", "On") : localize("关", "Off")}</span>,
   }),
 )
 
@@ -806,7 +807,7 @@ export function SuggestionView({
   debounce = 200,
   multiple,
   labelInValue,
-  placeholder = '输入关键字联想…',
+  placeholder = localize("输入关键字联想…", "Type to search…"),
   'data-testid': testId,
 }: SuggestionViewProps) {
   const api = useSuggestion({ fetch, debounce })
@@ -895,7 +896,7 @@ export function SuggestionView({
         <div className="sk-dropdown-menu">
           {api.loading ? (
             <div className="sk-dropdown-item" style={{ color: 'var(--sk-muted)' }}>
-              搜索中…
+              {localize("搜索中…", "Searching…")}
             </div>
           ) : null}
           {api.options.map((opt) => {
@@ -974,7 +975,7 @@ export function CascaderPlusView({
   loadData,
   multiple,
   labelInValue,
-  placeholder = '请选择',
+  placeholder = localize("请选择", "Choose an option"),
   'data-testid': testId,
 }: CascaderPlusViewProps) {
   const rawPaths = useMemo(() => toRawPaths(value, multiple), [value, multiple])
@@ -1058,7 +1059,7 @@ export function CascaderPlusView({
           onClick={() => setOpen((o) => !o)}
         >
           {api.loading ? (
-            <span style={{ color: 'var(--sk-muted)' }}>加载中…</span>
+            <span style={{ color: 'var(--sk-muted)' }}>{localize("加载中…", "Loading…")}</span>
           ) : displayPaths.length ? (
             displayPaths.join('，')
           ) : (
@@ -1067,14 +1068,14 @@ export function CascaderPlusView({
         </button>
         {displayPaths.length > 0 && !disabled ? (
           <Button size="sm" onClick={() => onChange?.([])}>
-            清空
+            {localize("清空", "Clear")}
           </Button>
         ) : null}
       </div>
       {open && !disabled ? (
         <div className="sk-cascader-cols">
           {columns.length === 0 ? (
-            <div style={{ padding: 12, color: 'var(--sk-muted)' }}>{api.loading ? '加载中…' : '暂无数据'}</div>
+            <div style={{ padding: 12, color: 'var(--sk-muted)' }}>{api.loading ? localize("加载中…", "Loading…") : localize("暂无数据", "No results")}</div>
           ) : (
             columns.map((col, depth) => (
               <ul key={depth} className="sk-cascader-col">
@@ -1165,7 +1166,7 @@ export function ShadowModal<TValues extends Record<string, any> = Record<string,
   form,
   add,
   rowKey,
-  title = '编辑',
+  title = localize("编辑", "Edit"),
   initialValues,
   record,
   onOk,
@@ -1187,9 +1188,9 @@ export function ShadowModal<TValues extends Record<string, any> = Record<string,
         onClose={shadow.cancel}
         footer={
           <>
-            <Button onClick={shadow.cancel}>取消</Button>
+            <Button onClick={shadow.cancel}>{localize("取消", "Cancel")}</Button>
             <Button variant="primary" loading={shadow.submitting} onClick={() => void shadow.confirm()}>
-              确定
+              {localize("确定", "Confirm")}
             </Button>
           </>
         }
@@ -1209,7 +1210,7 @@ export function ShadowDrawer<TValues extends Record<string, any> = Record<string
   form,
   add,
   rowKey,
-  title = '编辑',
+  title = localize("编辑", "Edit"),
   initialValues,
   record,
   onOk,
@@ -1231,9 +1232,9 @@ export function ShadowDrawer<TValues extends Record<string, any> = Record<string
         onClose={shadow.cancel}
         footer={
           <>
-            <Button onClick={shadow.cancel}>取消</Button>
+            <Button onClick={shadow.cancel}>{localize("取消", "Cancel")}</Button>
             <Button variant="primary" loading={shadow.submitting} onClick={() => void shadow.confirm()}>
-              确定
+              {localize("确定", "Confirm")}
             </Button>
           </>
         }
@@ -1264,7 +1265,7 @@ export function ShadowPopconfirm<TValues extends Record<string, any> = Record<st
   const open = () => void shadow.open(record)
   const triggerEl = trigger && isValidElement(trigger)
     ? cloneElement(trigger, { onClick: open })
-    : <Button onClick={open}>编辑</Button>
+    : <Button onClick={open}>{localize("编辑", "Edit")}</Button>
   return (
     <span className="sk-pop-wrap">
       {triggerEl}
@@ -1276,9 +1277,9 @@ export function ShadowPopconfirm<TValues extends Record<string, any> = Record<st
             </Form>
           </ShadowCtx.Provider>
           <Space style={{ justifyContent: 'flex-end', marginTop: 10 }}>
-            <Button size="sm" onClick={shadow.cancel}>取消</Button>
+            <Button size="sm" onClick={shadow.cancel}>{localize("取消", "Cancel")}</Button>
             <Button size="sm" variant="primary" loading={shadow.submitting} onClick={() => void shadow.confirm()}>
-              确定
+              {localize("确定", "Confirm")}
             </Button>
           </Space>
         </div>
@@ -1491,11 +1492,11 @@ function ArrayTableImpl<TRow = any>({
               {settings ? (
                 <span className="sk-pop-wrap">
                   <Button size="sm" data-testid="column-settings" onClick={() => setShowSettings((v) => !v)}>
-                    列配置
+                    {localize("列配置", "Column settings")}
                   </Button>
                   {showSettings ? (
                     <div className="sk-pop" style={{ right: 0, left: 'auto', minWidth: 180 }}>
-                      <div style={{ fontWeight: 600, marginBottom: 6 }}>显示列</div>
+                      <div style={{ fontWeight: 600, marginBottom: 6 }}>{localize("显示列", "Visible columns")}</div>
                       {colSettings.items.map((col) => (
                         <label key={col.key} className="sk-choice" style={{ display: 'flex', marginBottom: 4 }}>
                           <input
@@ -1507,7 +1508,7 @@ function ArrayTableImpl<TRow = any>({
                         </label>
                       ))}
                       <Button size="sm" onClick={() => colSettings.reset()} style={{ marginTop: 6 }}>
-                        重置列
+                        {localize("重置列", "Reset columns")}
                       </Button>
                     </div>
                   ) : null}
@@ -1525,7 +1526,7 @@ function ArrayTableImpl<TRow = any>({
                   <th style={{ width: 38, textAlign: 'center' }}>
                     <input
                       type="checkbox"
-                      aria-label="全选当前页"
+                      aria-label={localize("全选当前页", "Select this page")}
                       checked={allPageSelected}
                       onChange={(e) => (e.target.checked ? table.selectPage() : table.clearSelection())}
                     />
@@ -1558,7 +1559,7 @@ function ArrayTableImpl<TRow = any>({
             {table.pageRows.length === 0 ? (
               <tr>
                 <td colSpan={totalCols} style={{ textAlign: 'center', color: 'var(--sk-muted)', padding: 16 }}>
-                  暂无数据
+                  {localize("暂无数据", "No results")}
                 </td>
               </tr>
             ) : (
@@ -1592,7 +1593,7 @@ function ArrayTableImpl<TRow = any>({
                               <button
                                 type="button"
                                 className="sk-btn sk-btn--link sk-btn--sm"
-                                aria-label={expanded ? '收起行' : '展开行'}
+                                aria-label={expanded ? localize("收起行", "Collapse row") : localize("展开行", "Expand row")}
                                 onClick={() => table.toggleExpanded(row.key)}
                               >
                                 {expanded ? '−' : '+'}
@@ -1627,13 +1628,13 @@ function ArrayTableImpl<TRow = any>({
             {table.showPager ? (
               <div className="sk-pager">
                 <span>
-                  第 {table.page} / {table.pageCount} 页（共 {table.total} 条）
+                  {localize("第", "Page")} {table.page} / {table.pageCount} {localize("页（共", "of")} {table.total} {localize("条）", "rows)")}
                 </span>
                 <Button size="sm" disabled={table.page <= 1} onClick={() => table.setPage(table.page - 1)}>
-                  上一页
+                  {localize("上一页", "Previous")}
                 </Button>
                 <Button size="sm" disabled={table.page >= table.pageCount} onClick={() => table.setPage(table.page + 1)}>
-                  下一页
+                  {localize("下一页", "Next")}
                 </Button>
               </div>
             ) : null}
@@ -1651,7 +1652,7 @@ function ArrayTableIndex() {
 
 function ArrayTableSortHandle() {
   return (
-    <span style={{ cursor: 'grab', userSelect: 'none', color: 'var(--sk-muted)' }} title="拖拽排序">
+    <span style={{ cursor: 'grab', userSelect: 'none', color: 'var(--sk-muted)' }} title={localize("拖拽排序", "Drag to reorder")}>
       ⋮⋮
     </span>
   )
@@ -1674,10 +1675,10 @@ function ArrayTableRemove({ confirm }: { confirm?: boolean }) {
             void table.remove(row.index).finally(() => setAsking(false))
           }}
         >
-          确认删除
+          {localize("确认删除", "Confirm deletion")}
         </Button>
         <Button size="sm" onClick={() => setAsking(false)}>
-          取消
+          {localize("取消", "Cancel")}
         </Button>
       </Space>
     )
@@ -1690,7 +1691,7 @@ function ArrayTableRemove({ confirm }: { confirm?: boolean }) {
       loading={removing}
       onClick={() => (confirm ? setAsking(true) : void table.remove(row.index))}
     >
-      删除
+      {localize("删除", "Delete")}
     </Button>
   )
 }
@@ -1700,7 +1701,7 @@ function ArrayTableMoveUp() {
   const row = useArrayRowCtx()
   return (
     <Button size="sm" variant="link" disabled={row.index <= 0} onClick={() => table.moveUp(row.index)}>
-      上移
+      {localize("上移", "Move up")}
     </Button>
   )
 }
@@ -1710,13 +1711,13 @@ function ArrayTableMoveDown() {
   const row = useArrayRowCtx()
   return (
     <Button size="sm" variant="link" disabled={row.index >= table.rows.length - 1} onClick={() => table.moveDown(row.index)}>
-      下移
+      {localize("下移", "Move down")}
     </Button>
   )
 }
 
 function ArrayTableAddition<TRow = any>({
-  title = '添加',
+  title = localize("添加", "Add"),
   defaultValue,
 }: {
   title?: ReactNode
@@ -1735,7 +1736,7 @@ function ArrayTableAddition<TRow = any>({
 }
 
 function ArrayTableShadowAddition<TRow extends Record<string, any> = Record<string, any>>({
-  title = '添加条目',
+  title = localize("添加条目", "Add item"),
   popType = 'modal',
   initialValues,
   onOk,
@@ -1828,14 +1829,14 @@ export function QueryList<TValues extends Record<string, any>, TParams, TRow>({
           {visibleFields}
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', paddingBottom: 12 }}>
             <Button variant="primary" htmlType="submit" data-testid="query-submit" loading={table.loading}>
-              查询
+              {localize("查询", "Search")}
             </Button>
             <Button data-testid="query-reset" onClick={() => table.reset()}>
-              重置
+              {localize("重置", "Reset")}
             </Button>
             {collapsible ? (
               <Button variant="link" size="sm" data-testid="query-toggle" onClick={() => setCollapsed((c) => !c)}>
-                {collapsed ? '展开' : '收起'}
+                {collapsed ? localize("展开", "Expand") : localize("收起", "Collapse")}
               </Button>
             ) : null}
           </div>
@@ -1856,7 +1857,7 @@ export function QueryList<TValues extends Record<string, any>, TParams, TRow>({
           <Space>
             {toolbar}
             <Button size="sm" data-testid="query-refresh" onClick={() => table.refresh()}>
-              刷新
+              {localize("刷新", "Refresh")}
             </Button>
           </Space>
         }

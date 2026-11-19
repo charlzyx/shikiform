@@ -1,4 +1,6 @@
 ---
+import { pageLanguage } from "@/lib/language";
+const english = pageLanguage(Astro.url.pathname) === "en";
 /**
  * Pagination — previous/next page links as one surface. A highlight slides to
  * whichever half you point at, and [ / ] move between pages from the keyboard.
@@ -29,8 +31,8 @@ interface Props extends HTMLAttributes<"nav"> {
 
 const {
   prevNext,
-  prevLabel = "上一页",
-  nextLabel = "下一页",
+  prevLabel = english ? "Previous" : "上一页",
+  nextLabel = english ? "Next" : "下一页",
   keys = true,
   class: className,
   ...attrs
@@ -41,7 +43,7 @@ const next = composed ? undefined : prevNext?.next;
 ---
 
 {(composed || prev || next) && (
-  <nav aria-label="分页" data-slot="pagination" class={cn("mt-12", className)} {...attrs}>
+  <nav aria-label={english ? "Pagination" : "分页"} data-slot="pagination" class={cn("mt-12", className)} {...attrs}>
     <div
       data-nb-pagination
       data-slot="pagination-bar"

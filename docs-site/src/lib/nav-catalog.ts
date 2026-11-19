@@ -1,3 +1,4 @@
+import { englishLabel, languagePath } from "./language";
 import { config } from "virtual:nimbus/config";
 import { withBase } from "@cloudflare/nimbus-docs/runtime";
 
@@ -27,7 +28,7 @@ interface SidebarGroup {
 
 type SidebarEntry = string | SidebarLeaf | SidebarGroup;
 
-export function getNavCatalog(baseUrl: string): {
+export function getNavCatalog(baseUrl: string, language: "en" | "zh-CN"): {
   groups: NavGroup[];
   items: NavItem[];
 } {
@@ -98,5 +99,14 @@ export function getNavCatalog(baseUrl: string): {
     }
   }
 
+  if (language === "en") {
+    for (const group of groups) group.label = englishLabel(group.label);
+    for (const item of items) {
+      item.label = englishLabel(item.label);
+      item.groupLabel = englishLabel(item.groupLabel);
+      item.path = languagePath(item.path, language);
+      item.href = withBase(item.path, baseUrl);
+    }
+  }
   return { groups, items };
 }

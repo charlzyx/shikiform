@@ -1,3 +1,4 @@
+import { localize } from '../language'
 import { useEffect, useRef, useState } from 'react'
 import { defineEffects, Field, Form, ObjectField, useForm, useWatch, type Draft } from '@shikiform/react'
 import { Button, FormButtonGroup, FormItem, FormLayout, Input, Radio } from '../kit'
@@ -11,10 +12,10 @@ interface Values {
 }
 
 const MODES = [
-  { label: '显示 visible', value: 'visible' },
-  { label: '隐藏 hidden', value: 'hidden' },
-  { label: '不提交 omit', value: 'omit' },
-  { label: '只读 readOnly', value: 'readOnly' },
+  { label: localize("显示 visible", "Visible"), value: 'visible' },
+  { label: localize("隐藏 hidden", "Hidden"), value: 'hidden' },
+  { label: localize("不提交 omit", "Omit"), value: 'omit' },
+  { label: localize("只读 readOnly", "Read only"), value: 'readOnly' },
 ]
 
 const effects = defineEffects<Values>(({ reaction }) => {
@@ -47,7 +48,7 @@ export function DisplayPage() {
     initialValues: { mode: 'visible', box: { email: 'a@b.co' } },
     fields: {
       mode: { omit: true },
-      'box.email': { rules: [{ required: true, message: '邮箱必填' }] },
+      'box.email': { rules: [{ required: true, message: localize("邮箱必填", "Email is required") }] },
     },
     effects: [effects],
   })
@@ -67,25 +68,25 @@ export function DisplayPage() {
         }}
       >
         <ClearOnMode clear={() => { setPayload(''); setErrors('') }} />
-        <h1>显隐</h1>
+        <h1>{localize("显隐", "Field visibility")}</h1>
         <p>
-          reaction 写 <code>d.box</code> 的四个开关，里面的邮箱跟着 <code>visible</code> / <code>readOnly</code> / <code>omit</code>（父级 <code>omit</code> 时子字段读到的也是 true，不能用 <code>omit: false</code> 单独提交）。
-          <b>hidden</b>：不渲染、不校验，值照常提交；
-          <b>omit</b>：仍渲染、仍校验，整棵子树不提交；
-          <b>readOnly</b>：渲染预览、不校验、照常提交。清空邮箱再切到「不提交」提交，会看到「邮箱必填」。
+          {localize("reaction 写", "A reaction sets")} <code>d.box</code> {localize("的四个开关，里面的邮箱跟着", "on the parent. The email field inherits")} <code>visible</code> / <code>readOnly</code> / <code>omit</code>{localize("（父级", ". When the parent sets")} <code>omit</code> {localize("时子字段读到的也是 true，不能用", ", the child also reads true. Setting")} <code>omit: false</code> {localize("单独提交）。", "on the child cannot restore it.")}
+          <b>hidden</b>{localize("：不渲染、不校验，值照常提交；", " hides the input and skips validation, but includes the value in submission.")}
+          <b>omit</b>{localize("：仍渲染、仍校验，整棵子树不提交；", " keeps the input visible and validates it, but excludes the subtree from submission.")}
+          <b>readOnly</b>{localize("：渲染预览、不校验、照常提交。清空邮箱再切到「不提交」提交，会看到「邮箱必填」。", " shows a preview, skips validation and includes the value. Clear the email and choose Omit to see the required error.")}
         </p>
         <FormLayout>
-          <Field name="mode" title="box 的状态" enum={MODES} decorator={[FormItem]} component={[Radio, { optionType: 'button' }]} />
+          <Field name="mode" title={localize("box 的状态", "Parent field state")} enum={MODES} decorator={[FormItem]} component={[Radio, { optionType: 'button' }]} />
           <ObjectField name="box">
-            <Field name="email" title="邮箱" decorator={[FormItem]} component={[Input, tid('email')]} />
+            <Field name="email" title={localize("邮箱", "Email")} decorator={[FormItem]} component={[Input, tid('email')]} />
           </ObjectField>
           <FormButtonGroup>
             {/* A plain submit button: <Submit /> would stay disabled while the hidden field has an error. */}
-            <Button variant="primary" htmlType="submit" data-testid="submit">提交</Button>
+            <Button variant="primary" htmlType="submit" data-testid="submit">{localize("提交", "Submit")}</Button>
           </FormButtonGroup>
         </FormLayout>
-        <p>错误：<span data-testid="errors">{errors}</span></p>
-        <p>提交值：<code data-testid="payload">{payload}</code></p>
+        <p>{localize("错误：", "Errors:")}<span data-testid="errors">{errors}</span></p>
+        <p>{localize("提交值：", "Submitted values:")}<code data-testid="payload">{payload}</code></p>
       </Form>
     </main>
   )

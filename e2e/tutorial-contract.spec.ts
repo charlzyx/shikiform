@@ -26,7 +26,7 @@ test('typing in the tutorial editor changes the code and leaves the sidebar filt
   await page.keyboard.type('//x')
   await expect(editor).toContainText('//x')
   // type="search" is a searchbox, not a textbox.
-  await expect(page.getByRole('searchbox', { name: 'Filter navigation' })).toHaveValue('')
+  await expect(page.getByRole('searchbox', { name: '筛选导航' })).toHaveValue('')
 })
 
 test('the copied example submits through the public package and can be edited and reset', async ({ page }) => {

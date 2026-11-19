@@ -1,3 +1,4 @@
+import { localize, english } from '../language'
 import { Field, Form, useArrayField, useForm, useWatch, type Draft } from '@shikiform/react'
 import { Button, Checkbox, FormItem, Input, InputNumber, MergedTable, Select, Space, Switch } from '../kit'
 import { newProduct, newSupplier, supplierRows, type FlatRow, type Supplier } from '../merged-model'
@@ -11,22 +12,22 @@ interface Values {
 const INITIAL: Supplier[] = [
   {
     id: 'sA',
-    name: '供应商A',
+    name: localize("供应商A", "Supplier A"),
     level: 'C',
     products: [
-      { id: 'p1', name: '螺丝', price: 10, active: true },
-      { id: 'p2', name: '螺母', price: 20, active: false },
+      { id: 'p1', name: localize("螺丝", "Screw"), price: 10, active: true },
+      { id: 'p2', name: localize("螺母", "Nut"), price: 20, active: false },
     ],
   },
   {
     id: 'sB',
-    name: '供应商B',
+    name: localize("供应商B", "Supplier B"),
     level: 'A',
-    products: [{ id: 'p3', name: '垫片', price: 5, active: true }],
+    products: [{ id: 'p3', name: localize("垫片", "Washer"), price: 5, active: true }],
   },
 ]
 
-const LEVELS = ['A', 'B', 'C'].map((value) => ({ label: `${value} 级`, value }))
+const LEVELS = ['A', 'B', 'C'].map((value) => ({ label: (english ? `Grade ${value}` : `${value} 级`), value }))
 /** A table cell: no label, errors right under the control. */
 const cell = [FormItem, { compact: true }] as const
 
@@ -54,13 +55,13 @@ function MergedBody() {
   const rows = supplierRows(suppliers, onlyActive)
   return (
     <main>
-      <h1>供应商和产品</h1>
+      <h1>{localize("供应商和产品", "Suppliers and products")}</h1>
       <p>
-        按供应商合并单元格。C 级供应商的产品单价不能超过 1000，供应商不能重名。没有产品（或筛选后没有在售产品）的供应商仍保留一行，用来改名、加产品；这一行不创建产品。
+        {localize("按供应商合并单元格。C 级供应商的产品单价不能超过 1000，供应商不能重名。没有产品（或筛选后没有在售产品）的供应商仍保留一行，用来改名、加产品；这一行不创建产品。", "Each supplier spans its product rows. Grade C prices cannot exceed 1000, and supplier names must be unique. An empty supplier keeps a placeholder row for renaming and adding products, even after filtering.")}
       </p>
-      <Field name="onlyActive" title="只看在售" decorator={[FormItem]} component={[Switch, tid('only-active')]} />
+      <Field name="onlyActive" title={localize("只看在售", "Active products only")} decorator={[FormItem]} component={[Switch, tid('only-active')]} />
       <p>
-        供应商顺序：<span data-testid="names">{suppliers.map((supplier) => supplier.name).join(',')}</span>
+        {localize("供应商顺序：", "Supplier order:")}<span data-testid="names">{suppliers.map((supplier) => supplier.name).join(',')}</span>
       </p>
       <MergedTable
         rows={rows}
@@ -68,18 +69,18 @@ function MergedBody() {
         rowKey={mergedRowKey}
         columns={[
           {
-            title: '供应商',
+            title: localize("供应商", "Supplier"),
             key: 'supplier',
             merge: true,
             render: (row) => (row.lead ? <SupplierCell supplierIndex={row.supplierIndex} rowId={row.id} /> : null),
           },
           {
-            title: '产品',
+            title: localize("产品", "Product"),
             key: 'name',
             render: (row) =>
               row.productIndex === null ? (
                 <span data-testid={`empty-supplier-${row.supplierId}`}>
-                  {suppliers[row.supplierIndex]!.products.length ? '没有在售产品' : '暂无产品'}
+                  {suppliers[row.supplierIndex]!.products.length ? localize("没有在售产品", "No active products") : localize("暂无产品", "No products")}
                 </span>
               ) : (
                 <span data-testid={`name-${row.id}`}>
@@ -88,7 +89,7 @@ function MergedBody() {
               ),
           },
           {
-            title: '单价',
+            title: localize("单价", "Unit price"),
             key: 'price',
             render: (row) =>
               row.productIndex === null ? null : (
@@ -97,13 +98,13 @@ function MergedBody() {
                     name={`suppliers.${row.supplierIndex}.products.${row.productIndex}.price`}
                     decorator={cell}
                     component={[InputNumber, tid(`price-${row.id}`)]}
-                    rules={{ validator: (value, ctx) => (ctx.parent?.level === 'C' && Number(value) > 1000 ? 'C 级供应商单价不能超过 1000' : null) }}
+                    rules={{ validator: (value, ctx) => (ctx.parent?.level === 'C' && Number(value) > 1000 ? localize("C 级供应商单价不能超过 1000", "Grade C unit prices cannot exceed 1000") : null) }}
                   />
                 </div>
               ),
           },
           {
-            title: '在售',
+            title: localize("在售", "Active"),
             key: 'active',
             render: (row) =>
               row.productIndex === null ? null : (
@@ -113,7 +114,7 @@ function MergedBody() {
         ]}
       />
       <Button style={{ marginTop: 10 }} data-testid="add-supplier" onClick={() => suppliersHandle.push(newSupplier())}>
-        加供应商
+        {localize("加供应商", "Add supplier")}
       </Button>
     </main>
   )
@@ -135,12 +136,12 @@ function SupplierCell({ supplierIndex, rowId }: { supplierIndex: number; rowId: 
         <Field
           name={`suppliers.${supplierIndex}.name`}
           decorator={cell}
-          component={[Input, { ...tid(`supplier-${rowId}`), 'aria-label': '供应商名称', placeholder: '供应商名称' }]}
+          component={[Input, { ...tid(`supplier-${rowId}`), 'aria-label': localize("供应商名称", "Supplier name"), placeholder: localize("供应商名称", "Supplier name") }]}
           rules={[
-            { required: true, message: '供应商必填' },
+            { required: true, message: localize("供应商必填", "Supplier name is required") },
             {
               validator: (value, ctx) =>
-                (ctx.array ?? []).filter((item: { name?: string }) => item?.name && item.name === value).length > 1 ? '供应商重名' : null,
+                (ctx.array ?? []).filter((item: { name?: string }) => item?.name && item.name === value).length > 1 ? localize("供应商重名", "Duplicate supplier name") : null,
             },
           ]}
         />
@@ -148,14 +149,14 @@ function SupplierCell({ supplierIndex, rowId }: { supplierIndex: number; rowId: 
       <Field name={`suppliers.${supplierIndex}.level`} enum={LEVELS} component={[Select, { ...tid(`level-${supplier.id}`), style: { width: 100 } }]} />
       <Space>
         <Button size="sm" data-testid={`up-${supplier.id}`} disabled={supplierIndex === 0} onClick={() => suppliersHandle.move(supplierIndex, supplierIndex - 1)}>
-          组上移
+          {localize("组上移", "Move group up")}
         </Button>
         <Button
           size="sm"
           data-testid={`add-product-${supplier.id}`}
           onClick={() => products.push(newProduct())}
         >
-          加产品
+          {localize("加产品", "Add product")}
         </Button>
       </Space>
     </Space>

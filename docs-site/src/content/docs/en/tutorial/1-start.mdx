@@ -1,0 +1,35 @@
+---
+title: "1. Fields and paths"
+description: "Bind an input and add a field inside an address object."
+tableOfContents: false
+---
+
+<div className="tutorial-step">
+<div className="tutorial-copy">
+
+## 1.1 Bind your first field
+
+`useForm` creates the engine. `<Form>` supplies its context and `<Field>` binds a control to a path. A field render function receives `id`, `value`, `onChange`, `onBlur` and `errors`. Use `ObjectField` for an object, `ArrayField` for repeated records and `TreeField` for a tree.
+
+**Try it.** Add `email: ''` to `initialValues` and render a field named `email`. Submit and check that the JSON contains both `name` and `email`.
+
+</div>
+
+<TutorialPlay id="01-start" />
+
+</div>
+
+<div className="tutorial-step">
+<div className="tutorial-copy">
+
+## 1.2 Use relative paths
+
+The form has a top-level name and an address with a city. Inside `<ObjectField name="address">` the path `city` resolves to `address.city`.
+
+**Try it.** Add `street` to the initial address and render the corresponding field inside the object scope. Submit and inspect both address properties.
+
+</div>
+
+<TutorialPlay id="02-profile" />
+
+</div>

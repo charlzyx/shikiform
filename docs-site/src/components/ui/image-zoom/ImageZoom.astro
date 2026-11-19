@@ -6,12 +6,14 @@
  *
  * Opt an image out with `data-nb-zoom="off"` on it or on a wrapper.
  */
+import { pageLanguage } from "@/lib/language";
 import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
+const english = pageLanguage(Astro.url.pathname) === "en";
 ---
 
-<dialog data-slot="image-zoom" data-nb-image-zoom aria-label="Enlarged image" class="nb-zoom">
+<dialog data-slot="image-zoom" data-nb-image-zoom aria-label={english ? "Enlarged image" : "放大图片"} class="nb-zoom">
   <img alt="" class="nb-zoom-img" />
-  <button type="button" data-nb-zoom-close aria-label="Close" class="nb-zoom-close">
+  <button type="button" data-nb-zoom-close aria-label={english ? "Close" : "关闭"} class="nb-zoom-close">
     <Icon name="ph:x" class="h-5 w-5" />
   </button>
 </dialog>

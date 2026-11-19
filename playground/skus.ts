@@ -1,3 +1,4 @@
+import { localize, english } from './language'
 import { comboMatch, comboOptions, defineEffects } from '@shikiform/core'
 
 /** Legal combinations. Shared by the picker and the table editor. Core does not own this table. */
@@ -13,20 +14,20 @@ export interface SkuRow {
 }
 
 export const SKUS: readonly SkuRow[] = [
-  { skuId: 'B-128-STD', color: '黑色', storage: '128G', edition: '标准版', price: 999, stock: 12 },
-  { skuId: 'B-256-PRO', color: '黑色', storage: '256G', edition: 'Pro', price: 1499, stock: 3 },
-  { skuId: 'W-256-PRO', color: '白色', storage: '256G', edition: 'Pro', price: 1499, stock: 8 },
-  { skuId: 'W-128-STD', color: '白色', storage: '128G', edition: '标准版', price: 999, stock: 0 },
-  { skuId: 'R-512-MAX', color: '红色', storage: '512G', edition: 'Max', price: 1999, stock: 5 },
+  { skuId: 'B-128-STD', color: localize("黑色", "Black"), storage: '128G', edition: localize("标准版", "Standard"), price: 999, stock: 12 },
+  { skuId: 'B-256-PRO', color: localize("黑色", "Black"), storage: '256G', edition: 'Pro', price: 1499, stock: 3 },
+  { skuId: 'W-256-PRO', color: localize("白色", "White"), storage: '256G', edition: 'Pro', price: 1499, stock: 8 },
+  { skuId: 'W-128-STD', color: localize("白色", "White"), storage: '128G', edition: localize("标准版", "Standard"), price: 999, stock: 0 },
+  { skuId: 'R-512-MAX', color: localize("红色", "Red"), storage: '512G', edition: 'Max', price: 1999, stock: 5 },
 ]
 
 export const DIMS = ['color', 'storage', 'edition'] as const
 export type Dim = (typeof DIMS)[number]
 
 export const DIM_LABEL: Record<Dim, string> = {
-  color: '颜色',
-  storage: '容量',
-  edition: '版本',
+  color: localize("颜色", "Color"),
+  storage: localize("容量", "Storage"),
+  edition: localize("版本", "Edition"),
 }
 
 export interface SkuSelection {
@@ -112,8 +113,8 @@ export const skuPickerEffects = defineEffects<SkuSelection>(({ reaction, watch }
     d.stock.$value = stock as never
     d.qty.$disabled = !sku
     d.qty.$rules = [
-      { min: 1, message: '至少 1 件' },
-      { max: sku?.stock ?? 1, message: `库存仅剩 ${sku?.stock ?? 0}` },
+      { min: 1, message: localize("至少 1 件", "At least one item") },
+      { max: sku?.stock ?? 1, message: (english ? `Only ${sku?.stock ?? 0} in stock` : `库存仅剩 ${sku?.stock ?? 0}`) },
     ]
   })
 })

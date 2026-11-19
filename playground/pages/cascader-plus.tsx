@@ -1,3 +1,4 @@
+import { localize } from '../language'
 import { useState } from 'react'
 import { Button, CascaderPlusView, Divider, Space } from '../kit'
 import { loadArea, loadAreaAll } from '../pro-data'
@@ -7,12 +8,12 @@ export function CascaderPlusPage() {
   return (
     <main style={{ maxWidth: 720 }}>
       <h1>CascaderPlus</h1>
-      <p>一个 loadData(path) 服务所有层级；已有值打开时逐级加载祖先，标签能反显。数据是本地模拟的省市区。</p>
-      <Divider>基本属性</Divider>
+      <p>{localize("一个 loadData(path) 服务所有层级；已有值打开时逐级加载祖先，标签能反显。数据是本地模拟的省市区。", "A single loadData(path) serves every level. Opening an existing selection loads its ancestors so the labels can be displayed. The example uses a local region dataset.")}</p>
+      <Divider>{localize("基本属性", "Basic options")}</Divider>
       <Basic />
-      <Divider>Lazy Load 反显</Divider>
+      <Divider>{localize("Lazy Load 反显", "Show a saved path")}</Divider>
       <Echo />
-      <Divider>Lazy Load &amp; labelInValue 反显</Divider>
+      <Divider>{localize("Lazy Load &amp; labelInValue 反显", "Show a saved labeled path")}</Divider>
       <EchoLabels />
     </main>
   )
@@ -41,8 +42,8 @@ function Basic() {
   return (
     <div>
       <Space wrap style={{ marginBottom: 10 }}>
-        <Toggle id="all" on={mode.all} onChange={(all) => set({ all })} yes="全量加载" no="懒加载" />
-        <Toggle id="multiple" on={mode.multiple} onChange={(multiple) => set({ multiple })} yes="多选" no="!多选" />
+        <Toggle id="all" on={mode.all} onChange={(all) => set({ all })} yes={localize("全量加载", "Load all")} no={localize("懒加载", "Lazy load")} />
+        <Toggle id="multiple" on={mode.multiple} onChange={(multiple) => set({ multiple })} yes={localize("多选", "Multiple")} no={localize("!多选", "Single")} />
         <Toggle id="liv" on={mode.labelInValue} onChange={(labelInValue) => set({ labelInValue })} yes="labelInValue" no="!labelInValue" />
       </Space>
       <CascaderPlusView
@@ -69,7 +70,7 @@ function Echo() {
   return (
     <div>
       <Space style={{ marginBottom: 10 }}>
-        <Toggle id="echo-multiple" on={multiple} onChange={setMultiple} yes="多选" no="!多选" />
+        <Toggle id="echo-multiple" on={multiple} onChange={setMultiple} yes={localize("多选", "Multiple")} no={localize("!多选", "Single")} />
       </Space>
       <CascaderPlusView key={String(multiple)} data-testid="echo" value={multiple ? many : value} multiple={multiple} onChange={multiple ? setMany : setValue} loadData={loadArea} />
       <pre data-testid="echo-value">{JSON.stringify(multiple ? many : value)}</pre>
@@ -80,26 +81,26 @@ function Echo() {
 function EchoLabels() {
   const [multiple, setMultiple] = useState(false)
   const [value, setValue] = useState<unknown>([
-    { label: '北京市', value: '110000' },
-    { label: '北京市', value: '11000000' },
-    { label: '朝阳区', value: '110105' },
+    { label: localize("北京市", "Beijing"), value: '110000' },
+    { label: localize("北京市", "Beijing"), value: '11000000' },
+    { label: localize("朝阳区", "Chaoyang"), value: '110105' },
   ])
   const [many, setMany] = useState<unknown>([
     [
-      { label: '北京市', value: '110000' },
-      { label: '北京市', value: '11000000' },
-      { label: '朝阳区', value: '110105' },
+      { label: localize("北京市", "Beijing"), value: '110000' },
+      { label: localize("北京市", "Beijing"), value: '11000000' },
+      { label: localize("朝阳区", "Chaoyang"), value: '110105' },
     ],
     [
-      { label: '河南省', value: '410000' },
-      { label: '鹤壁市', value: '410600' },
-      { label: '浚县', value: '410621' },
+      { label: localize("河南省", "Henan"), value: '410000' },
+      { label: localize("鹤壁市", "Hebi"), value: '410600' },
+      { label: localize("浚县", "Xun County"), value: '410621' },
     ],
   ])
   return (
     <div>
       <Space style={{ marginBottom: 10 }}>
-        <Toggle id="labels-multiple" on={multiple} onChange={setMultiple} yes="多选" no="!多选" />
+        <Toggle id="labels-multiple" on={multiple} onChange={setMultiple} yes={localize("多选", "Multiple")} no={localize("!多选", "Single")} />
       </Space>
       <CascaderPlusView
         key={String(multiple)}

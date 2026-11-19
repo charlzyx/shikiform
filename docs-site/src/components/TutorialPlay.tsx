@@ -10,7 +10,7 @@ import { SiteThemeProvider } from '../bridge/theme'
 // 虚拟模块：id → { starter, solution }。见 src/mdx/shikiform-vite.mjs。
 import tutorialFiles from 'virtual:shikiform-tutorials'
 
-export default function TutorialPlay({ id }: { id: string }) {
+export default function TutorialPlay({ id, english }: { id: string; english?: boolean }) {
   const [answered, setAnswered] = useState(false)
   const [round, setRound] = useState(0)
   const files = useMemo(
@@ -24,11 +24,12 @@ export default function TutorialPlay({ id }: { id: string }) {
           key={`${answered ? 'answer' : 'starter'}-${round}`}
           files={files}
           editing
-          label="教程练习"
-          status={answered ? '参考写法' : '起始代码'}
+          english={english}
+          label={english ? "Tutorial exercise" : "教程练习"}
+          status={answered ? (english ? 'Solution' : '参考写法') : (english ? 'Starter code' : '起始代码')}
           actions={
             <button type="button" className="sf-demo__btn sf-demo__btn--primary" disabled={answered} onClick={() => setAnswered(true)}>
-              看答案
+              {english ? 'Show solution' : '看答案'}
             </button>
           }
           onReset={() => {

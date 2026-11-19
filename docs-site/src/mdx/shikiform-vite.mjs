@@ -8,13 +8,14 @@ import path from 'node:path'
 import { transformWithEsbuild } from 'vite'
 
 const DOCS = path.resolve(import.meta.dirname, '../content/docs')
-const TUTORIAL_FILES = path.join(DOCS, 'tutorial', '_files')
+
 
 /** 扫描教程练习文件：01-start → { starter, solution }。 */
-async function tutorialPairs() {
+async function tutorialPairs(locale = '') {
+  const directory = path.join(DOCS, locale, 'tutorial', '_files')
   const names = new Set()
   try {
-    for (const name of await readdir(TUTORIAL_FILES)) {
+    for (const name of await readdir(directory)) {
       if (name.endsWith('.tsx')) names.add(name.replace(/\.solution\.tsx$/, '').replace(/\.tsx$/, ''))
     }
   } catch {
@@ -22,9 +23,9 @@ async function tutorialPairs() {
   }
   const pairs = {}
   for (const name of names) {
-    pairs[name] = {
-      starter: await readFile(path.join(TUTORIAL_FILES, `${name}.tsx`), 'utf8'),
-      solution: await readFile(path.join(TUTORIAL_FILES, `${name}.solution.tsx`), 'utf8').catch(() => ''),
+    pairs[locale ? `${locale}-${name}` : name] = {
+      starter: await readFile(path.join(directory, `${name}.tsx`), 'utf8'),
+      solution: await readFile(path.join(directory, `${name}.solution.tsx`), 'utf8').catch(() => ''),
     }
   }
   return pairs
@@ -41,7 +42,7 @@ export function shikiformTutorials() {
     },
     async load(source) {
       if (source !== resolved) return
-      const pairs = await tutorialPairs()
+      const pairs = { ...await tutorialPairs(), ...await tutorialPairs('en') }
       return `export default ${JSON.stringify(pairs)}\n`
     },
   }

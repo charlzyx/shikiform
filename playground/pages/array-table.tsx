@@ -1,3 +1,4 @@
+import { localize, english } from '../language'
 import { useState } from 'react'
 import { Field, Form, useForm } from '@shikiform/react'
 import { ArrayTable, Button, Divider, FormItem, Input, Space, type ArrayTableColumn } from '../kit'
@@ -35,7 +36,7 @@ function CustomToolbar({ onNotify }: { onNotify: (msg: string) => void }) {
       data-testid="custom-toolbar"
       onClick={() => onNotify(`selectedKeys: ${JSON.stringify(table.selectedKeys)}`)}
     >
-      自定义 toolbar，点我试试
+      {localize("自定义 toolbar，点我试试", "Show selected keys")}
     </Button>
   )
 }
@@ -45,7 +46,7 @@ function CustomFooter() {
   const table = ArrayTable.useTable()
   return (
     <span data-testid="custom-footer">
-      自定义底部 {table.page}/{table.pageCount}，共计 {table.total} 条数据
+      {localize("自定义底部", "Custom footer")} {table.page}/{table.pageCount}{localize("，共计", ", total")} {table.total} {localize("条数据", "rows")}
     </span>
   )
 }
@@ -55,7 +56,7 @@ function RowSummary() {
   const row = ArrayTable.useRow<Row>()
   return (
     <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }} data-testid={`row-summary-${row.index}`}>
-      我是自定义 row render：{row.record.a1} + {row.record.a2} + {row.record.a3} 👇🏻 下面是只读的子表
+      {localize("我是自定义 row render：", "Custom row preview:")}{row.record.a1} + {row.record.a2} + {row.record.a3} {localize("👇🏻 下面是只读的子表", "Read-only child table below")}
     </div>
   )
 }
@@ -66,7 +67,7 @@ const RESULT_PREVIEW_ROWS = 20
 function submittedText(rows: readonly Row[]): string {
   if (rows.length <= FULL_RESULT_ROWS) return JSON.stringify(rows, null, 2)
   const preview = JSON.stringify(rows.slice(0, RESULT_PREVIEW_ROWS), null, 2)
-  return `共 ${rows.length} 条，结果区只展示前 ${RESULT_PREVIEW_ROWS} 条\n${preview}`
+  return (english ? `${rows.length} rows; showing the first ${RESULT_PREVIEW_ROWS}\n${preview}` : `共 ${rows.length} 条，结果区只展示前 ${RESULT_PREVIEW_ROWS} 条\n${preview}`)
 }
 
 const itemColumns = (prefix: string): ArrayTableColumn<Item>[] => [
@@ -91,7 +92,7 @@ export function ArrayTablePage() {
   return (
     <main>
       <h1>ArrayTable</h1>
-      <p>对照 Pro.formily ArrayTable：拖拽排序、序号、行内编辑、删除（确认 + 异步）、上下移、行选择、展开行（自定义 render + 只读子表）、列配置、分页、自定义 toolbar / footer。</p>
+      <p>{localize("对照 Pro.formily ArrayTable：拖拽排序、序号、行内编辑、删除（确认 + 异步）、上下移、行选择、展开行（自定义 render + 只读子表）、列配置、分页、自定义 toolbar / footer。", "Edit rows inline, reorder by dragging, confirm asynchronous deletion, select rows and expand their child tables. Try the column settings, pager, toolbar and footer.")}</p>
       {notice ? <div data-testid="notice" style={{ marginBottom: 10, padding: '6px 10px', background: '#e6f4ff', borderRadius: 6 }}>{notice}</div> : null}
       <Form form={form} onSubmit={(values) => setSubmitted(submittedText(values.array))}>
         <ArrayTable<Row>
@@ -100,9 +101,9 @@ export function ArrayTablePage() {
           rowSelection
           toolbar={<CustomToolbar onNotify={setNotice} />}
           footer={<CustomFooter />}
-          extra={<ArrayTable.Addition title="添加条目" defaultValue={() => ({ a1: '', a2: '', a3: '' })} />}
+          extra={<ArrayTable.Addition title={localize("添加条目", "Add item")} defaultValue={() => ({ a1: '', a2: '', a3: '' })} />}
           onRemove={async () => {
-            setNotice('删除中...')
+            setNotice(localize("删除中...", "Deleting…"))
             await new Promise((resolve) => setTimeout(resolve, 1000))
             setNotice('DONE!')
           }}
@@ -141,7 +142,7 @@ export function ArrayTablePage() {
         />
         <Divider>
           <Button variant="primary" htmlType="submit" data-testid="submit">
-            提交
+            {localize("提交", "Submit")}
           </Button>
         </Divider>
       </Form>
@@ -154,9 +155,9 @@ export function ArrayTablePage() {
             requestAnimationFrame(() => setLoadMs(Math.round(performance.now() - started)))
           }}
         >
-          加载 10万条超大数据
+          {localize("加载 10万条超大数据", "Load 100,000 rows")}
         </Button>
-        {loadMs !== null ? <span data-testid="load-ms">10 万行已载入（{loadMs} ms）</span> : null}
+        {loadMs !== null ? <span data-testid="load-ms">{localize("10 万行已载入（", "100,000 rows loaded (")}{loadMs} {localize("ms）", "ms)")}</span> : null}
       </Space>
       {submitted ? <pre data-testid="submitted">{submitted}</pre> : null}
     </main>

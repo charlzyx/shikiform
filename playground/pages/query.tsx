@@ -1,3 +1,4 @@
+import { localize } from '../language'
 import { useState } from 'react'
 import { defineEffects, Field, useFormContext, useWatch, type Draft } from '@shikiform/react'
 import { useQueryTable } from '@shikiform/hooks'
@@ -25,7 +26,7 @@ interface QueryValues {
   selectedKeys: string[]
 }
 
-const STATUS = [{ label: '成功', value: 'ok', color: 'success' }, { label: '失败', value: 'error', color: 'error' }]
+const STATUS = [{ label: localize("成功", "Success"), value: 'ok', color: 'success' }, { label: localize("失败", "Failed"), value: 'error', color: 'error' }]
 const PROVIDERS = [{ label: 'openai', value: 'openai' }, { label: 'anthropic', value: 'anthropic' }]
 const MODELS = [{ label: 'gpt', value: 'gpt' }, { label: 'claude', value: 'claude' }]
 
@@ -96,12 +97,12 @@ export function QueryPage() {
       return { data: filtered.slice(start, start + pageSize), total: filtered.length }
     },
   })
-  const select = { allowClear: true, placeholder: '全部' }
+  const select = { allowClear: true, placeholder: localize("全部", "All") }
   const search = { layout: 'vertical' } as const
   return (
     <main>
-      <h1>查询表</h1>
-      <p>条件超过一行时折叠（折叠不丢值）；新的查询回到第 1 页并清空勾选，只翻页时勾选保留；表头的「状态」也能筛选。</p>
+      <h1>{localize("查询表", "Query table")}</h1>
+      <p>{localize("条件超过一行时折叠（折叠不丢值）；新的查询回到第 1 页并清空勾选，只翻页时勾选保留；表头的「状态」也能筛选。", "Collapse filters without losing their values. A new search clears selection and returns to page one. Paging preserves selection. The column header and status field share a filter.")}</p>
       <QueryList
         table={table}
         rowKey="id"
@@ -109,16 +110,16 @@ export function QueryPage() {
         toolbar={
           <Space>
             <Button size="sm" data-testid="batch-mark" disabled={table.selectedKeys.length === 0} onClick={() => setBatch(table.selectedKeys.join(','))}>
-              批量标记
+              {localize("批量标记", "Mark selected")}
             </Button>
-            {batch && <span>已标记：<span data-testid="batch-result">{batch}</span></span>}
+            {batch && <span>{localize("已标记：", "Marked:")}<span data-testid="batch-result">{batch}</span></span>}
             <ParamsPreview />
           </Space>
         }
         columns={[
-          { key: 'keyword', title: '关键字', render: ({ record }) => record.keyword },
-          { key: 'provider', title: '供应商', render: ({ record }) => record.provider },
-          { key: 'model', title: '模型', render: ({ record }) => record.model },
+          { key: 'keyword', title: localize("关键字", "Keyword"), render: ({ record }) => record.keyword },
+          { key: 'provider', title: localize("供应商", "Supplier"), render: ({ record }) => record.provider },
+          { key: 'model', title: localize("模型", "Model"), render: ({ record }) => record.model },
           {
             key: 'status',
             title: <StatusColumnFilter onSearch={() => table.submit()} />,
@@ -126,11 +127,11 @@ export function QueryPage() {
           },
         ]}
       >
-        <Field name="keyword" title="关键字" decorator={[FormItem, search]} component={[Input, { 'data-testid': 'keyword' }]} />
-        <Field name="status" title="状态" enum={STATUS} decorator={[FormItem, search]} component={[Select, select]} />
-        <Field name="provider" title="供应商" enum={PROVIDERS} decorator={[FormItem, search]} component={[Select, select]} />
-        <Field name="model" title="模型" decorator={[FormItem, search]} component={[Select, select]} />
-        <Field name="userId" title="用户" decorator={[FormItem, search]} component={[Input, { 'data-testid': 'user-id' }]} />
+        <Field name="keyword" title={localize("关键字", "Keyword")} decorator={[FormItem, search]} component={[Input, { 'data-testid': 'keyword' }]} />
+        <Field name="status" title={localize("状态", "Status")} enum={STATUS} decorator={[FormItem, search]} component={[Select, select]} />
+        <Field name="provider" title={localize("供应商", "Supplier")} enum={PROVIDERS} decorator={[FormItem, search]} component={[Select, select]} />
+        <Field name="model" title={localize("模型", "Model")} decorator={[FormItem, search]} component={[Select, select]} />
+        <Field name="userId" title={localize("用户", "User")} decorator={[FormItem, search]} component={[Input, { 'data-testid': 'user-id' }]} />
       </QueryList>
     </main>
   )
@@ -141,7 +142,7 @@ function ParamsPreview() {
   const params = useWatch((d: Draft<QueryValues>) => d.params.$value)
   return (
     <span>
-      请求参数 <code data-testid="params">{JSON.stringify(params ?? {})}</code>
+      {localize("请求参数", "Request parameters")} <code data-testid="params">{JSON.stringify(params ?? {})}</code>
     </span>
   )
 }
@@ -152,7 +153,7 @@ function StatusColumnFilter({ onSearch }: { onSearch: () => void }) {
   const status = useWatch((d: Draft<QueryValues>) => d.status.$value ?? '')
   return (
     <Space gap={4}>
-      状态
+      {localize("状态", "Status")}
       <select
         data-testid="col-status"
         className="sk-select"
@@ -163,7 +164,7 @@ function StatusColumnFilter({ onSearch }: { onSearch: () => void }) {
           onSearch()
         }}
       >
-        <option value="">全部</option>
+        <option value="">{localize("全部", "All")}</option>
         {STATUS.map((opt) => (
           <option key={opt.value} value={opt.value}>
             {opt.label}

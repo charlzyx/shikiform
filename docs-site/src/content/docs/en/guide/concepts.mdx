@@ -1,0 +1,158 @@
+---
+title: "Core concepts"
+description: "Understand form instances, draft handles, field state and subscriptions."
+---
+The form engine owns the value tree and field state. The view subscribes to the paths it displays.
+
+## Vocabulary
+
+| Term | Meaning |
+|---|---|
+| Form instance | The engine returned by `createForm` or `useForm`. |
+| Draft | The argument to `reaction`, `watch` and `form.batch`. |
+| Handle | A path such as `d.user.name`. Access a `$` member to read or write state. |
+| Decorator and component | The field's label/error wrapper and its input respectively. |
+| Effects | `reaction` derives state. `watch` runs an action when its source changes. `each` scopes an effect to each row. |
+
+## Handles and values
+
+```ts
+d.user.name.$value            // Read the value and register a dependency in reactions.
+d.user.name.$value = 'Ada'    // Update the field value.
+d.user.name.$required = true  // Change whether this field is required.
+d.items.$value                // Read the array data through the handle's $value.
+```
+
+A `$value` object is an immutable snapshot. Write to the child handle to change one field. For an array, read `d.items.$value` or use `reaction.each`. A field named `value` still uses `d.value.$value`.
+
+### Destructuring
+
+Destructure child handles, then read or write their state.
+
+```ts
+const { name } = d.user // name is still a handle for d.user.name.
+name.$value = 'Ada'
+```
+
+Spreading a handle, collecting rest properties, calling `Object.keys` or destructuring it as an array throws in development. Try changing several fields together with `form.batch`.
+
+```tsx preview
+import { enUS, Field, Form, Watch, useField, useForm, type Draft } from '@shikiform/react';
+
+type Values = { user: { name: string; email: string } };
+
+function TextField() {
+  const field = useField<string>();
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <label htmlFor={field.id} style={{ display: 'inline-block', width: 64 }}>
+        {field.required && <span style={{ color: 'crimson' }}>* </span>}
+        {field.title}
+      </label>
+      {field.readOnly ? (
+        <span>{field.value || '-'}</span>
+      ) : (
+        <input id={field.id} value={field.value ?? ''} disabled={field.disabled}
+          onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />
+      )}
+    </div>
+  );
+}
+
+export default function App() {
+  const form = useForm<Values>({ messages: enUS, initialValues: { user: { name: 'Ada', email: '' } } });
+  return (
+    <Form form={form}>
+      <Field name="user.name" title="Name" component={[TextField]} />
+      <Field name="user.email" title="Email" component={[TextField]} />
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+        <button type="button" onClick={() => form.batch((d) => { d.user.name.$value = 'Grace'; })}>Write user.name</button>
+        <button type="button" onClick={() => form.batch((d) => { d.user.email.$required = !d.user.email.$required; })}>Toggle required email</button>
+        <button type="button" onClick={() => form.batch((d) => { d.user.email.$readOnly = !d.user.email.$readOnly; })}>Toggle read-only mode</button>
+      </div>
+      <Watch select={(d: Draft<Values>) => d.user.$value}>{(user) => <pre>{JSON.stringify(user)}</pre>}</Watch>
+    </Form>
+  );
+}
+```
+
+## Field state
+
+| State | Purpose |
+|---|---|
+| `$value` | Current data. Computed fields remain editable and submit by default. |
+| `$required`, `$rules` | Validation configuration, including effects that survive unmounting. |
+| `$enum` | Static or asynchronous options. Assign `[]` to clear or `undefined` to restore the lower layer. |
+| `$title`, `$description` | Label and help text. |
+| `$component`, `$decorator` and their props | Select or configure the control and its wrapper. |
+| `$errors`, `$warnings`, `$validating`, `$touched` | Read-only validation and interaction state. |
+| `$dirty`, `$edited` | Difference from the baseline, and whether a user has edited the field since reset. |
+| `d.$canSubmit`, `d.$submitting`, `d.$submitCount` | Form-wide submission state. |
+
+## Four independent flags
+
+A hidden, disabled or read-only field skips validation and clears existing errors. Each can still submit. `omit` alone removes a subtree from submission. [Compare the four states](/en/basics/state).
+
+## Declare fields before they mount
+
+Use `fields` for rules and options that apply even when their components are absent. Use `rows.*.name` for settings that follow each row. An exact index belongs to the path.
+
+```tsx preview play=tabs
+import type { ReactNode } from 'react';
+import { enUS, Field, Form, Watch, useField, useFieldDecorator, useForm, type Draft } from '@shikiform/react';
+
+type Values = { city: string; note: string; items: { name: string }[] };
+
+function FieldItem({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <label {...d.labelProps} style={{ display: 'inline-block', width: 56 }}>{d.label}</label>
+      {children}
+      {d.descriptionProps && <small {...d.descriptionProps} style={{ marginLeft: 8, opacity: 0.7 }}>{d.description}</small>}
+    </div>
+  );
+}
+
+function SelectInput() {
+  const field = useField<string>();
+  return (
+    <select id={field.id} value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)}>
+      {field.options.map((o) => <option key={String(o.value)} value={String(o.value)}>{o.label}</option>)}
+    </select>
+  );
+}
+
+function TextArea() {
+  const field = useField<string>();
+  return <textarea id={field.id} rows={2} value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />;
+}
+
+export default function App() {
+  const form = useForm<Values>({
+    messages: enUS,
+    initialValues: { city: 'sh', note: '', items: [{ name: '' }, { name: '' }] },
+    fields: {
+      city: {
+        title: "City", decorator: [FieldItem], component: [SelectInput],
+        enum: [{ label: "Shanghai", value: 'sh' }, { label: "Beijing", value: 'bj' }],
+      },
+      note: { title: "Notes", description: "Description from fields", decorator: [FieldItem], component: [TextArea] },
+      // A template applies to every current and future row.
+      'items.*.name': { required: true },
+    },
+  });
+  return (
+    <Form form={form}>
+      <Field name="city" />
+      <Field name="note" />
+      <button type="button" onClick={() => { void form.validate().catch(() => {}) }}>Validate unmounted items</button>
+      <Watch select={(d: Draft<Values>) => d.items.$errors}>{(errors) => <small> Errors:{errors.join('；') || "None"}</small>}</Watch>
+    </Form>
+  );
+}
+```
+
+## From input to render
+
+The control writes a value, dependent reactions run and their writes propagate in the same flush. Components subscribed to affected paths receive an update. A watch handles actions after a change. See [reactions and watches](/en/guide/linkage).

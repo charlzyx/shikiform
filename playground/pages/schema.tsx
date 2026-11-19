@@ -1,3 +1,4 @@
+import { localize } from '../language'
 import { useState } from 'react'
 import { z } from 'zod'
 import * as v from 'valibot'
@@ -24,13 +25,13 @@ const crossField = v.pipe(
     email: v.string(),
     password: v.string(),
     confirm: v.string(),
-    nick: v.pipe(v.string(), v.minLength(1, '昵称必填')),
-    ghost: v.pipe(v.string(), v.minLength(1, '幽灵必填')),
-    address: v.object({ city: v.pipe(v.string(), v.minLength(1, '城市必填')), street: v.string() }),
-    items: v.array(v.object({ name: v.pipe(v.string(), v.minLength(1, '名称必填')) })),
+    nick: v.pipe(v.string(), v.minLength(1, localize("昵称必填", "Nickname is required"))),
+    ghost: v.pipe(v.string(), v.minLength(1, localize("幽灵必填", "The auxiliary field is required"))),
+    address: v.object({ city: v.pipe(v.string(), v.minLength(1, localize("城市必填", "City is required"))), street: v.string() }),
+    items: v.array(v.object({ name: v.pipe(v.string(), v.minLength(1, localize("名称必填", "Name is required"))) })),
   }),
   v.forward(
-    v.partialCheck([['password'], ['confirm']], (input) => input.password === input.confirm, '两次密码不一致'),
+    v.partialCheck([['password'], ['confirm']], (input) => input.password === input.confirm, localize("两次密码不一致", "Passwords do not match")),
     ['confirm'],
   ),
 )
@@ -40,8 +41,8 @@ const A = typed<Address>()
 function AddressFields() {
   return (
     <>
-      <A.Field name="city" title="城市" decorator={[FormItem]} component={[Input, { 'data-testid': 'city' }]} />
-      <A.Field name="street" title="街道" decorator={[FormItem]} component={[Input, { 'data-testid': 'street' }]} />
+      <A.Field name="city" title={localize("城市", "City")} decorator={[FormItem]} component={[Input, { 'data-testid': 'city' }]} />
+      <A.Field name="street" title={localize("街道", "Street")} decorator={[FormItem]} component={[Input, { 'data-testid': 'street' }]} />
     </>
   )
 }
@@ -82,37 +83,36 @@ export function SchemaPage() {
           setResult('')
         }}
       >
-        <h1>Standard Schema 校验</h1>
+        <h1>{localize("Standard Schema 校验", "Standard Schema validation")}</h1>
         <p>
-          字段规则用 Zod 和内置规则；整表交给一个 Valibot schema，issue 的 path 落到对应字段（两次密码、商品名称）。
-          「隐藏昵称」是 <code>visible: false</code>：不显示、不校验，值照常提交；「丢弃幽灵」是 <code>visible: false</code> 加 <code>omit</code>：不校验、不提交。
+          {localize("字段规则用 Zod 和内置规则；整表交给一个 Valibot schema，issue 的 path 落到对应字段（两次密码、商品名称）。\n          「隐藏昵称」是", "Zod and built-in rules validate individual fields. A Valibot schema maps whole-form errors to the matching field. Hide nickname sets")} <code>visible: false</code>{localize("：不显示、不校验，值照常提交；「丢弃幽灵」是", ", hiding it and skipping validation while retaining its value. Drop auxiliary field uses")} <code>visible: false</code> {localize("加", "and")} <code>omit</code>{localize("：不校验、不提交。", " to skip validation and submission.")}
         </p>
         <FormLayout style={{ maxWidth: 560 }}>
-          <F.Field name="email" title="邮箱" rules={[z.string().email('邮箱格式不对'), { minLength: 3, message: '太短' }]}
+          <F.Field name="email" title={localize("邮箱", "Email")} rules={[z.string().email(localize("邮箱格式不对", "Invalid email address")), { minLength: 3, message: localize("太短", "Too short") }]}
             decorator={[FormItem]} component={[Input, { 'data-testid': 'email' }]} />
-          <F.Field name="password" title="密码" decorator={[FormItem]} component={[Input.Password, { 'data-testid': 'password' }]} />
-          <F.Field name="confirm" title="确认密码" decorator={[FormItem]} component={[Input.Password, { 'data-testid': 'confirm' }]} />
-          <F.Field name="nick" title="昵称" decorator={[FormItem]} component={[Input, { 'data-testid': 'nick' }]} />
-          <F.Field name="ghost" title="幽灵字段" description="丢弃后不校验、不提交" decorator={[FormItem]} component={[Input, { 'data-testid': 'ghost' }]} />
+          <F.Field name="password" title={localize("密码", "Password")} decorator={[FormItem]} component={[Input.Password, { 'data-testid': 'password' }]} />
+          <F.Field name="confirm" title={localize("确认密码", "Confirm password")} decorator={[FormItem]} component={[Input.Password, { 'data-testid': 'confirm' }]} />
+          <F.Field name="nick" title={localize("昵称", "Nickname")} decorator={[FormItem]} component={[Input, { 'data-testid': 'nick' }]} />
+          <F.Field name="ghost" title={localize("幽灵字段", "Auxiliary field")} description={localize("丢弃后不校验、不提交", "Excluded from validation and submission when dropped")} decorator={[FormItem]} component={[Input, { 'data-testid': 'ghost' }]} />
           <ObjectField name="address">
             <AddressFields />
           </ObjectField>
           <F.ArrayField name="items">
-            {(row) => <row.Field name="name" title="商品名称" decorator={[FormItem]} component={[Input, { 'data-testid': 'item-name' }]} />}
+            {(row) => <row.Field name="name" title={localize("商品名称", "Product name")} decorator={[FormItem]} component={[Input, { 'data-testid': 'item-name' }]} />}
           </F.ArrayField>
           <FormButtonGroup>
             <Space wrap>
-              <Button data-testid="hide-nick" onClick={() => showNick(false)}>隐藏昵称</Button>
-              <Button data-testid="show-nick" onClick={() => showNick(true)}>显示昵称</Button>
-              <Button data-testid="drop-ghost" onClick={dropGhost}>丢弃幽灵</Button>
+              <Button data-testid="hide-nick" onClick={() => showNick(false)}>{localize("隐藏昵称", "Hide nickname")}</Button>
+              <Button data-testid="show-nick" onClick={() => showNick(true)}>{localize("显示昵称", "Show nickname")}</Button>
+              <Button data-testid="drop-ghost" onClick={dropGhost}>{localize("丢弃幽灵", "Drop auxiliary field")}</Button>
               {/* Not <Submit />: it is disabled while errors are shown, and this page submits again with errors on purpose. */}
-              <Button variant="primary" htmlType="submit" data-testid="schema-submit">提交</Button>
+              <Button variant="primary" htmlType="submit" data-testid="schema-submit">{localize("提交", "Submit")}</Button>
             </Space>
           </FormButtonGroup>
         </FormLayout>
-        <p>错误</p>
+        <p>{localize("错误", "Errors")}</p>
         <pre data-testid="errors">{errors}</pre>
-        <p>提交值</p>
+        <p>{localize("提交值", "Submitted values")}</p>
         <pre data-testid="result">{result}</pre>
       </Form>
     </main>

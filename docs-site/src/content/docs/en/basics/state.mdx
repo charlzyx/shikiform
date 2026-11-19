@@ -1,0 +1,83 @@
+---
+title: "Field state"
+description: "Compare the effects of visibility, disabled state, read-only mode and omission."
+---
+
+## Four independent flags
+
+| Setting | Display | Validation | Submit |
+|---|---|---|---|
+| Default | Editable control | Runs | Included |
+| `visible: false` | Hidden | Skipped, existing errors clear | Included |
+| `disabled: true` | Disabled | Skipped | Included |
+| `readOnly: true` | Read-only preview | Skipped | Included |
+| `omit: true` | Unchanged | Unchanged | Excluded |
+
+Toggle the flags and compare the field with the submitted JSON. Omitted and computed fields are excluded when calculating whether the form is dirty. Hidden fields still count.
+
+```tsx preview
+import { useState } from 'react';
+import { enUS, defineEffects, Form, Submit, typed, useForm, Watch, type Draft } from '@shikiform/react';
+
+type Mode = 'visible' | 'hidden' | 'omit' | 'readOnly';
+type Values = { mode: Mode; nick: string };
+
+const effects = defineEffects<Values>(({ reaction }) => {
+  reaction((d) => {
+    const mode = d.mode.$value;
+    d.nick.$visible = mode !== 'hidden';
+    d.nick.$omit = mode === 'omit';
+    d.nick.$readOnly = mode === 'readOnly';
+  });
+});
+
+export default function App() {
+  const [result, setResult] = useState('');
+  const form = useForm<Values>({ messages: enUS, initialValues: { mode: 'visible', nick: 'ada' }, effects: [effects] });
+  const F = typed(form);
+  return (
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
+      <F.Field name="mode" title="Status" enum={['visible', 'hidden', 'omit', 'readOnly']}>
+        {(f) => (
+          <p>
+            <label htmlFor={f.id}>{f.title}：</label>
+            <select id={f.id} value={f.value} onChange={(e) => f.onChange(e.target.value as Mode)}>
+              {f.options.map((opt) => (
+                <option key={String(opt.value)} value={String(opt.value)}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </p>
+        )}
+      </F.Field>
+      <F.Field name="nick" title="Nickname" required>
+        {(f) => (
+          <p>
+            <label htmlFor={f.id}>{f.title}：</label>
+            {f.readOnly ? (
+              <span>{f.value || '-'}</span>
+            ) : (
+              <input
+                id={f.id}
+                value={f.value ?? ''}
+                disabled={f.disabled}
+                onChange={(e) => f.onChange(e.target.value)}
+                onBlur={f.onBlur}
+              />
+            )}
+            {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
+          </p>
+        )}
+      </F.Field>
+      <Watch select={(d: Draft<Values>) => d.nick.$visible}>{(shown) => <p>Read $visible:{String(shown)}</p>}</Watch>
+      <Submit>Submit</Submit>
+      <pre>{result}</pre>
+    </Form>
+  );
+}
+```
+
+## Inheritance
+
+Fields inherit visibility, disabled and read-only state from ancestors, with explicit field overrides. Read-only takes precedence when combined with disabled. An omitted ancestor excludes its entire subtree. Assigning `undefined` in a reaction restores the lower layer. Set `readOnly` or `disabled` in form options to initialize the root.

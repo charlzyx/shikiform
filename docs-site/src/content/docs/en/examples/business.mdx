@@ -1,0 +1,433 @@
+---
+title: "Business forms"
+description: "Build a SKU price matrix, a supplier table and an expandable order editor."
+---
+
+## SKU price matrix
+
+Change the selected dimensions. A stable SKU identifier lets each combination keep its edited price. Group adjacent colors when rendering the table.
+
+```tsx preview play=sku-editor
+import { useState } from 'react';
+import { enUS, Field, Form, useForm, useFormContext, useWatch, type Draft } from '@shikiform/react';
+
+type Sku = { skuId: string; color: string; storage: string; price: number; stock: number; channel: string };
+type Values = { rows: Sku[]; channel: boolean };
+
+const SKUS: Sku[] = [
+  { skuId: 'B-128', color: "Black", storage: '128G', price: 999, stock: 12, channel: '' },
+  { skuId: 'B-256', color: "Black", storage: '256G', price: 1499, stock: 3, channel: '' },
+  { skuId: 'W-128', color: "White", storage: '128G', price: 999, stock: 0, channel: '' },
+  { skuId: 'W-256', color: "White", storage: '256G', price: 1499, stock: 8, channel: '' },
+];
+
+function computeRowSpans<T>(rows: T[], groupOf: (row: T) => string): number[] {
+  const spans = new Array<number>(rows.length).fill(0);
+  let i = 0;
+  while (i < rows.length) {
+    const key = groupOf(rows[i]!);
+    let end = i + 1;
+    while (end < rows.length && groupOf(rows[end]!) === key) end++;
+    spans[i] = end - i;
+    i = end;
+  }
+  return spans;
+}
+
+function SkuTable() {
+  const form = useFormContext<Values>();
+  const rows = useWatch((d: Draft<Values>) => d.rows.$value);
+  const channel = useWatch((d: Draft<Values>) => d.channel.$value);
+  const spans = computeRowSpans(rows, (row) => row.color);
+  const paint = (from: string, to: string) =>
+    form.setValue('rows', rows.map((row) => (row.color === from ? { ...row, color: to } : row)));
+  return (
+    <>
+      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+        <input type="checkbox" checked={channel} onChange={(e) => form.setValue('channel', e.target.checked)} />
+        Show channel column
+      </label>
+      <table>
+        <thead>
+          <tr>
+            <th>Color</th>
+            <th>Storage</th>
+            <th>Price</th>
+            <th>Stock</th>
+            {channel && <th>Channel</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, index) => (
+            <tr key={row.skuId}>
+              {spans[index]! > 0 && (
+                <td rowSpan={spans[index]}>
+                  <input
+                    aria-label="Color"
+                    style={{ width: 72 }}
+                    value={row.color}
+                    onChange={(e) => paint(row.color, e.target.value)}
+                  />
+                </td>
+              )}
+              <td>{row.storage}</td>
+              <td>
+                <Field name={`rows.${index}.price`}>
+                  {(f) => (
+                    <input
+                      type="number"
+                      min={0}
+                      style={{ width: 72 }}
+                      value={Number(f.value ?? 0)}
+                      onChange={(e) => f.onChange(Number(e.target.value))}
+                    />
+                  )}
+                </Field>
+              </td>
+              <td>
+                <Field name={`rows.${index}.stock`}>
+                  {(f) => (
+                    <input
+                      type="number"
+                      min={0}
+                      style={{ width: 64 }}
+                      value={Number(f.value ?? 0)}
+                      onChange={(e) => f.onChange(Number(e.target.value))}
+                    />
+                  )}
+                </Field>
+              </td>
+              {channel && (
+                <td>
+                  <Field name={`rows.${index}.channel`}>
+                    {(f) => (
+                      <input
+                        style={{ width: 88 }}
+                        value={String(f.value ?? '')}
+                        onChange={(e) => f.onChange(e.target.value)}
+                      />
+                    )}
+                  </Field>
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
+  );
+}
+
+export default function App() {
+  const [result, setResult] = useState('');
+  const form = useForm<Values>({ messages: enUS, initialValues: { rows: SKUS, channel: false }, fields: { channel: { omit: true } } });
+  return (
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
+      <SkuTable />
+      <button type="submit" style={{ marginTop: 8 }}>Submit</button>
+      <pre>{result}</pre>
+    </Form>
+  );
+}
+```
+
+## Suppliers and products
+
+Keep products nested under their supplier and merge cells for display. A product validator can read the parent record.
+
+```tsx preview play=merged
+import { enUS, Field, Form, useArrayField, useField, useForm, useFormContext, useWatch, type Draft } from '@shikiform/react';
+
+type Product = { id: string; name: string; price: number };
+type Supplier = { id: string; name: string; level: 'A' | 'B' | 'C'; products: Product[] };
+type Values = { suppliers: Supplier[] };
+/** One product per table row. Keep its location in the nested data. */
+type Line = { id: string; s: number; p: number };
+
+let nextProductId = 4;
+
+function computeRowSpans<T>(rows: T[], groupOf: (row: T) => string): number[] {
+  const spans = new Array<number>(rows.length).fill(0);
+  let i = 0;
+  while (i < rows.length) {
+    const key = groupOf(rows[i]!);
+    let end = i + 1;
+    while (end < rows.length && groupOf(rows[end]!) === key) end++;
+    spans[i] = end - i;
+    i = end;
+  }
+  return spans;
+}
+
+function TextCell() {
+  const f = useField<string>();
+  return (
+    <div>
+      <input style={{ width: 96 }} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} onBlur={f.onBlur} />
+      {f.errors[0] && <div><small role="alert" style={{ color: 'crimson' }}>{f.errors[0]}</small></div>}
+    </div>
+  );
+}
+
+function NumberCell() {
+  const f = useField<number>();
+  return (
+    <div>
+      <input type="number" style={{ width: 80 }} value={f.value ?? 0} onChange={(e) => f.onChange(Number(e.target.value))} onBlur={f.onBlur} />
+      {f.errors[0] && <div><small role="alert" style={{ color: 'crimson' }}>{f.errors[0]}</small></div>}
+    </div>
+  );
+}
+
+function AddProduct({ supplierIndex }: { supplierIndex: number }) {
+  const products = useArrayField(`suppliers.${supplierIndex}.products`);
+  return (
+    <button type="button" onClick={() => products.push({ id: `p${nextProductId++}`, name: "New product", price: 1 })}>
+      Add product
+    </button>
+  );
+}
+
+function Suppliers() {
+  const form = useFormContext<Values>();
+  const suppliers = useWatch((d: Draft<Values>) => d.suppliers.$value);
+  const lines: Line[] = suppliers.flatMap((supplier, s) => supplier.products.map((product, p) => ({ id: product.id, s, p })));
+  const spans = computeRowSpans(lines, (line) => suppliers[line.s]!.id);
+  return (
+    <>
+      <table>
+        <thead>
+          <tr>
+            <th>Supplier</th>
+            <th>Product</th>
+            <th>Unit price</th>
+          </tr>
+        </thead>
+        <tbody>
+          {lines.map((line, index) => (
+            <tr key={line.id}>
+              {spans[index]! > 0 && (
+                <td rowSpan={spans[index]} style={{ verticalAlign: 'top' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <Field
+                      name={`suppliers.${line.s}.name`}
+                      component={[TextCell]}
+                      rules={[
+                        { required: true },
+                        { validator: (value, ctx) => ((ctx.array as Supplier[] | undefined)?.filter((item) => item.name === value).length ?? 0) > 1 ? "Duplicate supplier name" : null },
+                      ]}
+                    />
+                    <Field name={`suppliers.${line.s}.level`}>
+                      {(f) => (
+                        <select value={String(f.value ?? 'A')} onChange={(e) => f.onChange(e.target.value)}>
+                          {(['A', 'B', 'C'] as const).map((level) => (
+                            <option key={level} value={level}>{level} grade</option>
+                          ))}
+                        </select>
+                      )}
+                    </Field>
+                    <AddProduct supplierIndex={line.s} />
+                  </div>
+                </td>
+              )}
+              <td>
+                <Field name={`suppliers.${line.s}.products.${line.p}.name`} component={[TextCell]} />
+              </td>
+              <td>
+                <Field
+                  name={`suppliers.${line.s}.products.${line.p}.price`}
+                  component={[NumberCell]}
+                  rules={{
+                    validator: (value, ctx) => (ctx.parent?.level === 'C' && Number(value) > 1000 ? "Grade C unit prices cannot exceed 1000" : null),
+                  }}
+                />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <button type="button" style={{ marginTop: 8 }} onClick={() => { void form.validate().catch(() => {}); }}>
+        Validate
+      </button>
+    </>
+  );
+}
+
+export default function App() {
+  const form = useForm<Values>({
+    messages: enUS,
+    initialValues: {
+      suppliers: [
+        { id: 'a', name: "Supplier A", level: 'C', products: [{ id: 'p1', name: "Screw", price: 1200 }, { id: 'p2', name: "Nut", price: 20 }] },
+        { id: 'b', name: "Supplier A", level: 'A', products: [{ id: 'p3', name: "Washer", price: 5000 }] },
+      ],
+    },
+  });
+  return <Form form={form}><Suppliers /></Form>;
+}
+```
+
+## Orders and line items
+
+Expand an order to edit its line items. Recalculate each line amount and the order total. Mark shipped orders read-only at the parent path.
+
+```tsx preview play=orders
+import { Fragment, useState } from 'react';
+import { enUS, ArrayField, Field, Form, defineEffects, useField, useForm, useRecord } from '@shikiform/react';
+
+type Item = { id: string; sku: string; qty: number; price: number; line: number };
+type Order = { id: string; no: string; status: string; amount: number; items: Item[] };
+type Values = { editable: boolean; orders: Order[] };
+
+const STATUS = [
+  { label: "Pending", value: 'pending' },
+  { label: "Paid", value: 'paid' },
+  { label: "Shipped", value: 'shipped' },
+];
+
+const effects = defineEffects<Values>(({ reaction }) => {
+  reaction((d) => {
+    d.orders.$readOnly = d.editable.$value ? undefined : true;
+  });
+  reaction.each((d) => d.orders, (order, { d, depth }) => {
+    if (depth !== 0) return; // Only handle orders at this depth.
+    order.$readOnly = order.status.$value === 'shipped' ? true : undefined; // Show shipped orders in read-only mode.
+    order.status.$readOnly = !d.editable.$value; // The status field can override the parent and follow the editing toggle.
+    let amount = 0;
+    order.items.$value.forEach((item, index) => {
+      const line = item.qty * item.price;
+      order.items[index].line.$value = line;
+      amount += line;
+    });
+    order.amount.$value = amount;
+  });
+});
+
+function NumberCell({ min }: { min?: number }) {
+  const f = useField<number>();
+  return (
+    <div>
+      {f.readOnly ? (
+        <span>{f.value}</span>
+      ) : (
+        <input
+          type="number"
+          min={min}
+          style={{ width: 68 }}
+          value={f.value ?? 0}
+          onChange={(e) => f.onChange(Number(e.target.value))}
+          onBlur={f.onBlur}
+        />
+      )}
+      {f.errors[0] && <div><small role="alert" style={{ color: 'crimson' }}>{f.errors[0]}</small></div>}
+    </div>
+  );
+}
+
+function ItemRow() {
+  const item = useRecord<Item>();
+  return (
+    <tr>
+      <td><code>{item.sku}</code></td>
+      <td>
+        <Field
+          name="qty"
+          component={[NumberCell, { min: 1 }]}
+          rules={{
+            validator: (value, ctx) => (ctx.parent?.status === 'pending' && Number(value) > 99 ? "A pending line cannot exceed 99 units" : null),
+          }}
+        />
+      </td>
+      <td><Field name="price" component={[NumberCell, { min: 0 }]} /></td>
+      <td><Field name="line" readOnly component={[NumberCell]} /></td>
+    </tr>
+  );
+}
+
+function OrderRow({ expanded, onToggle }: { expanded: boolean; onToggle: () => void }) {
+  const record = useRecord<Order>();
+  return (
+    <Fragment>
+      <tr>
+        <td>
+          <button type="button" onClick={onToggle}>{expanded ? '▾' : '▸'}</button>
+        </td>
+        <td>{record.no}</td>
+        <td>
+          <Field name="status" enum={STATUS}>
+            {(f) => f.readOnly ? (
+              <span>{f.options.find((o) => o.value === f.value)?.label ?? String(f.value)}</span>
+            ) : (
+              <select value={String(f.value ?? '')} onChange={(e) => f.onChange(e.target.value)}>
+                {f.options.map((opt) => (
+                  <option key={String(opt.value)} value={String(opt.value)}>{opt.label}</option>
+                ))}
+              </select>
+            )}
+          </Field>
+        </td>
+        <td>
+          <Field name="amount" readOnly component={[NumberCell]} />
+        </td>
+      </tr>
+      {expanded && (
+        <tr>
+          <td colSpan={4} style={{ paddingLeft: 24 }}>
+            <table>
+              <thead>
+                <tr><th>Product</th><th>Quantity</th><th>Unit price</th><th>Line total</th></tr>
+              </thead>
+              <tbody>
+                <ArrayField name="items" rowKey="id">
+                  {() => <ItemRow />}
+                </ArrayField>
+              </tbody>
+            </table>
+          </td>
+        </tr>
+      )}
+    </Fragment>
+  );
+}
+
+export default function App() {
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({ o1: true });
+  const form = useForm<Values>({
+    messages: enUS,
+    initialValues: {
+      editable: true,
+      orders: [
+        { id: 'o1', no: 'A001', status: 'pending', amount: 0, items: [{ id: 'i1', sku: 'pen', qty: 1, price: 10, line: 0 }, { id: 'i2', sku: 'ink', qty: 2, price: 8, line: 0 }] },
+        { id: 'o2', no: 'A002', status: 'shipped', amount: 0, items: [{ id: 'i3', sku: 'box', qty: 1, price: 20, line: 0 }] },
+      ],
+    },
+    fields: { editable: { omit: true } },
+    effects: [effects],
+  });
+  const toggle = (id: string) => setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
+  return (
+    <Form form={form}>
+      <Field<Values, 'editable'> name="editable" title="Editable">
+        {(f) => (
+          <p>
+            <label htmlFor={f.id}>
+              <input id={f.id} type="checkbox" checked={Boolean(f.value)} onChange={(e) => f.onChange(e.target.checked)} />{' '}
+              {f.title}
+            </label>
+          </p>
+        )}
+      </Field>
+      <table>
+        <thead>
+          <tr><th /><th>Order number</th><th>Status</th><th>Total</th></tr>
+        </thead>
+        <tbody>
+          <ArrayField name="orders" rowKey="id">
+            {({ key }) => <OrderRow expanded={Boolean(expanded[key])} onToggle={() => toggle(key)} />}
+          </ArrayField>
+        </tbody>
+      </table>
+    </Form>
+  );
+}
+```

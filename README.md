@@ -1,5 +1,7 @@
 # ShikiForm
 
+**简体中文** · [English](./README.en.md)
+
 ShikiForm 是一个面向 TypeScript 的无 UI 表单引擎，集中管理表单值、字段状态、校验规则与联动逻辑。联动中通过 draft 直接读写字段的 `$` 状态，React 组件只负责渲染界面。核心引擎零 UI 库依赖，通过 Headless React Hooks（`@shikiform/react`）与业务 Hooks（`@shikiform/hooks`）自由接入原生 HTML 或任意 UI 组件库。
 
 官网文档：<https://shikiform.pages.dev>

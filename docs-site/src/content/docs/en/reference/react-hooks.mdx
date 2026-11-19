@@ -1,0 +1,514 @@
+---
+title: "React hooks"
+description: "Field bindings, selectors, scoped array and tree editing, decorators and form buttons."
+---
+Import these APIs from `@shikiform/react`. Use named hooks for scoped paths or context hooks inside a field, row or tree node.
+
+## useForm
+
+```ts
+useForm<T>(options?: UseFormOptions<T>): FormInstance<T, T>        // Omitted options default to an empty object. Submit values have type T.
+useForm<T, TSubmit>(options?): FormInstance<T, TSubmit>            // Use the explicit second type argument.
+typed<T>().useForm(options?): FormInstance<T, …>                   // Infer the submit type from fields with explicit T.
+
+interface UseFormOptions<T> extends FormOptions<T> { values?: T }
+```
+
+Returns a stable form instance. `initialValues` is read once. `values` resets the form to a new baseline when the external record's content changes. Getters on the form are snapshots. Subscribe with a field or selector to update a view.
+
+## typed
+
+```ts
+typed<T>(form: FormInstance<T>): TypedForm<T>       // Bind a form instance.
+typed<T, TRoot = T>(): TypedForm<T, TRoot>          // Without an instance, for row components or reusable fragments.
+
+type TypedForm<T> = {
+  Field, ObjectField, ArrayField        // Nested names are checked against each row or object's type.
+  useField(name: FieldPath<T>, options?): FieldBinding<PathValue<T, name>>
+  useArrayField(name: ArrayPath<T>, opts?: { rowKey?: string }): ArrayHandle<Row>
+  useWatch<S>(select: (d: Draft<TRoot>) => S): S
+  Watch: <S>(props: { select: (d: Draft<TRoot>) => S; children: (value: S) => ReactNode }) => ReactNode
+  createForm(options?), useForm(options?)   // Fields with omit: true become optional even with an explicit T.
+}
+```
+
+Bind components and hooks to a form instance, or call `typed<Row>()` inside a reusable scope. The form itself stays the same.
+
+```tsx
+const form = useForm({ initialValues: { email: '', items: [{ id: 1, name: '' }] } })
+const F = typed(form)
+
+<Form form={form}>
+  <F.Field name="email" />                       {/* A misspelled path fails type checking */}
+  <F.ArrayField name="items" rowKey="id">
+    {(row) => <row.Field name="name" />}         {/* Checked against one row and bound to items.<i>.name. */}
+  </F.ArrayField>
+  <F.ObjectField name="profile">
+    {(obj) => <obj.Field name="city" />}         {/* Checked against profile. */}
+  </F.ObjectField>
+  <F.Watch select={(d) => d.$canSubmit}>{(ok) => <button disabled={!ok}>Submit</button>}</F.Watch>
+</Form>
+```
+
+Names are relative to the scope. Fields received by a row or object render function are checked against that record.
+
+```tsx
+const F = typed(form)
+
+// ✗ Repeated scope prefix causes ShikiUsageError
+<F.ObjectField name="group">
+  <F.Field name="group.inner" />
+</F.ObjectField>
+
+// ✓ Field names are relative to group
+<F.ObjectField name="group">
+  {(obj) => <obj.Field name="inner" />}
+</F.ObjectField>
+```
+
+## useFormContext
+
+```ts
+useFormContext<T = any>(): FormInstance<T>
+```
+
+Get the nearest form. Reading its getters does not subscribe the component. `form.message(key)` resolves its localized text.
+
+## useField
+
+```ts
+useField<TValue = any>(): FieldBinding<TValue>        // No arguments reads the current field.
+useField(name: string, options?: UseFieldOptions): FieldBinding<any>
+useField<TScope>(
+  name: FieldPath<TScope>,
+  options?: UseFieldOptions
+): FieldBinding<PathValue<TScope, FieldPath<TScope> & string>>
+useField<TScope, N extends FieldPath<TScope>>(
+  name: N,
+  options?: UseFieldOptions
+): FieldBinding<PathValue<TScope, N & string>>
+
+interface UseFieldOptions<TValue = any> {
+  ui?: UiName                    // A second UI for the same field. Address it with d.x.$ui(ui).
+  enum?: FieldEnum<TValue>       // Objects, primitive values or SomeEnum.with(params), active while mounted.
+  rules?: RulesInput
+  required?: boolean
+  visible?: boolean              // Hide while preserving submission unless omitted. Children can override visibility.
+  disabled?: boolean             // Disable interaction and skip validation. A child can override the inherited value.
+  readOnly?: boolean             // Shows a preview and skips validation. Takes precedence over disabled and can be overridden.
+  omit?: boolean                 // Omitting a parent excludes its children from submission.
+  // JSX presentation overrides declarations and can be overridden by a reaction.
+  title?: ReactNode
+  description?: ReactNode
+  component?: FieldSlot | RegisteredComponentSlot
+  // Pass a component or its registered name, optionally in a tuple with JSX props.
+  decorator?: FieldSlot | RegisteredDecoratorSlot | false
+  // Set false to skip the kit's default decorator.
+}
+
+// Field, scoped Field and UI check tuple props against the component. Props are optional because the field supplies value and onChange.
+// data-* attributes are allowed. Hook options and fields use an unparameterized FieldSlot.
+type FieldSlot<C extends ComponentType<any> = ComponentType<any>> =
+  | C
+  | readonly [C]
+  | readonly [C, (Partial<ComponentProps<C>> & { [key: `data-${string}`]: unknown }) | undefined]
+```
+
+Named fields resolve a relative path, register the binding and subscribe to its state. Use `typed(form).useField` for precise path and value inference. A bare call inside `Field` reads its existing binding.
+
+### FieldBinding
+
+| Members | Purpose |
+|---|---|
+| `path`, `id` | Full data path and accessible DOM ID. A form's ID or React-generated prefix scopes field IDs. |
+| `value`, `onChange(value)`, `onBlur()` | Read data, write the control value and mark blur. Adapt native events before calling `onChange`. |
+| `visible`, `disabled`, `readOnly`, `omit` | Effective rendering, interaction and submission flags. |
+| `required`, `errors`, `warnings`, `validating` | Validation rules and results exposed to the view. |
+| `touched`, `dirty`, `edited` | Blur, difference from initial value and sticky user edits. |
+| `options`, `loading` | Current enum choices and load state. |
+| `title`, `description`, `component`, `decorator` and their props | Effective presentation. Reaction overrides JSX and model declarations. |
+| `ui` | Name of a secondary UI instance. |
+
+### Read the current field
+
+```tsx
+function TextInput() {
+  const field = useField<string>()
+  return <input value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />
+}
+function MyDecorator({ children }: { children?: ReactNode }) {
+  const field = useField()
+  return <label>{field.title}{field.required ? ' *' : ''}{children}<small>{field.errors[0]}</small></label>
+}
+<Field name="email" title="Email" decorator={[MyDecorator]} component={[TextInput]} />
+<Field name="phone"><TextInput /></Field>   {/* The same applies when rendered as a child. */}
+```
+
+### Field UI instances
+
+A named UI shares data and errors but can have distinct display state. See [named UI nodes](/en/guide/ui).
+
+```tsx
+<Field name="amount" title="Amount" decorator={[FormItem]} component={[InputNumber]} />
+<Field name="amount" ui="slider" component={[Slider]} />           // d.amount.$ui('slider').$disabled = true
+const field = useField('amount', { ui: 'slider' })                  // Equivalent hook form.
+```
+
+## UI
+
+Use a value-free UI node for a tip or container. Target it with `$ui(name)` on its scope.
+
+```tsx
+interface UIProps<C, D> {
+  name: UiName
+  component?: FieldSlot<C>        // [Alert, { type: 'warning' }] renders children inside Alert and checks its props.
+  decorator?: FieldSlot<D>        // [FormItem]：title → label，description → extra
+  title?: ReactNode
+  description?: ReactNode
+  visible?: boolean               // False hides the UI. The scope supplies the fallback.
+  disabled?: boolean
+  readOnly?: boolean              // Show a preview or inherit the scope's state.
+  children?: ReactNode | ((ui: UiBinding) => ReactNode)
+}
+<UI name="approvalTip" component={[Alert, { type: 'warning', message: "Approval required" }]} />
+reaction((d) => { d.$ui('approvalTip').$visible = d.amount.$value >= 50000 })
+```
+
+## useWatch
+
+```ts
+useWatch<T = any, S = unknown>(select: (draft: Draft<T>) => S): S
+useWatch<T, S>(form: FormInstance<T>, select: (draft: Draft<T>) => S): S
+```
+
+Return a value from a synchronous selector. The component subscribes to the `$` states read in its active branches. Pass a form explicitly outside its provider, or use the instance-bound `typed(form).useWatch`. To specify the values type while inferring the result, use the curried form.
+
+### A binding, a selector and a button
+
+```tsx preview
+import { enUS, Form, useField, useForm, useFormContext, useWatch, type Draft } from '@shikiform/react';
+
+type Values = { name: string };
+
+function NameInput() {
+  const field = useField<Values, 'name'>('name');
+  if (!field.visible) return null;
+  if (field.readOnly === true) return <p>Name:{field.value}</p>;
+  return (
+    <label htmlFor={field.id}>
+      Name
+      <input id={field.id} value={field.value} disabled={field.disabled} readOnly={field.readOnly}
+        onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} />
+      <span role="status">{field.errors.join('；')}</span>
+    </label>
+  );
+}
+
+function Greeting() {
+  const name = useWatch((d: Draft<Values>) => d.name.$value);
+  return <p>Hello,{name || "Enter a name"}</p>;
+}
+
+function ResetName() {
+  const form = useFormContext<Values>();
+  return <button type="button" onClick={() => form.reset('name')}>Restore initial values</button>;
+}
+
+export default function HookExample() {
+  const form = useForm({ messages: enUS, initialValues: { name: 'Ada' }, fields: { name: { required: true } } });
+  return <Form form={form}><NameInput /><Greeting /><ResetName /></Form>;
+}
+```
+
+## useArrayField
+
+```ts
+useArrayField<TRow = unknown>(): ArrayHandle<TRow>
+useArrayField(name: string, opts?: { rowKey?: string }): ArrayHandle<unknown>
+useArrayField<TScope>(name: ArrayPath<TScope>, opts?: { rowKey?: string }): ArrayHandle<unknown>
+useArrayField<TScope, N extends ArrayPath<TScope>>(
+  name: N, opts?: { rowKey?: string }
+): ArrayHandle<ArrayItemOf<TScope, N & string>>
+```
+
+Read the nearest array inside `ArrayField` or pass a relative name. `keys` contains stable keys and current indices. `rowKey` selects a stable ID property. Object identity is the fallback for object rows without IDs. Use `push`, `insert`, `remove`, `move`, `swap` and `replace` for edits. A move targets the final index.
+
+### Native drag and drop
+
+Spread `dragProps(index)` on a row. An item keeps its key as its path changes.
+
+```tsx preview
+import { enUS, ArrayField, Form, useArrayField, useField, useForm, useIndex } from '@shikiform/react';
+
+type Item = { id: string; label: string };
+type Values = { items: Item[] };
+
+function ItemInput() {
+  const field = useField<Item, 'label'>('label');
+  return <input aria-label="Project name" value={field.value}
+    onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} />;
+}
+
+function ItemRow() {
+  const array = useArrayField<Item>();
+  const index = useIndex();
+  return (
+    <div {...array.dragProps(index)}>
+      <ItemInput />
+      <button type="button" disabled={index === 0}
+        onClick={() => array.move(index, index - 1)}>Move up</button>
+      <button type="button" onClick={() => array.remove(index)}>Delete</button>
+    </div>
+  );
+}
+
+function Items() {
+  const array = useArrayField<Values, 'items'>('items', { rowKey: 'id' });
+  return (
+    <section>
+      <ArrayField name="items" rowKey="id">
+        {() => <ItemRow />}
+      </ArrayField>
+      <button type="button" onClick={() => array.push({ id: crypto.randomUUID(), label: '' })}>Add</button>
+    </section>
+  );
+}
+
+export default function ArrayHookExample() {
+  const form = useForm<Values>({ messages: enUS, initialValues: { items: [
+    { id: 'a', label: "Apple" }, { id: 'b', label: "Pear" },
+  ] } });
+  return <Form form={form}><Items /></Form>;
+}
+```
+
+```tsx
+function RemoveButton() {
+  const array = useArrayField()
+  const index = useIndex()
+  return <button type="button" onClick={() => array.remove(index)}>Delete</button>
+}
+```
+
+### Array-level errors
+
+Render `errors` and `warnings` once in the container. These messages belong to the array path itself. Descendant messages are available on the draft's `$errors`.
+
+```tsx
+import type { ReactNode } from 'react'
+import { ArrayField, useArrayField } from '@shikiform/react'
+
+function ListError() {
+  const { errors, warnings } = useArrayField()
+  const messages = errors.length ? errors : warnings
+  if (!messages.length) return null
+  return <p role="alert">{messages.join(', ')}</p>
+}
+
+function MyList({ children }: { children?: ReactNode }) {
+  return (
+    <div>
+      {children}
+      <ListError />
+    </div>
+  )
+}
+
+// ✓
+function Correct() {
+  return (
+    <ArrayField name="tags" component={[MyList]}>
+      {() => <span />}
+    </ArrayField>
+  )
+}
+
+// ✗ A sibling lacks the provider and throws ShikiUsageError
+function Wrong() {
+  return (
+    <>
+      <ArrayField name="tags" component={[MyList]}>{() => <span />}</ArrayField>
+      <ListError />
+    </>
+  )
+}
+```
+
+## useIndex
+
+```ts
+useIndex(): number
+```
+
+Read the nearest row's current index or the current tree node's sibling index.
+
+```tsx
+function RowNo() {
+  return <span>Page {useIndex() + 1} row</span>
+}
+```
+
+## useRecord
+
+```ts
+useRecord<TRow = any>(): TRow
+```
+
+Read the current row reactively. Other rows keep their own subscriptions.
+
+```tsx
+function RowTitle() {
+  const row = useRecord<{ name: string; qty: number }>()
+  return <b>{row.name} × {row.qty}</b>
+}
+```
+
+## ArrayField.Row
+
+Wrap a manually rendered row in its array scope so cell names can stay relative.
+
+```tsx
+<ArrayField.Row path={`${array.path}.${index}`} index={index} itemKey={key}>
+  <Field name="price" component={[InputNumber]} />
+</ArrayField.Row>
+```
+
+## useTreeField
+
+```ts
+useTreeField<TNode = unknown>(): TreeNodeHandle<TNode>   // Must be inside a TreeField node.
+useTreeField(name: string, options?: { childrenKey?: string; rowKey?: string }): TreeHandle<unknown>
+```
+
+A named handle operates on the root. `path` and `treePath` both point there. `childrenKey` configures nested children and `rowKey` identifies records. Add, insert, remove, replace and move nodes using positions. Moves that would create a cycle return a refusal reason.
+
+```tsx
+function MoveFirst() {
+  const node = useTreeField<{ id: string }>()
+  return <button type="button" onClick={() => node.move(node.pos, [0])}>Move to top</button>
+}
+```
+
+### Move a node
+
+```tsx preview
+import { useState } from 'react';
+import { enUS, Form, useForm, useTreeField } from '@shikiform/react';
+
+type Node = { id: string; title: string; children: Node[] };
+type Values = { nodes: Node[] };
+
+function Nodes() {
+  const tree = useTreeField('nodes');
+  const [message, setMessage] = useState("Drag a node or move the first root using the button.");
+  // The example uses the node shape from its initial data.
+  const nodes = tree.value as Node[];
+  const renderNodes = (rows: Node[], parent: number[] = []) => (
+    <ul>{rows.map((node, index) => {
+      const pos = [...parent, index];
+      return <li key={node.id}><span {...tree.dragProps(pos)}>{node.title}</span>
+        {node.children.length > 0 ? renderNodes(node.children, pos) : null}</li>;
+    })}</ul>
+  );
+  return <section>{renderNodes(nodes)}
+    <button type="button" disabled={nodes.length < 2} onClick={() => {
+      const result = tree.move([0], [nodes.length - 1]);
+      setMessage(result.ok ? "Moved" : result.reason ?? "Move refused");
+    }}>Move the first root to the end</button>
+    <p role="status">{message}</p>
+  </section>;
+}
+
+export default function TreeHookExample() {
+  const form = useForm<Values>({ messages: enUS, initialValues: { nodes: [
+    { id: 'a', title: "Content", children: [{ id: 'a1', title: "Article", children: [] }] },
+    { id: 'b', title: "Settings", children: [] },
+  ] } });
+  return <Form form={form}><Nodes /></Form>;
+}
+```
+
+### Read the current node
+
+Inside a `TreeField` node, `path`, `pos`, `index` and `record` describe that node and `treePath` points to the root. `dragProps()` targets the current node.
+
+```ts
+useTreeField<TNode = any>(): {
+  path: string          // Current node.
+  treePath: string      // Tree root.
+  errors: readonly string[]
+  warnings: readonly string[]
+  pos: Pos
+  index: number
+  record: TNode
+  value: TNode[]
+  push, insert, remove, replace, move
+  dragProps(pos?: Pos): DragProps   // Omit the position to target the current node.
+}
+```
+
+```tsx
+function NodeLabel() {
+  const node = useTreeField<{ label: string }>()
+  return <span {...node.dragProps()}>{node.pos.join('.')} {node.record.label}</span>
+}
+<TreeField name="nodes" rowKey="id">
+  {(node) => <li><NodeLabel />{node.children && <ul>{node.children}</ul>}</li>}
+</TreeField>
+```
+
+## useFieldDecorator
+
+```ts
+useFieldDecorator(options?: {
+  field?: FieldBinding        // Defaults to the enclosing Field.
+  label?: ReactNode           // Override field.title.
+  description?: ReactNode     // Override field.description.
+  asterisk?: boolean          // Override the asterisk. Defaults to field.required and is hidden in read-only mode.
+}): FieldDecorator
+```
+
+Get label, required indicator, description, errors and warnings with their accessible IDs. For a control that draws its own label, `control` provides display props. Bind the value separately.
+
+```tsx
+function FormItem({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator()
+  return (
+    <div data-invalid={d.invalid || undefined}>
+      <label {...d.labelProps}>{d.label}{d.required && <span>*</span>}</label>
+      {children}
+      {d.descriptionProps && <p {...d.descriptionProps}>{d.description}</p>}
+      {d.errorProps && <p {...d.errorProps}>{d.errors.join(', ')}</p>}
+    </div>
+  )
+}
+
+function MantineInput() {
+  const field = useField<string>()
+  const { control } = useFieldDecorator()
+  return (
+    <TextInput
+      {...control}
+      value={field.value ?? ''}
+      onChange={(event) => field.onChange(event.currentTarget.value)}
+    />
+  )
+}
+```
+
+## Submit
+
+A native submit button that follows `$canSubmit` and `$submitting`. Use `asChild` or its render prop to supply your button. An explicit `onSubmit` submits on click through the engine.
+
+```tsx
+<Submit asChild><button>Save</button></Submit>
+<Submit onSubmit={saveDraft}>{(state) => <button type="button" disabled={state.disabled} onClick={state.onClick}>Save draft</button>}</Submit>
+```
+
+## Reset
+
+Resets the form and calls `afterReset` with restored values. Calling `preventDefault` in `onClick` skips the reset.
+
+```tsx
+<Reset afterReset={(values) => search(values)} asChild><button>Reset</button></Reset>
+```

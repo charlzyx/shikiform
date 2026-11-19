@@ -1,3 +1,4 @@
+import { localize, english } from './language'
 /**
  * Offline stand-ins for the remote services the Pro.formily demos call
  * (taobao suggest via JSONP, china-location, faker). Same shapes, deterministic data, small delays.
@@ -9,8 +10,8 @@ export const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve,
 
 // —— suggest (taobao `sug` stand-in) ——
 const WORDS = [
-  '手机壳', '手机支架', '手机膜', '手机充电器', '手表', '手套', '书包', '书架', '鼠标', '鼠标垫', '数据线', '水杯',
-  '水壶', '睡衣', '沙发', '沙发垫', '耳机', '耳环', '儿童玩具', '电脑包', '电风扇', '电饭煲', '咖啡机', '咖啡豆',
+  localize("手机壳", "Phone case"), localize("手机支架", "Phone stand"), localize("手机膜", "Screen protector"), localize("手机充电器", "Phone charger"), localize("手表", "Watch"), localize("手套", "Gloves"), localize("书包", "Backpack"), localize("书架", "Bookshelf"), localize("鼠标", "Mouse"), localize("鼠标垫", "Mouse pad"), localize("数据线", "USB cable"), localize("水杯", "Cup"),
+  localize("水壶", "Kettle"), localize("睡衣", "Pajamas"), localize("沙发", "Sofa"), localize("沙发垫", "Cushion"), localize("耳机", "Headphones"), localize("耳环", "Earrings"), localize("儿童玩具", "Toy"), localize("电脑包", "Laptop bag"), localize("电风扇", "Fan"), localize("电饭煲", "Rice cooker"), localize("咖啡机", "Coffee maker"), localize("咖啡豆", "Coffee beans"),
   'iphone 16', 'ipad', 'airpods', 'switch', 'kindle', 'macbook',
 ]
 /** Keyword → up to 8 matching words, after 300 ms. Mirrors `suggest.taobao.com/sug` results mapped to `{ label, value }`. */
@@ -20,7 +21,7 @@ export async function suggest(keyword: string, ctx?: { signal?: AbortSignal }): 
   const kw = keyword.trim().toLowerCase()
   if (!kw) return []
   const hits = WORDS.filter((word) => word.toLowerCase().includes(kw) || [...kw].some((ch) => word.includes(ch)))
-  const list = hits.length ? hits : [`${keyword} 同款`, `${keyword} 新款`, `${keyword} 旗舰店`]
+  const list = hits.length ? hits : [(english ? `${keyword} classic` : `${keyword} 同款`), (english ? `${keyword} new` : `${keyword} 新款`), (english ? `${keyword} store` : `${keyword} 旗舰店`)]
   return list.slice(0, 8).map((word) => ({ label: word, value: word }))
 }
 
@@ -33,32 +34,32 @@ interface AreaNode {
 const AREA: AreaNode[] = [
   {
     code: '110000',
-    name: '北京市',
-    children: [{ code: '11000000', name: '北京市', children: [
-      { code: '110101', name: '东城区' }, { code: '110102', name: '西城区' }, { code: '110105', name: '朝阳区' }, { code: '110108', name: '海淀区' },
+    name: localize("北京市", "Beijing"),
+    children: [{ code: '11000000', name: localize("北京市", "Beijing"), children: [
+      { code: '110101', name: localize("东城区", "Dongcheng") }, { code: '110102', name: localize("西城区", "Xicheng") }, { code: '110105', name: localize("朝阳区", "Chaoyang") }, { code: '110108', name: localize("海淀区", "Haidian") },
     ] }],
   },
   {
     code: '310000',
-    name: '上海市',
-    children: [{ code: '31000000', name: '上海市', children: [
-      { code: '310101', name: '黄浦区' }, { code: '310104', name: '徐汇区' }, { code: '310115', name: '浦东新区' },
+    name: localize("上海市", "Shanghai"),
+    children: [{ code: '31000000', name: localize("上海市", "Shanghai"), children: [
+      { code: '310101', name: localize("黄浦区", "Huangpu") }, { code: '310104', name: localize("徐汇区", "Xuhui") }, { code: '310115', name: localize("浦东新区", "Pudong") },
     ] }],
   },
   {
     code: '410000',
-    name: '河南省',
+    name: localize("河南省", "Henan"),
     children: [
-      { code: '410100', name: '郑州市', children: [{ code: '410102', name: '中原区' }, { code: '410105', name: '金水区' }] },
-      { code: '410600', name: '鹤壁市', children: [{ code: '410602', name: '鹤山区' }, { code: '410621', name: '浚县' }, { code: '410622', name: '淇县' }] },
+      { code: '410100', name: localize("郑州市", "Zhengzhou"), children: [{ code: '410102', name: localize("中原区", "Zhongyuan") }, { code: '410105', name: localize("金水区", "Jinshui") }] },
+      { code: '410600', name: localize("鹤壁市", "Hebi"), children: [{ code: '410602', name: localize("鹤山区", "Heshan") }, { code: '410621', name: localize("浚县", "Xun County") }, { code: '410622', name: localize("淇县", "Qi County") }] },
     ],
   },
   {
     code: '330000',
-    name: '浙江省',
+    name: localize("浙江省", "Zhejiang"),
     children: [
-      { code: '330100', name: '杭州市', children: [{ code: '330102', name: '上城区' }, { code: '330106', name: '西湖区' }, { code: '330108', name: '滨江区' }] },
-      { code: '330200', name: '宁波市', children: [{ code: '330203', name: '海曙区' }, { code: '330212', name: '鄞州区' }] },
+      { code: '330100', name: localize("杭州市", "Hangzhou"), children: [{ code: '330102', name: localize("上城区", "Shangcheng") }, { code: '330106', name: localize("西湖区", "West Lake") }, { code: '330108', name: localize("滨江区", "Binjiang") }] },
+      { code: '330200', name: localize("宁波市", "Ningbo"), children: [{ code: '330203', name: localize("海曙区", "Haishu") }, { code: '330212', name: localize("鄞州区", "Yinzhou") }] },
     ],
   },
 ]
@@ -131,24 +132,24 @@ export async function domainService({ params, page, pageSize, idOrder }: { param
       domain: `${params.domain ? `${params.domain}.` : ''}${name}${id}.${TLDS[id % TLDS.length]}`,
       classify: params.classify?.length ? params.classify : [Math.floor(rnd() * 5)],
       date: params.start ? params.start : `2026-${String(1 + (id % 12)).padStart(2, '0')}-${day}`,
-      desc: `第 ${id} 条记录`,
+      desc: (english ? `Record ${id}` : `第 ${id} 条记录`),
     }
   })
   return { data, total }
 }
 
 export const STATUS_ENUM = [
-  { label: '待审核', value: 0, color: 'default' },
-  { label: '运行中', value: 1, color: 'processing' },
-  { label: '已上线', value: 2, color: 'success' },
-  { label: '异常', value: 3, color: 'error' },
-  { label: '告警', value: 4, color: 'warning' },
+  { label: localize("待审核", "Pending review"), value: 0, color: 'default' },
+  { label: localize("运行中", "Running"), value: 1, color: 'processing' },
+  { label: localize("已上线", "Live"), value: 2, color: 'success' },
+  { label: localize("异常", "Error"), value: 3, color: 'error' },
+  { label: localize("告警", "Warning"), value: 4, color: 'warning' },
 ]
 
 export const CLASSIFY_ENUM = [
-  { label: '官网', value: 0 },
-  { label: '文档', value: 1 },
-  { label: '接口', value: 2 },
-  { label: '静态资源', value: 3 },
-  { label: '其他', value: 4 },
+  { label: localize("官网", "Website"), value: 0 },
+  { label: localize("文档", "Documentation"), value: 1 },
+  { label: localize("接口", "API"), value: 2 },
+  { label: localize("静态资源", "Static assets"), value: 3 },
+  { label: localize("其他", "Other"), value: 4 },
 ]

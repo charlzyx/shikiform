@@ -1,0 +1,678 @@
+---
+title: "Pro hooks in practice"
+description: "Use headless hooks for row actions, drafts, remote options and query results."
+---
+
+## Array tables
+
+Page, select, expand and move rows. Try changing columns or deleting a row with an asynchronous confirmation.
+
+```tsx preview play=array-table
+import { Fragment, useState } from 'react';
+import { enUS, Field, Form, ObjectField, useForm } from '@shikiform/react';
+import { useArrayTable } from '@shikiform/hooks';
+
+type Item = { a1: string; a2: string };
+type Row = Item & { id: string; subitems?: Item[] };
+
+const INITIAL_ROWS: Row[] = Array.from({ length: 12 }, (_, i) => ({
+  id: String(i),
+  a1: `${i}.1`,
+  a2: `${i}.2`,
+  ...(i % 3 === 1 ? {} : { subitems: [{ a1: `Child ${i}.1`, a2: `Child ${i}.2` }] }),
+}));
+
+let nextId = 100;
+
+function TableDemo() {
+  const [notice, setNotice] = useState('');
+  const table = useArrayTable<Row>('list', {
+    rowKey: 'id',
+    pagination: { pageSize: 5 },
+    rowExpandable: (row) => Array.isArray(row.subitems),
+    onRemove: () => new Promise<void>((resolve) => setTimeout(resolve, 400)),
+  });
+  return (
+    <>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+        <button type="button" onClick={() => setNotice(`Selected: ${table.selectedKeys.join(', ') || 'none'}`)}>
+          Show selection
+        </button>
+        <button type="button" onClick={() => table.add({ id: String(nextId++), a1: '', a2: '' })}>
+          Add row
+        </button>
+        {notice && <small>{notice}</small>}
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th />
+            <th />
+            <th>#</th>
+            <th>A1</th>
+            <th>A2</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {table.pageRows.map((row) => {
+            const expanded = table.expandedKeys.includes(row.key);
+            const expandable = table.isExpandable(row.index);
+            const removing = table.removing.includes(row.key);
+            const record = table.record(row.index);
+            return (
+              <Fragment key={row.key}>
+                <ObjectField name={`list.${row.index}`}>
+                  <tr>
+                    <td>
+                      <input
+                        type="checkbox"
+                        aria-label={`Select ${row.key}`}
+                        checked={table.selectedKeys.includes(row.key)}
+                        onChange={() => table.toggleSelected(row.key)}
+                      />
+                    </td>
+                    <td>
+                      {expandable && (
+                        <button type="button" onClick={() => table.toggleExpanded(row.key)}>
+                          {expanded ? '▾' : '▸'}
+                        </button>
+                      )}
+                    </td>
+                    <td>{row.position}</td>
+                    <td>
+                      <Field<Row, 'a1'> name="a1" required>
+                        {(f) => (
+                          <>
+                            <input style={{ width: 96 }} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} onBlur={f.onBlur} />
+                            {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
+                          </>
+                        )}
+                      </Field>
+                    </td>
+                    <td>
+                      <Field<Row, 'a2'> name="a2">
+                        {(f) => <input style={{ width: 96 }} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} />}
+                      </Field>
+                    </td>
+                    <td>
+                      <button type="button" disabled={row.index === 0} onClick={() => table.moveUp(row.index)}>Move up</button>{' '}
+                      <button type="button" disabled={row.index >= table.total - 1} onClick={() => table.moveDown(row.index)}>Move down</button>{' '}
+                      <button type="button" disabled={removing} onClick={() => void table.remove(row.index)}>
+                        {removing ? "Deleting…" : "Delete"}
+                      </button>
+                    </td>
+                  </tr>
+                </ObjectField>
+                {expanded && record.subitems && (
+                  <tr>
+                    <td colSpan={6} style={{ paddingLeft: 32 }}>
+                      {record.subitems.map((sub, i) => (
+                        <div key={i}><small>Child #{i + 1}：{sub.a1} / {sub.a2}</small></div>
+                      ))}
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+      <div style={{ marginTop: 8 }}>
+        <button type="button" disabled={table.page <= 1} onClick={() => table.setPage(table.page - 1)}>Previous</button>
+        <span> Page {table.page}/{table.pageCount} of {table.total} rows </span>
+        <button type="button" disabled={table.page >= table.pageCount} onClick={() => table.setPage(table.page + 1)}>Next</button>
+      </div>
+    </>
+  );
+}
+
+export default function App() {
+  const form = useForm<{ list: Row[] }>({ messages: enUS, initialValues: { list: INITIAL_ROWS } });
+  return (
+    <Form form={form}>
+      <TableDemo />
+    </Form>
+  );
+}
+```
+
+## Add and edit with a draft
+
+Open a separate form for a new entry or an existing row, then confirm to apply it. Cancel leaves the original record intact.
+
+```tsx preview play=array-table-shadow
+import { enUS, Field, Form, useField, useForm, useFormContext } from '@shikiform/react';
+import { useArrayTable, useShadowForm } from '@shikiform/hooks';
+
+type Row = { id: string; domain: string; desc: string };
+
+function TextInput() {
+  const f = useField<string>();
+  return (
+    <p>
+      <label htmlFor={f.id}>{f.title}：</label>
+      <input id={f.id} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} onBlur={f.onBlur} />
+      {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
+    </p>
+  );
+}
+
+function RowFields() {
+  return (
+    <>
+      <Field name="id" component={[TextInput]} />
+      <Field name="domain" component={[TextInput]} />
+      <Field name="desc" component={[TextInput]} />
+    </>
+  );
+}
+
+function EditableTable() {
+  const form = useFormContext<{ list: Row[] }>();
+  const table = useArrayTable<Row>('list', { rowKey: 'id', pagination: { pageSize: 5 } });
+  const adder = useShadowForm<Row>({ name: 'list', add: { id: '', domain: '', desc: '' } });
+  const editor = useShadowForm<Row, string>({
+    fields: {
+      id: { title: 'ID', required: true },
+      domain: { title: "Domain", required: true },
+      desc: { title: "Description" },
+    },
+    onOk: (values, rowId) => {
+      const list = form.getValue('list');
+      const idx = list.findIndex((item) => item.id === rowId);
+      if (idx >= 0) form.setValue(`list.${idx}`, values);
+    },
+  });
+  return (
+    <>
+      <button type="button" onClick={() => void adder.open()}>Add row</button>
+      <table style={{ marginTop: 8 }}>
+        <thead>
+          <tr><th>ID</th><th>Domain</th><th>Description</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+          {table.pageRows.map((row) => {
+            const record = table.record(row.index);
+            return (
+              <tr key={row.key}>
+                <td>{record.id}</td>
+                <td>{record.domain}</td>
+                <td>{record.desc || '—'}</td>
+                <td>
+                  <button type="button" onClick={() => void editor.open(record, record.id)}>Edit</button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      {adder.visible && (
+        <fieldset style={{ marginTop: 12 }}>
+          <legend>Add row</legend>
+          <Form form={adder.form}>
+            <RowFields />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" onClick={() => void adder.confirm()}>Confirm</button>
+              <button type="button" onClick={adder.cancel}>Cancel</button>
+            </div>
+          </Form>
+        </fieldset>
+      )}
+      {editor.visible && (
+        <fieldset style={{ marginTop: 12 }}>
+          <legend>Edit row</legend>
+          <Form form={editor.form}>
+            <RowFields />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" onClick={() => void editor.confirm()}>Confirm</button>
+              <button type="button" onClick={editor.cancel}>Cancel</button>
+            </div>
+          </Form>
+        </fieldset>
+      )}
+    </>
+  );
+}
+
+export default function App() {
+  const form = useForm<{ list: Row[] }>({
+    messages: enUS,
+    initialValues: { list: [{ id: '1', domain: 'shikiform.dev', desc: 'ping' }, { id: '2', domain: 'example.com', desc: '' }] },
+    fields: {
+      'list.*.id': { title: 'ID', required: true },
+      'list.*.domain': { title: "Domain", required: true },
+      'list.*.desc': { title: "Description" },
+    },
+  });
+  return (
+    <Form form={form}>
+      <EditableTable />
+    </Form>
+  );
+}
+```
+
+## Draft containers
+
+Render a temporary form inside a modal, a drawer, a popover or inline. The draft lifecycle is independent of the container.
+
+```tsx preview play=shadow-form
+import { useState } from 'react';
+import { enUS, Field, Form, Watch, useField, useForm, type Draft } from '@shikiform/react';
+import { useShadowForm } from '@shikiform/hooks';
+
+type Info = { domain: string; desc: string };
+
+function TextInput() {
+  const f = useField<string>();
+  return (
+    <p>
+      <label htmlFor={f.id}>{f.title}：</label>
+      <input id={f.id} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} onBlur={f.onBlur} />
+      {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
+    </p>
+  );
+}
+
+export default function App() {
+  const form = useForm<{ info: Info }>({ messages: enUS, initialValues: { info: { domain: 'shikiform.dev', desc: 'ping' } } });
+  const [log, setLog] = useState('');
+  const shadow = useShadowForm<Info>({
+    form,
+    name: 'info',
+    onOk: (values) => setLog(`Saved: ${JSON.stringify(values)}`),
+  });
+  return (
+    <Form form={form}>
+      <Watch select={(d: Draft<{ info: Info }>) => d.info.$value}>
+        {(info) => <p>Host value:{info.domain} · {info.desc}</p>}
+      </Watch>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button type="button" onClick={() => void shadow.open()}>Open draft</button>
+        <button type="button" disabled={!shadow.visible} onClick={() => void shadow.confirm()}>Save</button>
+        <button type="button" disabled={!shadow.visible} onClick={shadow.cancel}>Discard</button>
+      </div>
+      {shadow.visible && (
+        <fieldset style={{ marginTop: 12 }}>
+          <legend>Shadow form</legend>
+          <Form form={shadow.form}>
+            <Field name="domain" title="Domain" required component={[TextInput]} />
+            <Field name="desc" title="Description" component={[TextInput]} />
+          </Form>
+        </fieldset>
+      )}
+      <pre aria-live="polite">{log}</pre>
+    </Form>
+  );
+}
+```
+
+## Server pagination and inline editing
+
+Map filters and sorting into the request. Bind the returned rows to an array field to edit the current page.
+
+```tsx preview play=query-list
+import { Field, Form } from '@shikiform/react';
+import { enumItems, useQueryTable } from '@shikiform/hooks';
+
+type Row = { id: number; status: number; domain: string; classify: number[] };
+type Query = { domain?: string; status?: number };
+type Values = { query: Query; list: Row[] };
+
+const STATUS = [
+  { label: "Pending review", value: 0, color: 'default' },
+  { label: "Running", value: 1, color: 'processing' },
+  { label: "Live", value: 2, color: 'success' },
+  { label: "Error", value: 3, color: 'error' },
+];
+const CLASSIFY = [{ label: "Website", value: 0 }, { label: "Documentation", value: 1 }, { label: "API", value: 2 }];
+
+/** Local service with 25 records, server pagination and ID sorting. */
+async function service(query: Query, page: number, pageSize: number, desc: boolean) {
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  const all = Array.from({ length: 25 }, (_, i): Row => ({
+    id: i + 1,
+    status: query.status ?? i % 4,
+    domain: `${query.domain ?? 'site'}${i + 1}.dev`,
+    classify: [i % 3],
+  }));
+  if (desc) all.reverse();
+  return { data: all.slice((page - 1) * pageSize, page * pageSize), total: all.length };
+}
+
+export default function App() {
+  const table = useQueryTable<Values>()({
+    initialValues: { query: {}, list: [] },
+    fields: {
+      'query.status': { enum: STATUS },
+      'list.*.status': { enum: STATUS },
+      'list.*.classify': { enum: CLASSIFY },
+    },
+    defaultPageSize: 5,
+    params: 'query',
+    rows: 'list', // Write each page into list to edit cells as fields.
+    request: ({ params, page, pageSize, sorter }) =>
+      service(params, page, pageSize, sorter.some((item) => item.field === 'id' && item.order === 'descend')),
+  });
+  const desc = table.sortOrderOf('id') === 'descend';
+  const pages = Math.max(1, Math.ceil(table.total / table.pageSize));
+  return (
+    <Form form={table.form} onSubmit={() => table.submit()}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+        <Field name="query.domain">
+          {(f) => <input placeholder="Domain keyword" value={String(f.value ?? '')} onChange={(e) => f.onChange(e.target.value)} />}
+        </Field>
+        <Field name="query.status">
+          {(f) => (
+            <select
+              value={f.value === undefined ? '' : String(f.value)}
+              onChange={(e) => f.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
+            >
+              <option value="">All statuses</option>
+              {f.options.map((opt) => (
+                <option key={String(opt.value)} value={String(opt.value)}>{opt.label}</option>
+              ))}
+            </select>
+          )}
+        </Field>
+        <button type="submit">Search</button>
+        <button type="button" onClick={table.reset}>Reset</button>
+        <button type="button" onClick={() => table.setSorter([{ field: 'id', order: desc ? 'ascend' : 'descend' }])}>
+          ID {desc ? "Descending ↓" : "Ascending ↑"}
+        </button>
+      </div>
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Status</th><th>Domain (editable)</th><th>Category</th></tr>
+        </thead>
+        <tbody>
+          {table.data.map((row, index) => {
+            const statusItem = enumItems(row.status, STATUS)[0];
+            const tags = enumItems(row.classify, CLASSIFY, { colorful: true });
+            return (
+              <tr key={row.id}>
+                <td>{row.id}</td>
+                <td>
+                  <span style={{ color: statusItem?.color || undefined }}>● {statusItem?.label}</span>
+                </td>
+                <td>
+                  <Field name={`list.${index}.domain`} required>
+                    {(f) => (
+                      <>
+                        <input value={String(f.value ?? '')} onChange={(e) => f.onChange(e.target.value)} onBlur={f.onBlur} />
+                        {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
+                      </>
+                    )}
+                  </Field>
+                </td>
+                <td>
+                  {tags.map((tag) => (
+                    <span key={String(tag.value)} style={{ border: `1px solid ${tag.color || '#ccc'}`, padding: '0 4px', borderRadius: 3 }}>
+                      {tag.label}
+                    </span>
+                  ))}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <div style={{ marginTop: 8 }}>
+        <button type="button" disabled={table.page <= 1} onClick={() => table.onPageChange(table.page - 1)}>Previous</button>
+        <span> Page {table.page}/{pages} of {table.total} rows {table.loading ? "· Loading" : ''} </span>
+        <button type="button" disabled={table.page >= pages} onClick={() => table.onPageChange(table.page + 1)}>Next</button>
+      </div>
+    </Form>
+  );
+}
+```
+
+## Enum labels and colors
+
+Try static options and a lazily loaded enum. `enumItems` resolves selected values into labels and optional badge colors.
+
+```tsx preview play=pro-enum
+import { enUS, EnumSource, Field, Form, ObjectField, useField, useForm } from '@shikiform/react';
+import { enumItems } from '@shikiform/hooks';
+
+const LIST = [
+  { label: "Alpha", value: 'a', color: 'blue' },
+  { label: "Beta", value: 'o', color: 'green' },
+  { label: "Gamma", value: 'e' },
+];
+
+/** Load once and share options across consumers. */
+const remote = EnumSource.from(async () => {
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  return LIST;
+});
+
+type Demo = { select: string; lazySelect: string[]; radio: string };
+type Values = { demo: Demo };
+
+function SingleSelect() {
+  const f = useField<string>();
+  const items = enumItems(f.value, f.options);
+  return (
+    <p>
+      <label htmlFor={f.id}>{f.title}：</label>
+      {f.readOnly ? (
+        items.map((item) => <span key={String(item.value)} style={{ color: item.color || undefined }}>● {item.label}</span>)
+      ) : (
+        <select id={f.id} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)}>
+          {f.options.map((opt) => <option key={String(opt.value)} value={String(opt.value)}>{opt.label}</option>)}
+        </select>
+      )}
+    </p>
+  );
+}
+
+function MultiChecks() {
+  const f = useField<string[]>();
+  const items = enumItems(f.value, f.options, { colorful: true });
+  return (
+    <p>
+      <span>{f.title}：</span>
+      {f.loading ? (
+        <small>Loading…</small>
+      ) : f.readOnly ? (
+        <span style={{ display: 'inline-flex', gap: 6 }}>
+          {items.map((item) => (
+            <span key={String(item.value)} style={{ border: `1px solid ${item.color || '#ccc'}`, padding: '0 4px', borderRadius: 3 }}>
+              {item.label}
+            </span>
+          ))}
+        </span>
+      ) : (
+        <span style={{ display: 'inline-flex', gap: 8 }}>
+          {f.options.map((opt) => {
+            const val = String(opt.value);
+            const checked = (f.value ?? []).includes(val);
+            return (
+              <label key={val}>
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={(e) => f.onChange(e.target.checked ? [...(f.value ?? []), val] : (f.value ?? []).filter((v) => v !== val))}
+                />{' '}
+                {opt.label}
+              </label>
+            );
+          })}
+        </span>
+      )}
+    </p>
+  );
+}
+
+export default function App() {
+  const form = useForm<Values>({
+    messages: enUS,
+    initialValues: { demo: { select: 'a', lazySelect: ['o'], radio: 'e' } },
+  });
+  const setReadOnly = (readOnly?: true) => form.batch((d) => { d.demo.$readOnly = readOnly; });
+  return (
+    <Form form={form}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+        <button type="button" onClick={() => setReadOnly(true)}>Read only</button>
+        <button type="button" onClick={() => setReadOnly()}>Editable</button>
+      </div>
+      <ObjectField name="demo">
+        <Field name="select" title="Static enum" enum={LIST} component={[SingleSelect]} />
+        <Field name="lazySelect" title="Lazy multiple selection" enum={remote.with(null)} component={[MultiChecks]} />
+        <Field name="radio" title="Shared lazy source" enum={remote.with(null)} component={[SingleSelect]} />
+      </ObjectField>
+    </Form>
+  );
+}
+```
+
+## Remote suggestions
+
+Type a keyword to start a debounced request. Later searches supersede earlier results. Remember selected options to preserve their labels.
+
+```tsx preview play=suggestion
+import { enUS, Field, Form, Watch, useField, useForm, type Draft } from '@shikiform/react';
+import { useSuggestion } from '@shikiform/hooks';
+
+const WORDS = ["Phone case", "Phone stand", "Watch", "Backpack", "Mouse", "Mouse pad", "Cup", "Headphones", "Coffee maker", "Coffee beans"];
+
+/** Return matching options after 250 ms. New input aborts an older request. */
+async function suggest(keyword: string, ctx: { signal: AbortSignal }) {
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  if (ctx.signal.aborted) return [];
+  return WORDS.filter((word) => [...keyword].some((char) => word.includes(char))).map((word) => ({ label: word, value: word }));
+}
+
+type Values = { product: string };
+
+function SuggestInput() {
+  const f = useField<string>();
+  const sug = useSuggestion({ fetch: suggest, debounce: 250 });
+  return (
+    <div>
+      <label htmlFor={f.id}>{f.title}：</label>
+      <input
+        id={f.id}
+        placeholder="Type “phone” or “mouse”"
+        value={sug.keyword || f.value || ''}
+        onChange={(e) => {
+          sug.search(e.target.value);
+          if (!e.target.value) f.onChange('');
+        }}
+      />
+      {sug.loading && <small style={{ marginLeft: 8 }}>Searching…</small>}
+      {sug.options.length > 0 && (
+        <ul style={{ listStyle: 'none', padding: 0, margin: '6px 0', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {sug.options.map((opt) => (
+            <li key={String(opt.value)}>
+              <button
+                type="button"
+                onClick={() => {
+                  sug.remember([opt]);
+                  f.onChange(String(opt.value));
+                  sug.search('');
+                }}
+              >
+                {opt.label}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+export default function App() {
+  const form = useForm<Values>({ messages: enUS, initialValues: { product: '' } });
+  return (
+    <Form form={form}>
+      <Field name="product" title="Product suggestions" component={[SuggestInput]} />
+      <Watch select={(d: Draft<Values>) => d.$value}>
+        {(values) => <pre>{JSON.stringify(values, null, 2)}</pre>}
+      </Watch>
+    </Form>
+  );
+}
+```
+
+## Lazy cascaders
+
+Expand a branch to load its children. For existing selections, load the ancestor path to display the corresponding labels.
+
+```tsx preview play=cascader-plus
+import { enUS, Field, Form, Watch, useField, useForm, type Draft } from '@shikiform/react';
+import { useLazyCascader, type CascaderOption } from '@shikiform/hooks';
+
+type Area = { code: string; name: string; children?: Area[] };
+const AREA: Area[] = [
+  { code: '110000', name: "Beijing", children: [{ code: '11000000', name: "Beijing", children: [{ code: '110105', name: "Chaoyang" }, { code: '110108', name: "Haidian" }] }] },
+  { code: '330000', name: "Zhejiang", children: [{ code: '330100', name: "Hangzhou", children: [{ code: '330106', name: "West Lake" }, { code: '330108', name: "Binjiang" }] }] },
+];
+
+/** Use the selected path to load children at any depth. */
+async function loadArea(path: Array<string | number>): Promise<CascaderOption[]> {
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  let level: Area[] | undefined = AREA;
+  for (const code of path) level = level?.find((node) => node.code === String(code))?.children;
+  return (level ?? []).map((node) => ({ label: node.name, value: node.code, isLeaf: path.length === 2 }));
+}
+
+type Values = { area: string[] };
+
+function AreaCascader() {
+  const f = useField<string[]>();
+  const path = f.value ?? [];
+  const cascader = useLazyCascader({ load: loadArea, paths: path.length ? [path] : undefined });
+
+  const level0 = cascader.options;
+  const level1 = level0.find((n) => n.value === path[0])?.children ?? [];
+  const level2 = level1.find((n) => n.value === path[1])?.children ?? [];
+
+  const pick = (depth: number, code: string) => {
+    const next = [...path.slice(0, depth), ...(code ? [code] : [])];
+    f.onChange(next);
+    if (code && depth < 2) void cascader.loadChildren(next);
+  };
+
+  return (
+    <div>
+      <p>
+        <span>{f.title}：</span>
+        {cascader.loading ? <small>Loading…</small> : <strong>{cascader.labelsOf(path).join(' / ') || "No selection"}</strong>}
+      </p>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <select aria-label="Province" value={path[0] ?? ''} onChange={(e) => pick(0, e.target.value)}>
+          <option value="">Select a province</option>
+          {level0.map((opt) => <option key={String(opt.value)} value={String(opt.value)}>{opt.label}</option>)}
+        </select>
+        <select aria-label="City" value={path[1] ?? ''} disabled={!level1.length} onChange={(e) => pick(1, e.target.value)}>
+          <option value="">Select a city</option>
+          {level1.map((opt) => <option key={String(opt.value)} value={String(opt.value)}>{opt.label}</option>)}
+        </select>
+        <select aria-label="District" value={path[2] ?? ''} disabled={!level2.length} onChange={(e) => pick(2, e.target.value)}>
+          <option value="">Select a district</option>
+          {level2.map((opt) => <option key={String(opt.value)} value={String(opt.value)}>{opt.label}</option>)}
+        </select>
+      </div>
+    </div>
+  );
+}
+
+export default function App() {
+  const form = useForm<Values>({
+    messages: enUS,
+    initialValues: { area: ['110000', '11000000', '110105'] }, // Load ancestor labels from the saved codes.
+  });
+  return (
+    <Form form={form}>
+      <Field name="area" title="Address" component={[AreaCascader]} />
+      <Watch select={(d: Draft<Values>) => d.$value}>
+        {(values) => <pre>{JSON.stringify(values)}</pre>}
+      </Watch>
+    </Form>
+  );
+}
+```

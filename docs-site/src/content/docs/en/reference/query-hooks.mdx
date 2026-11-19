@@ -1,0 +1,139 @@
+---
+title: "Query hooks reference"
+description: "Request and response types, filters, pagination and query state in useQueryTable."
+---
+Use `useQueryTable` from `@shikiform/hooks`. Try the [full query table](/en/play/query).
+
+## useQueryTable
+
+```ts
+// Infer TParams from the selected field path.
+useQueryTable<TValues, TRow, const P extends FieldPath<TValues>>(
+  options: UseQueryTableOptions<TValues, PathValue<TValues, P & string>, TRow> & { params: P }
+): QueryTableApi<TValues, PathValue<TValues, P & string>, TRow>
+
+// Map filter values to request parameters.
+useQueryTable<TValues, TParams, TRow>(
+  options: UseQueryTableOptions<TValues, TParams, TRow> & { params: (values: TValues) => TParams }
+): QueryTableApi<TValues, TParams, TRow>
+
+// Use all form values when params is omitted.
+useQueryTable<TValues, TRow = unknown>(
+  options: Omit<UseQueryTableOptions<TValues, TValues, TRow>, 'params'> & { params?: undefined }
+): QueryTableApi<TValues, TValues, TRow>
+```
+
+Let `initialValues`, `params` and `request` infer their types. To fix only the value type, use `useQueryTable<Values>()(options)`.
+
+### Options and defaults
+
+| Option | Behavior |
+|---|---|
+| `form` | Use an existing form or create one with `initialValues`, `fields` and `effects`. |
+| `params` | A field path, mapping function or the entire value tree by default. Omission from submission does not filter request parameters. |
+| `page`, `pageSize` | Paths default to their option names. Missing values initialize to page 1 and `defaultPageSize` (10). |
+| `selectedKeys` | Selection path, defaults to `selectedKeys`. Read as string keys, initially empty. |
+| `mode` | Server pagination by default. In client mode the hook slices the full result locally. |
+| `validateOnSubmit` | Defaults to true. A path-based filter validates only that subtree. |
+| `request` | Required asynchronous function returning rows and total. |
+| `rows` | Optional writable array path for editable results. Each successful page becomes the baseline. |
+| `useQuery` | Optional compatible query hook. Keep the implementation stable across renders. |
+
+The first request starts after mount. Selected keys and client-side paging values are omitted from submission. Existing visibility settings remain effective.
+
+### Request contract
+
+```ts
+interface QueryRequestArgs<TParams> {
+  params: TParams;
+  page: number;
+  pageSize: number;
+  sorter: { field: string; order: 'ascend' | 'descend' }[]; // Empty when unsorted.
+  filters: Record<string, (string | number | boolean)[]>;  // Only columns with selected filter values.
+  signal: AbortSignal;
+}
+interface QueryRequestResult<TRow, TExtra = unknown> {
+  data: TRow[];
+  total: number;
+  extra?: TExtra; // Read optional aggregates or counts from table.extra.
+}
+```
+
+Return current-page data and the unpaginated total in server mode. Return all filtered rows in client mode. Optional `extra` holds aggregates. Forward `signal` to the request transport to cancel stale work.
+
+### Results and actions
+
+Read `data`, `total`, `extra`, `page`, `pageSize` and `selectedKeys`. `loading` indicates an initial load and `fetching` includes background refresh. `isPlaceholderData` identifies retained results from a compatible query hook. Use `submit` for a new query, `reset` for the initial filters, `refresh` for the current query, `onPageChange` for pagination and `setSelectedKeys` for selection.
+
+### Sorting and column filters
+
+Call `setSorter` and `setFilters` or pass `onTableChange` to a compatible table. Read header state with `sortOrderOf` and `filteredValueOf`. Sorting and filtering return to page one. Searching and changing filters clear selection.
+
+```tsx
+const table = useQueryTable({
+  initialValues: { query: {}, list: [] },
+  params: 'query',
+  rows: 'list',
+  request: ({ params, page, pageSize, sorter, filters }) =>
+    api.list({ ...params, page, pageSize, orderBy: sorter[0]?.field, order: sorter[0]?.order, status: filters.status }),
+})
+// Sort with table.setSorter([{ field: 'id', order: 'descend' }]).
+// Filter with table.setFilters({ status: [1] }).
+```
+
+### Runnable local request
+
+```tsx preview
+import { Field, Form } from '@shikiform/react';
+import { useQueryTable } from '@shikiform/hooks';
+
+type Row = { id: string; name: string };
+type Values = { filters: { name: string }; list: Row[]; page: number; pageSize: number; selectedKeys: string[] };
+const rows: Row[] = [
+  { id: '1', name: 'Ada' }, { id: '2', name: 'Grace' },
+  { id: '3', name: 'Alan' }, { id: '4', name: 'Edsger' },
+];
+
+export default function App() {
+  const table = useQueryTable<Values>()({
+    initialValues: { filters: { name: '' }, list: [], page: 1, pageSize: 2, selectedKeys: [] },
+    params: 'filters',
+    rows: 'list',
+    mode: 'client',
+    request: async ({ params }) => {
+      const data = rows.filter((row) => row.name.toLowerCase().includes(params.name.toLowerCase()));
+      return { data, total: data.length };
+    },
+  });
+  const totalPages = Math.max(1, Math.ceil(table.total / table.pageSize));
+  return (
+    <Form form={table.form} onSubmit={() => table.submit()}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+        <Field<Values, 'filters.name'> name="filters.name">
+          {(field) => (
+            <input aria-label="Filter by name" placeholder="Type, then search" value={field.value}
+              onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} />
+          )}
+        </Field>
+        <button type="submit">Search</button>
+        <button type="button" onClick={() => table.reset()}>Reset</button>
+      </div>
+      <table>
+        <thead><tr><th>Name</th></tr></thead>
+        <tbody>
+          {table.data.map((row) => <tr key={row.id}><td>{row.name}</td></tr>)}
+        </tbody>
+      </table>
+      <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
+        <button type="button" disabled={table.page <= 1} onClick={() => table.onPageChange(table.page - 1)}>Previous</button>
+        <span>Page {table.page} / {totalPages} of {table.total} rows)</span>
+        <button type="button" disabled={table.page >= totalPages} onClick={() => table.onPageChange(table.page + 1)}>Next</button>
+      </div>
+    </Form>
+  );
+}
+```
+
+## Default runner
+
+The built-in runner retains previous results while fetching and ignores outdated responses. A replacement query hook receives `queryKey`, `queryFn` and `placeholderData`. Keep request errors visible in your view.

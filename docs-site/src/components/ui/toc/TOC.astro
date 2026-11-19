@@ -1,4 +1,5 @@
 ---
+import { pageLanguage } from "@/lib/language";
 /**
  * TOC — on-this-page nav with scroll-spy. Static rail rendered inline
  * (border-s + S-curve SVGs at indent changes); animated active indicator
@@ -13,12 +14,13 @@ interface Props extends HTMLAttributes<"div"> {
 }
 
 const { headings, class: className, ...attrs } = Astro.props;
+const english = pageLanguage(Astro.url.pathname) === "en";
 ---
 
 {headings.length > 0 && (
   <div data-slot="toc" data-nb-toc class={cn("toc-container", className)} {...attrs}>
-    <h2 class="mb-2 text-sm font-semibold text-foreground">On this page</h2>
-    <nav aria-label="Table of contents" class="relative">
+    <h2 class="mb-2 text-sm font-semibold text-foreground">{english ? "On this page" : "本页目录"}</h2>
+    <nav aria-label={english ? "Table of contents" : "本页目录"} class="relative">
       <svg
         data-nb-toc-rail
         aria-hidden="true"

@@ -1,3 +1,4 @@
+import { localize } from '../language'
 import { useState } from 'react'
 import { Field, Form, useForm, useFormContext, useWatch, type Draft } from '@shikiform/react'
 import { FormButtonGroup, FormItem, Input, InputNumber, MergedTable, Submit, Switch } from '../kit'
@@ -23,11 +24,11 @@ export function SkuEditorPage() {
   return (
     <main>
       <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values, null, 2))}>
-        <h1>SKU 表格</h1>
+        <h1>{localize("SKU 表格", "SKU table")}</h1>
         <p data-testid="price-policy">
-          按颜色合并单元格；改合并格里的颜色就是改这一组的每一行。打开「渠道列」时按 skuId 留在原行，已改的价格和库存不动，不按新的维度组合重新生成行。
+          {localize("按颜色合并单元格；改合并格里的颜色就是改这一组的每一行。打开「渠道列」时按 skuId 留在原行，已改的价格和库存不动，不按新的维度组合重新生成行。", "Editing a merged color cell updates every row in its group. Showing the channel column keeps each row keyed by skuId, preserving edited prices and stock.")}
         </p>
-        <Field name="channelOn" title="渠道列" decorator={[FormItem]} component={[Switch, tid('add-dim')]} />
+        <Field name="channelOn" title={localize("渠道列", "Channel column")} decorator={[FormItem]} component={[Switch, tid('add-dim')]} />
         <SkuTable />
         <FormButtonGroup style={{ marginTop: 16 }}>
           <Submit />
@@ -50,34 +51,34 @@ function SkuTable() {
       groupOf={(row) => row.color}
       columns={[
         {
-          title: '颜色',
+          title: localize("颜色", "Color"),
           key: 'color',
           merge: true,
           render: (row) => (
             <input
               className="sk-input"
               data-testid={`color-${row.skuId}`}
-              aria-label="颜色"
+              aria-label={localize("颜色", "Color")}
               value={row.color}
               onChange={(event) => form.setValue('rows', paintGroupColor(rows, row.color, event.target.value))}
             />
           ),
         },
-        { title: '容量', key: 'storage', render: (row) => <span data-testid={`storage-${row.skuId}`}>{row.storage}</span> },
-        { title: '版本', key: 'edition', render: (row) => row.edition },
+        { title: localize("容量", "Storage"), key: 'storage', render: (row) => <span data-testid={`storage-${row.skuId}`}>{row.storage}</span> },
+        { title: localize("版本", "Edition"), key: 'edition', render: (row) => row.edition },
         {
-          title: '价格',
+          title: localize("价格", "Price"),
           key: 'price',
           render: (row) => <Field name={`rows.${at(row.skuId)}.price`} component={[InputNumber, { ...tid(`price-${row.skuId}`), min: 0 }]} />,
         },
         {
-          title: '库存',
+          title: localize("库存", "Stock"),
           key: 'stock',
           render: (row) => <Field name={`rows.${at(row.skuId)}.stock`} component={[InputNumber, { ...tid(`stock-${row.skuId}`), min: 0 }]} />,
         },
         ...(channelOn
           ? [{
-              title: '渠道',
+              title: localize("渠道", "Channel"),
               key: 'channel',
               render: (row: SkuRow & { id: string }) => <Field name={`rows.${at(row.skuId)}.channel`} component={[Input, tid(`channel-${row.skuId}`)]} />,
             }]

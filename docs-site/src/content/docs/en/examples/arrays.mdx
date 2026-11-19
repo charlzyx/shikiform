@@ -1,0 +1,334 @@
+---
+title: "Arrays and trees"
+description: "Edit nested objects, move nodes across a tree and validate offscreen rows."
+---
+
+## Calculate each row
+
+Use `reaction.each` to calculate each line's subtotal from its own price and quantity. Filter nested records using `ctx.depth` or `ctx.key`.
+
+```tsx preview
+import { useState, type ReactNode } from 'react';
+import { enUS, defineEffects, Form, Submit, typed, useArrayField, useField, useForm } from '@shikiform/react';
+
+type Line = { sku: string; price: number | null; qty: number | null; total: number };
+type Values = { lines: Line[] };
+
+const effects = defineEffects<Values>(({ reaction }) => {
+  reaction.each((d) => d.lines, (row) => {
+    const total = (row.price.$value ?? 0) * (row.qty.$value ?? 0);
+    row.total.$value = total;
+  });
+});
+
+const blank = (): Line => ({ sku: '', price: 0, qty: 1, total: 0 });
+
+function TextCell() {
+  const f = useField<string>();
+  return (
+    <label htmlFor={f.id}>
+      {f.title}
+      <input id={f.id} style={{ width: 96 }} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} onBlur={f.onBlur} />
+    </label>
+  );
+}
+
+function NumberCell({ min }: { min?: number }) {
+  const f = useField<number | null>();
+  return (
+    <label htmlFor={f.id}>
+      {f.title}
+      <input
+        id={f.id}
+        type="number"
+        min={min}
+        style={{ width: 72 }}
+        value={f.value ?? ''}
+        onChange={(e) => f.onChange(e.target.value === '' ? null : Number(e.target.value))}
+        onBlur={f.onBlur}
+      />
+    </label>
+  );
+}
+
+function Lines({ children }: { children?: ReactNode }) {
+  const lines = useArrayField<Line>();
+  return (
+    <>
+      {children}
+      <button type="button" onClick={() => lines.push(blank())}>Add row</button>
+    </>
+  );
+}
+
+export default function App() {
+  const [result, setResult] = useState('');
+  const form = useForm<Values>({
+    messages: enUS,
+    initialValues: { lines: [{ sku: "Sticker", price: 2, qty: 4, total: 0 }] },
+    effects: [effects],
+  });
+  const F = typed(form);
+  return (
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
+      <F.ArrayField name="lines" component={Lines}>
+        {(row) => (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+            <row.Field name="sku" title="Product" component={[TextCell]} />
+            <row.Field name="price" title="Unit price" component={[NumberCell, { min: 0 }]} />
+            <row.Field name="qty" title="Quantity" component={[NumberCell, { min: 0 }]} />
+            <row.Field name="total" title="Subtotal" component={[NumberCell]} />
+          </div>
+        )}
+      </F.ArrayField>
+      <Submit style={{ marginLeft: 8 }}>Submit</Submit>
+      <pre aria-live="polite">{result}</pre>
+    </Form>
+  );
+}
+```
+
+## Nested objects and read-only rows
+
+Open the address editor, switch the form into read-only mode, and compare an editable order with a shipped order.
+
+```tsx preview play=nested
+import { useState } from 'react';
+import { enUS, ArrayField, Field, Form, ObjectField, Watch, defineEffects, useField, useForm, type Draft } from '@shikiform/react';
+
+type Order = { id: string; title: string; qty: number; shipped: boolean };
+type Values = { editable: boolean; profile: { name: string; address: { city: string; street: string } }; orders: Order[] };
+
+const effects = defineEffects<Values>(({ reaction }) => {
+  reaction((d) => {
+    const readOnly = d.editable.$value ? undefined : true; // undefined inherits the parent state.
+    d.profile.$readOnly = readOnly;
+    d.orders.$readOnly = readOnly;
+  });
+  reaction.each((d) => d.orders, (row) => {
+    row.qty.$readOnly = row.shipped.$value ? true : undefined;
+  });
+});
+
+function TextField() {
+  const f = useField<string>();
+  return (
+    <p>
+      <label htmlFor={f.id}>{f.title}：</label>
+      {f.readOnly ? (
+        <span>{f.value || '-'}</span>
+      ) : (
+        <input id={f.id} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} onBlur={f.onBlur} />
+      )}
+    </p>
+  );
+}
+
+function NumberInline({ min }: { min?: number }) {
+  const f = useField<number>();
+  return (
+    <label htmlFor={f.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      {f.title}
+      {f.readOnly ? (
+        <span>{f.value}</span>
+      ) : (
+        <input
+          id={f.id}
+          type="number"
+          min={min}
+          style={{ width: 64 }}
+          value={f.value ?? 0}
+          onChange={(e) => f.onChange(Number(e.target.value))}
+          onBlur={f.onBlur}
+        />
+      )}
+    </label>
+  );
+}
+
+function ToggleInline() {
+  const f = useField<boolean>();
+  return (
+    <label htmlFor={f.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      <input
+        id={f.id}
+        type="checkbox"
+        checked={Boolean(f.value)}
+        disabled={f.readOnly || f.disabled}
+        onChange={(e) => f.onChange(e.target.checked)}
+      />
+      {f.title}
+    </label>
+  );
+}
+
+export default function App() {
+  const [open, setOpen] = useState(false);
+  const form = useForm<Values>({
+    messages: enUS,
+    initialValues: {
+      editable: true,
+      profile: { name: 'Ada', address: { city: "London", street: "221B Baker Street" } },
+      orders: [{ id: 'o1', title: "Not shipped", qty: 1, shipped: false }, { id: 'o2', title: "Shipped", qty: 2, shipped: true }],
+    },
+    fields: { editable: { omit: true } },
+    effects: [effects],
+  });
+  return (
+    <Form form={form}>
+      <p>
+        <Field name="editable" title="Editable" component={[ToggleInline]} />
+      </p>
+      <ObjectField name="profile">
+        <Field name="name" title="Name" component={[TextField]} />
+        <p>
+          <span>Address:</span>
+          <Watch select={(d: Draft<Values>) => d.profile.address.$value}>
+            {(address) => <span>{address.city} · {address.street} </span>}
+          </Watch>
+          <button type="button" onClick={() => setOpen((prev) => !prev)}>
+            {open ? "Collapse" : "Edit"}
+          </button>
+        </p>
+        {open && (
+          <fieldset style={{ marginBottom: 12 }}>
+            <legend>Address</legend>
+            <ObjectField name="address">
+              <Field name="city" title="City" component={[TextField]} />
+              <Field name="street" title="Street" component={[TextField]} />
+            </ObjectField>
+          </fieldset>
+        )}
+      </ObjectField>
+      <ArrayField name="orders" rowKey="id">
+        {() => (
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 8 }}>
+            <Field name="title" readOnly>{(f) => <strong>{String(f.value ?? '')}</strong>}</Field>
+            <Field name="qty" title="Quantity" component={[NumberInline, { min: 1 }]} />
+            <Field name="shipped" title="Shipped" component={[ToggleInline]} />
+          </div>
+        )}
+      </ArrayField>
+    </Form>
+  );
+}
+```
+
+## Move nodes across parents
+
+Drag a menu item to another parent. Its key and field state follow the node while its position changes. Moving a parent into its descendant is refused.
+
+```tsx preview play=headless
+import { useState } from 'react';
+import { enUS, Form, TreeField, useField, useForm, useTreeField } from '@shikiform/react';
+
+type Node = { id: string; name: string; children: Node[] };
+
+function NodeRow() {
+  const { pos, path, record, dragProps } = useTreeField<Node>();
+  const name = useField<Node, 'name'>('name', { required: true });
+  return (
+    <div {...dragProps()} style={{ cursor: 'grab', padding: '2px 0' }}>
+      ⠿ <input aria-label="Name" value={name.value} onChange={(event) => name.onChange(event.target.value)} onBlur={name.onBlur} />
+      <small> id {record.id} · pos [{pos.join(',')}] · {path}</small>
+      {name.errors[0] && <small style={{ color: 'crimson' }}> {name.errors[0]}</small>}
+    </div>
+  );
+}
+
+function Menu() {
+  const tree = useTreeField('menu', { rowKey: 'id' });
+  const [result, setResult] = useState('');
+  return (
+    <>
+      <ul style={{ paddingLeft: 0, listStyle: 'none', margin: 0 }}>
+        <TreeField name="menu" rowKey="id">
+          {(node) => (
+            <li>
+              <NodeRow />
+              {node.children && <ul style={{ paddingLeft: 20, listStyle: 'none', margin: 0 }}>{node.children}</ul>}
+            </li>
+          )}
+        </TreeField>
+      </ul>
+      <button type="button" onClick={() => setResult(JSON.stringify(tree.move([1, 0], [0, 0])))}>Move Undo to the start of File</button>{' '}
+      <button type="button" onClick={() => setResult(JSON.stringify(tree.move([0], [0, 0])))}>Move File into its own child</button>
+      <pre>{result}</pre>
+    </>
+  );
+}
+
+export default function App() {
+  const form = useForm({
+    messages: enUS,
+    initialValues: {
+      menu: [
+        { id: 'file', name: "File", children: [{ id: 'new', name: '', children: [] }, { id: 'open', name: "Open", children: [] }] },
+        { id: 'edit', name: "Edit", children: [{ id: 'undo', name: "Undo", children: [] }] },
+      ] as Node[],
+    },
+  });
+  return (
+    <Form form={form}>
+      <Menu />
+      <button type="button" onClick={() => { void form.validate().catch(() => {}) }}>Validate</button>
+    </Form>
+  );
+}
+```
+
+## Virtual rows
+
+Only the visible part of a 2,000-row list is mounted. Declared required rules still validate offscreen records on submit.
+
+```tsx preview play=virtual
+import { useState } from 'react';
+import { enUS, ArrayField, Field, Form, useForm } from '@shikiform/react';
+
+type Row = { id: string; name: string };
+
+export default function App() {
+  const [errors, setErrors] = useState('');
+  const form = useForm<{ rows: Row[] }>({
+    messages: enUS,
+    initialValues: { rows: Array.from({ length: 2000 }, (_, index) => ({ id: `v${index}`, name: index % 500 === 499 ? '' : `Row ${index}` })) },
+    fields: { 'rows.*.name': { required: true } }, // Check each row, including unmounted rows.
+  });
+  const validate = async () => {
+    try {
+      await form.validate();
+      setErrors("None");
+    } catch (error) {
+      const errors = Array.isArray(error) ? error as { path: string }[] : [];
+      setErrors(errors.map((item) => item.path).join(', ') || "None");
+    }
+  };
+  return (
+    <Form form={form}>
+      <ArrayField name="rows" rowKey="id" virtualScroll={{ height: 240, rowHeight: 40, overscan: 4 }}>
+        {({ index }) => (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', height: 40 }}>
+            <code style={{ width: 48 }}>#{index}</code>
+            <Field<Row, 'name'> name="name">
+              {(f) => (
+                <>
+                  <input
+                    aria-label={`Row ${index} name`}
+                    style={{ width: 200 }}
+                    value={f.value ?? ''}
+                    onChange={(e) => f.onChange(e.target.value)}
+                    onBlur={f.onBlur}
+                  />
+                  {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}>{f.errors[0]}</small>}
+                </>
+              )}
+            </Field>
+          </div>
+        )}
+      </ArrayField>
+      <button type="button" onClick={validate}>Validate all 2,000 rows</button>
+      <p>Errors:{errors}</p>
+    </Form>
+  );
+}
+```

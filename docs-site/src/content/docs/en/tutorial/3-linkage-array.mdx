@@ -1,0 +1,74 @@
+---
+title: "3. Effects and arrays"
+description: "Calculate amounts, reset dependent selections and update individual rows."
+tableOfContents: false
+---
+
+<div className="tutorial-step">
+<div className="tutorial-copy">
+
+## 3.1 Derive an amount
+
+The price and quantity have initial values but the starter leaves the amount unchanged. A reaction runs on initialization and whenever a state it reads changes.
+
+**Try it.** Register the following calculation in `defineEffects` and pass it to the form. Keep a local variable if another calculation needs the new amount in this pass.
+
+```ts
+const amount = (d.price.$value || 0) * (d.qty.$value || 0);
+d.amount.$value = amount;
+```
+
+</div>
+
+<TutorialPlay id="06-reaction" />
+
+</div>
+
+<div className="tutorial-step">
+<div className="tutorial-copy">
+
+## 3.2 Reset a dependent field
+
+The starter clears the city during initialization, losing the saved selection. Keep `d.city.$disabled = !d.province.$value` in the reaction.
+
+**Try it.** Move the reset into a watch. Check that the initial city stays selected until the province changes.
+
+```ts
+watch(
+  (d) => d.province.$value,
+  (d) => {
+    d.city.$value = '';
+  },
+);
+```
+
+</div>
+
+<TutorialPlay id="08-watch" />
+
+</div>
+
+<div className="tutorial-step">
+<div className="tutorial-copy">
+
+## 3.3 Calculate each row
+
+`ArrayField` supplies a scope for each record. Use a stable row key and its array handle for inserts, removals and moves.
+
+**Try it.** Add this reaction to the effects. Changing one quantity should only update that row's total.
+
+```ts
+reaction.each(
+  (d) => d.items,
+  (row) => {
+    const total = (row.price.$value || 0) * (row.qty.$value || 0);
+    row.total.$value = total;
+  },
+);
+```
+
+</div>
+
+<TutorialPlay id="07-array" />
+
+</div>

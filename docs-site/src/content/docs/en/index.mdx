@@ -1,0 +1,123 @@
+---
+title: "ShikiForm"
+description: "A headless TypeScript form engine with path-based subscriptions and React bindings for your own controls."
+mode: custom
+---
+<HomeHero />
+
+<div className="docs-content" style={{ maxWidth: '1120px', margin: '0 auto', padding: '40px 24px 72px' }}>
+
+## Try it in 30 seconds
+
+Switch the account type below. A work account requires an email, changes the placeholder and shows the company field. Open the code to see how one `reaction` describes all three changes.
+
+```tsx preview
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { enUS, defineEffects, Form, Submit, typed, useField, useFieldDecorator, useForm, useWatch, type Draft } from '@shikiform/react';
+
+type Values = { kind: 'personal' | 'work'; email: string; company: string };
+
+const effects = defineEffects<Values>(({ reaction }) => {
+  reaction((d) => {
+    const work = d.kind.$value === 'work';
+    d.email.$required = work;
+    d.email.$componentProps.placeholder = work ? 'name@company.com' : 'name@example.com';
+    d.company.$visible = work;
+  });
+});
+
+function FieldItem({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <label {...d.labelProps} style={{ display: 'inline-block', width: 72 }}>
+        {d.required && <span style={{ color: 'crimson' }}>* </span>}
+        {d.label}
+      </label>
+      {children}
+      {d.errorProps && <small {...d.errorProps} style={{ color: 'crimson', marginLeft: 8 }}>{d.errors[0]}</small>}
+    </div>
+  );
+}
+
+function TextInput({ placeholder }: { placeholder?: string }) {
+  const field = useField<string>();
+  return (
+    <input id={field.id} value={field.value ?? ''} placeholder={placeholder}
+      onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />
+  );
+}
+
+function RadioGroup() {
+  const field = useField<string>();
+  return (
+    <span style={{ display: 'inline-flex', gap: 12 }}>
+      {field.options.map((o) => (
+        <label key={String(o.value)}>
+          <input type="radio" name={field.id} checked={field.value === o.value}
+            onChange={() => field.onChange(String(o.value))} />
+          {' '}{o.label}
+        </label>
+      ))}
+    </span>
+  );
+}
+
+function ForgetResult({ clear }: { clear: () => void }) {
+  const kind = useWatch((d: Draft<Values>) => d.kind.$value);
+  const clearRef = useRef(clear);
+  clearRef.current = clear;
+  const ready = useRef(false);
+  useEffect(() => {
+    if (!ready.current) {
+      ready.current = true;
+      return;
+    }
+    clearRef.current();
+  }, [kind]);
+  return null;
+}
+
+export default function App() {
+  const [result, setResult] = useState('');
+  const form = useForm<Values>({
+    messages: enUS,
+    initialValues: { kind: 'personal', email: '', company: '' },
+    effects: [effects],
+  });
+  const F = typed(form);
+  return (
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))} onInvalid={() => setResult('')}>
+      <ForgetResult clear={() => setResult('')} />
+      <F.Field name="kind" title="Account type" enum={[{ label: "Personal", value: 'personal' }, { label: "Work", value: 'work' }]}
+        decorator={[FieldItem]} component={[RadioGroup]} />
+      <F.Field name="email" title="Email" rules={{ format: 'email' }} decorator={[FieldItem]} component={[TextInput]} />
+      <F.Field name="company" title="Company" required decorator={[FieldItem]} component={[TextInput]} />
+      <Submit>Submit</Submit>
+      <pre aria-live="polite">{result}</pre>
+    </Form>
+  );
+}
+```
+
+## How ShikiForm handles form state
+
+A form instance owns the values, rules, validation results and UI state. Controls subscribe to individual paths. A `reaction` tracks the states it reads and updates dependent fields, including fields outside the current screen. Use `watch` to reset a dependent value or start a request after a change.
+
+| Topic | ShikiForm | React Hook Form | Formily |
+|---|---|---|---|
+| Dependent fields | Assign to draft state in a reaction. | Components typically use `watch` and `setValue`. | Reactions often live alongside a schema. |
+| UI controls | Bind a control with `useField`, `connect` or `useFieldDecorator`. | Use `Controller` for controlled inputs. | UI adapters are available as separate packages. |
+| Visibility and submission | Hidden fields skip validation and still submit. Set `omit` to exclude them. | Registration and mount settings affect submission. Disabled inputs are excluded by default. | Hidden fields retain their value. The none display mode excludes them. |
+
+## Installation
+
+```bash
+npm i @shikiform/react
+# Headless query tables, draft editors and array tables
+npm i @shikiform/hooks
+```
+
+Use `@shikiform/core` without React, `@shikiform/react` for fields and hooks, and `@shikiform/hooks` for tables, suggestions and draft editors. Start with the [first form](/en/guide/quick-start), work through the [interactive tutorial](/en/tutorial), or explore the [examples](/en/examples).
+
+</div>

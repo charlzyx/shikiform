@@ -15,6 +15,7 @@ import {
 
 export interface PlaygroundProps {
   /** File name → source. Several files show as tabs and import each other relatively (`./fields`). */
+  english?: boolean
   files: DemoFiles
   /** The file whose default export is rendered. Defaults to the first file. */
   entry?: string
@@ -154,8 +155,9 @@ function ToolButton({ label, pressed, onClick, children }: {
  */
 export function Playground({
   files, entry: entryProp, language = 'tsx', component, codeHtml, editing: editingProp = false, play,
-  label = '可运行示例', actions, status, onReset,
+  english = false, label = english ? 'Runnable example' : '可运行示例', actions, status, onReset,
 }: PlaygroundProps) {
+  const text = (zh: string, en: string) => english ? en : zh
   const names = Object.keys(files)
   const entry = entryProp ?? names[0]
   const codeId = useId()
@@ -219,47 +221,47 @@ export function Playground({
       <div className="sf-demo__preview vp-raw" data-prebuilt={prebuilt || undefined}>
         {Preview
           ? <PreviewBoundary key={`${prebuilt ? 'built' : compiled.version}:${run}`}><Preview /></PreviewBoundary>
-          : !compiled.error && <p className="sf-demo__loading">正在加载示例…</p>}
+          : !compiled.error && <p className="sf-demo__loading">{text('正在加载示例…', 'Loading example…')}</p>}
         {!prebuilt && compiled.error && <pre className="sf-demo__error" role="alert">{compiled.error}</pre>}
       </div>
 
-      <div className="sf-demo__bar" role="toolbar" aria-label="示例工具栏">
+      <div className="sf-demo__bar" role="toolbar" aria-label={text('示例工具栏', 'Example toolbar')}>
         <button type="button" className="sf-demo__toggle" aria-expanded={open} aria-controls={codeId} onClick={() => setOpen(!open)}>
           <ChevronIcon />
-          <span>{open ? '收起代码' : '查看代码'}</span>
+          <span>{open ? text('收起代码', 'Hide code') : text('查看代码', 'Show code')}</span>
         </button>
         <span className="sf-demo__lang">{language}</span>
         {status && <span className="sf-demo__status">{status}</span>}
-        {!pristine && <span className="sf-demo__status">已修改</span>}
+        {!pristine && <span className="sf-demo__status">{text('已修改', 'Modified')}</span>}
         <span className="sf-demo__actions">
           {actions}
           <button type="button" className="sf-demo__btn" aria-pressed={editing} onClick={toggleEditing}
-            aria-label={editing ? '编辑中，改为只读' : '只读，改为编辑'}>
+            aria-label={editing ? text('编辑中，改为只读', 'Switch to read-only') : text('只读，改为编辑', 'Edit code')}>
             <EditIcon />
-            <span>{editing ? '编辑中，改为只读' : '只读，改为编辑'}</span>
+            <span>{editing ? text('编辑中，改为只读', 'Switch to read-only') : text('只读，改为编辑', 'Edit code')}</span>
           </button>
-          <ToolButton label={copied ? '已复制' : '复制代码'} onClick={copy}>{copied ? <CheckIcon /> : <CopyIcon />}</ToolButton>
-          <ToolButton label="重新运行" onClick={() => setRun(run + 1)}><RerunIcon /></ToolButton>
-          {(!pristine || onReset) && <ToolButton label="重置" onClick={reset}><ResetIcon /></ToolButton>}
+          <ToolButton label={copied ? text('已复制', 'Copied') : text('复制代码', 'Copy code')} onClick={copy}>{copied ? <CheckIcon /> : <CopyIcon />}</ToolButton>
+          <ToolButton label={text('重新运行', 'Run again')} onClick={() => setRun(run + 1)}><RerunIcon /></ToolButton>
+          {(!pristine || onReset) && <ToolButton label={text('重置', 'Reset')} onClick={reset}><ResetIcon /></ToolButton>}
           {play && (
-            <a className="sf-demo__btn" href={`/play/${play}`} target="_blank" rel="noreferrer"
-              aria-label="在 Play 中打开完整示例" title="在 Play 中打开完整示例">
+            <a className="sf-demo__btn" href={`${english ? '/en' : ''}/play/${play}`} target="_blank" rel="noreferrer"
+              aria-label={text('在 Play 中打开完整示例', 'Open full example')} title={text('在 Play 中打开完整示例', 'Open full example')}>
               <ExternalIcon />
             </a>
           )}
           {fullscreen !== null && (
-            <ToolButton label={fullscreen ? '退出全屏' : '全屏'} onClick={toggleFullscreen}>
+            <ToolButton label={fullscreen ? text('退出全屏', 'Exit full screen') : text('全屏', 'Full screen')} onClick={toggleFullscreen}>
               {fullscreen ? <CollapseIcon /> : <ExpandIcon />}
             </ToolButton>
           )}
         </span>
-        <span className="sf-demo__sr" aria-live="polite">{copied ? '代码已复制' : ''}</span>
+        <span className="sf-demo__sr" aria-live="polite">{copied ? text('代码已复制', 'Code copied') : ''}</span>
       </div>
 
       {open && (
         <div id={codeId} className="sf-demo__code">
           {names.length > 1 && (
-            <div className="sf-demo__tabs" role="tablist" aria-label="示例文件">
+            <div className="sf-demo__tabs" role="tablist" aria-label={text('示例文件', 'Example files')}>
               {names.map((name) => (
                 <button key={name} type="button" role="tab" className="sf-demo__tab" aria-selected={name === active}
                   onClick={() => setActive(name)}>
@@ -272,7 +274,7 @@ export function Playground({
             <CodeEditor
               key={`${active}:${revision}:${editing ? 'edit' : 'read'}`}
               doc={sources[active] ?? ''}
-              label={editing ? `编辑 ${active}` : `查看 ${active}`}
+              label={editing ? `${text('编辑', 'Edit')} ${active}` : `${text('查看', 'View')} ${active}`}
               readOnly={!editing}
               focus={editing}
               fallback={plainCode(active)}

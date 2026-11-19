@@ -1,0 +1,512 @@
+---
+title: "Connecting a UI library"
+description: "Connect native inputs and third-party controls, including date pickers and popup widgets."
+---
+
+## Array rows
+
+Inside an array row, `useArrayField()`, `useIndex()` and `useRecord()` supply the array, position and reactive row value. A container renders its children and can provide an add button even when the array is empty.
+
+```tsx preview
+import { type ReactNode } from 'react';
+import { enUS, ArrayField, Form, Watch, useArrayField, useField, useForm, useIndex, useRecord, type Draft } from '@shikiform/react';
+
+type Todo = { id: number; title: string; done: boolean };
+type Values = { todos: Todo[] };
+let nextId = 4;
+
+function TitleInput() {
+  const field = useField<Todo, 'title'>('title', { required: true });
+  return (
+    <span>
+      <input aria-label="Title" value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} />
+      {field.errors[0] && <small style={{ color: 'crimson' }}> {field.errors[0]}</small>}
+    </span>
+  );
+}
+
+function DoneBox() {
+  const field = useField<Todo, 'done'>('done');
+  return <input type="checkbox" aria-label="Done" checked={field.value} onChange={(event) => field.onChange(event.target.checked)} />;
+}
+
+function Row() {
+  const array = useArrayField<Todo>();
+  const index = useIndex();
+  const record = useRecord<Todo>();
+  return (
+    <li {...array.dragProps(index)} style={{ cursor: 'grab', opacity: record.done ? 0.5 : 1 }}>
+      ⠿ <DoneBox /> <TitleInput /> <small>#{index} · id {record.id}</small>{' '}
+      <button type="button" onClick={() => array.remove(index)}>Delete</button>
+    </li>
+  );
+}
+
+function TodoList({ children }: { children?: ReactNode }) {
+  const array = useArrayField<Todo>();
+  return (
+    <>
+      <ul style={{ paddingLeft: 0, listStyle: 'none' }}>{children}</ul>
+      <button type="button" onClick={() => array.push({ id: nextId++, title: '', done: false })}>Add</button>
+    </>
+  );
+}
+
+export default function App() {
+  const form = useForm<Values>({
+    messages: enUS,
+    initialValues: { todos: [{ id: 1, title: "Read the docs", done: true }, { id: 2, title: "Write the form", done: false }, { id: 3, title: "Drag to reorder", done: false }] },
+  });
+  return (
+    <Form form={form}>
+      <ArrayField name="todos" rowKey="id" component={TodoList}>{() => <Row />}</ArrayField>
+      <Watch select={(d: Draft<Values>) => d.todos.$value.filter((todo) => todo.done).length}>
+        {(done) => <p>Completed {done} items</p>}
+      </Watch>
+    </Form>
+  );
+}
+```
+
+## Tree nodes
+
+Within a `TreeField` node, `useTreeField()` gives the current path, position, record and editing operations. Outside the tree, pass its name to obtain the root handle.
+
+```tsx
+function NodeRow() {
+  const { record, dragProps } = useTreeField<Node>()
+  const field = useField<Node, 'name'>('name')
+  return <div {...dragProps()}>⠿ <input value={field.value} onChange={(e) => field.onChange(e.target.value)} /> {record.children?.length ?? 0}</div>
+}
+
+<ul>
+  <TreeField name="menu" rowKey="id">
+    {(node) => (
+      <li>
+        <NodeRow />
+        {node.children && <ul>{node.children}</ul>}
+      </li>
+    )}
+  </TreeField>
+</ul>
+```
+
+## Adapt a control
+
+`connect` forwards field state. `mapProps` adapts prop names and converts values using `format` and `parse`. Keep the stored value serializable. The read-only preview receives the original value.
+
+```ts
+// Example adapter for components accepting a status prop.
+import { connect, mapProps } from '@shikiform/react'
+
+const withStatus = mapProps(
+  { options: 'options', loading: 'loading' },
+  (props, field) => ({
+    ...props,
+    status: field.errors.length ? 'error' : field.warnings.length ? 'warning' : undefined,
+  }),
+)
+
+// const Input = connect(UiInput, withStatus)
+// const Select = connect(UiSelect, withStatus)
+// const Switch = connect(UiSwitch, mapProps({ value: 'checked', onChange: 'onChange' }))
+```
+
+### Labels and input bindings
+
+For a widget with its own label, use `useFieldDecorator().control` for display props and `useField()` for values. For a plain input, bind it with `connect` and render a separate decorator.
+
+```tsx
+import { Field, connect, useField, useFieldDecorator } from '@shikiform/react'
+
+// ✗ control has no value or onChange
+function Bad() {
+  const { control } = useFieldDecorator()
+  return <TextInput {...control} />
+}
+
+// ✓ Widgets with their own labels use control for display and useField for the value.
+function NameInput() {
+  const field = useField<string>()
+  const { control } = useFieldDecorator()
+  return (
+    <TextInput
+      {...control}
+      value={field.value ?? ''}
+      onChange={(event) => field.onChange(event.currentTarget.value)}
+    />
+  )
+}
+
+// ✓ Connect a plain input and wrap it in a FormItem decorator.
+const Input = connect(ShadcnInput)
+<Field name="name" title="Name" decorator={[FormItem]} component={[Input]} />
+```
+
+### Widgets without onBlur
+
+Choose when interaction is complete. `blurOn: 'onOpenChange'` blurs when a popup closes. `blurOn: 'onChange'` blurs after a change. Use `onBlur: false` to opt out explicitly.
+
+```tsx
+connect(SelectControl, mapProps({ options: 'options', onChange: 'onValueChange', blurOn: 'onOpenChange' }))
+connect(Picker, mapProps({ onBlur: false }))
+```
+
+### shadcn/ui
+
+Convert between a stored date string and the calendar's date type. Forward the trigger's ID and popup events.
+
+```tsx
+import { format, parseISO } from 'date-fns'
+import type { ReactNode } from 'react'
+import { Field, Form, Reset, Submit, connect, mapProps, useFieldDecorator, useForm } from '@shikiform/react'
+import { Button } from '@/components/ui/button'
+import { Calendar } from '@/components/ui/calendar'
+import { Checkbox as ShadcnCheckbox } from '@/components/ui/checkbox'
+import { Input as ShadcnInput } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Select as ShadcnSelect, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+
+const Input = connect(ShadcnInput, mapProps({ preview: ({ value }: { value?: string }) => <span>{value || '—'}</span> }))
+
+function SelectControl(props: {
+  id?: string
+  value?: string
+  disabled?: boolean
+  options?: { label: string; value: string; disabled?: boolean }[]
+  onValueChange?: (value: string) => void
+  onOpenChange?: (open: boolean) => void
+}) {
+  return (
+    <ShadcnSelect value={props.value || undefined} disabled={props.disabled} onValueChange={props.onValueChange} onOpenChange={props.onOpenChange}>
+      <SelectTrigger id={props.id}><SelectValue /></SelectTrigger>
+      <SelectContent>
+        {(props.options ?? []).map((option) => (
+          <SelectItem key={option.value} value={option.value} disabled={option.disabled}>{option.label}</SelectItem>
+        ))}
+      </SelectContent>
+    </ShadcnSelect>
+  )
+}
+
+const Select = connect(SelectControl, mapProps({ options: 'options', onChange: 'onValueChange', blurOn: 'onOpenChange' }))
+
+function CheckboxControl(props: {
+  id?: string
+  checked?: boolean
+  disabled?: boolean
+  onCheckedChange?: (checked: boolean | 'indeterminate') => void
+  onBlur?: () => void
+}) {
+  return <ShadcnCheckbox id={props.id} checked={!!props.checked} disabled={props.disabled} onCheckedChange={props.onCheckedChange} onBlur={props.onBlur} />
+}
+
+const Checkbox = connect(CheckboxControl, mapProps({
+  value: 'checked',
+  onChange: 'onCheckedChange',
+  parse: (checked: boolean | 'indeterminate') => checked === true,
+}))
+
+function DatePickerControl(props: {
+  id?: string
+  value?: Date | null
+  disabled?: boolean
+  onChange?: (value: Date | null) => void
+  onOpenChange?: (open: boolean) => void
+}) {
+  return (
+    <Popover onOpenChange={props.onOpenChange}>
+      <PopoverTrigger asChild>
+        <Button type="button" id={props.id} variant="outline" disabled={props.disabled}>
+          {props.value ? format(props.value, 'yyyy-MM-dd') : "Choose a date"}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent>
+        <Calendar mode="single" selected={props.value ?? undefined} onSelect={(next) => props.onChange?.(next ?? null)} />
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+// Store yyyy-MM-dd. Format it as a Date for Calendar and parse changes back into strings.
+const DatePicker = connect(DatePickerControl, mapProps({
+  blurOn: 'onOpenChange',
+  format: (value: string | undefined) => (value ? parseISO(value) : null),
+  parse: (next: Date | null) => (next ? format(next, 'yyyy-MM-dd') : undefined),
+}))
+
+function FormItem({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator()
+  return (
+    <div className="grid gap-2" data-invalid={d.invalid || undefined}>
+      {d.label ? <Label {...d.labelProps}>{d.label}{d.required ? <span aria-hidden="true"> *</span> : null}</Label> : null}
+      {children}
+      {d.descriptionProps ? <p {...d.descriptionProps} className="text-sm text-muted-foreground">{d.description}</p> : null}
+      {d.errorProps ? <p {...d.errorProps} className="text-sm text-destructive">{d.errors.join(', ')}</p> : null}
+    </div>
+  )
+}
+
+export default function App() {
+  const form = useForm({ initialValues: { name: '', city: '', agree: false, birthday: '' } })
+  return (
+    <Form form={form} onSubmit={(values) => console.log(values)}>
+      <Field name="name" title="Name" required decorator={[FormItem]} component={[Input, { placeholder: 'Ada' }]} />
+      <Field name="city" title="City" required enum={[{ label: "Hangzhou", value: 'hz' }, { label: "Nanjing", value: 'nj' }]} decorator={[FormItem]} component={[Select]} />
+      <Field name="agree" title="Accept the terms" rules={{ isTrue: true }} decorator={[FormItem]} component={[Checkbox]} />
+      <Field name="birthday" title="Birthday" decorator={[FormItem]} component={[DatePicker]} />
+      <Submit asChild><button type="submit">Submit</button></Submit>{' '}
+      <Reset asChild><button type="button">Reset</button></Reset>
+    </Form>
+  )
+}
+```
+
+### Runnable adapter
+
+```tsx preview
+import { useState, type ReactNode } from 'react';
+import { enUS, Field, Form, Reset, Submit, connect, mapProps, useFieldDecorator, useForm } from '@shikiform/react';
+
+function TextControl(props: {
+  id?: string;
+  value?: string;
+  placeholder?: string;
+  disabled?: boolean;
+  readOnly?: boolean;
+  onChange?: (event: { target: { value: string } }) => void;
+  onBlur?: () => void;
+}) {
+  return (
+    <input
+      id={props.id}
+      placeholder={props.placeholder}
+      disabled={props.disabled}
+      readOnly={props.readOnly}
+      value={props.value ?? ''}
+      onChange={props.onChange}
+      onBlur={props.onBlur}
+    />
+  );
+}
+
+function PopoverSelect(props: {
+  id?: string;
+  value?: string;
+  disabled?: boolean;
+  options?: { label: string; value: string; disabled?: boolean }[];
+  onChange?: (value: string) => void;
+  onOpenChange?: (open: boolean) => void;
+}) {
+  return (
+    <select
+      id={props.id}
+      disabled={props.disabled}
+      value={props.value ?? ''}
+      onChange={(event) => {
+        props.onChange?.(event.target.value);
+        props.onOpenChange?.(false);
+      }}
+    >
+      <option value="">Choose an option</option>
+      {(props.options ?? []).map((option) => (
+        <option key={String(option.value)} value={String(option.value)} disabled={option.disabled}>{option.label}</option>
+      ))}
+    </select>
+  );
+}
+
+const Input = connect(TextControl, mapProps({ preview: ({ value }: { value?: string }) => <span>{value || '—'}</span> }));
+const Select = connect(PopoverSelect, mapProps({ options: 'options', blurOn: 'onOpenChange' }));
+
+function DateControl(props: {
+  id?: string;
+  value?: Date | null;
+  onChange?: (value: Date | null) => void;
+  onBlur?: () => void;
+}) {
+  const text = props.value && !Number.isNaN(props.value.getTime())
+    ? `${props.value.getFullYear()}-${String(props.value.getMonth() + 1).padStart(2, '0')}-${String(props.value.getDate()).padStart(2, '0')}`
+    : '';
+  return (
+    <input
+      type="date"
+      id={props.id}
+      aria-label="Birthday"
+      value={text}
+      onChange={(event) => {
+        const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(event.target.value);
+        props.onChange?.(match ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : null);
+      }}
+      onBlur={props.onBlur}
+    />
+  );
+}
+
+const DatePicker = connect(DateControl, mapProps({
+  format: (value: string | undefined) => {
+    const match = value && /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    return match ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : null;
+  },
+  parse: (next: Date | null) => {
+    if (!next || Number.isNaN(next.getTime())) return undefined;
+    const month = String(next.getMonth() + 1).padStart(2, '0');
+    const day = String(next.getDate()).padStart(2, '0');
+    return `${next.getFullYear()}-${month}-${day}`;
+  },
+}));
+
+function FormItem({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
+  return (
+    <div style={{ display: 'grid', gap: 4, marginBottom: 12 }}>
+      {d.label ? <label {...d.labelProps}>{d.label}{d.required ? <span aria-hidden="true"> *</span> : null}</label> : null}
+      {children}
+      {d.descriptionProps ? <p {...d.descriptionProps} style={{ margin: 0, color: '#666' }}>{d.description}</p> : null}
+      {d.errorProps ? <p {...d.errorProps} style={{ margin: 0, color: 'crimson' }}>{d.errors.join(', ')}</p> : null}
+    </div>
+  );
+}
+
+export default function App() {
+  const [saved, setSaved] = useState("No submission yet");
+  const form = useForm({ messages: enUS, initialValues: { name: '', city: '', birthday: '' } });
+  return (
+    <Form form={form} kit={{ decorator: FormItem, components: { Input, Select, DatePicker } }} onSubmit={(values) => setSaved(JSON.stringify(values))}>
+      <Field name="name" title="Name" description="Public display name" required component={['Input', { placeholder: 'Ada' }]} />
+      <Field name="city" title="City" required enum={[{ label: "Hangzhou", value: 'hz' }, { label: "Nanjing", value: 'nj' }]} component="Select" />
+      <Field name="birthday" title="Birthday" component="DatePicker" />
+      <Submit asChild><button>Submit</button></Submit>{' '}
+      <Reset afterReset={() => setSaved("Reset complete")} asChild><button>Reset</button></Reset>
+      <pre aria-live="polite">{saved}</pre>
+    </Form>
+  );
+}
+```
+
+### Mantine
+
+Bind checked state for checkboxes and pass label/error props to controls that render their own field wrapper.
+
+```tsx
+import { Checkbox, Select, TextInput } from '@mantine/core'
+import { DatePickerInput } from '@mantine/dates'
+import { Field, connect, mapProps, useField, useFieldDecorator } from '@shikiform/react'
+
+function MantineInput() {
+  const field = useField<string>()
+  const { control } = useFieldDecorator()
+  return (
+    <TextInput
+      {...control}
+      value={field.value ?? ''}
+      onChange={(event) => field.onChange(event.currentTarget.value)}
+    />
+  )
+}
+
+const City = connect(Select, mapProps({ options: 'data' }))
+const Agree = connect(Checkbox, mapProps({ value: 'checked' }))
+
+function calendarDay(value: string | undefined): Date | null {
+  const match = value && /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  return match ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : null
+}
+
+const Birthday = connect(DatePickerInput, mapProps({
+  format: (value: string | undefined) => calendarDay(value),
+  parse: (next: Date | null) => {
+    if (!next) return undefined
+    const month = String(next.getMonth() + 1).padStart(2, '0')
+    const day = String(next.getDate()).padStart(2, '0')
+    return `${next.getFullYear()}-${month}-${day}`
+  },
+}))
+
+<Field name="name" title="Name" required component={[MantineInput]} />
+<Field name="city" enum={[{ label: "Hangzhou", value: 'hz' }]} component={[City]} />
+<Field name="agree" rules={{ isTrue: true }} component={[Agree]} />
+<Field name="birthday" component={[Birthday]} />
+```
+
+### MUI
+
+Map the event signature for each component and forward the label ID to the underlying text input.
+
+```tsx
+import dayjs, { type Dayjs } from 'dayjs'
+import Checkbox from '@mui/material/Checkbox'
+import TextField from '@mui/material/TextField'
+import { DatePicker } from '@mui/x-date-pickers/DatePicker'
+import { Field, connect, mapProps, useField, useFieldDecorator } from '@shikiform/react'
+
+// ✗ control supplies an error message and lacks value and onChange
+function Bad() {
+  const { control } = useFieldDecorator()
+  return <TextField {...control} />
+}
+
+function MuiText() {
+  const field = useField<string>()
+  const d = useFieldDecorator()
+  return (
+    <TextField
+      id={d.id}
+      label={d.label}
+      required={d.required}
+      error={d.invalid}
+      helperText={d.error ?? d.description}
+      disabled={d.disabled}
+      value={field.value ?? ''}
+      onChange={(event) => field.onChange(event.target.value)}
+      onBlur={field.onBlur}
+    />
+  )
+}
+
+const Agree = connect(Checkbox, mapProps({ value: 'checked' }))
+
+function toDayjs(value: string | undefined): Dayjs | null {
+  const match = value && /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (!match) return null
+  return dayjs(new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])))
+}
+
+// The field stores YYYY-MM-DD and DatePicker consumes Dayjs.
+// Forward the label target to the DatePicker's inner TextField.
+const Birthday = connect(DatePicker, mapProps({
+  id: false,
+  blurOn: { prop: 'onClose' },
+  format: (value: string | undefined) => toDayjs(value),
+  parse: (next: Dayjs | null) => (next?.isValid() ? next.format('YYYY-MM-DD') : undefined),
+}, (props, field) => ({
+  ...props,
+  slotProps: { textField: { id: field.id } },
+})))
+
+<Field name="name" title="Name" required component={[MuiText]} />
+<Field name="agree" rules={{ isTrue: true }} component={[Agree]} />
+<Field name="birthday" component={[Birthday]} />
+```
+
+## Register adapters once
+
+Register connected controls in `<FieldKit>` or `<Form kit>`. Extend the component registry types to autocomplete their names.
+
+```tsx
+import { Field, FieldKit, Form } from '@shikiform/react'
+
+declare module '@shikiform/react' {
+  interface FieldComponents { Input: typeof Input; Select: typeof Select; DatePicker: typeof DatePicker }
+  interface FieldDecorators { FormItem: typeof FormItem }
+}
+
+<FieldKit components={{ Input, Select, DatePicker }} decorator={FormItem}>
+  <Form form={form}>
+    <Field name="name" title="Name" component={['Input', { placeholder: 'Ada' }]} />
+    <Field name="city" component="Select" />
+    <Field name="qty" component={Input} decorator={false} />
+  </Form>
+</FieldKit>
+```

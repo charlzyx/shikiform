@@ -1,3 +1,4 @@
+import { localize } from '../language'
 import { Field, Form, useForm, useWatch, type Draft } from '@shikiform/react'
 import { FormItem, FormLayout, Suggestion } from '../kit'
 import { suggest } from '../pro-data'
@@ -15,14 +16,14 @@ export function SuggestionPage() {
   return (
     <main>
       <h1>Suggestion</h1>
-      <p>远程联想：输入后防抖请求，新关键字会中止旧请求、丢弃迟到结果。数据来自本地模拟的「淘宝搜索」。</p>
+      <p>{localize("远程联想：输入后防抖请求，新关键字会中止旧请求、丢弃迟到结果。数据来自本地模拟的「淘宝搜索」。", "Typing debounces a local product search. New input aborts the old request and discards stale results.")}</p>
       <Form form={form}>
         <FormLayout layout="vertical">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', columnGap: 16 }}>
-            <Field name="s1" title="淘宝搜索" description="string" decorator={[FormItem]} component={[Suggestion, { fetch: suggest, 'data-testid': 's1' }]} />
-            <Field name="s2" title="淘宝搜索" description="labelInValue" decorator={[FormItem]} component={[Suggestion, { fetch: suggest, labelInValue: true, 'data-testid': 's2' }]} />
-            <Field name="s3" title="淘宝搜索" description="multiple" decorator={[FormItem]} component={[Suggestion, { fetch: suggest, multiple: true, 'data-testid': 's3' }]} />
-            <Field name="s4" title="淘宝搜索" description="multiple & labelInValue" decorator={[FormItem]} component={[Suggestion, { fetch: suggest, multiple: true, labelInValue: true, 'data-testid': 's4' }]} />
+            <Field name="s1" title={localize("淘宝搜索", "Product search")} description="string" decorator={[FormItem]} component={[Suggestion, { fetch: suggest, 'data-testid': 's1' }]} />
+            <Field name="s2" title={localize("淘宝搜索", "Product search")} description="labelInValue" decorator={[FormItem]} component={[Suggestion, { fetch: suggest, labelInValue: true, 'data-testid': 's2' }]} />
+            <Field name="s3" title={localize("淘宝搜索", "Product search")} description="multiple" decorator={[FormItem]} component={[Suggestion, { fetch: suggest, multiple: true, 'data-testid': 's3' }]} />
+            <Field name="s4" title={localize("淘宝搜索", "Product search")} description="multiple & labelInValue" decorator={[FormItem]} component={[Suggestion, { fetch: suggest, multiple: true, labelInValue: true, 'data-testid': 's4' }]} />
           </div>
         </FormLayout>
         <Code />

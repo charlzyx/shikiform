@@ -1,0 +1,47 @@
+---
+title: "Agent guide"
+description: "Rules and examples for generating ShikiForm code."
+---
+Give coding assistants the full [agent instructions](/llms.txt) alongside the form's value type.
+
+## Six rules
+
+1. A draft handle locates a path. Read and write data through its `$value`. Write the child path to update one property.
+2. Use `reaction` to derive state and `watch` for actions after a change. Only a watch's source declares dependencies.
+3. Keep intermediate values in local variables. Data writes are buffered until the pass returns. UI prop patches can read their pending changes.
+4. `reaction.each` and `watch.each` take a selector and a callback. Filter nested object arrays inside the callback with `ctx.depth` or `ctx.key`.
+5. Patch individual `$componentProps` or `$decoratorProps` keys to retain lower-layer siblings. Assigning the whole object replaces that layer.
+6. `Field` owns the path. A decorator such as `FormItem` reads the binding through context and renders its label and errors.
+
+## Examples
+
+```ts
+d.user.$value.name = 'x'                                  // ✗ Mutates an immutable snapshot
+d.user.name.$value = 'x'                                  // ✓ Write the field path
+
+d.items.forEach((row) => { row.total.$value = 1 })        // ✗ A handle is not an array
+reaction.each((d) => d.items, (row) => {                  // ✓ A separate reaction for each row
+  row.total.$value = row.price.$value * row.qty.$value
+})
+
+d.total.$value = d.price.$value * d.qty.$value
+d.tax.$value = d.total.$value * 0.1                       // ✗ Reads a buffered write in the same pass
+const total = d.price.$value * d.qty.$value               // ✓ Reuse an intermediate value
+d.total.$value = total
+d.tax.$value = total * 0.1
+
+reaction.each((d) => d.rows, (row) => {}, { childrenKey: 'children' }) // ✗ No third argument
+reaction.each((d) => d.rows, (row, { depth }) => { if (depth !== 0) return }) // ✓ Filter inside the callback
+```
+
+```tsx
+<FormItem name="email" label="Email" required><Input /></FormItem>                        // ✗ FormItem does not take a name
+<Field name="email" title="Email" required decorator={[FormItem]} component={[Input]} />  // ✓ Field owns the path
+
+<Field name="city" component={[Select, { disabled: form.getValue('kind') === 'b' }]} />   // ✗ A snapshot in render does not subscribe to changes
+reaction((d) => { d.city.$componentProps.disabled = d.kind.$value === 'b' })             // ✓ Update UI state in a reaction
+```
+
+## Further reading
+
+[Quick start](/en/guide/quick-start) · [Field paths](/en/basics/path) · [Common pitfalls](/en/practices/pitfalls) · [API overview](/en/api)

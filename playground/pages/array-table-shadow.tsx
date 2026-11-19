@@ -1,3 +1,4 @@
+import { localize } from '../language'
 import { Field, Form, useForm, useWatch, type Draft } from '@shikiform/react'
 import { ArrayTable, Button, FormItem, Input, ShadowModal } from '../kit'
 
@@ -38,16 +39,15 @@ export function ArrayTableShadowPage() {
     },
     fields: {
       'list.*.id': { title: 'ID', required: true },
-      'list.*.domain': { title: '域名', required: true },
-      'list.*.desc': { title: '描述' },
+      'list.*.domain': { title: localize("域名", "Domain"), required: true },
+      'list.*.desc': { title: localize("描述", "Description") },
     },
   })
   return (
     <main>
       <h1>ArrayTable + ShadowForm</h1>
       <p>
-        每行渲染列内直接放 ShadowModal（自动绑定当前行作用域并继承 list.* 规则），确定后按行 key 写回这一行，取消不动原数据。
-        两个「添加」共存：一个弹窗、一个抽屉，确定后追加并自动翻到新行所在页。
+        {localize("每行渲染列内直接放 ShadowModal（自动绑定当前行作用域并继承 list.* 规则），确定后按行 key 写回这一行，取消不动原数据。\n        两个「添加」共存：一个弹窗、一个抽屉，确定后追加并自动翻到新行所在页。", "Each row opens a ShadowModal with its own values and list.* rules. Confirm writes back by row key. Cancel discards edits. Both the modal and the drawer can append a row and open the page containing it.")}
       </p>
       <Form form={form}>
         <ShadowTable />
@@ -75,14 +75,14 @@ function ShadowTable() {
           },
           {
             key: 'edit',
-            title: '编辑',
+            title: localize("编辑", "Edit"),
             align: 'center',
             render: ({ index }) => (
               <ShadowModal<Row>
-                title="编辑"
+                title={localize("编辑", "Edit")}
                 trigger={
                   <Button variant="link" size="sm" data-testid={`edit-${index}`}>
-                    编辑
+                    {localize("编辑", "Edit")}
                   </Button>
                 }
               >
@@ -93,10 +93,10 @@ function ShadowTable() {
         ]}
         extra={
           <>
-            <ArrayTable.ShadowAddition<Row> title="添加条目" initialValues={{ id: '', domain: '', desc: '' }}>
+            <ArrayTable.ShadowAddition<Row> title={localize("添加条目", "Add item")} initialValues={{ id: '', domain: '', desc: '' }}>
               <RowFields prefix="add" />
             </ArrayTable.ShadowAddition>
-            <ArrayTable.ShadowAddition<Row> title="演示多个添加共存" popType="drawer" initialValues={{ id: '', domain: '', desc: '' }}>
+            <ArrayTable.ShadowAddition<Row> title={localize("演示多个添加共存", "Add in a drawer")} popType="drawer" initialValues={{ id: '', domain: '', desc: '' }}>
               <RowFields prefix="add2" />
             </ArrayTable.ShadowAddition>
           </>

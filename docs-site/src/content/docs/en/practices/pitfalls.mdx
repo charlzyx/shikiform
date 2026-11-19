@@ -1,0 +1,158 @@
+---
+title: "Common pitfalls"
+description: "Recognize incorrect draft reads, path writes, scope names and field bindings."
+---
+
+## Destructure child handles
+
+Destructuring `$value` gives a snapshot. Assign to the handle's state to update the field. In each pair below, the second snippet shows the correction.
+
+```ts
+const { $value } = d.user
+$value = 'Ada'
+```
+
+```ts
+const { name } = d.user
+name.$value = 'Ada'
+// Or write d.user.name.$value = 'Ada' directly.
+```
+
+### Enumerating a handle
+
+Spread, rest and `Object.keys` enumerate a path proxy and throw in development. Pick child handles by name.
+
+```ts
+const { name, ...rest } = d.user
+const copy = { ...d.user }
+Object.keys(d.user)
+```
+
+```ts
+const { name } = d.user
+name.$value
+const copy = d.user.$value
+```
+
+### Destructuring an array
+
+Use an indexed handle for a row or read the array's `$value`.
+
+```ts
+const [first] = d.items
+```
+
+```ts
+const { name } = d.items[0]
+name.$value
+d.items.$value
+reaction.each((d) => d.items, (row) => {
+  row.name.$value
+})
+```
+
+## Mutating stored values
+
+Write a new value or a child path. Use the array handle for structural edits in components.
+
+```ts
+d.user.$value.name = 'Ada'
+d.items.$value.push(row)
+```
+
+```ts
+d.user.name.$value = 'Ada'
+d.items.$value = [...d.items.$value, row]
+// In a component use useArrayField().push(row) or the named array hook.
+```
+
+## Reading a buffered write
+
+Keep an intermediate result in a local variable so every derived value uses the same new result.
+
+```ts
+d.total.$value = d.price.$value * d.qty.$value
+d.tax.$value = d.total.$value * 0.1
+```
+
+```ts
+const total = d.price.$value * d.qty.$value
+d.total.$value = total
+d.tax.$value = total * 0.1
+```
+
+## Repeating the scope prefix
+
+Names inside object and row scopes are relative. Repeating the prefix creates an invalid nested path.
+
+```tsx
+<ObjectField name="address">
+  <Field name="address.city" />
+</ObjectField>
+```
+
+```tsx
+<F.ObjectField name="address">
+  {(obj) => <obj.Field name="city" decorator={[FormItem]} component={[Input]} />}
+</F.ObjectField>
+```
+
+## Hiding a field and submitting it
+
+Set `$omit` separately when hidden data should be removed from the payload.
+
+```ts
+d.taxId.$visible = false
+```
+
+```ts
+d.taxId.$visible = false   // Hidden and unvalidated, still included on submit.
+d.taxId.$omit = true       // Render and validate, exclude from submission.
+d.taxId.$visible = false   // Together these flags skip rendering, validation and submission.
+d.taxId.$omit = true
+```
+
+## Using decorator props as a value binding
+
+A decorator's `control` supplies label and error information. Connect `value` and `onChange` with `useField` or `connect`.
+
+```tsx
+function Bad() {
+  const { control } = useFieldDecorator()
+  return <input {...control} />
+}
+```
+
+```tsx
+function NameInput() {
+  const field = useField<string>()
+  return (
+    <input
+      id={field.id}
+      value={field.value ?? ''}
+      onChange={(event) => field.onChange(event.target.value)}
+      onBlur={field.onBlur}
+    />
+  )
+}
+```
+
+## Computing a value in a watch
+
+A watch skips initialization. Use a reaction to derive state from the first pass onward.
+
+```ts
+watch((d) => d.price.$value, (d) => {
+  d.total.$value = d.price.$value * 2
+})
+```
+
+```ts
+reaction((d) => {
+  d.total.$value = (d.price.$value ?? 0) * 2
+})
+
+watch((d) => d.province.$value, (d) => {
+  d.city.$value = undefined
+})
+```
