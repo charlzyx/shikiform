@@ -455,6 +455,7 @@ export interface DraftState<T> {
    * Props for the control, merged over JSX / `fields` props per top-level key.
    * Nested writes patch one key immutably: `d.city.$componentProps.placeholder = '…'`,
    * `d.city.$componentProps.style.color = 'red'` (missing intermediates are not created: assign `style ??= {}` first).
+   * Array mutators (`push`, `splice`, `sort`, …) copy the array and assign the copy.
    * Assigning an object replaces every lower layer; assigning `undefined` drops the reaction layer.
    */
   $componentProps: Record<string, any>
