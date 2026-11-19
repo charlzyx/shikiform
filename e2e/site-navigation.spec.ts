@@ -12,10 +12,10 @@ test('the deployment build contains the docs and every playground route, without
 })
 
 test('tutorial pages keep framework previous/next navigation and retain the exercise', () => {
-  const html = readFileSync(path.resolve('dist/tutorial/2-path/index.html'), 'utf8')
+  const html = readFileSync(path.resolve('dist/tutorial/2-state-rules/index.html'), 'utf8')
   expect(html).not.toContain('tutorial-nav')
   expect(html).toContain('/tutorial/1-start')
-  expect(html).toContain('/tutorial/3-state')
+  expect(html).toContain('/tutorial/3-linkage-array')
   expect(html).toContain('这一步')
 })
 
@@ -23,7 +23,7 @@ for (const [label, route, heading] of [
   ['SKU 选择器', 'sku-picker', 'SKU 选择器'],
   ['SKU 表格', 'sku-editor', 'SKU 表格'],
   ['供应商和产品', 'merged', '供应商和产品'],
-  ['antd 查询表', 'query', null],
+  ['查询表', 'query', '查询表'],
   ['订单行', 'orders', '订单行'],
   ['显隐对照', 'display', '显隐'],
 ] as const) {
@@ -33,7 +33,7 @@ for (const [label, route, heading] of [
     await page.goto('/examples')
     await page.getByRole('link', { name: label, exact: true }).click()
     await expect(page).toHaveURL(new RegExp(`/play/${route}/?$`))
-    const content = heading ? page.getByRole('heading', { name: heading, exact: true }) : page.getByTestId('query-grid')
+    const content = page.getByRole('heading', { name: heading, exact: true })
     await expect(content).toBeVisible()
     await page.reload()
     await expect(content).toBeVisible()

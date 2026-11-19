@@ -1,21 +1,20 @@
 import { expect, test } from '@playwright/test'
 import { gotoHydrated } from './hydration'
 
-test('controls guide: readOnly shows option labels, editable brings the controls back', async ({ page }) => {
-  await gotoHydrated(page, '/guide/controls')
-  const demo = page.locator('[data-controls-demo]').first()
-  await expect(demo.locator('.ant-select').first()).toBeVisible()
-
-  await demo.locator('.ant-segmented-item').filter({ hasText: /^readOnly$/ }).click()
-  // 职级 stores 'p7' and shows its label; 远程 (Switch) reads 是.
-  const level = demo.locator('.ant-form-item').filter({ has: page.locator('.ant-form-item-label').getByText('职级', { exact: true }) })
-  await expect(level).toContainText('P7')
-  await expect(level.locator('.ant-radio-wrapper')).toHaveCount(0)
-  const remote = demo.locator('.ant-form-item').filter({ has: page.locator('.ant-form-item-label').getByText('远程', { exact: true }) })
-  await expect(remote).toContainText('是')
-  await expect(demo.locator('.ant-select')).toHaveCount(0)
-
-  await demo.locator('.ant-segmented-item').filter({ hasText: 'editable' }).click()
-  await expect(level.locator('.ant-radio-wrapper')).toHaveCount(2)
-  await expect(demo.locator('.ant-select').first()).toBeVisible()
+test('the field guide shows option labels in read-only mode and restores the selected controls', async ({ page }) => {
+  await gotoHydrated(page, '/guide/field')
+  const toggle = page.getByRole('checkbox', { name: '阅读态' })
+  const form = page.locator('form').filter({ has: toggle })
+  const level = form.getByRole('combobox', { name: '等级' })
+  await level.selectOption('silver')
+  await form.getByRole('checkbox', { name: '诗歌' }).check()
+  await toggle.check()
+  await expect(form.getByRole('combobox')).toHaveCount(0)
+  await expect(form.getByRole('radio')).toHaveCount(0)
+  await expect(form.getByText('白银', { exact: true })).toBeVisible()
+  await expect(form.getByText('数学、诗歌', { exact: true })).toBeVisible()
+  await toggle.uncheck()
+  await expect(level).toHaveValue('silver')
+  await expect(form.getByRole('checkbox', { name: '诗歌' })).toBeChecked()
+  await expect(form.getByRole('radio', { name: '2' })).toBeChecked()
 })

@@ -1,82 +1,31 @@
 import { expect, test } from '@playwright/test'
 import { gotoHydrated } from './hydration'
 
-test('FormTab guide: an unopened tab is validated on submit and badged', async ({ page }) => {
-  await gotoHydrated(page, '/guide/containers')
-  const demo = page.locator('[data-form-tab-demo]').first()
-  await demo.getByRole('button', { name: /提\s*交/ }).click()
-  await expect(demo.locator('[data-error-count="1"]')).toContainText('基本信息')
-  await expect(demo.locator('[data-error-count="2"]')).toContainText('联系方式')
-
-  await demo.getByLabel('姓名').fill('Ada')
-  await demo.getByLabel('姓名').blur()
-  await expect(demo.locator('[data-error-count]')).toHaveCount(1)
-
-  await demo.getByRole('tab', { name: /联系方式/ }).click()
-  await demo.getByLabel('邮箱').fill('ada@example.com')
-  await demo.getByLabel('电话').fill('100')
-  await demo.getByLabel('电话').blur()
-  await expect(demo.locator('[data-error-count]')).toHaveCount(0)
-  await demo.getByRole('button', { name: /提\s*交/ }).click()
-  await expect(demo.locator('pre')).toContainText('ada@example.com')
+test('the phone list shows one container error and clears it when the first row is added', async ({ page }) => {
+  await gotoHydrated(page, '/guide/arrays')
+  const form = page.locator('form').filter({ has: page.getByRole('button', { name: '添加电话' }) })
+  await form.getByRole('button', { name: '提交' }).click()
+  await expect(form.getByRole('alert')).toHaveText(['至少一个电话'])
+  await form.getByRole('button', { name: '添加电话' }).click()
+  await expect(form.getByPlaceholder('电话')).toBeVisible()
+  await expect(form.getByRole('alert')).toHaveCount(0)
+  await form.getByRole('button', { name: '删除' }).click()
+  await form.getByRole('button', { name: '提交' }).click()
+  await expect(form.getByRole('alert')).toHaveText(['至少一个电话'])
 })
 
-test('FormStep guide: next validates only the current step; values survive back; last step submits', async ({ page }) => {
-  await gotoHydrated(page, '/guide/containers')
-  const demo = page.locator('[data-form-step-demo]').first()
-  const next = demo.getByRole('button', { name: '下一步' })
-
-  await next.click()
-  await expect(demo.locator('.ant-steps-item-error')).toContainText('账号')
-  await expect(demo.getByLabel('账号邮箱')).toBeVisible()
-  // The second step was not validated.
-  await expect(demo.locator('.ant-steps-item-error')).toHaveCount(1)
-
-  await demo.getByLabel('账号邮箱').fill('ada@example.com')
-  await demo.getByLabel('密码').fill('secret1')
-  await next.click()
-  await expect(demo.getByLabel('昵称')).toBeVisible()
-  await expect(demo.getByLabel('账号邮箱')).toBeHidden()
-
-  await demo.getByRole('button', { name: '上一步' }).click()
-  await expect(demo.getByLabel('账号邮箱')).toHaveValue('ada@example.com')
-  await next.click()
-  await demo.getByLabel('昵称').fill('ada')
-  await next.click()
-  await expect(demo.getByLabel('简介')).toBeVisible()
-  await demo.getByRole('button', { name: /提\s*交/ }).click()
-  await expect(demo.locator('[data-step-result]')).toContainText('"nickname": "ada"')
-})
-
-test('FormTab guide: a failed submit switches to the first tab with an error and focuses its field', async ({ page }) => {
-  await gotoHydrated(page, '/guide/containers')
-  const demo = page.locator('[data-form-tab-demo]').first()
-  await demo.getByLabel('姓名').fill('Ada')
-  await demo.getByRole('button', { name: /提\s*交/ }).click()
-  await expect(demo.getByRole('tab', { name: /联系方式/ })).toHaveAttribute('aria-selected', 'true')
-  await expect(demo.getByLabel('邮箱')).toBeFocused()
-})
-
-test('Layout guide: a pure-layout FormItem shows the errors of undecorated fields inside it once', async ({ page }) => {
-  await gotoHydrated(page, '/guide/layout')
-  const demo = page.locator('[data-layout-errors-demo]').first()
-  await demo.getByRole('button', { name: /提\s*交/ }).click()
-  const phone = demo.locator('.ant-form-item').filter({ has: page.getByText('电话', { exact: true }) }).first()
-  await expect(phone).toHaveClass(/ant-form-item-has-error/)
-  await expect(phone.locator('.ant-form-item-explain-error')).toHaveCount(1)
-  // The age fields have their own FormItem: their messages are not repeated by the outer item.
-  const ages = demo.locator('.ant-form-item').filter({ has: page.getByText('年龄段', { exact: true }) }).first()
-  await expect(ages.locator('.ant-form-item-explain-error')).toHaveCount(2)
-})
-
-test('Layout guide: a valid submit of the error-aggregation demo prints its values inline', async ({ page }) => {
-  await gotoHydrated(page, '/guide/layout')
-  const demo = page.locator('[data-layout-errors-demo]').first()
-  await demo.getByPlaceholder('区号').fill('010')
-  await demo.getByPlaceholder('号码').fill('12345678')
-  await demo.getByPlaceholder('最小').fill('18')
-  await demo.getByPlaceholder('最大').fill('30')
-  await demo.getByRole('button', { name: /提\s*交/ }).click()
-  await expect(demo.locator('pre')).toContainText('"phoneNumber":"12345678"')
-  await expect(demo.locator('pre')).toContainText('"maxAge":30')
+test('a decorated native form focuses its first invalid field and submits corrected values', async ({ page }) => {
+  await gotoHydrated(page, '/guide/headless')
+  const form = page.locator('form').filter({ has: page.getByLabel('生日') })
+  const submit = form.getByRole('button', { name: '提交' })
+  const name = form.getByRole('textbox', { name: '姓名' })
+  await submit.click()
+  await expect(form.getByRole('alert')).toHaveCount(2)
+  await expect(name).toBeFocused()
+  await name.fill('Ada')
+  await form.getByRole('combobox', { name: '城市' }).selectOption('hz')
+  await form.getByLabel('生日').fill('2000-01-02')
+  await expect(form.getByRole('alert')).toHaveCount(0)
+  await submit.click()
+  await expect(form.locator('pre')).toHaveText('{"name":"Ada","city":"hz","birthday":"2000-01-02"}')
 })

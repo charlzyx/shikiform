@@ -1,14 +1,14 @@
 import { expect, test } from '@playwright/test'
 
-/** Browser checks for the Pro.formily demo pages. The same flows run in happy-dom in tests/playground-pro.test.tsx. */
+/** Browser checks for the Pro.formily demo pages. These exercise the native controls in the built playground. */
 
 test('array-table: edit, expand, page, add, 100k rows', async ({ page }) => {
   await page.goto('/play/array-table')
   await expect(page.getByTestId('custom-footer')).toContainText('1/3')
   await page.getByTestId('a1-0').fill('hello')
-  await page.locator('.ant-table-row-expand-icon-collapsed').first().click()
+  await page.getByRole('button', { name: '展开行' }).first().click()
   await expect(page.getByTestId('row-summary-0')).toContainText('hello')
-  await page.getByTestId('row-add').click()
+  await page.getByRole('button', { name: '添加条目' }).click()
   await expect(page.getByTestId('custom-footer')).toContainText('3/3')
   await page.getByTestId('load-big').click()
   await expect(page.getByTestId('custom-footer')).toContainText('100000', { timeout: 15_000 })
@@ -17,7 +17,7 @@ test('array-table: edit, expand, page, add, 100k rows', async ({ page }) => {
 test('array-table: drag a row by its handle', async ({ page }) => {
   await page.goto('/play/array-table')
   await expect(page.getByTestId('a1-0')).toHaveValue('0.1')
-  await page.getByTestId('sort-handle').nth(0).dragTo(page.getByTestId('row-2'))
+  await page.getByTitle('拖拽排序').first().dragTo(page.getByRole('row').filter({ has: page.getByTestId('a1-2') }))
   await expect(page.getByTestId('a1-2')).toHaveValue('0.1')
 })
 
@@ -32,7 +32,7 @@ test('array-table-shadow: edit writes back, cancel does not, addition appends', 
   await page.getByTestId('edit-domain').fill('www.bing.com')
   await page.getByRole('button', { name: /确\s*定/ }).click()
   await expect(page.getByTestId('list')).toContainText('2:www.bing.com')
-  await page.getByTestId('pro-addition').first().click()
+  await page.getByRole('button', { name: '添加条目' }).click()
   await page.getByTestId('add-id').fill('3')
   await page.getByTestId('add-domain').fill('shiki.dev')
   await page.getByRole('button', { name: /确\s*定/ }).click()
@@ -54,7 +54,7 @@ test('pro-enum: lazy enums load and readOnly shows tags', async ({ page }) => {
   await expect(page.getByRole('radio')).toHaveCount(6)
   await page.getByTestId('read-pretty').click()
   await expect(page.getByRole('radio')).toHaveCount(0)
-  await expect(page.locator('[data-pretty="tag"] .ant-tag')).toHaveCount(2)
+  await expect(page.locator('.sk-tag')).toHaveText(['啊', '呃'])
 })
 
 test('cascader-plus: echoes existing values', async ({ page }) => {
@@ -65,8 +65,10 @@ test('cascader-plus: echoes existing values', async ({ page }) => {
 test('query-list: rows are editable and paging goes to the server', async ({ page }) => {
   await page.goto('/play/query-list')
   await expect(page.getByTestId('domain-0')).toHaveValue(/1\./)
-  await page.getByTitle('5', { exact: true }).click()
-  await expect(page.getByTestId('row-id').first()).toHaveText('41')
+  await page.getByTestId('domain-0').fill('edited.dev')
+  await expect(page.getByTestId('domain-0')).toHaveValue('edited.dev')
+  await page.getByRole('button', { name: '下一页' }).click()
+  await expect(page.getByTestId('row-id').first()).toHaveText('11')
   await page.getByTestId('q-domain').fill('abc')
   await page.getByTestId('query-submit').click()
   await expect(page.getByTestId('domain-0')).toHaveValue(/^abc\./)

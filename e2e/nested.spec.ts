@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-test('nested orders keep values when collapsed and a drawer field stays mounted', async ({ page }) => {
+test('nested orders keep values when collapsed and the address survives closing the drawer', async ({ page }) => {
   await page.goto('/play/nested')
   const qty0 = page.getByTestId('order-0').locator('input')
   await qty0.fill('4')
@@ -15,7 +15,8 @@ test('nested orders keep values when collapsed and a drawer field stays mounted'
   await expect(page.getByTestId('order-0')).toContainText('4')
   await page.getByTestId('open-drawer').click()
   await page.getByTestId('city').fill('苏州')
-  await page.keyboard.press('Escape')
+  await page.getByRole('dialog').getByRole('button', { name: '关闭' }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
   await page.getByTestId('open-drawer').click()
   await expect(page.getByTestId('city')).toHaveValue('苏州')
 })

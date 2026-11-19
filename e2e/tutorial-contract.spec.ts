@@ -1,11 +1,10 @@
 import { expect, test, type Page } from '@playwright/test'
+import { copyExample } from './editor'
 import { gotoHydrated } from './hydration'
 
-// antd FormItem labels put the required "*" and ":" (CSS generated content) into the accessible name, so field
-// names are matched without `exact`; antd also spaces two-character CJK button labels ("提 交", "删 除").
-async function answer(page: Page, route: string) {
+async function answer(page: Page, route: string, index = 0) {
   await gotoHydrated(page, route)
-  const tutorial = page.locator('.tutorial-play')
+  const tutorial = page.locator('.tutorial-play').nth(index)
   await tutorial.scrollIntoViewIfNeeded()
   await tutorial.getByRole('button', { name: '看答案', exact: true }).click()
   await expect(tutorial.getByText('参考写法', { exact: true })).toBeVisible()
@@ -14,7 +13,7 @@ async function answer(page: Page, route: string) {
 
 test('typing in the tutorial editor changes the code and leaves the sidebar filter empty', async ({ page }) => {
   await gotoHydrated(page, '/tutorial/1-start/')
-  const tutorial = page.locator('.tutorial-play')
+  const tutorial = page.locator('.tutorial-play').first()
   await tutorial.scrollIntoViewIfNeeded()
   // Opens already editing. Step out and back in: that is the pencil path, and
   // focus has to land in CodeMirror or the next key goes to the sidebar filter.
@@ -31,14 +30,15 @@ test('typing in the tutorial editor changes the code and leaves the sidebar filt
 })
 
 test('the copied example submits through the public package and can be edited and reset', async ({ page }) => {
-  const tutorial = await answer(page, '/tutorial/1-start')
+  const tutorial = await answer(page, '/tutorial/1-start', 0)
   const form = tutorial.locator('form')
   await form.getByRole('textbox', { name: '姓名' }).fill('Ada')
   await form.getByRole('textbox', { name: '邮箱' }).fill('ada@example.com')
-  await form.getByRole('button', { name: '提 交', exact: true }).click()
+  await form.getByRole('button', { name: '提交', exact: true }).click()
   await expect(form.locator('pre.shiki-code')).toContainText('ada@example.com')
   const editor = tutorial.locator('.cm-content')
-  const source = await editor.innerText()
+  const source = await copyExample(page, tutorial)
+  expect(source).toContain('title="姓名"')
   await editor.fill(source.replace('title="姓名"', 'title="名字"'))
   await expect(form.getByRole('textbox', { name: '名字' })).toBeVisible()
   await tutorial.getByRole('button', { name: '重置', exact: true }).click()
@@ -47,33 +47,33 @@ test('the copied example submits through the public package and can be edited an
 })
 
 test('the tutorial $visible = false skips validation and still submits the email', async ({ page }) => {
-  const tutorial = await answer(page, '/tutorial/3-state')
+  const tutorial = await answer(page, '/tutorial/2-state-rules', 0)
   const form = tutorial.locator('form')
-  await form.getByRole('switch', { name: '需要联系' }).check()
+  await form.getByRole('checkbox', { name: '需要联系' }).check()
   await form.getByRole('textbox', { name: '邮箱' }).fill('')
-  await form.getByRole('switch', { name: '需要联系' }).uncheck()
+  await form.getByRole('checkbox', { name: '需要联系' }).uncheck()
   await expect(form.getByRole('textbox', { name: '邮箱' })).toHaveCount(0)
-  await form.getByRole('button', { name: '提 交', exact: true }).click()
+  await form.getByRole('button', { name: '提交', exact: true }).click()
   await expect(form.locator('pre.shiki-code')).toContainText('"contact": false')
   await expect(form.locator('pre.shiki-code')).toContainText('"email": ""')
 })
 
 test('array tutorial additions and removals use stable real rows and computed totals are submitted', async ({ page }) => {
-  const tutorial = await answer(page, '/tutorial/6-array')
+  const tutorial = await answer(page, '/tutorial/3-linkage-array', 2)
   const form = tutorial.locator('form')
   await form.getByRole('button', { name: '添加一行', exact: true }).click()
   await expect(form.locator('fieldset')).toHaveCount(2)
   await form.locator('fieldset').nth(1).getByRole('textbox', { name: '名称' }).fill('新行')
-  await form.locator('fieldset').first().getByRole('button', { name: /^删\s?除$/ }).click()
+  await form.locator('fieldset').first().getByRole('button', { name: '删除', exact: true }).click()
   await expect(form.locator('fieldset')).toHaveCount(1)
   await expect(form.getByRole('textbox', { name: '名称' })).toHaveValue('新行')
-  await form.getByRole('button', { name: '提 交', exact: true }).click()
+  await form.getByRole('button', { name: '提交', exact: true }).click()
   await expect(form.locator('pre.shiki-code')).toContainText('新行')
   await expect(form.locator('pre.shiki-code')).toContainText('"total": 0')
 })
 
 test('Standard Schema works without a private zod adapter', async ({ page }) => {
-  const tutorial = await answer(page, '/tutorial/4-rules')
+  const tutorial = await answer(page, '/tutorial/2-state-rules', 1)
   const form = tutorial.locator('form')
   await form.getByRole('textbox', { name: '姓名' }).fill('A')
   await form.getByRole('textbox', { name: '姓名' }).blur()
@@ -82,6 +82,6 @@ test('Standard Schema works without a private zod adapter', async ({ page }) => 
   await form.getByRole('textbox', { name: '邮箱' }).fill('ada@example.com')
   await form.getByRole('spinbutton', { name: '年龄' }).fill('24')
   await form.getByRole('spinbutton', { name: '年龄' }).blur()
-  await form.getByRole('button', { name: '提 交', exact: true }).click()
+  await form.getByRole('button', { name: '提交', exact: true }).click()
   await expect(form.locator('pre.shiki-code')).toContainText('"age": 24')
 })

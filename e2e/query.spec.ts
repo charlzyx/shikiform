@@ -1,73 +1,43 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 
-const item = (page: Page, label: string) =>
-  page.locator('.ant-form-item').filter({ has: page.locator('.ant-form-item-label').getByText(label, { exact: true }) })
-const dropdownOptions = (page: Page) => page.locator('.ant-select-dropdown:visible .ant-select-item-option')
-async function pick(page: Page, scope: ReturnType<Page['locator']>, option: string) {
-  await scope.locator('.ant-select').first().click()
-  await dropdownOptions(page).filter({ hasText: new RegExp(`^${option}$`) }).click()
-  await expect(page.locator('.ant-select-dropdown:visible')).toHaveCount(0)
-}
-async function optionsOf(page: Page, label: string) {
-  const select = item(page, label).locator('.ant-select')
-  const options = dropdownOptions(page)
-  let texts: string[] = []
-  // The option nodes can detach for a frame while $enum swaps. allTextContents then returns [].
-  await expect(async () => {
-    if ((await page.locator('.ant-select-dropdown:visible').count()) === 0) await select.click()
-    texts = (await options.allTextContents()).map((text) => text.trim()).filter(Boolean)
-    expect(texts.length).toBeGreaterThan(0)
-  }).toPass()
-  await page.keyboard.press('Escape')
-  await expect(page.locator('.ant-select-dropdown:visible')).toHaveCount(0)
-  return texts
-}
-
-test('query table searches, resets, pages, and keeps selection', async ({ page }) => {
+test('query table searches, resets, pages, keeps selection and filters the model options', async ({ page }) => {
   await page.goto('/play/query')
-  await expect(page.getByText('alpha-1')).toBeVisible()
   await page.getByTestId('keyword').fill('alpha')
   await page.getByTestId('query-submit').click()
-  await expect(page.getByText('alpha-1')).toBeVisible()
-  await expect(page.getByText('beta-2')).toHaveCount(0)
-  await page.locator('.ant-pagination-item-2').click()
-  await expect(page.getByText('alpha-11')).toBeVisible()
-  await expect(page.getByText('beta-2')).toHaveCount(0)
+  await expect(page.getByText('alpha-1', { exact: true })).toBeVisible()
+  await expect(page.getByText('beta-2', { exact: true })).toHaveCount(0)
+  await page.getByRole('button', { name: '下一页' }).click()
+  await expect(page.getByText('alpha-11', { exact: true })).toBeVisible()
 
-  await page.locator('.ant-table-row').first().locator('.ant-checkbox-input').check()
-  await expect(page.getByTestId('selection-count')).toHaveText('选中 1 项')
-  await page.locator('.ant-pagination-item-1').click()
-  await expect(page.getByTestId('selection-count')).toHaveText('选中 1 项')
-
+  await page.getByRole('checkbox', { name: 'select-11', exact: true }).check()
+  await page.getByRole('button', { name: '上一页' }).click()
+  await page.getByTestId('batch-mark').click()
+  await expect(page.getByTestId('batch-result')).toHaveText('11')
   await page.getByTestId('query-submit').click()
-  await expect(page.getByTestId('selection-count')).toHaveText('选中 0 项')
-  await expect(page.locator('.ant-pagination-item-active')).toHaveText('1')
+  await expect(page.getByTestId('batch-mark')).toBeDisabled()
+  await expect(page.getByRole('button', { name: '上一页' })).toBeDisabled()
 
   await page.getByTestId('query-reset').click()
   await expect(page.getByTestId('keyword')).toHaveValue('')
-  await expect(page.getByText('beta-2')).toBeVisible()
+  await expect(page.getByText('beta-2', { exact: true })).toBeVisible()
 
-  await expect(page.getByTestId('user-id')).toBeHidden()
-  await page.getByTestId('query-toggle').click()
-  await expect(page.getByTestId('user-id')).toBeVisible()
-
-  const wide = await firstRowCount(page, 1280)
-  const narrow = await firstRowCount(page, 480)
-  expect(wide).toBeGreaterThan(narrow)
-
-  await pick(page, item(page, '供应商'), 'anthropic')
-  expect(await optionsOf(page, '模型')).toEqual(['claude'])
-  await pick(page, item(page, '供应商'), 'openai')
-  expect(await optionsOf(page, '模型')).toEqual(['gpt'])
+  await page.getByRole('button', { name: '展开' }).click()
+  const provider = page.getByRole('combobox', { name: '供应商' })
+  const model = page.getByRole('combobox', { name: '模型' })
+  await provider.selectOption({ label: 'anthropic' })
+  await expect(model.getByRole('option')).toHaveText(['全部', 'claude'])
+  await model.selectOption({ label: 'claude' })
+  await provider.selectOption({ label: 'openai' })
+  await expect(model.getByRole('option')).toHaveText(['全部', 'gpt'])
+  await expect(model).toHaveValue('')
 })
 
-test('collapsed filters keep values, and a column filter refreshes from page 1', async ({ page }) => {
+test('collapsed filters keep values, and a column filter starts a new query', async ({ page }) => {
   await page.goto('/play/query')
   await page.getByTestId('query-toggle').click()
   await page.getByTestId('user-id').fill('u-9')
   await page.getByTestId('query-toggle').click()
   await expect(page.getByTestId('user-id')).toBeHidden()
-  await expect(page.getByTestId('user-id')).toHaveValue('u-9')
   await expect(page.getByTestId('params')).toHaveText('{"userId":"u-9"}')
   await page.getByTestId('query-toggle').click()
   await expect(page.getByTestId('user-id')).toHaveValue('u-9')
@@ -75,51 +45,35 @@ test('collapsed filters keep values, and a column filter refreshes from page 1',
   await expect(page.getByTestId('params')).toHaveText('{"keyword":"alpha","userId":"u-9"}')
 
   await page.goto('/play/query')
-  await page.locator('.ant-pagination-item-2').click()
-  await page.locator('.ant-table-row').first().locator('.ant-checkbox-input').check()
-  await expect(page.getByTestId('selection-count')).toHaveText('选中 1 项')
-  await pick(page, page.locator('th').filter({ hasText: '状态' }), '失败')
-  await expect(page.locator('.ant-pagination-item-active')).toHaveText('1')
-  await expect(page.getByTestId('selection-count')).toHaveText('选中 0 项')
-  await expect(page.getByText('alpha-1')).toBeVisible()
-  await expect(page.getByText('beta-2')).toHaveCount(0)
-  await expect(item(page, '状态').locator('.ant-select')).toContainText('失败')
-  await page.locator('.ant-table-row').first().locator('.ant-checkbox-input').check()
+  await page.getByRole('button', { name: '下一页' }).click()
+  await page.getByRole('checkbox', { name: 'select-6', exact: true }).check()
+  await page.getByTestId('col-status').selectOption({ label: '失败' })
+  await expect(page.getByRole('button', { name: '上一页' })).toBeDisabled()
+  await expect(page.getByTestId('batch-mark')).toBeDisabled()
+  await expect(page.getByText('alpha-1', { exact: true })).toBeVisible()
+  await expect(page.getByText('beta-2', { exact: true })).toHaveCount(0)
+  await expect(page.getByRole('combobox', { name: '状态', exact: true }).locator('option:checked')).toHaveText('失败')
+  await page.getByRole('checkbox', { name: 'select-1', exact: true }).check()
   await page.getByTestId('batch-mark').click()
   await expect(page.getByTestId('batch-result')).toHaveText('1')
 })
 
-async function firstRowCount(page: import('@playwright/test').Page, width: number) {
-  await page.setViewportSize({ width, height: 800 })
-  await page.waitForTimeout(100)
-  // cells are the children of the display: contents wrappers; hidden (collapsed) ones have no box
-  return page.locator('[data-query-field] > *').evaluateAll((nodes) => {
-    const boxes = nodes.map((node) => (node as HTMLElement).getBoundingClientRect()).filter((box) => box.width > 0)
-    const top = Math.min(...boxes.map((box) => box.top))
-    return boxes.filter((box) => Math.abs(box.top - top) < 2).length
-  })
-}
-
-test('collapse keeps the buttons at the end of the first row; expanded they end the last row', async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 800 })
+test('query actions follow the first two filters when collapsed and the last filter when expanded', async ({ page }) => {
   await page.goto('/play/query')
-  const actions = page.getByTestId('query-actions')
-  const grid = page.locator('[data-form-grid]')
-  await expect(grid).toHaveAttribute('data-form-grid', '4')
-  const cells = page.locator('[data-query-field] > *')
-  const first = await cells.first().boundingBox()
-  const box = await actions.boundingBox()
-  const gridBox = await grid.boundingBox()
-  // collapsed: same row as the first field, flush with the grid's right edge
-  expect(Math.abs(box!.y + box!.height - (first!.y + first!.height))).toBeLessThan(40)
-  expect(Math.abs(box!.x + box!.width - (gridBox!.x + gridBox!.width))).toBeLessThan(2)
-  await expect(actions).toHaveAttribute('data-collapsed', 'true')
-  await page.getByTestId('query-toggle').click()
-  await expect(actions).toHaveAttribute('data-collapsed', 'false')
-  // expanded: 5 fields in 4 columns → row 2 holds the 5th field and the buttons
-  const last = await page.getByTestId('user-id').boundingBox()
-  const after = await actions.boundingBox()
-  expect(after!.y).toBeGreaterThan(box!.y + 10)
-  expect(Math.abs(after!.y + after!.height - (last!.y + last!.height))).toBeLessThan(60)
-  expect(Math.abs(after!.x + after!.width - (gridBox!.x + gridBox!.width))).toBeLessThan(2)
+  const toggle = page.getByTestId('query-toggle')
+  const grid = page.locator('.sk-query-grid')
+  const filters = grid.locator('.sk-item')
+  await expect(filters).toHaveCount(2)
+  const actions = page.getByTestId('query-submit')
+  const first = (await actions.boundingBox())!
+  const status = (await page.getByLabel('状态', { exact: true }).boundingBox())!
+  expect(first.x).toBeGreaterThan(status.x + status.width)
+  expect(first.y).toBeLessThan(status.y + status.height)
+  await toggle.click()
+  await expect(filters).toHaveCount(5)
+  const last = (await page.getByTestId('user-id').boundingBox())!
+  const expanded = (await actions.boundingBox())!
+  expect(expanded.x).toBeGreaterThan(last.x + last.width)
+  expect(expanded.y).toBeGreaterThan(first.y + first.height)
+  expect(expanded.y).toBeLessThan(last.y + last.height)
 })

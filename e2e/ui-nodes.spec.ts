@@ -15,13 +15,13 @@ test('UI guide: an echo instance turns red; a pure UI alert follows the amount a
   await expect(echoDemo.getByLabel('昵称')).toHaveAttribute('id', 'echo-nickname')
 
   const alertDemo = page.locator('[data-ui-alert-demo]').first()
-  await expect(alertDemo.getByRole('alert')).toHaveCount(0)
+  await expect(alertDemo.getByRole('status')).toHaveCount(0)
   await alertDemo.getByLabel('报销金额').fill('60000')
-  await expect(alertDemo.getByRole('alert')).toContainText('主管审批')
+  await expect(alertDemo.getByRole('status')).toContainText('主管审批')
   await alertDemo.getByRole('button', { name: /提\s*交/ }).click()
   await expect(alertDemo.locator('pre')).toHaveText('{"amount":60000}')
   await alertDemo.getByLabel('报销金额').fill('100')
-  await expect(alertDemo.getByRole('alert')).toHaveCount(0)
+  await expect(alertDemo.getByRole('status')).toHaveCount(0)
 
   const boxDemo = page.locator('[data-ui-box-demo]').first()
   await boxDemo.getByRole('button', { name: /提\s*交/ }).click()

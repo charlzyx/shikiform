@@ -18,11 +18,13 @@ test('standard schema: field rules, cross-field path, visible:false still submit
 
   await page.getByTestId('confirm').fill('secret')
   await page.getByTestId('item-name').fill('')
+  await page.getByTestId('item-name').blur()
   await page.getByTestId('schema-submit').click()
   await expect(page.getByTestId('errors')).toContainText('items.0.name:名称必填')
 
   await page.getByTestId('item-name').fill('螺栓')
   await page.getByTestId('nick').fill('')
+  await page.getByTestId('nick').blur()
   await page.getByTestId('hide-nick').click()
   await expect(page.getByTestId('nick')).toHaveCount(0)
   await page.getByTestId('schema-submit').click()
@@ -32,6 +34,7 @@ test('standard schema: field rules, cross-field path, visible:false still submit
   await page.getByTestId('show-nick').click()
   await page.getByTestId('nick').fill('ada')
   await page.getByTestId('ghost').fill('')
+  await page.getByTestId('ghost').blur()
   await page.getByTestId('drop-ghost').click()
   await expect(page.getByTestId('ghost')).toHaveCount(0)
   await page.getByTestId('schema-submit').click()

@@ -1,22 +1,24 @@
 import { expect, test } from '@playwright/test'
 import { gotoHydrated } from './hydration'
 
-test('ArrayItems guide: add, drag sort, and actions hide when read-only', async ({ page }) => {
+test('ArrayField guide: add, drag sort, and actions hide when read-only', async ({ page }) => {
   await gotoHydrated(page, '/guide/arrays')
-  const demo = page.locator('[data-array-items="contacts"]').first()
-  const items = demo.getByTestId('array-item')
-  await expect(items).toHaveCount(2)
+  const demo = page.locator('.sf-demo').first()
+  const rows = demo.locator('form [draggable="true"]')
+  await expect(rows).toHaveCount(2)
 
-  await demo.getByTestId('row-add').click()
-  await expect(items).toHaveCount(3)
-  await expect(demo.getByTestId('row-index').nth(2)).toHaveText('#3')
+  await demo.getByRole('button', { name: '添加联系人', exact: true }).click()
+  await expect(rows).toHaveCount(3)
+  await expect(rows.nth(2)).toContainText('#3')
 
-  await demo.getByTestId('sort-handle').nth(0).dragTo(items.nth(1))
-  await expect(items.nth(0).locator('input').first()).toHaveValue('Charles')
-  await expect(items.nth(1).locator('input').first()).toHaveValue('Ada')
+  await rows.nth(0).dragTo(rows.nth(1))
+  await expect(rows.nth(0).getByPlaceholder('姓名')).toHaveValue('Charles')
+  await expect(rows.nth(1).getByPlaceholder('姓名')).toHaveValue('Ada')
 
-  await page.getByRole('switch', { name: '阅读态' }).click()
-  await expect(demo.getByTestId('row-remove')).toHaveCount(0)
-  await expect(demo.getByTestId('row-add')).toHaveCount(0)
-  await expect(demo.getByTestId('row-index')).toHaveCount(3)
+  await demo.getByRole('checkbox', { name: '阅读态' }).check()
+  await expect(demo.getByRole('button', { name: '添加联系人' })).toHaveCount(0)
+  await expect(demo.getByRole('button', { name: '删除' })).toHaveCount(0)
+  await expect(demo.getByRole('button', { name: '上移' })).toHaveCount(0)
+  await expect(demo.getByPlaceholder('姓名')).toHaveCount(0)
+  await expect(demo.locator('form')).toContainText('#3')
 })

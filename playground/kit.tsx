@@ -533,7 +533,7 @@ function RawSelect({
   )
 }
 
-export const Select = connect(RawSelect, mapProps({ preview: SelectPreview }))
+export const Select = connect(RawSelect, mapProps({ options: 'options', preview: SelectPreview }))
 
 interface RawRadioProps {
   id?: string
@@ -592,7 +592,7 @@ function RawRadio({ id, value, onChange, onBlur, disabled, options = [], optionT
   )
 }
 
-export const Radio = connect(RawRadio, mapProps({ preview: SelectPreview }))
+export const Radio = connect(RawRadio, mapProps({ options: 'options', preview: SelectPreview }))
 
 function RawCheckbox({
   id,
@@ -675,7 +675,7 @@ const BaseCheckbox = connect(
   }),
 )
 
-const CheckboxGroup = connect(RawCheckboxGroup, mapProps({ preview: SelectPreview }))
+const CheckboxGroup = connect(RawCheckboxGroup, mapProps({ options: 'options', preview: SelectPreview }))
 
 export const Checkbox = Object.assign(BaseCheckbox, { Group: CheckboxGroup })
 
@@ -1449,6 +1449,8 @@ function ArrayTableImpl<TRow = any>({
     rowKey,
     pagination,
     selectedKeys,
+    // QueryList controls selection across server pages and clears it on a new query.
+    preserveSelection: selectedKeys !== undefined,
     onSelectionChange,
     onRemove,
     rowExpandable: expandable?.rowExpandable,

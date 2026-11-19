@@ -32,10 +32,14 @@ function TextInput({ placeholder }: { placeholder?: string }) {
   );
 }
 
+function useContactsEditable() {
+  return useWatch<Values>()((d) => !d.contacts.$readOnly && !d.contacts.$disabled);
+}
+
 function ContactRow({ children }: { children?: ReactNode }) {
   const array = useArrayField<Contact>();
   const index = useIndex();
-  const editable = useWatch((d) => !d.$readOnly && !d.$disabled);
+  const editable = useContactsEditable();
   return (
     <div {...(editable ? array.dragProps(index) : {})}
       style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
@@ -55,10 +59,11 @@ function ContactRow({ children }: { children?: ReactNode }) {
 
 function ContactList({ children }: { children?: ReactNode }) {
   const array = useArrayField<Contact>();
+  const editable = useContactsEditable();
   return (
     <div>
       {children}
-      <button type="button" onClick={() => array.push({ name: '', phone: '' })}>添加联系人</button>
+      {editable && <button type="button" onClick={() => array.push({ name: '', phone: '' })}>添加联系人</button>}
     </div>
   );
 }

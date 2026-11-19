@@ -8,10 +8,10 @@ export default defineConfig({
   expect: { timeout: 8_000 },
   use: { baseURL: 'http://localhost:4321' },
   webServer: {
-    // astro preview 只监听 IPv6 localhost；host 参数由 npm script 透传。
-    command: 'npm run preview -- --host localhost --port 4321',
+    // Astro otherwise backgrounds preview in agent sessions and Playwright loses its server process.
+    command: 'npm run preview -- --ignore-lock --host localhost --port 4321',
     url: 'http://localhost:4321/play/query',
-    reuseExistingServer: true,
+    reuseExistingServer: !process.env.CI,
     timeout: 60_000,
   },
 })
