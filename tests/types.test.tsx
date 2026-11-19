@@ -344,6 +344,51 @@ function rowFieldRecord() {
   )
 }
 
+async function validateResultTypes() {
+  type V = {
+    name: string
+    confirm: string
+    user: { city: string; token: string }
+    rows: { name: string; qty: number }[]
+  }
+  const values: V = { name: '', confirm: '', user: { city: '', token: '' }, rows: [] }
+  const typedForm = createForm({ initialValues: values, fields: { confirm: { omit: true as const } } })
+  const all = await typedForm.validate()
+  const _all: Expect<Equal<typeof all, { name: string; user: { city: string; token: string }; rows: { name: string; qty: number }[]; confirm?: string }>> = true
+  const city = await typedForm.validate('user.city')
+  const _city: Expect<Equal<typeof city, string>> = true
+  const rowName = await typedForm.validate('rows.0.name')
+  const _row: Expect<Equal<typeof rowName, string>> = true
+  const user = await typedForm.validate('user')
+  const _user: Expect<Equal<typeof user, V['user']>> = true
+  const picked = await typedForm.validate(['name', 'user.city'])
+  const _picked: Expect<Equal<typeof picked, { name: string; user: { city: string } }>> = true
+  const rows = await typedForm.validate(['rows.0.name', 'rows.1.qty'])
+  const _rows: Expect<Equal<typeof rows, { rows: { 0: { name: string }; 1: { qty: number } } }>> = true
+  const sameRow = await typedForm.validate(['rows.0.name', 'rows.0.qty'])
+  const _same: Expect<Equal<typeof sameRow, { rows: { 0: { name: string; qty: number } } }>> = true
+  const wholeUser = await typedForm.validate(['user', 'user.city'])
+  const _whole: Expect<Equal<typeof wholeUser, { user: V['user'] }>> = true
+  const none = await typedForm.validate([])
+  const _none: Expect<Equal<typeof none, {}>> = true
+  // @ts-expect-error not a path
+  void typedForm.validate('nope')
+  // @ts-expect-error not a path
+  void typedForm.validate(['nope'])
+  const dynamic: string[] = ['name']
+  // @ts-expect-error a string[] is not a list of this form's paths
+  void typedForm.validate(dynamic)
+  void _all
+  void _city
+  void _row
+  void _user
+  void _picked
+  void _rows
+  void _same
+  void _whole
+  void _none
+}
+
 it('checks paths at compile time', () => {
   expect(form.getValue('items.0.price')).toBe(1)
   expect(typeof hookTypes).toBe('function')
@@ -355,6 +400,7 @@ it('checks paths at compile time', () => {
   expect(typeof badFragment).toBe('function')
   expect(typeof groupUse).toBe('function')
   expect(typeof rowFieldRecord).toBe('function')
+  expect(typeof validateResultTypes).toBe('function')
   expect(_name).toBe(true)
   expect(_price).toBe(true)
 })

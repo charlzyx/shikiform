@@ -42,6 +42,7 @@ export type {
   TemplatePath,
   MoveResult,
   PathValue,
+  ValidatePick,
   NormalizePath,
   ValuePath,
   SubmitResolved,

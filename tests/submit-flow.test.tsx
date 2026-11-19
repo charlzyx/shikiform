@@ -168,8 +168,8 @@ describe('submit / validate promises', () => {
     const form = createForm<{ name: string }>({ initialValues: { name: '' }, fields: { name: { required: true } } })
     await expect(form.validate('name')).rejects.toEqual([{ path: 'name', messages: ['必填'] }])
     form.setValue('name', 'ada')
-    await expect(form.validate('name')).resolves.toBeUndefined()
-    await expect(form.validate()).resolves.toBeUndefined()
+    await expect(form.validate('name')).resolves.toBe('ada')
+    await expect(form.validate()).resolves.toEqual({ name: 'ada' })
   })
 })
 

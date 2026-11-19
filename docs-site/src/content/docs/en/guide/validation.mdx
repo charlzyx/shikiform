@@ -98,7 +98,7 @@ The defaults are blur and submit. Add change validation where needed. `asyncDebo
 
 ## Handle submission
 
-`validate(path?)` resolves to `undefined` on success and rejects with field errors otherwise. `submit(onValid?)` waits for validation, then returns the callback's result or the submit values if the result is undefined. Later submits can supersede earlier ones.
+`validate()` resolves `getSubmitValues()` (`TSubmit`). `validate(path)` resolves that cloned value (`PathValue`). The path itself is returned even when it is omitted, including descendants omitted only because of that path; a descendant's own `omit` is removed. `validate([paths])` resolves a cloned nested object of only those paths (`ValidatePick`). All three reject `FieldError[]` on failure; a throw from a form-level `validate` rejects as-is. `submit(onValid?)` waits for validation, then returns the callback's result or the submit values if the result is undefined. Later submits can supersede earlier ones.
 
 ```ts
 try {

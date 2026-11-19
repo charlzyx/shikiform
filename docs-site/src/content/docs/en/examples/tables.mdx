@@ -221,8 +221,9 @@ export default function App() {
   const open = (row: Row) => form.setValue('editor', { ...row, open: true });
   const close = () => form.setValue('editor.open', false);
   const save = async () => {
-    try { await form.validate('editor'); } catch { return; }
-    const { id, name, price } = form.getValue('editor');
+    let editor: Values['editor'];
+    try { editor = await form.validate('editor'); } catch { return; }
+    const { id, name, price } = editor;
     const index = form.getValue('rows').findIndex((row) => row.id === id);
     form.batch((d) => {
       d.rows[index].name.$value = name;

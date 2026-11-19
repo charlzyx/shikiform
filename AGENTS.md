@@ -205,7 +205,7 @@ reaction((d) => {
   A throw from `onValid` rejects as-is. A submit replaced by a later `submit()` rejects `SubmitSupersededError`
   (`code: 'superseded'`). Values that never settle reject `SubmitUnstableError` (`code: 'unstable'`). Both use
   `messages.superseded`, and neither is a `FieldError[]`. `<Form>` / `<Submit>` send `SubmitUnstableError` to `onSubmitError`.
-  `form.validate(path?)` resolves `undefined` when clean and rejects `FieldError[]` otherwise.
+  `form.validate()` resolves `getSubmitValues()` (`TSubmit`). `validate(path)` resolves the cloned value at that path (`PathValue`; omitted descendants removed; the path itself is returned even when omitted). `validate([paths])` resolves a cloned nested object of only those paths (`ValidatePick`). Rejection is unchanged: `FieldError[]`, or a form-level `validate` throw as-is.
   `<Form>` / `<Submit>` catch the rejection (`onInvalid` / `onSubmitError`); a superseded submit is swallowed.
 - `<Form>` takes the submit callbacks: `onSubmit(values)`, `onInvalid(errors)`,
   `onSubmitError(error)` (default `console.error`); other props go to the native `<form>` (`id`, `className`, `noValidate`).

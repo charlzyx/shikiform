@@ -61,6 +61,7 @@ export type {
   FieldSpec,
   FieldUiSpec,
   PathValue,
+  ValidatePick,
   NormalizePath,
   ValuePath,
   ArrayItemOf,

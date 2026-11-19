@@ -30,6 +30,8 @@ form.setValue('name', 'Ada')
 
 Use `typed<V>().createForm` to specify the shape while inferring omissions from declared fields. `createForm<V>(options)` fixes the submit type to `V`.
 
+`validate()` resolves values on success: no path is `getSubmitValues()` (that submit type); one path is its `PathValue` (returned even when that path is omitted; descendants omitted only by that path stay, a descendant's own `omit` is removed); an array of paths is a nested object of only those paths (`ValidatePick`). It rejects `FieldError[]`, and a form-level `validate` throw rejects as-is. See the [API overview](/en/api).
+
 ```ts
 import { typed } from '@shikiform/react'
 

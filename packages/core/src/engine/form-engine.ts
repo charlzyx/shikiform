@@ -4,8 +4,8 @@ import type { DraftHost } from '../draft/host'
 import { readonlyValue } from '../draft/readonly'
 import type { EachDirty, EachRec } from '../effects/scheduler'
 import { Scheduler } from '../effects/scheduler'
-import { clone } from '../shared/equal'
-import { deleteAt, getAt, normalizePath, setAt } from '../shared/path'
+import { getAt, normalizePath } from '../shared/path'
+import { submitValueAt, validateResult } from './submit-values'
 import { shownErrors } from '../state/field-model'
 import { asOptions } from '../enum/enum-source'
 import { effectiveFlag, setRootFlag } from '../state/flags'
@@ -28,6 +28,7 @@ import type {
   FieldSpec,
   MoveResult,
   PathValue,
+  ValidatePick,
   ValuePath,
   SubmitResolved,
   WriteOp,
@@ -205,9 +206,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
 
   /** Remove omitted paths deepest first so an omitted ancestor always wins. */
   getSubmitValues(): TSubmit {
-    let out = clone(this.store.values)
-    for (const path of this.omittedPaths().sort((a, b) => b.length - a.length)) out = deleteAt(out, path)
-    return out as unknown as TSubmit
+    return submitValueAt(this.store.values, this.store) as TSubmit
   }
 
   /** Validate, then call `onValid` with {@link FormEngine.getSubmitValues}. Rejects `FieldError[]` on validation failure. */
@@ -274,17 +273,17 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     return formatMessage(this.options.messages, key, ...params)
   }
 
-  /**
-   * Validate `path` and its descendants, or the whole form. An array validates those paths in one pass.
-   * Resolves when the scope is clean. Rejects `FieldError[]` when it is not.
-   * Hidden, disabled and read-only fields are skipped and their errors cleared.
-   */
-  async validate(path?: FieldPath<T> | readonly FieldPath<T>[]): Promise<void> {
+  /** Validate one scope. Resolves the submit-shaped clone; rejects `FieldError[]`. A form-level throw rejects as-is. */
+  validate(path?: undefined): Promise<TSubmit>
+  validate<P extends FieldPath<T>>(path: P): Promise<PathValue<T, P>>
+  validate<const Paths extends readonly FieldPath<T>[]>(paths: Paths): Promise<ValidatePick<T, Paths>>
+  async validate(path?: string | readonly string[]): Promise<any> {
     const errors = await this.validator.validate(path as string | readonly string[] | undefined)
     if (errors.length) {
       this.notifier.validateFailed(errors)
       throw errors
     }
+    return validateResult(this.store.values, this.store, path)
   }
 
   /** Untyped handle for an exact path. Prefer {@link FormEngine.getValue} and {@link FormEngine.batch}. */

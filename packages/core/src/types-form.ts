@@ -1,6 +1,6 @@
 import type { DeepPartial } from './types-path'
 import type { FormMessageKey, MessageArgs } from './validation/messages'
-import type { Draft, FieldError, FieldPath, PathValue, SubmitResolved, ValuePath } from './types'
+import type { Draft, FieldError, FieldPath, PathValue, SubmitResolved, ValidatePick, ValuePath } from './types'
 
 /**
  * Core form. No React.
@@ -99,9 +99,22 @@ export interface FormInstance<T, TSubmit = T> {
    * A form-level Standard Schema always runs. A scoped call refreshes schema issues under `path` only.
    * An array validates several paths in ONE pass (`validate(['name', 'address'])`, what `FormStep` does for a step);
    * concurrent calls await a covering pass or recheck their own scope if interrupted.
-   * Resolves when the scope is clean. Rejects `FieldError[]` when it is not. A throw from a form-level `validate` rejects as-is.
+   *
+   * Resolves the values that passed, cloned, with omitted descendants removed:
+   * - no path — {@link FormInstance.getSubmitValues} (`TSubmit`). An omitted field is absent.
+   * - one path — that value (`PathValue`). The path is returned even when it is itself omitted.
+   *   A descendant is removed only when it has its own `omit` (or sits under such a node inside this path).
+   *   One omitted only because this path, or something above it, is omitted stays — `validate('editor')` still
+   *   returns `editor.name` when `editor` is `omit`.
+   * - several paths — a new object containing only those paths ({@link ValidatePick}). Same clone and omit rules.
+   *   Each path must be a `FieldPath` (a `string[]` such as `group.paths()` matches only when the form value is `any`).
+   *   An array index is a numeric key (`{ rows: { 0: { name } } }`), which is how `result.rows[0]` reads the sparse array.
+   *
+   * Rejects `FieldError[]` when the scope is not clean. A throw from a form-level `validate` rejects as-is.
    */
-  validate(path?: FieldPath<T> | readonly FieldPath<T>[]): Promise<void>
+  validate(path?: undefined): Promise<TSubmit>
+  validate<P extends FieldPath<T>>(path: P): Promise<PathValue<T, P>>
+  validate<const Paths extends readonly FieldPath<T>[]>(paths: Paths): Promise<ValidatePick<T, Paths>>
   /**
    * Clone of the values with omitted fields removed. `omit` inherits: deleting an omitted ancestor already
    * drops nested keys, and a child `omit: false` does not put them back. Hidden fields are kept. The static type is `TSubmit`.

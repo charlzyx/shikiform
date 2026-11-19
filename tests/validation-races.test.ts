@@ -45,7 +45,7 @@ describe('one pass validates one immutable snapshot (#1)', () => {
     form.setValue('rows.0.min', 20)
     held.open()
     // The pass describes the snapshot it started on: min 0, max 10 is valid.
-    await expect(pending).resolves.toBeUndefined()
+    await expect(pending).resolves.toEqual({ rows: [{ min: 20, max: 10 }] })
     expect(seen).toEqual([10, 0, 0, 0, 0])
     // A fresh pass sees the edit, and record/get agree on it.
     held.open()
@@ -375,7 +375,7 @@ describe('an aborted async validator leaves the in-flight set', () => {
     })
     const first = fieldErrorsOf(form.validate())
     await started.promise
-    await expect(withTimeout(form.validate())).resolves.toBeUndefined()
+    await expect(withTimeout(form.validate())).resolves.toEqual({ name: 'first' })
     await sleep(20)
     expect(form.errors).toEqual([])
     await withTimeout(first)
