@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { defineEffects } from '@shikiform/react'
+import { externalCloneTraversal } from '../packages/core/src/draft/plain-clone'
 import { createEngine } from '../packages/core/src/engine/create'
 
 type V = { city: string; kind: string; rows: { name: string }[] }
@@ -381,5 +382,37 @@ describe('external value inputs are cloned', () => {
     expect(form.values.rows).toHaveLength(2)
     expect(form.values.rows[0]).toBe(second)
     expect(form.values.rows[1]).toBe(first)
+  })
+
+  it('preserves row identity on reorder and does not walk an unrelated rows array', () => {
+    const rows = Array.from({ length: 10_000 }, (_, i) => ({ i, title: 't' }))
+    const form = createEngine({
+      initialValues: { a: { name: 'old', tags: ['x'] }, rows },
+    })
+    form.setValue('a.name', 'next')
+    expect(externalCloneTraversal()).toEqual({ entered: 0, kept: 0 })
+
+    form.setValue('a.tags', ['y', 'z'])
+    const tagsWrite = externalCloneTraversal()
+    expect(tagsWrite.entered).toBeGreaterThan(0)
+    expect(tagsWrite.kept).toBeLessThan(10)
+    expect(tagsWrite.entered).toBeLessThan(20)
+    expect(form.getValue('a.tags')).toEqual(['y', 'z'])
+    expect(form.getValue('rows')).toHaveLength(10_000)
+
+    form.patchValues({ a: { tags: ['q'] } })
+    const tagsPatch = externalCloneTraversal()
+    expect(tagsPatch.kept).toBeLessThan(10)
+    expect(tagsPatch.entered).toBeLessThan(20)
+
+    form.patchValues({ a: { name: 'patched' } })
+    expect(externalCloneTraversal()).toEqual({ entered: 0, kept: 0 })
+    expect(form.getValue('a')).toEqual({ name: 'patched', tags: ['q'] })
+
+    const [first, second] = form.values.rows
+    form.setValue('rows', [second!, first!])
+    expect(form.values.rows[0]).toBe(second)
+    expect(form.values.rows[1]).toBe(first)
+    expect(externalCloneTraversal().kept).toBeGreaterThan(1000)
   })
 })

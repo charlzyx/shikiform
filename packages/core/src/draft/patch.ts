@@ -8,8 +8,11 @@
  * Missing intermediates are not created: write `style ??= {}` first, or assign `style = { color }`.
  *
  * Array mutators (`push`, `splice`, `sort`, …) never touch the stored array. They `slice` a copy, run
- * `Array.prototype` on that copy, and `write` the copy back. The reaction layer stays a sparse patch, so a JSX
- * layer merged only at render time is preserved — a full `produce` of the value read here would replace it.
+ * `Array.prototype` on that copy, and `write` the copy back. Other array methods run with the proxy as `this`,
+ * so callbacks and returned elements are drafts and assigning them calls `write`. Setting `length` truncates
+ * or extends a real array copy. `Date` / `Map` / `Set` / class instances are returned raw.
+ * The reaction layer stays a sparse patch, so a JSX layer merged only at render time is preserved — a full
+ * `produce` of the value read here would replace it.
  */
 
 /** Methods that edit an array in place. `bind`ing them to the stored array would skip `write`. */
@@ -116,31 +119,41 @@ export function createPatchDraft(
   const proxy = new Proxy(target, {
     get(_t, prop) {
       const node = current()
-      if (typeof prop === 'symbol') return node?.[prop]
-      const value = node?.[prop]
-      if (Array.isArray(node) && typeof prop === 'string' && ARRAY_MUTATORS.has(prop) && typeof value === 'function') {
-        return (...args: unknown[]) => {
-          // Re-read at call time so `push(a); push(b)` and a saved method both see earlier writes this pass.
-          const live = current()
-          if (!Array.isArray(live)) {
-            return (Array.prototype as unknown as Record<string, (this: unknown, ...a: unknown[]) => unknown>)[prop].apply(
-              live,
-              args.map((arg) => unwrapDraft(arg)),
-            )
-          }
-          const copy = live.slice()
-          const ret = (Array.prototype as unknown as Record<string, (this: unknown[], ...a: unknown[]) => unknown>)[prop].apply(
-            copy,
-            args.map((arg) => unwrapDraft(arg)),
-          )
-          write(keys, copy)
-          return RETURNS_PROXY.has(prop) ? proxy : ret
-        }
+      // `for…of` calls `arr[Symbol.iterator]()` with the proxy as `this`, so elements come back as drafts.
+      if (typeof prop === 'symbol') {
+        if (Array.isArray(node) && prop === Symbol.iterator) return Array.prototype[Symbol.iterator]
+        return node?.[prop]
       }
-      if (Array.isArray(node) && typeof value === 'function') return value.bind(node)
+      const value = node?.[prop]
+      if (Array.isArray(node) && typeof prop === 'string' && typeof value === 'function') {
+        if (ARRAY_MUTATORS.has(prop)) {
+          return (...args: unknown[]) => {
+            // Re-read at call time so `push(a); push(b)` and a saved method both see earlier writes this pass.
+            const live = current()
+            const method = (Array.prototype as unknown as Record<string, (this: unknown, ...a: unknown[]) => unknown>)[prop]!
+            if (!Array.isArray(live)) return method.apply(live, args.map((arg) => unwrapDraft(arg)))
+            const copy = live.slice()
+            const ret = method.apply(copy, args.map((arg) => unwrapDraft(arg)))
+            write(keys, copy)
+            return RETURNS_PROXY.has(prop) ? proxy : ret
+          }
+        }
+        const method = (Array.prototype as unknown as Record<string, (this: unknown, ...a: unknown[]) => unknown>)[prop]
+        // `this` is the proxy: `forEach` / `map` / `at` / `filter` read elements through `get`.
+        if (typeof method === 'function') return (...args: unknown[]) => Reflect.apply(method, proxy, args)
+        return value.bind(node)
+      }
       return isPatchable(value) ? createPatchDraft(read, write, [...keys, prop]) : value
     },
     set(_t, prop, value) {
+      const node = current()
+      // `arr.length = 0` must store a shorter array, not a patch object that merely has a `length` key.
+      if (Array.isArray(node) && prop === 'length') {
+        const copy = node.slice()
+        copy.length = value as number
+        write(keys, copy)
+        return true
+      }
       write([...keys, String(prop)], unwrapDraft(value))
       return true
     },

@@ -15,10 +15,24 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return isPatchable(value) && !Array.isArray(value)
 }
 
+/** How far the latest external clone walked its `keep` subtree. Primitives leave both at 0. */
+let traversal = { entered: 0, kept: 0 }
+
+/** Objects visited while preserving identity on the last `setValue` / `patchValues` / `onChange`. */
+export function externalCloneTraversal(): { entered: number; kept: number } {
+  return traversal
+}
+
+export function resetExternalCloneTraversal(): void {
+  traversal = { entered: 0, kept: 0 }
+}
+
 function collect(node: unknown, known: Set<object>): void {
+  traversal.entered++
   if (!node || typeof node !== 'object') return
   if (known.has(node)) return
   known.add(node)
+  traversal.kept++
   if (Array.isArray(node)) {
     for (let i = 0; i < node.length; i++) {
       if (Object.prototype.hasOwnProperty.call(node, i)) collect(node[i], known)
@@ -63,7 +77,10 @@ function share(node: unknown, known: Set<object>, seen: WeakMap<object, unknown>
 
 /**
  * Clone an external write (`setValue`, `patchValues`, `onChange`).
- * Objects already in `keep` stay put so anonymous row identity survives a reorder.
+ * `keep` is only the current subtree at the path being written (not the whole form): objects already
+ * in that subtree stay put, so `setValue('rows', [rows[1], rows[0]])` keeps row identity, while a write
+ * to `a.tags` does not walk an unrelated `rows` array. A brand-new object is copied.
+ * Primitives return before `keep` is walked.
  */
 export function cloneExternal<V>(value: V, keep: unknown): V {
   const raw = process.env.NODE_ENV !== 'production' ? unwrapReadonly(value) : value

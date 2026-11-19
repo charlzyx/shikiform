@@ -1,7 +1,7 @@
 import type { Declarations } from '../declarations/declarations'
 import { isReactionId, type Scheduler } from '../effects/scheduler'
 import { asOptions, isEnumBinding, toEnumBinding, type EnumBinding, type EnumOption } from '../enum/enum-source'
-import { cloneExternal } from '../draft/plain-clone'
+import { cloneExternal, resetExternalCloneTraversal } from '../draft/plain-clone'
 import { unwrapReadonly } from '../draft/readonly'
 import { showDraftPath } from '../errors'
 import { deepEqual } from '../shared/equal'
@@ -91,8 +91,9 @@ export class StateWriter {
   commitExternal(path: string, value: unknown): void {
     path = normalizePath(path)
     const { store, notifier, scheduler, validator } = this.deps
-    // Clone caller data (`setValue`, `binding().onChange`). Objects already in the store keep their identity.
-    value = cloneExternal(value, store.values)
+    // Clone caller data (`setValue`, `binding().onChange`). Identity is preserved only inside this path's subtree.
+    resetExternalCloneTraversal()
+    value = cloneExternal(value, getAt(store.values, path))
     if (!this.commitValue(path, value, false)) return
     const field = store.ensure(path)
     if (!field.edited) {
@@ -115,10 +116,13 @@ export class StateWriter {
   /** Apply a deep partial object update in a single reaction/watch flush (`form.patchValues`). */
   patchValues(partial: unknown): void {
     if (!partial || typeof partial !== 'object') return
-    const source = cloneExternal(partial, this.deps.store.values) as Record<string, unknown>
+    const { values } = this.deps.store
     const entries: [string, unknown][] = []
-    collectPatchEntries(source, this.deps.store.values, '', entries)
-    this.commitPatch(entries)
+    collectPatchEntries(partial as Record<string, unknown>, values, '', entries)
+    // Each leaf is cloned against the subtree it replaces, not the rest of the form.
+    resetExternalCloneTraversal()
+    const cloned = entries.map(([path, value]) => [path, cloneExternal(value, getAt(values, path))] as [string, unknown])
+    this.commitPatch(cloned)
   }
 
   /** Apply multiple external leaf updates in a single reaction/watch flush. */
