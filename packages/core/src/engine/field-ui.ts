@@ -1,4 +1,5 @@
 import { createPatchDraft, DELETE, isPatchable, setIn } from '../draft/patch'
+import { arrayIndex, writeArrayIndex } from '../shared/dense-array'
 import type { Scheduler } from '../effects/scheduler'
 import { OBJECT_UI_KEYS, UI_KEYS, type FieldModel, type UiEffect, type UiKey } from '../state/field-model'
 import type { Notifier } from '../state/notifier'
@@ -82,11 +83,17 @@ export class FieldUi {
     if (isPatch(value)) {
       const keys = value[PATCH] as string[]
       const next = value.value
-      opKey = `${path}:${key}.${keys.join('.')}`
-      patch = (state) => {
-        // Whole-object replacement: the stored value is concrete, write into it like Immer.
-        if (state?.replace) return { value: setIn(state.value, keys, next), replace: true }
-        return { value: patchAt(state?.value as PatchTree | undefined, keys, next) }
+      if (!keys.length) {
+        // The draft root itself is the array (`$componentProps.splice` / `delete props[i]`).
+        // An empty key path is the whole value, not a child key named `undefined`.
+        patch = () => ({ value: next, replace: true })
+      } else {
+        opKey = `${path}:${key}.${keys.join('.')}`
+        patch = (state) => {
+          // Whole-object replacement: the stored value is concrete, write into it like Immer.
+          if (state?.replace) return { value: setIn(state.value, keys, next), replace: true }
+          return { value: patchAt(state?.value as PatchTree | undefined, keys, next) }
+        }
       }
     } else if (value === undefined) {
       patch = () => undefined
@@ -169,18 +176,46 @@ function patchAt(tree: PatchTree | undefined, keys: readonly string[], value: un
   return { ...tree, [key]: next }
 }
 
-/** Lower layer with the patch tree applied. Arrays patch by index into a copy. */
+/** Lower layer with the patch tree applied. Arrays patch by index into a copy and stay dense. */
 function applyPatch(base: unknown, tree: PatchTree): unknown {
   const out: any = Array.isArray(base) ? base.slice() : isPlainObject(base) ? { ...base } : {}
   for (const [key, node] of Object.entries(tree)) {
     if (node instanceof Assign) {
-      if (node.value === DELETE) delete out[key]
-      else out[key] = node.value
+      if (node.value === DELETE) deletePatched(out, key)
+      else assignPatched(out, key, node.value)
+    } else if (Array.isArray(out)) {
+      const index = arrayIndex(key)
+      if (index === undefined) {
+        const record = out as unknown as Record<string, unknown>
+        record[key] = applyPatch(record[key], node)
+      } else {
+        writeArrayIndex(out, index, applyPatch(out[index], node))
+      }
     } else {
       out[key] = applyPatch(out[key], node)
     }
   }
   return out
+}
+
+/** `delete` on an array index splices the element out. `delete arr[i]` would leave a hole. */
+function deletePatched(out: any, key: string): void {
+  const index = Array.isArray(out) ? arrayIndex(key) : undefined
+  if (index !== undefined) {
+    if (index < out.length) out.splice(index, 1)
+    return
+  }
+  delete out[key]
+}
+
+function assignPatched(out: any, key: string, value: unknown): void {
+  if (!Array.isArray(out)) {
+    out[key] = value
+    return
+  }
+  const index = arrayIndex(key)
+  if (index === undefined) (out as unknown as Record<string, unknown>)[key] = value
+  else writeArrayIndex(out, index, value)
 }
 
 /** `upper` over `lower`: plain objects merge recursively; anything else is taken whole from `upper` when present. */

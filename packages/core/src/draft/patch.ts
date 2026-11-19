@@ -8,12 +8,16 @@
  * Missing intermediates are not created: write `style ??= {}` first, or assign `style = { color }`.
  *
  * Array mutators (`push`, `splice`, `sort`, …) never touch the stored array. They `slice` a copy, run
- * `Array.prototype` on that copy, and `write` the copy back. Other array methods run with the proxy as `this`,
- * so callbacks and returned elements are drafts and assigning them calls `write`. Setting `length` truncates
- * or extends a real array copy. `Date` / `Map` / `Set` / class instances are returned raw.
+ * `Array.prototype` on that copy, and `write` the copy back. Deleting an index does the same with `splice`:
+ * later elements shift down, and the copy is written back, so the array stays dense. Other array methods run
+ * with the proxy as `this`, so callbacks and returned elements are drafts and assigning them calls `write`.
+ * Setting `length` truncates, or extends the copy with explicit `undefined` slots (not holes). An index write
+ * past `length` (`setIn`) fills that gap the same way. `Date` / `Map` / `Set` / class instances are returned raw.
  * The reaction layer stays a sparse patch, so a JSX layer merged only at render time is preserved — a full
  * `produce` of the value read here would replace it.
  */
+
+import { arrayIndex, removeArrayIndex, writeArrayIndex } from '../shared/dense-array'
 
 /** Methods that edit an array in place. `bind`ing them to the stored array would skip `write`. */
 const ARRAY_MUTATORS = new Set(['copyWithin', 'fill', 'pop', 'push', 'reverse', 'shift', 'sort', 'splice', 'unshift'])
@@ -23,7 +27,7 @@ const RETURNS_PROXY = new Set(['copyWithin', 'fill', 'reverse', 'sort'])
 /** Draft proxy → latest raw value (pending writes included). Used to keep proxies out of stored state. */
 const draftRaw = new WeakMap<object, () => unknown>()
 
-/** Sentinel value reported for `delete draft.key`. */
+/** Sentinel value reported for `delete draft.key`. An array index is spliced out instead of stored as a hole. */
 export const DELETE = Symbol('shikiform.delete')
 
 /** Plain object or array: the only values wrapped for nested writes. */
@@ -46,10 +50,19 @@ export function setIn(root: unknown, keys: readonly string[], value: unknown): u
   const prev = node[key]
   const next = rest.length ? setIn(prev, rest, value) : value
   if (next === DELETE) {
+    if (Array.isArray(root)) {
+      const index = arrayIndex(key)
+      if (index !== undefined) {
+        if (index >= root.length) return root
+        const copy = root.slice()
+        removeArrayIndex(copy, index)
+        return copy
+      }
+    }
     if (!(key in node)) return root
     if (Array.isArray(root)) {
       const copy = root.slice()
-      delete copy[Number(key)]
+      delete (copy as unknown as Record<string, unknown>)[key]
       return copy
     }
     const { [key]: _drop, ...others } = node
@@ -58,7 +71,12 @@ export function setIn(root: unknown, keys: readonly string[], value: unknown): u
   if (Object.is(prev, next) && key in node) return root
   if (Array.isArray(root)) {
     const copy = root.slice()
-    copy[Number(key)] = next
+    const index = arrayIndex(key)
+    if (index === undefined) {
+      ;(copy as unknown as Record<string, unknown>)[key] = next
+      return copy
+    }
+    writeArrayIndex(copy, index, next)
     return copy
   }
   return { ...node, [key]: next }
@@ -150,14 +168,33 @@ export function createPatchDraft(
       // `arr.length = 0` must store a shorter array, not a patch object that merely has a `length` key.
       if (Array.isArray(node) && prop === 'length') {
         const copy = node.slice()
+        const prev = copy.length
         copy.length = value as number
-        write(keys, copy)
+        // Growing `length` leaves holes. Own `undefined` slots keep the copy dense.
+        for (let i = prev; i < copy.length; i++) copy[i] = undefined
+        write(keys, unwrapDraft(copy))
         return true
       }
       write([...keys, String(prop)], unwrapDraft(value))
       return true
     },
     deleteProperty(_t, prop) {
+      if (typeof prop === 'string') {
+        const index = arrayIndex(prop)
+        if (index !== undefined) {
+          const node = current()
+          if (Array.isArray(node)) {
+            // Same copy-on-write as `splice`: a keyed `delete` would leave a hole, and a later
+            // write in this pass would still be talking about the pre-delete indexes.
+            if (index < node.length) {
+              const copy = node.slice()
+              removeArrayIndex(copy, index)
+              write(keys, unwrapDraft(copy))
+            }
+            return true
+          }
+        }
+      }
       write([...keys, String(prop)], DELETE)
       return true
     },
