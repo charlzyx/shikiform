@@ -112,8 +112,14 @@ export default function App() {
 ## 校验时机与竞态处理
 
 - 默认在失焦（`onBlur`）和提交（`onSubmit`）时触发校验，可通过 `validateTrigger: ['onChange', 'onBlur', 'onSubmit']` 调整。已报错的字段在后续每次值变更时都会立即重验，合法后即时消除错误。
-- `await form.validate()` 校验全表，传入路径前缀（如 `form.validate('items')`）或路径数组则只校验对应范围。通过时 resolve 克隆后的值：无 path 是 `getSubmitValues()`（`TSubmit`）；一个 path 是该处的值（`PathValue`；path 自身即使 `omit` 也返回，只因它而被 omit 的子孙仍在，子孙自己的 `omit` 才去掉）；路径数组是只含这些 path 的嵌套对象（`ValidatePick`）。失败时 reject `FieldError[]`（`{ path, messages }[]`）；表单级 `validate` 抛错原样 reject。
-- `submit()` 会等待在途异步规则完成后再做最终判定。若校验期间表单值再次改变，引擎会基于新值重跑校验（最多 3 轮）。新的 `submit()` 会取代尚在校验的前一次调用：旧调用 reject `SubmitSupersededError`，只有最新一次触发 `onValid`。防止重复点击可根据 `$submitting` 禁用按钮。
+- `await form.validate()` 校验全表，传入路径前缀（如 `form.validate('items')`）或路径数组则只校验对应范围。通过时 resolve 调用结束时的当前值：无 path 是 `getSubmitValues()`（`TSubmit`）；一个 path 是该处的值（`PathValue`；path 自身即使 `omit` 也返回，只因它而被 omit 的子孙仍在，子孙自己的 `omit` 才去掉）；路径数组是只含这些 path 的嵌套对象（`ValidatePick`）。这份值是副本：普通对象、数组、`Date`、`Map`、`Set` 会复制，类实例、函数和 React 元素仍是原来的引用，原地修改不会写回表单。规则读的是开跑时的快照；这段时间里值又变了，`validate()` 不会重跑。失败时 reject `FieldError[]`（`{ path, messages }[]`）；表单级 `validate` 抛错原样 reject。
+- `submit()` 会等待在途异步规则完成后再做最终判定。若校验期间表单值再次改变，引擎会基于新值重跑校验（最多 3 轮），通过后 resolve 的是刚校验过的那份提交值。新的 `submit()` 会取代尚在校验的前一次调用：旧调用 reject `SubmitSupersededError`，只有最新一次触发 `onValid`。防止重复点击可根据 `$submitting` 禁用按钮。
+
+```ts
+const values = await form.validate()
+const user = await form.validate('user')
+const picked = await form.validate(['name', 'user.city'])
+```
 
 ## 提交返回值处理
 

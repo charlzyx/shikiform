@@ -41,7 +41,7 @@ interface UseFormOptions<T> extends FormOptions<T> { values?: T }
 | `options.initialValues` | 省略时以空对象开始；建议完整写出值形状，让 `T` 可推断 |
 | `options.values` | 外部拥有的数据（加载的记录、查询缓存）。第一次渲染当作初始值；之后内容变化时调 `reset(values)`（新基线，不 dirty）。内容相同的新对象不触发 |
 | `TSubmit` | `submit` / `getSubmitValues` / `<Form onSubmit>` 的值类型。不写泛型或 `typed<T>().useForm(options)` 时，`fields` 里的 `omit: true` 变成可选；`useForm<T>(options)` 的提交类型就是 `T`。要自己列路径用 `SubmitValues<T, 'tmp'>`，见 [提交值类型](/api#提交值类型) |
-| 返回值 | 稳定的 `FormInstance<T, TSubmit>`：状态 getter、`getValue` / `setValue` / `batch`、`submit` / `validate` / `reset`、`setErrors` 和订阅，见 [API 总览](/api#读写和提交)。`validate()` 通过时 resolve 提交形状的值（全表为 `TSubmit`）。数组和树的增删移动用 `useArrayField` / `useTreeField` |
+| 返回值 | 稳定的 `FormInstance<T, TSubmit>`：状态 getter、`getValue` / `setValue` / `batch`、`submit` / `validate` / `reset`、`setErrors` 和订阅，见 [API 总览](/api#读写和提交)。`validate()` / `validate(path)` / `validate([paths])` 通过时 resolve 提交形状的副本（全表 `Promise<TSubmit>`，一个 path 为 `Promise<PathValue>`，路径数组为 `Promise<ValidatePick>`），原地修改不会写回表单。数组和树的增删移动用 `useArrayField` / `useTreeField` |
 
 `useForm` 本身不要求父级 Provider。后续渲染传入新 `initialValues` 不会重建实例，也不会生效；会变的数据用 `values`，或自己调 `reset(record)`。渲染需要实时值时用 `useField` / `useWatch`，不要期待读取 `form.values` 就自动重渲染。
 

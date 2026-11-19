@@ -267,6 +267,8 @@ export default function App() {
 }
 ```
 
+The `void` on Validate discards the promise. `form.validate()` still resolves the whole submit value when the nested rules pass.
+
 ## Orders and line items
 
 Expand an order to edit its line items. Recalculate each line amount and the order total. Mark shipped orders read-only at the parent path.

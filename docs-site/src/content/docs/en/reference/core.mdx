@@ -30,7 +30,19 @@ form.setValue('name', 'Ada')
 
 Use `typed<V>().createForm` to specify the shape while inferring omissions from declared fields. `createForm<V>(options)` fixes the submit type to `V`.
 
-`validate()` resolves values on success: no path is `getSubmitValues()` (that submit type); one path is its `PathValue` (returned even when that path is omitted; descendants omitted only by that path stay, a descendant's own `omit` is removed); an array of paths is a nested object of only those paths (`ValidatePick`). It rejects `FieldError[]`, and a form-level `validate` throw rejects as-is. See the [API overview](/en/api).
+`validate` has three overloads:
+
+```ts
+validate(): Promise<TSubmit>
+validate<P extends FieldPath<T>>(path: P): Promise<PathValue<T, P>>
+validate<const Paths extends readonly FieldPath<T>[]>(paths: Paths): Promise<ValidatePick<T, Paths>>
+```
+
+On success it resolves the values current when the call finishes. No path is `getSubmitValues()` (that submit type). One path is its `PathValue` (returned even when that path is omitted; descendants omitted only by that path stay, and a descendant's own `omit` is removed). An array of paths is a nested object of only those paths (`ValidatePick`). The result is a copy: plain objects, arrays, `Date`, `Map`, and `Set` are copied, while class instances, functions, and React elements keep the same reference. Editing it does not write back. In development, mutating the `getValue` view throws `ShikiUsageError`. It rejects `FieldError[]`, and a form-level `validate` throw rejects as-is. See the [API overview](/en/api).
+
+```ts
+const values = await form.validate()
+```
 
 ```ts
 import { typed } from '@shikiform/react'

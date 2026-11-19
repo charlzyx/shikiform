@@ -300,8 +300,8 @@ export default function App() {
   });
   const validate = async () => {
     try {
-      await form.validate();
-      setErrors('无');
+      const values = await form.validate();
+      setErrors(`无（${values.rows.length} 行通过）`);
     } catch (error) {
       const errors = Array.isArray(error) ? error as { path: string }[] : [];
       setErrors(errors.map((item) => item.path).join('、') || '无');
@@ -338,6 +338,7 @@ export default function App() {
 ```
 
 - 第 499、999、1499、1999 行处于视口外未挂载，点击校验仍会报出它们的空值错误：`fields` 中的行模板 `rows.*.name` 在引擎层生效，不依赖组件挂载。
+- 通过时 `const values = await form.validate()` 拿到去掉 omit 后的提交值（这里是全部 2000 行）。失败仍 reject `FieldError[]`。
 - `<ArrayField virtualScroll>` 仅挂载可见行并注入行作用域，只用于自定义列表行，不能与整表容器 `component` 同时使用。
 
 下一组：[表格与查询](/examples/tables)。
