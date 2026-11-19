@@ -1,5 +1,5 @@
 import type { Declarations } from '../declarations/declarations'
-import { unwrapReadonly } from '../draft/readonly'
+import { plainClone } from '../draft/plain-clone'
 import type { Scheduler } from '../effects/scheduler'
 import { clone, deepEqual, differsExcept } from '../shared/equal'
 import { getAt, selfAndAncestors, setAt } from '../shared/path'
@@ -167,7 +167,3 @@ export function errorEntries(errors: Record<string, string | string[] | null | u
   return Object.entries(errors).map(([path, m]) => [path, (m == null ? [] : Array.isArray(m) ? m : [m]).filter(Boolean)])
 }
 
-/** Clone caller data, unwrapping development read-only views (`d.x.$value`) first. */
-function plainClone<V>(value: V): V {
-  return clone(process.env.NODE_ENV !== 'production' ? unwrapReadonly(value) : value)
-}

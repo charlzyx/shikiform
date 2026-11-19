@@ -42,7 +42,8 @@ export interface UiModels {
  * functions, React elements and class instances are taken whole from the highest layer that has them.
  *
  * The reaction layer is a sparse patch tree. A nested write (`d.x.$componentProps.style.color = 'red'`) adds one
- * leaf, so the JSX / declared `style` keeps its other keys. Assigning a non-empty object or any non-object to a key
+ * leaf, so the JSX / declared `style` keeps its other keys. Array mutators slice a copy and assign it, so a
+ * declared or template array is never edited in place. Assigning a non-empty object or any non-object to a key
  * (`$componentProps.style = { … }`) replaces that key on every lower layer; assigning `{}` only opens an
  * intermediate (`style ??= {}`), so it adds nothing. Assigning the whole object (`$componentProps = { … }`) replaces
  * every lower layer, and `undefined` drops the reaction layer again. Reads are Immer-like and replay this pass's

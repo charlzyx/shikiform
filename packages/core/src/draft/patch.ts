@@ -6,7 +6,19 @@
  * (`d.x.$componentProps.style` is `undefined` when there is no `style`, and `.style.color` throws just like JS would).
  * Assigning at any depth reports `(keys, value)` to `write`; the caller copies the stored object immutably.
  * Missing intermediates are not created: write `style ??= {}` first, or assign `style = { color }`.
+ *
+ * Array mutators (`push`, `splice`, `sort`, …) never touch the stored array. They `slice` a copy, run
+ * `Array.prototype` on that copy, and `write` the copy back. The reaction layer stays a sparse patch, so a JSX
+ * layer merged only at render time is preserved — a full `produce` of the value read here would replace it.
  */
+
+/** Methods that edit an array in place. `bind`ing them to the stored array would skip `write`. */
+const ARRAY_MUTATORS = new Set(['copyWithin', 'fill', 'pop', 'push', 'reverse', 'shift', 'sort', 'splice', 'unshift'])
+/** These return the array itself. Hand back the proxy so a chain (`sort().push(1)`) stays write-tracked. */
+const RETURNS_PROXY = new Set(['copyWithin', 'fill', 'reverse', 'sort'])
+
+/** Draft proxy → latest raw value (pending writes included). Used to keep proxies out of stored state. */
+const draftRaw = new WeakMap<object, () => unknown>()
 
 /** Sentinel value reported for `delete draft.key`. */
 export const DELETE = Symbol('shikiform.delete')
@@ -50,6 +62,42 @@ export function setIn(root: unknown, keys: readonly string[], value: unknown): u
 }
 
 /**
+ * Replace draft proxies in `value` with their raw data so stored state never holds a proxy.
+ * Plain objects and arrays are copied only when a nested proxy is found; anything else is kept.
+ */
+function unwrapDraft(value: unknown, seen?: WeakSet<object>): unknown {
+  if (value === null || typeof value !== 'object') return value
+  const read = draftRaw.get(value)
+  if (read) return read()
+  if (!isPatchable(value)) return value
+  const visited = seen ?? new WeakSet<object>()
+  if (visited.has(value)) return value
+  visited.add(value)
+  if (Array.isArray(value)) {
+    let copy: unknown[] | undefined
+    for (let i = 0; i < value.length; i++) {
+      if (!Object.prototype.hasOwnProperty.call(value, i)) continue
+      const next = unwrapDraft(value[i], visited)
+      if (!Object.is(next, value[i])) {
+        copy ??= value.slice()
+        copy[i] = next
+      }
+    }
+    return copy ?? value
+  }
+  let copy: Record<string, unknown> | undefined
+  const record = value as Record<string, unknown>
+  for (const key of Object.keys(record)) {
+    const next = unwrapDraft(record[key], visited)
+    if (!Object.is(next, record[key])) {
+      copy ??= { ...record }
+      copy[key] = next
+    }
+  }
+  return copy ?? value
+}
+
+/**
  * Wrap `value` so assignments at any depth are reported to `write(keys, next)`.
  * `read` returns the latest value (pending writes included), so `draft.style ??= {}; draft.style.color = 'red'` works.
  */
@@ -65,16 +113,35 @@ export function createPatchDraft(
   }
   const initial = current()
   const target: object = Array.isArray(initial) ? [] : {}
-  return new Proxy(target, {
+  const proxy = new Proxy(target, {
     get(_t, prop) {
       const node = current()
       if (typeof prop === 'symbol') return node?.[prop]
       const value = node?.[prop]
+      if (Array.isArray(node) && typeof prop === 'string' && ARRAY_MUTATORS.has(prop) && typeof value === 'function') {
+        return (...args: unknown[]) => {
+          // Re-read at call time so `push(a); push(b)` and a saved method both see earlier writes this pass.
+          const live = current()
+          if (!Array.isArray(live)) {
+            return (Array.prototype as unknown as Record<string, (this: unknown, ...a: unknown[]) => unknown>)[prop].apply(
+              live,
+              args.map((arg) => unwrapDraft(arg)),
+            )
+          }
+          const copy = live.slice()
+          const ret = (Array.prototype as unknown as Record<string, (this: unknown[], ...a: unknown[]) => unknown>)[prop].apply(
+            copy,
+            args.map((arg) => unwrapDraft(arg)),
+          )
+          write(keys, copy)
+          return RETURNS_PROXY.has(prop) ? proxy : ret
+        }
+      }
       if (Array.isArray(node) && typeof value === 'function') return value.bind(node)
       return isPatchable(value) ? createPatchDraft(read, write, [...keys, prop]) : value
     },
     set(_t, prop, value) {
-      write([...keys, String(prop)], value)
+      write([...keys, String(prop)], unwrapDraft(value))
       return true
     },
     deleteProperty(_t, prop) {
@@ -98,4 +165,6 @@ export function createPatchDraft(
       return { configurable: true, enumerable: true, writable: true, value: (this as any).get(_t, prop) }
     },
   })
+  draftRaw.set(proxy, current)
+  return proxy
 }
