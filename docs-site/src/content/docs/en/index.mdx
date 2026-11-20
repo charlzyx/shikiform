@@ -7,74 +7,86 @@ mode: custom
 
 <div className="docs-content" style={{ maxWidth: '1120px', margin: '0 auto', padding: '40px 24px 72px' }}>
 
-## Try it in 30 seconds
+## Try an expense claim
 
-Switch the account type below. A work account requires an email, changes the placeholder and shows the company field. Open the code to see how one `reaction` describes all three changes.
+Change a category to see each row adapt. Add an expense to see the total and approval route update.
 
 ```tsx preview
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { enUS, defineEffects, Form, Submit, typed, useField, useFieldDecorator, useForm, useWatch, type Draft } from '@shikiform/react';
+import { enUS, defineEffects, Form, Submit, typed, useArrayField, useField, useFieldDecorator, useForm, useIndex, useWatch, type Draft } from '@shikiform/react';
 
-type Values = { kind: 'personal' | 'work'; email: string; company: string };
+type Expense = { category: 'travel' | 'meal'; amount: number | null; city: string; attendees: string };
+type Values = { expenses: Expense[]; summary: { total: number; approval: 'standard' | 'manager' } };
 
 const effects = defineEffects<Values>(({ reaction }) => {
-  reaction((d) => {
-    const work = d.kind.$value === 'work';
-    d.email.$required = work;
-    d.email.$componentProps.placeholder = work ? 'name@company.com' : 'name@example.com';
-    d.company.$visible = work;
+  reaction.each((d) => d.expenses, (row) => {
+    const { category, city, attendees } = row;
+    const travel = category.$value === 'travel';
+    city.$visible = travel;
+    city.$required = travel;
+    city.$omit = !travel;
+    attendees.$visible = !travel;
+    attendees.$required = !travel;
+    attendees.$omit = travel;
+  });
+  reaction(({ expenses, summary }) => {
+    const total = expenses.$value.reduce((sum, item) => sum + (item.amount ?? 0), 0);
+    summary.$value.total = Math.round(total * 100) / 100;
+    summary.$value.approval = total > 1000 ? 'manager' : 'standard';
   });
 });
 
 function FieldItem({ children }: { children?: ReactNode }) {
   const d = useFieldDecorator();
-  return (
-    <div style={{ marginBottom: 10 }}>
-      <label {...d.labelProps} style={{ display: 'inline-block', width: 72 }}>
-        {d.required && <span style={{ color: 'crimson' }}>* </span>}
-        {d.label}
-      </label>
-      {children}
-      {d.errorProps && <small {...d.errorProps} style={{ color: 'crimson', marginLeft: 8 }}>{d.errors[0]}</small>}
-    </div>
-  );
+  return <div className="claim-field">
+    <label {...d.labelProps}>{d.label}{d.required && <span aria-hidden="true"> *</span>}</label>
+    {children}
+    {d.errorProps && <small {...d.errorProps} className="claim-error">{d.errors[0]}</small>}
+  </div>;
 }
-
-function TextInput({ placeholder }: { placeholder?: string }) {
+function TextInput() {
   const field = useField<string>();
-  return (
-    <input id={field.id} value={field.value ?? ''} placeholder={placeholder}
-      onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />
-  );
+  const d = useFieldDecorator();
+  return <input aria-required={field.required} aria-invalid={d.invalid || undefined} aria-describedby={d.describedBy} id={field.id} value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />;
 }
-
-function RadioGroup() {
+function AmountInput() {
+  const field = useField<number | null>();
+  const d = useFieldDecorator();
+  return <input aria-required={field.required} aria-invalid={d.invalid || undefined} aria-describedby={d.describedBy} id={field.id} type="number" min="0.01" step="0.01" inputMode="decimal" value={field.value ?? ''}
+    onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))} onBlur={field.onBlur} />;
+}
+function CategorySelect() {
   const field = useField<string>();
-  return (
-    <span style={{ display: 'inline-flex', gap: 12 }}>
-      {field.options.map((o) => (
-        <label key={String(o.value)}>
-          <input type="radio" name={field.id} checked={field.value === o.value}
-            onChange={() => field.onChange(String(o.value))} />
-          {' '}{o.label}
-        </label>
-      ))}
-    </span>
-  );
+  const d = useFieldDecorator();
+  return <select aria-required={field.required} aria-invalid={d.invalid || undefined} aria-describedby={d.describedBy} id={field.id} value={field.value} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur}>
+    {field.options.map((option) => <option key={String(option.value)} value={String(option.value)}>{option.label}</option>)}
+  </select>;
 }
-
+function Expenses({ children }: { children?: ReactNode }) {
+  const expenses = useArrayField<Expense>();
+  return <div className="claim-lines">{children}
+    <button className="claim-add" type="button" onClick={() => expenses.push({ category: 'travel', amount: null, city: '', attendees: '' })}>+ Add expense</button>
+  </div>;
+}
+function RowHeader() {
+  const expenses = useArrayField<Expense>();
+  const index = useIndex();
+  return <div className="claim-row-head"><span>ITEM {String(index + 1).padStart(2, '0')}</span>
+    <button type="button" aria-label={`Remove ${index + 1}`} disabled={expenses.keys.length <= 1} onClick={() => expenses.remove(index)}>Remove</button>
+  </div>;
+}
+function Summary() {
+  const { total, approval } = useWatch((d: Draft<Values>) => d.summary.$value);
+  return <div className="claim-summary" aria-live="polite">
+    <div><span>Claim total</span><strong>¥ {total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+    <div className="claim-approval"><b>{approval === 'manager' ? 'Manager approval' : 'Standard approval'}</b><small>Over ¥1,000 → manager review</small></div>
+  </div>;
+}
 function ForgetResult({ clear }: { clear: () => void }) {
-  const kind = useWatch((d: Draft<Values>) => d.kind.$value);
+  const values = useWatch((d: Draft<Values>) => d.$value);
   const clearRef = useRef(clear);
   clearRef.current = clear;
-  const ready = useRef(false);
-  useEffect(() => {
-    if (!ready.current) {
-      ready.current = true;
-      return;
-    }
-    clearRef.current();
-  }, [kind]);
+  useEffect(() => { clearRef.current(); }, [values]);
   return null;
 }
 
@@ -82,21 +94,36 @@ export default function App() {
   const [result, setResult] = useState('');
   const form = useForm<Values>({
     messages: enUS,
-    initialValues: { kind: 'personal', email: '', company: '' },
+    initialValues: {
+      expenses: [
+        { category: 'travel', amount: 680, city: 'Shanghai', attendees: '' },
+        { category: 'meal', amount: 240, city: '', attendees: 'Product team · 3 people' },
+      ],
+      summary: { total: 0, approval: 'standard' },
+    },
     effects: [effects],
   });
   const F = typed(form);
-  return (
-    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))} onInvalid={() => setResult('')}>
+  return <section className="claim-demo">
+    <div className="claim-heading"><span className="claim-seal" aria-hidden="true">支</span><div><small>EXPENSE CLAIM · LIVE</small><h3>One trip. Two expenses.</h3></div><span className="claim-local">Local demo</span></div>
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values, null, 2))} onInvalid={() => setResult('')}>
       <ForgetResult clear={() => setResult('')} />
-      <F.Field name="kind" title="Account type" enum={[{ label: "Personal", value: 'personal' }, { label: "Work", value: 'work' }]}
-        decorator={[FieldItem]} component={[RadioGroup]} />
-      <F.Field name="email" title="Email" rules={{ format: 'email' }} decorator={[FieldItem]} component={[TextInput]} />
-      <F.Field name="company" title="Company" required decorator={[FieldItem]} component={[TextInput]} />
-      <Submit>Submit</Submit>
-      <pre aria-live="polite">{result}</pre>
+      <F.ArrayField name="expenses" component={Expenses}>
+        {(row) => <div className="claim-row">
+          <RowHeader />
+          <div className="claim-fields">
+            <row.Field name="category" title="Category" enum={[{ label: 'Business travel', value: 'travel' }, { label: 'Team meal', value: 'meal' }]} decorator={[FieldItem]} component={[CategorySelect]} />
+            <row.Field name="amount" title="Amount (CNY)" required rules={{ min: 0.01 }} decorator={[FieldItem]} component={[AmountInput]} />
+            <row.Field name="city" title="Destination city" decorator={[FieldItem]} component={[TextInput]} />
+            <row.Field name="attendees" title="Attendees" decorator={[FieldItem]} component={[TextInput]} />
+          </div>
+        </div>}
+      </F.ArrayField>
+      <Summary />
+      <div className="claim-actions"><span>Try changing a category or increasing the total.</span><Submit>Validate & preview JSON →</Submit></div>
+      {result && <div className="claim-result"><strong>Submission payload · nothing sent</strong><pre aria-live="polite">{result}</pre></div>}
     </Form>
-  );
+  </section>;
 }
 ```
 

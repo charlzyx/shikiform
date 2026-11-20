@@ -6,6 +6,37 @@ ShikiForm manages form values, field state, validation and dependencies in a Typ
 
 [English documentation](https://shikiform.pages.dev/en/)
 
+## Field rules and derived data, together
+
+[Try the expense claim](https://shikiform.pages.dev/en/#try-an-expense-claim): each row shows only the relevant details; the total selects the approval route.
+
+```ts
+import { defineEffects } from '@shikiform/react';
+
+type Expense = { category: 'travel' | 'meal'; amount: number | null; city: string; attendees: string };
+type Values = { expenses: Expense[]; summary: { total: number; approval: 'standard' | 'manager' } };
+
+const effects = defineEffects<Values>(({ reaction }) => {
+  reaction.each((d) => d.expenses, (row) => {
+    const { category, city, attendees } = row;
+    const travel = category.$value === 'travel';
+    city.$visible = travel;
+    city.$required = travel;
+    city.$omit = !travel;
+    attendees.$visible = !travel;
+    attendees.$required = !travel;
+    attendees.$omit = travel;
+  });
+  reaction(({ expenses, summary }) => {
+    const total = expenses.$value.reduce((sum, item) => sum + (item.amount ?? 0), 0);
+    summary.$value.total = Math.round(total * 100) / 100;
+    summary.$value.approval = total > 1000 ? 'manager' : 'standard';
+  });
+});
+```
+
+Pass `effects` to `useForm`. The full interactive example includes adding/removing expenses, validation and a local JSON preview.
+
 ## Installation
 
 ```bash

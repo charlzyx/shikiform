@@ -375,3 +375,45 @@
   .sf-demo__preview { padding: 16px; }
   .sf-demo__btn { min-width: 30px; height: 30px; padding: 0 6px; }
 }
+
+/* 首页费用报销：沿用宣纸、玄墨、朱砂，不影响其他示例。 */
+.sf-demo__preview .claim-demo { max-width: 880px; margin-inline: auto; color: var(--nb-foreground); }
+.claim-heading { display: flex; align-items: center; gap: 14px; padding-block: 4px 24px; }
+.claim-heading .claim-seal { display: grid; place-items: center; width: 44px; height: 48px; flex-shrink: 0; background: var(--sf-cinnabar); color: white; font: 26px var(--nb-font-display); border-radius: 3px; }
+.claim-heading small { font: 10px var(--nb-font-mono, monospace); letter-spacing: .14em; color: var(--nb-muted-foreground); }
+.claim-heading h3 { margin: 5px 0 0; font: 600 clamp(20px, 3vw, 26px)/1.3 var(--nb-font-display); }
+.claim-local { margin-inline-start: auto; border: 1px solid var(--nb-border); border-radius: 999px; padding: 4px 10px; color: var(--nb-muted-foreground); font-size: 11px; white-space: nowrap; }
+.claim-lines { display: grid; gap: 12px; }
+.claim-row { min-width: 0; padding: 12px 18px 20px; border: 1px solid var(--nb-border); border-inline-start: 3px solid var(--sf-cinnabar); border-radius: 4px; background: var(--nb-background); }
+.claim-row-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.claim-row-head > span { font: 11px var(--nb-font-mono, monospace); letter-spacing: .1em; color: var(--nb-muted-foreground); }
+.claim-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .8fr) minmax(0, 1.4fr); gap: 16px; align-items: start; }
+.claim-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.sf-demo__preview .claim-field label { font-size: 12px; }
+.claim-field label span, .claim-error { color: var(--sf-cinnabar); }
+.sf-demo__preview .claim-demo input, .sf-demo__preview .claim-demo select { width: 100%; min-width: 0; min-height: 48px; font: inherit; font-size: 16px; border-color: var(--nb-muted-foreground); border-radius: 4px; }
+.sf-demo__preview .claim-demo button { min-height: 48px; white-space: normal; }
+.sf-demo__preview .claim-row-head button { background: transparent; color: var(--nb-muted-foreground); border-color: transparent; padding-inline: 10px; }
+.sf-demo__preview .claim-row-head button:hover:not(:disabled) { color: var(--sf-cinnabar); background: var(--nb-muted); }
+.sf-demo__preview .claim-add { width: 100%; background: transparent; border: 1px dashed var(--nb-muted-foreground); color: var(--nb-foreground); border-radius: 4px; }
+.claim-summary { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; padding: 22px; border-radius: 4px; background: var(--nb-muted); border-top: 2px solid var(--sf-cinnabar); }
+.claim-summary > div { display: grid; gap: 5px; }
+.claim-summary span, .claim-summary small { color: var(--nb-muted-foreground); font-size: 12px; }
+.claim-summary strong { font: 600 clamp(28px, 5vw, 36px)/1.2 var(--nb-font-display); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.claim-approval b { color: var(--sf-cinnabar); font-size: 14px; }
+.claim-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
+.claim-actions > span { flex: 1 1 200px; color: var(--nb-muted-foreground); font-size: 12px; }
+.sf-demo__preview .claim-actions button { background: var(--sf-cinnabar); border-color: var(--sf-cinnabar); color: white; padding-inline: 22px; border-radius: 4px; }
+.sf-demo__preview .claim-demo :is(input, select, button):focus-visible { outline: 2px solid var(--sf-cinnabar); outline-offset: 3px; }
+.claim-result { min-width: 0; padding-top: 12px; border-top: 1px solid var(--nb-border); }
+.claim-result > strong { font-size: 12px; }
+.claim-result pre { overflow-x: auto; max-width: 100%; }
+@media (max-width: 600px) {
+  .claim-heading { flex-wrap: wrap; }
+  .claim-local { display: none; }
+  .claim-fields { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .claim-row { padding-inline: 14px; }
+  .claim-summary { padding: 18px; }
+  .claim-actions { align-items: stretch; }
+  .claim-actions button { width: 100%; }
+}
