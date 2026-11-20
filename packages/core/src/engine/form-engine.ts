@@ -2,8 +2,7 @@ import { Declarations, type RegisterSpec } from '../declarations/declarations'
 import { createHandle, createUiHandle, handlePath } from '../draft/handle'
 import type { DraftHost } from '../draft/host'
 import { readonlyValue } from '../draft/readonly'
-import type { EachDirty, EachRec } from '../effects/scheduler'
-import { Scheduler } from '../effects/scheduler'
+import { Scheduler, type EachDirty, type EachRec } from '../effects/scheduler'
 import { getAt, normalizePath } from '../shared/path'
 import { submitValueAt, validateResult } from './submit-values'
 import { shownErrors } from '../state/field-model'
@@ -37,6 +36,7 @@ import type { FormInstance } from '../types-form'
 import type { FormOptions } from '../types-effects'
 import { Validator } from '../validation/validator'
 import { Baseline, errorEntries } from './baseline'
+import { EffectDrafts } from './effect-draft'
 import { FieldUi, uiKeyOf } from './field-ui'
 import { forkEngineOptions } from './fork'
 import { pathDomId, uiDomId } from './dom-id'
@@ -60,8 +60,8 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   private readonly writer: StateWriter
   private readonly fieldUi: FieldUi
   private readonly uiNodes: UiNodes
+  private readonly drafts: EffectDrafts
   private pendingSubmits = 0
-  /** Bumped at the start of each `submit`. An older call rejects once a newer one has started. */
   private submitSerial = 0
   private readonly baseline: Baseline
 
@@ -78,10 +78,12 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     this.writer = new StateWriter({
       store, notifier, scheduler, validator, declarations, options,
       carryRowIdentity: (path, before, after) => this.arrays.carryIdentity(path, before, after),
+      commitArray: (path, next) => this.arrays.commitNext(path, next),
     })
     declarations.onDeclaredEnum = (path, binding) => this.writer.loadDeclaredEnum(path, binding)
     this.fieldUi = this.writer.attachUi(new FieldUi(store, notifier, scheduler, (path, key, value) => this.writeState(path, key, value)))
     this.uiNodes = new UiNodes(store, notifier, scheduler, this.writer, this.fieldUi)
+    this.drafts = new EffectDrafts({ store, scheduler, writer: this.writer, fieldUi: this.fieldUi, trees, declarations })
     this.draft = createHandle(this, '') as Draft<T>
     this.baseline = new Baseline({ store, notifier, scheduler, validator, declarations })
     scheduler.onSettle = () => this.baseline.sync()
@@ -192,7 +194,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     } finally {
       scheduler.batchDepth--
       if (scheduler.batchDepth === 0) {
-        const ops = scheduler.batchOps.splice(0)
+        const ops = scheduler.takeBatchOps()
         for (const op of ops) op.apply()
         scheduler.enqueueFromDirty()
         scheduler.flush()
@@ -527,11 +529,10 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     if (process.env.NODE_ENV !== 'production') scheduler.assertNotWritten(path, key)
     if (key === '$value') {
       scheduler.track(path, 'value')
-      const value = getAt(store.values, path)
-      return (process.env.NODE_ENV !== 'production' ? readonlyValue(value, path) : value) as never
+      return this.drafts.readValue(path)
     }
     const uiKey = uiKeyOf(key)
-    if (uiKey) return this.fieldUi.read(path, uiKey)
+    if (uiKey) return this.drafts.readUiKey(path, uiKey)
     if (key === '$errors') return this.validator.aggregate(path, 'errors')
     if (key === '$warnings') return this.validator.aggregate(path, 'warnings')
     const field = store.ensure(path)
@@ -547,11 +548,11 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     }
     if (key === '$enum') {
       scheduler.track(path, 'enum')
-      return field.enumOptions ?? []
+      return this.drafts.readEnum(path, field.enumOptions ?? [])
     }
     if (key === '$rules') {
       scheduler.track(path, 'rules')
-      return field.rules
+      return this.drafts.readRules(path, field.rules)
     }
     if (key === '$validating') {
       scheduler.track(path, 'validating')

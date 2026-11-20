@@ -2,6 +2,7 @@ import { copyData } from '../draft/plain-clone'
 import { peelReadonly, unwrapReadonly } from '../draft/readonly'
 import type { Declarations } from '../declarations/declarations'
 import type { Scheduler } from '../effects/scheduler'
+import { deepEqual } from '../shared/equal'
 import { joinPath, parentPath, setAt } from '../shared/path'
 import type { FieldStore } from '../state/field-store'
 import type { Validator } from '../validation/validator'
@@ -107,6 +108,34 @@ export class ArrayOps {
     this.commit(path, before, [...before, copyData(row)], new Set([before.length]))
   }
 
+  /**
+   * Commit an array produced by a draft mutator (`push`, `splice`, `sort`, a hole from `delete`).
+   * Rows already in `before` keep their object identity so field models follow them. New objects are copied.
+   * Indexes whose occupant changed are the only `dirtyRows`. A no-op (same elements, same holes) writes nothing.
+   */
+  commitNext(path: string, next: unknown[]): boolean {
+    const before = this.store.arrayOf(path)
+    if (sameArrayShape(before, next)) return false
+    const stored = next.slice()
+    const known = new Set<object>()
+    for (let i = 0; i < before.length; i++) {
+      const row = before[i]
+      if (row && typeof row === 'object') known.add(row)
+    }
+    for (let i = 0; i < stored.length; i++) {
+      if (!Object.prototype.hasOwnProperty.call(stored, i)) continue
+      const row = stored[i]
+      if (row && typeof row === 'object' && !known.has(row)) stored[i] = copyData(row)
+    }
+    const rowKey = this.arrays.get(path)?.rowKey
+    const beforeIds = occupantIds(this, before, rowKey)
+    const afterIds = occupantIds(this, stored, rowKey)
+    const dirty = new Set<number>()
+    for (let i = 0; i < stored.length; i++) if (beforeIds[i] !== afterIds[i]) dirty.add(i)
+    this.commit(path, before, stored, dirty)
+    return true
+  }
+
   rowIdent(row: unknown, index: number, rowKey?: string): string {
     // A row read through `getValue` / `form.values` is a view. Identity is stored on the underlying object.
     if (process.env.NODE_ENV !== 'production') row = peelReadonly(row)
@@ -151,4 +180,22 @@ export class ArrayOps {
     // Only this path: descendants wait for the next submit, so the new row stays quiet.
     this.validator.recheckOwn(path)
   }
+}
+
+function occupantIds(ops: ArrayOps, rows: unknown[], rowKey: string | undefined): (string | undefined)[] {
+  const out: (string | undefined)[] = []
+  for (let i = 0; i < rows.length; i++) {
+    if (!Object.prototype.hasOwnProperty.call(rows, i)) out.push(undefined)
+    else out.push(ops.rowIdent(rows[i], i, rowKey))
+  }
+  return out
+}
+
+/** Same elements and the same holes. `deepEqual` treats a hole and an explicit `undefined` as the same value. */
+function sameArrayShape(a: unknown[], b: unknown[]): boolean {
+  if (a.length !== b.length || !deepEqual(a, b)) return false
+  for (let i = 0; i < a.length; i++) {
+    if (Object.prototype.hasOwnProperty.call(a, i) !== Object.prototype.hasOwnProperty.call(b, i)) return false
+  }
+  return true
 }

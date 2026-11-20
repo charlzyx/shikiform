@@ -9,16 +9,27 @@ const initialValues = (): V => ({ user: { name: 'a', tags: ['x'] }, items: [{ n:
 const withReaction = (effect: (d: any) => void) => withReactionFixture(effect, initialValues())
 
 describe('development usage errors (with the fix in the message)', () => {
-  it('mutating an object read from $value throws and names the path write', () => {
-    expect(withReaction((d) => { d.user.$value.name = 'x' })).toThrow(ShikiUsageError)
-    expect(withReaction((d) => { d.user.$value.name = 'x' })).toThrow(/d\.user\.name\.\$value = …/)
-    expect(withReaction((d) => { delete d.user.$value.tags })).toThrow(/read-only/)
-    expect(withReaction((d) => { d.items.$value[0].n = 3 })).toThrow(/d\.items\[0\]\.n\.\$value = …/)
+  it('inside a reaction, nested $value writes and array mutators are recorded', () => {
+    const form = createEngine({ initialValues: initialValues() })
+    form.batch((d) => {
+      d.user.$value.name = 'Ada'
+      const items = d.items.$value
+      items.push({ n: 4 })
+      items[0].n = 3
+      d.user.tags.$value.sort()
+      delete (d.user.$value as { tags?: string[] }).tags
+    })
+    expect(form.getValue('user')).toEqual({ name: 'Ada' })
+    expect(form.getValue('items')).toEqual([{ n: 3 }, { n: 2 }, { n: 4 }])
   })
 
-  it('array mutators on $value throw and suggest assigning a new array', () => {
-    expect(withReaction((d) => { d.items.$value.push({ n: 3 }) })).toThrow(/d\.items\.\$value = \[\.\.\.d\.items\.\$value, row\]/)
-    expect(withReaction((d) => { d.user.tags.$value.sort() })).toThrow(ShikiUsageError)
+  it('outside an effect, getValue and form.values stay read-only', () => {
+    const form = createEngine({ initialValues: initialValues() })
+    expect(() => { (form.getValue('user') as { name: string }).name = 'x' }).toThrow(ShikiUsageError)
+    expect(() => { (form.getValue('user') as { name: string }).name = 'x' }).toThrow(/form\.setValue/)
+    expect(() => { (form.getValue('items') as { n: number }[]).push({ n: 3 }) }).toThrow(/useArrayField\(\)\.push/)
+    expect(() => { (form.values.user as { name: string }).name = 'x' }).toThrow(ShikiUsageError)
+    expect(() => { delete (form.getValue('user') as { tags?: string[] }).tags }).toThrow(/read-only/)
   })
 
   it('non-mutating use of $value still works, and writes store plain data', () => {
@@ -34,19 +45,20 @@ describe('development usage errors (with the fix in the message)', () => {
     expect(() => structuredClone(form.getSubmitValues())).not.toThrow()
   })
 
-  it('reading a $ state after writing it in the same reaction throws', () => {
-    expect(
-      withReaction((d) => {
-        d.total.$value = 1
-        void d.total.$value
-      }),
-    ).toThrow(/after writing it in the same reaction.*const next = …/)
+  it('reading $value back in the same reaction sees the write; flags still throw', () => {
+    let seen = 0
+    const form = withReaction((d) => {
+      d.total.$value = 9
+      seen = d.total.$value
+    })()
+    expect(seen).toBe(9)
+    expect(form.getValue('total')).toBe(9)
     expect(
       withReaction((d) => {
         d.total.$visible = false
         void d.total.$visible
       }),
-    ).toThrow(ShikiUsageError)
+    ).toThrow(/after writing it in the same reaction.*const next = …/)
     // UI state replays pending writes, so this is fine
     expect(
       withReaction((d) => {
@@ -105,15 +117,27 @@ describe('production builds skip the guards', () => {
         d.total.$value = 1
         void d.total.$value
       })()
-      expect(raw).toBe(form.getValue('user'))
+      expect(raw).toEqual(form.getValue('user'))
+      // Inside the effect the value is a draft, in dev and production. Outside, production returns the stored object.
+      expect(raw).not.toBe(form.getValue('user'))
     } finally {
       vi.unstubAllEnvs()
     }
   })
 
-  it('mutating an object read from $value mutates the real value without throwing', () => {
-    const form = prod((d) => { d.user.$value.name = 'x' })
-    expect(form.getValue('user')).toEqual({ name: 'x', tags: ['x'] })
+  it('a nested $value write in an effect commits in production too', () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    try {
+      const form = createEngine({ initialValues: initialValues() })
+      form.batch((d) => {
+        d.user.$value.name = 'x'
+        d.items.$value.push({ n: 3 })
+      })
+      expect(form.getValue('user')).toEqual({ name: 'x', tags: ['x'] })
+      expect(form.getValue('items')).toEqual([{ n: 1 }, { n: 2 }, { n: 3 }])
+    } finally {
+      vi.unstubAllEnvs()
+    }
   })
 
   it('reading a $ state after writing it in the same pass returns the written value', () => {

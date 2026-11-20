@@ -2,6 +2,8 @@ import type { Declarations } from '../declarations/declarations'
 import { isReactionId, type Scheduler } from '../effects/scheduler'
 import { asOptions, isEnumBinding, toEnumBinding, type EnumBinding, type EnumOption } from '../enum/enum-source'
 import { cloneExternal, resetExternalCloneTraversal } from '../draft/plain-clone'
+import { tagPending } from '../draft/pending'
+import { unwrapDraft } from '../draft/patch'
 import { unwrapReadonly } from '../draft/readonly'
 import { showDraftPath } from '../errors'
 import { deepEqual } from '../shared/equal'
@@ -14,7 +16,7 @@ import type { WriteOp } from '../types'
 import type { FormOptions } from '../types-effects'
 import { assertRuleKeys, isEmpty, optionIncludes, type Rule } from '../validation/rules'
 import type { Validator } from '../validation/validator'
-import { uiKeyOf, type FieldUi } from './field-ui'
+import { prepareUiWrite, uiKeyOf, type FieldUi } from './field-ui'
 
 interface EnumLoadBinding {
   source: { debounce: number; cached: (p: any) => EnumOption[] | undefined; load: (p: any, s: AbortSignal) => Promise<EnumOption[]> }
@@ -32,6 +34,11 @@ export interface WriterDeps {
   carryRowIdentity?: (path: string, before: unknown, after: unknown) => void
   /** UI state (`$title`, `$componentProps`, …). Set by the engine after construction. */
   ui?: FieldUi
+  /**
+   * Commit a draft array mutator (`push`, `splice`, a hole from `delete`).
+   * Row identity, field-model reindex, item templates, and precise `dirtyRows` stay in `ArrayOps`.
+   */
+  commitArray?: (path: string, next: unknown[]) => boolean
 }
 
 /**
@@ -56,10 +63,28 @@ export class StateWriter {
 
   /** Draft write entry point (`DraftHost.writeState`). */
   writeState(path: string, key: string, value: unknown): void {
-    // Development: `$value` reads in a reaction are read-only views; store plain data.
-    if (process.env.NODE_ENV !== 'production') value = unwrapReadonly(value)
+    value = storedValue(value)
     const op = this.makeOp(path, key, value)
     this.enqueue(op, !!this.deps.ui?.isUiOp(op))
+  }
+
+  /**
+   * A draft array mutator on a value path. One op replaces the array; `ArrayOps` reindexes rows when it applies.
+   * The op key matches a whole `$value` write so a later `push` in the same pass sees this array.
+   */
+  writeArray(path: string, next: unknown[]): void {
+    const value = storedValue(next) as unknown[]
+    const op: WriteOp = { key: `${path}:value`, apply: () => this.deps.commitArray?.(path, value) ?? false }
+    tagPending(op, { kind: 'value', path, mode: 'mutate', value })
+    this.enqueue(op, false)
+  }
+
+  /** `delete` of an object key on a value draft. An array index is a hole (`writeArray`), not this. */
+  dropField(path: string): void {
+    if (!path) return
+    const op: WriteOp = { key: `${path}:value`, apply: () => this.applyDrop(path) }
+    tagPending(op, { kind: 'value', path, mode: 'delete' })
+    this.enqueue(op, false)
   }
 
   /**
@@ -81,6 +106,12 @@ export class StateWriter {
       return
     }
     if (scheduler.batchDepth > 0) {
+      const index = scheduler.batchOps.findIndex((item) => item.key === op.key)
+      if (index >= 0 && patch) scheduler.batchOps.splice(index, 1)
+      else if (index >= 0) {
+        scheduler.batchOps[index] = op
+        return
+      }
       scheduler.batchOps.push(op)
       return
     }
@@ -223,7 +254,9 @@ export class StateWriter {
     if (uiKey && this.deps.ui) return this.deps.ui.makeOp(path, uiKey, value)
     if (key === '$value') {
       const fromReaction = isReactionId(this.deps.scheduler.current()?.id ?? '')
-      return { key: `${path}:value`, apply: () => this.commitValue(path, value, fromReaction) }
+      const op: WriteOp = { key: `${path}:value`, apply: () => this.commitValue(path, value, fromReaction) }
+      tagPending(op, { kind: 'value', path, mode: 'set', value })
+      return op
     }
     if (key === '$visible' || key === '$disabled' || key === '$readOnly' || key === '$omit') {
       const name = key.slice(1) as FlagName
@@ -235,10 +268,15 @@ export class StateWriter {
       return { key: `${path}:required`, apply: () => this.setRequired(path, !!value) }
     }
     if (key === '$enum') {
-      return { key: `${path}:enum`, apply: () => this.setEnum(path, value) }
+      const op: WriteOp = { key: `${path}:enum`, apply: () => this.setEnum(path, value) }
+      tagPending(op, { kind: 'enum', path, value })
+      return op
     }
     if (key === '$rules') {
-      return { key: `${path}:rules`, apply: () => this.setRules(path, (value as Rule[]) ?? []) }
+      const rules = (value as Rule[]) ?? []
+      const op: WriteOp = { key: `${path}:rules`, apply: () => this.setRules(path, rules) }
+      tagPending(op, { kind: 'rules', path, value: rules })
+      return op
     }
     return { key: `${path}:${key}`, apply: () => false }
   }
@@ -296,6 +334,7 @@ export class StateWriter {
     const field = this.deps.store.ensure(path)
     if (value === undefined) {
       field.enumFromEffect = false
+      field.enumEffect = undefined
       this.cancelEnumLoad(path, field)
       if (isEnumBinding(field.jsxEnum)) {
         const cached = field.jsxEnum.source.cached(field.jsxEnum.params)
@@ -319,6 +358,7 @@ export class StateWriter {
       return true
     }
     field.enumFromEffect = true
+    field.enumEffect = value
     const effectBinding = toEnumBinding(value)
     if (effectBinding) {
       const cached = effectBinding.source.cached(effectBinding.params)
@@ -445,6 +485,31 @@ export class StateWriter {
     else start()
   }
 
+  /** Remove one object key. Does not splice an array index and does not mark the parent computed. */
+  private applyDrop(path: string): boolean {
+    const parent = parentPath(path)
+    const key = parent === null ? path : path.slice(parent.length + 1)
+    const { store, notifier, scheduler } = this.deps
+    const owner = parent === null ? store.values : getAt(store.values, parent)
+    if (!owner || typeof owner !== 'object' || Array.isArray(owner)) return false
+    if (!Object.prototype.hasOwnProperty.call(owner, key)) return false
+    const next = { ...(owner as Record<string, unknown>) }
+    delete next[key]
+    const before = store.values
+    store.values = (parent === null ? next : setAt(store.values, parent, next)) as typeof store.values
+    this.deps.carryRowIdentity?.(parent ?? path, before, store.values)
+    this.deps.validator.clearExternalAround(path)
+    let cursor: string | null = path
+    while (cursor) {
+      scheduler.markDirty(`${cursor}:value`)
+      cursor = parentPath(cursor)
+    }
+    scheduler.markDirty(':value')
+    this.dirtyUnder(path)
+    notifier.bumpPath(path)
+    return true
+  }
+
   /** `enumPolicy: 'clear'` drops a value the new options no longer include. */
   private afterEnum(path: string): void {
     const { store, notifier, scheduler, options } = this.deps
@@ -468,6 +533,15 @@ function sameJsxEnum(prev: EnumOption[] | EnumBinding | undefined, next: EnumOpt
     return isEnumBinding(prev) && isEnumBinding(next) && prev.source === next.source && deepEqual(prev.params, next.params)
   }
   return deepEqual(prev, next)
+}
+
+/** Peel a UI patch, a development view, or an effect draft so the store never holds a proxy. */
+function storedValue(value: unknown): unknown {
+  const ui = prepareUiWrite(value)
+  if (ui !== undefined) return ui
+  let next = value
+  if (process.env.NODE_ENV !== 'production') next = unwrapReadonly(next)
+  return unwrapDraft(next)
 }
 
 function isPlainPatchObject(value: unknown): value is Record<string, unknown> {

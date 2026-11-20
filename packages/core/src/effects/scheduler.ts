@@ -1,3 +1,4 @@
+import { orderBufferedWrites } from '../draft/pending'
 import { ShikiConflictError, ShikiCycleError, ShikiUsageError, showDraftPath, showStateKey } from '../errors'
 import { parentPath, selfAndAncestors } from '../shared/path'
 import type { Notifier } from '../state/notifier'
@@ -40,16 +41,17 @@ export interface RunOptions {
   nodePath?: string
 }
 
-/** Draft key → the write-op state it would read back. */
+/**
+ * Draft key → the write-op state it would read back.
+ * `$value` / `$enum` / `$rules` are absent: those reads project this pass's pending writes, like UI state.
+ * Flags do not, so a second read still sees the old value.
+ */
 const WRITTEN_STATE: Record<string, string> = {
-  $value: 'value',
   $visible: 'visible',
   $disabled: 'disabled',
   $readOnly: 'readOnly',
   $omit: 'omit',
   $required: 'required',
-  $enum: 'enum',
-  $rules: 'rules',
 }
 
 const REACTION_PREFIX = /^(reaction|each):/
@@ -152,8 +154,9 @@ export class Scheduler {
   }
 
   /**
-   * Development guard: reading a `$` state this reaction / watch already wrote in the same pass sees the old value
-   * (writes are buffered until the pass returns). UI state (`$title`, `$componentProps`, …) is exempt: it replays.
+   * Development guard: reading a flag this reaction / watch already wrote in the same pass sees the old value
+   * (that write is buffered until the pass returns). `$value`, `$enum`, `$rules`, and UI state replay pending
+   * writes, so a second read sees the new value and is not checked here.
    */
   assertNotWritten(path: string, draftKey: string): void {
     const tracker = this.stack.at(-1)
@@ -215,12 +218,20 @@ export class Scheduler {
   }
 
   applyWrites(id: string, writes: WriteOp[]): void {
-    if (process.env.NODE_ENV !== 'production' && isReactionId(id)) this.lastWrites.set(id, writes.map((op) => op.key))
-    for (const op of writes) {
+    // Array mutates (including a hole from `delete`) land before cell `$value` writes under that array,
+    // so a name edit and a later `push` in either order both survive.
+    const ordered = orderBufferedWrites(writes)
+    if (process.env.NODE_ENV !== 'production' && isReactionId(id)) this.lastWrites.set(id, ordered.map((op) => op.key))
+    for (const op of ordered) {
       op.apply()
       this.claimOwner(id, op.key)
     }
     this.enqueueFromDirty()
+  }
+
+  /** Buffered `form.batch` ops, in apply order, and clear the buffer. */
+  takeBatchOps(): WriteOp[] {
+    return orderBufferedWrites(this.batchOps.splice(0))
   }
 
   /** Two different reactions writing the same key is a dev error. Watches may share keys. */

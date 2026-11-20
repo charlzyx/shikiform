@@ -1,4 +1,5 @@
-import { createPatchDraft, DELETE, isPatchable, setIn } from '../draft/patch'
+import { DELETE, isPatchable, setIn, unwrapDraft } from '../draft/patch'
+import { unwrapReadonly } from '../draft/readonly'
 import { arrayIndex, deleteArrayIndex, writeArrayIndex } from '../shared/dense-array'
 import type { Scheduler } from '../effects/scheduler'
 import { OBJECT_UI_KEYS, UI_KEYS, type FieldModel, type UiEffect, type UiKey } from '../state/field-model'
@@ -43,8 +44,8 @@ export interface UiModels {
  * functions, React elements and class instances are taken whole from the highest layer that has them.
  *
  * The reaction layer is a sparse patch tree. A nested write (`d.x.$componentProps.style.color = 'red'`) adds one
- * leaf, so the JSX / declared `style` keeps its other keys. Array mutators slice a copy and assign it, so a
- * declared or template array is never edited in place. Assigning a non-empty object or any non-object to a key
+ * leaf, so the JSX / declared `style` keeps its other keys. The effect-scope draft (not this class) slices a copy
+ * for array mutators, so a declared or template array is never edited in place. Assigning a non-empty object or any non-object to a key
  * (`$componentProps.style = { … }`) replaces that key on every lower layer; assigning `{}` only opens an
  * intermediate (`style ??= {}`), so it adds nothing. Assigning the whole object (`$componentProps = { … }`) replaces
  * every lower layer, and `undefined` drops the reaction layer again. Reads are Immer-like and replay this pass's
@@ -65,15 +66,15 @@ export class FieldUi {
     return this.patches.has(op)
   }
 
-  /** Draft read: tracks `path:key`; object values come back write-tracked. */
+  /** Draft read: tracks `path:key` and returns the current value. The effect scope wraps object values. */
   read(path: string, key: UiKey): unknown {
     this.scheduler.track(path, key)
-    const value = this.current(path, key)
-    if (!OBJECT_UI_KEYS.has(key)) return value
-    return createPatchDraft(
-      () => this.current(path, key),
-      (keys, next) => this.write(path, `$${key}`, { [PATCH]: keys, value: next }),
-    )
+    return this.current(path, key)
+  }
+
+  /** Current value including this pass's pending patches. Does not track. */
+  live(path: string, key: UiKey): unknown {
+    return this.current(path, key)
   }
 
   /** Build the write op for `$title = …`, `$componentProps = …`, or a nested patch. */
@@ -145,8 +146,35 @@ export class FieldUi {
 
 const PATCH = Symbol('shikiform.uiPatch')
 
-function isPatch(value: unknown): value is { [PATCH]: string[]; value: unknown } {
+interface UiPatch {
+  [PATCH]: string[]
+  value: unknown
+}
+
+function isPatch(value: unknown): value is UiPatch {
   return !!value && typeof value === 'object' && PATCH in value
+}
+
+/** Nested draft write of `componentProps` / `decoratorProps`. `keys` empty replaces the whole value. */
+export function uiNestedWrite(keys: string[], value: unknown): UiPatch {
+  return { [PATCH]: keys, value }
+}
+
+export function readUiPatch(value: unknown): { keys: string[]; value: unknown } | undefined {
+  if (!isPatch(value)) return undefined
+  return { keys: value[PATCH], value: value.value }
+}
+
+/**
+ * Rebuild a UI patch after peeling drafts and development views inside it.
+ * Returns `undefined` when `value` is not a patch. Spread/unwrap would drop the symbol key.
+ */
+export function prepareUiWrite(value: unknown): unknown | undefined {
+  const marker = readUiPatch(value)
+  if (!marker) return undefined
+  let inner = unwrapDraft(marker.value)
+  if (process.env.NODE_ENV !== 'production') inner = unwrapReadonly(inner)
+  return uiNestedWrite(marker.keys, inner)
 }
 
 /** A whole value assigned at one key of the reaction patch tree. */

@@ -111,9 +111,10 @@ Assign to the field's own `$value` to notify its readers. Replacing an entire ob
 
 ```ts
 d.user.name.$value = 'x'                              // ✓ Only update user.name
+d.user.$value.name = 'x'                              // ✓ The same path write
 d.user.$value = { ...d.user.$value, name: 'x' }       // Replacing user notifies every reader of that record.
-d.user.$value.name = 'x'                              // ✗ Mutating a snapshot throws in development
-d.items.$value = [...d.items.$value, row]             // Replace the array in an effect. In components use useArrayField().push(row).
+d.items.$value.push(row)                              // ✓ Same row operation as useArrayField().push
+d.items.$value = [...d.items.$value, row]             // Replace the whole array.
 ```
 
 See [dynamic arrays and tables](/en/guide/arrays) for row operations, drag handles and array-level rules.

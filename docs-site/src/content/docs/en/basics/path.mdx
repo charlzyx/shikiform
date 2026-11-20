@@ -19,7 +19,7 @@ form.setValue('orders[0].lines[2].qty', 4)
 form.getValue('orders.0.lines.2.qty')
 ```
 
-Updating `d.user.name.$value` notifies readers of that field. Replacing `d.user.$value` replaces the whole record. Never mutate the snapshot returned by `$value`.
+Updating `d.user.name.$value` notifies readers of that field. Inside an effect, `d.user.$value.name = 'x'` is that same write. Replacing `d.user.$value` replaces the whole record. `getValue` and `form.values` stay read-only in development.
 
 ```tsx preview
 import { enUS, Field, Form, useForm } from '@shikiform/react';

@@ -165,18 +165,21 @@ describe('#34 setErrors / clearErrors', () => {
   })
 })
 
-describe('#35 $value snapshots are read-only inside form.batch (development)', () => {
+describe('#35 $value drafts inside form.batch record nested writes', () => {
   type V = { profile: { name: string; city: string }; tags: string[] }
   const init: V = { profile: { name: 'Ada', city: '杭州' }, tags: ['a'] }
 
-  it('in-place mutation throws ShikiUsageError and leaves the store untouched', () => {
+  it('nested assign and push update the store and notify', () => {
     const form = createEngine<V>({ initialValues: structuredClone(init) })
     let notified = 0
     form.subscribePath('profile.name', () => notified++)
-    expect(() => form.batch((d) => { (d.profile.$value as any).name = 'x' })).toThrow(ShikiUsageError)
-    expect(() => form.batch((d) => { (d.tags.$value as any).push('b') })).toThrow(/Assign a new array/)
-    expect(form.values).toEqual(init)
-    expect(notified).toBe(0)
+    form.batch((d) => {
+      d.profile.$value.name = 'x'
+      d.tags.$value.push('b')
+    })
+    expect(form.values).toEqual({ profile: { name: 'x', city: '杭州' }, tags: ['a', 'b'] })
+    expect(notified).toBe(1)
+    expect(() => { (form.getValue('tags') as string[]).push('c') }).toThrow(ShikiUsageError)
   })
 
   it('reading and re-assigning snapshots in batch still works and stores plain data', () => {

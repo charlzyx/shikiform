@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { defineEffects, ShikiUsageError } from '@shikiform/core'
+import { defineEffects } from '@shikiform/core'
 import { createEngine } from '../packages/core/src/engine/create'
 
 describe('form.getValue / setValue path syntax', () => {
@@ -238,20 +238,21 @@ describe('query(path).$value inside effects', () => {
     expect(form.getValue('out')).toBe('o2')
   })
 
-  it('rejects reading a query write back in the same pass', () => {
-    expect(() =>
-      createEngine({
-        initialValues: { n: 1 },
-        effects: [
-          defineEffects<{ n: number }>(({ reaction, query }) => {
-            reaction(() => {
-              query('n').$value = 2
-              void query('n').$value
-            })
-          }),
-        ],
-      }),
-    ).toThrow(ShikiUsageError)
+  it('reading a query $value back in the same pass sees the write', () => {
+    let seen = 0
+    const form = createEngine({
+      initialValues: { n: 1 },
+      effects: [
+        defineEffects<{ n: number }>(({ reaction, query }) => {
+          reaction(() => {
+            query('n').$value = 2
+            seen = query('n').$value
+          })
+        }),
+      ],
+    })
+    expect(seen).toBe(2)
+    expect(form.getValue('n')).toBe(2)
   })
 
   it('does not pass query into batch', () => {

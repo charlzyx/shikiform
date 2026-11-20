@@ -59,19 +59,21 @@ reaction.each((d) => d.items, (row) => {
 
 动态路径在联动里用 `query('user.name').$value`，在组件里用 `form.getValue('items[0].name')`。固定路径直接写 `d.user.name.$value`，见 [按路径读写](/basics/path)。
 
-## 直接修改 `$value` 上的对象或数组
+## 在 effect 外原地修改读到的值
+
+`reaction` / `watch` / `batch` 里，对象或数组的 `$value` 是可写 draft：`d.user.$value.name = 'Ada'` 等于 `d.user.name.$value = 'Ada'`，`d.items.$value.push(row)` 和 `useArrayField().push(row)` 走同一套行操作。`getValue`、`form.values` 和校验器里的 `value` 不是这层 draft。
+
+```ts
+form.getValue('user').name = 'Ada'
+form.values.tags.push('x')
+```
+
+这些读在开发环境返回只读视图：原地修改（包括校验器里改 `value` / `ctx.root` / `ctx.get()`）会抛 `ShikiUsageError`，不会通知订阅者。`Map` 的 `set` / `delete` / `clear`、`Set` 的 `add` / `delete` / `clear`、`Date` 的 `set*`、`Object.setPrototypeOf` 同样抛错。其它类实例不包装。生产环境 effect 外返回原值。表单外改值用 `form.setValue`；组件里追加行用 `useArrayField().push(row)`。
 
 ```ts
 d.user.$value.name = 'Ada'
 d.items.$value.push(row)
-```
-
-`$value`、`getValue` 和 `form.values` 在开发环境返回只读视图：原地修改（包括 `form.getValue('tags').push('x')`、`form.values.user.name = 'x'`，以及校验器里改 `value` / `ctx.root` / `ctx.get()`）会抛 `ShikiUsageError`，不会通知订阅者。`Map` 的 `set` / `delete` / `clear`、`Set` 的 `add` / `delete` / `clear`、`Date` 的 `set*`、`Object.setPrototypeOf` 同样抛错。其它类实例不包装。生产环境返回原值。更新时应直接给对应字段赋值，或在外部调用数组操作方法：
-
-```ts
-d.user.name.$value = 'Ada'
-d.items.$value = [...d.items.$value, row]
-// 在组件里追加行：useArrayField().push(row)，或 useArrayField('items').push(row)
+form.setValue('user.name', 'Ada')
 ```
 
 开发环境的视图和底层对象不是同一个引用（`getValue('user') === toRaw(getValue('user'))` 为 false），生产环境则是。`indexOf` / `includes` 会先剥掉视图再比较，所以 `rows.indexOf(rawRow)` 仍然找得到。`deepEqual` 也把视图和原对象看成相等。不要把 `binding().value` 交给会原地 `push` / `sort` 的表格库；错误信息里有字段路径，改用 `useArrayField().push` 或 `form.setValue`。
@@ -80,22 +82,25 @@ d.items.$value = [...d.items.$value, row]
 
 被 `Object.freeze` 深冻结的数据（immer / Redux）读出来不会因为 Proxy 不变量抛 `TypeError`。不可配置且不可写的子属性按原对象返回，它本身已经不能改。
 
-## 在同一轮联动中读回刚写入的 `$value`
+## 在同一轮联动中读回刚写入的旗标
+
+`$value`、`$enum`、`$rules` 和 UI 状态会重放本轮还没落地的写入，所以第二次读到的是新值：
 
 ```ts
 d.total.$value = d.price.$value * d.qty.$value
 d.tax.$value = d.total.$value * 0.1
+d.rows.$value.push(row)
+d.rows.$value.push(row2)
 ```
 
-在 `reaction` 中，数据写入会缓冲到本轮函数返回后才统一生效，因此第二行读到的 `d.total.$value` 依然是旧值（开发模式下会报错提示）。正确的做法是先把计算结果存进局部变量：
+`$visible` / `$disabled` / `$readOnly` / `$omit` / `$required` 不重放。同一轮再读会看到旧值，开发模式抛 `ShikiUsageError`。先放进局部变量：
 
 ```ts
-const total = d.price.$value * d.qty.$value
-d.total.$value = total
-d.tax.$value = total * 0.1
+const shown = d.price.$value > 0
+d.tax.$visible = shown
 ```
 
-唯一的例外是 `$componentProps` / `$decoratorProps` 等 UI 状态：它们的写入会在当前轮次内即时叠加，因此可以先写 `props.style ??= {}` 再修改里面的样式属性。
+`$componentProps` / `$decoratorProps` 同样会在当前轮叠加，所以可以先写 `props.style ??= {}` 再改里面的键。
 
 ## 不要原地修改 `$componentProps` 里的 Date、Map、Set 或类实例
 
