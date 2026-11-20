@@ -8,71 +8,69 @@ mode: custom
 
 <div className="docs-content" style={{ maxWidth: '1120px', margin: '0 auto', padding: '40px 24px 72px' }}>
 
-## 企业开票：一条规则，三个状态
+## 试试开票表单
 
-ShikiForm 将表单业务规则集中在 TypeScript 引擎中。用 `defineEffects` 和 `reaction` 对 draft 的 `$` 状态赋值，React 组件负责展示，原生 HTML 或组件库负责输入。
-
-上方的企业开票规则读取 `d.invoice.$value`，同时设置税号的 `$visible`、`$required` 和 `$omit`。选择企业发票，税号显示并必填；选择个人发票，税号隐藏、跳过校验，并从提交数据中移除。
-
-只看开票相关字段，个人发票提交：
-
-```json
-{ "invoice": "personal" }
-```
-
-企业发票填写税号 `123456789` 后提交：
-
-```json
-{ "invoice": "company", "taxId": "123456789" }
-```
-
-显隐与提交分别由 `$visible` 和 `$omit` 控制。上方示例还用 `watch` 在切换发票类型时清空旧税号。继续查看[可交互的条件显隐示例](/examples/linkage#条件显隐)，或从[快速开始](/guide/quick-start)接入自己的控件。
-
-## 30 秒在线体验
-
-联动在 `defineEffects` 内通过 `reaction` 和 `watch` 直接读写字段的 `$` 状态，React 组件只负责声明字段路径与界面结构。切换下方「账号类型」观察必填校验、占位符与「公司」字段显隐联动：
+切换发票类型、修改或增删明细，提交查看 JSON；展开代码查看 effects 中的嵌套对象更新与数组逐行计算。
 
 ```tsx preview
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { defineEffects, Form, Submit, typed, useField, useFieldDecorator, useForm, useWatch, type Draft } from '@shikiform/react';
+import { defineEffects, Form, Submit, typed, useArrayField, useField, useFieldDecorator, useForm, useIndex, useWatch, type Draft } from '@shikiform/react';
 
-type Values = { kind: 'personal' | 'work'; email: string; company: string };
+type Item = { price: number | null; qty: number | null; subtotal: number };
+type Values = {
+  invoice: { kind: 'personal' | 'company'; taxId: string };
+  items: Item[];
+  summary: { total: number };
+};
 
 const effects = defineEffects<Values>(({ reaction }) => {
   reaction((d) => {
-    const work = d.kind.$value === 'work';
-    d.email.$required = work;
-    d.email.$componentProps.placeholder = work ? 'name@company.com' : 'name@example.com';
-    d.company.$visible = work;
+    const company = d.invoice.kind.$value === 'company';
+    d.invoice.taxId.$visible = company;
+    d.invoice.taxId.$required = company;
+    d.invoice.taxId.$omit = !company;
+  });
+  reaction.each((d) => d.items, (row) => {
+    row.subtotal.$value = (row.price.$value ?? 0) * (row.qty.$value ?? 0);
+    row.subtotal.$readOnly = true;
+  });
+  reaction((d) => {
+    d.summary.$value.total = d.items.$value.reduce((sum, item) => sum + item.subtotal, 0);
   });
 });
 
 function FieldItem({ children }: { children?: ReactNode }) {
   const d = useFieldDecorator();
   return (
-    <div style={{ marginBottom: 10 }}>
-      <label {...d.labelProps} style={{ display: 'inline-block', width: 72 }}>
+    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+      <label {...d.labelProps}>
         {d.required && <span style={{ color: 'crimson' }}>* </span>}
         {d.label}
       </label>
       {children}
-      {d.errorProps && <small {...d.errorProps} style={{ color: 'crimson', marginLeft: 8 }}>{d.errors[0]}</small>}
+      {d.errorProps && <small {...d.errorProps} style={{ color: 'crimson' }}>{d.errors[0]}</small>}
     </div>
   );
 }
 
-function TextInput({ placeholder }: { placeholder?: string }) {
+function TextInput() {
   const field = useField<string>();
-  return (
-    <input id={field.id} value={field.value ?? ''} placeholder={placeholder}
-      onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />
-  );
+  return <input id={field.id} value={field.value ?? ''} style={{ maxWidth: '100%' }}
+    onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />;
+}
+
+function NumberInput() {
+  const field = useField<number | null>();
+  return <input id={field.id} type="number" min={0} step="any" readOnly={field.readOnly}
+    value={field.value ?? ''} style={{ width: 100, maxWidth: '100%' }}
+    onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
+    onBlur={field.onBlur} />;
 }
 
 function RadioGroup() {
   const field = useField<string>();
   return (
-    <span style={{ display: 'inline-flex', gap: 12 }}>
+    <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 12 }}>
       {field.options.map((o) => (
         <label key={String(o.value)}>
           <input type="radio" name={field.id} checked={field.value === o.value}
@@ -84,45 +82,62 @@ function RadioGroup() {
   );
 }
 
+function Items({ children }: { children?: ReactNode }) {
+  const items = useArrayField<Item>();
+  return <div>
+    {children}
+    <button type="button" onClick={() => items.push({ price: 0, qty: 1, subtotal: 0 })}>添加明细</button>
+  </div>;
+}
+
+function RemoveItem() {
+  const items = useArrayField<Item>();
+  const index = useIndex();
+  return <button type="button" onClick={() => items.remove(index)}>删除</button>;
+}
+
 function ForgetResult({ clear }: { clear: () => void }) {
-  const kind = useWatch((d: Draft<Values>) => d.kind.$value);
+  const values = useWatch((d: Draft<Values>) => d.$value);
   const clearRef = useRef(clear);
   clearRef.current = clear;
-  const ready = useRef(false);
-  useEffect(() => {
-    if (!ready.current) {
-      ready.current = true;
-      return;
-    }
-    clearRef.current();
-  }, [kind]);
+  useEffect(() => { clearRef.current(); }, [values]);
   return null;
 }
 
 export default function App() {
   const [result, setResult] = useState('');
   const form = useForm<Values>({
-    initialValues: { kind: 'personal', email: '', company: '' },
+    initialValues: {
+      invoice: { kind: 'personal', taxId: '' },
+      items: [{ price: 10, qty: 2, subtotal: 0 }],
+      summary: { total: 0 },
+    },
     effects: [effects],
   });
   const F = typed(form);
   return (
-    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))} onInvalid={() => setResult('')}>
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values, null, 2))} onInvalid={() => setResult('')}>
       <ForgetResult clear={() => setResult('')} />
-      <F.Field name="kind" title="账号类型" enum={[{ label: '个人', value: 'personal' }, { label: '工作', value: 'work' }]}
+      <F.Field name="invoice.kind" title="发票类型" enum={[{ label: '个人', value: 'personal' }, { label: '企业', value: 'company' }]}
         decorator={[FieldItem]} component={[RadioGroup]} />
-      <F.Field name="email" title="邮箱" rules={{ format: 'email' }} decorator={[FieldItem]} component={[TextInput]} />
-      <F.Field name="company" title="公司" required decorator={[FieldItem]} component={[TextInput]} />
+      <F.Field name="invoice.taxId" title="税号" decorator={[FieldItem]} component={[TextInput]} />
+      <F.ArrayField name="items" component={Items}>
+        {(row) => (
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+            <row.Field name="price" title="单价" required rules={{ min: 0 }} decorator={[FieldItem]} component={[NumberInput]} />
+            <row.Field name="qty" title="数量" required rules={{ min: 1 }} decorator={[FieldItem]} component={[NumberInput]} />
+            <row.Field name="subtotal" title="小计" decorator={[FieldItem]} component={[NumberInput]} />
+            <RemoveItem />
+          </div>
+        )}
+      </F.ArrayField>
+      <F.Field name="summary.total" title="合计" readOnly decorator={[FieldItem]} component={[NumberInput]} />
       <Submit>提交</Submit>
       <pre aria-live="polite">{result}</pre>
     </Form>
   );
 }
 ```
-
-账号类型为「个人」时，邮箱可留空提交，「公司」字段隐藏并跳过必填校验；切到「工作」后，`reaction` 将邮箱设为必填、替换占位文本并显示「公司」。注意 `$visible = false` 只跳过渲染和校验，字段值默认仍包含在提交结果中；如需从提交数据中剔除，再设置 `d.company.$omit = !work`。
-
-`typed(form)` 返回绑定了 `Values` 类型的 `Field` 组件。`decorator` 渲染标签与错误信息，`component` 渲染输入控件，详见 [表单与字段](/guide/field) 与 [核心概念](/guide/concepts)。
 
 ## 与常见表单方案的差异
 
