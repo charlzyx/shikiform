@@ -786,11 +786,34 @@ body:not(:has([data-mobile-sidebar])) [data-menu-btn] {
 	}
 }
 
-/* Phones: the section tabs sit on a second header row. */
+/* 手机将品牌和操作分行，紧凑标签保留完整的无障碍名称。 */
 @media (max-width: 47.999rem) {
-	:root:has([data-nb-header-tabs]) {
-		--nb-header-height: 6rem;
+	:root { --nb-header-height: 5.75rem; }
+	:root:has([data-nb-header-tabs]) { --nb-header-height: 8.25rem; }
+	.sf-header-bar {
+		flex-wrap: wrap;
+		height: auto;
+		gap: 0;
 	}
+	.sf-header-brand { min-height: 2.75rem; width: 100%; }
+	.sf-header-actions {
+		width: 100%;
+		min-width: 0;
+		min-height: 3rem;
+		justify-content: space-between;
+		gap: 0;
+	}
+	.sf-header-actions > :is(a, button) {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 44px;
+		min-width: 44px;
+	}
+	.sf-header-actions [data-slot="search-trigger"] kbd { display: none; }
+	[data-mobile-sidebar] { height: 100dvh; max-height: 100dvh; }
+	[data-close-sidebar] { width: 44px; height: 44px; }
+	[data-mobile-sidebar] :is(li > a, details > summary) { min-height: 44px; }
 }
 
 /* Footer [ ] hints. Component styles were losing to the base kbd reset, so the

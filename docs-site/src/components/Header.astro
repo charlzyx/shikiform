@@ -91,8 +91,8 @@ const primaryNav = [
 ---
 
 <header class="sticky top-0 z-30 border-b border-border bg-card/85 backdrop-blur-lg">
-  <div class="mx-auto flex items-center justify-between gap-1 sm:gap-4 h-12 px-2 sm:px-4 lg:px-6">
-    <div class="flex items-center gap-3 min-w-0">
+  <div class="sf-header-bar mx-auto flex items-center justify-between gap-1 sm:gap-4 h-12 px-2 sm:px-4 lg:px-6">
+    <div class="sf-header-brand flex items-center gap-3 min-w-0">
       <slot name="brand">
         <a href={homeHref} class="group flex shrink-0 items-center gap-2.5 text-foreground no-underline transition-opacity hover:opacity-85">
           <Logo class="h-5 w-5 shrink-0" />
@@ -144,11 +144,12 @@ const primaryNav = [
       )}
     </div>
 
-    <div class="flex items-center gap-0.5 sm:gap-2 shrink-0">
+    <div class="sf-header-actions flex items-center gap-0.5 sm:gap-2 shrink-0">
       <slot name="actions" />
       <a href={languagePath(currentSlug, english ? "zh-CN" : "en")} lang={english ? "zh-CN" : "en"}
-        hreflang={english ? "zh-CN" : "en"} class="whitespace-nowrap text-sm font-medium hover:underline">
-        {english ? "简体中文" : "English"}
+        hreflang={english ? "zh-CN" : "en"} aria-label={english ? "切换到简体中文" : "Switch to English"} class="whitespace-nowrap text-sm font-medium hover:underline">
+        <span class="hidden md:inline">{english ? "简体中文" : "English"}</span>
+        <span class="md:hidden">{english ? "中文" : "EN"}</span>
       </a>
       <button
         type="button"
@@ -156,7 +157,8 @@ const primaryNav = [
         class="px-2.5 py-1.5 rounded-md text-[0.8125rem] font-medium text-muted-foreground hover:text-foreground hover:bg-accent/70 transition-colors cursor-pointer shrink-0 whitespace-nowrap"
         aria-label={english ? "Open the documentation directory" : "打开文档目录总览"}
       >
-        {english ? "Directory" : "目录"}
+        <Icon name="ph:list-dashes" class="h-5 w-5 md:hidden" />
+        <span class="hidden md:inline">{english ? "Directory" : "目录"}</span>
       </button>
       {config.search !== false && <SearchTrigger />}
       {config.github && (

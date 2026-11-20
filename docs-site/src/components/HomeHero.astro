@@ -362,11 +362,16 @@ const english = language === "en";
   }
 
   @media (max-width: 860px) {
+    .sf-hero__copy, .sf-hero__stage { min-width: 0; }
+    .sf-hero__terminal { padding: 16px; }
+    .sf-hero__terminal-bar { flex-wrap: wrap; gap: 8px; }
+    .sf-hero__install { max-width: 100%; overflow-x: auto; }
+    .sf-hero__title, .sf-hero__desc { overflow-wrap: anywhere; }
     .sf-hero {
       padding: 40px 16px 28px;
     }
     .sf-hero__top {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
       gap: 32px;
     }
     .sf-hero__pillars {

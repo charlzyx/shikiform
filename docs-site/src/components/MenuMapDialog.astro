@@ -216,6 +216,7 @@ const { groups } = getNavCatalog(import.meta.env.BASE_URL, pageLanguage(Astro.ur
     width: min(880px, calc(100vw - 24px));
     max-width: none;
     max-height: calc(100vh - 80px);
+    max-height: calc(100dvh - 80px);
     border: 0;
     background: transparent;
     color: var(--nb-foreground);
@@ -230,6 +231,7 @@ const { groups } = getNavCatalog(import.meta.env.BASE_URL, pageLanguage(Astro.ur
     flex-direction: column;
     gap: 10px;
     max-height: calc(100vh - 80px);
+    max-height: calc(100dvh - 80px);
   }
   .sf-map-recent {
     display: flex;
@@ -364,6 +366,7 @@ const { groups } = getNavCatalog(import.meta.env.BASE_URL, pageLanguage(Astro.ur
     padding: 14px;
     overflow-y: auto;
     max-height: calc(100vh - 200px);
+    max-height: calc(100dvh - 200px);
   }
   .sf-map-grid {
     display: grid;
@@ -376,6 +379,18 @@ const { groups } = getNavCatalog(import.meta.env.BASE_URL, pageLanguage(Astro.ur
     }
   }
   @media (max-width: 560px) {
+    .sf-map-dialog { margin-top: 12px; max-height: calc(100dvh - 24px); }
+    .sf-map-shell { max-height: calc(100dvh - 24px); }
+    .sf-map-panel { min-height: 0; }
+    .sf-map-head { flex-shrink: 0; padding: 12px; }
+    .sf-map-title-wrap { min-width: 0; }
+    .sf-map-title { overflow-wrap: anywhere; }
+    .sf-map-head-right { width: 100%; min-width: 0; }
+    .sf-map-filter { flex: 1; min-width: 0; height: 44px; }
+    .sf-map-filter input { font-size: 16px; }
+    .sf-map-close { flex-shrink: 0; width: 44px; height: 44px; }
+    .sf-map-link { min-height: 44px; }
+    .sf-map-body { min-height: 0; max-height: none; overscroll-behavior: contain; }
     .sf-map-grid {
       grid-template-columns: 1fr;
     }
