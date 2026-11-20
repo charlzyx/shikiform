@@ -108,6 +108,9 @@ Custom array containers: pass a container `component` to `<ArrayField>` (or rend
   instances are replaced whole. Missing intermediates are not created (`style ??= {}` first; `{}` only opens a level).
   Assigning a key (`$componentProps.style = { … }`) replaces that key; assigning the whole object replaces every lower
   layer (`fields` and JSX); assigning `undefined` drops the reaction layer. Reaction reads do not see the JSX layer.
+  `delete` on an array draft follows JavaScript: `delete arr[i]` leaves a hole, does not change `length`, and
+  `i in arr` is false. An index at or past `length` does nothing. Removing a row so later items shift is
+  `useArrayField().remove(index)` (or assigning a new array), not `delete`.
 - UI layers, highest first: reaction > JSX (`<Field title componentProps>`) > `fields` declaration.
 
 ## 5. Field + decorator + component (the adapter)
