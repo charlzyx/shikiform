@@ -1,5 +1,5 @@
 import { createPatchDraft, DELETE, isPatchable, setIn } from '../draft/patch'
-import { arrayIndex, writeArrayIndex } from '../shared/dense-array'
+import { arrayIndex, deleteArrayIndex, writeArrayIndex } from '../shared/dense-array'
 import type { Scheduler } from '../effects/scheduler'
 import { OBJECT_UI_KEYS, UI_KEYS, type FieldModel, type UiEffect, type UiKey } from '../state/field-model'
 import type { Notifier } from '../state/notifier'
@@ -176,7 +176,7 @@ function patchAt(tree: PatchTree | undefined, keys: readonly string[], value: un
   return { ...tree, [key]: next }
 }
 
-/** Lower layer with the patch tree applied. Arrays patch by index into a copy and stay dense. */
+/** Lower layer with the patch tree applied. An index write fills gaps; `delete` on an index leaves a hole. */
 function applyPatch(base: unknown, tree: PatchTree): unknown {
   const out: any = Array.isArray(base) ? base.slice() : isPlainObject(base) ? { ...base } : {}
   for (const [key, node] of Object.entries(tree)) {
@@ -198,11 +198,11 @@ function applyPatch(base: unknown, tree: PatchTree): unknown {
   return out
 }
 
-/** `delete` on an array index splices the element out. `delete arr[i]` would leave a hole. */
+/** `delete` on an array index leaves a hole (`length` unchanged). An object key is removed. */
 function deletePatched(out: any, key: string): void {
   const index = Array.isArray(out) ? arrayIndex(key) : undefined
   if (index !== undefined) {
-    if (index < out.length) out.splice(index, 1)
+    deleteArrayIndex(out, index)
     return
   }
   delete out[key]

@@ -8,8 +8,10 @@
  * Missing intermediates are not created: write `style ??= {}` first, or assign `style = { color }`.
  *
  * Array mutators (`push`, `splice`, `sort`, …) never touch the stored array. They `slice` a copy, run
- * `Array.prototype` on that copy, and `write` the copy back. Deleting an index does the same with `splice`:
- * later elements shift down, and the copy is written back, so the array stays dense. Other array methods run
+ * `Array.prototype` on that copy, and `write` the copy back. `delete draft[i]` follows JavaScript: it reports
+ * `DELETE` for that index, which leaves a hole and does not change `length`. An index at or past `length`, or
+ * one that is already a hole, is a no-op. Later indexes in the same pass stay where they were. Removing an
+ * element so the tail shifts is `splice` (or a form row's `remove`), not `delete`. Other array methods run
  * with the proxy as `this`, so callbacks and returned elements are drafts and assigning them calls `write`.
  * Setting `length` truncates, or extends the copy with explicit `undefined` slots (not holes). An index write
  * past `length` (`setIn`) fills that gap the same way. `Date` / `Map` / `Set` / class instances are returned raw.
@@ -17,7 +19,7 @@
  * `produce` of the value read here would replace it.
  */
 
-import { arrayIndex, removeArrayIndex, writeArrayIndex } from '../shared/dense-array'
+import { arrayIndex, hasArrayIndex, writeArrayIndex } from '../shared/dense-array'
 
 /** Methods that edit an array in place. `bind`ing them to the stored array would skip `write`. */
 const ARRAY_MUTATORS = new Set(['copyWithin', 'fill', 'pop', 'push', 'reverse', 'shift', 'sort', 'splice', 'unshift'])
@@ -27,7 +29,7 @@ const RETURNS_PROXY = new Set(['copyWithin', 'fill', 'reverse', 'sort'])
 /** Draft proxy → latest raw value (pending writes included). Used to keep proxies out of stored state. */
 const draftRaw = new WeakMap<object, () => unknown>()
 
-/** Sentinel value reported for `delete draft.key`. An array index is spliced out instead of stored as a hole. */
+/** Sentinel value reported for `delete draft.key`. An array index becomes a hole; `length` stays the same. */
 export const DELETE = Symbol('shikiform.delete')
 
 /** Plain object or array: the only values wrapped for nested writes. */
@@ -53,9 +55,10 @@ export function setIn(root: unknown, keys: readonly string[], value: unknown): u
     if (Array.isArray(root)) {
       const index = arrayIndex(key)
       if (index !== undefined) {
-        if (index >= root.length) return root
+        // Native `delete arr[i]`. `splice` would shift the tail and shrink `length`.
+        if (!hasArrayIndex(root, index)) return root
         const copy = root.slice()
-        removeArrayIndex(copy, index)
+        delete copy[index]
         return copy
       }
     }
@@ -184,13 +187,9 @@ export function createPatchDraft(
         if (index !== undefined) {
           const node = current()
           if (Array.isArray(node)) {
-            // Same copy-on-write as `splice`: a keyed `delete` would leave a hole, and a later
-            // write in this pass would still be talking about the pre-delete indexes.
-            if (index < node.length) {
-              const copy = node.slice()
-              removeArrayIndex(copy, index)
-              write(keys, unwrapDraft(copy))
-            }
+            // Native `delete arr[i]`: one hole, same `length`, later indexes stay put.
+            // At or past `length`, or on a hole, JavaScript changes nothing.
+            if (hasArrayIndex(node, index)) write([...keys, prop], DELETE)
             return true
           }
         }

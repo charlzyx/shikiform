@@ -22,7 +22,23 @@ export function writeArrayIndex(array: unknown[], index: number, value: unknown)
   array[index] = value
 }
 
-/** Drop `index` and shift the tail down. An index at or past `length` is a no-op. */
+/**
+ * Drop `index` and shift the tail down. An index at or past `length` is a no-op.
+ * This is submit-omit compaction (`deleteAt`) and row removal, not the `delete` operator.
+ */
 export function removeArrayIndex(array: unknown[], index: number): void {
   if (index >= 0 && index < array.length) array.splice(index, 1)
+}
+
+/** True when `index` is an own element. A hole, or an index at or past `length`, is false. */
+export function hasArrayIndex(array: unknown[], index: number): boolean {
+  return index >= 0 && index < array.length && Object.prototype.hasOwnProperty.call(array, index)
+}
+
+/**
+ * Native `delete array[index]`: a hole at `index`, `length` unchanged.
+ * An index at or past `length`, or one that is already a hole, is left as it is.
+ */
+export function deleteArrayIndex(array: unknown[], index: number): void {
+  if (hasArrayIndex(array, index)) delete array[index]
 }

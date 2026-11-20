@@ -16,20 +16,71 @@ function expectPacked(arr: unknown[], expected: unknown[]) {
   expect(Object.keys(arr)).toEqual(expected.map((_, i) => String(i)))
 }
 
-describe('setIn keeps arrays dense', () => {
+/**
+ * `expected[i] === HOLE` is a hole (`i in arr` is false, `length` still covers it).
+ * Any other entry is an own property, including explicit `undefined`.
+ */
+const HOLE = Symbol('hole')
+
+function expectSparse(arr: unknown[], expected: unknown[]) {
+  expect(arr).toHaveLength(expected.length)
+  const keys: string[] = []
+  for (let i = 0; i < expected.length; i++) {
+    if (expected[i] === HOLE) {
+      expect(i in arr, `${i} in arr`).toBe(false)
+      expect(Object.prototype.hasOwnProperty.call(arr, i), `own ${i}`).toBe(false)
+      expect(arr[i]).toBeUndefined()
+    } else {
+      expect(i in arr, `${i} in arr`).toBe(true)
+      expect(arr[i]).toEqual(expected[i])
+      keys.push(String(i))
+    }
+  }
+  expect(Object.keys(arr)).toEqual(keys)
+}
+
+describe('setIn delete matches JavaScript', () => {
   const input = ['a', 'b', 'c', 'd']
 
-  it('deletes a middle index by shifting the tail down', () => {
+  it('deletes a middle index by leaving a hole', () => {
     const next = setIn(input, ['1'], DELETE) as string[]
     expect(input).toEqual(['a', 'b', 'c', 'd'])
     expect(next).not.toBe(input)
-    expectPacked(next, ['a', 'c', 'd'])
+    expectSparse(next, ['a', HOLE, 'c', 'd'])
   })
 
-  it('deletes the last index', () => {
+  it('deletes the last index without shrinking length', () => {
     const next = setIn(input, ['3'], DELETE) as string[]
     expect(input).toEqual(['a', 'b', 'c', 'd'])
-    expectPacked(next, ['a', 'b', 'c'])
+    expectSparse(next, ['a', 'b', 'c', HOLE])
+  })
+
+  it('deletes index 0 without shifting the tail', () => {
+    expectSparse(setIn(input, ['0'], DELETE) as string[], [HOLE, 'b', 'c', 'd'])
+  })
+
+  it('a second delete keeps the original indexes', () => {
+    const once = setIn(input, ['1'], DELETE) as string[]
+    const twice = setIn(once, ['3'], DELETE) as string[]
+    expectSparse(twice, ['a', HOLE, 'c', HOLE])
+    expect(twice[2]).toBe('c')
+  })
+
+  it('an index at or past length, or an existing hole, is a no-op', () => {
+    expect(setIn(input, ['4'], DELETE)).toBe(input)
+    expect(setIn(input, ['99'], DELETE)).toBe(input)
+    const holed = ['a', 'b', 'c', 'd']
+    delete holed[1]
+    expect(setIn(holed, ['1'], DELETE)).toBe(holed)
+  })
+
+  it('turns an explicit undefined into a hole', () => {
+    const source = ['a', undefined, 'c']
+    expect(1 in source).toBe(true)
+    const next = setIn(source, ['1'], DELETE) as unknown[]
+    expect(source[1]).toBeUndefined()
+    expect(1 in source).toBe(true)
+    expectSparse(next, ['a', HOLE, 'c'])
   })
 
   it('writes an index past length with explicit undefined in the gap', () => {
@@ -53,11 +104,23 @@ describe('setIn keeps arrays dense', () => {
     expect(root.user.tags).toEqual(['a', 'b'])
     expectPacked(next.user.tags, ['a', 'b', undefined, undefined, undefined, 'z'])
     const removed = setIn(next, ['user', 'tags', '2'], DELETE) as { user: { tags: unknown[] } }
-    expectPacked(removed.user.tags, ['a', 'b', undefined, undefined, 'z'])
+    expect(next.user.tags).toHaveLength(6)
+    expect(2 in next.user.tags).toBe(true)
+    expectSparse(removed.user.tags, ['a', 'b', HOLE, undefined, undefined, 'z'])
   })
 
   it('still deletes an object key', () => {
     expect(setIn({ a: 1, b: 2 }, ['a'], DELETE)).toEqual({ b: 2 })
+  })
+
+  it('deletes a non-index property on an array without touching indexes', () => {
+    const source = ['a', 'b'] as string[] & { extra?: string }
+    source.extra = 'e'
+    const next = setIn(source, ['extra'], DELETE) as string[] & { extra?: string }
+    expect(source.extra).toBe('e')
+    expect(next).not.toBe(source)
+    expectPacked(next, ['a', 'b'])
+    expect('extra' in next).toBe(false)
   })
 })
 
@@ -145,9 +208,17 @@ describe('form values stay dense', () => {
     expectPacked(submitted.tags, ['b', 'd'])
     expect(form.getValue('tags')).toEqual(['a', 'b', 'c', 'd'])
   })
+
+  it('removeArray still splices the row out and shifts the tail', () => {
+    const form = createEngine({ initialValues: { tags: ['a', 'b', 'c', 'd'] } })
+    form.removeArray('tags', 1)
+    expectPacked(form.getValue('tags'), ['a', 'c', 'd'])
+    form.removeArray('tags', 9)
+    expectPacked(form.getValue('tags'), ['a', 'c', 'd'])
+  })
 })
 
-describe('patch draft array indexes stay dense', () => {
+describe('patch draft delete matches JavaScript', () => {
   function form(options: unknown[]) {
     return createEngine({
       initialValues: { city: '', kind: 'a' },
@@ -155,39 +226,66 @@ describe('patch draft array indexes stay dense', () => {
     })
   }
 
-  it('delete shifts a middle index and the last index, and leaves the stored array alone', () => {
+  it('delete leaves a hole, keeps length, and does not touch the stored array', () => {
     const owned = ['a', 'b', 'c', 'd']
     const engine = form(owned)
     engine.batch((d) => {
       const options = d.city.$componentProps.options as string[]
       delete options[1]
+      expect(options).toHaveLength(4)
+      expect(1 in options).toBe(false)
+      expect(options[0]).toBe('a')
+      expect(options[2]).toBe('c')
+      expect(options[3]).toBe('d')
+      expect(Object.keys(options)).toEqual(['0', '2', '3'])
     })
     expect(owned).toEqual(['a', 'b', 'c', 'd'])
+    expect(1 in owned).toBe(true)
     const mid = engine.binding('city').componentProps
     expect(mid.placeholder).toBe('p')
-    expectPacked(mid.options, ['a', 'c', 'd'])
+    expectSparse(mid.options, ['a', HOLE, 'c', 'd'])
 
     engine.batch((d) => {
       const options = d.city.$componentProps.options as string[]
+      delete options[0]
       delete options[options.length - 1]
     })
     expect(owned).toEqual(['a', 'b', 'c', 'd'])
-    expectPacked(engine.binding('city').componentProps.options, ['a', 'c'])
+    expectSparse(engine.binding('city').componentProps.options, [HOLE, HOLE, 'c', HOLE])
   })
 
-  it('a second delete in the same pass sees the shifted indexes', () => {
+  it('a second delete of the same index is a no-op, and another index stays put', () => {
     const owned = ['a', 'b', 'c', 'd']
     const engine = form(owned)
     engine.batch((d) => {
       const options = d.city.$componentProps.options as string[]
       delete options[1]
       delete options[1]
+      delete options[3]
+      expect(options).toHaveLength(4)
+      expect(1 in options).toBe(false)
+      expect(3 in options).toBe(false)
+      expect(options[2]).toBe('c')
     })
     expect(owned).toEqual(['a', 'b', 'c', 'd'])
-    expectPacked(engine.binding('city').componentProps.options, ['a', 'd'])
+    expectSparse(engine.binding('city').componentProps.options, ['a', HOLE, 'c', HOLE])
   })
 
-  it('an assignment after delete writes the shifted index', () => {
+  it('an index at or past length does not write', () => {
+    const owned = ['a', 'b', 'c', 'd']
+    const engine = form(owned)
+    engine.batch((d) => {
+      const options = d.city.$componentProps.options as string[]
+      delete options[4]
+      delete options[99]
+      expect(options).toHaveLength(4)
+      expect(4 in options).toBe(false)
+    })
+    expect(engine.binding('city').componentProps.options).toBe(owned)
+    expectPacked(owned, ['a', 'b', 'c', 'd'])
+  })
+
+  it('assignment after delete fills the hole and leaves the tail in place', () => {
     const owned = ['a', 'b', 'c', 'd']
     const engine = form(owned)
     engine.batch((d) => {
@@ -196,7 +294,66 @@ describe('patch draft array indexes stay dense', () => {
       options[1] = 'x'
     })
     expect(owned).toEqual(['a', 'b', 'c', 'd'])
-    expectPacked(engine.binding('city').componentProps.options, ['a', 'x', 'd'])
+    expectPacked(engine.binding('city').componentProps.options, ['a', 'x', 'c', 'd'])
+  })
+
+  it('assignment then delete of the same index leaves a hole', () => {
+    const owned = ['a', 'b', 'c', 'd']
+    const engine = form(owned)
+    engine.batch((d) => {
+      const options = d.city.$componentProps.options as string[]
+      options[1] = 'x'
+      delete options[1]
+    })
+    expect(owned).toEqual(['a', 'b', 'c', 'd'])
+    expectSparse(engine.binding('city').componentProps.options, ['a', HOLE, 'c', 'd'])
+  })
+
+  it('delete then push keeps the hole, and push then delete leaves a hole at that index', () => {
+    const owned = ['a', 'b', 'c', 'd']
+    const engine = form(owned)
+    engine.batch((d) => {
+      const options = d.city.$componentProps.options as string[]
+      delete options[1]
+      options.push('z')
+    })
+    expect(owned).toEqual(['a', 'b', 'c', 'd'])
+    expectSparse(engine.binding('city').componentProps.options, ['a', HOLE, 'c', 'd', 'z'])
+
+    const pushed = ['a', 'b', 'c']
+    const afterPush = form(pushed)
+    afterPush.batch((d) => {
+      const options = d.city.$componentProps.options as string[]
+      options.push('z')
+      delete options[1]
+    })
+    expect(pushed).toEqual(['a', 'b', 'c'])
+    expectSparse(afterPush.binding('city').componentProps.options, ['a', HOLE, 'c', 'z'])
+  })
+
+  it('delete on a replaced array goes through setIn and leaves a hole', () => {
+    const owned = ['a', 'b', 'c', 'd']
+    const engine = form(owned)
+    engine.batch((d) => {
+      d.city.$componentProps = { options: ['p', 'q', 'r'], placeholder: 'q' }
+      delete (d.city.$componentProps.options as string[])[1]
+    })
+    const replaced = engine.binding('city').componentProps
+    expect(replaced.placeholder).toBe('q')
+    expectSparse(replaced.options, ['p', HOLE, 'r'])
+    expect(owned).toEqual(['a', 'b', 'c', 'd'])
+  })
+
+  it('a sparse delete leaves a hole in the JSX array and keeps its other elements', () => {
+    const owned = ['a', 'b', 'c', 'd']
+    const engine = form(owned)
+    engine.batch((d) => {
+      delete (d.city.$componentProps.options as string[])[1]
+    })
+    const jsx = engine.binding('city', { componentProps: { options: ['x', 'y', 'z'] } }).componentProps
+    expect(jsx.placeholder).toBe('p')
+    expectSparse(jsx.options, ['x', HOLE, 'z'])
+    expectSparse(engine.binding('city').componentProps.options, ['a', HOLE, 'c', 'd'])
   })
 
   it('setting an index past length fills the effective array, including the JSX layer', () => {
@@ -246,7 +403,8 @@ describe('patch draft array indexes stay dense', () => {
             runs += 1
             if (d.kind.$value !== 'go') return
             const options = d.city.$componentProps.options as string[]
-            if (options.length === 4) delete options[1]
+            // `length` does not change, so the guard is the hole, not the length.
+            if (1 in options) delete options[1]
           })
         }),
       ],
@@ -254,10 +412,10 @@ describe('patch draft array indexes stay dense', () => {
     const atRest = runs
     engine.setValue('kind', 'go')
     expect(owned).toEqual(['a', 'b', 'c', 'd'])
-    expectPacked(engine.binding('city').componentProps.options, ['a', 'c', 'd'])
+    expectSparse(engine.binding('city').componentProps.options, ['a', HOLE, 'c', 'd'])
     expect(runs).toBe(atRest + 2)
     engine.setValue('kind', 'go')
     expect(runs).toBe(atRest + 2)
-    expectPacked(engine.binding('city').componentProps.options, ['a', 'c', 'd'])
+    expectSparse(engine.binding('city').componentProps.options, ['a', HOLE, 'c', 'd'])
   })
 })

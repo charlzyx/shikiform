@@ -119,8 +119,9 @@ export function deleteAt<T>(root: T, path: string): T {
       if (Array.isArray(node)) {
         const copy = node.slice()
         const at = arrayIndex(key)
-        // An index is removed and the tail shifts. `delete` would leave a hole; assigning
-        // `undefined` would keep an empty slot. A non-index property is deleted as a key.
+        // Submit omit compacts an index: the tail shifts. The language `delete` operator
+        // leaves a hole (`setIn` + `DELETE`); assigning `undefined` would keep an empty slot.
+        // A non-index property is deleted as a key.
         if (at !== undefined) removeArrayIndex(copy, at)
         else delete (copy as unknown as Record<string, unknown>)[key]
         return copy
