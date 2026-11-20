@@ -373,7 +373,22 @@
 
 @media (max-width: 767px) {
   .sf-demo__preview { padding: 16px; }
-  .sf-demo__btn { min-width: 30px; height: 30px; padding: 0 6px; }
+  .sf-demo__btn, .sf-demo__toggle, .sf-demo__tab {
+    min-width: 44px;
+    min-height: 44px;
+    height: auto;
+  }
+  .sf-demo__actions { max-width: 100%; }
+  .sf-demo__preview input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  .sf-demo__preview select,
+  .sf-demo__preview textarea {
+    min-width: 0;
+    max-width: 100%;
+    min-height: 44px;
+    font-size: 16px;
+  }
+  .sf-demo__preview button { min-height: 44px; }
+  .sf-demo__preview, .sf-demo__code, .sf-demo__editor { min-width: 0; max-width: 100%; }
 }
 
 /* 首页费用报销：沿用宣纸、玄墨、朱砂，不影响其他示例。 */
