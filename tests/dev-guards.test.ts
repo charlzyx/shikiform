@@ -45,19 +45,20 @@ describe('development usage errors (with the fix in the message)', () => {
     expect(() => structuredClone(form.getSubmitValues())).not.toThrow()
   })
 
-  it('reading a $ state after writing it in the same reaction throws', () => {
-    expect(
-      withReaction((d) => {
-        d.total.$value = 1
-        void d.total.$value
-      }),
-    ).toThrow(/after writing it in the same reaction.*const next = …/)
+  it('reading $value back in the same reaction sees the write; flags still throw', () => {
+    let seen = 0
+    const form = withReaction((d) => {
+      d.total.$value = 9
+      seen = d.total.$value
+    })()
+    expect(seen).toBe(9)
+    expect(form.getValue('total')).toBe(9)
     expect(
       withReaction((d) => {
         d.total.$visible = false
         void d.total.$visible
       }),
-    ).toThrow(ShikiUsageError)
+    ).toThrow(/after writing it in the same reaction.*const next = …/)
     // UI state replays pending writes, so this is fine
     expect(
       withReaction((d) => {

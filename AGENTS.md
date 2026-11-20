@@ -34,7 +34,7 @@ and SSR-rendered against the packed library); the site's `/llms.txt` serves this
 - A confirm password or a client-only paging `page` is `omit: true`. `visible: false` still submits and still counts as dirty; `omit` does not count as dirty. An inactive tab stays mounted (the container only hides it) so its fields keep validating.
 
 Development builds throw `ShikiUsageError` with the fix for these mistakes (mutating `getValue` / `form.values` / a `$value` read outside an effect, using a handle
-as an array, enumerating it with `Object.keys` / object spread / rest, and reading back a `$` state you wrote in the same pass), and for a misspelled state (`$valeu`,
+as an array, enumerating it with `Object.keys` / object spread / rest, and reading back a flag you wrote in the same pass), and for a misspelled state (`$valeu`,
 `$requird`), a write to a read-only state (`$errors`, `$touched`), `d.x.value = …` without `$`, an unknown rule key
 (`minLenght` → "Did you mean minLength?"), `component={[undefined]}` (an import that resolves to nothing) and
 `<ArrayField>` over a non-array value. `ShikiConflictError` / `ShikiCycleError` list each reaction involved with its
@@ -47,8 +47,9 @@ call site, the states it reads and the states it writes. Production skips the ch
   writes becomes computed (still editable and still submitted; set `readOnly` or `omit` yourself). Two reactions writing the same state is an error.
 - `watch(source, effect)` is an **action**: it runs after `source`'s reads change, never on the first pass; reads
   inside `effect` are not dependencies. Use it for "when X changes, do Y once" (reset a dependent field, fetch).
-- Writes are buffered until the pass returns: keep a new value in a local instead of reading it back. UI state is
-  the exception (its pending writes replay, so `props.style ??= {}; props.style.color = 'red'` works).
+- Writes are buffered until the pass returns. `$value`, `$enum`, `$rules`, and UI state replay pending writes, so a
+  second read in the same pass sees them (`d.total.$value = x` then `d.total.$value` is `x`; `props.style ??= {}`
+  then `props.style.color = 'red'`). Flags (`$visible`, `$required`, …) do not: keep the new flag in a local.
 
 ## 3. Rows and nodes: each
 
@@ -262,12 +263,11 @@ reaction.each((d) => d.items, (row) => {                                // ✓ o
   row.total.$value = row.price.$value * row.qty.$value
 })
 
-// 3. Keep what you wrote in a local — do not read it back in the same pass
+// 3. $value replays in the same pass; flags do not
 d.total.$value = d.price.$value * d.qty.$value
-d.tax.$value = d.total.$value * 0.1              // ✗ reads the old total (throws in dev)
-const total = d.price.$value * d.qty.$value      // ✓
-d.total.$value = total
-d.tax.$value = total * 0.1
+d.tax.$value = d.total.$value * 0.1              // ✓ reads the total just written
+d.tax.$visible = false
+void d.tax.$visible                              // ✗ a flag read sees the old value (throws in dev)
 
 // 4. Derive with reaction, act with watch
 watch((d) => d.price.$value, (d) => { d.total.$value = d.price.$value * 2 })  // ✗ a derivation hidden in a watch

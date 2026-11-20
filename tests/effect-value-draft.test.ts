@@ -96,6 +96,108 @@ describe('effect-scope $value drafts', () => {
     expect(form.getValue('tags')[2]).toBe('d')
   })
 
+  it('two separate $value reads in one reaction or watch both push', () => {
+    const form = createEngine<{ go: string; rows: Row[] }>({
+      initialValues: { go: '', rows: rows() },
+      effects: [
+        defineEffects<{ go: string; rows: Row[] }>(({ reaction }) => {
+          reaction((d) => {
+            if (d.go.$value !== 'reaction') return
+            if (d.rows.$value.some((row) => row.id === 'd')) return
+            d.rows.$value.push({ id: 'd', name: 'D', note: '' })
+            d.rows.$value.push({ id: 'e', name: 'E', note: '' })
+          })
+        }),
+      ],
+    })
+    form.setValue('go', 'reaction')
+    expect(form.getValue('rows').map((row) => row.id)).toEqual(['a', 'b', 'c', 'd', 'e'])
+    const watched = createEngine<{ go: boolean; rows: Row[] }>({
+      initialValues: { go: false, rows: rows() },
+      effects: [
+        defineEffects<{ go: boolean; rows: Row[] }>(({ watch }) => {
+          watch((d) => d.go.$value, (d) => {
+            d.rows.$value.push({ id: 'd', name: 'D', note: '' })
+            d.rows.$value.push({ id: 'e', name: 'E', note: '' })
+          })
+        }),
+      ],
+    })
+    watched.setValue('go', true)
+    expect(watched.getValue('rows').map((row) => row.id)).toEqual(['a', 'b', 'c', 'd', 'e'])
+  })
+
+  it('a cell edit and a push in either order both survive, in batch and in a reaction', () => {
+    const init = { go: '', rows: rows() }
+    const run = (order: 'cell-first' | 'push-first', where: 'batch' | 'reaction') => {
+      const form = createEngine<{ go: string; rows: Row[] }>({
+        initialValues: { ...init, rows: rows() },
+        effects: where === 'reaction'
+          ? [
+              defineEffects<{ go: string; rows: Row[] }>(({ reaction }) => {
+                reaction((d) => {
+                  if (d.go.$value !== order) return
+                  if (d.rows.$value.length > 3) return
+                  if (order === 'cell-first') {
+                    d.rows.$value[0].name = 'Ada'
+                    d.rows.$value.push({ id: 'z', name: 'Z', note: '' })
+                  } else {
+                    d.rows.$value.push({ id: 'z', name: 'Z', note: '' })
+                    d.rows.$value[0].name = 'Ada'
+                  }
+                })
+              }),
+            ]
+          : [],
+      })
+      if (where === 'batch') {
+        form.batch((d) => {
+          if (order === 'cell-first') {
+            d.rows.$value[0].name = 'Ada'
+            d.rows.$value.push({ id: 'z', name: 'Z', note: '' })
+          } else {
+            d.rows.$value.push({ id: 'z', name: 'Z', note: '' })
+            d.rows.$value[0].name = 'Ada'
+          }
+        })
+      } else {
+        form.setValue('go', order)
+      }
+      expect(form.getValue('rows.0')).toMatchObject({ id: 'a', name: 'Ada' })
+      expect(form.getValue('rows').map((row) => row.id)).toEqual(['a', 'b', 'c', 'z'])
+      expect(form.getValue('rows.3.name')).toBe('Z')
+    }
+    for (const where of ['batch', 'reaction'] as const) {
+      for (const order of ['cell-first', 'push-first'] as const) run(order, where)
+    }
+  })
+
+  it('two pushes in one batch commit once', () => {
+    const lengths: number[] = []
+    const first = { id: 'd', name: 'D', note: '' }
+    const second = { id: 'e', name: 'E', note: '' }
+    const form = createEngine<{ rows: Row[] }>({
+      initialValues: { rows: rows() },
+      effects: [
+        defineEffects<{ rows: Row[] }>(({ reaction }) => {
+          reaction((d) => { lengths.push(d.rows.$value.length) })
+        }),
+      ],
+    })
+    const atRest = lengths.slice()
+    form.batch((d) => {
+      d.rows.$value.push(first)
+      d.rows.$value.push(second)
+    })
+    expect(form.getValue('rows').map((row) => row.id)).toEqual(['a', 'b', 'c', 'd', 'e'])
+    first.name = 'changed'
+    second.name = 'changed'
+    expect(form.getValue('rows.3.name')).toBe('D')
+    expect(form.getValue('rows.4.name')).toBe('E')
+    // One commit: the length reaction does not observe the one-row intermediate.
+    expect(lengths).toEqual([...atRest, 5])
+  })
+
   it('watch and batch push the same way, and two pushes stack on one draft', () => {
     const form = createEngine<{ go: boolean; rows: Row[] }>({
       initialValues: { go: false, rows: rows() },

@@ -7,6 +7,8 @@
  *
  * Structural reads (array `push` / `splice` / `delete`) ignore cell writes. Applying those with
  * `setIn` would copy every row, and the following array commit would treat the copies as new rows.
+ * {@link orderBufferedWrites} applies the array op first and the cell writes after, so either order in
+ * the effect keeps the cell.
  */
 
 import type { WriteOp } from '../types'
@@ -93,6 +95,31 @@ export function pendingEnum(ops: readonly WriteOp[], path: string): { hit: true;
     if (effect?.kind === 'enum' && effect.path === path) found = { hit: true, value: effect.value }
   }
   return found
+}
+
+/**
+ * Array mutates, including a hole from `delete`, commit before `$value` writes under that array.
+ * A cell edit and a `push` in the same pass then both survive, whichever was written first.
+ * Relative order of everything else is kept.
+ */
+export function orderBufferedWrites(ops: readonly WriteOp[]): WriteOp[] {
+  const mutatePaths: string[] = []
+  for (const op of ops) {
+    const pending = tags.get(op)
+    if (pending?.kind === 'value' && pending.mode === 'mutate') mutatePaths.push(pending.path)
+  }
+  if (!mutatePaths.length) return ops.slice()
+  const early: WriteOp[] = []
+  const cells: WriteOp[] = []
+  for (const op of ops) {
+    const pending = tags.get(op)
+    const underMutate = pending?.kind === 'value'
+      && pending.mode !== 'mutate'
+      && mutatePaths.some((path) => pending.path.startsWith(path + '.'))
+    if (underMutate) cells.push(op)
+    else early.push(op)
+  }
+  return cells.length ? [...early, ...cells] : early
 }
 
 /** The latest buffered `$rules` assignment at `path`. */

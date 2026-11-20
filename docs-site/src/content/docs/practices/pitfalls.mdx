@@ -82,22 +82,25 @@ form.setValue('user.name', 'Ada')
 
 被 `Object.freeze` 深冻结的数据（immer / Redux）读出来不会因为 Proxy 不变量抛 `TypeError`。不可配置且不可写的子属性按原对象返回，它本身已经不能改。
 
-## 在同一轮联动中读回刚写入的 `$value`
+## 在同一轮联动中读回刚写入的旗标
+
+`$value`、`$enum`、`$rules` 和 UI 状态会重放本轮还没落地的写入，所以第二次读到的是新值：
 
 ```ts
 d.total.$value = d.price.$value * d.qty.$value
 d.tax.$value = d.total.$value * 0.1
+d.rows.$value.push(row)
+d.rows.$value.push(row2)
 ```
 
-在 `reaction` 中，数据写入会缓冲到本轮函数返回后才统一生效，因此第二行读到的 `d.total.$value` 依然是旧值（开发模式下会报错提示）。正确的做法是先把计算结果存进局部变量：
+`$visible` / `$disabled` / `$readOnly` / `$omit` / `$required` 不重放。同一轮再读会看到旧值，开发模式抛 `ShikiUsageError`。先放进局部变量：
 
 ```ts
-const total = d.price.$value * d.qty.$value
-d.total.$value = total
-d.tax.$value = total * 0.1
+const shown = d.price.$value > 0
+d.tax.$visible = shown
 ```
 
-唯一的例外是 `$componentProps` / `$decoratorProps` 等 UI 状态：它们的写入会在当前轮次内即时叠加，因此可以先写 `props.style ??= {}` 再修改里面的样式属性。
+`$componentProps` / `$decoratorProps` 同样会在当前轮叠加，所以可以先写 `props.style ??= {}` 再改里面的键。
 
 ## 不要原地修改 `$componentProps` 里的 Date、Map、Set 或类实例
 

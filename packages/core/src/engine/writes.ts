@@ -106,6 +106,12 @@ export class StateWriter {
       return
     }
     if (scheduler.batchDepth > 0) {
+      const index = scheduler.batchOps.findIndex((item) => item.key === op.key)
+      if (index >= 0 && patch) scheduler.batchOps.splice(index, 1)
+      else if (index >= 0) {
+        scheduler.batchOps[index] = op
+        return
+      }
       scheduler.batchOps.push(op)
       return
     }

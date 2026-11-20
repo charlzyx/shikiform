@@ -68,18 +68,9 @@ A deep-frozen tree (immer / Redux) can be read. A non-configurable, non-writable
 
 ## Reading a buffered write
 
-Keep an intermediate result in a local variable so every derived value uses the same new result.
+`$value`, `$enum`, `$rules`, and UI state replay pending writes, so a second read in the same pass sees the new value. `d.total.$value = price * qty` then `d.tax.$value = d.total.$value * 0.1` uses that total. `d.rows.$value.push(a)` then `d.rows.$value.push(b)` appends both.
 
-```ts
-d.total.$value = d.price.$value * d.qty.$value
-d.tax.$value = d.total.$value * 0.1
-```
-
-```ts
-const total = d.price.$value * d.qty.$value
-d.total.$value = total
-d.tax.$value = total * 0.1
-```
+Flags (`$visible`, `$disabled`, `$readOnly`, `$omit`, `$required`) do not replay. Reading one after writing it in the same pass sees the old value and throws `ShikiUsageError` in development. Keep the new flag in a local.
 
 ## Do not mutate a Date, Map, Set, or class instance inside `$componentProps`
 

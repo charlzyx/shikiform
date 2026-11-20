@@ -194,7 +194,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     } finally {
       scheduler.batchDepth--
       if (scheduler.batchDepth === 0) {
-        const ops = scheduler.batchOps.splice(0)
+        const ops = scheduler.takeBatchOps()
         for (const op of ops) op.apply()
         scheduler.enqueueFromDirty()
         scheduler.flush()
