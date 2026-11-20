@@ -51,6 +51,12 @@ export interface FieldModel {
   enumOptions?: EnumOption[]
   enumLoading: boolean
   enumFromEffect: boolean
+  /**
+   * What the reaction assigned to `$enum` (a static list, an `EnumBinding`, or an `EnumSource`).
+   * Absent when the reaction layer is dropped. In-place edits of a binding are refused: they would
+   * pin a static list and cancel the loader.
+   */
+  enumEffect?: unknown
   /** `<Field enum>` while mounted (normalized options, or an `EnumSource` binding). Below `$enum`, above `fields`. */
   jsxEnum?: EnumOption[] | EnumBinding
   triggers?: ValidateTrigger[]

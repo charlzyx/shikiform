@@ -194,7 +194,7 @@ function assignMutation(path: string, prop: PropertyKey): ShikiUsageError {
   return new ShikiUsageError(
     `${shown}.$value is read-only here: assigning ${key} would mutate the stored value without notifying anyone ` +
       `(no subscriber runs, dirty stays false). ` +
-      `Write the field instead: ${child}.$value = …, or replace the whole value: ${shown}.$value = { ...${shown}.$value, ${key}: … }. ` +
+      `Inside reaction, watch, or batch, ${shown}.${key} = … is recorded as ${child}.$value = …. ` +
       `Outside an effect, form.setValue(${quote(childPath)}, …) or form.patchValues(…).${CLONE_HINT}`,
   )
 }
@@ -202,10 +202,10 @@ function assignMutation(path: string, prop: PropertyKey): ShikiUsageError {
 function arrayMutation(path: string, prop: string): ShikiUsageError {
   const shown = `${showDraftPath(path)}.$value`
   return new ShikiUsageError(
-    `${shown}.${prop}(…) mutates the stored array, so nothing is notified ` +
+    `${shown}.${prop}(…) is read-only here, so nothing would be notified ` +
       `(no subscriber runs, dirty stays false). ` +
-      `Assign a new array instead: ${shown} = [...${shown}, row] (or ${shown}.filter(…) / .toSorted(…)). ` +
-      `Outside an effect, form.setValue(${quote(path)}, …) or form.patchValues(…). ` +
+      `Inside reaction, watch, or batch, ${shown}.${prop}(…) is recorded (array fields go through the same row ops as useArrayField().${prop}). ` +
+      `Outside an effect, assign a new array (${shown} = [...${shown}, row]) or form.setValue(${quote(path)}, …). ` +
       `In a component, call useArrayField().push / useArrayField(name).push (remove and move are on the same handle). ` +
       `Do not hand this array to a control that sorts or pushes it.${CLONE_HINT}`,
   )

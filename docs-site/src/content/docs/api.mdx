@@ -121,7 +121,7 @@ interface TreeHandle<TNode> {
 
 `useArrayField()` 必须渲染在 `<ArrayField>` 里（行，或 `component` 容器，工具栏也算）。不在里面时，开发构建抛 `ShikiUsageError`。嵌套时取最近的一层。当前行下标是 `useIndex()`（树节点里是兄弟下标），当前行或节点的值是 `useRecord()`。句柄的 `path` 永远是它指向的东西：`useTreeField(name)` 的 `path` 和 `treePath` 都是树根；`useTreeField()` 必须在 `<TreeField>` 的节点里，`path` 是当前节点，`treePath` 是树根，并带上 `pos`、`index`、`record` 和这棵树的 `value`、`push`、`insert`、`remove`、`replace`、`move`、`dragProps`（`dragProps()` 不传坐标指向当前节点）。两种句柄的 `errors` / `warnings` 都只算自己这一层。移动一个节点时，位置和子树都没变的兄弟、以及其他子树，不会重新渲染。
 
-联动里改数组是赋一个新数组（`d.items.$value = [...d.items.$value, row]`），不要原地 `push`。组件里追加、删除、排序用上面的句柄。签名和例子在 [useArrayField](/reference/react-hooks#usearrayfield)、[useTreeField](/reference/react-hooks#usetreefield)。
+联动里 `d.items.$value.push(row)` 和组件里的 `useArrayField().push(row)` 是同一套行操作；也可以整表替换 `d.items.$value = [...]`。已注册的树用 `useTreeField()`，不要对 `$value` 调用 `push`。签名和例子在 [useArrayField](/reference/react-hooks#usearrayfield)、[useTreeField](/reference/react-hooks#usetreefield)。
 
 - `dirty`：当前值和初始值**不同**（深比较），改回原值就变回 `false`；表单级不算 `omit`（含被祖先 omit 的子孙）和计算字段（`visible: false` 仍算）。适合「没改动时禁用保存」「离开前提示未保存」。
 - `edited`：粘滞标记，用户编辑过（`setValue` / 控件 `onChange`）就为 `true`，直到 `reset`。reaction 写值不算。

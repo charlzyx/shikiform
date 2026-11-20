@@ -53,20 +53,14 @@ reaction.each((d) => d.items, (row) => {
 
 ## Mutating stored values
 
-Write a new value or a child path. Use the array handle for structural edits in components.
+Inside `reaction`, `watch`, and `batch`, an object or array `$value` is a writable draft. `d.user.$value.name = 'Ada'` is the path write `d.user.name.$value = 'Ada'`. `d.items.$value.push(row)` uses the same row operation as `useArrayField().push`.
 
 ```ts
 d.user.$value.name = 'Ada'
 d.items.$value.push(row)
 ```
 
-```ts
-d.user.name.$value = 'Ada'
-d.items.$value = [...d.items.$value, row]
-// In a component use useArrayField().push(row) or the named array hook.
-```
-
-In development, `$value`, `getValue`, and `form.values` are read-only views. The view is not `===` to the stored object (it is, in production). `indexOf` / `includes` and `deepEqual` peel the view, so `rows.indexOf(rawRow)` still matches. Do not pass `binding().value` to a table that `push`es or `sort`s it; the error names the field path.
+`getValue`, `form.values`, and a validator's `value` are not that draft. In development those reads are read-only views. The view is not `===` to the stored object (it is, in production, outside an effect). `indexOf` / `includes` and `deepEqual` peel the view, so `rows.indexOf(rawRow)` still matches. Do not pass `binding().value` to a table that `push`es or `sort`s it; the error names the field path.
 
 `structuredClone(form.values)`, `postMessage`, and IndexedDB throw `DataCloneError` on that view in development only. `snapshot(form.values)` from `@shikiform/core` is a plain copy, including omitted fields. `getSubmitValues()` is the submit payload. `toRaw(value)` is the live stored object.
 

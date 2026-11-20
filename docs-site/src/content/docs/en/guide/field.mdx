@@ -67,7 +67,7 @@ export default function App() {
 
 ## UI layers
 
-An effect takes precedence over JSX, followed by the `fields` declaration. Patch a leaf of `$componentProps` or `$decoratorProps` to keep sibling keys. Assigning the entire object replaces lower layers. Assign `undefined` to restore them. `delete arr[i]` on an array draft leaves a hole and does not change `length`. `splice`, or `useArrayField().remove(index)` for a form row, is what shifts later items.
+An effect takes precedence over JSX, followed by the `fields` declaration. Patch a leaf of `$componentProps` or `$decoratorProps` to keep sibling keys. Assigning the entire object replaces lower layers. Assign `undefined` to restore them. Inside an effect, object and array `$` reads share that draft: `d.user.$value.name = 'x'` writes the child path, and `d.items.$value.push(row)` is the array-field operation. `delete arr[i]` leaves a hole and does not change `length`. `splice`, or `useArrayField().remove(index)` for a form row, is what shifts later items.
 
 ```tsx preview
 import type { ReactNode } from 'react';

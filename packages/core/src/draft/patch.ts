@@ -1,23 +1,30 @@
 /**
- * Immer-like write tracking for object-valued `$` state (`$componentProps`, `$decoratorProps`).
+ * One writable draft for every plain object or array read off `$` state inside a recording effect
+ * (`reaction`, `watch`, `batch`). The proxy is the same for every key. The caller decides how `write` commits:
+ * a sparse UI patch, a whole-list `$enum` / `$rules` replace, a `$value` path write, or an array-field op.
  *
  * Reads return real values: a plain object or array comes back wrapped so writes into it are seen; a primitive,
  * `undefined`, a function, a class instance, or a React element is returned as-is, so a read behaves like plain JS
  * (`d.x.$componentProps.style` is `undefined` when there is no `style`, and `.style.color` throws just like JS would).
- * Assigning at any depth reports `(keys, value)` to `write`; the caller copies the stored object immutably.
+ * Assigning at any depth reports `(keys, value, 'set')` to `write`; the caller copies the stored object immutably.
  * Missing intermediates are not created: write `style ??= {}` first, or assign `style = { color }`.
  *
  * Array mutators (`push`, `splice`, `sort`, …) never touch the stored array. They `slice` a copy, run
- * `Array.prototype` on that copy, and `write` the copy back. `delete draft[i]` follows JavaScript: it reports
- * `DELETE` for that index, which leaves a hole and does not change `length`. An index at or past `length`, or
- * one that is already a hole, is a no-op. Later indexes in the same pass stay where they were. Removing an
- * element so the tail shifts is `splice` (or a form row's `remove`), not `delete`. Other array methods run
- * with the proxy as `this`, so callbacks and returned elements are drafts and assigning them calls `write`.
- * Setting `length` truncates, or extends the copy with explicit `undefined` slots (not holes). An index write
- * past `length` (`setIn`) fills that gap the same way. `Date` / `Map` / `Set` / class instances are returned raw.
- * The reaction layer stays a sparse patch, so a JSX layer merged only at render time is preserved — a full
- * `produce` of the value read here would replace it.
+ * `Array.prototype` on that copy, and `write` the copy back once (`kind: 'mutate'`). `delete draft[i]` follows
+ * JavaScript: it reports `DELETE` for that index, which leaves a hole and does not change `length`. An index at
+ * or past `length`, or one that is already a hole, is a no-op. Later indexes in the same pass stay where they
+ * were. Removing an element so the tail shifts is `splice` (or a form row's `remove`), not `delete`. Other array
+ * methods run with the proxy as `this`, so callbacks and returned elements are drafts and assigning them calls
+ * `write`. Setting `length` truncates, or extends the copy with explicit `undefined` slots (not holes). An index
+ * write past `length` (`setIn`) fills that gap the same way. `Date` / `Map` / `Set` / class instances are returned
+ * raw. For UI props the reaction layer stays a sparse patch, so a JSX layer merged only at render time is
+ * preserved — a full `produce` of the value read here would replace it.
+ *
+ * `readStructural`, when passed, is what mutators and `delete` walk. Property reads use `read`. Value drafts use
+ * that split so a cell write does not copy every row before `push` / `splice` commits through array ops.
  */
+
+export type DraftWriteKind = 'set' | 'mutate' | 'delete'
 
 import { arrayIndex, hasArrayIndex, writeArrayIndex } from '../shared/dense-array'
 
@@ -89,7 +96,7 @@ export function setIn(root: unknown, keys: readonly string[], value: unknown): u
  * Replace draft proxies in `value` with their raw data so stored state never holds a proxy.
  * Plain objects and arrays are copied only when a nested proxy is found; anything else is kept.
  */
-function unwrapDraft(value: unknown, seen?: WeakSet<object>): unknown {
+export function unwrapDraft(value: unknown, seen?: WeakSet<object>): unknown {
   if (value === null || typeof value !== 'object') return value
   const read = draftRaw.get(value)
   if (read) return read()
@@ -127,14 +134,17 @@ function unwrapDraft(value: unknown, seen?: WeakSet<object>): unknown {
  */
 export function createPatchDraft(
   read: () => unknown,
-  write: (keys: string[], value: unknown) => void,
+  write: (keys: string[], value: unknown, kind: DraftWriteKind) => void,
   keys: string[] = [],
+  readStructural?: () => unknown,
 ): any {
-  const current = (): any => {
-    let node: any = read()
+  const walk = (source: () => unknown): any => {
+    let node: any = source()
     for (const key of keys) node = node == null ? undefined : node[key]
     return node
   }
+  const current = (): any => walk(read)
+  const structural = (): any => walk(readStructural ?? read)
   const initial = current()
   const target: object = Array.isArray(initial) ? [] : {}
   const proxy = new Proxy(target, {
@@ -150,12 +160,12 @@ export function createPatchDraft(
         if (ARRAY_MUTATORS.has(prop)) {
           return (...args: unknown[]) => {
             // Re-read at call time so `push(a); push(b)` and a saved method both see earlier writes this pass.
-            const live = current()
+            const live = structural()
             const method = (Array.prototype as unknown as Record<string, (this: unknown, ...a: unknown[]) => unknown>)[prop]!
             if (!Array.isArray(live)) return method.apply(live, args.map((arg) => unwrapDraft(arg)))
             const copy = live.slice()
             const ret = method.apply(copy, args.map((arg) => unwrapDraft(arg)))
-            write(keys, copy)
+            write(keys, copy, 'mutate')
             return RETURNS_PROXY.has(prop) ? proxy : ret
           }
         }
@@ -164,10 +174,10 @@ export function createPatchDraft(
         if (typeof method === 'function') return (...args: unknown[]) => Reflect.apply(method, proxy, args)
         return value.bind(node)
       }
-      return isPatchable(value) ? createPatchDraft(read, write, [...keys, prop]) : value
+      return isPatchable(value) ? createPatchDraft(read, write, [...keys, prop], readStructural) : value
     },
     set(_t, prop, value) {
-      const node = current()
+      const node = structural()
       // `arr.length = 0` must store a shorter array, not a patch object that merely has a `length` key.
       if (Array.isArray(node) && prop === 'length') {
         const copy = node.slice()
@@ -175,26 +185,26 @@ export function createPatchDraft(
         copy.length = value as number
         // Growing `length` leaves holes. Own `undefined` slots keep the copy dense.
         for (let i = prev; i < copy.length; i++) copy[i] = undefined
-        write(keys, unwrapDraft(copy))
+        write(keys, unwrapDraft(copy), 'mutate')
         return true
       }
-      write([...keys, String(prop)], unwrapDraft(value))
+      write([...keys, String(prop)], unwrapDraft(value), 'set')
       return true
     },
     deleteProperty(_t, prop) {
       if (typeof prop === 'string') {
         const index = arrayIndex(prop)
         if (index !== undefined) {
-          const node = current()
+          const node = structural()
           if (Array.isArray(node)) {
             // Native `delete arr[i]`: one hole, same `length`, later indexes stay put.
             // At or past `length`, or on a hole, JavaScript changes nothing.
-            if (hasArrayIndex(node, index)) write([...keys, prop], DELETE)
+            if (hasArrayIndex(node, index)) write([...keys, prop], DELETE, 'delete')
             return true
           }
         }
       }
-      write([...keys, String(prop)], DELETE)
+      write([...keys, String(prop)], DELETE, 'delete')
       return true
     },
     has(_t, prop) {

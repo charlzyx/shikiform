@@ -1,11 +1,12 @@
 import { showDraftPath, ShikiUsageError } from '../errors'
 import type { Scheduler } from '../effects/scheduler'
+import { createPatchDraft, isPatchable } from '../draft/patch'
 import { unwrapReadonly } from '../draft/readonly'
-import type { UiEffect, UiKey } from '../state/field-model'
+import { OBJECT_UI_KEYS, type UiEffect, type UiKey } from '../state/field-model'
 import type { FieldStore } from '../state/field-store'
 import type { Notifier } from '../state/notifier'
 import type { FieldUiSpec, WriteOp } from '../types'
-import { FieldUi, type FieldUiView, type UiHolder } from './field-ui'
+import { FieldUi, prepareUiWrite, uiNestedWrite, type FieldUiView, type UiHolder } from './field-ui'
 import type { StateWriter } from './writes'
 import { reindexKeyed } from '../structure/migrate'
 
@@ -138,15 +139,21 @@ export class UiNodes {
     if (own === undefined && model.kind === 'field' && (uiKey === 'title' || uiKey === 'description')) {
       return this.fieldUi.read(path, uiKey)
     }
+    if (recording(this.scheduler) && OBJECT_UI_KEYS.has(uiKey) && isPatchable(own)) {
+      return createPatchDraft(
+        () => this.ui.live(id, uiKey),
+        (keys, next) => this.write(path, name, `$${uiKey}`, uiNestedWrite(keys, next)),
+      )
+    }
     return own
   }
 
   /** Draft write of `d.<path>.$ui(name).<key> = value`: buffered in a reaction / batch like any `$` write. */
   write(path: string, name: string, key: string, value: unknown): void {
-    if (process.env.NODE_ENV !== 'production') {
-      assertUiState(path, name, key)
-      value = unwrapReadonly(value)
-    }
+    if (process.env.NODE_ENV !== 'production') assertUiState(path, name, key)
+    const prepared = prepareUiWrite(value)
+    if (prepared !== undefined) value = prepared
+    else if (process.env.NODE_ENV !== 'production') value = unwrapReadonly(value)
     const id = uiId(path, name)
     const model = this.ensure(path, name)
     let op: WriteOp
@@ -265,6 +272,12 @@ function uiFlag(reaction: boolean | undefined, jsx: boolean | undefined, fallbac
   if (reaction !== undefined) return reaction
   if (jsx !== undefined) return jsx
   return fallback
+}
+
+function recording(scheduler: Scheduler): boolean {
+  const tracker = scheduler.current()
+  if (tracker) return tracker.recordWrites
+  return scheduler.batchDepth > 0
 }
 
 function assertUiState(path: string, name: string, key: string): void {

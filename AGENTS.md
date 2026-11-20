@@ -26,14 +26,14 @@ and SSR-rendered against the packed library); the site's `/llms.txt` serves this
 - Read data with `$value`; write a field by assigning its own path: `d.user.name.$value = 'x'`.
   A nullable field keeps its null in the type: `qty: number | null` makes `d.qty.$value` `number | null`
   (assigning `null` — what InputNumber writes when cleared — type-checks); an optional field accepts `undefined`.
-- A `$value` object is a snapshot of immutable data. Never mutate it; assign a new value or write the child path.
-  In development, `$value`, `getValue`, `form.values`, and validator `value` / `ctx.root` / `ctx.get()` are read-only views (mutation throws `ShikiUsageError`). The view is cached per object, so repeated reads of the same stored object keep the same identity. The view is not `===` to that object (it is, in production) and is not `structuredClone`able: `snapshot(value)` is a plain copy (`postMessage`, IndexedDB); `getSubmitValues()` is the submit payload; `toRaw(value)` is the live stored object. `indexOf` / `includes` and `deepEqual` accept either the view or the stored object. Production returns the raw value.
+- Inside `reaction` / `watch` / `batch`, an object or array read from `$` state is one writable draft (`$value`, `$enum`, `$rules`, `$componentProps`, `$decoratorProps`, and the same props on `$ui(name)`). `d.user.$value.name = 'x'` is the path write `d.user.name.$value = 'x'`. `d.items.$value.push` / `splice` / `sort` commit through the same row ops as `useArrayField()` (identity, templates, precise `dirtyRows`). A registered tree throws — use `useTreeField()`. `delete arr[i]` leaves a hole. `$enum.push` replaces the reaction list; pushing an `EnumSource` binding throws instead of cancelling the loader. Scalars stay whole-value assigns. Read-only keys (`$errors`, `$dirty`, …) stay read-only.
+  Outside that scope, development `$value` / `getValue` / `form.values` / validator `value` / `ctx.root` / `ctx.get()` are read-only views (mutation throws `ShikiUsageError`). The view is cached per object, so repeated reads of the same stored object keep the same identity. The view is not `===` to that object (it is, in production) and is not `structuredClone`able: `snapshot(value)` is a plain copy (`postMessage`, IndexedDB); `getSubmitValues()` is the submit payload; `toRaw(value)` is the live stored object. `indexOf` / `includes` and `deepEqual` accept either the view or the stored object. Production returns the raw value outside effects; inside effects the draft still records writes.
 - A handle is not an array: no `.map`, `.length`, `for…of`, or `const [row] = d.items`. Use `d.items.$value` or `reaction.each`.
 - Destructuring takes child field handles only (`const { name } = d.user`, then `name.$value`). `$` state is always read and written on the handle. Object rest, object spread, and `Object.keys(handle)` throw in development.
 - Outside a reaction, read and write with `form.getValue` / `form.setValue`. Paths are `a.b.c`, `a.b[0].c`, or `a['name']` (`orders.0.qty` and `orders[0].qty` are the same field). Inside `reaction`, `watch`, and `form.batch`, walk the draft: `d.user.name.$value`, `d.items[0].qty.$value`. A dynamic path inside effects is `query(path)` (untyped).
 - A confirm password or a client-only paging `page` is `omit: true`. `visible: false` still submits and still counts as dirty; `omit` does not count as dirty. An inactive tab stays mounted (the container only hides it) so its fields keep validating.
 
-Development builds throw `ShikiUsageError` with the fix for these mistakes (mutating `$value`, using a handle
+Development builds throw `ShikiUsageError` with the fix for these mistakes (mutating `getValue` / `form.values` / a `$value` read outside an effect, using a handle
 as an array, enumerating it with `Object.keys` / object spread / rest, and reading back a `$` state you wrote in the same pass), and for a misspelled state (`$valeu`,
 `$requird`), a write to a read-only state (`$errors`, `$touched`), `d.x.value = …` without `$`, an unknown rule key
 (`minLenght` → "Did you mean minLength?"), `component={[undefined]}` (an import that resolves to nothing) and
@@ -100,8 +100,9 @@ Custom array containers: pass a container `component` to `<ArrayField>` (or rend
 
 ## 4. Nested values: per-path writes vs `$componentProps` patches
 
-- **Form values** are written per path. `d.user.name.$value = 'x'` changes one field and wakes only its readers.
+- **Form values** are written per path. `d.user.name.$value = 'x'` and `d.user.$value.name = 'x'` are the same leaf write.
   `d.user.$value = { ...d.user.$value, name: 'x' }` replaces the whole object (every reader of `user` re-runs).
+  `d.items.$value.push(row)` commits once through `ArrayOps`, the same path as `useArrayField().push`.
 - **Object-valued UI state** (`$componentProps`, `$decoratorProps`) deep-merges across layers and is patched
   Immer-style through the draft: `d.city.$componentProps.style.color = 'red'` adds one leaf, and the JSX / declared
   `style` keeps its other keys. Plain objects merge at every depth; arrays, functions, React elements and class
@@ -249,11 +250,11 @@ reaction((d) => {
 ## 8. Correct vs incorrect
 
 ```ts
-// 1. Write a field by its path — never mutate a $value object
-d.user.$value.name = 'x'                         // ✗ throws in dev: mutates stored data, nobody is notified
+// 1. Inside reaction / watch / batch, a $value object or array is a draft
+d.user.$value.name = 'x'                         // ✓ same write as d.user.name.$value = 'x'
 d.user.name.$value = 'x'                         // ✓
-d.items.$value.push(row)                         // ✗ throws in dev
-d.items.$value = [...d.items.$value, row]        // ✓ inside a reaction. In a component: useArrayField().push(row)
+d.items.$value.push(row)                         // ✓ same row op as useArrayField().push
+form.getValue('items').push(row)                 // ✗ outside an effect: dev read-only view
 
 // 2. Rows: reaction.each, not array methods on a handle
 d.items.forEach((row) => { row.total.$value = 1 })                    // ✗ a handle is not an array
