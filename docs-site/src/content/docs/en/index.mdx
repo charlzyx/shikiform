@@ -7,98 +7,81 @@ mode: custom
 
 <div className="docs-content" style={{ maxWidth: '1120px', margin: '0 auto', padding: '40px 24px 72px' }}>
 
-## Try the invoice form
+## Try an expense claim
 
-Switch invoice type, edit or add line items, then submit to see the JSON. Open the code to see nested object updates and per-row calculations in effects.
+Change a category to see each row adapt. Add an expense to see the total and approval route update.
 
 ```tsx preview
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { enUS, defineEffects, Form, Submit, typed, useArrayField, useField, useFieldDecorator, useForm, useIndex, useWatch, type Draft } from '@shikiform/react';
 
-type Item = { price: number | null; qty: number | null; subtotal: number };
-type Values = {
-  invoice: { kind: 'personal' | 'company'; taxId: string };
-  items: Item[];
-  summary: { total: number };
-};
+type Expense = { category: 'travel' | 'meal'; amount: number | null; city: string; attendees: string };
+type Values = { expenses: Expense[]; summary: { total: number; approval: 'standard' | 'manager' } };
 
 const effects = defineEffects<Values>(({ reaction }) => {
-  reaction(({ invoice }) => {
-    const { kind, taxId } = invoice;
-    const company = kind.$value === 'company';
-    taxId.$visible = company;
-    taxId.$required = company;
-    taxId.$omit = !company;
+  reaction.each((d) => d.expenses, (row) => {
+    const { category, city, attendees } = row;
+    const travel = category.$value === 'travel';
+    city.$visible = travel;
+    city.$required = travel;
+    city.$omit = !travel;
+    attendees.$visible = !travel;
+    attendees.$required = !travel;
+    attendees.$omit = travel;
   });
-  reaction.each((d) => d.items, (row) => {
-    const { price, qty, subtotal } = row;
-    const unitPrice = price.$value ?? 0;
-    const quantity = qty.$value ?? 0;
-    subtotal.$value = unitPrice * quantity;
-    subtotal.$readOnly = true;
-  });
-  reaction((d) => {
-    d.summary.$value.total = d.items.$value.reduce((sum, item) => sum + item.subtotal, 0);
+  reaction(({ expenses, summary }) => {
+    const total = expenses.$value.reduce((sum, item) => sum + (item.amount ?? 0), 0);
+    summary.$value.total = Math.round(total * 100) / 100;
+    summary.$value.approval = total > 1000 ? 'manager' : 'standard';
   });
 });
 
 function FieldItem({ children }: { children?: ReactNode }) {
   const d = useFieldDecorator();
-  return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-      <label {...d.labelProps}>
-        {d.required && <span style={{ color: 'crimson' }}>* </span>}
-        {d.label}
-      </label>
-      {children}
-      {d.errorProps && <small {...d.errorProps} style={{ color: 'crimson' }}>{d.errors[0]}</small>}
-    </div>
-  );
-}
-
-function TextInput() {
-  const field = useField<string>();
-  return <input id={field.id} value={field.value ?? ''} style={{ maxWidth: '100%' }}
-    onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />;
-}
-
-function NumberInput() {
-  const field = useField<number | null>();
-  return <input id={field.id} type="number" min={0} step="any" readOnly={field.readOnly}
-    value={field.value ?? ''} style={{ width: 100, maxWidth: '100%' }}
-    onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
-    onBlur={field.onBlur} />;
-}
-
-function RadioGroup() {
-  const field = useField<string>();
-  return (
-    <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 12 }}>
-      {field.options.map((o) => (
-        <label key={String(o.value)}>
-          <input type="radio" name={field.id} checked={field.value === o.value}
-            onChange={() => field.onChange(String(o.value))} />
-          {' '}{o.label}
-        </label>
-      ))}
-    </span>
-  );
-}
-
-function Items({ children }: { children?: ReactNode }) {
-  const items = useArrayField<Item>();
-  return <div>
+  return <div className="claim-field">
+    <label {...d.labelProps}>{d.label}{d.required && <span aria-hidden="true"> *</span>}</label>
     {children}
-    <button type="button" onClick={() => items.push({ price: 0, qty: 1, subtotal: 0 })}>Add item</button>
+    {d.errorProps && <small {...d.errorProps} className="claim-error">{d.errors[0]}</small>}
   </div>;
 }
-
-function RemoveItem() {
-  const items = useArrayField<Item>();
-  const index = useIndex();
-  return <button type="button" onClick={() => items.remove(index)}>Remove</button>;
+function TextInput() {
+  const field = useField<string>();
+  const d = useFieldDecorator();
+  return <input aria-required={field.required} aria-invalid={d.invalid || undefined} aria-describedby={d.describedBy} id={field.id} value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />;
 }
-
+function AmountInput() {
+  const field = useField<number | null>();
+  const d = useFieldDecorator();
+  return <input aria-required={field.required} aria-invalid={d.invalid || undefined} aria-describedby={d.describedBy} id={field.id} type="number" min="0.01" step="0.01" inputMode="decimal" value={field.value ?? ''}
+    onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))} onBlur={field.onBlur} />;
+}
+function CategorySelect() {
+  const field = useField<string>();
+  const d = useFieldDecorator();
+  return <select aria-required={field.required} aria-invalid={d.invalid || undefined} aria-describedby={d.describedBy} id={field.id} value={field.value} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur}>
+    {field.options.map((option) => <option key={String(option.value)} value={String(option.value)}>{option.label}</option>)}
+  </select>;
+}
+function Expenses({ children }: { children?: ReactNode }) {
+  const expenses = useArrayField<Expense>();
+  return <div className="claim-lines">{children}
+    <button className="claim-add" type="button" onClick={() => expenses.push({ category: 'travel', amount: null, city: '', attendees: '' })}>+ Add expense</button>
+  </div>;
+}
+function RowHeader() {
+  const expenses = useArrayField<Expense>();
+  const index = useIndex();
+  return <div className="claim-row-head"><span>ITEM {String(index + 1).padStart(2, '0')}</span>
+    <button type="button" aria-label={`Remove ${index + 1}`} disabled={expenses.keys.length <= 1} onClick={() => expenses.remove(index)}>Remove</button>
+  </div>;
+}
+function Summary() {
+  const { total, approval } = useWatch((d: Draft<Values>) => d.summary.$value);
+  return <div className="claim-summary" aria-live="polite">
+    <div><span>Claim total</span><strong>¥ {total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+    <div className="claim-approval"><b>{approval === 'manager' ? 'Manager approval' : 'Standard approval'}</b><small>Over ¥1,000 → manager review</small></div>
+  </div>;
+}
 function ForgetResult({ clear }: { clear: () => void }) {
   const values = useWatch((d: Draft<Values>) => d.$value);
   const clearRef = useRef(clear);
@@ -112,34 +95,35 @@ export default function App() {
   const form = useForm<Values>({
     messages: enUS,
     initialValues: {
-      invoice: { kind: 'personal', taxId: '' },
-      items: [{ price: 10, qty: 2, subtotal: 0 }],
-      summary: { total: 0 },
+      expenses: [
+        { category: 'travel', amount: 680, city: 'Shanghai', attendees: '' },
+        { category: 'meal', amount: 240, city: '', attendees: 'Product team · 3 people' },
+      ],
+      summary: { total: 0, approval: 'standard' },
     },
     effects: [effects],
   });
   const F = typed(form);
-  return (
+  return <section className="claim-demo">
+    <div className="claim-heading"><span className="claim-seal" aria-hidden="true">支</span><div><small>EXPENSE CLAIM · LIVE</small><h3>One trip. Two expenses.</h3></div><span className="claim-local">Local demo</span></div>
     <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values, null, 2))} onInvalid={() => setResult('')}>
       <ForgetResult clear={() => setResult('')} />
-      <F.Field name="invoice.kind" title="Invoice type" enum={[{ label: 'Personal', value: 'personal' }, { label: 'Company', value: 'company' }]}
-        decorator={[FieldItem]} component={[RadioGroup]} />
-      <F.Field name="invoice.taxId" title="Tax ID" decorator={[FieldItem]} component={[TextInput]} />
-      <F.ArrayField name="items" component={Items}>
-        {(row) => (
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-            <row.Field name="price" title="Unit price" required rules={{ min: 0 }} decorator={[FieldItem]} component={[NumberInput]} />
-            <row.Field name="qty" title="Quantity" required rules={{ min: 1 }} decorator={[FieldItem]} component={[NumberInput]} />
-            <row.Field name="subtotal" title="Subtotal" decorator={[FieldItem]} component={[NumberInput]} />
-            <RemoveItem />
+      <F.ArrayField name="expenses" component={Expenses}>
+        {(row) => <div className="claim-row">
+          <RowHeader />
+          <div className="claim-fields">
+            <row.Field name="category" title="Category" enum={[{ label: 'Business travel', value: 'travel' }, { label: 'Team meal', value: 'meal' }]} decorator={[FieldItem]} component={[CategorySelect]} />
+            <row.Field name="amount" title="Amount (CNY)" required rules={{ min: 0.01 }} decorator={[FieldItem]} component={[AmountInput]} />
+            <row.Field name="city" title="Destination city" decorator={[FieldItem]} component={[TextInput]} />
+            <row.Field name="attendees" title="Attendees" decorator={[FieldItem]} component={[TextInput]} />
           </div>
-        )}
+        </div>}
       </F.ArrayField>
-      <F.Field name="summary.total" title="Total" readOnly decorator={[FieldItem]} component={[NumberInput]} />
-      <Submit>Submit</Submit>
-      <pre aria-live="polite">{result}</pre>
+      <Summary />
+      <div className="claim-actions"><span>Try changing a category or increasing the total.</span><Submit>Validate & preview JSON →</Submit></div>
+      {result && <div className="claim-result"><strong>Submission payload · nothing sent</strong><pre aria-live="polite">{result}</pre></div>}
     </Form>
-  );
+  </section>;
 }
 ```
 

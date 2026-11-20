@@ -6,43 +6,36 @@ ShikiForm manages form values, field state, validation and dependencies in a Typ
 
 [English documentation](https://shikiform.pages.dev/en/)
 
-## One reaction for visibility, validation and submission
+## Field rules and derived data, together
 
-Company invoices show and require a tax ID; personal invoices hide and omit it. [Try the invoice form](https://shikiform.pages.dev/en/#try-the-invoice-form).
+[Try the expense claim](https://shikiform.pages.dev/en/#try-an-expense-claim): each row shows only the relevant details; the total selects the approval route.
 
 ```ts
-import { createForm, defineEffects } from '@shikiform/react';
+import { defineEffects } from '@shikiform/react';
 
-type InvoiceValues = { invoice: 'personal' | 'company'; taxId: string };
+type Expense = { category: 'travel' | 'meal'; amount: number | null; city: string; attendees: string };
+type Values = { expenses: Expense[]; summary: { total: number; approval: 'standard' | 'manager' } };
 
-const effects = defineEffects<InvoiceValues>(({ reaction }) => {
-  reaction((d) => {
-    const company = d.invoice.$value === 'company';
-    d.taxId.$visible = company;
-    d.taxId.$required = company;
-    d.taxId.$omit = !company;
+const effects = defineEffects<Values>(({ reaction }) => {
+  reaction.each((d) => d.expenses, (row) => {
+    const { category, city, attendees } = row;
+    const travel = category.$value === 'travel';
+    city.$visible = travel;
+    city.$required = travel;
+    city.$omit = !travel;
+    attendees.$visible = !travel;
+    attendees.$required = !travel;
+    attendees.$omit = travel;
+  });
+  reaction(({ expenses, summary }) => {
+    const total = expenses.$value.reduce((sum, item) => sum + (item.amount ?? 0), 0);
+    summary.$value.total = Math.round(total * 100) / 100;
+    summary.$value.approval = total > 1000 ? 'manager' : 'standard';
   });
 });
-
-const form = createForm<InvoiceValues>({
-  initialValues: { invoice: 'personal', taxId: '' },
-  effects: [effects],
-});
 ```
 
-A personal invoice submits:
-
-```json
-{ "invoice": "personal" }
-```
-
-A company invoice with the tax ID `123456789` submits:
-
-```json
-{ "invoice": "company", "taxId": "123456789" }
-```
-
-Pass the same `effects` to `useForm` in React, or start with the complete example below.
+Pass `effects` to `useForm`. The full interactive example includes adding/removing expenses, validation and a local JSON preview.
 
 ## Installation
 

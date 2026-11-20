@@ -6,43 +6,36 @@ ShikiForm 是一个面向 TypeScript 的无 UI 表单引擎，集中管理表单
 
 官网文档：<https://shikiform.pages.dev>
 
-## 一个联动，同时控制显隐、必填与提交
+## 字段联动与数据派生，写在一起
 
-企业发票显示并必填税号，个人发票隐藏并排除税号。[在线试用开票表单](https://shikiform.pages.dev/#试试开票表单)。
+[在线试用费用报销单](https://shikiform.pages.dev/#试试费用报销单)：每行只展示并提交相关明细，合计决定审批方式。
 
 ```ts
-import { createForm, defineEffects } from '@shikiform/react';
+import { defineEffects } from '@shikiform/react';
 
-type InvoiceValues = { invoice: 'personal' | 'company'; taxId: string };
+type Expense = { category: 'travel' | 'meal'; amount: number | null; city: string; attendees: string };
+type Values = { expenses: Expense[]; summary: { total: number; approval: 'standard' | 'manager' } };
 
-const effects = defineEffects<InvoiceValues>(({ reaction }) => {
-  reaction((d) => {
-    const company = d.invoice.$value === 'company';
-    d.taxId.$visible = company;
-    d.taxId.$required = company;
-    d.taxId.$omit = !company;
+const effects = defineEffects<Values>(({ reaction }) => {
+  reaction.each((d) => d.expenses, (row) => {
+    const { category, city, attendees } = row;
+    const travel = category.$value === 'travel';
+    city.$visible = travel;
+    city.$required = travel;
+    city.$omit = !travel;
+    attendees.$visible = !travel;
+    attendees.$required = !travel;
+    attendees.$omit = travel;
+  });
+  reaction(({ expenses, summary }) => {
+    const total = expenses.$value.reduce((sum, item) => sum + (item.amount ?? 0), 0);
+    summary.$value.total = Math.round(total * 100) / 100;
+    summary.$value.approval = total > 1000 ? 'manager' : 'standard';
   });
 });
-
-const form = createForm<InvoiceValues>({
-  initialValues: { invoice: 'personal', taxId: '' },
-  effects: [effects],
-});
 ```
 
-个人发票的提交结果：
-
-```json
-{ "invoice": "personal" }
-```
-
-企业发票填写税号 `123456789` 后的提交结果：
-
-```json
-{ "invoice": "company", "taxId": "123456789" }
-```
-
-将同一份 `effects` 传给 `useForm` 即可接入 React；下方保留完整的快速示例。
+将 `effects` 传给 `useForm`。在线示例包含增删费用、校验与本地 JSON 预览；下方保留可直接运行的快速示例。
 
 ## 安装
 

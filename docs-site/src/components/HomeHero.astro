@@ -42,29 +42,30 @@ const english = language === "en";
       </div>
 
       <!-- Right: 宣纸 / 玄墨双色代码卡（Inkstone 墨观配色） -->
-      <div class="sf-hero__stage" aria-label={english ? "Order form effects" : "ShikiForm 核心联动示意"}>
+      <div class="sf-hero__stage" aria-label={english ? "Expense claim effects" : "ShikiForm 核心联动示意"}>
         <div class="sf-hero__terminal">
           <div class="sf-hero__terminal-bar">
-            <span class="sf-hero__term-label">order-effects.ts</span>
+            <span class="sf-hero__term-label">expense-effects.ts</span>
             <span class="sf-hero__term-tag">式 · defineEffects</span>
           </div>
-          <pre class="sf-hero__code"><code><span class="t-kw">defineEffects</span>&lt;<span class="t-ty">Order</span>&gt;(({`{ `}<span class="t-fn">reaction</span>{` }`}) =&gt; {`{`}
-  <span class="t-cm">{english ? "// Company invoices require a tax ID." : "// 企业发票显示税号并设为必填"}</span>
-  <span class="t-fn">reaction</span>(({`{ invoice }`}) =&gt; {`{`}
-    <span class="t-kw">const</span> {`{ kind, taxId }`} = invoice
-    <span class="t-kw">const</span> company = kind.<span class="t-st">$value</span> === <span class="t-str">'company'</span>
-    taxId.<span class="t-st">$visible</span> = company
-    taxId.<span class="t-st">$required</span> = company
-    taxId.<span class="t-st">$omit</span> = !company
+          <pre class="sf-hero__code"><code><span class="t-kw">defineEffects</span>&lt;<span class="t-ty">Values</span>&gt;(({`{ reaction }`}) =&gt; {`{`}
+  <span class="t-cm">{english ? "// Each expense has its own field rules." : "// 每笔费用独立联动"}</span>
+  <span class="t-fn">reaction.each</span>((d) =&gt; d.expenses, (row) =&gt; {`{`}
+    <span class="t-kw">const</span> {`{ category, city }`} = row
+    <span class="t-kw">const</span> travel = category.<span class="t-st">$value</span> === <span class="t-str">'travel'</span>
+    city.<span class="t-st">$visible</span> = travel
+    city.<span class="t-st">$required</span> = travel
+    city.<span class="t-st">$omit</span> = !travel
+    <span class="t-cm">{english ? "// Meal attendees use the inverse rules." : "// 用餐人员使用相反规则，完整代码见下方"}</span>
   {`}`})
 
-  <span class="t-cm">{english ? "// Each line derives its own subtotal." : "// 每行独立计算小计"}</span>
-  <span class="t-fn">reaction.each</span>((d) =&gt; d.items, (row) =&gt; {`{`}
-    <span class="t-kw">const</span> {`{ price, qty, subtotal }`} = row
-    <span class="t-kw">const</span> unitPrice = price.<span class="t-st">$value</span> ?? 0
-    <span class="t-kw">const</span> quantity = qty.<span class="t-st">$value</span> ?? 0
-    subtotal.<span class="t-st">$value</span> = unitPrice * quantity
-    subtotal.<span class="t-st">$readOnly</span> = true
+  <span class="t-cm">{english ? "// Write derived data into an object draft." : "// 直接更新对象 draft"}</span>
+  <span class="t-fn">reaction</span>(({`{ expenses, summary }`}) =&gt; {`{`}
+    <span class="t-kw">const</span> total = expenses.<span class="t-st">$value</span>.reduce(
+      (sum, item) =&gt; sum + (item.amount ?? 0), 0)
+    summary.<span class="t-st">$value</span>.total = Math.round(total * 100) / 100
+    summary.<span class="t-st">$value</span>.approval = total &gt; 1000
+      ? <span class="t-str">'manager'</span> : <span class="t-str">'standard'</span>
   {`}`})
 {`}`})</code></pre>
           <div class="sf-hero__states">
