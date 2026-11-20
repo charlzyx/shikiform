@@ -30,7 +30,7 @@ d.items.$value                // 获取整个数组的值（d.items 本身只是
 ```
 
 实际使用时需要注意三点：
-1. **不要直接修改 `$value` 返回的对象**：`$value` 返回的是不可变快照，直接执行 `d.user.$value.name = 'x'` 既不会触发通知，在开发环境下还会直接抛出错误。需要改哪个字段，就赋值给那个字段自己的 `$value`。
+1. **在联动或批量写入中修改一个键**。在 `reaction`、`watch` 的动作回调或 `form.batch` 中，`d.user.$value.name = 'Ada'` 和 `d.user.name.$value = 'Ada'` 都写入 `user.name`。在外部用 `form.setValue('user.name', 'Ada')`。
 2. **不要把 handle 当作数组操作**：诸如 `d.items.map`、`d.items.length` 或 `for…of d.items` 都是无效的。遍历行逻辑请用 [`reaction.each`](/guide/linkage)，读取整组数据请访问 `d.items.$value`。
 3. **字段本身叫 `value` 时**：依然遵循同一规则，通过 `d.value.$value` 读写。
 

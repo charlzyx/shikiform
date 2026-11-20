@@ -45,7 +45,7 @@ const effects = defineEffects<Values>(({ reaction, watch }) => {
     (d) => d.skuRows,
     (row, { d }) => {
       const id = row.id.$value
-      if (id) d.overrides.$value = { ...d.overrides.$value, [id]: row.price.$value }
+      if (id) d.overrides[id].$value = row.price.$value
     },
   )
   // Derive: one instance per row, a cell edit recomputes that row only.

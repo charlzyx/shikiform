@@ -110,11 +110,13 @@ const F = typed(form)
 Assign to the field's own `$value` to notify its readers. Replacing an entire object updates all readers of that object. Outside effects, use `form.setValue(path, value)`.
 
 ```ts
-d.user.name.$value = 'x'                              // ✓ Only update user.name
-d.user.$value.name = 'x'                              // ✓ The same path write
-d.user.$value = { ...d.user.$value, name: 'x' }       // Replacing user notifies every reader of that record.
-d.items.$value.push(row)                              // ✓ Same row operation as useArrayField().push
-d.items.$value = [...d.items.$value, row]             // Replace the whole array.
+d.user.name.$value = 'Ada'           // Write one path
+d.extra[key].$value = amount         // Write a dynamic path without reading extra.$value
+delete d.extra.$value[key]           // Remove an object property
+d.items.$value.push(row)             // Append a row
+d.items.$value.splice(index, 1)      // Remove a row and shift the following indexes
 ```
+
+Assign a whole value when the result itself is a new collection, for example `d.items.$value = selectedIds.map(makeRow)`. To append one row, `push` retains the existing rows and uses the same row operation as `useArrayField().push`. On an array draft, `delete items[i]` leaves a hole and keeps the length. Use tree operations for registered trees.
 
 See [dynamic arrays and tables](/en/guide/arrays) for row operations, drag handles and array-level rules.

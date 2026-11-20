@@ -5,10 +5,10 @@ description: "Recognize incorrect draft reads, path writes, scope names and fiel
 
 ## Destructure child handles
 
-Destructuring `$value` gives a snapshot. Assign to the handle's state to update the field. In each pair below, the second snippet shows the correction.
+Reassigning a local variable only changes that variable. Write through the handle to update the field.
 
 ```ts
-const { $value } = d.user
+let { $value } = d.user.name
 $value = 'Ada'
 ```
 
@@ -31,7 +31,7 @@ Object.keys(d.user)
 ```ts
 const { name } = d.user
 name.$value
-const copy = d.user.$value
+const keys = Object.keys(d.user.$value)
 ```
 
 ### Destructuring an array
@@ -65,6 +65,21 @@ d.items.$value.push(row)
 `structuredClone(form.values)`, `postMessage`, and IndexedDB throw `DataCloneError` on that view in development only. `snapshot(form.values)` from `@shikiform/core` is a plain copy, including omitted fields. `getSubmitValues()` is the submit payload. `toRaw(value)` is the live stored object.
 
 A deep-frozen tree (immer / Redux) can be read. A non-configurable, non-writable child is returned raw because wrapping it would throw a proxy `TypeError`.
+
+## Writing dynamic keys without subscribing to the whole record
+
+`d.overrides[id].$value = price` navigates to a field and writes it. Spreading `d.overrides.$value` first reads the entire record. In a reaction, that read makes changes to other prices a dependency too.
+
+```ts
+watch.each((d) => d.rows, (row, { d }) => {
+  const id = row.id.$value
+  if (id) d.overrides[id].$value = row.price.$value
+})
+```
+
+For each new array row, `watch.each` calls the callback once to collect reads and discards field writes. Here it records the row's ID and price. Use a field assignment for the destination in this callback. Calling `push` or mutating an object obtained from `$value` during that initial read-only pass can throw in development.
+
+For a one-time append when a source changes, call `d.items.$value.push(row)` in the action of `watch(source, action)`. An unconditional `push` inside a `reaction` reads and changes the same array on every pass and can cause a cycle. The [dynamic fields example](/en/guide/linkage#dynamic-object-fields) shows how to derive state per object key and render the current fields.
 
 ## Reading a buffered write
 

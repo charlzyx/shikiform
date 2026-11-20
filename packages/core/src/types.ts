@@ -345,6 +345,12 @@ type EachCtxOf<T, A> = Omit<RowContext<T>, 'key' | 'depth'> &
       : never
     : never)
 
+type ObjectEntryKey<A> = Extract<keyof A, string | number>
+type ReactionEntry<T, A> = A extends readonly unknown[] ? EachRow<T, A> : A extends object ? Draft<A[ObjectEntryKey<A>]> : never
+type ReactionEntryContext<T, A> = A extends readonly unknown[]
+  ? EachCtxOf<T, A>
+  : A extends object ? { d: Draft<T>; key: `${ObjectEntryKey<A>}`; path: string; depth: 0 } : never
+
 export interface ReactionFn<T> {
   /**
    * Derive `$` state synchronously. Reads are dependencies; writes are not.
@@ -352,10 +358,10 @@ export interface ReactionFn<T> {
    */
   (effect: (d: Draft<T>) => void): void
   /**
-   * One reaction instance per element of the selected array and nested object arrays.
+   * One reaction per own enumerable string key of a plain object, or per element of an array and nested object arrays.
    * Filter with `ctx.key` / `ctx.depth` / `ctx.pos`. Cell edits re-run that element only.
    */
-  each<A>(select: (d: Draft<T>) => Draft<A>, effect: (row: EachRow<T, A>, ctx: EachCtxOf<T, A>) => void): void
+  each<A>(select: (d: Draft<T>) => Draft<A>, effect: (row: ReactionEntry<T, A>, ctx: ReactionEntryContext<T, A>) => void): void
 }
 
 export interface WatchFn<T> {
@@ -368,7 +374,7 @@ export interface WatchFn<T> {
    */
   (source: (d: Draft<T>) => unknown, effect: (d: Draft<T>) => void): void
   /**
-   * Edge-triggered action, one instance per element {@link ReactionFn.each} would visit.
+   * Edge-triggered action, one instance per selected array element and nested object-array element.
    * The callback's `$` reads are the source.
    * Scouted once per element (writes discarded) and applied only after those reads change.
    * An edit re-fires the elements whose source keys are dirty, not their siblings.
@@ -382,8 +388,8 @@ export interface WatchFn<T> {
  * `$` members are field state. Every other property is a child field, so a value
  * literally named `value` is `d.value.$value`, not `d.$value`.
  *
- * Do not read a `$` state you just wrote in the same pass. Keep the new value in a local.
- * (Exception: UI state — `$title`, `$componentProps`, … — reads replay this pass's own pending writes.)
+ * Reads of `$value`, `$enum`, `$rules`, and UI state include pending writes from this pass.
+ * Keep a newly written flag such as `$visible` in a local when you need it again.
  * Reading `array.$value` depends on the whole array. Prefer `reaction.each` for per-row work.
  */
 export type Draft<T> = IsAny<T> extends true ? any : DraftState<T> & DraftNav<T>

@@ -168,7 +168,7 @@ export class ArrayOps {
     store.values = setAt(previous, path, next)
     this.carryIdentity(path, previous, store.values)
     scheduler.dirtyRows.set(path, dirty)
-    scheduler.markStructure(path)
+    scheduler.markStructure(path, previous, store.values)
     // The array value itself changed: wake readers of `$value` on it and its ancestors (useWatch, reactions).
     // Row-level deps stay on dirtyRows, so `each` instances whose occupant did not change still skip.
     for (let cursor: string | null = path; cursor; cursor = parentPath(cursor)) scheduler.markDirty(`${cursor}:value`)

@@ -157,7 +157,7 @@ export default function App() {
 | `d.x.$componentProps = { … }` | 整体替换掉整个对象，`fields` 和 JSX 两层的 props 全部失效 |
 | `d.x.$componentProps = undefined` | 撤销 `reaction` 这一层的覆盖，恢复下层属性 |
 
-在 `reaction` 内部读取 `$componentProps` 时，只能读到「`fields` 声明 + `reaction`」两层合并后的结果，JSX 层属性仅在渲染阶段合并。在所有 `$` 状态中，只有 UI 状态支持在同一轮次内读回刚刚写入的值。
+在 `reaction` 内部读取 `$componentProps` 时，只能读到「`fields` 声明 + `reaction`」两层合并后的结果，JSX 层属性仅在渲染阶段合并。UI 状态、`$value`、`$enum` 和 `$rules` 都能在同一轮读回刚写的值。
 
 ## 选项写在 JSX 里
 

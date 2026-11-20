@@ -11,7 +11,7 @@ tableOfContents: false
 
 The price and quantity have initial values but the starter leaves the amount unchanged. A reaction runs on initialization and whenever a state it reads changes.
 
-**Try it.** Register the following calculation in `defineEffects` and pass it to the form. Keep a local variable if another calculation needs the new amount in this pass.
+**Try it.** Register the following calculation in `defineEffects` and pass it to the form. A later calculation in the same pass can read the amount you just assigned through `d.amount.$value`.
 
 ```ts
 const amount = (d.price.$value || 0) * (d.qty.$value || 0);

@@ -46,14 +46,16 @@ call site, the states it reads and the states it writes. Production skips the ch
   it read changes, and its writes wake downstream reactions in the same flush. A field whose `$value` a reaction
   writes becomes computed (still editable and still submitted; set `readOnly` or `omit` yourself). Two reactions writing the same state is an error.
 - `watch(source, effect)` is an **action**: it runs after `source`'s reads change, never on the first pass; reads
-  inside `effect` are not dependencies. Use it for "when X changes, do Y once" (reset a dependent field, fetch).
+  inside `effect` are not dependencies. The source paths are collected at installation. For a derivation that follows a changing key, read `d.extra[d.activeKey.$value].$value` in a regular reaction. Use watch for "when X changes, do Y once" (reset a dependent field, fetch).
 - Writes are buffered until the pass returns. `$value`, `$enum`, `$rules`, and UI state replay pending writes, so a
   second read in the same pass sees them (`d.total.$value = x` then `d.total.$value` is `x`; `props.style ??= {}`
   then `props.style.color = 'red'`). Flags (`$visible`, `$required`, …) do not: keep the new flag in a local.
 
 ## 3. Rows and nodes: each
 
-`reaction.each(select, fn)` and `watch.each(select, fn)` take two arguments. No third argument and no `childrenKey`.
+For a plain object, `reaction.each((d) => d.extra, (field, { key, path, depth, d }) => …)` visits its own enumerable string keys, one level deep. Use nonempty field names without path delimiters (`.` or `[`). Each field handle tracks its own reads. A new key runs once, deleting it drops its subscriptions, and a later insertion starts a fresh instance. `key` is the property name, `path` is the field path and `depth` is 0. Additional reads such as a shared flag on `d` also wake that instance. `watch.each` takes an array. To render inputs as keys come and go, select `Object.keys(d.extra.$value)` in `<Watch>` and map those keys to fields. A statically declared field stays mounted when its value is deleted.
+
+For arrays, `reaction.each(select, fn)` and `watch.each(select, fn)` take two arguments. No third argument and no `childrenKey`.
 `fn` is `(row, ctx)`. `ctx` has `key`, `index`, `depth`, `parent`, `path`, `pos`, and the root draft `d`.
 
 `each` visits every element of the selected array, then every nested array whose elements are objects.

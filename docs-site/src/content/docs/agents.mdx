@@ -7,10 +7,10 @@ AI 编程工具生成 ShikiForm 代码时，常见错误集中在把 draft handl
 
 ## 六条核心规范
 
-1. **handle 是路径代理而非数据对象**：`d.user.name` 只定位字段路径，读写值必须通过 `$value`。不要原地修改 `$value`、`getValue` 或 `form.values` 返回的对象（开发环境会抛错），应直接对目标子字段的 `$value` 赋值，或调用 `form.setValue` / `form.patchValues`；数组字段的 handle 也不能调用 `.map` 或读取 `.length`。开发环境的视图不能 `structuredClone`，纯数据副本用 `snapshot(value)`，提交值用 `getSubmitValues()`。
+1. **通过 handle 读写字段**。联动和批量写入中，`d.user.$value.name = 'Ada'` 写入子路径，`d.items.$value.push(row)` 追加一行。外部使用 `form.setValue` 或 `form.patchValues`。开发环境下 `getValue` 和 `form.values` 返回只读视图，需要普通数据副本时用 `snapshot(value)`。
 2. **`reaction` 计算派生状态，`watch` 执行变化后的动作**：`reaction` 在初始化时立即运行，自动追踪内部读取的所有 `$` 状态；`watch` 首次不运行，仅追踪第一个参数读取的状态。派生值不要写进 `watch`。
-3. **同一轮联动内不要读回刚写入的值**：数据写入在当前批次结束后统一提交（`$componentProps` 等 UI 状态除外），中间结果请存入局部变量复用。
-4. **`reaction.each` / `watch.each` 只接受两个参数**：签名为 `(select, (row, ctx) => void)`，`ctx` 包含 `key`、`index`、`depth`、`parent`、`path`、`pos` 与根 draft `d`。遍历会自动递归进入对象数组，跳过对象上的基本类型数组（直接对基本类型数组本身调用 `each` 时，在 `depth === 0` 触发）。过滤层级或字段名请在回调内检查 `ctx.depth` 与 `ctx.key`。React 行组件内使用 `useArrayField()`、`useIndex()`、`useRecord()`、`useTreeField()`。
+3. **同轮回读**。写入在回调结束时提交。`$value`、`$enum`、`$rules` 和 UI 状态可以读回本轮刚写的值。写入 `$visible`、`$required` 等旗标后，需要复用新值时请用局部变量。
+4. **按行或按键联动**。对于数组，`reaction.each` 和 `watch.each` 都接收 selector 和回调，按行遍历并进入嵌套对象数组。对于普通对象，`reaction.each` 逐键建立订阅，自动跟随键的增删。
 5. **表单值按路径写入，对象型 UI 属性支持按键合并**：`d.city.$componentProps.placeholder = '…'` 仅覆盖 `placeholder`，保留下层其他属性；对 `$componentProps` 整体赋值则会替换整包下层属性。
 6. **`<Field>` 绑定路径，`FormItem` 只做装饰器**：统一写作 `<Field name title required decorator={[FormItem]} component={[Input]} />`，`FormItem` 不接收 `name`。
 
@@ -19,8 +19,8 @@ AI 编程工具生成 ShikiForm 代码时，常见错误集中在把 draft handl
 ## 正误写法对照
 
 ```ts
-d.user.$value.name = 'x'                                  // ✗ 直接修改了不可变快照
-d.user.name.$value = 'x'                                  // ✓ 按字段路径赋值
+form.getValue('user').name = 'x'  // ✗ 开发环境的只读视图
+d.user.$value.name = 'x'          // ✓ 在联动或 batch 中写入 user.name
 
 d.items.forEach((row) => { row.total.$value = 1 })        // ✗ handle 不是数组
 reaction.each((d) => d.items, (row) => {                  // ✓ 为每一行建立独立联动
@@ -28,10 +28,9 @@ reaction.each((d) => d.items, (row) => {                  // ✓ 为每一行建
 })
 
 d.total.$value = d.price.$value * d.qty.$value
-d.tax.$value = d.total.$value * 0.1                       // ✗ 在同一轮内读回了刚写入的值
-const total = d.price.$value * d.qty.$value               // ✓ 用局部变量传递中间结果
-d.total.$value = total
-d.tax.$value = total * 0.1
+d.tax.$value = d.total.$value * 0.1  // ✓ 读到刚写的总额
+d.tax.$visible = false
+void d.tax.$visible                  // ✗ 同一轮回读该旗标会在开发环境抛错
 
 reaction.each((d) => d.rows, (row) => {}, { childrenKey: 'children' }) // ✗ 没有第三个参数
 reaction.each((d) => d.rows, (row, { depth }) => { if (depth !== 0) return }) // ✓ 在回调内自行过滤

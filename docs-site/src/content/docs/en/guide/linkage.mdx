@@ -102,6 +102,62 @@ reaction.each((d) => d.items, (row, ctx) => { … })
 // ctx includes key, index, depth, parent, path, pos and the root draft d.
 ```
 
+### Dynamic object fields
+
+For an `extra: Record<string, number | null>` field, select the object handle to create one reaction per own enumerable string key. Use nonempty field names without path delimiters (`.` or `[`). The callback receives the property's field handle. Its context includes the property name (`key`), full field path (`path`), root draft (`d`) and `depth: 0`.
+
+Try adding two fees, editing one amount and removing one field.
+
+```tsx preview
+import { useRef } from 'react'
+import { Form, defineEffects, typed, useForm } from '@shikiform/react'
+
+type Values = { extra: Record<string, number | null> }
+const effects = defineEffects<Values>(({ reaction }) => {
+  reaction.each((d) => d.extra, (fee) => {
+    fee.$description = fee.$value === 0 ? 'Free' : undefined
+  })
+})
+
+export default function App() {
+  const form = useForm<Values>({ initialValues: { extra: { fee1: 0 } }, effects: [effects] })
+  const F = typed(form)
+  const nextId = useRef(2)
+  return (
+    <Form form={form} aria-label="Extra fees">
+      <button type="button" onClick={() => {
+        const key = `fee${nextId.current++}`
+        form.batch((d) => { d.extra[key].$value = 0 })
+      }}>Add fee</button>
+      <F.Watch select={(d) => Object.keys(d.extra.$value)}>
+        {(keys) => keys.map((key) => (
+          <F.Field key={key} name={`extra.${key}`}>
+            {(field) => (
+              <div>
+                <label htmlFor={field.id}>{key}</label>
+                <input id={field.id} type="number" value={field.value ?? ''}
+                  onChange={(e) => field.onChange(e.target.value === '' ? null : e.target.valueAsNumber)}
+                  onBlur={field.onBlur} aria-describedby={field.description ? `${field.id}-hint` : undefined} />
+                {field.description && <span id={`${field.id}-hint`}>{field.description}</span>}
+                <button type="button" onClick={() => form.batch((d) => { delete d.extra.$value[key] })}>
+                  Remove {key}
+                </button>
+              </div>
+            )}
+          </F.Field>
+        ))}
+      </F.Watch>
+    </Form>
+  )
+}
+```
+
+Each new key runs its reaction once. Changing a fee runs the instance that read its value. Removing the key releases its subscriptions. Adding it again creates a fresh instance. Reading a shared flag on `d` also subscribes the instance to that flag. `watch.each` takes an array.
+
+The list of inputs comes from `Object.keys(d.extra.$value)` in `<F.Watch>`. A fixed `<Field name="extra.fee1">` stays mounted when its value is deleted. The selector reads the entire object, so editing an existing amount can also reevaluate the key list. Assigning `undefined` to an existing optional property leaves its key in `Object.keys`; use `delete d.extra.$value[key]` to remove it.
+
+For a derivation that follows **one selected key**, read `d.extra[d.activeKey.$value].$value` in a regular `reaction`. Each run collects the current dependencies. A `watch(source, action)` collects its source paths at installation. Switching `activeKey` can fire the action, but subsequent edits to the newly selected field do not automatically become a trigger.
+
 ## Filter using the context
 
 `ctx` includes `key`, `index`, `depth`, `parent`, `path`, `pos` and the root draft `d`. Nested object arrays are traversed automatically. Filter the rows you need before reading state.

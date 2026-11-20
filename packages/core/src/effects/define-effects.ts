@@ -1,4 +1,6 @@
-import { callSite } from '../errors'
+import { isPatchable } from '../draft/patch'
+import { joinPath } from '../shared/path'
+import { callSite, ShikiUsageError } from '../errors'
 import type { Draft, EffectDef, EffectsAPI, EffectsRuntime, RowContext } from '../types'
 import type { EachDirty, EachRec } from './scheduler'
 
@@ -24,7 +26,8 @@ interface EachNode {
  *
  * `reaction` derives `$` state. Reads are dependencies. Writes are not.
  * A flush re-runs a reaction only when a dirty key intersects those reads. Writes wake downstream reactions in that same flush.
- * `reaction.each` is one instance per array element, and per element of every nested array of objects.
+ * A selected plain object creates one reaction per own enumerable string key.
+ * A selected array creates one instance per array element, and per element of every nested array of objects.
  * Arrays of primitives are not entered. Only the element whose own reads are dirty runs again.
  * `watch` runs after its source changes, not on the first pass. `watch.each` is the element-scoped watch.
  * `$rules` and `$required` written here validate even when the JSX field is unmounted.
@@ -96,27 +99,34 @@ const dev = () => process.env.NODE_ENV !== 'production'
 
 function installEach(runtime: EachRuntime, select: (d: Draft<any>) => unknown, effect: Function, site?: string): void {
   const id = runtime.nextId('each', site)
-  const rec: EachRec = { select, effect, arrayPath: '', instances: new Set(), first: true }
+  const rec: EachRec = { effect, path: '', instances: new Set(), first: true }
   runtime.holdEach(id, rec)
   const run = () => {
     const selected = runtime.trackOnly(() => select(runtime.draft))
-    const arrayPath = runtime.readPath(selected.value)
-    if (!arrayPath) throw new Error('each() selector must return a draft handle')
-    rec.arrayPath = arrayPath
-    runEach(runtime, rec, id)
-    rec.first = false
+    const path = runtime.readPath(selected.value)
+    if (path === undefined) throw new Error('each() selector must return a draft handle')
+    if (rec.path !== path) dropUnseen(runtime, rec.instances, new Set())
+    rec.path = path
+    const value = runtime.getValue(path)
     const deps = new Set(selected.deps)
-    deps.add(`${arrayPath}:structure`)
+    deps.add(`${path}:structure`)
+    if (Array.isArray(value)) {
+      runEach(runtime, rec, id, value)
+    } else {
+      runObjectEach(runtime, rec, id, isPatchable(value) ? Object.keys(value) : [])
+      deps.add(`${path}:keys`)
+    }
+    rec.first = false
     runtime.setDeps(id, deps)
   }
   runtime.registerReaction(id, run, new Set())
   runtime.queue(id)
 }
 
-function runEach(runtime: EachRuntime, rec: EachRec, id: string): void {
-  const nodes = listEachNodes(runtime.getValue(rec.arrayPath), rec.arrayPath)
-  const dirty = runtime.takeEachDirty(rec.arrayPath)
-  const all = rec.first || dirty.rows.get(rec.arrayPath) === 'all' || dirty.pos === 'all'
+function runEach(runtime: EachRuntime, rec: EachRec, id: string, value: unknown[]): void {
+  const nodes = listEachNodes(value, rec.path)
+  const dirty = runtime.takeEachDirty(rec.path)
+  const all = rec.first || dirty.rows.get(rec.path) === 'all' || dirty.pos === 'all'
   const seen = new Set<string>()
   for (const node of nodes) {
     const inst = `${id}#${node.rel}`
@@ -137,7 +147,35 @@ function runEach(runtime: EachRuntime, rec: EachRec, id: string): void {
       )
       rec.instances.add(inst)
     }
-    if (fresh || all || nodeDirty(node, rec.arrayPath, dirty)) runtime.queue(inst)
+    if (fresh || all || nodeDirty(node, rec.path, dirty)) runtime.queue(inst)
+  }
+  dropUnseen(runtime, rec.instances, seen)
+}
+
+/** Object entries have a stable property name and no array position. */
+function runObjectEach(runtime: EachRuntime, rec: EachRec, id: string, keys: string[]): void {
+  const owner = rec.path
+  const seen = new Set<string>()
+  for (const key of keys) {
+    const inst = `${id}@${key}`
+    seen.add(inst)
+    if (rec.instances.has(inst)) continue
+    if (!key || key.includes('.') || key.includes('[')) {
+      throw new ShikiUsageError(`reaction.each cannot address key ${JSON.stringify(key)} in ${owner || 'the root object'}. Use a nonempty field name without "." or "[".`)
+    }
+    const path = joinPath(owner, key)
+    runtime.registerReaction(inst, () => {
+      // A delete can queue this instance before its parent reconciles the keys.
+      const value = runtime.getValue(owner)
+      if (!isPatchable(value) || Array.isArray(value) || !Object.hasOwn(value, key)) return
+      const result = runtime.runWith({ id: inst, deps: true, writes: true }, () =>
+        rec.effect(runtime.handle(path), { d: runtime.draft, key, path, depth: 0 }),
+      )
+      runtime.setDeps(inst, result.deps)
+      runtime.applyWrites(inst, result.writes)
+    }, new Set())
+    rec.instances.add(inst)
+    runtime.queue(inst)
   }
   dropUnseen(runtime, rec.instances, seen)
 }

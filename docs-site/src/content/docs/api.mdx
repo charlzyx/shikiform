@@ -189,9 +189,9 @@ const effects = defineEffects<Values>(({ reaction, watch, query }) => {
 | API | 触发 | 说明 |
 |---|---|---|
 | `reaction(effect)` | 立即运行；之后读到的 `$` 状态变化时 | 同步派生；写 `$value` 的字段成为计算字段，默认仍提交 |
-| `reaction.each(select, effect)` | 每个元素一个实例，并进入嵌套的对象数组 | 只有两个参数。嵌套的基本类型数组不进；对基本类型数组本身调用时，`depth === 0` 仍会访问。用 `ctx.key` / `ctx.depth` 过滤 |
+| `reaction.each(select, effect)` | 普通对象按自有可枚举字符串键逐个建立实例；数组按元素建立实例，并进入嵌套的对象数组 | 只有两个参数。嵌套的基本类型数组不进；对基本类型数组本身调用时，`depth === 0` 仍会访问。用 `ctx.key` / `ctx.depth` 过滤 |
 | `watch(source, effect)` | `source` 读到的状态变化后；首次不运行 | 多个来源返回数组 |
-| `watch.each(select, effect)` | 与 `reaction.each` 同一层遍历；回调里读到的状态就是来源 | 某个元素变化只触发它自己 |
+| `watch.each(select, effect)` | 遍历数组元素与嵌套对象数组；回调里读到的状态就是来源 | 某个元素变化只触发它自己 |
 | `query(path)` | — | 精确 path 的底层 handle（动态路径用），平时写 `d.a.b` |
 
 行级回调都是 `(row, ctx)`，`ctx` 含 `d`、`key`、`index`、`depth`、`parent`、`path`、`pos`。详见 [联动](/guide/linkage)；`$` 状态与显隐见 [核心概念](/guide/concepts)，规则见 [校验](/guide/validation)。
@@ -216,7 +216,7 @@ comboOptions(table, selection, dim, { disabledWhen? }?): ComboOption[]    // 其
 ## 错误类与文案
 
 ```ts
-class ShikiUsageError extends Error      // 开发期写法错误：改 $value 对象、同一轮读回刚写的值、把 handle 当数组、拼错 $ 状态、
+class ShikiUsageError extends Error      // 开发期写法错误：修改 getValue 的只读视图、同一轮读回刚写的旗标、把 handle 当数组、拼错 $ 状态、
                                          // 未知规则键（minLenght）、component={[undefined]}、<ArrayField> 用在非数组上…；消息里写了正确写法
 class ShikiCycleError extends Error      // reaction / watch 10 轮仍未收敛；cycle: readonly string[] 是互相触发的链
 class ShikiConflictError extends Error   // 开发期：两个 reaction 写了同一个 $ 状态；state、first、second 指出是谁

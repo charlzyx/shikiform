@@ -99,7 +99,7 @@ export default function App() {
 | **写入 `$value`** | 目标字段成为[计算字段](/guide/concepts#四个布尔)（仍可编辑、仍提交、不计入 dirty；预览再写 `readOnly`，不提交再写 `omit`） | 作为普通用户数据写入 |
 
 编写联动时需遵守四条规则：
-- 写入结果会在当前轮次结束后统一生效，因此不要在同一段 `reaction` 中读回刚赋值的 `$value`；需要复用中间结果时，请先存入局部变量（如 `const total = …; d.total.$value = total; d.tax.$value = total * 0.1`）。
+- 写入在回调结束时提交。在同一轮里，读取 `$value`、`$enum`、`$rules` 和 UI 状态能拿到刚写的值。写入 `$visible`、`$required` 等旗标后若还需要新值，请用局部变量。
 - 同一个 `$` 状态只能由一个 `reaction` 负责写入；如果多个 `reaction` 同时写入同一个状态，引擎会在开发阶段报错提示。
 - `reaction` 必须保持同步执行；异步请求等副作用应当放在 `watch` 中，拿到响应后再通过 `form.batch` 写回表单。
 - 只有读取过的状态确实发生改变时，`reaction` 才会重新触发；如果写入的值与当前值相等，不会唤醒下游依赖。
@@ -127,6 +127,62 @@ reaction.each((d) => d.items, (row, ctx) => { … })
 <Aside type="caution" title="不要在读取任何状态前直接 return">
 如果回调在第一行就根据条件提前 `return` 且没有读取任何 `$` 状态，引擎会认为该实例不依赖任何数据变化，之后该节点再修改时也不会重新触发。如果需要随数据变化而恢复计算，请确保在 `return` 前已经读取过相关的 `$` 状态。
 </Aside>
+
+### 动态对象字段
+
+当 `extra` 的类型是 `Record<string, number | null>`，键名可以在运行时决定。选中对象 handle 后，每个自有可枚举字符串键对应一个实例。键名需要能作为单个字段路径段使用，请使用非空且不含 `.`、`[` 的名称。回调拿到该属性的字段 handle，`key` 是属性名，`path` 是完整字段路径，`depth` 为 0。
+
+试着添加两项费用，改其中一项的金额，再删除一个字段。
+
+```tsx preview
+import { useRef } from 'react'
+import { Form, defineEffects, typed, useForm } from '@shikiform/react'
+
+type Values = { extra: Record<string, number | null> }
+const effects = defineEffects<Values>(({ reaction }) => {
+  reaction.each((d) => d.extra, (fee) => {
+    fee.$description = fee.$value === 0 ? '免费' : undefined
+  })
+})
+
+export default function App() {
+  const form = useForm<Values>({ initialValues: { extra: { fee1: 0 } }, effects: [effects] })
+  const F = typed(form)
+  const nextId = useRef(2)
+  return (
+    <Form form={form} aria-label="附加费用">
+      <button type="button" onClick={() => {
+        const key = `fee${nextId.current++}`
+        form.batch((d) => { d.extra[key].$value = 0 })
+      }}>添加费用</button>
+      <F.Watch select={(d) => Object.keys(d.extra.$value)}>
+        {(keys) => keys.map((key) => (
+          <F.Field key={key} name={`extra.${key}`}>
+            {(field) => (
+              <div>
+                <label htmlFor={field.id}>{key}</label>
+                <input id={field.id} type="number" value={field.value ?? ''}
+                  onChange={(e) => field.onChange(e.target.value === '' ? null : e.target.valueAsNumber)}
+                  onBlur={field.onBlur} aria-describedby={field.description ? `${field.id}-hint` : undefined} />
+                {field.description && <span id={`${field.id}-hint`}>{field.description}</span>}
+                <button type="button" onClick={() => form.batch((d) => { delete d.extra.$value[key] })}>
+                  删除 {key}
+                </button>
+              </div>
+            )}
+          </F.Field>
+        ))}
+      </F.Watch>
+    </Form>
+  )
+}
+```
+
+新增键时，对应回调运行一次。修改金额只会触发读了该金额的实例。删除键会解除订阅，再次添加会建立新实例。如果回调还读了根 draft 上的共享开关，切换开关也会触发读过它的实例。`watch.each` 用于数组。
+
+页面上的输入框由 `<F.Watch>` 中的 `Object.keys(d.extra.$value)` 生成，所以键被删除时控件也会卸载。写死的 `<Field name="extra.fee1">` 会继续挂载，只是值变成 `undefined`。这里的 selector 读取整个对象，修改已有金额也可能让它重新计算键列表。给已有的可选属性赋 `undefined` 会保留键，`Object.keys` 仍能列出它；要把该项从列表中移除，用 `delete d.extra.$value[key]`。
+
+如果只关心**当前选中的键**，在普通 `reaction` 里读 `d.extra[d.activeKey.$value].$value`，每次执行都会重新收集依赖。`watch(source, action)` 在注册时收集来源路径。切换 `activeKey` 可以触发动作，但随后再编辑新选中的字段，不会自动触发这个 watch。
 
 ## 用 ctx 过滤
 
