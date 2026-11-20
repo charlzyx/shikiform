@@ -287,11 +287,11 @@ const STATUS = [
   { label: "Shipped", value: 'shipped' },
 ];
 
-const effects = defineEffects<Values>(({ reaction }) => {
+const effects = defineEffects<Values>(({ reaction, draft }) => {
   reaction((d) => {
     d.orders.$readOnly = d.editable.$value ? undefined : true;
   });
-  reaction.each((d) => d.orders, (order, { d, depth }) => {
+  reaction.each(draft.orders, (order, { d, depth }) => {
     if (depth !== 0) return; // Only handle orders at this depth.
     order.$readOnly = order.status.$value === 'shipped' ? true : undefined; // Show shipped orders in read-only mode.
     order.status.$readOnly = !d.editable.$value; // The status field can override the parent and follow the editing toggle.

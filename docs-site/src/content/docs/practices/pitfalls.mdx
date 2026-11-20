@@ -52,12 +52,12 @@ const [first] = d.items
 const { name } = d.items[0]
 name.$value
 d.items.$value
-reaction.each((d) => d.items, (row) => {
+reaction.each(draft.items, (row) => {
   row.name.$value
 })
 ```
 
-动态路径在联动里用 `query('user.name').$value`，在组件里用 `form.getValue('items[0].name')`。固定路径直接写 `d.user.name.$value`，见 [按路径读写](/basics/path)。
+能写在 draft 上的路径直接走 handle：`d.user.name.$value`、`d.items[i].qty.$value`、`d.extra[key].$value`。组件外用 `form.getValue('items[0].name')`。`query(path)` 只用于路径已经是字符串的时候（`pathOf`、配置、props），例如 effect 里 `query(pathOf('menus', pos)).$disabled = true`。见 [按路径读写](/basics/path)。
 
 ## 在 effect 外原地修改读到的值
 
@@ -87,7 +87,7 @@ form.setValue('user.name', 'Ada')
 `d.overrides[id].$value = price` 直接定位并写入一个字段。如果先展开 `d.overrides.$value` 再赋值，就额外读取了整张价格表；在 reaction 里，其他 SKU 的价格变化也会唤醒它。
 
 ```ts
-watch.each((d) => d.rows, (row, { d }) => {
+watch.each(draft.rows, (row, { d }) => {
   const id = row.id.$value
   if (id) d.overrides[id].$value = row.price.$value
 })

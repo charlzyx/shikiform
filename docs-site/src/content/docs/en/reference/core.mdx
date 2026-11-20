@@ -69,7 +69,7 @@ function Demo() {
 
 ## defineEffects
 
-Register reactions for derived state and watches for one-time actions after a change. Both support `each(select, callback)`.
+Register reactions for derived state and watches for one-time actions after a change. The factory receives `draft`, the root path handle: `reaction.each(draft.items, …)`, `watch(draft.city, …)` (that field's `$value`), `watch([draft.a, draft.b], …)`. The selector form of `each` still works. `query(path)` is for a path that is already a string.
 
 ```ts
 import { defineEffects } from '@shikiform/core'

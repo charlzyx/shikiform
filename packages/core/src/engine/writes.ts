@@ -5,7 +5,7 @@ import { cloneExternal, resetExternalCloneTraversal } from '../draft/plain-clone
 import { tagPending, type CellAnchor, type PendingValue } from '../draft/pending'
 import { unwrapDraft } from '../draft/patch'
 import { unwrapReadonly } from '../draft/readonly'
-import { showDraftPath } from '../errors'
+import { ShikiUsageError, showDraftPath } from '../errors'
 import { deepEqual } from '../shared/equal'
 import { getAt, normalizePath, parentPath, setAt } from '../shared/path'
 import type { FlagName } from '../state/flags'
@@ -63,9 +63,24 @@ export class StateWriter {
 
   /** Draft write entry point (`DraftHost.writeState`). */
   writeState(path: string, key: string, value: unknown, anchors?: readonly CellAnchor[]): void {
+    this.rejectInstallWrite(path, key)
     value = storedValue(value)
     const op = this.makeOp(path, key, value, anchors)
     this.enqueue(op, !!this.deps.ui?.isUiOp(op))
+  }
+
+  /** A `$` write on the registration `draft`, outside reaction / watch / batch. */
+  private rejectInstallWrite(path: string, key: string): void {
+    const scheduler = this.deps.scheduler
+    if (process.env.NODE_ENV === 'production' || scheduler.installDepth === 0 || scheduler.current()) return
+    const shown = `${showDraftPath(path)}.${key}`
+    throw new ShikiUsageError(
+      `${shown} = … runs while defineEffects is registering, outside reaction / watch / batch. ` +
+        `That write would apply immediately, before later effects are installed. ` +
+        `Use draft to name a path (reaction.each(draft.items, …) / watch.each(draft.rows, …)). ` +
+        `Write $ state inside reaction((d) => …) or watch. ` +
+        `Reading ${showDraftPath(path)}.$value here returns the current value and, in development, a read-only view; it is not a dependency.`,
+    )
   }
 
   /**

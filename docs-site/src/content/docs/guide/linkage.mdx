@@ -6,11 +6,13 @@ description: 用 reaction 维护派生状态，用 watch 执行一次性动作�
 像「金额 = 单价 × 数量」「切换省份后清空城市」这类表单联动规则，统一写在 `defineEffects` 中并传给 `useForm({ effects })`。联动直接读写引擎底层状态，无论目标字段此时是否已经挂载渲染，规则都能正常生效。
 
 ```ts
-const effects = defineEffects<Values>(({ reaction, watch }) => {
+const effects = defineEffects<Values>(({ reaction, watch, draft }) => {
   reaction((d) => { /* 派生计算：自动追踪内部读取的所有 $ 状态 */ })
-  watch((d) => d.province.$value, (d) => { /* 动作响应：仅在监听源变化时触发 */ })
+  watch(draft.province, (d) => { /* 监听 province.$value；函数形式 watch((d) => d.province.$value, …) 相同 */ })
 })
 ```
+
+`draft` 与回调参数 `d` 是同一个根 handle，用来在注册时点名路径。顺着 `draft.a.b` 往下走不会读值。工厂函数体里读取 `$` 拿到的是当前值，不会成为依赖；开发环境里对象和数组是只读视图。在这里写 `$` 会在开发环境抛错，写入应放进 `reaction` 或 `watch`。
 
 ## reaction 与 watch
 
@@ -25,7 +27,7 @@ const CITIES: Record<string, { label: string; value: string }[]> = {
   js: [{ label: '南京', value: 'nj' }, { label: '苏州', value: 'sz' }],
 };
 
-const effects = defineEffects<Values>(({ reaction, watch }) => {
+const effects = defineEffects<Values>(({ reaction, watch, draft }) => {
   // 派生：一开始就运行，price / qty 变化时重算
   reaction((d) => {
     d.amount.$value = d.price.$value * d.qty.$value;
@@ -37,7 +39,7 @@ const effects = defineEffects<Values>(({ reaction, watch }) => {
     d.city.$disabled = !d.province.$value;
   });
   // 动作：省份变了才清空城市；第一次不执行，初始的「杭州」保留
-  watch((d) => d.province.$value, (d) => {
+  watch(draft.province, (d) => {
     d.city.$value = '';
   });
 });
@@ -95,7 +97,7 @@ export default function App() {
 |---|---|---|
 | **定位** | **派生**：持续同步得出的一份结果 | **动作**：当 X 变化时执行一次 Y |
 | **首次运行** | 初始化时立即运行一次 | 初始化时不运行 |
-| **依赖追踪** | 自动收集 `effect` 内读取的所有 `$` 状态 | 仅追踪 `source` 内读取的状态，忽略 `effect` 中的读取 |
+| **依赖追踪** | 自动收集 `effect` 内读取的所有 `$` 状态 | handle 登记该字段的 `$value`（`watch([draft.a, draft.b])` 登记每一个）。函数 source 登记里面读到的 `$` 状态。忽略 `effect` 中的读取 |
 | **写入 `$value`** | 目标字段成为[计算字段](/guide/concepts#四个布尔)（仍可编辑、仍提交、不计入 dirty；预览再写 `readOnly`，不提交再写 `omit`） | 作为普通用户数据写入 |
 
 编写联动时需遵守四条规则：
@@ -106,12 +108,12 @@ export default function App() {
 
 ## reaction.each：每一行一个实例
 
-处理动态数组时，使用 `reaction.each(select, effect)` 可以为选中的数组元素逐一建立独立的联动实例。该函数只接收两个参数：第一个参数选中目标数组的 handle，第二个参数是每行执行的回调。修改某一行的数据时，只有对应那一行的回调会重新运行（包括尚未渲染到界面上的离线行）。
+处理动态数组时，使用 `reaction.each(draft.items, effect)` 可以为选中的数组元素逐一建立独立的联动实例。`draft` 来自 `defineEffects`。该函数只接收两个参数：第一个参数是目标数组的路径 handle，第二个参数是每行执行的回调。路径在注册时解析一次。selector `(d) => d.items` 仍然可用，并且每轮重读，用来跟随会变的键，例如 `(d) => d[d.active.$value]`。修改某一行的数据时，只有对应那一行的回调会重新运行（包括尚未渲染到界面上的离线行）。
 
-如果数组中包含嵌套的对象数组（例如订单下的明细 `lines`，或树节点的 `children`），`reaction.each` 会自动递归进入每一层对象数组；而嵌套在对象上的基本类型数组（如 `tags: string[]`）则不会自动展开，除非你直接对该数组本身调用 `reaction.each((d) => d.tags, fn)`（此时回调会在 `depth === 0` 时针对每个元素触发）。需要区分不同层级或字段时，可在回调中通过第二个参数 `ctx` 进行过滤。
+如果数组中包含嵌套的对象数组（例如订单下的明细 `lines`，或树节点的 `children`），`reaction.each` 会自动递归进入每一层对象数组；而嵌套在对象上的基本类型数组（如 `tags: string[]`）则不会自动展开，除非你直接对该数组本身调用 `reaction.each(draft.tags, fn)`（此时回调会在 `depth === 0` 时针对每个元素触发）。需要区分不同层级或字段时，可在回调中通过第二个参数 `ctx` 进行过滤。
 
 ```ts
-reaction.each((d) => d.items, (row, ctx) => { … })
+reaction.each(draft.items, (row, ctx) => { … })
 // ctx 提供：key、index、depth、parent、path、pos 以及根 draft `d`
 ```
 
@@ -139,8 +141,8 @@ import { useRef } from 'react'
 import { Form, defineEffects, typed, useForm } from '@shikiform/react'
 
 type Values = { extra: Record<string, number | null> }
-const effects = defineEffects<Values>(({ reaction }) => {
-  reaction.each((d) => d.extra, (fee) => {
+const effects = defineEffects<Values>(({ reaction, draft }) => {
+  reaction.each(draft.extra, (fee) => {
     fee.$description = fee.$value === 0 ? '免费' : undefined
   })
 })
@@ -196,7 +198,7 @@ form.getValue('orders[0].lines[2].qty')
 如果需要为每个订单外层元素的特定位置设置逻辑，可以用 `ctx.depth` 过滤出外层元素：
 
 ```ts
-reaction.each((d) => d.orders, (order, ctx) => {
+reaction.each(draft.orders, (order, ctx) => {
   if (ctx.depth !== 0) return
   order.lines[2].qty.$required = true
 })
@@ -205,7 +207,7 @@ reaction.each((d) => d.orders, (order, ctx) => {
 如果希望直接定位到内层的 `lines` 节点，回调里的 `row` 会聚合选中数组及各嵌套对象数组的字段（同名字段取联合类型），而 `ctx.key` 和 `ctx.depth` 也会被精确推导为字面量联合（如 `'orders' | 'lines'` 和 `0 | 1`）：
 
 ```ts
-reaction.each((d) => d.orders, (node, ctx) => {
+reaction.each(draft.orders, (node, ctx) => {
   if (ctx.key !== 'lines' || ctx.index !== 2) return
   node.qty.$required = true
 })
@@ -225,15 +227,15 @@ type Values = { discount: number; items: Item[] };
 const PRICES: Record<string, number> = { pen: 3, book: 25, bag: 80 };
 let nextId = 3;
 
-const effects = defineEffects<Values>(({ reaction, watch }) => {
-  reaction.each((d) => d.items, (row, { d, index }) => {
+const effects = defineEffects<Values>(({ reaction, watch, draft }) => {
+  reaction.each(draft.items, (row, { d, index }) => {
     const price = PRICES[row.sku.$value] ?? 0;
     row.price.$value = price;
     row.total.$value = price * row.qty.$value * (1 - d.discount.$value / 100);
     row.sku.$required = index === 0; // 第一行必须选商品
   });
   // 换了商品，数量回到 1
-  watch.each((d) => d.items, (row) => {
+  watch.each(draft.items, (row) => {
     if (row.sku.$value) row.qty.$value = 1;
   });
 });
@@ -321,8 +323,8 @@ import { Field, Form, TreeField, defineEffects, useField, useForm, useTreeField 
 type Node = { id: string; code: string; name: string; children?: Node[] };
 type Values = { nodes: Node[] };
 
-const effects = defineEffects<Values>(({ reaction }) => {
-  reaction.each((d) => d.nodes, (node, { pos, key, depth }) => {
+const effects = defineEffects<Values>(({ reaction, draft }) => {
+  reaction.each(draft.nodes, (node, { pos, key, depth }) => {
     if (depth > 0 && key !== 'children') return;
     node.code.$value = pos.map((index) => index + 1).join('.'); // 大纲编号随位置变化
     node.name.$required = pos.length === 1; // 只有顶层节点必填

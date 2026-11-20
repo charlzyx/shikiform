@@ -12,18 +12,22 @@ description: 通过 draft handle 链以及 form.getValue / form.setValue 读写�
 只操作某一个位置时，不必用 `reaction.each` 遍历整个数组，直接按路径访问即可：
 
 ```ts
-// 在 reaction / watch / batch 中使用 draft handle；动态路径在 reaction / watch 里用 query
+// reaction / watch / batch 里走 draft handle。下标和运行时的键也是 handle。
 d.orders[0].lines[2].qty.$value
 d.orders[0].lines[2].qty.$value = 4
-query('orders.0.lines.2.qty').$value
+d.items[i].qty.$value
+d.extra[key].$value
 
-// 在组件或普通逻辑中直接读写表单实例
+// 路径只以字符串存在时（pathOf、配置、组件 props，例如 useQueryTable 的 rowsPath）才用 query
+query(pathOf('menus', pos)).$disabled = true
+
+// 组件或普通逻辑里直接读写表单实例
 form.getValue('orders[0].lines[2].qty')
 form.setValue('orders[0].lines[2].qty', 4)
 form.getValue('orders.0.lines.2.qty')
 ```
 
-在联动函数中，`d.orders[0].lines[2].qty` 是路径 handle，读写其 `$value` 时才访问数据并登记依赖。动态拼接的路径在联动中用 `query('orders.0.lines.2.qty').$value`（无静态类型），固定路径直接写 `d.orders[0].lines[2].qty`。
+在联动函数中，`d.orders[0].lines[2].qty` 是路径 handle，读写其 `$value` 时才访问数据并登记依赖。能写在 draft 上的路径就用 handle：固定位置 `d.orders[0].lines[2].qty`，变化的下标 `d.items[i].qty`，变化的键 `d.extra[key]`。`query(path)` 没有静态类型，只留给手里已经是字符串的路径，例如在 effect 里 `query(pathOf('menus', pos)).$disabled = true`。
 
 ```tsx preview
 import { Field, Form, useForm } from '@shikiform/react';

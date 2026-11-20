@@ -136,14 +136,16 @@ await form.submit((values) => {
 
 ## Effects
 
-Derive state with `reaction`, react to a source change with `watch` and use `each` for rows. `reaction.each` also accepts a plain object handle and tracks one field per own enumerable string key. Use `query(path)` for a dynamic path inside effects.
+Derive state with `reaction`, react to a source change with `watch` and use `each` for rows. Pass `draft` from `defineEffects` to name a path: `reaction.each(draft.items, …)`, `watch(draft.city, …)` (that field's `$value`), `watch([draft.a, draft.b], …)`. A function source still works, including reads other than `$value`. `reaction.each` also accepts a plain object handle and tracks one field per own enumerable string key. The selector form of `each` still works and is re-read every pass. `query(path)` is the untyped escape hatch when the path is already a string (`pathOf`, config, or a prop such as `rowsPath`).
 
 ```ts
-const effects = defineEffects<Values>(({ reaction, watch, query }) => {
+const effects = defineEffects<Values>(({ reaction, watch, draft, query }) => {
   reaction((d) => { … })
-  reaction.each((d) => d.items, (row, ctx) => { … }) // Two arguments. Nested object arrays are also visited.
-  watch((d) => d.a.$value, (d) => { … })
-  watch.each((d) => d.items, (row, ctx) => { … })
+  reaction.each(draft.items, (row, ctx) => { … }) // Path handle. (d) => d.items still works.
+  watch(draft.city, (d) => { … })                 // Watches city.$value.
+  watch([draft.a, draft.b], (d) => { … })
+  watch.each(draft.items, (row, ctx) => { … })
+  query(pathOf('menus', pos)).$disabled = true    // The path is a string.
 })
 ```
 

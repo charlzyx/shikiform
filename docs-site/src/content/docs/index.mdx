@@ -19,8 +19,8 @@ import { defineEffects, Form, Submit, typed, useArrayField, useField, useFieldDe
 type Expense = { category: 'travel' | 'meal'; amount: number | null; city: string; attendees: string };
 type Values = { expenses: Expense[]; summary: { total: number; approval: 'standard' | 'manager' } };
 
-const effects = defineEffects<Values>(({ reaction }) => {
-  reaction.each((d) => d.expenses, (row) => {
+const effects = defineEffects<Values>(({ reaction, draft }) => {
+  reaction.each(draft.expenses, (row) => {
     const { category, city, attendees } = row;
     const travel = category.$value === 'travel';
     city.$visible = travel;

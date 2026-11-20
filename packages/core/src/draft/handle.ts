@@ -123,7 +123,7 @@ export function createHandle(host: DraftHost, path: string): any {
         throw new ShikiUsageError(
           `${showDraftPath(path)}.length is a child path, not the array length: ${showDraftPath(path)} is a draft handle. ` +
             `Read ${showDraftPath(path)}.$value.length (depends on the whole array), or run per-row logic with ` +
-            `reaction.each((d) => ${showDraftPath(path)}, (row, ctx) => …).`,
+            `${eachCall(path)}.`,
         )
       }
       if (!STATE.has(key)) {
@@ -192,6 +192,13 @@ export function createUiHandle(host: DraftHost, path: string, name: string): any
   })
 }
 
+/** `items` → `reaction.each(draft.items, (row, ctx) => …)`. */
+function eachCall(path: string): string {
+  const shown = showDraftPath(path)
+  const named = shown === 'd' ? 'draft' : `draft${shown.slice(1)}`
+  return `reaction.each(${named}, (row, ctx) => …)`
+}
+
 function misuseCall(path: string): ShikiUsageError {
   const dot = path.lastIndexOf('.')
   const parent = dot < 0 ? '' : path.slice(0, dot)
@@ -199,7 +206,7 @@ function misuseCall(path: string): ShikiUsageError {
   const owner = showDraftPath(parent)
   return new ShikiUsageError(
     `${owner}.${method}(…) is not a method: ${owner} is a draft handle (a path), not the value. ` +
-      `Read the value with ${owner}.$value.${method}(…), or run per-row logic with reaction.each((d) => ${owner}, (row, ctx) => …).`,
+      `Read the value with ${owner}.$value.${method}(…), or run per-row logic with ${eachCall(parent)}.`,
   )
 }
 
@@ -208,7 +215,7 @@ function misuseSymbol(path: string, symbol: symbol): ShikiUsageError {
   if (symbol === Symbol.iterator) {
     return new ShikiUsageError(
       `${shown} is a draft handle, not an array: it cannot be iterated (for…of, const [row] = ${shown}, spread, Array.from). ` +
-        `Iterate the value with ${shown}.$value, or run per-row logic with reaction.each((d) => ${shown}, (row, ctx) => …). ` +
+        `Iterate the value with ${shown}.$value, or run per-row logic with ${eachCall(path)}. ` +
         `Child fields are handles: const { name } = ${shown}[0], then name.$value.`,
     )
   }

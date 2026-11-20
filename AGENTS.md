@@ -30,7 +30,7 @@ and SSR-rendered against the packed library); the site's `/llms.txt` serves this
   Outside that scope, development `$value` / `getValue` / `form.values` / validator `value` / `ctx.root` / `ctx.get()` are read-only views (mutation throws `ShikiUsageError`). The view is cached per object, so repeated reads of the same stored object keep the same identity. The view is not `===` to that object (it is, in production) and is not `structuredClone`able: `snapshot(value)` is a plain copy (`postMessage`, IndexedDB); `getSubmitValues()` is the submit payload; `toRaw(value)` is the live stored object. `indexOf` / `includes` and `deepEqual` accept either the view or the stored object. Production returns the raw value outside effects; inside effects the draft still records writes.
 - A handle is not an array: no `.map`, `.length`, `for…of`, or `const [row] = d.items`. Use `d.items.$value` or `reaction.each`.
 - Destructuring takes child field handles only (`const { name } = d.user`, then `name.$value`). `$` state is always read and written on the handle. Object rest, object spread, and `Object.keys(handle)` throw in development.
-- Outside a reaction, read and write with `form.getValue` / `form.setValue`. Paths are `a.b.c`, `a.b[0].c`, or `a['name']` (`orders.0.qty` and `orders[0].qty` are the same field). Inside `reaction`, `watch`, and `form.batch`, walk the draft: `d.user.name.$value`, `d.items[0].qty.$value`. A dynamic path inside effects is `query(path)` (untyped).
+- Outside a reaction, read and write with `form.getValue` / `form.setValue`. Paths are `a.b.c`, `a.b[0].c`, or `a['name']` (`orders.0.qty` and `orders[0].qty` are the same field). Inside `reaction`, `watch`, and `form.batch`, walk the draft: `d.user.name.$value`, `d.items[i].qty.$value`, `d.extra[key].$value`. `query(path)` is the untyped escape hatch when the path is only a string (`pathOf()`, config, or a prop such as `rowsPath`): `query(pathOf('menus', pos)).$disabled = true`.
 - A confirm password or a client-only paging `page` is `omit: true`. `visible: false` still submits and still counts as dirty; `omit` does not count as dirty. An inactive tab stays mounted (the container only hides it) so its fields keep validating.
 
 Development builds throw `ShikiUsageError` with the fix for these mistakes (mutating `getValue` / `form.values` / a `$value` read outside an effect, using a handle
@@ -45,27 +45,30 @@ call site, the states it reads and the states it writes. Production skips the ch
 - `reaction((d) => …)` **derives** state. Every `$` read is a dependency; writes are not. It re-runs only when a key
   it read changes, and its writes wake downstream reactions in the same flush. A field whose `$value` a reaction
   writes becomes computed (still editable and still submitted; set `readOnly` or `omit` yourself). Two reactions writing the same state is an error.
+- `defineEffects(({ reaction, watch, draft }) => …)` passes `draft`, the same root handle the callbacks receive as `d`. Use it to name a path: `reaction.each(draft.items, …)`, `watch(draft.city, …)`, `watch([draft.a, draft.b], …)`. Walking `draft.a.b` does not read a value. `$` reads in the factory body are outside a pass: the current value, not a dependency; in development, objects, arrays, `Map`, `Set`, and `Date` are read-only views (mutating them throws `ShikiUsageError`). `$` writes there throw in development — they would apply immediately, before later effects are installed. Write inside `reaction` / `watch`. Production applies that write.
 - `watch(source, effect)` is an **action**: it runs after `source`'s reads change, never on the first pass; reads
-  inside `effect` are not dependencies. The source paths are collected at installation. For a derivation that follows a changing key, read `d.extra[d.activeKey.$value].$value` in a regular reaction. Use watch for "when X changes, do Y once" (reset a dependent field, fetch).
+  inside `effect` are not dependencies. The source paths are collected at installation. `watch(draft.city, …)` watches that field's `$value`, the same source as `watch((d) => d.city.$value, …)`. `watch([draft.a, draft.b], …)` is multi-source. The function form stays for any other read (`$visible`, a computed expression, a changing key). For a derivation that follows a changing key, read `d.extra[d.activeKey.$value].$value` in a regular reaction. Use watch for "when X changes, do Y once" (reset a dependent field, fetch).
 - Writes are buffered until the pass returns. `$value`, `$enum`, `$rules`, and UI state replay pending writes, so a
   second read in the same pass sees them (`d.total.$value = x` then `d.total.$value` is `x`; `props.style ??= {}`
   then `props.style.color = 'red'`). Flags (`$visible`, `$required`, …) do not: keep the new flag in a local.
 
 ## 3. Rows and nodes: each
 
-For a plain object, `reaction.each((d) => d.extra, (field, { key, path, depth, d }) => …)` visits its own enumerable string keys, one level deep. Use nonempty field names without path delimiters (`.` or `[`). Each field handle tracks its own reads. A new key runs once, deleting it drops its subscriptions, and a later insertion starts a fresh instance. `key` is the property name, `path` is the field path and `depth` is 0. Additional reads such as a shared flag on `d` also wake that instance. `watch.each` takes an array. To render inputs as keys come and go, select `Object.keys(d.extra.$value)` in `<Watch>` and map those keys to fields. A statically declared field stays mounted when its value is deleted.
+`defineEffects` passes `draft`. `reaction.each(draft.extra, …)` and `watch.each(draft.rows, …)` take that path once, at registration. A selector still works and is re-read every pass, so a changing key stays a function: `reaction.each((d) => d[d.active.$value], …)`.
 
-For arrays, `reaction.each(select, fn)` and `watch.each(select, fn)` take two arguments. No third argument and no `childrenKey`.
+For a plain object, `reaction.each(draft.extra, (field, { key, path, depth, d }) => …)` visits its own enumerable string keys, one level deep. Use nonempty field names without path delimiters (`.` or `[`). Each field handle tracks its own reads. A new key runs once, deleting it drops its subscriptions, and a later insertion starts a fresh instance. `key` is the property name, `path` is the field path and `depth` is 0. Additional reads such as a shared flag on `d` also wake that instance. `watch.each` takes an array. To render inputs as keys come and go, select `Object.keys(d.extra.$value)` in `<Watch>` and map those keys to fields. A statically declared field stays mounted when its value is deleted.
+
+For arrays, `reaction.each(draft.items, fn)` and `watch.each(draft.items, fn)` take two arguments. No third argument and no `childrenKey`.
 `fn` is `(row, ctx)`. `ctx` has `key`, `index`, `depth`, `parent`, `path`, `pos`, and the root draft `d`.
 
 `each` visits every element of the selected array, then every nested array whose elements are objects.
 A primitive array nested on an object (a row's `tags: string[]`) is not entered. Calling `each` on that array
-itself (`reaction.each((d) => d.tags, fn)`) still visits each element at `depth === 0`. Filter in the callback
+itself (`reaction.each(draft.tags, fn)`) still visits each element at `depth === 0`. Filter in the callback
 (`ctx.depth`, `ctx.key`). A callback that returns before reading any `$` state does not re-run when that node's
 data changes. There is no `reaction.walk` / `watch.walk`.
 
-- `reaction.each((d) => d.items, (row, { d, index, depth }) => …)`: one instance per element; a cell edit re-runs that element only.
-- `watch.each((d) => d.items, (row, ctx) => …)`: the same traversal as a watch; the `$` reads in the callback are its source.
+- `reaction.each(draft.items, (row, { d, index, depth }) => …)`: one instance per element; a cell edit re-runs that element only.
+- `watch.each(draft.items, (row, ctx) => …)`: the same traversal as a watch; the `$` reads in the callback are its source.
 
 Per-row settings that must follow the row when it moves are `rows.*.x` templates (in `fields`) or `reaction.each`.
 An exact-index declaration (`fields: { 'rows.0.x': … }`, `registerField('rows.0.x', …)`) belongs to that path: after a
@@ -261,7 +264,7 @@ form.getValue('items').push(row)                 // ✗ outside an effect: dev r
 
 // 2. Rows: reaction.each, not array methods on a handle
 d.items.forEach((row) => { row.total.$value = 1 })                    // ✗ a handle is not an array
-reaction.each((d) => d.items, (row) => {                                // ✓ one instance per row
+reaction.each(draft.items, (row) => {                                // ✓ one instance per row
   row.total.$value = row.price.$value * row.qty.$value
 })
 
@@ -274,11 +277,13 @@ void d.tax.$visible                              // ✗ a flag read sees the old
 // 4. Derive with reaction, act with watch
 watch((d) => d.price.$value, (d) => { d.total.$value = d.price.$value * 2 })  // ✗ a derivation hidden in a watch
 reaction((d) => { d.total.$value = d.price.$value * 2 })                       // ✓
-watch((d) => d.province.$value, (d) => { d.city.$value = undefined })          // ✓ an action on change
+watch(draft.province, (d) => { d.city.$value = undefined })                     // ✓ watches province.$value
+watch([draft.a, draft.b], (d) => { … })                                        // ✓ either $value
+watch((d) => d.city.$visible, (d) => { … })                                    // ✓ function source for other state
 
 // 5. each is two arguments; filter nested object arrays yourself
-reaction.each((d) => d.rows, (row) => {}, { childrenKey: 'children' }) // ✗ no third argument, no walk
-reaction.each((d) => d.rows, (row, { d, index, depth }) => {            // ✓
+reaction.each(draft.rows, (row) => {}, { childrenKey: 'children' }) // ✗ no third argument, no walk
+reaction.each(draft.rows, (row, { d, index, depth }) => {            // ✓
   if (depth !== 0) return
   row.name.$required = index === 0 || d.strict.$value
 })
