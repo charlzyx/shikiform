@@ -48,22 +48,23 @@ const english = language === "en";
             <span class="sf-hero__term-label">order-effects.ts</span>
             <span class="sf-hero__term-tag">式 · defineEffects</span>
           </div>
-          <pre class="sf-hero__code"><code><span class="t-kw">defineEffects</span>&lt;<span class="t-ty">Order</span>&gt;(({`{ `}<span class="t-fn">reaction</span>, <span class="t-fn">watch</span>{` }`}) =&gt; {`{`}
-  <span class="t-cm">{english ? "// Require a tax ID for company invoices." : "// 联动：企业开票自动显示税号并设必填"}</span>
-  <span class="t-fn">reaction</span>((d) =&gt; {`{`}
-    <span class="t-kw">const</span> biz = d.invoice.<span class="t-st">$value</span> === <span class="t-str">'company'</span>
-    d.taxId.<span class="t-st">$visible</span> = d.taxId.<span class="t-st">$required</span> = biz
-    d.taxId.<span class="t-st">$omit</span> = !biz
+          <pre class="sf-hero__code"><code><span class="t-kw">defineEffects</span>&lt;<span class="t-ty">Order</span>&gt;(({`{ `}<span class="t-fn">reaction</span>{` }`}) =&gt; {`{`}
+  <span class="t-cm">{english ? "// Company invoices require a tax ID." : "// 企业发票显示税号并设为必填"}</span>
+  <span class="t-fn">reaction</span>(({`{ invoice }`}) =&gt; {`{`}
+    <span class="t-kw">const</span> {`{ kind, taxId }`} = invoice
+    <span class="t-kw">const</span> company = kind.<span class="t-st">$value</span> === <span class="t-str">'company'</span>
+    taxId.<span class="t-st">$visible</span> = company
+    taxId.<span class="t-st">$required</span> = company
+    taxId.<span class="t-st">$omit</span> = !company
   {`}`})
 
-  <span class="t-cm">{english ? "// Recalculate just the edited line." : "// 数组：按行独立重算，不牵连其他行"}</span>
+  <span class="t-cm">{english ? "// Each line derives its own subtotal." : "// 每行独立计算小计"}</span>
   <span class="t-fn">reaction.each</span>((d) =&gt; d.items, (row) =&gt; {`{`}
-    row.subtotal.<span class="t-st">$value</span> = row.price.<span class="t-st">$value</span> * row.qty.<span class="t-st">$value</span>
-  {`}`})
-
-  <span class="t-cm">{english ? "// Clear the tax ID when the invoice type changes." : "// 副作用：切换类型时清空旧税号"}</span>
-  <span class="t-fn">watch</span>((d) =&gt; d.invoice.<span class="t-st">$value</span>, (d) =&gt; {`{`}
-    d.taxId.<span class="t-st">$value</span> = <span class="t-str">''</span>
+    <span class="t-kw">const</span> {`{ price, qty, subtotal }`} = row
+    <span class="t-kw">const</span> unitPrice = price.<span class="t-st">$value</span> ?? 0
+    <span class="t-kw">const</span> quantity = qty.<span class="t-st">$value</span> ?? 0
+    subtotal.<span class="t-st">$value</span> = unitPrice * quantity
+    subtotal.<span class="t-st">$readOnly</span> = true
   {`}`})
 {`}`})</code></pre>
           <div class="sf-hero__states">

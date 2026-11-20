@@ -24,15 +24,19 @@ type Values = {
 };
 
 const effects = defineEffects<Values>(({ reaction }) => {
-  reaction((d) => {
-    const company = d.invoice.kind.$value === 'company';
-    d.invoice.taxId.$visible = company;
-    d.invoice.taxId.$required = company;
-    d.invoice.taxId.$omit = !company;
+  reaction(({ invoice }) => {
+    const { kind, taxId } = invoice;
+    const company = kind.$value === 'company';
+    taxId.$visible = company;
+    taxId.$required = company;
+    taxId.$omit = !company;
   });
   reaction.each((d) => d.items, (row) => {
-    row.subtotal.$value = (row.price.$value ?? 0) * (row.qty.$value ?? 0);
-    row.subtotal.$readOnly = true;
+    const { price, qty, subtotal } = row;
+    const unitPrice = price.$value ?? 0;
+    const quantity = qty.$value ?? 0;
+    subtotal.$value = unitPrice * quantity;
+    subtotal.$readOnly = true;
   });
   reaction((d) => {
     d.summary.$value.total = d.items.$value.reduce((sum, item) => sum + item.subtotal, 0);
