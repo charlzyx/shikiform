@@ -6,6 +6,46 @@ ShikiForm manages form values, field state, validation and dependencies in a Typ
 
 [English documentation](https://shikiform.pages.dev/en/)
 
+## One reaction for visibility, validation and submission
+
+Choose a company invoice: the tax ID appears, becomes required and is included when the form submits. Switch back to a personal invoice: it is hidden, skips validation and is excluded from the submitted JSON. One `reaction` owns the rule; input controls only read and write values.
+
+```ts
+import { createForm, defineEffects } from '@shikiform/react';
+
+type InvoiceValues = { invoice: 'personal' | 'company'; taxId: string };
+
+const effects = defineEffects<InvoiceValues>(({ reaction }) => {
+  reaction((d) => {
+    const company = d.invoice.$value === 'company';
+    d.taxId.$visible = company;
+    d.taxId.$required = company;
+    d.taxId.$omit = !company;
+  });
+});
+
+const form = createForm<InvoiceValues>({
+  initialValues: { invoice: 'personal', taxId: '' },
+  effects: [effects],
+});
+```
+
+A personal invoice submits:
+
+```json
+{ "invoice": "personal" }
+```
+
+A company invoice with the tax ID `123456789` submits:
+
+```json
+{ "invoice": "company", "taxId": "123456789" }
+```
+
+`$visible` controls rendering and validation, `$required` controls required validation, and `$omit` controls inclusion in the submitted payload. A hidden field keeps its value in form state; `$omit = !company` excludes it from the personal invoice payload.
+
+In React, pass the same `effects` to `useForm({ initialValues, effects: [effects] })`. See the [company invoice linkage](https://shikiform.pages.dev/en/) and [interactive conditional visibility example](https://shikiform.pages.dev/en/examples/linkage#conditional-visibility), or start with the complete React example below.
+
 ## Installation
 
 ```bash

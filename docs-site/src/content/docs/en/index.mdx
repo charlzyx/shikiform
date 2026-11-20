@@ -7,6 +7,26 @@ mode: custom
 
 <div className="docs-content" style={{ maxWidth: '1120px', margin: '0 auto', padding: '40px 24px 72px' }}>
 
+## Company invoices: one rule, three states
+
+ShikiForm keeps form rules in a TypeScript engine. Use `defineEffects` and `reaction` to assign draft `$` state, then render it with React and your native HTML controls or component library.
+
+The invoice rule above reads `d.invoice.$value` and sets the tax ID's `$visible`, `$required` and `$omit` together. A company invoice shows the tax ID and requires it. A personal invoice hides it, skips its validation and excludes it from submission.
+
+Looking only at invoice-related fields, a personal invoice submits:
+
+```json
+{ "invoice": "personal" }
+```
+
+A company invoice with the tax ID `123456789` submits:
+
+```json
+{ "invoice": "company", "taxId": "123456789" }
+```
+
+`$visible` controls visibility; `$omit` controls inclusion in the payload. The example above also uses `watch` to clear the previous tax ID when the invoice type changes. Try the [interactive conditional visibility example](/en/examples/linkage#conditional-visibility), or connect your own controls with the [quick start](/en/guide/quick-start).
+
 ## Try it in 30 seconds
 
 Switch the account type below. A work account requires an email, changes the placeholder and shows the company field. Open the code to see how one `reaction` describes all three changes.

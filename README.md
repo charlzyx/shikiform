@@ -6,6 +6,46 @@ ShikiForm 是一个面向 TypeScript 的无 UI 表单引擎，集中管理表单
 
 官网文档：<https://shikiform.pages.dev>
 
+## 一个联动，同时控制显隐、必填与提交
+
+切到企业发票，税号显示并必填，填写后随表单提交；切回个人发票，税号隐藏、跳过校验，并从提交 JSON 中移除。规则集中在一个 `reaction` 中，输入控件只负责读写值。
+
+```ts
+import { createForm, defineEffects } from '@shikiform/react';
+
+type InvoiceValues = { invoice: 'personal' | 'company'; taxId: string };
+
+const effects = defineEffects<InvoiceValues>(({ reaction }) => {
+  reaction((d) => {
+    const company = d.invoice.$value === 'company';
+    d.taxId.$visible = company;
+    d.taxId.$required = company;
+    d.taxId.$omit = !company;
+  });
+});
+
+const form = createForm<InvoiceValues>({
+  initialValues: { invoice: 'personal', taxId: '' },
+  effects: [effects],
+});
+```
+
+个人发票的提交结果：
+
+```json
+{ "invoice": "personal" }
+```
+
+企业发票填写税号 `123456789` 后的提交结果：
+
+```json
+{ "invoice": "company", "taxId": "123456789" }
+```
+
+`$visible` 控制渲染和校验，`$required` 控制必填，`$omit` 控制是否进入提交结果。隐藏字段的值仍保留在表单状态中；上面的 `$omit = !company` 将其排除在个人发票的提交数据之外。
+
+在 React 中，将同一份 `effects` 传给 `useForm({ initialValues, effects: [effects] })`。查看官网的[企业开票联动](https://shikiform.pages.dev/)与[可交互的条件显隐示例](https://shikiform.pages.dev/examples/linkage#条件显隐)，或从下方完整 React 示例开始。
+
 ## 安装
 
 ```bash

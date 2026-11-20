@@ -8,6 +8,26 @@ mode: custom
 
 <div className="docs-content" style={{ maxWidth: '1120px', margin: '0 auto', padding: '40px 24px 72px' }}>
 
+## 企业开票：一条规则，三个状态
+
+ShikiForm 将表单业务规则集中在 TypeScript 引擎中。用 `defineEffects` 和 `reaction` 对 draft 的 `$` 状态赋值，React 组件负责展示，原生 HTML 或组件库负责输入。
+
+上方的企业开票规则读取 `d.invoice.$value`，同时设置税号的 `$visible`、`$required` 和 `$omit`。选择企业发票，税号显示并必填；选择个人发票，税号隐藏、跳过校验，并从提交数据中移除。
+
+只看开票相关字段，个人发票提交：
+
+```json
+{ "invoice": "personal" }
+```
+
+企业发票填写税号 `123456789` 后提交：
+
+```json
+{ "invoice": "company", "taxId": "123456789" }
+```
+
+显隐与提交分别由 `$visible` 和 `$omit` 控制。上方示例还用 `watch` 在切换发票类型时清空旧税号。继续查看[可交互的条件显隐示例](/examples/linkage#条件显隐)，或从[快速开始](/guide/quick-start)接入自己的控件。
+
 ## 30 秒在线体验
 
 联动在 `defineEffects` 内通过 `reaction` 和 `watch` 直接读写字段的 `$` 状态，React 组件只负责声明字段路径与界面结构。切换下方「账号类型」观察必填校验、占位符与「公司」字段显隐联动：
