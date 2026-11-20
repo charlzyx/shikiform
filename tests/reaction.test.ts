@@ -45,6 +45,109 @@ describe('reaction', () => {
     expect(form.getValue('rows.1.suggested')).toBe(7)
   })
 
+  it('tracks dynamic object entries independently and disposes deleted keys', () => {
+    type Values = { fields: Record<string, { amount: number }>; strict: boolean }
+    const calls: string[] = []
+    const form = createEngine<Values>({
+      initialValues: { fields: { a: { amount: 1 }, b: { amount: 2 } }, strict: false },
+      effects: [defineEffects<Values>(({ reaction }) => {
+        reaction.each((d) => d.fields, (entry, { key, path, d }) => {
+          expect(path).toBe(`fields.${key}`)
+          calls.push(`${key}=${entry.amount.$value}`)
+          entry.$required = d.strict.$value
+        })
+      })],
+    })
+    expect(calls.splice(0)).toEqual(['a=1', 'b=2'])
+    form.setValue('fields.b.amount', 4)
+    expect(calls.splice(0)).toEqual(['b=4'])
+    form.setValue('fields.c.amount', 3)
+    expect(calls.splice(0)).toEqual(['c=3'])
+    form.batch((d) => {
+      delete d.fields.$value.a
+      d.fields.$value.c.amount = 5
+    })
+    expect(calls.splice(0)).toEqual(['c=5'])
+    form.setValue('fields', { b: { amount: 8 }, c: { amount: 5 }, x: { amount: 9 } })
+    expect(calls.splice(0).sort()).toEqual(['b=8', 'x=9'])
+    form.setValue('fields', { b: { amount: 4 }, c: { amount: 5 } })
+    expect(calls.splice(0)).toEqual(['b=4'])
+    form.setValue('strict', true)
+    expect(calls.splice(0).sort()).toEqual(['b=4', 'c=5'])
+    form.batch((d) => { d.fields.$value.a = { amount: 7 } })
+    expect(calls.splice(0)).toEqual(['a=7'])
+    form.reset({ fields: { x: { amount: 0 } }, strict: true })
+    expect(calls.splice(0)).toEqual(['x=0'])
+  })
+
+  it('tracks optional records, undefined entries, and a selector switching between records', () => {
+    type Values = { active: 'a' | 'b'; a?: Record<string, string | undefined>; b: Record<string, string | undefined> }
+    const calls: string[] = []
+    const form = createEngine<Values>({
+      initialValues: { active: 'a', b: { city: '北京' } },
+      effects: [defineEffects<Values>(({ reaction }) => {
+        reaction.each((d) => d[d.active.$value], (entry, { path }) => {
+          calls.push(`${path}=${entry.$value}`)
+        })
+      })],
+    })
+    form.setValue('a.city', '上海')
+    expect(calls.splice(0)).toEqual(['a.city=上海'])
+    form.setValue('active', 'b')
+    expect(calls.splice(0)).toEqual(['b.city=北京'])
+    form.setValue('a.city', '广州')
+    expect(calls).toEqual([])
+    form.batch((d) => { d.b.$value.empty = undefined })
+    expect(calls.splice(0)).toEqual(['b.empty=undefined'])
+    form.setValue('b', { next: 'ok' })
+    expect(calls.splice(0)).toEqual(['b.next=ok'])
+  })
+
+  it('rebinds a record inside a moved row, skipping appends outside its path', () => {
+    type Values = { rows: { extra: Record<string, number> }[] }
+    const calls: string[] = []
+    const form = createEngine<Values>({
+      initialValues: { rows: [{ extra: { common: 1, first: 2 } }, { extra: { common: 3, second: 4 } }] },
+      effects: [defineEffects<Values>(({ reaction }) => {
+        reaction.each((d) => d.rows[0].extra, (entry, { key }) => {
+          calls.push(`${key}=${entry.$value}`)
+        })
+      })],
+    })
+    expect(calls.splice(0)).toEqual(['common=1', 'first=2'])
+    form.pushArray('rows', { extra: {} })
+    expect(calls).toEqual([])
+    form.moveArray('rows', 1, 0)
+    expect(calls.splice(0).sort()).toEqual(['common=3', 'second=4'])
+    form.setValue('rows.0.extra.common', 5)
+    expect(calls.splice(0)).toEqual(['common=5'])
+  })
+
+  it('releases write ownership when a key is removed', () => {
+    type Values = { extra: Record<string, number>; total: number }
+    const form = createEngine<Values>({
+      initialValues: { extra: { old: 1 }, total: 0 },
+      effects: [defineEffects<Values>(({ reaction }) => {
+        reaction.each((d) => d.extra, (entry, { d }) => { d.total.$value = entry.$value })
+      })],
+    })
+    form.batch((d) => {
+      delete d.extra.$value.old
+      d.extra.$value.next = 2
+    })
+    expect(form.getValue('total')).toBe(2)
+  })
+
+  it('rejects a literal key that would target a different field path', () => {
+    type Values = { extra: Record<string, number> }
+    expect(() => createEngine<Values>({
+      initialValues: { extra: { 'a.b': 1 } },
+      effects: [defineEffects<Values>(({ reaction }) => {
+        reaction.each((d) => d.extra, (entry) => { entry.$required = true })
+      })],
+    })).toThrow(/cannot address key "a.b"/)
+  })
+
   it('rejects two reactions writing the same state', () => {
     expect(() =>
       createEngine({

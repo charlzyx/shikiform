@@ -127,12 +127,14 @@ const F = typed(form)
 在 `reaction` 中修改嵌套对象内的某个属性时，直接写入目标子路径，这样只唤醒订阅了该子路径的联动和组件；若对父对象整体赋新引用，所有读取父对象的订阅都会重跑：
 
 ```ts
-d.user.name.$value = 'x'                              // ✓ 只更新 user.name
-d.user.$value.name = 'x'                              // ✓ 同一个子路径写入
-d.user.$value = { ...d.user.$value, name: 'x' }       // 整体替换 user，唤醒所有读取 user 的订阅
-d.items.$value.push(row)                              // ✓ 与 useArrayField().push 同一套行操作
-d.items.$value = [...d.items.$value, row]             // 整体替换数组
+d.user.name.$value = 'Ada'           // 写一个字段
+d.extra[key].$value = amount         // 动态键也能直接写，无需读取 extra.$value
+delete d.extra.$value[key]           // 删除对象属性
+d.items.$value.push(row)             // 追加一行
+d.items.$value.splice(index, 1)      // 删除一行，后续行前移
 ```
+
+如果需要根据全部选中项重新生成列表，可以整体赋值，例如 `d.items.$value = selectedIds.map(makeRow)`。只追加一行时用 `push`，会保留已有行，并走与 `useArrayField().push` 相同的行操作。数组草稿上 `delete items[i]` 会留下空位，长度不变。已注册的树使用树操作。
 
 `$componentProps` 等对象型 UI 状态支持按键深合并，见 [UI 状态三层叠加](/guide/field#ui-状态三层叠加)。
 

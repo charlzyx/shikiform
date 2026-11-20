@@ -8,7 +8,7 @@ import type { Draft, FieldError, FieldPath, PathValue, SubmitResolved, ValidateP
  * Array and tree structure changes are not methods on this type. In React, call them on the handle from
  * `useArrayField(name?)` (`push` / `insert` / `remove` / `move` / `swap` / `replace`) and `useTreeField(name)`
  * (`push` / `insert` / `remove` / `replace` / `move`). `useTreeField()` inside a node is that node plus the same edits.
- * Inside a reaction, assign a new array.
+ * Inside a recording effect or batch, use array methods on a flat field’s `$value`. Use tree operations for a registered tree.
  */
 export interface FormInstance<T, TSubmit = T> {
   /**

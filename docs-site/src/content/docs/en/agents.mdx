@@ -8,16 +8,16 @@ Give coding assistants the full [agent instructions](/llms.txt) alongside the fo
 
 1. A draft handle locates a path. Read and write data through its `$value`. Inside an effect, `d.user.$value.name = 'x'` is the path write, and `d.items.$value.push(row)` is the array-field operation. In development, `getValue` and `form.values` stay read-only: copy them with `snapshot(value)`, not `structuredClone` on the view.
 2. Use `reaction` to derive state and `watch` for actions after a change. Only a watch's source declares dependencies.
-3. Keep intermediate values in local variables. Data writes are buffered until the pass returns. UI prop patches can read their pending changes.
-4. `reaction.each` and `watch.each` take a selector and a callback. Filter nested object arrays inside the callback with `ctx.depth` or `ctx.key`.
+3. Writes commit after the pass. Reads of `$value`, `$enum`, `$rules` and UI state include pending writes. Keep new boolean flags in locals if you need them again.
+4. On arrays, `reaction.each` and `watch.each` visit rows and nested object arrays. On a plain object, `reaction.each` tracks each key separately and picks up additions and deletions.
 5. Patch individual `$componentProps` or `$decoratorProps` keys to retain lower-layer siblings. Assigning the whole object replaces that layer.
 6. `Field` owns the path. A decorator such as `FormItem` reads the binding through context and renders its label and errors.
 
 ## Examples
 
 ```ts
-d.user.$value.name = 'x'                                  // ✗ Mutates an immutable snapshot
-d.user.name.$value = 'x'                                  // ✓ Write the field path
+form.getValue('user').name = 'x'  // ✗ Read-only view in development
+d.user.$value.name = 'x'          // ✓ Write user.name in a reaction, watch action or batch
 
 d.items.forEach((row) => { row.total.$value = 1 })        // ✗ A handle is not an array
 reaction.each((d) => d.items, (row) => {                  // ✓ A separate reaction for each row
@@ -25,10 +25,9 @@ reaction.each((d) => d.items, (row) => {                  // ✓ A separate reac
 })
 
 d.total.$value = d.price.$value * d.qty.$value
-d.tax.$value = d.total.$value * 0.1                       // ✗ Reads a buffered write in the same pass
-const total = d.price.$value * d.qty.$value               // ✓ Reuse an intermediate value
-d.total.$value = total
-d.tax.$value = total * 0.1
+d.tax.$value = d.total.$value * 0.1  // ✓ Reads the new total
+d.tax.$visible = false
+void d.tax.$visible                  // ✗ Reading this flag in the same pass throws in development
 
 reaction.each((d) => d.rows, (row) => {}, { childrenKey: 'children' }) // ✗ No third argument
 reaction.each((d) => d.rows, (row, { depth }) => { if (depth !== 0) return }) // ✓ Filter inside the callback

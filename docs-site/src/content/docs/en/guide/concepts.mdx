@@ -23,7 +23,7 @@ d.user.name.$required = true  // Change whether this field is required.
 d.items.$value                // Read the array data through the handle's $value.
 ```
 
-A `$value` object is an immutable snapshot. Write to the child handle to change one field. For an array, read `d.items.$value` or use `reaction.each`. A field named `value` still uses `d.value.$value`.
+Inside a reaction, a watch action or a batch, `d.user.$value.name = 'Ada'` and `d.user.name.$value = 'Ada'` both update `user.name`. Outside those callbacks, use `form.setValue('user.name', 'Ada')`. For an array, read `d.items.$value` or use `reaction.each`. A field named `value` still uses `d.value.$value`.
 
 ### Destructuring
 

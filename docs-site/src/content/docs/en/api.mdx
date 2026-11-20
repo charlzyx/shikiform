@@ -136,7 +136,7 @@ await form.submit((values) => {
 
 ## Effects
 
-Derive state with `reaction`, react to a source change with `watch` and use `each` for rows. Use `query(path)` for a dynamic path inside effects.
+Derive state with `reaction`, react to a source change with `watch` and use `each` for rows. `reaction.each` also accepts a plain object handle and tracks one field per own enumerable string key. Use `query(path)` for a dynamic path inside effects.
 
 ```ts
 const effects = defineEffects<Values>(({ reaction, watch, query }) => {
@@ -165,7 +165,7 @@ comboOptions(table, selection, dim, { disabledWhen? }?): ComboOption[]    // Ava
 ## Errors and messages
 
 ```ts
-class ShikiUsageError extends Error      // Development errors include mutating snapshots, rereading writes, treating handles as arrays, misspelled states,
+class ShikiUsageError extends Error      // Development errors include mutating read-only views, rereading a flag just written, treating handles as arrays, misspelled states,
                                          // unknown rule keys, undefined components or an ArrayField on a non-array. The error suggests a correction.
 class ShikiCycleError extends Error      // Effects did not converge in ten passes. The cycle lists the chain.
 class ShikiConflictError extends Error   // Two reactions write the same state. Inspect state, first and second.

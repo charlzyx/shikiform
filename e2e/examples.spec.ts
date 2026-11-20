@@ -191,6 +191,19 @@ test.describe('linkage', () => {
     await expect(pre(scope)).toHaveText('{"invoice":false}')
   })
 
+  test('the guide adds, edits and removes a dynamic object field', async ({ page }) => {
+    await gotoHydrated(page, '/guide/linkage')
+    const fees = page.getByRole('form', { name: '附加费用' })
+    const free = fees.getByText('免费', { exact: true })
+    await fees.getByRole('button', { name: '添加费用' }).click()
+    await expect(free).toHaveCount(2)
+    await fees.getByLabel('fee2', { exact: true }).fill('12')
+    await expect(free).toHaveCount(1)
+    await fees.getByRole('button', { name: '删除 fee1' }).click()
+    await expect(fees.getByLabel('fee1', { exact: true })).toHaveCount(0)
+    await expect(fees.getByLabel('fee2', { exact: true })).toHaveValue('12')
+  })
+
   test('sku picker: out-of-stock combos disabled either order, price/stock/sku follow, qty capped', async ({ page }) => {
     const scope = await demo(page, 'linkage', 2)
     const opt = (label: string) => scope.getByRole('radio', { name: label, exact: true })

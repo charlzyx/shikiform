@@ -211,10 +211,26 @@ export class StateWriter {
     // equals the current one (an initial value that is already right). It stays in the submit payload unless
     // this field is omitted (its own `omit`, or an ancestor's).
     if (fromReaction) store.ensure(path).computed = true
-    const old = getAt(store.values, path)
-    if (deepEqual(old, value)) return false
     const before = store.values
-    store.values = setAt(store.values, path, value)
+    const parent = parentPath(path) ?? ''
+    const owner = getAt(before, parent)
+    const key = path.slice(parent ? parent.length + 1 : 0)
+    const old = getAt(before, path)
+    const missing = !!path && (owner == null || !Object.hasOwn(owner, key))
+    if (deepEqual(old, value) && !(missing && owner && typeof owner === 'object' && !Array.isArray(owner))) return false
+    store.values = setAt(before, path, value)
+    if (missing) {
+      scheduler.markDirty(`${parent}:keys`)
+      // A deep write can create several missing object keys in one operation.
+      let child = parent
+      while (child) {
+        const ancestor = parentPath(child) ?? ''
+        const container = getAt(before, ancestor)
+        if (container != null && Object.hasOwn(container, child.slice(ancestor ? ancestor.length + 1 : 0))) break
+        scheduler.markDirty(`${ancestor}:keys`)
+        child = ancestor
+      }
+    }
     this.deps.carryRowIdentity?.(path, before, store.values)
     notifier.bumpPath(path)
     // A changed value invalidates external (`setErrors`) messages on this path, its ancestors and descendants.
@@ -230,18 +246,20 @@ export class StateWriter {
       scheduler.markStructure(path)
       declarations.applyItemTemplates()
     }
-    if ((value != null && typeof value === 'object') || (old != null && typeof old === 'object')) this.dirtyUnder(path)
+    if ((value != null && typeof value === 'object') || (old != null && typeof old === 'object')) this.dirtyUnder(path, before)
     return true
   }
 
-  private dirtyUnder(path: string): void {
+  private dirtyUnder(path: string, before: unknown): void {
     const { store, notifier, scheduler } = this.deps
     const prefix = path + '.'
     // Effects' recorded reads, and `useWatch` / `<Watch>` subscriptions: replacing `editor` changes `editor.open`.
     for (const keys of [scheduler.depKeys(), notifier.depListenerKeys()]) {
       for (const dep of keys) {
         const depPath = dep.slice(0, dep.lastIndexOf(':'))
-        if (depPath === path || depPath.startsWith(prefix)) scheduler.markDirty(dep)
+        if (!path || depPath === path || depPath.startsWith(prefix)) {
+          scheduler.markReplaced(dep, depPath, before, store.values)
+        }
       }
     }
     for (const fieldPath of store.fields.keys()) {
@@ -495,6 +513,7 @@ export class StateWriter {
     if (!Object.prototype.hasOwnProperty.call(owner, key)) return false
     const next = { ...(owner as Record<string, unknown>) }
     delete next[key]
+    scheduler.markDirty(`${parent ?? ''}:keys`)
     const before = store.values
     store.values = (parent === null ? next : setAt(store.values, parent, next)) as typeof store.values
     this.deps.carryRowIdentity?.(parent ?? path, before, store.values)
@@ -505,7 +524,7 @@ export class StateWriter {
       cursor = parentPath(cursor)
     }
     scheduler.markDirty(':value')
-    this.dirtyUnder(path)
+    this.dirtyUnder(path, before)
     notifier.bumpPath(path)
     return true
   }

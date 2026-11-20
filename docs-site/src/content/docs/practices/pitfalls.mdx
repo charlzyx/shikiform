@@ -3,7 +3,7 @@ title: 常见的坑
 description: 解构 handle、原地修改不可变快照、同轮回读、重复路径前缀与反应式写法中的常见错误对照。
 ---
 
-开发环境下，下列误用会抛出 `ShikiUsageError` 并提示修改写法（生产构建跳过这部分运行时检查）。
+有些误用会在开发环境抛出 `ShikiUsageError`，有些只是让联动订阅了意料之外的路径。
 
 ## 解构 handle
 
@@ -12,11 +12,11 @@ description: 解构 handle、原地修改不可变快照、同轮回读、重复
 ### 不要解构 `$value` 后再尝试赋值
 
 ```ts
-const { $value } = d.user
+let { $value } = d.user.name
 $value = 'Ada'
 ```
 
-`$value` 返回的是当前值的快照副本，对局部变量重新赋值不会改变表单内部的状态。正确做法是保留子字段的 handle 再赋值：
+上例只改变局部变量，表单里的姓名保持原值。正确做法是保留子字段的 handle 再赋值：
 
 ```ts
 const { name } = d.user
@@ -32,12 +32,12 @@ const copy = { ...d.user }
 Object.keys(d.user)
 ```
 
-draft handle 是路径代理而不是普通数据对象，因此不支持枚举属性键或展开。在开发环境下执行以上操作会直接抛出 `ShikiUsageError`。需要读取或拷贝整份数据时，应访问 `d.user.$value`：
+draft handle 是路径代理而不是普通数据对象，因此不支持枚举属性键或展开。在开发环境下执行以上操作会直接抛出 `ShikiUsageError`。要列出对象的键，请对 `d.user.$value` 调用 `Object.keys`：
 
 ```ts
 const { name } = d.user
 name.$value
-const copy = d.user.$value
+const keys = Object.keys(d.user.$value)
 ```
 
 ### 不要对数组字段的 handle 进行数组解构
@@ -81,6 +81,21 @@ form.setValue('user.name', 'Ada')
 `structuredClone(form.values)`、`postMessage` 和 IndexedDB 在开发环境会抛 `DataCloneError`（视图是 Proxy），生产环境不会。纯数据副本是 `snapshot(form.values)`（含 `omit` 字段，来自 `@shikiform/core`）。只要提交结果时用 `getSubmitValues()`。`toRaw(value)` 是底层对象本身，改它不会通知订阅者。
 
 被 `Object.freeze` 深冻结的数据（immer / Redux）读出来不会因为 Proxy 不变量抛 `TypeError`。不可配置且不可写的子属性按原对象返回，它本身已经不能改。
+
+## 动态键写入时，留意读了哪一级
+
+`d.overrides[id].$value = price` 直接定位并写入一个字段。如果先展开 `d.overrides.$value` 再赋值，就额外读取了整张价格表；在 reaction 里，其他 SKU 的价格变化也会唤醒它。
+
+```ts
+watch.each((d) => d.rows, (row, { d }) => {
+  const id = row.id.$value
+  if (id) d.overrides[id].$value = row.price.$value
+})
+```
+
+`watch.each` 遇到新行时会先执行一次回调，收集读取的状态，并丢弃这次对字段的赋值。上例只订阅该行的 ID 和价格。回调里的目标字段用 handle 赋值；在首次收集期间，对读出的 `$value` 对象改属性或对数组调用 `push`，开发环境可能抛出只读错误。
+
+如果要在来源变化时追加一次行，把 `d.items.$value.push(row)` 放在 `watch(source, action)` 的动作回调里。在 `reaction` 中无条件 `push` 会反复读取并改变同一个数组，可能形成循环。按对象键派生状态、渲染动态输入框的完整示例见[动态对象字段](/guide/linkage#动态对象字段)。
 
 ## 在同一轮联动中读回刚写入的旗标
 

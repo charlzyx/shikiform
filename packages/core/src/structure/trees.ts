@@ -126,7 +126,8 @@ export class TreeOps {
     const newIds = locateIds(next, path, cfg.childrenKey, cfg.rowKey)
     store.onReindex?.(reindexById(store.fields, oldIds, newIds))
     store.onReindexIds?.(oldIds, newIds)
-    store.values = setAt(store.values, path, next)
+    const previous = store.values
+    store.values = setAt(previous, path, next)
     store.onRestructure?.()
     const beforePos = new Map(listPositions(before, path, cfg.childrenKey, cfg.rowKey).map((n) => [posKey(n.pos), n.id]))
     const afterPos = new Map(listPositions(next, path, cfg.childrenKey, cfg.rowKey).map((n) => [posKey(n.pos), n.id]))
@@ -135,7 +136,7 @@ export class TreeOps {
       if (beforePos.get(key) !== afterPos.get(key)) dirty.add(key)
     }
     scheduler.dirtyPos.set(path, dirty)
-    scheduler.markStructure(path)
+    scheduler.markStructure(path, previous, store.values)
     for (let cursor: string | null = path; cursor; cursor = parentPath(cursor)) scheduler.markDirty(`${cursor}:value`)
     scheduler.markDirty(':value')
     scheduler.enqueueFromDirty()

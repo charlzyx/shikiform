@@ -1,9 +1,10 @@
 import { orderBufferedWrites } from '../draft/pending'
 import { ShikiConflictError, ShikiCycleError, ShikiUsageError, showDraftPath, showStateKey } from '../errors'
-import { parentPath, selfAndAncestors } from '../shared/path'
+import { deepEqual } from '../shared/equal'
+import { getAt, parentPath, selfAndAncestors } from '../shared/path'
 import type { Notifier } from '../state/notifier'
 import type { Pos } from '../shared/tree-ops'
-import type { Draft, WriteOp } from '../types'
+import type { WriteOp } from '../types'
 
 /** One running reaction / watch / selector. Reads become deps, writes are buffered. */
 export interface Tracker {
@@ -18,9 +19,8 @@ export interface Tracker {
 
 /** Bookkeeping for one `reaction.each` installation. */
 export interface EachRec {
-  select: (d: Draft<any>) => unknown
   effect: Function
-  arrayPath: string
+  path: string
   instances: Set<string>
   first: boolean
 }
@@ -77,6 +77,8 @@ export class Scheduler {
   private depIndex = new Map<string, Set<string>>()
   private reactionDeps = new Map<string, Set<string>>()
   private writeOwners = new Map<string, string>()
+  /** All keys claimed over the lifetime of a disposable each instance (development only). */
+  private ownedByInstance = new Map<string, Set<string>>()
   private queued = new Set<string>()
   /** Keys changed since the last enqueue. */
   readonly dirtyDeps = new Set<string>()
@@ -208,8 +210,18 @@ export class Scheduler {
   }
 
   dropDeps(id: string): void {
-    this.setDeps(id, new Set())
+    for (const dep of this.reactionDeps.get(id) ?? []) {
+      const subscribers = this.depIndex.get(dep)
+      subscribers?.delete(id)
+      if (!subscribers?.size) this.depIndex.delete(dep)
+    }
+    this.reactionDeps.delete(id)
     this.runners.delete(id)
+    this.queued.delete(id)
+    this.runs.delete(id)
+    this.lastWrites.delete(id)
+    for (const key of this.ownedByInstance.get(id) ?? []) this.writeOwners.delete(key)
+    this.ownedByInstance.delete(id)
   }
 
   /** Every dep key some runner currently reads. */
@@ -236,9 +248,9 @@ export class Scheduler {
 
   /** Two different reactions writing the same key is a dev error. Watches may share keys. */
   private claimOwner(id: string, key: string): void {
-    if (!isReactionId(id)) return
+    if (process.env.NODE_ENV === 'production' || !isReactionId(id)) return
     const owner = this.writeOwners.get(key)
-    if (owner && owner !== id && process.env.NODE_ENV !== 'production') {
+    if (owner && owner !== id) {
       throw new ShikiConflictError(
         key,
         owner,
@@ -249,14 +261,39 @@ export class Scheduler {
       )
     }
     this.writeOwners.set(key, id)
+    if (id.startsWith('each:')) {
+      let keys = this.ownedByInstance.get(id)
+      if (!keys) this.ownedByInstance.set(id, (keys = new Set()))
+      keys.add(key)
+    }
   }
 
   markDirty(dep: string): void {
     this.dirtyDeps.add(dep)
   }
 
+  /** Whole-object writes wake ordinary descendant readers. Object entries keep per-key value precision. */
+  markReplaced(dep: string, path: string, before: unknown, after: unknown): void {
+    const readers = this.depIndex.get(dep)
+    if (readers && [...readers].some(isObjectEntry) && deepEqual(getAt(before, path), getAt(after, path))) {
+      for (const id of readers) if (!isObjectEntry(id)) this.queue(id)
+      this.notifier.bumpDep(dep)
+    } else {
+      this.markDirty(dep)
+    }
+  }
+
   /** Bump the structure version of `path` and dirty `:structure` on it and its ancestors. */
-  markStructure(path: string): void {
+  markStructure(path: string, before?: unknown, after?: unknown): void {
+    // A record selected inside a moved row now belongs to a different occupant.
+    if (before !== undefined) {
+      for (const [id, rec] of this.eachRecs) {
+        if (!rec.path.startsWith(path + '.') || !this.depIndex.get(`${rec.path}:keys`)?.has(id)) continue
+        if (getAt(before, rec.path) === getAt(after, rec.path)) continue
+        this.queue(id)
+        for (const inst of rec.instances) this.queue(inst)
+      }
+    }
     this.notifier.bumpStructure(path)
     let cursor: string | null = path
     while (cursor) {
@@ -308,10 +345,12 @@ export class Scheduler {
         const ids = [...this.queued]
         this.queued.clear()
         for (const id of ids) {
+          const run = this.runners.get(id)
+          if (!run) continue
           this.trace.push(id)
           this.runs.set(id, (this.runs.get(id) ?? 0) + 1)
           if (this.devtools) console.debug('[shikiform]', id)
-          this.runners.get(id)?.()
+          run()
         }
       }
     } finally {
@@ -320,6 +359,10 @@ export class Scheduler {
       this.notifier.emit()
     }
   }
+}
+
+function isObjectEntry(id: string): boolean {
+  return /^each:\d+@/.test(id)
 }
 
 function list(items: string[]): string {

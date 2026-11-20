@@ -234,6 +234,24 @@ function eachSharedKeys() {
   })
 }
 
+function objectEachTypes() {
+  type Values = { extra: Record<string, { count: number }>; user: { name: string; age?: number } }
+  defineEffects<Values>(({ reaction }) => {
+    reaction.each((d) => d.extra, (entry, ctx) => {
+      entry.count.$value satisfies number
+      ctx.key satisfies string
+      // @ts-expect-error a record entry has no array position
+      void ctx.index
+    })
+    reaction.each((d) => d.user, (entry, ctx) => {
+      const key: Expect<Equal<typeof ctx.key, 'name' | 'age'>> = true
+      const value: Expect<Equal<typeof entry.$value, string | number | undefined>> = true
+      void [key, value]
+    })
+  })
+}
+
+void objectEachTypes
 void pathsAndEach
 void submitWithTypeArg
 void eachSharedKeys
