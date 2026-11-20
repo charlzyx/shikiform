@@ -2,7 +2,7 @@ import type { Declarations } from '../declarations/declarations'
 import { isReactionId, type Scheduler } from '../effects/scheduler'
 import { asOptions, isEnumBinding, toEnumBinding, type EnumBinding, type EnumOption } from '../enum/enum-source'
 import { cloneExternal, resetExternalCloneTraversal } from '../draft/plain-clone'
-import { tagPending } from '../draft/pending'
+import { tagPending, type CellAnchor, type PendingValue } from '../draft/pending'
 import { unwrapDraft } from '../draft/patch'
 import { unwrapReadonly } from '../draft/readonly'
 import { showDraftPath } from '../errors'
@@ -62,9 +62,9 @@ export class StateWriter {
   }
 
   /** Draft write entry point (`DraftHost.writeState`). */
-  writeState(path: string, key: string, value: unknown): void {
+  writeState(path: string, key: string, value: unknown, anchors?: readonly CellAnchor[]): void {
     value = storedValue(value)
-    const op = this.makeOp(path, key, value)
+    const op = this.makeOp(path, key, value, anchors)
     this.enqueue(op, !!this.deps.ui?.isUiOp(op))
   }
 
@@ -72,10 +72,12 @@ export class StateWriter {
    * A draft array mutator on a value path. One op replaces the array; `ArrayOps` reindexes rows when it applies.
    * The op key matches a whole `$value` write so a later `push` in the same pass sees this array.
    */
-  writeArray(path: string, next: unknown[]): void {
+  writeArray(path: string, next: unknown[], base?: readonly unknown[]): void {
     const value = storedValue(next) as unknown[]
-    const op: WriteOp = { key: `${path}:value`, apply: () => this.deps.commitArray?.(path, value) ?? false }
-    tagPending(op, { kind: 'value', path, mode: 'mutate', value })
+    // `pending.path` is retargeted when a parent array op in the same pass moves this array.
+    const pending: PendingValue = { kind: 'value', path, mode: 'mutate', value, base }
+    const op: WriteOp = { key: `${path}:value`, apply: () => this.deps.commitArray?.(pending.path, value) ?? false }
+    tagPending(op, pending)
     this.enqueue(op, false)
   }
 
@@ -267,13 +269,23 @@ export class StateWriter {
     }
   }
 
-  private makeOp(path: string, key: string, value: unknown): WriteOp {
+  private makeOp(path: string, key: string, value: unknown, anchors?: readonly CellAnchor[]): WriteOp {
     const uiKey = uiKeyOf(key)
     if (uiKey && this.deps.ui) return this.deps.ui.makeOp(path, uiKey, value)
     if (key === '$value') {
       const fromReaction = isReactionId(this.deps.scheduler.current()?.id ?? '')
-      const op: WriteOp = { key: `${path}:value`, apply: () => this.commitValue(path, value, fromReaction) }
-      tagPending(op, { kind: 'value', path, mode: 'set', value })
+      const pending: PendingValue = {
+        kind: 'value',
+        path,
+        mode: 'set',
+        value,
+        anchors: anchors?.length ? anchors : undefined,
+      }
+      const op: WriteOp = {
+        key: `${path}:value`,
+        apply: () => (pending.drop ? false : this.commitValue(pending.path, pending.value, fromReaction)),
+      }
+      tagPending(op, pending)
       return op
     }
     if (key === '$visible' || key === '$disabled' || key === '$readOnly' || key === '$omit') {
