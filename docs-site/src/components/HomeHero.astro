@@ -244,7 +244,13 @@ const english = language === "en";
   }
 
   /* Right Code Stage — 宣纸 (Light) & 玄墨 (Dark) 双主题自适应 */
+  .sf-hero__stage {
+    min-width: 0;
+  }
   .sf-hero__terminal {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
     border-radius: 10px;
     background: var(--nb-card);
     color: var(--nb-foreground);
@@ -258,6 +264,8 @@ const english = language === "en";
   }
   .sf-hero__terminal-bar {
     display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
     align-items: center;
     justify-content: space-between;
     padding-bottom: 11px;
@@ -278,6 +286,8 @@ const english = language === "en";
     font-weight: 500;
   }
   .sf-hero__code {
+    min-width: 0;
+    max-width: 100%;
     margin: 0;
     font-family: var(--nb-font-mono, ui-monospace, monospace);
     font-size: 12.5px;
@@ -368,7 +378,7 @@ const english = language === "en";
       padding: 40px 16px 28px;
     }
     .sf-hero__top {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
       gap: 32px;
     }
     .sf-hero__pillars {
