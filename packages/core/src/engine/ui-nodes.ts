@@ -142,7 +142,10 @@ export class UiNodes {
     if (recording(this.scheduler) && OBJECT_UI_KEYS.has(uiKey) && isPatchable(own)) {
       return createPatchDraft(
         () => this.ui.live(id, uiKey),
-        (keys, next) => this.write(path, name, `$${uiKey}`, uiNestedWrite(keys, next)),
+        (keys, next) => {
+          assertUiDraftOpen(this.scheduler, path, name, uiKey)
+          this.write(path, name, `$${uiKey}`, uiNestedWrite(keys, next))
+        },
       )
     }
     return own
@@ -272,6 +275,18 @@ function uiFlag(reaction: boolean | undefined, jsx: boolean | undefined, fallbac
   if (reaction !== undefined) return reaction
   if (jsx !== undefined) return jsx
   return fallback
+}
+
+function assertUiDraftOpen(scheduler: Scheduler, path: string, name: string, key: string): void {
+  const tracker = scheduler.current()
+  if (tracker?.recordWrites || scheduler.batchDepth > 0 || tracker) return
+  if (process.env.NODE_ENV === 'production') return
+  const shown = `${showDraftPath(path)}.$ui(${JSON.stringify(name)}).$${key}`
+  throw new ShikiUsageError(
+    `${shown} was changed after the reaction, watch, or batch that read it returned. ` +
+      `A draft is only writable inside that pass. After it returns, including after await, ` +
+      `write with form.batch((d) => { … }).`,
+  )
 }
 
 function recording(scheduler: Scheduler): boolean {

@@ -111,6 +111,7 @@ export class ArrayOps {
   /**
    * Commit an array produced by a draft mutator (`push`, `splice`, `sort`, a hole from `delete`).
    * Rows already in `before` keep their object identity so field models follow them. New objects are copied.
+   * The same object in a second slot is copied too, so one reference is not two row identities.
    * Indexes whose occupant changed are the only `dirtyRows`. A no-op (same elements, same holes) writes nothing.
    */
   commitNext(path: string, next: unknown[]): boolean {
@@ -122,10 +123,15 @@ export class ArrayOps {
       const row = before[i]
       if (row && typeof row === 'object') known.add(row)
     }
+    // A row already in `before` keeps its object. The same object in a second slot is a copy:
+    // one reference cannot be two row identities, and a later edit of one slot must not change the other.
+    const seen = new Set<object>()
     for (let i = 0; i < stored.length; i++) {
       if (!Object.prototype.hasOwnProperty.call(stored, i)) continue
       const row = stored[i]
-      if (row && typeof row === 'object' && !known.has(row)) stored[i] = copyData(row)
+      if (!row || typeof row !== 'object') continue
+      if (seen.has(row) || !known.has(row)) stored[i] = copyData(row)
+      seen.add(row)
     }
     const rowKey = this.arrays.get(path)?.rowKey
     const beforeIds = occupantIds(this, before, rowKey)

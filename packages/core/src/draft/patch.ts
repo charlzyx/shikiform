@@ -134,7 +134,7 @@ export function unwrapDraft(value: unknown, seen?: WeakSet<object>): unknown {
  */
 export function createPatchDraft(
   read: () => unknown,
-  write: (keys: string[], value: unknown, kind: DraftWriteKind) => void,
+  write: (keys: string[], value: unknown, kind: DraftWriteKind, base?: unknown) => void,
   keys: string[] = [],
   readStructural?: () => unknown,
 ): any {
@@ -165,7 +165,7 @@ export function createPatchDraft(
             if (!Array.isArray(live)) return method.apply(live, args.map((arg) => unwrapDraft(arg)))
             const copy = live.slice()
             const ret = method.apply(copy, args.map((arg) => unwrapDraft(arg)))
-            write(keys, copy, 'mutate')
+            write(keys, copy, 'mutate', live)
             return RETURNS_PROXY.has(prop) ? proxy : ret
           }
         }
@@ -185,7 +185,7 @@ export function createPatchDraft(
         copy.length = value as number
         // Growing `length` leaves holes. Own `undefined` slots keep the copy dense.
         for (let i = prev; i < copy.length; i++) copy[i] = undefined
-        write(keys, unwrapDraft(copy), 'mutate')
+        write(keys, unwrapDraft(copy), 'mutate', node)
         return true
       }
       write([...keys, String(prop)], unwrapDraft(value), 'set')

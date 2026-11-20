@@ -6,13 +6,13 @@
  */
 
 import type { Declarations } from '../declarations/declarations'
-import { joinKeys, pendingEnum, pendingRules, projectValue } from '../draft/pending'
+import { joinKeys, latestMutate, pendingEnum, pendingRules, projectValue, type CellAnchor } from '../draft/pending'
 import { createPatchDraft, DELETE, isPatchable, setIn } from '../draft/patch'
 import { readonlyValue } from '../draft/readonly'
 import type { Scheduler } from '../effects/scheduler'
 import { asOptions, isEnumBinding, toEnumBinding, type EnumBinding } from '../enum/enum-source'
 import { showDraftPath, ShikiUsageError } from '../errors'
-import { arrayIndex, deleteArrayIndex } from '../shared/dense-array'
+import { arrayIndex, deleteArrayIndex, hasArrayIndex } from '../shared/dense-array'
 import { getAt, parentPath } from '../shared/path'
 import { OBJECT_UI_KEYS, type UiKey } from '../state/field-model'
 import type { FieldStore } from '../state/field-store'
@@ -40,7 +40,7 @@ export class EffectDrafts {
     const preview = () => projectValue(getAt(this.deps.store.values, path), path, pendingOps(this.deps.scheduler), false)
     const structural = () => projectValue(getAt(this.deps.store.values, path), path, pendingOps(this.deps.scheduler), true)
     if (!isPatchable(preview())) return preview()
-    return createPatchDraft(preview, (keys, value, kind) => this.commitValue(path, keys, value, kind), [], structural)
+    return createPatchDraft(preview, (keys, value, kind, base) => this.commitValue(path, keys, value, kind, base), [], structural)
   }
 
   readUiKey(path: string, key: UiKey): unknown {
@@ -48,7 +48,10 @@ export class EffectDrafts {
     if (!recording(this.deps.scheduler) || !OBJECT_UI_KEYS.has(key) || !isPatchable(value)) return value
     return createPatchDraft(
       () => this.deps.fieldUi.live(path, key),
-      (keys, next) => this.deps.writer.writeState(path, `$${key}`, uiNestedWrite(keys, next)),
+      (keys, next) => {
+        this.assertOpen(path, `$${key}`)
+        this.deps.writer.writeState(path, `$${key}`, uiNestedWrite(keys, next))
+      },
     )
   }
 
@@ -56,6 +59,7 @@ export class EffectDrafts {
     const list = () => this.enumList(path, options)
     if (!recording(this.deps.scheduler) || !isPatchable(list())) return list()
     return createPatchDraft(list, (keys, value, kind) => {
+      this.assertOpen(path, '$enum')
       if (this.enumBinding(path)) throw enumBindingMutation(path)
       const base = list()
       const next = keys.length === 0 && kind === 'mutate' ? value : setIn(Array.isArray(base) ? base : [], keys, kind === 'delete' ? DELETE : value)
@@ -67,15 +71,17 @@ export class EffectDrafts {
     const list = () => pendingRules(pendingOps(this.deps.scheduler), path) ?? rules
     if (!recording(this.deps.scheduler) || !Array.isArray(list())) return list()
     return createPatchDraft(list, (keys, value, kind) => {
+      this.assertOpen(path, '$rules')
       const base = list()
       const next = keys.length === 0 && kind === 'mutate' ? value : setIn(Array.isArray(base) ? base : [], keys, kind === 'delete' ? DELETE : value)
       this.deps.writer.writeState(path, '$rules', next)
     })
   }
 
-  private commitValue(path: string, keys: string[], value: unknown, kind: 'set' | 'mutate' | 'delete'): void {
+  private commitValue(path: string, keys: string[], value: unknown, kind: 'set' | 'mutate' | 'delete', base?: unknown): void {
+    this.assertOpen(joinKeys(path, keys), '$value')
     if (kind === 'mutate') {
-      this.commitArray(joinKeys(path, keys), value as unknown[])
+      this.commitArray(joinKeys(path, keys), value as unknown[], Array.isArray(base) ? base : undefined)
       return
     }
     if (kind === 'delete') {
@@ -92,18 +98,60 @@ export class EffectDrafts {
       if (Array.isArray(parentValue) && index !== undefined) {
         const next = parentValue.slice()
         deleteArrayIndex(next, index)
-        this.commitArray(parent ?? '', next)
+        this.commitArray(parent ?? '', next, parentValue as unknown[])
         return
       }
       this.deps.writer.dropField(target)
       return
     }
-    this.deps.writer.writeState(joinKeys(path, keys), '$value', value)
+    const full = joinKeys(path, keys)
+    this.deps.writer.writeState(full, '$value', value, this.cellAnchors(path, keys))
   }
 
-  private commitArray(path: string, next: unknown[]): void {
+  private commitArray(path: string, next: unknown[], base?: readonly unknown[]): void {
     if (isTreeArray(this.deps.trees, path)) throw treeArrayMutation(path)
-    this.deps.writer.writeArray(path, next)
+    this.deps.writer.writeArray(path, next, base)
+  }
+
+  /**
+   * Array elements this cell write addressed. Uses the pending array itself, not a `setIn` copy,
+   * so a later splice / sort can find the same object and retarget the path.
+   */
+  private cellAnchors(root: string, keys: readonly string[]): CellAnchor[] | undefined {
+    if (!keys.length) return undefined
+    const ops = pendingOps(this.deps.scheduler)
+    const anchors: CellAnchor[] = []
+    let node: unknown = latestMutate(ops, root) ?? getAt(this.deps.store.values, root)
+    const base = root ? root.split('.').length : 0
+    const prefix: string[] = []
+    for (let i = 0; i < keys.length; i++) {
+      const key = keys[i]!
+      if (Array.isArray(node)) {
+        const index = arrayIndex(key)
+        if (index !== undefined && hasArrayIndex(node, index)) {
+          anchors.push({ array: joinKeys(root, prefix), at: base + i, index, slot: node[index], list: node })
+        }
+      }
+      const child = joinKeys(root, [...prefix, key])
+      const replaced = latestMutate(ops, child)
+      node = replaced ?? (node == null ? undefined : (node as Record<string, unknown>)[key])
+      prefix.push(key)
+    }
+    return anchors.length ? anchors : undefined
+  }
+
+  /** A draft captured inside a pass and mutated after it returns would write with no subscriber context. */
+  private assertOpen(path: string, key: string): void {
+    const scheduler = this.deps.scheduler
+    const tracker = scheduler.current()
+    if (tracker?.recordWrites || scheduler.batchDepth > 0 || tracker) return
+    if (process.env.NODE_ENV === 'production') return
+    const shown = `${showDraftPath(path)}.${key}`
+    throw new ShikiUsageError(
+      `${shown} was changed after the reaction, watch, or batch that read it returned. ` +
+        `A draft is only writable inside that pass. After it returns, including after await, ` +
+        `write with form.batch((d) => { … }) or form.setValue(${JSON.stringify(path)}, …).`,
+    )
   }
 
   private enumList(path: string, options: readonly unknown[]): unknown {

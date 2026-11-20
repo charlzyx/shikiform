@@ -156,20 +156,22 @@ export class Scheduler {
   }
 
   /**
-   * Development guard: reading a flag this reaction / watch already wrote in the same pass sees the old value
-   * (that write is buffered until the pass returns). `$value`, `$enum`, `$rules`, and UI state replay pending
-   * writes, so a second read sees the new value and is not checked here.
+   * Development guard: reading a flag this reaction / watch / batch already wrote in the same pass sees the
+   * old value (that write is buffered until the pass returns). `$value`, `$enum`, `$rules`, and UI state replay
+   * pending writes, so a second read sees the new value and is not checked here.
    */
   assertNotWritten(path: string, draftKey: string): void {
-    const tracker = this.stack.at(-1)
-    if (!tracker?.recordWrites || !tracker.writes.length) return
     const state = WRITTEN_STATE[draftKey]
     if (!state) return
+    const tracker = this.stack.at(-1)
+    const writes = tracker?.recordWrites ? tracker.writes : this.batchDepth > 0 ? this.batchOps : undefined
+    if (!writes?.length) return
     const key = `${path}:${state}`
-    if (!tracker.writes.some((op) => op.key === key)) return
+    if (!writes.some((op) => op.key === key)) return
     const shown = `${showDraftPath(path)}.${draftKey}`
+    const where = tracker?.recordWrites ? (isReactionId(tracker.id) ? 'reaction' : 'watch') : 'batch'
     throw new ShikiUsageError(
-      `Read ${shown} after writing it in the same ${isReactionId(tracker.id) ? 'reaction' : 'watch'}. ` +
+      `Read ${shown} after writing it in the same ${where}. ` +
         `Writes are buffered until the pass returns, so this read sees the old value. ` +
         `Keep the new value in a local: const next = …; ${shown} = next; then use next.`,
     )
@@ -231,7 +233,8 @@ export class Scheduler {
 
   applyWrites(id: string, writes: WriteOp[]): void {
     // Array mutates (including a hole from `delete`) land before cell `$value` writes under that array,
-    // so a name edit and a later `push` in either order both survive.
+    // so a name edit and a later `push` in either order both survive. Cells are retargeted to the
+    // element they addressed when a splice / sort / reverse moved that index.
     const ordered = orderBufferedWrites(writes)
     if (process.env.NODE_ENV !== 'production' && isReactionId(id)) this.lastWrites.set(id, ordered.map((op) => op.key))
     for (const op of ordered) {

@@ -31,7 +31,7 @@ export function removeArrayIndex(array: unknown[], index: number): void {
 }
 
 /** True when `index` is an own element. A hole, or an index at or past `length`, is false. */
-export function hasArrayIndex(array: unknown[], index: number): boolean {
+export function hasArrayIndex(array: readonly unknown[], index: number): boolean {
   return index >= 0 && index < array.length && Object.prototype.hasOwnProperty.call(array, index)
 }
 
