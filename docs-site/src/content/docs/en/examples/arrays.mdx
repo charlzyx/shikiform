@@ -14,8 +14,8 @@ import { enUS, defineEffects, Form, Submit, typed, useArrayField, useField, useF
 type Line = { sku: string; price: number | null; qty: number | null; total: number };
 type Values = { lines: Line[] };
 
-const effects = defineEffects<Values>(({ reaction }) => {
-  reaction.each((d) => d.lines, (row) => {
+const effects = defineEffects<Values>(({ reaction, draft }) => {
+  reaction.each(draft.lines, (row) => {
     const total = (row.price.$value ?? 0) * (row.qty.$value ?? 0);
     row.total.$value = total;
   });
@@ -99,13 +99,13 @@ import { enUS, ArrayField, Field, Form, ObjectField, Watch, defineEffects, useFi
 type Order = { id: string; title: string; qty: number; shipped: boolean };
 type Values = { editable: boolean; profile: { name: string; address: { city: string; street: string } }; orders: Order[] };
 
-const effects = defineEffects<Values>(({ reaction }) => {
+const effects = defineEffects<Values>(({ reaction, draft }) => {
   reaction((d) => {
     const readOnly = d.editable.$value ? undefined : true; // undefined inherits the parent state.
     d.profile.$readOnly = readOnly;
     d.orders.$readOnly = readOnly;
   });
-  reaction.each((d) => d.orders, (row) => {
+  reaction.each(draft.orders, (row) => {
     row.qty.$readOnly = row.shipped.$value ? true : undefined;
   });
 });

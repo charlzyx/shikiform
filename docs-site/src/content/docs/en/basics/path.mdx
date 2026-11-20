@@ -8,10 +8,14 @@ description: "Read and write individual values inside and outside an effect."
 Use `form.getValue` and `form.setValue` outside an effect. Inside a reaction, watch or batch, follow the draft to the target path. Numeric segments can be written as `items.0.qty` or `items[0].qty`.
 
 ```ts
-// Use draft handles in effects and batches. Use query for a dynamic path in effects.
+// Inside reaction, watch, or batch, walk a draft handle. Indexes and runtime keys are handles too.
 d.orders[0].lines[2].qty.$value
 d.orders[0].lines[2].qty.$value = 4
-query('orders.0.lines.2.qty').$value
+d.items[i].qty.$value
+d.extra[key].$value
+
+// query is only for a path that is already a string (pathOf, config, or a prop such as rowsPath).
+query(pathOf('menus', pos)).$disabled = true
 
 // Read and write the form directly outside effects.
 form.getValue('orders[0].lines[2].qty')
@@ -19,7 +23,7 @@ form.setValue('orders[0].lines[2].qty', 4)
 form.getValue('orders.0.lines.2.qty')
 ```
 
-Updating `d.user.name.$value` notifies readers of that field. Inside an effect, `d.user.$value.name = 'x'` is that same write. Replacing `d.user.$value` replaces the whole record. `getValue` and `form.values` stay read-only in development.
+Updating `d.user.name.$value` notifies readers of that field. Inside an effect, `d.user.$value.name = 'x'` is that same write. Replacing `d.user.$value` replaces the whole record. A path you can spell on the draft stays a handle, including `d.items[i].qty` and `d.extra[key]`. `query(path)` is untyped and is the escape hatch for a string, for example `query(pathOf('menus', pos)).$disabled = true` inside an effect. `getValue` and `form.values` stay read-only in development.
 
 ```tsx preview
 import { enUS, Field, Form, useForm } from '@shikiform/react';

@@ -5,11 +5,13 @@ description: "Derive state, run actions after changes and scope effects to each 
 Use `defineEffects` to group related effects. In a draft, plain properties select a path and `$` properties access state.
 
 ```ts
-const effects = defineEffects<Values>(({ reaction, watch }) => {
+const effects = defineEffects<Values>(({ reaction, watch, draft }) => {
   reaction((d) => { /* Track the states read during derivation. */ })
-  watch((d) => d.province.$value, (d) => { /* Run only after the source changes. */ })
+  watch(draft.province, (d) => { /* Watches province.$value. watch((d) => d.province.$value, …) is the same source. */ })
 })
 ```
+
+`draft` is the same root handle the callbacks receive as `d`. Use it to name a path at registration. Walking `draft.a.b` does not read a value. A `$` read in the factory body returns the current value and is not a dependency; in development, objects and arrays are read-only views. A `$` write there throws in development. Write inside `reaction` or `watch`.
 
 ## Derive state and respond to changes
 
@@ -26,7 +28,7 @@ const CITIES: Record<string, { label: string; value: string }[]> = {
   js: [{ label: "Nanjing", value: 'nj' }, { label: "Suzhou", value: 'sz' }],
 };
 
-const effects = defineEffects<Values>(({ reaction, watch }) => {
+const effects = defineEffects<Values>(({ reaction, watch, draft }) => {
   // Run immediately and recalculate when price or quantity changes.
   reaction((d) => {
     d.amount.$value = d.price.$value * d.qty.$value;
@@ -38,7 +40,7 @@ const effects = defineEffects<Values>(({ reaction, watch }) => {
     d.city.$disabled = !d.province.$value;
   });
   // Clear the city after a province change. Keep the initial selection on mount.
-  watch((d) => d.province.$value, (d) => {
+  watch(draft.province, (d) => {
     d.city.$value = '';
   });
 });
@@ -95,10 +97,10 @@ export default function App() {
 
 ## One reaction per row
 
-`reaction.each(select, callback)` creates a separate instance for each row. Editing a quantity only recalculates that row's subtotal.
+`reaction.each(draft.items, callback)` creates a separate instance for each row. `draft` comes from `defineEffects`, and the path is taken once at registration. The selector `(d) => d.items` still works and is re-read every pass, which is how a changing key is followed. Editing a quantity only recalculates that row's subtotal.
 
 ```ts
-reaction.each((d) => d.items, (row, ctx) => { … })
+reaction.each(draft.items, (row, ctx) => { … })
 // ctx includes key, index, depth, parent, path, pos and the root draft d.
 ```
 
@@ -113,8 +115,8 @@ import { useRef } from 'react'
 import { Form, defineEffects, typed, useForm } from '@shikiform/react'
 
 type Values = { extra: Record<string, number | null> }
-const effects = defineEffects<Values>(({ reaction }) => {
-  reaction.each((d) => d.extra, (fee) => {
+const effects = defineEffects<Values>(({ reaction, draft }) => {
+  reaction.each(draft.extra, (fee) => {
     fee.$description = fee.$value === 0 ? 'Free' : undefined
   })
 })
@@ -168,14 +170,14 @@ form.getValue('orders[0].lines[2].qty')
 ```
 
 ```ts
-reaction.each((d) => d.orders, (order, ctx) => {
+reaction.each(draft.orders, (order, ctx) => {
   if (ctx.depth !== 0) return
   order.lines[2].qty.$required = true
 })
 ```
 
 ```ts
-reaction.each((d) => d.orders, (node, ctx) => {
+reaction.each(draft.orders, (node, ctx) => {
   if (ctx.key !== 'lines' || ctx.index !== 2) return
   node.qty.$required = true
 })
@@ -193,15 +195,15 @@ type Values = { discount: number; items: Item[] };
 const PRICES: Record<string, number> = { pen: 3, book: 25, bag: 80 };
 let nextId = 3;
 
-const effects = defineEffects<Values>(({ reaction, watch }) => {
-  reaction.each((d) => d.items, (row, { d, index }) => {
+const effects = defineEffects<Values>(({ reaction, watch, draft }) => {
+  reaction.each(draft.items, (row, { d, index }) => {
     const price = PRICES[row.sku.$value] ?? 0;
     row.price.$value = price;
     row.total.$value = price * row.qty.$value * (1 - d.discount.$value / 100);
     row.sku.$required = index === 0; // The first row requires a product.
   });
   // Reset quantity when the product changes.
-  watch.each((d) => d.items, (row) => {
+  watch.each(draft.items, (row) => {
     if (row.sku.$value) row.qty.$value = 1;
   });
 });
@@ -288,8 +290,8 @@ import { enUS, Field, Form, TreeField, defineEffects, useField, useForm, useTree
 type Node = { id: string; code: string; name: string; children?: Node[] };
 type Values = { nodes: Node[] };
 
-const effects = defineEffects<Values>(({ reaction }) => {
-  reaction.each((d) => d.nodes, (node, { pos, key, depth }) => {
+const effects = defineEffects<Values>(({ reaction, draft }) => {
+  reaction.each(draft.nodes, (node, { pos, key, depth }) => {
     if (depth > 0 && key !== 'children') return;
     node.code.$value = pos.map((index) => index + 1).join('.'); // Outline numbering follows node positions.
     node.name.$required = pos.length === 1; // Only top-level nodes are required.

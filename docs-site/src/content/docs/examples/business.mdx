@@ -294,11 +294,11 @@ const STATUS = [
   { label: '已发货', value: 'shipped' },
 ];
 
-const effects = defineEffects<Values>(({ reaction }) => {
+const effects = defineEffects<Values>(({ reaction, draft }) => {
   reaction((d) => {
     d.orders.$readOnly = d.editable.$value ? undefined : true;
   });
-  reaction.each((d) => d.orders, (order, { d, depth }) => {
+  reaction.each(draft.orders, (order, { d, depth }) => {
     if (depth !== 0) return; // items 也是对象数组；这一轮只处理订单
     order.$readOnly = order.status.$value === 'shipped' ? true : undefined; // 已发货：整单预览
     order.status.$readOnly = !d.editable.$value; // false 退出父级只读；状态本身跟随总开关

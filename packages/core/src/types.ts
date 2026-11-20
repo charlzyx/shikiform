@@ -242,7 +242,7 @@ export interface EffectDef<T> {
 
 /**
  * What `defineEffects` passes to the factory.
- * `reaction` derives. `watch` reacts to a source. Both see the same draft.
+ * `reaction` derives. `watch` reacts to a source. Both see the same draft as {@link EffectsAPI.draft}.
  */
 export interface EffectsAPI<T> {
   /**
@@ -254,14 +254,28 @@ export interface EffectsAPI<T> {
    */
   reaction: ReactionFn<T>
   /**
-   * Run `effect` when the `$` state read by `source` changes.
-   * The effect does not run on the first pass. Reads inside the effect are not dependencies.
-   * `watch(d => [d.a.$value, d.b.$value], …)` is a multi-source watch.
+   * Run `effect` when a source changes. A path handle watches that field's `$value`
+   * (`watch(draft.city, …)`). A list of handles is multi-source (`watch([draft.a, draft.b], …)`).
+   * A function is the general form (`watch((d) => d.city.$value, …)`).
    */
   watch: WatchFn<T>
   /**
-   * Low-level handle for an exact path. Prefer `d.a.b` inside a reaction.
-   * The return is untyped. App code should use the draft instead.
+   * Root path handle. Name a field while effects are registered:
+   * `reaction.each(draft.items, …)`, `watch.each(draft.rows, …)`.
+   * Property access builds a path and does not read the value.
+   * This is the same handle `reaction` / `watch` / `batch` receive as `d`.
+   *
+   * `$` reads in the factory body are outside a pass. They return the current value and are not
+   * dependencies. In development, objects, arrays, `Map`, `Set`, and `Date` are read-only views;
+   * mutating one throws {@link ShikiUsageError} (the same rule as `getValue`).
+   * `$` writes in the factory body throw in development: the write would apply immediately, before
+   * later effects are installed. Put the write in `reaction((d) => …)` or `watch`.
+   * Production applies that write immediately.
+   */
+  draft: Draft<T>
+  /**
+   * Untyped handle for a path that exists only as a string (`pathOf`, config, or a prop such as `rowsPath`).
+   * A path you can spell on the draft uses that handle: `d.orders[0].lines[2].qty`, `d.items[index]`, `d.extra[key]`.
    */
   query(path: string): any
 }
@@ -359,8 +373,12 @@ export interface ReactionFn<T> {
   (effect: (d: Draft<T>) => void): void
   /**
    * One reaction per own enumerable string key of a plain object, or per element of an array and nested object arrays.
+   * Pass the path handle (`draft.items`) or a selector (`(d) => d.items`). Both infer the same row.
+   * A handle's path is read once, at registration. A selector runs again each pass, so it can follow a changing key
+   * (`(d) => d[d.active.$value]`).
    * Filter with `ctx.key` / `ctx.depth` / `ctx.pos`. Cell edits re-run that element only.
    */
+  each<A>(handle: Draft<A>, effect: (row: ReactionEntry<T, A>, ctx: ReactionEntryContext<T, A>) => void): void
   each<A>(select: (d: Draft<T>) => Draft<A>, effect: (row: ReactionEntry<T, A>, ctx: ReactionEntryContext<T, A>) => void): void
 }
 
@@ -371,15 +389,29 @@ export interface WatchFn<T> {
    * Later flushes re-fire only when one of those source keys is dirty, not when an unrelated field changes.
    * `watch` does not mark a field computed. Use it for actions, not derivations.
    * `watch((d) => [d.a.$value, d.b.$value], …)` is a multi-source watch.
+   * `watch(draft.city, …)` is the same source as `watch((d) => d.city.$value, …)`.
    */
   (source: (d: Draft<T>) => unknown, effect: (d: Draft<T>) => void): void
   /**
+   * Multi-source watch. Each handle contributes that field's `$value`, the same as reading
+   * `d.a.$value` and `d.b.$value` in a function source. An edit of either field runs `effect` once.
+   */
+  (source: readonly { readonly $path: string }[], effect: (d: Draft<T>) => void): void
+  /**
+   * Watch one field's `$value`. The path is taken at registration.
+   * Other `$` state on that field (visible, rules, …) is not a source; read it from a function.
+   */
+  (source: { readonly $path: string }, effect: (d: Draft<T>) => void): void
+  /**
    * Edge-triggered action, one instance per selected array element and nested object-array element.
+   * Pass the path handle (`draft.rows`) or a selector (`(d) => d.rows`). Both infer the same row.
+   * A handle's path is read once, at registration. A selector runs again each pass.
    * The callback's `$` reads are the source.
    * Scouted once per element (writes discarded) and applied only after those reads change.
    * An edit re-fires the elements whose source keys are dirty, not their siblings.
    * A structural move does not re-fire; the next edit at the new path does.
    */
+  each<A>(handle: Draft<A>, effect: (row: EachRow<T, A>, ctx: EachCtxOf<T, A>) => void): void
   each<A>(select: (d: Draft<T>) => Draft<A>, effect: (row: EachRow<T, A>, ctx: EachCtxOf<T, A>) => void): void
 }
 
@@ -568,6 +600,10 @@ export interface EffectsRuntime<T> {
   dropDeps(id: string): void
   getValue(path: string): unknown
   devtools: boolean
+  /** @internal Set while `defineEffects` runs the factory. `$` writes on `draft` throw in development. */
+  beginEffectInstall(): void
+  /** @internal */
+  endEffectInstall(): void
 }
 
 export interface WriteOp {

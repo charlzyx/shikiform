@@ -46,7 +46,7 @@ const [first] = d.items
 const { name } = d.items[0]
 name.$value
 d.items.$value
-reaction.each((d) => d.items, (row) => {
+reaction.each(draft.items, (row) => {
   row.name.$value
 })
 ```
@@ -68,10 +68,10 @@ A deep-frozen tree (immer / Redux) can be read. A non-configurable, non-writable
 
 ## Writing dynamic keys without subscribing to the whole record
 
-`d.overrides[id].$value = price` navigates to a field and writes it. Spreading `d.overrides.$value` first reads the entire record. In a reaction, that read makes changes to other prices a dependency too.
+`d.overrides[id].$value = price` navigates to a field and writes it. Spreading `d.overrides.$value` first reads the entire record. In a reaction, that read makes changes to other prices a dependency too. Spell indexes and keys on the draft (`d.items[i].qty`, `d.extra[key]`). `query(path)` is only for a path that is already a string, such as `query(pathOf('menus', pos)).$disabled = true` inside an effect. Outside an effect, use `form.getValue`.
 
 ```ts
-watch.each((d) => d.rows, (row, { d }) => {
+watch.each(draft.rows, (row, { d }) => {
   const id = row.id.$value
   if (id) d.overrides[id].$value = row.price.$value
 })

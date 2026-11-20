@@ -72,7 +72,7 @@ function Demo() {
 
 ## defineEffects
 
-`defineEffects<T>(factory)` 用于定义一组可复用的联动模块。`factory` 会收到 `reaction`、`watch` 和 `query`：`reaction` 用于声明派生状态，`watch` 用于响应变化执行一次性动作，两者均提供仅接收两个参数的 `each(select, fn)` 方法。详见 [联动](/guide/linkage)。
+`defineEffects<T>(factory)` 用于定义一组可复用的联动模块。`factory` 会收到 `reaction`、`watch`、`draft` 和 `query`。`draft` 是根路径 handle，用来在注册时点名：`reaction.each(draft.items, …)`、`watch(draft.city, …)`（监听该字段的 `$value`）、`watch([draft.a, draft.b], …)`。selector `(d) => d.items` 仍然可用。`query(path)` 只用于路径已经是字符串的情况（`pathOf`、配置、props）。详见 [联动](/guide/linkage)。
 
 ```ts
 import { defineEffects } from '@shikiform/core'

@@ -277,7 +277,7 @@ const PICKS = CATALOG.map((item) => ({ label: item.id, value: item.id, disabled:
 type Row = { id: string; price: number; qty: number; total: number };
 type Values = { picked: string[]; rows: Row[] };
 
-const effects = defineEffects<Values>(({ reaction, watch }) => {
+const effects = defineEffects<Values>(({ reaction, watch, draft }) => {
   // Synchronize rows after selection changes and preserve edited prices.
   watch((d) => d.picked.$value, (d) => {
     const before = d.rows.$value;
@@ -285,7 +285,7 @@ const effects = defineEffects<Values>(({ reaction, watch }) => {
       before.find((row) => row.id === id) ?? { id, price: CATALOG.find((item) => item.id === id)?.price ?? 0, qty: 1, total: 0 });
   });
   // Only the changed row recalculates.
-  reaction.each((d) => d.rows, (row) => {
+  reaction.each(draft.rows, (row) => {
     row.total.$value = row.price.$value * row.qty.$value;
   });
 });
@@ -376,8 +376,8 @@ import { enUS, ArrayField, Form, defineEffects, useField, useForm } from '@shiki
 type Row = { id: string; cost: number; markup: number; suggested: number };
 type Values = { rows: Row[] };
 
-const effects = defineEffects<Values>(({ reaction }) => {
-  reaction.each((d) => d.rows, (row) => {
+const effects = defineEffects<Values>(({ reaction, draft }) => {
+  reaction.each(draft.rows, (row) => {
     row.suggested.$value = Math.round(row.cost.$value * (1 + row.markup.$value / 100));
   });
 });

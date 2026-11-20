@@ -251,9 +251,117 @@ function objectEachTypes() {
   })
 }
 
+function eachHandleMatchesSelector() {
+  type Child = { id: number; note: string; qty: number }
+  type Parent = { id: string; note?: string; kids: Child[] }
+  type Values = {
+    orders: Order[]
+    rows: Parent[]
+    extra: Record<string, { count: number }>
+    user: { name: string; age?: number }
+    tags: string[]
+    items?: { n: number }[]
+    city: string
+    a: number
+    b: number
+  }
+  defineEffects<Values>(({ reaction, watch, draft }) => {
+    reaction.each(draft.orders, (rowH, ctxH) => {
+      reaction.each((d) => d.orders, (rowS, ctxS) => {
+        const _row: Expect<Equal<typeof rowH, typeof rowS>> = true
+        const _ctx: Expect<Equal<typeof ctxH, typeof ctxS>> = true
+        void _row
+        void _ctx
+      })
+    })
+    watch.each(draft.orders, (rowH, ctxH) => {
+      watch.each((d) => d.orders, (rowS, ctxS) => {
+        const _row: Expect<Equal<typeof rowH, typeof rowS>> = true
+        const _ctx: Expect<Equal<typeof ctxH, typeof ctxS>> = true
+        void _row
+        void _ctx
+      })
+    })
+    reaction.each(draft.rows, (rowH) => {
+      reaction.each((d) => d.rows, (rowS) => {
+        const idH = rowH.id.$value
+        const idS = rowS.id.$value
+        const _id: Expect<Equal<typeof idH, typeof idS>> = true
+        rowH.id.$value = 'parent'
+        rowH.id.$value = 1
+        void _id
+      })
+    })
+    reaction.each(draft.extra, (entryH, ctxH) => {
+      reaction.each((d) => d.extra, (entryS, ctxS) => {
+        const _e: Expect<Equal<typeof entryH, typeof entryS>> = true
+        const _c: Expect<Equal<typeof ctxH, typeof ctxS>> = true
+        entryH.count.$value satisfies number
+        // @ts-expect-error a record entry has no array position
+        void ctxH.index
+        void _e
+        void _c
+      })
+    })
+    reaction.each(draft.user, (entryH, ctxH) => {
+      reaction.each((d) => d.user, (entryS, ctxS) => {
+        const _e: Expect<Equal<typeof entryH, typeof entryS>> = true
+        const _k: Expect<Equal<typeof ctxH.key, typeof ctxS.key>> = true
+        const key: Expect<Equal<typeof ctxH.key, 'name' | 'age'>> = true
+        const value: Expect<Equal<typeof entryH.$value, string | number | undefined>> = true
+        void [_e, _k, key, value]
+      })
+    })
+    reaction.each(draft.tags, (rowH) => {
+      reaction.each((d) => d.tags, (rowS) => {
+        const _r: Expect<Equal<typeof rowH, typeof rowS>> = true
+        const tag: string = rowH.$value
+        void _r
+        void tag
+      })
+    })
+    reaction.each(draft.items, (rowH) => {
+      reaction.each((d) => d.items, (rowS) => {
+        const _r: Expect<Equal<typeof rowH, typeof rowS>> = true
+        const n: number = rowH.n.$value
+        void _r
+        void n
+      })
+    })
+    reaction.each(draft.orders, (node, ctx) => {
+      if (ctx.key !== 'lines' || ctx.index !== 0) return
+      node.qty.$required = true
+      const qty: number = node.qty.$value
+      void qty
+      // @ts-expect-error not an array this each walks
+      if (ctx.key === 'tags') return
+    })
+    watch(draft.city, (d) => {
+      const city: string = d.city.$value
+      void city
+    })
+    watch([draft.a, draft.b], (d) => {
+      const sum: number = d.a.$value + d.b.$value
+      void sum
+    })
+    watch((d) => d.city.$value, (d) => {
+      const city: string = d.city.$value
+      void city
+    })
+    watch((d) => [d.a.$value, d.b.$value], (d) => {
+      void d.city.$value
+    })
+    // @ts-expect-error list entries are path handles
+    watch([draft.a, 'b'], () => {})
+    // @ts-expect-error no such field
+    watch(draft.missing, () => {})
+  })
+}
+
 void objectEachTypes
 void pathsAndEach
 void submitWithTypeArg
 void eachSharedKeys
+void eachHandleMatchesSelector
 
 it('type contracts are checked by tsc', () => {})

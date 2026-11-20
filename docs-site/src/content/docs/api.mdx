@@ -178,21 +178,23 @@ await form.submit((values) => {
 ## 联动
 
 ```ts
-const effects = defineEffects<Values>(({ reaction, watch, query }) => {
+const effects = defineEffects<Values>(({ reaction, watch, draft, query }) => {
   reaction((d) => { … })
-  reaction.each((d) => d.items, (row, ctx) => { … }) // 两个参数；对象数组会继续往下走
-  watch((d) => d.a.$value, (d) => { … })
-  watch.each((d) => d.items, (row, ctx) => { … })
+  reaction.each(draft.items, (row, ctx) => { … }) // 路径 handle；selector (d) => d.items 仍可用
+  watch(draft.city, (d) => { … })                 // 监听 city.$value
+  watch([draft.a, draft.b], (d) => { … })         // 多个 $value
+  watch.each(draft.items, (row, ctx) => { … })
+  query(pathOf('menus', pos)).$disabled = true    // 路径是字符串时
 })
 ```
 
 | API | 触发 | 说明 |
 |---|---|---|
 | `reaction(effect)` | 立即运行；之后读到的 `$` 状态变化时 | 同步派生；写 `$value` 的字段成为计算字段，默认仍提交 |
-| `reaction.each(select, effect)` | 普通对象按自有可枚举字符串键逐个建立实例；数组按元素建立实例，并进入嵌套的对象数组 | 只有两个参数。嵌套的基本类型数组不进；对基本类型数组本身调用时，`depth === 0` 仍会访问。用 `ctx.key` / `ctx.depth` 过滤 |
-| `watch(source, effect)` | `source` 读到的状态变化后；首次不运行 | 多个来源返回数组 |
-| `watch.each(select, effect)` | 遍历数组元素与嵌套对象数组；回调里读到的状态就是来源 | 某个元素变化只触发它自己 |
-| `query(path)` | — | 精确 path 的底层 handle（动态路径用），平时写 `d.a.b` |
+| `reaction.each(draft.items, effect)` | 普通对象按自有可枚举字符串键逐个建立实例；数组按元素建立实例，并进入嵌套的对象数组 | 路径在注册时取一次。selector `(d) => …` 仍可用，每轮重读，用来跟随会变的键。只有两个参数。用 `ctx.key` / `ctx.depth` 过滤 |
+| `watch(draft.city, effect)` | 该字段的 `$value` 变化后；首次不运行 | 与 `watch((d) => d.city.$value, …)` 相同。`watch([draft.a, draft.b], …)` 监听其中任一 `$value`。函数 source 用来读其它状态或计算表达式 |
+| `watch.each(draft.rows, effect)` | 遍历数组元素与嵌套对象数组；回调里读到的状态就是来源 | 某个元素变化只触发它自己。selector 形式仍可用 |
+| `query(path)` | — | 路径已经是字符串时的无类型 handle（`pathOf`、配置、props，如 `rowsPath`）。能写在 draft 上的路径用 `d.a.b`、`d.items[i]`、`d.extra[key]` |
 
 行级回调都是 `(row, ctx)`，`ctx` 含 `d`、`key`、`index`、`depth`、`parent`、`path`、`pos`。详见 [联动](/guide/linkage)；`$` 状态与显隐见 [核心概念](/guide/concepts)，规则见 [校验](/guide/validation)。
 

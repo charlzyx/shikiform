@@ -58,9 +58,8 @@ function ItemList({ children }: { children?: ReactNode }) {
   );
 }
 
-export const effects = defineEffects<Values>(({ reaction }) => {
-  reaction.each(
-    (d) => d.items,
+export const effects = defineEffects<Values>(({ reaction, draft }) => {
+  reaction.each(draft.items,
     (row) => {
       const total = (row.price.$value || 0) * (row.qty.$value || 0);
       row.total.$value = total;

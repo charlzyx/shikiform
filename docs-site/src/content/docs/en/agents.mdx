@@ -9,7 +9,7 @@ Give coding assistants the full [agent instructions](/llms.txt) alongside the fo
 1. A draft handle locates a path. Read and write data through its `$value`. Inside an effect, `d.user.$value.name = 'x'` is the path write, and `d.items.$value.push(row)` is the array-field operation. In development, `getValue` and `form.values` stay read-only: copy them with `snapshot(value)`, not `structuredClone` on the view.
 2. Use `reaction` to derive state and `watch` for actions after a change. Only a watch's source declares dependencies.
 3. Writes commit after the pass. Reads of `$value`, `$enum`, `$rules` and UI state include pending writes. Keep new boolean flags in locals if you need them again.
-4. On arrays, `reaction.each` and `watch.each` visit rows and nested object arrays. On a plain object, `reaction.each` tracks each key separately and picks up additions and deletions.
+4. `defineEffects` passes `draft`. `reaction.each(draft.items, …)` and `watch.each(draft.rows, …)` visit rows and nested object arrays. `reaction.each(draft.extra, …)` tracks each object key. The selector form still works. `watch(draft.city, …)` watches that field's `$value`; `watch([draft.a, draft.b], …)` watches several.
 5. Patch individual `$componentProps` or `$decoratorProps` keys to retain lower-layer siblings. Assigning the whole object replaces that layer.
 6. `Field` owns the path. A decorator such as `FormItem` reads the binding through context and renders its label and errors.
 
@@ -20,7 +20,7 @@ form.getValue('user').name = 'x'  // ✗ Read-only view in development
 d.user.$value.name = 'x'          // ✓ Write user.name in a reaction, watch action or batch
 
 d.items.forEach((row) => { row.total.$value = 1 })        // ✗ A handle is not an array
-reaction.each((d) => d.items, (row) => {                  // ✓ A separate reaction for each row
+reaction.each(draft.items, (row) => {                  // ✓ A separate reaction for each row
   row.total.$value = row.price.$value * row.qty.$value
 })
 
@@ -29,8 +29,8 @@ d.tax.$value = d.total.$value * 0.1  // ✓ Reads the new total
 d.tax.$visible = false
 void d.tax.$visible                  // ✗ Reading this flag in the same pass throws in development
 
-reaction.each((d) => d.rows, (row) => {}, { childrenKey: 'children' }) // ✗ No third argument
-reaction.each((d) => d.rows, (row, { depth }) => { if (depth !== 0) return }) // ✓ Filter inside the callback
+reaction.each(draft.rows, (row) => {}, { childrenKey: 'children' }) // ✗ No third argument
+reaction.each(draft.rows, (row, { depth }) => { if (depth !== 0) return }) // ✓ Filter inside the callback
 ```
 
 ```tsx

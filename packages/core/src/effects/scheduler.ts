@@ -89,6 +89,8 @@ export class Scheduler {
   readonly eachRecs = new Map<string, EachRec>()
   readonly stack: Tracker[] = []
   flushing = false
+  /** Non-zero while `defineEffects` runs the factory. */
+  installDepth = 0
   batchDepth = 0
   readonly batchOps: WriteOp[] = []
   private seq = 0
@@ -128,6 +130,9 @@ export class Scheduler {
   current(): Tracker | undefined {
     return this.stack.at(-1)
   }
+
+  beginInstall(): void { this.installDepth += 1 }
+  endInstall(): void { this.installDepth -= 1 }
 
   runWith<S>(opts: RunOptions, fn: () => S): { value: S; deps: Set<string>; writes: WriteOp[] } {
     const tracker: Tracker = {

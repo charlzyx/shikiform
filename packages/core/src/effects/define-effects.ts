@@ -34,17 +34,14 @@ interface EachNode {
  * Two reactions writing the same `$` state throw {@link ShikiConflictError}.
  *
  * @example
- * defineEffects<{ tab: string; code: string; rows: { name: string }[] }>(({ reaction }) => {
+ * defineEffects<{ tab: string; code: string; rows: { name: string }[] }>(({ reaction, draft }) => {
  *   reaction((d) => {
  *     d.code.$visible = d.tab.$value === 'extra'
  *   })
- *   reaction.each(
- *     (d) => d.rows,
- *     (row, { index, depth }) => {
- *       if (depth !== 0) return
- *       row.name.$required = index > 0
- *     },
- *   )
+ *   reaction.each(draft.rows, (row, { index, depth }) => {
+ *     if (depth !== 0) return
+ *     row.name.$required = index > 0
+ *   })
  * })
  */
 export function defineEffects<T>(factory: (api: EffectsAPI<T>) => void): EffectDef<T> {
@@ -63,48 +60,101 @@ export function defineEffects<T>(factory: (api: EffectsAPI<T>) => void): EffectD
           runtime.queue(id)
         },
         {
-          each(select: (d: Draft<T>) => unknown, effect: Function) {
-            installEach(runtime as EachRuntime, select as (d: Draft<any>) => unknown, effect, dev() ? callSite() : undefined)
+          each(target: unknown, effect: Function) {
+            installEach(runtime as EachRuntime, target, effect, dev() ? callSite() : undefined)
           },
         },
       ) as EffectsAPI<T>['reaction']
 
       const watch = Object.assign(
-        (source: (d: Draft<T>) => unknown, effect: (d: Draft<T>) => void) => {
+        (source: unknown, effect: (d: Draft<T>) => void) => {
           const id = runtime.nextId('watch')
-          const scout = runtime.trackOnly(() => source(runtime.draft))
+          const deps = watchSourceDeps(runtime, source)
           const run = () => {
             const result = runtime.runWith({ id, deps: false, writes: true }, () => effect(runtime.draft))
             runtime.applyWrites(id, result.writes)
           }
-          runtime.registerWatch(id, run, scout.deps)
+          runtime.registerWatch(id, run, deps)
         },
         {
-          each(select: (d: Draft<T>) => unknown, effect: Function) {
-            installWatchEach(runtime, select as (d: Draft<any>) => unknown, effect)
+          each(target: unknown, effect: Function) {
+            installWatchEach(runtime, target, effect)
           },
         },
       ) as EffectsAPI<T>['watch']
 
-      factory({
-        reaction,
-        watch,
-        query: (path) => runtime.handle(path),
-      })
+      runtime.beginEffectInstall()
+      try {
+        factory({
+          reaction,
+          watch,
+          draft: runtime.draft,
+          query: (path) => runtime.handle(path),
+        })
+      } finally {
+        runtime.endEffectInstall()
+      }
     },
   }
 }
 
 const dev = () => process.env.NODE_ENV !== 'production'
 
-function installEach(runtime: EachRuntime, select: (d: Draft<any>) => unknown, effect: Function, site?: string): void {
+/**
+ * Path of a handle passed to `each`, taken once at registration.
+ * `undefined` when `target` is a selector, which is re-read every pass.
+ */
+function fixedEachPath(runtime: EffectsRuntime<any>, target: unknown, label: string): string | undefined {
+  const path = runtime.readPath(target)
+  if (path !== undefined) return path
+  if (typeof target === 'function') return undefined
+  throw new Error(`${label} takes a draft handle (draft.items) or a selector ((d) => d.items) that returns one.`)
+}
+
+/**
+ * Dependencies for `watch`. A handle (or a list of handles) is that path's `$value`,
+ * the same keys `d.city.$value` would record. A function is scouted as before.
+ */
+function watchSourceDeps(runtime: EffectsRuntime<any>, source: unknown): Set<string> {
+  if (Array.isArray(source)) {
+    if (source.length === 0) throw new Error('watch([draft.a, draft.b]) needs at least one draft handle.')
+    const deps = new Set<string>()
+    for (const item of source) {
+      const path = runtime.readPath(item)
+      if (path === undefined) {
+        throw new Error('watch([draft.a, draft.b]) takes draft handles. For any other source, pass a function: watch((d) => d.a.$value, …).')
+      }
+      deps.add(`${path}:value`)
+    }
+    return deps
+  }
+  const path = runtime.readPath(source)
+  if (path !== undefined) return new Set([`${path}:value`])
+  if (typeof source === 'function') return runtime.trackOnly(() => (source as (d: Draft<any>) => unknown)(runtime.draft)).deps
+  throw new Error('watch takes a draft handle (watch(draft.city, …)), a list of handles (watch([draft.a, draft.b], …)), or a function (watch((d) => d.city.$value, …)).')
+}
+
+function selectEachPath(
+  runtime: EffectsRuntime<any>,
+  select: (d: Draft<any>) => unknown,
+  error: string,
+): { path: string; deps: Set<string> } {
+  const selected = runtime.trackOnly(() => select(runtime.draft))
+  const path = runtime.readPath(selected.value)
+  if (path === undefined) throw new Error(error)
+  return { path, deps: selected.deps }
+}
+
+function installEach(runtime: EachRuntime, target: unknown, effect: Function, site?: string): void {
+  const fixed = fixedEachPath(runtime, target, 'reaction.each')
   const id = runtime.nextId('each', site)
-  const rec: EachRec = { effect, path: '', instances: new Set(), first: true }
+  const rec: EachRec = { effect, path: fixed ?? '', instances: new Set(), first: true }
   runtime.holdEach(id, rec)
   const run = () => {
-    const selected = runtime.trackOnly(() => select(runtime.draft))
-    const path = runtime.readPath(selected.value)
-    if (path === undefined) throw new Error('each() selector must return a draft handle')
+    const selected = fixed !== undefined
+      ? { path: fixed, deps: new Set<string>() }
+      : selectEachPath(runtime, target as (d: Draft<any>) => unknown, 'each() selector must return a draft handle')
+    const path = selected.path
     if (rec.path !== path) dropUnseen(runtime, rec.instances, new Set())
     rec.path = path
     const value = runtime.getValue(path)
@@ -180,12 +230,15 @@ function runObjectEach(runtime: EachRuntime, rec: EachRec, id: string, keys: str
   dropUnseen(runtime, rec.instances, seen)
 }
 
-function installWatchEach(runtime: EffectsRuntime<any>, select: (d: Draft<any>) => unknown, effect: Function): void {
+function installWatchEach(runtime: EffectsRuntime<any>, target: unknown, effect: Function): void {
+  const fixed = fixedEachPath(runtime, target, 'watch.each')
   const id = runtime.nextId('watch-each')
   const known = new Set<string>()
   const run = () => {
-    const selected = runtime.trackOnly(() => select(runtime.draft))
-    const arrayPath = runtime.readPath(selected.value)
+    const selected = fixed !== undefined
+      ? { path: fixed, deps: new Set<string>() }
+      : selectEachPath(runtime, target as (d: Draft<any>) => unknown, 'watch.each selector must return a draft handle')
+    const arrayPath = selected.path
     if (!arrayPath) throw new Error('watch.each selector must return a draft handle')
     const nodes = listEachNodes(runtime.getValue(arrayPath), arrayPath)
     const seen = new Set<string>()

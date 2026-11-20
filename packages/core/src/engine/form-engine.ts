@@ -289,9 +289,9 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   }
 
   /** Untyped handle for an exact path. Prefer {@link FormEngine.getValue} and {@link FormEngine.batch}. */
-  query(path: string): any {
-    return this.handle(path)
-  }
+  query(path: string): any { return this.handle(path) }
+  beginEffectInstall(): void { this.scheduler.beginInstall() }
+  endEffectInstall(): void { this.scheduler.endInstall() }
 
   // —— structure ——
   // Not on FormInstance. React: useArrayField(name?), useTreeField(name), or useTreeField() on a node
