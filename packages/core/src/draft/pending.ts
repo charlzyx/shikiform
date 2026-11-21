@@ -33,6 +33,8 @@ export interface CellAnchor {
 export type PendingValue = {
   kind: 'value'
   path: string
+  /** Original path at write time, so repeated retargeting (on intermediate reads) stays idempotent. */
+  origin?: string
   mode: 'set' | 'mutate' | 'delete'
   value?: unknown
   /** Set on a cell write. */
@@ -204,7 +206,8 @@ function retargetShiftedCells(ops: readonly WriteOp[]): void {
     const pending = tags.get(op)
     if (!pending || pending.kind !== 'value' || pending.mode === 'mutate' || !pending.anchors?.length) continue
     pending.drop = false
-    let path = pending.path
+    pending.origin ??= pending.path
+    let path = pending.origin
     for (const anchor of pending.anchors) {
       const spec = mutates.get(anchor.array)
       if (!spec) continue

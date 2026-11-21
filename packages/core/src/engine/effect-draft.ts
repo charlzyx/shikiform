@@ -144,7 +144,7 @@ export class EffectDrafts {
   private assertOpen(path: string, key: string): void {
     const scheduler = this.deps.scheduler
     const tracker = scheduler.current()
-    if (tracker?.recordWrites || scheduler.batchDepth > 0 || tracker) return
+    if (tracker?.recordWrites || (!tracker && scheduler.batchDepth > 0)) return
     if (process.env.NODE_ENV === 'production') return
     const shown = `${showDraftPath(path)}.${key}`
     throw new ShikiUsageError(

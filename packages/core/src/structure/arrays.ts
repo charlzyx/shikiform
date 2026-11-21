@@ -173,7 +173,7 @@ export class ArrayOps {
     const previous = store.values
     store.values = setAt(previous, path, next)
     this.carryIdentity(path, previous, store.values)
-    scheduler.dirtyRows.set(path, dirty)
+    scheduler.markDirtyRows(path, dirty)
     scheduler.markStructure(path, previous, store.values)
     // The array value itself changed: wake readers of `$value` on it and its ancestors (useWatch, reactions).
     // Row-level deps stay on dirtyRows, so `each` instances whose occupant did not change still skip.

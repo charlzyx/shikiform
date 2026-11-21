@@ -1,6 +1,6 @@
 import type { Declarations } from '../declarations/declarations'
 import { plainClone } from '../draft/plain-clone'
-import type { Scheduler } from '../effects/scheduler'
+import { isWatchRunner, type Scheduler } from '../effects/scheduler'
 import { clone, deepEqual, differsExcept } from '../shared/equal'
 import { getAt, selfAndAncestors, setAt } from '../shared/path'
 import type { FieldStore } from '../state/field-store'
@@ -64,7 +64,7 @@ export class Baseline {
     scheduler.bumpMeta()
     for (const rec of scheduler.eachRecs.values()) rec.first = true
     for (const id of scheduler.runners.keys()) {
-      if (id.startsWith('watch')) continue
+      if (isWatchRunner(id)) continue
       scheduler.queue(id)
     }
     scheduler.flush()

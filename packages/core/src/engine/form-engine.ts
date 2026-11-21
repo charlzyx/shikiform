@@ -96,11 +96,14 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     const root = store.ensure('')
     setRootFlag(root, 'readOnly', options.readOnly)
     setRootFlag(root, 'disabled', options.disabled)
-    for (const effect of options.effects ?? []) effect.install(this)
-    scheduler.flush()
-    declarations.applyItemTemplates()
-    scheduler.enqueueFromDirty()
-    scheduler.flush()
+    scheduler.initializing = true
+    try {
+      for (const effect of options.effects ?? []) effect.install(this)
+      scheduler.flush()
+      declarations.applyItemTemplates()
+      scheduler.enqueueFromDirty()
+      scheduler.flush()
+    } finally { scheduler.initializing = false }
   }
 
   // —— form state (read-only, #36: writes go through setValue / batch / reset / submit so subscribers hear them) ——
@@ -185,19 +188,16 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   setReadOnly(readOnly?: boolean): void { this.batch((d) => { d.$readOnly = readOnly }) }
   setDisabled(disabled?: boolean): void { this.batch((d) => { d.$disabled = disabled }) }
 
-  /** One draft, one reaction pass, one notification. */
+  /** One draft, one reaction pass, one notification. Discards buffered writes if `fn` throws. */
   batch(fn: (d: Draft<T>) => void): void {
     const scheduler = this.scheduler
     scheduler.batchDepth++
-    try {
-      fn(this.draft)
-    } finally {
+    let ok = false
+    try { fn(this.draft); ok = true } finally {
       scheduler.batchDepth--
       if (scheduler.batchDepth === 0) {
         const ops = scheduler.takeBatchOps()
-        for (const op of ops) op.apply()
-        scheduler.enqueueFromDirty()
-        scheduler.flush()
+        if (ok) { for (const op of ops) op.apply(); scheduler.enqueueFromDirty(); scheduler.flush() }
       }
     }
   }
@@ -454,17 +454,17 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     return value
   }
 
-  /** Dirty row indexes under `root` (the array and nested arrays) plus tree positions at `root`. */
+  /** Dirty row indexes under `root` (the array and nested arrays) plus tree positions at `root`. Cleared on flush settle. */
   takeEachDirty(root: string): EachDirty {
     const rows = new Map<string, Set<number> | 'all'>()
-    for (const path of [...this.scheduler.dirtyRows.keys()]) {
+    for (const [path, dirty] of this.scheduler.dirtyRows) {
       if (path === root || path.startsWith(`${root}.`)) {
-        rows.set(path, this.scheduler.dirtyRows.get(path)!)
-        this.scheduler.dirtyRows.delete(path)
+        rows.set(path, dirty)
+        this.scheduler.consumedDirtyRows.add(path)
       }
     }
     const pos = this.scheduler.dirtyPos.get(root)
-    if (pos !== undefined) this.scheduler.dirtyPos.delete(root)
+    if (pos !== undefined) this.scheduler.consumedDirtyPos.add(root)
     return { rows, pos }
   }
 

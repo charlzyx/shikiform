@@ -61,6 +61,11 @@ export function isReactionId(id: string): boolean {
   return REACTION_PREFIX.test(id)
 }
 
+/** Ids of watch effect runners (`watch:N` and `watch-each:N#...`, not the `watch-each:N` reconciler). */
+export function isWatchRunner(id: string): boolean {
+  return id.startsWith('watch:') || (id.startsWith('watch-each:') && id.includes('#'))
+}
+
 /**
  * Dependency tracking and the reaction / watch run loop.
  *
@@ -86,9 +91,14 @@ export class Scheduler {
   readonly dirtyRows = new Map<string, Set<number> | 'all'>()
   /** Tree path → `posKey`s whose occupant changed. Consumed by `reaction.each` on that root. */
   readonly dirtyPos = new Map<string, Set<string> | 'all'>()
+  /** Keys read by `takeEachDirty` during the current flush; cleared when the flush settles so sibling `each` instances share them. */
+  readonly consumedDirtyRows = new Set<string>()
+  readonly consumedDirtyPos = new Set<string>()
   readonly eachRecs = new Map<string, EachRec>()
   readonly stack: Tracker[] = []
   flushing = false
+  /** True during `createForm` initial flush; suppresses watch runners so initial reactions do not fire watches. */
+  initializing = false
   /** Non-zero while `defineEffects` runs the factory. */
   installDepth = 0
   batchDepth = 0
@@ -148,7 +158,7 @@ export class Scheduler {
     try {
       const value = fn()
       if (value && typeof (value as unknown as Promise<unknown>).then === 'function') {
-        throw new Error('reaction and watch must be synchronous. Put async work in an EnumSource loader or a watch that only starts it.')
+        throw new ShikiUsageError('reaction and watch must be synchronous. Put async work in an EnumSource loader or a watch that only starts it.')
       }
       return { value, deps: tracker.deps, writes: tracker.writes }
     } finally {
@@ -280,6 +290,34 @@ export class Scheduler {
     this.dirtyDeps.add(dep)
   }
 
+  /** Merge dirty row indexes for `path` (keeps `'all'` if either side is `'all'`). Cleared when `flush` settles. */
+  markDirtyRows(path: string, dirty: Set<number> | 'all'): void {
+    const prev = this.dirtyRows.get(path)
+    if (prev === 'all' || dirty === 'all') {
+      this.dirtyRows.set(path, 'all')
+      return
+    }
+    if (!prev) {
+      this.dirtyRows.set(path, new Set(dirty))
+      return
+    }
+    for (const index of dirty) prev.add(index)
+  }
+
+  /** Merge dirty tree positions for `path` (keeps `'all'` if either side is `'all'`). Cleared when `flush` settles. */
+  markDirtyPos(path: string, dirty: Set<string> | 'all'): void {
+    const prev = this.dirtyPos.get(path)
+    if (prev === 'all' || dirty === 'all') {
+      this.dirtyPos.set(path, 'all')
+      return
+    }
+    if (!prev) {
+      this.dirtyPos.set(path, new Set(dirty))
+      return
+    }
+    for (const pos of dirty) prev.add(pos)
+  }
+
   /** Whole-object writes wake ordinary descendant readers. Object entries keep per-key value precision. */
   markReplaced(dep: string, path: string, before: unknown, after: unknown): void {
     const readers = this.depIndex.get(dep)
@@ -321,7 +359,12 @@ export class Scheduler {
   enqueueFromDirty(): void {
     for (const dep of this.dirtyDeps) {
       const subs = this.depIndex.get(dep)
-      if (subs) for (const id of subs) this.queued.add(id)
+      if (subs) {
+        for (const id of subs) {
+          if (this.initializing && isWatchRunner(id)) continue
+          this.queued.add(id)
+        }
+      }
       this.notifier.bumpDep(dep)
     }
     this.dirtyDeps.clear()
@@ -362,6 +405,12 @@ export class Scheduler {
         }
       }
     } finally {
+      this.queued.clear()
+      this.dirtyDeps.clear()
+      for (const path of this.consumedDirtyRows) this.dirtyRows.delete(path)
+      this.consumedDirtyRows.clear()
+      for (const path of this.consumedDirtyPos) this.dirtyPos.delete(path)
+      this.consumedDirtyPos.clear()
       this.flushing = false
       this.onSettle?.()
       this.notifier.emit()

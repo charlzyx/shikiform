@@ -6,6 +6,7 @@ import { tagPending, type CellAnchor, type PendingValue } from '../draft/pending
 import { unwrapDraft } from '../draft/patch'
 import { unwrapReadonly } from '../draft/readonly'
 import { ShikiUsageError, showDraftPath } from '../errors'
+import { arrayIndex } from '../shared/dense-array'
 import { deepEqual } from '../shared/equal'
 import { getAt, normalizePath, parentPath, setAt } from '../shared/path'
 import type { FlagName } from '../state/flags'
@@ -237,16 +238,28 @@ export class StateWriter {
     if (deepEqual(old, value) && !(missing && owner && typeof owner === 'object' && !Array.isArray(owner))) return false
     store.values = setAt(before, path, value)
     if (missing) {
-      scheduler.markDirty(`${parent}:keys`)
-      // A deep write can create several missing object keys in one operation.
+      let extendedArray = false
+      const noteCreated = (containerPath: string, createdKey: string) => {
+        scheduler.markDirty(`${containerPath}:keys`)
+        const idx = arrayIndex(createdKey)
+        if (idx !== undefined && Array.isArray(getAt(store.values, containerPath))) {
+          scheduler.markDirtyRows(containerPath, new Set([idx]))
+          scheduler.markStructure(containerPath)
+          extendedArray = true
+        }
+      }
+      noteCreated(parent, key)
+      // A deep write can create several missing object/array entries in one operation.
       let child = parent
       while (child) {
         const ancestor = parentPath(child) ?? ''
+        const seg = child.slice(ancestor ? ancestor.length + 1 : 0)
         const container = getAt(before, ancestor)
-        if (container != null && Object.hasOwn(container, child.slice(ancestor ? ancestor.length + 1 : 0))) break
-        scheduler.markDirty(`${ancestor}:keys`)
+        if (container != null && Object.hasOwn(container, seg)) break
+        noteCreated(ancestor, seg)
         child = ancestor
       }
+      if (extendedArray) declarations.applyItemTemplates()
     }
     this.deps.carryRowIdentity?.(path, before, store.values)
     notifier.bumpPath(path)
@@ -259,7 +272,7 @@ export class StateWriter {
     }
     scheduler.markDirty(':value') // the root: `d.$value` / `<Watch select={(d) => d.$value}>`
     if (Array.isArray(old) || Array.isArray(value)) {
-      scheduler.dirtyRows.set(path, 'all')
+      scheduler.markDirtyRows(path, 'all')
       scheduler.markStructure(path)
       declarations.applyItemTemplates()
     }

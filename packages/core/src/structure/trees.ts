@@ -135,7 +135,7 @@ export class TreeOps {
     for (const key of new Set([...beforePos.keys(), ...afterPos.keys()])) {
       if (beforePos.get(key) !== afterPos.get(key)) dirty.add(key)
     }
-    scheduler.dirtyPos.set(path, dirty)
+    scheduler.markDirtyPos(path, dirty)
     scheduler.markStructure(path, previous, store.values)
     for (let cursor: string | null = path; cursor; cursor = parentPath(cursor)) scheduler.markDirty(`${cursor}:value`)
     scheduler.markDirty(':value')

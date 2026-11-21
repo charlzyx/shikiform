@@ -1,5 +1,5 @@
 import { isPatchable } from '../draft/patch'
-import { joinPath } from '../shared/path'
+import { joinPath, parentPath } from '../shared/path'
 import { callSite, ShikiUsageError } from '../errors'
 import type { Draft, EffectDef, EffectsAPI, EffectsRuntime, RowContext } from '../types'
 import type { EachDirty, EachRec } from './scheduler'
@@ -70,7 +70,11 @@ export function defineEffects<T>(factory: (api: EffectsAPI<T>) => void): EffectD
         (source: unknown, effect: (d: Draft<T>) => void) => {
           const id = runtime.nextId('watch')
           const deps = watchSourceDeps(runtime, source)
+          const sourceFn = runtime.readPath(source) === undefined && typeof source === 'function'
+            ? (source as (d: Draft<T>) => unknown)
+            : undefined
           const run = () => {
+            if (sourceFn) runtime.setDeps(id, runtime.trackOnly(() => sourceFn(runtime.draft)).deps)
             const result = runtime.runWith({ id, deps: false, writes: true }, () => effect(runtime.draft))
             runtime.applyWrites(id, result.writes)
           }
@@ -108,7 +112,7 @@ function fixedEachPath(runtime: EffectsRuntime<any>, target: unknown, label: str
   const path = runtime.readPath(target)
   if (path !== undefined) return path
   if (typeof target === 'function') return undefined
-  throw new Error(`${label} takes a draft handle (draft.items) or a selector ((d) => d.items) that returns one.`)
+  throw new ShikiUsageError(`${label} takes a draft handle (draft.items) or a selector ((d) => d.items) that returns one.`)
 }
 
 /**
@@ -117,12 +121,12 @@ function fixedEachPath(runtime: EffectsRuntime<any>, target: unknown, label: str
  */
 function watchSourceDeps(runtime: EffectsRuntime<any>, source: unknown): Set<string> {
   if (Array.isArray(source)) {
-    if (source.length === 0) throw new Error('watch([draft.a, draft.b]) needs at least one draft handle.')
+    if (source.length === 0) throw new ShikiUsageError('watch([draft.a, draft.b]) needs at least one draft handle.')
     const deps = new Set<string>()
     for (const item of source) {
       const path = runtime.readPath(item)
       if (path === undefined) {
-        throw new Error('watch([draft.a, draft.b]) takes draft handles. For any other source, pass a function: watch((d) => d.a.$value, …).')
+        throw new ShikiUsageError('watch([draft.a, draft.b]) takes draft handles. For any other source, pass a function: watch((d) => d.a.$value, …).')
       }
       deps.add(`${path}:value`)
     }
@@ -131,7 +135,7 @@ function watchSourceDeps(runtime: EffectsRuntime<any>, source: unknown): Set<str
   const path = runtime.readPath(source)
   if (path !== undefined) return new Set([`${path}:value`])
   if (typeof source === 'function') return runtime.trackOnly(() => (source as (d: Draft<any>) => unknown)(runtime.draft)).deps
-  throw new Error('watch takes a draft handle (watch(draft.city, …)), a list of handles (watch([draft.a, draft.b], …)), or a function (watch((d) => d.city.$value, …)).')
+  throw new ShikiUsageError('watch takes a draft handle (watch(draft.city, …)), a list of handles (watch([draft.a, draft.b], …)), or a function (watch((d) => d.city.$value, …)).')
 }
 
 function selectEachPath(
@@ -141,7 +145,7 @@ function selectEachPath(
 ): { path: string; deps: Set<string> } {
   const selected = runtime.trackOnly(() => select(runtime.draft))
   const path = runtime.readPath(selected.value)
-  if (path === undefined) throw new Error(error)
+  if (path === undefined) throw new ShikiUsageError(error)
   return { path, deps: selected.deps }
 }
 
@@ -187,6 +191,8 @@ function runEach(runtime: EachRuntime, rec: EachRec, id: string, value: unknown[
       runtime.registerReaction(
         inst,
         () => {
+          // A row removal can queue this instance (via a shared dep) before its parent reconciles.
+          if (!nodeExists(runtime, captured)) return
           const result = runtime.runWith({ id: inst, deps: true, writes: true, pos: captured.pos, nodePath: captured.path }, () =>
             rec.effect(runtime.handle(captured.path), rowContext(runtime, captured)),
           )
@@ -234,12 +240,14 @@ function installWatchEach(runtime: EffectsRuntime<any>, target: unknown, effect:
   const fixed = fixedEachPath(runtime, target, 'watch.each')
   const id = runtime.nextId('watch-each')
   const known = new Set<string>()
+  let currentPath = fixed ?? ''
   const run = () => {
     const selected = fixed !== undefined
       ? { path: fixed, deps: new Set<string>() }
       : selectEachPath(runtime, target as (d: Draft<any>) => unknown, 'watch.each selector must return a draft handle')
     const arrayPath = selected.path
-    if (!arrayPath) throw new Error('watch.each selector must return a draft handle')
+    if (currentPath !== arrayPath) dropUnseen(runtime, known, new Set())
+    currentPath = arrayPath
     const nodes = listEachNodes(runtime.getValue(arrayPath), arrayPath)
     const seen = new Set<string>()
     for (const node of nodes) {
@@ -254,6 +262,7 @@ function installWatchEach(runtime: EffectsRuntime<any>, target: unknown, effect:
         runtime.registerWatch(
           inst,
           () => {
+            if (!nodeExists(runtime, captured)) return
             const result = runtime.runWith({ id: inst, deps: false, writes: true, pos: captured.pos, nodePath: captured.path }, () =>
               effect(runtime.handle(captured.path), rowContext(runtime, captured)),
             )
@@ -293,8 +302,13 @@ function dropUnseen(runtime: EffectsRuntime<any>, instances: Set<string>, seen: 
   }
 }
 
+function nodeExists(runtime: EffectsRuntime<any>, node: EachNode): boolean {
+  const owner = runtime.getValue(parentPath(node.path) ?? '')
+  return Array.isArray(owner) && node.index < owner.length
+}
+
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  return value != null && typeof value === 'object' && !Array.isArray(value)
+  return isPatchable(value) && !Array.isArray(value)
 }
 
 /** An array that contains at least one object element. Primitive arrays (and empty ones) are not entered. */
