@@ -42,14 +42,14 @@ createForm<T, TSubmit = T>(options?: FormOptions<T>): FormInstance<T, TSubmit>  
 | `enumPolicy` | `'none'` | 值不在 `$enum` 里时：`'clear'` 清掉，`'error'` 报错 |
 | `readOnly` / `disabled` | — | 整张表的初始只读 / 禁用（根上的 `$readOnly` / `$disabled`）。子字段沿路径继承：这一层写了 `true` 或 `false` 就用这一层，没写就保持上一层。之后用 `d.$readOnly = …` 改，`undefined` 丢掉 reaction 层，根回到可编辑 |
 | `trees` | — | `{ [path]: { childrenKey?, rowKey? } }`：让联动在挂载前就认识树根 |
-| `messages` | 中文 | 覆盖内置文案（校验、提交重试、树移动拒绝、默认按钮文案），可部分覆盖，值可以是函数，见 [内置文案](/guide/validation#内置文案) |
+| `messages` | 中文 | 覆盖内置文案（校验、提交重试、树移动拒绝、默认按钮文案），可部分覆盖，值可以是函数，见 [内置文案与国际化](/guide/validation#内置文案与国际化) |
 
 ### 读写和提交
 
 | 方法 | 说明 |
 |---|---|
 | `getValue(path)` / `setValue(path, value)` | 读 / 写一个有类型的 path，`a.b.c` 与 `a.b[0].c` 都可以。开发环境读到的对象、数组、`Map`、`Set`、`Date` 是只读视图，原地修改抛 `ShikiUsageError`（错误里有路径）；同一底层对象多次读取是同一个引用，但视图和存储对象 `===` 不相等（生产环境相等）。`rows.indexOf(rawRow)` / `includes` 仍能找到。写入用 `setValue` / `patchValues`，联动里写 `d.x.$value = …`，数组在组件里用 `useArrayField().push`。不要把视图交给会 `push` / `sort` 的控件。`structuredClone` / `postMessage` / IndexedDB 用 `snapshot(value)`（`@shikiform/core`）；只要提交值用 `getSubmitValues()`。`toRaw(value)` 是存储对象本身。生产环境返回存储的原值 |
-| `batch((d) => { … })` | 用一个 draft 做多次写入，一轮联动、一次通知 |
+| `batch((d) => { … })` | 用一个 draft 做多次写入，一轮联动、一次通知；`fn` 抛错时丢弃本轮已缓冲的写入 |
 | 数组 / 树增删移动 | 不在表单上。见下面的 [数组与树句柄](#数组与树句柄) |
 | `validate()` / `validate(path)` / `validate([paths])` | 校验全表、一棵子树，或一组路径（一次校验，`FormStep` 的「下一步」就是路径数组）。通过时 resolve 克隆后的值：无 path 为 `getSubmitValues()`（`TSubmit`，被 `omit` 的字段不在里面）；一个 path 为该处的值（类型 `PathValue`；这个 path 自己即使 `omit` 也返回，只因它而被 `omit` 的子孙仍在，子孙自己的 `omit` 才去掉）；路径数组为只含这些 path 的嵌套对象（类型 `ValidatePick`，同样去掉被 `omit` 的子孙）。字面量 path 保留各自的值；运行时下标是数字键（`{ rows: { 0: { name } } }`）。返回的数组是稠密的，没选中的下标是 `undefined`，`result.rows[0]` 读到的就是该处。失败 reject `FieldError[]`；表单级 `validate` 抛错原样 reject |
 | `submit(onValid?)` | 等异步规则、校验，通过才调用 `onValid`。resolve 提交值；`onValid` 返回非 `undefined` 时 resolve 那个返回值。失败 reject `FieldError[]`。`onValid` 抛错原样 reject。被后一次 `submit` 取代 reject `SubmitSupersededError`（`code: 'superseded'`）。值连续 3 轮没稳定 reject `SubmitUnstableError`（`code: 'unstable'`） |
@@ -192,7 +192,7 @@ const effects = defineEffects<Values>(({ reaction, watch, draft, query }) => {
 |---|---|---|
 | `reaction(effect)` | 立即运行；之后读到的 `$` 状态变化时 | 同步派生；写 `$value` 的字段成为计算字段，默认仍提交 |
 | `reaction.each(draft.items, effect)` | 普通对象按自有可枚举字符串键逐个建立实例；数组按元素建立实例，并进入嵌套的对象数组 | 路径在注册时取一次。selector `(d) => …` 仍可用，每轮重读，用来跟随会变的键。只有两个参数。用 `ctx.key` / `ctx.depth` 过滤 |
-| `watch(draft.city, effect)` | 该字段的 `$value` 变化后；首次不运行 | 与 `watch((d) => d.city.$value, …)` 相同。`watch([draft.a, draft.b], …)` 监听其中任一 `$value`。函数 source 用来读其它状态或计算表达式 |
+| `watch(draft.city, effect)` / `watch(fn, effect)` | 监听目标读取的 `$` 状态变化后执行；首次不运行 | `watch(draft.city, …)` 与 `watch((d) => d.city.$value, …)` 相同，`watch([draft.a, draft.b], …)` 监听任一 `$value`。函数 `fn` 在内部读取的**任意 `$` 状态变化时触发（不按 `fn` 返回值去重比较**，例如 `d.amount.$value > 100` 在 `amount` 从 `10` 变 `20` 时仍触发），每次触发还会重新追踪 `fn` 的读取，因此能跟随动态键（`d.extra[d.activeKey.$value].$value`） |
 | `watch.each(draft.rows, effect)` | 遍历数组元素与嵌套对象数组；回调里读到的状态就是来源 | 某个元素变化只触发它自己。selector 形式仍可用 |
 | `query(path)` | — | 路径已经是字符串时的无类型 handle（`pathOf`、配置、props，如 `rowsPath`）。能写在 draft 上的路径用 `d.a.b`、`d.items[i]`、`d.extra[key]` |
 
@@ -231,7 +231,7 @@ setDefaultMessages(messages: Partial<FormMessages>): void   // 全应用默认�
 getDefaultMessages(): FormMessages       // 当前的全应用默认（setDefaultMessages 之后的结果）
 ```
 
-`ShikiCycleError`、`ShikiUsageError`、`ShikiConflictError`、`SubmitSupersededError`、`SubmitUnstableError` 和 `isFieldErrors` 都从 `@shikiform/react` 和 `@shikiform/core` 导出。错误类可以 `instanceof` 判断。`SubmitSupersededError`（`code: 'superseded'`）是被后一次提交取代。`SubmitUnstableError`（`code: 'unstable'`）是值连续 3 轮没稳定，不是被取代；`<Form>` / `<Submit>` 把它交给 `onSubmitError`。两者都不要和 `FieldError[]` 混在一起，用 `isFieldErrors` 区分校验失败。`ShikiCycleError` 在生产构建里也会抛（联动循环触发）；`ShikiUsageError` 和 `ShikiConflictError` 只在开发构建检查。开发构建里，冲突和循环的消息逐个列出涉及的 reaction：声明位置（`文件:行:列`）、它读了哪些状态、写了哪些状态。两个写者的冲突改成一个写者，或把动作移到 `watch`。文案的优先级是规则自己的 `message` > 表单 `messages` > `setDefaultMessages` > `zhCN`，见 [内置文案](/guide/validation#内置文案)。
+`ShikiCycleError`、`ShikiUsageError`、`ShikiConflictError`、`SubmitSupersededError`、`SubmitUnstableError` 和 `isFieldErrors` 都从 `@shikiform/react` 和 `@shikiform/core` 导出。错误类可以 `instanceof` 判断。`SubmitSupersededError`（`code: 'superseded'`）是被后一次提交取代。`SubmitUnstableError`（`code: 'unstable'`）是值连续 3 轮没稳定，不是被取代；`<Form>` / `<Submit>` 把它交给 `onSubmitError`。两者都不要和 `FieldError[]` 混在一起，用 `isFieldErrors` 区分校验失败。`ShikiCycleError` 在生产构建里也会抛（联动循环触发）；`ShikiUsageError` 和 `ShikiConflictError` 只在开发构建检查。开发构建里，冲突和循环的消息逐个列出涉及的 reaction：声明位置（`文件:行:列`）、它读了哪些状态、写了哪些状态。两个写者的冲突改成一个写者，或把动作移到 `watch`。文案的优先级是规则自己的 `message` > 表单 `messages` > `setDefaultMessages` > `zhCN`，见 [内置文案与国际化](/guide/validation#内置文案与国际化)。
 
 ## 类型索引
 

@@ -15,7 +15,9 @@ const effects = defineEffects<Values>(({ reaction, watch, draft }) => {
 
 ## Derive state and respond to changes
 
-A `reaction` runs immediately and tracks every state it reads. A `watch` tracks its source only and skips its first pass. For dependent dropdowns, derive the available cities and reset the selected city only after the province changes.
+A `reaction` runs immediately and tracks every `$` state it reads. A `watch` skips its first pass and ignores reads inside its `effect` callback. Passing `draft.city` or `[draft.a, draft.b]` watches those `$value` paths; passing a function `watch(fn, effect)` triggers whenever **any `$` state read by `fn` changes** (it does **not** compare or deduplicate by `fn`'s return value — for example, `d.amount.$value > 100` still triggers when `amount` changes from `10` to `20`), and re-tracks `fn`'s reads on each trigger so changing keys (`d.extra[d.activeKey.$value].$value`) are followed. To act only when a threshold crosses, check the condition inside `effect` or derive a boolean field in `reaction` and watch that field.
+
+For dependent dropdowns, derive the available cities in a `reaction` and reset the selected city in a `watch` only after the province changes.
 
 ```tsx preview
 import { useState, type ReactNode } from 'react';
@@ -158,7 +160,7 @@ Each new key runs its reaction once. Changing a fee runs the instance that read 
 
 The list of inputs comes from `Object.keys(d.extra.$value)` in `<F.Watch>`. A fixed `<Field name="extra.fee1">` stays mounted when its value is deleted. The selector reads the entire object, so editing an existing amount can also reevaluate the key list. Assigning `undefined` to an existing optional property leaves its key in `Object.keys`; use `delete d.extra.$value[key]` to remove it.
 
-For a derivation that follows **one selected key**, read `d.extra[d.activeKey.$value].$value` in a regular `reaction`. Each run collects the current dependencies. A `watch(source, action)` collects its source paths at installation. Switching `activeKey` can fire the action, but subsequent edits to the newly selected field do not automatically become a trigger.
+For a derivation that follows **one selected key**, read `d.extra[d.activeKey.$value].$value` in a regular `reaction`. Each run collects the current dependencies. `watch((d) => d.extra[d.activeKey.$value].$value, action)` also re-tracks `fn`'s reads on each trigger, so switching `activeKey` follows edits to the newly selected key (keep derivations themselves in `reaction`).
 
 ## Filter using the context
 
@@ -183,7 +185,7 @@ reaction.each(draft.orders, (node, ctx) => {
 })
 ```
 
-Use a watch to add or remove SKU combinations after selection changes, preserving existing rows and their edited prices.
+Use `watch.each` to reset a row's quantity when its selected product changes, while `reaction.each` keeps prices, subtotals, and row-level `required` state in sync.
 
 ```tsx preview play=sku
 import { useState, type ReactNode } from 'react';
@@ -353,4 +355,6 @@ export default function App() {
 
 ## UI state in effects
 
-Write `$visible`, `$readOnly`, `$required` or a leaf of `$componentProps` on the relevant path. A named UI instance has its own presentation state. See [named UI nodes](/en/guide/ui).
+Write `$visible`, `$disabled`, `$readOnly`, `$omit`, `$required`, `$title`, `$enum`, or a leaf of `$componentProps` / `$decoratorProps` on the relevant path. Setting `$visible = false` hides the field and skips validation, while keeping its value in submit unless `$omit = true` is also set (see [Field state](/en/basics/state)). Assigning `undefined` drops the reaction override and restores the JSX or `fields` layer; assign `$enum = []` to clear options explicitly.
+
+Do not call `form.getValue(...)` during component render to compute props — it does not subscribe to changes. To mount a second UI for the same field or control a value-free banner, use named UI nodes (`d.x.$ui('echo')` / `d.$ui('tip')`). See [named UI nodes](/en/guide/ui).

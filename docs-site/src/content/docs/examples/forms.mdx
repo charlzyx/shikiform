@@ -404,6 +404,6 @@ export default function App() {
 ```
 
 - 停留在「基本」页直接点击提交时，`code` 同样会报错（因为它的 `required` 规则声明在 `fields` 选项中），而 `note` 不会报错（因为它的 `required` 写在 JSX 属性上，未挂载时规则尚未注册）。
-- 在实际业务中，若希望未激活页签的 JSX 规则与错误继续生效，可保持非当前页挂载（如使用 CSS `hidden` 切换显隐），或将规则声明在 `useForm({ fields })` / `reaction` 中。不同位置声明规则的生命周期差异见 [规则写在哪](/guide/validation#规则写在哪)。
+- 在实际业务中，若希望未激活页签的 JSX 规则与错误继续生效，可保持非当前页挂载（如使用 CSS `hidden` 切换显隐），或将规则声明在 `useForm({ fields })` / `reaction` 中。不同位置声明规则的生命周期差异见 [规则写在哪决定「卸载后是否还校验」](/guide/validation#规则写在哪决定卸载后是否还校验)。
 
 下一组：[联动](/examples/linkage)。

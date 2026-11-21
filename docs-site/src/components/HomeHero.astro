@@ -48,9 +48,9 @@ const english = language === "en";
             <span class="sf-hero__term-label">expense-effects.ts</span>
             <span class="sf-hero__term-tag">式 · defineEffects</span>
           </div>
-          <pre class="sf-hero__code"><code><span class="t-kw">defineEffects</span>&lt;<span class="t-ty">Values</span>&gt;(({`{ reaction }`}) =&gt; {`{`}
+          <pre class="sf-hero__code"><code><span class="t-kw">defineEffects</span>&lt;<span class="t-ty">Values</span>&gt;(({`{ reaction, draft }`}) =&gt; {`{`}
   <span class="t-cm">{english ? "// Each expense has its own field rules." : "// 每笔费用独立联动"}</span>
-  <span class="t-fn">reaction.each</span>((d) =&gt; d.expenses, (row) =&gt; {`{`}
+  <span class="t-fn">reaction.each</span>(draft.expenses, (row) =&gt; {`{`}
     <span class="t-kw">const</span> {`{ category, city }`} = row
     <span class="t-kw">const</span> travel = category.<span class="t-st">$value</span> === <span class="t-str">'travel'</span>
     city.<span class="t-st">$visible</span> = travel

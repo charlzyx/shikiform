@@ -25,8 +25,9 @@ function publicAgents(source: string): string {
 
 const HEADER = `# ShikiForm
 
-> TypeScript form library: a React-free engine (draft + \`$\` state, reaction / watch), headless React fields and hooks,
-> and a Formily-style Ant Design adapter (\`<Field decorator component>\`, \`FormItem\`, \`FormLayout\`, \`connect\`).
+> Headless TypeScript form library: a React-free engine (\`@shikiform/core\` with draft + \`$\` state, \`reaction\` / \`watch\`),
+> headless React fields, hooks, and component adapters (\`@shikiform/react\`: \`Form\`, \`Field\`, \`useField\`, \`useFieldDecorator\`, \`connect\`, \`mapProps\`),
+> and headless pro hooks (\`@shikiform/hooks\`: \`useQueryTable\`, \`useArrayTable\`, \`useShadowForm\`, \`useColumnSettings\`).
 
 - Docs: /guide/quick-start  ·  Concepts: /guide/concepts  ·  Path: /basics/path  ·  Linkage: /guide/linkage  ·  Examples: /examples  ·  API: /api  ·  Agent guide (zh): /agents
 - Full text of every page: /llms-full.txt

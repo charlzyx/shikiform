@@ -126,7 +126,7 @@ export default function App() {
       </table>
       <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
         <button type="button" disabled={table.page <= 1} onClick={() => table.onPageChange(table.page - 1)}>Previous</button>
-        <span>Page {table.page} / {totalPages} of {table.total} rows)</span>
+        <span>Page {table.page} / {totalPages} ({table.total} rows)</span>
         <button type="button" disabled={table.page >= totalPages} onClick={() => table.onPageChange(table.page + 1)}>Next</button>
       </div>
     </Form>

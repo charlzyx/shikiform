@@ -43,7 +43,7 @@ const { name } = d.user // name 依然是指向 d.user.name 的 handle
 name.$value = 'Ada'
 ```
 
-在开发模式下，对象展开（`{ ...d.user }`）、rest 剩余属性、`Object.keys(d.user)` 以及数组解构（`const [first] = d.items`）都会触发 `ShikiUsageError`，错误信息中会提示改用 `d.items[0]` 或 `d.user.$value` 等正确写法。更多案例见 [常见的坑](/practices/pitfalls#解构)。
+在开发模式下，对象展开（`{ ...d.user }`）、rest 剩余属性、`Object.keys(d.user)` 以及数组解构（`const [first] = d.items`）都会触发 `ShikiUsageError`，错误信息中会提示改用 `d.items[0]` 或 `d.user.$value` 等正确写法。更多案例见 [常见的坑](/practices/pitfalls#解构-handle)。
 
 ```tsx preview
 import { Field, Form, Watch, useField, useForm, type Draft } from '@shikiform/react';

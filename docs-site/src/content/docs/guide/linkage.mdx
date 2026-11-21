@@ -95,16 +95,16 @@ export default function App() {
 
 | 特性 | `reaction(effect)` | `watch(source, effect)` |
 |---|---|---|
-| **定位** | **派生**：持续同步得出的一份结果 | **动作**：当 X 变化时执行一次 Y |
+| **定位** | **派生**：持续同步得出的一份结果 | **动作**：当源变化时执行一次 Y |
 | **首次运行** | 初始化时立即运行一次 | 初始化时不运行 |
-| **依赖追踪** | 自动收集 `effect` 内读取的所有 `$` 状态 | handle 登记该字段的 `$value`（`watch([draft.a, draft.b])` 登记每一个）。函数 source 登记里面读到的 `$` 状态。忽略 `effect` 中的读取 |
+| **依赖追踪** | 自动收集 `effect` 内读取的所有 `$` 状态 | handle 登记该字段的 `$value`（`watch([draft.a, draft.b])` 登记每一个）。函数 `fn` 登记里面读取的 `$` 状态，只要其中任意状态变化就触发（**不按 `fn` 返回值比较去重**，例如 `d.amount.$value > 100` 在 `amount` 从 `10` 变 `20` 时仍触发），且每次触发会重新追踪 `fn` 的读取。忽略 `effect` 中的读取 |
 | **写入 `$value`** | 目标字段成为[计算字段](/guide/concepts#四个布尔)（仍可编辑、仍提交、不计入 dirty；预览再写 `readOnly`，不提交再写 `omit`） | 作为普通用户数据写入 |
 
 编写联动时需遵守四条规则：
 - 写入在回调结束时提交。在同一轮里，读取 `$value`、`$enum`、`$rules` 和 UI 状态能拿到刚写的值。写入 `$visible`、`$required` 等旗标后若还需要新值，请用局部变量。
 - 同一个 `$` 状态只能由一个 `reaction` 负责写入；如果多个 `reaction` 同时写入同一个状态，引擎会在开发阶段报错提示。
 - `reaction` 必须保持同步执行；异步请求等副作用应当放在 `watch` 中，拿到响应后再通过 `form.batch` 写回表单。
-- 只有读取过的状态确实发生改变时，`reaction` 才会重新触发；如果写入的值与当前值相等，不会唤醒下游依赖。
+- 只有读取过的状态确实发生改变时，`reaction` 才会重新触发；如果写入的值与当前值相等，不会唤醒下游依赖。若 `watch((d) => cond(d), effect)` 只想在条件跨过临界点时执行，请在 `effect` 内判断，或把条件派生到辅助字段再 `watch` 该字段。
 
 ## reaction.each：每一行一个实例
 
@@ -184,7 +184,7 @@ export default function App() {
 
 页面上的输入框由 `<F.Watch>` 中的 `Object.keys(d.extra.$value)` 生成，所以键被删除时控件也会卸载。写死的 `<Field name="extra.fee1">` 会继续挂载，只是值变成 `undefined`。这里的 selector 读取整个对象，修改已有金额也可能让它重新计算键列表。给已有的可选属性赋 `undefined` 会保留键，`Object.keys` 仍能列出它；要把该项从列表中移除，用 `delete d.extra.$value[key]`。
 
-如果只关心**当前选中的键**，在普通 `reaction` 里读 `d.extra[d.activeKey.$value].$value`，每次执行都会重新收集依赖。`watch(source, action)` 在注册时收集来源路径。切换 `activeKey` 可以触发动作，但随后再编辑新选中的字段，不会自动触发这个 watch。
+如果只关心**当前选中的键**，在普通 `reaction` 里读 `d.extra[d.activeKey.$value].$value`，每次执行都会重新收集依赖。用函数 source `watch((d) => d.extra[d.activeKey.$value].$value, action)` 时，每次触发也会重新追踪 `fn` 的读取，从而跟随 `activeKey` 切换到新字段（而派生计算仍应写在 `reaction` 中）。
 
 ## 用 ctx 过滤
 

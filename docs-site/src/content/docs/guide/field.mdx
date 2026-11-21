@@ -19,7 +19,7 @@ description: 使用 Field 绑定字段路径，通过 decorator 与 component �
 | 属性 | 说明 |
 |---|---|
 | `name` | 字段路径，相对于外层的 `<ObjectField>` 或数组行解析 |
-| `rules` / `required` | 挂载期校验规则，组件卸载时自动移除；持久化规则请写在 `fields` 或 `reaction` 中，详见 [规则写在哪](/guide/validation#规则写在哪) |
+| `rules` / `required` | 挂载期校验规则，组件卸载时自动移除；持久化规则请写在 `fields` 或 `reaction` 中，详见 [规则写在哪决定「卸载后是否还校验」](/guide/validation#规则写在哪决定卸载后是否还校验) |
 | `enum` | 静态选项（如 `[{ label, value }]`、`['a', 'b']`）或异步数据源 `SomeEnum.with(params)`，详见 [选项写在 JSX 里](#选项写在-jsx-里) |
 | `visible` / `disabled` / `readOnly` / `omit` | 四个布尔。`reaction` 写入的同名 `$` 状态优先于 JSX |
 | `title` / `description` | 传递给装饰器的标题与补充说明 |

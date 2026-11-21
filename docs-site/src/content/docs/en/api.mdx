@@ -38,7 +38,8 @@ createForm<T, TSubmit = T>(options?: FormOptions<T>): FormInstance<T, TSubmit>  
 | Method | Contract |
 |---|---|
 | `getValue`, `setValue` | Read or update a single dot or bracket path. In development an object result is a read-only view (not `===` to the stored value; production returns the stored value). `indexOf` / `includes` still find a raw row. Copy with `snapshot(value)` for `structuredClone`, `postMessage`, or IndexedDB. `getSubmitValues()` is the submit payload. |
-| `patchValues`, `batch` | Merge partial data or write multiple paths in one transaction. |
+| `patchValues` | Deep-merge partial plain objects in one flush; arrays and primitives replace whole. |
+| `batch(fn)` | Write multiple paths on one draft with one reaction pass and one notification. Discards buffered writes if `fn` throws. |
 | `validate()` / `validate(path)` / `validate([paths])` | Validate the whole form, one subtree, or several paths in one pass (what a step validates). On success, resolves a clone: no path is `getSubmitValues()` (`TSubmit`); one path is that value (`PathValue`; the path itself is returned even when omitted, and descendants omitted only because of that path stay — a descendant's own `omit` is removed); an array is a nested object of only those paths (`ValidatePick`). A literal list keeps each value. An array index is a numeric key (`{ rows: { 0: { name } } }`). The array returned at runtime is dense, and an index that was not selected is `undefined`, so `result.rows[0]` reads that property. Rejects `FieldError[]`. A form-level `validate` throw rejects as-is. |
 | `submit(onValid?)` | Validate and return the callback result or submit values. A later attempt can supersede it. |
 | `getSubmitValues` | Return values with omitted subtrees removed. |
@@ -132,22 +133,40 @@ await form.submit((values) => {
 
 ## React components
 
-`Form` provides context and handles native submit. `Field` binds a path and renders its decorator and control. `ObjectField`, `ArrayField` and `TreeField` establish relative scopes. `UI` creates a presentation-only node. `Watch` renders a selector result. See the [field guide](/en/guide/field) and [React reference](/en/reference/react-hooks).
+| Component | Behavior |
+|---|---|
+| `<Form form onSubmit onInvalid onSubmitError …>` | Provides engine context and renders a native `<form>`. Calls `form.submit(onSubmit)`, routes validation errors to `onInvalid(errors)`, and sends `onSubmit` / `SubmitUnstableError` errors to `onSubmitError` (defaults to `console.error`). Focuses the first invalid field in document order on submit or `validate()` failure. Control `id` is `<prefix>-<sanitized-path>`. |
+| `<Field name …>` | Owns a path and renders its decorator and control. See the [field guide](/en/guide/field). |
+| `<ObjectField name visible? disabled? readOnly? omit?>` | Object scope. `visible`, `disabled`, and `readOnly` inherit unless overridden (`false` exits). `omit` removes the whole subtree from submit (`omit: false` on a child cannot opt back in). |
+| `<ArrayField name rowKey? component? virtualScroll?>{({ index, key }) => …}` | Per-row scope; parent subscribes only to array structure. `component` wraps rows; `virtualScroll={{ height }}` mounts visible plain rows only. |
+| `<TreeField name childrenKey? rowKey?>{(node) => …}` | Registers the tree root and renders nodes recursively (`node` has `{ path, pos, index, key, depth, children }`). Use `useTreeField()` inside nodes or `useTreeField(name)` outside. |
+| `<Field name ui="echo">` / `<UI name component decorator …>` | Secondary UI for a field (`d.x.$ui('echo')`) or value-free UI node (`d.$ui(name)`). See [named UI nodes](/en/guide/ui). |
+| `<Watch select>{(value) => …}` | Render-prop form of `useWatch`. |
+
+Plain `<Field>`, `<ObjectField>`, `<ArrayField>`, and `useField` accept any string as an escape hatch for dynamic paths. Use [`typed(form)`](/en/reference/react-hooks#typed) for type-checked names and scoped `row.Field` / `obj.Field` helpers. Names are always relative to the current scope.
 
 ## Effects
-
-Derive state with `reaction`, react to a source change with `watch` and use `each` for rows. Pass `draft` from `defineEffects` to name a path: `reaction.each(draft.items, …)`, `watch(draft.city, …)` (that field's `$value`), `watch([draft.a, draft.b], …)`. A function source still works, including reads other than `$value`. `reaction.each` also accepts a plain object handle and tracks one field per own enumerable string key. The selector form of `each` still works and is re-read every pass. `query(path)` is the untyped escape hatch when the path is already a string (`pathOf`, config, or a prop such as `rowsPath`).
 
 ```ts
 const effects = defineEffects<Values>(({ reaction, watch, draft, query }) => {
   reaction((d) => { … })
   reaction.each(draft.items, (row, ctx) => { … }) // Path handle. (d) => d.items still works.
   watch(draft.city, (d) => { … })                 // Watches city.$value.
-  watch([draft.a, draft.b], (d) => { … })
+  watch([draft.a, draft.b], (d) => { … })         // Watches either $value.
   watch.each(draft.items, (row, ctx) => { … })
-  query(pathOf('menus', pos)).$disabled = true    // The path is a string.
+  query(pathOf('menus', pos)).$disabled = true    // Escape hatch when the path is already a string.
 })
 ```
+
+| API | Trigger | Notes |
+|---|---|---|
+| `reaction(effect)` | Immediately on install, then whenever a `$` state read during `effect` changes | Synchronous derivation. A field whose `$value` is written by a reaction becomes computed and still submits unless `omit`. |
+| `reaction.each(draft.items, effect)` | Per own enumerable string key for plain objects; per element (and nested object arrays) for arrays | Path is read once at registration; selector `(d) => …` still works and re-reads every pass to follow changing keys. Takes two arguments only; filter with `ctx.key` / `ctx.depth`. |
+| `watch(draft.city, effect)` / `watch(fn, effect)` | After a watched `$` state changes; skips the initial pass | `watch(draft.city, …)` equals `watch((d) => d.city.$value, …)`; `watch([draft.a, draft.b], …)` watches each `$value`. `watch(fn, effect)` triggers whenever **any `$` state read by `fn` changes** (it does **not** compare or deduplicate by `fn`'s return value — e.g. `d.amount.$value > 100` still triggers when `amount` goes from `10` to `20`), and re-tracks `fn`'s reads on each trigger so changing keys (`d.extra[d.activeKey.$value].$value`) are followed. |
+| `watch.each(draft.rows, effect)` | Visits array elements and nested object arrays; `$` reads in the callback are its source | Changes to one element trigger only that element. Selector form still works. |
+| `query(path)` | — | Untyped handle when the path is already a string (`pathOf`, config, or props such as `rowsPath`). Prefer `d.a.b`, `d.items[i]`, or `d.extra[key]` when the path can be written on `draft`. |
+
+Row callbacks receive `(row, ctx)` where `ctx` includes `d`, `key`, `index`, `depth`, `parent`, `path`, and `pos`. See [reactions and watches](/en/guide/linkage).
 
 ## Engine utilities
 

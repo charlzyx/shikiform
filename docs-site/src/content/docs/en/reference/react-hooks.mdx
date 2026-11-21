@@ -193,20 +193,20 @@ type Values = { name: string };
 function NameInput() {
   const field = useField<Values, 'name'>('name');
   if (!field.visible) return null;
-  if (field.readOnly === true) return <p>Name:{field.value}</p>;
+  if (field.readOnly === true) return <p>Name: {field.value}</p>;
   return (
     <label htmlFor={field.id}>
       Name
       <input id={field.id} value={field.value} disabled={field.disabled} readOnly={field.readOnly}
         onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} />
-      <span role="status">{field.errors.join('；')}</span>
+      <span role="status">{field.errors.join('; ')}</span>
     </label>
   );
 }
 
 function Greeting() {
   const name = useWatch((d: Draft<Values>) => d.name.$value);
-  return <p>Hello,{name || "Enter a name"}</p>;
+  return <p>Hello, {name || "Enter a name"}</p>;
 }
 
 function ResetName() {
@@ -344,7 +344,7 @@ Read the nearest row's current index or the current tree node's sibling index.
 
 ```tsx
 function RowNo() {
-  return <span>Page {useIndex() + 1} row</span>
+  return <span>Row {useIndex() + 1}</span>
 }
 ```
 

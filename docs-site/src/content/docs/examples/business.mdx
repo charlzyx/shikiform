@@ -443,6 +443,6 @@ export default function App() {
 - 订单内的 `items` 也是对象数组，`reaction.each` 会递归进入内层；开头判断 `if (depth !== 0) return` 使该回调只处理外层订单，修改某张订单的状态或明细时只重算该订单。
 - 展开区位于外层 `<ArrayField name="orders">` 的行作用域内，因此 `<ArrayField name="items">` 会自动解析为 `orders.N.items`，内部的 `<Field name="qty">` 同样直接写相对路径。
 - 「已发货」订单整单只读，是因为子字段继承了 `order.$readOnly`。状态列在可编辑时写了 `order.status.$readOnly = false`，所以仍能改回「已付款」，整单恢复可编辑。合计和行金额自己声明了 `readOnly`，阅读态展示计算结果。
-- 上述表格直接在原数据上实时修改，若希望「确认后再写回、取消可丢弃」，请使用 [草稿表单（useShadowForm）](/examples/pro#草稿表单useShadowForm)。
+- 上述表格直接在原数据上实时修改，若希望「确认后再写回、取消可丢弃」，请使用 [草稿表单（useShadowForm）](/examples/pro#草稿表单useshadowform)。
 
 回到 [示例库](/examples)。
