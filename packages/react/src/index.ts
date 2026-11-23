@@ -42,8 +42,44 @@ export type { UseFormOptions } from './hooks/use-form'
 export { useTreeField } from './hooks/use-tree'
 export type { TreeHandle, TreeNodeHandle, TreeOptions } from './hooks/use-tree'
 export { useWatch } from './hooks/use-watch'
-export { createForm, defineEffects, enUS, getDefaultMessages, isFieldErrors, setDefaultMessages, zhCN, EnumSource, ShikiConflictError, ShikiCycleError, ShikiUsageError, SubmitSupersededError, SubmitUnstableError } from '@shikiform/core'
+export { useQueryTable } from './hooks/use-query-table'
 export type {
+  QueryHookArgs,
+  QueryFilters,
+  QueryHookResult,
+  QueryRequestArgs,
+  QuerySort,
+  QueryRequestResult,
+  QueryTableApi,
+  TableSorterLike,
+  UseQueryTableOptions,
+} from './hooks/use-query-table'
+export { useArrayTable } from './hooks/use-array-table'
+export type { ArrayTableApi, ArrayTablePagination, ArrayTableRow, UseArrayTableOptions } from './hooks/use-array-table'
+export { useShadowForm } from './hooks/use-shadow-form'
+export type { ShadowConfirmResult, ShadowFormApi, ShadowInit, UseShadowFormOptions } from './hooks/use-shadow-form'
+export { useSuggestion } from './hooks/use-suggestion'
+export type { SuggestFetcher, SuggestionApi, UseSuggestionOptions } from './hooks/use-suggestion'
+export { useLazyCascader } from './hooks/use-lazy-cascader'
+export type {
+  CascaderLoader,
+  CascaderOption,
+  LazyCascaderApi,
+  UseLazyCascaderOptions,
+} from './hooks/use-lazy-cascader'
+export { useColumnSettings } from './hooks/use-column-settings'
+export type {
+  ColumnDragEvent,
+  ColumnDragProps,
+  ColumnSetting,
+  ColumnSettingInput,
+  ColumnSettingsApi,
+  TableDensity,
+} from './hooks/use-column-settings'
+export { createForm, defineEffects, enUS, getDefaultMessages, isFieldErrors, setDefaultMessages, zhCN, ENUM_COLORS, enumItems, EnumSource, ShikiConflictError, ShikiCycleError, ShikiUsageError, SubmitSupersededError, SubmitUnstableError } from '@shikiform/core'
+export type {
+  EnumDisplayItem,
+  EnumItemsOptions,
   FormMessageKey,
   FormMessages,
   MessageArgs,

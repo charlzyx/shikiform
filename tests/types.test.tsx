@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import { createForm, defineEffects, EnumSource, type Draft, type EnumOption } from '@shikiform/core'
-import { useQueryTable } from '../packages/hooks/src/use-query-table'
+import { useQueryTable } from '../packages/react/src/hooks/use-query-table'
 import { Field, ObjectField, typed, useArrayField, useField, useForm, useWatch } from '@shikiform/react'
 
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false

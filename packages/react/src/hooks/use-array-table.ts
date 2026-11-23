@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { snapshot } from '@shikiform/core'
 import { joinPath } from '@shikiform/core/internal'
-import { useRequiredForm, useScope } from '@shikiform/react/internal'
-import { useArrayAt, type ArrayKey } from '@shikiform/react/internal'
-import { useFieldGroupRegistration } from '@shikiform/react/internal'
+import { useRequiredForm, useScope } from '../context'
+import { useArrayAt, type ArrayKey } from './use-array'
+import { useFieldGroupRegistration } from '../field-group'
 
 /** Client pagination (slice the array) or, when `total` is given, a controlled server page. */
 export interface ArrayTablePagination {

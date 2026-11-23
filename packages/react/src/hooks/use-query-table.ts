@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import { engineOf } from '@shikiform/core/internal'
 import { setAt } from '@shikiform/core/internal'
 import type { EffectDef, FieldPath, FormInstance, FormOptions, PathValue } from '@shikiform/core/internal'
-import { useForm } from '@shikiform/react/internal'
+import { useForm } from './use-form'
 
 /**
  * Arguments passed to {@link UseQueryTableOptions.request}.

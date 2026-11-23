@@ -3,7 +3,7 @@ import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { enumItems, useLazyCascader, useSuggestion, type CascaderOption } from '@shikiform/hooks'
 import { useCascaderLabels, useColumnSettings } from '@shikiform/hooks/internal'
-import { cascaderPaths } from '../packages/hooks/src/use-lazy-cascader'
+import { cascaderPaths } from '../packages/react/src/hooks/use-lazy-cascader'
 
 afterEach(() => {
   cleanup()

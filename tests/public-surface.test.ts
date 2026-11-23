@@ -27,6 +27,10 @@ describe('public surface', () => {
     expect('useArrayField' in root).toBe(true)
     expect('useTreeField' in root).toBe(true)
     expect('useFormContext' in root).toBe(true)
+    for (const name of [
+      'useQueryTable', 'useArrayTable', 'useShadowForm', 'useSuggestion',
+      'useLazyCascader', 'useColumnSettings', 'enumItems', 'ENUM_COLORS',
+    ]) expect(name in root, name).toBe(true)
   })
 
   it('createForm returns the narrow FormInstance', () => {
