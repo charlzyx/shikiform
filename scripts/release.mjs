@@ -16,7 +16,7 @@ if (process.argv.includes('--publish')) {
 }
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const names = ['core', 'react', 'hooks']
+const names = ['core', 'react']
 for (const name of names) {
   const cwd = path.join(root, 'packages', name)
   if (!existsSync(path.join(cwd, 'dist', 'index.js'))) {

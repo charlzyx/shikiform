@@ -7,7 +7,6 @@ export const DEMO_IMPORTS = [
   'react/jsx-runtime',
   '@shikiform/react',
   '@shikiform/core',
-  '@shikiform/hooks',
   'zod',
 ] as const
 

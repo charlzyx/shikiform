@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { enumItems, useLazyCascader, useSuggestion, type CascaderOption } from '@shikiform/hooks'
-import { useCascaderLabels, useColumnSettings } from '@shikiform/hooks/internal'
+import { enumItems, useLazyCascader, useSuggestion, type CascaderOption } from '@shikiform/react'
+import { useCascaderLabels, useColumnSettings } from '@shikiform/react/internal'
 import { cascaderPaths } from '../packages/react/src/hooks/use-lazy-cascader'
 
 afterEach(() => {

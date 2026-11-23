@@ -17,8 +17,6 @@ export default defineConfig({
       { find: /^react\/jsx-runtime$/, replacement: path.resolve('node_modules/react/jsx-runtime') },
       alias('@shikiform/core/internal', 'packages/core/src/internal.ts'),
       alias('@shikiform/core', 'packages/core/src/index.ts'),
-      alias('@shikiform/hooks/internal', 'packages/hooks/src/internal.ts'),
-      alias('@shikiform/hooks', 'packages/hooks/src/index.ts'),
       alias('@shikiform/react/internal', 'packages/react/src/internal.ts'),
       alias('@shikiform/react', 'packages/react/src/index.ts'),
     ],

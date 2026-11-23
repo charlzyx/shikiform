@@ -2,7 +2,7 @@
 import { cleanup, render, renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ArrayField, createForm, defineEffects, Field, Form, ShikiConflictError, ShikiCycleError, ShikiUsageError, UI, typed, useForm } from '@shikiform/react'
-import { useQueryTable } from '@shikiform/hooks'
+import { useQueryTable } from '@shikiform/react'
 import { createEngine } from '../packages/core/src/engine/create'
 
 afterEach(cleanup)

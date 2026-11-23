@@ -2,7 +2,7 @@
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { ArrayField, createForm, Field, Form, useForm } from '@shikiform/react'
-import { useShadowForm } from '@shikiform/hooks'
+import { useShadowForm } from '@shikiform/react'
 import { FormItem, Input } from './fixtures/native-kit'
 
 afterEach(cleanup)

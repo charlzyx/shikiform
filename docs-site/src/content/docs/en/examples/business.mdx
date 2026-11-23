@@ -433,3 +433,315 @@ export default function App() {
   );
 }
 ```
+
+## Policy Matrix Form (Visibility Matrix + Adapter + Risk Gate)
+
+**Scenario**: A multi-mode campaign/release policy form. Switching the policy type shows only its matching section while automatically marking inactive fields `$omit` so they are excluded from validation and submit payloads; `fromApi / toApi` keeps UI units decoupled from backend DTOs, and high-budget submissions pass through a confirmation gate.
+
+```tsx preview
+import { useState } from 'react';
+import { defineEffects, enUS, Field, Form, Submit, useForm, useWatch, type Draft } from '@shikiform/react';
+
+type PolicyType = 'flash' | 'bundle' | 'referral';
+type PolicyDto = {
+  policy_id: string;
+  policy_type: PolicyType;
+  title: string;
+  budget_cents: number;
+  flash_cap?: number;
+  bundle_min_items?: number;
+  referral_bonus?: number;
+};
+type PolicyValues = {
+  type: PolicyType;
+  title: string;
+  budget: number;
+  flashCap: number;
+  bundleMinItems: number;
+  referralBonus: number;
+};
+
+const SHOW_MAP: Record<PolicyType, { flashCap: boolean; bundleMinItems: boolean; referralBonus: boolean }> = {
+  flash: { flashCap: true, bundleMinItems: false, referralBonus: false },
+  bundle: { flashCap: false, bundleMinItems: true, referralBonus: false },
+  referral: { flashCap: false, bundleMinItems: false, referralBonus: true },
+};
+
+const fromApi = (dto: PolicyDto): PolicyValues => ({
+  type: dto.policy_type,
+  title: dto.title,
+  budget: Math.round(dto.budget_cents / 100),
+  flashCap: dto.flash_cap ?? 500,
+  bundleMinItems: dto.bundle_min_items ?? 2,
+  referralBonus: dto.referral_bonus ?? 30,
+});
+
+const toApi = (values: Partial<PolicyValues>, id: string): PolicyDto => ({
+  policy_id: id,
+  policy_type: values.type ?? 'flash',
+  title: (values.title ?? '').trim(),
+  budget_cents: Math.round((values.budget ?? 0) * 100),
+  ...(values.flashCap !== undefined ? { flash_cap: values.flashCap } : {}),
+  ...(values.bundleMinItems !== undefined ? { bundle_min_items: values.bundleMinItems } : {}),
+  ...(values.referralBonus !== undefined ? { referral_bonus: values.referralBonus } : {}),
+});
+
+const policyEffects = defineEffects<PolicyValues>(({ reaction }) => {
+  reaction((d) => {
+    const show = SHOW_MAP[d.type.$value] ?? SHOW_MAP.flash;
+    d.flashCap.$visible = show.flashCap;
+    d.flashCap.$omit = !show.flashCap;
+    d.bundleMinItems.$visible = show.bundleMinItems;
+    d.bundleMinItems.$omit = !show.bundleMinItems;
+    d.referralBonus.$visible = show.referralBonus;
+    d.referralBonus.$omit = !show.referralBonus;
+  });
+});
+
+function RiskBanner() {
+  const budget = useWatch((d: Draft<PolicyValues>) => d.budget.$value);
+  if (budget < 50000) return null;
+  return (
+    <p style={{ margin: '6px 0', padding: '6px 10px', border: '1px solid #f59e0b', borderRadius: 4, fontSize: 12 }}>
+      High-budget policy (≥ $50,000): submitting requires an extra confirmation step.
+    </p>
+  );
+}
+
+const INITIAL_DTO: PolicyDto = {
+  policy_id: 'PL-2026-01',
+  policy_type: 'flash',
+  title: 'Spring Flash Campaign',
+  budget_cents: 6000000,
+  flash_cap: 300,
+};
+
+export default function App() {
+  const [pendingDto, setPendingDto] = useState<PolicyDto | null>(null);
+  const [savedDto, setSavedDto] = useState<PolicyDto | null>(null);
+
+  const form = useForm<PolicyValues>({
+    messages: enUS,
+    initialValues: fromApi(INITIAL_DTO),
+    fields: {
+      type: {
+        title: 'Policy type',
+        required: true,
+        enum: [
+          { label: 'Flash sale', value: 'flash' },
+          { label: 'Bundle deal', value: 'bundle' },
+          { label: 'Referral bonus', value: 'referral' },
+        ] as const,
+      },
+      title: { title: 'Policy title', required: true },
+      budget: { title: 'Budget cap ($)', required: true, rules: { min: 100 } },
+      flashCap: { title: 'Per-user cap', required: true, rules: { min: 1 } },
+      bundleMinItems: { title: 'Min bundle items', required: true, rules: { min: 2 } },
+      referralBonus: { title: 'Bonus per referral ($)', required: true, rules: { min: 1 } },
+    },
+    effects: [policyEffects],
+  });
+
+  return (
+    <Form
+      form={form}
+      onSubmit={(values) => {
+        const dto = toApi(values, INITIAL_DTO.policy_id);
+        if (dto.budget_cents >= 5000000) {
+          setPendingDto(dto);
+          return;
+        }
+        setSavedDto(dto);
+      }}
+    >
+      <div style={{ display: 'grid', gap: 8, maxWidth: 420 }}>
+        <Field<PolicyValues, 'type'> name="type">
+          {(f) => (
+            <label>
+              {f.title}:{' '}
+              <select value={f.value} onChange={(e) => f.onChange(e.target.value as PolicyType)}>
+                {f.options.map((opt) => (
+                  <option key={String(opt.value)} value={String(opt.value)}>{opt.label}</option>
+                ))}
+              </select>
+            </label>
+          )}
+        </Field>
+        <Field<PolicyValues, 'title'> name="title">
+          {(f) => (
+            <label>
+              {f.title}:{' '}
+              <input value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} />
+              {f.errors[0] && <span style={{ color: '#dc2626', marginLeft: 6 }}>{f.errors[0]}</span>}
+            </label>
+          )}
+        </Field>
+        <Field<PolicyValues, 'budget'> name="budget">
+          {(f) => (
+            <label>
+              {f.title}:{' '}
+              <input type="number" value={f.value ?? 0} onChange={(e) => f.onChange(Number(e.target.value))} />
+            </label>
+          )}
+        </Field>
+        <RiskBanner />
+        <Field<PolicyValues, 'flashCap'> name="flashCap">
+          {(f) => (
+            <label>
+              {f.title}:{' '}
+              <input type="number" value={f.value ?? 1} onChange={(e) => f.onChange(Number(e.target.value))} />
+            </label>
+          )}
+        </Field>
+        <Field<PolicyValues, 'bundleMinItems'> name="bundleMinItems">
+          {(f) => (
+            <label>
+              {f.title}:{' '}
+              <input type="number" value={f.value ?? 2} onChange={(e) => f.onChange(Number(e.target.value))} />
+            </label>
+          )}
+        </Field>
+        <Field<PolicyValues, 'referralBonus'> name="referralBonus">
+          {(f) => (
+            <label>
+              {f.title}:{' '}
+              <input type="number" value={f.value ?? 1} onChange={(e) => f.onChange(Number(e.target.value))} />
+            </label>
+          )}
+        </Field>
+        <Submit>{(s) => <button type="submit" disabled={s.disabled}>Publish policy</button>}</Submit>
+      </div>
+      {pendingDto && (
+        <div style={{ marginTop: 8, padding: 8, border: '1px solid #f59e0b', borderRadius: 4 }}>
+          <p style={{ margin: '0 0 6px' }}>Confirm publishing a ${pendingDto.budget_cents / 100} budget?</p>
+          <button type="button" onClick={() => { setSavedDto(pendingDto); setPendingDto(null); }}>Confirm</button>{' '}
+          <button type="button" onClick={() => setPendingDto(null)}>Cancel</button>
+        </div>
+      )}
+      {savedDto && <pre style={{ marginTop: 8, fontSize: 12 }}>{JSON.stringify(savedDto, null, 2)}</pre>}
+    </Form>
+  );
+}
+```
+
+## Shared Single-Drawer Table + Live Inspector (`scopeKey` + `onValuesChange`)
+
+**Scenario**: Every table row shares a single `useShadowForm({ scopeKey })` overlay instance (instead of mounting one drawer per row). Switching workspaces cancels any open draft via `scopeKey`, while the live inspector below uses `useForm({ values, onValuesChange })` to sync edits immediately without a submit button.
+
+```tsx preview
+import { useState } from 'react';
+import { enUS, Field, Form, useForm, useShadowForm } from '@shikiform/react';
+
+type Rule = { id: string; name: string; weight: number; enabled: boolean };
+
+const WORKSPACE_RULES: Record<string, Rule[]> = {
+  'ws-east': [
+    { id: 'R-01', name: 'New user welcome perk', weight: 80, enabled: true },
+    { id: 'R-02', name: 'Weekend member boost', weight: 50, enabled: false },
+  ],
+  'ws-west': [
+    { id: 'R-09', name: 'Regional free shipping', weight: 90, enabled: true },
+  ],
+};
+
+export default function App() {
+  const [workspace, setWorkspace] = useState<'ws-east' | 'ws-west'>('ws-east');
+  const [store, setStore] = useState(WORKSPACE_RULES);
+  const [selectedId, setSelectedId] = useState('R-01');
+  const rows = store[workspace] ?? [];
+  const activeRow = rows.find((r) => r.id === selectedId) ?? rows[0];
+
+  const editor = useShadowForm<Rule, { id: string }>({
+    scopeKey: workspace,
+    formOptions: { messages: enUS },
+    fields: {
+      name: { title: 'Rule name', required: true },
+      weight: { title: 'Priority weight', required: true, rules: { min: 1, max: 100 } },
+    },
+    onOk: (values, ctx) => {
+      if (!ctx) return;
+      setStore((prev) => ({
+        ...prev,
+        [workspace]: (prev[workspace] ?? []).map((r) => (r.id === ctx.id ? { ...r, ...values } : r)),
+      }));
+    },
+  });
+
+  const inspector = useForm<Rule>({
+    messages: enUS,
+    values: activeRow,
+    onValuesChange: (next) => {
+      if (!activeRow) return;
+      setStore((prev) => ({
+        ...prev,
+        [workspace]: (prev[workspace] ?? []).map((r) => (r.id === activeRow.id ? { ...r, ...next } : r)),
+      }));
+    },
+  });
+
+  return (
+    <div style={{ display: 'grid', gap: 12 }}>
+      <div>
+        Workspace:{' '}
+        <button type="button" onClick={() => { setWorkspace('ws-east'); setSelectedId('R-01'); }}>
+          East ({workspace === 'ws-east' ? 'active' : 'switch'})
+        </button>{' '}
+        <button type="button" onClick={() => { setWorkspace('ws-west'); setSelectedId('R-09'); }}>
+          West ({workspace === 'ws-west' ? 'active' : 'switch'})
+        </button>
+      </div>
+
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Rule name</th><th>Weight</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.id}>
+              <td>{row.id}</td>
+              <td>{row.name}</td>
+              <td>{row.weight}</td>
+              <td>
+                <button type="button" onClick={() => setSelectedId(row.id)}>Inspect</button>{' '}
+                <button type="button" onClick={() => void editor.open(row, { id: row.id })}>Edit in drawer</button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {editor.visible && (
+        <div style={{ padding: 10, border: '1px solid #3b82f6', borderRadius: 4 }}>
+          <p style={{ margin: '0 0 8px', fontWeight: 600 }}>Shared editor · {editor.context?.id}</p>
+          <Form form={editor.form}>
+            <Field<Rule, 'name'> name="name">
+              {(f) => <label>Name: <input value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} /></label>}
+            </Field>{' '}
+            <Field<Rule, 'weight'> name="weight">
+              {(f) => <label>Weight: <input type="number" style={{ width: 64 }} value={f.value ?? 1} onChange={(e) => f.onChange(Number(e.target.value))} /></label>}
+            </Field>
+          </Form>
+          <div style={{ marginTop: 8 }}>
+            <button type="button" onClick={() => void editor.confirm()}>Save</button>{' '}
+            <button type="button" onClick={() => editor.cancel()}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {activeRow && (
+        <div style={{ padding: 10, border: '1px dashed #94a3b8', borderRadius: 4 }}>
+          <p style={{ margin: '0 0 6px', fontSize: 12 }}>Live inspector (onValuesChange · {activeRow.id}):</p>
+          <Form form={inspector}>
+            <Field<Rule, 'name'> name="name">
+              {(f) => <label>Name: <input value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} /></label>}
+            </Field>{' '}
+            <Field<Rule, 'weight'> name="weight">
+              {(f) => <label>Weight: <input type="number" style={{ width: 64 }} value={f.value ?? 1} onChange={(e) => f.onChange(Number(e.target.value))} /></label>}
+            </Field>
+          </Form>
+        </div>
+      )}
+    </div>
+  );
+}
+```

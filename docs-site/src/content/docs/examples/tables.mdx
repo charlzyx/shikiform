@@ -10,7 +10,7 @@ description: 演示带条件联动的查询列表、轻量级原生查询实现�
 ```tsx preview play=query
 import { useState } from 'react';
 import { Field, Form, defineEffects, useField } from '@shikiform/react';
-import { useQueryTable } from '@shikiform/hooks';
+import { useQueryTable } from '@shikiform/react';
 
 type Log = { id: string; keyword: string; provider: string; model: string; status: string };
 type Query = { keyword: string; provider: string; model: string; user: string };
@@ -148,7 +148,7 @@ export default function App() {
 }
 ```
 
-- `useQueryTable`（`@shikiform/hooks`）统一托管查询条件、分页、勾选、表头筛选和请求竞态；由于底层仍是标准 ShikiForm 引擎，条件之间可以照常编写 `reaction` 和 `watch`。
+- `useQueryTable`（`@shikiform/react`）统一托管查询条件、分页、勾选、表头筛选和请求竞态；由于底层仍是标准 ShikiForm 引擎，条件之间可以照常编写 `reaction` 和 `watch`。
 - 配置 `rows: 'list'` 后，接口返回的每一页数据会写入表单的 `list` 数组字段，因此表格单元格也可以直接放置 `<Field>` 进行行内编辑。
 - 收起额外筛选条件时通过 `display: none` 隐藏而不卸载节点，已输入的值不会丢失。
 - 调用 `table.setFilters` 切换筛选条件时，参数会传给 `request` 的 `filters`，同时回到第 1 页并清空勾选项；单纯翻页时勾选项会保留。详见 [查询 Hooks](/reference/query-hooks)。
@@ -159,7 +159,7 @@ export default function App() {
 
 ```tsx preview play=query-native
 import { Field, Form } from '@shikiform/react';
-import { useQueryTable } from '@shikiform/hooks';
+import { useQueryTable } from '@shikiform/react';
 
 type Log = { id: string; keyword: string };
 const LOGS: Log[] = Array.from({ length: 12 }, (_, i) => ({ id: String(i + 1), keyword: `${i % 2 ? 'beta' : 'alpha'}-${i + 1}` }));

@@ -15,8 +15,8 @@ import {
   zhCN,
 } from '@shikiform/react'
 import { Input } from './fixtures/native-kit'
-import * as HooksPublic from '@shikiform/hooks'
-import { useShadowForm } from '@shikiform/hooks'
+import * as HooksPublic from '@shikiform/react'
+import { useShadowForm } from '@shikiform/react'
 
 afterEach(() => {
   cleanup()
@@ -118,7 +118,7 @@ describe('FormEngine.forkOptions', () => {
 })
 
 describe('useShadowForm', () => {
-  it('removes useArrayShadow from public @shikiform/hooks exports', () => {
+  it('removes useArrayShadow from public @shikiform/react exports', () => {
     expect('useArrayShadow' in HooksPublic).toBe(false)
   })
 

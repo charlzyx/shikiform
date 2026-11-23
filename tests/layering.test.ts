@@ -3,7 +3,7 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 /** Guard the one-way module layout described in design/ARCHITECTURE.md. */
-const PACKAGES = ['core', 'react', 'hooks'] as const
+const PACKAGES = ['core', 'react'] as const
 const ROOTS = PACKAGES.map((name) => ({ name, dir: path.resolve('packages', name, 'src') }))
 
 function files(dir: string): string[] {
@@ -85,15 +85,15 @@ describe('module layering', () => {
     expect(violations).toEqual([])
   })
 
-  it('core imports no React, react and hooks import no UI libraries, pure modules import no stateful part', () => {
-    const rank: Record<string, number> = { core: 0, react: 1, hooks: 2 }
+  it('core imports no React, react imports no UI libraries, pure modules import no stateful part', () => {
+    const rank: Record<string, number> = { core: 0, react: 1 }
     const violations: string[] = []
     for (const [file, deps] of graph) {
       const from = rel(file)
       const code = readFileSync(file, 'utf8')
       const fromPkg = from.split('/')[0]!
       if (fromPkg === 'core' && /from '(react|react-dom|antd|dayjs)/.test(code)) violations.push(`${from} imports a UI package`)
-      if ((fromPkg === 'react' || fromPkg === 'hooks') && /from '(antd|dayjs)/.test(code)) violations.push(`${from} imports antd or dayjs`)
+      if (fromPkg === 'react' && /from '(antd|dayjs)/.test(code)) violations.push(`${from} imports antd or dayjs`)
       for (const match of code.matchAll(/from '(@shikiform\/[a-z]+)/g)) {
         const dep = match[1]!.slice('@shikiform/'.length)
         if (!(dep in rank) || rank[dep]! >= rank[fromPkg]!) violations.push(`${from} imports ${match[1]}`)

@@ -1,7 +1,7 @@
 import { localize } from '../language'
 import { useState } from 'react'
 import { defineEffects, Field, useFormContext, useWatch, type Draft } from '@shikiform/react'
-import { useQueryTable } from '@shikiform/hooks'
+import { useQueryTable } from '@shikiform/react'
 import { Button, FormItem, Input, PreviewText, QueryList, Select, Space } from '../kit'
 import { LOGS, type LogRow } from '../data'
 

@@ -1,6 +1,5 @@
-import { createForm, defineEffects, Field, useForm } from '@shikiform/react'
+import { createForm, defineEffects, Field, useForm, useQueryTable } from '@shikiform/react'
 import { createForm as createCoreForm, type FormInstance } from '@shikiform/core'
-import { useQueryTable } from '@shikiform/hooks'
 
 const form = createForm<{ rows: { name: string }[] }>({
   initialValues: { rows: [] },

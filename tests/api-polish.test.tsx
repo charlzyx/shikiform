@@ -3,7 +3,7 @@ import { cleanup, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as root from '@shikiform/react'
 import * as core from '@shikiform/core'
-import { useQueryTable } from '@shikiform/hooks'
+import { useQueryTable } from '@shikiform/react'
 import type { FormInstance, Rule } from '@shikiform/react'
 
 afterEach(cleanup)

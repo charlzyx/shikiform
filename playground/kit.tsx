@@ -45,7 +45,7 @@ import {
   type ShadowFormApi,
   type ShadowInit,
   type SuggestFetcher,
-} from '@shikiform/hooks'
+} from '@shikiform/react'
 
 // ---------------------------------------------------------------------------
 // Basic UI primitives (native HTML, zero external UI library)
@@ -773,7 +773,7 @@ export const DateRangePicker = connect(
 )
 
 // ---------------------------------------------------------------------------
-// Suggestion (built on useSuggestion from @shikiform/hooks)
+// Suggestion (built on useSuggestion from @shikiform/react)
 // ---------------------------------------------------------------------------
 
 export interface LabelValue {
@@ -930,7 +930,7 @@ export const Suggestion = connect(
 )
 
 // ---------------------------------------------------------------------------
-// CascaderPlus (built on useLazyCascader from @shikiform/hooks)
+// CascaderPlus (built on useLazyCascader from @shikiform/react)
 // ---------------------------------------------------------------------------
 
 export interface CascaderPlusViewProps {

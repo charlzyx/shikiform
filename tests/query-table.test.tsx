@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Field, Form } from '@shikiform/react'
 import { engineOf } from '../packages/core/src/engine/create'
 import { Input } from './fixtures/native-kit'
-import { useQueryTable, type QueryRequestArgs } from '@shikiform/hooks'
+import { useQueryTable, type QueryRequestArgs } from '@shikiform/react'
 import { normalizeFilters, normalizeSort } from '../packages/react/src/hooks/use-query-table'
 
 afterEach(() => cleanup())

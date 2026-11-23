@@ -1,7 +1,7 @@
 import { localize } from '../language'
 import { useState } from 'react'
 import { Field, Form, useForm, useWatch, type Draft, type FormInstance } from '@shikiform/react'
-import { useShadowForm } from '@shikiform/hooks'
+import { useShadowForm } from '@shikiform/react'
 import { Button, Card, Divider, FormItem, Input, ShadowDrawer, ShadowForm, ShadowModal, ShadowPopconfirm, Space, useShadow } from '../kit'
 
 /** Pro.formily `ShadowFormAll.tsx` demo. */

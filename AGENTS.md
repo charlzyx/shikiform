@@ -1,7 +1,7 @@
 # ShikiForm for coding agents
 
 ShikiForm is a headless TypeScript form library: a React-free engine (`@shikiform/core`), headless React hooks and fields
-(`@shikiform/react`), and headless pro hooks (`@shikiform/hooks`). Zero UI-library dependencies — connect native HTML or any React UI library via `useField`, `useFieldDecorator`, `connect`, and `mapProps`.
+(`@shikiform/react`), and headless pro hooks (`@shikiform/react`). Zero UI-library dependencies — connect native HTML or any React UI library via `useField`, `useFieldDecorator`, `connect`, and `mapProps`.
 State lives in one engine per form; linkage is written as `reaction` / `watch` over a **draft**.
 This page is the one-screen mental model plus the mistakes worth avoiding. Repo layout and module rules:
 `design/ARCHITECTURE.md`. Docs: `docs-site/src/content/docs/` (Nimbus / Astro MDX; `tsx preview` fences are type-checked
@@ -98,10 +98,10 @@ Custom array containers: pass a container `component` to `<ArrayField>` (or rend
     </div>
   )}
 </F.ArrayField>
-// Headless table state (paging, selection, expand, copy): useArrayTable from `@shikiform/hooks`
-// Column visibility/order/width/density: useColumnSettings from `@shikiform/hooks`
+// Headless table state (paging, selection, expand, copy): useArrayTable from `@shikiform/react`
+// Column visibility/order/width/density: useColumnSettings from `@shikiform/react`
 // Long plain lists: <ArrayField name="rows" virtualScroll={{ height: 400 }}>{(row) => …}</ArrayField> (no container)
-// Query page: useQueryTable({ …, rows: 'list' }) from `@shikiform/hooks`
+// Query page: useQueryTable({ …, rows: 'list' }) from `@shikiform/react`
 ```
 
 ## 4. Nested values: per-path writes vs `$componentProps` patches

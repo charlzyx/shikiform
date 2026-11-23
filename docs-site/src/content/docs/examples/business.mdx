@@ -445,4 +445,321 @@ export default function App() {
 - 「已发货」订单整单只读，是因为子字段继承了 `order.$readOnly`。状态列在可编辑时写了 `order.status.$readOnly = false`，所以仍能改回「已付款」，整单恢复可编辑。合计和行金额自己声明了 `readOnly`，阅读态展示计算结果。
 - 上述表格直接在原数据上实时修改，若希望「确认后再写回、取消可丢弃」，请使用 [草稿表单（useShadowForm）](/examples/pro#草稿表单useshadowform)。
 
+## 策略矩阵大表单（显隐矩阵 + 双向适配 + 提交门禁）
+
+**场景**：复杂的发布/促销策略配置页。不同策略类型只展示对应区块（隐藏字段同时自动 `$omit` 不参与提交），接口 DTO 与前端表单模型通过 `fromApi / toApi` 双向适配器隔离，高预算提交前触发二次确认门禁。
+
+```tsx preview
+import { useState } from 'react';
+import { defineEffects, Field, Form, Submit, useForm, useWatch, type Draft } from '@shikiform/react';
+
+type PolicyType = 'flash' | 'bundle' | 'referral';
+type PolicyDto = {
+  policy_id: string;
+  policy_type: PolicyType;
+  title: string;
+  budget_cents: number;
+  flash_cap?: number;
+  bundle_min_items?: number;
+  referral_bonus?: number;
+};
+type PolicyValues = {
+  type: PolicyType;
+  title: string;
+  budget: number;
+  flashCap: number;
+  bundleMinItems: number;
+  referralBonus: number;
+};
+
+const SHOW_MAP: Record<PolicyType, { flashCap: boolean; bundleMinItems: boolean; referralBonus: boolean }> = {
+  flash: { flashCap: true, bundleMinItems: false, referralBonus: false },
+  bundle: { flashCap: false, bundleMinItems: true, referralBonus: false },
+  referral: { flashCap: false, bundleMinItems: false, referralBonus: true },
+};
+
+const fromApi = (dto: PolicyDto): PolicyValues => ({
+  type: dto.policy_type,
+  title: dto.title,
+  budget: Math.round(dto.budget_cents / 100),
+  flashCap: dto.flash_cap ?? 500,
+  bundleMinItems: dto.bundle_min_items ?? 2,
+  referralBonus: dto.referral_bonus ?? 30,
+});
+
+const toApi = (values: Partial<PolicyValues>, id: string): PolicyDto => ({
+  policy_id: id,
+  policy_type: values.type ?? 'flash',
+  title: (values.title ?? '').trim(),
+  budget_cents: Math.round((values.budget ?? 0) * 100),
+  ...(values.flashCap !== undefined ? { flash_cap: values.flashCap } : {}),
+  ...(values.bundleMinItems !== undefined ? { bundle_min_items: values.bundleMinItems } : {}),
+  ...(values.referralBonus !== undefined ? { referral_bonus: values.referralBonus } : {}),
+});
+
+const policyEffects = defineEffects<PolicyValues>(({ reaction }) => {
+  reaction((d) => {
+    const show = SHOW_MAP[d.type.$value] ?? SHOW_MAP.flash;
+    d.flashCap.$visible = show.flashCap;
+    d.flashCap.$omit = !show.flashCap;
+    d.bundleMinItems.$visible = show.bundleMinItems;
+    d.bundleMinItems.$omit = !show.bundleMinItems;
+    d.referralBonus.$visible = show.referralBonus;
+    d.referralBonus.$omit = !show.referralBonus;
+  });
+});
+
+function RiskBanner() {
+  const budget = useWatch((d: Draft<PolicyValues>) => d.budget.$value);
+  if (budget < 50000) return null;
+  return (
+    <p style={{ margin: '6px 0', padding: '6px 10px', border: '1px solid #f59e0b', borderRadius: 4, fontSize: 12 }}>
+      高预算策略（≥ ¥50,000）：提交时将触发二次风控确认。
+    </p>
+  );
+}
+
+const INITIAL_DTO: PolicyDto = {
+  policy_id: 'PL-2026-01',
+  policy_type: 'flash',
+  title: '春季限时满减策略',
+  budget_cents: 6000000,
+  flash_cap: 300,
+};
+
+export default function App() {
+  const [pendingDto, setPendingDto] = useState<PolicyDto | null>(null);
+  const [savedDto, setSavedDto] = useState<PolicyDto | null>(null);
+
+  const form = useForm<PolicyValues>({
+    initialValues: fromApi(INITIAL_DTO),
+    fields: {
+      type: {
+        title: '策略类型',
+        required: true,
+        enum: [
+          { label: '限时秒杀', value: 'flash' },
+          { label: '组合满件', value: 'bundle' },
+          { label: '裂变拉新', value: 'referral' },
+        ] as const,
+      },
+      title: { title: '策略名称', required: true },
+      budget: { title: '预算上限（元）', required: true, rules: { min: 100 } },
+      flashCap: { title: '单人限购件数', required: true, rules: { min: 1 } },
+      bundleMinItems: { title: '最低成团件数', required: true, rules: { min: 2 } },
+      referralBonus: { title: '单次邀新奖励（元）', required: true, rules: { min: 1 } },
+    },
+    effects: [policyEffects],
+  });
+
+  return (
+    <Form
+      form={form}
+      onSubmit={(values) => {
+        const dto = toApi(values, INITIAL_DTO.policy_id);
+        if (dto.budget_cents >= 5000000) {
+          setPendingDto(dto);
+          return;
+        }
+        setSavedDto(dto);
+      }}
+    >
+      <div style={{ display: 'grid', gap: 8, maxWidth: 420 }}>
+        <Field<PolicyValues, 'type'> name="type">
+          {(f) => (
+            <label>
+              {f.title}：
+              <select value={f.value} onChange={(e) => f.onChange(e.target.value as PolicyType)}>
+                {f.options.map((opt) => (
+                  <option key={String(opt.value)} value={String(opt.value)}>{opt.label}</option>
+                ))}
+              </select>
+            </label>
+          )}
+        </Field>
+        <Field<PolicyValues, 'title'> name="title">
+          {(f) => (
+            <label>
+              {f.title}：
+              <input value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} />
+              {f.errors[0] && <span style={{ color: '#dc2626', marginLeft: 6 }}>{f.errors[0]}</span>}
+            </label>
+          )}
+        </Field>
+        <Field<PolicyValues, 'budget'> name="budget">
+          {(f) => (
+            <label>
+              {f.title}：
+              <input type="number" value={f.value ?? 0} onChange={(e) => f.onChange(Number(e.target.value))} />
+            </label>
+          )}
+        </Field>
+        <RiskBanner />
+        <Field<PolicyValues, 'flashCap'> name="flashCap">
+          {(f) => (
+            <label>
+              {f.title}：
+              <input type="number" value={f.value ?? 1} onChange={(e) => f.onChange(Number(e.target.value))} />
+            </label>
+          )}
+        </Field>
+        <Field<PolicyValues, 'bundleMinItems'> name="bundleMinItems">
+          {(f) => (
+            <label>
+              {f.title}：
+              <input type="number" value={f.value ?? 2} onChange={(e) => f.onChange(Number(e.target.value))} />
+            </label>
+          )}
+        </Field>
+        <Field<PolicyValues, 'referralBonus'> name="referralBonus">
+          {(f) => (
+            <label>
+              {f.title}：
+              <input type="number" value={f.value ?? 1} onChange={(e) => f.onChange(Number(e.target.value))} />
+            </label>
+          )}
+        </Field>
+        <Submit>{(s) => <button type="submit" disabled={s.disabled}>提交策略</button>}</Submit>
+      </div>
+      {pendingDto && (
+        <div style={{ marginTop: 8, padding: 8, border: '1px solid #f59e0b', borderRadius: 4 }}>
+          <p style={{ margin: '0 0 6px' }}>预算达到 ¥{pendingDto.budget_cents / 100}，确认发布？</p>
+          <button type="button" onClick={() => { setSavedDto(pendingDto); setPendingDto(null); }}>确认发布</button>{' '}
+          <button type="button" onClick={() => setPendingDto(null)}>取消</button>
+        </div>
+      )}
+      {savedDto && <pre style={{ marginTop: 8, fontSize: 12 }}>{JSON.stringify(savedDto, null, 2)}</pre>}
+    </Form>
+  );
+}
+```
+
+- 用 `SHOW_MAP` 集中管理各模式区块显隐并同步设置 `$omit`，切换类型后未激活区块既不参与校验，也不会被提交进 `toApi` 载荷。
+- 单位换算（元 ↔ 分）与字段命名转换完全收敛在 `fromApi / toApi`，表单内部只面对干净的前端模型。
+
+## 多租户共享单抽屉与实时属性面板（`scopeKey` + `onValuesChange`）
+
+**场景**：中后台常见的「列表页共享 1 个编辑浮层 + 右侧草稿属性面板」。表格所有行共用同一个 `useShadowForm({ scopeKey })` 实例（避免 N 行挂 N 个弹窗），切换工作空间 `scopeKey` 时自动取消正在打开的编辑态并作废在途加载；下方属性面板使用 `useForm({ values, onValuesChange })` 实现无需点提交的实时草稿同步。
+
+```tsx preview
+import { useState } from 'react';
+import { Field, Form, useForm, useShadowForm } from '@shikiform/react';
+
+type Rule = { id: string; name: string; weight: number; enabled: boolean };
+
+const WORKSPACE_RULES: Record<string, Rule[]> = {
+  'ws-east': [
+    { id: 'R-01', name: '新客首单优惠', weight: 80, enabled: true },
+    { id: 'R-02', name: '会员周末加倍', weight: 50, enabled: false },
+  ],
+  'ws-west': [
+    { id: 'R-09', name: '区域满额包邮', weight: 90, enabled: true },
+  ],
+};
+
+export default function App() {
+  const [workspace, setWorkspace] = useState<'ws-east' | 'ws-west'>('ws-east');
+  const [store, setStore] = useState(WORKSPACE_RULES);
+  const [selectedId, setSelectedId] = useState('R-01');
+  const rows = store[workspace] ?? [];
+  const activeRow = rows.find((r) => r.id === selectedId) ?? rows[0];
+
+  // 全表共享唯一 1 个草稿编辑实例；切换 workspace 时 scopeKey 自动取消当前浮层
+  const editor = useShadowForm<Rule, { id: string }>({
+    scopeKey: workspace,
+    fields: {
+      name: { title: '规则名称', required: true },
+      weight: { title: '优先级权重', required: true, rules: { min: 1, max: 100 } },
+    },
+    onOk: (values, ctx) => {
+      if (!ctx) return;
+      setStore((prev) => ({
+        ...prev,
+        [workspace]: (prev[workspace] ?? []).map((r) => (r.id === ctx.id ? { ...r, ...values } : r)),
+      }));
+    },
+  });
+
+  // 实时属性面板：切换选中行时通过 values 自动重置，用户编辑通过 onValuesChange 实时写回草稿
+  const inspector = useForm<Rule>({
+    values: activeRow,
+    onValuesChange: (next) => {
+      if (!activeRow) return;
+      setStore((prev) => ({
+        ...prev,
+        [workspace]: (prev[workspace] ?? []).map((r) => (r.id === activeRow.id ? { ...r, ...next } : r)),
+      }));
+    },
+  });
+
+  return (
+    <div style={{ display: 'grid', gap: 12 }}>
+      <div>
+        工作空间：
+        <button type="button" onClick={() => { setWorkspace('ws-east'); setSelectedId('R-01'); }}>
+          华东 ({workspace === 'ws-east' ? '当前' : '切换'})
+        </button>{' '}
+        <button type="button" onClick={() => { setWorkspace('ws-west'); setSelectedId('R-09'); }}>
+          华西 ({workspace === 'ws-west' ? '当前' : '切换'})
+        </button>
+      </div>
+
+      <table>
+        <thead>
+          <tr><th>编号</th><th>规则名称</th><th>权重</th><th>操作</th></tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.id}>
+              <td>{row.id}</td>
+              <td>{row.name}</td>
+              <td>{row.weight}</td>
+              <td>
+                <button type="button" onClick={() => setSelectedId(row.id)}>选中实时改</button>{' '}
+                <button type="button" onClick={() => void editor.open(row, { id: row.id })}>共享浮层改</button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {editor.visible && (
+        <div style={{ padding: 10, border: '1px solid #3b82f6', borderRadius: 4 }}>
+          <p style={{ margin: '0 0 8px', fontWeight: 600 }}>共享浮层编辑 · {editor.context?.id}</p>
+          <Form form={editor.form}>
+            <Field<Rule, 'name'> name="name">
+              {(f) => <label>名称：<input value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} /></label>}
+            </Field>{' '}
+            <Field<Rule, 'weight'> name="weight">
+              {(f) => <label>权重：<input type="number" style={{ width: 64 }} value={f.value ?? 1} onChange={(e) => f.onChange(Number(e.target.value))} /></label>}
+            </Field>
+          </Form>
+          <div style={{ marginTop: 8 }}>
+            <button type="button" onClick={() => void editor.confirm()}>确认写回</button>{' '}
+            <button type="button" onClick={() => editor.cancel()}>取消</button>
+          </div>
+        </div>
+      )}
+
+      {activeRow && (
+        <div style={{ padding: 10, border: '1px dashed #94a3b8', borderRadius: 4 }}>
+          <p style={{ margin: '0 0 6px', fontSize: 12 }}>实时属性面板（onValuesChange 即时同步 · {activeRow.id}）：</p>
+          <Form form={inspector}>
+            <Field<Rule, 'name'> name="name">
+              {(f) => <label>名称：<input value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} /></label>}
+            </Field>{' '}
+            <Field<Rule, 'weight'> name="weight">
+              {(f) => <label>权重：<input type="number" style={{ width: 64 }} value={f.value ?? 1} onChange={(e) => f.onChange(Number(e.target.value))} /></label>}
+            </Field>
+          </Form>
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+- 打开任意一行的「共享浮层改」后，点击顶部切换工作空间，`scopeKey` 会立即关闭旧租户浮层，避免把旧租户草稿误提交到新租户。
+- 下方属性面板结合 `values`（切换选中行自动重置）与 `onValuesChange`（仅用户编辑触发，外部重置不回弹），适合菜单编辑器、节点属性面板等即时生效场景。
+
 回到 [示例库](/examples)。

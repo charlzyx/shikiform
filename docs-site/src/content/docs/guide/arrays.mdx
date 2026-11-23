@@ -3,13 +3,13 @@ title: 动态数组与表格
 description: 使用 ArrayField、useArrayField、useIndex 与 useArrayTable 构建支持增删、排序、拖拽、数组级校验与分页勾选的动态列表。
 ---
 
-[`<ArrayField>`](/guide/structures) 负责建立行作用域与追踪行身份。搭配 `@shikiform/react` 的 `useArrayField` / `useIndex` / `useRecord` 以及 `@shikiform/hooks` 的 `useArrayTable`，可以用原生 HTML 或任意 UI 组件库搭建行列表、卡片列表和可编辑表格。
+[`<ArrayField>`](/guide/structures) 负责建立行作用域与追踪行身份。搭配 `@shikiform/react` 的 `useArrayField` / `useIndex` / `useRecord` 以及 `@shikiform/react` 的 `useArrayTable`，可以用原生 HTML 或任意 UI 组件库搭建行列表、卡片列表和可编辑表格。
 
 | 能力 | API | 说明 |
 |---|---|---|
 | 行作用域与身份追踪 | `<ArrayField name rowKey>` | 仅订阅数组结构变化，修改单元格不会重渲染整张列表 |
 | 增删排序与原生拖拽 | `useArrayField()` / `useIndex()` / `useRecord()` | `push`、`insert`、`remove`、`move`、`swap`、`replace` 与 `dragProps(index)` |
-| 表格分页 / 勾选 / 展开 / 复制 | `useArrayTable`（`@shikiform/hooks`） | 无 UI 的数组表格状态管理，适合搭配原生 `<table>` 或项目表格组件 |
+| 表格分页 / 勾选 / 展开 / 复制 | `useArrayTable`（`@shikiform/react`） | 无 UI 的数组表格状态管理，适合搭配原生 `<table>` 或项目表格组件 |
 
 ## 行列表与拖拽排序
 
@@ -188,11 +188,11 @@ export default function App() {
 
 ## 可编辑表格：`useArrayTable`
 
-需要分页切片、行勾选、单行复制（含 `createRowKey`）与展开子表时，使用 `@shikiform/hooks` 的 `useArrayTable` 配合 `<ArrayField.Row>` 提供行作用域：
+需要分页切片、行勾选、单行复制（含 `createRowKey`）与展开子表时，使用 `@shikiform/react` 的 `useArrayTable` 配合 `<ArrayField.Row>` 提供行作用域：
 
 ```tsx preview play=array-table
 import { ArrayField, Field, Form, useField, useForm, useRecord } from '@shikiform/react';
-import { useArrayTable } from '@shikiform/hooks';
+import { useArrayTable } from '@shikiform/react';
 
 type Row = { id: string; name: string; price: number; qty: number };
 let nextId = 4;
@@ -263,7 +263,7 @@ export default function App() {
 }
 ```
 
-分页、勾选、展开状态不进入表单值；如需列显隐、列宽和密度设置，搭配 `@shikiform/hooks` 的 [`useColumnSettings`](/reference/pro-hooks#usecolumnsettings)。
+分页、勾选、展开状态不进入表单值；如需列显隐、列宽和密度设置，搭配 `@shikiform/react` 的 [`useColumnSettings`](/reference/pro-hooks#usecolumnsettings)。
 
 ## 其他数组方案的选择
 

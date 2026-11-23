@@ -1,6 +1,6 @@
 import { localize } from '../language'
 import { Field, Form, useWatch, type Draft } from '@shikiform/react'
-import { useQueryTable } from '@shikiform/hooks'
+import { useQueryTable } from '@shikiform/react'
 import { ArrayTable, Button, DateRangePicker, FormItem, Input, QueryList, Select, ShadowModal, type ArrayTableColumn } from '../kit'
 import { CLASSIFY_ENUM, domainService, STATUS_ENUM, type DomainQuery, type DomainRow } from '../pro-data'
 

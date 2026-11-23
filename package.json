@@ -1,7 +1,7 @@
 {
   "name": "shikiform-monorepo",
   "private": true,
-  "description": "ShikiForm workspace. Publishable packages: @shikiform/core, @shikiform/react, @shikiform/hooks.",
+  "description": "ShikiForm workspace. Publishable packages: @shikiform/core, @shikiform/react.",
   "type": "module",
   "workspaces": [
     "packages/*"
@@ -9,7 +9,7 @@
   "scripts": {
     "build": "npm run check:docs && node scripts/ensure-site-deps.mjs && npm run build --prefix docs-site",
     "build:cf-pages": "npm run build",
-    "build:lib": "npm run build -w @shikiform/core && npm run build -w @shikiform/react && npm run build -w @shikiform/hooks && tsc -p tsconfig.emit.json --noEmit",
+    "build:lib": "npm run build -w @shikiform/core && npm run build -w @shikiform/react && tsc -p tsconfig.emit.json --noEmit",
     "build:play": "vite build --config playground/vite.config.ts",
     "check": "tsc --noEmit",
     "check:docs": "npm run check:api && npm run build:lib && node scripts/check-docs-package.mjs",

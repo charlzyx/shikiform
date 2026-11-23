@@ -15,7 +15,7 @@ import {
   useRecord,
   useWatch,
 } from '@shikiform/react'
-import { enumItems, useColumnSettings, useQueryTable } from '@shikiform/hooks'
+import { enumItems, useColumnSettings, useQueryTable } from '@shikiform/react'
 
 afterEach(() => cleanup())
 
@@ -307,7 +307,7 @@ describe('useWatch(form, select), typed(form).Watch outside <Form>, RowScope, us
     expect(view.getByTestId('outside-header').textContent).toContain('Niko:ON')
   })
 
-  it('exports RowScope from @shikiform/react and useColumnSettings from @shikiform/hooks', () => {
+  it('exports RowScope from @shikiform/react and useColumnSettings from @shikiform/react', () => {
     function CustomCell() {
       const idx = useIndex()
       const rec = useRecord<{ sku: string }>()

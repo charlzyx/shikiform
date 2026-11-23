@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createForm, Form, useIndex, useRecord, useTreeField } from '@shikiform/react'
 import { useArrayField } from '../packages/react/src/hooks/use-array'
 import { ShikiUsageError } from '@shikiform/core'
-import { useShadowForm } from '@shikiform/hooks'
+import { useShadowForm } from '@shikiform/react'
 
 afterEach(cleanup)
 

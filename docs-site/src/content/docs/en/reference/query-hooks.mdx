@@ -2,7 +2,7 @@
 title: "Query hooks reference"
 description: "Request and response types, filters, pagination and query state in useQueryTable."
 ---
-Use `useQueryTable` from `@shikiform/hooks`. Try the [full query table](/en/play/query).
+Use `useQueryTable` from `@shikiform/react`. Try the [full query table](/en/play/query).
 
 ## useQueryTable
 
@@ -85,7 +85,7 @@ const table = useQueryTable({
 
 ```tsx preview
 import { Field, Form } from '@shikiform/react';
-import { useQueryTable } from '@shikiform/hooks';
+import { useQueryTable } from '@shikiform/react';
 
 type Row = { id: string; name: string };
 type Values = { filters: { name: string }; list: Row[]; page: number; pageSize: number; selectedKeys: string[] };

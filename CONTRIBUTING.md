@@ -16,10 +16,10 @@ Hooks 是主 API，JSX 是其结构与渲染封装；draft 和 `$` 描述状态�
 
 - `@shikiform/react` — core 加 headless React（`<Field>` / `<ArrayField>` / `<TreeField>` 等组件，`useForm`、`useFormContext`、`useField`、`useFieldDecorator`、`useWatch`、`useArrayField(name?)`、`useTreeField(name?)`、`useIndex`、`useRecord`、`typed`；`connect` / `mapProps`；headless `Submit` / `Reset`。数组句柄有 `push` / `insert` / `remove` / `move` / `swap` / `replace` / `dragProps` 和本层 `errors`；`useTreeField(name)` 是整棵树，`useTreeField()` 在节点里返回当前节点并带上 `push` / `insert` / `remove` / `replace` / `move` / `dragProps`。这些操作不在 `FormInstance` 上。`useFormMessage`、`useSubmit`、`useReset`、`FieldGroup` 只在 `@shikiform/react/internal`）
 - `@shikiform/core` — 表单引擎，没有 React
-- `@shikiform/hooks` — headless 查询、数组表格/列配置、影子草稿、联想与懒加载级联 Hooks，以及枚举显示工具（不依赖 antd）
+- `@shikiform/react` — headless 查询、数组表格/列配置、影子草稿、联想与懒加载级联 Hooks，以及枚举显示工具（不依赖 antd）
 - `@shikiform/antd` — 再导出 `connect` / `mapProps`（并给已绑定控件加上 `status`）、`FormItem` / `FormLayout` / `FormGrid` / `FormButtonGroup`、已绑定控件、antd 版 `Submit` / `Reset`（`afterReset`）、数组容器 `ArrayItems` / `ArrayCards` / `ArrayTable`（都写在 `<ArrayField component>` 里）；`QueryList`、影子容器和高级输入，以及 `MergedTable`
 
-`react` / `react-dom` 是 `@shikiform/react`、`@shikiform/hooks`、`@shikiform/antd` 的 peer（`^18 || ^19`）。`antd` `^5.18.0` 和 `dayjs` `^1` 只是 `@shikiform/antd` 的 peer，不是 optional。`@tanstack/react-virtual` 是 `@shikiform/react` 的依赖。zod / immer 只用于文档和 playground。根 `package.json` 是私有 workspace，四个包在 `packages/`，`exports` 指向各自的 `dist/`。仓库开发的 TypeScript paths 和 Vite alias 指向各包 `src/`；教程不再有特殊运行时 alias。`check:docs` 对四个包分别 `npm pack`，在独立消费者里检查，不继承仓库 paths/alias。`npm run release` 只做 `npm publish --dry-run`。
+`react` / `react-dom` 是 `@shikiform/react`、`@shikiform/react`、`@shikiform/antd` 的 peer（`^18 || ^19`）。`antd` `^5.18.0` 和 `dayjs` `^1` 只是 `@shikiform/antd` 的 peer，不是 optional。`@tanstack/react-virtual` 是 `@shikiform/react` 的依赖。zod / immer 只用于文档和 playground。根 `package.json` 是私有 workspace，四个包在 `packages/`，`exports` 指向各自的 `dist/`。仓库开发的 TypeScript paths 和 Vite alias 指向各包 `src/`；教程不再有特殊运行时 alias。`check:docs` 对四个包分别 `npm pack`，在独立消费者里检查，不继承仓库 paths/alias。`npm run release` 只做 `npm publish --dry-run`。
 
 ## 本地开发
 
@@ -65,7 +65,7 @@ Playground 随 `npm run build` 一起进入 `dist/play/`。每个 `/play/...` �
 
 `check:docs` 同时运行 `check:api`：从实际 TypeScript 公开入口解析 React Hooks 与 `typed`，以及全部 pro/antd 运行时导出，核对 `docs-site/src/content/docs/reference/exports.json`、命名章节和签名代码。它防止已有 Hook 再次只剩空索引或假导出，不自动证明每句话的语义；文案仍需与源码复核，页面里的 `tsx preview` 示例进入同一 pack 消费者门。
 
-跨包的 React context 和引擎类不打进对方的包：`@shikiform/antd` / `@shikiform/hooks` 从 `@shikiform/react` 引用，`@shikiform/react` 从 `@shikiform/core` 再导出。同一包里的 `dist` 入口（含 `./internal`）用 tsup splitting 共享 chunk。pack 门验证跨包 Provider/Hook/行 scope 和 core 类身份，并检查 core 不引入 React、react/hooks 不引入 antd 或 dayjs。这些执行检查仍是 SSR，不是浏览器挂载/事件测试。
+跨包的 React context 和引擎类不打进对方的包：`@shikiform/antd` / `@shikiform/react` 从 `@shikiform/react` 引用，`@shikiform/react` 从 `@shikiform/core` 再导出。同一包里的 `dist` 入口（含 `./internal`）用 tsup splitting 共享 chunk。pack 门验证跨包 Provider/Hook/行 scope 和 core 类身份，并检查 core 不引入 React、react/hooks 不引入 antd 或 dayjs。这些执行检查仍是 SSR，不是浏览器挂载/事件测试。
 
 ### 验证部署成功
 

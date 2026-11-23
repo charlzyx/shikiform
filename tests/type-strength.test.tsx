@@ -1,7 +1,7 @@
 // Type contracts for #95. Assertions run under `npm run check`; vitest only loads the file.
 import { it } from 'vitest'
 import { createForm, defineEffects, type FieldEnum } from '@shikiform/core'
-import { useQueryTable } from '@shikiform/hooks'
+import { useQueryTable } from '@shikiform/react'
 import { Checkbox, Input, InputNumber, Switch } from './fixtures/native-kit'
 import { typed, useForm, useWatch, type FieldBinding } from '@shikiform/react'
 

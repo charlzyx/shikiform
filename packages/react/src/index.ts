@@ -1,7 +1,7 @@
 /**
  * Headless ShikiForm: the form engine plus React fields and hooks.
  * `connect` / `mapProps` live here (no Ant Design). `@shikiform/antd` re-exports them and
- * opts its controls into `status`. `@shikiform/core` is the engine alone (re-exported here). `@shikiform/hooks` is `useQueryTable` and the other headless pro hooks.
+ * opts its controls into `status`. `@shikiform/core` is the engine alone (re-exported here). `@shikiform/react` is `useQueryTable` and the other headless pro hooks.
  *
  * @packageDocumentation
  */

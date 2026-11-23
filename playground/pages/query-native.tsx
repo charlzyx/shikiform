@@ -1,5 +1,5 @@
 import { localize } from '../language'
-import { useQueryTable } from '@shikiform/hooks'
+import { useQueryTable } from '@shikiform/react'
 import { Field, Form } from '@shikiform/react'
 import { LOGS, type LogRow } from '../data'
 

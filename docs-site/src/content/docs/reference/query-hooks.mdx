@@ -3,7 +3,7 @@ title: 查询 Hooks 参考
 description: useQueryTable 的参数、请求协议、分页选择、表头排序筛选和错误边界。
 ---
 
-从 `@shikiform/hooks` 导入，零 UI 库依赖：Hook 处理请求、分页、排序筛选和选择，视图层可自由接原生 `<table>` 或任意 UI 表格组件。完整场景见 [查询表](/play/query)。
+从 `@shikiform/react` 导入，零 UI 库依赖：Hook 处理请求、分页、排序筛选和选择，视图层可自由接原生 `<table>` 或任意 UI 表格组件。完整场景见 [查询表](/play/query)。
 
 ## useQueryTable
 
@@ -117,7 +117,7 @@ const table = useQueryTable({
 
 ```tsx preview
 import { Field, Form } from '@shikiform/react';
-import { useQueryTable } from '@shikiform/hooks';
+import { useQueryTable } from '@shikiform/react';
 
 type Row = { id: string; name: string };
 type Values = { filters: { name: string }; list: Row[]; page: number; pageSize: number; selectedKeys: string[] };
@@ -168,7 +168,7 @@ export default function App() {
 
 ## 默认请求
 
-不传 `useQuery` 时，`useQueryTable` 用库内的最小 runner。它不从 `@shikiform/hooks` 导出。
+不传 `useQuery` 时，`useQueryTable` 用库内的最小 runner。它不从 `@shikiform/react` 导出。
 
 | 输入 | 类型 / 作用 |
 |---|---|

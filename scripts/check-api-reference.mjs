@@ -20,7 +20,6 @@ for (const arg of args.filter((arg) => arg.startsWith('--'))) {
 }
 const entries = {
   '@shikiform/react': 'packages/react/src/index.ts',
-  '@shikiform/hooks': 'packages/hooks/src/index.ts',
 }
 const program = ts.createProgram(Object.values(entries).map((file) => path.join(root, file)), {
   target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext,
@@ -29,8 +28,6 @@ const program = ts.createProgram(Object.values(entries).map((file) => path.join(
   paths: {
     '@shikiform/core': ['packages/core/src/index.ts'],
     '@shikiform/core/internal': ['packages/core/src/internal.ts'],
-    '@shikiform/hooks': ['packages/hooks/src/index.ts'],
-    '@shikiform/hooks/internal': ['packages/hooks/src/internal.ts'],
     '@shikiform/react': ['packages/react/src/index.ts'],
     '@shikiform/react/internal': ['packages/react/src/internal.ts'],
   },
@@ -44,7 +41,7 @@ for (const [module, file] of Object.entries(entries)) {
   actual[module] = checker.getExportsOfModule(symbol).filter((exported) => {
     const target = exported.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(exported) : exported
     if (!(target.flags & ts.SymbolFlags.Value)) return false
-    return module !== '@shikiform/react' || /^use[A-Z]/.test(exported.name) || exported.name === 'typed'
+    return /^use[A-Z]/.test(exported.name) || exported.name === 'typed' || exported.name === 'enumItems' || exported.name === 'ENUM_COLORS'
   }).map((symbol) => symbol.name).sort()
 }
 if (args.includes('--list')) {

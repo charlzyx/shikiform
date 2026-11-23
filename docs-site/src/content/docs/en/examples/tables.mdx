@@ -10,7 +10,7 @@ Choose a supplier to change the available models. Collapsing the filters preserv
 ```tsx preview play=query
 import { useState } from 'react';
 import { Field, Form, defineEffects, useField } from '@shikiform/react';
-import { useQueryTable } from '@shikiform/hooks';
+import { useQueryTable } from '@shikiform/react';
 
 type Log = { id: string; keyword: string; provider: string; model: string; status: string };
 type Query = { keyword: string; provider: string; model: string; user: string };
@@ -154,7 +154,7 @@ Use the same `useQueryTable` hook with native HTML form controls and a table.
 
 ```tsx preview play=query-native
 import { Field, Form } from '@shikiform/react';
-import { useQueryTable } from '@shikiform/hooks';
+import { useQueryTable } from '@shikiform/react';
 
 type Log = { id: string; keyword: string };
 const LOGS: Log[] = Array.from({ length: 12 }, (_, i) => ({ id: String(i + 1), keyword: `${i % 2 ? 'beta' : 'alpha'}-${i + 1}` }));

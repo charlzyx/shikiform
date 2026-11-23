@@ -3,7 +3,7 @@ import { Suspense } from 'react'
 import { act, cleanup, render, renderHook } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { createForm, EnumSource, Field, Form } from '@shikiform/react'
-import { useShadowForm } from '@shikiform/hooks'
+import { useShadowForm } from '@shikiform/react'
 
 afterEach(cleanup)
 

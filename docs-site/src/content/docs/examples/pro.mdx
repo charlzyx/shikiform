@@ -3,7 +3,7 @@ title: Pro Hooks 与高阶场景
 description: useArrayTable、草稿表单（useShadowForm）、useQueryTable、枚举阅读态、远程联想与懒加载级联示例。
 ---
 
-本页展示 `@shikiform/hooks` 中无 UI Pro Hooks 与 `@shikiform/react` 结合的在线示例，完整 API 说明见 [Pro Hooks](/reference/pro-hooks) 与 [查询 Hooks](/reference/query-hooks)。
+本页展示 `@shikiform/react` 中无 UI Pro Hooks 与 `@shikiform/react` 结合的在线示例，完整 API 说明见 [Pro Hooks](/reference/pro-hooks) 与 [查询 Hooks](/reference/query-hooks)。
 
 ## useArrayTable：分页、勾选、排序与展开
 
@@ -12,7 +12,7 @@ description: useArrayTable、草稿表单（useShadowForm）、useQueryTable、�
 ```tsx preview play=array-table
 import { Fragment, useState } from 'react';
 import { Field, Form, ObjectField, useForm } from '@shikiform/react';
-import { useArrayTable } from '@shikiform/hooks';
+import { useArrayTable } from '@shikiform/react';
 
 type Item = { a1: string; a2: string };
 type Row = Item & { id: string; subitems?: Item[] };
@@ -149,7 +149,7 @@ export default function App() {
 
 ```tsx preview play=array-table-shadow
 import { Field, Form, useField, useForm, useFormContext } from '@shikiform/react';
-import { useArrayTable, useShadowForm } from '@shikiform/hooks';
+import { useArrayTable, useShadowForm } from '@shikiform/react';
 
 type Row = { id: string; domain: string; desc: string };
 
@@ -269,7 +269,7 @@ export default function App() {
 ```tsx preview play=shadow-form
 import { useState } from 'react';
 import { Field, Form, Watch, useField, useForm, type Draft } from '@shikiform/react';
-import { useShadowForm } from '@shikiform/hooks';
+import { useShadowForm } from '@shikiform/react';
 
 type Info = { domain: string; desc: string };
 
@@ -326,7 +326,7 @@ export default function App() {
 
 ```tsx preview play=query-list
 import { Field, Form } from '@shikiform/react';
-import { enumItems, useQueryTable } from '@shikiform/hooks';
+import { enumItems, useQueryTable } from '@shikiform/react';
 
 type Row = { id: number; status: number; domain: string; classify: number[] };
 type Query = { domain?: string; status?: number };
@@ -449,7 +449,7 @@ export default function App() {
 
 ```tsx preview play=pro-enum
 import { EnumSource, Field, Form, ObjectField, useField, useForm } from '@shikiform/react';
-import { enumItems } from '@shikiform/hooks';
+import { enumItems } from '@shikiform/react';
 
 const LIST = [
   { label: '啊', value: 'a', color: 'blue' },
@@ -543,7 +543,7 @@ export default function App() {
 ```
 
 - 通过 `EnumSource.from(loader).with(params)` 定义的远程枚举会在相同参数下共享加载结果，加载期间字段的 `loading` 为 `true`；若参数依赖其他字段，在 `reaction` 中赋值 `d.city.$enum = Cities.with(d.province.$value)` 即可自动重拉并作废过期请求。
-- `enumItems(value, options, { colorful })`（`@shikiform/hooks` / `@shikiform/core`）将枚举值解析为 `{ label, value, color, matched }`，便于在阅读态渲染徽标或标签。
+- `enumItems(value, options, { colorful })`（`@shikiform/react` / `@shikiform/core`）将枚举值解析为 `{ label, value, color, matched }`，便于在阅读态渲染徽标或标签。
 
 ## useSuggestion：远程联想
 
@@ -551,7 +551,7 @@ export default function App() {
 
 ```tsx preview play=suggestion
 import { Field, Form, Watch, useField, useForm, type Draft } from '@shikiform/react';
-import { useSuggestion } from '@shikiform/hooks';
+import { useSuggestion } from '@shikiform/react';
 
 const WORDS = ['手机壳', '手机支架', '手表', '书包', '鼠标', '鼠标垫', '水杯', '耳机', '咖啡机', '咖啡豆'];
 
@@ -623,7 +623,7 @@ export default function App() {
 
 ```tsx preview play=cascader-plus
 import { Field, Form, Watch, useField, useForm, type Draft } from '@shikiform/react';
-import { useLazyCascader, type CascaderOption } from '@shikiform/hooks';
+import { useLazyCascader, type CascaderOption } from '@shikiform/react';
 
 type Area = { code: string; name: string; children?: Area[] };
 const AREA: Area[] = [

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import * as root from '@shikiform/react'
 import * as core from '@shikiform/core'
-import * as pro from '@shikiform/hooks'
+import * as pro from '@shikiform/react'
 import { createForm, type FormInstance } from '@shikiform/react'
 
 /** The public surface is a semver promise once published: removing a name later is a major. Grow it on purpose. */

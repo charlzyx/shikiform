@@ -10,7 +10,7 @@ Page, select, expand and move rows. Try changing columns or deleting a row with 
 ```tsx preview play=array-table
 import { Fragment, useState } from 'react';
 import { enUS, Field, Form, ObjectField, useForm } from '@shikiform/react';
-import { useArrayTable } from '@shikiform/hooks';
+import { useArrayTable } from '@shikiform/react';
 
 type Item = { a1: string; a2: string };
 type Row = Item & { id: string; subitems?: Item[] };
@@ -143,7 +143,7 @@ Open a separate form for a new entry or an existing row, then confirm to apply i
 
 ```tsx preview play=array-table-shadow
 import { enUS, Field, Form, useField, useForm, useFormContext } from '@shikiform/react';
-import { useArrayTable, useShadowForm } from '@shikiform/hooks';
+import { useArrayTable, useShadowForm } from '@shikiform/react';
 
 type Row = { id: string; domain: string; desc: string };
 
@@ -260,7 +260,7 @@ Render a temporary form inside a modal, a drawer, a popover or inline. The draft
 ```tsx preview play=shadow-form
 import { useState } from 'react';
 import { enUS, Field, Form, Watch, useField, useForm, type Draft } from '@shikiform/react';
-import { useShadowForm } from '@shikiform/hooks';
+import { useShadowForm } from '@shikiform/react';
 
 type Info = { domain: string; desc: string };
 
@@ -314,7 +314,7 @@ Map filters and sorting into the request. Bind the returned rows to an array fie
 
 ```tsx preview play=query-list
 import { Field, Form } from '@shikiform/react';
-import { enumItems, useQueryTable } from '@shikiform/hooks';
+import { enumItems, useQueryTable } from '@shikiform/react';
 
 type Row = { id: number; status: number; domain: string; classify: number[] };
 type Query = { domain?: string; status?: number };
@@ -434,7 +434,7 @@ Try static options and a lazily loaded enum. `enumItems` resolves selected value
 
 ```tsx preview play=pro-enum
 import { enUS, EnumSource, Field, Form, ObjectField, useField, useForm } from '@shikiform/react';
-import { enumItems } from '@shikiform/hooks';
+import { enumItems } from '@shikiform/react';
 
 const LIST = [
   { label: "Alpha", value: 'a', color: 'blue' },
@@ -534,7 +534,7 @@ Type a keyword to start a debounced request. Later searches supersede earlier re
 
 ```tsx preview play=suggestion
 import { enUS, Field, Form, Watch, useField, useForm, type Draft } from '@shikiform/react';
-import { useSuggestion } from '@shikiform/hooks';
+import { useSuggestion } from '@shikiform/react';
 
 const WORDS = ["Phone case", "Phone stand", "Watch", "Backpack", "Mouse", "Mouse pad", "Cup", "Headphones", "Coffee maker", "Coffee beans"];
 
@@ -604,7 +604,7 @@ Expand a branch to load its children. For existing selections, load the ancestor
 
 ```tsx preview play=cascader-plus
 import { enUS, Field, Form, Watch, useField, useForm, type Draft } from '@shikiform/react';
-import { useLazyCascader, type CascaderOption } from '@shikiform/hooks';
+import { useLazyCascader, type CascaderOption } from '@shikiform/react';
 
 type Area = { code: string; name: string; children?: Area[] };
 const AREA: Area[] = [

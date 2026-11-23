@@ -9,8 +9,6 @@
     "paths": {
       "@shikiform/core": ["packages/core/src/index.ts"],
       "@shikiform/core/internal": ["packages/core/src/internal.ts"],
-      "@shikiform/hooks": ["packages/hooks/src/index.ts"],
-      "@shikiform/hooks/internal": ["packages/hooks/src/internal.ts"],
       "@shikiform/react": ["packages/react/src/index.ts"],
       "@shikiform/react/internal": ["packages/react/src/internal.ts"]
     },

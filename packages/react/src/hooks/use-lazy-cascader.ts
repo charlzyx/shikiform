@@ -169,7 +169,7 @@ export interface CascaderLabelsApi {
 }
 
 /**
- * Labels for a cascader value, for `CascaderPlus`'s read view. Exported from `@shikiform/hooks/internal` only.
+ * Labels for a cascader value, for `CascaderPlus`'s read view. Exported from `@shikiform/react/internal` only.
  * A `labelInValue` value already carries its labels and loads nothing. A bare value (`['zj', 'hz']`) is resolved by
  * loading each ancestor level through `load`, the same way {@link useLazyCascader} echoes a value into the editor.
  * A custom read view uses `useLazyCascader().labelsOf` for bare paths, or each level's `label` when the value is `labelInValue`.

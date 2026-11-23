@@ -43,7 +43,7 @@ Pass `effects` to `useForm`. The full interactive example includes adding/removi
 npm i @shikiform/react
 ```
 
-Install `@shikiform/hooks` as well if you need query tables, shadow forms or editable array tables.
+Install `@shikiform/react` as well if you need query tables, shadow forms or editable array tables.
 
 ## Quick example
 

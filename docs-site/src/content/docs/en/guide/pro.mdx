@@ -2,7 +2,7 @@
 title: "Query tables and draft editors"
 description: "Use headless hooks for pagination, row editing, suggestions and option labels."
 ---
-`@shikiform/hooks` provides table and editor state. Render it with a native table, dialog or your project's components.
+`@shikiform/react` provides table and editor state. Render it with a native table, dialog or your project's components.
 
 ## Draft editors with useShadowForm
 
@@ -10,7 +10,7 @@ Open an independent form to edit a copy. Cancel discards it, and confirm validat
 
 ```tsx preview play=shadow-form
 import { enUS, Field, Form, Watch, useField, useForm, type Draft } from '@shikiform/react';
-import { useShadowForm } from '@shikiform/hooks';
+import { useShadowForm } from '@shikiform/react';
 
 type Info = { domain: string; owner: string; env: string };
 type Values = { info: Info };

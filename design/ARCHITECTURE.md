@@ -14,7 +14,7 @@
    - `typed(form)` / `typed<T>()` = 同一批组件和 Hook 加上类型（名字按作用域检查），没有新的运行时。`typed<T>().createForm` / `typed<T>().useForm` 是同一对函数，T 已固定，`fields` 仍决定提交类型里哪些 `omit: true` 可选；`useForm<T>(options)` 的提交类型就是 T。字段只有 `<Field>` 一种写法。控件登记是 `<FieldKit>` / `<Form kit>`：默认 decorator，`component` / `decorator` 可以写字符串名字或原来的组件引用，类型用 `interface FieldComponents` / `FieldDecorators` 模块扩充。没有第二套 Field。片段复用是普通组件 + `<ObjectField>` + `typed<T>()`。
 3. **无 UI 适配层（`connect` / `mapProps` / `useFieldDecorator`）位于 `@shikiform/react`。** `<Field>` 是字段唯一的拥有者；装饰器和控件都从 `FieldContext` 读同一个 binding。
    - `connect(Control, mapProps(...))` 每次渲染通过内部 helper `mapFieldProps(binding, props)` 把 binding（来自 `field` 属性 / `name` / 外层 `<Field>`）映射到控件；`preview` 与 `blurOn` 均作为 `mapProps` 选项传入，`mapFieldProps` 不对外公开，Hook 用户直接读取 `useField()` 和 `useFieldDecorator()`。
-   - Pro Hooks 位于 `@shikiform/hooks`（见 §9）：`useArrayTable`、`useColumnSettings`、`useQueryTable`、`useShadowForm`、`useSuggestion`、`useLazyCascader`、`enumItems`、`ENUM_COLORS`，均不依赖任何 UI 库。
+   - Pro Hooks 位于 `@shikiform/react`（见 §9）：`useArrayTable`、`useColumnSettings`、`useQueryTable`、`useShadowForm`、`useSuggestion`、`useLazyCascader`、`enumItems`、`ENUM_COLORS`，均不依赖任何 UI 库。
 4. **公开导出。** 未发布前不留兼容别名，旧名字直接删除。字段只由 `<Field>` 拥有（§8）。
 
 ## 2. 目录与依赖方向
@@ -29,7 +29,7 @@ packages/
     shared/                纯函数：path.ts、equal.ts、tree-ops.ts（pos、moveNode、listPositions…）
     draft/                 draft 代理：handle.ts（$ 读写 → DraftHost）、host.ts、patch.ts（effect 里对象/数组 `$` 读的同一份可写 draft）、
                            pending.ts（本轮 `$value` / `$enum` / `$rules` 写的重放）、readonly.ts（effect 外开发期只读视图）
-    enum/                  enum-source.ts（EnumSource 缓存/防抖/加载）、combo.ts（组合联动算法）、enum-pretty.ts（enumItems / ENUM_COLORS，无 React；`@shikiform/hooks` 再导出）
+    enum/                  enum-source.ts（EnumSource 缓存/防抖/加载）、combo.ts（组合联动算法）、enum-pretty.ts（enumItems / ENUM_COLORS，无 React；`@shikiform/react` 再导出）
     state/                 ① 状态：field-model.ts、field-store.ts、notifier.ts
     effects/               ② 调度：scheduler.ts、define-effects.ts
     validation/            ③ 校验：validator.ts（管线）、rules.ts、schema.ts、messages.ts（内置文案，纯函数）
@@ -46,10 +46,10 @@ packages/
     components/            fields.tsx（Form/Field/ObjectField/ArrayField/TreeField/Watch 及内部 RowScope/ArrayScope/TreeScope）、buttons.tsx（headless `Submit` / `Reset`）、ui.tsx（UI 节点 `<UI>`）、virtual-rows.tsx（内部 VirtualRows）
     field-kit.tsx          FieldKit / `<Form kit>`：默认装饰器，component / decorator 字符串名（运行时）；类型 FieldComponents / FieldDecorators
     factory/               typed.tsx（typed(form) / typed<T>()：按类型检查名字的同一组组件 / Hooks，类型随作用域）
-  hooks/src/               无 UI 的高级 Hook（@shikiform/hooks，依赖 react / core）
+  hooks/src/               无 UI 的高级 Hook（@shikiform/react，依赖 react / core）
     use-query-table.ts       查询表（请求、分页、选择；`rows` 把每页写进数组字段）
     use-array-table.ts       数组表格状态：分页切片 / 受控服务端页、选择、展开、行操作
-    use-column-settings.ts   列显隐、排序、列宽、密度（从 `@shikiform/hooks` 公开导出）
+    use-column-settings.ts   列显隐、排序、列宽、密度（从 `@shikiform/react` 公开导出）
     use-shadow-form.ts       影子表单：支持 `name`/`add` 绑定宿主与 `forkOptions` 继承，每次 open 新建引擎，confirm 校验后写回宿主或交给 onOk
     use-suggestion.ts        远程联想：防抖、中止、最后一次请求胜出
     use-lazy-cascader.ts     懒加载级联：按路径加载、反显时逐级加载祖先
@@ -58,7 +58,7 @@ packages/
 依赖只能向下：
 
 ```
-@shikiform/hooks ─► @shikiform/react ─► @shikiform/core
+@shikiform/react ─► @shikiform/react ─► @shikiform/core
 core 内部（有状态部分，编号小者在下）：
   state ◄─ effects ◄─ validation ◄─ declarations ◄─ structure ◄─ engine
 纯模块（shared / draft / enum / types / errors / validation/rules / validation/schema / validation/messages）可被任何层引用，自身不引用有状态部分。
@@ -179,7 +179,7 @@ Formily 的 `field.title` / `description` / `decorator` / `component` / `setComp
 
 ## 9. Pro Hooks 层（`packages/hooks/src`）
 
-| 能力 | ShikiForm Hook（`@shikiform/hooks`） | 说明 |
+| 能力 | ShikiForm Hook（`@shikiform/react`） | 说明 |
 |---|---|---|
 | 数组表格 | `useArrayTable`、`useColumnSettings` | 分页切片、勾选、展开、行复制/删除/移动与列设置 |
 | 草稿表单 | `useShadowForm`（含 `name` / `add`） | 独立临时表单编辑副本，确认并校验通过后写回宿主路径 |
@@ -191,7 +191,7 @@ Formily 的 `field.title` / `description` / `decorator` / `component` / `setComp
 - **影子表单默认通过 `forkOptions` 继承上下文并在确认后写回。** `useShadowForm` 传入 `name`（或在对象/行作用域内省略 `name`）时绑定宿主路径，`open()` 调用 `engine.forkOptions(path)` 深拷贝初始值并继承前缀剥离后的 `fields`/`trees`、有效 `readOnly`、`messages`、`validateTrigger`、`asyncDebounceMs` 与 `enumPolicy`；`confirm` 校验通过并执行 `onOk`（返回 `false` 时跳过）后按绑定类型写回。
 - **`<Form>` 把作用域重置为根，并阻止 submit 事件冒泡到宿主表单**（React 合成事件会穿过 portal）。
 - **查询表的表头排序与列筛选在 `useQueryTable`。** `sorter: QuerySort[]`、`filters: QueryFilters` 是 Hook 的 React 状态（不进表单值），随 `queryKey` 与 `request` 参数一起发送。排序变化回第 1 页并保留选择；列筛选变化回第 1 页并清空选择；`submit` 保留二者，`reset` 清空。
-- **列配置拖拽在公开的 `useColumnSettings`（`@shikiform/hooks`）。** `dragProps(key)` 是无依赖的 HTML5 拖放属性，`moveKey(from, to)` 按 key 移动。
+- **列配置拖拽在公开的 `useColumnSettings`（`@shikiform/react`）。** `dragProps(key)` 是无依赖的 HTML5 拖放属性，`moveKey(from, to)` 按 key 移动。
 - **表格状态不进表单值。** 分页、选择、展开、列配置是 React 状态（`useArrayTable` 可受控传入 `selectedKeys`）。
 
 ## 10. 行上下文 Hook（`react/hooks/use-row.ts`、`use-array.ts`）
