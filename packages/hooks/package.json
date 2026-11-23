@@ -1,6 +1,6 @@
 {
   "name": "@shikiform/hooks",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "description": "Headless ShikiForm hooks for query tables, array tables, shadow drafts, and lazy inputs.",
   "type": "module",
   "sideEffects": false,
@@ -26,8 +26,8 @@
     "access": "public"
   },
   "dependencies": {
-    "@shikiform/core": "0.6.3",
-    "@shikiform/react": "0.6.3"
+    "@shikiform/core": "0.6.4",
+    "@shikiform/react": "0.6.4"
   },
   "peerDependencies": {
     "react": "^18 || ^19",

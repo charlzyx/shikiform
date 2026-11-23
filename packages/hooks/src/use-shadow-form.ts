@@ -40,6 +40,11 @@ export interface UseShadowFormOptions<TValues, TContext = unknown> {
   /** Other engine options (validateTrigger, schema, readOnly, messages…). Merged over inherited `forkOptions`. */
   formOptions?: Omit<FormOptions<TValues>, 'initialValues' | 'fields' | 'effects'>
   /**
+   * Optional scope key (e.g. tenant / business context id).
+   * When it changes, any open shadow or in-flight async `open()` loader is cancelled automatically.
+   */
+  scopeKey?: string | number
+  /**
    * Called with the submitted shadow values after validation passes, before any bound write-back.
    * Return `false` to skip the automatic write-back; throw / reject to keep the shadow open.
    */
@@ -215,6 +220,26 @@ export function useShadowFormOver<TValues = Record<string, any>, TContext = unkn
   const seq = useRef(0)
   useEffect(() => () => { seq.current++ }, [])
 
+  const prevScopeRef = useRef(options.scopeKey)
+  useEffect(() => {
+    if (Object.is(prevScopeRef.current, options.scopeKey)) return
+    prevScopeRef.current = options.scopeKey
+    seq.current += 1
+    const wasVisible = stateRef.current.visible
+    const prevContext = stateRef.current.context
+    if (wasVisible || stateRef.current.loading || stateRef.current.submitting) {
+      setState((prev) => ({
+        ...prev,
+        visible: false,
+        loading: false,
+        submitting: false,
+        context: undefined,
+        target: null,
+      }))
+      if (wasVisible) optionsRef.current.onCancel?.(prevContext)
+    }
+  }, [options.scopeKey])
+
   const open = useCallback(
     async (init?: ShadowInit<TValues>, context?: TContext) => {
       const ticket = ++seq.current
@@ -320,7 +345,8 @@ export function useShadowFormOver<TValues = Record<string, any>, TContext = unkn
 export function useShadowForm<TValues = Record<string, any>, TContext = unknown>(
   options: UseShadowFormOptions<TValues, TContext> = {},
 ): ShadowFormApi<TValues, TContext> {
-  const { name, form, add, rowKey, merge, initialValues, fields, effects, formOptions, onOk, onCancel } = options
+  const { name, form, add, rowKey, merge, initialValues, fields, effects, formOptions, scopeKey, onOk, onCancel } =
+    options
   return useShadowFormOver<TValues, TContext>({
     name,
     form,
@@ -331,6 +357,7 @@ export function useShadowForm<TValues = Record<string, any>, TContext = unknown>
     fields,
     effects,
     formOptions,
+    scopeKey,
     onOk,
     onCancel,
   })

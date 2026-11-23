@@ -332,4 +332,35 @@ describe('shadow form scope isolation', () => {
     )
     await waitFor(() => expect(screen.getByTestId('scoped').textContent).toBe('draft'))
   })
+
+  it('cancels open shadow and invalidates in-flight async loader when scopeKey changes', async () => {
+    let resolveLoader!: (v: { name: string }) => void
+    const onCancel = vi.fn()
+    const { result, rerender } = renderHook(
+      ({ scopeKey }: { scopeKey: string }) =>
+        useShadowForm<{ name: string }>({
+          scopeKey,
+          onCancel,
+        }),
+      { initialProps: { scopeKey: 'tenant-a' } },
+    )
+
+    const pendingOpen = result.current.open(
+      () => new Promise<{ name: string }>((resolve) => { resolveLoader = resolve }),
+    )
+    await waitFor(() => expect(result.current.visible).toBe(true))
+    expect(result.current.loading).toBe(true)
+
+    rerender({ scopeKey: 'tenant-b' })
+    expect(result.current.visible).toBe(false)
+    expect(result.current.loading).toBe(false)
+    expect(onCancel).toHaveBeenCalledTimes(1)
+
+    resolveLoader({ name: 'stale-from-tenant-a' })
+    await act(async () => {
+      await pendingOpen
+    })
+    expect(result.current.visible).toBe(false)
+    expect(result.current.form.values).not.toEqual({ name: 'stale-from-tenant-a' })
+  })
 })

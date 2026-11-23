@@ -1,10 +1,10 @@
 import { useEffect, useLayoutEffect, useRef } from 'react'
-import { createForm, deepEqual } from '@shikiform/core/internal'
+import { createForm, deepEqual, engineOf } from '@shikiform/core/internal'
 import type { DefaultSubmit, FieldsInput, FormInstance, FormOptions, ResolveSubmit } from '@shikiform/core/internal'
 
 const useIsoLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 
-/** `useForm` options: {@link FormOptions} plus `values`. */
+/** `useForm` options: {@link FormOptions} plus `values` and `onValuesChange`. */
 export interface UseFormOptions<T> extends FormOptions<T> {
   /**
    * Values owned outside the form (a loaded record, a query cache). The first render uses them as `initialValues`.
@@ -13,6 +13,11 @@ export interface UseFormOptions<T> extends FormOptions<T> {
    * (an inline literal) does nothing. `initialValues` is read once; use `values` when the data can change.
    */
   values?: T
+  /**
+   * Called whenever the form's values change due to edits (skipped on initial mount and on external `values` resets).
+   * Useful for draft editors or property panels that sync changes live without a submit button.
+   */
+  onValuesChange?: (values: T) => void
 }
 
 /**
@@ -38,23 +43,55 @@ export interface UseFormOptions<T> extends FormOptions<T> {
  */
 type UseFormArg<T, F> = Omit<UseFormOptions<T>, 'fields'> & { fields?: F & FieldsInput<T> }
 
+function cloneValues<T>(value: T): T {
+  if (value === undefined || value === null || typeof value !== 'object') return value
+  try {
+    return structuredClone(value)
+  } catch {
+    return value
+  }
+}
+
 export function useForm<T = any, TSubmit = DefaultSubmit, const F extends FieldsInput<T> = {}>(
   options?: UseFormArg<T, F>,
 ): FormInstance<T, ResolveSubmit<T, TSubmit, F>>
 export function useForm(options?: UseFormOptions<any>): any {
   const ref = useRef<FormInstance<any, any> | null>(null)
   const values = options?.values
+  const onValuesChange = options?.onValuesChange
+  const onValuesChangeRef = useRef(onValuesChange)
+  onValuesChangeRef.current = onValuesChange
   const last = useRef(values)
   if (!ref.current) {
-    const { values: _values, ...rest } = options ?? {}
+    const { values: _values, onValuesChange: _onValuesChange, ...rest } = options ?? {}
     ref.current = createForm(values !== undefined ? { ...rest, initialValues: values } : rest)
   }
   const form = ref.current
+  const lastEmittedRef = useRef<any>(cloneValues(form.values))
+
   useIsoLayoutEffect(() => {
     if (values === last.current) return
     const changed = !deepEqual(values, last.current)
     last.current = values
-    if (changed && values !== undefined) form.reset(values)
+    if (changed && values !== undefined) {
+      lastEmittedRef.current = cloneValues(values)
+      form.reset(values)
+      lastEmittedRef.current = cloneValues(form.values)
+    }
   }, [values, form])
+
+  useEffect(() => {
+    const engine = engineOf(form)
+    lastEmittedRef.current = cloneValues(form.values)
+    return engine.subscribeDebug(() => {
+      const cb = onValuesChangeRef.current
+      if (!cb) return
+      const current = form.values
+      if (deepEqual(current, lastEmittedRef.current)) return
+      lastEmittedRef.current = cloneValues(current)
+      cb(current)
+    })
+  }, [form])
+
   return form
 }

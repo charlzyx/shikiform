@@ -1,6 +1,6 @@
 {
   "name": "@shikiform/core",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "description": "ShikiForm engine: values, draft effects, validation, and tree moves. No React.",
   "type": "module",
   "sideEffects": false,
