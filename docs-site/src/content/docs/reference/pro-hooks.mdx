@@ -5,6 +5,8 @@ description: useArrayTable、useShadowForm、useSuggestion、useLazyCascader、e
 
 从 `@shikiform/react` 导入，零 UI 库依赖，可配合原生 HTML 或任意 React UI 组件库使用。可点的例子：[/play/array-table](/play/array-table)、[/play/shadow-form](/play/shadow-form)、[/play/pro-enum](/play/pro-enum)。
 
+本页各 Hook 返回的操作方法（`setPage`、`add`、`remove`、`open`、`confirm`、`search`、`loadChildren`、`toggle`、`move` 等）均保持引用稳定，可直接放进 `useEffect` 依赖；`positionOf`、`labelOf`、`labelsOf` 与列设置的 `dragProps(key)` 属于渲染期 getter（详见 [引用稳定性](/reference/react-hooks#引用稳定性)）。
+
 ## useArrayTable
 
 ```ts

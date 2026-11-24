@@ -1,4 +1,4 @@
-import { useContext, useRef, useSyncExternalStore } from 'react'
+import { useContext, useMemo, useRef, useSyncExternalStore } from 'react'
 import type { ArrayItemOf, ArrayPath } from '@shikiform/core/internal'
 import { deepEqual, ShikiUsageError, showDraftPath } from '@shikiform/core/internal'
 import { ArrayContext, useRequiredForm, useScope } from '../context'
@@ -12,6 +12,7 @@ export interface ArrayKey {
   index: number
 }
 
+/** `push` / `insert` / `remove` / `move` / `swap` / `replace` / `dragProps` keep one identity per form + path; the handle object is new each render. */
 export type ArrayHandle<TRow> = {
   path: string
   keys: ArrayKey[]
@@ -106,9 +107,8 @@ export function useArrayAt(path: string | null, rowKey?: string): ArrayHandle<un
   const dragProps = useDragProps<number>(path ?? '', (from, to) => { if (path) form.moveArray(path, from, to) }, String, toIndex)
   const messages = useArrayMessages(path)
   const at = path ?? ''
-  return {
-    path: at,
-    keys: path ? form.structureKeys(path, rowKey) as ArrayKey[] : [],
+  // One identity per form + path (design/API-CONVENTIONS.md §1).
+  const ops = useMemo(() => ({
     push: (row: unknown) => { if (path) form.pushArray(path, row) },
     insert: (index: number, row: unknown) => { if (path) form.insertArray(path, index, row) },
     remove: (index: number) => { if (path) form.removeArray(path, index) },
@@ -116,6 +116,11 @@ export function useArrayAt(path: string | null, rowKey?: string): ArrayHandle<un
     move: (from: number, to: number) => { if (path) form.moveArray(path, from, to) },
     swap: (indexA: number, indexB: number) => { if (path) form.swapArray(path, indexA, indexB) },
     replace: (index: number, row: unknown) => { if (path) form.replaceArray(path, index, row) },
+  }), [form, path])
+  return {
+    path: at,
+    keys: path ? form.structureKeys(path, rowKey) as ArrayKey[] : [],
+    ...ops,
     dragProps,
     errors: messages.errors,
     warnings: messages.warnings,

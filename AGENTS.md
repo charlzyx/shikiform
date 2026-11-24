@@ -180,6 +180,7 @@ const form = createForm({
   `data-*` allowed). There are no separate `componentProps` / `decoratorProps` JSX props. Children (`<Field …><Input /></Field>`) or a render prop also work.
 - Hooks are the complete API: `useForm`, `useFormContext`, `useField(name, options)`, `useFieldDecorator()`, `useWatch`,
   `useArrayField`, `useTreeField`, `useIndex`, `useRecord`. Components are thin sugar over them. `<Submit>` / `<Reset>` are the public buttons.
+  Every hook's action methods (`onChange`, `onBlur`, `push`, `remove`, `refresh`, `setPage`, `open`, `toggle`, …) keep a stable identity across renders (calling the latest logic), while the returned wrapper object itself is new each render: put `table.refresh` in `useEffect` deps, never `table`. Render getters (`labelOf`, `sortOrderOf`, `positionOf`, `useColumnSettings().dragProps`) are not stabilized.
 - One field hook (Formily-style): `useField()` with no name returns the field the nearest `<Field>`
   renders — use it in custom inputs, decorators, and table cells (`useField<string>()` types the value). Outside a
   field it throws `ShikiUsageError`. It is the only way to read the current field: no separate context hook, and the

@@ -145,7 +145,7 @@ const Input = connect(ShadcnInput)
 
 ### Widgets without onBlur
 
-Choose when interaction is complete. `blurOn: 'onOpenChange'` blurs when a popup closes. `blurOn: 'onChange'` blurs after a change. Use `onBlur: false` to opt out explicitly.
+Choose when interaction is complete. `blurOn: 'onOpenChange'` blurs when a popup closes. `blurOn: 'onChange'` blurs after a change. Use `onBlur: false` to opt out explicitly. Handler props created by `connect` (`onChange`, `onBlur`, `blurOn`) keep one identity while mounted; other function props pass through unchanged.
 
 ```tsx
 connect(SelectControl, mapProps({ options: 'options', onChange: 'onValueChange', blurOn: 'onOpenChange' }))

@@ -4,6 +4,32 @@ description: "Field bindings, selectors, scoped array and tree editing, decorato
 ---
 Import these APIs from `@shikiform/react`. Use named hooks for scoped paths or context hooks inside a field, row or tree node.
 
+## Reference stability
+
+Hook return values fall into three groups:
+
+| Group | Examples | Identity |
+|---|---|---|
+| **State** | `value`, `errors`, `data`, `page`, `selectedKeys`, `keys`, `items` | New when changed. The returned wrapper object itself is new on every render. |
+| **Actions** | `onChange`, `onBlur`, `push`, `remove`, `submit`, `refresh`, `setPage`, `toggle`, `open` | **One identity for the life of the component** (or while `form` + `path` stay the same), always running the latest logic. |
+| **Render getters** | `labelOf`, `labelsOf`, `sortOrderOf`, `filteredValueOf`, `positionOf`, `dragProps(key)` of `useColumnSettings` | May change with state. Call during render; do not put in effect dependencies. |
+
+Pass actions to `useEffect` / `useCallback` dependency arrays or `React.memo` children freely. **Never depend on the whole returned object:**
+
+```tsx
+// ✓ Action identity is stable
+useEffect(() => {
+  table.refresh()
+}, [table.refresh])
+
+// ✗ `table` is a new object on every render and will loop
+useEffect(() => {
+  table.refresh()
+}, [table])
+```
+
+`useForm()` returns a stable `FormInstance`.
+
 ## useForm
 
 ```ts
@@ -114,7 +140,7 @@ type FieldSlot<C extends ComponentType<any> = ComponentType<any>> =
   | readonly [C, (Partial<ComponentProps<C>> & { [key: `data-${string}`]: unknown }) | undefined]
 ```
 
-Named fields resolve a relative path, register the binding and subscribe to its state. Use `typed(form).useField` for precise path and value inference. A bare call inside `Field` reads its existing binding.
+Named fields resolve a relative path, register the binding and subscribe to its state. `onChange` and `onBlur` keep one identity per `form` + `path` (see [Reference stability](#reference-stability)). Use `typed(form).useField` for precise path and value inference. A bare call inside `Field` reads its existing binding.
 
 ### FieldBinding
 
@@ -231,7 +257,7 @@ useArrayField<TScope, N extends ArrayPath<TScope>>(
 ): ArrayHandle<ArrayItemOf<TScope, N & string>>
 ```
 
-Read the nearest array inside `ArrayField` or pass a relative name. `keys` contains stable keys and current indices. `rowKey` selects a stable ID property. Object identity is the fallback for object rows without IDs. Use `push`, `insert`, `remove`, `move`, `swap` and `replace` for edits. A move targets the final index.
+Read the nearest array inside `ArrayField` or pass a relative name. `keys` contains stable keys and current indices. `rowKey` selects a stable ID property. Object identity is the fallback for object rows without IDs. Use `push`, `insert`, `remove`, `move`, `swap` and `replace` for edits. A move targets the final index. Edit methods and `dragProps` keep one identity per `form` + `path` (see [Reference stability](#reference-stability)).
 
 ### Native drag and drop
 
@@ -380,7 +406,7 @@ useTreeField<TNode = unknown>(): TreeNodeHandle<TNode>   // Must be inside a Tre
 useTreeField(name: string, options?: { childrenKey?: string; rowKey?: string }): TreeHandle<unknown>
 ```
 
-A named handle operates on the root. `path` and `treePath` both point there. `childrenKey` configures nested children and `rowKey` identifies records. Add, insert, remove, replace and move nodes using positions. Moves that would create a cycle return a refusal reason.
+A named handle operates on the root. `path` and `treePath` both point there. `childrenKey` configures nested children and `rowKey` identifies records. Add, insert, remove, replace and move nodes using positions. Moves that would create a cycle return a refusal reason. The edit methods and `dragProps` keep one identity per `form` + `path` (see [Reference stability](#reference-stability)).
 
 ```tsx
 function MoveFirst() {

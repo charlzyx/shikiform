@@ -20,6 +20,7 @@ export interface ColumnSetting {
 /** Table density, cycled by the settings toolbar. */
 export type TableDensity = 'large' | 'middle' | 'small'
 
+/** `toggle` / `move` / `moveKey` / `setWidth` / `setDensity` / `reset` keep one identity; `dragProps(key)` is a render getter. */
 export interface ColumnSettingsApi {
   /** Every column with its setting, in the user's order. */
   items: ColumnSetting[]
@@ -79,6 +80,8 @@ export function useColumnSettings(columns: readonly ColumnSettingInput[]): Colum
     show: !state.hidden.includes(key),
     width: state.widths[key] ?? byKey.get(key)?.width,
   }))
+  const orderRef = useRef(order)
+  orderRef.current = order
   const toggle = useCallback(
     (key: string) =>
       setState((prev) => ({ ...prev, hidden: prev.hidden.includes(key) ? prev.hidden.filter((item) => item !== key) : [...prev.hidden, key] })),
@@ -87,13 +90,13 @@ export function useColumnSettings(columns: readonly ColumnSettingInput[]): Colum
   const move = useCallback(
     (from: number, to: number) =>
       setState((prev) => {
-        const next = [...order]
+        const next = [...orderRef.current]
         const [item] = next.splice(from, 1)
         if (item === undefined) return prev
         next.splice(Math.min(Math.max(to, 0), next.length), 0, item)
         return { ...prev, order: next }
       }),
-    [order.join('|')],
+    [],
   )
   const setWidth = useCallback((key: string, width: number) => setState((prev) => ({ ...prev, widths: { ...prev.widths, [key]: Math.max(40, Math.round(width)) } })), [])
   const setDensity = useCallback((density: TableDensity) => setState((prev) => ({ ...prev, density })), [])
@@ -101,12 +104,12 @@ export function useColumnSettings(columns: readonly ColumnSettingInput[]): Colum
   const dragFrom = useRef<string | null>(null)
   const moveKey = useCallback(
     (from: string, to: string) => {
-      const fromIndex = order.indexOf(from)
-      const toIndex = order.indexOf(to)
+      const fromIndex = orderRef.current.indexOf(from)
+      const toIndex = orderRef.current.indexOf(to)
       if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return
       move(fromIndex, toIndex)
     },
-    [order.join('|'), move],
+    [move],
   )
   const dragProps = (key: string): ColumnDragProps => ({
     draggable: true,

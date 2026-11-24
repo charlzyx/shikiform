@@ -1,5 +1,6 @@
 import {
   forwardRef,
+  useRef,
   type ComponentClass,
   type ComponentProps,
   type ComponentType,
@@ -486,26 +487,29 @@ export function connect(target: ComponentType<any>, ...enhancers: ConnectEnhance
     if (enhancer.preview) preview = enhancer.preview
   }
   const Target = target as ComponentType<any>
+  const handlerKeys = connectHandlerKeys(mapping)
   const displayName = `Connected(${Target.displayName ?? Target.name ?? 'Component'})`
-  const render = (field: FieldBinding<any>, callerProps: Record<string, any>, ref: Ref<any>): ReactElement => {
+  const render = (field: FieldBinding<any>, callerProps: Record<string, any>, ref: Ref<any>, stable: (props: Record<string, any>) => Record<string, any>): ReactElement => {
     // The field's componentProps (`fields` ← JSX ← `$componentProps`) sit under the caller's own props.
     const props = { ...field.componentProps, ...callerProps }
     if (preview && field.readOnly) {
       const Preview = preview.component
       return <Preview {...preview.props} {...props} value={field.value} options={props.options ?? field.options} />
     }
-    const mapped = applyMapping(field, props, mapping, transforms)
+    const mapped = stable(applyMapping(field, props, mapping, transforms))
     return ref == null ? <Target {...mapped} /> : <Target {...mapped} ref={ref} />
   }
   function WithField({ field, rest, forwarded }: { field: FieldBinding<any>; rest: Record<string, any>; forwarded: Ref<any> }) {
-    return render(field, rest, forwarded)
+    return render(field, rest, forwarded, useStableHandlers(handlerKeys))
   }
   function WithName({ name, rest, forwarded }: { name: string; rest: Record<string, any>; forwarded: Ref<any> }) {
-    return render(useField(name), rest, forwarded)
+    const stable = useStableHandlers(handlerKeys)
+    return render(useField(name), rest, forwarded, stable)
   }
   function FromContext({ rest, forwarded }: { rest: Record<string, any>; forwarded: Ref<any> }) {
     const field = useFieldContextOrNull()
-    if (field) return render(field, rest, forwarded)
+    const stable = useStableHandlers(handlerKeys)
+    if (field) return render(field, rest, forwarded, stable)
     if (process.env.NODE_ENV !== 'production' && !warned.has(displayName)) {
       warned.add(displayName)
       console.warn(
@@ -528,4 +532,39 @@ export function connect(target: ComponentType<any>, ...enhancers: ConnectEnhance
     if (descriptor) Object.defineProperty(Connected, key, descriptor)
   }
   return Connected
+}
+
+/** The handler props `applyMapping` creates: change, blur, and the `blurOn` prop. */
+function connectHandlerKeys(mapping: PropsMapping): string[] {
+  const target = (key: FieldPropKey): string | false => (mapping[key] === undefined ? DEFAULT_TARGETS[key] : mapping[key]!)
+  const keys = new Set<string>()
+  const change = target('onChange')
+  if (change) keys.add(change)
+  const blur = mapping.onBlur !== undefined ? mapping.onBlur : mapping.blurOn ? false : target('onBlur')
+  if (blur) keys.add(blur)
+  if (mapping.blurOn) {
+    const spec = blurSpec(mapping.blurOn, change)
+    if (spec) keys.add(spec.prop)
+  }
+  return [...keys]
+}
+
+/**
+ * Keep the handler props `connect` creates at one identity per mounted control, calling the latest version
+ * (design/API-CONVENTIONS.md §1). Other function props (render props, `filterOption`) pass through unchanged.
+ */
+function useStableHandlers(keys: readonly string[]): (props: Record<string, any>) => Record<string, any> {
+  const latest = useRef<Record<string, any>>({})
+  const stable = useRef<Record<string, (...args: any[]) => unknown>>({})
+  return (props) => {
+    latest.current = props
+    let out = props
+    for (const key of keys) {
+      if (typeof props[key] !== 'function') continue
+      const fn = (stable.current[key] ??= (...args: any[]) => latest.current[key]?.(...args))
+      if (out === props) out = { ...props }
+      out[key] = fn
+    }
+    return out
+  }
 }

@@ -107,7 +107,7 @@ function NodeRow() {
 
 接入任何 React UI 库（如 Ant Design、Arco Design、Radix / shadcn/ui、Mantine、MUI）通常只需要三步：
 
-1. **用 `connect(Comp, mapProps(...))` 包装输入控件**：自动将 `value`、`onChange`、`onBlur`、`disabled`、`id`、`options` 映射到组件属性；需要 `status`（如 Ant Design / Arco 的 `'error' | 'warning'`）或自定义 `preview` 阅读态时，在 `mapProps` 第二个回调里按 `field.errors` / `field.warnings` 补充即可：
+1. **用 `connect(Comp, mapProps(...))` 包装输入控件**：自动将 `value`、`onChange`、`onBlur`、`disabled`、`id`、`options` 映射到组件属性；`connect` 生成的事件回调（`onChange`、`onBlur` 与 `blurOn`）在控件挂载期间保持引用稳定，其他函数 prop 原样透传；需要 `status`（如 Ant Design / Arco 的 `'error' | 'warning'`）或自定义 `preview` 阅读态时，在 `mapProps` 第二个回调里按 `field.errors` / `field.warnings` 补充即可：
 
 ```ts
 // 适配 Ant Design / Arco Design 等带 status 属性的组件库示例：

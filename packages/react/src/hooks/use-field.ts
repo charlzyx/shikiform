@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useLayoutEffect, useRef, useSyncExternalStore, type ComponentProps, type ComponentType, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useSyncExternalStore, type ComponentProps, type ComponentType, type ReactNode } from 'react'
 import type { FormEngine } from '@shikiform/core/internal'
 import type { EnumOption } from '@shikiform/core/internal'
 import { normalizeUiSpec } from '@shikiform/core/internal'
@@ -16,6 +16,7 @@ import { resolveName } from './resolve-name'
 /**
  * What `useField` and `<Field>` hand to an input.
  * The component re-renders only when this path's version changes, not when a sibling changes.
+ * `onChange` / `onBlur` keep one identity per form + path; the binding object itself is new each render.
  */
 export interface FieldBinding<TValue> {
   path: string
@@ -259,11 +260,17 @@ export function useField(name?: string, options?: UseFieldOptions): FieldBinding
   )
   void version
   useUiNode(form, path, ui, 'field')
+  // Actions keep one identity per form + path (design/API-CONVENTIONS.md §1): safe in effect deps and memo props.
+  // Same writes as `binding().onChange` / `onBlur`.
+  const handlers = useMemo(() => ({
+    onChange: (value: unknown) => form.setValue(path as never, value as never),
+    onBlur: () => form.blur(path),
+  }), [form, path])
   if (ui) {
     // A second UI of a field brings its own decorator; the kit default is for the field itself.
-    return withResolvedSlots(withDomId(form.uiBinding(path, ui, uiJsx(options!, path), 'field') as unknown as FieldBinding<any>, prefix), kit, false)
+    return withResolvedSlots(withDomId({ ...form.uiBinding(path, ui, uiJsx(options!, path), 'field'), ...handlers } as unknown as FieldBinding<any>, prefix), kit, false)
   }
-  return withResolvedSlots(withDomId(form.binding(path, options && uiLayer(options, path), options) as FieldBinding<any>, prefix), kit, true)
+  return withResolvedSlots(withDomId({ ...form.binding(path, options && uiLayer(options, path), options), ...handlers } as FieldBinding<any>, prefix), kit, true)
 }
 
 const NO_UI = () => () => {}

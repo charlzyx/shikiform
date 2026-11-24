@@ -116,7 +116,7 @@ export interface UseQueryTableOptions<TValues, TParams, TRow, TExtra = unknown> 
 
 /**
  * The returned object is new on each render (it carries `data`, `page`, …), but its action methods
- * (`submit`, `reset`, `refresh`, `onPageChange`, `setSelectedKeys`, `setSorter`, `setFilters`, `onTableChange`)
+ * (`submit`, `reset`, `refresh`, `setPage` / `onPageChange`, `setSelectedKeys`, `setSorter`, `setFilters`, `onTableChange`)
  * keep one identity for the life of the component and always run the latest logic, so they are safe in
  * `useEffect` / `useCallback` deps. Depend on `table.refresh`, not on `table`.
  */
@@ -141,7 +141,9 @@ export interface QueryTableApi<TValues, TParams, TRow, TExtra = unknown> {
   reset: () => void
   /** Reload the current page. Filters and selection stay. */
   refresh: () => void
-  /** Change page. Filters and the selection stay. A new search is what returns to page 1. */
+  /** Change page. Filters and the selection stay. A new search is what returns to page 1. Same function as `onPageChange`. */
+  setPage: (page: number, pageSize?: number) => void
+  /** `setPage` under its handler name, to pass to a pager's `onChange`. Same function. */
   onPageChange: (page: number, pageSize?: number) => void
   setSelectedKeys: (keys: string[]) => void
   /** Current table sort, sent to `request` as `sorter`. */
@@ -398,7 +400,7 @@ export function useQueryTable<TValues, TParams = TValues, TRow = unknown, TExtra
     submit: () => latest.current.submit(),
     reset: () => latest.current.reset(),
     refresh: () => latest.current.refresh(),
-    onPageChange: (nextPage: number, nextSize?: number) => latest.current.onPageChange(nextPage, nextSize),
+    setPage: (nextPage: number, nextSize?: number) => latest.current.onPageChange(nextPage, nextSize),
     setSelectedKeys: (keys: string[]) => latest.current.setSelectedKeys(keys),
     setSorter: (next: QuerySort[]) => latest.current.setSorter(next),
     setFilters: (next: QueryFilters | Record<string, unknown>) => latest.current.setFilters(next),
@@ -419,6 +421,7 @@ export function useQueryTable<TValues, TParams = TValues, TRow = unknown, TExtra
     pageSize,
     selectedKeys,
     ...actions,
+    onPageChange: actions.setPage,
     sorter: sortState,
     filters: filterState,
     sortOrderOf: (key) => sortState.find((item) => item.field === key)?.order ?? null,

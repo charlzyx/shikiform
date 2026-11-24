@@ -4,6 +4,8 @@ description: "Options and behavior for tables, draft editors and option loading.
 ---
 Import these hooks and helpers from `@shikiform/react`. They work with native HTML or a UI library.
 
+Action methods returned by every hook on this page (`setPage`, `add`, `remove`, `open`, `confirm`, `search`, `loadChildren`, `toggle`, `move`, etc.) keep one identity across renders and are safe in `useEffect` deps; `positionOf`, `labelOf`, `labelsOf` and `useColumnSettings().dragProps(key)` are render getters (see [Reference stability](/en/reference/react-hooks#reference-stability)).
+
 ## useArrayTable
 
 ```ts

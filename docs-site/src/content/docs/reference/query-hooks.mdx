@@ -83,13 +83,15 @@ server 返回当前页 data 和未分页的 total；client 返回本次筛选下
 | `submit(): Promise<void>` | 默认先校验筛选字段（`validateOnSubmit: false` 时跳过），校验通过后回第 1 页、清空选择并强制查询；校验未通过时不发起请求 |
 | `reset(): void` | `form.reset()`，清空选择，再请求；建议初始页码设为 1 |
 | `refresh(): void` | 保留已提交的筛选、当前页和选择，强制查询 |
-| `onPageChange(page, pageSize?): void` | 更新分页；未传 pageSize 沿用当前值。server 请求，client 只切片 |
+| `setPage(page, pageSize?)` / `onPageChange(page, pageSize?): void` | 同一个函数：更新分页；未传 pageSize 沿用当前值。server 请求，client 只切片；`onPageChange` 用于直接透传给分页组件的 `onChange` |
 | `setSelectedKeys(keys: string[]): void` | 更新选择，不触发请求 |
 | `sorter`、`filters` | 当前表头排序 / 列筛选，与发给 `request` 的一致 |
 | `setSorter(sorter): void` | 改排序：回第 1 页并请求；**保留选择**（结果集还是那些行） |
 | `setFilters(filters): void` | 改列筛选：回第 1 页、**清空选择**并请求（结果集变了，旧选择可能指向看不见的行） |
 | `onTableChange(pagination, filters, sorter, extra)` | 适配标准表格组件的 `onChange` 回调；`extra.action === 'paginate'` 时忽略（分页走 `onPageChange`），其余转成 `setSorter` / `setFilters`；值没变不请求 |
-| `sortOrderOf(key)`、`filteredValueOf(key)` | 给受控列用的 `sortOrder` / `filteredValue`，`重置` 后表头随之清空 |
+| `sortOrderOf(key)`、`filteredValueOf(key)` | 给受控列用的 `sortOrder` / `filteredValue`，`重置` 后表头随之清空（渲染期 getter） |
+
+> 所有操作方法（`submit`、`reset`、`refresh`、`setPage` / `onPageChange`、`setSelectedKeys`、`setSorter`、`setFilters`、`onTableChange`）在组件生命周期内保持同一个引用，可直接放进 `useEffect` 依赖；返回值对象本身每次渲染新建，请依赖具体方法（如 `[table.refresh]`）而不要依赖 `table`。详见 [引用稳定性](/reference/react-hooks#引用稳定性)。
 
 ### 表头排序与列筛选
 
@@ -157,9 +159,9 @@ export default function App() {
         </tbody>
       </table>
       <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
-        <button type="button" disabled={table.page <= 1} onClick={() => table.onPageChange(table.page - 1)}>上一页</button>
+        <button type="button" disabled={table.page <= 1} onClick={() => table.setPage(table.page - 1)}>上一页</button>
         <span>第 {table.page} / {totalPages} 页（共 {table.total} 条）</span>
-        <button type="button" disabled={table.page >= totalPages} onClick={() => table.onPageChange(table.page + 1)}>下一页</button>
+        <button type="button" disabled={table.page >= totalPages} onClick={() => table.setPage(table.page + 1)}>下一页</button>
       </div>
     </Form>
   );

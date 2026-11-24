@@ -58,6 +58,7 @@ export interface ArrayTableRow extends ArrayKey {
 /**
  * Headless state for an array table (`ArrayTable`): page slice, row selection,
  * expansion, and row actions over {@link useArrayField}. No UI. `ArrayTable` in `@shikiform/antd` renders it.
+ * Action methods keep one identity for the life of the component and run the latest logic; `positionOf` is a render getter.
  */
 export interface ArrayTableApi<TRow = any> {
   path: string
@@ -186,100 +187,119 @@ export function useArrayTableOver<TRow = any>(
     // pageRows is derived from the signature + structure; re-run when either changes.
   }, [pageSignature, pageKeys.join('|')])
 
-  const setPage = useCallback(
-    (nextPage: number, nextSize?: number) => {
+
+  const keyAt = (index: number) => rows[index]?.key
+  // Latest implementations; the public actions below are created once (design/API-CONVENTIONS.md §1).
+  const impl = {
+    setPage: (nextPage: number, nextSize?: number) => {
       const size = nextSize ?? pageSize
       const target = size !== pageSize ? 1 : nextPage
       setLocal({ page: target, pageSize: size })
       optionsRef.current.pagination && optionsRef.current.pagination.onChange?.(target, size)
     },
-    [pageSize],
-  )
+    toggleSelected: (key: string) =>
+      setSelectedKeys((prev) => (prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key])),
+    selectPage: () => setSelectedKeys((prev) => unique([...prev, ...pageKeys])),
+    invertPage: () =>
+      setSelectedKeys((prev) => [...prev.filter((key) => !pageKeys.includes(key)), ...pageKeys.filter((key) => !prev.includes(key))]),
+    clearSelection: () => setSelectedKeys([]),
+    selectedRecords: () => {
+      const keys = selectedRef.current
+      return form.structureKeys(path, optionsRef.current.rowKey).filter((row) => keys.includes(row.key)).map((row) => record(row.index))
+    },
+    toggleExpanded: (key: string) =>
+      setExpandedKeys((prev) => (prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key])),
+    remove: async (index: number) => {
+      const key = keyAt(index)
+      if (key === undefined) return false
+      const hook = optionsRef.current.onRemove
+      if (hook) {
+        setRemoving((prev) => [...prev, key])
+        try {
+          await hook(index, record(index))
+        } catch {
+          return false
+        } finally {
+          setRemoving((prev) => prev.filter((item) => item !== key))
+        }
+      }
+      // The row may have moved while onRemove ran: remove it by key, not by the stale index.
+      const now = form.structureKeys(path, optionsRef.current.rowKey).find((row) => row.key === key)
+      if (!now) return false
+      form.removeArray(path as never, now.index)
+      setSelectedKeys((prev) => prev.filter((item) => item !== key))
+      setExpandedKeys((prev) => prev.filter((item) => item !== key))
+      return true
+    },
+    add: (row: TRow, addOptions?: { jump?: boolean }) => {
+      const { rowKey, createRowKey } = optionsRef.current
+      if (rowKey && createRowKey && isRecord(row) && row[rowKey] == null) {
+        const rest = { ...row }
+        delete rest[rowKey]
+        row = { ...rest, [rowKey]: createRowKey(rest as TRow) } as TRow
+      }
+      form.pushArray(path as never, row as never)
+      if (addOptions?.jump === false || !paging || server) return
+      const count = form.structureKeys(path, optionsRef.current.rowKey).length
+      latest.current.setPage(Math.max(1, Math.ceil(count / pageSize)), pageSize)
+    },
+    copy: (index: number, transform?: (copy: TRow, source: TRow) => TRow) => {
+      const source = record(index)
+      // `record` is a development read-only view. Copy it; do not sort or push the view.
+      let next = (source && typeof source === 'object' ? snapshot(source) : source) as TRow
+      const { rowKey, createRowKey } = optionsRef.current
+      if (rowKey && isRecord(next)) {
+        delete next[rowKey]
+        if (createRowKey) next = { ...next, [rowKey]: createRowKey(next as TRow) } as TRow
+      }
+      if (transform) next = transform(next, source)
+      form.insertArray(path as never, index + 1, next as never)
+    },
+    moveUp: (index: number) => {
+      if (index > 0) form.moveArray(path as never, index, index - 1)
+    },
+    moveDown: (index: number) => {
+      if (index < rows.length - 1) form.moveArray(path as never, index, index + 1)
+    },
+    move: (from: number, to: number) => form.moveArray(path as never, from, to),
+  }
+  const latest = useRef(impl)
+  latest.current = impl
+  const [actions] = useState(() => ({
+    setPage: (nextPage: number, nextSize?: number) => latest.current.setPage(nextPage, nextSize),
+    toggleSelected: (key: string) => latest.current.toggleSelected(key),
+    selectPage: () => latest.current.selectPage(),
+    invertPage: () => latest.current.invertPage(),
+    clearSelection: () => latest.current.clearSelection(),
+    selectedRecords: () => latest.current.selectedRecords(),
+    toggleExpanded: (key: string) => latest.current.toggleExpanded(key),
+    remove: (index: number) => latest.current.remove(index),
+    add: (row: TRow, addOptions?: { jump?: boolean }) => latest.current.add(row, addOptions),
+    copy: (index: number, transform?: (copy: TRow, source: TRow) => TRow) => latest.current.copy(index, transform),
+    moveUp: (index: number) => latest.current.moveUp(index),
+    moveDown: (index: number) => latest.current.moveDown(index),
+    move: (from: number, to: number) => latest.current.move(from, to),
+  }))
 
-  return useMemo(() => {
-    const keyAt = (index: number) => rows[index]?.key
-    return {
-      path,
-      rows,
-      pageRows,
-      record,
-      positionOf: (index: number) => offset + index + 1,
-      total,
-      page,
-      pageSize,
-      pageCount,
-      showPager,
-      setPage,
-      selectedKeys,
-      setSelectedKeys,
-      toggleSelected: (key: string) =>
-        setSelectedKeys((prev) => (prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key])),
-      selectPage: () => setSelectedKeys((prev) => unique([...prev, ...pageKeys])),
-      invertPage: () =>
-        setSelectedKeys((prev) => [...prev.filter((key) => !pageKeys.includes(key)), ...pageKeys.filter((key) => !prev.includes(key))]),
-      clearSelection: () => setSelectedKeys([]),
-      selectedRecords: () => rows.filter((row) => selectedKeys.includes(row.key)).map((row) => record(row.index)),
-      expandedKeys,
-      setExpandedKeys,
-      toggleExpanded: (key: string) =>
-        setExpandedKeys((prev) => (prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key])),
-      isExpandable,
-      removing,
-      remove: async (index: number) => {
-        const key = keyAt(index)
-        if (key === undefined) return false
-        const hook = optionsRef.current.onRemove
-        if (hook) {
-          setRemoving((prev) => [...prev, key])
-          try {
-            await hook(index, record(index))
-          } catch {
-            return false
-          } finally {
-            setRemoving((prev) => prev.filter((item) => item !== key))
-          }
-        }
-        // The row may have moved while onRemove ran: remove it by key, not by the stale index.
-        const now = form.structureKeys(path, optionsRef.current.rowKey).find((row) => row.key === key)
-        if (!now) return false
-        form.removeArray(path as never, now.index)
-        setSelectedKeys((prev) => prev.filter((item) => item !== key))
-        setExpandedKeys((prev) => prev.filter((item) => item !== key))
-        return true
-      },
-      add: (row: TRow, addOptions?: { jump?: boolean }) => {
-        const { rowKey, createRowKey } = optionsRef.current
-        if (rowKey && createRowKey && isRecord(row) && row[rowKey] == null) {
-          const rest = { ...row }
-          delete rest[rowKey]
-          row = { ...rest, [rowKey]: createRowKey(rest as TRow) } as TRow
-        }
-        form.pushArray(path as never, row as never)
-        if (addOptions?.jump === false || !paging || server) return
-        const count = form.structureKeys(path, optionsRef.current.rowKey).length
-        setPage(Math.max(1, Math.ceil(count / pageSize)), pageSize)
-      },
-      copy: (index: number, transform?: (copy: TRow, source: TRow) => TRow) => {
-        const source = record(index)
-        // `record` is a development read-only view. Copy it; do not sort or push the view.
-        let next = (source && typeof source === 'object' ? snapshot(source) : source) as TRow
-        const { rowKey, createRowKey } = optionsRef.current
-        if (rowKey && isRecord(next)) {
-          delete next[rowKey]
-          if (createRowKey) next = { ...next, [rowKey]: createRowKey(next as TRow) } as TRow
-        }
-        if (transform) next = transform(next, source)
-        form.insertArray(path as never, index + 1, next as never)
-      },
-      moveUp: (index: number) => {
-        if (index > 0) form.moveArray(path as never, index, index - 1)
-      },
-      moveDown: (index: number) => {
-        if (index < rows.length - 1) form.moveArray(path as never, index, index + 1)
-      },
-      move: (from: number, to: number) => form.moveArray(path as never, from, to),
-    }
-  }, [path, rows, pageRows.length, pageKeys.join('|'), page, pageSize, total, showPager, selectedKeys, expandedKeys, removing, record, isExpandable, setPage, form, server])
+  return useMemo(() => ({
+    path,
+    rows,
+    pageRows,
+    record,
+    positionOf: (index: number) => offset + index + 1,
+    total,
+    page,
+    pageSize,
+    pageCount,
+    showPager,
+    selectedKeys,
+    setSelectedKeys,
+    expandedKeys,
+    setExpandedKeys,
+    isExpandable,
+    removing,
+    ...actions,
+  }), [path, rows, pageRows.length, pageKeys.join('|'), page, pageSize, total, showPager, selectedKeys, expandedKeys, removing, record, isExpandable, offset, actions])
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

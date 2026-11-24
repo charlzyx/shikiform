@@ -25,6 +25,32 @@ description: useForm、useField、useWatch、数组与树 Hooks 的签名、返�
 
 `useField(name)` 需要名字；不带参数的 [`useField()`](#usefield) 就是当前字段（与 Formily `useField()` 相同）。[`useArrayField(name?)`](#usearrayfield) 传了名字就解析那一条数组，不传就取最近一层。[`useTreeField(name)`](#usetreefield) 解析那棵树；不传名字的 [`useTreeField()`](#usetreefield) 只在树节点里用，返回当前节点并带上这棵树的增删和移动。[`useIndex()`](#useindex) / [`useRecord()`](#userecord) 不需要名字。`<Field>`、表格单元格里的 `<Field>` 都用无参 `useField()`，只有这一种写法。
 
+## 引用稳定性
+
+Hook 返回的成员分三类：
+
+| 类别 | 示例 | 引用行为 |
+|---|---|---|
+| **状态** | `value`、`errors`、`data`、`page`、`selectedKeys`、`keys`、`items` | 变化时更新；**返回的容器对象本身每次渲染都是新对象** |
+| **操作方法** | `onChange`、`onBlur`、`push`、`remove`、`submit`、`refresh`、`setPage`、`toggle`、`open` | **组件存活期间引用不变**（路径型句柄在 `form` 与 `path` 不变时不变），调用时总是执行最新逻辑 |
+| **渲染期 getter** | `labelOf`、`labelsOf`、`sortOrderOf`、`filteredValueOf`、`positionOf`、`useColumnSettings` 的 `dragProps(key)` | 随状态变化，在渲染时调用，不要放进 `useEffect` 依赖 |
+
+可以把操作方法直接放进 `useEffect` / `useCallback` 依赖数组，或传给 `React.memo` 子组件；**不要把整个返回值对象放进依赖**：
+
+```tsx
+// ✓ 方法引用稳定，仅在挂载或需要时执行
+useEffect(() => {
+  table.refresh()
+}, [table.refresh])
+
+// ✗ table 每次渲染都是新对象，会导致无限触发
+useEffect(() => {
+  table.refresh()
+}, [table])
+```
+
+`useForm()` 返回的 `FormInstance` 本身也是稳定的。
+
 ## useForm
 
 ```ts
@@ -195,7 +221,7 @@ type FieldSlot<C extends ComponentType<any> = ComponentType<any>> =
 | `componentProps` / `decoratorProps` | 合并后的控件 / 装饰器 props（`fields` ← JSX ← `$componentProps` / `$decoratorProps`，深合并） |
 | `ui` | 仅 UI 实例有：实例名（`<Field ui="echo">`） |
 
-`useField` 订阅该路径并注册基础字段模型，但**不会替你渲染或隐藏输入**。自定义 UI 看 `visible`：`false` 不画。`readOnly` 时画预览。需要 JSX `rules`、`required` 生命周期时传 `options`（或用 `<Field>`）。`visible: false`、`disabled`、`readOnly` 都跳过校验并清错，值仍提交，除非 `omit`。见 [四个布尔](/guide/concepts#四个布尔) 和 [未挂载规则](/guide/validation)。
+`useField` 订阅该路径并注册基础字段模型，但**不会替你渲染或隐藏输入**。`onChange` 和 `onBlur` 在同一 `form` + `path` 下引用稳定（见 [引用稳定性](#引用稳定性)）。自定义 UI 看 `visible`：`false` 不画。`readOnly` 时画预览。需要 JSX `rules`、`required` 生命周期时传 `options`（或用 `<Field>`）。`visible: false`、`disabled`、`readOnly` 都跳过校验并清错，值仍提交，除非 `omit`。见 [四个布尔](/guide/concepts#四个布尔) 和 [未挂载规则](/guide/validation)。
 
 ### 无参 useField：当前字段
 
@@ -356,7 +382,7 @@ useArrayField<TScope, N extends ArrayPath<TScope>>(
 
 它只订阅结构（长度/顺序/行身份），不会因为单元格编辑就更新整个列表。单元格另用 `useField`，汇总另用 `useWatch`。不要原地修改 `getValue` 返回的数组来代替操作方法：开发环境会抛 `ShikiUsageError`，用 `push` / `remove` / `move`。需要为每行提供相对路径作用域时直接使用 `<ArrayField>`。
 
-`dragProps` 函数对同一数组路径保持同一个引用（拖动起点记在句柄内部），所以可以经 context 交给 `memo` 的行而不让它们重渲染；没有隐藏的拖拽库，把手、键盘和触屏交互由应用决定。事件没有 `dataTransfer` 时用句柄记下的起点。
+`push` / `insert` / `remove` / `move` / `swap` / `replace` 与 `dragProps` 对同一 `form` + 数组路径保持引用稳定（见 [引用稳定性](#引用稳定性)；拖动起点记在句柄内部），所以可以经 context 交给 `memo` 的行而不让它们重渲染；没有隐藏的拖拽库，把手、键盘和触屏交互由应用决定。事件没有 `dataTransfer` 时用句柄记下的起点。
 
 [数组教程](/tutorial/3-linkage-array#33-动态数组与-reactioneach)
 
@@ -516,7 +542,7 @@ useTreeField<TNode = unknown>(): TreeNodeHandle<TNode>   // 必须在 <TreeField
 useTreeField(name: string, options?: { childrenKey?: string; rowKey?: string }): TreeHandle<unknown>
 ```
 
-一个 Hook。句柄的 `path` 永远是它指向的东西，`treePath` 永远是树根。`useTreeField(name)` 按当前 scope 解析那棵树，`path` 和 `treePath` 都是树根，并把路径登记进最近的字段组。`useTreeField()` 不传名字时必须在 `<TreeField>` 的节点里：`path` 是当前节点，`treePath` 是树根，并带上 `pos`、`index`、`record`，以及这棵树的 `value`、`push`、`insert`、`remove`、`replace`、`move`、`dragProps`（`dragProps()` 不传坐标就指向当前节点）。两种句柄的 `errors` / `warnings` 都只算 `path` 这一层，不含子孙字段。不在节点里时抛错：开发构建是 `ShikiUsageError`，消息为 `useTreeField() must render inside a tree node (<TreeField>).`。
+一个 Hook。句柄的 `path` 永远是它指向的东西，`treePath` 永远是树根。`useTreeField(name)` 按当前 scope 解析那棵树，`path` 和 `treePath` 都是树根，并把路径登记进最近的字段组。`useTreeField()` 不传名字时必须在 `<TreeField>` 的节点里：`path` 是当前节点，`treePath` 是树根，并带上 `pos`、`index`、`record`，以及这棵树的 `value`、`push`、`insert`、`remove`、`replace`、`move`、`dragProps`（`dragProps()` 不传坐标就指向当前节点）。`push` / `insert` / `remove` / `replace` / `move` 与 `dragProps` 对同一 `form` + 树路径保持引用稳定（见 [引用稳定性](#引用稳定性)）。两种句柄的 `errors` / `warnings` 都只算 `path` 这一层，不含子孙字段。不在节点里时抛错：开发构建是 `ShikiUsageError`，消息为 `useTreeField() must render inside a tree node (<TreeField>).`。
 
 `<TreeField>` 在结构变化时重画。位置和子树都没变的兄弟，以及其他子树，沿用上一次的元素，不重新渲染。变了的是被移动的节点、坐标变了的节点，以及子树形状变了的祖先。`children` 渲染函数换了身份（父组件重渲染时写的内联函数）会把每个节点重画一遍。
 

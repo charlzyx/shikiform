@@ -1,4 +1,4 @@
-import { useCallback, useContext, useRef, useSyncExternalStore } from 'react'
+import { useCallback, useContext, useMemo, useRef, useSyncExternalStore } from 'react'
 import type { Draft, MoveResult, Pos } from '@shikiform/core/internal'
 import { deepEqual, ShikiUsageError } from '@shikiform/core/internal'
 import { TreeContext, useRequiredForm, useScope } from '../context'
@@ -21,6 +21,7 @@ export interface TreeOptions {
  * `value` is the current root array (`[]` when the stored value is not an array).
  * `move(from, to)` uses final `pos` coordinates and refuses a move into a descendant (the result says why).
  * `dragProps(pos)` is the HTML5 drag-and-drop props for the node at that coordinate; dropping A on B is `move(A, B)`.
+ * The edit methods and `dragProps` keep one identity per form + path; the handle object is new each render.
  */
 export interface TreeHandle<TNode = unknown> {
   /** What this handle points at. Root handle: the tree root. Node handle: the current node. */
@@ -93,7 +94,9 @@ export function useTreeField(name?: string, opts?: TreeOptions): TreeHandle<unkn
   const own = useOwnMessages(nodePath || null)
   const record = useWatch(useCallback((d: Draft<any>) => (nodePath ? form.query(nodePath).$value : undefined), [form, nodePath]))
   const pos = scope.pos as Pos | undefined
-  const nodeDrag = useCallback((at?: Pos) => tree.dragProps(at ?? pos ?? []), [tree.dragProps, pos])
+  const posRef = useRef(pos)
+  posRef.current = pos
+  const nodeDrag = useCallback((at?: Pos) => tree.dragProps(at ?? posRef.current ?? []), [tree.dragProps])
   if (name != null) return tree
   return {
     ...tree,
@@ -126,17 +129,21 @@ export function useTreeAt(path: string | null, opts?: TreeOptions, subscribe = t
   const dragProps = useDragProps<Pos>(path ?? '', (from, to) => { if (path) form.moveTree(path, from, to) }, (pos) => pos.join('.'), toPos)
   const messages = useOwnMessages(subscribe ? path : null)
   const at = path ?? ''
+  // One identity per form + path (design/API-CONVENTIONS.md §1).
+  const ops = useMemo(() => ({
+    push: (node: unknown, parentPos?: Pos) => { if (path) form.pushTree(path, node, parentPos) },
+    insert: (pos: Pos, node: unknown) => { if (path) form.insertTree(path, pos, node) },
+    remove: (pos: Pos) => { if (path) form.removeTree(path, pos) },
+    replace: (pos: Pos, node: unknown) => { if (path) form.replaceTree(path, pos, node) },
+    move: (from: Pos, to: Pos): MoveResult => (path ? form.moveTree(path, from, to) : { ok: false }),
+  }), [form, path])
   return {
     path: at,
     treePath: at,
     errors: messages.errors,
     warnings: messages.warnings,
     value: Array.isArray(value) ? (value as unknown[]) : [],
-    push: (node: unknown, parentPos?: Pos) => { if (path) form.pushTree(path, node, parentPos) },
-    insert: (pos: Pos, node: unknown) => { if (path) form.insertTree(path, pos, node) },
-    remove: (pos: Pos) => { if (path) form.removeTree(path, pos) },
-    replace: (pos: Pos, node: unknown) => { if (path) form.replaceTree(path, pos, node) },
-    move: (from: Pos, to: Pos): MoveResult => (path ? form.moveTree(path, from, to) : { ok: false }),
+    ...ops,
     dragProps,
   }
 }
