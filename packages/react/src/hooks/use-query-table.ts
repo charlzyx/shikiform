@@ -114,6 +114,12 @@ export interface UseQueryTableOptions<TValues, TParams, TRow, TExtra = unknown> 
   rows?: FieldPath<TValues>
 }
 
+/**
+ * The returned object is new on each render (it carries `data`, `page`, …), but its action methods
+ * (`submit`, `reset`, `refresh`, `onPageChange`, `setSelectedKeys`, `setSorter`, `setFilters`, `onTableChange`)
+ * keep one identity for the life of the component and always run the latest logic, so they are safe in
+ * `useEffect` / `useCallback` deps. Depend on `table.refresh`, not on `table`.
+ */
 export interface QueryTableApi<TValues, TParams, TRow, TExtra = unknown> {
   form: FormInstance<TValues>
   /** The `rows` option: the array field each page is written into (`undefined` without it). `QueryList` renders it. */
@@ -328,21 +334,12 @@ export function useQueryTable<TValues, TParams = TValues, TRow = unknown, TExtra
       // A different filter is a different result set: an old selection could name rows the user no longer sees (#3).
       form.setValue(selectedPath as never, [] as never)
     }
-    publish(1, pageSize, submitted.current ?? readParams(), 'filters')
+    publish(1, sizeRef.current, submitted.current ?? readRef.current(), 'filters')
   }
 
-  const api: QueryTableApi<TValues, TParams, TRow, TExtra> = {
-    form,
-    rows: rowsPath || undefined,
-    data,
-    total,
-    extra: queried.data?.extra,
-    loading: queried.isFetching && queried.data == null,
-    fetching: queried.isFetching,
-    isPlaceholderData: !!queried.isPlaceholderData,
-    page,
-    pageSize,
-    selectedKeys,
+  // Latest implementations. The public methods below are created once and call through this ref,
+  // so `table.refresh` etc. keep one identity across renders (safe in `useEffect` deps).
+  const impl = {
     submit: async () => {
       if (options.validateOnSubmit !== false) {
         try {
@@ -374,27 +371,56 @@ export function useQueryTable<TValues, TParams = TValues, TRow = unknown, TExtra
       if (form.getValue(pagePath as never) == null) form.setValue(pagePath as never, 1 as never)
       form.setValue(selectedPath as never, [] as never)
       const nextSize = Number(form.getValue(sizePath as never) ?? sizeDefault)
-      publish(1, nextSize, readParams(), 'filters', true)
+      publish(1, nextSize, readRef.current(), 'filters', true)
     },
     refresh: () => {
-      publish(page, pageSize, submitted.current ?? readParams(), 'filters', true)
+      publish(pageRef.current, sizeRef.current, submitted.current ?? readRef.current(), 'filters', true)
     },
-    onPageChange: (nextPage: number, nextSize = pageSize) => {
+    onPageChange: (nextPage: number, nextSize?: number) => {
+      const size = nextSize ?? sizeRef.current
       form.setValue(pagePath as never, nextPage as never)
-      form.setValue(sizePath as never, nextSize as never)
-      publish(nextPage, nextSize, submitted.current ?? readParams(), 'page')
+      form.setValue(sizePath as never, size as never)
+      publish(nextPage, size, submitted.current ?? readRef.current(), 'page')
     },
     setSelectedKeys: (keys: string[]) => {
       form.setValue(selectedPath as never, keys as never)
     },
-    sorter: sortState,
-    filters: filterState,
-    setSorter: (next) => applyTable(normalizeSort(next), null),
-    setFilters: (next) => applyTable(null, normalizeFilters(next)),
-    onTableChange: (_pagination, filters, sorter, extra) => {
+    setSorter: (next: QuerySort[]) => applyTable(normalizeSort(next), null),
+    setFilters: (next: QueryFilters | Record<string, unknown>) => applyTable(null, normalizeFilters(next)),
+    onTableChange: (_pagination: unknown, filters?: Record<string, unknown>, sorter?: unknown, extra?: { action?: string }) => {
       if (extra?.action === 'paginate') return
       applyTable(sorter === undefined ? null : normalizeSort(sorter as TableSorterLike | TableSorterLike[]), filters === undefined ? null : normalizeFilters(filters))
     },
+  }
+  const latest = useRef(impl)
+  latest.current = impl
+  const [actions] = useState(() => ({
+    submit: () => latest.current.submit(),
+    reset: () => latest.current.reset(),
+    refresh: () => latest.current.refresh(),
+    onPageChange: (nextPage: number, nextSize?: number) => latest.current.onPageChange(nextPage, nextSize),
+    setSelectedKeys: (keys: string[]) => latest.current.setSelectedKeys(keys),
+    setSorter: (next: QuerySort[]) => latest.current.setSorter(next),
+    setFilters: (next: QueryFilters | Record<string, unknown>) => latest.current.setFilters(next),
+    onTableChange: (pagination: unknown, filters?: Record<string, unknown>, sorter?: unknown, extra?: { action?: string }) =>
+      latest.current.onTableChange(pagination, filters, sorter, extra),
+  }))
+
+  const api: QueryTableApi<TValues, TParams, TRow, TExtra> = {
+    form,
+    rows: rowsPath || undefined,
+    data,
+    total,
+    extra: queried.data?.extra,
+    loading: queried.isFetching && queried.data == null,
+    fetching: queried.isFetching,
+    isPlaceholderData: !!queried.isPlaceholderData,
+    page,
+    pageSize,
+    selectedKeys,
+    ...actions,
+    sorter: sortState,
+    filters: filterState,
     sortOrderOf: (key) => sortState.find((item) => item.field === key)?.order ?? null,
     filteredValueOf: (key) => filterState[key] ?? null,
   }

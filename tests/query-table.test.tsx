@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { act, cleanup, render, renderHook, screen, waitFor } from '@testing-library/react'
+import { useEffect } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Field, Form } from '@shikiform/react'
 import { engineOf } from '../packages/core/src/engine/create'
@@ -167,3 +168,45 @@ describe('useQueryTable sort and filter passthrough', () => {
     expect(normalizeFilters({ a: null, b: [], c: ['x', 1], d: 'y' })).toEqual({ c: ['x', 1], d: ['y'] })
   })
 })
+
+describe('useQueryTable stable actions', () => {
+  it('keeps action identities across renders and uses the latest state', async () => {
+    const request = backend()
+    let params = (v: { q: string }) => ({ q: v.q })
+    const hook = renderHook(() =>
+      useQueryTable({ initialValues: { q: '' } as { q: string; page?: number; pageSize?: number; selectedKeys?: string[] }, params: (v) => params(v), request, defaultPageSize: 10 }),
+    )
+    await waitFor(() => expect(hook.result.current.data.length).toBe(10))
+    const first = hook.result.current
+    const keys = ['submit', 'reset', 'refresh', 'onPageChange', 'setSelectedKeys', 'setSorter', 'setFilters', 'onTableChange'] as const
+    act(() => first.onPageChange(2))
+    await waitFor(() => expect(hook.result.current.data[0]?.id).toBe('row-011'))
+    hook.rerender()
+    for (const key of keys) expect(hook.result.current[key]).toBe(first[key])
+
+    // A stale reference still refreshes the current page.
+    request.mockClear()
+    act(() => first.refresh())
+    await waitFor(() => expect(request).toHaveBeenCalledTimes(1))
+    expect(request.mock.calls[0]![0].page).toBe(2)
+  })
+
+  it('refresh in useEffect deps does not loop', async () => {
+    const request = backend()
+    const hook = renderHook(() => {
+      const table = useQueryTable({ initialValues: { q: '' } as { q: string; page?: number; pageSize?: number; selectedKeys?: string[] }, request })
+      const { refresh } = table
+      useEffectOnce(refresh)
+      return table
+    })
+    await waitFor(() => expect(hook.result.current.data.length).toBeGreaterThan(0))
+    await new Promise((r) => setTimeout(r, 50))
+    expect(request.mock.calls.length).toBeLessThanOrEqual(2)
+  })
+})
+
+function useEffectOnce(fn: () => void) {
+  useEffect(() => {
+    fn()
+  }, [fn])
+}
