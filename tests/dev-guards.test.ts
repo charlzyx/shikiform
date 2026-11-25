@@ -174,8 +174,11 @@ describe('production builds skip the guards', () => {
     expect(() => prod((d) => { for (const _row of d.items) void _row })).not.toThrow(ShikiUsageError)
   })
 
-  it('misspelled $ keys are not spell-checked (a read yields a child handle, a write is silently dropped)', () => {
-    const form = prod((d) => { d.total.$valeu = 9 })
+  it('a misspelled state reads as undefined and its assignment is ignored', () => {
+    const form = prod((d) => {
+      expect(d.total.$valeu).toBeUndefined()
+      expect(Reflect.set(d.total, '$valeu', 9)).toBe(true)
+    })
     expect(form.getValue('total')).toBe(0)
     expect(form.getValue('total.$valeu' as never)).toBeUndefined()
   })

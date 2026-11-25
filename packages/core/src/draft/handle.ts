@@ -129,13 +129,14 @@ export function createHandle(host: DraftHost, path: string, scope = host.draftSc
         )
       }
       if (!STATE.has(key)) {
-        if (process.env.NODE_ENV !== 'production' && key.startsWith('$') && key.length >= 5) {
-          const near = nearestState(key)
-          if (near) {
-            const owner = host.peekValue?.(path)
-            if (owner == null || !Object.hasOwn(owner, key)) {
+        const near = key.startsWith('$') && key.length >= 5 ? nearestState(key) : undefined
+        if (near) {
+          const owner = host.peekValue?.(path)
+          if (owner == null || !Object.hasOwn(owner, key)) {
+            if (process.env.NODE_ENV !== 'production') {
               throw new ShikiUsageError(`${showDraftPath(path)}.${key} is not a draft state. Did you mean ${showDraftPath(path)}.${near}?`)
             }
+            return undefined
           }
         }
         return createHandle(host, appendValueKey(path, key), scope)
@@ -149,7 +150,7 @@ export function createHandle(host: DraftHost, path: string, scope = host.draftSc
       if (!isDraftActive(scope)) return true
       const key = String(prop)
       if (process.env.NODE_ENV !== 'production') assertWritable(path, key)
-      if (key.startsWith('$')) host.writeState(path, key, value)
+      if (WRITABLE.has(key)) host.writeState(path, key, value)
       return true
     },
     has(_target, prop) {

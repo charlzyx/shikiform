@@ -41,10 +41,7 @@ describe.each(['development', 'production'])('untyped API inputs in %s', (enviro
     expect(form.getSubmitValues()).toEqual({ name: 'Ada' })
   })
 
-  const typoRead = environment === 'production' ? it.fails : it
-  typoRead(environment === 'production'
-    ? 'BUG: QA-52 a misspelled state read is truthy and writes the wrong value in production'
-    : 'rejects a misspelled state read with the intended state in development', () => {
+  it('QA-52 rejects a misspelled state before it can trigger the wrong update', () => {
     const form = createForm({ initialValues: { approved: false, status: 'pending' } })
     const read = () => form.batch((d) => {
       if (Reflect.get(d.approved, '$valeu')) d.status.$value = 'approved'
