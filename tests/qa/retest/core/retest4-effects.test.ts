@@ -34,7 +34,7 @@ describe.each(['development', 'production'])('F7 effects acceptance in %s', (mod
     expect(form.getValue('display')).toBe('10')
   })
 
-  it.fails('BUG: getValue reads an in-progress reaction write when the calling batch has ended', () => {
+  it('QA-73 reads an in-progress reaction write after the calling batch has ended', () => {
     type Values = { input: number; result: number }
     const reads: [number, number][] = []
     const form = createForm<Values>({
@@ -85,7 +85,9 @@ describe.each(['development', 'production'])('F7 effects acceptance in %s', (mod
           form.setValue('rows.0.qty', 10)
           d.rows.$value.reverse()
           expect(d.rows[1].qty.$value).toBe(10)
+          expect(form.getValue('rows[1].qty')).toBe(10)
           form.patchValues({ rows: [{ id: 'b', qty: 3 }, { id: 'a', qty: 10 }] })
+          expect(form.getValue('rows.0.qty')).toBe(3)
         })
       })],
     })

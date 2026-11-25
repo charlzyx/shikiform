@@ -171,7 +171,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   getValue<P extends string>(path: ValuePath<T, P>): PathValue<T, P>
   getValue(path: string): unknown {
     const key = String(path)
-    const value = this.scheduler.writes.depth ? this.drafts.peekValue(key) : getAt(this.store.values, key)
+    const value = this.drafts.peekValue(key)
     return process.env.NODE_ENV !== 'production' ? readonlyValue(value, normalizePath(key)) : value
   }
 

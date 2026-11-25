@@ -141,26 +141,24 @@ describe.each(['development', 'production'])('effect callbacks in %s', (environm
     })
   }
 
-  if (environment === 'production') {
-    it('projects a buffered setValue through the draft before committing a successful reaction', () => {
-      type Values = { start: boolean; saved: string }
-      let form: FormInstance<Values>
-      const seen = vi.fn()
-      form = createForm({
-        initialValues: { start: false, saved: 'initial' },
-        effects: [defineEffects<Values>(({ reaction }) => {
-          reaction((d) => {
-            if (!d.start.$value) return
-            form.setValue('saved', 'updated')
-            seen(form.getValue('saved'), d.saved.$value)
-          })
-        })],
-      })
-      form.setValue('start', true)
-      expect(seen).toHaveBeenNthCalledWith(1, 'initial', 'updated')
-      expect(form.getValue('saved')).toBe('updated')
+  it('projects a buffered setValue through the draft before committing a successful reaction', () => {
+    type Values = { start: boolean; saved: string }
+    let form: FormInstance<Values>
+    const seen = vi.fn()
+    form = createForm({
+      initialValues: { start: false, saved: 'initial' },
+      effects: [defineEffects<Values>(({ reaction }) => {
+        reaction((d) => {
+          if (!d.start.$value) return
+          form.setValue('saved', 'updated')
+          seen(form.getValue('saved'), d.saved.$value)
+        })
+      })],
     })
-  }
+    form.setValue('start', true)
+    expect(seen).toHaveBeenNthCalledWith(1, 'updated', 'updated')
+    expect(form.getValue('saved')).toBe('updated')
+  })
 
   it('bounds a self-triggering watch and leaves independent writes usable', () => {
     type Values = { count: number; note: string }
