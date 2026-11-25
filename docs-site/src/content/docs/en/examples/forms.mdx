@@ -230,6 +230,7 @@ Toggle the contact group's flags and compare what renders, what validates and wh
 
 ```tsx preview play=display
 import { useState } from 'react';
+import { Radio, RadioGroup, RadioIndicator } from '@ui-sdk/react/radio';
 import { isFieldErrors } from '@shikiform/core';
 import { enUS, Field, Form, ObjectField, defineEffects, useField, useForm } from '@shikiform/react';
 
@@ -281,19 +282,18 @@ export default function App() {
     <Form form={form}>
       <Field<Values, 'mode'> name="mode" title="contact" omit enum={['visible', 'hidden', 'omit', 'readOnly']}>
         {(f) => (
-          <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
             <span>{f.title}：</span>
-            {f.options.map((opt) => (
-              <label key={String(opt.value)}>
-                <input
-                  type="radio"
-                  name={f.id}
-                  checked={f.value === opt.value}
-                  onChange={() => f.onChange(opt.value as Mode)}
-                />{' '}
-                {opt.label}
-              </label>
-            ))}
+            <RadioGroup value={f.value ?? null} onValueChange={(v) => { if (v) f.onChange(v as Mode); }}>
+              {f.options.map((opt) => (
+                <label key={String(opt.value)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                  <Radio value={String(opt.value)}>
+                    <RadioIndicator />
+                  </Radio>
+                  {opt.label}
+                </label>
+              ))}
+            </RadioGroup>
           </div>
         )}
       </Field>
@@ -314,6 +314,7 @@ Declare required fields in the engine so submitting still checks inputs on a tab
 
 ```tsx preview play=tabs
 import { useState } from 'react';
+import { Tabs, TabsList, TabsTab } from '@ui-sdk/react/tabs';
 import { isFieldErrors } from '@shikiform/core';
 import { enUS, Field, Form, Watch, useField, useForm, type Draft } from '@shikiform/react';
 
@@ -353,18 +354,15 @@ export default function App() {
     <Form form={form}>
       <Field<Values, 'tab'> name="tab" omit enum={[{ label: "Basic", value: 'base' }, { label: "Extra", value: 'extra' }]}>
         {(f) => (
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-            {f.options.map((opt) => (
-              <button
-                key={String(opt.value)}
-                type="button"
-                style={{ fontWeight: f.value === opt.value ? 700 : 400 }}
-                onClick={() => f.onChange(opt.value as Values['tab'])}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
+          <Tabs value={f.value ?? 'base'} onValueChange={(v) => { if (v) f.onChange(v as Values['tab']); }}>
+            <TabsList>
+              {f.options.map((opt) => (
+                <TabsTab key={String(opt.value)} value={String(opt.value)}>
+                  {opt.label}
+                </TabsTab>
+              ))}
+            </TabsList>
+          </Tabs>
         )}
       </Field>
       <Watch select={(d: Draft<Values>) => d.tab.$value}>

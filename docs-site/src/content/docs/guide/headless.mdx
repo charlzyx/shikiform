@@ -16,6 +16,7 @@ ShikiForm 本身零 UI 库依赖。需要自定义表格、树编辑器或接入
 
 ```tsx preview
 import { type ReactNode } from 'react';
+import { Checkbox, CheckboxIndicator } from '@ui-sdk/react/checkbox';
 import { ArrayField, Form, Watch, useArrayField, useField, useForm, useIndex, useRecord, type Draft } from '@shikiform/react';
 
 type Todo = { id: number; title: string; done: boolean };
@@ -34,7 +35,11 @@ function TitleInput() {
 
 function DoneBox() {
   const field = useField<Todo, 'done'>('done');
-  return <input type="checkbox" aria-label="完成" checked={field.value} onChange={(event) => field.onChange(event.target.checked)} />;
+  return (
+    <Checkbox aria-label="完成" checked={Boolean(field.value)} onCheckedChange={(checked) => field.onChange(checked === true)} onBlur={field.onBlur}>
+      <CheckboxIndicator aria-hidden="true">✓</CheckboxIndicator>
+    </Checkbox>
+  );
 }
 
 function Row() {
@@ -42,8 +47,8 @@ function Row() {
   const index = useIndex();
   const record = useRecord<Todo>();
   return (
-    <li {...array.dragProps(index)} style={{ cursor: 'grab', opacity: record.done ? 0.5 : 1 }}>
-      ⠿ <DoneBox /> <TitleInput /> <small>#{index} · id {record.id}</small>{' '}
+    <li {...array.dragProps(index)} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, cursor: 'grab', opacity: record.done ? 0.5 : 1 }}>
+      ⠿ <DoneBox /> <TitleInput /> <small>#{index} · id {record.id}</small>
       <button type="button" onClick={() => array.remove(index)}>删除</button>
     </li>
   );
@@ -129,7 +134,7 @@ const withStatus = mapProps(
 2. **用 `useFieldDecorator()` 封装一个 `FormItem` 装饰器**：把 `d.label`、`d.required`、`d.errors`、`d.warnings`、`d.description` 映射到 UI 库的表单项布局（如 `validateStatus` / `help` / `extra`）。
 3. **用 `<FieldKit>` 或 `<Form kit={{ decorator, components }}>` 集中注册**：业务页面即可直接写 `<Field name="email" title="邮箱" component="Input" />`。
 
-下面以 shadcn/ui、Mantine 和 MUI 为例展示具体接入代码，原生 HTML 最小起步见 [快速开始](/guide/quick-start)。
+下面以 UI SDK、shadcn/ui、Mantine 和 MUI 为例展示具体接入代码，原生 HTML 最小起步见 [快速开始](/guide/quick-start)。
 
 ### 区分 `useFieldDecorator().control` 与 `connect`
 
@@ -181,6 +186,162 @@ connect(Picker, mapProps({ onBlur: false }))
 ```
 
 `mapProps(config, customMapper?)` 支持字段属性名重映射（`value`、`onChange`、`options`、`loading`、`blurOn`、`format`、`parse`、`preview`）以及可选的自定义映射函数 `(props, field) => nextProps`。
+
+### 接入 UI SDK
+
+[UI SDK](https://ui-sdk.dev)（`@ui-sdk/react` + `@ui-sdk/core`）是一套无样式的交互原语库，按组件子路径导入并通过 `data-slot` 与状态属性编写样式。接入 ShikiForm 只需几行 `connect` + `mapProps`：
+
+- `Select`（`@ui-sdk/react/select`）：受控值为 `string | null`，通过 `onValueChange` 回调新值；根组件没有 `onBlur`，用 `blurOn: 'onOpenChange'` 在弹层关闭时触发失焦校验。把 `items` 同时传给根组件可确保服务端渲染与折叠态都能正确显示标签。
+- `Checkbox`（`@ui-sdk/react/checkbox`）：本身支持 `onBlur`，将 `value` 映射到 `checked`、`onChange` 映射到 `onCheckedChange`，并用 `parse` 把 `boolean | 'indeterminate'` 收敛为 `boolean`。
+- `DatePicker`（`@ui-sdk/react/date-picker`）：原生收发 ISO 字符串（`"YYYY-MM-DD"` 或 `null`），无需引入额外日期库；根组件没有 `onBlur`，用 `blurOn: 'onOpenChange'` 在日历关闭时触发失焦校验。
+
+下面这个可交互示例直接使用 `@ui-sdk/react` 的 `Select`、`Checkbox` 和 `DatePicker` 接入 ShikiForm，并通过 `<Form kit>` 集中登记默认装饰器和控件名：
+
+```tsx preview
+import { useState, type ReactNode } from 'react';
+import { Checkbox as UiCheckbox, CheckboxIndicator } from '@ui-sdk/react/checkbox';
+import { DatePicker as UiDatePicker, DatePickerContent, DatePickerInput, DatePickerTrigger } from '@ui-sdk/react/date-picker';
+import { Select as UiSelect, SelectContent, SelectItem, SelectItemIndicator, SelectTrigger, SelectValue } from '@ui-sdk/react/select';
+import { Field, Form, Reset, Submit, connect, mapProps, useFieldDecorator, useForm } from '@shikiform/react';
+
+function TextControl(props: {
+  id?: string;
+  value?: string;
+  placeholder?: string;
+  disabled?: boolean;
+  readOnly?: boolean;
+  onChange?: (event: { target: { value: string } }) => void;
+  onBlur?: () => void;
+}) {
+  return (
+    <input
+      id={props.id}
+      placeholder={props.placeholder}
+      disabled={props.disabled}
+      readOnly={props.readOnly}
+      value={props.value ?? ''}
+      onChange={props.onChange}
+      onBlur={props.onBlur}
+    />
+  );
+}
+
+function SelectControl(props: {
+  id?: string;
+  value?: string;
+  disabled?: boolean;
+  options?: { label: string; value: string; disabled?: boolean }[];
+  onValueChange?: (value: string) => void;
+  onOpenChange?: (open: boolean) => void;
+}) {
+  const items = (props.options ?? []).map((o) => ({ value: String(o.value), label: o.label, disabled: o.disabled }));
+  return (
+    <UiSelect
+      items={items}
+      value={props.value || null}
+      disabled={props.disabled}
+      onValueChange={(next) => props.onValueChange?.(next ?? '')}
+      onOpenChange={(open) => props.onOpenChange?.(open)}
+    >
+      <SelectTrigger id={props.id}>
+        <SelectValue placeholder="请选择" />
+      </SelectTrigger>
+      <SelectContent>
+        {items.map((option) => (
+          <SelectItem key={option.value} value={option.value} disabled={option.disabled}>
+            {option.label}
+            <SelectItemIndicator aria-hidden="true">✓</SelectItemIndicator>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </UiSelect>
+  );
+}
+
+function CheckboxControl(props: {
+  id?: string;
+  checked?: boolean;
+  disabled?: boolean;
+  label?: string;
+  onCheckedChange?: (checked: boolean | 'indeterminate') => void;
+  onBlur?: () => void;
+}) {
+  return (
+    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      <UiCheckbox
+        id={props.id}
+        checked={Boolean(props.checked)}
+        disabled={props.disabled}
+        onCheckedChange={props.onCheckedChange}
+        onBlur={props.onBlur}
+      >
+        <CheckboxIndicator aria-hidden="true">✓</CheckboxIndicator>
+      </UiCheckbox>
+      {props.label}
+    </label>
+  );
+}
+
+function DatePickerControl(props: {
+  id?: string;
+  value?: string;
+  disabled?: boolean;
+  onValueChange?: (value: string) => void;
+  onOpenChange?: (open: boolean) => void;
+}) {
+  return (
+    <UiDatePicker
+      value={props.value || null}
+      disabled={props.disabled}
+      onValueChange={(next) => props.onValueChange?.(typeof next === 'string' ? next : '')}
+      onOpenChange={(open) => props.onOpenChange?.(open)}
+    >
+      <DatePickerInput id={props.id} aria-label="入职日期" placeholder="YYYY-MM-DD" />
+      <DatePickerTrigger aria-label="打开日历">日历</DatePickerTrigger>
+      <DatePickerContent />
+    </UiDatePicker>
+  );
+}
+
+const Input = connect(TextControl, mapProps({ preview: ({ value }: { value?: string }) => <span>{value || '—'}</span> }));
+const Select = connect(SelectControl, mapProps({ options: 'options', onChange: 'onValueChange', blurOn: 'onOpenChange' }));
+const Checkbox = connect(CheckboxControl, mapProps({
+  value: 'checked',
+  onChange: 'onCheckedChange',
+  parse: (checked: boolean | 'indeterminate') => checked === true,
+}));
+const DatePicker = connect(DatePickerControl, mapProps({ onChange: 'onValueChange', blurOn: 'onOpenChange' }));
+
+function FormItem({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
+  return (
+    <div style={{ display: 'grid', gap: 4, marginBottom: 12 }}>
+      {d.label ? <label {...d.labelProps}>{d.label}{d.required ? <span aria-hidden="true"> *</span> : null}</label> : null}
+      {children}
+      {d.descriptionProps ? <p {...d.descriptionProps} style={{ margin: 0, color: '#666' }}>{d.description}</p> : null}
+      {d.errorProps ? <p {...d.errorProps} style={{ margin: 0, color: 'crimson' }}>{d.errors.join('、')}</p> : null}
+    </div>
+  );
+}
+
+export default function App() {
+  const [saved, setSaved] = useState('还没有提交');
+  const form = useForm({ initialValues: { name: '', city: '', startDate: '', agree: false } });
+  return (
+    <Form form={form} kit={{ decorator: FormItem, components: { Input, Select, Checkbox, DatePicker } }} onSubmit={(values) => setSaved(JSON.stringify(values))}>
+      <Field name="name" title="姓名" description="对外显示" required component={['Input', { placeholder: 'Ada' }]} />
+      <Field name="city" title="城市" required enum={[{ label: '杭州', value: 'hz' }, { label: '南京', value: 'nj' }]} component="Select" />
+      <Field name="startDate" title="入职日期" component="DatePicker" />
+      <Field name="agree" rules={{ isTrue: true, message: '请先同意条款' }} component={['Checkbox', { label: '我已阅读并同意条款' }]} />
+      <div style={{ display: 'flex', gap: 8 }}>
+        <Submit asChild><button>提交</button></Submit>
+        <Reset afterReset={() => setSaved('已重置')} asChild><button>重置</button></Reset>
+      </div>
+      <pre aria-live="polite">{saved}</pre>
+    </Form>
+  );
+}
+```
 
 ### shadcn/ui 接入模板
 

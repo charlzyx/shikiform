@@ -13,6 +13,7 @@ Change a category to see each row adapt. Add an expense to see the total and app
 
 ```tsx preview
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Select, SelectContent, SelectItem, SelectItemIndicator, SelectTrigger, SelectValue } from '@ui-sdk/react/select';
 import { enUS, defineEffects, Form, Submit, typed, useArrayField, useField, useFieldDecorator, useForm, useIndex, useWatch, type Draft } from '@shikiform/react';
 
 type Expense = { category: 'travel' | 'meal'; amount: number | null; city: string; attendees: string };
@@ -58,9 +59,22 @@ function AmountInput() {
 function CategorySelect() {
   const field = useField<string>();
   const d = useFieldDecorator();
-  return <select aria-required={field.required} aria-invalid={d.invalid || undefined} aria-describedby={d.describedBy} id={field.id} value={field.value} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur}>
-    {field.options.map((option) => <option key={String(option.value)} value={String(option.value)}>{option.label}</option>)}
-  </select>;
+  const items = field.options.map((o) => ({ value: String(o.value), label: o.label, disabled: o.disabled }));
+  return (
+    <Select items={items} value={field.value || null} disabled={field.disabled} onValueChange={(next) => next && field.onChange(next)} onOpenChange={(open) => { if (!open) field.onBlur(); }}>
+      <SelectTrigger id={field.id} aria-required={field.required} aria-invalid={d.invalid || undefined} aria-describedby={d.describedBy}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {items.map((option) => (
+          <SelectItem key={option.value} value={option.value} disabled={option.disabled}>
+            {option.label}
+            <SelectItemIndicator aria-hidden="true">✓</SelectItemIndicator>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
 }
 function Expenses({ children }: { children?: ReactNode }) {
   const expenses = useArrayField<Expense>();

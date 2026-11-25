@@ -10,6 +10,7 @@ Declare rules on a field or in `fields`. Empty strings, null and undefined are c
 ```tsx preview play=schema
 import { useState, type ReactNode } from 'react';
 import { z } from 'zod';
+import { Checkbox, CheckboxIndicator } from '@ui-sdk/react/checkbox';
 import { enUS, Field, Form, Watch, useField, useFieldDecorator, useForm, type Draft } from '@shikiform/react';
 
 type Values = { username: string; email: string; password: string; confirm: string; agree: boolean };
@@ -43,9 +44,11 @@ function TextInput({ type = 'text' }: { type?: string }) {
 function AgreeCheckbox({ children }: { children?: ReactNode }) {
   const field = useField<boolean>();
   return (
-    <label>
-      <input id={field.id} type="checkbox" checked={Boolean(field.value)} onChange={(e) => field.onChange(e.target.checked)} />
-      {' '}{children}
+    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+      <Checkbox id={field.id} checked={Boolean(field.value)} onCheckedChange={(checked) => field.onChange(checked === true)}>
+        <CheckboxIndicator>✓</CheckboxIndicator>
+      </Checkbox>
+      {children}
     </label>
   );
 }

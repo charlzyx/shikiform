@@ -53,6 +53,9 @@ const DEMO_IMPORTS = [
   'react', 'react/jsx-runtime',
   '@shikiform/react', '@shikiform/core',
   'zod',
+  '@ui-sdk/react/select', '@ui-sdk/react/checkbox', '@ui-sdk/react/radio',
+  '@ui-sdk/react/slider', '@ui-sdk/react/date-picker', '@ui-sdk/react/dialog',
+  '@ui-sdk/react/tabs',
 ]
 
 /** 递归列出 docs 下的 .mdx 文件（相对路径）。 */

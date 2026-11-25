@@ -1,3 +1,4 @@
+@layer ui-sdk;
 @import "tailwindcss";
 
 @custom-variant dark (&:where([data-mode="dark"], [data-mode="dark"] *));

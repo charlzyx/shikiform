@@ -17,6 +17,7 @@ Toggle the flags and compare the field with the submitted JSON. Omitted and comp
 
 ```tsx preview
 import { useState } from 'react';
+import { Select, SelectContent, SelectItem, SelectItemIndicator, SelectTrigger, SelectValue } from '@ui-sdk/react/select';
 import { enUS, defineEffects, Form, Submit, typed, useForm, Watch, type Draft } from '@shikiform/react';
 
 type Mode = 'visible' | 'hidden' | 'omit' | 'readOnly';
@@ -38,18 +39,25 @@ export default function App() {
   return (
     <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
       <F.Field name="mode" title="Status" enum={['visible', 'hidden', 'omit', 'readOnly']}>
-        {(f) => (
-          <p>
-            <label htmlFor={f.id}>{f.title}：</label>
-            <select id={f.id} value={f.value} onChange={(e) => f.onChange(e.target.value as Mode)}>
-              {f.options.map((opt) => (
-                <option key={String(opt.value)} value={String(opt.value)}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </p>
-        )}
+        {(f) => {
+          const items = f.options.map((opt) => ({ value: String(opt.value), label: opt.label }));
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <label htmlFor={f.id}>{f.title}：</label>
+              <Select items={items} value={f.value} onValueChange={(next) => next && f.onChange(next as Mode)}>
+                <SelectTrigger id={f.id}><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {items.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                      <SelectItemIndicator aria-hidden="true">✓</SelectItemIndicator>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          );
+        }}
       </F.Field>
       <F.Field name="nick" title="Nickname" required>
         {(f) => (

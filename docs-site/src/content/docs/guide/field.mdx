@@ -90,6 +90,7 @@ export default function App() {
 
 ```tsx preview
 import type { ReactNode } from 'react';
+import { Checkbox, CheckboxIndicator } from '@ui-sdk/react/checkbox';
 import { Field, Form, defineEffects, useField, useFieldDecorator, useForm } from '@shikiform/react';
 
 type Values = { vip: boolean; code: string };
@@ -121,7 +122,11 @@ function FormItem({ tooltip, children }: { tooltip?: string; children?: ReactNod
 
 function Toggle() {
   const field = useField<boolean>();
-  return <input id={field.id} type="checkbox" checked={Boolean(field.value)} onChange={(e) => field.onChange(e.target.checked)} />;
+  return (
+    <Checkbox id={field.id} checked={Boolean(field.value)} onCheckedChange={(checked) => field.onChange(checked === true)} onBlur={field.onBlur}>
+      <CheckboxIndicator aria-hidden="true">✓</CheckboxIndicator>
+    </Checkbox>
+  );
 }
 
 function TextInput({ placeholder, maxLength, disabled }: { placeholder?: string; maxLength?: number; disabled?: boolean }) {
@@ -165,6 +170,8 @@ export default function App() {
 
 ```tsx preview
 import type { ReactNode } from 'react';
+import { Checkbox, CheckboxGroup as UiCheckboxGroup, CheckboxIndicator } from '@ui-sdk/react/checkbox';
+import { Radio, RadioGroup as UiRadioGroup, RadioIndicator } from '@ui-sdk/react/radio';
 import { Form, typed, useField, useFieldDecorator, useForm } from '@shikiform/react';
 
 type Values = { level: 'gold' | 'silver'; tags: string[]; size: number };
@@ -172,7 +179,7 @@ type Values = { level: 'gold' | 'silver'; tags: string[]; size: number };
 function FormItem({ children }: { children?: ReactNode }) {
   const d = useFieldDecorator();
   return (
-    <div style={{ marginBottom: 8 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
       <label {...d.labelProps} style={{ display: 'inline-block', width: 64 }}>{d.label}</label>
       {children}
     </div>
@@ -186,7 +193,7 @@ function SelectInput() {
     return <span>{String(label ?? '-')}</span>;
   }
   return (
-    <select id={field.id} value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)}>
+    <select id={field.id} value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur}>
       {field.options.map((o) => <option key={String(o.value)} value={String(o.value)}>{o.label}</option>)}
     </select>
   );
@@ -199,19 +206,19 @@ function CheckboxGroup() {
     return <span>{current.map((v) => field.options.find((o) => o.value === v)?.label ?? v).join('、') || '-'}</span>;
   }
   return (
-    <span style={{ display: 'inline-flex', gap: 10 }}>
+    <UiCheckboxGroup aria-label={String(field.title ?? '')} value={current} onValueChange={(next) => field.onChange(next)}>
       {field.options.map((o) => {
         const val = String(o.value);
-        const checked = current.includes(val);
         return (
           <label key={val}>
-            <input type="checkbox" checked={checked}
-              onChange={(e) => field.onChange(e.target.checked ? [...current, val] : current.filter((v) => v !== val))} />
-            {' '}{o.label}
+            <Checkbox value={val}>
+              <CheckboxIndicator aria-hidden="true">✓</CheckboxIndicator>
+            </Checkbox>
+            {o.label}
           </label>
         );
       })}
-    </span>
+    </UiCheckboxGroup>
   );
 }
 
@@ -221,15 +228,16 @@ function RadioGroup() {
     return <span>{String(field.options.find((o) => o.value === field.value)?.label ?? field.value)}</span>;
   }
   return (
-    <span style={{ display: 'inline-flex', gap: 10 }}>
+    <UiRadioGroup aria-label={String(field.title ?? '')} value={String(field.value)} onValueChange={(next) => field.onChange(Number(next))}>
       {field.options.map((o) => (
         <label key={String(o.value)}>
-          <input type="radio" name={field.id} checked={field.value === o.value}
-            onChange={() => field.onChange(Number(o.value))} />
-          {' '}{o.label}
+          <Radio value={String(o.value)}>
+            <RadioIndicator />
+          </Radio>
+          {o.label}
         </label>
       ))}
-    </span>
+    </UiRadioGroup>
   );
 }
 
@@ -240,8 +248,10 @@ export default function App() {
     <Form form={form}>
       <div style={{ marginBottom: 8 }}>
         <label>
-          <input type="checkbox" onChange={(e) => form.batch((d) => { d.$readOnly = e.target.checked ? true : undefined; })} />
-          {' '}阅读态
+          <Checkbox onCheckedChange={(checked) => form.batch((d) => { d.$readOnly = checked === true ? true : undefined; })}>
+            <CheckboxIndicator aria-hidden="true">✓</CheckboxIndicator>
+          </Checkbox>
+          阅读态
         </label>
       </div>
       {/* value 按字段类型检查：写 'bronze' 编译不过 */}

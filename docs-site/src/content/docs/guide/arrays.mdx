@@ -15,6 +15,7 @@ description: 使用 ArrayField、useArrayField、useIndex 与 useArrayTable 构�
 
 ```tsx preview
 import type { ReactNode } from 'react';
+import { Checkbox, CheckboxIndicator } from '@ui-sdk/react/checkbox';
 import { Form, typed, useArrayField, useField, useForm, useIndex, useWatch, type Draft } from '@shikiform/react';
 
 type Contact = { name: string; phone: string };
@@ -75,9 +76,11 @@ export default function App() {
   return (
     <Form form={form}>
       <p>
-        <label>
-          <input type="checkbox" onChange={(e) => form.batch((d) => { d.$readOnly = e.target.checked ? true : undefined; })} />
-          {' '}阅读态
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+          <Checkbox onCheckedChange={(checked) => form.batch((d) => { d.$readOnly = checked ? true : undefined; })}>
+            <CheckboxIndicator>✓</CheckboxIndicator>
+          </Checkbox>
+          阅读态
         </label>
       </p>
       <F.ArrayField name="contacts" component={ContactList}>

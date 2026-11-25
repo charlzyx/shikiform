@@ -66,6 +66,7 @@ export default function App() {
 
 ```tsx preview
 import { useState } from 'react';
+import { Checkbox, CheckboxIndicator } from '@ui-sdk/react/checkbox';
 import { defineEffects, Form, Submit, typed, useForm } from '@shikiform/react';
 
 type Values = { invoice: boolean; taxId: string };
@@ -91,13 +92,10 @@ export default function App() {
       <F.Field name="invoice" title="需要发票">
         {(f) => (
           <p>
-            <label htmlFor={f.id}>
-              <input
-                id={f.id}
-                type="checkbox"
-                checked={Boolean(f.value)}
-                onChange={(e) => f.onChange(e.target.checked)}
-              />{' '}
+            <label htmlFor={f.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+              <Checkbox id={f.id} checked={Boolean(f.value)} onCheckedChange={(checked) => f.onChange(checked === true)}>
+                <CheckboxIndicator>✓</CheckboxIndicator>
+              </Checkbox>
               {f.title}
             </label>
           </p>
@@ -129,6 +127,7 @@ export default function App() {
 **场景**：商品包含颜色、容量、版本三个规格维度，用户可以按任意顺序点选；需要根据库存自动禁用无货组合，并在切换时清理冲突选项，同时实时展示价格区间与可用库存。
 
 ```tsx preview play=sku-picker
+import { Radio, RadioGroup, RadioIndicator } from '@ui-sdk/react/radio';
 import { Field, Form, defineEffects, useField, useForm, type Draft } from '@shikiform/react';
 import { comboMatch, comboOptions } from '@shikiform/core';
 
@@ -197,18 +196,19 @@ function RadioRow() {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
       <span style={{ width: 48 }}>{f.title}：</span>
-      {f.options.map((opt) => (
-        <label key={String(opt.value)} style={{ opacity: opt.disabled ? 0.45 : 1 }}>
-          <input
-            type="radio"
-            name={f.id}
-            disabled={opt.disabled}
-            checked={f.value === String(opt.value)}
-            onChange={() => f.onChange(String(opt.value))}
-          />{' '}
-          {opt.label}
-        </label>
-      ))}
+      <RadioGroup value={f.value || null} onValueChange={(v) => f.onChange(v ?? '')}>
+        {f.options.map((opt) => (
+          <label
+            key={String(opt.value)}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, opacity: opt.disabled ? 0.45 : 1, cursor: opt.disabled ? 'not-allowed' : 'pointer' }}
+          >
+            <Radio value={String(opt.value)} disabled={opt.disabled}>
+              <RadioIndicator />
+            </Radio>
+            {opt.label}
+          </label>
+        ))}
+      </RadioGroup>
     </div>
   );
 }
@@ -271,6 +271,7 @@ export default function App() {
 
 ```tsx preview play=sku
 import { useState } from 'react';
+import { Checkbox, CheckboxGroup, CheckboxIndicator } from '@ui-sdk/react/checkbox';
 import { ArrayField, Field, Form, defineEffects, useField, useForm } from '@shikiform/react';
 
 const CATALOG = [
@@ -328,28 +329,24 @@ export default function App() {
     <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values.rows))}>
       <Field<Values, 'picked'> name="picked" title="组合" enum={PICKS}>
         {(f) => (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, marginBottom: 12 }}>
             <span>{f.title}：</span>
-            {f.options.map((opt) => {
-              const val = String(opt.value);
-              const checked = (f.value ?? []).includes(val);
-              return (
-                <label key={val} style={{ opacity: opt.disabled ? 0.45 : 1 }}>
-                  <input
-                    type="checkbox"
-                    disabled={opt.disabled}
-                    checked={checked}
-                    onChange={(e) => {
-                      const next = e.target.checked
-                        ? [...(f.value ?? []), val]
-                        : (f.value ?? []).filter((item) => item !== val);
-                      f.onChange(next);
-                    }}
-                  />{' '}
-                  {opt.label}
-                </label>
-              );
-            })}
+            <CheckboxGroup value={f.value ?? []} onValueChange={(next) => f.onChange(next)}>
+              {f.options.map((opt) => {
+                const val = String(opt.value);
+                return (
+                  <label
+                    key={val}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, opacity: opt.disabled ? 0.45 : 1, cursor: opt.disabled ? 'not-allowed' : 'pointer' }}
+                  >
+                    <Checkbox value={val} disabled={opt.disabled}>
+                      <CheckboxIndicator>✓</CheckboxIndicator>
+                    </Checkbox>
+                    {opt.label}
+                  </label>
+                );
+              })}
+            </CheckboxGroup>
           </div>
         )}
       </Field>

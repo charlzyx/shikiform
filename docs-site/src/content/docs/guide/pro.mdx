@@ -20,6 +20,8 @@ description: "@shikiform/react 中的草稿表单、查询列表、数组表格�
 `useShadowForm` 在打开时创建一个独立的 `FormInstance`；点击确认时先校验草稿内部字段，通过后将草稿值交给 `onOk`（或写回绑定路径）；点击取消则直接丢弃该实例，主表单保持不变。
 
 ```tsx preview play=shadow-form
+import { Dialog, DialogBackdrop, DialogContent, DialogTitle } from '@ui-sdk/react/dialog';
+import { Select, SelectContent, SelectItem, SelectItemIndicator, SelectTrigger, SelectValue } from '@ui-sdk/react/select';
 import { Field, Form, Watch, useField, useForm, type Draft } from '@shikiform/react';
 import { useShadowForm } from '@shikiform/react';
 
@@ -39,12 +41,21 @@ function TextInput() {
 
 function SelectInput() {
   const field = useField<string>();
+  const items = field.options.map((o) => ({ value: String(o.value), label: o.label }));
   return (
     <div style={{ marginBottom: 8 }}>
       <label htmlFor={field.id} style={{ display: 'inline-block', width: 64 }}>{field.title}</label>
-      <select id={field.id} value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)}>
-        {field.options.map((o) => <option key={String(o.value)} value={String(o.value)}>{o.label}</option>)}
-      </select>
+      <Select items={items} value={field.value || null} onValueChange={(v) => field.onChange(v ?? '')}>
+        <SelectTrigger id={field.id}><SelectValue placeholder="请选择" /></SelectTrigger>
+        <SelectContent>
+          {items.map((item) => (
+            <SelectItem key={item.value} value={item.value}>
+              {item.label}
+              <SelectItemIndicator>✓</SelectItemIndicator>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }
@@ -54,19 +65,21 @@ function EditPanel() {
   return (
     <div style={{ marginTop: 12 }}>
       <button type="button" onClick={() => void shadow.open()}>编辑草稿</button>
-      {shadow.visible && (
-        <div style={{ marginTop: 10, padding: 12, border: '1px solid #999', borderRadius: 6 }}>
+      <Dialog open={shadow.visible} onOpenChange={(open) => { if (!open) shadow.cancel(); }}>
+        <DialogBackdrop />
+        <DialogContent>
+          <DialogTitle>编辑草稿</DialogTitle>
           <Form form={shadow.form} onSubmit={() => void shadow.confirm()}>
             <Field name="domain" component={[TextInput]} />
             <Field name="owner" component={[TextInput]} />
             <Field name="env" component={[SelectInput]} />
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
               <button type="submit" disabled={shadow.submitting}>确定</button>
               <button type="button" onClick={shadow.cancel}>取消</button>
             </div>
           </Form>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -26,6 +26,7 @@ For dependent dropdowns, derive the available cities in a `reaction` and reset t
 
 ```tsx preview
 import { useState, type ReactNode } from 'react';
+import { Select, SelectContent, SelectItem, SelectItemIndicator, SelectTrigger, SelectValue } from '@ui-sdk/react/select';
 import { enUS, Field, Form, defineEffects, useField, useFieldDecorator, useForm } from '@shikiform/react';
 
 type Values = { price: number; qty: number; amount: number; province: string; city: string };
@@ -72,12 +73,16 @@ function NumberInput() {
 
 function SelectInput() {
   const field = useField<string>();
+  const items = field.options.map((o) => ({ value: String(o.value), label: o.label }));
   return (
-    <select id={field.id} value={field.value ?? ''} disabled={field.disabled}
-      onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur}>
-      <option value="">Choose an option</option>
-      {field.options.map((o) => <option key={String(o.value)} value={String(o.value)}>{o.label}</option>)}
-    </select>
+    <Select items={items} value={field.value || null} disabled={field.disabled} onValueChange={(next) => field.onChange(next ?? '')} onOpenChange={(open) => { if (!open) field.onBlur(); }}>
+      <SelectTrigger id={field.id}><SelectValue placeholder="Choose an option" /></SelectTrigger>
+      <SelectContent>
+        {items.map((o) => (
+          <SelectItem key={o.value} value={o.value}>{o.label}<SelectItemIndicator aria-hidden="true">✓</SelectItemIndicator></SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -194,6 +199,7 @@ Use `watch.each` to reset a row's quantity when its selected product changes, wh
 
 ```tsx preview play=sku
 import { useState, type ReactNode } from 'react';
+import { Select, SelectContent, SelectItem, SelectItemIndicator, SelectTrigger, SelectValue } from '@ui-sdk/react/select';
 import { enUS, ArrayField, Field, Form, defineEffects, useArrayField, useField, useForm, useIndex } from '@shikiform/react';
 
 type Item = { id: number; sku: string; price: number; qty: number; total: number };
@@ -228,14 +234,19 @@ function InlineNumber({ min, max, width = 72 }: { min?: number; max?: number; wi
 
 function InlineSelect() {
   const field = useField<string>();
+  const items = field.options.map((o) => ({ value: String(o.value), label: o.label }));
   return (
-    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-      <span>{field.title}</span>
-      <select id={field.id} value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur}>
-        <option value="">Choose an option</option>
-        {field.options.map((o) => <option key={String(o.value)} value={String(o.value)}>{o.label}</option>)}
-      </select>
-    </label>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      <label htmlFor={field.id}>{field.title}</label>
+      <Select items={items} value={field.value || null} onValueChange={(next) => field.onChange(next ?? '')} onOpenChange={(open) => { if (!open) field.onBlur(); }}>
+        <SelectTrigger id={field.id}><SelectValue placeholder="Choose an option" /></SelectTrigger>
+        <SelectContent>
+          {items.map((o) => (
+            <SelectItem key={o.value} value={o.value}>{o.label}<SelectItemIndicator aria-hidden="true">✓</SelectItemIndicator></SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </span>
   );
 }
 

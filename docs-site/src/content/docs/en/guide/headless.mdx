@@ -9,6 +9,7 @@ Inside an array row, `useArrayField()`, `useIndex()` and `useRecord()` supply th
 
 ```tsx preview
 import { type ReactNode } from 'react';
+import { Checkbox, CheckboxIndicator } from '@ui-sdk/react/checkbox';
 import { enUS, ArrayField, Form, Watch, useArrayField, useField, useForm, useIndex, useRecord, type Draft } from '@shikiform/react';
 
 type Todo = { id: number; title: string; done: boolean };
@@ -27,7 +28,11 @@ function TitleInput() {
 
 function DoneBox() {
   const field = useField<Todo, 'done'>('done');
-  return <input type="checkbox" aria-label="Done" checked={field.value} onChange={(event) => field.onChange(event.target.checked)} />;
+  return (
+    <Checkbox aria-label="Done" checked={Boolean(field.value)} onCheckedChange={(checked) => field.onChange(checked === true)} onBlur={field.onBlur}>
+      <CheckboxIndicator aria-hidden="true">✓</CheckboxIndicator>
+    </Checkbox>
+  );
 }
 
 function Row() {
@@ -35,8 +40,8 @@ function Row() {
   const index = useIndex();
   const record = useRecord<Todo>();
   return (
-    <li {...array.dragProps(index)} style={{ cursor: 'grab', opacity: record.done ? 0.5 : 1 }}>
-      ⠿ <DoneBox /> <TitleInput /> <small>#{index} · id {record.id}</small>{' '}
+    <li {...array.dragProps(index)} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, cursor: 'grab', opacity: record.done ? 0.5 : 1 }}>
+      ⠿ <DoneBox /> <TitleInput /> <small>#{index} · id {record.id}</small>
       <button type="button" onClick={() => array.remove(index)}>Delete</button>
     </li>
   );
@@ -150,6 +155,162 @@ Choose when interaction is complete. `blurOn: 'onOpenChange'` blurs when a popup
 ```tsx
 connect(SelectControl, mapProps({ options: 'options', onChange: 'onValueChange', blurOn: 'onOpenChange' }))
 connect(Picker, mapProps({ onBlur: false }))
+```
+
+### UI SDK
+
+[UI SDK](https://ui-sdk.dev) (`@ui-sdk/react` + `@ui-sdk/core`) ships unstyled, accessible primitives imported from per-component subpaths and styled via `data-slot` attributes:
+
+- `Select` (`@ui-sdk/react/select`): controlled with `value` (`string | null`) and `onValueChange`. Because the root has no `onBlur`, configure `blurOn: 'onOpenChange'` so closing the popup triggers blur validation. Passing `items` on the root keeps labels available during SSR and while closed.
+- `Checkbox` (`@ui-sdk/react/checkbox`): accepts `onBlur` directly; map `value: 'checked'`, `onChange: 'onCheckedChange'`, and `parse: (c) => c === true`.
+- `DatePicker` (`@ui-sdk/react/date-picker`): uses ISO `"YYYY-MM-DD"` strings (or `null`) natively with no date library required; map `onChange: 'onValueChange'` and `blurOn: 'onOpenChange'`.
+
+The runnable example below adapts `@ui-sdk/react` `Select`, `Checkbox`, and `DatePicker` with `connect` + `mapProps` and registers them via `<Form kit>`:
+
+```tsx preview
+import { useState, type ReactNode } from 'react';
+import { Checkbox as UiCheckbox, CheckboxIndicator } from '@ui-sdk/react/checkbox';
+import { DatePicker as UiDatePicker, DatePickerContent, DatePickerInput, DatePickerTrigger } from '@ui-sdk/react/date-picker';
+import { Select as UiSelect, SelectContent, SelectItem, SelectItemIndicator, SelectTrigger, SelectValue } from '@ui-sdk/react/select';
+import { enUS, Field, Form, Reset, Submit, connect, mapProps, useFieldDecorator, useForm } from '@shikiform/react';
+
+function TextControl(props: {
+  id?: string;
+  value?: string;
+  placeholder?: string;
+  disabled?: boolean;
+  readOnly?: boolean;
+  onChange?: (event: { target: { value: string } }) => void;
+  onBlur?: () => void;
+}) {
+  return (
+    <input
+      id={props.id}
+      placeholder={props.placeholder}
+      disabled={props.disabled}
+      readOnly={props.readOnly}
+      value={props.value ?? ''}
+      onChange={props.onChange}
+      onBlur={props.onBlur}
+    />
+  );
+}
+
+function SelectControl(props: {
+  id?: string;
+  value?: string;
+  disabled?: boolean;
+  options?: { label: string; value: string; disabled?: boolean }[];
+  onValueChange?: (value: string) => void;
+  onOpenChange?: (open: boolean) => void;
+}) {
+  const items = (props.options ?? []).map((o) => ({ value: String(o.value), label: o.label, disabled: o.disabled }));
+  return (
+    <UiSelect
+      items={items}
+      value={props.value || null}
+      disabled={props.disabled}
+      onValueChange={(next) => props.onValueChange?.(next ?? '')}
+      onOpenChange={(open) => props.onOpenChange?.(open)}
+    >
+      <SelectTrigger id={props.id}>
+        <SelectValue placeholder="Choose an option" />
+      </SelectTrigger>
+      <SelectContent>
+        {items.map((option) => (
+          <SelectItem key={option.value} value={option.value} disabled={option.disabled}>
+            {option.label}
+            <SelectItemIndicator aria-hidden="true">✓</SelectItemIndicator>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </UiSelect>
+  );
+}
+
+function CheckboxControl(props: {
+  id?: string;
+  checked?: boolean;
+  disabled?: boolean;
+  label?: string;
+  onCheckedChange?: (checked: boolean | 'indeterminate') => void;
+  onBlur?: () => void;
+}) {
+  return (
+    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      <UiCheckbox
+        id={props.id}
+        checked={Boolean(props.checked)}
+        disabled={props.disabled}
+        onCheckedChange={props.onCheckedChange}
+        onBlur={props.onBlur}
+      >
+        <CheckboxIndicator aria-hidden="true">✓</CheckboxIndicator>
+      </UiCheckbox>
+      {props.label}
+    </label>
+  );
+}
+
+function DatePickerControl(props: {
+  id?: string;
+  value?: string;
+  disabled?: boolean;
+  onValueChange?: (value: string) => void;
+  onOpenChange?: (open: boolean) => void;
+}) {
+  return (
+    <UiDatePicker
+      value={props.value || null}
+      disabled={props.disabled}
+      onValueChange={(next) => props.onValueChange?.(typeof next === 'string' ? next : '')}
+      onOpenChange={(open) => props.onOpenChange?.(open)}
+    >
+      <DatePickerInput id={props.id} aria-label="Start date" placeholder="YYYY-MM-DD" />
+      <DatePickerTrigger aria-label="Open calendar">Calendar</DatePickerTrigger>
+      <DatePickerContent />
+    </UiDatePicker>
+  );
+}
+
+const Input = connect(TextControl, mapProps({ preview: ({ value }: { value?: string }) => <span>{value || '—'}</span> }));
+const Select = connect(SelectControl, mapProps({ options: 'options', onChange: 'onValueChange', blurOn: 'onOpenChange' }));
+const Checkbox = connect(CheckboxControl, mapProps({
+  value: 'checked',
+  onChange: 'onCheckedChange',
+  parse: (checked: boolean | 'indeterminate') => checked === true,
+}));
+const DatePicker = connect(DatePickerControl, mapProps({ onChange: 'onValueChange', blurOn: 'onOpenChange' }));
+
+function FormItem({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
+  return (
+    <div style={{ display: 'grid', gap: 4, marginBottom: 12 }}>
+      {d.label ? <label {...d.labelProps}>{d.label}{d.required ? <span aria-hidden="true"> *</span> : null}</label> : null}
+      {children}
+      {d.descriptionProps ? <p {...d.descriptionProps} style={{ margin: 0, color: '#666' }}>{d.description}</p> : null}
+      {d.errorProps ? <p {...d.errorProps} style={{ margin: 0, color: 'crimson' }}>{d.errors.join(', ')}</p> : null}
+    </div>
+  );
+}
+
+export default function App() {
+  const [saved, setSaved] = useState("No submission yet");
+  const form = useForm({ messages: enUS, initialValues: { name: '', city: '', startDate: '', agree: false } });
+  return (
+    <Form form={form} kit={{ decorator: FormItem, components: { Input, Select, Checkbox, DatePicker } }} onSubmit={(values) => setSaved(JSON.stringify(values))}>
+      <Field name="name" title="Name" description="Public display name" required component={['Input', { placeholder: 'Ada' }]} />
+      <Field name="city" title="City" required enum={[{ label: "Hangzhou", value: 'hz' }, { label: "Nanjing", value: 'nj' }]} component="Select" />
+      <Field name="startDate" title="Start date" component="DatePicker" />
+      <Field name="agree" rules={{ isTrue: true, message: 'Accept the terms first' }} component={['Checkbox', { label: 'I accept the terms' }]} />
+      <div style={{ display: 'flex', gap: 8 }}>
+        <Submit asChild><button>Submit</button></Submit>
+        <Reset afterReset={() => setSaved("Reset complete")} asChild><button>Reset</button></Reset>
+      </div>
+      <pre aria-live="polite">{saved}</pre>
+    </Form>
+  );
+}
 ```
 
 ### shadcn/ui
