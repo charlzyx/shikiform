@@ -60,12 +60,26 @@ it.each(['development', 'production'] as const)('QA-34 preserves an own __proto_
   expect(updated.__proto__).toEqual({ kind: 'new data' })
 })
 
-it.fails('BUG: QA-35 reads a real business key close to a state name through the draft', () => {
+it.each(['development', 'production'] as const)('QA-35 reads an own field close to a state name in %s', (mode) => {
+  vi.stubEnv('NODE_ENV', mode)
   const form = createForm({ initialValues: { metadata: { $values: 'initial' }, unrelated: 'keep' } })
 
   form.batch((d) => { d.metadata.$values.$value = 'updated' })
 
   expect(form.getSubmitValues()).toEqual({ metadata: { $values: 'updated' }, unrelated: 'keep' })
+})
+
+it.each(['development', 'production'] as const)('uses a pending own $-prefixed key with an undefined value in %s', (mode) => {
+  vi.stubEnv('NODE_ENV', mode)
+  const form = createForm<{ metadata: { $values?: string } }>({ initialValues: { metadata: {} } })
+
+  form.batch((d) => {
+    d.metadata.$value = { $values: undefined }
+    expect(d.metadata.$values.$value).toBeUndefined()
+    d.metadata.$values.$value = 'updated'
+  })
+
+  expect(form.getSubmitValues()).toEqual({ metadata: { $values: 'updated' } })
 })
 
 it('creates missing deep containers and pads an out-of-range index without shifting existing items', () => {

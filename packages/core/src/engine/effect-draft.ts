@@ -32,12 +32,16 @@ export interface EffectDraftDeps {
 export class EffectDrafts {
   constructor(private readonly deps: EffectDraftDeps) {}
 
+  peekValue(path: string): unknown {
+    return projectValue(getAt(this.deps.store.values, path), path, pendingOps(this.deps.scheduler), false)
+  }
+
   readValue(path: string): unknown {
     const stored = getAt(this.deps.store.values, path)
     if (!recording(this.deps.scheduler)) {
       return process.env.NODE_ENV !== 'production' ? readonlyValue(stored, path) : stored
     }
-    const preview = () => projectValue(getAt(this.deps.store.values, path), path, pendingOps(this.deps.scheduler), false)
+    const preview = () => this.peekValue(path)
     const structural = (keys: readonly string[]) => {
       const target = joinKeys(path, keys)
       assertUnambiguousWritePath(target)

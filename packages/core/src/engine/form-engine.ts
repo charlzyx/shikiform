@@ -586,7 +586,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   }
 
   peekValue(path: string): unknown {
-    return getAt(this.store.values, path)
+    return this.drafts.peekValue(path)
   }
 
   readUi(path: string, name: string, key: string): unknown { return this.uiNodes.read(path, name, key) }

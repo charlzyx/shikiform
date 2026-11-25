@@ -19,7 +19,7 @@ export interface DraftHost {
   draftScope?(): DraftScope | undefined
   readState(path: string, key: string): unknown
   writeState(path: string, key: string, value: unknown): void
-  /** Current value without tracking a dependency (development diagnostics only). */
+  /** Current value including pending writes, without tracking a dependency. */
   peekValue?(path: string): unknown
   /** `d.<path>.$ui(name).<key>` (named UI nodes). */
   readUi?(path: string, name: string, key: string): unknown

@@ -131,9 +131,12 @@ export function createHandle(host: DraftHost, path: string, scope = host.draftSc
       if (!STATE.has(key)) {
         if (process.env.NODE_ENV !== 'production' && key.startsWith('$') && key.length >= 5) {
           const near = nearestState(key)
-          // `$valeu` would be a child handle (always truthy): a silent wrong branch. Short keys (`$id`, `$ref`) and
-          // names far from every state stay child paths, so a real `$`-named field still works.
-          if (near) throw new ShikiUsageError(`${showDraftPath(path)}.${key} is not a draft state. Did you mean ${showDraftPath(path)}.${near}?`)
+          if (near) {
+            const owner = host.peekValue?.(path)
+            if (owner == null || !Object.hasOwn(owner, key)) {
+              throw new ShikiUsageError(`${showDraftPath(path)}.${key} is not a draft state. Did you mean ${showDraftPath(path)}.${near}?`)
+            }
+          }
         }
         return createHandle(host, appendValueKey(path, key), scope)
       }
