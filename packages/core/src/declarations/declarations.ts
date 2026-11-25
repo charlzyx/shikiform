@@ -393,14 +393,14 @@ export class Declarations {
 
   /** The enum `fields` / `registerField` or an item template gives `path` (what a released `<Field enum>` falls back to). */
   declaredEnum(path: string): EnumOption[] | undefined {
-    const spec = this.store.get(path)?.declaration?.enum ?? this.templateSpec(path)?.enum
+    const spec = this.exact(path)?.enum ?? this.templateSpec(path)?.enum
     if (!spec || toEnumBinding(spec)) return undefined
     return asOptions(spec) ?? []
   }
 
   /** Async enum binding declared via `fields` or an item template on `path`, if any. */
   declaredEnumBinding(path: string): EnumBinding | undefined {
-    const spec = this.store.get(path)?.declaration?.enum ?? this.templateSpec(path)?.enum
+    const spec = this.exact(path)?.enum ?? this.templateSpec(path)?.enum
     return spec ? toEnumBinding(spec) : undefined
   }
 

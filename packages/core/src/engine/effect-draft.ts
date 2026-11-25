@@ -160,27 +160,31 @@ export class EffectDrafts {
   private enumList(path: string): unknown {
     const { pending, field } = this.project(path, 'enum')
     if (Array.isArray(pending?.value)) return pending.value
-    if (pending && pending.value === undefined) return this.fallbackEnum(path).options
-    return field?.enumOptions ?? []
+    if (pending && pending.value === undefined) return this.fallbackEnum(path, field).options
+    if (pending || field?.enumFromEffect || field?.path === path) return field?.enumOptions ?? []
+    return this.fallbackEnum(path, field).options
   }
 
   private enumBinding(path: string): EnumBinding | undefined {
     const { pending, field } = this.project(path, 'enum')
-    if (pending) return pending.value === undefined ? this.fallbackEnum(path).binding : toEnumBinding(pending.value)
+    if (pending) return pending.value === undefined ? this.fallbackEnum(path, field).binding : toEnumBinding(pending.value)
     if (field?.enumFromEffect) return toEnumBinding(field.enumEffect)
-    return this.fallbackEnum(path).binding
+    return this.fallbackEnum(path, field).binding
   }
 
-  private fallbackEnum(path: string): { binding?: EnumBinding; options: unknown[] } {
-    const field = this.deps.store.get(path)
+  private fallbackEnum(path: string, field: FieldModel | undefined): { binding?: EnumBinding; options: unknown[] } {
+    const { declarations } = this.deps
     const jsx = field?.jsxEnum
     if (Array.isArray(jsx)) return { options: jsx }
-    const binding = jsx ?? this.deps.declarations.declaredEnumBinding(path)
+    const binding = jsx ?? declarations.declaredEnumBinding(path)
     if (binding) {
-      const current = field?.enumFromEffect ? undefined : field?.enumOptions
-      return { binding, options: binding.source.cached(binding.params) ?? current ?? [] }
+      const cached = binding.source.cached(binding.params)
+      if (cached) return { binding, options: cached }
+      const prior = jsx ?? (field && declarations.declaredEnumBinding(field.path))
+      const sameSource = prior?.source === binding.source && binding.source.key(prior.params) === binding.source.key(binding.params)
+      return { binding, options: sameSource && !field?.enumFromEffect ? field?.enumOptions ?? [] : [] }
     }
-    return { options: this.deps.declarations.declaredEnum(path) ?? [] }
+    return { options: declarations.declaredEnum(path) ?? [] }
   }
 }
 

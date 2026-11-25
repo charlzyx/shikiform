@@ -49,7 +49,7 @@ describe.each(['development', 'production'])('F7 enum variants in %s', (mode) =>
     expect(load).toHaveBeenCalledOnce()
   })
 
-  it.fails('BUG: QA-68 reads the moved row JSX fallback at its new coordinate in the same batch', async () => {
+  it('QA-68 reads the moved row JSX fallback at its new coordinate in the same batch', async () => {
     const load = vi.fn(async (key: string) => [{ label: key, value: key }])
     const source = EnumSource.from(load)
     const form = createForm({ initialValues: { rows: [{ id: 'a', choice: 'A' }, { id: 'b', choice: 'B' }] } })
@@ -62,12 +62,34 @@ describe.each(['development', 'production'])('F7 enum variants in %s', (mode) =>
     let projected: unknown[] = []
     form.batch((d) => {
       engine.moveArray('rows', 1, 0)
+      expect(d.rows[0].choice.$enum.map(({ value }) => value)).toEqual(['override'])
       d.rows[0].choice.$enum = undefined
       projected = d.rows[0].choice.$enum.map(({ value }) => value)
+      expect(d.rows[1].choice.$enum.map(({ value }) => value)).toEqual(['A'])
     })
     expect(engine.binding('rows.0.choice').options).toEqual([{ label: 'B', value: 'B' }])
     expect(load).toHaveBeenCalledTimes(2)
     expect(projected).toEqual(['B'])
+  })
+
+  it('QA-68 uses the destination declaration when the moved row has no JSX enum', async () => {
+    const load = vi.fn(async (key: string) => [{ label: key, value: key }])
+    const source = EnumSource.from(load)
+    const form = createForm({
+      initialValues: { rows: [{ id: 'a', choice: 'A' }, { id: 'b', choice: 'B' }] },
+      fields: { 'rows.0.choice': { enum: source.with('A') }, 'rows.1.choice': { enum: source.with('B') } },
+    })
+    const engine = engineOf(form)
+    await setImmediate()
+    form.batch((d) => { d.rows[1].choice.$enum = ['override'] })
+    form.batch((d) => {
+      engine.moveArray('rows', 1, 0)
+      d.rows[0].choice.$enum = undefined
+      expect(d.rows[0].choice.$enum.map(({ value }) => value)).toEqual(['A'])
+      expect(d.rows[1].choice.$enum.map(({ value }) => value)).toEqual(['B'])
+    })
+    expect(engine.binding('rows.0.choice').options?.map(({ value }) => value)).toEqual(['A'])
+    expect(load).toHaveBeenCalledTimes(2)
   })
 
   it('QA-64 clears an override on a relocated row with no fallback and leaves submit values alone', async () => {
