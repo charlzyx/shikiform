@@ -70,7 +70,7 @@ describe.each(['development', 'production'] as const)('flow React in %s', (mode)
     expect(source.cached('FR')).toBeUndefined()
   })
 
-  it.fails('BUG: QA-29 moving a surviving tree row restarts its unchanged enum request', async () => {
+  it('QA-29 moving a surviving tree row restarts its unchanged enum request', async () => {
     const old = deferred<EnumOption[]>()
     const kept = deferred<EnumOption[]>()
     const load = vi.fn((key: string, _ctx: { signal: AbortSignal }) => key === 'remove' ? old.promise : kept.promise)
@@ -132,6 +132,36 @@ describe.each(['development', 'production'] as const)('flow React in %s', (mode)
         { id: 'source', code: '', children: [] },
       ],
     })
+  })
+
+  it('QA-29 keeps the debounce and request when the source key is unchanged and replaces it for a new key', async () => {
+    vi.useFakeTimers()
+    const held = deferred<EnumOption[]>()
+    const load = vi.fn(({ code }: { code: string; revision: number }, _ctx: { signal: AbortSignal }) =>
+      code === 'a' ? held.promise : [{ label: code, value: code }],
+    )
+    const source = EnumSource.from(load, { debounce: 50, cacheKey: ({ code }) => code })
+    type Values = { code: string; revision: number; choice: string }
+    const form = createForm<Values>({
+      initialValues: { code: 'a', revision: 0, choice: 'b' },
+      effects: [defineEffects<Values>(({ reaction }) => {
+        reaction((d) => { d.choice.$enum = source.with({ code: d.code.$value, revision: d.revision.$value }) })
+      })],
+    })
+    await vi.advanceTimersByTimeAsync(25)
+    form.setValue('revision', 1)
+    await vi.advanceTimersByTimeAsync(25)
+    expect(load).toHaveBeenCalledOnce()
+    const old = load.mock.calls[0]![1].signal
+    form.setValue('revision', 2)
+    expect(old.aborted).toBe(false)
+    form.setValue('code', 'b')
+    await vi.advanceTimersByTimeAsync(50)
+    expect(load.mock.calls.map(([params]) => params.code)).toEqual(['a', 'b'])
+    expect(old.aborted).toBe(true)
+    held.resolve([{ label: 'Obsolete', value: 'a' }])
+    await vi.advanceTimersByTimeAsync(0)
+    form.batch((d) => { expect(d.choice.$enum).toEqual([{ label: 'b', value: 'b' }]) })
   })
 
   it('QA-29 discards a queued array row enum on same-index replacement', async () => {

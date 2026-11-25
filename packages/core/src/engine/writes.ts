@@ -19,13 +19,9 @@ import { checkDraftRules, isEmpty, optionIncludes, type Rule } from '../validati
 import type { Validator } from '../validation/validator'
 import { prepareUiWrite, uiKeyOf, type FieldUi } from './field-ui'
 
-interface EnumLoadBinding {
-  source: { debounce: number; cached: (p: any) => EnumOption[] | undefined; load: (p: any, s: AbortSignal) => Promise<EnumOption[]> }
-  params: unknown
-}
-
 interface EnumLoad {
-  binding: EnumLoadBinding
+  binding: EnumBinding
+  key: string
   timer?: ReturnType<typeof setTimeout>
   controller?: AbortController
 }
@@ -67,8 +63,8 @@ export class StateWriter {
     this.enumLoadsPaused = false
     if (!this.enumLoads.size) return
     for (const [field, { binding }] of [...this.enumLoads]) {
+      this.enumLoads.delete(field)
       if (this.deps.store.get(field.path) === field) this.loadEnum(field.path, binding)
-      else this.enumLoads.delete(field)
     }
     this.deps.notifier.emit()
   }
@@ -76,9 +72,9 @@ export class StateWriter {
   /** Release this engine's consumers and keep pending bindings for an effect setup after cleanup. */
   dispose(): void {
     this.enumLoadsPaused = true
-    for (const [field, { binding }] of [...this.enumLoads]) {
+    for (const [field, { binding, key }] of [...this.enumLoads]) {
       this.cancelEnumLoad(field)
-      this.enumLoads.set(field, { binding })
+      this.enumLoads.set(field, { binding, key })
     }
   }
 
@@ -288,8 +284,6 @@ export class StateWriter {
     if (field.enumFromEffect || field.jsxEnum !== undefined) return
     const cached = binding.source.cached(binding.params)
     if (cached && deepEqual(field.enumOptions, cached)) return
-    // Re-applying the same declaration (registerField, a revived path) must not abort the request already in flight.
-    if (this.enumLoads.has(field)) return
     this.loadEnum(path, binding)
   }
 
@@ -490,8 +484,7 @@ export class StateWriter {
         this.cancelEnumLoad(field)
         return false
       }
-      this.loadEnum(path, effectBinding)
-      return true
+      return this.loadEnum(path, effectBinding)
     }
     this.cancelEnumLoad(field)
     const options = asOptions(value) ?? []
@@ -569,14 +562,17 @@ export class StateWriter {
     scheduler.flush()
   }
 
-  private loadEnum(path: string, binding: EnumLoadBinding): void {
+  private loadEnum(path: string, binding: EnumBinding): boolean {
     const { store, notifier, scheduler } = this.deps
     const field = store.ensure(path)
     const prev = this.enumLoads.get(field)
+    const key = binding.source.key(binding.params)
+    // A moved model can re-run its reaction with the same binding, including while debounced.
+    if (prev?.binding.source === binding.source && prev.key === key) return false
     clearTimeout(prev?.timer)
-    const load: EnumLoad = { binding, controller: prev?.controller }
+    const load: EnumLoad = { binding, key, controller: prev?.controller }
     this.enumLoads.set(field, load)
-    if (this.enumLoadsPaused) return
+    if (this.enumLoadsPaused) return true
 
     const isCurrent = () => this.enumLoads.get(field) === load && store.get(field.path) === field
     const start = () => {
@@ -610,6 +606,7 @@ export class StateWriter {
     const wait = binding.source.debounce
     if (wait > 0) load.timer = setTimeout(start, wait)
     else start()
+    return true
   }
 
   /** Remove one object key. Does not splice an array index and does not mark the parent computed. */
