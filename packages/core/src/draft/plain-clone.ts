@@ -1,6 +1,6 @@
 import { clone } from '../shared/equal'
 import { isPatchable } from './patch'
-import { unwrapReadonly } from './readonly'
+import { peelReadonly, unwrapReadonly } from './readonly'
 
 /**
  * Clone caller data with `structuredClone`, unwrapping development read-only views first.
@@ -57,7 +57,7 @@ function collect(node: unknown, known: Set<object>): void {
  * must not, or a later mutation of the caller's value would change the store.
  */
 function share(node: unknown, known: Set<object>, seen: WeakMap<object, unknown>): unknown {
-  if (process.env.NODE_ENV !== 'production') node = unwrapReadonly(node)
+  if (process.env.NODE_ENV !== 'production') node = peelReadonly(node)
   if (node === null || typeof node !== 'object') return node
   if (known.has(node)) return node
   const cached = seen.get(node)
@@ -104,7 +104,7 @@ function share(node: unknown, known: Set<object>, seen: WeakMap<object, unknown>
  * Primitives return before `keep` is walked.
  */
 export function cloneExternal<V>(value: V, keep: unknown): V {
-  const raw = process.env.NODE_ENV !== 'production' ? unwrapReadonly(value) : value
+  const raw = process.env.NODE_ENV !== 'production' ? peelReadonly(value) : value
   if (raw === null || typeof raw !== 'object') return raw
   const known = new Set<object>()
   collect(keep, known)

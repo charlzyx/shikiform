@@ -244,23 +244,37 @@ export function peelReadonly<V>(value: V): V {
 /** Plain data for a value that may contain read-only views. Returns `value` itself when it holds none. */
 export function unwrapReadonly<V>(value: V): V {
   if (!viewsCreated || value == null || typeof value !== 'object') return value
+  return unwrap(value, new WeakMap()) as V
+}
+
+function unwrap(value: unknown, seen: WeakMap<object, object>): unknown {
+  if (value == null || typeof value !== 'object') return value
   const target = TARGETS.get(value)
-  if (target) return target as V
+  if (target) return target
+  const visited = seen.get(value)
+  if (visited) return visited
+  seen.set(value, value)
+  const raw = unwrapChildren(value, seen)
+  seen.set(value, raw)
+  return raw
+}
+
+function unwrapChildren(value: object, seen: WeakMap<object, object>): object {
   if (value instanceof Date) return value
-  if (value instanceof Map) return unwrapMap(value) as V
-  if (value instanceof Set) return unwrapSet(value) as V
+  if (value instanceof Map) return unwrapMap(value, seen)
+  if (value instanceof Set) return unwrapSet(value, seen)
   if (!Array.isArray(value) && !isPlainData(value)) return value
   let copy: any
   const keys = Reflect.ownKeys(value)
   for (const key of keys) {
     const item = (value as any)[key]
-    const next = unwrapReadonly(item)
+    const next = unwrap(item, seen)
     if (next !== item) {
       copy ??= Array.isArray(value) ? (value as unknown[]).slice() : { ...(value as object) }
       copy[key] = next
     }
   }
-  return (copy ?? value) as V
+  return copy ?? value
 }
 
 function isPlainData(value: object): boolean {
@@ -269,11 +283,11 @@ function isPlainData(value: object): boolean {
   return proto === Object.prototype || proto === null
 }
 
-function unwrapMap(value: Map<unknown, unknown>): Map<unknown, unknown> {
+function unwrapMap(value: Map<unknown, unknown>, seen: WeakMap<object, object>): Map<unknown, unknown> {
   let copy: Map<unknown, unknown> | undefined
   for (const [key, item] of value) {
-    const nextKey = unwrapReadonly(key)
-    const next = unwrapReadonly(item)
+    const nextKey = unwrap(key, seen)
+    const next = unwrap(item, seen)
     if (next === item && nextKey === key) continue
     copy ??= new Map(value)
     if (nextKey !== key) copy.delete(key)
@@ -282,11 +296,11 @@ function unwrapMap(value: Map<unknown, unknown>): Map<unknown, unknown> {
   return copy ?? value
 }
 
-function unwrapSet(value: Set<unknown>): Set<unknown> {
+function unwrapSet(value: Set<unknown>, seen: WeakMap<object, object>): Set<unknown> {
   let changed = false
   const nextItems: unknown[] = []
   for (const item of value) {
-    const next = unwrapReadonly(item)
+    const next = unwrap(item, seen)
     nextItems.push(next)
     if (next !== item) changed = true
   }

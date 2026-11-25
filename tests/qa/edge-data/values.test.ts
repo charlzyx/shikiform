@@ -128,7 +128,7 @@ it('QA-40 stores an explicit undefined when replacing a hole in a sparse array',
   expect(form.dirty).toBe(false)
 })
 
-it.fails.each(['development', 'production'] as const)('BUG: QA-41 round-trips a cyclic record as a clean initial value in %s', async (mode) => {
+it.each(['development', 'production'] as const)('QA-41 round-trips a cyclic record as a clean initial value in %s', async (mode) => {
   vi.stubEnv('NODE_ENV', mode)
   type Node = { id: number; next?: Node }
   const node: Node = { id: 1 }
@@ -139,6 +139,16 @@ it.fails.each(['development', 'production'] as const)('BUG: QA-41 round-trips a 
   const submitted = (await form.submit()).node
   expect(submitted).not.toBe(node)
   expect(submitted.next).toBe(submitted)
+
+  // Prime the read-only view cache before writing another cyclic object.
+  void form.values.node
+  const replacement: Node = { id: 2 }
+  replacement.next = replacement
+  form.setValue('node', replacement)
+  const changed = form.getSubmitValues().node
+  expect(changed.id).toBe(2)
+  expect(changed.next).toBe(changed)
+  expect(form.dirty).toBe(true)
 })
 
 it('writes and submits a value 1000 levels deep', () => {
