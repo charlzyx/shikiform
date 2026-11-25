@@ -4,15 +4,17 @@ import { deepEqual } from '../shared/equal'
 import { getAt, parentPath, selfAndAncestors } from '../shared/path'
 import type { Notifier } from '../state/notifier'
 import type { Pos } from '../shared/tree-ops'
-import type { WatchRow, WriteOp } from '../types'
+import type { TrackedRow, WriteOp } from '../types'
 
-import { WriteJournal, type WorkingValues, type WriteBuffer } from './write-buffer'
+import { valueChangedAt, WriteJournal, type WorkingValues, type WriteBuffer } from './write-buffer'
 interface ValueCommit {
   before: unknown
   after: unknown
   hasStructure: boolean
   structures: Set<string>
   changes: Map<string, boolean>
+  rowReaders: Set<string>
+  priorRowPaths: Map<string, string>
   finish: (() => void)[]
 }
 
@@ -93,7 +95,7 @@ export class Scheduler {
   readonly runners = new Map<string, () => void>()
   private depIndex = new Map<string, Set<string>>()
   private reactionDeps = new Map<string, Set<string>>()
-  private watchRows = new Map<string, WatchRow>()
+  private trackedRows = new Map<string, TrackedRow>()
   private writeOwners = new Map<string, string>()
   /** All keys claimed over the lifetime of a disposable each instance (development only). */
   private ownedByInstance = new Map<string, Set<string>>()
@@ -208,7 +210,7 @@ export class Scheduler {
   /** Track reads reached through the row handle separately from fixed paths on the root draft. */
   trackRowRead<T>(read: () => T): T {
     const tracker = this.current()
-    if (!tracker?.recordDeps || tracker.readingRow || !tracker.id.startsWith('watch-each:')) return read()
+    if (!tracker?.recordDeps || tracker.readingRow || !tracker.nodePath) return read()
     tracker.readingRow = true
     try { return read() }
     finally { tracker.readingRow = false }
@@ -219,8 +221,8 @@ export class Scheduler {
     for (const cursor of selfAndAncestors(path)) this.track(cursor, state)
   }
 
-  register(id: string, run: () => void, deps: Set<string>, row?: WatchRow): void {
-    if (row) this.watchRows.set(id, row)
+  register(id: string, run: () => void, deps: Set<string>, row?: TrackedRow): void {
+    if (row) this.trackedRows.set(id, row)
     this.runners.set(id, run)
     this.setDeps(id, deps)
   }
@@ -254,20 +256,24 @@ export class Scheduler {
       if (!subscribers?.size) this.depIndex.delete(dep)
     }
     this.reactionDeps.delete(id)
-    this.watchRows.delete(id)
+    this.trackedRows.delete(id)
     this.runners.delete(id)
     this.queued.delete(id)
     this.runs.delete(id)
     this.lastWrites.delete(id)
+    this.releaseOwnership(id)
+  }
+
+  private releaseOwnership(id: string): void {
     for (const key of this.ownedByInstance.get(id) ?? []) this.writeOwners.delete(key)
     this.ownedByInstance.delete(id)
   }
 
-  /** Move existing row watches before publishing dirty keys. A queued edit follows the same runner. */
-  reindexWatchRows(oldIds: ReadonlyMap<string, string>, newIds: ReadonlyMap<string, string>): void {
-    if (!this.watchRows.size) return
+  /** Move row dependencies before publishing dirty keys. An already queued runner follows the same row. */
+  reindexRows(oldIds: ReadonlyMap<string, string>, newIds: ReadonlyMap<string, string>): void {
+    if (!this.trackedRows.size) return
     const idsByPath = new Map([...oldIds].map(([id, path]) => [path, id]))
-    for (const [id, row] of this.watchRows) {
+    for (const [id, row] of this.trackedRows) {
       const from = row.path!
       let owner: string | null = from
       while (owner && !idsByPath.has(owner)) owner = parentPath(owner)
@@ -275,12 +281,14 @@ export class Scheduler {
       const destination = newIds.get(idsByPath.get(owner)!)
       const to = destination === undefined ? undefined : destination + from.slice(owner.length)
       if (to === from) continue
+      if (this.valueCommit && !this.valueCommit.priorRowPaths.has(id)) this.valueCommit.priorRowPaths.set(id, from)
       row.path = to
       this.queue(id.slice(0, id.indexOf('#')))
       if (to === undefined) {
         this.dropDeps(id)
         continue
       }
+      this.releaseOwnership(id)
       if (!row.rowDeps?.size) continue
       const moved = new Set<string>()
       for (const dep of row.rowDeps) {
@@ -318,7 +326,8 @@ export class Scheduler {
     this.holdFlush(() => {
       const parent = this.valueCommit
       const commit: ValueCommit | undefined = working && {
-        before, after: working.values, hasStructure: working.hasStructure, structures: new Set(), changes: new Map(), finish: [],
+        before, after: working.values, hasStructure: working.hasStructure, structures: new Set(), changes: new Map(),
+        rowReaders: new Set(), priorRowPaths: new Map(), finish: [],
       }
       this.valueCommit = commit
       try {
@@ -327,6 +336,8 @@ export class Scheduler {
           op.apply()
           if (id) this.claimOwner(id, op.key)
         }
+        this.enqueueFromDirty()
+        if (commit?.hasStructure) this.queueChangedRows(commit)
       } finally {
         this.valueCommit = parent
       }
@@ -385,19 +396,44 @@ export class Scheduler {
     this.structureOnlyDeps.delete(dep)
   }
 
+  markStructureDep(dep: string): void {
+    if (!this.dirtyDeps.has(dep)) this.structureOnlyDeps.add(dep)
+    this.dirtyDeps.add(dep)
+  }
+
   private changedInCommit(path: string): boolean {
     const commit = this.valueCommit
     if (!commit) return true
     const known = commit.changes.get(path)
     if (known !== undefined) return known
-    let changed = !deepEqual(getAt(commit.before, path), getAt(commit.after, path))
-    if (!changed && path) {
-      const parent = parentPath(path) ?? ''
-      const key = path.slice(parent ? parent.length + 1 : 0)
-      changed = Object.hasOwn(getAt(commit.before, parent) ?? {}, key) !== Object.hasOwn(getAt(commit.after, parent) ?? {}, key)
-    }
+    const changed = valueChangedAt(commit.before, path, commit.after, path)
     commit.changes.set(path, changed)
     return changed
+  }
+
+  private queueChangedRows(commit: ValueCommit): void {
+    for (const id of commit.rowReaders) {
+      const row = this.trackedRows.get(id)
+      if (row?.path === undefined) continue
+      const start = commit.priorRowPaths.get(id) ?? row.path
+      for (const dep of row.rowDeps ?? []) {
+        if (!dep.endsWith(':value')) continue
+        const path = dep.slice(0, -':value'.length)
+        if (valueChangedAt(commit.before, start + path.slice(row.path.length), commit.after, path)) {
+          this.queue(id)
+          break
+        }
+      }
+    }
+  }
+
+  private collectRowValueReaders(path: string): void {
+    const commit = this.valueCommit
+    if (!commit?.hasStructure) return
+    const dep = `${path}:value`
+    for (const id of this.depIndex.get(dep) ?? []) {
+      if (isReactionId(id) && this.trackedRows.get(id)?.rowDeps?.has(dep)) commit.rowReaders.add(id)
+    }
   }
 
   /** Wake value ancestors and readers below a replaced value or edited structure. */
@@ -410,6 +446,7 @@ export class Scheduler {
     const changedInCommit = (key: string) => !compareCommit || this.changedInCommit(key)
     if (changedInCommit(path)) this.notifier.bumpPath(path)
     for (const cursor of selfAndAncestors(path)) {
+      if (!replacement?.moved) this.collectRowValueReaders(cursor)
       if (changedInCommit(cursor)) this.markDirty(`${cursor}:value`)
       else if (this.valueCommit?.hasStructure && !replacement?.moved) {
         // A row edit can survive a move even if another row puts the old value back at this index.
@@ -417,11 +454,12 @@ export class Scheduler {
         const rowMoved = changedInCommit(parentPath(cursor) ?? '')
         if (!rowMoved) continue
         for (const id of this.depIndex.get(dep) ?? []) {
-          if (!this.initializing && this.watchRows.get(id)?.rowDeps?.has(dep)) this.queue(id)
+          if (!this.initializing && isWatchRunner(id) && this.trackedRows.get(id)?.rowDeps?.has(dep)) this.queue(id)
         }
       }
     }
-    if (!replacement || (!replacement.moved && !changedInCommit(path))) return
+    const changedParent = changedInCommit(path)
+    if (!replacement || (!replacement.moved && !changedParent && !this.valueCommit?.hasStructure)) return
     const { before, after, fields = [], moved } = replacement
     const descendant = (key: string) => key !== path && (!path || key.startsWith(path + '.'))
     const changed = (key: string) => !Object.is(getAt(before, key), getAt(after, key))
@@ -432,12 +470,11 @@ export class Scheduler {
       const state = dep.slice(at + 1)
       if (!descendant(key) && (moved || key !== path || state === 'value')) continue
       if (!moved) {
-        this.markReplaced(dep, key, before, after)
-      } else if ((state !== 'value' && moved.has(key)) || (changed(key) && changedInCommit(key))) {
-        if (!this.dirtyDeps.has(dep)) this.structureOnlyDeps.add(dep)
-        this.dirtyDeps.add(dep)
-      }
+        if (state === 'value') this.collectRowValueReaders(key)
+        if (changedParent) this.markReplaced(dep, key, before, after)
+      } else if ((state !== 'value' && moved.has(key)) || (changed(key) && changedInCommit(key))) this.markStructureDep(dep)
     }
+    if (!moved && !changedParent) return
     const paths = new Set([...fields, ...this.notifier.pathListenerKeys(), ...(moved ?? [])])
     for (const key of paths) {
       if (descendant(key) && (!moved || moved.has(key) || (changed(key) && changedInCommit(key)))) this.notifier.bumpPath(key)
@@ -493,10 +530,12 @@ export class Scheduler {
     // A record selected inside a moved row now belongs to a different occupant.
     if (before !== undefined) {
       for (const [id, rec] of this.eachRecs) {
-        if (!rec.path.startsWith(path + '.') || !this.depIndex.get(`${rec.path}:keys`)?.has(id)) continue
+        if ((path && !rec.path.startsWith(path + '.')) || rec.path === path) continue
         if (getAt(before, rec.path) === getAt(after, rec.path)) continue
         this.queue(id)
-        for (const inst of rec.instances) this.queue(inst)
+        if (this.depIndex.get(`${rec.path}:keys`)?.has(id)) {
+          for (const inst of rec.instances) this.queue(inst)
+        }
       }
       for (const [dep, readers] of this.depIndex) {
         if (!dep.endsWith(':structure')) continue
@@ -530,8 +569,16 @@ export class Scheduler {
       if (subs) {
         for (const id of subs) {
           if (this.initializing && isWatchRunner(id)) continue
-          // Row watches react to edits. A different occupant moving into a slot is a structure change.
-          if (this.structureOnlyDeps.has(dep) && id.startsWith('watch-each:') && isWatchRunner(id)) continue
+          const structureOnly = this.structureOnlyDeps.has(dep)
+          if (structureOnly && id.startsWith('watch-each:') && isWatchRunner(id)) continue
+          const commit = this.valueCommit
+          const row = this.trackedRows.get(id)
+          if (commit?.hasStructure && isReactionId(id) && row?.rowDeps?.has(dep)) {
+            if (dep.endsWith(':value')) {
+              commit.rowReaders.add(id)
+              if (!row.deps.has(dep)) continue
+            } else if (structureOnly && !row.deps.has(dep)) continue
+          }
           this.queued.add(id)
         }
       }
@@ -569,9 +616,17 @@ export class Scheduler {
       while (this.queued.size) {
         wave += 1
         if (wave > 10) throw failure ? failure.error : this.cycleError()
-        const ids = [...this.queued]
+        const ids = new Set<string>()
+        for (const id of this.queued) {
+          if (this.trackedRows.has(id)) {
+            const parent = id.slice(0, id.indexOf('#'))
+            if (this.queued.has(parent)) ids.add(parent)
+          }
+          ids.add(id)
+        }
         for (const id of ids) {
-          // A structure reconciler can queue a row whose changed dependency already queued it.
+          // A runner earlier in this wave can change the row again before we reach it.
+          if (this.trackedRows.has(id) && this.queued.has(id.slice(0, id.indexOf('#')))) continue
           if (!this.queued.delete(id)) continue
           const run = this.runners.get(id)
           if (!run || (failure && isWatchRunner(id))) continue

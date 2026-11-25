@@ -152,20 +152,27 @@ export class TreeOps {
     const reindexed = reindexById(store.fields, oldIds, newIds)
     const moved = movedFieldPaths(reindexed)
     store.onReindex?.(reindexed)
-    scheduler.reindexWatchRows(oldIds, newIds)
+    scheduler.reindexRows(oldIds, newIds)
     store.onReindexIds?.(oldIds, newIds)
     const previous = store.values
     store.values = after ?? setAt(previous, path, next)
-    const beforeNodes = listPositions(before, path, cfg.childrenKey, cfg.rowKey)
-    const afterNodes = listPositions(next, path, cfg.childrenKey, cfg.rowKey)
     store.onRestructure?.()
-    const beforePos = new Map(beforeNodes.map((n) => [posKey(n.pos), n.id]))
-    const afterPos = new Map(afterNodes.map((n) => [posKey(n.pos), n.id]))
-    const dirty = new Set<string>()
-    for (const key of new Set([...beforePos.keys(), ...afterPos.keys()])) {
-      if (beforePos.get(key) !== afterPos.get(key)) dirty.add(key)
+    const commit = scheduler.valueCommit
+    if (!commit?.structures.has(path)) {
+      commit?.structures.add(path)
+      const start = commit ? getAt(commit.before, path) : before
+      const end = commit ? getAt(commit.after, path) : next
+      const positions = (value: unknown) => new Map(listPositions(
+        Array.isArray(value) ? value : [], path, cfg.childrenKey, cfg.rowKey,
+      ).map((node) => [posKey(node.pos), node.id]))
+      const beforePos = positions(start)
+      const afterPos = positions(end)
+      const dirty = new Set<string>()
+      for (const key of new Set([...beforePos.keys(), ...afterPos.keys()])) {
+        if (beforePos.get(key) !== afterPos.get(key)) dirty.add(key)
+      }
+      scheduler.markDirtyPos(path, dirty)
     }
-    scheduler.markDirtyPos(path, dirty)
     scheduler.markStructure(path, previous, store.values)
     scheduler.markValueChanged(path, { before: previous, after: store.values, moved })
     scheduler.enqueueFromDirty()

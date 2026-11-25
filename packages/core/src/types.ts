@@ -572,8 +572,8 @@ export interface MoveResult {
   reason?: string
 }
 
-/** @internal One watch.each instance, whose local subscriptions travel with its row. */
-export interface WatchRow {
+/** @internal One each instance, whose local subscriptions travel with its row. */
+export interface TrackedRow {
   path?: string
   deps: Set<string>
   rowDeps?: Set<string>
@@ -586,8 +586,8 @@ export interface WatchRow {
 export interface EffectsRuntime<T> {
   draft: Draft<T>
   trackOnly<S>(fn: () => S): { value: S; deps: Set<string> }
-  registerReaction(id: string, run: () => void, deps: Set<string>): void
-  registerWatch(id: string, run: () => void, deps: Set<string>, row?: WatchRow): void
+  registerReaction(id: string, run: () => void, deps: Set<string>, row?: TrackedRow): void
+  registerWatch(id: string, run: () => void, deps: Set<string>, row?: TrackedRow): void
   queue(id: string): void
   /** `site` (development): where the effect was declared, shown in conflict / cycle errors. */
   nextId(prefix: string, site?: string): string

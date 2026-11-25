@@ -1,4 +1,15 @@
+import { deepEqual } from '../shared/equal'
+import { getAt, parentPath } from '../shared/path'
 import type { WriteOp } from '../types'
+
+export function valueChangedAt(before: unknown, from: string, after: unknown, to: string): boolean {
+  if (!deepEqual(getAt(before, from), getAt(after, to))) return true
+  const has = (root: unknown, path: string) => {
+    const parent = parentPath(path) ?? ''
+    return Object.hasOwn(getAt(root, parent) ?? {}, path.slice(parent ? parent.length + 1 : 0))
+  }
+  return !!to && has(before, from) !== has(after, to)
+}
 
 export interface WorkingValues {
   values: unknown

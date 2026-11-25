@@ -1,7 +1,7 @@
 import { isPatchable } from '../draft/patch'
 import { joinPath, parentPath } from '../shared/path'
 import { callSite, ShikiUsageError } from '../errors'
-import type { Draft, EffectDef, EffectsAPI, EffectsRuntime, RowContext, WatchRow } from '../types'
+import type { Draft, EffectDef, EffectsAPI, EffectsRuntime, RowContext, TrackedRow } from '../types'
 import type { EachDirty, EachRec } from './scheduler'
 
 /** What `reaction.each` / `watch.each` need beyond the public runtime. */
@@ -20,6 +20,8 @@ interface EachNode {
   pos: number[]
   parentPath?: string
 }
+
+type EachRow = TrackedRow & { node: EachNode }
 
 /**
  * Build an effect module. The factory runs once per form, against that form's draft.
@@ -154,19 +156,29 @@ function installEach(runtime: EachRuntime, target: unknown, effect: Function, si
   const id = runtime.nextId('each', site)
   const rec: EachRec = { effect, path: fixed ?? '', instances: new Set(), first: true }
   runtime.holdEach(id, rec)
+  const known = new Map<string, EachRow>()
+  let serial = 0
+  const newId = (node: EachNode) => {
+    const base = `${id}#${node.rel}`
+    return known.has(base) ? `${base}~${++serial}` : base
+  }
   const run = () => {
     const selected = fixed !== undefined
       ? { path: fixed, deps: new Set<string>() }
       : selectEachPath(runtime, target as (d: Draft<any>) => unknown, 'each() selector must return a draft handle')
     const path = selected.path
-    if (rec.path !== path) dropUnseen(runtime, rec.instances, new Set())
+    if (rec.path !== path) {
+      dropUnseen(runtime, rec.instances, new Set())
+      known.clear()
+    }
     rec.path = path
     const value = runtime.getValue(path)
     const deps = new Set(selected.deps)
     deps.add(`${path}:structure`)
     if (Array.isArray(value)) {
-      runEach(runtime, rec, id, value)
+      runEach(runtime, rec, known, newId, value)
     } else {
+      known.clear()
       runObjectEach(runtime, rec, id, isPatchable(value) ? Object.keys(value) : [])
       deps.add(`${path}:keys`)
     }
@@ -177,35 +189,43 @@ function installEach(runtime: EachRuntime, target: unknown, effect: Function, si
   runtime.queue(id)
 }
 
-function runEach(runtime: EachRuntime, rec: EachRec, id: string, value: unknown[]): void {
+function runEach(
+  runtime: EachRuntime, rec: EachRec, known: Map<string, EachRow>, newId: (node: EachNode) => string, value: unknown[],
+): void {
   const nodes = listEachNodes(value, rec.path)
   const dirty = runtime.takeEachDirty(rec.path)
   const all = rec.first || dirty.rows.get(rec.path) === 'all' || dirty.pos === 'all'
+  const byPath = new Map([...known].map(([inst, row]) => [row.path, { inst, row }]))
   const seen = new Set<string>()
   for (const node of nodes) {
-    const inst = `${id}#${node.rel}`
-    seen.add(inst)
-    const fresh = !rec.instances.has(inst)
-    if (fresh) {
-      const captured = node
-      runtime.registerReaction(
-        inst,
-        () => {
-          // A row removal can queue this instance (via a shared dep) before its parent reconciles.
-          if (!nodeExists(runtime, captured)) return
-          const result = runtime.runWith({ id: inst, deps: true, writes: true, pos: captured.pos, nodePath: captured.path }, () =>
-            rec.effect(runtime.handle(captured.path), rowContext(runtime, captured)),
-          )
-          runtime.setDeps(inst, result.deps)
-          runtime.applyWrites(inst, result.writes)
-        },
-        new Set(),
-      )
-      rec.instances.add(inst)
+    const existing = byPath.get(node.path)
+    if (existing) {
+      const { inst, row } = existing
+      if (all || row.node.path !== node.path || nodeDirty(node, rec.path, dirty)) runtime.queue(inst)
+      row.node = node
+      seen.add(inst)
+      continue
     }
-    if (fresh || all || nodeDirty(node, rec.path, dirty)) runtime.queue(inst)
+    const inst = newId(node)
+    const row: EachRow = { path: node.path, node, deps: new Set() }
+    runtime.registerReaction(inst, () => {
+      const captured = row.node
+      if (!nodeExists(runtime, captured)) return
+      const result = runtime.runWith({ id: inst, deps: true, writes: true, pos: captured.pos, nodePath: captured.path }, () =>
+        rec.effect(runtime.handle(captured.path, true), rowContext(runtime, captured)),
+      )
+      row.deps = result.deps
+      row.rowDeps = result.rowDeps
+      runtime.setDeps(inst, new Set([...row.deps, ...(row.rowDeps ?? [])]))
+      runtime.applyWrites(inst, result.writes)
+    }, new Set(), row)
+    known.set(inst, row)
+    rec.instances.add(inst)
+    seen.add(inst)
+    runtime.queue(inst)
   }
   dropUnseen(runtime, rec.instances, seen)
+  for (const inst of known.keys()) if (!seen.has(inst)) known.delete(inst)
 }
 
 /** Object entries have a stable property name and no array position. */
@@ -239,7 +259,7 @@ function runObjectEach(runtime: EachRuntime, rec: EachRec, id: string, keys: str
 function installWatchEach(runtime: EffectsRuntime<any>, target: unknown, effect: Function): void {
   const fixed = fixedEachPath(runtime, target, 'watch.each')
   const id = runtime.nextId('watch-each')
-  const known = new Map<string, WatchRow & { node: EachNode }>()
+  const known = new Map<string, EachRow>()
   let serial = 0
   let currentPath = fixed ?? ''
   const run = () => {
@@ -249,7 +269,7 @@ function installWatchEach(runtime: EffectsRuntime<any>, target: unknown, effect:
     const arrayPath = selected.path
     const byPath = currentPath === arrayPath
       ? new Map([...known].map(([inst, row]) => [row.path, { inst, row }]))
-      : new Map<string | undefined, { inst: string; row: WatchRow & { node: EachNode } }>()
+      : new Map<string | undefined, { inst: string; row: EachRow }>()
     currentPath = arrayPath
     const nodes = listEachNodes(runtime.getValue(arrayPath), arrayPath)
     const seen = new Set<string>()
@@ -261,7 +281,7 @@ function installWatchEach(runtime: EffectsRuntime<any>, target: unknown, effect:
         continue
       }
       const inst = `${id}#${++serial}`
-      const row: WatchRow & { node: EachNode } = { path: node.path, node, deps: new Set() }
+      const row: EachRow = { path: node.path, node, deps: new Set() }
       const read = (captured: EachNode, writes: boolean) => {
         const result = runtime.runWith({ id: inst, deps: true, writes, pos: captured.pos, nodePath: captured.path }, () =>
           effect(runtime.handle(captured.path, true), rowContext(runtime, captured)),

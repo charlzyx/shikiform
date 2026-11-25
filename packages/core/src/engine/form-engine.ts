@@ -21,7 +21,7 @@ import type {
   ArrayPath,
   DeepPartial,
   Draft,
-  EffectsRuntime, WatchRow,
+  EffectsRuntime, TrackedRow,
   FieldError,
   FieldPath,
   FieldSpec,
@@ -486,11 +486,11 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     this.scheduler.applyWrites(id, writes, this.store.values)
   }
 
-  registerReaction(id: string, run: () => void, deps: Set<string>): void {
-    this.scheduler.register(id, run, deps)
+  registerReaction(id: string, run: () => void, deps: Set<string>, row?: TrackedRow): void {
+    this.scheduler.register(id, run, deps, row)
   }
 
-  registerWatch(id: string, run: () => void, deps: Set<string>, row?: WatchRow): void {
+  registerWatch(id: string, run: () => void, deps: Set<string>, row?: TrackedRow): void {
     this.scheduler.register(id, run, deps, row)
   }
 

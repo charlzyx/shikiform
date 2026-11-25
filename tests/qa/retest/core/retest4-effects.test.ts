@@ -176,7 +176,7 @@ describe.each(['development', 'production'])('F7 effects acceptance in %s', (mod
     expect(run.mock.calls.flat().sort()).toEqual(['a', 'd'])
   })
 
-  it.fails('BUG: runs each affected slot once when a cell edit is followed by a move', () => {
+  it('QA-72 runs each affected row once when a cell edit is followed by a move', () => {
     type Values = { rows: { id: string; qty: number }[] }
     const run = vi.fn()
     const form = createForm<Values>({
@@ -191,6 +191,24 @@ describe.each(['development', 'production'])('F7 effects acceptance in %s', (mod
       engineOf(form).moveArray('rows', 0, 1)
     })
     expect(run.mock.calls.sort()).toEqual([['a', 2], ['b', 2]])
+  })
+
+  it('QA-72 compares the edited row at its final coordinate after a round trip', () => {
+    type Values = { rows: { id: string; qty: number }[] }
+    const run = vi.fn()
+    const form = createForm<Values>({
+      initialValues: { rows: [{ id: 'a', qty: 1 }, { id: 'b', qty: 2 }, { id: 'c', qty: 3 }] },
+      effects: [defineEffects<Values>(({ reaction, draft }) => {
+        reaction.each(draft.rows, (row) => { run(row.id.$value, row.qty.$value) })
+      })],
+    })
+    run.mockClear()
+    form.batch((d) => {
+      d.rows.$value.reverse()
+      form.setValue('rows.2.qty', 4)
+      d.rows.$value.reverse()
+    })
+    expect(run.mock.calls).toEqual([['a', 4]])
   })
 
   it('enum, rule, and UI draft edits follow the working value through a row move', async () => {

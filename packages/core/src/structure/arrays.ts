@@ -217,7 +217,7 @@ export class ArrayOps {
     const reindexed = reindexById(store.fields, oldIds, newIds)
     const moved = movedFieldPaths(reindexed)
     store.onReindex?.(reindexed)
-    scheduler.reindexWatchRows(oldIds, newIds)
+    scheduler.reindexRows(oldIds, newIds)
     store.onReindexIds?.(oldIds, newIds)
     const previous = store.values
     store.values = after ?? setAt(previous, path, next)

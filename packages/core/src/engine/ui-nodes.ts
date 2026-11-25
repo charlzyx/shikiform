@@ -108,7 +108,7 @@ export class UiNodes {
     for (const id of touched) {
       // The key held a model and now holds another one or none: readers and renders of it must re-run.
       this.notifier.bumpPath(id)
-      for (const state of UI_DEPS) this.scheduler.markDirty(`${id}:${state}`)
+      for (const state of UI_DEPS) this.scheduler.markStructureDep(`${id}:${state}`)
     }
   }
 
