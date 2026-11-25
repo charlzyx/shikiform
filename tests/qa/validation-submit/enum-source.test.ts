@@ -89,13 +89,25 @@ describe('EnumSource lifecycle', () => {
 })
 
 describe('enumPolicy on submit', () => {
-  it('QA-14: rejects a selection removed by options that settle during the same submission', async () => {
+  const oldCity = { label: 'Old', value: 'old' }
+  const newCity = { label: 'New', value: 'new' }
+  const otherCity = { label: 'Other', value: 'other' }
+  const sparseOld = new Array<typeof oldCity>(2)
+  const sparseNew = new Array<typeof newCity>(2)
+  sparseOld[1] = oldCity
+  sparseNew[1] = newCity
+
+  it.each([
+    { label: 'dense lists', initial: [oldCity], next: [newCity] },
+    { label: 'a filled slot', initial: sparseOld, next: [newCity, otherCity] },
+    { label: 'a vacated slot', initial: [oldCity, newCity], next: sparseNew },
+  ])('QA-14: rejects a selection removed during submit with $label', async ({ initial, next }) => {
     const options = deferred<EnumOption[]>()
     const entered = deferred<void>()
     const held = deferred<void>()
     const form = createForm({
       initialValues: { city: 'old' },
-      fields: { city: { enum: ['old'] } },
+      fields: { city: { enum: initial } },
       enumPolicy: 'error',
       messages: { enum: 'Select a current city' },
       async validate() {
@@ -111,7 +123,6 @@ describe('enumPolicy on submit', () => {
     )
 
     await entered.promise
-    const next = [{ label: 'New', value: 'new' }]
     options.resolve(next)
     await setImmediate()
     form.batch((d) => { expect(d.city.$enum).toEqual(next) })

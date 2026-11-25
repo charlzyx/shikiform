@@ -48,11 +48,17 @@ export class FieldStore<T = any> {
   setEnumOptions(field: FieldModel, options: EnumOption[] | undefined): void {
     const prev = field.enumOptions
     // Only membership and disabled options affect the verdict. Match values by identity, like optionIncludes.
-    if (prev?.length !== options?.length || options?.some((option, i) => {
-      const old = prev![i]!
-      return !Object.is(option.value, old.value) || Boolean(option.disabled) !== Boolean(old.disabled)
-    })) this.enumVersion += 1
     field.enumOptions = options
+    if (prev?.length !== options?.length) {
+      this.enumVersion += 1
+      return
+    }
+    for (const [index, option] of options?.entries() ?? []) {
+      const old = prev?.[index]
+      if (Boolean(old) === Boolean(option) && Object.is(old?.value, option?.value) && Boolean(old?.disabled) === Boolean(option?.disabled)) continue
+      this.enumVersion += 1
+      break
+    }
   }
 
   /** The model at `path`, created on first touch. */
