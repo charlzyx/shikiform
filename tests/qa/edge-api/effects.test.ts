@@ -117,7 +117,7 @@ describe.each(['development', 'production'])('effect callbacks in %s', (environm
       form.setValue('saved', 'edited before reaction')
 
       const trigger = () => form.setValue('start', true)
-      if (environment === 'development') {
+      if (environment === 'development' && call !== 'setValue') {
         const diagnostic = expect.objectContaining({
           name: 'ShikiUsageError',
           message: expect.stringMatching(/draft.*watch/),

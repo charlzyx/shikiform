@@ -5,7 +5,7 @@ import { deepEqual, differsExcept } from '../shared/equal'
 import { getAt, normalizePath, selfAndAncestors, setAt } from '../shared/path'
 import type { FieldStore } from '../state/field-store'
 import type { Notifier } from '../state/notifier'
-import type { FieldError } from '../types'
+import type { FieldError, WriteOp } from '../types'
 import type { Validator } from '../validation/validator'
 
 /**
@@ -19,6 +19,7 @@ export class Baseline {
   /** Last derived form-level `dirty`, with the inputs it was derived from (values / initial are replaced, never mutated). */
   private cache?: { values: unknown; initial: unknown; skip: string; dirty: boolean }
   private notified = false
+  private readonly resetBaselines = new WeakMap<WriteOp, { values: unknown }>()
 
   private readonly store: FieldStore<any>
   private readonly notifier: Notifier
@@ -38,13 +39,44 @@ export class Baseline {
 
   /** `form.reset()`, `reset(path)`, `reset(values)` (new baseline first). See `FormEngine.reset`. */
   reset(pathOrValues?: string | object): void {
+    const { store, scheduler } = this.deps
+    const inReaction = guardReactionAction(scheduler, 'reset')
+    const path = typeof pathOrValues === 'string' ? normalizePath(pathOrValues) : undefined
+    const baseline = pathOrValues && typeof pathOrValues === 'object' ? { values: copyData(pathOrValues) } : undefined
+    if (!inReaction && scheduler.bufferingValues) {
+      const ops = scheduler.current()?.writes ?? scheduler.batchOps
+      let initial = baseline?.values ?? store.initial
+      if (!baseline) {
+        for (let i = ops.length - 1; i >= 0; i--) {
+          const prior = this.resetBaselines.get(ops[i])
+          if (!prior) continue
+          initial = prior.values
+          break
+        }
+      }
+      const value = copyData(path ? getAt(initial, path) : initial)
+      const before = scheduler.workingValues(store.values)
+      const after = path ? setAt(before, path, value) : value
+      const op: WriteOp = {
+        key: `${path ?? ''}:reset`,
+        apply: () => {
+          this.applyReset(path, baseline, store.values === before ? after : path ? setAt(store.values, path, value) : value)
+          return true
+        },
+      }
+      if (baseline) this.resetBaselines.set(op, baseline)
+      scheduler.stageValue(after, op)
+      return
+    }
+    const initial = baseline?.values ?? store.initial
+    const value = copyData(path ? getAt(initial, path) : initial)
+    this.applyReset(path, baseline, path ? setAt(store.values, path, value) : value)
+  }
+
+  private applyReset(path: string | undefined, baseline: { values: unknown } | undefined, values: unknown): void {
     const { store, notifier, scheduler, validator, declarations } = this.deps
-    guardReactionAction(scheduler, 'reset')
-    let path: string | undefined
-    if (pathOrValues != null && typeof pathOrValues === 'object') store.initial = copyData(pathOrValues)
-    else if (typeof pathOrValues === 'string') path = normalizePath(pathOrValues)
-    if (path) store.values = setAt(store.values, path, copyData(getAt(store.initial, path)))
-    else store.values = copyData(store.initial)
+    if (baseline) store.initial = baseline.values
+    store.values = values
     validator.reset(path)
     if (!path) store.edited = false
     for (const field of store.fields.values()) {

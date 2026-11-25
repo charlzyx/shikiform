@@ -115,7 +115,7 @@ describe.each(['development', 'production'])('reaction failures and async contin
     await expect(form.submit()).resolves.toEqual({ request: 7, result: [7, 8] })
   })
 
-  it('QA-47 settles a successful production setValue alongside a row mutation, with development guidance', async () => {
+  it('QA-47 settles a successful setValue alongside a row mutation', async () => {
     type Values = { trigger: boolean; rows: number[]; note: string }
     let form: FormInstance<Values>
     form = createForm<Values>({
@@ -132,17 +132,11 @@ describe.each(['development', 'production'])('reaction failures and async contin
     const states = vi.fn(() => form.getSubmitValues())
     form.subscribePath('rows', states)
     const change = () => form.setValue('trigger', true)
-    if (mode === 'development') {
-      expect(change).toThrow(/form\.setValue.*draft.*watch/)
-      expect(form.getSubmitValues()).toEqual({ trigger: true, rows: [1], note: '' })
-      expect(states).not.toHaveBeenCalled()
-    } else {
-      change()
-      expect(states.mock.results.map(result => result.value)).toEqual([
-        { trigger: true, rows: [1, 2], note: 'from reaction' },
-      ])
-      await expect(form.validate('note')).resolves.toBe('from reaction')
-    }
+    change()
+    expect(states.mock.results.map(result => result.value)).toEqual([
+      { trigger: true, rows: [1, 2], note: 'from reaction' },
+    ])
+    await expect(form.validate('note')).resolves.toBe('from reaction')
   })
 
   it('QA-47 allows watch actions to set a value, move its baseline and submit it', async () => {

@@ -1,5 +1,5 @@
 import type { Declarations } from '../declarations/declarations'
-import { guardReactionAction, isReactionId, type Scheduler } from '../effects/scheduler'
+import { isReactionId, type Scheduler } from '../effects/scheduler'
 import { asOptions, isEnumBinding, isEnumSource, toEnumBinding, type EnumBinding, type EnumOption } from '../enum/enum-source'
 import { cloneExternal, resetExternalCloneTraversal } from '../draft/plain-clone'
 import { tagPending } from '../draft/pending'
@@ -180,13 +180,12 @@ export class StateWriter {
 
   commitExternal(rawPath: string, value: unknown): void {
     const { store, scheduler } = this.deps
-    const reactionWrite = guardReactionAction(scheduler, 'setValue')
     const path = this.writablePath(rawPath)
     if (path === undefined) return
     // Clone caller data; identity is preserved only within the subtree being replaced.
     resetExternalCloneTraversal()
     value = cloneExternal(value, getAt(scheduler.workingValues(store.values), path))
-    if (reactionWrite || scheduler.batchDepth && scheduler.bufferingValues) this.writeValue(path, value, false, true)
+    if (scheduler.bufferingValues) this.writeValue(path, value, false, true)
     else this.applyExternal(path, value)
   }
 
@@ -254,7 +253,7 @@ export class StateWriter {
     for (const [rawPath, rawValue] of entries) {
       const path = normalizePath(rawPath)
       const value = process.env.NODE_ENV !== 'production' ? unwrapReadonly(rawValue) : rawValue
-      if (scheduler.batchDepth && scheduler.bufferingValues) {
+      if (scheduler.bufferingValues) {
         this.writeValue(path, value, false, true)
         continue
       }

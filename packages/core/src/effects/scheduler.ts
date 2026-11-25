@@ -678,8 +678,8 @@ export function assertNotWritten(scheduler: Scheduler, path: string, draftKey: s
   )
 }
 
-/** Direct form actions escape a reaction's write buffer. Development reports the supported alternatives. */
-export function guardReactionAction(scheduler: Scheduler, action: 'setValue' | 'reset' | 'submit'): boolean {
+/** These form actions escape a reaction's write buffer. */
+export function guardReactionAction(scheduler: Scheduler, action: 'reset' | 'submit'): boolean {
   const tracker = scheduler.current()
   if (!tracker?.recordWrites || !isReactionId(tracker.id)) return false
   if (process.env.NODE_ENV !== 'production') {

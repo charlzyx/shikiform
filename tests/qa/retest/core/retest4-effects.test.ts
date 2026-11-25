@@ -75,7 +75,7 @@ describe.each(['development', 'production'])('F7 effects acceptance in %s', (mod
     expect(form.getValue('total')).toBe(13)
   })
 
-  it.fails('BUG: watch combines a direct form write with draft structure edits in the same action', () => {
+  it('QA-69 combines direct form writes with draft structure edits in the same watch', () => {
     type Values = { run: boolean; processed: boolean; rows: { id: string; qty: number }[] }
     const form = createForm<Values>({
       initialValues: { run: false, processed: false, rows: [{ id: 'a', qty: 1 }, { id: 'b', qty: 2 }] },
@@ -84,13 +84,31 @@ describe.each(['development', 'production'])('F7 effects acceptance in %s', (mod
           d.processed.$value = true
           form.setValue('rows.0.qty', 10)
           d.rows.$value.reverse()
+          expect(d.rows[1].qty.$value).toBe(10)
+          form.patchValues({ rows: [{ id: 'b', qty: 3 }, { id: 'a', qty: 10 }] })
         })
       })],
     })
     form.setValue('run', true)
     expect(form.getSubmitValues()).toEqual({
-      run: true, processed: true, rows: [{ id: 'b', qty: 2 }, { id: 'a', qty: 10 }],
+      run: true, processed: true, rows: [{ id: 'b', qty: 3 }, { id: 'a', qty: 10 }],
     })
+  })
+
+  it('QA-69 discards direct writes with the rest of a failed watch', () => {
+    type Values = { run: boolean; note: string; rows: number[] }
+    const form = createForm<Values>({
+      initialValues: { run: false, note: '', rows: [1, 2] },
+      effects: [defineEffects<Values>(({ watch, draft }) => {
+        watch(draft.run, (d) => {
+          form.setValue('note', 'temporary')
+          d.rows.$value.reverse()
+          throw new Error('discard watch')
+        })
+      })],
+    })
+    expect(() => form.setValue('run', true)).toThrow('discard watch')
+    expect(form.getSubmitValues()).toEqual({ run: true, note: '', rows: [1, 2] })
   })
 
   it('getValue exposes the current batch snapshot with the ordinary read-only and identity rules', () => {
