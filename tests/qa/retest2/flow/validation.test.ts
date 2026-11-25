@@ -243,7 +243,7 @@ describe.each(['development', 'production'])('validation and paths in %s', (mode
     form.batch((d) => { expect(d.rows[0].choice.$enum).toEqual([{ label: '1', value: 1 }]) })
   })
 
-  it.fails('BUG: QA-57 reads stale options while removing an override without a fallback', () => {
+  it('QA-64 reads no options when removing an override without a fallback', () => {
     const form = createForm({ initialValues: { choice: 1 } })
     form.batch((d) => { d.choice.$enum = [1, 2] })
     let pending: unknown[] = []
@@ -253,5 +253,19 @@ describe.each(['development', 'production'])('validation and paths in %s', (mode
     })
     form.batch((d) => { expect(d.choice.$enum).toEqual([]) })
     expect(pending).toEqual([])
+  })
+
+  it('QA-64 edits the empty options list through a draft captured before clearing', () => {
+    const form = createForm({ initialValues: { choice: 1 } })
+    form.batch((d) => { d.choice.$enum = [1, 2] })
+    form.batch((d) => {
+      const options = d.choice.$enum as EnumOption[]
+      d.choice.$enum = undefined
+      options.push({ label: 'Three', value: 3 })
+      expect(d.choice.$enum).toEqual([{ label: 'Three', value: 3 }])
+    })
+    form.batch((d) => {
+      expect(d.choice.$enum).toEqual([{ label: 'Three', value: 3 }])
+    })
   })
 })

@@ -196,7 +196,7 @@ export class EffectDrafts {
     }
     const binding = this.deps.declarations.declaredEnumBinding(path)
     if (binding) return { binding, options: field?.enumOptions ?? [] }
-    return { options: this.deps.declarations.declaredEnum(path) ?? field?.enumOptions ?? [] }
+    return { options: this.deps.declarations.declaredEnum(path) ?? [] }
   }
 }
 
