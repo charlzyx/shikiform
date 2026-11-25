@@ -98,7 +98,7 @@ export default function App() {
 ```
 
 - `F = typed(form)` 返回的 `F.ArrayField` 向子函数传入按行类型约束的 `row.Field`；自定义行组件内可用 `useIndex()` 与 `useRecord<Contact>()` 读取行号和行数据。
-- 没有业务主键的对象行以对象引用作为稳定 key，重排后错误和 `touched` 状态仍跟随原行，编辑单元格不会失焦重挂；数据自带稳定主键时再传 `rowKey`。在同一个 `batch` 中通过 draft 写入嵌套子数组后再移动或交换父行时，写入会按行身份跟随目标行（删除行则丢弃对应写入）。
+- 没有业务主键的对象行以对象引用作为稳定 key，重排后错误和 `touched` 状态仍跟随原行，编辑单元格不会失焦重挂；数据自带稳定主键时再传 `rowKey`。在同一批内，数组句柄（`move` / `swap` / `remove` 等）与 draft 数组方法（如 `push`、`splice`、`sort`、`reverse`）按调用顺序生效，已编辑的单元格值随行移动，删除的行不会复活；含重复值的普通数组同样按调用顺序，`reverse()` 作用于已编辑的数组。
 - `array.dragProps(index)` 提供原生 HTML5 拖放属性（不同数组之间互不响应），拖放到目标行自动调用 `move`。
 - **非数组值保护**：如果字段当前值被外部改成了非数组（例如字符串、数字或 `BigInt`），继续调用旧数组句柄上的 `push` / `insert` / `remove` / `move` / `swap` / `replace` 时，仅 `null` / `undefined` 允许初始化为空数组；其它非数组值在开发环境会抛出带修复指引的 `ShikiUsageError`，生产环境则忽略该次操作以保护原数据不被覆盖。
 

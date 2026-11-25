@@ -285,7 +285,7 @@ reaction(async (d) => {
 
 ### 2. Write exact paths and group writes with `form.batch`
 
-Group multi-field updates inside `form.batch` so reactions and notifications flush once. Nested `batch` calls buffer each layer independently: an inner throw rolls back only the inner layer without discarding outer writes. Write to the leaf path (`d.user.name.$value = 'Ada'` or `d.user.$value.name = 'Ada'`) instead of replacing parent objects unnecessarily.
+Group multi-field updates or combined value and array/tree structural edits inside `form.batch` so reactions and notifications flush once. In-batch `getValue` and draft reads reflect all value and structural edits made so far, and array/tree handles and draft array mutators apply in call order (edited cell values move with their row or node, removed rows do not reappear, plain arrays with duplicate values follow call order, and `reverse()` reverses the already-edited array). A nested `batch` merges into the outer batch on success and rolls back only its own value and structural edits if it throws. Write to the leaf path (`d.user.name.$value = 'Ada'` or `d.user.$value.name = 'Ada'`) instead of replacing parent objects unnecessarily.
 
 ```ts
 // Recommended: atomic batch flush
