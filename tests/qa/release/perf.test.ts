@@ -108,7 +108,7 @@ describe('release performance smoke', () => {
   })
 })
 
-it.fails('BUG: row-model migration scales quadratically with declared cells (QA-6)', () => {
+it('QA-6 indexes row paths once to migrate 5,000 declared cells', () => {
   class CountedRowPaths extends Map<string, string> {
     scans = 0
 
@@ -118,14 +118,14 @@ it.fails('BUG: row-model migration scales quadratically with declared cells (QA-
     }
   }
 
-  const paths = Array.from({ length: 1_000 }, (_, i) => `rows.${i}`)
+  const paths = Array.from({ length: 5_000 }, (_, i) => `rows.${i}`)
   const oldIds = new CountedRowPaths(paths.map((path, i) => [`row${i}`, path]))
   const newIds = new Map(paths.map((path, i) => [`row${(i + 1) % paths.length}`, path]))
   const models = new Map(paths.map(path => [`${path}.name`, { path: `${path}.name` }]))
   const first = models.get('rows.0.name')
   const { moved } = reindexKeyed(models, model => model.path, oldIds, newIds)
   expect(moved).toHaveLength(paths.length)
-  expect(models.get('rows.999.name')).toBe(first)
+  expect(models.get('rows.4999.name')).toBe(first)
   // Index row paths once, then resolve the owning ancestor of each field.
   expect(oldIds.scans).toBeLessThanOrEqual(2)
 })

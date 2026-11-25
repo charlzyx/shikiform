@@ -1,4 +1,5 @@
 import type { FieldModel } from '../state/field-model'
+import { parentPath } from '../shared/path'
 
 /**
  * Move field models with their row / node identity.
@@ -41,24 +42,28 @@ export function reindexKeyed<M extends { path: string }>(
   const dropped: M[] = []
   const moves: { to: string; model: M }[] = []
   const moved: { from: string; model: M }[] = []
+  if (!models.size || !oldIds.size) return { dropped, moved }
+  const idsByPath = new Map<string, string>()
+  for (const [id, path] of oldIds) {
+    if (!idsByPath.has(path)) idsByPath.set(path, id)
+  }
   for (const [key, model] of models) {
     const fieldPath = model.path
-    let best = ''
-    let bestId = ''
-    for (const [id, nodePath] of oldIds) {
-      if ((fieldPath === nodePath || fieldPath.startsWith(nodePath + '.')) && nodePath.length > best.length) {
-        best = nodePath
-        bestId = id
-      }
+    let owner: string | null = fieldPath
+    let id: string | undefined
+    while (owner) {
+      id = idsByPath.get(owner)
+      if (id !== undefined) break
+      owner = parentPath(owner)
     }
-    if (!best) continue
+    if (!owner || id === undefined) continue
     owned.push(key)
-    const target = newIds.get(bestId)
+    const target = newIds.get(id)
     if (!target) {
       dropped.push(model)
       continue
     }
-    moves.push({ to: target + fieldPath.slice(best.length), model })
+    moves.push({ to: target + fieldPath.slice(owner.length), model })
   }
   for (const key of owned) models.delete(key)
   for (const move of moves) {
