@@ -70,6 +70,7 @@ function compareStripPaths(a: string, b: string): number {
  */
 export function submitValueAt(values: unknown, source: OmitSource, path = ''): unknown {
   const root = normalizePath(path)
+  if (!root && source.own('', 'omit') === true) return {}
   let out = cloneValue(root ? getAt(values, root) : values)
   for (const rel of pathsToStrip(source, root)) out = deleteAt(out, rel)
   return out

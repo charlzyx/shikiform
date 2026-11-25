@@ -139,13 +139,17 @@ describe('submission payloads and baseline', () => {
     expect(form.values.rows).toHaveLength(5)
   })
 
-  it.fails('BUG QA-13: applies root omit to fields with and without a model', async () => {
+  it('QA-13: applies root omit to fields with and without a model', async () => {
     const form = createForm({
       initialValues: { modeled: 'private', additional: 'private too' },
       fields: { modeled: { required: true } },
     })
     form.batch((d) => { d.$omit = true })
+    expect(form.getSubmitValues()).toEqual({})
     await expect(form.submit()).resolves.toEqual({})
+    await expect(form.validate()).resolves.toEqual({})
+    await expect(form.validate('additional')).resolves.toBe('private too')
+    await expect(form.validate(['modeled', 'additional'])).resolves.toEqual(form.values)
   })
 
   it('preserves Map, Set and Date copies in scoped validate while returning an explicitly selected omitted path', async () => {
