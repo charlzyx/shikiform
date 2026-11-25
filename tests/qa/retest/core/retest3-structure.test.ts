@@ -1,4 +1,4 @@
-import { createForm } from '@shikiform/core'
+import { createForm, defineEffects } from '@shikiform/core'
 import { engineOf } from '@shikiform/core/internal'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -35,7 +35,7 @@ describe.each(['development', 'production'])('round three structure in %s', (mod
     await expect(form.submit()).resolves.toEqual({ rows: [{ id: 'b', items: [20] }, { id: 'c', items: [3, 30] }] })
   })
 
-  it.fails('BUG: QA-17 neighbor writes pending child arrays to the old index after an array handle move', async () => {
+  it('QA-66 keeps child-array edits with their row after an array handle move', async () => {
     const form = createForm({ initialValues: { rows: [{ id: 'a', items: [1] }, { id: 'b', items: [2] }] } })
     const engine = engineOf(form)
     form.batch((d) => {
@@ -43,6 +43,40 @@ describe.each(['development', 'production'])('round three structure in %s', (mod
       engine.moveArray('rows', 0, 1)
     })
     await expect(form.submit()).resolves.toEqual({ rows: [{ id: 'b', items: [2] }, { id: 'a', items: [1, 10] }] })
+  })
+
+  it('publishes one final value difference for each changed path', () => {
+    const watched = vi.fn()
+    const pathChanged = vi.fn()
+    const form = createForm({
+      initialValues: { account: { name: 'Ada', active: false } },
+      effects: [defineEffects<{ account: { name: string; active: boolean } }>(({ watch, draft }) => {
+        watch(draft.account.name, (d) => { watched(d.account.name.$value) })
+      })],
+    })
+    form.subscribePath('account.name', pathChanged)
+    form.batch((d) => {
+      d.account.name.$value = 'Grace'
+      expect(form.getValue('account.name')).toBe('Grace')
+      d.account.active.$value = true
+      d.account.name.$value = 'Ada'
+    })
+    expect(watched).not.toHaveBeenCalled()
+    expect(pathChanged).not.toHaveBeenCalled()
+    expect(form.getValue('account')).toEqual({ name: 'Ada', active: true })
+  })
+
+  it('keeps enum policy clearing with the field model during a batched move', () => {
+    const form = createForm({
+      initialValues: { rows: [{ id: 'a', choice: 'retired' }, { id: 'b', choice: 'previous' }] },
+      enumPolicy: 'clear',
+    })
+    form.batch((d) => {
+      d.rows[0].choice.$enum = ['current']
+      d.rows.$value.reverse()
+      d.rows[0].choice.$value = 'new'
+    })
+    expect(form.getValue('rows')).toEqual([{ id: 'b', choice: 'new' }, { id: 'a', choice: undefined }])
   })
 
   it('QA-62 keeps edits with anonymous grandchildren across root insert, cross-parent move and removal', async () => {
@@ -66,7 +100,7 @@ describe.each(['development', 'production'])('round three structure in %s', (mod
     })
   })
 
-  it.fails('BUG: QA-62 neighbor loses a pending cell edit after moving the tree node and rearranging its rows', async () => {
+  it('QA-67 keeps a cell edit through a tree move and a subsequent array reversal', async () => {
     type Node = { id: string; rows: { name: string }[]; children: Node[] }
     const branch: Node = {
       id: 'parent', rows: [], children: [{ id: 'child', rows: [{ name: 'a' }, { name: 'b' }], children: [] }],

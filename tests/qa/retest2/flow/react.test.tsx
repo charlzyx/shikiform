@@ -132,7 +132,7 @@ describe.each(['development', 'production'])('React integration in %s', (mode) =
     })
   })
 
-  it('QA-62 keeps outer row edits when a nested batch throws after a tree move', () => {
+  it('QA-62 rolls back a nested tree move and keeps the outer row edits', () => {
     type Row = { name: string }
     type Node = { id: string; rows: Row[]; children: Node[] }
     const left: Node = { id: 'left', rows: [], children: [
@@ -148,9 +148,10 @@ describe.each(['development', 'production'])('React integration in %s', (mode) =
         expect(result.current.move([0, 0], [1]).ok).toBe(true)
         throw new Error('rollback')
       })).toThrow('rollback')
-      expect(d.tree[1].rows.$value.map((row) => row.name)).toEqual(['second', 'edited'])
+      expect(form.getValue('tree')).toHaveLength(1)
+      expect(d.tree[0].children[0].rows.$value.map((row) => row.name)).toEqual(['second', 'edited'])
     }))
-    expect(form.getValue('tree.1.rows')).toEqual([{ name: 'second' }, { name: 'edited' }])
+    expect(form.getValue('tree.0.children.0.rows')).toEqual([{ name: 'second' }, { name: 'edited' }])
   })
 
   it('QA-25 migrates a tree watch across parents and drops it on removal', () => {

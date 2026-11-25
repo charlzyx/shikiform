@@ -149,13 +149,13 @@ describe('array mutate and cell writes in one pass', () => {
     })
     expect(removed.getValue('tags')).toEqual(['b', 'c'])
 
-    // Two identical primitives have no identity. The edit stays on the index that was written.
+    // Reverse sees the edit even when the original list contained duplicate values.
     const dup = createEngine<{ tags: string[] }>({ initialValues: { tags: ['a', 'a', 'b'] } })
     dup.batch((d) => {
       d.tags.$value[0] = 'Z'
       d.tags.$value.reverse()
     })
-    expect(dup.getValue('tags')).toEqual(['Z', 'a', 'a'])
+    expect(dup.getValue('tags')).toEqual(['b', 'a', 'Z'])
   })
 
   it('a hole from delete does not shift later cells; truncating length drops the cell on the removed tail', () => {

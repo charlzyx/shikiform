@@ -2,13 +2,13 @@ import type { Declarations } from '../declarations/declarations'
 import { guardReactionAction, isReactionId, type Scheduler } from '../effects/scheduler'
 import { asOptions, isEnumBinding, isEnumSource, toEnumBinding, type EnumBinding, type EnumOption } from '../enum/enum-source'
 import { cloneExternal, resetExternalCloneTraversal } from '../draft/plain-clone'
-import { isDropped, pendingOf, projectValue, tagPending, type CellAnchor, type PendingValue } from '../draft/pending'
+import { tagPending } from '../draft/pending'
 import { unwrapDraft } from '../draft/patch'
 import { unwrapReadonly } from '../draft/readonly'
 import { ShikiUsageError, showDraftPath } from '../errors'
 import { arrayIndex } from '../shared/dense-array'
 import { deepEqual } from '../shared/equal'
-import { appendValueKey, assertUnambiguousWritePath, getAt, normalizePath, parentPath, pathSegments, setAt } from '../shared/path'
+import { appendValueKey, assertUnambiguousWritePath, deleteAt, getAt, normalizePath, parentPath, pathSegments, setAt } from '../shared/path'
 import type { FlagName } from '../state/flags'
 import type { FieldModel } from '../state/field-model'
 import type { FieldStore } from '../state/field-store'
@@ -84,12 +84,18 @@ export class StateWriter {
   }
 
   /** Draft write entry point (`DraftHost.writeState`). */
-  writeState(rawPath: string, key: string, value: unknown, anchors?: readonly CellAnchor[]): void {
-    const path = this.writablePath(rawPath, true)
+  writeState(rawPath: string, key: string, value: unknown): void {
+    const tracker = this.deps.scheduler.current()
+    if (tracker && !tracker.recordWrites) return
+    const path = this.writablePath(rawPath)
     if (path === undefined) return
     this.rejectInstallWrite(path, key)
     value = storedValue(value)
-    const op = this.makeOp(path, key, value, anchors)
+    if (key === '$value') {
+      this.writeValue(path, value, isReactionId(tracker?.id ?? ''))
+      return
+    }
+    const op = this.makeOp(path, key, value)
     if (!op) return
     this.enqueue(op, !!this.deps.ui?.isUiOp(op))
   }
@@ -108,28 +114,36 @@ export class StateWriter {
     )
   }
 
-  /**
-   * A draft array mutator on a value path. One op replaces the array; `ArrayOps` reindexes rows when it applies.
-   * The op key matches a whole `$value` write so a later `push` in the same pass sees this array.
-   */
-  writeArray(rawPath: string, next: unknown[], anchors?: readonly CellAnchor[]): void {
-    const path = this.writablePath(rawPath, true)
-    if (path === undefined) return
-    const value = storedValue(next) as unknown[]
-    const pending: PendingValue = { kind: 'value', path, mode: 'mutate', value, anchors }
-    const op: WriteOp = { key: `${path}:value`, apply: () => this.deps.commitArray?.(pending.path, value) ?? false }
-    tagPending(op, pending)
-    this.enqueue(op, false)
+  /** A draft array mutator uses the same working tree and row ops as an array handle. */
+  writeArray(rawPath: string, next: unknown[]): void {
+    const path = this.writablePath(rawPath)
+    if (path !== undefined) this.deps.commitArray?.(path, storedValue(next) as unknown[])
   }
 
-  /** `delete` of an object key on a value draft. An array index is a hole (`writeArray`), not this. */
+  /** `delete` of an object key on a value draft. An array index is a hole in an array edit. */
   dropField(rawPath: string): void {
-    const path = this.writablePath(rawPath, true)
+    const path = this.writablePath(rawPath)
     if (!path) return
-    const pending: PendingValue = { kind: 'value', path, mode: 'delete' }
-    const op: WriteOp = { key: `${path}:value`, apply: () => this.applyDrop(pending.path) }
-    tagPending(op, pending)
-    this.enqueue(op, false)
+    const { store, scheduler } = this.deps
+    const before = scheduler.workingValues(store.values)
+    const after = deleteAt(before, path)
+    if (before === after) return
+    this.deps.carryRowIdentity?.(parentPath(path) ?? '', before, after)
+    const op: WriteOp = { key: `${path}:value`, apply: () => this.applyDrop(path, { before, after }) }
+    if (!scheduler.stageValue(after, op)) this.enqueue(op, false)
+  }
+
+  private writeValue(path: string, value: unknown, computed: boolean, external = false): void {
+    const { store, scheduler } = this.deps
+    const before = scheduler.workingValues(store.values)
+    const change = newValue(path, value, before)
+    if (!change && !computed) return
+    if (change) this.deps.carryRowIdentity?.(path, before, change.after)
+    const op: WriteOp = {
+      key: `${path}:value`,
+      apply: () => external ? this.applyExternal(path, value, change) : this.commitValue(path, value, computed, change),
+    }
+    if (!scheduler.stageValue(change ? change.after : before, op)) this.enqueue(op, false)
   }
 
   /**
@@ -141,7 +155,7 @@ export class StateWriter {
     const tracker = scheduler.current()
     if (tracker) {
       if (!tracker.recordWrites) return
-      const index = tracker.writes.findIndex((item) => item.key === op.key && !isDropped(item))
+      const index = tracker.writes.findIndex((item) => item.key === op.key)
       if (index >= 0 && patch) tracker.writes.splice(index, 1)
       else if (index >= 0) {
         tracker.writes[index] = op
@@ -151,7 +165,7 @@ export class StateWriter {
       return
     }
     if (scheduler.batchDepth > 0) {
-      const index = scheduler.batchOps.findIndex((item) => item.key === op.key && !isDropped(item))
+      const index = scheduler.batchOps.findIndex((item) => item.key === op.key)
       if (index >= 0 && patch) scheduler.batchOps.splice(index, 1)
       else if (index >= 0) {
         scheduler.batchOps[index] = op
@@ -166,25 +180,19 @@ export class StateWriter {
 
   commitExternal(rawPath: string, value: unknown): void {
     const { store, scheduler } = this.deps
-    const buffered = guardReactionAction(scheduler, 'setValue')
-    const path = this.writablePath(rawPath, buffered)
+    const reactionWrite = guardReactionAction(scheduler, 'setValue')
+    const path = this.writablePath(rawPath)
     if (path === undefined) return
-    // Clone caller data (`setValue`, `binding().onChange`). Identity is preserved only inside this path's subtree.
+    // Clone caller data; identity is preserved only within the subtree being replaced.
     resetExternalCloneTraversal()
-    value = cloneExternal(value, getAt(store.values, path))
-    if (!buffered) {
-      this.applyExternal(path, value)
-      return
-    }
-    const pending: PendingValue = { kind: 'value', path, mode: 'set', value }
-    const op: WriteOp = { key: `${path}:value`, apply: () => this.applyExternal(pending.path, pending.value) }
-    tagPending(op, pending)
-    this.enqueue(op, false)
+    value = cloneExternal(value, getAt(scheduler.workingValues(store.values), path))
+    if (reactionWrite || scheduler.batchDepth && scheduler.bufferingValues) this.writeValue(path, value, false, true)
+    else this.applyExternal(path, value)
   }
 
-  private applyExternal(path: string, value: unknown): boolean {
+  private applyExternal(path: string, value: unknown, prepared?: ValueChange): boolean {
     const { store, notifier, scheduler, validator } = this.deps
-    if (!this.commitValue(path, value, false)) return false
+    if (!this.commitValue(path, value, false, prepared)) return false
     const field = store.ensure(path)
     if (!field.edited) {
       field.edited = true
@@ -200,14 +208,14 @@ export class StateWriter {
     // An error already on screen is re-checked on every edit, whatever the trigger. An async attempt still in
     // flight (or waiting out its debounce) is aborted too, so a late result cannot land on the new value (#122).
     // `$canSubmit` / the `Submit` button come back when that replacement check passes.
-    validator.onEdit(path)
+    scheduler.afterBatch(() => validator.onEdit(path))
     return true
   }
 
   /** Apply a deep partial object update in a single reaction/watch flush (`form.patchValues`). */
   patchValues(partial: unknown): void {
     if (!partial || typeof partial !== 'object') return
-    const { values } = this.deps.store
+    const values = this.deps.scheduler.workingValues(this.deps.store.values)
     const entries: [string, unknown][] = []
     collectPatchEntries(partial as Record<string, unknown>, values, '', entries)
     // Each leaf is cloned against the subtree it replaces, not the rest of the form.
@@ -220,35 +228,21 @@ export class StateWriter {
   }
 
   /** Check the original segments before flattening bracket aliases into the dotted index. */
-  private writablePath(path: string, replay = false): string | undefined {
+  private writablePath(path: string): string | undefined {
     const { store, scheduler } = this.deps
-    const pending = replay ? (scheduler.current()?.writes ?? scheduler.batchOps) : []
-    const parts = pathSegments(path)
-    let prefix = ''
-    let parent: unknown = store.values
-    for (const part of parts) {
-      if (arrayIndex(part) === undefined) {
-        const projected = pending.some((op) => {
-          const write = pendingOf(op)
-          return write?.kind === 'value' && (
-            write.path === prefix || !write.path || prefix.startsWith(write.path + '.') ||
-            (parent == null && write.path.startsWith(prefix + '.'))
-          )
-        })
-        const container = projected ? projectValue(parent, prefix, pending, false) : parent
-        if (Array.isArray(container)) {
-          if (process.env.NODE_ENV !== 'production') {
-            throw new ShikiUsageError(`Cannot write ${JSON.stringify(path)}: an array index must be a non-negative integer.`)
-          }
-          return undefined
+    assertUnambiguousWritePath(path)
+    let parent: unknown = scheduler.workingValues(store.values)
+    for (const part of pathSegments(path)) {
+      if (Array.isArray(parent) && arrayIndex(part) === undefined) {
+        if (process.env.NODE_ENV !== 'production') {
+          throw new ShikiUsageError(`Cannot write ${JSON.stringify(path)}: an array index must be a non-negative integer.`)
         }
+        return undefined
       }
       parent = parent != null && (typeof parent === 'object' || typeof parent === 'function')
         ? (parent as Record<string, unknown>)[part]
         : undefined
-      prefix = appendValueKey(prefix, part)
     }
-    assertUnambiguousWritePath(path)
     return normalizePath(path)
   }
 
@@ -260,6 +254,10 @@ export class StateWriter {
     for (const [rawPath, rawValue] of entries) {
       const path = normalizePath(rawPath)
       const value = process.env.NODE_ENV !== 'production' ? unwrapReadonly(rawValue) : rawValue
+      if (scheduler.batchDepth && scheduler.bufferingValues) {
+        this.writeValue(path, value, false, true)
+        continue
+      }
       if (!this.commitValue(path, value, false)) continue
       changed.push(path)
       const field = store.ensure(path)
@@ -299,21 +297,17 @@ export class StateWriter {
     else notifier.emit()
   }
 
-  commitValue(path: string, value: unknown, fromReaction: boolean): boolean {
+  commitValue(path: string, value: unknown, fromReaction: boolean, prepared?: ValueChange): boolean {
     const { store, scheduler, declarations } = this.deps
     // A reaction write marks the field computed (excluded from `dirty`), also when the derived value already
     // equals the current one (an initial value that is already right). It stays in the submit payload unless
     // this field is omitted (its own `omit`, or an ancestor's).
     if (fromReaction) store.ensure(path).computed = true
     const before = store.values
-    const parent = parentPath(path) ?? ''
-    const owner = getAt(before, parent)
-    const key = path.slice(parent ? parent.length + 1 : 0)
-    const old = getAt(before, path)
-    const missing = !!path && (owner == null || !Object.hasOwn(owner, key))
-    const createsOwnKey = missing && owner && typeof owner === 'object' && (!Array.isArray(owner) || arrayIndex(key) !== undefined)
-    if (deepEqual(old, value) && !createsOwnKey) return false
-    store.values = setAt(before, path, value)
+    const change = prepared?.before === before ? prepared : newValue(path, value, before)
+    if (!change) return false
+    const { after, old, parent, key, missing } = change
+    store.values = after
     if (missing) {
       let extendedArray = false
       const noteCreated = (containerPath: string, createdKey: string) => {
@@ -348,29 +342,13 @@ export class StateWriter {
     }
     const replacement = (value != null && typeof value === 'object') || (old != null && typeof old === 'object')
     if (replacement) this.deps.validator.noteReplacement(path, before)
-    scheduler.markValueChanged(path, replacement ? { before, after: store.values, fields: store.fields.keys() } : undefined)
+    scheduler.markValueChanged(path, replacement ? { before, after: store.values, fields: store.fields.keys() } : undefined, !!prepared)
     return true
   }
 
-  private makeOp(path: string, key: string, value: unknown, anchors?: readonly CellAnchor[]): WriteOp | undefined {
+  private makeOp(path: string, key: string, value: unknown): WriteOp | undefined {
     const uiKey = uiKeyOf(key)
     if (uiKey && this.deps.ui) return this.deps.ui.makeOp(path, uiKey, value)
-    if (key === '$value') {
-      const fromReaction = isReactionId(this.deps.scheduler.current()?.id ?? '')
-      const pending: PendingValue = {
-        kind: 'value',
-        path,
-        mode: 'set',
-        value,
-        anchors: anchors?.length ? anchors : undefined,
-      }
-      const op: WriteOp = {
-        key: `${path}:value`,
-        apply: () => (pending.drop ? false : this.commitValue(pending.path, pending.value, fromReaction)),
-      }
-      tagPending(op, pending)
-      return op
-    }
     if (key === '$visible' || key === '$disabled' || key === '$readOnly' || key === '$omit') {
       const name = key.slice(1) as FlagName
       // `undefined` drops the reaction layer. `true` / `false` set this node's own flag
@@ -611,19 +589,15 @@ export class StateWriter {
   }
 
   /** Remove one object key. Does not splice an array index and does not mark the parent computed. */
-  private applyDrop(path: string): boolean {
-    const parent = parentPath(path)
-    const key = parent === null ? path : path.slice(parent.length + 1)
+  private applyDrop(path: string, prepared: { before: unknown; after: unknown }): boolean {
+    const parent = parentPath(path) ?? ''
     const { store, scheduler } = this.deps
-    const owner = parent === null ? store.values : getAt(store.values, parent)
-    if (!owner || typeof owner !== 'object' || Array.isArray(owner)) return false
-    if (!Object.prototype.hasOwnProperty.call(owner, key)) return false
-    const next = { ...(owner as Record<string, unknown>) }
-    delete next[key]
-    scheduler.markDirty(`${parent ?? ''}:keys`)
     const before = store.values
-    store.values = (parent === null ? next : setAt(store.values, parent, next)) as typeof store.values
-    this.deps.carryRowIdentity?.(parent ?? path, before, store.values)
+    const after = prepared.before === before ? prepared.after : deleteAt(before, path)
+    if (before === after) return false
+    store.values = after
+    scheduler.markDirty(`${parent}:keys`)
+    this.deps.carryRowIdentity?.(parent, before, store.values)
     this.deps.validator.clearExternalAround(path)
     this.deps.validator.noteReplacement(path, before)
     scheduler.markValueChanged(path, { before, after: store.values, fields: store.fields.keys() })
@@ -640,10 +614,40 @@ export class StateWriter {
       const field = store.get(path)
       const current = getAt(store.values, path)
       if (!isEmpty(current) && field?.enumOptions && !optionIncludes(field.enumOptions, current)) {
-        this.commitValue(path, undefined, false)
+        const commit = scheduler.valueCommit
+        if (!commit?.hasStructure) {
+          this.commitValue(path, undefined, false)
+          return
+        }
+        // The options follow the field model. Check the value after publishing the prepared structures.
+        commit.finish.push(() => {
+          if (store.get(field.path) === field && Object.is(getAt(store.values, field.path), current)) {
+            this.commitValue(field.path, undefined, false)
+          }
+        })
       }
     }
   }
+}
+
+interface ValueChange {
+  before: unknown
+  after: unknown
+  old: unknown
+  parent: string
+  key: string
+  missing: boolean
+}
+
+function newValue(path: string, value: unknown, before: unknown): ValueChange | undefined {
+  const parent = parentPath(path) ?? ''
+  const owner = getAt(before, parent)
+  const key = path.slice(parent ? parent.length + 1 : 0)
+  const old = getAt(before, path)
+  const missing = !!path && (owner == null || !Object.hasOwn(owner, key))
+  const createsOwnKey = missing && owner && typeof owner === 'object' && (!Array.isArray(owner) || arrayIndex(key) !== undefined)
+  if (deepEqual(old, value) && !createsOwnKey) return undefined
+  return { before, after: setAt(before, path, value), old, parent, key, missing }
 }
 
 /** Same JSX enum: equal static lists, or the same source with equal params. */

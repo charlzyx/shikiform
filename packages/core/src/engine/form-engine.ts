@@ -45,7 +45,6 @@ import { StateWriter } from './writes'
 
 /** Form engine. No React and no UI. Parts: see `design/ARCHITECTURE.md`. */
 export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit>, DraftHost, EffectsRuntime<T> {
-  /** Root draft. Prefer {@link FormEngine.batch} so writes flush once. */
   private readonly rootDraft: Draft<T>
   get draft(): Draft<T> { return this.draftScope() ? this.handle('') : this.rootDraft }
   /** Options passed to {@link createForm}. */
@@ -172,7 +171,8 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   getValue<P extends string>(path: ValuePath<T, P>): PathValue<T, P>
   getValue(path: string): unknown {
     const key = String(path)
-    return process.env.NODE_ENV !== 'production' ? readonlyValue(getAt(this.store.values, key), normalizePath(key)) : getAt(this.store.values, key)
+    const value = this.scheduler.batchDepth ? this.drafts.peekValue(key) : getAt(this.store.values, key)
+    return process.env.NODE_ENV !== 'production' ? readonlyValue(value, normalizePath(key)) : value
   }
 
   /** Write one path from outside a reaction (`a.b.0` or `a.b[0]`). Marks the field dirty and runs `onChange` validation when configured. */
@@ -194,9 +194,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     scheduler.holdFlush(() => {
       scheduler.bufferBatch(() => fn(this.draft))
       if (scheduler.batchDepth > 0 || scheduler.current()) return
-      for (const op of scheduler.takeBatchOps()) op.apply()
-      scheduler.enqueueFromDirty()
-      scheduler.flush()
+      scheduler.applyBatch(this.store.values)
     })
   }
 
@@ -485,7 +483,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   }
 
   applyWrites(id: string, writes: WriteOp[]): void {
-    this.scheduler.applyWrites(id, writes)
+    this.scheduler.applyWrites(id, writes, this.store.values)
   }
 
   registerReaction(id: string, run: () => void, deps: Set<string>): void {
@@ -519,7 +517,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
       return (pred: (node: any, pos: Pos) => boolean) => {
         scheduler.track(path, 'value')
         const childrenKey = this.childrenKey(trees.root(path) ?? path)
-        const pos = findPos(getAt(store.values, path), pred, childrenKey)
+        const pos = findPos(this.drafts.peekValue(path), pred, childrenKey)
         return pos ? this.handle(pathOf(path, pos, childrenKey)) : undefined
       }
     }

@@ -102,8 +102,6 @@ export interface CanMoveArgs {
   toParent: any
 }
 
-type CloneNodes = (nodes: any[], childrenKey: string) => any[]
-
 /**
  * Move `from` so that its final coordinate is `to`.
  * `to` is the index path **after** the move (not the pre-removal insertion slot).
@@ -118,7 +116,9 @@ export function moveNode(
   canMove?: (args: CanMoveArgs) => string | null | undefined,
   messages?: Partial<FormMessages>,
 ): TreeMoveResult {
-  return moveTreeNode(nodes, from, to, childrenKey, canMove, messages)
+  const result = moveTreeNode(nodes, from, to, childrenKey, canMove, messages)
+  if (result.tree) result.tree = cloneNodes(result.tree)
+  return result
 }
 
 export function moveTreeNode(
@@ -128,7 +128,6 @@ export function moveTreeNode(
   childrenKey: string,
   canMove?: (args: CanMoveArgs) => string | null | undefined,
   messages?: Partial<FormMessages>,
-  clone: CloneNodes = cloneNodes,
 ): TreeMoveResult {
   const refuse = (key: 'treeEmptyPos' | 'treeIntoSelf' | 'treeSourceMissing' | 'treeTargetMissing'): TreeMoveResult => ({
     ok: false,
@@ -145,103 +144,71 @@ export function moveTreeNode(
     const reason = canMove({ from, to, node, toParent })
     if (reason) return { ok: false, reason }
   }
-  const removed = removeNode(nodes, from, childrenKey, clone)
+  const removed = deleteNode(nodes, from, childrenKey)
   if (!removed) return refuse('treeSourceMissing')
-  const parentList = parentListOf(removed.tree, to, childrenKey)
-  if (!parentList) return refuse('treeTargetMissing')
-  const index = Math.min(Math.max(to[to.length - 1]!, 0), parentList.length)
-  parentList.splice(index, 0, removed.node)
-  return { ok: true, tree: removed.tree }
+  const tree = editSiblings(removed, parentPos, childrenKey, (siblings) => {
+    const index = Math.min(Math.max(to[to.length - 1]!, 0), siblings.length)
+    siblings.splice(index, 0, node)
+  })
+  return tree ? { ok: true, tree } : refuse('treeTargetMissing')
 }
 
-/**
- * Insert `node` so it sits at `pos` (siblings at that index and after shift).
- * A missing `children` array on an existing parent is created. Returns `undefined` when `pos` is empty or the parent is missing.
- * The input tree is not mutated.
- */
-export function insertNode(nodes: any[], pos: Pos, node: unknown, childrenKey = 'children', clone: CloneNodes = cloneNodes): any[] | undefined {
+/** Insert `node` at `pos`. Creates a missing children array on an existing parent. */
+export function insertNode(nodes: any[], pos: Pos, node: unknown, childrenKey: string): any[] | undefined {
   if (!pos.length) return undefined
-  const tree = clone(nodes, childrenKey)
-  const parent = ensureParentList(tree, pos, childrenKey)
-  if (!parent) return undefined
-  const index = Math.min(Math.max(pos[pos.length - 1]!, 0), parent.length)
-  parent.splice(index, 0, node)
-  return tree
+  return editSiblings(nodes, pos.slice(0, -1), childrenKey, (siblings) => {
+    const index = Math.min(Math.max(pos[pos.length - 1]!, 0), siblings.length)
+    siblings.splice(index, 0, node)
+  }, true)
 }
 
-/**
- * Append `node` at the root, or as the last child of `parentPos`.
- * A missing `children` array on an existing parent is created. Returns `undefined` when `parentPos` does not name a node.
- * The input tree is not mutated.
- */
-export function pushNode(nodes: any[], node: unknown, parentPos: Pos | undefined, childrenKey = 'children', clone: CloneNodes = cloneNodes): any[] | undefined {
-  const tree = clone(nodes, childrenKey)
-  if (!parentPos?.length) {
-    tree.push(node)
-    return tree
+/** Append `node` at the root or to the children of `parentPos`. */
+export function pushNode(nodes: any[], node: unknown, parentPos: Pos | undefined, childrenKey: string): any[] | undefined {
+  return editSiblings(nodes, parentPos ?? [], childrenKey, (siblings) => { siblings.push(node) }, true)
+}
+
+/** Remove the node at `pos`. Returns `undefined` when `pos` is empty or missing. */
+export function deleteNode(nodes: any[], pos: Pos, childrenKey: string): any[] | undefined {
+  return editNode(nodes, pos, childrenKey, (siblings, index) => { siblings.splice(index, 1) })
+}
+
+/** Replace the node at `pos`. Returns `undefined` when `pos` is empty or missing. */
+export function replaceNode(nodes: any[], pos: Pos, node: unknown, childrenKey: string): any[] | undefined {
+  return editNode(nodes, pos, childrenKey, (siblings, index) => { siblings[index] = node })
+}
+
+function editNode(nodes: any[], pos: Pos, childrenKey: string, edit: (siblings: any[], index: number) => void): any[] | undefined {
+  if (!pos.length) return undefined
+  const index = pos[pos.length - 1]!
+  return editSiblings(nodes, pos.slice(0, -1), childrenKey, (siblings) => {
+    if (index < 0 || index >= siblings.length) return false
+    edit(siblings, index)
+  })
+}
+
+/** Copy only the ancestor nodes and child arrays on the way to the edited list. */
+function editSiblings(
+  nodes: any[], parent: Pos, childrenKey: string,
+  edit: (siblings: any[]) => void | false, create = false, depth = 0,
+): any[] | undefined {
+  if (depth === parent.length) {
+    const next = nodes.slice()
+    return edit(next) === false ? undefined : next
   }
-  const parent = getNode(tree, parentPos, childrenKey)
-  if (!parent || typeof parent !== 'object') return undefined
-  const list = (parent as Record<string, unknown>)[childrenKey]
-  if (Array.isArray(list)) list.push(node)
-  else if (list == null) (parent as Record<string, unknown>)[childrenKey] = [node]
-  else return undefined
-  return tree
+  const index = parent[depth]!
+  const node = nodes[index]
+  if (!node || typeof node !== 'object') return undefined
+  const children = node[childrenKey]
+  const list = Array.isArray(children) ? children : create && children == null ? [] : undefined
+  if (!list) return undefined
+  const nextChildren = editSiblings(list, parent, childrenKey, edit, create, depth + 1)
+  if (!nextChildren) return undefined
+  const next = nodes.slice()
+  next[index] = { ...node, [childrenKey]: nextChildren }
+  return next
 }
 
-/** Remove the node at `pos`. Returns `undefined` when `pos` is empty or does not name a node. The input tree is not mutated. */
-export function deleteNode(nodes: any[], pos: Pos, childrenKey = 'children', clone: CloneNodes = cloneNodes): any[] | undefined {
-  return removeNode(nodes, pos, childrenKey, clone)?.tree
-}
-
-/** Replace the node at `pos`. Returns `undefined` when `pos` does not name a node. The input tree is not mutated. */
-export function replaceNode(nodes: any[], pos: Pos, node: unknown, childrenKey = 'children', clone: CloneNodes = cloneNodes): any[] | undefined {
-  if (!pos.length) return undefined
-  const tree = clone(nodes, childrenKey)
-  const parent = parentListOf(tree, pos, childrenKey)
-  if (!parent) return undefined
-  const index = pos[pos.length - 1]!
-  if (index < 0 || index >= parent.length) return undefined
-  parent[index] = node
-  return tree
-}
-
-function removeNode(
-  nodes: any[],
-  pos: Pos,
-  childrenKey: string,
-  clone: CloneNodes,
-): { tree: any[]; node: any } | undefined {
-  const tree = clone(nodes, childrenKey)
-  const parent = parentListOf(tree, pos, childrenKey)
-  if (!parent) return undefined
-  const index = pos[pos.length - 1]!
-  if (index < 0 || index >= parent.length) return undefined
-  const [node] = parent.splice(index, 1)
-  return { tree, node }
-}
-
-/** Parent list of `pos`, creating a missing children array when the parent node exists. */
-function ensureParentList(nodes: any[], pos: Pos, childrenKey: string): any[] | undefined {
-  if (pos.length === 1) return nodes
-  const parent = getNode(nodes, pos.slice(0, -1), childrenKey)
-  if (!parent || typeof parent !== 'object') return undefined
-  const list = (parent as Record<string, unknown>)[childrenKey]
-  if (Array.isArray(list)) return list
-  if (list != null) return undefined
-  const created: unknown[] = []
-  ;(parent as Record<string, unknown>)[childrenKey] = created
-  return created
-}
-
-function parentListOf(nodes: any[], pos: Pos, childrenKey: string): any[] | undefined {
-  if (pos.length === 1) return nodes
-  const parent = getNode(nodes, pos.slice(0, -1), childrenKey)
-  const list = parent?.[childrenKey]
-  return Array.isArray(list) ? list : undefined
-}
-
-export function cloneNodes(nodes: any[]): any[] {
+function cloneNodes(nodes: any[]): any[] {
   if (typeof structuredClone === 'function') return structuredClone(nodes)
   return JSON.parse(JSON.stringify(nodes))
 }

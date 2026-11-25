@@ -19,9 +19,6 @@
  * write past `length` (`setIn`) fills that gap the same way. `Date` / `Map` / `Set` / class instances are returned
  * raw. For UI props the reaction layer stays a sparse patch, so a JSX layer merged only at render time is
  * preserved — a full `produce` of the value read here would replace it.
- *
- * `readStructural`, when passed, reads the target of mutators and `delete`. Property reads use `read`. Value drafts use
- * that split so a cell write does not copy every row before `push` / `splice` commits through array ops.
  */
 
 export type DraftWriteKind = 'set' | 'mutate' | 'delete'
@@ -137,7 +134,6 @@ export function createPatchDraft(
   read: () => unknown,
   write: (keys: string[], value: unknown, kind: DraftWriteKind) => void,
   scope?: DraftScope,
-  readStructural?: (keys: readonly string[]) => unknown,
   keys: string[] = [],
 ): any {
   const walk = (source: () => unknown): any => {
@@ -146,7 +142,6 @@ export function createPatchDraft(
     return node
   }
   const current = (): any => walk(read)
-  const structural = (): unknown => readStructural ? readStructural(keys) : current()
   const initial = current()
   const target: object = Array.isArray(initial) ? [] : {}
   const proxy = new Proxy(target, {
@@ -163,7 +158,7 @@ export function createPatchDraft(
           return (...args: unknown[]) => {
             if (!isDraftActive(scope)) return RETURNS_PROXY.has(prop) ? proxy : undefined
             // Re-read at call time so `push(a); push(b)` and a saved method both see earlier writes this pass.
-            const live = structural()
+            const live = current()
             const method = (Array.prototype as unknown as Record<string, (this: unknown, ...a: unknown[]) => unknown>)[prop]!
             if (!Array.isArray(live)) return method.apply(live, args.map((arg) => unwrapDraft(arg)))
             const copy = live.slice()
@@ -177,11 +172,11 @@ export function createPatchDraft(
         if (typeof method === 'function') return (...args: unknown[]) => Reflect.apply(method, proxy, args)
         return value.bind(node)
       }
-      return isPatchable(value) ? createPatchDraft(read, write, scope, readStructural, [...keys, prop]) : value
+      return isPatchable(value) ? createPatchDraft(read, write, scope, [...keys, prop]) : value
     },
     set(_t, prop, value) {
       if (!isDraftActive(scope)) return true
-      const node = structural()
+      const node = current()
       // `arr.length = 0` must store a shorter array, not a patch object that merely has a `length` key.
       if (Array.isArray(node) && prop === 'length') {
         const copy = node.slice()
@@ -200,7 +195,7 @@ export function createPatchDraft(
       if (typeof prop === 'string') {
         const index = arrayIndex(prop)
         if (index !== undefined) {
-          const node = structural()
+          const node = current()
           if (Array.isArray(node)) {
             // Native `delete arr[i]`: one hole, same `length`, later indexes stay put.
             // At or past `length`, or on a hole, JavaScript changes nothing.

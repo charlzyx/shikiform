@@ -1,4 +1,3 @@
-import { orderBufferedWrites, reindexValueWrites, saveWriteTargets } from '../draft/pending'
 import type { DraftScope } from '../draft/host'
 import { ShikiConflictError, ShikiCycleError, ShikiUsageError, showDraftPath, showStateKey } from '../errors'
 import { deepEqual } from '../shared/equal'
@@ -7,15 +6,28 @@ import type { Notifier } from '../state/notifier'
 import type { Pos } from '../shared/tree-ops'
 import type { WatchRow, WriteOp } from '../types'
 
+interface WorkingValues { values: unknown; hasStructure: boolean }
+interface ValueCommit {
+  before: unknown
+  after: unknown
+  hasStructure: boolean
+  structures: Set<string>
+  changes: Map<string, boolean>
+  finish: (() => void)[]
+}
+interface WriteBuffer {
+  writes: WriteOp[]
+  working?: WorkingValues
+}
+
 /** One running reaction / watch / selector. Reads become deps, writes are buffered. */
-export interface Tracker {
+export interface Tracker extends WriteBuffer {
   id: string
   recordDeps: boolean
   recordWrites: boolean
   deps: Set<string>
   rowDeps?: Set<string>
   readingRow?: boolean
-  writes: WriteOp[]
   pos?: Pos
   nodePath?: string
   draftScope?: DraftScope
@@ -108,8 +120,10 @@ export class Scheduler {
   /** Non-zero while `defineEffects` runs the factory. */
   installDepth = 0
   batchDepth = 0
-  batchOps: WriteOp[] = []
-  private readonly batchParents: WriteOp[][] = []
+  private batch: WriteBuffer = { writes: [] }
+  private readonly workByWrites = new WeakMap<WriteOp[], WorkingValues>()
+  valueCommit?: ValueCommit
+  get batchOps(): WriteOp[] { return this.batch.writes }
   private flushHolds = 0
   private flushRequested = false
   private readonly afterBatchCallbacks: (() => void)[] = []
@@ -178,6 +192,7 @@ export class Scheduler {
         void Promise.resolve(value).catch(() => undefined)
         throw new ShikiUsageError('reaction and watch must be synchronous. Put async work in an EnumSource loader or a watch that only starts it.')
       }
+      if (tracker.working) this.workByWrites.set(tracker.writes, tracker.working)
       return { value, deps: tracker.deps, rowDeps: tracker.rowDeps, writes: tracker.writes }
     } finally {
       this.stack.pop()
@@ -296,56 +311,86 @@ export class Scheduler {
     return this.depIndex.keys()
   }
 
-  applyWrites(id: string, writes: WriteOp[]): void {
-    // Array mutates (including a hole from `delete`) land before cell `$value` writes under that array,
-    // so a name edit and a later `push` in either order both survive. Cells are retargeted to the
-    // element they addressed when a splice / sort / reverse moved that index.
-    const ordered = orderBufferedWrites(writes)
-    if (process.env.NODE_ENV !== 'production' && isReactionId(id)) this.lastWrites.set(id, ordered.map((op) => op.key))
-    for (const op of ordered) {
-      op.apply()
-      this.claimOwner(id, op.key)
+  applyWrites(id: string, writes: WriteOp[], before: unknown): void {
+    this.applyBuffered(writes, before, this.workByWrites.get(writes), id)
+  }
+
+  applyBatch(before: unknown): void {
+    const { writes, working } = this.batch
+    this.batch = { writes: [] }
+    this.applyBuffered(writes, before, working)
+  }
+
+  private applyBuffered(writes: WriteOp[], before: unknown, working?: WorkingValues, id?: string): void {
+    this.holdFlush(() => {
+      const parent = this.valueCommit
+      const commit: ValueCommit | undefined = working && {
+        before, after: working.values, hasStructure: working.hasStructure, structures: new Set(), changes: new Map(), finish: [],
+      }
+      this.valueCommit = commit
+      try {
+        if (id && process.env.NODE_ENV !== 'production' && isReactionId(id)) this.lastWrites.set(id, writes.map((op) => op.key))
+        for (const op of writes) {
+          op.apply()
+          if (id) this.claimOwner(id, op.key)
+        }
+      } finally {
+        this.valueCommit = parent
+      }
+      for (const finish of commit?.finish ?? []) finish()
+      this.enqueueFromDirty()
+      if (!id) this.flush()
+    })
+  }
+
+  /** The current pass's copy-on-write value tree. Selectors may read an enclosing pass. */
+  workingValues<T>(committed: T): T {
+    for (let i = this.stack.length - 1; i >= 0; i--) {
+      const working = this.stack[i]?.working
+      if (working) return working.values as T
     }
-    this.enqueueFromDirty()
+    return this.batch.working ? this.batch.working.values as T : committed
   }
 
-  /** Buffered `form.batch` ops, in apply order, and clear the buffer. */
-  takeBatchOps(): WriteOp[] {
-    return orderBufferedWrites(this.batchOps.splice(0))
+  get bufferingValues(): boolean {
+    return this.current()?.recordWrites ?? this.batchDepth > 0
   }
 
-  hasBufferedWrites(): boolean {
-    return !!(this.batchOps.length || this.batchParents.some((ops) => ops.length) || this.stack.some((tracker) => tracker.writes.length))
+  lastWrite(): WriteOp | undefined {
+    return (this.current()?.writes ?? this.batchOps).at(-1)
   }
 
-  reindexPendingValues(root: string, destinations: ReadonlyMap<string, string | undefined>): void {
-    const ops = new Set(this.batchOps)
-    for (const parent of this.batchParents) for (const op of parent) ops.add(op)
-    for (const tracker of this.stack) for (const op of tracker.writes) ops.add(op)
-    reindexValueWrites(ops, root, destinations)
-    // Refresh projected keys before another write can replace an op at the same path.
-    orderBufferedWrites(this.current()?.writes ?? this.batchOps)
+  /** Advance the working tree and keep the commit effects in call order. */
+  stageValue(values: unknown, op: WriteOp, structure?: { previous?: WriteOp }): boolean {
+    const tracker = this.current()
+    if (tracker && !tracker.recordWrites) return false
+    const buffer = tracker ?? (this.batchDepth ? this.batch : undefined)
+    if (!buffer) return false
+    buffer.working = { values, hasStructure: !!structure || !!buffer.working?.hasStructure }
+    const previous = structure?.previous
+    const last = buffer.writes.length - 1
+    if (previous && buffer.writes[last] === previous) buffer.writes[last] = op
+    else buffer.writes.push(op)
+    return true
   }
 
   bufferBatch(fn: () => void): void {
     const tracker = this.current()
-    const parent = tracker?.writes ?? this.batchOps
-    const child = parent.slice()
-    const restore = saveWriteTargets(parent)
-    if (tracker) tracker.writes = child
-    else this.batchOps = child
-    this.batchParents.push(parent)
+    const source = tracker ?? this.batch
+    const parent = { writes: source.writes, working: source.working }
+    const child = { writes: source.writes.slice(), working: source.working }
+    if (tracker) Object.assign(tracker, child)
+    else this.batch = child
+    // The tracker object itself is shared with runWith, so save its current slots separately.
     this.batchDepth++
     try {
       fn()
     } catch (error) {
-      restore()
-      if (tracker) tracker.writes = parent
-      else this.batchOps = parent
+      if (tracker) Object.assign(tracker, parent)
+      else this.batch = parent
       throw error
     } finally {
       this.batchDepth--
-      this.batchParents.pop()
     }
   }
 
@@ -398,16 +443,43 @@ export class Scheduler {
     this.structureOnlyDeps.delete(dep)
   }
 
+  private changedInCommit(path: string): boolean {
+    const commit = this.valueCommit
+    if (!commit) return true
+    const known = commit.changes.get(path)
+    if (known !== undefined) return known
+    let changed = !deepEqual(getAt(commit.before, path), getAt(commit.after, path))
+    if (!changed && path) {
+      const parent = parentPath(path) ?? ''
+      const key = path.slice(parent ? parent.length + 1 : 0)
+      changed = Object.hasOwn(getAt(commit.before, parent) ?? {}, key) !== Object.hasOwn(getAt(commit.after, parent) ?? {}, key)
+    }
+    commit.changes.set(path, changed)
+    return changed
+  }
+
   /** Wake value ancestors and readers below a replaced value or edited structure. */
   markValueChanged(path: string, replacement?: {
     before: unknown
     after: unknown
     fields?: Iterable<string>
     moved?: ReadonlySet<string>
-  }): void {
-    this.notifier.bumpPath(path)
-    for (const cursor of selfAndAncestors(path)) this.markDirty(`${cursor}:value`)
-    if (!replacement) return
+  }, compareCommit = true): void {
+    const changedInCommit = (key: string) => !compareCommit || this.changedInCommit(key)
+    if (changedInCommit(path)) this.notifier.bumpPath(path)
+    for (const cursor of selfAndAncestors(path)) {
+      if (changedInCommit(cursor)) this.markDirty(`${cursor}:value`)
+      else if (this.valueCommit?.hasStructure && !replacement?.moved) {
+        // A row edit can survive a move even if another row puts the old value back at this index.
+        const dep = `${cursor}:value`
+        const rowMoved = changedInCommit(parentPath(cursor) ?? '')
+        if (!rowMoved) continue
+        for (const id of this.depIndex.get(dep) ?? []) {
+          if (!this.initializing && this.watchRows.get(id)?.rowDeps?.has(dep)) this.queue(id)
+        }
+      }
+    }
+    if (!replacement || (!replacement.moved && !changedInCommit(path))) return
     const { before, after, fields = [], moved } = replacement
     const descendant = (key: string) => key !== path && (!path || key.startsWith(path + '.'))
     const changed = (key: string) => !Object.is(getAt(before, key), getAt(after, key))
@@ -419,14 +491,14 @@ export class Scheduler {
       if (!descendant(key) && (moved || key !== path || state === 'value')) continue
       if (!moved) {
         this.markReplaced(dep, key, before, after)
-      } else if ((state !== 'value' && moved.has(key)) || changed(key)) {
+      } else if ((state !== 'value' && moved.has(key)) || (changed(key) && changedInCommit(key))) {
         if (!this.dirtyDeps.has(dep)) this.structureOnlyDeps.add(dep)
         this.dirtyDeps.add(dep)
       }
     }
     const paths = new Set([...fields, ...this.notifier.pathListenerKeys(), ...(moved ?? [])])
     for (const key of paths) {
-      if (descendant(key) && (!moved || moved.has(key) || changed(key))) this.notifier.bumpPath(key)
+      if (descendant(key) && (!moved || moved.has(key) || (changed(key) && changedInCommit(key)))) this.notifier.bumpPath(key)
     }
   }
 
@@ -588,7 +660,6 @@ export class Scheduler {
     }
   }
 }
-
 /** This development diagnostic can be removed when its guarded call is folded out. */
 export function assertNotWritten(scheduler: Scheduler, path: string, draftKey: string): void {
   const state = WRITTEN_STATE[draftKey]

@@ -1,11 +1,11 @@
 import { copyData } from '../draft/plain-clone'
-import { peelReadonly, unwrapReadonly } from '../draft/readonly'
+import { peelReadonly } from '../draft/readonly'
 import type { Declarations } from '../declarations/declarations'
 import type { Scheduler } from '../effects/scheduler'
 import { ShikiUsageError, showDraftPath } from '../errors'
-import { deepEqual } from '../shared/equal'
-import { joinPath, setAt } from '../shared/path'
+import { getAt, joinPath, setAt } from '../shared/path'
 import type { FieldStore } from '../state/field-store'
+import type { WriteOp } from '../types'
 import type { Validator } from '../validation/validator'
 import { movedFieldPaths, reindexById } from './migrate'
 import { readRowId } from '../shared/tree-ops'
@@ -19,6 +19,7 @@ export class ArrayOps {
   private arrays = new Map<string, { rowKey?: string }>()
   private ident = new WeakMap<object, string>()
   private identN = 0
+  private readonly mutators = new WeakMap<WriteOp, { path: string; before: unknown[] }>()
 
   constructor(
     private readonly store: FieldStore<any>,
@@ -43,8 +44,7 @@ export class ArrayOps {
       oldNode = (oldNode as Record<string, unknown>)[segment]
       newNode = (newNode as Record<string, unknown>)[segment]
       if (!wasArray || !oldNode || !newNode || typeof oldNode !== 'object' || typeof newNode !== 'object') continue
-      const id = this.ident.get(oldNode)
-      if (id && !this.ident.has(newNode)) this.ident.set(newNode, id)
+      if (!this.ident.has(newNode)) this.ident.set(newNode, this.objectIdentity(oldNode))
     }
   }
 
@@ -54,7 +54,7 @@ export class ArrayOps {
   }
 
   private arrayForEdit(path: string): unknown[] | undefined {
-    const value = this.store.getValue(path)
+    const value = getAt(this.scheduler.workingValues(this.store.values), path)
     if (Array.isArray(value)) return value
     if (value == null) return []
     if (process.env.NODE_ENV !== 'production') {
@@ -70,12 +70,7 @@ export class ArrayOps {
     const [row] = next.splice(from, 1)
     const dest = Math.min(Math.max(to, 0), next.length)
     next.splice(dest, 0, row)
-    const rowKey = this.arrays.get(path)?.rowKey
-    const beforeIds = before.map((item, index) => this.rowIdent(item, index, rowKey))
-    const afterIds = next.map((item, index) => this.rowIdent(item, index, rowKey))
-    const dirty = new Set<number>()
-    for (let i = 0; i < afterIds.length; i++) if (beforeIds[i] !== afterIds[i]) dirty.add(i)
-    this.commit(path, before, next, dirty)
+    this.commit(path, before, next, this.changedRows(path, before, next))
   }
 
   swap(path: string, indexA: number, indexB: number): void {
@@ -129,13 +124,14 @@ export class ArrayOps {
    */
   commitNext(path: string, next: unknown[]): boolean {
     const before = this.arrayForEdit(path)
-    if (!before || deepEqual(before, next)) return false
+    if (!before || sameSlots(before, next)) return false
+    const previous = this.scheduler.lastWrite()
+    const priorMutation = previous && this.mutators.get(previous)
+    const first = priorMutation?.path === path ? priorMutation.before : before
     const stored = next.slice()
     const known = new Set<object>()
-    for (let i = 0; i < before.length; i++) {
-      const row = before[i]
-      if (row && typeof row === 'object') known.add(row)
-    }
+    for (const row of first) if (row && typeof row === 'object') known.add(row)
+    if (first !== before) for (const row of before) if (row && typeof row === 'object') known.add(row)
     // A row already in `before` keeps its object. The same object in a second slot is a copy:
     // one reference cannot be two row identities, and a later edit of one slot must not change the other.
     const seen = new Set<object>()
@@ -146,12 +142,7 @@ export class ArrayOps {
       if (seen.has(row) || !known.has(row)) stored[i] = copyData(row)
       seen.add(row)
     }
-    const rowKey = this.arrays.get(path)?.rowKey
-    const beforeIds = occupantIds(this, before, rowKey)
-    const afterIds = occupantIds(this, stored, rowKey)
-    const dirty = new Set<number>()
-    for (let i = 0; i < stored.length; i++) if (beforeIds[i] !== afterIds[i]) dirty.add(i)
-    this.commit(path, before, stored, dirty)
+    this.commit(path, first, stored, this.changedRows(path, first, stored), priorMutation?.path === path ? previous : undefined, true)
     return true
   }
 
@@ -160,36 +151,77 @@ export class ArrayOps {
     if (process.env.NODE_ENV !== 'production') row = peelReadonly(row)
     const named = readRowId(row, index, rowKey)
     if (!named.startsWith('#')) return named
-    if (row && typeof row === 'object') {
-      let id = this.ident.get(row)
-      if (!id) {
-        this.identN += 1
-        id = `obj${this.identN}`
-        this.ident.set(row, id)
-      }
-      return id
-    }
-    return named
+    return row && typeof row === 'object' ? this.objectIdentity(row) : named
   }
 
-  private commit(path: string, before: any[], next: any[], dirty: Set<number>): void {
-    // Development: a row taken from a reaction's `$value` is a read-only view; store plain data.
-    if (process.env.NODE_ENV !== 'production') next = unwrapReadonly(next)
+  private objectIdentity(row: object): string {
+    let id = this.ident.get(row)
+    if (!id) {
+      id = `obj${++this.identN}`
+      this.ident.set(row, id)
+    }
+    return id
+  }
+
+  private changedRows(path: string, before: unknown[], after: unknown[]): Set<number> {
+    const rowKey = this.arrays.get(path)?.rowKey
+    const dirty = new Set<number>()
+    for (let i = 0; i < after.length; i++) {
+      if (Object.hasOwn(before, i) !== Object.hasOwn(after, i)) dirty.add(i)
+      else if (!Object.is(before[i], after[i])) {
+        const row = after[i]
+        if (!row || typeof row !== 'object' || this.rowIdent(before[i], i, rowKey) !== this.rowIdent(row, i, rowKey)) dirty.add(i)
+      }
+    }
+    return dirty
+  }
+
+  private commit(path: string, before: any[], next: any[], dirty: Set<number>, previous?: WriteOp, mutator = false): void {
+    const { store, scheduler } = this
+    if (!scheduler.bufferingValues) {
+      this.apply(path, before, next, dirty)
+      return
+    }
+    const root = scheduler.workingValues(store.values)
+    const after = setAt(root, path, next)
+    this.carryIdentity(path, root, after)
+    const op: WriteOp = {
+      key: `${path}:value`,
+      apply: () => {
+        if (mutator && sameSlots(before, next)) return false
+        this.apply(path, before, next, dirty, store.values === root ? after : undefined)
+        return true
+      },
+    }
+    if (mutator) this.mutators.set(op, { path, before })
+    scheduler.stageValue(after, op, { previous })
+  }
+
+  private apply(path: string, before: any[], next: any[], dirty: Set<number>, after?: any): void {
     const { store, scheduler } = this
     const rowKey = this.arrays.get(path)?.rowKey
     const oldIds = new Map<string, string>()
     before.forEach((row, index) => oldIds.set(this.rowIdent(row, index, rowKey), joinPath(path, String(index))))
     const newIds = new Map<string, string>()
     next.forEach((row, index) => newIds.set(this.rowIdent(row, index, rowKey), joinPath(path, String(index))))
+    // Queue row-relative value edits while their readers still use the pre-move paths.
+    if (scheduler.valueCommit) scheduler.enqueueFromDirty()
     const reindexed = reindexById(store.fields, oldIds, newIds)
     const moved = movedFieldPaths(reindexed)
     store.onReindex?.(reindexed)
     scheduler.reindexWatchRows(oldIds, newIds)
     store.onReindexIds?.(oldIds, newIds)
     const previous = store.values
-    store.values = setAt(previous, path, next)
+    store.values = after ?? setAt(previous, path, next)
     this.carryIdentity(path, previous, store.values)
-    scheduler.markDirtyRows(path, dirty)
+    const commit = scheduler.valueCommit
+    if (!commit) scheduler.markDirtyRows(path, dirty)
+    else if (!commit.structures.has(path)) {
+      commit.structures.add(path)
+      const start = getAt(commit.before, path)
+      const end = getAt(commit.after, path)
+      scheduler.markDirtyRows(path, this.changedRows(path, Array.isArray(start) ? start : [], Array.isArray(end) ? end : []))
+    }
     scheduler.markStructure(path, previous, store.values)
     scheduler.markValueChanged(path, { before: previous, after: store.values, moved })
     this.declarations.applyItemTemplates()
@@ -201,11 +233,10 @@ export class ArrayOps {
   }
 }
 
-function occupantIds(ops: ArrayOps, rows: unknown[], rowKey: string | undefined): (string | undefined)[] {
-  const out: (string | undefined)[] = []
-  for (let i = 0; i < rows.length; i++) {
-    if (!Object.prototype.hasOwnProperty.call(rows, i)) out.push(undefined)
-    else out.push(ops.rowIdent(rows[i], i, rowKey))
+function sameSlots(before: readonly unknown[], after: readonly unknown[]): boolean {
+  if (before.length !== after.length) return false
+  for (let i = 0; i < before.length; i++) {
+    if (Object.hasOwn(before, i) !== Object.hasOwn(after, i) || !Object.is(before[i], after[i])) return false
   }
-  return out
+  return true
 }

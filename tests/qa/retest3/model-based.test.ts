@@ -1,11 +1,11 @@
-import { createForm, type FormInstance } from '@shikiform/core'
+import { createForm, defineEffects, type FormInstance } from '@shikiform/core'
 import { engineOf, type Draft } from '@shikiform/core/internal'
 import { isDeepStrictEqual } from 'node:util'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 type Row = { key: string; note: number; items: number[] }
 type Node = Row & { kids: Node[]; parts: { amount: number }[] }
-type Values = { rows: Row[]; tree: Node[] }
+type Values = { rows: Row[]; tree: Node[]; pulse?: number }
 type TreeEdit =
   | { kind: 'insert'; pos: number[]; node: Node }
   | { kind: 'remove'; pos: number[] }
@@ -17,9 +17,10 @@ const actions = [
   'tree splice item', 'tree insert', 'tree remove', 'tree same parent',
   'tree cross parent', 'tree to root',
 ] as const
-type Action = (typeof actions)[number] | 'tree part field' | 'tree swap parts'
+const extendedActions = [...actions, 'row reverse', 'row sort', 'array handle move'] as const
+type Action = (typeof extendedActions)[number] | 'tree part field' | 'tree swap parts'
 type Operation = readonly [action: Action, pick: number, dest: number, value: number]
-type Step = Operation | { batch: Step[]; rollback?: true }
+type Step = Operation | { batch: Step[]; rollback?: true; reaction?: true }
 
 const makeRow = (key: string, n: number): Row => ({ key, note: n, items: [n] })
 const makeNode = (key: string, n: number, kids: Node[] = []): Node => ({ ...makeRow(key, n), kids, parts: [{ amount: n }, { amount: -n }] })
@@ -31,7 +32,7 @@ const initial = (): Values => ({
   ],
 })
 
-function generate(seed: number): Step[] {
+function generate(seed: number, extended = false): Step[] {
   let state = seed
   const random = (limit: number) => {
     state ^= state << 13
@@ -40,7 +41,8 @@ function generate(seed: number): Step[] {
     return (state >>> 0) % limit
   }
   const operation = (index: number): Operation => {
-    const action = actions[random(actions.length)]
+    const choices = extended ? extendedActions : actions
+    const action = choices[random(choices.length)]
     const pick = random(100)
     const dest = random(100)
     if (action === 'tree field' && dest % 2 === 0) return ['tree part field', pick, dest / 2, 100 + index]
@@ -57,6 +59,7 @@ function generate(seed: number): Step[] {
     }
     const nested = batch.length >= 4 && random(2) === 0
     steps.push({
+      reaction: (extended && random(3) === 0) || undefined,
       batch: nested
         ? [batch[0], { batch: batch.slice(1, -1), rollback: true }, batch.at(-1)!]
         : batch,
@@ -88,13 +91,25 @@ function editTree(nodes: Node[], edit: TreeEdit): void {
   }
 }
 
-function compare(steps: Step[], anchored = false) {
+function compare(steps: Step[]) {
   let expected = initial()
-  const form = createForm<Values>({ initialValues: initial(), trees: { tree: { rowKey: 'key', childrenKey: 'kids' } } })
+  let deferred: Step[] | undefined
+  let pulse = 0
+  const form = createForm<Values>({
+    initialValues: initial(),
+    trees: { tree: { rowKey: 'key', childrenKey: 'kids' } },
+    effects: [defineEffects<Values>(({ reaction }) => {
+      reaction((d) => {
+        void d.pulse.$value
+        const block = deferred
+        deferred = undefined
+        if (block) run(block, d)
+      })
+    })],
+  })
   const engine = engineOf(form)
   const dynamic: FormInstance<any> = form
   const rollback = new Error('test rollback')
-  const treeEdits: TreeEdit[] = []
 
   function execute(operation: Operation, draft?: Draft<Values>) {
     const [action, pick, dest, value] = operation
@@ -121,12 +136,27 @@ function compare(steps: Step[], anchored = false) {
         if (draft) draft.rows.$value.splice(i, 1)
         else engine.removeArray('rows', i)
         return
+      case 'row reverse':
+      case 'row sort': {
+        const byNote = (a: Row, b: Row) => a.note - b.note
+        if (action === 'row reverse') rows.reverse()
+        else rows.sort(byNote)
+        if (draft) {
+          if (action === 'row reverse') draft.rows.$value.reverse()
+          else draft.rows.$value.sort(byNote)
+        } else {
+          const next = [...form.getValue('rows')]
+          form.setValue('rows', action === 'row reverse' ? next.reverse() : next.sort(byNote))
+        }
+        return
+      }
+      case 'array handle move':
       case 'row move':
       case 'row swap':
         if (!rows.length || i === j) return
-        if (action === 'row move') {
+        if (action !== 'row swap') {
           rows.splice(j, 0, rows.splice(i, 1)[0])
-          if (draft) draft.rows.$value.splice(j, 0, draft.rows.$value.splice(i, 1)[0])
+          if (draft && action === 'row move') draft.rows.$value.splice(j, 0, draft.rows.$value.splice(i, 1)[0])
           else engine.moveArray('rows', i, j)
         } else {
           ;[rows[i], rows[j]] = [rows[j], rows[i]]
@@ -199,7 +229,6 @@ function compare(steps: Step[], anchored = false) {
           break
       }
     }
-    treeEdits.push(edit)
     editTree(tree, edit)
     if (edit.kind === 'insert') engine.insertTree('tree', edit.pos, edit.node)
     else if (edit.kind === 'remove') engine.removeTree('tree', edit.pos)
@@ -209,7 +238,7 @@ function compare(steps: Step[], anchored = false) {
       const handle = engine.query(path) as Draft<Row>
       if (action.endsWith('field')) {
         row.note = value
-        if (draft && anchored) handle.$value.note = value
+        if (draft && dest % 2 === 0) handle.$value.note = value
         else if (draft) handle.note.$value = value
         else dynamic.setValue(path + '.note', value)
       } else {
@@ -232,8 +261,12 @@ function compare(steps: Step[], anchored = false) {
   function run(block: Step[], draft?: Draft<Values>) {
     for (const step of block) {
       if ('batch' in step) {
+        if (step.reaction && !draft) {
+          deferred = step.batch
+          form.setValue('pulse', ++pulse)
+          continue
+        }
         const before = step.rollback ? structuredClone(expected) : undefined
-        const editCount = treeEdits.length
         try {
           form.batch((inner) => {
             run(step.batch, inner)
@@ -242,8 +275,6 @@ function compare(steps: Step[], anchored = false) {
         } catch (err) {
           if (err !== rollback || !before) throw err
           expected = before
-          // Tree handle operations commit immediately, even when draft writes roll back.
-          for (const edit of treeEdits.slice(editCount)) editTree(expected.tree, edit)
         }
       } else {
         execute(step, draft)
@@ -257,13 +288,14 @@ function compare(steps: Step[], anchored = false) {
   } catch (err) {
     error = err instanceof Error ? err.message : String(err)
   }
-  const submitted = form.getSubmitValues()
+  const { rows, tree } = form.getSubmitValues()
+  const submitted = { rows, tree }
   const read = { rows: form.getValue('rows'), tree: form.getValue('tree') }
   return { expected, submitted, read, error }
 }
 
-function discrepancy(steps: Step[], anchored = false) {
-  const result = compare(steps, anchored)
+function discrepancy(steps: Step[]) {
+  const result = compare(steps)
   if (result.error) return 'error: ' + result.error
   const mismatches = (['rows', 'tree'] as const).filter((key) =>
     !isDeepStrictEqual(result.expected[key], result.submitted[key]) ||
@@ -292,41 +324,30 @@ function minimize(steps: Step[], kind: string): Step[] {
   return steps
 }
 
-const rowMismatchSeeds = new Set([
-  29825714, 234255273, 304096811, 352356188, 373938349, 508526370, 621532230, 909141935,
-  1035486403, 1070407172, 1091989333, 1753537387, 1888125408, 2027808484, 2057634198, 2310323134,
-  2366826064, 2619515000, 2732520860, 317435419, 3211221516, 3275967999, 3324227376, 3345809537,
-  3359148145, 3415651075, 3550239096, 3668340011, 3733086494, 3972436822, 4085442682, 4141945612,
-  4155284220, 4211787150,
-])
-const rowErrorSeeds = new Set([247593881, 839300397])
-const treeMismatchSeeds = new Set([1309757500, 1923046177])
-const rowProjectionError = "error: Cannot set properties of undefined (setting 'note')"
-
 const shortest: { seed: number; issue: string; operations: Operation[] }[] = [
   {
     seed: 3668340011,
-    issue: 'a buffered field write stays on the old array index after a swap',
+    issue: 'a field edit follows its row after a swap',
     operations: [['row field', 12, 35, 115], ['row swap', 21, 46, 116]],
   },
   {
     seed: 2619515000,
-    issue: 'a buffered field write resurrects a removed row',
+    issue: 'removing an edited row leaves it absent',
     operations: [['row field', 35, 53, 110], ['row remove', 8, 83, 113]],
   },
   {
     seed: 247593881,
-    issue: 'two removals after a buffered field write throw during projection',
+    issue: 'two removals after a field edit compose in order',
     operations: [['row field', 89, 38, 115], ['row remove', 73, 25, 116], ['row remove', 84, 88, 118]],
   },
   {
     seed: 1309757500,
-    issue: 'a tree move followed by nested reversal drops a buffered cell edit',
+    issue: 'a cell edit survives a tree move and nested reversal',
     operations: [['tree part field', 74, 33, 101], ['tree cross parent', 39, 15, 103], ['tree swap parts', 5, 52, 104]],
   },
   {
     seed: 1923046177,
-    issue: 'a tree insert followed by nested reversal drops a buffered cell edit',
+    issue: 'a cell edit survives a tree insertion and nested reversal',
     operations: [['tree part field', 86, 29, 101], ['tree insert', 2, 85, 103], ['tree swap parts', 97, 36, 104]],
   },
 ]
@@ -336,28 +357,22 @@ afterEach(() => vi.unstubAllEnvs())
 describe.each(['development', 'production'])('pending writes model in %s', (mode) => {
   beforeEach(() => vi.stubEnv('NODE_ENV', mode))
 
-  it('checks 384 deterministic sequences and reports any changed result', () => {
+  it('matches the model across 2000 deterministic sequences', () => {
     const unexpected = []
-    for (let i = 0; i < 384; i++) {
+    for (let i = 0; i < 2000; i++) {
       const seed = Math.imul(i + 1, 0x9e3779b9) >>> 0
-      const steps = generate(seed)
+      const steps = generate(seed, i >= 384)
       const actual = discrepancy(steps)
-      // The row bug is isolated by replaying the same steps using parent-object draft assignment.
-      const rowBug = rowMismatchSeeds.has(seed) || rowErrorSeeds.has(seed)
-      const control = rowBug ? discrepancy(steps, true) : undefined
-      const known = rowMismatchSeeds.has(seed) ? 'rows' : rowErrorSeeds.has(seed) ? rowProjectionError
-        : treeMismatchSeeds.has(seed) ? 'tree' : undefined
-      if (actual !== known || control !== undefined) {
-        const minimal = actual ? minimize(steps, actual) : steps
-        unexpected.push({ seed, known, actual, control, steps: minimal })
+      if (actual) {
+        unexpected.push({ seed, actual, steps: minimize(steps, actual) })
+        if (unexpected.length === 5) break
       }
     }
-
     expect(unexpected).toEqual([])
-  })
+  }, 20_000)
 
   for (const { seed, issue, operations } of shortest) {
-    it.fails(`BUG: ${issue} (seed ${seed})`, () => {
+    it(`${issue} (seed ${seed})`, () => {
       const steps = [{ batch: operations }]
       const { expected, submitted, read, error } = compare(steps)
       expect({ submitted, read, error }, JSON.stringify({ seed, steps })).toEqual({

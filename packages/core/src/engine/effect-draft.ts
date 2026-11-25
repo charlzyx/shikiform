@@ -6,14 +6,14 @@
  */
 
 import type { Declarations } from '../declarations/declarations'
-import { joinKeys, latestValueWrite, pendingEnum, pendingRules, projectValue, type CellAnchor } from '../draft/pending'
+import { pendingEnum, pendingRules } from '../draft/pending'
 import { createPatchDraft, DELETE, isPatchable, setIn } from '../draft/patch'
 import { readonlyValue } from '../draft/readonly'
 import type { Scheduler } from '../effects/scheduler'
 import { asOptions, isEnumBinding, toEnumBinding, type EnumBinding } from '../enum/enum-source'
 import { showDraftPath, ShikiUsageError } from '../errors'
-import { arrayIndex, deleteArrayIndex, hasArrayIndex } from '../shared/dense-array'
-import { appendValueKey, assertUnambiguousWritePath, getAt, parentPath, pathSegments } from '../shared/path'
+import { arrayIndex, deleteArrayIndex } from '../shared/dense-array'
+import { appendValueKey, getAt, parentPath } from '../shared/path'
 import { OBJECT_UI_KEYS, type UiKey } from '../state/field-model'
 import type { FieldStore } from '../state/field-store'
 import type { TreeOps } from '../structure/trees'
@@ -33,24 +33,18 @@ export class EffectDrafts {
   constructor(private readonly deps: EffectDraftDeps) {}
 
   peekValue(path: string): unknown {
-    return projectValue(getAt(this.deps.store.values, path), path, pendingOps(this.deps.scheduler), false)
+    return getAt(this.deps.scheduler.workingValues(this.deps.store.values), path)
   }
 
   readValue(path: string): unknown {
-    const stored = getAt(this.deps.store.values, path)
+    const value = this.peekValue(path)
     if (!recording(this.deps.scheduler)) {
-      return process.env.NODE_ENV !== 'production' ? readonlyValue(stored, path) : stored
+      return process.env.NODE_ENV !== 'production' ? readonlyValue(value, path) : value
     }
-    const preview = () => this.peekValue(path)
-    const structural = (keys: readonly string[]) => {
-      const target = joinKeys(path, keys)
-      assertUnambiguousWritePath(target)
-      return projectValue(getAt(this.deps.store.values, target), target, pendingOps(this.deps.scheduler), true)
-    }
-    if (!isPatchable(preview())) return preview()
+    if (!isPatchable(value)) return value
     return createPatchDraft(
-      preview, (keys, value, kind) => this.commitValue(path, keys, value, kind),
-      this.deps.scheduler.reactionScope(), structural,
+      () => this.peekValue(path), (keys, next, kind) => this.commitValue(keys.reduce(appendValueKey, path), next, kind),
+      this.deps.scheduler.reactionScope(),
     )
   }
 
@@ -90,66 +84,29 @@ export class EffectDrafts {
     }, this.deps.scheduler.reactionScope())
   }
 
-  private commitValue(path: string, keys: string[], value: unknown, kind: 'set' | 'mutate' | 'delete'): void {
-    this.assertOpen(joinKeys(path, keys), '$value')
+  private commitValue(path: string, value: unknown, kind: 'set' | 'mutate' | 'delete'): void {
+    this.assertOpen(path, '$value')
     if (kind === 'mutate') {
-      this.commitArray(joinKeys(path, keys), value as unknown[])
-      return
-    }
-    if (kind === 'delete') {
-      const target = joinKeys(path, keys)
-      const parent = parentPath(target)
-      const leaf = parent === null ? target : target.slice(parent.length + 1)
-      const index = arrayIndex(leaf)
-      const parentValue = projectValue(
-        parent === null ? this.deps.store.values : getAt(this.deps.store.values, parent),
-        parent ?? '',
-        pendingOps(this.deps.scheduler),
-        true,
-      )
+      this.commitArray(path, value as unknown[])
+    } else if (kind === 'delete') {
+      const parent = parentPath(path) ?? ''
+      const index = arrayIndex(path.slice(parent ? parent.length + 1 : 0))
+      const parentValue = this.peekValue(parent)
       if (Array.isArray(parentValue) && index !== undefined) {
         const next = parentValue.slice()
         deleteArrayIndex(next, index)
-        this.commitArray(parent ?? '', next)
-        return
+        this.commitArray(parent, next)
+      } else {
+        this.deps.writer.dropField(path)
       }
-      this.deps.writer.dropField(target)
-      return
+    } else {
+      this.deps.writer.writeState(path, '$value', value)
     }
-    const full = joinKeys(path, keys)
-    this.deps.writer.writeState(full, '$value', value, this.cellAnchors(full))
   }
 
   private commitArray(path: string, next: unknown[]): void {
     if (isTreeArray(this.deps.trees, path)) throw treeArrayMutation(path)
-    this.deps.writer.writeArray(path, next, this.cellAnchors(path))
-  }
-
-  /**
-   * Array elements this cell write addressed. Uses the pending array itself, not a `setIn` copy,
-   * so a later splice / sort can find the same object and retarget the path.
-   */
-  private cellAnchors(path: string): CellAnchor[] | undefined {
-    if (!path) return undefined
-    const keys = pathSegments(path)
-    const ops = pendingOps(this.deps.scheduler)
-    const anchors: CellAnchor[] = []
-    const root = latestValueWrite(ops, '')
-    let node: unknown = root ? root.value : this.deps.store.values
-    let prefix = ''
-    for (let i = 0; i < keys.length; i++) {
-      const key = keys[i]!
-      if (Array.isArray(node)) {
-        const index = arrayIndex(key)
-        if (index !== undefined && hasArrayIndex(node, index)) {
-          anchors.push({ at: i, index, slot: node[index] })
-        }
-      }
-      prefix = appendValueKey(prefix, key)
-      const replaced = latestValueWrite(ops, prefix)
-      node = replaced ? replaced.value : (node as Record<string, unknown> | null | undefined)?.[key]
-    }
-    return anchors.length ? anchors : undefined
+    this.deps.writer.writeArray(path, next)
   }
 
   /** A draft captured inside a pass and mutated after it returns would write with no subscriber context. */
