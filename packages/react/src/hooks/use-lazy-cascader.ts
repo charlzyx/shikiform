@@ -68,8 +68,9 @@ export function useLazyCascader(options: UseLazyCascaderOptions): LazyCascaderAp
     node.loading = true
     bump()
     const task = Promise.resolve()
-      .then(() => loadRef.current(path))
-      .then((children) => {
+      .then(async () => {
+        if (active.current !== run) return
+        const children = await loadRef.current(path)
         if (active.current !== run) return
         node.children = children.map(clone)
         if (!children.length) node.isLeaf = true
@@ -87,10 +88,15 @@ export function useLazyCascader(options: UseLazyCascaderOptions): LazyCascaderAp
 
   const ensure = useCallback(
     async (paths: ReadonlyArray<ReadonlyArray<string | number>>) => {
-      await active.current?.ready
+      const run = active.current
+      if (!run) return
+      await run.ready
       await Promise.all(
         paths.map(async (path) => {
-          for (let depth = 1; depth < path.length; depth++) await loadChildren(path.slice(0, depth))
+          for (let depth = 1; depth < path.length; depth++) {
+            if (active.current !== run) return
+            await loadChildren(path.slice(0, depth))
+          }
         }),
       )
     },
@@ -115,9 +121,10 @@ export function useLazyCascader(options: UseLazyCascaderOptions): LazyCascaderAp
       }),
     }
     active.current = run
+    const finish = () => { if (active.current === run) setLoading(false) }
     void run.ready
       .then(() => (active.current === run && pathsRef.current?.length ? ensure(pathsRef.current) : undefined))
-      .finally(() => { if (active.current === run) setLoading(false) })
+      .then(finish, finish)
     return () => {
       active.current = null
       for (const node of run.pending.keys()) node.loading = false

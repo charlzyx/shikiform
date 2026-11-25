@@ -317,6 +317,41 @@ describe.each(['development', 'production'] as const)('flow React in %s', (mode)
     expect(result.current.labelsOf(['region', 'city'])).toEqual(['Region 2', 'Fresh city'])
   })
 
+  it.each(['resolves', 'rejects'] as const)('QA-61 discards an old multi-level echo when its child request %s', async (settle) => {
+    const stale = deferred<CascaderOption[]>()
+    const fresh = deferred<CascaderOption[]>()
+    let generation = 0
+    const load = vi.fn((path: (string | number)[]) => {
+      if (path.length === 0) {
+        generation += 1
+        return [{ label: `Region ${generation}`, value: 'region', isLeaf: false }]
+      }
+      if (path.length === 1) return generation === 1 ? stale.promise : fresh.promise
+      return [{ label: 'Street', value: 'street' }]
+    })
+    const { result, rerender } = renderHook(
+      ({ enabled, path }) => useLazyCascader({ enabled, load, paths: [path] }),
+      { initialProps: { enabled: true, path: ['region', 'city', 'street'] } },
+    )
+    await act(async () => {})
+    expect(load.mock.calls.map(([path]) => path)).toEqual([[], ['region']])
+
+    const path = ['region', 'city']
+    rerender({ enabled: false, path })
+    await act(async () => rerender({ enabled: true, path }))
+    expect(result.current.loading).toBe(true)
+    await act(async () => fresh.resolve([{ label: 'Fresh city', value: 'city', isLeaf: false }]))
+    expect(result.current.loading).toBe(false)
+
+    await act(async () => {
+      if (settle === 'resolves') stale.resolve([{ label: 'Stale city', value: 'city', isLeaf: false }])
+      else stale.reject(new Error('Old request failed'))
+    })
+    expect(load.mock.calls.map(([requested]) => requested)).toEqual([[], ['region'], [], ['region']])
+    expect(result.current.labelsOf(path)).toEqual(['Region 2', 'Fresh city'])
+    expect(result.current.loading).toBe(false)
+  })
+
   it('QA-12 preserves local state when a nested virtual list inserts before rows without explicit IDs', () => {
     sizeVirtualViewport()
     const form = createForm({ initialValues: { group: { rows: [{ name: 'A' }, { name: 'B' }] } } })
