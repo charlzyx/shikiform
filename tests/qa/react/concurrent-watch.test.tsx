@@ -6,7 +6,7 @@ import { createForm, Field, Form, useWatch } from '@shikiform/react'
 
 afterEach(cleanup)
 
-it.fails('BUG: QA-5 useWatch loses updates to the committed selector during a suspended transition', async () => {
+it('QA-5 useWatch keeps the committed selector reactive during a suspended transition', async () => {
   const form = createForm({ initialValues: { left: 'same', right: 'same' } })
   const suspended = vi.fn()
   const blocked = new Promise<never>(() => {})

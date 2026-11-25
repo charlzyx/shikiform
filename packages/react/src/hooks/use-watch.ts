@@ -1,4 +1,4 @@
-import { useContext, useRef, useSyncExternalStore } from 'react'
+import { useContext, useEffect, useMemo, useRef, useSyncExternalStore } from 'react'
 import { deepEqual, engineOf } from '@shikiform/core/internal'
 import type { Draft, FormInstance } from '@shikiform/core/internal'
 import { FormContext } from '../context'
@@ -29,44 +29,46 @@ export function useWatch<T = any, S = unknown>(
         'or pass the form explicitly: useWatch(form, select) / typed(form).useWatch(select).',
     )
   }
-  const selectRef = useRef(select)
-  selectRef.current = select
-  const cache = useRef<{ value: S } | null>(null)
-  const read = () => {
-    const tracked = form.trackSelector(selectRef.current)
-    const value = tracked.value
-    if (cache.current && (Object.is(cache.current.value, value) || deepEqual(cache.current.value, value))) {
-      return cache.current.value
+  const committed = useRef<{ value: S } | null>(null)
+  const [subscribe, read] = useMemo(() => {
+    // A suspended render must leave the committed selector and its snapshot cache alone.
+    let cache: { value: S } | null = null
+    const read = () => {
+      const { value } = form.trackSelector(select)
+      const previous = cache ?? committed.current
+      if (previous && (Object.is(previous.value, value) || deepEqual(previous.value, value))) {
+        cache = previous
+        return previous.value
+      }
+      cache = { value }
+      return value
     }
-    cache.current = { value }
-    return value
-  }
-  return useSyncExternalStore(
-    (onStoreChange) => {
+    const subscribe = (onStoreChange: () => void) => {
       let stops: Array<() => void> = []
-      let last = ''
+      let lastDeps: string[] | undefined
       const listen = () => {
-        const tracked = form.trackSelector(selectRef.current)
-        const key = tracked.deps.join('|')
-        if (key === last && stops.length) return
+        const { deps } = form.trackSelector(select)
+        if (lastDeps?.length === deps.length && lastDeps.every((dep, index) => dep === deps[index])) return
         for (const stop of stops) stop()
         stops =
-          tracked.deps.length > 0
-            ? tracked.deps.map((dep) =>
+          deps.length > 0
+            ? deps.map((dep) =>
                 form.subscribeDep(dep, () => {
                   listen()
                   onStoreChange()
                 }),
               )
             : [form.subscribeDebug(onStoreChange)]
-        last = key
+        lastDeps = deps
       }
       listen()
       return () => {
         for (const stop of stops) stop()
       }
-    },
-    read,
-    read,
-  )
+    }
+    return [subscribe, read] as const
+  }, [form, select])
+  const value = useSyncExternalStore(subscribe, read, read)
+  useEffect(() => { committed.current = { value } }, [value])
+  return value
 }
