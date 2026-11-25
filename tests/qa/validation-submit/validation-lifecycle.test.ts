@@ -73,7 +73,7 @@ describe('reset during asynchronous validation', () => {
     expect(form.canSubmit).toBe(true)
   })
 
-  it.fails('BUG QA-18: cancels queued checks only under the reset subtree', async () => {
+  it.each(['account', undefined] as const)('QA-18: cancels queued checks in the reset scope %s', async (scope) => {
     vi.useFakeTimers()
     try {
       const name = vi.fn(async () => 'Name check failed')
@@ -88,11 +88,12 @@ describe('reset during asynchronous validation', () => {
       form.setValue('account.name', 'edited')
       form.setValue('city', 'London')
       expect(name).not.toHaveBeenCalled()
-      form.reset('account')
-      expect(form.values).toEqual({ account: { name: 'initial' }, city: 'London' })
+      form.reset(scope)
+      expect(form.values).toEqual({ account: { name: 'initial' }, city: scope ? 'London' : 'Paris' })
       await vi.advanceTimersByTimeAsync(100)
 
-      expect(city).toHaveBeenCalledExactlyOnceWith('London', expect.objectContaining({ path: 'city' }))
+      if (scope) expect(city).toHaveBeenCalledExactlyOnceWith('London', expect.objectContaining({ path: 'city' }))
+      else expect(city).not.toHaveBeenCalled()
       expect(name).not.toHaveBeenCalled()
       expect(form.errors).toEqual([])
     } finally {

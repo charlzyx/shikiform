@@ -4,13 +4,14 @@ import type { FieldStore } from '../state/field-store'
 import type { Notifier } from '../state/notifier'
 import type { ValidateTrigger } from '../types'
 import type { FormOptions } from '../types-effects'
+import { scopeTest } from './scope'
 
 /**
  * Debounce and supersede bookkeeping for async field rules (#122).
  * A value change aborts an attempt that is still in flight, even when the trigger is not `onChange`.
  * Messages that attempt already wrote come off the field immediately; `validating` stays set until the
  * replacement check applies, so `$canSubmit` returns when that check passes. The pass being superseded
- * must not cancel the debounce this edit just scheduled — only {@link AsyncAttempts.clearAll} does that,
+ * must not cancel the debounce this edit just scheduled — only {@link AsyncAttempts.clearUnder} does that,
  * and `submit` calls it before validating the current value now.
  */
 export class AsyncAttempts {
@@ -78,10 +79,12 @@ export class AsyncAttempts {
     this.timers.delete(path)
   }
 
-  /** Cancel every debounce. `submit` does this, then validates immediately. */
-  clearAll(): void {
-    for (const timer of this.timers.values()) clearTimeout(timer)
-    this.timers.clear()
+  /** Cancel queued checks within a reset scope, or all checks before a submit. */
+  clearUnder(path?: string): void {
+    const inScope = scopeTest(path)
+    for (const key of this.timers.keys()) {
+      if (inScope(key)) this.clearTimer(key)
+    }
   }
 
   /** Drop async messages from a superseded attempt and hold `validating` for the replacement check. */

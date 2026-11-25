@@ -426,7 +426,7 @@ export class Validator {
    * would drop the check that replaced it (#122).
    */
   async waitAsync(): Promise<void> {
-    this.attempts.clearAll()
+    this.attempts.clearUnder()
     await this.waitInflight()
   }
 
@@ -476,6 +476,7 @@ export class Validator {
   /** Reset invalidates an in-progress submit verdict even when resetting to the same values. */
   reset(path?: string): void {
     this.resetVersion += 1
+    this.attempts.clearUnder(path)
     if (!path) this.schemaByPath = new Map()
     else {
       for (const key of [...this.schemaByPath.keys()]) {
