@@ -125,6 +125,11 @@ export function isEmpty(value: unknown): boolean {
   return value == null || value === ''
 }
 
+function matchesPattern(pattern: RegExp, value: string): boolean {
+  const matcher = pattern.global || pattern.sticky ? new RegExp(pattern.source, pattern.flags) : pattern
+  return matcher.test(value)
+}
+
 /**
  * Run synchronous rules. Async validators are returned separately so the caller
  * can drop a stale resolution when a newer pass has started.
@@ -161,7 +166,7 @@ export function runRules(
       if (rule.maxLength != null && length > rule.maxLength) {
         out.push(rule.message ?? formatMessage(messages, 'maxLength', { ...base, maxLength: rule.maxLength, length }))
       }
-      if (rule.pattern && !rule.pattern.test(value)) out.push(rule.message ?? formatMessage(messages, 'pattern', { ...base, pattern: rule.pattern }))
+      if (rule.pattern && !matchesPattern(rule.pattern, value)) out.push(rule.message ?? formatMessage(messages, 'pattern', { ...base, pattern: rule.pattern }))
     }
     if (typeof value === 'number') {
       if (rule.min != null && value < rule.min) out.push(rule.message ?? formatMessage(messages, 'min', { ...base, min: rule.min }))

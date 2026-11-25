@@ -44,7 +44,8 @@ describe('rule boundaries and message precedence', () => {
     expect(form.canSubmit).toBe(false)
   })
 
-  it.fails.each([/^VALID$/g, /^VALID$/y])('BUG QA-24: reuses a stateful pattern %s across repeated validation', async (pattern) => {
+  it.each([/^VALID$/g, /^VALID$/y])('QA-24: reuses a stateful pattern %s across repeated validation', async (pattern) => {
+    pattern.lastIndex = 2
     const form = createForm({
       initialValues: { code: 'VALID' },
       fields: { code: { rules: { pattern, message: 'Invalid code' } } },
@@ -52,6 +53,18 @@ describe('rule boundaries and message precedence', () => {
 
     await expect(form.validate()).resolves.toEqual({ code: 'VALID' })
     await expect(form.submit()).resolves.toEqual({ code: 'VALID' })
+    expect(pattern.lastIndex).toBe(2)
+  })
+
+  it('matches sticky patterns only at the start of the value', async () => {
+    const pattern = /VALID/y
+    pattern.lastIndex = 4
+    const form = createForm({
+      initialValues: { code: 'not VALID' },
+      fields: { code: { rules: { pattern, message: 'Invalid code' } } },
+    })
+    await expect(form.submit()).rejects.toEqual([{ path: 'code', messages: ['Invalid code'] }])
+    expect(pattern.lastIndex).toBe(4)
   })
 })
 
