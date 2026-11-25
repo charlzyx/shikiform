@@ -97,6 +97,7 @@ export class Baseline {
   }
 
   formDirty(): boolean {
+    if (this.store.own('', 'omit') === true) return false
     const { values, initial } = this.store
     const skip = this.skipPaths()
     const key = JSON.stringify(skip)

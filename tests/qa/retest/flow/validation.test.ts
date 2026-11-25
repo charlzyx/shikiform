@@ -48,11 +48,26 @@ describe.each(['development', 'production'] as const)('flow validation in %s', (
     expect(form.getSubmitValues()).toEqual({})
   })
 
-  it.fails('BUG: QA-13 root omit still counts excluded values as form dirty', async () => {
+  it('QA-58 excludes changes under root omit from form dirty', async () => {
     const form = createForm({ initialValues: { profile: { name: 'Ada' } } })
     form.batch((d) => { d.$omit = true })
     form.setValue('profile.name', 'Edited')
     await expect(form.submit()).resolves.toEqual({})
+    expect(form.dirty).toBe(false)
+    form.batch((d) => { d.$omit = undefined })
+    expect(form.dirty).toBe(true)
+  })
+
+  it('QA-58 ignores edited descendants of an omitted ancestor and counts a hidden sibling', () => {
+    const form = createForm({
+      initialValues: { profile: { name: 'Ada' }, note: 'saved' },
+      fields: { profile: { omit: true }, 'profile.name': { omit: false }, note: { visible: false } },
+    })
+    form.setValue('profile.name', 'Edited')
+    expect(form.dirty).toBe(false)
+    form.setValue('note', 'Edited')
+    expect(form.dirty).toBe(true)
+    form.batch((d) => { d.$omit = true })
     expect(form.dirty).toBe(false)
     form.batch((d) => { d.$omit = undefined })
     expect(form.dirty).toBe(true)
