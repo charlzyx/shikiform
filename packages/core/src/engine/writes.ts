@@ -2,7 +2,7 @@ import type { Declarations } from '../declarations/declarations'
 import { guardReactionAction, isReactionId, type Scheduler } from '../effects/scheduler'
 import { asOptions, isEnumBinding, isEnumSource, toEnumBinding, type EnumBinding, type EnumOption } from '../enum/enum-source'
 import { cloneExternal, resetExternalCloneTraversal } from '../draft/plain-clone'
-import { pendingOf, projectValue, tagPending, type CellAnchor, type PendingValue } from '../draft/pending'
+import { isDropped, pendingOf, projectValue, tagPending, type CellAnchor, type PendingValue } from '../draft/pending'
 import { unwrapDraft } from '../draft/patch'
 import { unwrapReadonly } from '../draft/readonly'
 import { ShikiUsageError, showDraftPath } from '../errors'
@@ -116,18 +116,11 @@ export class StateWriter {
    * A draft array mutator on a value path. One op replaces the array; `ArrayOps` reindexes rows when it applies.
    * The op key matches a whole `$value` write so a later `push` in the same pass sees this array.
    */
-  writeArray(rawPath: string, next: unknown[], base?: readonly unknown[]): void {
+  writeArray(rawPath: string, next: unknown[], anchors?: readonly CellAnchor[]): void {
     const path = this.writablePath(rawPath, true)
     if (path === undefined) return
     const value = storedValue(next) as unknown[]
-    const scheduler = this.deps.scheduler
-    const writes = scheduler.current()?.writes ?? scheduler.batchOps
-    // A second mutation copies the first one's projection. Keep the reference held by the parent row.
-    const previous = writes.find((op) => op.key === `${path}:value`)
-    const prior = previous && pendingOf(previous)
-    if (prior?.kind === 'value' && prior.mode === 'mutate' && prior.value === base) base = prior.base
-    // `pending.path` is retargeted when a parent array op in the same pass moves this array.
-    const pending: PendingValue = { kind: 'value', path, mode: 'mutate', value, base }
+    const pending: PendingValue = { kind: 'value', path, mode: 'mutate', value, anchors }
     const op: WriteOp = { key: `${path}:value`, apply: () => this.deps.commitArray?.(pending.path, value) ?? false }
     tagPending(op, pending)
     this.enqueue(op, false)
@@ -151,7 +144,7 @@ export class StateWriter {
     const tracker = scheduler.current()
     if (tracker) {
       if (!tracker.recordWrites) return
-      const index = tracker.writes.findIndex((item) => item.key === op.key)
+      const index = tracker.writes.findIndex((item) => item.key === op.key && !isDropped(item))
       if (index >= 0 && patch) tracker.writes.splice(index, 1)
       else if (index >= 0) {
         tracker.writes[index] = op
@@ -161,7 +154,7 @@ export class StateWriter {
       return
     }
     if (scheduler.batchDepth > 0) {
-      const index = scheduler.batchOps.findIndex((item) => item.key === op.key)
+      const index = scheduler.batchOps.findIndex((item) => item.key === op.key && !isDropped(item))
       if (index >= 0 && patch) scheduler.batchOps.splice(index, 1)
       else if (index >= 0) {
         scheduler.batchOps[index] = op

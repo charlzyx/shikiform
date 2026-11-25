@@ -69,7 +69,7 @@ describe.each(['development', 'production'])('draft transactions in %s', (mode) 
     })
   })
 
-  it.fails('BUG: QA-17 commits independent nested list writes after swapping both outer rows', async () => {
+  it('QA-17 commits independent nested list writes after swapping both outer rows', async () => {
     const form = createForm({
       initialValues: { rows: [{ id: 'a', items: [1] }, { id: 'b', items: [10] }] },
     })
@@ -81,6 +81,43 @@ describe.each(['development', 'production'])('draft transactions in %s', (mode) 
     })
     await expect(form.submit()).resolves.toEqual({
       rows: [{ id: 'b', items: [9, 10] }, { id: 'a', items: [1, 2] }],
+    })
+  })
+
+  type Row = { id: string; items: number[] }
+  const rowOrderCases: [string, (rows: Row[]) => void, string[]][] = [
+    ['move', (rows) => { rows.splice(1, 0, rows.splice(0, 1)[0]!) }, ['b', 'a']],
+    ['swap', (rows) => { rows.reverse() }, ['b', 'a']],
+    ['insert', (rows) => { rows.splice(1, 0, { id: 'new', items: [30] }) }, ['a', 'new', 'b']],
+    ['remove', (rows) => { rows.splice(0, 1) }, ['b']],
+  ]
+
+  describe.each(['push', 'splice'])('QA-17 nested %s', (edit) => {
+    it.each(rowOrderCases)('keeps projected and committed edits on their rows after %s', async (_, reorder, ids) => {
+      const form = createForm({ initialValues: { rows: [{ id: 'a', items: [1] }, { id: 'b', items: [10] }] } })
+      const expected: Record<string, number[]> = {
+        a: edit === 'push' ? [1, 2] : [2],
+        b: edit === 'push' ? [10, 11] : [11],
+        new: [30],
+      }
+      form.batch((d) => {
+        const rows = d.$value.rows
+        for (const [i, value] of [2, 11].entries()) {
+          const items = d.rows[i].items.$value
+          if (edit === 'push') items.push(value)
+          else items.splice(0, 1, value)
+        }
+        reorder(rows)
+        expect(rows.map(({ id, items }) => ({ id, items: [...items] })))
+          .toEqual(ids.map((id) => ({ id, items: expected[id] })))
+
+        const b = ids.indexOf('b')
+        d.rows[b].items.$value.push(12)
+        expected.b.push(12)
+      })
+      await expect(form.submit()).resolves.toEqual({
+        rows: ids.map((id) => ({ id, items: expected[id] })),
+      })
     })
   })
 

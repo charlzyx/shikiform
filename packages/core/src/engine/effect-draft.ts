@@ -6,14 +6,14 @@
  */
 
 import type { Declarations } from '../declarations/declarations'
-import { joinKeys, latestMutate, pendingEnum, pendingRules, projectValue, type CellAnchor } from '../draft/pending'
+import { joinKeys, latestValueWrite, pendingEnum, pendingRules, projectValue, type CellAnchor } from '../draft/pending'
 import { createPatchDraft, DELETE, isPatchable, setIn } from '../draft/patch'
 import { readonlyValue } from '../draft/readonly'
 import type { Scheduler } from '../effects/scheduler'
 import { asOptions, isEnumBinding, toEnumBinding, type EnumBinding } from '../enum/enum-source'
 import { showDraftPath, ShikiUsageError } from '../errors'
 import { arrayIndex, deleteArrayIndex, hasArrayIndex } from '../shared/dense-array'
-import { assertUnambiguousWritePath, getAt, parentPath } from '../shared/path'
+import { appendValueKey, assertUnambiguousWritePath, getAt, parentPath, pathSegments } from '../shared/path'
 import { OBJECT_UI_KEYS, type UiKey } from '../state/field-model'
 import type { FieldStore } from '../state/field-store'
 import type { TreeOps } from '../structure/trees'
@@ -49,7 +49,7 @@ export class EffectDrafts {
     }
     if (!isPatchable(preview())) return preview()
     return createPatchDraft(
-      preview, (keys, value, kind, base) => this.commitValue(path, keys, value, kind, base),
+      preview, (keys, value, kind) => this.commitValue(path, keys, value, kind),
       this.deps.scheduler.reactionScope(), structural,
     )
   }
@@ -90,10 +90,10 @@ export class EffectDrafts {
     }, this.deps.scheduler.reactionScope())
   }
 
-  private commitValue(path: string, keys: string[], value: unknown, kind: 'set' | 'mutate' | 'delete', base?: unknown): void {
+  private commitValue(path: string, keys: string[], value: unknown, kind: 'set' | 'mutate' | 'delete'): void {
     this.assertOpen(joinKeys(path, keys), '$value')
     if (kind === 'mutate') {
-      this.commitArray(joinKeys(path, keys), value as unknown[], Array.isArray(base) ? base : undefined)
+      this.commitArray(joinKeys(path, keys), value as unknown[])
       return
     }
     if (kind === 'delete') {
@@ -110,44 +110,44 @@ export class EffectDrafts {
       if (Array.isArray(parentValue) && index !== undefined) {
         const next = parentValue.slice()
         deleteArrayIndex(next, index)
-        this.commitArray(parent ?? '', next, parentValue as unknown[])
+        this.commitArray(parent ?? '', next)
         return
       }
       this.deps.writer.dropField(target)
       return
     }
     const full = joinKeys(path, keys)
-    this.deps.writer.writeState(full, '$value', value, this.cellAnchors(path, keys))
+    this.deps.writer.writeState(full, '$value', value, this.cellAnchors(full))
   }
 
-  private commitArray(path: string, next: unknown[], base?: readonly unknown[]): void {
+  private commitArray(path: string, next: unknown[]): void {
     if (isTreeArray(this.deps.trees, path)) throw treeArrayMutation(path)
-    this.deps.writer.writeArray(path, next, base)
+    this.deps.writer.writeArray(path, next, this.cellAnchors(path))
   }
 
   /**
    * Array elements this cell write addressed. Uses the pending array itself, not a `setIn` copy,
    * so a later splice / sort can find the same object and retarget the path.
    */
-  private cellAnchors(root: string, keys: readonly string[]): CellAnchor[] | undefined {
-    if (!keys.length) return undefined
+  private cellAnchors(path: string): CellAnchor[] | undefined {
+    if (!path) return undefined
+    const keys = pathSegments(path)
     const ops = pendingOps(this.deps.scheduler)
     const anchors: CellAnchor[] = []
-    let node: unknown = latestMutate(ops, root) ?? getAt(this.deps.store.values, root)
-    const base = root ? root.split('.').length : 0
-    const prefix: string[] = []
+    const root = latestValueWrite(ops, '')
+    let node: unknown = root ? root.value : this.deps.store.values
+    let prefix = ''
     for (let i = 0; i < keys.length; i++) {
       const key = keys[i]!
       if (Array.isArray(node)) {
         const index = arrayIndex(key)
         if (index !== undefined && hasArrayIndex(node, index)) {
-          anchors.push({ array: joinKeys(root, prefix), at: base + i, index, slot: node[index], list: node })
+          anchors.push({ at: i, index, slot: node[index] })
         }
       }
-      const child = joinKeys(root, [...prefix, key])
-      const replaced = latestMutate(ops, child)
-      node = replaced ?? (node == null ? undefined : (node as Record<string, unknown>)[key])
-      prefix.push(key)
+      prefix = appendValueKey(prefix, key)
+      const replaced = latestValueWrite(ops, prefix)
+      node = replaced ? replaced.value : (node as Record<string, unknown> | null | undefined)?.[key]
     }
     return anchors.length ? anchors : undefined
   }
