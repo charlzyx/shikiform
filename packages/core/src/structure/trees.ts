@@ -1,10 +1,10 @@
 import { unwrapReadonly } from '../draft/readonly'
 import type { Scheduler } from '../effects/scheduler'
-import { parentPath, setAt } from '../shared/path'
+import { setAt } from '../shared/path'
 import type { FieldStore } from '../state/field-store'
 import type { MoveResult } from '../types'
 import type { FormMessages } from '../validation/messages'
-import { reindexById } from './migrate'
+import { movedFieldPaths, reindexById } from './migrate'
 import { deleteNode, insertNode, listPositions, locateIds, moveNode, posKey, posOf, pushNode, replaceNode, type Pos } from '../shared/tree-ops'
 
 export interface TreeConfig {
@@ -124,7 +124,9 @@ export class TreeOps {
     if (process.env.NODE_ENV !== 'production') next = unwrapReadonly(next)
     const oldIds = locateIds(before, path, cfg.childrenKey, cfg.rowKey)
     const newIds = locateIds(next, path, cfg.childrenKey, cfg.rowKey)
-    store.onReindex?.(reindexById(store.fields, oldIds, newIds))
+    const reindexed = reindexById(store.fields, oldIds, newIds)
+    const moved = movedFieldPaths(reindexed)
+    store.onReindex?.(reindexed)
     store.onReindexIds?.(oldIds, newIds)
     const previous = store.values
     store.values = setAt(previous, path, next)
@@ -137,8 +139,7 @@ export class TreeOps {
     }
     scheduler.markDirtyPos(path, dirty)
     scheduler.markStructure(path, previous, store.values)
-    for (let cursor: string | null = path; cursor; cursor = parentPath(cursor)) scheduler.markDirty(`${cursor}:value`)
-    scheduler.markDirty(':value')
+    scheduler.markValueChanged(path, { before: previous, after: store.values, moved })
     scheduler.enqueueFromDirty()
     scheduler.flush()
   }

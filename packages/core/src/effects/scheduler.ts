@@ -87,6 +87,7 @@ export class Scheduler {
   private queued = new Set<string>()
   /** Keys changed since the last enqueue. */
   readonly dirtyDeps = new Set<string>()
+  private readonly structureOnlyDeps = new Set<string>()
   /** Array path → row indexes whose occupant changed. Consumed by `reaction.each` (the root and nested arrays). */
   readonly dirtyRows = new Map<string, Set<number> | 'all'>()
   /** Tree path → `posKey`s whose occupant changed. Consumed by `reaction.each` on that root. */
@@ -308,6 +309,39 @@ export class Scheduler {
 
   markDirty(dep: string): void {
     this.dirtyDeps.add(dep)
+    this.structureOnlyDeps.delete(dep)
+  }
+
+  /** Wake value ancestors and readers below a replaced value or edited structure. */
+  markValueChanged(path: string, replacement?: {
+    before: unknown
+    after: unknown
+    fields?: Iterable<string>
+    moved?: ReadonlySet<string>
+  }): void {
+    this.notifier.bumpPath(path)
+    for (const cursor of selfAndAncestors(path)) this.markDirty(`${cursor}:value`)
+    if (!replacement) return
+    const { before, after, fields = [], moved } = replacement
+    const descendant = (key: string) => key !== path && (!path || key.startsWith(path + '.'))
+    const changed = (key: string) => !Object.is(getAt(before, key), getAt(after, key))
+    const deps = new Set([...this.depKeys(), ...this.notifier.depListenerKeys()])
+    for (const dep of deps) {
+      const at = dep.lastIndexOf(':')
+      const key = dep.slice(0, at)
+      const state = dep.slice(at + 1)
+      if (!descendant(key) && (moved || key !== path || state === 'value')) continue
+      if (!moved) {
+        this.markReplaced(dep, key, before, after)
+      } else if ((state !== 'value' && moved.has(key)) || changed(key)) {
+        if (!this.dirtyDeps.has(dep)) this.structureOnlyDeps.add(dep)
+        this.dirtyDeps.add(dep)
+      }
+    }
+    const paths = new Set([...fields, ...this.notifier.pathListenerKeys(), ...(moved ?? [])])
+    for (const key of paths) {
+      if (descendant(key) && (!moved || moved.has(key) || changed(key))) this.notifier.bumpPath(key)
+    }
   }
 
   /** Merge dirty row indexes for `path` (keeps `'all'` if either side is `'all'`). Cleared when `flush` settles. */
@@ -339,14 +373,19 @@ export class Scheduler {
   }
 
   /** Whole-object writes wake ordinary descendant readers. Object entries keep per-key value precision. */
-  markReplaced(dep: string, path: string, before: unknown, after: unknown): void {
+  private markReplaced(dep: string, path: string, before: unknown, after: unknown): void {
     const readers = this.depIndex.get(dep)
-    if (readers && [...readers].some(isObjectEntry) && deepEqual(getAt(before, path), getAt(after, path))) {
-      for (const id of readers) if (!isObjectEntry(id)) this.queue(id)
-      this.notifier.bumpDep(dep)
-    } else {
+    const sameObjectEntry = readers && [...readers].some(isObjectEntry) && deepEqual(getAt(before, path), getAt(after, path))
+    if (!sameObjectEntry) {
       this.markDirty(dep)
+      return
     }
+    for (const id of readers ?? []) {
+      if (isObjectEntry(id)) continue
+      if (this.initializing && isWatchRunner(id)) continue
+      this.queue(id)
+    }
+    this.notifier.bumpDep(dep)
   }
 
   /** Bump the structure version of `path` and dirty `:structure` on it and its ancestors. */
@@ -382,12 +421,15 @@ export class Scheduler {
       if (subs) {
         for (const id of subs) {
           if (this.initializing && isWatchRunner(id)) continue
+          // Row watches react to edits. A different occupant moving into a slot is a structure change.
+          if (this.structureOnlyDeps.has(dep) && id.startsWith('watch-each:') && isWatchRunner(id)) continue
           this.queued.add(id)
         }
       }
       this.notifier.bumpDep(dep)
     }
     this.dirtyDeps.clear()
+    this.structureOnlyDeps.clear()
   }
 
   private cycleError(): ShikiCycleError {
@@ -414,8 +456,9 @@ export class Scheduler {
         wave += 1
         if (wave > 10) throw this.cycleError()
         const ids = [...this.queued]
-        this.queued.clear()
         for (const id of ids) {
+          // A structure reconciler can queue a row whose changed dependency already queued it.
+          if (!this.queued.delete(id)) continue
           const run = this.runners.get(id)
           if (!run) continue
           this.trace.push(id)
@@ -427,6 +470,7 @@ export class Scheduler {
     } finally {
       this.queued.clear()
       this.dirtyDeps.clear()
+      this.structureOnlyDeps.clear()
       for (const path of this.consumedDirtyRows) this.dirtyRows.delete(path)
       this.consumedDirtyRows.clear()
       for (const path of this.consumedDirtyPos) this.dirtyPos.delete(path)

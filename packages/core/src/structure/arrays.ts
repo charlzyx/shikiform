@@ -3,10 +3,10 @@ import { peelReadonly, unwrapReadonly } from '../draft/readonly'
 import type { Declarations } from '../declarations/declarations'
 import type { Scheduler } from '../effects/scheduler'
 import { deepEqual } from '../shared/equal'
-import { joinPath, parentPath, setAt } from '../shared/path'
+import { joinPath, setAt } from '../shared/path'
 import type { FieldStore } from '../state/field-store'
 import type { Validator } from '../validation/validator'
-import { reindexById } from './migrate'
+import { movedFieldPaths, reindexById } from './migrate'
 import { readRowId } from '../shared/tree-ops'
 
 /**
@@ -168,17 +168,16 @@ export class ArrayOps {
     before.forEach((row, index) => oldIds.set(this.rowIdent(row, index, rowKey), joinPath(path, String(index))))
     const newIds = new Map<string, string>()
     next.forEach((row, index) => newIds.set(this.rowIdent(row, index, rowKey), joinPath(path, String(index))))
-    store.onReindex?.(reindexById(store.fields, oldIds, newIds))
+    const reindexed = reindexById(store.fields, oldIds, newIds)
+    const moved = movedFieldPaths(reindexed)
+    store.onReindex?.(reindexed)
     store.onReindexIds?.(oldIds, newIds)
     const previous = store.values
     store.values = setAt(previous, path, next)
     this.carryIdentity(path, previous, store.values)
     scheduler.markDirtyRows(path, dirty)
     scheduler.markStructure(path, previous, store.values)
-    // The array value itself changed: wake readers of `$value` on it and its ancestors (useWatch, reactions).
-    // Row-level deps stay on dirtyRows, so `each` instances whose occupant did not change still skip.
-    for (let cursor: string | null = path; cursor; cursor = parentPath(cursor)) scheduler.markDirty(`${cursor}:value`)
-    scheduler.markDirty(':value')
+    scheduler.markValueChanged(path, { before: previous, after: store.values, moved })
     this.declarations.applyItemTemplates()
     scheduler.enqueueFromDirty()
     scheduler.flush()

@@ -236,7 +236,7 @@ export class StateWriter {
   }
 
   commitValue(path: string, value: unknown, fromReaction: boolean): boolean {
-    const { store, notifier, scheduler, declarations } = this.deps
+    const { store, scheduler, declarations } = this.deps
     // A reaction write marks the field computed (excluded from `dirty`), also when the derived value already
     // equals the current one (an initial value that is already right). It stays in the submit payload unless
     // this field is omitted (its own `omit`, or an ancestor's).
@@ -274,39 +274,16 @@ export class StateWriter {
       if (extendedArray) declarations.applyItemTemplates()
     }
     this.deps.carryRowIdentity?.(path, before, store.values)
-    notifier.bumpPath(path)
     // A changed value invalidates external (`setErrors`) messages on this path, its ancestors and descendants.
     this.deps.validator.clearExternalAround(path)
-    let cursor: string | null = path
-    while (cursor) {
-      scheduler.markDirty(`${cursor}:value`)
-      cursor = parentPath(cursor)
-    }
-    scheduler.markDirty(':value') // the root: `d.$value` / `<Watch select={(d) => d.$value}>`
     if (Array.isArray(old) || Array.isArray(value)) {
       scheduler.markDirtyRows(path, 'all')
       scheduler.markStructure(path)
       declarations.applyItemTemplates()
     }
-    if ((value != null && typeof value === 'object') || (old != null && typeof old === 'object')) this.dirtyUnder(path, before)
+    const replacement = (value != null && typeof value === 'object') || (old != null && typeof old === 'object')
+    scheduler.markValueChanged(path, replacement ? { before, after: store.values, fields: store.fields.keys() } : undefined)
     return true
-  }
-
-  private dirtyUnder(path: string, before: unknown): void {
-    const { store, notifier, scheduler } = this.deps
-    const prefix = path + '.'
-    // Effects' recorded reads, and `useWatch` / `<Watch>` subscriptions: replacing `editor` changes `editor.open`.
-    for (const keys of [scheduler.depKeys(), notifier.depListenerKeys()]) {
-      for (const dep of keys) {
-        const depPath = dep.slice(0, dep.lastIndexOf(':'))
-        if (!path || depPath === path || depPath.startsWith(prefix)) {
-          scheduler.markReplaced(dep, depPath, before, store.values)
-        }
-      }
-    }
-    for (const fieldPath of store.fields.keys()) {
-      if (fieldPath.startsWith(prefix)) notifier.bumpPath(fieldPath)
-    }
   }
 
   private makeOp(path: string, key: string, value: unknown, anchors?: readonly CellAnchor[]): WriteOp {
@@ -559,7 +536,7 @@ export class StateWriter {
   private applyDrop(path: string): boolean {
     const parent = parentPath(path)
     const key = parent === null ? path : path.slice(parent.length + 1)
-    const { store, notifier, scheduler } = this.deps
+    const { store, scheduler } = this.deps
     const owner = parent === null ? store.values : getAt(store.values, parent)
     if (!owner || typeof owner !== 'object' || Array.isArray(owner)) return false
     if (!Object.prototype.hasOwnProperty.call(owner, key)) return false
@@ -570,14 +547,7 @@ export class StateWriter {
     store.values = (parent === null ? next : setAt(store.values, parent, next)) as typeof store.values
     this.deps.carryRowIdentity?.(parent ?? path, before, store.values)
     this.deps.validator.clearExternalAround(path)
-    let cursor: string | null = path
-    while (cursor) {
-      scheduler.markDirty(`${cursor}:value`)
-      cursor = parentPath(cursor)
-    }
-    scheduler.markDirty(':value')
-    this.dirtyUnder(path, before)
-    notifier.bumpPath(path)
+    scheduler.markValueChanged(path, { before, after: store.values, fields: store.fields.keys() })
     return true
   }
 

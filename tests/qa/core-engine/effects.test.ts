@@ -96,27 +96,39 @@ it('identifies both reactions in a feedback cycle', () => {
   }))
 })
 
-it.fails('BUG: QA-23 leaves fixed-path readers and subscribers stale after a row moves', () => {
+it('QA-23 invalidates fixed-path readers and only affected row callbacks when a row moves', () => {
   type Values = { rows: { id: string; amount: number }[]; first: number }
   const watched = vi.fn()
+  const rowsRun = vi.fn()
   const form = createEngine<Values>({
-    initialValues: { rows: [{ id: 'a', amount: 10 }, { id: 'b', amount: 20 }], first: 0 },
-    effects: [defineEffects<Values>(({ reaction, watch }) => {
+    initialValues: { rows: [{ id: 'a', amount: 10 }, { id: 'b', amount: 20 }, { id: 'c', amount: 30 }], first: 0 },
+    effects: [defineEffects<Values>(({ draft, reaction, watch }) => {
       reaction((d) => { d.first.$value = d.rows[0].amount.$value })
       watch((d) => d.rows[0].amount.$value, (d) => watched(d.rows[0].amount.$value))
+      reaction.each(draft.rows, (row, { index }) => rowsRun(index, row.amount.$value))
     })],
   })
   expect(form.values.first).toBe(10)
   expect(watched).not.toHaveBeenCalled()
 
   const changed = vi.fn()
+  const changedCell = vi.fn()
+  const unchangedCell = vi.fn()
   const stop = form.subscribePath('rows', changed)
+  const stopCell = form.subscribePath('rows.0.amount', changedCell)
+  const stopUnchanged = form.subscribePath('rows.2.amount', unchangedCell)
+  rowsRun.mockClear()
   form.moveArray('rows', 1, 0)
   stop()
+  stopCell()
+  stopUnchanged()
 
   expect({ row: form.values.rows[0].id, first: form.values.first, watched: watched.mock.calls, notifications: changed.mock.calls.length }).toEqual({
     row: 'b', first: 20, watched: [[20]], notifications: 1,
   })
+  expect(changedCell).toHaveBeenCalledTimes(1)
+  expect(unchangedCell).not.toHaveBeenCalled()
+  expect(rowsRun.mock.calls.sort()).toEqual([[0, 20], [1, 10]])
 })
 
 it.fails('BUG: QA-25 keeps the initial watch.each dependencies when a row switches fields', () => {

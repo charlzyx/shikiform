@@ -63,6 +63,10 @@ export class Notifier {
     return this.depListeners.keys()
   }
 
+  pathListenerKeys(): IterableIterator<string> {
+    return this.pathListeners.keys()
+  }
+
   /** Paths some structure listener (array / tree component) subscribes to right now. */
   structureKeys(): string[] {
     return [...this.structListeners.keys()]

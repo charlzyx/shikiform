@@ -48,7 +48,7 @@ it('refuses a descendant tree move without notifying and preserves node state th
   stop()
 })
 
-it.fails('BUG: QA-23 leaves a fixed descendant reaction stale after a tree move', () => {
+it('QA-23 refreshes a fixed descendant reaction after a tree move', () => {
   type Values = { nodes: Node[]; firstChild: string }
   const form = createEngine<Values>({
     initialValues: {

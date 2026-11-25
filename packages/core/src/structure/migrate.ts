@@ -13,6 +13,16 @@ export interface Reindexed {
   moved: { from: string; model: FieldModel }[]
 }
 
+/** Exact paths whose field state moved with a model or was dropped. */
+export function movedFieldPaths(index: Reindexed): Set<string> {
+  const paths = new Set(index.dropped.map((model) => model.path))
+  for (const { from, model } of index.moved) {
+    paths.add(from)
+    paths.add(model.path)
+  }
+  return paths
+}
+
 export function reindexById(fields: Map<string, FieldModel>, oldIds: ReadonlyMap<string, string>, newIds: ReadonlyMap<string, string>): Reindexed {
   return reindexKeyed(fields, (model) => model.path, oldIds, newIds)
 }
