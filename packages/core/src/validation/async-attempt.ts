@@ -23,7 +23,7 @@ export class AsyncAttempts {
   onEdit(path: string): void {
     const field = this.host.store.get(path)
     if (!field) return
-    const pending = this.timers.has(path) || field.validating
+    const pending = this.timers.has(path) || field.validating || field.warningValidating
     if (!this.host.triggersFor(path).includes('onChange') && !shownErrors(field).length && !pending) return
     this.schedule(path, true)
   }
@@ -35,9 +35,9 @@ export class AsyncAttempts {
   schedule(path: string, valueChanged = false): void {
     const field = this.host.store.ensure(path)
     const ms = field.asyncDebounceMs ?? this.host.options.asyncDebounceMs ?? 0
-    const asyncish = field.rules.some((rule) => rule.validator || rule.schema)
-    const supersede = valueChanged && asyncish && (field.validating || shownErrors(field).length > 0)
-    if (ms > 0 && asyncish) {
+    const asyncRules = field.rules.filter((rule) => rule.validator || rule.schema)
+    const supersede = valueChanged && asyncRules.some((rule) => rule.level !== 'warning') && (field.validating || shownErrors(field).length > 0)
+    if (ms > 0 && asyncRules.length) {
       this.clearTimer(path)
       field.abort?.abort()
       field.asyncSeq += 1

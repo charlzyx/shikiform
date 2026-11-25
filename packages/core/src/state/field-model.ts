@@ -41,6 +41,7 @@ export interface FieldModel {
   /** Sticky: a user edit (`setValue`, `binding().onChange`) happened since the last reset. `dirty` is derived from values. */
   edited: boolean
   validating: boolean
+  warningValidating: boolean
   schemaErrors: string[]
   /** Messages written from outside (`setErrors`, a server response). Cleared when the value at, above, or below this path changes, or when this field validates again. */
   externalErrors: string[]
@@ -124,6 +125,7 @@ export function createFieldModel(path: string): FieldModel {
     touched: false,
     edited: false,
     validating: false,
+    warningValidating: false,
     enumLoading: false,
     enumFromEffect: false,
     templateApplied: false,

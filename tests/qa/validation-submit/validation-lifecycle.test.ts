@@ -1,6 +1,7 @@
 import { setImmediate } from 'node:timers/promises'
 import { createForm, SubmitSupersededError, SubmitUnstableError, type ValidateCtx } from '@shikiform/core'
 import { describe, expect, it, vi } from 'vitest'
+import { createEngine } from '../../../packages/core/src/engine/create'
 import { deferred } from './deferred'
 
 describe('scoped validation', () => {
@@ -218,10 +219,10 @@ describe('submit ownership', () => {
 })
 
 describe('warning-only validation', () => {
-  it.fails('BUG QA-26: lets a submit finish while an async warning is still pending', async () => {
+  it('QA-26: lets a submit finish while an async warning is still pending', async () => {
     const warning = deferred<string>()
     const entered = deferred<void>()
-    const form = createForm({
+    const form = createEngine({
       initialValues: { title: 'Draft' },
       validateTrigger: ['onChange'],
       fields: {
@@ -235,13 +236,43 @@ describe('warning-only validation', () => {
     await entered.promise
 
     const available = form.canSubmit
+    expect(form.validating).toBe(false)
+    expect(form.binding('title').validating).toBe(false)
     const pending = form.submit()
     try {
       const result = await Promise.race([pending, setImmediate('waiting for the warning')])
       expect({ available, result }).toEqual({ available: true, result: { title: 'Edited' } })
+      expect(form.binding('title').warnings).toEqual([])
     } finally {
       warning.resolve('Consider a longer title')
       await pending
     }
+    await setImmediate()
+    expect(form.binding('title').warnings).toEqual(['Consider a longer title'])
+    expect(form.canSubmit).toBe(true)
+  })
+
+  it('rechecks a changed warning while ignoring the old async result', async () => {
+    const old = deferred<string>()
+    const entered = deferred<AbortSignal | undefined>()
+    const form = createEngine({
+      initialValues: { title: 'Draft' },
+      fields: {
+        title: { rules: { level: 'warning', validator: (value: string, { signal }: ValidateCtx) => {
+          if (value !== 'Draft') return 'Current warning'
+          entered.resolve(signal)
+          return old.promise
+        } } },
+      },
+    })
+
+    const validating = form.validate()
+    const signal = await entered.promise
+    form.setValue('title', 'Edited')
+    old.resolve('Stale warning')
+    await validating
+    expect(signal?.aborted).toBe(true)
+    expect(form.binding('title').warnings).toEqual(['Current warning'])
+    expect(form.canSubmit).toBe(true)
   })
 })

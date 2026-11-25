@@ -19,6 +19,7 @@ export interface RunResult {
   values: unknown
   enumVersion: number
   resetVersion: number
+  warnings: Promise<void>[]
   current: boolean
   gen: number
 }
@@ -49,5 +50,6 @@ export async function validateScope(
       result = await run()
     }
   }
+  if (result.warnings.length) await Promise.all(result.warnings)
   return result.errors.filter(error => includes(error.path))
 }

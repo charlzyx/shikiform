@@ -1,6 +1,8 @@
+import type { FieldModel } from '../state/field-model'
 import type { FormMessages } from './messages'
 import { runRules, type Rule, type ValidateCtx } from './rules'
 import { schemaIssuePath, type StandardSchemaV1 } from './schema'
+import { isPromise, settleUnlessAborted } from './settle'
 
 /**
  * `level: 'warning'` rules: the same checks as error rules (built-ins, `validator`, `schema`), reported as warnings.
@@ -26,11 +28,33 @@ export function runWarningRules(
     if (!rule.schema) continue
     try {
       const result = rule.schema['~standard'].validate(value)
-      if (result instanceof Promise) pending.push(result.then((resolved) => issueText(resolved.issues), asText))
+      if (isPromise(result)) pending.push(Promise.resolve(result).then((resolved) => issueText(resolved.issues), asText))
       else out.push(...issueText(result.issues))
     } catch (err) {
       out.push(...asText(err))
     }
   }
   return { messages: out, pending }
+}
+
+/** Publish warnings without holding the field's blocking validation attempt open. */
+export function publishWarnings(
+  field: FieldModel,
+  ac: AbortController,
+  run: ReturnType<typeof runWarningRules>,
+  publish: (messages: string[]) => void,
+): Promise<void> | undefined {
+  const current = () => field.abort === ac && !ac.signal.aborted
+  let task: Promise<void> | undefined
+  if (run.pending.length) {
+    field.warningValidating = current()
+    task = settleUnlessAborted(Promise.all(run.pending), ac.signal).then((outcome) => {
+      if (field.abort === ac) field.warningValidating = false
+      if (!current()) return
+      if (outcome.status === 'rejected') throw outcome.reason
+      if (outcome.status === 'fulfilled') publish([...run.messages, ...outcome.value.flat()])
+    })
+    void task.catch((error: unknown) => console.error('[shikiform] warning validation failed', error))
+  } else if (current()) publish(run.messages)
+  return task
 }

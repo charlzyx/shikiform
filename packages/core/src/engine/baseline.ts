@@ -56,6 +56,7 @@ export class Baseline {
       field.touched = false
       field.edited = false
       field.validating = false
+      field.warningValidating = false
       field.abort?.abort()
       notifier.bumpPath(field.path)
     }
