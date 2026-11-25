@@ -196,7 +196,7 @@ describe.each(['development', 'production'] as const)('flow validation in %s', (
     ])
   })
 
-  it.fails('BUG: QA-18 resetting a nested row by bracket alias leaves queued checks alive', async () => {
+  it.each(['layout.rows[0]', "layout['rows'][0]"])('QA-18 cancels queued checks when resetting %s', async (path) => {
     vi.useFakeTimers()
     const check = vi.fn(async () => 'Old task should be canceled')
     const form = createForm<Record<string, any>>({
@@ -206,8 +206,12 @@ describe.each(['development', 'production'] as const)('flow validation in %s', (
       asyncDebounceMs: 80,
     })
     form.setValue('layout.rows[0].name', 'edited')
-    form.reset('layout.rows[0]')
+    form.setErrors([{ path: 'layout.rows.0.name', messages: ['Server error'] }])
+    const notify = vi.fn()
+    form.subscribePath('layout.rows.0.name', notify)
+    form.reset(path)
     expect(form.getValue('layout.rows.0.name')).toBe('first')
+    expect(notify).toHaveBeenCalledOnce()
     await vi.advanceTimersByTimeAsync(80)
     expect({ calls: check.mock.calls.length, errors: form.errors }).toEqual({ calls: 0, errors: [] })
   })

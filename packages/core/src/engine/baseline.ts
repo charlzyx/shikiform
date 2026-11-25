@@ -2,7 +2,7 @@ import type { Declarations } from '../declarations/declarations'
 import { copyData } from '../draft/plain-clone'
 import { guardReactionAction, isWatchRunner, type Scheduler } from '../effects/scheduler'
 import { deepEqual, differsExcept } from '../shared/equal'
-import { getAt, selfAndAncestors, setAt } from '../shared/path'
+import { getAt, normalizePath, selfAndAncestors, setAt } from '../shared/path'
 import type { FieldStore } from '../state/field-store'
 import type { Notifier } from '../state/notifier'
 import type { FieldError } from '../types'
@@ -42,7 +42,7 @@ export class Baseline {
     guardReactionAction(scheduler, 'reset')
     let path: string | undefined
     if (pathOrValues != null && typeof pathOrValues === 'object') store.initial = copyData(pathOrValues)
-    else if (pathOrValues) path = String(pathOrValues)
+    else if (typeof pathOrValues === 'string') path = normalizePath(pathOrValues)
     if (path) store.values = setAt(store.values, path, copyData(getAt(store.initial, path)))
     else store.values = copyData(store.initial)
     validator.reset(path)
