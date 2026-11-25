@@ -119,9 +119,10 @@ export function setAt<T>(root: T, path: string, value: unknown): T {
       writeArrayIndex(copy, at, next)
       return copy
     }
-    const obj = node && typeof node === 'object' ? { ...(node as Record<string, unknown>) } : {}
-    obj[key] = last ? value : write(obj[key] ?? (nextIsIndex ? [] : {}), index + 1)
-    return obj
+    const obj = node && typeof node === 'object' ? node as Record<string, unknown> : {}
+    const current = Object.hasOwn(obj, key) ? obj[key] : undefined
+    const next = last ? value : write(current ?? (nextIsIndex ? [] : {}), index + 1)
+    return { ...obj, [key]: next }
   }
   return write(root, 0) as T
 }
@@ -159,9 +160,8 @@ export function deleteAt<T>(root: T, path: string): T {
       copy[at] = write(copy[at], index + 1)
       return copy
     }
-    const obj = { ...(node as Record<string, unknown>) }
-    obj[key] = write(obj[key], index + 1)
-    return obj
+    const obj = node as Record<string, unknown>
+    return { ...obj, [key]: write(obj[key], index + 1) }
   }
   return write(root, 0) as T
 }

@@ -92,7 +92,11 @@ function share(node: unknown, known: Set<object>, seen: WeakMap<object, unknown>
   if (!isPlainRecord(node)) return node
   const copy: Record<string, unknown> = {}
   seen.set(node, copy)
-  for (const key of Object.keys(node)) copy[key] = share(node[key], known, seen)
+  for (const key of Object.keys(node)) {
+    Object.defineProperty(copy, key, {
+      value: share(node[key], known, seen), enumerable: true, configurable: true, writable: true,
+    })
+  }
   return copy
 }
 

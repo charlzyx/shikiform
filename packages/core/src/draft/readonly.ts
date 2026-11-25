@@ -70,7 +70,9 @@ export function readonlyValue<V>(value: V, path: string): V {
   let view!: object
   view = new Proxy(value, {
     get(target, prop, receiver) {
-      if (prop === '__proto__' || prop === 'constructor') return Reflect.get(target, prop, target)
+      if ((prop === '__proto__' || prop === 'constructor') && !Object.hasOwn(target, prop)) {
+        return Reflect.get(target, prop, target)
+      }
       if (target instanceof Map || target instanceof Set || target instanceof Date) return readCollection(target, prop, path, view)
       if (locate) {
         if (typeof prop === 'string' && ARRAY_MUTATORS.has(prop)) return () => { throw arrayMutation(path, prop) }
@@ -271,7 +273,7 @@ function unwrapChildren(value: object, seen: WeakMap<object, object>): object {
     const next = unwrap(item, seen)
     if (next !== item) {
       copy ??= Array.isArray(value) ? (value as unknown[]).slice() : { ...(value as object) }
-      copy[key] = next
+      Object.defineProperty(copy, key, { value: next, enumerable: true, configurable: true, writable: true })
     }
   }
   return copy ?? value

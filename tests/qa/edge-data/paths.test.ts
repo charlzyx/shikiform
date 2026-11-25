@@ -41,7 +41,7 @@ it('keeps a then handle out of Promise assimilation and exposes the field via qu
   expect(form.getValue('echo')).toBe('updated')
 })
 
-it.fails.each(['development', 'production'] as const)('BUG: QA-34 preserves an own __proto__ field in a JSON record in %s', (mode) => {
+it.each(['development', 'production'] as const)('QA-34 preserves an own __proto__ field in a JSON record in %s', (mode) => {
   vi.stubEnv('NODE_ENV', mode)
   const record: Record<string, unknown> = JSON.parse('{"__proto__":{"kind":"ordinary data"},"other":1}')
   const form = createForm({ initialValues: { record } })
@@ -51,6 +51,13 @@ it.fails.each(['development', 'production'] as const)('BUG: QA-34 preserves an o
   expect.soft(Object.hasOwn(submitted, '__proto__')).toBe(true)
   expect.soft(Object.getPrototypeOf(submitted)).toBe(Object.prototype)
   expect(submitted).toEqual(record)
+
+  form.setValue('record', {})
+  form.setValue('record.__proto__', { kind: 'new data' })
+  const updated = form.getSubmitValues().record
+  expect(Object.hasOwn(updated, '__proto__')).toBe(true)
+  expect(Object.getPrototypeOf(updated)).toBe(Object.prototype)
+  expect(updated.__proto__).toEqual({ kind: 'new data' })
 })
 
 it.fails('BUG: QA-35 reads a real business key close to a state name through the draft', () => {
