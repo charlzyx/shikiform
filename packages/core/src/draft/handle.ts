@@ -66,8 +66,8 @@ const READ_ONLY_HINT: Record<string, string> = {
 }
 
 /**
- * Development check for a draft assignment. Writes that would otherwise be dropped silently (a typo such as
- * `$requird`, a read-only state) or fail with a bare proxy TypeError (`d.email.value = …`) throw with the fix.
+ * Development check for a draft assignment. Invalid writes (`$requird`, read-only states, or
+ * `d.email.value = …`) throw with the fix.
  */
 function assertWritable(path: string, key: string): void {
   const shown = showDraftPath(path)
@@ -146,8 +146,7 @@ export function createHandle(host: DraftHost, path: string, scope = host.draftSc
       if (!isDraftActive(scope)) return true
       const key = String(prop)
       if (process.env.NODE_ENV !== 'production') assertWritable(path, key)
-      if (!key.startsWith('$')) return false
-      host.writeState(path, key, value)
+      if (key.startsWith('$')) host.writeState(path, key, value)
       return true
     },
     has(_target, prop) {

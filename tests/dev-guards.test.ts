@@ -185,9 +185,11 @@ describe('production builds skip the guards', () => {
     expect(engineOf(form).query('total').$errors).toEqual([])
   })
 
-  it('a bare property write (d.x.value = …) is a silent no-op: the proxy rejects it without a guide', () => {
-    // production 下不抛 ShikiUsageError；引擎代理拒绝写入（原生 set trap 失败，严格模式下是 TypeError），值保持不变
-    expect(() => prod((d) => { d.total.value = 9 })).toThrow(TypeError)
-    expect(() => prod((d) => { d.total.value = 9 })).not.toThrow(ShikiUsageError)
+  it('a bare property write (d.x.value = …) is ignored without throwing', () => {
+    const form = prod((d) => {
+      expect(Reflect.set(d.total, 'value', 9)).toBe(true)
+      d.total.value = 9
+    })
+    expect(form.getValue('total')).toBe(0)
   })
 })

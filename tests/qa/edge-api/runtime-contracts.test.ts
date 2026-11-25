@@ -27,10 +27,7 @@ describe.each(['development', 'production'])('untyped API inputs in %s', (enviro
     expect(form.dirty).toBe(true)
   })
 
-  const bareWrite = environment === 'production' ? it.fails : it
-  bareWrite(environment === 'production'
-    ? 'BUG: QA-51 assignment without $value crashes production with a native proxy error'
-    : 'explains how to fix an assignment without $value in development', () => {
+  it('QA-51 rejects an assignment to a regular draft handle property', () => {
     const form = createForm({ initialValues: { name: 'Ada' } })
     const write = () => form.batch((d) => { d.name.value = 'wrong' as never })
 
