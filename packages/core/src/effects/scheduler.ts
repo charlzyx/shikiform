@@ -464,21 +464,29 @@ export class Scheduler {
     this.trace = []
     try {
       let wave = 0
+      let failure: { error: unknown } | undefined
       while (this.queued.size) {
         wave += 1
-        if (wave > 10) throw this.cycleError()
+        if (wave > 10) throw failure ? failure.error : this.cycleError()
         const ids = [...this.queued]
         for (const id of ids) {
           // A structure reconciler can queue a row whose changed dependency already queued it.
           if (!this.queued.delete(id)) continue
           const run = this.runners.get(id)
-          if (!run) continue
+          if (!run || (failure && isWatchRunner(id))) continue
           this.trace.push(id)
           this.runs.set(id, (this.runs.get(id) ?? 0) + 1)
           if (this.devtools) console.debug('[shikiform]', id)
-          run()
+          try {
+            run()
+          } catch (error) {
+            if (!isReactionId(id)) throw failure ? failure.error : error
+            // Other derivations still need to see this edit, including downstream waves.
+            failure ??= { error }
+          }
         }
       }
+      if (failure) throw failure.error
     } finally {
       this.queued.clear()
       this.dirtyDeps.clear()

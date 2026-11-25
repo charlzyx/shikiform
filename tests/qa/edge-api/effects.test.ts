@@ -26,21 +26,23 @@ describe.each(['development', 'production'])('effect callbacks in %s', (environm
     expect(form.getValue('total')).toBe(30)
   })
 
-  it.fails('BUG: QA-45 a throwing reaction leaves a sibling derivation stale in the submit payload', async () => {
-    type Values = { quantity: number; total: number }
+  it('QA-45 settles sibling and downstream derivations before surfacing a reaction error', async () => {
+    type Values = { quantity: number; total: number; withTax: number }
     const form = createForm({
-      initialValues: { quantity: 1, total: 0 },
+      initialValues: { quantity: 1, total: 0, withTax: 0 },
       effects: [defineEffects<Values>(({ reaction }) => {
         reaction((d) => {
           if (d.quantity.$value === 2) throw new Error('reaction failed')
         })
         reaction((d) => { d.total.$value = d.quantity.$value * 10 })
+        reaction((d) => { d.withTax.$value = d.total.$value * 2 })
       })],
     })
 
     expect(() => form.setValue('quantity', 2)).toThrow('reaction failed')
     const values = await form.submit()
     expect(values.total).toBe(values.quantity * 10)
+    expect(values.withTax).toBe(values.total * 2)
   })
 
   it.fails('BUG: QA-46 a rejected async reaction can still write through its captured handle after await', async () => {
