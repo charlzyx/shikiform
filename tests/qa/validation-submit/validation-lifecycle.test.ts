@@ -101,14 +101,24 @@ describe('reset during asynchronous validation', () => {
     }
   })
 
-  it.fails('BUG QA-20: does not repopulate errors from a form-level check that started before reset', async () => {
+  it.each(['function', 'schema'] as const)('QA-20: keeps a stale form-level %s verdict out of reset state', async (kind) => {
     const result = deferred<{ name: string }>()
     const entered = deferred<string>()
+    async function check(name: string) {
+      entered.resolve(name)
+      return result.promise
+    }
     const form = createForm({
       initialValues: { name: 'initial' },
-      async validate(values) {
-        entered.resolve(values.name)
-        return result.promise
+      validate: kind === 'function' ? (values) => check(values.name) : {
+        '~standard': {
+          version: 1,
+          vendor: 'test',
+          async validate(values) {
+            const errors = await check((values as { name: string }).name)
+            return { issues: [{ path: ['name'], message: errors.name }] }
+          },
+        },
       },
     })
 
@@ -117,8 +127,9 @@ describe('reset during asynchronous validation', () => {
     expect(await entered.promise).toBe('edited')
     form.reset()
     expect(form.errors).toEqual([])
+    expect(form.validating).toBe(false)
     result.resolve({ name: 'Edited name rejected' })
-    await pending
+    await expect(pending).resolves.toEqual([{ path: 'name', messages: ['Edited name rejected'] }])
 
     expect(form.values).toEqual({ name: 'initial' })
     expect(form.errors).toEqual([])

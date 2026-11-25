@@ -141,8 +141,8 @@ export class Validator {
     store.validating = true
     scheduler.bumpMeta()
     notifier.emit()
-    const scoped = (): RunResult => ({
-      errors: this.errors().filter((e) => inScope(e.path)),
+    const scoped = (errors = this.errors()): RunResult => ({
+      errors: errors.filter((e) => inScope(e.path)),
       values,
       enumVersion,
       resetVersion,
@@ -154,13 +154,17 @@ export class Validator {
       const collected: SchemaIssue[] = []
       const preserve = new Set<string>()
       for (const target of targets) {
-        if (gen !== this.validateGen) return scoped()
+        if (gen !== this.validateGen || resetVersion !== this.resetVersion) return scoped()
         const result = await this.validateOne(target, values)
-        if (gen !== this.validateGen) return scoped()
+        if (gen !== this.validateGen || resetVersion !== this.resetVersion) return scoped()
         if (result.stale) preserve.add(target)
         else collected.push(...result.issues)
       }
       const validate = options.validate
+      // Reset can clear the field messages while a form-level check still owes its caller a verdict.
+      const ruleIssues = validate ? targets.flatMap((target) =>
+        (store.get(target)?.errors ?? []).map((message) => ({ path: target, message })),
+      ) : []
       if (isStandardSchema(validate)) {
         const issues = await collectSchemaIssues(validate, values, (error, issuePath) =>
           this.message('fallback', { path: issuePath, value: getAt(values, issuePath), error }),
@@ -173,12 +177,17 @@ export class Validator {
         collected.push(...recordToIssues(extra))
       }
       if (gen !== this.validateGen) return scoped()
-      this.commitSchemaIssues(path, collected, preserve)
+      const activeIssues = collected.filter((issue) => issue.message && store.acceptsValidation(issue.path))
+      if (resetVersion !== this.resetVersion) {
+        const errors = groupSchemaIssues([...ruleIssues, ...activeIssues])
+        return scoped([...errors].map(([path, messages]) => ({ path, messages })))
+      }
+      this.commitSchemaIssues(path, groupSchemaIssues(activeIssues), preserve)
       // Not `waitAsync`: that would cancel the debounce an edit during this pass just scheduled (#122).
       await this.waitInflight()
       return scoped()
     } finally {
-      if (gen === this.validateGen) {
+      if (gen === this.validateGen && resetVersion === this.resetVersion) {
         store.validating = false
         scheduler.bumpMeta()
         notifier.emit()
@@ -476,6 +485,7 @@ export class Validator {
   /** Reset invalidates an in-progress submit verdict even when resetting to the same values. */
   reset(path?: string): void {
     this.resetVersion += 1
+    this.store.validating = false
     this.attempts.clearUnder(path)
     if (!path) this.schemaByPath = new Map()
     else {
@@ -485,14 +495,7 @@ export class Validator {
     }
   }
 
-  private commitSchemaIssues(scope: ValidateScope | undefined, issues: SchemaIssue[], preserve: Set<string>): void {
-    const store = this.store
-    const filtered = issues.filter((issue) => {
-      if (!issue.message) return false
-      if (!issue.path) return store.acceptsValidation('')
-      return store.acceptsValidation(issue.path)
-    })
-    const grouped = groupSchemaIssues(filtered)
+  private commitSchemaIssues(scope: ValidateScope | undefined, grouped: Map<string, string[]>, preserve: Set<string>): void {
     const replaceAll = (scope === undefined || scope === '') && preserve.size === 0
     const inScope = scopeTest(scope)
     const next = replaceAll ? new Map<string, string[]>() : new Map(this.schemaByPath)
