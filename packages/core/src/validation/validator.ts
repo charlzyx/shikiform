@@ -10,7 +10,7 @@ import { scopeOf, type Pos } from '../shared/tree-ops'
 import type { FieldError, ValidateTrigger } from '../types'
 import type { FormOptions } from '../types-effects'
 import { formatMessage, type FormMessageKey, type MessageArgs, type MessageParams } from './messages'
-import { fieldSchemaIssues, optionIncludes, runRules, type ValidateCtx } from './rules'
+import { fieldSchemaIssues, InvalidValidatorResult, optionIncludes, runRules, type ValidateCtx } from './rules'
 import { publishWarnings, runWarningRules } from './warnings'
 import { collectSchemaIssues, groupSchemaIssues, isStandardSchema, schemaIssuePath, type SchemaIssue, type StandardSchemaV1 } from './schema'
 import { scopeTest, validateScope, type RunResult, type ValidateScope, type ValidationPass } from './scope'
@@ -263,10 +263,17 @@ export class Validator {
       rules.push({ validator: () => enumMessage })
     }
     const plain = rules.filter((rule) => !rule.schema)
-    const { messages, pending } = runRules(value, plain, ctx, field.required, options.messages)
     const fallback = (issuePath: string) =>
       this.message('fallback', { path: issuePath ? `${path}.${issuePath}` : path, value: issuePath ? getAt(value, issuePath) : value, error: undefined })
-    const warned = runWarningRules(value, warnRules, ctx, options.messages, (err) => this.errorMessage(err, path, value), fallback)
+    let checked, warned
+    try {
+      checked = runRules(value, plain, ctx, field.required, options.messages)
+      warned = runWarningRules(value, warnRules, ctx, options.messages, (err) => this.errorMessage(err, path, value), fallback)
+    } catch (err) {
+      this.attempts.release(field, ac)
+      throw err
+    }
+    const { messages, pending } = checked
     const issues: SchemaIssue[] = []
     const schemaPending: Promise<SchemaIssue[]>[] = []
     for (const rule of rules) {
@@ -328,14 +335,18 @@ export class Validator {
     }
     const task = (async () => {
       // A validator we stop awaiting (abort mid-list) must not reject unhandled.
-      for (const item of pending) ignoreRejection(item)
       for (const item of schemaPending) ignoreRejection(item)
       const extra: string[] = []
       for (const item of pending) {
         const outcome = await settleUnlessAborted(item, ac.signal)
         if (outcome.status === 'aborted' || field.asyncSeq !== seq || ac.signal.aborted) return stale()
-        if (outcome.status === 'rejected') extra.push(this.errorMessage(outcome.reason, path, value))
-        else if (outcome.value) extra.push(outcome.value)
+        if (outcome.status === 'rejected') {
+          if (outcome.reason instanceof InvalidValidatorResult) {
+            this.attempts.release(field, ac)
+            throw outcome.reason
+          }
+          extra.push(this.errorMessage(outcome.reason, path, value))
+        } else extra.push(...outcome.value)
       }
       for (const item of schemaPending) {
         const outcome = await settleUnlessAborted(item, ac.signal)
@@ -411,11 +422,7 @@ export class Validator {
   /** Debounce async rules. Sync-only fields validate on the next turn of `validate`. */
   scheduleValidate(path: string): void { this.attempts.schedule(path) }
 
-  /**
-   * A pass nobody awaits (trigger, debounce timer, JSX release). Field rules never reject a pass; a throwing
-   * form-level `validate` or a reaction error still could, so it is reported instead of being
-   * left as an unhandled rejection. Awaited `validate()` / `submit()` pass those errors to the caller.
-   */
+  /** Report usage errors or exceptions from a pass that has no caller awaiting it. */
   validateDetached(path: string): void {
     this.run(path).catch((err: unknown) => {
       console.error('[shikiform] validation pass failed', err)
@@ -661,7 +668,6 @@ export class Validator {
     return out
   }
 
-  /** Field errors plus the root `:errors` dep, so `d.$errors` updates for a top-level field too. */
   /** Mark `<path>:<kind>` on the path, its ancestors and the root (`$errors` / `$warnings` aggregate descendants). */
   private markChain(path: string, kind: 'errors' | 'warnings'): void {
     const scheduler = this.deps.scheduler

@@ -1,4 +1,4 @@
-import { createForm } from '@shikiform/core'
+import { createForm, ShikiUsageError } from '@shikiform/core'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 afterEach(() => vi.unstubAllEnvs())
@@ -129,25 +129,53 @@ describe.each(['development', 'production'])('untyped API inputs in %s', (enviro
     })
   })
 
-  it.fails.each([
+  it.each([
     { label: 'true', input: true },
-    { label: 'false', input: false },
-    { label: 'an array', input: ['invalid'] },
-  ])('BUG: QA-50 validator resolving to $label gives no usable field diagnostic', async ({ input }) => {
+    { label: 'undefined', input: undefined },
+    { label: 'null', input: null },
+    { label: 'an empty string', input: '' },
+    { label: 'false', input: false, messages: ['Invalid validator result'] },
+    { label: 'a message', input: 'Blocked', messages: ['Blocked'] },
+    { label: 'an array of messages', input: ['Blocked', 'Try again'], messages: ['Blocked', 'Try again'] },
+    { label: 'an empty array', input: [] },
+    { label: 'a number', input: 123, invalid: true },
+    { label: 'a mixed array', input: ['Blocked', false], invalid: true },
+  ])('QA-50: uses the same validator contract for $label synchronously and asynchronously', async ({ input, messages, invalid }) => {
+    for (const asyncResult of [false, true]) {
+      const form = createForm({
+        initialValues: { code: 'blocked' },
+        messages: { fallback: 'Invalid validator result' },
+        fields: { code: { rules: { validator: () => (asyncResult ? Promise.resolve(input) : input) as never } } },
+      })
+      const deliver = vi.fn()
+      const verdict = await form.submit(deliver).catch((error: unknown) => error)
+      if (invalid && environment === 'development') {
+        expect(verdict).toBeInstanceOf(ShikiUsageError)
+        expect(verdict).toHaveProperty('message', expect.stringMatching(/validator.*return/i))
+      } else if (invalid || messages) {
+        expect(verdict).toEqual([{ path: 'code', messages: messages ?? ['Invalid validator result'] }])
+      } else {
+        expect(verdict).toEqual({ code: 'blocked' })
+      }
+      expect(deliver).toHaveBeenCalledTimes(invalid || messages ? 0 : 1)
+      expect(form.submitting).toBe(false)
+      expect(form.validating).toBe(false)
+      if (invalid && environment === 'development') expect(form.canSubmit).toBe(true)
+    }
+  })
+
+  it('normalizes warning validator results without turning them into blocking errors', async () => {
     const form = createForm({
       initialValues: { code: 'blocked' },
-      messages: { fallback: 'Invalid validator result' },
-      fields: { code: { rules: { validator: async () => input as never } } },
+      fields: { code: { rules: [
+        { level: 'warning', validator: () => false as never, message: 'Check the code' },
+        { level: 'warning', validator: async () => ['Blocked', 'Try again'] as never },
+      ] } },
     })
-    const deliver = vi.fn()
-    const verdict = await form.submit(deliver).catch((error: unknown) => error)
-    expect({ verdict, deliveries: deliver.mock.calls.length }).toEqual({
-      verdict: environment === 'development'
-        ? expect.arrayContaining([{
-          path: 'code', messages: [expect.stringMatching(/validator.*(return|string|undefined)/i)],
-        }])
-        : [{ path: 'code', messages: ['Invalid validator result'] }],
-      deliveries: 0,
+    await expect(form.validate()).resolves.toEqual({ code: 'blocked' })
+    form.batch((d) => {
+      expect(d.code.$warnings).toEqual(['Check the code', 'Blocked', 'Try again'])
     })
+    expect(form.canSubmit).toBe(true)
   })
 })

@@ -130,6 +130,20 @@ function matchesPattern(pattern: RegExp, value: string): boolean {
   return matcher.test(value)
 }
 
+/** Distinguish an invalid return from an exception thrown by a custom validator. */
+export class InvalidValidatorResult extends ShikiUsageError {}
+
+function validatorMessages(result: unknown, path: string, fallback: () => string): string[] {
+  if (result == null || result === true || result === '') return []
+  if (result === false) return [fallback()]
+  if (typeof result === 'string') return [result]
+  if (Array.isArray(result) && result.every((message) => typeof message === 'string')) return result.filter(Boolean)
+  if (process.env.NODE_ENV !== 'production') {
+    throw new InvalidValidatorResult(`Validator for ${JSON.stringify(path)} must return a string, a string array, a boolean, null, or undefined.`)
+  }
+  return [fallback()]
+}
+
 /**
  * Run synchronous rules. Async validators are returned separately so the caller
  * can drop a stale resolution when a newer pass has started.
@@ -141,9 +155,9 @@ export function runRules(
   ctx: ValidateCtx,
   required: boolean,
   messages?: Partial<FormMessages>,
-): { messages: string[]; pending: Promise<string | null | undefined>[] } {
+): { messages: string[]; pending: Promise<string[]>[] } {
   const out: string[] = []
-  const pending: Promise<string | null | undefined>[] = []
+  const pending: Promise<string[]>[] = []
   const base = { path: ctx.path, value }
   if ((required || rules.some((r) => r.required)) && isEmpty(value)) {
     out.push(rules.find((r) => r.required)?.message ?? formatMessage(messages, 'required', base))
@@ -175,7 +189,7 @@ export function runRules(
     }
     if (rule.validator) {
       // A synchronous throw is that rule's message, like a rejection (#2, #7): a pass never rejects on a field rule.
-      let result: RuleMessage
+      let result: unknown
       try {
         // Development: the value handed to user code is the same read-only view as `getValue` / `$value`.
         const seen = process.env.NODE_ENV !== 'production' ? readonlyValue(value, ctx.path) : value
@@ -184,8 +198,12 @@ export function runRules(
         out.push(err instanceof Error && err.message ? err.message : formatMessage(messages, 'fallback', { ...base, error: err }))
         continue
       }
-      if (result && typeof (result as Promise<unknown>).then === 'function') pending.push(result as Promise<string | null | undefined>)
-      else if (typeof result === 'string' && result) out.push(result)
+      const fallback = () => rule.message ?? formatMessage(messages, 'fallback', { ...base, error: undefined })
+      if (result && typeof (result as PromiseLike<unknown>).then === 'function') {
+        const task = Promise.resolve(result).then((resolved) => validatorMessages(resolved, ctx.path, fallback))
+        void task.catch(() => {})
+        pending.push(task)
+      } else out.push(...validatorMessages(result, ctx.path, fallback))
     }
   }
   return { messages: out, pending }

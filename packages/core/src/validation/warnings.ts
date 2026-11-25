@@ -1,6 +1,6 @@
 import type { FieldModel } from '../state/field-model'
 import type { FormMessages } from './messages'
-import { runRules, type Rule, type ValidateCtx } from './rules'
+import { InvalidValidatorResult, runRules, type Rule, type ValidateCtx } from './rules'
 import { schemaIssuePath, type StandardSchemaV1 } from './schema'
 import { isPromise, settleUnlessAborted } from './settle'
 
@@ -21,7 +21,10 @@ export function runWarningRules(
   const run = runRules(value, rules.filter((rule) => !rule.schema), ctx, false, messages)
   const out = [...run.messages]
   const asText = (err: unknown) => [errorText(err)]
-  const pending: Promise<string[]>[] = run.pending.map((item) => Promise.resolve(item).then((m) => (m ? [m] : []), asText))
+  const pending = run.pending.map((item) => item.catch((err: unknown) => {
+    if (err instanceof InvalidValidatorResult) throw err
+    return asText(err)
+  }))
   const issueText = (issues: readonly StandardSchemaV1.Issue[] | undefined) =>
     (issues ?? []).map((issue) => issue.message || fallback(schemaIssuePath(issue.path)))
   for (const rule of rules) {
