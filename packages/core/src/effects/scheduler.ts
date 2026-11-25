@@ -174,28 +174,6 @@ export class Scheduler {
     return this.runWith({ id: 'track', deps: true, writes: false }, fn)
   }
 
-  /**
-   * Development guard: reading a flag this reaction / watch / batch already wrote in the same pass sees the
-   * old value (that write is buffered until the pass returns). `$value`, `$enum`, `$rules`, and UI state replay
-   * pending writes, so a second read sees the new value and is not checked here.
-   */
-  assertNotWritten(path: string, draftKey: string): void {
-    const state = WRITTEN_STATE[draftKey]
-    if (!state) return
-    const tracker = this.stack.at(-1)
-    const writes = tracker?.recordWrites ? tracker.writes : this.batchDepth > 0 ? this.batchOps : undefined
-    if (!writes?.length) return
-    const key = `${path}:${state}`
-    if (!writes.some((op) => op.key === key)) return
-    const shown = `${showDraftPath(path)}.${draftKey}`
-    const where = tracker?.recordWrites ? (isReactionId(tracker.id) ? 'reaction' : 'watch') : 'batch'
-    throw new ShikiUsageError(
-      `Read ${shown} after writing it in the same ${where}. ` +
-        `Writes are buffered until the pass returns, so this read sees the old value. ` +
-        `Keep the new value in a local: const next = …; ${shown} = next; then use next.`,
-    )
-  }
-
   /** Record a read of `path:state` on the running tracker. */
   track(path: string, state: string): void {
     const tracker = this.stack.at(-1)
@@ -514,6 +492,24 @@ export class Scheduler {
       this.notifier.emit()
     }
   }
+}
+
+/** This development diagnostic can be removed when its guarded call is folded out. */
+export function assertNotWritten(scheduler: Scheduler, path: string, draftKey: string): void {
+  const state = WRITTEN_STATE[draftKey]
+  if (!state) return
+  const tracker = scheduler.current()
+  const writes = tracker?.recordWrites ? tracker.writes : scheduler.batchDepth > 0 ? scheduler.batchOps : undefined
+  if (!writes?.length) return
+  const key = `${path}:${state}`
+  if (!writes.some((op) => op.key === key)) return
+  const shown = `${showDraftPath(path)}.${draftKey}`
+  const where = tracker?.recordWrites ? (isReactionId(tracker.id) ? 'reaction' : 'watch') : 'batch'
+  throw new ShikiUsageError(
+    `Read ${shown} after writing it in the same ${where}. ` +
+      `Writes are buffered until the pass returns, so this read sees the old value. ` +
+      `Keep the new value in a local: const next = …; ${shown} = next; then use next.`,
+  )
 }
 
 function isObjectEntry(id: string): boolean {

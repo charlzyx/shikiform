@@ -53,7 +53,7 @@ describe('core-only Vite production bundle', () => {
     expect(JSON.parse(result)).toEqual({ user: { name: 'Grace' }, rows: [1, 2] })
   })
 
-  it.fails('BUG: the production bundle retains the development-only flag readback message (QA-7)', () => {
+  it('QA-7 removes the development-only flag readback message from the production bundle', () => {
     expect(code.includes('after writing it in the same')).toBe(false)
   })
 })

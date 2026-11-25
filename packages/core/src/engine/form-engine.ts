@@ -2,7 +2,7 @@ import { Declarations, type RegisterSpec } from '../declarations/declarations'
 import { createHandle, createUiHandle, handlePath } from '../draft/handle'
 import type { DraftHost } from '../draft/host'
 import { readonlyValue } from '../draft/readonly'
-import { Scheduler, type EachDirty, type EachRec } from '../effects/scheduler'
+import { assertNotWritten, Scheduler, type EachDirty, type EachRec } from '../effects/scheduler'
 import { getAt, normalizePath } from '../shared/path'
 import { submitValueAt, validateResult } from './submit-values'
 import { shownErrors } from '../state/field-model'
@@ -524,7 +524,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
       return (pos: Pos) => pathOf(path, pos, this.childrenKey(trees.root(path) ?? path))
     }
     if (key === '$ui') return (name: string) => createUiHandle(this, path, name)
-    if (process.env.NODE_ENV !== 'production') scheduler.assertNotWritten(path, key)
+    if (process.env.NODE_ENV !== 'production') assertNotWritten(scheduler, path, key)
     if (key === '$value') {
       scheduler.track(path, 'value')
       return this.drafts.readValue(path)
