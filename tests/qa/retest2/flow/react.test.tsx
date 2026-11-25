@@ -4,7 +4,7 @@ import { act, cleanup, render, renderHook } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import {
   createForm, defineEffects, EnumSource, Form, ObjectField, useArrayField, useField,
-  useLazyCascader, useTreeField, useWatch, type CascaderOption, type EnumOption, type FormInstance,
+  useForm, useLazyCascader, useTreeField, useWatch, type CascaderOption, type EnumOption, type FormInstance,
 } from '@shikiform/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { deferred } from '../../validation-submit/deferred'
@@ -39,6 +39,27 @@ describe.each(['development', 'production'])('React integration in %s', (mode) =
     expect(view.getByText('inserted/inserted/group.rows')).toBeDefined()
     act(() => form.reset('group["rows"]' as 'group.rows'))
     expect(view.getByText('saved/saved/group.rows')).toBeDefined()
+  })
+
+  it('QA-63 applies useForm templates and tree settings declared with bracket aliases', async () => {
+    const observed = vi.fn()
+    type Node = { key: string; kids: Node[] }
+    type Values = { group: { rows: { code: string }[]; tree: Node[] } }
+    const template = "group['rows'][*]['code']" as 'group.rows.*.code'
+    const tree = "group['tree']" as 'group.tree'
+    const { result } = renderHook(() => useForm<Values>({
+      initialValues: { group: { rows: [{ code: 'ready' }, { code: '' }], tree: [{ key: 'a', kids: [] }] } },
+      fields: { [template]: { rules: { required: true, message: 'Code missing' } } },
+      trees: { [tree]: { childrenKey: 'kids', rowKey: 'key' } },
+      effects: [defineEffects<Values>(({ query, watch }) => {
+        watch(query("group['rows'][0]['code']"), (d) => observed(d.group.rows[0].code.$value))
+      })],
+    }))
+    const form = result.current
+    act(() => form.setValue('group.rows.0.code', 'changed'))
+    expect(observed).toHaveBeenCalledExactlyOnceWith('changed')
+    expect(() => form.batch((d) => { d.group.tree[0].kids.$value.reverse() })).toThrow(/useTreeField/)
+    await expect(form.validate()).rejects.toEqual([{ path: 'group.rows.1.code', messages: ['Code missing'] }])
   })
 
   it('QA-62 keeps pending child-list edits on the right nodes during a batched tree move', async () => {

@@ -1,4 +1,4 @@
-import { createForm, defineEffects } from '@shikiform/core'
+import { createForm, defineEffects, pathOf, posOf } from '@shikiform/core'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 type Row = { id: string; detail: { items: number[]; note?: string } }
@@ -15,7 +15,7 @@ afterEach(() => vi.unstubAllEnvs())
 describe.each(['development', 'production'])('structure in %s', (mode) => {
   beforeEach(() => vi.stubEnv('NODE_ENV', mode))
 
-  it.fails('BUG: QA-18 bracket aliases bypass configured tree protections', () => {
+  it('QA-63 a bracket alias registers a tree at its canonical path', () => {
     const path = 'group["nodes"]' as 'group.nodes'
     const form = createForm({
       initialValues: { group: { nodes: [{ id: 'a' }, { id: 'b' }] } },
@@ -23,6 +23,8 @@ describe.each(['development', 'production'])('structure in %s', (mode) => {
     })
 
     expect(() => form.batch((d) => { d.group.nodes.$value.reverse() })).toThrow(/useTreeField/)
+    expect(pathOf(path, [0])).toBe('group.nodes.0')
+    expect(posOf('group.nodes', `${path}[0]`)).toEqual([0])
   })
 
   it.each(reorderCases)('QA-17 binds mixed edits before and after an outer %s', async (_, reorder, ids) => {

@@ -1,5 +1,5 @@
 import { formatMessage, type FormMessages } from '../validation/messages'
-import { getAt } from './path'
+import { getAt, normalizePath } from './path'
 
 /** Index path of a tree node. Depth is `pos.length`. The last entry is the sibling index. */
 export type Pos = readonly number[]
@@ -26,7 +26,7 @@ export function isPosPrefix(prefix: Pos, pos: Pos): boolean {
  * `pathOf('menus', [0, 2, 1])` → `menus.0.children.2.children.1`.
  */
 export function pathOf(root: string, pos: Pos, childrenKey = 'children'): string {
-  let path = root
+  let path = normalizePath(root)
   for (let i = 0; i < pos.length; i++) {
     path += `.${pos[i]}`
     if (i < pos.length - 1) path += `.${childrenKey}`
@@ -36,6 +36,8 @@ export function pathOf(root: string, pos: Pos, childrenKey = 'children'): string
 
 /** Inverse of {@link pathOf}. Returns `undefined` when `path` is not under `root`. */
 export function posOf(root: string, path: string, childrenKey = 'children'): Pos | undefined {
+  root = normalizePath(root)
+  path = normalizePath(path)
   if (path === root) return []
   if (!path.startsWith(root + '.')) return undefined
   const parts = path.slice(root.length + 1).split('.')

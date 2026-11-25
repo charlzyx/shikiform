@@ -28,15 +28,20 @@ export function appendValueKey(parent: string, key: string): string {
 }
 
 export function assertUnambiguousWritePath(path: string): void {
-  if (!path.includes('[')) return
-  const quoted = /\[\s*(?:"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)')\s*\]/g
-  for (const match of path.matchAll(quoted)) {
-    if (!/[.\[\]]/.test(match[1] ?? match[2] ?? '')) continue
+  if (path.includes('[') && hasAmbiguousQuotedKey(path)) {
     throw new ShikiUsageError(
       `Cannot write ${JSON.stringify(path)}: field keys containing ".", "[" or "]" cannot be written by path. ` +
       'Replace the containing object to update that key.',
     )
   }
+}
+
+function hasAmbiguousQuotedKey(path: string): boolean {
+  const quoted = /\[\s*(?:"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)')\s*\]/g
+  for (const match of path.matchAll(quoted)) {
+    if (/[.\[\]]/.test(match[1] ?? match[2] ?? '')) return true
+  }
+  return false
 }
 
 /**
@@ -83,10 +88,10 @@ export function pathSegments(path: string): string[] {
   return out
 }
 
-/** `a.b[0].c` / `a['name']` → `a.b.0.c` / `a.name`. Dot paths are unchanged. */
+/** `a.b[0].c` / `a['name']` → `a.b.0.c` / `a.name`. Keep literal keys that cannot be represented in dot notation. */
 export function normalizePath(path: string): string {
-  if (!path || !path.includes('[')) return path
-  return pathSegments(path).join('.')
+  if (!path.includes('[') || hasAmbiguousQuotedKey(path)) return path
+  return pathSegments(path).join('.') || path
 }
 
 export function getAt(root: unknown, path: string): unknown {

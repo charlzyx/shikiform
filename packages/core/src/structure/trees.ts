@@ -1,6 +1,6 @@
 import { unwrapReadonly } from '../draft/readonly'
 import type { Scheduler } from '../effects/scheduler'
-import { setAt } from '../shared/path'
+import { normalizePath, setAt } from '../shared/path'
 import type { FieldStore } from '../state/field-store'
 import type { MoveResult } from '../types'
 import type { FormMessages } from '../validation/messages'
@@ -22,15 +22,11 @@ export class TreeOps {
     private readonly store: FieldStore<any>,
     private readonly scheduler: Scheduler,
     private readonly messages?: Partial<FormMessages>,
-    private readonly initialTrees?: Record<string, { childrenKey?: string; rowKey?: string } | undefined>,
   ) {}
 
-  /** Registered trees merged over `options.trees`. */
+  /** Registered trees, including roots from `options.trees`. */
   entries(): Record<string, { childrenKey: string; rowKey: string }> {
     const out: Record<string, { childrenKey: string; rowKey: string }> = {}
-    for (const [path, spec] of Object.entries(this.initialTrees ?? {})) {
-      if (spec) out[path] = { childrenKey: spec.childrenKey ?? 'children', rowKey: spec.rowKey ?? 'id' }
-    }
     for (const [path, cfg] of this.trees) {
       out[path] = { childrenKey: cfg.childrenKey, rowKey: cfg.rowKey }
     }
@@ -38,6 +34,7 @@ export class TreeOps {
   }
 
   register(path: string, spec: { childrenKey?: string; rowKey?: string; canMove?: TreeConfig['canMove'] } = {}): void {
+    path = normalizePath(path)
     const prev = this.trees.get(path)
     this.trees.set(path, {
       childrenKey: spec.childrenKey ?? prev?.childrenKey ?? 'children',

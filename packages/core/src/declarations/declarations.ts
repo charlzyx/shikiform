@@ -1,6 +1,6 @@
 import { asOptions, toEnumBinding, type EnumBinding, type EnumOption } from '../enum/enum-source'
 import { deepEqual } from '../shared/equal'
-import { parentPath } from '../shared/path'
+import { normalizePath, parentPath } from '../shared/path'
 import { FLAG_NAMES, type FlagName } from '../state/flags'
 import { normalizeUiSpec, type FieldModel } from '../state/field-model'
 import type { FieldStore } from '../state/field-store'
@@ -118,6 +118,7 @@ export class Declarations {
   }
 
   registerField(path: string, spec: RegisterSpec = {}): void {
+    path = normalizePath(path)
     if (isTemplatePath(path)) {
       const index = this.itemTemplates.findIndex((tpl) => tpl.pattern === path)
       const entry = { pattern: path, spec }
@@ -381,8 +382,9 @@ export class Declarations {
   /** Active exact declarations, dormant declarations, and item templates merged over `options.fields`. */
   entries(): Record<string, FieldSpec> {
     const out: Record<string, FieldSpec> = {}
-    for (const [path, spec] of Object.entries(this.initialFields ?? {})) {
-      if (spec) out[path] = { ...spec }
+    for (const [rawPath, spec] of Object.entries(this.initialFields ?? {})) {
+      const path = normalizePath(rawPath)
+      if (spec) out[path] = { ...out[path], ...spec }
     }
     for (const [path, spec] of this.dormantDeclarations) {
       if (Object.keys(spec).length > 0 || path in out) out[path] = { ...out[path], ...spec }

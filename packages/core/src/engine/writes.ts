@@ -249,7 +249,7 @@ export class StateWriter {
       prefix = appendValueKey(prefix, part)
     }
     assertUnambiguousWritePath(path)
-    return path.includes('[') ? parts.join('.') : path
+    return normalizePath(path)
   }
 
   /** Apply multiple external leaf updates in a single reaction/watch flush. */

@@ -71,7 +71,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     const store = (this.store = new FieldStore<T>((options.initialValues ?? {}) as T))
     const notifier = (this.notifier = new Notifier())
     const scheduler = (this.scheduler = new Scheduler(notifier, !!options.devtools))
-    const trees = (this.trees = new TreeOps(store, scheduler, options.messages, options.trees as Record<string, { childrenKey?: string; rowKey?: string } | undefined>))
+    const trees = (this.trees = new TreeOps(store, scheduler, options.messages))
     const validator = (this.validator = new Validator({ store, notifier, scheduler, options, readPos: (path) => trees.readPos(path) }))
     const declarations = (this.declarations = new Declarations(store, notifier, validator, options.fields as Record<string, FieldSpec | undefined>))
     validator.prepare = () => declarations.applyItemTemplates()
@@ -429,7 +429,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   }
 
   handle(path: string, watchRow = this.scheduler.current()?.readingRow): Draft<any> {
-    return createHandle(this, path, undefined, watchRow ? (read) => this.scheduler.trackRowRead(read) : undefined)
+    return createHandle(this, normalizePath(path), undefined, watchRow ? (read) => this.scheduler.trackRowRead(read) : undefined)
   }
 
   readPath(handle: unknown): string | undefined {

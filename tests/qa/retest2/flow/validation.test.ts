@@ -61,7 +61,7 @@ describe.each(['development', 'production'])('validation and paths in %s', (mode
     expect(form.getValue(qty)).toBe(3)
   })
 
-  it.fails('BUG: QA-18 skips an exact fields rule declared with a bracket alias', async () => {
+  it('QA-63 applies an exact fields rule declared with a bracket alias', async () => {
     const path = "group['rows'][0]['item-code']" as 'group.rows.0.item-code'
     const form = createForm({
       initialValues: { group: { rows: [{ 'item-code': 'wrong' }] } },
