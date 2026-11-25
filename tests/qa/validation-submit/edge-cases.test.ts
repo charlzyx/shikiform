@@ -4,10 +4,10 @@ import { describe, expect, it, vi } from 'vitest'
 import { deferred } from './deferred'
 
 describe('validation edge cases', () => {
-  it.fails('BUG QA-32: rejects NaN for a field constrained to a numeric range', async () => {
+  it.each([{ min: 1 }, { max: 10 }, { min: 1, max: 10 }])('QA-32: rejects NaN with numeric bounds %o', async (bounds) => {
     const form = createForm({
       initialValues: { quantity: 1 },
-      fields: { quantity: { rules: { min: 1, max: 10, message: 'Enter a quantity from 1 to 10' } } },
+      fields: { quantity: { rules: { ...bounds, message: 'Enter a quantity from 1 to 10' } } },
     })
     await expect(form.submit()).resolves.toEqual({ quantity: 1 })
     form.setValue('quantity', Number.NaN)
@@ -15,6 +15,11 @@ describe('validation edge cases', () => {
     await expect(form.submit()).rejects.toMatchObject([
       { path: 'quantity', messages: expect.arrayContaining(['Enter a quantity from 1 to 10']) },
     ])
+  })
+
+  it('accepts NaN without numeric bounds', async () => {
+    const form = createForm({ initialValues: { quantity: Number.NaN }, fields: { quantity: { required: true } } })
+    await expect(form.submit()).resolves.toEqual({ quantity: Number.NaN })
   })
 
   it.fails('BUG QA-33: drops a pending child check when replacing the object that holds its value', async () => {

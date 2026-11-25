@@ -169,8 +169,9 @@ export function runRules(
       if (rule.pattern && !matchesPattern(rule.pattern, value)) out.push(rule.message ?? formatMessage(messages, 'pattern', { ...base, pattern: rule.pattern }))
     }
     if (typeof value === 'number') {
-      if (rule.min != null && value < rule.min) out.push(rule.message ?? formatMessage(messages, 'min', { ...base, min: rule.min }))
-      if (rule.max != null && value > rule.max) out.push(rule.message ?? formatMessage(messages, 'max', { ...base, max: rule.max }))
+      const nan = Number.isNaN(value)
+      if (rule.min != null && (nan || value < rule.min)) out.push(rule.message ?? formatMessage(messages, 'min', { ...base, min: rule.min }))
+      if (rule.max != null && (nan || value > rule.max)) out.push(rule.message ?? formatMessage(messages, 'max', { ...base, max: rule.max }))
     }
     if (rule.validator) {
       // A synchronous throw is that rule's message, like a rejection (#2, #7): a pass never rejects on a field rule.
