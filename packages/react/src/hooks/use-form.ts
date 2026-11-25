@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef } from 'react'
-import { createForm, deepEqual, engineOf } from '@shikiform/core/internal'
+import { createEngine, deepEqual, engineOf } from '@shikiform/core/internal'
 import type { DefaultSubmit, FieldsInput, FormInstance, FormOptions, ResolveSubmit } from '@shikiform/core/internal'
 
 const useIsoLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
@@ -64,7 +64,7 @@ export function useForm(options?: UseFormOptions<any>): any {
   const last = useRef(values)
   if (!ref.current) {
     const { values: _values, onValuesChange: _onValuesChange, ...rest } = options ?? {}
-    ref.current = createForm(values !== undefined ? { ...rest, initialValues: values } : rest)
+    ref.current = createEngine(values !== undefined ? { ...rest, initialValues: values } : rest, true)
   }
   const form = ref.current
   const lastEmittedRef = useRef<any>(cloneValues(form.values))
@@ -82,8 +82,9 @@ export function useForm(options?: UseFormOptions<any>): any {
 
   useEffect(() => {
     const engine = engineOf(form)
+    engine.resumeEnumLoads()
     lastEmittedRef.current = cloneValues(form.values)
-    return engine.subscribeDebug(() => {
+    const unsubscribe = engine.subscribeDebug(() => {
       const cb = onValuesChangeRef.current
       if (!cb) return
       const current = form.values
@@ -91,6 +92,10 @@ export function useForm(options?: UseFormOptions<any>): any {
       lastEmittedRef.current = cloneValues(current)
       cb(current)
     })
+    return () => {
+      unsubscribe()
+      engine.dispose()
+    }
   }, [form])
 
   return form

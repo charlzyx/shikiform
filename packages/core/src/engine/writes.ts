@@ -24,6 +24,12 @@ interface EnumLoadBinding {
   params: unknown
 }
 
+interface EnumLoad {
+  binding: EnumLoadBinding
+  timer?: ReturnType<typeof setTimeout>
+  controller?: AbortController
+}
+
 export interface WriterDeps {
   store: FieldStore<any>
   notifier: Notifier
@@ -49,13 +55,32 @@ export interface WriterDeps {
  *   `dirty` is not written here: the engine derives it from values vs `initial`.
  * - Draft writes (`d.x.$value = …`, `$visible`, `$rules`, …) → {@link StateWriter.writeState}: buffered inside a
  *   reaction / watch / batch, applied immediately otherwise.
- * - `$enum` with an `EnumSource` binding loads asynchronously (debounced, aborted, sequence-stamped).
+ * - `$enum` with an `EnumSource` binding loads asynchronously and cancels superseded work.
  */
 export class StateWriter {
-  private enumTimers = new Map<string, ReturnType<typeof setTimeout>>()
-  private enumAbort = new Map<string, AbortController>()
+  private enumLoads = new Map<FieldModel, EnumLoad>()
 
-  constructor(private readonly deps: WriterDeps) {}
+  constructor(private readonly deps: WriterDeps, private enumLoadsPaused = false) {}
+
+  resumeEnumLoads(): void {
+    if (!this.enumLoadsPaused) return
+    this.enumLoadsPaused = false
+    if (!this.enumLoads.size) return
+    for (const [field, { binding }] of [...this.enumLoads]) {
+      if (this.deps.store.get(field.path) === field) this.loadEnum(field.path, binding)
+      else this.enumLoads.delete(field)
+    }
+    this.deps.notifier.emit()
+  }
+
+  /** Release this engine's consumers and keep pending bindings for an effect setup after cleanup. */
+  dispose(): void {
+    this.enumLoadsPaused = true
+    for (const [field, { binding }] of [...this.enumLoads]) {
+      this.cancelEnumLoad(field)
+      this.enumLoads.set(field, { binding })
+    }
+  }
 
   attachUi(ui: FieldUi): FieldUi {
     this.deps.ui = ui
@@ -270,7 +295,7 @@ export class StateWriter {
     const cached = binding.source.cached(binding.params)
     if (cached && deepEqual(field.enumOptions, cached)) return
     // Re-applying the same declaration (registerField, a revived path) must not abort the request already in flight.
-    if (field.enumLoading || this.enumTimers.has(path)) return
+    if (this.enumLoads.has(field)) return
     this.loadEnum(path, binding)
   }
 
@@ -434,7 +459,7 @@ export class StateWriter {
     if (value === undefined) {
       field.enumFromEffect = false
       field.enumEffect = undefined
-      this.cancelEnumLoad(path, field)
+      this.cancelEnumLoad(field)
       if (isEnumBinding(field.jsxEnum)) {
         const cached = field.jsxEnum.source.cached(field.jsxEnum.params)
         if (cached && deepEqual(field.enumOptions, cached)) return false
@@ -462,13 +487,13 @@ export class StateWriter {
     if (effectBinding) {
       const cached = effectBinding.source.cached(effectBinding.params)
       if (cached && deepEqual(field.enumOptions, cached)) {
-        this.cancelEnumLoad(path, field)
+        this.cancelEnumLoad(field)
         return false
       }
       this.loadEnum(path, effectBinding)
       return true
     }
-    this.cancelEnumLoad(path, field)
+    this.cancelEnumLoad(field)
     const options = asOptions(value) ?? []
     if (deepEqual(field.enumOptions, options)) return false
     this.deps.store.setEnumOptions(field, options)
@@ -476,19 +501,15 @@ export class StateWriter {
     return true
   }
 
-  /** Supersede a pending / in-flight `EnumSource` load on `path`: clear its debounce timer, abort it, reset `loading`. */
-  private cancelEnumLoad(path: string, field: FieldModel): void {
-    field.enumSeq++
-    const timer = this.enumTimers.get(path)
-    if (timer) {
-      clearTimeout(timer)
-      this.enumTimers.delete(path)
-    }
-    this.enumAbort.get(path)?.abort()
-    this.enumAbort.delete(path)
+  /** Supersede a pending or in-flight load and reset loading. */
+  private cancelEnumLoad(field: FieldModel): void {
+    const load = this.enumLoads.get(field)
+    this.enumLoads.delete(field)
+    clearTimeout(load?.timer)
+    load?.controller?.abort()
     if (field.enumLoading) {
       field.enumLoading = false
-      this.deps.notifier.bumpPath(path)
+      this.deps.notifier.bumpPath(field.path)
     }
   }
 
@@ -506,7 +527,7 @@ export class StateWriter {
           this.loadEnum(path, binding)
         } else {
           // Supersede an in-flight load (an earlier binding or a reaction's that has since been replaced).
-          this.cancelEnumLoad(path, field)
+          this.cancelEnumLoad(field)
           if (!deepEqual(field.enumOptions, next)) {
             store.setEnumOptions(field, next as EnumOption[])
             notifier.bumpPath(path)
@@ -532,7 +553,7 @@ export class StateWriter {
     field.jsxEnum = undefined
     if (field.enumFromEffect) return
     const wasLoading = field.enumLoading
-    this.cancelEnumLoad(path, field)
+    this.cancelEnumLoad(field)
     const declBinding = declarations.declaredEnumBinding(path)
     if (declBinding) {
       this.loadEnum(path, declBinding)
@@ -551,36 +572,43 @@ export class StateWriter {
   private loadEnum(path: string, binding: EnumLoadBinding): void {
     const { store, notifier, scheduler } = this.deps
     const field = store.ensure(path)
-    const seq = ++field.enumSeq
+    const prev = this.enumLoads.get(field)
+    clearTimeout(prev?.timer)
+    const load: EnumLoad = { binding, controller: prev?.controller }
+    this.enumLoads.set(field, load)
+    if (this.enumLoadsPaused) return
+
+    const isCurrent = () => this.enumLoads.get(field) === load
     const start = () => {
-      this.enumTimers.delete(path)
-      if (field.enumSeq !== seq) return
-      this.enumAbort.get(path)?.abort()
+      if (!isCurrent()) return
+      load.timer = undefined
+      load.controller?.abort()
+      if (!isCurrent()) return
       const ac = new AbortController()
-      this.enumAbort.set(path, ac)
+      load.controller = ac
       field.enumLoading = true
-      notifier.bumpPath(path)
+      notifier.bumpPath(field.path)
       void binding.source.load(binding.params, ac.signal).then(
         (options) => {
-          if (field.enumSeq !== seq) return
+          if (!isCurrent()) return
+          this.enumLoads.delete(field)
           store.setEnumOptions(field, options)
           field.enumLoading = false
-          this.afterEnum(path)
+          this.afterEnum(field.path)
           scheduler.enqueueFromDirty()
           scheduler.flush()
         },
         () => {
-          if (field.enumSeq !== seq) return
+          if (!isCurrent()) return
+          this.enumLoads.delete(field)
           field.enumLoading = false
-          notifier.bumpPath(path)
+          notifier.bumpPath(field.path)
           notifier.emit()
         },
       )
     }
-    const prev = this.enumTimers.get(path)
-    if (prev) clearTimeout(prev)
     const wait = binding.source.debounce
-    if (wait > 0) this.enumTimers.set(path, setTimeout(start, wait))
+    if (wait > 0) load.timer = setTimeout(start, wait)
     else start()
   }
 

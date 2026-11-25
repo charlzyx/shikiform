@@ -3,7 +3,7 @@ import { act, cleanup, render } from '@testing-library/react'
 import { StrictMode } from 'react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { engineOf } from '@shikiform/core/internal'
-import { ArrayField, createForm, EnumSource, Field, Form, useArrayField, useField, useForm, useWatch } from '@shikiform/react'
+import { ArrayField, createForm, defineEffects, EnumSource, Field, Form, useArrayField, useField, useForm, useWatch } from '@shikiform/react'
 
 afterEach(() => {
   cleanup()
@@ -152,7 +152,7 @@ it('cancels an in-flight JSX enum when its field unmounts', async () => {
   })
 })
 
-it.fails('BUG: QA-9 useForm leaves a declared enum request running after unmount', async () => {
+it('QA-9 useForm cancels a declared enum request on unmount', async () => {
   let loaderSignal: AbortSignal | undefined
   let resolve!: (items: { label: string; value: string }[]) => void
   const pending = new Promise<{ label: string; value: string }[]>((done) => { resolve = done })
@@ -175,4 +175,35 @@ it.fails('BUG: QA-9 useForm leaves a declared enum request running after unmount
   } finally {
     await act(async () => resolve([]))
   }
+})
+
+it('restarts an effect enum after StrictMode cleanup and releases only its own consumer', async () => {
+  const signals: AbortSignal[] = []
+  const items = [{ label: 'Shanghai', value: 'sh' }]
+  let resolve!: (options: typeof items) => void
+  const pending = new Promise<typeof items>((done) => { resolve = done })
+  const source = EnumSource.from((_: string, { signal }) => {
+    signals.push(signal)
+    return pending
+  })
+  const options = {
+    initialValues: { city: '' },
+    effects: [defineEffects<{ city: string }>(({ reaction }) => {
+      reaction((draft) => { draft.city.$enum = source.with('remote') })
+    })],
+  }
+  let form!: ReturnType<typeof createForm<{ city: string }>>
+  function App() {
+    form = useForm(options)
+    return <Form form={form}><Field name="city" /></Form>
+  }
+  const view = render(<StrictMode><App /></StrictMode>)
+  expect(signals.map((signal) => signal.aborted)).toEqual([true, false])
+  const external = createForm(options)
+  expect(signals).toHaveLength(2)
+  view.unmount()
+  expect(signals[1].aborted).toBe(false)
+  await act(async () => resolve(items))
+  expect(engineOf(form).binding('city')).toMatchObject({ loading: false, options: [] })
+  expect(engineOf(external).binding('city')).toMatchObject({ loading: false, options: items })
 })

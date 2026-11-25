@@ -39,8 +39,9 @@ export type Engine<T = any, TSubmit = T> = FormEngine<T, TSubmit> & FormInstance
 /** @internal See {@link Engine}. */
 export function createEngine<T, TSubmit = DefaultSubmit, const F extends FieldsInput<T> = {}>(
   options?: Omit<FormOptions<T>, 'fields'> & { fields?: F & FieldsInput<T> },
+  deferEnumLoads = false,
 ): Engine<T, ResolveSubmit<T, TSubmit, F>> {
-  return new FormEngine(options ?? {}) as Engine<T, ResolveSubmit<T, TSubmit, F>>
+  return new FormEngine(options ?? {}, deferEnumLoads) as Engine<T, ResolveSubmit<T, TSubmit, F>>
 }
 
 /**

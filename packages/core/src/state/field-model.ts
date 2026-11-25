@@ -62,7 +62,6 @@ export interface FieldModel {
   jsxEnum?: EnumOption[] | EnumBinding
   triggers?: ValidateTrigger[]
   asyncSeq: number
-  enumSeq: number
   /** UI state from `fields` / `registerField` / item templates (title, componentProps, …). See `engine/field-ui.ts`. */
   uiDeclared?: Partial<Record<UiKey, unknown>>
   /** UI state written by reactions. Object keys hold a sparse top-level patch unless `replace` is set. */
@@ -130,7 +129,6 @@ export function createFieldModel(path: string): FieldModel {
     enumFromEffect: false,
     templateApplied: false,
     asyncSeq: 0,
-    enumSeq: 0,
   }
 }
 

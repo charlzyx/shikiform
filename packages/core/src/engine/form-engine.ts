@@ -66,7 +66,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   private submitValidation?: AbortController
   private readonly baseline: Baseline
 
-  constructor(options: FormOptions<T> = {}) {
+  constructor(options: FormOptions<T> = {}, deferEnumLoads = false) {
     this.options = options
     const store = (this.store = new FieldStore<T>((options.initialValues ?? {}) as T))
     const notifier = (this.notifier = new Notifier())
@@ -80,7 +80,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
       store, notifier, scheduler, validator, declarations, options,
       carryRowIdentity: (path, before, after) => this.arrays.carryIdentity(path, before, after),
       commitArray: (path, next) => this.arrays.commitNext(path, next),
-    })
+    }, deferEnumLoads)
     declarations.onDeclaredEnum = (path, binding) => this.writer.loadDeclaredEnum(path, binding)
     this.fieldUi = this.writer.attachUi(new FieldUi(store, notifier, scheduler, (path, key, value) => this.writeState(path, key, value)))
     this.uiNodes = new UiNodes(store, notifier, scheduler, this.writer, this.fieldUi)
@@ -110,8 +110,8 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     } finally { scheduler.initializing = false }
   }
 
-  // —— form state (read-only, #36: writes go through setValue / batch / reset / submit so subscribers hear them) ——
-
+  resumeEnumLoads(): void { this.writer.resumeEnumLoads() }
+  dispose(): void { this.writer.dispose() }
   /** Current values. Write with `setValue`, `batch`, or `reset(values)`. Development: a read-only view. */
   get values(): T {
     return (process.env.NODE_ENV !== 'production' ? readonlyValue(this.store.values, '') : this.store.values) as T
