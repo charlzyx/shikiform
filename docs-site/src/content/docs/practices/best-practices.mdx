@@ -259,7 +259,7 @@ function BadList() {
 
 ### 1. 一个表单一个引擎，派生用 `reaction`、动作与异步用 `watch`
 
-不要用额外 `useState` 镜像表单字段或自己同步派生值。凡是「B 始终由 A 算出」用 `reaction`；「A 变化后执行一次重置或异步请求」用 `watch`，异步结果返回后再用 `form.setValue` / `form.batch` 写回。**不要把 `reaction` 写成 `async`，也不要在 `reaction` 里同步调用 `form.setValue` / `form.reset` / `form.submit`**（开发期均会抛 `ShikiUsageError`）。
+不要用额外 `useState` 镜像表单字段或自己同步派生值。凡是「B 始终由 A 算出」用 `reaction`；「A 变化后执行一次重置或异步请求」用 `watch`，异步结果返回后再用 `form.setValue` / `form.batch` 写回。在 `reaction` / `watch` / `batch` 进行中调用 `form.setValue`、`form.patchValues` 或 `form.getValue` 会与 draft 共用同一工作树（随当前 pass 或批一起提交/回滚，读取立即看到本批编辑），不过派生写入仍推荐走 draft handle。**不要把 `reaction` 写成 `async`，也不要在 `reaction` 里同步调用 `form.reset` / `form.submit`**（开发期均会抛 `ShikiUsageError`）。
 
 ```ts
 // 推荐：同步派生用 reaction，异步请求用 watch + form.setValue / form.batch
@@ -280,7 +280,7 @@ const effects = defineEffects<Values>(({ reaction, watch, draft }) => {
 ```
 
 ```ts
-// 避免：async reaction 或在 reaction 中直接调用 form.setValue
+// 避免：async reaction 跨 await 写草稿，或在 reaction 中同步调用 form.reset / form.submit
 reaction(async (d) => {
   const info = await lookupAddress(d.zipCode.$value)
   d.city.$value = info.city // pass 已结束，开发期抛 ShikiUsageError，生产期静默忽略
@@ -289,7 +289,7 @@ reaction(async (d) => {
 
 ### 2. 写自己的路径，用 `form.batch` 合并多次写入
 
-在事件回调或异步回调里要同时改多个字段或组合数组/树结构编辑时，用 `form.batch` 包成一次事务：只跑一轮联动、只通知订阅者一次；批内通过 `getValue` 与 draft 回读会反映本批所有值与结构编辑，数组/树句柄与 draft 数组方法按调用顺序生效（已编辑的单元格值随行或节点移动，删除的行不会复活；含重复值的普通数组同样按调用顺序，`reverse()` 作用于已编辑的数组）。嵌套 `batch` 成功时并入外层，抛错时仅撤销本层的值与结构编辑，不影响外层。字段写入优先写精确路径（`d.user.name.$value = 'Ada'` 或 `d.user.$value.name = 'Ada'`），避免整对象展开覆盖唤醒无关依赖。
+在事件回调或异步回调里要同时改多个字段或组合数组/树结构编辑时，用 `form.batch` 包成一次事务：只跑一轮联动、只通知订阅者一次；批内调用 `form.setValue` / `form.patchValues` / `form.getValue` 与 draft 共用同一工作树，通过 `getValue` 与 draft 回读会立即反映本批所有值与结构编辑，数组/树句柄与 draft 数组方法按调用顺序生效（已编辑的单元格值以及规则、枚举和 UI 状态随行或节点移动，删除的行不会复活；含重复值的普通数组同样按调用顺序，`reverse()` 作用于已编辑的数组）。嵌套 `batch` 成功时并入外层，抛错时仅撤销本层的值与结构编辑，不影响外层。字段写入优先写精确路径（`d.user.name.$value = 'Ada'` 或 `d.user.$value.name = 'Ada'`），避免整对象展开覆盖唤醒无关依赖。
 
 ```ts
 // 推荐：一次 batch 合并写入，原子提交

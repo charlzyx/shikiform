@@ -256,7 +256,7 @@ function BadList() {
 
 ### 1. One engine per form: derive with `reaction`, act and fetch with `watch`
 
-Keep form state inside the form engine rather than mirroring fields in `useState`. Use `reaction` for synchronous derivations and `watch` for one-time side effects or async requests (writing async responses back with `form.setValue` or `form.batch`). Never make a `reaction` `async` or call `form.setValue` / `form.reset` / `form.submit` synchronously inside a `reaction` (`ShikiUsageError` in development).
+Keep form state inside the form engine rather than mirroring fields in `useState`. Use `reaction` for synchronous derivations and `watch` for one-time side effects or async requests (writing async responses back with `form.setValue` or `form.batch`). Calling `form.setValue`, `form.patchValues`, or `form.getValue` during a `reaction`, `watch`, or `batch` shares the active working tree with the draft (writes commit or roll back with that pass/batch, and reads immediately see edits made in it), though draft handle assignments remain idiomatic inside `reaction`. Never make a `reaction` `async` or call `form.reset` / `form.submit` synchronously inside a `reaction` (`ShikiUsageError` in development).
 
 ```ts
 // Recommended: synchronous derivation in reaction, async request in watch + form.batch
@@ -276,7 +276,7 @@ const effects = defineEffects<Values>(({ reaction, watch, draft }) => {
 ```
 
 ```ts
-// Avoid: async reaction writing to an expired draft after await
+// Avoid: async reaction writing to an expired draft after await, or synchronous form.reset / form.submit in reaction
 reaction(async (d) => {
   const info = await lookupAddress(d.zipCode.$value)
   d.city.$value = info.city // expired draft: ShikiUsageError in dev, ignored in prod
@@ -285,7 +285,7 @@ reaction(async (d) => {
 
 ### 2. Write exact paths and group writes with `form.batch`
 
-Group multi-field updates or combined value and array/tree structural edits inside `form.batch` so reactions and notifications flush once. In-batch `getValue` and draft reads reflect all value and structural edits made so far, and array/tree handles and draft array mutators apply in call order (edited cell values move with their row or node, removed rows do not reappear, plain arrays with duplicate values follow call order, and `reverse()` reverses the already-edited array). A nested `batch` merges into the outer batch on success and rolls back only its own value and structural edits if it throws. Write to the leaf path (`d.user.name.$value = 'Ada'` or `d.user.$value.name = 'Ada'`) instead of replacing parent objects unnecessarily.
+Group multi-field updates or combined value and array/tree structural edits inside `form.batch` so reactions and notifications flush once. Calling `form.setValue`, `form.patchValues`, or `form.getValue` inside a batch shares the same working tree as the draft: in-batch `getValue` and draft reads immediately reflect all value and structural edits made so far, and array/tree handles and draft array mutators apply in call order (edited cell values along with rules, enums, and UI state move with their row or node, removed rows do not reappear, plain arrays with duplicate values follow call order, and `reverse()` reverses the already-edited array). A nested `batch` merges into the outer batch on success and rolls back only its own value and structural edits if it throws. Write to the leaf path (`d.user.name.$value = 'Ada'` or `d.user.$value.name = 'Ada'`) instead of replacing parent objects unnecessarily.
 
 ```ts
 // Recommended: atomic batch flush

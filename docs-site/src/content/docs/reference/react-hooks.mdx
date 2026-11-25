@@ -382,7 +382,7 @@ useArrayField<TScope, N extends ArrayPath<TScope>>(
 
 写全 `useArrayField<Values, 'items'>('items')` 才能同时检查数组路径和行值类型；只写一个泛型时行操作参数为 `unknown`。
 
-它只订阅结构（长度/顺序/行身份），不会因为单元格编辑就更新整个列表。单元格另用 `useField`，汇总另用 `useWatch`。不要原地修改 `getValue` 返回的数组来代替操作方法：开发环境会抛 `ShikiUsageError`，用 `push` / `remove` / `move`。在同一 `form.batch` 内，数组句柄与 draft 数组方法按调用顺序生效，批内通过 `getValue` / draft 可立即读到最新结果，已编辑的单元格值随行移动、删除的行不会复活；嵌套 `batch` 失败时其中的值与数组结构编辑一并撤销。需要为每行提供相对路径作用域时直接使用 `<ArrayField>`。
+它只订阅结构（长度/顺序/行身份），不会因为单元格编辑就更新整个列表。单元格另用 `useField`，汇总另用 `useWatch`。不要原地修改 `getValue` 返回的数组来代替操作方法：开发环境会抛 `ShikiUsageError`，用 `push` / `remove` / `move`。在同一 `form.batch` 内，数组句柄与 draft 数组方法按调用顺序生效，批内通过 `getValue` / draft 可立即读到最新结果，已编辑的单元格值以及规则、枚举和 UI 状态随行移动、删除的行不会复活；嵌套 `batch` 失败时其中的值与数组结构编辑一并撤销。需要为每行提供相对路径作用域时直接使用 `<ArrayField>`。
 
 `push` / `insert` / `remove` / `move` / `swap` / `replace` 与 `dragProps` 对同一 `form` + 数组路径保持引用稳定（见 [引用稳定性](#引用稳定性)；拖动起点记在句柄内部），所以可以经 context 交给 `memo` 的行而不让它们重渲染；没有隐藏的拖拽库，把手、键盘和触屏交互由应用决定。事件没有 `dataTransfer` 时用句柄记下的起点。
 
@@ -566,7 +566,7 @@ useTreeField(name: string, options?: { childrenKey?: string; rowKey?: string }):
 | `move(from, to)` | 使用移动后的最终索引坐标；拒绝移到自己的后代，失败看 `reason` |
 | `dragProps(pos)` | 这个节点的原生 HTML5 拖动属性：拖到另一个节点上 = `move(源, 目标)`；拖动开始和放下都阻止冒泡，嵌套节点只处理自己。被拒绝的移动不提示，需要提示时自己调 `move` 看 `reason` |
 
-字段状态跟着节点 id 走（没有 id 时移动仍改数据，但没有 id 可跟随）。在同一 `form.batch` 内，树句柄编辑（`push` / `insert` / `remove` / `replace` / `move`）与值写入、draft 数组方法按调用顺序生效，批内通过 `getValue` / draft 可立即读到最新结果，已编辑的单元格值随节点移动，删除的节点不会复活；嵌套 `batch` 失败时其中的值与树结构编辑一并撤销。`useTreeField` 与 `useField` / `useArrayField(name)` 一致：名字按当前 scope 解析（开发期名字重复 scope 前缀会抛 `ShikiUsageError` 并提示修法）。它只订阅树结构，不订阅每个节点的文字/勾选状态。节点编辑单独用 `useField`，读取选定值用 `useWatch`。要让 React 挂载前的树联动也认识自定义 `childrenKey`，在 `useForm({ trees: { ... } })` 里声明配置。
+字段状态跟着节点 id 走（没有 id 时移动仍改数据，但没有 id 可跟随）。在同一 `form.batch` 内，树句柄编辑（`push` / `insert` / `remove` / `replace` / `move`）与值写入、draft 数组方法按调用顺序生效，批内通过 `getValue` / draft 可立即读到最新结果，已编辑的单元格值以及规则、枚举和 UI 状态随节点移动，删除的节点不会复活；嵌套 `batch` 失败时其中的值与树结构编辑一并撤销。`useTreeField` 与 `useField` / `useArrayField(name)` 一致：名字按当前 scope 解析（开发期名字重复 scope 前缀会抛 `ShikiUsageError` 并提示修法）。它只订阅树结构，不订阅每个节点的文字/勾选状态。节点编辑单独用 `useField`，读取选定值用 `useWatch`。要让 React 挂载前的树联动也认识自定义 `childrenKey`，在 `useForm({ trees: { ... } })` 里声明配置。
 
 不传 name 时 `path` 是当前节点，`treePath` 是树根，`index` 是 `pos` 的最后一段（和 `useIndex()` 相同）。`errors` / `warnings` 是这个节点自己的消息。`dragProps()` 不传坐标指向当前节点。
 

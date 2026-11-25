@@ -257,7 +257,7 @@ useArrayField<TScope, N extends ArrayPath<TScope>>(
 ): ArrayHandle<ArrayItemOf<TScope, N & string>>
 ```
 
-Read the nearest array inside `ArrayField` or pass a relative name. `keys` contains stable keys and current indices. `rowKey` selects a stable ID property. Object identity is the fallback for object rows without IDs. Use `push`, `insert`, `remove`, `move`, `swap` and `replace` for edits. A move targets the final index. Inside a `form.batch`, array handle edits and draft array mutators apply in call order: in-batch `getValue` and draft reads reflect all edits so far, edited cell values move with their row, removed rows do not reappear, and a failed nested `batch` rolls back its value and structural edits together. Edit methods and `dragProps` keep one identity per `form` + `path` (see [Reference stability](#reference-stability)).
+Read the nearest array inside `ArrayField` or pass a relative name. `keys` contains stable keys and current indices. `rowKey` selects a stable ID property. Object identity is the fallback for object rows without IDs. Use `push`, `insert`, `remove`, `move`, `swap` and `replace` for edits. A move targets the final index. Inside a `form.batch`, array handle edits and draft array mutators apply in call order: in-batch `getValue` and draft reads reflect all edits so far, edited cell values along with rules, enums, and UI state move with their row, removed rows do not reappear, and a failed nested `batch` rolls back its value and structural edits together. Edit methods and `dragProps` keep one identity per `form` + `path` (see [Reference stability](#reference-stability)).
 
 ### Native drag and drop
 
@@ -406,7 +406,7 @@ useTreeField<TNode = unknown>(): TreeNodeHandle<TNode>   // Must be inside a Tre
 useTreeField(name: string, options?: { childrenKey?: string; rowKey?: string }): TreeHandle<unknown>
 ```
 
-A named handle operates on the root. `path` and `treePath` both point there. `childrenKey` configures nested children and `rowKey` identifies records. Add, insert, remove, replace and move nodes using positions. Moves that would create a cycle return a refusal reason. Inside a `form.batch`, tree edits (`push`, `insert`, `remove`, `replace`, `move`), value writes, and draft array mutators apply in call order: in-batch `getValue` and draft reads reflect all edits so far, edited cell values move with their node, removed nodes do not reappear, and a failed nested `batch` rolls back its value and tree edits together. The edit methods and `dragProps` keep one identity per `form` + `path` (see [Reference stability](#reference-stability)).
+A named handle operates on the root. `path` and `treePath` both point there. `childrenKey` configures nested children and `rowKey` identifies records. Add, insert, remove, replace and move nodes using positions. Moves that would create a cycle return a refusal reason. Inside a `form.batch`, tree edits (`push`, `insert`, `remove`, `replace`, `move`), value writes, and draft array mutators apply in call order: in-batch `getValue` and draft reads reflect all edits so far, edited cell values along with rules, enums, and UI state move with their node, removed nodes do not reappear, and a failed nested `batch` rolls back its value and tree edits together. The edit methods and `dragProps` keep one identity per `form` + `path` (see [Reference stability](#reference-stability)).
 
 ```tsx
 function MoveFirst() {

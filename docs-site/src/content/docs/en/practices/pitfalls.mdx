@@ -199,14 +199,14 @@ function GoodInput() {
 }
 ```
 
-## Using a reaction draft across `await` or calling `form.setValue` / `reset` / `submit` inside a `reaction`
+## Using a reaction draft across `await` or calling `form.reset` / `submit` inside a `reaction`
 
 Keep `reaction` synchronous:
 
 - A `reaction` that returns a thenable is rejected and its draft handle expires when the pass ends. Writing through it after `await` throws `ShikiUsageError` in development and is ignored in production.
-- Calling `form.setValue`, `form.reset`, or `form.submit` synchronously inside a `reaction` throws `ShikiUsageError` in development (in production, `setValue` buffers with the current pass; `reset` and `submit` diagnostics are development-only).
+- Calling `form.reset` or `form.submit` synchronously inside a `reaction` escapes the active write buffer and throws `ShikiUsageError` in development (this diagnostic is development-only). Calling `form.setValue`, `form.patchValues`, or `form.getValue` during a `reaction`, `watch`, or `batch` shares the same working tree as the draft: writes commit or roll back with that pass/batch, and reads immediately see edits made in it.
 
-Use the draft handle (`d.x.$value = …`) inside `reaction`, and move async requests or `reset` / `submit` actions to `watch` (writing async results back with `form.setValue` or `form.batch`).
+Prefer writing through the draft handle (`d.x.$value = …`) inside `reaction`, and move async requests or `reset` / `submit` actions to `watch` (writing async results back with `form.setValue` or `form.batch`).
 
 ## Bare property writes and misspelled `$` states
 

@@ -235,14 +235,14 @@ function GoodInput() {
 }
 ```
 
-## 在 `reaction` 中跨 `await` 写草稿，或直接调用 `form.setValue` / `reset` / `submit`
+## 在 `reaction` 中跨 `await` 写草稿，或直接调用 `form.reset` / `submit`
 
 `reaction` 必须是同步派生函数：
 
 - 返回 Promise 的 `reaction` 会被拒绝，其草稿 handle 在当前 pass 结束后即失效。跨 `await` 继续写入草稿在开发环境会抛出 `ShikiUsageError`，生产环境则静默忽略。
-- 在 `reaction` 同步执行期间直接调用 `form.setValue`、`form.reset` 或 `form.submit` 会绕过当前 pass 的写缓冲：开发环境抛出 `ShikiUsageError`，生产环境中 `setValue` 会并入当前 pass 缓冲（随 pass 一起提交或丢弃），而 `reset` / `submit` 的诊断仅限开发环境。
+- 在 `reaction` 同步执行期间直接调用 `form.reset` 或 `form.submit` 会脱离当前 pass 的写缓冲，开发环境会抛出 `ShikiUsageError`（该诊断仅限开发环境）。在 `reaction` / `watch` / `batch` 中调用 `form.setValue`、`form.patchValues` 与 `form.getValue` 会与 draft 共用同一工作树，随当前 pass 或批一起提交或回滚，读取也会立即看到本批编辑。
 
-派生写入统一走草稿 handle（`d.x.$value = …`）；异步请求或 `reset` / `submit` 等动作请移到 `watch` 中，异步返回后再调用 `form.setValue` 或 `form.batch`。
+派生写入仍推荐统一走草稿 handle（`d.x.$value = …`）；异步请求或 `reset` / `submit` 等动作请移到 `watch` 中，异步返回后再调用 `form.setValue` 或 `form.batch`。
 
 ## 漏写 `$` 或拼错 `$` 状态名
 
