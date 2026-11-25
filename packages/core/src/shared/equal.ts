@@ -14,7 +14,10 @@ export function deepEqual(a: unknown, b: unknown): boolean {
   }
   if (Array.isArray(a) || Array.isArray(b)) {
     if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false
-    for (let i = 0; i < a.length; i++) if (!deepEqual(a[i], b[i])) return false
+    for (let i = 0; i < a.length; i++) {
+      const present = Object.hasOwn(a, i)
+      if (present !== Object.hasOwn(b, i) || (present && !deepEqual(a[i], b[i]))) return false
+    }
     return true
   }
   if (a instanceof Map || b instanceof Map) {
@@ -110,7 +113,9 @@ export function differsExcept(a: unknown, b: unknown, path: string, skip: readon
     const keys = new Set([...Object.keys(left), ...Object.keys(right)])
     for (const key of keys) {
       const child = at ? at + '.' + key : key
-      if (!excluded.has(child) && differs((left as Record<string, unknown>)[key], (right as Record<string, unknown>)[key], child)) return true
+      if (excluded.has(child)) continue
+      if (Array.isArray(left) && Object.hasOwn(left, key) !== Object.hasOwn(right, key)) return true
+      if (differs((left as Record<string, unknown>)[key], (right as Record<string, unknown>)[key], child)) return true
     }
     return false
   }

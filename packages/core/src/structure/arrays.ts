@@ -116,7 +116,7 @@ export class ArrayOps {
    */
   commitNext(path: string, next: unknown[]): boolean {
     const before = this.store.arrayOf(path)
-    if (sameArrayShape(before, next)) return false
+    if (deepEqual(before, next)) return false
     const stored = next.slice()
     const known = new Set<object>()
     for (let i = 0; i < before.length; i++) {
@@ -194,13 +194,4 @@ function occupantIds(ops: ArrayOps, rows: unknown[], rowKey: string | undefined)
     else out.push(ops.rowIdent(rows[i], i, rowKey))
   }
   return out
-}
-
-/** Same elements and the same holes. `deepEqual` treats a hole and an explicit `undefined` as the same value. */
-function sameArrayShape(a: unknown[], b: unknown[]): boolean {
-  if (a.length !== b.length || !deepEqual(a, b)) return false
-  for (let i = 0; i < a.length; i++) {
-    if (Object.prototype.hasOwnProperty.call(a, i) !== Object.prototype.hasOwnProperty.call(b, i)) return false
-  }
-  return true
 }

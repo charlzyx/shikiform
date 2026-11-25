@@ -114,7 +114,7 @@ it('copies and edits a frozen value supplied by the caller', () => {
   expect(source.item.qty).toBe(1)
 })
 
-it.fails('BUG: QA-40 stores an explicit undefined when replacing a hole in a sparse array', () => {
+it('QA-40 stores an explicit undefined when replacing a hole in a sparse array', () => {
   const form = createForm({ initialValues: { items: ['first', , 'last'] } })
   expect(Object.hasOwn(form.getSubmitValues().items, 1)).toBe(false)
 
@@ -122,6 +122,10 @@ it.fails('BUG: QA-40 stores an explicit undefined when replacing a hole in a spa
 
   expect.soft(form.getSubmitValues().items).toStrictEqual(['first', undefined, 'last'])
   expect(form.dirty).toBe(true)
+
+  form.batch((d) => { delete d.items.$value[1] })
+  expect(Object.hasOwn(form.getSubmitValues().items, 1)).toBe(false)
+  expect(form.dirty).toBe(false)
 })
 
 it.fails.each(['development', 'production'] as const)('BUG: QA-41 round-trips a cyclic record as a clean initial value in %s', async (mode) => {

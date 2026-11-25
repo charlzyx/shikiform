@@ -247,7 +247,8 @@ export class StateWriter {
     const key = path.slice(parent ? parent.length + 1 : 0)
     const old = getAt(before, path)
     const missing = !!path && (owner == null || !Object.hasOwn(owner, key))
-    if (deepEqual(old, value) && !(missing && owner && typeof owner === 'object' && !Array.isArray(owner))) return false
+    const createsOwnKey = missing && owner && typeof owner === 'object' && (!Array.isArray(owner) || arrayIndex(key) !== undefined)
+    if (deepEqual(old, value) && !createsOwnKey) return false
     store.values = setAt(before, path, value)
     if (missing) {
       let extendedArray = false
