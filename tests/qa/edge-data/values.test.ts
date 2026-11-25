@@ -68,7 +68,7 @@ describe('identity-bearing values', () => {
   })
 })
 
-it.fails.each(['development', 'production'] as const)('BUG: QA-39 submits replacement File and Blob contents in %s', async (mode) => {
+it.each(['development', 'production'] as const)('QA-39 submits replacement File and Blob contents in %s', async (mode) => {
   vi.stubEnv('NODE_ENV', mode)
   const form = createForm<{ file: File | null; blob: Blob | null }>({ initialValues: { file: null, blob: null } })
   form.setValue('file', new File(['old'], 'receipt.txt', { type: 'text/plain', lastModified: 7 }))

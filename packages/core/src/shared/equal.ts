@@ -25,6 +25,12 @@ export function deepEqual(a: unknown, b: unknown): boolean {
     if (!(a instanceof Set) || !(b instanceof Set) || a.size !== b.size) return false
     return equalCollection(a.entries(), b)
   }
+  if (a instanceof RegExp || b instanceof RegExp) {
+    return a instanceof RegExp && b instanceof RegExp && a.source === b.source && a.flags === b.flags
+  }
+  const ap = Object.getPrototypeOf(a)
+  const bp = Object.getPrototypeOf(b)
+  if ((ap !== Object.prototype && ap !== null) || (bp !== Object.prototype && bp !== null)) return false
   const ak = Object.keys(a)
   const bk = Object.keys(b as object)
   if (ak.length !== bk.length) return false
