@@ -14,7 +14,7 @@
 
 import type { WriteOp } from '../types'
 import { arrayIndex, hasArrayIndex } from '../shared/dense-array'
-import { appendValueKey, getAt } from '../shared/path'
+import { appendValueKey, getAt, parentPath } from '../shared/path'
 import { DELETE, setIn } from './patch'
 
 /** One array index a cell write addressed, outermost array first. */
@@ -35,6 +35,8 @@ export type PendingValue = {
   value?: unknown
   /** Array rows this write belongs to. */
   anchors?: readonly CellAnchor[]
+  /** Base location after a tree edit has committed. Null means its node was removed. */
+  treeTarget?: { path: string; anchors?: readonly CellAnchor[] } | null
   /** The element this cell addressed was removed by the array op. Skip the write. */
   drop?: boolean
 }
@@ -60,12 +62,41 @@ export function saveWriteTargets(ops: readonly WriteOp[]): () => void {
     return pending?.kind === 'value' ? [{ op, key: op.key, pending, state: { ...pending } }] : []
   })
   return () => {
+    let migrated = false
     for (const { op, key, pending, state } of targets) {
+      migrated ||= pending.treeTarget !== state.treeTarget
       op.key = key
       pending.path = state.path
       pending.origin = state.origin
       pending.drop = state.drop
     }
+    // Tree actions commit immediately, including inside a nested batch that later throws.
+    if (migrated) orderBufferedWrites(ops)
+  }
+}
+
+/** Rebase the same pending writes used by array mutators after an immediate tree commit. */
+export function reindexValueWrites(ops: Iterable<WriteOp>, root: string, destinations: ReadonlyMap<string, string | undefined>): void {
+  const rootDepth = root ? root.split('.').length : 0
+  for (const op of ops) {
+    const pending = tags.get(op)
+    if (pending?.kind !== 'value' || pending.treeTarget === null) continue
+    const path = pending.treeTarget?.path ?? pending.origin ?? pending.path
+    let owner: string | null = path
+    while (owner && !destinations.has(owner)) owner = parentPath(owner)
+    if (!owner) continue
+    const target = destinations.get(owner)
+    if (target === owner) continue
+    if (target === undefined) {
+      pending.treeTarget = null
+      continue
+    }
+    const ownerDepth = owner.split('.').length
+    const offset = target.split('.').length - ownerDepth
+    const anchors = (pending.treeTarget?.anchors ?? pending.anchors)
+      ?.filter(({ at }) => at < rootDepth || at >= ownerDepth)
+      .map((anchor) => anchor.at < rootDepth ? anchor : { ...anchor, at: anchor.at + offset })
+    pending.treeTarget = { path: target + path.slice(owner.length), anchors }
   }
 }
 
@@ -189,7 +220,7 @@ export function orderBufferedWrites(ops: readonly WriteOp[]): WriteOp[] {
 
 function depth(op: WriteOp): number {
   const pending = tags.get(op) as PendingValue
-  const path = pending.origin ?? pending.path
+  const path = pending.treeTarget?.path ?? pending.origin ?? pending.path
   return path ? path.split('.').length : 0
 }
 
@@ -203,11 +234,16 @@ function retarget(
   pending: PendingValue,
   arrays: ReadonlyMap<string, { next: readonly unknown[] }>,
 ): void {
-  if (!pending.anchors?.length) return
+  if (pending.treeTarget === null) {
+    pending.drop = true
+    return
+  }
+  const anchors = pending.treeTarget ? pending.treeTarget.anchors : pending.anchors
+  if (!anchors?.length && !pending.treeTarget) return
   pending.origin ??= pending.path
-  const parts = pending.origin.split('.')
+  const parts = (pending.treeTarget?.path ?? pending.origin).split('.')
   pending.drop = false
-  for (const anchor of pending.anchors) {
+  for (const anchor of anchors ?? []) {
     const parent = arrays.get(parts.slice(0, anchor.at).join('.'))
     if (!parent) continue
     const index = locateSlot(parent.next, anchor)

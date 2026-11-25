@@ -41,7 +41,7 @@ describe.each(['development', 'production'])('React integration in %s', (mode) =
     expect(view.getByText('saved/saved/group.rows')).toBeDefined()
   })
 
-  it.fails('BUG: QA-17 a batched tree move commits pending child-list edits to stale paths', async () => {
+  it('QA-62 keeps pending child-list edits on the right nodes during a batched tree move', async () => {
     type Child = { id: string; items: number[] }
     type Values = { nodes: { id: string; children: Child[] }[] }
     const form = createForm<Values>({
@@ -62,6 +62,74 @@ describe.each(['development', 'production'])('React integration in %s', (mode) =
       { id: 'left', children: [{ id: 'b', items: [2, 20] }] },
       { id: 'right', children: [{ id: 'a', items: [1, 10] }, { id: 'c', items: [3] }] },
     ] })
+  })
+
+  describe.each(['push', 'splice'] as const)('QA-62 pending %s', (mutator) => {
+    type Node = { label: string; items: number[]; kids: Node[] }
+    const node = (label: string, items: number[] = [], kids: Node[] = []): Node => ({ label, items, kids })
+    const cases = [
+      { name: 'within a parent', from: [0, 0], to: [0, 1], left: ['b', 'a'], right: [] },
+      { name: 'across parents', from: [0, 0], to: [1, 0], left: ['b'], right: ['a'] },
+      { name: 'to the root', from: [0, 0], to: [2], left: ['b'], right: [], root: ['a'] },
+      { name: 'deletion', remove: [0, 0], left: ['b'], right: [] },
+      { name: 'insertion', insert: [0, 0], left: ['new', 'a', 'b'], right: [] },
+      { name: 'refused descendant move', from: [0, 0], to: [0, 0, 0, 0], left: ['a', 'b'], right: [], refused: true },
+    ]
+
+    it.each(cases)('follows nodes without ids after $name', async ({ from, to, remove, insert, left, right, root, refused }) => {
+      const leaf = node('leaf', [3])
+      const form = createForm({ initialValues: { tree: [node('left', [], [node('a', [1], [leaf]), node('b', [2])]), node('right')] } })
+      const { result } = renderHook(() => useTreeField('tree', { childrenKey: 'kids' }), { wrapper: wrapper(form) })
+      const edit = (items: number[], value: number) => {
+        if (mutator === 'push') items.push(value)
+        else items.splice(0, 1, value)
+      }
+      const expectedItems = (initial: number, value: number) => mutator === 'push' ? [initial, value] : [value]
+
+      act(() => form.batch((d) => {
+        const siblings = d.tree[0].$value.kids
+        edit(siblings[0].items, 10)
+        edit(siblings[0].kids[0].items, 30)
+        edit(siblings[1].items, 20)
+        if (from && to) expect(result.current.move(from, to).ok).toBe(!refused)
+        if (remove) result.current.remove(remove)
+        if (insert) result.current.insert(insert, node('new'))
+        const b = d.tree[0].kids[left.indexOf('b')].items
+        expect([...b.$value]).toEqual(expectedItems(2, 20))
+        b.$value.push(21)
+      }))
+
+      const edited: Record<string, Node> = {
+        a: node('a', expectedItems(1, 10), [node('leaf', expectedItems(3, 30))]),
+        b: node('b', [...expectedItems(2, 20), 21]),
+        new: node('new'),
+      }
+      await expect(form.submit()).resolves.toEqual({
+        tree: [node('left', [], left.map((key) => edited[key])), node('right', [], right.map((key) => edited[key])),
+          ...(root ?? []).map((key) => edited[key])],
+      })
+    })
+  })
+
+  it('QA-62 keeps outer row edits when a nested batch throws after a tree move', () => {
+    type Row = { name: string }
+    type Node = { id: string; rows: Row[]; children: Node[] }
+    const left: Node = { id: 'left', rows: [], children: [
+      { id: 'child', rows: [{ name: 'first' }, { name: 'second' }], children: [] },
+    ] }
+    const form = createForm({ initialValues: { tree: [left] } })
+    const { result } = renderHook(() => useTreeField('tree'), { wrapper: wrapper(form) })
+    act(() => form.batch((d) => {
+      d.tree[0].children[0].rows.$value[0].name = 'edited'
+      d.tree[0].children[0].rows.$value.reverse()
+      expect(() => form.batch((inner) => {
+        inner.tree[0].children[0].rows.$value.push({ name: 'discarded' })
+        expect(result.current.move([0, 0], [1]).ok).toBe(true)
+        throw new Error('rollback')
+      })).toThrow('rollback')
+      expect(d.tree[1].rows.$value.map((row) => row.name)).toEqual(['second', 'edited'])
+    }))
+    expect(form.getValue('tree.1.rows')).toEqual([{ name: 'second' }, { name: 'edited' }])
   })
 
   it('QA-25 migrates a tree watch across parents and drops it on removal', () => {

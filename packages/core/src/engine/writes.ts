@@ -126,8 +126,9 @@ export class StateWriter {
   dropField(rawPath: string): void {
     const path = this.writablePath(rawPath, true)
     if (!path) return
-    const op: WriteOp = { key: `${path}:value`, apply: () => this.applyDrop(path) }
-    tagPending(op, { kind: 'value', path, mode: 'delete' })
+    const pending: PendingValue = { kind: 'value', path, mode: 'delete' }
+    const op: WriteOp = { key: `${path}:value`, apply: () => this.applyDrop(pending.path) }
+    tagPending(op, pending)
     this.enqueue(op, false)
   }
 

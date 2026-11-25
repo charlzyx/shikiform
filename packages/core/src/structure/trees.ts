@@ -5,7 +5,7 @@ import type { FieldStore } from '../state/field-store'
 import type { MoveResult } from '../types'
 import type { FormMessages } from '../validation/messages'
 import { movedFieldPaths, reindexById } from './migrate'
-import { deleteNode, insertNode, listPositions, locateIds, moveNode, posKey, posOf, pushNode, replaceNode, type Pos } from '../shared/tree-ops'
+import { cloneNodes, deleteNode, getNode, insertNode, listPositions, locateIds, moveTreeNode, posKey, posOf, pushNode, replaceNode, type Pos } from '../shared/tree-ops'
 
 export interface TreeConfig {
   childrenKey: string
@@ -16,6 +16,7 @@ export interface TreeConfig {
 /** Registered tree roots, `pos` lookup, and `moveTree` with field-model migration. */
 export class TreeOps {
   private trees = new Map<string, TreeConfig>()
+  private readonly pendingNodeIds = new WeakMap<object, symbol>()
 
   constructor(
     private readonly store: FieldStore<any>,
@@ -79,7 +80,7 @@ export class TreeOps {
   move(path: string, from: Pos, to: Pos): MoveResult {
     const cfg = this.config(path)
     const before = this.store.arrayOf(path)
-    const result = moveNode(before, from, to, cfg.childrenKey, cfg.canMove, this.messages)
+    const result = moveTreeNode(before, from, to, cfg.childrenKey, cfg.canMove, this.messages, this.cloneForEdit)
     if (!result.ok || !result.tree) return { ok: false, reason: result.reason }
     this.commit(path, before, result.tree)
     return { ok: true }
@@ -89,7 +90,7 @@ export class TreeOps {
   push(path: string, node: unknown, parentPos?: Pos): void {
     const cfg = this.config(path)
     const before = this.store.arrayOf(path)
-    const next = pushNode(before, node, parentPos, cfg.childrenKey)
+    const next = pushNode(before, node, parentPos, cfg.childrenKey, this.cloneForEdit)
     if (next) this.commit(path, before, next)
   }
 
@@ -97,7 +98,7 @@ export class TreeOps {
   insert(path: string, pos: Pos, node: unknown): void {
     const cfg = this.config(path)
     const before = this.store.arrayOf(path)
-    const next = insertNode(before, pos, node, cfg.childrenKey)
+    const next = insertNode(before, pos, node, cfg.childrenKey, this.cloneForEdit)
     if (next) this.commit(path, before, next)
   }
 
@@ -105,7 +106,7 @@ export class TreeOps {
   remove(path: string, pos: Pos): void {
     const cfg = this.config(path)
     const before = this.store.arrayOf(path)
-    const next = deleteNode(before, pos, cfg.childrenKey)
+    const next = deleteNode(before, pos, cfg.childrenKey, this.cloneForEdit)
     if (next) this.commit(path, before, next)
   }
 
@@ -113,8 +114,25 @@ export class TreeOps {
   replace(path: string, pos: Pos, node: unknown): void {
     const cfg = this.config(path)
     const before = this.store.arrayOf(path)
-    const next = replaceNode(before, pos, node, cfg.childrenKey)
+    const next = replaceNode(before, pos, node, cfg.childrenKey, this.cloneForEdit)
     if (next) this.commit(path, before, next)
+  }
+
+  private readonly cloneForEdit = (before: any[], childrenKey: string): any[] => {
+    const next = cloneNodes(before)
+    if (!this.scheduler.hasBufferedWrites()) return next
+    const carryIds = (source: any[], clone: any[]) => {
+      source.forEach((node, index) => {
+        if (!node || typeof node !== 'object') return
+        // The clone and original denote the same node even when it has no rowKey.
+        const id = this.pendingNodeIds.get(node) ?? Symbol()
+        this.pendingNodeIds.set(node, id)
+        this.pendingNodeIds.set(clone[index], id)
+        if (Array.isArray(node[childrenKey])) carryIds(node[childrenKey], clone[index][childrenKey])
+      })
+    }
+    carryIds(before, next)
+    return next
   }
 
   /** Migrate field models by node id, then notify structure and value readers. `before` / `next` are the root arrays. */
@@ -131,9 +149,24 @@ export class TreeOps {
     store.onReindexIds?.(oldIds, newIds)
     const previous = store.values
     store.values = setAt(previous, path, next)
+    const beforeNodes = listPositions(before, path, cfg.childrenKey, cfg.rowKey)
+    const afterNodes = listPositions(next, path, cfg.childrenKey, cfg.rowKey)
+    if (scheduler.hasBufferedWrites()) {
+      const newPaths = new Map<symbol, string>()
+      for (const node of afterNodes) {
+        const id = this.pendingNodeIds.get(getNode(next, node.pos, cfg.childrenKey))
+        if (id) newPaths.set(id, node.path)
+      }
+      const destinations = new Map<string, string | undefined>()
+      for (const node of beforeNodes) {
+        const id = this.pendingNodeIds.get(getNode(before, node.pos, cfg.childrenKey))
+        if (id) destinations.set(node.path, newPaths.get(id))
+      }
+      scheduler.reindexPendingValues(path, destinations)
+    }
     store.onRestructure?.()
-    const beforePos = new Map(listPositions(before, path, cfg.childrenKey, cfg.rowKey).map((n) => [posKey(n.pos), n.id]))
-    const afterPos = new Map(listPositions(next, path, cfg.childrenKey, cfg.rowKey).map((n) => [posKey(n.pos), n.id]))
+    const beforePos = new Map(beforeNodes.map((n) => [posKey(n.pos), n.id]))
+    const afterPos = new Map(afterNodes.map((n) => [posKey(n.pos), n.id]))
     const dirty = new Set<string>()
     for (const key of new Set([...beforePos.keys(), ...afterPos.keys()])) {
       if (beforePos.get(key) !== afterPos.get(key)) dirty.add(key)

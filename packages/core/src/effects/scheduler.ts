@@ -1,4 +1,4 @@
-import { orderBufferedWrites, saveWriteTargets } from '../draft/pending'
+import { orderBufferedWrites, reindexValueWrites, saveWriteTargets } from '../draft/pending'
 import type { DraftScope } from '../draft/host'
 import { ShikiConflictError, ShikiCycleError, ShikiUsageError, showDraftPath, showStateKey } from '../errors'
 import { deepEqual } from '../shared/equal'
@@ -109,6 +109,7 @@ export class Scheduler {
   installDepth = 0
   batchDepth = 0
   batchOps: WriteOp[] = []
+  private readonly batchParents: WriteOp[][] = []
   private flushHolds = 0
   private flushRequested = false
   private readonly afterBatchCallbacks: (() => void)[] = []
@@ -313,6 +314,19 @@ export class Scheduler {
     return orderBufferedWrites(this.batchOps.splice(0))
   }
 
+  hasBufferedWrites(): boolean {
+    return !!(this.batchOps.length || this.batchParents.some((ops) => ops.length) || this.stack.some((tracker) => tracker.writes.length))
+  }
+
+  reindexPendingValues(root: string, destinations: ReadonlyMap<string, string | undefined>): void {
+    const ops = new Set(this.batchOps)
+    for (const parent of this.batchParents) for (const op of parent) ops.add(op)
+    for (const tracker of this.stack) for (const op of tracker.writes) ops.add(op)
+    reindexValueWrites(ops, root, destinations)
+    // Refresh projected keys before another write can replace an op at the same path.
+    orderBufferedWrites(this.current()?.writes ?? this.batchOps)
+  }
+
   bufferBatch(fn: () => void): void {
     const tracker = this.current()
     const parent = tracker?.writes ?? this.batchOps
@@ -320,6 +334,7 @@ export class Scheduler {
     const restore = saveWriteTargets(parent)
     if (tracker) tracker.writes = child
     else this.batchOps = child
+    this.batchParents.push(parent)
     this.batchDepth++
     try {
       fn()
@@ -330,6 +345,7 @@ export class Scheduler {
       throw error
     } finally {
       this.batchDepth--
+      this.batchParents.pop()
     }
   }
 
