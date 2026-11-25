@@ -48,6 +48,7 @@ export class Validator {
   schemaByPath = new Map<string, string[]>()
   /** Bumped at the start of each {@link Validator.validate}. Only the latest pass may commit. */
   validateGen = 0
+  private resetVersion = 0
   /** Attempts `waitAsync` still has to finish. Aborted attempts are removed in the abort listener. */
   private inflight = new Set<Promise<unknown>>()
   /** Debounce timers and superseded async attempts (#122). */
@@ -131,6 +132,7 @@ export class Validator {
     onStart(gen)
     const values = store.values
     const enumVersion = store.enumVersion
+    const resetVersion = this.resetVersion
     const inScope = scopeTest(path)
     // Validating a field again replaces what the server said about it.
     if (typeof path === 'string' || path === undefined) this.clearExternalUnder(path)
@@ -142,6 +144,7 @@ export class Validator {
       errors: this.errors().filter((e) => inScope(e.path)),
       values,
       enumVersion,
+      resetVersion,
       current: gen === this.validateGen,
       gen,
     })
@@ -191,6 +194,7 @@ export class Validator {
         result = await this.latestFull.promise
       }
       if (!sameValues(result.values, this.store.values)) continue
+      if (result.resetVersion !== this.resetVersion) continue
       if (this.deps.options.enumPolicy === 'error' && result.enumVersion !== this.store.enumVersion) continue
       if (result.current) return finish(result.errors)
     }
@@ -468,8 +472,9 @@ export class Validator {
     this.deps.scheduler.bumpMeta()
   }
 
-  /** Forget schema messages, for `reset(path?)`. */
-  clearSchema(path?: string): void {
+  /** Reset invalidates an in-progress submit verdict even when resetting to the same values. */
+  reset(path?: string): void {
+    this.resetVersion += 1
     if (!path) this.schemaByPath = new Map()
     else {
       for (const key of [...this.schemaByPath.keys()]) {

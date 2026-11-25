@@ -1,4 +1,4 @@
-import { createForm, defineEffects, SubmitSupersededError } from '@shikiform/core'
+import { createForm, defineEffects, SubmitSupersededError, type ValidateCtx } from '@shikiform/core'
 import { afterEach, expect, it, vi } from 'vitest'
 
 function deferred<T>() {
@@ -9,17 +9,18 @@ function deferred<T>() {
 
 afterEach(() => vi.unstubAllEnvs())
 
-it.fails.each(['development', 'production'])('BUG: QA-44 reset to identical values lets submit deliver unchecked data in %s', async (environment) => {
+it.each(['development', 'production'])('QA-44: reset to identical values rechecks before submit in %s', async (environment) => {
   vi.stubEnv('NODE_ENV', environment)
   const started = deferred<AbortSignal>()
   const result = deferred<string>()
+  const validator = vi.fn((_value: string, { signal }: ValidateCtx) => {
+    started.resolve(signal!)
+    return result.promise
+  })
   const form = createForm({
     initialValues: { code: 'blocked' },
     fields: {
-      code: { rules: { validator: vi.fn((_value, { signal }) => {
-        started.resolve(signal!)
-        return result.promise
-      }) } },
+      code: { rules: { validator } },
     },
   })
   const deliver = vi.fn()
@@ -38,6 +39,7 @@ it.fails.each(['development', 'production'])('BUG: QA-44 reset to identical valu
     deliveries: [],
   })
   expect(form.submitting).toBe(false)
+  expect(validator).toHaveBeenCalledTimes(2)
 })
 
 it('submits recomputed reset values when a reset observer requests submission', async () => {

@@ -45,6 +45,7 @@ export class Baseline {
     else if (pathOrValues) path = String(pathOrValues)
     if (path) store.values = setAt(store.values, path, copyData(getAt(store.initial, path)))
     else store.values = copyData(store.initial)
+    validator.reset(path)
     if (!path) store.edited = false
     for (const field of store.fields.values()) {
       if (path && field.path !== path && !field.path.startsWith(path + '.')) continue
@@ -58,7 +59,6 @@ export class Baseline {
       field.abort?.abort()
       notifier.bumpPath(field.path)
     }
-    validator.clearSchema(path)
     this.notifyValueReaders(path ?? '')
     scheduler.enqueueFromDirty()
     declarations.applyItemTemplates()

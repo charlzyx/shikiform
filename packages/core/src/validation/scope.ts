@@ -18,6 +18,7 @@ export interface RunResult {
   errors: FieldError[]
   values: unknown
   enumVersion: number
+  resetVersion: number
   current: boolean
   gen: number
 }
