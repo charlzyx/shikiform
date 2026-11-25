@@ -130,6 +130,7 @@ export class Validator {
     const gen = ++this.validateGen
     onStart(gen)
     const values = store.values
+    const enumVersion = store.enumVersion
     const inScope = scopeTest(path)
     // Validating a field again replaces what the server said about it.
     if (typeof path === 'string' || path === undefined) this.clearExternalUnder(path)
@@ -140,6 +141,7 @@ export class Validator {
     const scoped = (): RunResult => ({
       errors: this.errors().filter((e) => inScope(e.path)),
       values,
+      enumVersion,
       current: gen === this.validateGen,
       gen,
     })
@@ -180,35 +182,19 @@ export class Validator {
     }
   }
 
-  /**
-   * Validate the whole form until a pass describes the live values (#6, used by `submit`).
-   * A pass validates one snapshot; when the values differ from it once the pass settles (an edit while waiting
-   * on async rules, a reaction derived from `$errors`, a reset), validate again, up to {@link SETTLE_PASSES}.
-   * A pass superseded by a newer whole-form pass adopts that pass's verdict (a `validate()` started mid-submit,
-   * or the pass a later `submit()` is already running). The engine then drops an older `submit()` as superseded.
-   * One superseded by a scoped `validate(path)` runs again.
-   * Returns the errors of a current pass over the live values, or `null` when the values never settled.
-   */
-  async runSettled(): Promise<FieldError[] | null> {
+  /** Wait for in-flight rules, then deliver the verdict in the same turn as the final snapshot check. */
+  async submitVerdict<R>(finish: (errors: FieldError[] | null) => R): Promise<R> {
+    await this.waitAsync()
     for (let pass = 0; pass < SETTLE_PASSES; pass++) {
       let result = await this.run()
       while (!result.current && this.latestFull?.promise && this.latestFull.gen > result.gen) {
         result = await this.latestFull.promise
       }
       if (!sameValues(result.values, this.store.values)) continue
-      if (result.current) return result.errors
+      if (this.deps.options.enumPolicy === 'error' && result.enumVersion !== this.store.enumVersion) continue
+      if (result.current) return finish(result.errors)
     }
-    return null
-  }
-
-  /**
-   * `submit`'s verdict: wait for in-flight rules, then {@link Validator.runSettled}.
-   * `[]` when the live values validated clean, the errors when they did not, `null` when they never settled.
-   * Does not notify `validateFailed` — `submit` does that only for the call that still owns the outcome.
-   */
-  async submitVerdict(): Promise<FieldError[] | null> {
-    await this.waitAsync()
-    return this.runSettled()
+    return finish(null)
   }
 
   /**
@@ -476,6 +462,7 @@ export class Validator {
     this.discardInflight(field)
     this.attempts.clearTimer(path)
     this.schemaByPath.delete(path)
+    this.store.setEnumOptions(field, undefined)
     this.store.fields.delete(path)
     this.deps.notifier.bumpPath(path)
     this.deps.scheduler.bumpMeta()
@@ -675,7 +662,7 @@ function recordToIssues(extra: Partial<Record<string, string>> | void): SchemaIs
     .map(([path, message]) => ({ path, message }))
 }
 
-/** Passes {@link Validator.runSettled} may run while the values keep changing under it. */
+/** Passes {@link Validator.submitVerdict} may run while validation inputs keep changing. */
 const SETTLE_PASSES = 3
 
 /** Writes replace the values object, so identity is the fast path; equal content counts as unchanged. */

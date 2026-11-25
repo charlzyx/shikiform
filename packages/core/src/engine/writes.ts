@@ -451,7 +451,7 @@ export class StateWriter {
       }
       const next = field.jsxEnum ?? this.deps.declarations.declaredEnum(path)
       if (deepEqual(field.enumOptions, next)) return false
-      field.enumOptions = next
+      this.deps.store.setEnumOptions(field, next)
       this.afterEnum(path)
       return true
     }
@@ -470,7 +470,7 @@ export class StateWriter {
     this.cancelEnumLoad(path, field)
     const options = asOptions(value) ?? []
     if (deepEqual(field.enumOptions, options)) return false
-    field.enumOptions = options
+    this.deps.store.setEnumOptions(field, options)
     this.afterEnum(path)
     return true
   }
@@ -507,7 +507,7 @@ export class StateWriter {
           // Supersede an in-flight load (an earlier binding or a reaction's that has since been replaced).
           this.cancelEnumLoad(path, field)
           if (!deepEqual(field.enumOptions, next)) {
-            field.enumOptions = next as EnumOption[]
+            store.setEnumOptions(field, next as EnumOption[])
             notifier.bumpPath(path)
             scheduler.markDirty(`${path}:enum`)
             // An update behaves like `$enum` (policy applies, in the commit); the first mount like a declaration.
@@ -539,7 +539,7 @@ export class StateWriter {
     }
     const next = declarations.declaredEnum(path)
     if (wasLoading || !deepEqual(field.enumOptions, next)) {
-      field.enumOptions = next
+      store.setEnumOptions(field, next)
       notifier.bumpPath(path)
       scheduler.markDirty(`${path}:enum`)
     }
@@ -562,7 +562,7 @@ export class StateWriter {
       void binding.source.load(binding.params, ac.signal).then(
         (options) => {
           if (field.enumSeq !== seq) return
-          field.enumOptions = options
+          store.setEnumOptions(field, options)
           field.enumLoading = false
           this.afterEnum(path)
           scheduler.enqueueFromDirty()

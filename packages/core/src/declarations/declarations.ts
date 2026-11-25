@@ -57,6 +57,7 @@ export class Declarations {
     // An exact declaration is path-keyed configuration, not row state: park it on its old path, strip it from a
     // moved model, and re-register it when the path is occupied again (#8, path-scoped since 2026-10-30).
     store.onReindex = ({ dropped, moved }) => {
+      if (dropped.some((model) => model.enumOptions) || moved.some(({ model }) => model.enumOptions)) store.enumVersion += 1
       for (const model of dropped) {
         if (model.declaration) this.dormantDeclarations.set(model.path, model.declaration)
       }
@@ -90,7 +91,7 @@ export class Declarations {
     if (cleared.length) this.validator.noteFlags(field.path, cleared)
     if ((spec as RegisterSpec).trigger) field.triggers = undefined
     if (spec.asyncDebounceMs !== undefined) field.asyncDebounceMs = undefined
-    if (spec.enum && !field.enumFromEffect && field.jsxEnum === undefined) field.enumOptions = undefined
+    if (spec.enum && !field.enumFromEffect && field.jsxEnum === undefined) this.store.setEnumOptions(field, undefined)
     if (field.uiDeclared) {
       const next = { ...field.uiDeclared }
       for (const key of Object.keys(normalizeUiSpec(spec))) delete next[key as keyof typeof next]
@@ -260,7 +261,7 @@ export class Declarations {
       if (spec.enum && !field.enumFromEffect && field.jsxEnum === undefined) {
         const binding = toEnumBinding(spec.enum)
         if (binding) this.onDeclaredEnum?.(field.path, binding)
-        else field.enumOptions = asOptions(spec.enum) ?? []
+        else this.store.setEnumOptions(field, asOptions(spec.enum) ?? [])
       }
     } else if (spec.enum && !field.enumFromEffect && field.jsxEnum === undefined && field.declaration?.enum === undefined && field.enumOptions === undefined && !field.enumLoading) {
       // `rows.*.status: { enum }`: a template fills the enum only where no exact declaration or effect set one.
@@ -268,7 +269,7 @@ export class Declarations {
       if (binding) {
         this.onDeclaredEnum?.(field.path, binding)
       } else {
-        field.enumOptions = asOptions(spec.enum) ?? []
+        this.store.setEnumOptions(field, asOptions(spec.enum) ?? [])
         this.notifier.bumpPath(field.path)
       }
     }

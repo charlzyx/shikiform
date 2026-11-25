@@ -1,4 +1,5 @@
 import { copyData } from '../draft/plain-clone'
+import type { EnumOption } from '../enum/enum-source'
 import { getAt, parentPath } from '../shared/path'
 import { acceptsValidation as pathAcceptsValidation, effectiveFlag, ownFlag, type FlagName } from './flags'
 import { createFieldModel, type FieldModel } from './field-model'
@@ -22,6 +23,7 @@ export class FieldStore<T = any> {
   submitting = false
   submitCount = 0
   validating = false
+  enumVersion = 0
   readonly fields = new Map<string, FieldModel>()
   /** Paths that have at least one descendant field. Used to skip a full scan when a leaf flag changes. */
   readonly parents = new Set<string>()
@@ -41,6 +43,16 @@ export class FieldStore<T = any> {
 
   get(path: string): FieldModel | undefined {
     return this.fields.get(path)
+  }
+
+  setEnumOptions(field: FieldModel, options: EnumOption[] | undefined): void {
+    const prev = field.enumOptions
+    // Only membership and disabled options affect the verdict. Match values by identity, like optionIncludes.
+    if (prev?.length !== options?.length || options?.some((option, i) => {
+      const old = prev![i]!
+      return !Object.is(option.value, old.value) || Boolean(option.disabled) !== Boolean(old.disabled)
+    })) this.enumVersion += 1
+    field.enumOptions = options
   }
 
   /** The model at `path`, created on first touch. */

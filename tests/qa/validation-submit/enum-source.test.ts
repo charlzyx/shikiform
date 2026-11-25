@@ -89,7 +89,7 @@ describe('EnumSource lifecycle', () => {
 })
 
 describe('enumPolicy on submit', () => {
-  it.fails('BUG QA-14: rejects a selection removed by options that settle during the same submission', async () => {
+  it('QA-14: rejects a selection removed by options that settle during the same submission', async () => {
     const options = deferred<EnumOption[]>()
     const entered = deferred<void>()
     const held = deferred<void>()
@@ -122,5 +122,30 @@ describe('enumPolicy on submit', () => {
     await expect(form.validate()).rejects.toEqual(errors)
     expect(result).toEqual({ error: errors })
     expect(save).not.toHaveBeenCalled()
+  })
+
+  it('does not repeat validation when an enum load returns the same options', async () => {
+    const options = deferred<EnumOption[]>()
+    const entered = deferred<void>()
+    const held = deferred<void>()
+    const validate = vi.fn(async () => {
+      entered.resolve()
+      await held.promise
+    })
+    const form = createForm({
+      initialValues: { city: 'old' },
+      fields: { city: { enum: ['old'] } },
+      enumPolicy: 'error',
+      validate,
+    })
+    form.batch((d) => { d.city.$enum = EnumSource.from(() => options.promise) })
+    const submission = form.submit()
+    await entered.promise
+    options.resolve([{ label: 'old', value: 'old' }])
+    await setImmediate()
+    held.resolve()
+
+    await expect(submission).resolves.toEqual({ city: 'old' })
+    expect(validate).toHaveBeenCalledOnce()
   })
 })

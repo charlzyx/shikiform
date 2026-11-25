@@ -17,6 +17,7 @@ export function scopeTest(scope: ValidateScope | undefined): (path: string) => b
 export interface RunResult {
   errors: FieldError[]
   values: unknown
+  enumVersion: number
   current: boolean
   gen: number
 }

@@ -223,18 +223,18 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     scheduler.bumpMeta()
     notifier.emit()
     try {
-      const errors = await validator.submitVerdict()
-      const unsettled = this.message('superseded', { path: '', value: store.values })
-      if (serial !== this.submitSerial) throw new SubmitSupersededError(unsettled)
-      if (errors === null) throw new SubmitUnstableError(unsettled)
-      if (errors.length) {
-        notifier.validateFailed(errors)
-        throw errors
-      }
-      const values = this.getSubmitValues()
-      if (!onValid) return values
-      const returned = await onValid(values)
-      return (returned === undefined ? values : returned) as TSubmit | SubmitResolved<TSubmit, R>
+      return await validator.submitVerdict(async (errors) => {
+        if (serial !== this.submitSerial) throw new SubmitSupersededError(this.message('superseded', { path: '', value: store.values }))
+        if (errors === null) throw new SubmitUnstableError(this.message('superseded', { path: '', value: store.values }))
+        if (errors.length) {
+          notifier.validateFailed(errors)
+          throw errors
+        }
+        const values = this.getSubmitValues()
+        if (!onValid) return values
+        const returned = await onValid(values)
+        return (returned === undefined ? values : returned) as TSubmit | SubmitResolved<TSubmit, R>
+      })
     } finally {
       this.pendingSubmits -= 1
       store.submitting = this.pendingSubmits > 0
