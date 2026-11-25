@@ -1,6 +1,6 @@
 import type { Declarations } from '../declarations/declarations'
 import { guardReactionAction, isReactionId, type Scheduler } from '../effects/scheduler'
-import { asOptions, isEnumBinding, toEnumBinding, type EnumBinding, type EnumOption } from '../enum/enum-source'
+import { asOptions, isEnumBinding, isEnumSource, toEnumBinding, type EnumBinding, type EnumOption } from '../enum/enum-source'
 import { cloneExternal, resetExternalCloneTraversal } from '../draft/plain-clone'
 import { pendingOf, projectValue, tagPending, type CellAnchor, type PendingValue } from '../draft/pending'
 import { unwrapDraft } from '../draft/patch'
@@ -94,6 +94,7 @@ export class StateWriter {
     this.rejectInstallWrite(path, key)
     value = storedValue(value)
     const op = this.makeOp(path, key, value, anchors)
+    if (!op) return
     this.enqueue(op, !!this.deps.ui?.isUiOp(op))
   }
 
@@ -363,7 +364,7 @@ export class StateWriter {
     return true
   }
 
-  private makeOp(path: string, key: string, value: unknown, anchors?: readonly CellAnchor[]): WriteOp {
+  private makeOp(path: string, key: string, value: unknown, anchors?: readonly CellAnchor[]): WriteOp | undefined {
     const uiKey = uiKeyOf(key)
     if (uiKey && this.deps.ui) return this.deps.ui.makeOp(path, uiKey, value)
     if (key === '$value') {
@@ -392,6 +393,13 @@ export class StateWriter {
       return { key: `${path}:required`, apply: () => this.setRequired(path, !!value) }
     }
     if (key === '$enum') {
+      if (value !== undefined && !Array.isArray(value) && !isEnumSource(value)
+        && !(isEnumBinding(value) && isEnumSource(value.source))) {
+        if (process.env.NODE_ENV !== 'production') {
+          throw new ShikiUsageError(`${showDraftPath(path)}.$enum expects an array, an EnumSource or its .with(params) binding, or undefined.`)
+        }
+        return
+      }
       const op: WriteOp = { key: `${path}:enum`, apply: () => this.setEnum(path, value) }
       tagPending(op, { kind: 'enum', path, value })
       return op

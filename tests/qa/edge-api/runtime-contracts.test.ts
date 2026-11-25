@@ -1,4 +1,4 @@
-import { createForm, ShikiUsageError } from '@shikiform/core'
+import { createForm, EnumSource, ShikiUsageError } from '@shikiform/core'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 afterEach(() => vi.unstubAllEnvs())
@@ -63,11 +63,12 @@ describe.each(['development', 'production'])('untyped API inputs in %s', (enviro
     expect(form.getSubmitValues()).toEqual({ approved: false, status: 'pending' })
   })
 
-  it.fails.each([
+  it.each([
     ['null', null],
     ['function', () => ['saved']],
     ['Promise', Promise.resolve(['saved'])],
-  ])('BUG: QA-48 %s assigned as $enum clears an existing value under enumPolicy clear', (_kind, input) => {
+    ['invalid binding', { kind: 'enum' }],
+  ])('QA-48 rejects %s assigned as $enum and preserves the selected value', (_kind, input) => {
     const form = createForm({
       initialValues: { choice: 'saved' },
       enumPolicy: 'clear',
@@ -83,6 +84,30 @@ describe.each(['development', 'production'])('untyped API inputs in %s', (enviro
         : undefined,
       values: { choice: 'saved' },
     })
+  })
+
+  it('keeps the previous $enum write and its load when an invalid write is ignored', async () => {
+    let signal!: AbortSignal
+    let resolve!: (options: { label: string; value: string }[]) => void
+    const source = EnumSource.from((_params: string, ctx) => {
+      signal = ctx.signal
+      return new Promise((done) => { resolve = done })
+    })
+    const form = createForm({ initialValues: { choice: 'saved' }, enumPolicy: 'clear' })
+    const binding = source.with('query')
+    form.batch((d) => {
+      d.choice.$enum = binding
+      if (environment === 'production') d.choice.$enum = null as never
+    })
+    const write = () => form.batch((d) => { d.choice.$enum = null as never })
+    if (environment === 'development') expect(write).toThrow(ShikiUsageError)
+    else expect(write).not.toThrow()
+    expect(signal.aborted).toBe(false)
+    expect(form.getValue('choice')).toBe('saved')
+
+    const options = [{ label: 'Loaded', value: 'saved' }]
+    resolve(options)
+    await vi.waitFor(() => form.batch((d) => { expect(d.choice.$enum).toEqual(options) }))
   })
 
   it.fails.each([
