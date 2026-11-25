@@ -146,26 +146,43 @@ describe.each(['development', 'production'])('untyped API inputs in %s', (enviro
     await expect(form.submit()).rejects.toEqual([{ path: 'code', messages: ['Pending rule'] }])
   })
 
-  it.fails.each([
+  it.each([
     ['null', null],
     ['function', () => ({ placeholder: 'untyped' })],
     ['Promise', Promise.resolve({ placeholder: 'untyped' })],
-  ])('BUG: QA-53 %s as $componentProps silently replaces declared props', (_kind, input) => {
+    ['array', []],
+  ])('QA-53 rejects %s assigned as whole UI props and preserves declared props', (_kind, input) => {
     const form = createForm({
       initialValues: { code: 'saved' },
-      fields: { code: { componentProps: { placeholder: 'Enter code' } } },
+      fields: { code: { componentProps: { placeholder: 'Enter code' }, decoratorProps: { label: 'Code' } } },
     })
 
-    let writeError: unknown
-    try { form.batch((d) => { d.code.$componentProps = input as never }) } catch (error) { writeError = error }
-    let placeholder: unknown
-    form.batch((d) => { placeholder = d.code.$componentProps.placeholder })
-    expect({ writeError, placeholder }).toEqual({
-      writeError: environment === 'development'
-        ? expect.objectContaining({ name: 'ShikiUsageError', message: expect.stringMatching(/\$componentProps.*object/i) })
-        : undefined,
-      placeholder: 'Enter code',
+    for (const key of ['$componentProps', '$decoratorProps'] as const) {
+      const write = () => form.batch((d) => { d.code[key] = input as never })
+      if (environment === 'development') {
+        expect(write).toThrow(expect.objectContaining({
+          name: 'ShikiUsageError', message: expect.stringContaining(`${key} expects a plain object`),
+        }))
+      } else expect(write).not.toThrow()
+    }
+    form.batch((d) => {
+      expect(d.code.$componentProps.placeholder).toBe('Enter code')
+      expect(d.code.$decoratorProps.label).toBe('Code')
     })
+  })
+
+  it('keeps valid pending props for a named UI after an invalid replacement', () => {
+    const form = createForm({ initialValues: { code: 'saved' } })
+    form.batch((d) => {
+      const ui = d.code.$ui('echo')
+      ui.$decoratorProps = { label: 'Echo' }
+      const write = () => { ui.$decoratorProps = new Date() as never }
+      if (environment === 'development') {
+        expect(write).toThrow(/d\.code\.\$ui\('echo'\)\.\$decoratorProps expects a plain object/)
+      } else expect(write).not.toThrow()
+      expect(ui.$decoratorProps.label).toBe('Echo')
+    })
+    form.batch((d) => { expect(d.code.$ui('echo').$decoratorProps.label).toBe('Echo') })
   })
 
   it.each([

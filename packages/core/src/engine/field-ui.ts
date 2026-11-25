@@ -1,5 +1,6 @@
 import { DELETE, isPatchable, setIn, unwrapDraft } from '../draft/patch'
 import { unwrapReadonly } from '../draft/readonly'
+import { ShikiUsageError, showStateKey } from '../errors'
 import { arrayIndex, deleteArrayIndex, writeArrayIndex } from '../shared/dense-array'
 import type { Scheduler } from '../effects/scheduler'
 import { OBJECT_UI_KEYS, UI_KEYS, type FieldModel, type UiEffect, type UiKey } from '../state/field-model'
@@ -78,7 +79,7 @@ export class FieldUi {
   }
 
   /** Build the write op for `$title = …`, `$componentProps = …`, or a nested patch. */
-  makeOp(path: string, key: UiKey, value: unknown): WriteOp {
+  makeOp(path: string, key: UiKey, value: unknown): WriteOp | undefined {
     let opKey = `${path}:${key}`
     let patch: Patch
     if (isPatch(value)) {
@@ -99,7 +100,13 @@ export class FieldUi {
     } else if (value === undefined) {
       patch = () => undefined
     } else if (OBJECT_UI_KEYS.has(key)) {
-      patch = () => ({ value: { ...(value as object) }, replace: true })
+      if (!isPlainObject(value)) {
+        if (process.env.NODE_ENV !== 'production') {
+          throw new ShikiUsageError(`${showStateKey(opKey)} expects a plain object or undefined to restore lower layers.`)
+        }
+        return
+      }
+      patch = () => ({ value: { ...value }, replace: true })
     } else {
       patch = () => ({ value })
     }

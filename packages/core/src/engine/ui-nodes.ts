@@ -159,17 +159,18 @@ export class UiNodes {
     if (prepared !== undefined) value = prepared
     else if (process.env.NODE_ENV !== 'production') value = unwrapReadonly(value)
     const id = uiId(path, name)
-    const model = this.ensure(path, name)
-    let op: WriteOp
+    let op: WriteOp | undefined
     if (key === '$visible' || key === '$disabled' || key === '$readOnly') {
-      const name = key.slice(1) as UiFlag
+      const flag = key.slice(1) as UiFlag
       op = {
-        key: `${id}:${name}`,
-        apply: () => this.setFlag(model, name, value as boolean | undefined),
+        key: `${id}:${flag}`,
+        apply: () => this.setFlag(model, flag, value as boolean | undefined),
       }
     } else {
       op = this.ui.makeOp(id, key.slice(1) as UiKey, value)
     }
+    if (!op) return
+    const model = this.ensure(path, name)
     const apply = op.apply
     op.apply = () => {
       this.noteWrite(id)
