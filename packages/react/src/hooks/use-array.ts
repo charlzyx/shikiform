@@ -87,7 +87,11 @@ export function useArrayField(name?: string, opts?: { rowKey?: string }): ArrayH
 /** `<ArrayField name="title">` on a string renders no rows and no error: say so in development. */
 function assertArrayValue(path: string, value: unknown): void {
   if (value == null || Array.isArray(value)) return
-  const shown = typeof value === 'object' ? 'an object' : `${typeof value} ${JSON.stringify(value)?.slice(0, 40)}`
+  const kind = typeof value
+  let shown: string
+  if (kind === 'object') shown = 'an object'
+  else if (kind === 'function') shown = 'a function'
+  else shown = `${kind} ${(typeof value === 'string' ? JSON.stringify(value) : String(value)).slice(0, 40)}`
   throw new ShikiUsageError(
     `<ArrayField name="${path}"> / useArrayField('${path}'): ${showDraftPath(path)}.$value is ${shown}, not an array. ` +
       `Start it as an array in initialValues (\`${path.split('.').pop()}: []\`), or use <Field> / <ObjectField> for a non-array value.`,

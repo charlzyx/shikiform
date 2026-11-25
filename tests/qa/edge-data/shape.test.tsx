@@ -77,7 +77,7 @@ describe.each(['development', 'production'] as const)('array value shapes in %s'
   })
 })
 
-it.fails('BUG: QA-43 gives actionable ArrayField guidance for a BigInt in development', () => {
+it('QA-43 gives actionable ArrayField guidance for a BigInt in development', () => {
   vi.stubEnv('NODE_ENV', 'development')
   expectNonArrayMount(9n, 'development')
 })
