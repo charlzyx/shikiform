@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 
 import { act, cleanup, fireEvent, render, within } from '@testing-library/react'
+import { StrictMode } from 'react'
 import type { ComponentProps } from 'react'
 import { renderToString } from 'react-dom/server'
 import { connect, createForm, defineEffects, Field, Form, mapProps, useField } from '@shikiform/react'
@@ -87,31 +88,51 @@ it('keeps independent React roots isolated even when both use the same field pat
 })
 
 for (const environment of ['development', 'production']) {
-  const duplicateOwner = environment === 'development' ? it.fails : it
-  duplicateOwner(
+  it(
     environment === 'development'
-      ? 'BUG: QA-54 duplicate unnamed Field owners lack a named-UI diagnostic'
+      ? 'QA-54 warns once when duplicate unnamed Fields mount in StrictMode'
       : 'keeps a single value for duplicate unnamed Field owners in production',
     async () => {
       vi.stubEnv('NODE_ENV', environment)
       const warnings = vi.spyOn(console, 'warn').mockImplementation(() => {})
       const form = createForm({ initialValues: { code: 'original', other: 'keep' } })
       const view = render(
-        <Form form={form}>
-          <Field name="code" component={TextControl} />
-          <Field name="code" component={TextControl} />
-        </Form>,
+        <StrictMode>
+          <Form form={form}>
+            <Field name="code" component={TextControl} />
+            <Field name="code" component={TextControl} />
+          </Form>
+        </StrictMode>,
       )
       const [first, second] = view.getAllByLabelText('code') as HTMLInputElement[]
       fireEvent.change(second, { target: { value: 'edited' } })
       expect(first.value).toBe('edited')
       await expect(form.submit()).resolves.toEqual({ code: 'edited', other: 'keep' })
-      const diagnostic = warnings.mock.calls.flat().join('\n')
-      if (environment === 'development') expect(diagnostic).toMatch(/Field.*code.*\bui\b/i)
-      else expect(diagnostic).toBe('')
+      if (environment === 'development') expect(warnings).toHaveBeenCalledExactlyOnceWith(expect.stringMatching(/Field.*code.*\bui\b/i))
+      else expect(warnings).not.toHaveBeenCalled()
     },
   )
 }
+
+it('releases primary Field ownership on name changes and excludes named UIs', () => {
+  vi.stubEnv('NODE_ENV', 'development')
+  const warnings = vi.spyOn(console, 'warn').mockImplementation(() => {})
+  const form = createForm({ initialValues: { code: 'one', other: 'two' } })
+  const page = (name: 'code' | 'other', second = false) => (
+    <Form form={form}>
+      <Field name={name} />
+      <Field name="code" ui="echo" />
+      {second && <Field name="code" />}
+    </Form>
+  )
+  const view = render(page('code'))
+  view.rerender(page('other', true))
+  expect(warnings).not.toHaveBeenCalled()
+  view.rerender(page('code', true))
+  view.rerender(page('other'))
+  view.rerender(page('code', true))
+  expect(warnings).toHaveBeenCalledExactlyOnceWith(expect.stringMatching(/Field.*code.*\bui\b/i))
+})
 
 it.fails.each(['development', 'production'])('BUG: QA-55 a connected control writes to the form during an abandoned render in %s', (environment) => {
   vi.stubEnv('NODE_ENV', environment)

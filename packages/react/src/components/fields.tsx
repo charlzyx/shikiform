@@ -7,7 +7,7 @@ import { pathOf, type Pos } from '@shikiform/core/internal'
 import { ArrayContext, FormContext, RowWrapContext, ScopeContext, TreeContext, useRequiredForm, useScope } from '../context'
 import { useArrayField } from '../hooks/use-array'
 import { FieldContext } from '../field-context'
-import { useField, type ControlValueGuard, type FieldBinding, type FieldSlot, type RegisteredComponentSlot, type RegisteredDecoratorSlot } from '../hooks/use-field'
+import { useField, useNamedField, type ControlValueGuard, type FieldBinding, type FieldSlot, type RegisteredComponentSlot, type RegisteredDecoratorSlot } from '../hooks/use-field'
 import { useTreeField } from '../hooks/use-tree'
 import { useWatch } from '../hooks/use-watch'
 import { resolveName } from '../hooks/resolve-name'
@@ -260,7 +260,7 @@ export function Field<
   D extends ComponentType<any> = ComponentType<any>,
 >({ name, children, ...options }: CheckedFieldProps<TScope, N, C, D>) {
   // Sugar over the hook: everything <Field> does is reachable through useField(name, options).
-  const field = useField<TScope, N>(name, options)
+  const field = useNamedField<PathValue<TScope, N & string>>(String(name), options, true)
   if (!field.visible) return null
   const Component = field.component
   const Decorator = field.decorator

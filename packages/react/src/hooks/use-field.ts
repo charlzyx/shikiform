@@ -8,7 +8,7 @@ import type { RulesInput } from '@shikiform/core/internal'
 import { ShikiUsageError } from '@shikiform/core/internal'
 import { useRequiredForm, useScope } from '../context'
 import { useFieldGroupRegistration } from '../field-group'
-import { applyJsxField } from './field-lifecycle'
+import { applyJsxField, claimPrimaryField } from './field-lifecycle'
 import { useIdPrefix, withDomId } from '../id-prefix'
 import { useFieldKit, withResolvedSlots, type FieldComponents, type FieldDecorators } from '../field-kit'
 import { resolveName } from './resolve-name'
@@ -224,6 +224,12 @@ export function useField(name?: string, options?: UseFieldOptions): FieldBinding
     if (!current) throw new ShikiUsageError(NO_FIELD)
     return current
   }
+  return useNamedField(name, options)
+}
+
+/** Internal named binding shared by the hook and the Field component. */
+export function useNamedField<TValue = any>(name: string, options?: UseFieldOptions<TValue>, primaryField?: boolean): FieldBinding<TValue>
+export function useNamedField(name: string, options?: UseFieldOptions, primaryField = false): FieldBinding<any> {
   const kit = useFieldKit()
   const form = useRequiredForm(`useField('${String(name)}') / <Field name="${String(name)}">`)
   const prefix = useIdPrefix()
@@ -259,7 +265,7 @@ export function useField(name?: string, options?: UseFieldOptions): FieldBinding
     () => form.getPathVersion(path),
   )
   void version
-  useUiNode(form, path, ui, 'field')
+  useUiNode(form, path, ui, 'field', primaryField)
   // Actions keep one identity per form + path (design/API-CONVENTIONS.md §1): safe in effect deps and memo props.
   // Same writes as `binding().onChange` / `onBlur`.
   const handlers = useMemo(() => ({
@@ -280,7 +286,7 @@ const ZERO = () => 0
  * Internal: a mounted named UI (`<Field ui>` / `<UI>`): subscribes to its own state, claims (path, name) while
  * mounted, and tells the form React has mounted (so `$ui` writes to names that never mount warn once).
  */
-export function useUiNode(form: FormEngine<any, any>, path: string, ui: string | undefined, kind: 'field' | 'node'): void {
+export function useUiNode(form: FormEngine<any, any>, path: string, ui: string | undefined, kind: 'field' | 'node', primaryField = false): void {
   const id = ui ? uiId(path, ui) : ''
   const version = useSyncExternalStore(
     ui ? (onStoreChange) => form.subscribePath(id, onStoreChange) : NO_UI,
@@ -290,8 +296,9 @@ export function useUiNode(form: FormEngine<any, any>, path: string, ui: string |
   void version
   useEffect(() => {
     form.markUiReady()
-    return ui ? form.claimUi(path, ui, kind) : undefined
-  }, [form, path, ui, kind])
+    if (ui) return form.claimUi(path, ui, kind)
+    if (process.env.NODE_ENV !== 'production' && primaryField) return claimPrimaryField(form, path)
+  }, [form, path, ui, kind, primaryField])
 }
 
 const warnedInstance = new Set<string>()
