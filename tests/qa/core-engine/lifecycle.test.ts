@@ -38,7 +38,7 @@ it('removes each instances when a nested list is cleared and rebuilds them on in
   expect(Object.keys(form.getDebugStats().runs)).toHaveLength(initialRunnerCount - 1)
 })
 
-it.fails('BUG: QA-28 retains dependency and structure subscription entries after unsubscribe', () => {
+it('QA-28 releases path, dependency and structure subscription entries after unsubscribe', () => {
   const form = createEngine({ initialValues: { rows: [{ amount: 1 }] } })
   const notifier = form['notifier']
   const callback = vi.fn()
@@ -51,11 +51,27 @@ it.fails('BUG: QA-28 retains dependency and structure subscription entries after
   for (let i = 0; i < 100; i++) {
     form.subscribeDep(`rows.${i}.amount:value`, callback)()
     form.subscribeStructure(`rows.${i}.children`, callback)()
+    form.subscribePath(`rows.${i}.amount`, callback)()
   }
 
+  expect([...notifier.pathListenerKeys()]).toEqual([])
   expect({ dep: [...notifier.depListenerKeys()].length, structure: notifier.structureKeys().length }).toEqual({
     dep: 0, structure: 0,
   })
+})
+
+it('an old unsubscribe handle cannot cancel a later subscription to the same key', () => {
+  const form = createEngine({ initialValues: { amount: 1 } })
+  const callback = vi.fn()
+  const keep = form.subscribePath('amount', vi.fn())
+  const stop = form.subscribePath('amount', callback)
+  stop()
+  const stopLater = form.subscribePath('amount', callback)
+  stop()
+  form.setValue('amount', 2)
+  expect(callback).toHaveBeenCalledOnce()
+  stopLater()
+  keep()
 })
 
 it.fails('BUG: QA-29 keeps an in-flight enum request after deleting its row', async () => {

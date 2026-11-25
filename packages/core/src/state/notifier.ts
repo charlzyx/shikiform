@@ -138,5 +138,12 @@ function addListener(map: Map<string, Set<() => void>>, key: string, listener: (
   let set = map.get(key)
   if (!set) map.set(key, (set = new Set()))
   set.add(listener)
-  return () => set!.delete(listener)
+  const listeners = set
+  let stopped = false
+  return () => {
+    if (stopped) return
+    stopped = true
+    listeners.delete(listener)
+    if (!listeners.size && map.get(key) === listeners) map.delete(key)
+  }
 }
