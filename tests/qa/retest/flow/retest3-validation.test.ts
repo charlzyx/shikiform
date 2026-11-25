@@ -151,24 +151,25 @@ describe.each(['development', 'production'])('round three validation in %s', (mo
     expect(form.getSubmitValues()).toEqual({ group: { choice: 'keep' } })
   })
 
-  it.fails('BUG: QA-64 neighbor reads a stale static override instead of the cached declared source', async () => {
+  it.each(['declaration', 'JSX'] as const)('QA-68 reads the cached %s source while clearing an override', async (layer) => {
     const declared = [{ label: 'Declared', value: 'declared' }]
     const load = vi.fn(async () => declared)
+    const source = EnumSource.from<void>(load)
     const form = createForm({
       initialValues: { choice: 'declared' },
-      fields: { choice: { enum: EnumSource.from<void>(load) } },
+      fields: layer === 'declaration' ? { choice: { enum: source } } : undefined,
     })
+    const engine = engineOf(form)
+    if (layer === 'JSX') engine.applyJsxEnum('choice', source)
     await setImmediate()
-    expect(engineOf(form).binding('choice').options).toEqual(declared)
+    expect(engine.binding('choice').options).toEqual(declared)
+
     form.batch((d) => { d.choice.$enum = ['override'] })
-    let pending: unknown[] = []
     form.batch((d) => {
       d.choice.$enum = undefined
-      pending = d.choice.$enum.map(({ value }) => value)
+      expect(d.choice.$enum.map(({ value }) => value)).toEqual(['declared'])
     })
-    await setImmediate()
-    expect(engineOf(form).binding('choice').options).toEqual(declared)
+    expect(engine.binding('choice')).toMatchObject({ loading: false, options: declared })
     expect(load).toHaveBeenCalledOnce()
-    expect(pending).toEqual(['declared'])
   })
 })

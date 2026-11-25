@@ -10,7 +10,7 @@ import { pendingEnum, pendingRules } from '../draft/pending'
 import { createPatchDraft, DELETE, isPatchable, setIn } from '../draft/patch'
 import { readonlyValue } from '../draft/readonly'
 import type { Scheduler } from '../effects/scheduler'
-import { asOptions, isEnumBinding, toEnumBinding, type EnumBinding } from '../enum/enum-source'
+import { toEnumBinding, type EnumBinding } from '../enum/enum-source'
 import { showDraftPath, ShikiUsageError } from '../errors'
 import { arrayIndex, deleteArrayIndex } from '../shared/dense-array'
 import { appendValueKey, getAt, parentPath } from '../shared/path'
@@ -147,12 +147,13 @@ export class EffectDrafts {
 
   private fallbackEnum(path: string): { binding?: EnumBinding; options: unknown[] } {
     const field = this.deps.store.get(path)
-    if (field?.jsxEnum !== undefined) {
-      if (isEnumBinding(field.jsxEnum)) return { binding: field.jsxEnum, options: field.enumOptions ?? [] }
-      return { options: asOptions(field.jsxEnum) ?? [] }
+    const jsx = field?.jsxEnum
+    if (Array.isArray(jsx)) return { options: jsx }
+    const binding = jsx ?? this.deps.declarations.declaredEnumBinding(path)
+    if (binding) {
+      const current = field?.enumFromEffect ? undefined : field?.enumOptions
+      return { binding, options: binding.source.cached(binding.params) ?? current ?? [] }
     }
-    const binding = this.deps.declarations.declaredEnumBinding(path)
-    if (binding) return { binding, options: field?.enumOptions ?? [] }
     return { options: this.deps.declarations.declaredEnum(path) ?? [] }
   }
 }

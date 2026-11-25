@@ -433,22 +433,10 @@ export class StateWriter {
       field.enumFromEffect = false
       field.enumEffect = undefined
       this.cancelEnumLoad(field)
-      if (isEnumBinding(field.jsxEnum)) {
-        const cached = field.jsxEnum.source.cached(field.jsxEnum.params)
-        if (cached && deepEqual(field.enumOptions, cached)) return false
-        this.loadEnum(path, field.jsxEnum)
-        return true
-      }
-      if (field.jsxEnum === undefined) {
-        const declBinding = this.deps.declarations.declaredEnumBinding(path)
-        if (declBinding) {
-          const cached = declBinding.source.cached(declBinding.params)
-          if (cached && deepEqual(field.enumOptions, cached)) return false
-          this.loadEnum(path, declBinding)
-          return true
-        }
-      }
-      const next = field.jsxEnum ?? this.deps.declarations.declaredEnum(path)
+      const jsx = field.jsxEnum
+      const binding = Array.isArray(jsx) ? undefined : jsx ?? this.deps.declarations.declaredEnumBinding(path)
+      const next = binding ? binding.source.cached(binding.params) : asOptions(jsx) ?? this.deps.declarations.declaredEnum(path)
+      if (binding && !next) return this.loadEnum(path, binding)
       if (deepEqual(field.enumOptions, next)) return false
       this.deps.store.setEnumOptions(field, next)
       this.afterEnum(path)
