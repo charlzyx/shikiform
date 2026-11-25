@@ -1,6 +1,8 @@
 import { useRef, type ReactNode } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 
+const indexKey = (index: number) => index
+
 /**
  * Windowed list. `@tanstack/react-virtual` is the scroll engine.
  * Pass the row as `children(index)` — the row should subscribe to its own fields,
@@ -11,12 +13,14 @@ export function VirtualRows({
   height,
   rowHeight = 40,
   overscan = 4,
+  getItemKey = indexKey,
   children,
 }: {
   count: number
   height: number
   rowHeight?: number
   overscan?: number
+  getItemKey?: (index: number) => string | number
   children: (index: number) => ReactNode
 }) {
   const parentRef = useRef<HTMLDivElement>(null)
@@ -25,6 +29,7 @@ export function VirtualRows({
     getScrollElement: () => parentRef.current,
     estimateSize: () => rowHeight,
     overscan,
+    getItemKey,
   })
   const items = virtualizer.getVirtualItems()
   return (
@@ -32,7 +37,7 @@ export function VirtualRows({
       <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
         {items.map((item) => (
           <div
-            key={item.index}
+            key={item.key}
             data-virtual-index={item.index}
             style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${item.start}px)` }}
           >

@@ -354,6 +354,8 @@ function ArrayFieldImpl<TScope = any, C extends ComponentType<any> = ComponentTy
   children?: (row: { index: number; key: string }) => ReactNode
 }) {
   const array = useArrayField(String(name), { rowKey })
+  const { keys } = array
+  const getItemKey = useMemo(() => (index: number) => keys[index]?.key ?? index, [keys])
   const [Container, props] = Array.isArray(component) ? component : [component as ComponentType<any> | undefined, undefined]
   if (Array.isArray(component) && Container == null && process.env.NODE_ENV !== 'production') {
     throw emptySlot(`<ArrayField name="${String(name)}">`, 'component', Container)
@@ -370,15 +372,15 @@ function ArrayFieldImpl<TScope = any, C extends ComponentType<any> = ComponentTy
   let rows: ReactNode = null
   if (children && virtualScroll) {
     rows = (
-      <VirtualRows count={array.keys.length} height={virtualScroll.height} rowHeight={virtualScroll.rowHeight ?? 42} overscan={virtualScroll.overscan ?? 4}>
+      <VirtualRows count={keys.length} height={virtualScroll.height} rowHeight={virtualScroll.rowHeight ?? 42} overscan={virtualScroll.overscan ?? 4} getItemKey={getItemKey}>
         {(index) => {
-          const at = array.keys[index]
+          const at = keys[index]
           return at ? row(index, at.key) : null
         }}
       </VirtualRows>
     )
   } else if (children) {
-    rows = array.keys.map((at) => row(at.index, at.key))
+    rows = keys.map((at) => row(at.index, at.key))
   }
   return <ArrayScope path={array.path} rowKey={rowKey}>{Container ? <Container {...props}>{rows}</Container> : rows}</ArrayScope>
 }

@@ -48,7 +48,7 @@ it('renders a bounded window and edits only the field at the scrolled position',
   expect(form.getValue('rows.501.name')).toBe('Row 501')
 })
 
-it.fails('BUG: QA-12 virtual rows lose local component state when reordered in view', () => {
+it('QA-12 virtual rows preserve local component state when reordered in view', () => {
   const form = createForm({ initialValues: { rows: [{ id: 'a', name: 'Alpha' }, { id: 'b', name: 'Beta' }] } })
   function Cell() {
     const { value } = useField<string>()
