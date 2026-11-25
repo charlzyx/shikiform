@@ -1,6 +1,7 @@
 {
   "name": "@shikiform/react",
   "version": "0.7.0",
+  "license": "MIT",
   "description": "Headless React bindings for ShikiForm. Re-exports @shikiform/core.",
   "type": "module",
   "sideEffects": false,

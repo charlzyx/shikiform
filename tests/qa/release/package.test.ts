@@ -58,10 +58,13 @@ describe('core-only Vite production bundle', () => {
   })
 })
 
-it.fails('BUG: neither publishable package declares a license in its manifest (QA-8)', () => {
+it('QA-8 both publishable packages declare MIT and ship the repository license', () => {
+  const license = readFileSync(new URL('../../../LICENSE', import.meta.url), 'utf8')
+  expect(license).toContain('Copyright (c) 2026 charlzyx')
   for (const name of ['core', 'react']) {
     const json = readFileSync(new URL(`../../../packages/${name}/package.json`, import.meta.url), 'utf8')
     const manifest = JSON.parse(json) as { license?: string }
-    expect.soft(manifest.license ?? '', `@shikiform/${name} license`).toMatch(/\S/)
+    expect.soft(manifest.license, `@shikiform/${name} license`).toBe('MIT')
+    expect.soft(readFileSync(new URL(`../../../packages/${name}/LICENSE`, import.meta.url), 'utf8')).toBe(license)
   }
 })
