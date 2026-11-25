@@ -1,7 +1,8 @@
 import { ShikiUsageError, showDraftPath } from '../errors'
 import { nearestName } from '../shared/near'
 import { appendValueKey } from '../shared/path'
-import type { DraftHost } from './host'
+import { isDraftActive, type DraftHost } from './host'
+import { copyData } from './plain-clone'
 import type { Pos } from '../shared/tree-ops'
 
 export const PATH = Symbol('shikiform.path')
@@ -102,7 +103,7 @@ export function handlePath(value: unknown): string | undefined {
 }
 
 /** Path proxy. Navigation does not read values and does not allocate nodes. */
-export function createHandle(host: DraftHost, path: string): any {
+export function createHandle(host: DraftHost, path: string, scope = host.draftScope?.()): any {
   const fn = function draft() {
     return undefined
   }
@@ -134,11 +135,15 @@ export function createHandle(host: DraftHost, path: string): any {
           // names far from every state stay child paths, so a real `$`-named field still works.
           if (near) throw new ShikiUsageError(`${showDraftPath(path)}.${key} is not a draft state. Did you mean ${showDraftPath(path)}.${near}?`)
         }
-        return createHandle(host, appendValueKey(path, key))
+        return createHandle(host, appendValueKey(path, key), scope)
       }
-      return host.readState(path, key)
+      if (key === '$ui') return (name: string) => createUiHandle(host, path, name, scope)
+      const active = isDraftActive(scope)
+      const value = host.readState(path, key)
+      return active ? value : copyData(value)
     },
     set(_target, prop, value) {
+      if (!isDraftActive(scope)) return true
       const key = String(prop)
       if (process.env.NODE_ENV !== 'production') assertWritable(path, key)
       if (!key.startsWith('$')) return false
@@ -167,7 +172,7 @@ export function createHandle(host: DraftHost, path: string): any {
  * `d.x.$ui('echo')` / `d.$ui('tip')`: a handle on one named UI node. Only UI state (`$visible`, `$readOnly`,
  * `$componentProps` …); the node has no value or children.
  */
-export function createUiHandle(host: DraftHost, path: string, name: string): any {
+export function createUiHandle(host: DraftHost, path: string, name: string, scope = host.draftScope?.()): any {
   if (process.env.NODE_ENV !== 'production' && (typeof name !== 'string' || !name)) {
     throw new ShikiUsageError(`${showDraftPath(path)}.$ui(name) takes the UI's name: <Field ui="echo"> / <UI name="tip">.`)
   }
@@ -177,10 +182,12 @@ export function createUiHandle(host: DraftHost, path: string, name: string): any
         throw misuseSymbol(path, prop)
       }
       if (typeof prop === 'symbol' || prop === 'then') return undefined
-      return host.readUi!(path, name, prop)
+      const active = isDraftActive(scope)
+      const value = host.readUi!(path, name, prop)
+      return active ? value : copyData(value)
     },
     set(_target, prop, value) {
-      host.writeUi!(path, name, String(prop), value)
+      if (isDraftActive(scope)) host.writeUi!(path, name, String(prop), value)
       return true
     },
     has() {

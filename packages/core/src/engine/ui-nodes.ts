@@ -146,6 +146,7 @@ export class UiNodes {
           assertUiDraftOpen(this.scheduler, path, name, uiKey)
           this.write(path, name, `$${uiKey}`, uiNestedWrite(keys, next))
         },
+        scheduler.reactionScope(),
       )
     }
     return own

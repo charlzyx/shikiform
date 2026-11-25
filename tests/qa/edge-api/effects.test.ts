@@ -45,19 +45,27 @@ describe.each(['development', 'production'])('effect callbacks in %s', (environm
     expect(values.withTax).toBe(values.total * 2)
   })
 
-  it.fails('BUG: QA-46 a rejected async reaction can still write through its captured handle after await', async () => {
-    type Values = { start: boolean; result: string }
+  it('QA-46 prevents a rejected async reaction from writing through its captured draft after await', async () => {
+    type Values = { start: boolean; result: string; rows: number[] }
     let release!: () => void
     const gate = new Promise<void>((resolve) => { release = resolve })
     let task: Promise<void> | undefined
     const form = createForm({
-      initialValues: { start: false, result: 'original' },
+      initialValues: { start: false, result: 'original', rows: [1] },
       effects: [defineEffects<Values>(({ reaction }) => {
         reaction((d) => {
           if (!d.start.$value) return
           d.result.$value = 'before await'
+          const rows = d.rows.$value
           task = (async () => {
             await gate
+            if (environment === 'development') {
+              expect(() => rows.push(2)).toThrow(ShikiUsageError)
+              expect(() => d.rows.$value.push(3)).toThrow(ShikiUsageError)
+            } else {
+              rows.push(2)
+              d.rows.$value.push(3)
+            }
             d.result.$value = 'after await'
           })()
           return task
@@ -74,14 +82,15 @@ describe.each(['development', 'production'])('effect callbacks in %s', (environm
       try { trigger() } catch (error) { expect(error).toBeInstanceOf(ShikiUsageError) }
     }
     expect(form.getValue('result')).toBe('original')
-    const completion = task?.catch((error: unknown) => error)
+    expect(task).toBeDefined()
+    const completion = task!.catch((error: unknown) => error)
     release()
     const error = await completion
-    if (error !== undefined) {
+    if (environment === 'development') {
       expect(error).toBeInstanceOf(ShikiUsageError)
-      if (environment === 'development') expect(String(error)).toMatch(/await|form\.batch|form\.setValue/)
-    }
-    expect(form.getSubmitValues()).toEqual({ start: true, result: 'original' })
+      expect(String(error)).toMatch(/await|form\.batch|form\.setValue/)
+    } else expect(error).toBeUndefined()
+    expect(form.getSubmitValues()).toEqual({ start: true, result: 'original', rows: [1] })
   })
 
   const calls = ['setValue', 'reset', 'submit'] as const

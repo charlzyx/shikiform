@@ -1,4 +1,5 @@
 import { orderBufferedWrites, saveWriteTargets } from '../draft/pending'
+import type { DraftScope } from '../draft/host'
 import { ShikiConflictError, ShikiCycleError, ShikiUsageError, showDraftPath, showStateKey } from '../errors'
 import { deepEqual } from '../shared/equal'
 import { getAt, parentPath, selfAndAncestors } from '../shared/path'
@@ -15,6 +16,7 @@ export interface Tracker {
   writes: WriteOp[]
   pos?: Pos
   nodePath?: string
+  draftScope?: DraftScope
 }
 
 /** Bookkeeping for one `reaction.each` installation. */
@@ -145,6 +147,11 @@ export class Scheduler {
     return this.stack.at(-1)
   }
 
+  reactionScope(): DraftScope | undefined {
+    const active = this.current()
+    if (active?.recordWrites && isReactionId(active.id)) return (active.draftScope ??= {})
+  }
+
   beginInstall(): void { this.installDepth += 1 }
   endInstall(): void { this.installDepth -= 1 }
 
@@ -162,6 +169,9 @@ export class Scheduler {
     try {
       const value = fn()
       if (value && typeof (value as unknown as Promise<unknown>).then === 'function') {
+        if (tracker.draftScope) tracker.draftScope.rejectedAsync = true
+        // The caller gets the synchronous diagnostic; the abandoned promise may fail later.
+        void Promise.resolve(value).catch(() => undefined)
         throw new ShikiUsageError('reaction and watch must be synchronous. Put async work in an EnumSource loader or a watch that only starts it.')
       }
       return { value, deps: tracker.deps, writes: tracker.writes }

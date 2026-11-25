@@ -44,7 +44,10 @@ export class EffectDrafts {
       return projectValue(getAt(this.deps.store.values, target), target, pendingOps(this.deps.scheduler), true)
     }
     if (!isPatchable(preview())) return preview()
-    return createPatchDraft(preview, (keys, value, kind, base) => this.commitValue(path, keys, value, kind, base), [], structural)
+    return createPatchDraft(
+      preview, (keys, value, kind, base) => this.commitValue(path, keys, value, kind, base),
+      this.deps.scheduler.reactionScope(), structural,
+    )
   }
 
   readUiKey(path: string, key: UiKey): unknown {
@@ -56,6 +59,7 @@ export class EffectDrafts {
         this.assertOpen(path, `$${key}`)
         this.deps.writer.writeState(path, `$${key}`, uiNestedWrite(keys, next))
       },
+      this.deps.scheduler.reactionScope(),
     )
   }
 
@@ -68,7 +72,7 @@ export class EffectDrafts {
       const base = list()
       const next = keys.length === 0 && kind === 'mutate' ? value : setIn(Array.isArray(base) ? base : [], keys, kind === 'delete' ? DELETE : value)
       this.deps.writer.writeState(path, '$enum', next)
-    })
+    }, this.deps.scheduler.reactionScope())
   }
 
   readRules(path: string, rules: readonly unknown[]): unknown {
@@ -79,7 +83,7 @@ export class EffectDrafts {
       const base = list()
       const next = keys.length === 0 && kind === 'mutate' ? value : setIn(Array.isArray(base) ? base : [], keys, kind === 'delete' ? DELETE : value)
       this.deps.writer.writeState(path, '$rules', next)
-    })
+    }, this.deps.scheduler.reactionScope())
   }
 
   private commitValue(path: string, keys: string[], value: unknown, kind: 'set' | 'mutate' | 'delete', base?: unknown): void {

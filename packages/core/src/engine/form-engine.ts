@@ -1,5 +1,5 @@
 import { Declarations, type RegisterSpec } from '../declarations/declarations'
-import { createHandle, createUiHandle, handlePath } from '../draft/handle'
+import { createHandle, handlePath } from '../draft/handle'
 import type { DraftHost } from '../draft/host'
 import { readonlyValue } from '../draft/readonly'
 import { assertNotWritten, Scheduler, type EachDirty, type EachRec } from '../effects/scheduler'
@@ -46,7 +46,8 @@ import { StateWriter } from './writes'
 /** Form engine. No React and no UI. Parts: see `design/ARCHITECTURE.md`. */
 export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit>, DraftHost, EffectsRuntime<T> {
   /** Root draft. Prefer {@link FormEngine.batch} so writes flush once. */
-  readonly draft: Draft<T>
+  private readonly rootDraft: Draft<T>
+  get draft(): Draft<T> { return this.draftScope() ? this.handle('') : this.rootDraft }
   /** Options passed to {@link createForm}. */
   readonly options: FormOptions<T>
 
@@ -84,7 +85,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     this.fieldUi = this.writer.attachUi(new FieldUi(store, notifier, scheduler, (path, key, value) => this.writeState(path, key, value)))
     this.uiNodes = new UiNodes(store, notifier, scheduler, this.writer, this.fieldUi)
     this.drafts = new EffectDrafts({ store, scheduler, writer: this.writer, fieldUi: this.fieldUi, trees, declarations })
-    this.draft = createHandle(this, '') as Draft<T>
+    this.rootDraft = createHandle(this, '') as Draft<T>
     this.baseline = new Baseline({ store, notifier, scheduler, validator, declarations })
     scheduler.onSettle = () => this.baseline.sync()
     for (const [path, spec] of Object.entries(options.trees ?? {}) as [string, { childrenKey?: string; rowKey?: string } | undefined][]) {
@@ -508,6 +509,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
 
   // —— draft host ——
 
+  draftScope() { return this.scheduler.reactionScope() }
   readState(path: string, key: string): unknown {
     const { store, scheduler, trees } = this
     if (key === '$path') return path
@@ -523,7 +525,6 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     if (key === '$pathOf') {
       return (pos: Pos) => pathOf(path, pos, this.childrenKey(trees.root(path) ?? path))
     }
-    if (key === '$ui') return (name: string) => createUiHandle(this, path, name)
     if (process.env.NODE_ENV !== 'production') assertNotWritten(scheduler, path, key)
     if (key === '$value') {
       scheduler.track(path, 'value')

@@ -27,6 +27,7 @@
 export type DraftWriteKind = 'set' | 'mutate' | 'delete'
 
 import { arrayIndex, hasArrayIndex, writeArrayIndex } from '../shared/dense-array'
+import { isDraftActive, type DraftScope } from './host'
 
 /** Methods that edit an array in place. `bind`ing them to the stored array would skip `write`. */
 const ARRAY_MUTATORS = new Set(['copyWithin', 'fill', 'pop', 'push', 'reverse', 'shift', 'sort', 'splice', 'unshift'])
@@ -135,8 +136,9 @@ export function unwrapDraft(value: unknown, seen?: WeakSet<object>): unknown {
 export function createPatchDraft(
   read: () => unknown,
   write: (keys: string[], value: unknown, kind: DraftWriteKind, base?: unknown) => void,
-  keys: string[] = [],
+  scope?: DraftScope,
   readStructural?: (keys: readonly string[]) => unknown,
+  keys: string[] = [],
 ): any {
   const walk = (source: () => unknown): any => {
     let node: any = source()
@@ -159,6 +161,7 @@ export function createPatchDraft(
       if (Array.isArray(node) && typeof prop === 'string' && typeof value === 'function') {
         if (ARRAY_MUTATORS.has(prop)) {
           return (...args: unknown[]) => {
+            if (!isDraftActive(scope)) return RETURNS_PROXY.has(prop) ? proxy : undefined
             // Re-read at call time so `push(a); push(b)` and a saved method both see earlier writes this pass.
             const live = structural()
             const method = (Array.prototype as unknown as Record<string, (this: unknown, ...a: unknown[]) => unknown>)[prop]!
@@ -174,9 +177,10 @@ export function createPatchDraft(
         if (typeof method === 'function') return (...args: unknown[]) => Reflect.apply(method, proxy, args)
         return value.bind(node)
       }
-      return isPatchable(value) ? createPatchDraft(read, write, [...keys, prop], readStructural) : value
+      return isPatchable(value) ? createPatchDraft(read, write, scope, readStructural, [...keys, prop]) : value
     },
     set(_t, prop, value) {
+      if (!isDraftActive(scope)) return true
       const node = structural()
       // `arr.length = 0` must store a shorter array, not a patch object that merely has a `length` key.
       if (Array.isArray(node) && prop === 'length') {
@@ -192,6 +196,7 @@ export function createPatchDraft(
       return true
     },
     deleteProperty(_t, prop) {
+      if (!isDraftActive(scope)) return true
       if (typeof prop === 'string') {
         const index = arrayIndex(prop)
         if (index !== undefined) {
