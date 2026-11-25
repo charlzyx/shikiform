@@ -110,7 +110,7 @@ export default function App() {
 - 同一个 `$` 状态只能由一个 `reaction` 负责写入；如果多个 `reaction` 同时写入同一个状态，引擎会在开发阶段报错提示。若某个 `reaction` 抛出异常，同波次其余无依赖冲突的派生仍会结算完毕，随后再抛出第一个错误，避免留下半成品派生状态。
 - `reaction` 必须保持同步执行：返回的 Promise 会被拒绝，其草稿句柄在当前 pass 结束后即失效（跨 `await` 继续写入草稿在开发环境抛 `ShikiUsageError`，生产环境忽略）。不要在 `reaction` 内同步直接调用 `form.setValue`、`form.reset` 或 `form.submit`（开发环境抛 `ShikiUsageError`，生产环境 `setValue` 随当前 pass 缓冲提交或丢弃）；异步请求或副作用请放到 `watch` 中，拿到响应后再通过 `form.setValue` / `form.batch` 写回。
 - 只有读取过的状态确实发生改变时，`reaction` 才会重新触发；如果写入的值与当前值相等，不会唤醒下游依赖。若 `watch((d) => cond(d), effect)` 只想在条件跨过临界点时执行，请在 `effect` 内判断，或把条件派生到辅助字段再 `watch` 该字段。
-- `$enum` 只接受选项数组、`EnumSource` 绑定或 `undefined`：传入 `null`、函数或 Promise 等无效值时，开发环境抛 `ShikiUsageError`，生产环境忽略该次写入，保留原有选项、选中值与在途加载。
+- `$enum` 只接受选项数组、`EnumSource` 绑定或 `undefined`：传入 `null`、函数或 Promise 等无效值时，开发环境抛 `ShikiUsageError`，生产环境忽略该次写入，保留原有选项、选中值与在途加载。写 `$enum = undefined` 撤销联动层覆盖后，同批回读会返回回退层（JSX / `fields` / 模板）的选项；若无回退层，则同批回读为 `[]`。
 
 ## reaction.each：每一行一个实例
 

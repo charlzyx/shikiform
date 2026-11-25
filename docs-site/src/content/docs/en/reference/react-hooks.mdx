@@ -406,7 +406,7 @@ useTreeField<TNode = unknown>(): TreeNodeHandle<TNode>   // Must be inside a Tre
 useTreeField(name: string, options?: { childrenKey?: string; rowKey?: string }): TreeHandle<unknown>
 ```
 
-A named handle operates on the root. `path` and `treePath` both point there. `childrenKey` configures nested children and `rowKey` identifies records. Add, insert, remove, replace and move nodes using positions. Moves that would create a cycle return a refusal reason. The edit methods and `dragProps` keep one identity per `form` + `path` (see [Reference stability](#reference-stability)).
+A named handle operates on the root. `path` and `treePath` both point there. `childrenKey` configures nested children and `rowKey` identifies records. Add, insert, remove, replace and move nodes using positions. Moves that would create a cycle return a refusal reason. When tree edits run inside a `form.batch`, pending value writes in that batch migrate with moved nodes and are discarded if their node is removed. The edit methods and `dragProps` keep one identity per `form` + `path` (see [Reference stability](#reference-stability)).
 
 ```tsx
 function MoveFirst() {

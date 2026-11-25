@@ -5,7 +5,7 @@ description: "Read and write individual values inside and outside an effect."
 
 ## Read and write a nested field
 
-Use `form.getValue` and `form.setValue` outside an effect. Inside a reaction, watch or batch, follow the draft to the target path. Numeric segments can be written as `items.0.qty` or `items[0].qty`.
+Use `form.getValue` and `form.setValue` outside an effect. Inside a reaction, watch or batch, follow the draft to the target path. Numeric segments can be written as `items.0.qty` or `items[0].qty`. Bracket paths are also equivalent to canonical dot paths at runtime (`a[0].b` ≡ `a.0.b`) in `fields` / `trees` declarations and `query(path)`; in TypeScript, `fields` (`FieldPath<T> | TemplatePath<T>`) and `trees` (`ArrayPath<T>`) constrain keys to canonical dot paths (`a.0.b`, `a.*.b`), while `query(path)` takes an untyped string.
 
 ```ts
 // Inside reaction, watch, or batch, walk a draft handle. Indexes and runtime keys are handles too.

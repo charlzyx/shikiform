@@ -566,7 +566,7 @@ useTreeField(name: string, options?: { childrenKey?: string; rowKey?: string }):
 | `move(from, to)` | 使用移动后的最终索引坐标；拒绝移到自己的后代，失败看 `reason` |
 | `dragProps(pos)` | 这个节点的原生 HTML5 拖动属性：拖到另一个节点上 = `move(源, 目标)`；拖动开始和放下都阻止冒泡，嵌套节点只处理自己。被拒绝的移动不提示，需要提示时自己调 `move` 看 `reason` |
 
-字段状态跟着节点 id 走（没有 id 时移动仍改数据，但没有 id 可跟随）。`useTreeField` 与 `useField` / `useArrayField(name)` 一致：名字按当前 scope 解析（开发期名字重复 scope 前缀会抛 `ShikiUsageError` 并提示修法）。它只订阅树结构，不订阅每个节点的文字/勾选状态。节点编辑单独用 `useField`，读取选定值用 `useWatch`。要让 React 挂载前的树联动也认识自定义 `childrenKey`，在 `useForm({ trees: { ... } })` 里声明配置。
+字段状态跟着节点 id 走（没有 id 时移动仍改数据，但没有 id 可跟随）。在同一个 `form.batch` 内编辑树（如 `move` / `insert` / `remove`）时，同批尚未提交的值写入会随目标节点迁移到新路径，节点被删除时对应待提交写入会丢弃。`useTreeField` 与 `useField` / `useArrayField(name)` 一致：名字按当前 scope 解析（开发期名字重复 scope 前缀会抛 `ShikiUsageError` 并提示修法）。它只订阅树结构，不订阅每个节点的文字/勾选状态。节点编辑单独用 `useField`，读取选定值用 `useWatch`。要让 React 挂载前的树联动也认识自定义 `childrenKey`，在 `useForm({ trees: { ... } })` 里声明配置。
 
 不传 name 时 `path` 是当前节点，`treePath` 是树根，`index` 是 `pos` 的最后一段（和 `useIndex()` 相同）。`errors` / `warnings` 是这个节点自己的消息。`dragProps()` 不传坐标指向当前节点。
 

@@ -5,7 +5,7 @@ description: 通过 draft handle 链以及 form.getValue / form.setValue 读写�
 
 读写深层嵌套的数据（例如 `orders[0].lines[2].qty`）有两种写法：在联动回调里顺着 draft handle 逐层访问，在组件或外部逻辑里调用 `form.getValue` / `form.setValue`。
 
-路径字符串支持 `a.b.c`、`a.b[0].c`、`a.b.0.c` 以及带特殊字符的 `a['b-c']`。`a.b[0].c` 与 `a.b.0.c` 是同一个字段。路径中间缺一层时，`getValue` 返回 `undefined`；`setValue` 写入表单，并补上沿途缺失的对象或数组。开发环境里 `getValue` 读到的对象不要原地改，改用 `setValue` 或联动里的 `d.x.$value = …`。
+路径字符串支持 `a.b.c`、`a.b[0].c`、`a.b.0.c` 以及带特殊字符的 `a['b-c']`。`a.b[0].c` 与 `a.b.0.c` 是同一个字段，这一运行时等价关系同样适用于 `fields` / `trees` 声明以及 `query(path)`（`a[0].b` ≡ `a.0.b`）；不过在 TypeScript 中，`fields`（`FieldPath<T> | TemplatePath<T>`）和 `trees`（`ArrayPath<T>`）的键类型约束为点分规范路径（`a.0.b`、`a.*.b`），手写配置优先使用点分写法，`query(path)` 则接收无静态类型约束的字符串。路径中间缺一层时，`getValue` 返回 `undefined`；`setValue` 写入表单，并补上沿途缺失的对象或数组。开发环境里 `getValue` 读到的对象不要原地改，改用 `setValue` 或联动里的 `d.x.$value = …`。
 
 ## 读写单个嵌套路径
 
