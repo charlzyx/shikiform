@@ -5,7 +5,7 @@ import { deepEqual } from '../shared/equal'
 import { getAt, parentPath, selfAndAncestors } from '../shared/path'
 import type { Notifier } from '../state/notifier'
 import type { Pos } from '../shared/tree-ops'
-import type { WriteOp } from '../types'
+import type { WatchRow, WriteOp } from '../types'
 
 /** One running reaction / watch / selector. Reads become deps, writes are buffered. */
 export interface Tracker {
@@ -13,6 +13,8 @@ export interface Tracker {
   recordDeps: boolean
   recordWrites: boolean
   deps: Set<string>
+  rowDeps?: Set<string>
+  readingRow?: boolean
   writes: WriteOp[]
   pos?: Pos
   nodePath?: string
@@ -83,6 +85,7 @@ export class Scheduler {
   readonly runners = new Map<string, () => void>()
   private depIndex = new Map<string, Set<string>>()
   private reactionDeps = new Map<string, Set<string>>()
+  private watchRows = new Map<string, WatchRow>()
   private writeOwners = new Map<string, string>()
   /** All keys claimed over the lifetime of a disposable each instance (development only). */
   private ownedByInstance = new Map<string, Set<string>>()
@@ -155,7 +158,7 @@ export class Scheduler {
   beginInstall(): void { this.installDepth += 1 }
   endInstall(): void { this.installDepth -= 1 }
 
-  runWith<S>(opts: RunOptions, fn: () => S): { value: S; deps: Set<string>; writes: WriteOp[] } {
+  runWith<S>(opts: RunOptions, fn: () => S): { value: S; deps: Set<string>; rowDeps?: Set<string>; writes: WriteOp[] } {
     const tracker: Tracker = {
       id: opts.id,
       recordDeps: opts.deps,
@@ -174,7 +177,7 @@ export class Scheduler {
         void Promise.resolve(value).catch(() => undefined)
         throw new ShikiUsageError('reaction and watch must be synchronous. Put async work in an EnumSource loader or a watch that only starts it.')
       }
-      return { value, deps: tracker.deps, writes: tracker.writes }
+      return { value, deps: tracker.deps, rowDeps: tracker.rowDeps, writes: tracker.writes }
     } finally {
       this.stack.pop()
     }
@@ -188,7 +191,17 @@ export class Scheduler {
   track(path: string, state: string): void {
     const tracker = this.stack.at(-1)
     if (!tracker?.recordDeps) return
-    tracker.deps.add(`${path}:${state}`)
+    const deps = tracker.readingRow ? (tracker.rowDeps ??= new Set()) : tracker.deps
+    deps.add(`${path}:${state}`)
+  }
+
+  /** Track reads reached through the row handle separately from fixed paths on the root draft. */
+  trackRowRead<T>(read: () => T): T {
+    const tracker = this.current()
+    if (!tracker?.recordDeps || tracker.readingRow || !tracker.id.startsWith('watch-each:')) return read()
+    tracker.readingRow = true
+    try { return read() }
+    finally { tracker.readingRow = false }
   }
 
   /** Record reads on `path`, every ancestor and the root (inherited flags: visible, disabled, readOnly, omit). */
@@ -196,7 +209,8 @@ export class Scheduler {
     for (const cursor of selfAndAncestors(path)) this.track(cursor, state)
   }
 
-  register(id: string, run: () => void, deps: Set<string>): void {
+  register(id: string, run: () => void, deps: Set<string>, row?: WatchRow): void {
+    if (row) this.watchRows.set(id, row)
     this.runners.set(id, run)
     this.setDeps(id, deps)
   }
@@ -230,12 +244,50 @@ export class Scheduler {
       if (!subscribers?.size) this.depIndex.delete(dep)
     }
     this.reactionDeps.delete(id)
+    this.watchRows.delete(id)
     this.runners.delete(id)
     this.queued.delete(id)
     this.runs.delete(id)
     this.lastWrites.delete(id)
     for (const key of this.ownedByInstance.get(id) ?? []) this.writeOwners.delete(key)
     this.ownedByInstance.delete(id)
+  }
+
+  /** Move existing row watches before publishing dirty keys. A queued edit follows the same runner. */
+  reindexWatchRows(oldIds: ReadonlyMap<string, string>, newIds: ReadonlyMap<string, string>): void {
+    if (!this.watchRows.size) return
+    const idsByPath = new Map([...oldIds].map(([id, path]) => [path, id]))
+    for (const [id, row] of this.watchRows) {
+      const from = row.path!
+      let owner: string | null = from
+      while (owner && !idsByPath.has(owner)) owner = parentPath(owner)
+      if (!owner) continue
+      const destination = newIds.get(idsByPath.get(owner)!)
+      const to = destination === undefined ? undefined : destination + from.slice(owner.length)
+      if (to === from) continue
+      row.path = to
+      this.queue(id.slice(0, id.indexOf('#')))
+      if (to === undefined) {
+        this.dropDeps(id)
+        continue
+      }
+      if (!row.rowDeps?.size) continue
+      const moved = new Set<string>()
+      for (const dep of row.rowDeps) {
+        if (dep.startsWith(from + ':') || dep.startsWith(from + '.') || dep.startsWith(from + '#')) {
+          moved.add(to + dep.slice(from.length))
+        } else {
+          // An inherited flag read through the row also tracks its ancestors.
+          const colon = dep.lastIndexOf(':')
+          const path = dep.slice(0, colon)
+          if (!path || from.startsWith(path + '.')) {
+            for (const ancestor of selfAndAncestors(parentPath(to) ?? '')) moved.add(ancestor + dep.slice(colon))
+          } else moved.add(dep)
+        }
+      }
+      row.rowDeps = moved
+      this.setDeps(id, new Set([...row.deps, ...moved]))
+    }
   }
 
   /** Every dep key some runner currently reads. */
@@ -415,6 +467,15 @@ export class Scheduler {
         if (getAt(before, rec.path) === getAt(after, rec.path)) continue
         this.queue(id)
         for (const inst of rec.instances) this.queue(inst)
+      }
+      for (const [dep, readers] of this.depIndex) {
+        if (!dep.endsWith(':structure')) continue
+        const root = dep.slice(0, -':structure'.length)
+        if ((path && !root.startsWith(path + '.')) || root === path) continue
+        if (getAt(before, root) === getAt(after, root)) continue
+        for (const id of readers) {
+          if (id.startsWith('watch-each:') && !isWatchRunner(id)) this.queue(id)
+        }
       }
     }
     this.notifier.bumpStructure(path)

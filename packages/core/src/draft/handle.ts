@@ -102,8 +102,10 @@ export function handlePath(value: unknown): string | undefined {
   return isHandle(value) ? value[PATH] : undefined
 }
 
+type TrackRead = <T>(read: () => T) => T
+
 /** Path proxy. Navigation does not read values and does not allocate nodes. */
-export function createHandle(host: DraftHost, path: string, scope = host.draftScope?.()): any {
+export function createHandle(host: DraftHost, path: string, scope = host.draftScope?.(), trackRead?: TrackRead): any {
   const fn = function draft() {
     return undefined
   }
@@ -139,11 +141,12 @@ export function createHandle(host: DraftHost, path: string, scope = host.draftSc
             return undefined
           }
         }
-        return createHandle(host, appendValueKey(path, key), scope)
+        return createHandle(host, appendValueKey(path, key), scope, trackRead)
       }
-      if (key === '$ui') return (name: string) => createUiHandle(host, path, name, scope)
+      if (key === '$ui') return (name: string) => createUiHandle(host, path, name, scope, trackRead)
       const active = isDraftActive(scope)
-      const value = host.readState(path, key)
+      const value = trackRead ? trackRead(() => host.readState(path, key)) : host.readState(path, key)
+      if (key === '$find' && trackRead) return (...args: unknown[]) => trackRead(() => (value as Function)(...args))
       return active ? value : copyData(value)
     },
     set(_target, prop, value) {
@@ -175,7 +178,7 @@ export function createHandle(host: DraftHost, path: string, scope = host.draftSc
  * `d.x.$ui('echo')` / `d.$ui('tip')`: a handle on one named UI node. Only UI state (`$visible`, `$readOnly`,
  * `$componentProps` …); the node has no value or children.
  */
-export function createUiHandle(host: DraftHost, path: string, name: string, scope = host.draftScope?.()): any {
+export function createUiHandle(host: DraftHost, path: string, name: string, scope = host.draftScope?.(), trackRead?: TrackRead): any {
   if (process.env.NODE_ENV !== 'production' && (typeof name !== 'string' || !name)) {
     throw new ShikiUsageError(`${showDraftPath(path)}.$ui(name) takes the UI's name: <Field ui="echo"> / <UI name="tip">.`)
   }
@@ -186,7 +189,7 @@ export function createUiHandle(host: DraftHost, path: string, name: string, scop
       }
       if (typeof prop === 'symbol' || prop === 'then') return undefined
       const active = isDraftActive(scope)
-      const value = host.readUi!(path, name, prop)
+      const value = trackRead ? trackRead(() => host.readUi!(path, name, prop)) : host.readUi!(path, name, prop)
       return active ? value : copyData(value)
     },
     set(_target, prop, value) {

@@ -54,7 +54,7 @@ describe.each(['development', 'production'])('structure and subscriptions in %s'
     expect(seen).toHaveBeenCalledOnce()
   })
 
-  it.fails('BUG: QA-25 follows a different root key after a nested watch.each row moves', () => {
+  it('QA-25 follows a different root key after a nested watch.each row moves', () => {
     type Item = { id: string; key: 'retail' | 'wholesale' }
     type Values = { groups: { entries: Item[] }[]; prices: Record<Item['key'], number> }
     const calls = vi.fn()
@@ -79,6 +79,48 @@ describe.each(['development', 'production'])('structure and subscriptions in %s'
     expect(calls.mock.calls).toEqual([['a', 11]])
     form.setValue('prices.retail', 2)
     expect(calls.mock.calls).toEqual([['a', 11], ['b', 2]])
+  })
+
+  it('QA-25 keeps row-relative reads separate from fixed reads and follows a queued edit across a swap', () => {
+    const calls = vi.fn()
+    type Values = { rows: { id: string; score: number }[] }
+    const form = createEngine<Values>({
+      initialValues: { rows: [{ id: 'a', score: 1 }, { id: 'b', score: 2 }] },
+      effects: [defineEffects<Values>(({ draft, watch }) => {
+        watch.each(draft.rows, (row, { d, index }) => {
+          const id = row.id.$value
+          if (id === 'a') void d.rows[0].score.$value
+          calls(id, index, row.score.$value)
+        })
+      })],
+    })
+    calls.mockClear()
+    form.batch((d) => {
+      d.rows.$value[0].score = 9
+      d.rows.$value.reverse()
+    })
+    expect(calls.mock.calls).toEqual([['a', 1, 9]])
+    calls.mockClear()
+    form.setValue('rows.0.score', 10)
+    expect(calls.mock.calls).toHaveLength(2)
+    expect(calls.mock.calls).toContainEqual(['a', 1, 9])
+    expect(calls.mock.calls).toContainEqual(['b', 0, 10])
+  })
+
+  it('QA-25 installs the new row watches when a move fills a previously empty fixed array path', () => {
+    const calls = vi.fn()
+    type Values = { groups: { entries: { score: number }[] }[] }
+    const form = createEngine<Values>({
+      initialValues: { groups: [{ entries: [] }, { entries: [{ score: 2 }] }] },
+      effects: [defineEffects<Values>(({ draft, watch }) => {
+        watch.each(draft.groups[0].entries, (row) => { calls(row.score.$value) })
+      })],
+    })
+    form.swapArray('groups', 0, 1)
+    expect(calls.mock.calls).toEqual([[2]]) // Scout the newly watched row.
+    calls.mockClear()
+    form.setValue('groups.0.entries.0.score', 3)
+    expect(calls.mock.calls).toEqual([[3]])
   })
 
   it('QA-25 removes a conditional dependency and collects it again after a batched branch change', () => {

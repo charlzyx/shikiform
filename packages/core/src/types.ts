@@ -572,6 +572,13 @@ export interface MoveResult {
   reason?: string
 }
 
+/** @internal One watch.each instance, whose local subscriptions travel with its row. */
+export interface WatchRow {
+  path?: string
+  deps: Set<string>
+  rowDeps?: Set<string>
+}
+
 /**
  * @internal Implemented by the form engine and passed to effect factories (`defineEffects`). Not part of the form
  * users hold: `createForm` / `useForm` return {@link FormInstance}.
@@ -580,11 +587,11 @@ export interface EffectsRuntime<T> {
   draft: Draft<T>
   trackOnly<S>(fn: () => S): { value: S; deps: Set<string> }
   registerReaction(id: string, run: () => void, deps: Set<string>): void
-  registerWatch(id: string, run: () => void, deps: Set<string>): void
+  registerWatch(id: string, run: () => void, deps: Set<string>, row?: WatchRow): void
   queue(id: string): void
   /** `site` (development): where the effect was declared, shown in conflict / cycle errors. */
   nextId(prefix: string, site?: string): string
-  handle(path: string): Draft<any>
+  handle(path: string, watchRow?: boolean): Draft<any>
   readPath(handle: unknown): string | undefined
   childrenKey(path: string): string
   noteTree(path: string, childrenKey: string): void
@@ -593,6 +600,7 @@ export interface EffectsRuntime<T> {
   runWith<S>(opts: { id: string; deps: boolean; writes: boolean; pos?: Pos; nodePath?: string }, fn: () => S): {
     value: S
     deps: Set<string>
+    rowDeps?: Set<string>
     writes: WriteOp[]
   }
   applyWrites(id: string, writes: WriteOp[]): void

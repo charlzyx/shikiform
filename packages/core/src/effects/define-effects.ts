@@ -1,7 +1,7 @@
 import { isPatchable } from '../draft/patch'
 import { joinPath, parentPath } from '../shared/path'
 import { callSite, ShikiUsageError } from '../errors'
-import type { Draft, EffectDef, EffectsAPI, EffectsRuntime, RowContext } from '../types'
+import type { Draft, EffectDef, EffectsAPI, EffectsRuntime, RowContext, WatchRow } from '../types'
 import type { EachDirty, EachRec } from './scheduler'
 
 /** What `reaction.each` / `watch.each` need beyond the public runtime. */
@@ -239,41 +239,55 @@ function runObjectEach(runtime: EachRuntime, rec: EachRec, id: string, keys: str
 function installWatchEach(runtime: EffectsRuntime<any>, target: unknown, effect: Function): void {
   const fixed = fixedEachPath(runtime, target, 'watch.each')
   const id = runtime.nextId('watch-each')
-  const known = new Set<string>()
+  const known = new Map<string, WatchRow & { node: EachNode }>()
+  let serial = 0
   let currentPath = fixed ?? ''
   const run = () => {
     const selected = fixed !== undefined
       ? { path: fixed, deps: new Set<string>() }
       : selectEachPath(runtime, target as (d: Draft<any>) => unknown, 'watch.each selector must return a draft handle')
     const arrayPath = selected.path
-    if (currentPath !== arrayPath) dropUnseen(runtime, known, new Set())
+    const byPath = currentPath === arrayPath
+      ? new Map([...known].map(([inst, row]) => [row.path, { inst, row }]))
+      : new Map<string | undefined, { inst: string; row: WatchRow & { node: EachNode } }>()
     currentPath = arrayPath
     const nodes = listEachNodes(runtime.getValue(arrayPath), arrayPath)
     const seen = new Set<string>()
     for (const node of nodes) {
-      const inst = `${id}#${node.rel}`
-      seen.add(inst)
-      if (!known.has(inst)) {
-        const captured = node
-        const scout = runtime.runWith({ id: inst, deps: true, writes: false, pos: captured.pos, nodePath: captured.path }, () =>
-          effect(runtime.handle(captured.path), rowContext(runtime, captured)),
-        )
-        runtime.registerWatch(
-          inst,
-          () => {
-            if (!nodeExists(runtime, captured)) return
-            const result = runtime.runWith({ id: inst, deps: true, writes: true, pos: captured.pos, nodePath: captured.path }, () =>
-              effect(runtime.handle(captured.path), rowContext(runtime, captured)),
-            )
-            runtime.setDeps(inst, result.deps)
-            runtime.applyWrites(inst, result.writes)
-          },
-          scout.deps,
-        )
-        known.add(inst)
+      const existing = byPath.get(node.path)
+      if (existing) {
+        existing.row.node = node
+        seen.add(existing.inst)
+        continue
       }
+      const inst = `${id}#${++serial}`
+      const row: WatchRow & { node: EachNode } = { path: node.path, node, deps: new Set() }
+      const read = (captured: EachNode, writes: boolean) => {
+        const result = runtime.runWith({ id: inst, deps: true, writes, pos: captured.pos, nodePath: captured.path }, () =>
+          effect(runtime.handle(captured.path, true), rowContext(runtime, captured)),
+        )
+        row.deps = result.deps
+        row.rowDeps = result.rowDeps
+        return { deps: new Set([...row.deps, ...(row.rowDeps ?? [])]), writes: result.writes }
+      }
+      const scout = read(node, false)
+      runtime.registerWatch(inst, () => {
+        if (row.path === undefined) return
+        const captured = row.path === row.node.path ? row.node
+          : listEachNodes(runtime.getValue(arrayPath), arrayPath).find((entry) => entry.path === row.path)
+        if (!captured || !nodeExists(runtime, captured)) return
+        const result = read(captured, true)
+        runtime.setDeps(inst, result.deps)
+        runtime.applyWrites(inst, result.writes)
+      }, scout.deps, row)
+      known.set(inst, row)
+      seen.add(inst)
     }
-    dropUnseen(runtime, known, seen)
+    for (const inst of known.keys()) {
+      if (seen.has(inst)) continue
+      runtime.dropDeps(inst)
+      known.delete(inst)
+    }
     runtime.setDeps(id, new Set([`${arrayPath}:structure`, ...selected.deps]))
   }
   runtime.registerReaction(id, run, new Set())

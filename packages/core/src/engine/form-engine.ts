@@ -21,7 +21,7 @@ import type {
   ArrayPath,
   DeepPartial,
   Draft,
-  EffectsRuntime,
+  EffectsRuntime, WatchRow,
   FieldError,
   FieldPath,
   FieldSpec,
@@ -428,8 +428,8 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     return { value: tracked.value, deps: [...tracked.deps] }
   }
 
-  handle(path: string): Draft<any> {
-    return createHandle(this, path)
+  handle(path: string, watchRow = this.scheduler.current()?.readingRow): Draft<any> {
+    return createHandle(this, path, undefined, watchRow ? (read) => this.scheduler.trackRowRead(read) : undefined)
   }
 
   readPath(handle: unknown): string | undefined {
@@ -492,8 +492,8 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     this.scheduler.register(id, run, deps)
   }
 
-  registerWatch(id: string, run: () => void, deps: Set<string>): void {
-    this.scheduler.register(id, run, deps)
+  registerWatch(id: string, run: () => void, deps: Set<string>, row?: WatchRow): void {
+    this.scheduler.register(id, run, deps, row)
   }
 
   queue(id: string): void {
