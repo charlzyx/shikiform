@@ -122,14 +122,31 @@ it('keeps Date, Map and Set reads guarded and separates the submit snapshot', ()
   })
 })
 
-it.fails('BUG: QA-19 drops Map and Set replacements from the submit payload', () => {
+it('QA-19 submits changed Map and Set contents', () => {
   const form = createForm({ initialValues: { scores: new Map([['a', 1]]), labels: new Set(['old']) } })
   form.setValue('scores', new Map([['a', 2]]))
   form.batch((d) => { d.labels.$value = new Set(['new']) })
 
+  expect(form.dirty).toBe(true)
   expect(form.getSubmitValues()).toEqual({
     scores: new Map([['a', 2]]), labels: new Set(['new']),
   })
+})
+
+it('treats equal Map and Set contents as unchanged even across copies and ordering', () => {
+  const form = createForm({
+    initialValues: {
+      scores: new Map([[{ id: 'a' }, { score: 1 }]]),
+      labels: new Set([{ id: 'a' }, { id: 'b' }]),
+    },
+  })
+  const changed = vi.fn()
+  const stop = form.subscribePath('', changed)
+  form.setValue('scores', new Map([[{ id: 'a' }, { score: 1 }]]))
+  form.setValue('labels', new Set([{ id: 'b' }, { id: 'a' }]))
+  expect(form.dirty).toBe(false)
+  expect(changed).not.toHaveBeenCalled()
+  stop()
 })
 
 it('keeps an empty quoted child key separate from the parent', () => {

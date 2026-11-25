@@ -1,6 +1,6 @@
 import { peelReadonly, unwrapReadonly } from '../draft/readonly'
 
-/** Structural equality for plain form values (no functions, no class instances). */
+/** Structural equality for form data. */
 export function deepEqual(a: unknown, b: unknown): boolean {
   // A development view and its stored object compare equal. Production never creates views.
   if (process.env.NODE_ENV !== 'production') {
@@ -17,12 +17,44 @@ export function deepEqual(a: unknown, b: unknown): boolean {
     for (let i = 0; i < a.length; i++) if (!deepEqual(a[i], b[i])) return false
     return true
   }
+  if (a instanceof Map || b instanceof Map) {
+    if (!(a instanceof Map) || !(b instanceof Map) || a.size !== b.size) return false
+    return equalCollection(a, b)
+  }
+  if (a instanceof Set || b instanceof Set) {
+    if (!(a instanceof Set) || !(b instanceof Set) || a.size !== b.size) return false
+    return equalCollection(a.entries(), b)
+  }
   const ak = Object.keys(a)
   const bk = Object.keys(b as object)
   if (ak.length !== bk.length) return false
   for (const k of ak) {
     if (!Object.prototype.hasOwnProperty.call(b, k)) return false
     if (!deepEqual((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k])) return false
+  }
+  return true
+}
+
+function equalCollection(
+  left: Iterable<readonly [unknown, unknown]>,
+  right: Map<unknown, unknown> | Set<unknown>,
+): boolean {
+  let candidates: Map<unknown, unknown> | undefined
+  for (const [key, value] of left) {
+    if (key === null || typeof key !== 'object') {
+      if (!right.has(key) || (right instanceof Map && !deepEqual(value, right.get(key)))) return false
+      continue
+    }
+    // Initial values and snapshots copy object keys and members.
+    candidates ??= new Map(right.entries())
+    let matched = false
+    for (const [other, item] of candidates) {
+      if (!deepEqual(key, other) || (right instanceof Map && !deepEqual(value, item))) continue
+      candidates.delete(other)
+      matched = true
+      break
+    }
+    if (!matched) return false
   }
   return true
 }
