@@ -6,7 +6,7 @@ import { OBJECT_UI_KEYS, type UiEffect, type UiKey } from '../state/field-model'
 import type { FieldStore } from '../state/field-store'
 import type { Notifier } from '../state/notifier'
 import type { FieldUiSpec, WriteOp } from '../types'
-import { FieldUi, prepareUiWrite, uiNestedWrite, type FieldUiView, type UiHolder } from './field-ui'
+import { FieldUi, uiId, prepareUiWrite, uiNestedWrite, type FieldUiView, type UiHolder } from './field-ui'
 import type { StateWriter } from './writes'
 import { reindexKeyed } from '../structure/migrate'
 
@@ -55,11 +55,6 @@ export const UI_NODE_STATE = new Set([
 /** Dep keys a UI node's reads track (`<id>:<state>`). */
 const UI_DEPS = ['visible', 'disabled', 'readOnly', 'title', 'description', 'componentProps', 'decoratorProps', 'component', 'decorator']
 
-/** Model / dep / notifier key of the UI `name` on `path` (`''` is the root). Never a data path: `#` separates. */
-export function uiId(path: string, name: string): string {
-  return `${path}#${name}`
-}
-
 /**
  * Named UI nodes (`d.x.$ui('echo')`, `d.$ui('tip')`). Each is keyed by (path, name) and owns only a UI layer:
  * visible, disabled, readOnly, title, description, componentProps, decoratorProps. Value, errors, rules and
@@ -75,9 +70,9 @@ export class UiNodes {
   private readonly models = new Map<string, UiModel>()
   private readonly ui: FieldUi
   private readonly mounts = new Map<string, number>()
-  private readonly everMounted = new Set<string>()
-  private readonly pending = new Set<string>()
-  private readonly warned = new Set<string>()
+  private readonly everMounted = new WeakSet<UiModel>()
+  private readonly pending = new Set<UiModel>()
+  private readonly warned = new WeakSet<UiModel>()
   private ready = false
   private timer: ReturnType<typeof setTimeout> | undefined
 
@@ -87,17 +82,13 @@ export class UiNodes {
     private readonly scheduler: Scheduler,
     private readonly writer: StateWriter,
     private readonly fieldUi: FieldUi,
+    private readonly readFlag: (path: string, flag: UiFlag) => boolean,
   ) {
     const models = this.models
-    this.ui = new FieldUi(
-      { get: (id) => models.get(id), ensure: (id) => models.get(id) ?? { } },
-      notifier,
-      scheduler,
-      (id, draftKey, value) => {
-        const model = models.get(id)
-        if (model) this.write(model.path, model.name, draftKey, value)
-      },
-    )
+    this.ui = new FieldUi({
+      get: (id) => models.get(id),
+      ensure: (id) => models.get(id)!,
+    }, notifier, scheduler)
     store.onReindexIds = (oldIds, newIds) => this.reindex(oldIds, newIds)
   }
 
@@ -125,23 +116,23 @@ export class UiNodes {
   read(path: string, name: string, key: string): unknown {
     if (process.env.NODE_ENV !== 'production') assertUiState(path, name, key)
     const id = uiId(path, name)
-    const model = this.ensure(path, name)
-    const { scheduler, store } = this
+    const { scheduler } = this
+    const source = scheduler.writes.project(path)
+    const model = source === undefined ? undefined : this.models.get(uiId(source, name))
     if (key === '$visible' || key === '$disabled' || key === '$readOnly') {
       const name = key.slice(1) as UiFlag
       scheduler.track(id, name)
       scheduler.trackChain(path, name)
-      const own = model[name]
-      return own === undefined ? store.effective(path, name) : own
+      return model?.[name] ?? this.readFlag(path, name)
     }
     const uiKey = key.slice(1) as UiKey
-    const own = this.ui.read(id, uiKey)
-    if (own === undefined && model.kind === 'field' && (uiKey === 'title' || uiKey === 'description')) {
+    const own = this.ui.read(path, uiKey, name)
+    if (own === undefined && model?.kind === 'field' && (uiKey === 'title' || uiKey === 'description')) {
       return this.fieldUi.read(path, uiKey)
     }
-    if (recording(this.scheduler) && OBJECT_UI_KEYS.has(uiKey) && isPatchable(own)) {
+    if (scheduler.writes.recording && OBJECT_UI_KEYS.has(uiKey) && isPatchable(own)) {
       return createPatchDraft(
-        () => this.ui.live(id, uiKey),
+        () => this.ui.live(path, uiKey, name),
         (keys, next) => {
           assertUiDraftOpen(this.scheduler, path, name, uiKey)
           this.write(path, name, `$${uiKey}`, uiNestedWrite(keys, next))
@@ -164,16 +155,15 @@ export class UiNodes {
       const flag = key.slice(1) as UiFlag
       op = {
         key: `${id}:${flag}`,
-        apply: () => this.setFlag(model, flag, value as boolean | undefined),
+        apply: () => this.setFlag(this.ensure(path, name), flag, value as boolean | undefined),
       }
     } else {
       op = this.ui.makeOp(id, key.slice(1) as UiKey, value)
     }
     if (!op) return
-    const model = this.ensure(path, name)
     const apply = op.apply
     op.apply = () => {
-      this.noteWrite(id)
+      this.noteWrite(this.ensure(path, name))
       return apply()
     }
     this.writer.enqueue(op, this.ui.isUiOp(op))
@@ -200,11 +190,12 @@ export class UiNodes {
   /** A mounted `<Field ui>` / `<UI>`. Returns the release. Two mounts of one (path, name) share one state (dev warning). */
   claim(path: string, name: string, kind: UiKind): () => void {
     const id = uiId(path, name)
-    this.ensure(path, name).kind = kind
+    const model = this.ensure(path, name)
+    model.kind = kind
     this.store.ensure(path) // ancestor flag writes bump this path, so the node re-renders with them
     const count = (this.mounts.get(id) ?? 0) + 1
     this.mounts.set(id, count)
-    this.everMounted.add(id)
+    this.everMounted.add(model)
     if (count > 1 && process.env.NODE_ENV !== 'production') {
       console.warn(
         `[shikiform] Two UIs named "${name}" are mounted on ${path ? `"${path}"` : 'the root'}: they share one state ` +
@@ -225,9 +216,9 @@ export class UiNodes {
     if (this.pending.size) this.schedule()
   }
 
-  private noteWrite(id: string): void {
-    if (process.env.NODE_ENV === 'production' || this.everMounted.has(id) || this.warned.has(id)) return
-    this.pending.add(id)
+  private noteWrite(model: UiModel): void {
+    if (process.env.NODE_ENV === 'production' || this.everMounted.has(model) || this.warned.has(model)) return
+    this.pending.add(model)
     if (this.ready) this.schedule()
   }
 
@@ -236,11 +227,10 @@ export class UiNodes {
     if (this.timer !== undefined) return
     this.timer = setTimeout(() => {
       this.timer = undefined
-      for (const id of this.pending) {
-        this.pending.delete(id)
-        if (this.everMounted.has(id) || this.warned.has(id)) continue
-        this.warned.add(id)
-        const model = this.models.get(id)!
+      for (const model of this.pending) {
+        this.pending.delete(model)
+        if (this.everMounted.has(model) || this.warned.has(model) || this.models.get(uiId(model.path, model.name)) !== model) continue
+        this.warned.add(model)
         console.warn(unmountedMessage(model.path, model.name, this.mountedNames(model.path)))
       }
     }, 0)
@@ -248,9 +238,8 @@ export class UiNodes {
 
   private mountedNames(path: string): string[] {
     const names: string[] = []
-    for (const id of this.everMounted) {
-      const model = this.models.get(id)
-      if (model && model.path === path) names.push(model.name)
+    for (const model of this.models.values()) {
+      if (model.path === path && this.everMounted.has(model)) names.push(model.name)
     }
     return names
   }
@@ -281,7 +270,7 @@ function uiFlag(reaction: boolean | undefined, jsx: boolean | undefined, fallbac
 
 function assertUiDraftOpen(scheduler: Scheduler, path: string, name: string, key: string): void {
   const tracker = scheduler.current()
-  if (tracker?.recordWrites || scheduler.batchDepth > 0 || tracker) return
+  if (tracker?.recordWrites || scheduler.writes.depth > 0 || tracker) return
   if (process.env.NODE_ENV === 'production') return
   const shown = `${showDraftPath(path)}.$ui(${JSON.stringify(name)}).$${key}`
   throw new ShikiUsageError(
@@ -289,12 +278,6 @@ function assertUiDraftOpen(scheduler: Scheduler, path: string, name: string, key
       `A draft is only writable inside that pass. After it returns, including after await, ` +
       `write with form.batch((d) => { … }).`,
   )
-}
-
-function recording(scheduler: Scheduler): boolean {
-  const tracker = scheduler.current()
-  if (tracker) return tracker.recordWrites
-  return scheduler.batchDepth > 0
 }
 
 function assertUiState(path: string, name: string, key: string): void {

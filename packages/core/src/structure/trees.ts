@@ -4,7 +4,7 @@ import { getAt, normalizePath, setAt } from '../shared/path'
 import type { FieldStore } from '../state/field-store'
 import type { MoveResult } from '../types'
 import type { FormMessages } from '../validation/messages'
-import { movedFieldPaths, reindexById } from './migrate'
+import { movedFieldPaths, priorRowPath, reindexById, type RowTransition } from './migrate'
 import { deleteNode, insertNode, listPositions, locateIds, moveTreeNode, posKey, posOf, pushNode, replaceNode, type Pos } from '../shared/tree-ops'
 
 export interface TreeConfig {
@@ -115,33 +115,39 @@ export class TreeOps {
   }
 
   private arrayForEdit(path: string): any[] {
-    const value = getAt(this.scheduler.workingValues(this.store.values), path)
+    const value = getAt(this.scheduler.writes.values(this.store.values), path)
     return Array.isArray(value) ? value : []
   }
 
   private commit(path: string, before: any[], next: any[]): void {
     const { store, scheduler } = this
-    if (!scheduler.bufferingValues) {
+    if (!scheduler.writes.recording) {
       this.apply(path, before, next)
       return
     }
-    const root = scheduler.workingValues(store.values)
+    const root = scheduler.writes.values(store.values)
     const after = setAt(root, path, next)
-    scheduler.stageValue(after, {
+    const transition = this.rowTransition(path, before, next)
+    scheduler.writes.stageValue(after, {
       key: `${path}:value`,
       apply: () => {
-        this.apply(path, before, next, store.values === root ? after : undefined)
+        this.apply(path, before, next, store.values === root ? after : undefined, transition)
         return true
       },
-    }, {})
+    }, { priorPath: priorRowPath(transition) })
+  }
+
+  private rowTransition(path: string, before: unknown[], next: unknown[]): RowTransition {
+    const { childrenKey, rowKey } = this.config(path)
+    let ids: ReturnType<RowTransition> | undefined
+    return () => ids ??= [locateIds(before, path, childrenKey, rowKey), locateIds(next, path, childrenKey, rowKey)]
   }
 
   /** Migrate field models by node id, then notify structure and value readers. */
-  private apply(path: string, before: any[], next: any[], after?: any): void {
+  private apply(path: string, before: any[], next: any[], after?: any, transition = this.rowTransition(path, before, next)): void {
     const { store, scheduler } = this
     const cfg = this.config(path)
-    const oldIds = locateIds(before, path, cfg.childrenKey, cfg.rowKey)
-    const newIds = locateIds(next, path, cfg.childrenKey, cfg.rowKey)
+    const [oldIds, newIds] = transition()
     if (scheduler.valueCommit) scheduler.enqueueFromDirty()
     const reindexed = reindexById(store.fields, oldIds, newIds)
     const moved = movedFieldPaths(reindexed)

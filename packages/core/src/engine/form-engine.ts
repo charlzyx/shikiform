@@ -82,9 +82,9 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     }, deferEnumLoads)
     declarations.onDeclaredEnum = (path, binding) => this.writer.loadDeclaredEnum(path, binding)
     declarations.onDiscardedEnumLoad = (field) => this.writer.cancelEnumLoad(field)
-    this.fieldUi = this.writer.attachUi(new FieldUi(store, notifier, scheduler, (path, key, value) => this.writeState(path, key, value)))
-    this.uiNodes = new UiNodes(store, notifier, scheduler, this.writer, this.fieldUi)
+    this.fieldUi = this.writer.attachUi(new FieldUi(store, notifier, scheduler, (path) => declarations.uiAt(path)))
     this.drafts = new EffectDrafts({ store, scheduler, writer: this.writer, fieldUi: this.fieldUi, trees, declarations })
+    this.uiNodes = new UiNodes(store, notifier, scheduler, this.writer, this.fieldUi, (path, flag) => this.drafts.readFlag(path, flag))
     this.rootDraft = createHandle(this, '') as Draft<T>
     this.baseline = new Baseline({ store, notifier, scheduler, validator, declarations })
     scheduler.onSettle = () => {
@@ -171,7 +171,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   getValue<P extends string>(path: ValuePath<T, P>): PathValue<T, P>
   getValue(path: string): unknown {
     const key = String(path)
-    const value = this.scheduler.batchDepth ? this.drafts.peekValue(key) : getAt(this.store.values, key)
+    const value = this.scheduler.writes.depth ? this.drafts.peekValue(key) : getAt(this.store.values, key)
     return process.env.NODE_ENV !== 'production' ? readonlyValue(value, normalizePath(key)) : value
   }
 
@@ -192,8 +192,8 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   batch(fn: (d: Draft<T>) => void): void {
     const scheduler = this.scheduler
     scheduler.holdFlush(() => {
-      scheduler.bufferBatch(() => fn(this.draft))
-      if (scheduler.batchDepth > 0 || scheduler.current()) return
+      scheduler.writes.batchLayer(() => fn(this.draft))
+      if (scheduler.writes.depth > 0 || scheduler.current()) return
       scheduler.applyBatch(this.store.values)
     })
   }
@@ -533,16 +533,15 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     if (uiKey) return this.drafts.readUiKey(path, uiKey)
     if (key === '$errors') return this.validator.aggregate(path, 'errors')
     if (key === '$warnings') return this.validator.aggregate(path, 'warnings')
-    const field = store.ensure(path)
     if (key === '$visible' || key === '$disabled' || key === '$readOnly' || key === '$omit') {
       const name = key.slice(1) as 'visible' | 'disabled' | 'readOnly' | 'omit'
       // Ancestors too: a parent flag change must re-run readers of the child's effective value.
       scheduler.trackChain(path, name)
-      return store.effective(path, name)
+      return this.drafts.readFlag(path, name)
     }
     if (key === '$required') {
       scheduler.track(path, 'required')
-      return field.required
+      return this.drafts.readRequired(path)
     }
     if (key === '$enum') {
       scheduler.track(path, 'enum')
@@ -550,8 +549,9 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     }
     if (key === '$rules') {
       scheduler.track(path, 'rules')
-      return this.drafts.readRules(path, field.rules)
+      return this.drafts.readRules(path)
     }
+    const field = store.ensure(path)
     if (key === '$validating') {
       scheduler.track(path, 'validating')
       return field.validating

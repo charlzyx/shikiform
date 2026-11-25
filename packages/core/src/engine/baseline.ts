@@ -43,8 +43,8 @@ export class Baseline {
     const inReaction = guardReactionAction(scheduler, 'reset')
     const path = typeof pathOrValues === 'string' ? normalizePath(pathOrValues) : undefined
     const baseline = pathOrValues && typeof pathOrValues === 'object' ? { values: copyData(pathOrValues) } : undefined
-    if (!inReaction && scheduler.bufferingValues) {
-      const ops = scheduler.current()?.writes ?? scheduler.batchOps
+    if (!inReaction && scheduler.writes.recording) {
+      const ops = scheduler.writes.pending
       let initial = baseline?.values ?? store.initial
       if (!baseline) {
         for (let i = ops.length - 1; i >= 0; i--) {
@@ -55,7 +55,7 @@ export class Baseline {
         }
       }
       const value = copyData(path ? getAt(initial, path) : initial)
-      const before = scheduler.workingValues(store.values)
+      const before = scheduler.writes.values(store.values)
       const after = path ? setAt(before, path, value) : value
       const op: WriteOp = {
         key: `${path ?? ''}:reset`,
@@ -65,7 +65,7 @@ export class Baseline {
         },
       }
       if (baseline) this.resetBaselines.set(op, baseline)
-      scheduler.stageValue(after, op)
+      scheduler.writes.stageValue(after, op)
       return
     }
     const initial = baseline?.values ?? store.initial

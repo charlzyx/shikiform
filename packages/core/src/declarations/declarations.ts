@@ -367,6 +367,30 @@ export class Declarations {
     }
   }
 
+  private exact(path: string): FieldSpec | undefined {
+    return this.store.get(path)?.declaration ?? this.dormantDeclarations.get(path)
+  }
+
+  rulesAt(path: string, field: FieldModel | undefined): Rule[] {
+    if (field?.path === path || field?.rulesFromEffect || field?.jsxRules !== undefined) return field.rules
+    const template = this.templateSpec(path)
+    const rules = template?.rules === undefined ? [] : normalizeRules(template.rules, `fields['${path}']`)
+    const exact = this.exact(path) as RegisterSpec | undefined
+    return exact ? rulesFromSpec(exact, rules, `fields['${path}']`) ?? rules : rules
+  }
+
+  requiredAt(path: string): boolean {
+    return this.exact(path)?.required ?? this.templateSpec(path)?.required ?? false
+  }
+
+  declaredFlag(path: string, name: FlagName): boolean | undefined {
+    return this.exact(path)?.[name] ?? this.templateSpec(path)?.[name]
+  }
+
+  uiAt(path: string): FieldModel['uiDeclared'] {
+    return { ...normalizeUiSpec(this.templateSpec(path) ?? {}), ...normalizeUiSpec(this.exact(path) ?? {}) }
+  }
+
   /** The enum `fields` / `registerField` or an item template gives `path` (what a released `<Field enum>` falls back to). */
   declaredEnum(path: string): EnumOption[] | undefined {
     const spec = this.store.get(path)?.declaration?.enum ?? this.templateSpec(path)?.enum

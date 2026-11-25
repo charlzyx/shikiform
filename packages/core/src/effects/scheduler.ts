@@ -6,7 +6,7 @@ import type { Notifier } from '../state/notifier'
 import type { Pos } from '../shared/tree-ops'
 import type { WatchRow, WriteOp } from '../types'
 
-interface WorkingValues { values: unknown; hasStructure: boolean }
+import { WriteJournal, type WorkingValues, type WriteBuffer } from './write-buffer'
 interface ValueCommit {
   before: unknown
   after: unknown
@@ -14,10 +14,6 @@ interface ValueCommit {
   structures: Set<string>
   changes: Map<string, boolean>
   finish: (() => void)[]
-}
-interface WriteBuffer {
-  writes: WriteOp[]
-  working?: WorkingValues
 }
 
 /** One running reaction / watch / selector. Reads become deps, writes are buffered. */
@@ -119,11 +115,9 @@ export class Scheduler {
   initializing = false
   /** Non-zero while `defineEffects` runs the factory. */
   installDepth = 0
-  batchDepth = 0
-  private batch: WriteBuffer = { writes: [] }
+  readonly writes = new WriteJournal(this.stack)
   private readonly workByWrites = new WeakMap<WriteOp[], WorkingValues>()
   valueCommit?: ValueCommit
-  get batchOps(): WriteOp[] { return this.batch.writes }
   private flushHolds = 0
   private flushRequested = false
   private readonly afterBatchCallbacks: (() => void)[] = []
@@ -316,8 +310,7 @@ export class Scheduler {
   }
 
   applyBatch(before: unknown): void {
-    const { writes, working } = this.batch
-    this.batch = { writes: [] }
+    const { writes, working } = this.writes.takeBatch()
     this.applyBuffered(writes, before, working)
   }
 
@@ -341,57 +334,6 @@ export class Scheduler {
       this.enqueueFromDirty()
       if (!id) this.flush()
     })
-  }
-
-  /** The current pass's copy-on-write value tree. Selectors may read an enclosing pass. */
-  workingValues<T>(committed: T): T {
-    for (let i = this.stack.length - 1; i >= 0; i--) {
-      const working = this.stack[i]?.working
-      if (working) return working.values as T
-    }
-    return this.batch.working ? this.batch.working.values as T : committed
-  }
-
-  get bufferingValues(): boolean {
-    return this.current()?.recordWrites ?? this.batchDepth > 0
-  }
-
-  lastWrite(): WriteOp | undefined {
-    return (this.current()?.writes ?? this.batchOps).at(-1)
-  }
-
-  /** Advance the working tree and keep the commit effects in call order. */
-  stageValue(values: unknown, op: WriteOp, structure?: { previous?: WriteOp }): boolean {
-    const tracker = this.current()
-    if (tracker && !tracker.recordWrites) return false
-    const buffer = tracker ?? (this.batchDepth ? this.batch : undefined)
-    if (!buffer) return false
-    buffer.working = { values, hasStructure: !!structure || !!buffer.working?.hasStructure }
-    const previous = structure?.previous
-    const last = buffer.writes.length - 1
-    if (previous && buffer.writes[last] === previous) buffer.writes[last] = op
-    else buffer.writes.push(op)
-    return true
-  }
-
-  bufferBatch(fn: () => void): void {
-    const tracker = this.current()
-    const source = tracker ?? this.batch
-    const parent = { writes: source.writes, working: source.working }
-    const child = { writes: source.writes.slice(), working: source.working }
-    if (tracker) Object.assign(tracker, child)
-    else this.batch = child
-    // The tracker object itself is shared with runWith, so save its current slots separately.
-    this.batchDepth++
-    try {
-      fn()
-    } catch (error) {
-      if (tracker) Object.assign(tracker, parent)
-      else this.batch = parent
-      throw error
-    } finally {
-      this.batchDepth--
-    }
   }
 
   /** Hold notifications and effects until every buffered operation has applied. */
@@ -665,10 +607,9 @@ export function assertNotWritten(scheduler: Scheduler, path: string, draftKey: s
   const state = WRITTEN_STATE[draftKey]
   if (!state) return
   const tracker = scheduler.current()
-  const writes = tracker?.recordWrites ? tracker.writes : scheduler.batchDepth > 0 ? scheduler.batchOps : undefined
-  if (!writes?.length) return
-  const key = `${path}:${state}`
-  if (!writes.some((op) => op.key === key)) return
+  let written = false
+  scheduler.writes.project(path, (op, at) => { written ||= op.key === `${at}:${state}` })
+  if (!written) return
   const shown = `${showDraftPath(path)}.${draftKey}`
   const where = tracker?.recordWrites ? (isReactionId(tracker.id) ? 'reaction' : 'watch') : 'batch'
   throw new ShikiUsageError(

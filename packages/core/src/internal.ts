@@ -6,7 +6,7 @@
 export { createEngine, createForm, engineOf } from './engine/create'
 export type { FormEngine } from './engine/form-engine'
 export { pathDomId } from './engine/dom-id'
-export { uiId } from './engine/ui-nodes'
+export { uiId } from './engine/field-ui'
 export { ShikiUsageError, showDraftPath } from './errors'
 export { ENUM_COLORS, enumItems } from './enum/enum-pretty'
 export type { EnumOption } from './enum/enum-source'

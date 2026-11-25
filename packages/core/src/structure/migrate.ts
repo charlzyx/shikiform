@@ -14,6 +14,29 @@ export interface Reindexed {
   moved: { from: string; model: FieldModel }[]
 }
 
+type RowIds = ReadonlyMap<string, string>
+export type RowTransition = () => readonly [before: RowIds, after: RowIds]
+
+/** Resolve the previous coordinate of a field on the current row or node. */
+export function priorRowPath(transition: RowTransition): (path: string) => string | undefined {
+  let current: Map<string, string> | undefined
+  let vacated: Set<string> | undefined
+  return (path) => {
+    const [oldIds, newIds] = transition()
+    const byPath = current ??= indexPaths(newIds)
+    vacated ??= new Set([...oldIds.values()].filter((at) => !byPath.has(at)))
+    for (let owner: string | null = path; owner; owner = parentPath(owner)) {
+      const id = byPath.get(owner)
+      if (id !== undefined) {
+        const from = oldIds.get(id)
+        return from === undefined ? undefined : from + path.slice(owner.length)
+      }
+      if (vacated.has(owner)) return
+    }
+    return path
+  }
+}
+
 /** Exact paths whose field state moved with a model or was dropped. */
 export function movedFieldPaths(index: Reindexed): Set<string> {
   const paths = new Set(index.dropped.map((model) => model.path))
@@ -43,10 +66,7 @@ export function reindexKeyed<M extends { path: string }>(
   const moves: { to: string; model: M }[] = []
   const moved: { from: string; model: M }[] = []
   if (!models.size || !oldIds.size) return { dropped, moved }
-  const idsByPath = new Map<string, string>()
-  for (const [id, path] of oldIds) {
-    if (!idsByPath.has(path)) idsByPath.set(path, id)
-  }
+  const idsByPath = indexPaths(oldIds)
   for (const [key, model] of models) {
     const fieldPath = model.path
     let owner: string | null = fieldPath
@@ -72,4 +92,12 @@ export function reindexKeyed<M extends { path: string }>(
     models.set(keyOf(move.model), move.model)
   }
   return { dropped, moved }
+}
+
+function indexPaths(ids: RowIds): Map<string, string> {
+  const byPath = new Map<string, string>()
+  for (const [id, path] of ids) {
+    if (!byPath.has(path)) byPath.set(path, id)
+  }
+  return byPath
 }

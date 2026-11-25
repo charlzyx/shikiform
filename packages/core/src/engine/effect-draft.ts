@@ -6,7 +6,7 @@
  */
 
 import type { Declarations } from '../declarations/declarations'
-import { pendingEnum, pendingRules } from '../draft/pending'
+import { pendingAt } from '../draft/pending'
 import { createPatchDraft, DELETE, isPatchable, setIn } from '../draft/patch'
 import { readonlyValue } from '../draft/readonly'
 import type { Scheduler } from '../effects/scheduler'
@@ -14,8 +14,9 @@ import { toEnumBinding, type EnumBinding } from '../enum/enum-source'
 import { showDraftPath, ShikiUsageError } from '../errors'
 import { arrayIndex, deleteArrayIndex } from '../shared/dense-array'
 import { appendValueKey, getAt, parentPath } from '../shared/path'
-import { OBJECT_UI_KEYS, type UiKey } from '../state/field-model'
+import { OBJECT_UI_KEYS, type FieldModel, type UiKey } from '../state/field-model'
 import type { FieldStore } from '../state/field-store'
+import { effectiveFlag, emptyFlags, type FlagName } from '../state/flags'
 import type { TreeOps } from '../structure/trees'
 import { uiNestedWrite, type FieldUi } from './field-ui'
 import type { StateWriter } from './writes'
@@ -33,12 +34,12 @@ export class EffectDrafts {
   constructor(private readonly deps: EffectDraftDeps) {}
 
   peekValue(path: string): unknown {
-    return getAt(this.deps.scheduler.workingValues(this.deps.store.values), path)
+    return getAt(this.deps.scheduler.writes.values(this.deps.store.values), path)
   }
 
   readValue(path: string): unknown {
     const value = this.peekValue(path)
-    if (!recording(this.deps.scheduler)) {
+    if (!this.deps.scheduler.writes.recording) {
       return process.env.NODE_ENV !== 'production' ? readonlyValue(value, path) : value
     }
     if (!isPatchable(value)) return value
@@ -50,7 +51,7 @@ export class EffectDrafts {
 
   readUiKey(path: string, key: UiKey): unknown {
     const value = this.deps.fieldUi.read(path, key)
-    if (!recording(this.deps.scheduler) || !OBJECT_UI_KEYS.has(key) || !isPatchable(value)) return value
+    if (!this.deps.scheduler.writes.recording || !OBJECT_UI_KEYS.has(key) || !isPatchable(value)) return value
     return createPatchDraft(
       () => this.deps.fieldUi.live(path, key),
       (keys, next) => {
@@ -63,7 +64,7 @@ export class EffectDrafts {
 
   readEnum(path: string): unknown {
     const list = () => this.enumList(path)
-    if (!recording(this.deps.scheduler) || !isPatchable(list())) return list()
+    if (!this.deps.scheduler.writes.recording || !isPatchable(list())) return list()
     return createPatchDraft(list, (keys, value, kind) => {
       this.assertOpen(path, '$enum')
       if (this.enumBinding(path)) throw enumBindingMutation(path)
@@ -73,9 +74,12 @@ export class EffectDrafts {
     }, this.deps.scheduler.reactionScope())
   }
 
-  readRules(path: string, rules: readonly unknown[]): unknown {
-    const list = () => pendingRules(pendingOps(this.deps.scheduler), path) ?? rules
-    if (!recording(this.deps.scheduler) || !Array.isArray(list())) return list()
+  readRules(path: string): unknown {
+    const list = () => {
+      const { pending, field } = this.project(path, 'rules')
+      return pending?.value ?? this.deps.declarations.rulesAt(path, field)
+    }
+    if (!this.deps.scheduler.writes.recording || !Array.isArray(list())) return list()
     return createPatchDraft(list, (keys, value, kind) => {
       this.assertOpen(path, '$rules')
       const base = list()
@@ -113,7 +117,7 @@ export class EffectDrafts {
   private assertOpen(path: string, key: string): void {
     const scheduler = this.deps.scheduler
     const tracker = scheduler.current()
-    if (tracker?.recordWrites || (!tracker && scheduler.batchDepth > 0)) return
+    if (tracker?.recordWrites || (!tracker && scheduler.writes.depth > 0)) return
     if (process.env.NODE_ENV === 'production') return
     const shown = `${showDraftPath(path)}.${key}`
     throw new ShikiUsageError(
@@ -123,24 +127,46 @@ export class EffectDrafts {
     )
   }
 
+  readRequired(path: string): boolean {
+    const { declarations, store, scheduler } = this.deps
+    const source = scheduler.writes.project(path)
+    if (source === path) return store.ensure(path).required
+    const field = source === undefined ? undefined : store.get(source)
+    if (field?.requiredFromEffect || field?.jsxRequired !== undefined) return field.required
+    return declarations.requiredAt(path)
+  }
+
+  readFlag(path: string, name: FlagName): boolean {
+    const { declarations, store, scheduler } = this.deps
+    if (!scheduler.writes.pending.length) return store.effective(path, name)
+    return effectiveFlag({
+      get: (at) => {
+        const source = scheduler.writes.project(at)
+        if (source === at) return store.get(at)
+        const field = source === undefined ? undefined : store.get(source)
+        const flags = field?.flags ?? emptyFlags()
+        return { flags: { ...flags, [name]: { ...flags[name], declared: declarations.declaredFlag(at, name) } } }
+      },
+    }, path, name)
+  }
+
+  private project(path: string, kind: 'enum' | 'rules'): { pending?: { value: unknown }; field?: FieldModel } {
+    let pending: ReturnType<typeof pendingAt>
+    const source = this.deps.scheduler.writes.project(path, (op, at) => { pending ??= pendingAt(op, at, kind) })
+    const field = source === path ? this.deps.store.ensure(path) : source === undefined ? undefined : this.deps.store.get(source)
+    return { pending, field }
+  }
+
   private enumList(path: string): unknown {
-    const options = this.deps.store.get(path)?.enumOptions ?? []
-    const pending = pendingEnum(pendingOps(this.deps.scheduler), path)
-    if (pending?.hit) {
-      if (Array.isArray(pending.value)) return pending.value
-      if (pending.value === undefined) return this.fallbackEnum(path).options
-      return options
-    }
-    return options
+    const { pending, field } = this.project(path, 'enum')
+    if (Array.isArray(pending?.value)) return pending.value
+    if (pending && pending.value === undefined) return this.fallbackEnum(path).options
+    return field?.enumOptions ?? []
   }
 
   private enumBinding(path: string): EnumBinding | undefined {
-    const field = this.deps.store.get(path)
-    const pending = pendingEnum(pendingOps(this.deps.scheduler), path)
-    if (pending?.hit) {
-      if (pending.value === undefined) return this.fallbackEnum(path).binding
-      return toEnumBinding(pending.value)
-    }
+    const { pending, field } = this.project(path, 'enum')
+    if (pending) return pending.value === undefined ? this.fallbackEnum(path).binding : toEnumBinding(pending.value)
     if (field?.enumFromEffect) return toEnumBinding(field.enumEffect)
     return this.fallbackEnum(path).binding
   }
@@ -156,19 +182,6 @@ export class EffectDrafts {
     }
     return { options: this.deps.declarations.declaredEnum(path) ?? [] }
   }
-}
-
-function recording(scheduler: Scheduler): boolean {
-  const tracker = scheduler.current()
-  if (tracker) return tracker.recordWrites
-  return scheduler.batchDepth > 0
-}
-
-function pendingOps(scheduler: Scheduler) {
-  const tracker = scheduler.current()
-  if (tracker?.recordWrites) return tracker.writes
-  if (scheduler.batchDepth > 0) return scheduler.batchOps
-  return []
 }
 
 /** A registered tree root, or the `children` array under one. Flat array ops would drop positions. */

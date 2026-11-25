@@ -125,17 +125,17 @@ export class StateWriter {
     const path = this.writablePath(rawPath)
     if (!path) return
     const { store, scheduler } = this.deps
-    const before = scheduler.workingValues(store.values)
+    const before = scheduler.writes.values(store.values)
     const after = deleteAt(before, path)
     if (before === after) return
     this.deps.carryRowIdentity?.(parentPath(path) ?? '', before, after)
     const op: WriteOp = { key: `${path}:value`, apply: () => this.applyDrop(path, { before, after }) }
-    if (!scheduler.stageValue(after, op)) this.enqueue(op, false)
+    if (!scheduler.writes.stageValue(after, op)) this.enqueue(op, false)
   }
 
   private writeValue(path: string, value: unknown, computed: boolean, external = false): void {
     const { store, scheduler } = this.deps
-    const before = scheduler.workingValues(store.values)
+    const before = scheduler.writes.values(store.values)
     const change = newValue(path, value, before)
     if (!change && !computed) return
     if (change) this.deps.carryRowIdentity?.(path, before, change.after)
@@ -143,7 +143,7 @@ export class StateWriter {
       key: `${path}:value`,
       apply: () => external ? this.applyExternal(path, value, change) : this.commitValue(path, value, computed, change),
     }
-    if (!scheduler.stageValue(change ? change.after : before, op)) this.enqueue(op, false)
+    if (!scheduler.writes.stageValue(change ? change.after : before, op)) this.enqueue(op, false)
   }
 
   /**
@@ -152,28 +152,7 @@ export class StateWriter {
    */
   enqueue(op: WriteOp, patch: boolean): void {
     const scheduler = this.deps.scheduler
-    const tracker = scheduler.current()
-    if (tracker) {
-      if (!tracker.recordWrites) return
-      const index = tracker.writes.findIndex((item) => item.key === op.key)
-      if (index >= 0 && patch) tracker.writes.splice(index, 1)
-      else if (index >= 0) {
-        tracker.writes[index] = op
-        return
-      }
-      tracker.writes.push(op)
-      return
-    }
-    if (scheduler.batchDepth > 0) {
-      const index = scheduler.batchOps.findIndex((item) => item.key === op.key)
-      if (index >= 0 && patch) scheduler.batchOps.splice(index, 1)
-      else if (index >= 0) {
-        scheduler.batchOps[index] = op
-        return
-      }
-      scheduler.batchOps.push(op)
-      return
-    }
+    if (scheduler.writes.stageState(op, patch) || scheduler.current()) return
     if (op.apply()) scheduler.enqueueFromDirty()
     scheduler.flush()
   }
@@ -184,8 +163,8 @@ export class StateWriter {
     if (path === undefined) return
     // Clone caller data; identity is preserved only within the subtree being replaced.
     resetExternalCloneTraversal()
-    value = cloneExternal(value, getAt(scheduler.workingValues(store.values), path))
-    if (scheduler.bufferingValues) this.writeValue(path, value, false, true)
+    value = cloneExternal(value, getAt(scheduler.writes.values(store.values), path))
+    if (scheduler.writes.recording) this.writeValue(path, value, false, true)
     else this.applyExternal(path, value)
   }
 
@@ -214,7 +193,7 @@ export class StateWriter {
   /** Apply a deep partial object update in a single reaction/watch flush (`form.patchValues`). */
   patchValues(partial: unknown): void {
     if (!partial || typeof partial !== 'object') return
-    const values = this.deps.scheduler.workingValues(this.deps.store.values)
+    const values = this.deps.scheduler.writes.values(this.deps.store.values)
     const entries: [string, unknown][] = []
     collectPatchEntries(partial as Record<string, unknown>, values, '', entries)
     // Each leaf is cloned against the subtree it replaces, not the rest of the form.
@@ -230,7 +209,7 @@ export class StateWriter {
   private writablePath(path: string): string | undefined {
     const { store, scheduler } = this.deps
     assertUnambiguousWritePath(path)
-    let parent: unknown = scheduler.workingValues(store.values)
+    let parent: unknown = scheduler.writes.values(store.values)
     for (const part of pathSegments(path)) {
       if (Array.isArray(parent) && arrayIndex(part) === undefined) {
         if (process.env.NODE_ENV !== 'production') {
@@ -253,7 +232,7 @@ export class StateWriter {
     for (const [rawPath, rawValue] of entries) {
       const path = normalizePath(rawPath)
       const value = process.env.NODE_ENV !== 'production' ? unwrapReadonly(rawValue) : rawValue
-      if (scheduler.bufferingValues) {
+      if (scheduler.writes.recording) {
         this.writeValue(path, value, false, true)
         continue
       }
@@ -608,7 +587,8 @@ export class StateWriter {
         }
         // The options follow the field model. Check the value after publishing the prepared structures.
         commit.finish.push(() => {
-          if (store.get(field.path) === field && Object.is(getAt(store.values, field.path), current)) {
+          if (store.get(field.path) === field && Object.is(getAt(store.values, field.path), current) &&
+            field.enumOptions && !optionIncludes(field.enumOptions, current)) {
             this.commitValue(field.path, undefined, false)
           }
         })

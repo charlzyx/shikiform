@@ -7,7 +7,7 @@ import { getAt, joinPath, setAt } from '../shared/path'
 import type { FieldStore } from '../state/field-store'
 import type { WriteOp } from '../types'
 import type { Validator } from '../validation/validator'
-import { movedFieldPaths, reindexById } from './migrate'
+import { movedFieldPaths, priorRowPath, reindexById, type RowTransition } from './migrate'
 import { readRowId } from '../shared/tree-ops'
 
 /**
@@ -54,7 +54,7 @@ export class ArrayOps {
   }
 
   private arrayForEdit(path: string): unknown[] | undefined {
-    const value = getAt(this.scheduler.workingValues(this.store.values), path)
+    const value = getAt(this.scheduler.writes.values(this.store.values), path)
     if (Array.isArray(value)) return value
     if (value == null) return []
     if (process.env.NODE_ENV !== 'production') {
@@ -125,7 +125,7 @@ export class ArrayOps {
   commitNext(path: string, next: unknown[]): boolean {
     const before = this.arrayForEdit(path)
     if (!before || sameSlots(before, next)) return false
-    const previous = this.scheduler.lastWrite()
+    const previous = this.scheduler.writes.pending.at(-1)
     const priorMutation = previous && this.mutators.get(previous)
     const first = priorMutation?.path === path ? priorMutation.before : before
     const stored = next.slice()
@@ -178,32 +178,40 @@ export class ArrayOps {
 
   private commit(path: string, before: any[], next: any[], dirty: Set<number>, previous?: WriteOp, mutator = false): void {
     const { store, scheduler } = this
-    if (!scheduler.bufferingValues) {
+    if (!scheduler.writes.recording) {
       this.apply(path, before, next, dirty)
       return
     }
-    const root = scheduler.workingValues(store.values)
+    const root = scheduler.writes.values(store.values)
     const after = setAt(root, path, next)
+    const transition = this.rowTransition(path, before, next)
     this.carryIdentity(path, root, after)
     const op: WriteOp = {
       key: `${path}:value`,
       apply: () => {
         if (mutator && sameSlots(before, next)) return false
-        this.apply(path, before, next, dirty, store.values === root ? after : undefined)
+        this.apply(path, before, next, dirty, store.values === root ? after : undefined, transition)
         return true
       },
     }
     if (mutator) this.mutators.set(op, { path, before })
-    scheduler.stageValue(after, op, { previous })
+    scheduler.writes.stageValue(after, op, { previous, priorPath: priorRowPath(transition) })
   }
 
-  private apply(path: string, before: any[], next: any[], dirty: Set<number>, after?: any): void {
-    const { store, scheduler } = this
+  private rowTransition(path: string, before: unknown[], next: unknown[]): RowTransition {
     const rowKey = this.arrays.get(path)?.rowKey
-    const oldIds = new Map<string, string>()
-    before.forEach((row, index) => oldIds.set(this.rowIdent(row, index, rowKey), joinPath(path, String(index))))
-    const newIds = new Map<string, string>()
-    next.forEach((row, index) => newIds.set(this.rowIdent(row, index, rowKey), joinPath(path, String(index))))
+    const identify = (rows: unknown[]) => {
+      const ids = new Map<string, string>()
+      rows.forEach((row, index) => ids.set(this.rowIdent(row, index, rowKey), joinPath(path, String(index))))
+      return ids
+    }
+    let ids: ReturnType<RowTransition> | undefined
+    return () => ids ??= [identify(before), identify(next)]
+  }
+
+  private apply(path: string, before: any[], next: any[], dirty: Set<number>, after?: any, transition = this.rowTransition(path, before, next)): void {
+    const { store, scheduler } = this
+    const [oldIds, newIds] = transition()
     // Queue row-relative value edits while their readers still use the pre-move paths.
     if (scheduler.valueCommit) scheduler.enqueueFromDirty()
     const reindexed = reindexById(store.fields, oldIds, newIds)

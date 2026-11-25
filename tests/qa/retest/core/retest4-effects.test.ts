@@ -220,23 +220,64 @@ describe.each(['development', 'production'])('F7 effects acceptance in %s', (mod
     await expect(form.submit()).resolves.toEqual({ rows: [{ id: 'b', choice: 'B' }, { id: 'a', choice: 'Ada' }] })
   })
 
-  it.fails('BUG: keeps distinct rule and enum writes on both rows when a move reuses their index', () => {
+  it('QA-71 keeps distinct rule, enum and UI writes when a move reuses an index', () => {
     const form = createForm({ initialValues: { rows: [{ id: 'a', value: 1 }, { id: 'b', value: 2 }] } })
     form.batch((d) => {
       d.rows[0].value.$value = 10
       d.rows[0].value.$enum = [10]
       d.rows[0].value.$rules = [{ min: 10 }]
+      d.rows[0].value.$disabled = true
+      d.rows[0].value.$componentProps.caption = 'a'
+      d.rows[0].value.$ui('echo').$title = 'a'
+      d.rows[0].value.$ui('echo').$disabled = true
       d.rows.$value.reverse()
+      expect(d.rows[1].value.$enum.map(({ value }) => value)).toEqual([10])
+      expect(d.rows[1].value.$rules).toEqual([{ min: 10 }])
+      expect(d.rows[1].value.$componentProps.caption).toBe('a')
+      expect(d.rows[1].value.$ui('echo').$title).toBe('a')
+      expect(d.rows[0].value.$disabled).toBe(false)
       d.rows[0].value.$value = 20
       d.rows[0].value.$enum = [20]
       d.rows[0].value.$rules = [{ min: 20 }]
+      d.rows[0].value.$componentProps.caption = 'b'
+      d.rows[0].value.$ui('echo').$title = 'b'
+      d.rows[0].value.$ui('echo').$disabled = false
     })
     form.batch((d) => {
       expect([d.rows[0].value.$value, d.rows[1].value.$value]).toEqual([20, 10])
       expect(d.rows.$value.map((_, i) => ({
         options: d.rows[i].value.$enum.map(({ value }) => value), rules: [...d.rows[i].value.$rules],
       }))).toEqual([{ options: [20], rules: [{ min: 20 }] }, { options: [10], rules: [{ min: 10 }] }])
+      expect(d.rows[0].value.$componentProps.caption).toBe('b')
+      expect(d.rows[1].value.$componentProps.caption).toBe('a')
+      expect(d.rows[0].value.$ui('echo').$title).toBe('b')
+      expect(d.rows[1].value.$ui('echo').$title).toBe('a')
+      expect(d.rows[0].value.$ui('echo').$disabled).toBe(false)
+      expect(d.rows[1].value.$ui('echo').$disabled).toBe(true)
     })
+  })
+
+  it('QA-71 projects state across tree parents and isolates newly inserted rows', () => {
+    type Node = { id: string; name: string; children: Node[] }
+    const leaf = { id: 'leaf', name: 'A', children: [] }
+    const form = createForm({
+      initialValues: { tree: [{ id: 'left', name: '', children: [leaf] }, { id: 'right', name: '', children: [] }] as Node[] },
+      trees: { tree: {} },
+    })
+    const engine = engineOf(form)
+    form.batch((d) => {
+      d.tree[0].children[0].name.$rules = [{ required: true }]
+      d.tree[0].children[0].name.$ui('echo').$title = 'leaf'
+      engine.moveTree('tree', [0, 0], [1, 0])
+      engine.pushTree('tree', { id: 'new', name: 'B', children: [] }, [0])
+      expect(d.tree[1].children[0].name.$rules).toEqual([{ required: true }])
+      expect(d.tree[1].children[0].name.$ui('echo').$title).toBe('leaf')
+      expect(d.tree[0].children[0].name.$rules).toEqual([])
+      expect(d.tree[0].children[0].name.$ui('echo').$title).toBeUndefined()
+      d.tree[0].children[0].name.$ui('echo').$title = 'new'
+    })
+    expect(engine.query('tree.0.children.0.name').$ui('echo').$title).toBe('new')
+    expect(engine.query('tree.1.children.0.name').$ui('echo').$title).toBe('leaf')
   })
 
   it('rolls back mixed edits from a failed layer including a successful grandchild batch', () => {

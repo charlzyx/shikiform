@@ -24,6 +24,11 @@ export interface FieldUiView {
   decoratorProps: Record<string, any>
 }
 
+/** Model, dependency and notification key of a named UI. */
+export function uiId(path: string, name: string): string {
+  return `${path}#${name}`
+}
+
 type Patch = (state: UiEffect | undefined) => UiEffect | undefined
 
 /** What carries UI layers: a field model, or a named UI node (`engine/ui-nodes.ts`). */
@@ -60,7 +65,7 @@ export class FieldUi {
     private readonly store: UiModels,
     private readonly notifier: Notifier,
     private readonly scheduler: Scheduler,
-    private readonly write: (path: string, draftKey: string, value: unknown) => void,
+    private readonly declaredAt?: (path: string) => FieldModel['uiDeclared'],
   ) {}
 
   isUiOp(op: WriteOp): boolean {
@@ -68,14 +73,24 @@ export class FieldUi {
   }
 
   /** Draft read: tracks `path:key` and returns the current value. The effect scope wraps object values. */
-  read(path: string, key: UiKey): unknown {
-    this.scheduler.track(path, key)
-    return this.current(path, key)
+  read(path: string, key: UiKey, name?: string): unknown {
+    this.scheduler.track(name === undefined ? path : uiId(path, name), key)
+    return this.live(path, key, name)
   }
 
   /** Current value including this pass's pending patches. Does not track. */
-  live(path: string, key: UiKey): unknown {
-    return this.current(path, key)
+  live(path: string, key: UiKey, name?: string): unknown {
+    const keyAt = (at: string) => name === undefined ? at : uiId(at, name)
+    const patches: Patch[] = []
+    const source = this.scheduler.writes.project(path, (op, at) => {
+      const meta = this.patches.get(op)
+      if (meta?.key === key && meta.path === keyAt(at)) patches.push(meta.patch)
+    })
+    const field = source === undefined ? undefined : this.store.get(keyAt(source))
+    let effect = field?.uiEffect?.[key]
+    for (let i = patches.length - 1; i >= 0; i--) effect = patches[i](effect)
+    const holder = source !== path && this.declaredAt ? { uiDeclared: this.declaredAt(path) } : field
+    return resolve(holder, key, undefined, effect)
   }
 
   /** Build the write op for `$title = …`, `$componentProps = …`, or a nested patch. */
@@ -135,19 +150,6 @@ export class FieldUi {
     this.notifier.bumpPath(path)
     this.scheduler.markDirty(`${path}:${key}`)
     return true
-  }
-
-  /** Declaration + reaction layers, with this pass's pending writes replayed on top. */
-  private current(path: string, key: UiKey): unknown {
-    const field = this.store.get(path)
-    let effect = field?.uiEffect?.[key]
-    const tracker = this.scheduler.current()
-    const pending = tracker?.recordWrites ? tracker.writes : this.scheduler.batchDepth > 0 ? this.scheduler.batchOps : []
-    for (const op of pending) {
-      const meta = this.patches.get(op)
-      if (meta && meta.path === path && meta.key === key) effect = meta.patch(effect)
-    }
-    return resolve(field, key, undefined, effect)
   }
 }
 
