@@ -1,6 +1,6 @@
 import type { FormEngine } from '@shikiform/core/internal'
 import { ShikiUsageError } from '@shikiform/core/internal'
-import { getAt, joinPath } from '@shikiform/core/internal'
+import { getAt, joinPath, normalizePath } from '@shikiform/core/internal'
 import type { ScopeValue } from '../context'
 
 /**
@@ -10,6 +10,7 @@ import type { ScopeValue } from '../context'
  * path holds no value while the name read from the root does.
  */
 export function resolveName(form: FormEngine<any, any>, scope: ScopeValue, name: string): string {
+  name = normalizePath(name)
   const path = joinPath(scope.path, name)
   if (process.env.NODE_ENV !== 'production' && scope.path && name.startsWith(scope.path + '.')) {
     const values = form.values

@@ -378,13 +378,13 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   }
 
   /** Re-render when this path's value or field state changes. Returns the unsubscribe. */
-  subscribePath(path: string, listener: () => void): () => void {
-    return this.notifier.subscribePath(path, listener)
+  subscribePath(path: string, listener: () => void, kind: 'field' | 'ui' = 'field'): () => void {
+    return this.notifier.subscribePath(kind === 'ui' ? path : normalizePath(path), listener)
   }
 
   /** Re-render when this array or tree changes length or order. Cell edits do not notify. */
   subscribeStructure(path: string, listener: () => void): () => void {
-    return this.notifier.subscribeStructure(path, listener)
+    return this.notifier.subscribeStructure(normalizePath(path), listener)
   }
 
   /** Notified when `canSubmit`, `submitting`, `submitCount`, `dirty`, or `validating` change. */
@@ -411,10 +411,10 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   }
 
   /** Snapshot for {@link FormEngine.subscribePath}. */
-  getPathVersion(path: string): number { return this.notifier.getPathVersion(path) }
+  getPathVersion(path: string, kind: 'field' | 'ui' = 'field'): number { return this.notifier.getPathVersion(kind === 'ui' ? path : normalizePath(path)) }
 
   /** Snapshot for {@link FormEngine.subscribeStructure}. */
-  getStructureVersion(path: string): number { return this.notifier.getStructureVersion(path) }
+  getStructureVersion(path: string): number { return this.notifier.getStructureVersion(normalizePath(path)) }
 
   /** Snapshot for {@link FormEngine.subscribeDebug}. */
   getDebugVersion(): number { return this.notifier.getDebugVersion() }
@@ -677,7 +677,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
 
   /**
    * A named UI on `path`: `'field'` (`<Field ui>`) = the field binding with this instance's flags / UI
-   * state and id `<path>--<ui>` (React then adds the `<Form>` prefix: `id` prop or `useId()`); `'node'` (`<UI>`) = only UI state. Subscribe to `uiId(path, name)` and `path`.
+   * state and id `<path>--<ui>` (React then adds the `<Form>` prefix: `id` prop or `useId()`); `'node'` (`<UI>`) = only UI state. Subscribe to the UI key and the field path separately.
    */
   uiBinding(path: string, name: string, jsx: UiJsx | undefined, kind: 'field'): ReturnType<FormEngine['binding']> & { ui: string }
   uiBinding(path: string, name: string, jsx: UiJsx | undefined, kind: 'node'): UiNodeView & { id: string; ui: string }

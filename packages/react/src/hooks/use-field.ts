@@ -289,9 +289,9 @@ const ZERO = () => 0
 export function useUiNode(form: FormEngine<any, any>, path: string, ui: string | undefined, kind: 'field' | 'node', primaryField = false): void {
   const id = ui ? uiId(path, ui) : ''
   const version = useSyncExternalStore(
-    ui ? (onStoreChange) => form.subscribePath(id, onStoreChange) : NO_UI,
-    ui ? () => form.getPathVersion(id) : ZERO,
-    ui ? () => form.getPathVersion(id) : ZERO,
+    ui ? (onStoreChange) => form.subscribePath(id, onStoreChange, 'ui') : NO_UI,
+    ui ? () => form.getPathVersion(id, 'ui') : ZERO,
+    ui ? () => form.getPathVersion(id, 'ui') : ZERO,
   )
   void version
   useEffect(() => {
