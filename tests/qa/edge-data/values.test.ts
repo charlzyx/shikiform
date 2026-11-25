@@ -1,4 +1,4 @@
-import { createForm, toRaw } from '@shikiform/core'
+import { createForm, snapshot, toRaw } from '@shikiform/core'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 afterEach(() => vi.unstubAllEnvs())
@@ -56,15 +56,27 @@ describe('identity-bearing values', () => {
     expect(submitted.token).toBe(token)
   })
 
-  it.fails.each([
+  it.each([
     ['function', callback], ['symbol', token], ['class instance', label],
-  ] as const)('BUG: QA-38 preserves a %s from initialValues through submit and reset', async (_name, value) => {
+  ] as const)('QA-38 preserves a %s from initialValues through submit and reset', async (_name, value) => {
     const form = createForm<{ custom: typeof value | null }>({ initialValues: { custom: value } })
 
     expect((await form.submit()).custom).toBe(value)
     form.setValue('custom', null)
     form.reset()
     expect(form.getSubmitValues().custom).toBe(value)
+
+    form.reset({ custom: null })
+    form.setValue('custom', value)
+    form.setInitialValues(form.values)
+    form.setValue('custom', null)
+    form.reset('custom')
+    expect(form.getSubmitValues().custom).toBe(value)
+    expect(form.dirty).toBe(false)
+  })
+
+  it('leaves snapshot governed by structuredClone', () => {
+    expect(() => snapshot({ callback })).toThrow(expect.objectContaining({ name: 'DataCloneError' }))
   })
 })
 

@@ -1,4 +1,4 @@
-import { clone } from '../shared/equal'
+import { copyData } from '../draft/plain-clone'
 import { getAt, parentPath } from '../shared/path'
 import { acceptsValidation as pathAcceptsValidation, effectiveFlag, ownFlag, type FlagName } from './flags'
 import { createFieldModel, type FieldModel } from './field-model'
@@ -35,8 +35,8 @@ export class FieldStore<T = any> {
   onRestructure?: () => void
 
   constructor(initialValues: T) {
-    this.initial = clone(initialValues)
-    this.values = clone(this.initial)
+    this.initial = copyData(initialValues)
+    this.values = copyData(this.initial)
   }
 
   get(path: string): FieldModel | undefined {

@@ -1,5 +1,5 @@
 import type { Declarations } from '../declarations/declarations'
-import { clone } from '../shared/equal'
+import { copyData } from '../draft/plain-clone'
 import { normalizePath, parentPath, pathSegments } from '../shared/path'
 import type { FieldStore } from '../state/field-store'
 import type { TreeOps } from '../structure/trees'
@@ -97,7 +97,7 @@ export function forkEngineOptions({ store, declarations, trees, options }: ForkD
 
   if (!target.includes('*')) {
     const value = store.getValue(target)
-    if (value !== undefined) out.initialValues = clone(value)
+    if (value !== undefined) out.initialValues = copyData(value)
   }
 
   const fields = stripPrefix(allFields, targetSegs, (prev, next) => ({ ...prev, ...cleanSpec(next) }))

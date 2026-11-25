@@ -1,14 +1,5 @@
-import { clone } from '../shared/equal'
 import { isPatchable } from './patch'
-import { peelReadonly, unwrapReadonly } from './readonly'
-
-/**
- * Clone caller data with `structuredClone`, unwrapping development read-only views first.
- * `reset` / `setInitialValues` store this snapshot. A class instance becomes a plain object.
- */
-export function plainClone<V>(value: V): V {
-  return clone(process.env.NODE_ENV !== 'production' ? unwrapReadonly(value) : value)
-}
+import { peelReadonly } from './readonly'
 
 /**
  * Copy form data the way {@link cloneExternal} does, without preserving identities from the current store.

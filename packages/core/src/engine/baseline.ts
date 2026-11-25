@@ -1,7 +1,7 @@
 import type { Declarations } from '../declarations/declarations'
-import { plainClone } from '../draft/plain-clone'
+import { copyData } from '../draft/plain-clone'
 import { isWatchRunner, type Scheduler } from '../effects/scheduler'
-import { clone, deepEqual, differsExcept } from '../shared/equal'
+import { deepEqual, differsExcept } from '../shared/equal'
 import { getAt, selfAndAncestors, setAt } from '../shared/path'
 import type { FieldStore } from '../state/field-store'
 import type { Notifier } from '../state/notifier'
@@ -40,10 +40,10 @@ export class Baseline {
   reset(pathOrValues?: string | object): void {
     const { store, notifier, scheduler, validator, declarations } = this.deps
     let path: string | undefined
-    if (pathOrValues != null && typeof pathOrValues === 'object') store.initial = plainClone(pathOrValues)
+    if (pathOrValues != null && typeof pathOrValues === 'object') store.initial = copyData(pathOrValues)
     else if (pathOrValues) path = String(pathOrValues)
-    if (path) store.values = setAt(store.values, path, clone(getAt(store.initial, path)))
-    else store.values = clone(store.initial)
+    if (path) store.values = setAt(store.values, path, copyData(getAt(store.initial, path)))
+    else store.values = copyData(store.initial)
     if (!path) store.edited = false
     for (const field of store.fields.values()) {
       if (path && field.path !== path && !field.path.startsWith(path + '.')) continue
@@ -73,7 +73,7 @@ export class Baseline {
   /** `form.setInitialValues(values)`: replace the baseline, keep the values. */
   setInitial(values: unknown): void {
     const { store, scheduler } = this
-    store.initial = plainClone(values)
+    store.initial = copyData(values)
     this.notifyValueReaders('')
     scheduler.bumpMeta()
     scheduler.enqueueFromDirty()
