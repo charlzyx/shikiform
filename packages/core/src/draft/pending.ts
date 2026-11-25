@@ -59,6 +59,22 @@ export function pendingOf(op: WriteOp): Pending | undefined {
   return tags.get(op)
 }
 
+/** Projection can retarget existing ops, so a discarded batch must restore their metadata as well. */
+export function saveWriteTargets(ops: readonly WriteOp[]): () => void {
+  const targets = ops.flatMap((op) => {
+    const pending = tags.get(op)
+    return pending?.kind === 'value' ? [{ op, key: op.key, pending, state: { ...pending } }] : []
+  })
+  return () => {
+    for (const { op, key, pending, state } of targets) {
+      op.key = key
+      pending.path = state.path
+      pending.origin = state.origin
+      pending.drop = state.drop
+    }
+  }
+}
+
 export function joinKeys(base: string, keys: readonly string[]): string {
   if (!keys.length) return base
   const extra = keys.join('.')

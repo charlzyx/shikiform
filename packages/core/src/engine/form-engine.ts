@@ -191,15 +191,11 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   /** One draft, one reaction pass, one notification. Discards buffered writes if `fn` throws. */
   batch(fn: (d: Draft<T>) => void): void {
     const scheduler = this.scheduler
-    scheduler.batchDepth++
-    let ok = false
-    try { fn(this.draft); ok = true } finally {
-      scheduler.batchDepth--
-      if (scheduler.batchDepth === 0) {
-        const ops = scheduler.takeBatchOps()
-        if (ok) { for (const op of ops) op.apply(); scheduler.enqueueFromDirty(); scheduler.flush() }
-      }
-    }
+    scheduler.bufferBatch(() => fn(this.draft))
+    if (scheduler.batchDepth > 0 || scheduler.current()) return
+    for (const op of scheduler.takeBatchOps()) op.apply()
+    scheduler.enqueueFromDirty()
+    scheduler.flush()
   }
 
   omittedPaths(): string[] {

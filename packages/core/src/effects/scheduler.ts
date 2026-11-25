@@ -1,4 +1,4 @@
-import { orderBufferedWrites } from '../draft/pending'
+import { orderBufferedWrites, saveWriteTargets } from '../draft/pending'
 import { ShikiConflictError, ShikiCycleError, ShikiUsageError, showDraftPath, showStateKey } from '../errors'
 import { deepEqual } from '../shared/equal'
 import { getAt, parentPath, selfAndAncestors } from '../shared/path'
@@ -102,7 +102,7 @@ export class Scheduler {
   /** Non-zero while `defineEffects` runs the factory. */
   installDepth = 0
   batchDepth = 0
-  readonly batchOps: WriteOp[] = []
+  batchOps: WriteOp[] = []
   private seq = 0
   private trace: string[] = []
   /** Development: runner id → where it was declared (`file:line:col`), for error messages. */
@@ -262,6 +262,26 @@ export class Scheduler {
   /** Buffered `form.batch` ops, in apply order, and clear the buffer. */
   takeBatchOps(): WriteOp[] {
     return orderBufferedWrites(this.batchOps.splice(0))
+  }
+
+  bufferBatch(fn: () => void): void {
+    const tracker = this.current()
+    const parent = tracker?.writes ?? this.batchOps
+    const child = parent.slice()
+    const restore = saveWriteTargets(parent)
+    if (tracker) tracker.writes = child
+    else this.batchOps = child
+    this.batchDepth++
+    try {
+      fn()
+    } catch (error) {
+      restore()
+      if (tracker) tracker.writes = parent
+      else this.batchOps = parent
+      throw error
+    } finally {
+      this.batchDepth--
+    }
   }
 
   /** Two different reactions writing the same key is a dev error. Watches may share keys. */

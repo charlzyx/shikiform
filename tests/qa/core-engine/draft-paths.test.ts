@@ -23,13 +23,14 @@ it('rolls back buffered value, array and flag writes when the callback throws', 
   stop()
 })
 
-it.fails('BUG: QA-15 commits failed inner batch writes when the outer batch catches the error', () => {
+it('QA-15 discards failed inner batch writes when the outer batch catches the error', () => {
   const form = createForm({ initialValues: { status: 'open', rows: [{ amount: 1 }] } })
 
   form.batch((d) => {
     d.status.$value = 'saving'
     try {
       form.batch((inner) => {
+        expect(inner.status.$value).toBe('saving')
         inner.status.$value = 'invalid'
         inner.rows.$value.push({ amount: 2 })
         throw new Error('discard inner changes')
@@ -40,6 +41,21 @@ it.fails('BUG: QA-15 commits failed inner batch writes when the outer batch catc
   })
 
   expect(form.getSubmitValues()).toEqual({ status: 'saving', rows: [{ amount: 1 }] })
+})
+
+it('merges successful nested batches and rolls them back if their parent fails', () => {
+  const form = createForm({ initialValues: { rows: [{ amount: 1 }, { amount: 2 }] } })
+  form.batch((d) => {
+    d.rows.$value[0].amount = 9
+    expect(() => form.batch((inner) => {
+      form.batch((nested) => nested.rows.$value.reverse())
+      expect(inner.rows.$value[1].amount).toBe(9)
+      throw new Error('rollback')
+    })).toThrow('rollback')
+    expect(d.rows.$value[0].amount).toBe(9)
+    form.batch((inner) => { inner.rows.$value[1].amount = 8 })
+  })
+  expect(form.getSubmitValues().rows).toEqual([{ amount: 9 }, { amount: 8 }])
 })
 
 it('composes nested array mutations while preserving holes and padding new indices', () => {
