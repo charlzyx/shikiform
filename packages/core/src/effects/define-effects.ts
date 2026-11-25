@@ -258,14 +258,14 @@ function installWatchEach(runtime: EffectsRuntime<any>, target: unknown, effect:
         const scout = runtime.runWith({ id: inst, deps: true, writes: false, pos: captured.pos, nodePath: captured.path }, () =>
           effect(runtime.handle(captured.path), rowContext(runtime, captured)),
         )
-        runtime.setDeps(inst, scout.deps)
         runtime.registerWatch(
           inst,
           () => {
             if (!nodeExists(runtime, captured)) return
-            const result = runtime.runWith({ id: inst, deps: false, writes: true, pos: captured.pos, nodePath: captured.path }, () =>
+            const result = runtime.runWith({ id: inst, deps: true, writes: true, pos: captured.pos, nodePath: captured.path }, () =>
               effect(runtime.handle(captured.path), rowContext(runtime, captured)),
             )
+            runtime.setDeps(inst, result.deps)
             runtime.applyWrites(inst, result.writes)
           },
           scout.deps,

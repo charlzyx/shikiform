@@ -220,7 +220,12 @@ export class Scheduler {
   setDeps(id: string, deps: Set<string>): void {
     const prev = this.reactionDeps.get(id)
     if (prev) {
-      for (const dep of prev) this.depIndex.get(dep)?.delete(id)
+      for (const dep of prev) {
+        if (deps.has(dep)) continue
+        const subscribers = this.depIndex.get(dep)
+        subscribers?.delete(id)
+        if (!subscribers?.size) this.depIndex.delete(dep)
+      }
     }
     this.reactionDeps.set(id, deps)
     for (const dep of deps) {

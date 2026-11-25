@@ -131,22 +131,27 @@ it('QA-23 invalidates fixed-path readers and only affected row callbacks when a 
   expect(rowsRun.mock.calls.sort()).toEqual([[0, 20], [1, 10]])
 })
 
-it.fails('BUG: QA-25 keeps the initial watch.each dependencies when a row switches fields', () => {
+it('QA-25 tracks the current watch.each dependencies on each run', () => {
   type Values = { rows: { mode: 'retail' | 'wholesale'; retail: number; wholesale: number; selected: number }[] }
+  const runs = vi.fn()
   const form = createForm<Values>({
     initialValues: { rows: [{ mode: 'retail', retail: 2, wholesale: 5, selected: 0 }] },
     effects: [defineEffects<Values>(({ draft, watch }) => {
       watch.each(draft.rows, (row) => {
+        runs()
         row.selected.$value = row[row.mode.$value].$value
       })
     })],
   })
+  expect(runs).toHaveBeenCalledTimes(1)
   expect(form.values.rows[0].selected).toBe(0)
   form.setValue('rows.0.mode', 'wholesale')
   expect(form.values.rows[0].selected).toBe(5)
   form.setValue('rows.0.wholesale', 7)
+  form.setValue('rows.0.retail', 9)
 
   expect(form.values.rows[0].selected).toBe(7)
+  expect(runs).toHaveBeenCalledTimes(3)
 })
 
 it('QA-27 lets watches and path subscribers see only the final state of a structural batch', () => {
