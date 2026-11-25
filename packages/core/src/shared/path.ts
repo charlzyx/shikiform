@@ -1,3 +1,4 @@
+import { ShikiUsageError } from '../errors'
 import { arrayIndex, removeArrayIndex, writeArrayIndex } from './dense-array'
 
 /** Parent path, or `null` for a root field. */
@@ -18,6 +19,24 @@ export function selfAndAncestors(path: string): string[] {
 export function joinPath(parent: string, key: string): string {
   if (!key) return parent
   return parent ? `${parent}.${key}` : key
+}
+
+/** Keep a literal key intact until the writer can reject paths the dot index cannot represent. */
+export function appendValueKey(parent: string, key: string): string {
+  if (/[.\[\]]/.test(key)) return parent + '[' + JSON.stringify(key) + ']'
+  return parent ? parent + '.' + key : key
+}
+
+export function assertUnambiguousWritePath(path: string): void {
+  if (!path.includes('[')) return
+  const quoted = /\[\s*(?:"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)')\s*\]/g
+  for (const match of path.matchAll(quoted)) {
+    if (!/[.\[\]]/.test(match[1] ?? match[2] ?? '')) continue
+    throw new ShikiUsageError(
+      `Cannot write ${JSON.stringify(path)}: field keys containing ".", "[" or "]" cannot be written by path. ` +
+      'Replace the containing object to update that key.',
+    )
+  }
 }
 
 /**

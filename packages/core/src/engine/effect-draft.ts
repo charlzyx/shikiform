@@ -13,7 +13,7 @@ import type { Scheduler } from '../effects/scheduler'
 import { asOptions, isEnumBinding, toEnumBinding, type EnumBinding } from '../enum/enum-source'
 import { showDraftPath, ShikiUsageError } from '../errors'
 import { arrayIndex, deleteArrayIndex, hasArrayIndex } from '../shared/dense-array'
-import { getAt, parentPath } from '../shared/path'
+import { assertUnambiguousWritePath, getAt, parentPath } from '../shared/path'
 import { OBJECT_UI_KEYS, type UiKey } from '../state/field-model'
 import type { FieldStore } from '../state/field-store'
 import type { TreeOps } from '../structure/trees'
@@ -40,6 +40,7 @@ export class EffectDrafts {
     const preview = () => projectValue(getAt(this.deps.store.values, path), path, pendingOps(this.deps.scheduler), false)
     const structural = (keys: readonly string[]) => {
       const target = joinKeys(path, keys)
+      assertUnambiguousWritePath(target)
       return projectValue(getAt(this.deps.store.values, target), target, pendingOps(this.deps.scheduler), true)
     }
     if (!isPatchable(preview())) return preview()

@@ -14,7 +14,7 @@
 
 import type { WriteOp } from '../types'
 import { arrayIndex, hasArrayIndex } from '../shared/dense-array'
-import { getAt } from '../shared/path'
+import { appendValueKey, getAt } from '../shared/path'
 import { DELETE, setIn } from './patch'
 
 /** One array index a cell write addressed, outermost array first. */
@@ -76,9 +76,7 @@ export function saveWriteTargets(ops: readonly WriteOp[]): () => void {
 }
 
 export function joinKeys(base: string, keys: readonly string[]): string {
-  if (!keys.length) return base
-  const extra = keys.join('.')
-  return base ? `${base}.${extra}` : extra
+  return keys.reduce(appendValueKey, base)
 }
 
 function isUnder(parent: string, path: string): boolean {

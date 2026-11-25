@@ -179,7 +179,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   setValue<P extends FieldPath<T>>(path: P, value: PathValue<T, P>): void
   setValue<P extends string>(path: ValuePath<T, P>, value: PathValue<T, P>): void
   setValue(path: string, value: unknown): void {
-    this.writer.commitExternal(normalizePath(String(path)), value)
+    this.writer.commitExternal(String(path), value)
   }
 
   /** Deep-merge partial values into the form in a single flush. */

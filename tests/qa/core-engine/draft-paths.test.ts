@@ -157,14 +157,24 @@ it('keeps an empty quoted child key separate from the parent', () => {
   expect(form.getSubmitValues()).toEqual({ a: { '': 3, other: 2 } })
 })
 
-it.fails('BUG: QA-21 writes a quoted dotted key to the wrong field', () => {
-  const form = createForm({
-    initialValues: { a: { 'x.y': 1, x: { y: 2 } } },
-  })
-  const path = "a['x.y']"
-  expect(form.getValue(path)).toBe(1)
+it.each(['development', 'production'] as const)('QA-21 rejects ambiguous value writes in %s', (mode) => {
+  vi.stubEnv('NODE_ENV', mode)
+  try {
+    const initialValues = { a: { 'x.y': 1, 'x[y]': [4], x: { y: 2 } } }
+    const form = createForm({ initialValues })
+    const path = "a['x.y']"
+    const changed = vi.fn()
+    const stop = form.subscribePath('a.x.y', changed)
 
-  form.setValue(path, 3)
-
-  expect({ literal: form.getValue(path), nested: form.getValue('a.x.y') }).toEqual({ literal: 3, nested: 2 })
+    expect(form.getValue(path)).toBe(1)
+    expect(() => form.setValue(path, 3)).toThrow(ShikiUsageError)
+    expect(() => form.batch((d) => { d.a['x.y'].$value = 3 })).toThrow(ShikiUsageError)
+    expect(() => form.batch((d) => { d.a.$value['x[y]'] = [3] })).toThrow(ShikiUsageError)
+    expect(() => form.batch((d) => { d.a.$value['x[y]'].push(3) })).toThrow(ShikiUsageError)
+    expect(form.getSubmitValues()).toEqual(initialValues)
+    expect(changed).not.toHaveBeenCalled()
+    stop()
+  } finally {
+    vi.unstubAllEnvs()
+  }
 })

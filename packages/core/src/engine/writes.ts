@@ -8,7 +8,7 @@ import { unwrapReadonly } from '../draft/readonly'
 import { ShikiUsageError, showDraftPath } from '../errors'
 import { arrayIndex } from '../shared/dense-array'
 import { deepEqual } from '../shared/equal'
-import { getAt, normalizePath, parentPath, setAt } from '../shared/path'
+import { appendValueKey, assertUnambiguousWritePath, getAt, normalizePath, parentPath, setAt } from '../shared/path'
 import type { FlagName } from '../state/flags'
 import type { FieldModel } from '../state/field-model'
 import type { FieldStore } from '../state/field-store'
@@ -64,6 +64,7 @@ export class StateWriter {
 
   /** Draft write entry point (`DraftHost.writeState`). */
   writeState(path: string, key: string, value: unknown, anchors?: readonly CellAnchor[]): void {
+    path = writablePath(path)
     this.rejectInstallWrite(path, key)
     value = storedValue(value)
     const op = this.makeOp(path, key, value, anchors)
@@ -89,6 +90,7 @@ export class StateWriter {
    * The op key matches a whole `$value` write so a later `push` in the same pass sees this array.
    */
   writeArray(path: string, next: unknown[], base?: readonly unknown[]): void {
+    path = writablePath(path)
     const value = storedValue(next) as unknown[]
     const scheduler = this.deps.scheduler
     const writes = scheduler.current()?.writes ?? scheduler.batchOps
@@ -105,6 +107,7 @@ export class StateWriter {
 
   /** `delete` of an object key on a value draft. An array index is a hole (`writeArray`), not this. */
   dropField(path: string): void {
+    path = writablePath(path)
     if (!path) return
     const op: WriteOp = { key: `${path}:value`, apply: () => this.applyDrop(path) }
     tagPending(op, { kind: 'value', path, mode: 'delete' })
@@ -144,7 +147,7 @@ export class StateWriter {
   }
 
   commitExternal(path: string, value: unknown): void {
-    path = normalizePath(path)
+    path = writablePath(path)
     const { store, notifier, scheduler, validator } = this.deps
     // Clone caller data (`setValue`, `binding().onChange`). Identity is preserved only inside this path's subtree.
     resetExternalCloneTraversal()
@@ -176,7 +179,10 @@ export class StateWriter {
     collectPatchEntries(partial as Record<string, unknown>, values, '', entries)
     // Each leaf is cloned against the subtree it replaces, not the rest of the form.
     resetExternalCloneTraversal()
-    const cloned = entries.map(([path, value]) => [path, cloneExternal(value, getAt(values, path))] as [string, unknown])
+    const cloned = entries.map(([rawPath, value]) => {
+      const path = writablePath(rawPath)
+      return [path, cloneExternal(value, getAt(values, path))] as [string, unknown]
+    })
     this.commitPatch(cloned)
   }
 
@@ -622,9 +628,14 @@ function collectPatchEntries(node: Record<string, unknown>, current: unknown, pr
     return
   }
   for (const key of keys) {
-    const path = prefix ? `${prefix}.${key}` : key
+    const path = appendValueKey(prefix, key)
     const val = node[key]
     if (isPlainPatchObject(val)) collectPatchEntries(val, isPlainPatchObject(current) ? current[key] : undefined, path, out)
     else out.push([path, val])
   }
+}
+
+function writablePath(path: string): string {
+  assertUnambiguousWritePath(path)
+  return normalizePath(path)
 }
