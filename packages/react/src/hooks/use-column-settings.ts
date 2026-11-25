@@ -146,11 +146,11 @@ export function useColumnSettings(columns: readonly ColumnSettingInput[]): Colum
     () => setState({ order: initial.current.map((column) => column.key), hidden: hiddenOf(initial.current), widths: {}, density: 'middle' }),
     [],
   )
-  const stableApi = useMemo(
-    () => ({ items, visibleKeys: items.filter((item) => item.show).map((item) => item.key), toggle, move, moveKey, setWidth, density: state.density, setDensity, reset }),
-    [JSON.stringify(items.map(({ key, show, width }) => [key, show, width])), state.density, toggle, move, moveKey, setWidth, setDensity, reset],
+  const visibleKeys = useMemo(
+    () => items.filter((item) => item.show).map((item) => item.key),
+    [JSON.stringify(items.map(({ key, show }) => [key, show]))],
   )
-  return { ...stableApi, dragProps, drag }
+  return { items, visibleKeys, toggle, move, moveKey, setWidth, density: state.density, setDensity, reset, dragProps, drag }
 }
 
 function hiddenOf(columns: readonly ColumnSettingInput[]): string[] {

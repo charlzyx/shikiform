@@ -108,9 +108,9 @@ it('cancels an in-flight shadow confirmation when its scope changes', async () =
   expect(host.getValue('record')).toEqual({ name: 'saved' })
 })
 
-it.fails('BUG: QA-10 useColumnSettings returns stale titles when the other settings are unchanged', () => {
+it('QA-10 useColumnSettings updates titles and keeps user settings and actions', () => {
   const { result, rerender } = renderHook(({ title }) => useColumnSettings([{ key: 'city', title, width: 80 }]), {
-    initialProps: { title: 'City' },
+    initialProps: { title: 'City' as ReactNode },
   })
   const { setWidth, toggle } = result.current
   act(() => { setWidth('city', 125); toggle('city') })
@@ -119,6 +119,9 @@ it.fails('BUG: QA-10 useColumnSettings returns stale titles when the other setti
   expect(result.current.setWidth).toBe(setWidth)
   expect(result.current.toggle).toBe(toggle)
   expect(result.current.items).toEqual([{ key: 'city', title: 'Ciudad', show: false, width: 125 }])
+  const title = <strong>Ciudad</strong>
+  rerender({ title })
+  expect(result.current.items[0].title).toBe(title)
 })
 
 it.fails('BUG: QA-11 useLazyCascader stays loading after being disabled', async () => {
