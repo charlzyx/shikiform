@@ -104,6 +104,9 @@ export class Scheduler {
   installDepth = 0
   batchDepth = 0
   batchOps: WriteOp[] = []
+  private flushHolds = 0
+  private flushRequested = false
+  private readonly afterBatchCallbacks: (() => void)[] = []
   private seq = 0
   private trace: string[] = []
   /** Development: runner id → where it was declared (`file:line:col`), for error messages. */
@@ -285,6 +288,28 @@ export class Scheduler {
     }
   }
 
+  /** Hold notifications and effects until every buffered operation has applied. */
+  holdFlush(fn: () => void): void {
+    this.flushHolds++
+    try {
+      fn()
+    } finally {
+      if (--this.flushHolds === 0) {
+        const callbacks = this.afterBatchCallbacks.splice(0)
+        if (this.flushRequested) {
+          this.flushRequested = false
+          this.flush()
+        }
+        for (const callback of callbacks) callback()
+      }
+    }
+  }
+
+  afterBatch(callback: () => void): void {
+    if (this.flushHolds) this.afterBatchCallbacks.push(callback)
+    else callback()
+  }
+
   /** Two different reactions writing the same key is a dev error. Watches may share keys. */
   private claimOwner(id: string, key: string): void {
     if (process.env.NODE_ENV === 'production' || !isReactionId(id)) return
@@ -448,6 +473,10 @@ export class Scheduler {
 
   flush(): void {
     if (this.flushing) return
+    if (this.flushHolds) {
+      this.flushRequested = true
+      return
+    }
     this.flushing = true
     this.trace = []
     try {

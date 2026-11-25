@@ -149,7 +149,7 @@ it.fails('BUG: QA-25 keeps the initial watch.each dependencies when a row switch
   expect(form.values.rows[0].selected).toBe(7)
 })
 
-it.fails('BUG: QA-27 runs a watch twice and exposes partial state in a batch with an array edit', () => {
+it('QA-27 lets watches and path subscribers see only the final state of a structural batch', () => {
   type Values = { rows: number[]; factor: number }
   const action = vi.fn()
   const form = createForm<Values>({
@@ -158,6 +158,8 @@ it.fails('BUG: QA-27 runs a watch twice and exposes partial state in a batch wit
       watch([draft.rows, draft.factor], (d) => action(d.rows.$value.length, d.factor.$value))
     })],
   })
+  const valuesSeen: number[][] = []
+  const stop = form.subscribePath('rows', () => valuesSeen.push([form.values.rows.length, form.values.factor]))
 
   form.batch((d) => {
     d.rows.$value.push(20)
@@ -165,5 +167,7 @@ it.fails('BUG: QA-27 runs a watch twice and exposes partial state in a batch wit
   })
 
   expect(action.mock.calls).toEqual([[2, 2]])
+  expect(valuesSeen).toEqual([[2, 2]])
+  stop()
 })
 

@@ -183,7 +183,7 @@ export class ArrayOps {
     scheduler.flush()
     // A shown array-level error is re-checked now, the way a shown field error is re-checked on edit.
     // Only this path: descendants wait for the next submit, so the new row stays quiet.
-    this.validator.recheckOwn(path)
+    scheduler.afterBatch(() => this.validator.recheckOwn(path))
   }
 }
 
