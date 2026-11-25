@@ -36,7 +36,7 @@ describe.each(['development', 'production'])('adjacent public API behavior in %s
     expect(listener).toHaveBeenCalledOnce()
   })
 
-  it.fails('BUG: QA-57 reads normalized options after a buffered string enum assignment', () => {
+  it('QA-57 reads normalized options after a buffered string enum assignment', () => {
     const form = createForm({ initialValues: { choice: 'a' } })
     let pending: unknown
     form.batch((d) => {
@@ -46,5 +46,17 @@ describe.each(['development', 'production'])('adjacent public API behavior in %s
     const expected = [{ label: 'a', value: 'a' }, { label: 'b', value: 'b' }]
     form.batch((d) => { expect([...d.choice.$enum]).toEqual(expected) })
     expect(pending).toEqual(expected)
+  })
+  it('QA-57 can read and edit the normalized option within the same batch', () => {
+    const form = createForm({ initialValues: { choice: 1 } })
+    form.batch((d) => {
+      d.choice.$enum = [1, 2]
+      expect(d.choice.$enum.map(({ value }) => value)).toEqual([1, 2])
+      d.choice.$enum[0].label = 'First'
+      expect(d.choice.$enum[0]).toEqual({ label: 'First', value: 1 })
+    })
+    form.batch((d) => {
+      expect(d.choice.$enum).toEqual([{ label: 'First', value: 1 }, { label: '2', value: 2 }])
+    })
   })
 })

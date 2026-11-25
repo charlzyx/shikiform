@@ -67,8 +67,8 @@ export class EffectDrafts {
     )
   }
 
-  readEnum(path: string, options: readonly unknown[]): unknown {
-    const list = () => this.enumList(path, options)
+  readEnum(path: string): unknown {
+    const list = () => this.enumList(path)
     if (!recording(this.deps.scheduler) || !isPatchable(list())) return list()
     return createPatchDraft(list, (keys, value, kind) => {
       this.assertOpen(path, '$enum')
@@ -166,7 +166,8 @@ export class EffectDrafts {
     )
   }
 
-  private enumList(path: string, options: readonly unknown[]): unknown {
+  private enumList(path: string): unknown {
+    const options = this.deps.store.get(path)?.enumOptions ?? []
     const pending = pendingEnum(pendingOps(this.deps.scheduler), path)
     if (pending?.hit) {
       if (Array.isArray(pending.value)) return pending.value

@@ -548,7 +548,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     }
     if (key === '$enum') {
       scheduler.track(path, 'enum')
-      return this.drafts.readEnum(path, field.enumOptions ?? [])
+      return this.drafts.readEnum(path)
     }
     if (key === '$rules') {
       scheduler.track(path, 'rules')

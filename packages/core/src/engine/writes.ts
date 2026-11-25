@@ -394,7 +394,7 @@ export class StateWriter {
         return
       }
       const op: WriteOp = { key: `${path}:enum`, apply: () => this.setEnum(path, value) }
-      tagPending(op, { kind: 'enum', path, value })
+      tagPending(op, { kind: 'enum', path, value: asOptions(value) ?? value })
       return op
     }
     if (key === '$rules') {
