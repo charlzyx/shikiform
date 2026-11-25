@@ -72,7 +72,7 @@ useLazyCascader({ load: (path: (string | number)[]) => Promise<CascaderOption[]>
 // { options, loading, loadChildren(path), ensure(paths), labelsOf(path) }
 ```
 
-懒加载级联（Pro.formily `CascaderPlus`）：挂载时 `load([])` 取根，展开时 `load(path)` 取子级；同一路径并发只请求一次。`paths` 是已有值，打开时逐级加载每一层祖先，标签就能反显。已带 `children` 的节点不再加载（`load([])` 直接返回整棵树也可以）。`enabled: false` 时什么都不加载。`CascaderPlus` 的阅读态自己把值解析成「省 / 市 / 区」；自绘阅读态对裸路径用 `labelsOf`，`labelInValue` 的值读每一级的 `label`。
+懒加载级联（Pro.formily `CascaderPlus`）：挂载时 `load([])` 取根，展开时 `load(path)` 取子级；同一路径并发只请求一次。`paths` 是已有值，打开时逐级加载每一层祖先，标签就能反显。已带 `children` 的节点不再加载（`load([])` 直接返回整棵树也可以）。`enabled: false` 时停止加载并将 `loading` 复位为 `false`，在禁用前发起的过期根请求与子请求结果都会被忽略；重新启用后会开启新的启用周期，只接受新周期的子请求与回显结果，旧回显任务结束后停止加载并确保新树保留正确子级标签。`CascaderPlus` 的阅读态自己把值解析成「省 / 市 / 区」；自绘阅读态对裸路径用 `labelsOf`，`labelInValue` 的值读每一级的 `label`。
 
 ## useColumnSettings
 
@@ -82,7 +82,7 @@ useColumnSettings(columns: readonly ColumnSettingInput[]): ColumnSettingsApi
 // ColumnSettingsApi: { items, visibleKeys, toggle(key), move(from, to), moveKey(from, to), setWidth(key, width), density, setDensity(d), reset(), dragProps(key), drag }
 ```
 
-无 UI 的表格列展示状态管理：维护列的显隐（`toggle`）、顺序（`move` / `moveKey` 及原生 HTML5 拖拽属性 `dragProps(key)`）、列宽（`setWidth`，下限 40px）与三档行高密度（`density`: `'large' | 'middle' | 'small'`）。运行期新增的列追加在末尾，移除的列自动剔除；`reset()` 恢复初始列顺序、显隐、宽度与默认密度。在自建项目级表格封装时直接调用即可。
+无 UI 的表格列展示状态管理：维护列的显隐（`toggle`）、顺序（`move` / `moveKey` 及原生 HTML5 拖拽属性 `dragProps(key)`）、列宽（`setWidth`，下限 40px）与三档行高密度（`density`: `'large' | 'middle' | 'small'`）。输入 `columns` 的列标题更新时，`items` 会即时反映最新 `title`，同时保留用户已调好的顺序、显隐、宽度及稳定的操作方法引用；运行期新增的列追加在末尾，移除的列自动剔除；`reset()` 恢复初始列顺序、显隐、宽度与默认密度。在自建项目级表格封装时直接调用即可。
 
 ## enumItems
 

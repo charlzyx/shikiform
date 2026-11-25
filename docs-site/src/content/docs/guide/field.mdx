@@ -154,7 +154,7 @@ export default function App() {
 | `d.x.$componentProps.style = { color: 'red' }` | 整键替换：下层的 `style` 不再生效 |
 | `delete d.x.$componentProps.style` | 移除该键，下层的 `style` 同样不再生效 |
 | `delete` 数组 draft 的下标（`$componentProps` 里的数组，或 `$value`） | 跟 JavaScript 一样在该下标留空洞，`length` 不变。要删除并让后面的元素前移，用 `splice`；表单行用 `useArrayField().remove` |
-| `d.x.$componentProps = { … }` | 整体替换掉整个对象，`fields` 和 JSX 两层的 props 全部失效 |
+| `d.x.$componentProps = { … }` | 整体替换掉整个对象，`fields` 和 JSX 两层的 props 全部失效。整对象赋值仅接受普通对象或 `undefined`，传入 `null`、数组或原始值在开发环境抛 `ShikiUsageError`，生产环境忽略 |
 | `d.x.$componentProps = undefined` | 撤销 `reaction` 这一层的覆盖，恢复下层属性 |
 
 在 `reaction` 内部读取 `$componentProps` 时，只能读到「`fields` 声明 + `reaction`」两层合并后的结果，JSX 层属性仅在渲染阶段合并。UI 状态、`$value`、`$enum` 和 `$rules` 都能在同一轮读回刚写的值。

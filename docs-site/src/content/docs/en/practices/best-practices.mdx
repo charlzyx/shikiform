@@ -1,0 +1,447 @@
+---
+title: "Best practices guide"
+description: "Production patterns for ShikiForm: code organization, hooks usage, store data flow, and production safeguards."
+---
+
+This guide covers recommended patterns for building maintainable, high-performance forms with `@shikiform/core` and `@shikiform/react`. Each practice contrasts recommended code with patterns to avoid.
+
+## Code organization
+
+### 1. Separate form models from UI components
+
+Keep value types, `initialValues`, `fields` declarations, and `effects` in plain TypeScript modules separate from React components. Models can then be unit-tested directly with `createForm` without mounting React, and business rules survive component unmounts.
+
+```ts
+// Recommended: keep model declarations and effects in a standalone module (order-model.ts)
+export type OrderValues = { kind: 'personal' | 'company'; taxId: string; total: number }
+
+export const orderFields = {
+  taxId: { title: 'Tax ID' },
+} as const
+
+export const orderEffects = defineEffects<OrderValues>(({ reaction }) => {
+  reaction((d) => {
+    const isCompany = d.kind.$value === 'company'
+    d.taxId.$visible = isCompany
+    d.taxId.$required = isCompany
+    d.taxId.$omit = !isCompany
+  })
+})
+```
+
+```tsx
+// Avoid: deriving business rules inside render via form.getValue (not reactive, lost on unmount)
+function BadOrderForm() {
+  const form = useForm<OrderValues>()
+  const isCompany = form.getValue('kind') === 'company'
+  return isCompany ? <Field name="taxId" required /> : null
+}
+```
+
+### 2. Split `defineEffects` by business concern
+
+Break complex linkage into small, focused `defineEffects<Values>` modules (for example, visibility, pricing, dependent resets) and pass them in order via `effects: [...]`. Remember that each `$` state may only have one `reaction` writer (`ShikiConflictError` in development).
+
+```ts
+// Recommended: focused effect modules
+const visibilityEffects = defineEffects<OrderValues>(({ reaction }) => {
+  reaction((d) => {
+    d.invoiceTitle.$visible = d.needInvoice.$value
+    d.invoiceTitle.$omit = !d.needInvoice.$value
+  })
+})
+
+const pricingEffects = defineEffects<OrderValues>(({ reaction, draft }) => {
+  reaction.each(draft.items, (row) => {
+    row.subtotal.$value = row.price.$value * row.qty.$value
+  })
+})
+
+const form = useForm({ initialValues, effects: [visibilityEffects, pricingEffects] })
+```
+
+```ts
+// Avoid: one monolithic reaction mixing unrelated derivations and reading whole arrays
+const allInOne = defineEffects<OrderValues>(({ reaction }) => {
+  reaction((d) => {
+    d.invoiceTitle.$visible = d.needInvoice.$value
+    d.total.$value = d.items.$value.reduce((s, r) => s + r.price * r.qty, 0)
+  })
+})
+```
+
+### 3. Register controls once with `FieldKit`
+
+Register adapted controls and your default decorator once via `<FieldKit>` or `<Form kit={{ ... }}>`, and augment `FieldComponents` for autocomplete instead of repeating `decorator={[FormItem]}` on every `<Field>`.
+
+```tsx
+// Recommended: register once per app or form
+<Form form={form} kit={{ components: { Input, Select }, decorator: FormItem }}>
+  <F.Field name="email" title="Email" component="Input" />
+  <F.Field name="city" title="City" component={['Select', { placeholder: 'Choose a city' }]} />
+</Form>
+```
+
+```tsx
+// Avoid: repeating decorator wiring on every field
+<Form form={form}>
+  <Field name="email" title="Email" decorator={[FormItem]} component={[Input]} />
+  <Field name="city" title="City" decorator={[FormItem]} component={[Select]} />
+</Form>
+```
+
+### 4. Use `typed(form)` for compile-time safety
+
+Bare `<Field>` and `useWatch` accept untyped paths. Wrap the form with `const F = typed(form)` to type-check field names, `enum` option values, `useWatch` return types, and relative paths inside `ArrayField` / `ObjectField`. When you want an explicit value type `V` while still inferring `omit: true` fields as optional in submit values, use `typed<V>().useForm({ fields })`.
+
+```tsx
+// Recommended: scoped typed fields
+const form = typed<Values>().useForm({
+  initialValues,
+  fields: { confirm: { omit: true as const } },
+})
+const F = typed(form)
+
+<F.ArrayField name="items">
+  {(row) => <row.Field name="qty" component="NumberInput" />}
+</F.ArrayField>
+```
+
+```tsx
+// Avoid: manually interpolating root paths inside a row scope (ShikiUsageError in dev)
+<ArrayField name="items">
+  {({ index }) => <Field name={`items.${index}.qty`} component="NumberInput" />}
+</ArrayField>
+```
+
+### 5. Recommended folder layout
+
+```text
+src/
+  forms/
+    kit/                  # Shared FieldKit: connected controls + FormItem
+      index.tsx
+      shikiform.d.ts      # Module augmentation for FieldComponents / FieldDecorators / UiNames
+    order/
+      types.ts            # OrderValues, Row types, submit DTOs
+      fields.ts           # Static fields & wildcard templates (items.*.xxx)
+      effects/
+        visibility.ts     # Visibility and omit rules
+        pricing.ts        # Row & total calculations
+      sections/
+        AddressFields.tsx # Reusable fragment using typed<Address>()
+        ItemRow.tsx       # Row component using useArrayField() / useIndex() / useRecord()
+      OrderForm.tsx       # useForm + <Form> + submit handling
+      order.test.ts       # Pure createForm tests + Testing Library interaction tests
+```
+
+## Hooks usage
+
+### 1. Build custom inputs with zero-arg `useField()`
+
+Inside a `<Field>` control, decorator, or table cell, call `useField<T>()` with no arguments to bind to the enclosing field without prop-drilling `name`. Prefer `connect` + `mapProps` for reusable UI library adapters. If the same field needs a second control (such as a slider alongside a number input), give the second `<Field>` a distinct `ui` name (duplicate unnamed `<Field>` mounts warn in development).
+
+```tsx
+// Recommended: zero-arg useField() inside <Field>
+function CurrencyInput() {
+  const field = useField<number | null>()
+  return (
+    <input
+      id={field.id}
+      type="number"
+      disabled={field.disabled}
+      value={field.value ?? ''}
+      onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
+      onBlur={field.onBlur}
+    />
+  )
+}
+```
+
+```tsx
+// Avoid: spreading decorator `control` without binding value/onChange
+function BadInput() {
+  const { control } = useFieldDecorator()
+  return <input {...control} /> // control does not include value or onChange
+}
+```
+
+### 2. Subscribe narrowly with `useWatch`
+
+`useWatch` subscribes only to the `$` state keys actually read by its selector. Select the smallest slice you need instead of watching the entire root value object.
+
+```tsx
+// Recommended: granular subscriptions
+const F = typed(form)
+const canSubmit = F.useWatch((d) => d.$canSubmit)
+const country = F.useWatch((d) => d.address.country.$value)
+```
+
+```tsx
+// Avoid: subscribing to the whole form value tree
+const allValues = F.useWatch((d) => d.$value)
+const country = allValues.address.country
+```
+
+### 3. Depend on stable action methods, not the returned wrapper object
+
+Action methods returned by every ShikiForm hook (`onChange`, `onBlur`, `push`, `remove`, `refresh`, `setPage`, `open`, etc.) keep a stable identity across renders, while the returned wrapper object itself is new on every render. Put `table.refresh` in `useEffect` dependencies, never `table`. Do not put render getters (`labelOf`, `positionOf`, etc.) in effect dependencies.
+
+```tsx
+// Recommended: stable action identity in effect dependencies
+const table = useQueryTable({ request: fetchOrders })
+useEffect(() => {
+  table.refresh()
+}, [table.refresh])
+```
+
+```tsx
+// Avoid: depending on the wrapper object causes an infinite loop
+useEffect(() => {
+  table.refresh()
+}, [table])
+```
+
+### 4. Never write to the form during render
+
+Never call `field.onChange` or `form.setValue` synchronously during render. Server-side rendering or discarded concurrent renders will still execute those writes and mutate the engine. Set initial values via `initialValues` or `reaction`, and run imperative writes inside event handlers or `useEffect`.
+
+```tsx
+// Recommended: write from an event handler or useEffect
+function AutoFillCode() {
+  const field = useField<string>()
+  useEffect(() => {
+    if (!field.value) field.onChange('DEFAULT')
+  }, [field.value, field.onChange])
+  return <input value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} />
+}
+```
+
+```tsx
+// Avoid: mutating the form during render
+function BadAutoFill() {
+  const field = useField<string>()
+  if (!field.value) field.onChange('DEFAULT')
+  return <input value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} />
+}
+```
+
+### 5. Use `useArrayField()`, `useIndex()`, and `useRecord()` in rows
+
+Inside `<ArrayField>`, use context hooks so row components stay decoupled from the parent array path and avoid re-rendering unrelated rows.
+
+```tsx
+// Recommended: scoped row hooks
+function OrderRowActions() {
+  const array = useArrayField<OrderItem>()
+  const index = useIndex()
+  const row = useRecord<OrderItem>()
+  return (
+    <button type="button" disabled={row.locked} onClick={() => array.remove(index)}>
+      Remove row {index + 1}
+    </button>
+  )
+}
+```
+
+```tsx
+// Avoid: watching the whole array and mapping manually in the parent
+function BadList() {
+  const items = F.useWatch((d) => d.items.$value)
+  return items.map((row, i) => <Row key={i} row={row} index={i} />)
+}
+```
+
+## Store and data flow
+
+### 1. One engine per form: derive with `reaction`, act and fetch with `watch`
+
+Keep form state inside the form engine rather than mirroring fields in `useState`. Use `reaction` for synchronous derivations and `watch` for one-time side effects or async requests (writing async responses back with `form.setValue` or `form.batch`). Never make a `reaction` `async` or call `form.setValue` / `form.reset` / `form.submit` synchronously inside a `reaction` (`ShikiUsageError` in development).
+
+```ts
+// Recommended: synchronous derivation in reaction, async request in watch + form.batch
+const effects = defineEffects<Values>(({ reaction, watch, draft }) => {
+  reaction((d) => {
+    d.total.$value = d.price.$value * d.qty.$value
+  })
+  watch(draft.zipCode, async (d) => {
+    const zip = d.zipCode.$value
+    const info = await lookupAddress(zip)
+    form.batch((next) => {
+      next.city.$value = info.city
+      next.district.$value = info.district
+    })
+  })
+})
+```
+
+```ts
+// Avoid: async reaction writing to an expired draft after await
+reaction(async (d) => {
+  const info = await lookupAddress(d.zipCode.$value)
+  d.city.$value = info.city // expired draft: ShikiUsageError in dev, ignored in prod
+})
+```
+
+### 2. Write exact paths and group writes with `form.batch`
+
+Group multi-field updates inside `form.batch` so reactions and notifications flush once. Nested `batch` calls buffer each layer independently: an inner throw rolls back only the inner layer without discarding outer writes. Write to the leaf path (`d.user.name.$value = 'Ada'` or `d.user.$value.name = 'Ada'`) instead of replacing parent objects unnecessarily.
+
+```ts
+// Recommended: atomic batch flush
+form.batch((d) => {
+  d.province.$value = 'zj'
+  d.city.$value = 'hz'
+  d.district.$value = 'xh'
+})
+```
+
+```ts
+// Avoid: multiple separate writes triggering redundant flushes
+form.setValue('province', 'zj')
+form.setValue('city', 'hz')
+form.setValue('district', 'xh')
+```
+
+### 3. Never mutate `getValue` / `form.values` (use `snapshot` or `toRaw`)
+
+Outside `reaction` / `watch` / `batch`, `getValue`, `form.values`, and validator `value` return read-only views in development (mutation throws `ShikiUsageError`; `structuredClone` throws `DataCloneError`). Use `snapshot(value)` from `@shikiform/core` for plain serializable copies, `getSubmitValues()` for submit payloads, and `toRaw(value)` only when you need the raw reference without mutating it.
+
+```ts
+// Recommended: snapshot for cloning/serialization, setValue for updates
+import { snapshot } from '@shikiform/core'
+
+localStorage.setItem('draft', JSON.stringify(snapshot(form.values)))
+form.setValue('user.name', 'Grace')
+```
+
+```ts
+// Avoid: mutating read-only views or cloning them directly
+const user = form.getValue('user')
+user.name = 'Grace' // ShikiUsageError in dev; silent non-reactive mutation in prod
+structuredClone(form.values) // DataCloneError in dev
+```
+
+### 4. Choose `visible` vs `omit` deliberately: submission checks `omit` only
+
+- `visible: false` hides the UI and skips validation, but **still submits and counts toward `dirty`**.
+- `omit: true` removes the subtree from submission (root `$omit: true` submits `{}` and keeps `form.dirty` `false`) without hiding the UI or skipping validation.
+- Use `omit: true` alone for helper fields like confirm-password; set both `$visible = false` and `$omit = true` when a hidden conditional field should leave the payload.
+
+```ts
+// Recommended: set both flags when a hidden field should not submit
+reaction((d) => {
+  const show = d.needInvoice.$value
+  d.taxId.$visible = show
+  d.taxId.$omit = !show
+})
+```
+
+```ts
+// Avoid: assuming $visible = false removes the field from submission
+reaction((d) => {
+  d.taxId.$visible = d.needInvoice.$value // taxId still submits!
+})
+```
+
+## Production readiness
+
+### 1. Development diagnostics vs production guards
+
+Do not rely on development errors for control flow, and fix every development warning before shipping:
+
+| Mistake | Development (`NODE_ENV !== 'production'`) | Production (`NODE_ENV === 'production'`) |
+|---|---|---|
+| Mutating `getValue` / `form.values` | Throws `ShikiUsageError` | Returns raw stored value (no notification) |
+| Writing a bare handle property (`d.x.value = 1`) | Throws `ShikiUsageError` | Safely ignores write (no `TypeError`) |
+| Missing misspelled `$` state (`d.x.$valeu`) | Throws `ShikiUsageError` with suggestion | Reads return `undefined`; writes are ignored |
+| Invalid `$enum` / `$rules` / whole `$componentProps` | Throws `ShikiUsageError` | Ignores write and preserves previous valid state |
+| Invalid array index or array ops on non-array value | Throws `ShikiUsageError` | Ignores write and protects existing value |
+| Duplicate unnamed `<Field name="x">` | Warns once via `console.warn` | Zero runtime overhead |
+| **Always throws (Dev & Prod)** | `ShikiCycleError`, cyclic values, path writes with `.`/`[`/`]` in quoted keys | **Still throws** to prevent corruption or stack overflow |
+
+> If a plain object key contains `.`, `[`, or `]`, replace the parent object instead of writing through a quoted path string: `form.setValue('extra', { ...form.getValue('extra'), 'a.b': v })`.
+
+### 2. Follow the unified `validator` return contract
+
+Sync and async custom validators share one runtime return contract:
+- **Pass**: `undefined`, `null`, `''`, or `true`.
+- **Fail**: a non-empty string, `string[]`, or `false` (uses the rule's `message` or fallback message).
+- **Other return values** (numbers, plain objects): throws `ShikiUsageError` in development and fails with the fallback message in production.
+- Forward `ctx.signal` to async requests and resolve `undefined` cleanly when aborted.
+
+```ts
+// Recommended: return string | null and honor AbortSignal
+const checkUnique = async (value: string, { signal }: ValidateCtx) => {
+  const res = await fetch(`/api/check?name=${encodeURIComponent(value)}`, { signal })
+  const { exists } = await res.json()
+  return exists ? 'Name already taken' : null
+}
+```
+
+```ts
+// Avoid: returning arbitrary objects or ignoring signal
+const badCheck = async (value: string) => {
+  return { ok: Boolean(value) } // ShikiUsageError in dev; fails in prod
+}
+```
+
+### 3. Share and auto-cancel async options with `EnumSource`
+
+Model async dropdown options with `EnumSource` instead of manual `useEffect` + `fetch`. `EnumSource` deduplicates concurrent requests per key, debounces, and cancels obsolete loads. `useForm` starts enum loads after commit and releases consumers on unmount (StrictMode-safe); removing array rows or tree nodes cancels their consumers while moving surviving nodes reuses the in-flight load for the same key.
+
+```ts
+// Recommended: EnumSource with AbortSignal
+const Cities = new EnumSource<string>(async (province, { signal }) => {
+  const res = await fetch(`/api/cities?p=${province}`, { signal })
+  return res.json()
+})
+
+reaction((d) => {
+  d.city.$enum = d.province.$value ? Cities.with(d.province.$value) : []
+})
+```
+
+```tsx
+// Avoid: ad-hoc fetch inside useEffect without cancellation or request sharing
+useEffect(() => {
+  fetch(`/api/cities?p=${province}`).then((r) => r.json()).then(setOptions)
+}, [province])
+```
+
+### 4. Large lists and virtual scrolling
+
+- Enable `<ArrayField name="rows" rowKey="id" virtualScroll={{ height: 420 }}>` for long lists so only visible rows mount; stable row keys preserve component state when reordering within the window.
+- Put validation rules in `fields['rows.*.xxx']` and row derivations in `reaction.each(draft.rows, ...)` so offscreen rows still validate and compute, while single-cell edits re-run only that row's instance.
+
+### 5. SSR considerations
+
+- Keep `reaction` strictly synchronous and free of browser globals (`window`, `document`); move browser side effects to `watch` or `useEffect`.
+- `useForm`-owned `EnumSource` loads wait until commit, avoiding leaked requests during SSR.
+- Never call `onChange` / `form.setValue` during render.
+- See [Testing, performance and SSR](/en/practices/testing-performance) for more details.
+
+### 6. `File`, `Blob`, and class instances
+
+- `initialValues`, `reset(values)`, and `validate()` deep-copy plain objects, arrays, `Date`, `Map`, and `Set` while preserving references for `File`, `Blob`, custom class instances, functions, and React elements.
+- `deepEqual` and `dirty` compare `File` / `Blob` by reference (replacing a file marks the field dirty) and compare `Map` / `Set` by contents.
+- Build `FormData` inside `onSubmit(values)` when uploading files, and keep form values acyclic (`ShikiUsageError` on cycles in both dev and prod).
+
+```ts
+// Recommended: keep File in form state and build FormData on submit
+await form.submit(async (values) => {
+  const body = new FormData()
+  body.append('title', values.title)
+  if (values.attachment) body.append('file', values.attachment)
+  await fetch('/api/upload', { method: 'POST', body })
+})
+```
+
+```ts
+// Avoid: storing cyclic objects in form values (throws ShikiUsageError in dev and prod)
+const node: any = { name: 'root' }
+node.self = node
+form.setValue('meta', node)
+```
+
+Next: [Common pitfalls](/en/practices/pitfalls) · [Testing, performance and SSR](/en/practices/testing-performance).

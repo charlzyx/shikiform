@@ -23,7 +23,7 @@ d.user.name.$required = true  // Change whether this field is required.
 d.items.$value                // Read the array data through the handle's $value.
 ```
 
-Inside a reaction, a watch action or a batch, `d.user.$value.name = 'Ada'` and `d.user.name.$value = 'Ada'` both update `user.name`. Outside those callbacks, use `form.setValue('user.name', 'Ada')`. For an array, read `d.items.$value` or use `reaction.each`. A field named `value` still uses `d.value.$value`.
+Inside a reaction, a watch action or a batch, `d.user.$value.name = 'Ada'` and `d.user.name.$value = 'Ada'` both update `user.name`. Outside those callbacks, use `form.setValue('user.name', 'Ada')`. For an array, read `d.items.$value` or use `reaction.each`. A field named `value` still uses `d.value.$value`; existing non-reserved own data keys starting with `$` (such as `$values`) also resolve as child field paths (`d.$values.$value`), while missing near-spellings of reserved state names are flagged as typos.
 
 ### Destructuring
 
@@ -91,7 +91,7 @@ export default function App() {
 
 ## Four independent flags
 
-A hidden, disabled or read-only field skips validation and clears existing errors. Each can still submit. `omit` alone removes a subtree from submission. [Compare the four states](/en/basics/state).
+A hidden, disabled or read-only field skips validation and clears existing errors. Each can still submit. `omit` alone removes a subtree from submission; setting `$omit = true` on the root makes submission return `{}` and keeps `form.dirty` `false` (explicit `validate(path)` still validates and returns that path). [Compare the four states](/en/basics/state).
 
 ## Declare fields before they mount
 

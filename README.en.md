@@ -102,3 +102,7 @@ export default function App() {
 - [Quick start](https://shikiform.pages.dev/en/guide/quick-start)
 - [Interactive tutorial](https://shikiform.pages.dev/en/tutorial/)
 - [API reference](https://shikiform.pages.dev/en/api)
+
+## License
+
+[MIT](./LICENSE)

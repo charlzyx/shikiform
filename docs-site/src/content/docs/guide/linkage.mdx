@@ -100,11 +100,12 @@ export default function App() {
 | **依赖追踪** | 自动收集 `effect` 内读取的所有 `$` 状态 | handle 登记该字段的 `$value`（`watch([draft.a, draft.b])` 登记每一个）。函数 `fn` 登记里面读取的 `$` 状态，只要其中任意状态变化就触发（**不按 `fn` 返回值比较去重**，例如 `d.amount.$value > 100` 在 `amount` 从 `10` 变 `20` 时仍触发），且每次触发会重新追踪 `fn` 的读取。忽略 `effect` 中的读取 |
 | **写入 `$value`** | 目标字段成为[计算字段](/guide/concepts#四个布尔)（仍可编辑、仍提交、不计入 dirty；预览再写 `readOnly`，不提交再写 `omit`） | 作为普通用户数据写入 |
 
-编写联动时需遵守四条规则：
-- 写入在回调结束时提交。在同一轮里，读取 `$value`、`$enum`、`$rules` 和 UI 状态能拿到刚写的值。写入 `$visible`、`$required` 等旗标后若还需要新值，请用局部变量。
-- 同一个 `$` 状态只能由一个 `reaction` 负责写入；如果多个 `reaction` 同时写入同一个状态，引擎会在开发阶段报错提示。
-- `reaction` 必须保持同步执行；异步请求等副作用应当放在 `watch` 中，拿到响应后再通过 `form.batch` 写回表单。
+编写联动时需遵守几条规则：
+- 写入在回调结束时提交。在同一轮里，读取 `$value`、`$enum`（规范化为 `{ label, value }[]`）、`$rules` 和 UI 状态能拿到刚写的值。写入 `$visible`、`$required` 等旗标后若还需要新值，请用局部变量。
+- 同一个 `$` 状态只能由一个 `reaction` 负责写入；如果多个 `reaction` 同时写入同一个状态，引擎会在开发阶段报错提示。若某个 `reaction` 抛出异常，同波次其余无依赖冲突的派生仍会结算完毕，随后再抛出第一个错误，避免留下半成品派生状态。
+- `reaction` 必须保持同步执行：返回的 Promise 会被拒绝，其草稿句柄在当前 pass 结束后即失效（跨 `await` 继续写入草稿在开发环境抛 `ShikiUsageError`，生产环境忽略）。不要在 `reaction` 内同步直接调用 `form.setValue`、`form.reset` 或 `form.submit`（开发环境抛 `ShikiUsageError`，生产环境 `setValue` 随当前 pass 缓冲提交或丢弃）；异步请求或副作用请放到 `watch` 中，拿到响应后再通过 `form.setValue` / `form.batch` 写回。
 - 只有读取过的状态确实发生改变时，`reaction` 才会重新触发；如果写入的值与当前值相等，不会唤醒下游依赖。若 `watch((d) => cond(d), effect)` 只想在条件跨过临界点时执行，请在 `effect` 内判断，或把条件派生到辅助字段再 `watch` 该字段。
+- `$enum` 只接受选项数组、`EnumSource` 绑定或 `undefined`：传入 `null`、函数或 Promise 等无效值时，开发环境抛 `ShikiUsageError`，生产环境忽略该次写入，保留原有选项、选中值与在途加载。
 
 ## reaction.each：每一行一个实例
 
@@ -215,7 +216,7 @@ reaction.each(draft.orders, (node, ctx) => {
 
 单层列表无需上述过滤；递归树结构（`children?: Node[]`）过滤掉非 `children` 的其他对象数组后即可读写 `node` 上的字段。
 
-`watch.each` 采用相同的遍历规则，具备 `watch` 的触发时机：初始化时不执行，仅当某一行回调内读取的 `$` 状态变化时对该行运行一次（兄弟行增删或移动不会触发）。可用于「某行切换商品后将该行数量重置为 1」等动作：
+`watch.each` 采用相同的遍历规则，具备 `watch` 的触发时机：初始化时不执行，仅当某一行回调内读取的 `$` 状态变化时对该行运行一次（兄弟行增删或移动不会触发）。每次该行回调实际执行时会在同一遍重新收集依赖（支持动态分支依赖），行发生移动、插入或删除时依赖索引也会随行身份自动迁移。可用于「某行切换商品后将该行数量重置为 1」等动作：
 
 ```tsx preview play=sku
 import { useState, type ReactNode } from 'react';

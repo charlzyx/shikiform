@@ -1,0 +1,455 @@
+---
+title: 工程最佳实践
+description: 面向业务开发者的 ShikiForm 架构与编码指南：代码组织、Hooks 用法、Store 数据流与生产环境保障。
+---
+
+本页总结在真实业务项目中使用 ShikiForm 的推荐做法。每条实践均基于 `@shikiform/core` 与 `@shikiform/react` 的公开契约，给出「推荐 / 避免」短代码对照，帮助团队在开发期早发现误用、在生产环境保持稳定与高性能。
+
+## 代码组织
+
+### 1. 表单定义与 UI 分离
+
+把类型、`initialValues`、`fields` 声明与 `effects` 放到独立的纯 TypeScript 模块中，组件只负责布局和渲染。这样联动逻辑可以在没有 React 的情况下直接用 `createForm` 编写单测，也避免把规则散落在 JSX 树里导致卸载后漏检。
+
+```ts
+// 推荐：模型与联动放在独立文件（order-model.ts），组件只传给 useForm
+export type OrderValues = { kind: 'personal' | 'company'; taxId: string; total: number }
+
+export const orderFields = {
+  taxId: { title: '税号' },
+} as const
+
+export const orderEffects = defineEffects<OrderValues>(({ reaction }) => {
+  reaction((d) => {
+    const isCompany = d.kind.$value === 'company'
+    d.taxId.$visible = isCompany
+    d.taxId.$required = isCompany
+    d.taxId.$omit = !isCompany
+  })
+})
+```
+
+```tsx
+// 避免：在组件渲染函数里用条件 JSX 拼业务规则，字段卸载后规则也跟着消失
+function BadOrderForm() {
+  const form = useForm<OrderValues>()
+  const isCompany = form.getValue('kind') === 'company' // 既不订阅，又把业务规则耦合进视图
+  return isCompany ? <Field name="taxId" required /> : null
+}
+```
+
+### 2. 按业务域拆分 `defineEffects`
+
+不要把几百行联动塞进一个巨型回调。按业务关注点（如「显隐与必填」「金额汇总」「省市重置」）拆成多个 `defineEffects<Values>` 模块，按顺序传给 `effects: [...]`。注意同一个 `$` 状态只能由一个 `reaction` 写入（双写会在开发期抛 `ShikiConflictError`）。
+
+```ts
+// 推荐：按业务域拆分，单个文件职责清晰、易于单测
+const visibilityEffects = defineEffects<OrderValues>(({ reaction }) => {
+  reaction((d) => {
+    d.invoiceTitle.$visible = d.needInvoice.$value
+    d.invoiceTitle.$omit = !d.needInvoice.$value
+  })
+})
+
+const pricingEffects = defineEffects<OrderValues>(({ reaction, draft }) => {
+  reaction.each(draft.items, (row) => {
+    row.subtotal.$value = row.price.$value * row.qty.$value
+  })
+})
+
+const form = useForm({ initialValues, effects: [visibilityEffects, pricingEffects] })
+```
+
+```ts
+// 避免：所有派生与副作用混在一个大 reaction 中，任意字段变化都会重跑全部逻辑
+const allInOne = defineEffects<OrderValues>(({ reaction }) => {
+  reaction((d) => {
+    // 既算显隐又遍历所有行算总价，依赖面过大且难以维护
+    d.invoiceTitle.$visible = d.needInvoice.$value
+    d.total.$value = d.items.$value.reduce((s, r) => s + r.price * r.qty, 0)
+  })
+})
+```
+
+### 3. 用 `FieldKit` 统一注册控件与装饰器
+
+在应用入口或表单外层通过 `<FieldKit>`（或 `<Form kit={{ ... }}>`）集中登记 `components` 与默认 `decorator`，再通过模块扩展声明 `FieldComponents` 获得字符串名称补全，避免每个 `<Field>` 重复写 `decorator={[FormItem]}`。
+
+```tsx
+// 推荐：集中注册一次，业务表单简洁且可统一换肤
+<Form form={form} kit={{ components: { Input, Select }, decorator: FormItem }}>
+  <F.Field name="email" title="邮箱" component="Input" />
+  <F.Field name="city" title="城市" component={['Select', { placeholder: '请选择' }]} />
+</Form>
+```
+
+```tsx
+// 避免：每个字段重复传入装饰器，或到处手工拼 <FormItem><Input /></FormItem>
+<Form form={form}>
+  <Field name="email" title="邮箱" decorator={[FormItem]} component={[Input]} />
+  <Field name="city" title="城市" decorator={[FormItem]} component={[Select]} />
+</Form>
+```
+
+### 4. 用 `typed(form)` 获取端到端类型安全
+
+裸 `<Field>` / `useWatch` 的 `name` 是 `string`、`d` 是 `any`。使用 `const F = typed(form)` 后，字段名、`enum` 选项值、`useWatch` 返回类型以及 `ArrayField` / `ObjectField` 作用域内的相对路径都会在编译期检查；要固定值类型 `V` 同时保留 `fields` 里的 `omit: true` 推导，用 `typed<V>().useForm({ fields })`。
+
+```tsx
+// 推荐：typed(form) 绑定表单类型，行内用 row.Field 检查相对路径
+const form = typed<Values>().useForm({
+  initialValues,
+  fields: { confirm: { omit: true as const } },
+})
+const F = typed(form)
+
+<F.ArrayField name="items">
+  {(row) => <row.Field name="qty" component="NumberInput" />}
+</F.ArrayField>
+```
+
+```tsx
+// 避免：在作用域内手拼完整路径字符串（开发期直接抛 ShikiUsageError）
+<ArrayField name="items">
+  {({ index }) => <Field name={`items.${index}.qty`} component="NumberInput" />}
+</ArrayField>
+```
+
+### 5. 推荐目录结构
+
+中大型表单模块建议按「模型 / 联动 / 片段 / 入口」分层组织：
+
+```text
+src/
+  forms/
+    kit/                  # 全局 FieldKit：connect/mapProps 适配后的控件与 FormItem
+      index.tsx
+      shikiform.d.ts      # 扩展 FieldComponents / FieldDecorators / UiNames
+    order/
+      types.ts            # OrderValues、Row 类型与提交 DTO
+      fields.ts           # fields 静态声明与行模板（items.*.xxx）
+      effects/
+        visibility.ts     # 显隐与 omit 联动
+        pricing.ts        # 金额与行派生联动
+      sections/
+        AddressFields.tsx # 使用 typed<Address>() 的可复用对象片段
+        ItemRow.tsx       # 使用 useArrayField() / useIndex() / useRecord() 的行组件
+      OrderForm.tsx       # 组装 useForm + <Form> + 提交处理
+      order.test.ts       # 纯引擎 createForm 单测 + Testing Library 交互测试
+```
+
+## Hooks 用法
+
+### 1. 用无参 `useField()` 编写自定义控件
+
+在 `<Field>` 渲染的自定义控件、装饰器或表格单元格内，调用无参 `useField<T>()` 读取当前字段绑定，不要把 `name` 一层层透传；重复组件优先用 `connect` + `mapProps` 适配。同一字段若要挂第二个独立控件（如输入框 + 滑块），务必给第二个 `<Field>` 加上 `ui` 名称（重复挂载无 `ui` 的 `<Field>` 开发期会输出告警）。
+
+```tsx
+// 推荐：自定义控件通过 useField() 消费当前绑定，零 name 耦合
+function CurrencyInput() {
+  const field = useField<number | null>()
+  return (
+    <input
+      id={field.id}
+      type="number"
+      disabled={field.disabled}
+      value={field.value ?? ''}
+      onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
+      onBlur={field.onBlur}
+    />
+  )
+}
+```
+
+```tsx
+// 避免：在自定义控件里硬编码路径，或在无 Field 时混用 control 代替值绑定
+function BadInput() {
+  const { control } = useFieldDecorator()
+  return <input {...control} /> // control 不含 value / onChange
+}
+```
+
+### 2. 用 `useWatch` 精确订阅，不要读整个 `values`
+
+`useWatch` 只追踪 selector 实际读到的 `$` 状态键。订阅最小粒度状态，避免在顶层组件里读 `d.$value` 或在渲染期直接读 `form.values`（后者既不触发重渲染，又会拿到过期快照）。
+
+```tsx
+// 推荐：精确订阅关心的状态键
+const F = typed(form)
+const canSubmit = F.useWatch((d) => d.$canSubmit)
+const country = F.useWatch((d) => d.address.country.$value)
+```
+
+```tsx
+// 避免：订阅整个表单值，任意字符输入都会导致当前组件重渲染
+const allValues = F.useWatch((d) => d.$value)
+const country = allValues.address.country
+```
+
+### 3. 利用稳定的 action 引用，不要把整个 Hook 返回对象放进依赖
+
+所有 ShikiForm Hook 返回的操作方法（`onChange`、`onBlur`、`push`、`remove`、`refresh`、`setPage`、`open` 等）在组件或 `form + path` 存活期间保持引用稳定，但**返回的容器对象本身每次渲染都是新对象**。`useEffect` / `useCallback` 依赖数组应只放具体方法；渲染期 getter（`labelOf`、`positionOf` 等）不要放进依赖。
+
+```tsx
+// 推荐：只依赖稳定的 action 方法
+const table = useQueryTable({ request: fetchOrders })
+useEffect(() => {
+  table.refresh()
+}, [table.refresh])
+```
+
+```tsx
+// 避免：依赖整个返回对象，每次渲染都是新引用，导致死循环
+useEffect(() => {
+  table.refresh()
+}, [table])
+```
+
+### 4. 不要在渲染期写入表单
+
+绝不在组件函数体渲染期间直接调用 `field.onChange` 或 `form.setValue`。SSR 渲染或 React 并发模式下被丢弃的渲染依然会执行这些写入，污染表单状态。默认值放在 `initialValues` 或 `reaction`，副作用写入放在事件处理函数或 `useEffect` 中。
+
+```tsx
+// 推荐：在事件或 useEffect 中触发写入
+function AutoFillCode() {
+  const field = useField<string>()
+  useEffect(() => {
+    if (!field.value) field.onChange('DEFAULT')
+  }, [field.value, field.onChange])
+  return <input value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} />
+}
+```
+
+```tsx
+// 避免：在 render 阶段直接写 store
+function BadAutoFill() {
+  const field = useField<string>()
+  if (!field.value) field.onChange('DEFAULT') // 渲染期副作用！
+  return <input value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} />
+}
+```
+
+### 5. 行组件用 `useArrayField()` / `useIndex()` / `useRecord()`
+
+在 `<ArrayField>` 的行组件中，使用无参 `useArrayField()` 操作行、`useIndex()` 获取最新下标、`useRecord()` 响应式读取本行数据。这样行顺序变化时组件保持局部更新，且与父级数组路径解耦。
+
+```tsx
+// 推荐：行内无需硬编码数组路径，也不订阅其他行
+function OrderRowActions() {
+  const array = useArrayField<OrderItem>()
+  const index = useIndex()
+  const row = useRecord<OrderItem>()
+  return (
+    <button type="button" disabled={row.locked} onClick={() => array.remove(index)}>
+      删除第 {index + 1} 行
+    </button>
+  )
+}
+```
+
+```tsx
+// 避免：在父组件 useWatch 整个数组并把整份数组传给每一行
+function BadList() {
+  const items = F.useWatch((d) => d.items.$value) // 任意单元格改动都会重渲染整个列表
+  return items.map((row, i) => <Row key={i} row={row} index={i} />)
+}
+```
+
+## Store 与数据流
+
+### 1. 一个表单一个引擎，派生用 `reaction`、动作与异步用 `watch`
+
+不要用额外 `useState` 镜像表单字段或自己同步派生值。凡是「B 始终由 A 算出」用 `reaction`；「A 变化后执行一次重置或异步请求」用 `watch`，异步结果返回后再用 `form.setValue` / `form.batch` 写回。**不要把 `reaction` 写成 `async`，也不要在 `reaction` 里同步调用 `form.setValue` / `form.reset` / `form.submit`**（开发期均会抛 `ShikiUsageError`）。
+
+```ts
+// 推荐：同步派生用 reaction，异步请求用 watch + form.setValue / form.batch
+const effects = defineEffects<Values>(({ reaction, watch, draft }) => {
+  reaction((d) => {
+    d.total.$value = d.price.$value * d.qty.$value
+  })
+  watch(draft.zipCode, async (d) => {
+    const zip = d.zipCode.$value
+    const info = await lookupAddress(zip)
+    // 异步回调不能再写已结束 pass 的草稿 d，改通过 form.batch 写回
+    form.batch((next) => {
+      next.city.$value = info.city
+      next.district.$value = info.district
+    })
+  })
+})
+```
+
+```ts
+// 避免：async reaction 或在 reaction 中直接调用 form.setValue
+reaction(async (d) => {
+  const info = await lookupAddress(d.zipCode.$value)
+  d.city.$value = info.city // pass 已结束，开发期抛 ShikiUsageError，生产期静默忽略
+})
+```
+
+### 2. 写自己的路径，用 `form.batch` 合并多次写入
+
+在事件回调或异步回调里要同时改多个字段时，用 `form.batch` 包成一次事务：只跑一轮联动、只通知订阅者一次；嵌套 `batch` 每层独立缓冲，内层抛错只回滚本层写入，不影响外层。字段写入优先写精确路径（`d.user.name.$value = 'Ada'` 或 `d.user.$value.name = 'Ada'`），避免整对象展开覆盖唤醒无关依赖。
+
+```ts
+// 推荐：一次 batch 合并写入，原子提交
+form.batch((d) => {
+  d.province.$value = 'zj'
+  d.city.$value = 'hz'
+  d.district.$value = 'xh'
+})
+```
+
+```ts
+// 避免：连续多次 setValue 触发多轮联动与渲染，或整对象展开覆盖兄弟字段
+form.setValue('province', 'zj')
+form.setValue('city', 'hz')
+form.setValue('district', 'xh')
+```
+
+### 3. 不要修改 `getValue` / `form.values` 返回值（序列化用 `snapshot`）
+
+在 `reaction` / `watch` / `batch` 外读取的 `getValue`、`form.values` 与校验器 `value` 在开发环境都是只读视图，原地修改会抛 `ShikiUsageError`；把它们直接交给 `structuredClone` / `postMessage` / IndexedDB 在开发环境会抛 `DataCloneError`。要传给外部序列化通道用 `snapshot(value)`，要拿提交数据用 `getSubmitValues()`，仅需原始引用（且绝不修改）时用 `toRaw(value)`。
+
+```ts
+// 推荐：使用 snapshot 获取纯数据副本，或通过 setValue / batch 更新
+import { snapshot } from '@shikiform/core'
+
+localStorage.setItem('draft', JSON.stringify(snapshot(form.values)))
+form.setValue('user.name', 'Grace')
+```
+
+```ts
+// 避免：原地修改读取结果，或直接把只读视图交给 structuredClone
+const user = form.getValue('user')
+user.name = 'Grace' // 开发期抛 ShikiUsageError，生产期也不会触发订阅更新
+structuredClone(form.values) // 开发期抛 DataCloneError
+```
+
+### 4. 分清 `visible` 与 `omit`：提交只看 `omit`
+
+- `visible: false`：不渲染、跳过校验并清空错误，但**仍然提交且计入 `dirty`**。
+- `omit: true`：从提交结果剔除（根层 `$omit: true` 时整表提交 `{}` 且 `form.dirty` 为 `false`），不影响渲染和校验（但表单级 `dirty` 不计入）。
+- 确认密码、客户端分页参数等辅助字段只设 `omit: true`；条件隐藏且不应提交的字段同时设 `$visible = false` 和 `$omit = true`。
+
+```ts
+// 推荐：隐藏且不需要提交时，同时设置 $visible 与 $omit
+reaction((d) => {
+  const show = d.needInvoice.$value
+  d.taxId.$visible = show
+  d.taxId.$omit = !show
+})
+```
+
+```ts
+// 避免：只写 $visible = false，以为字段不会出现在 onSubmit 里
+reaction((d) => {
+  d.taxId.$visible = d.needInvoice.$value // 隐藏后 taxId 仍会被提交
+})
+```
+
+## 生产环境保障
+
+### 1. 理解 Dev 严格报错 vs Prod 静默防护
+
+ShikiForm 在开发与生产环境的契约分工明确（不要依赖开发期异常做业务分支，也不要忽视开发期警告）：
+
+| 场景 | 开发环境（`NODE_ENV !== 'production'`） | 生产环境（`NODE_ENV === 'production'`） |
+|---|---|---|
+| 原地修改 `getValue` / `form.values` | 抛 `ShikiUsageError` | 返回存储原值（修改不触发通知） |
+| 给 handle 非 `$` 普通属性赋值（`d.x.value = 1`） | 抛 `ShikiUsageError` | 安全忽略写入，不崩溃 |
+| 读写缺失的近似 `$` 状态名（`d.x.$valeu`） | 抛 `ShikiUsageError` 并提示拼写 | 读取返回 `undefined`，写入忽略 |
+| 无效 `$enum` / `$rules` / 整对象 `$componentProps` | 抛 `ShikiUsageError` | 忽略本次写入，保留原有有效状态 |
+| 非法数组下标（负数、小数、非数字）或旧句柄遇到非数组 | 抛 `ShikiUsageError` | 忽略本次写入，保护原数据 |
+| 重复挂载两个无 `ui` 的 `<Field name="x">` | `console.warn` 告警一次 | 无运行时开销 |
+| **始终抛错（Dev & Prod）** | `ShikiCycleError`（联动循环）、循环引用值、路径写入含 `.`/`[`/`]` 的引号键 | **同样抛错**，防止数据损坏或栈溢出 |
+
+> 路径中若对象的键名本身包含 `.`、`[` 或 `]`，不要通过 `setValue("extra['a.b']", v)` 写入，改为更新父对象：`form.setValue('extra', { ...form.getValue('extra'), 'a.b': v })`。
+
+### 2. 遵守统一的 `validator` 返回值契约
+
+同步与异步自定义校验器共用一套运行时返回值契约：
+- **通过**：返回 `undefined`、`null`、`''` 或 `true`。
+- **失败**：返回非空字符串、字符串数组 `string[]`，或返回 `false`（使用规则 `message` 或默认 `fallback` 文案）。
+- **非法返回值**（如数字、普通对象）：开发环境抛 `ShikiUsageError`，生产环境按失败处理并展示默认文案。
+- 异步校验器务必监听 `ctx.signal`，在中止时清理定时器或透传给 `fetch`，且被中止时也应正常 `resolve(undefined)`。
+
+```ts
+// 推荐：显式返回 string | null，并响应 signal 取消
+const checkUnique = async (value: string, { signal }: ValidateCtx) => {
+  const res = await fetch(`/api/check?name=${encodeURIComponent(value)}`, { signal })
+  const { exists } = await res.json()
+  return exists ? '名称已存在' : null
+}
+```
+
+```ts
+// 避免：返回任意对象，或忽略 signal 导致旧请求浪费带宽
+const badCheck = async (value: string) => {
+  return { ok: Boolean(value) } // 开发期抛 ShikiUsageError，生产期一律失败
+}
+```
+
+### 3. `EnumSource` 共享与自动取消
+
+异步下拉选项优先使用 `EnumSource` 定义，而不是在 `useEffect` 里手写 `fetch` + `useState`。`EnumSource` 会按参数键共享请求、自动防抖并取消过期加载；`useForm` 卸载（含 React `StrictMode` 重放）或删除数组行 / 树节点时，引擎会自动释放对应消费者并在无剩余消费者时中止请求，而移动保留节点则会复用同键在途加载。
+
+```ts
+// 推荐：声明 EnumSource 并在 loader 中透传 signal
+const Cities = new EnumSource<string>(async (province, { signal }) => {
+  const res = await fetch(`/api/cities?p=${province}`, { signal })
+  return res.json()
+})
+
+// 联动里按省份动态绑定
+reaction((d) => {
+  d.city.$enum = d.province.$value ? Cities.with(d.province.$value) : []
+})
+```
+
+```tsx
+// 避免：在组件内手写 fetch + setState 管理选项，容易出现竞态与卸载后泄漏
+useEffect(() => {
+  fetch(`/api/cities?p=${province}`).then((r) => r.json()).then(setOptions)
+}, [province])
+```
+
+### 4. 大列表与虚拟滚动
+
+当动态数组达到数百至数千行时：
+- 使用 `<ArrayField name="rows" rowKey="id" virtualScroll={{ height: 420 }}>` 仅挂载视口可见行；虚拟窗口内重排行时会用稳定行 key 对账并保留行组件状态。
+- 行内校验规则与联动写在 `fields['rows.*.xxx']` 和 `reaction.each(draft.rows, ...)` 中，这样屏幕外未挂载的行依然会被校验和计算，且修改某一行单元格只重跑该行实例（引擎按行身份建索引，数千行移动/插入保持流畅）。
+- 不要在父级 `useWatch((d) => d.rows.$value)` 后再手工 `.map`，避免每次输入整表重渲染。
+
+### 5. SSR 注意事项
+
+- `reaction` 必须保持纯同步，不要访问 `window`、`document` 或发起网络请求；浏览器端副作用放在 `watch` 或 `useEffect`。
+- `useForm` 拥有的 `EnumSource` 在组件提交挂载后才启动加载，因此在服务端渲染时不会泄漏悬空请求。
+- 不要在渲染期间调用 `onChange` / `form.setValue`，避免 SSR 阶段产生意外写入。
+- 更多细节见 [测试、性能与 SSR](/practices/testing-performance)。
+
+### 6. 文件、`Blob` 与自定义类实例
+
+表单支持直接保存 `File`、`Blob` 等附件对象：
+- `initialValues` 入库、`reset(values)` 与 `validate()` 返回副本都会**保留 `File` / `Blob` 与自定义类实例的原始引用**，而对普通对象、数组、`Date`、`Map`、`Set` 进行深拷贝。
+- `deepEqual` 与 `dirty` 对 `File` / `Blob` 按引用比较（上传新文件即变为 `dirty`），对 `Map` / `Set` 按内容逐项比较。
+- 若要把含 `File` 的表单提交给后端，直接在 `onSubmit(values)` 中组装 `FormData`；若要写入 `localStorage`，先剥离或转换不可 JSON 化的字段。
+
+```ts
+// 推荐：表单直接保存 File，提交时转为 FormData
+await form.submit(async (values) => {
+  const body = new FormData()
+  body.append('title', values.title)
+  if (values.attachment) body.append('file', values.attachment)
+  await fetch('/api/upload', { method: 'POST', body })
+})
+```
+
+```ts
+// 避免：在表单值中塞入含循环引用的对象（开发与生产均抛 ShikiUsageError）
+const node: any = { name: 'root' }
+node.self = node
+form.setValue('meta', node) // ShikiUsageError: 表单值必须是无环数据
+```
+
+继续阅读：[常见的坑](/practices/pitfalls) · [测试、性能与 SSR](/practices/testing-performance)。

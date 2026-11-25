@@ -10,14 +10,14 @@ description: 使用内置规则、Standard Schema（如 Zod）进行同步与异
 | 内置规则 | 说明 |
 |---|---|
 | `required` | 必填校验，空值报错（也可以直接在 `<Field>` 上写 `required` 属性） |
-| `min` / `max` | 数值上下限校验（含边界值） |
+| `min` / `max` | 数值上下限校验（含边界值）；配置了 `min` 或 `max` 时，`NaN` 会触发范围错误 |
 | `minLength` / `maxLength` | 字符串长度限制 |
-| `pattern` | 正则表达式匹配 |
+| `pattern` | 正则表达式匹配；带 `g` / `y` 标志的正则每次都从索引 `0` 匹配，并保留调用方正则的 `lastIndex` |
 | `format: 'email' \| 'url'` | 内置格式校验 |
 | `isTrue` | 值必须为 `true`（常用于勾选同意协议） |
-| `validator(value, ctx)` | 自定义校验函数，返回错误文案、空值或对应 Promise。`ctx.record` 在路径含数组下标时是最后一个下标对应的那一行，否则是包住该字段的对象；`parent` 跳过数组层的上级对象；另有 `root`、`get(path)` 与 `signal`（读到的是本轮校验开始时的快照）。函数抛错或 reject 时，异常的 `message` 会作为报错文案 |
+| `validator(value, ctx)` | 自定义校验函数（同步与异步采用同一运行时返回值契约）：非空字符串或字符串数组 `string[]` → 错误文案；`false` → 失败并使用规则 `message` 或默认 `fallback` 文案；`true` / `null` / `undefined` / `''` → 通过；返回其它值时开发环境抛 `ShikiUsageError`，生产环境按失败处理并使用默认文案。`ctx.record` 在路径含数组下标时是最后一个下标对应的那一行，否则是包住该字段的对象；`parent` 跳过数组层的上级对象；另有 `root`、`get(path)` 与 `signal`（读到的是本轮校验开始时的快照）。函数抛错或 reject 时，异常的 `message` 会作为报错文案 |
 | `message` | 自定义该条规则的错误提示文案 |
-| `level: 'warning'` | 设为警告级别：提示信息写入 `$warnings` / `field.warnings` 并以警告色展示，但**不会阻止提交**，也不会影响 `canSubmit`（类似 Ant Design 的 `warningOnly`），适合「密码强度偏弱」等软提醒 |
+| `level: 'warning'` | 设为警告级别：提示信息写入 `$warnings` / `field.warnings` 并以警告色展示，但**不会阻止提交**，也不会影响 `canSubmit`（异步警告可在提交完成后发布；显式调用 `form.validate()` 仍等待警告结果），适合「密码强度偏弱」等软提醒 |
 
 与 Ant Design 和 Formily 一致，ShikiForm 的内置规则中，空值（`''`、`null`、`undefined`）统一只由 `required` 判定；`minLength`、`pattern`、`min`、`format` 等规则遇到空值会直接放行。这样既能保证选填项留空时不报错，也能避免必填项在留空时同时冒出多条错误。对于 Zod 等外部 Schema，空值是否放行取决于 Schema 自身定义（例如 `z.string().min(3)` 会拦截空串，若字段可留空需写 `.optional()` 或 `.or(z.literal(''))`）。
 
@@ -112,8 +112,10 @@ export default function App() {
 ## 校验时机与竞态处理
 
 - 默认在失焦（`onBlur`）和提交（`onSubmit`）时触发校验，可通过 `validateTrigger: ['onChange', 'onBlur', 'onSubmit']` 调整。已报错的字段在后续每次值变更时都会立即重验，合法后即时消除错误。
-- `await form.validate()` 校验全表，传入路径前缀（如 `form.validate('items')`）或路径数组则只校验对应范围。通过时 resolve 调用结束时的当前值：无 path 是 `getSubmitValues()`（`TSubmit`）；一个 path 是该处的值（`PathValue`；path 自身即使 `omit` 也返回，只因它而被 omit 的子孙仍在，子孙自己的 `omit` 才去掉）；路径数组是只含这些 path 的嵌套对象（`ValidatePick`）。这份值是副本：普通对象、数组、`Date`、`Map`、`Set` 会复制，类实例、函数和 React 元素仍是原来的引用，原地修改不会写回表单。规则读的是开跑时的快照；这段时间里值又变了，`validate()` 不会重跑。失败时 reject `FieldError[]`（`{ path, messages }[]`）；表单级 `validate` 抛错原样 reject。
-- `submit()` 会等待在途异步规则完成后再做最终判定。若校验期间表单值再次改变，引擎会基于新值重跑校验（最多 3 轮），通过后 resolve 的是刚校验过的那份提交值。新的 `submit()` 会取代尚在校验的前一次调用：旧调用 reject `SubmitSupersededError`，只有最新一次触发 `onValid`。防止重复点击可根据 `$submitting` 禁用按钮。
+- `await form.validate()` 校验全表，传入路径前缀（如 `form.validate('items')`）或路径数组则只校验对应范围（运行时统一规范化方括号与点号路径）。通过时 resolve 调用结束时的当前值：无 path 是 `getSubmitValues()`（`TSubmit`，根层 `$omit: true` 时为 `{}`）；一个 path 是该处的值（`PathValue`；path 自身即使 `omit` 或处于根层 `omit` 下也仍校验并返回，只因它而被 omit 的子孙仍在，子孙自己的 `omit` 才去掉）；路径数组是只含这些 path 的嵌套对象（`ValidatePick`）。这份值是副本：普通对象、数组、`Date`、`Map`、`Set` 会复制，类实例、函数和 React 元素仍是原来的引用，原地修改不会写回表单。规则读的是开跑时的快照；这段时间里值又变了，`validate()` 不会重跑。失败时 reject `FieldError[]`（`{ path, messages }[]`）；表单级 `validate` 抛错原样 reject。
+- `submit()` 会等待在途异步规则完成后再做最终判定（不等待异步 `warning` 规则）。若校验期间表单值变化，或 `enumPolicy: 'error'` 下影响校验的**启用选项值集合**发生变化（仅重排顺序或修改 `label` 不触发重试），引擎会重跑校验（最多 3 轮），通过后 resolve 的是刚校验过的那份提交值。新的 `submit()` 会立即拒绝仍在等待校验的旧调用（reject `SubmitSupersededError`），只有最新一次触发 `onValid`；已经进入 `onValid` 的调用继续计入 `submitting`。防止重复点击可根据 `$submitting` 禁用按钮。
+- 局部 `reset(path)` 只取消该子树范围内排队的防抖校验，并只使范围相交的在途校验失效（无关子树的 `reset` 不会中断或跳过表单级校验）；全表 `reset` 前发起的表单级校验仍会向原调用返回判定，但不再把旧结果写回重置后的表单状态；被 `reset` 中止的校验视为无结论，即使重置到相同值，下一次 `submit()` 也会重跑校验。整体替换父对象时，仅重跑值确实变化且有待处理校验的子字段。
+- 在 `reaction` / `batch` 中写 `$rules` 时需传入规则对象数组（清空用 `[]`）；传入非数组或非规则对象时，开发环境抛 `ShikiUsageError`，生产环境忽略该次写入并保留原有规则。
 
 ```ts
 const values = await form.validate()

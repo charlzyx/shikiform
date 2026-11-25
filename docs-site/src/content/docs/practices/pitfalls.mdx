@@ -93,7 +93,7 @@ watch.each(draft.rows, (row, { d }) => {
 })
 ```
 
-`watch.each` 遇到新行时会先执行一次回调，收集读取的状态，并丢弃这次对字段的赋值。上例只订阅该行的 ID 和价格。回调里的目标字段用 handle 赋值；在首次收集期间，对读出的 `$value` 对象改属性或对数组调用 `push`，开发环境可能抛出只读错误。
+`watch.each` 遇到新行时会先执行一次回调，收集读取的状态，并丢弃这次对字段的赋值；之后每当该行实际触发执行时，会在同一遍重新收集依赖，并在数组行移动、增删时按行身份迁移依赖索引。上例只订阅该行的 ID 和价格。回调里的目标字段用 handle 赋值；在首次收集期间，对读出的 `$value` 对象改属性或对数组调用 `push`，开发环境可能抛出只读错误。
 
 如果要在来源变化时追加一次行，把 `d.items.$value.push(row)` 放在 `watch(source, action)` 的动作回调里。在 `reaction` 中无条件 `push` 会反复读取并改变同一个数组，可能形成循环。按对象键派生状态、渲染动态输入框的完整示例见[动态对象字段](/guide/linkage#动态对象字段)。
 
@@ -210,3 +210,50 @@ watch((d) => d.province.$value, (d) => {
   d.city.$value = undefined
 })
 ```
+
+## 在渲染期调用 `onChange` 或 `form.setValue`
+
+```tsx
+// ✗ 渲染期间写入表单：SSR 或被 React 放弃的并发渲染也会改写 store
+function BadInput() {
+  const field = useField<string>()
+  if (!field.value) field.onChange('default')
+  return <input value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} />
+}
+```
+
+不要在组件渲染期间直接调用 `field.onChange` 或 `form.setValue`。服务端渲染或 React 并发模式下被放弃的渲染依然会执行这段代码并污染表单状态。默认值请通过 `initialValues`、`reaction` 设置，副作用写入请放在事件处理器或 `useEffect` 中：
+
+```tsx
+// ✓ 在事件或 useEffect 中写入
+function GoodInput() {
+  const field = useField<string>()
+  useEffect(() => {
+    if (!field.value) field.onChange('default')
+  }, [field.value, field.onChange])
+  return <input value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} />
+}
+```
+
+## 在 `reaction` 中跨 `await` 写草稿，或直接调用 `form.setValue` / `reset` / `submit`
+
+`reaction` 必须是同步派生函数：
+
+- 返回 Promise 的 `reaction` 会被拒绝，其草稿 handle 在当前 pass 结束后即失效。跨 `await` 继续写入草稿在开发环境会抛出 `ShikiUsageError`，生产环境则静默忽略。
+- 在 `reaction` 同步执行期间直接调用 `form.setValue`、`form.reset` 或 `form.submit` 会绕过当前 pass 的写缓冲：开发环境抛出 `ShikiUsageError`，生产环境中 `setValue` 会并入当前 pass 缓冲（随 pass 一起提交或丢弃），而 `reset` / `submit` 的诊断仅限开发环境。
+
+派生写入统一走草稿 handle（`d.x.$value = …`）；异步请求或 `reset` / `submit` 等动作请移到 `watch` 中，异步返回后再调用 `form.setValue` 或 `form.batch`。
+
+## 漏写 `$` 或拼错 `$` 状态名
+
+```ts
+// ✗ 漏写 $，直接给 handle 的普通属性赋值
+d.user.name.value = 'Ada'
+
+// ✗ 拼错保留状态名
+d.user.name.$valeu = 'Ada'
+const v = d.user.name.$valeu
+```
+
+- 直接给 handle 的非 `$` 普通属性赋值时，开发环境抛 `ShikiUsageError`，生产环境忽略该次写入（不会抛出原生 `TypeError`）。
+- 拼错近似保留状态名（如 `$valeu`、`$requird`）且数据对象上不存在该自有键时，开发环境抛 `ShikiUsageError` 并提示正确拼写；生产环境读取返回 `undefined`（不会误返回 truthy 的子路径 handle），写入则被忽略。若数据对象本身确有非保留 `$` 前缀自有键（如 `$values`），引擎会正常将其解析为子字段路径。

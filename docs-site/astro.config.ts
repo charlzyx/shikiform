@@ -84,6 +84,7 @@ const nimbusConfig = defineNimbusConfig({
       {
         label: "最佳实践",
         items: [
+          { label: "工程最佳实践", link: "/practices/best-practices" },
           { label: "常见的坑", link: "/practices/pitfalls" },
           { label: "测试、性能与 SSR", link: "/practices/testing-performance" },
           { label: "迁移与 FAQ", link: "/practices/migration-faq" },

@@ -61,7 +61,7 @@ useLazyCascader({ load: (path: (string | number)[]) => Promise<CascaderOption[]>
 // { options, loading, loadChildren(path), ensure(paths), labelsOf(path) }
 ```
 
-Load roots with an empty path and children with the selected path. Concurrent requests for the same path are shared. Provide existing paths to resolve their labels. Preloaded children are reused. Disable loading with `enabled: false`.
+Load roots with an empty path and children with the selected path. Concurrent requests for the same path are shared. Provide existing paths to resolve their labels. Preloaded children are reused. Setting `enabled: false` stops loading and resets `loading` to `false`; stale root, child, and echo responses from before a disable or re-enable cycle are ignored so a fresh tree keeps accurate child labels and clears `loading` once obsolete echo work ends.
 
 ## useColumnSettings
 
@@ -71,7 +71,7 @@ useColumnSettings(columns: readonly ColumnSettingInput[]): ColumnSettingsApi
 // ColumnSettingsApi: { items, visibleKeys, toggle(key), move(from, to), moveKey(from, to), setWidth(key, width), density, setDensity(d), reset(), dragProps(key), drag }
 ```
 
-Track visibility, order, width and density. Use `dragProps(key)` on column controls. Widths have a 40 px minimum. Added columns append to the current order. `reset` restores initial settings.
+Track visibility, order, width and density. Use `dragProps(key)` on column controls. Widths have a 40 px minimum. Updated column `title`s in the `columns` input flow through to `items` while keeping user settings and stable action identities. Added columns append to the current order. `reset` restores initial settings.
 
 ## enumItems
 

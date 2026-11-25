@@ -84,9 +84,19 @@ const effects = defineEffects<{ qty: number; total: number }>(({ reaction }) => 
 })
 ```
 
+## 值的复制与相等比较
+
+表单值必须是无环数据：传入含循环引用的对象时，`createForm` 与写入入口会抛出 `ShikiUsageError`（开发与生产均检查）。
+
+- **初值与基线复制**：`initialValues` 入库、`reset(values)` 与 `validate()` 返回副本采用同一套表单复制语义——深拷贝普通对象（保留包括 `__proto__` 在内的自有数据属性，不改变对象原型）、数组、`Date`、`Map` 与 `Set`；`File`、`Blob`、自定义类实例、函数、`Symbol` 与 React 元素保持原引用。需要可被 `structuredClone` / `postMessage` / IndexedDB 序列化的副本时，调用 `snapshot(value)`。
+- **深比较与 `dirty`**：变化检测与 `dirty` 比较按内容递归对比 `Map`（键值逐项）与 `Set`（成员），用 `Object.is` 比较 `Date` 时间戳（两个无效日期视为相等）；`File`、`Blob` 及其他非普通对象按引用比较，替换为新实例时会被识别为变化。
+- **稀疏数组空洞**：数组比较区分“空洞（hole）”与显式 `undefined` 槽位；向稀疏空洞显式写入 `undefined` 视为一次值变化，会触发订阅并影响 `dirty`。
+
 ## EnumSource
 
 用于定义异步选项源。带参数时通过 `source.with(params)` 绑定到字段的 `enum`（含 `fields.x.enum` 与 `<Field enum>`）或 `$enum`；无参选项源（`EnumSource<void>`）也可直接传给 `enum` 或 `$enum`，无需调用 `.with()`。在请求尚未完成前，读取 `$enum` 会返回空数组 `[]`。
+
+多个字段共用同一个 `EnumSource` 与相同参数键时，引擎按消费者引用计数共享在途请求。移除数组行或树节点时会释放对应消费者的请求（并在最后一个消费者退出时中止请求），不影响其他仍存活的消费者；保留节点在数组重排或树移动时若来源键不变，会继续复用同键的在途加载而不重发请求。
 
 ## 错误类
 

@@ -32,7 +32,7 @@ d.items.$value                // 获取整个数组的值（d.items 本身只是
 实际使用时需要注意三点：
 1. **在联动或批量写入中修改一个键**。在 `reaction`、`watch` 的动作回调或 `form.batch` 中，`d.user.$value.name = 'Ada'` 和 `d.user.name.$value = 'Ada'` 都写入 `user.name`。在外部用 `form.setValue('user.name', 'Ada')`。
 2. **不要把 handle 当作数组操作**：诸如 `d.items.map`、`d.items.length` 或 `for…of d.items` 都是无效的。遍历行逻辑请用 [`reaction.each`](/guide/linkage)，读取整组数据请访问 `d.items.$value`。
-3. **字段本身叫 `value` 时**：依然遵循同一规则，通过 `d.value.$value` 读写。
+3. **字段本身叫 `value` 或带 `$` 前缀时**：字段名是 `value` 时通过 `d.value.$value` 读写；如果数据对象上已存在非保留的 `$` 前缀自有键（例如业务字段 `$values`、`$id`），handle 会优先按字段路径解析（如 `d.$values.$value`），只有对象上不存在该键且拼写近似保留状态名（如 `$valeu`）时，才触发状态名拼写检查。
 
 ### 关于解构
 
@@ -117,7 +117,7 @@ export default function App() {
 
 四个布尔都沿字段路径继承。`visible` / `disabled` / `readOnly` 从根走到自己：这一层写了 `true` 或 `false` 就用这一层，没写就保持上一层。所以父级 `disabled: true`、子级 `disabled: false` 时，子级可以编辑。`omit` 是任一祖先为 `true` 则子孙为 `true`（`$omit` 和 binding 上的 `omit` 都一样）。子级写 `omit: false` 不能把自己捞回来：提交时被 omit 的对象整棵删掉，嵌套的键跟着离开，子字段没有可以单独提交的值。父级 `omit` 取消后，子级回到自己的值（没写就是 `false`）。
 
-被 omit 的祖先自己的 `$dirty` 仍按深比较计算，值变了时可以为 `true`，但表单级 `dirty` 不计这个字段及其子孙；子孙字段的 `$dirty` 则是 `false`。
+被 omit 的祖先自己的 `$dirty` 仍按深比较计算，值变了时可以为 `true`，但表单级 `dirty` 不计这个字段及其子孙；子孙字段的 `$dirty` 则是 `false`。在根层设置 `d.$omit = true` 时，整表提交返回 `{}` 且表单级 `dirty` 为 `false`（显式调用 `form.validate(path)` 仍可校验并取回该路径的值）。
 
 `$flag = undefined` 丢掉 reaction 这一层，回到 JSX / `fields` / 继承。详情页用 `useForm({ readOnly: true })`。
 

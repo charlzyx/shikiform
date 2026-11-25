@@ -95,8 +95,9 @@ export default function App() {
 ```
 
 - `F = typed(form)` 返回的 `F.ArrayField` 向子函数传入按行类型约束的 `row.Field`；自定义行组件内可用 `useIndex()` 与 `useRecord<Contact>()` 读取行号和行数据。
-- 没有业务主键的对象行以对象引用作为稳定 key，重排后错误和 `touched` 状态仍跟随原行，编辑单元格不会失焦重挂；数据自带稳定主键时再传 `rowKey`。
+- 没有业务主键的对象行以对象引用作为稳定 key，重排后错误和 `touched` 状态仍跟随原行，编辑单元格不会失焦重挂；数据自带稳定主键时再传 `rowKey`。在同一个 `batch` 中通过 draft 写入嵌套子数组后再移动或交换父行时，写入会按行身份跟随目标行（删除行则丢弃对应写入）。
 - `array.dragProps(index)` 提供原生 HTML5 拖放属性（不同数组之间互不响应），拖放到目标行自动调用 `move`。
+- **非数组值保护**：如果字段当前值被外部改成了非数组（例如字符串、数字或 `BigInt`），继续调用旧数组句柄上的 `push` / `insert` / `remove` / `move` / `swap` / `replace` 时，仅 `null` / `undefined` 允许初始化为空数组；其它非数组值在开发环境会抛出带修复指引的 `ShikiUsageError`，生产环境则忽略该次操作以保护原数据不被覆盖。
 
 ## 不可编辑状态控制
 
@@ -269,7 +270,7 @@ export default function App() {
 
 - 自定义行布局与按钮：直接使用 `<ArrayField>` 配合 `useArrayField()` / `useIndex()`，见 [字段路径与结构](/guide/structures)。
 - 带筛选条件的分页表格：使用 [`useQueryTable`](/guide/pro#查询列表)。
-- 大行数虚拟列表：使用 `<ArrayField name virtualScroll={{ height }}>`，只挂载视口可见行，见 [数组示例 · 长列表](/examples/arrays)。
+- 大行数虚拟列表：使用 `<ArrayField name virtualScroll={{ height }}>`，只挂载视口可见行，外层使用稳定行 key 对账，虚拟窗口内重排行时会保留行组件的本地状态，见 [数组示例 · 长列表](/examples/arrays)。
 - API 参考：[useArrayField](/reference/react-hooks#usearrayfield)、[useArrayTable](/reference/pro-hooks#usearraytable)。
 
 下一步：[接入组件库](/guide/headless)。

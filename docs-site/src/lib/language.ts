@@ -16,7 +16,7 @@ const englishLabels: Record<string, string> = {
   进阶: "Advanced", 联动: "Reactions and watches", 数组: "Arrays", 命名UI: "Named UI nodes", "命名 UI": "Named UI nodes",
   查询列表: "Query tables", 场景示例: "Examples", 表单与校验: "Forms and validation", 联动与显隐: "Effects and visibility",
   数组与树: "Arrays and trees", 表格与查询: "Tables and queries", 业务场景: "Business forms", 示例目录: "Playground",
-  最佳实践: "Best practices", 常见的坑: "Common pitfalls", "测试、性能与 SSR": "Testing, performance and SSR",
+  最佳实践: "Best practices", 工程最佳实践: "Best practices guide", 常见的坑: "Common pitfalls", "测试、性能与 SSR": "Testing, performance and SSR",
   "迁移与 FAQ": "Migration and FAQ", "API 参考": "API reference", "API 总览": "API overview", "查询 Hooks": "Query hooks",
   "Agent 指南": "Agent guide", 指南: "Guides", 示例: "Examples",
 };

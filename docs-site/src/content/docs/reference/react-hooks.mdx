@@ -71,6 +71,8 @@ interface UseFormOptions<T> extends FormOptions<T> { values?: T }
 
 `useForm` 本身不要求父级 Provider。后续渲染传入新 `initialValues` 不会重建实例，也不会生效；会变的数据用 `values`，或自己调 `reset(record)`。渲染需要实时值时用 `useField` / `useWatch`，不要期待读取 `form.values` 就自动重渲染。
 
+由 `useForm` 创建的引擎在组件提交挂载后才启动声明层与联动层的异步 `EnumSource` 加载，并在组件卸载时释放自身持有的加载消费者（兼容 React `StrictMode` 的卸载重放，重挂载后会自动恢复加载，且不影响同一 `EnumSource` 的其他活跃消费者）。删除数组行或树节点时也会自动取消对应行的枚举请求。
+
 完整选项、校验默认触发器和提交返回值见 [创建表单](/api#创建表单)。非 React 环境用 `createForm`。
 
 
@@ -301,7 +303,7 @@ useWatch<T, S>(form: FormInstance<T>, select: (draft: Draft<T>) => S): S
 
 优先用 [`typed(form).useWatch((d) => d.name.$value)`](#typed)（`string`）。不注解时 `useWatch((d) => d.$submitting)` 可以编译，`d` 是 `any`，返回值也是 `any`。要给裸 `useWatch` 标表单类型，写成 `useWatch<Values>()((d) => d.name.$value)`：草稿是 `Draft<Values>`，返回值仍会推断。`useWatch<Values>(...)` 只写一个泛型时 TypeScript 不再推断返回值（它是 `unknown`），不要这样写。注解 `useWatch((d: Draft<Values>) => d.name.$value)` 也可以。
 
-返回对象/数组可用，快照通过 `Object.is` / 深比较复用；不要返回每次新建的函数。没有读到任何 `$` 依赖时会退回整表通知，不订阅值请改用 `useFormContext`。
+返回对象/数组可用，快照通过 `Object.is` / 深比较复用；不要返回每次新建的函数。没有读到任何 `$` 依赖时会退回整表通知，不订阅值请改用 `useFormContext`。在 React Suspense 挂起期间，已提交的 `useWatch` 订阅会继续使用已提交的 selector 正常更新，不受未提交渲染影响。
 
 `useWatch` 是 React 中的读取/渲染；effects 里的 `watch(source, effect)` 是值变化后的动作，两者不是同一 API。参见 [联动](/guide/linkage)。
 

@@ -77,7 +77,7 @@ watch.each(draft.rows, (row, { d }) => {
 })
 ```
 
-For each new array row, `watch.each` calls the callback once to collect reads and discards field writes. Here it records the row's ID and price. Use a field assignment for the destination in this callback. Calling `push` or mutating an object obtained from `$value` during that initial read-only pass can throw in development.
+For each new array row, `watch.each` calls the callback once to collect reads and discards field writes; on each subsequent run it refreshes dependencies in the same pass and migrates row subscriptions when rows move, insert, or get removed. Here it records the row's ID and price. Use a field assignment for the destination in this callback. Calling `push` or mutating an object obtained from `$value` during that initial read-only pass can throw in development.
 
 For a one-time append when a source changes, call `d.items.$value.push(row)` in the action of `watch(source, action)`. An unconditional `push` inside a `reaction` reads and changes the same array on every pass and can cause a cycle. The [dynamic fields example](/en/guide/linkage#dynamic-object-fields) shows how to derive state per object key and render the current fields.
 
@@ -174,3 +174,50 @@ watch((d) => d.province.$value, (d) => {
   d.city.$value = undefined
 })
 ```
+
+## Calling `onChange` or `form.setValue` during render
+
+```tsx
+// ✗ Mutating the form during render also writes during SSR or discarded concurrent renders
+function BadInput() {
+  const field = useField<string>()
+  if (!field.value) field.onChange('default')
+  return <input value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} />
+}
+```
+
+Never call `field.onChange` or `form.setValue` directly inside render. Server-side rendering or abandoned React renders will still execute those writes and mutate the form store. Set defaults via `initialValues` or `reaction`, and move imperative writes into event handlers or `useEffect`:
+
+```tsx
+// ✓ Write from an event handler or useEffect
+function GoodInput() {
+  const field = useField<string>()
+  useEffect(() => {
+    if (!field.value) field.onChange('default')
+  }, [field.value, field.onChange])
+  return <input value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} />
+}
+```
+
+## Using a reaction draft across `await` or calling `form.setValue` / `reset` / `submit` inside a `reaction`
+
+Keep `reaction` synchronous:
+
+- A `reaction` that returns a thenable is rejected and its draft handle expires when the pass ends. Writing through it after `await` throws `ShikiUsageError` in development and is ignored in production.
+- Calling `form.setValue`, `form.reset`, or `form.submit` synchronously inside a `reaction` throws `ShikiUsageError` in development (in production, `setValue` buffers with the current pass; `reset` and `submit` diagnostics are development-only).
+
+Use the draft handle (`d.x.$value = …`) inside `reaction`, and move async requests or `reset` / `submit` actions to `watch` (writing async results back with `form.setValue` or `form.batch`).
+
+## Bare property writes and misspelled `$` states
+
+```ts
+// ✗ Missing `$`
+d.user.name.value = 'Ada'
+
+// ✗ Misspelled state name
+d.user.name.$valeu = 'Ada'
+const v = d.user.name.$valeu
+```
+
+- Assigning a non-`$` property on a handle throws `ShikiUsageError` in development and is ignored in production (without throwing a native `TypeError`).
+- Reading or writing a missing near-spelling of a reserved `$` state throws `ShikiUsageError` in development; in production, reads return `undefined` (never a truthy child handle) and writes are ignored. Existing non-reserved own data keys starting with `$` (like `$values`) still resolve as normal child fields.

@@ -40,7 +40,7 @@ typed<T>().useForm(options?): FormInstance<T, …>                   // Infer th
 interface UseFormOptions<T> extends FormOptions<T> { values?: T }
 ```
 
-Returns a stable form instance. `initialValues` is read once. `values` resets the form to a new baseline when the external record's content changes. Getters on the form are snapshots. Subscribe with a field or selector to update a view. `validate()` / `validate(path)` / `validate([paths])` resolve a submit-shaped copy (`Promise<TSubmit>`, `Promise<PathValue>`, or `Promise<ValidatePick>`). Editing that copy does not write back. See the [API overview](/en/api).
+Returns a stable form instance. `initialValues` is read once. `values` resets the form to a new baseline when the external record's content changes. Getters on the form are snapshots. Subscribe with a field or selector to update a view. `validate()` / `validate(path)` / `validate([paths])` resolve a submit-shaped copy (`Promise<TSubmit>`, `Promise<PathValue>`, or `Promise<ValidatePick>`). Editing that copy does not write back. Engines created by `useForm` start declared and effect-driven `EnumSource` loads after commit and release their consumers on unmount (compatible with React `StrictMode` replay, without affecting other consumers sharing the same `EnumSource`). Removing an array row or tree node also cancels its enum consumer. See the [API overview](/en/api).
 
 ## typed
 
@@ -207,7 +207,7 @@ useWatch<T = any, S = unknown>(select: (draft: Draft<T>) => S): S
 useWatch<T, S>(form: FormInstance<T>, select: (draft: Draft<T>) => S): S
 ```
 
-Return a value from a synchronous selector. The component subscribes to the `$` states read in its active branches. Pass a form explicitly outside its provider, or use the instance-bound `typed(form).useWatch`. To specify the values type while inferring the result, use the curried form.
+Return a value from a synchronous selector. The component subscribes to the `$` states read in its active branches. Committed `useWatch` subscriptions isolate their selector per render so updates continue safely while another render suspends under React Suspense. Pass a form explicitly outside its provider, or use the instance-bound `typed(form).useWatch`. To specify the values type while inferring the result, use the curried form.
 
 ### A binding, a selector and a button
 

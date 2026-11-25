@@ -90,7 +90,7 @@ export default function App() {
 }
 ```
 
-`typed(form).ArrayField` supplies a `row.Field` typed to one contact. Inside a row, `useIndex()` reads the position and `useRecord<Contact>()` reads its value. Object rows without IDs use object identity, so moving a row preserves its state and input focus. Pass `rowKey` when your data supplies a stable ID. Dropping a row invokes `move` within the same array.
+`typed(form).ArrayField` supplies a `row.Field` typed to one contact. Inside a row, `useIndex()` reads the position and `useRecord<Contact>()` reads its value. Object rows without IDs use object identity, so moving a row preserves its state and input focus; inside a `batch`, pending writes to nested child arrays also follow row identity across moves/swaps (and are dropped if the row is removed). Pass `rowKey` when your data supplies a stable ID. Dropping a row invokes `move` within the same array. In `virtualScroll` mode, virtual rows reconcile with stable row keys so reordering rows inside the visible window preserves row component state. Calling row operations (`push`, `insert`, `remove`, `move`, `swap`, `replace`) on a stale array handle whose current value is no longer an array initializes `null`/`undefined` to `[]`, and for any other non-array value throws `ShikiUsageError` in development and is ignored in production to protect the existing value.
 
 ## Read-only and disabled arrays
 

@@ -81,9 +81,17 @@ const effects = defineEffects<{ qty: number; total: number }>(({ reaction }) => 
 })
 ```
 
+## Value copying and equality
+
+Form values must be acyclic: passing cyclic references to `createForm` or write APIs throws `ShikiUsageError` in both development and production.
+
+- **Initial values and baselines**: `initialValues`, `reset(values)`, and `validate()` share the same form-value copy semantics — plain objects (preserving own keys such as `__proto__` without mutating prototypes), arrays, `Date`, `Map`, and `Set` are deep-copied, while `File`, `Blob`, custom class instances, functions, symbols, and React elements keep their references. Use `snapshot(value)` when you need a `structuredClone`-compatible copy for `postMessage` or IndexedDB.
+- **Deep equality and `dirty`**: Change detection and `dirty` compare `Map` and `Set` by contents, compare `Date` timestamps with `Object.is`, and compare `File`, `Blob`, and other non-plain class instances by reference.
+- **Sparse array holes**: Array comparison distinguishes a sparse hole from an explicit `undefined` slot; writing `undefined` into a hole counts as a change and updates `dirty`.
+
 ## EnumSource
 
-Use a static option list or bind a reusable source with `source.with(params)`. The engine manages loading, cancels obsolete requests and exposes the effective options on `$enum`.
+Use a static option list or bind a reusable source with `source.with(params)`. The engine manages loading, cancels obsolete requests and exposes the effective options on `$enum`. Shared loads for the same source and params key are reference-counted across consumers: removing an array row or tree node cancels its consumer without interrupting other active consumers, while surviving nodes moved to a new position keep reusing the in-flight load for the same key.
 
 ## Errors
 

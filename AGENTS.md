@@ -19,7 +19,7 @@ and SSR-rendered against the packed library); the site's `/llms.txt` serves this
  preview (`disabled` and `readOnly` together: `readOnly` wins). `omit` leaves the field out of submit. Validation runs
  only when `visible && !disabled && !readOnly`; otherwise existing errors clear. Submit looks only at `omit`
  (`visible: false` still submits). Reaction-written fields submit unless `omit`.
- `visible` / `disabled` / `readOnly` inherit by OR from ancestors; an explicit `false` exits. `omit` inherits too: any ancestor `true` wins, and a child's `omit: false` cannot opt that subtree back into submit (the ancestor is removed whole).
+ `visible` / `disabled` / `readOnly` inherit by OR from ancestors; an explicit `false` exits. `omit` inherits too: any ancestor `true` wins, and a child's `omit: false` cannot opt that subtree back into submit (the ancestor is removed whole). Root `$omit: true` submits `{}` and keeps `form.dirty` `false` (explicit `validate(path)` still validates that path).
  `useForm({ readOnly: true })` (and `disabled`) sets the root. `undefined` drops the reaction layer.
 - Empty values (`''`, `null`, `undefined`) are judged only by `required`: `minLength`, `pattern`, `min`, `format` pass them.
 
@@ -30,15 +30,16 @@ and SSR-rendered against the packed library); the site's `/llms.txt` serves this
   Outside that scope, development `$value` / `getValue` / `form.values` / validator `value` / `ctx.root` / `ctx.get()` are read-only views (mutation throws `ShikiUsageError`). The view is cached per object, so repeated reads of the same stored object keep the same identity. The view is not `===` to that object (it is, in production) and is not `structuredClone`able: `snapshot(value)` is a plain copy (`postMessage`, IndexedDB); `getSubmitValues()` is the submit payload; `toRaw(value)` is the live stored object. `indexOf` / `includes` and `deepEqual` accept either the view or the stored object. Production returns the raw value outside effects; inside effects the draft still records writes.
 - A handle is not an array: no `.map`, `.length`, `for…of`, or `const [row] = d.items`. Use `d.items.$value` or `reaction.each`.
 - Destructuring takes child field handles only (`const { name } = d.user`, then `name.$value`). `$` state is always read and written on the handle. Object rest, object spread, and `Object.keys(handle)` throw in development.
-- Outside a reaction, read and write with `form.getValue` / `form.setValue`. Paths are `a.b.c`, `a.b[0].c`, or `a['name']` (`orders.0.qty` and `orders[0].qty` are the same field). Inside `reaction`, `watch`, and `form.batch`, walk the draft: `d.user.name.$value`, `d.items[i].qty.$value`, `d.extra[key].$value`. `query(path)` is the untyped escape hatch when the path is only a string (`pathOf()`, config, or a prop such as `rowsPath`): `query(pathOf('menus', pos)).$disabled = true`.
+- Outside a reaction, read and write with `form.getValue` / `form.setValue`. Paths are `a.b.c`, `a.b[0].c`, or `a['name']` (`orders.0.qty` and `orders[0].qty` are the same field across read/write, `validate`, `reset`, errors, and subscriptions). Path writes reject quoted keys containing `.`, `[`, or `]` in both dev and prod (replace the parent object instead), and invalid array indices throw in dev / are ignored in prod. Inside `reaction`, `watch`, and `form.batch`, walk the draft: `d.user.name.$value`, `d.items[i].qty.$value`, `d.extra[key].$value`. `query(path)` is the untyped escape hatch when the path is only a string (`pathOf()`, config, or a prop such as `rowsPath`): `query(pathOf('menus', pos)).$disabled = true`.
+- Values must be acyclic (`ShikiUsageError` on cycles). `initialValues` and `reset` copy plain objects, arrays, `Date`, `Map`, and `Set`, while keeping `File`, `Blob`, class instances, functions, and React elements by reference; `deepEqual` compares `Map`/`Set` by contents, `File`/`Blob`/class instances by reference, and distinguishes sparse array holes from `undefined`.
 - A confirm password or a client-only paging `page` is `omit: true`. `visible: false` still submits and still counts as dirty; `omit` does not count as dirty. An inactive tab stays mounted (the container only hides it) so its fields keep validating.
 
 Development builds throw `ShikiUsageError` with the fix for these mistakes (mutating `getValue` / `form.values` / a `$value` read outside an effect, using a handle
-as an array, enumerating it with `Object.keys` / object spread / rest, and reading back a flag you wrote in the same pass), and for a misspelled state (`$valeu`,
-`$requird`), a write to a read-only state (`$errors`, `$touched`), `d.x.value = …` without `$`, an unknown rule key
+as an array, enumerating it with `Object.keys` / object spread / rest, reading back a flag you wrote in the same pass, calling `form.setValue`/`reset`/`submit` synchronously inside a `reaction`, or writing through an expired draft after an async `reaction`), and for a misspelled state (`$valeu`,
+`$requird`; existing own `$`-prefixed data keys still resolve as fields), a write to a read-only state (`$errors`, `$touched`), `d.x.value = …` without `$`, invalid shapes assigned to `$enum` / `$rules` / `$componentProps` / `$decoratorProps`, an unknown rule key
 (`minLenght` → "Did you mean minLength?"), `component={[undefined]}` (an import that resolves to nothing) and
-`<ArrayField>` over a non-array value. `ShikiConflictError` / `ShikiCycleError` list each reaction involved with its
-call site, the states it reads and the states it writes. Production skips the checks (a cycle still throws).
+`<ArrayField>` or array edits over a non-array value. `ShikiConflictError` / `ShikiCycleError` list each reaction involved with its
+call site, the states it reads and the states it writes. Production skips these dev checks by safely ignoring invalid writes / returning `undefined` on missing misspelled `$` states (cycles, cyclic values, and ambiguous quoted path writes still throw). Never call `onChange` or `form.setValue` during React render.
 
 ## 2. reaction vs watch
 
@@ -48,7 +49,7 @@ call site, the states it reads and the states it writes. Production skips the ch
 - `defineEffects(({ reaction, watch, draft }) => …)` passes `draft`, the same root handle the callbacks receive as `d`. Use it to name a path: `reaction.each(draft.items, …)`, `watch(draft.city, …)`, `watch([draft.a, draft.b], …)`. Walking `draft.a.b` does not read a value. `$` reads in the factory body are outside a pass: the current value, not a dependency; in development, objects, arrays, `Map`, `Set`, and `Date` are read-only views (mutating them throws `ShikiUsageError`). `$` writes there throw in development — they would apply immediately, before later effects are installed. Write inside `reaction` / `watch`. Production applies that write.
 - `watch(source, effect)` is an **action**: it runs after `source`'s reads change, never on the first pass; reads
   inside `effect` are not dependencies. `watch(draft.city, …)` and `watch([draft.a, draft.b], …)` record those `$value` paths at installation (`watch(draft.city, …)` is the same source as `watch((d) => d.city.$value, …)`). For `watch(fn, effect)`, `fn` is tracked on installation and re-tracked on each trigger so changing keys (`d.extra[d.activeKey.$value].$value`) are followed; it triggers whenever **any `$` state read by `fn` changes** (it does **not** compare or deduplicate by `fn`'s return value — e.g. `d.amount.$value > 100` still triggers when `amount` goes from `10` to `20`). Use `watch` for "when X changes, do Y once" (reset a dependent field, fetch). For a derivation that follows a changing key, read `d.extra[d.activeKey.$value].$value` in a regular `reaction`.
-- Writes are buffered until the pass returns (`form.batch(fn)` discards buffered writes if `fn` throws). `$value`, `$enum`, `$rules`, and UI state replay pending writes, so a
+- Writes are buffered until the pass returns (nested `form.batch(fn)` merges on success and rolls back only that layer if `fn` throws; if one `reaction` throws, sibling derivations still settle before rethrowing). `$value`, `$enum` (normalized to `{ label, value }[]`), `$rules`, and UI state replay pending writes, so a
   second read in the same pass sees them (`d.total.$value = x` then `d.total.$value` is `x`; `props.style ??= {}`
   then `props.style.color = 'red'`). Flags (`$visible`, `$required`, …) do not: keep the new flag in a local.
 
@@ -196,7 +197,7 @@ const form = createForm({
   (a `<UI>`: its scope's), so a form-wide `$readOnly` still reaches them; componentProps never inherit.
   **Hiding a UI does not cascade**: a `<UI>` that hides unmounts its children, but each field inside keeps its own
   `$visible`, validation and submit — hide the field too (`d.x.$visible = false`) if its data should go.
-  A `$ui(name)` written but never mounted warns once in development. Typo-checked names: register them once,
+  A `$ui(name)` written but never mounted warns once in development, as does mounting two unnamed `<Field>` components for the same path. Typo-checked names: register them once,
   `declare module '@shikiform/core' { interface UiNames { echo: true; tip: true } }` (otherwise any string).
 
 ```tsx
@@ -226,7 +227,7 @@ reaction((d) => {
   submits on click by itself. `<Reset>` calls `form.reset()`. `onClick` runs first (`preventDefault` skips the reset);
   `afterReset(values)` runs after, with the restored values.
 - A rule with `level: 'warning'` (`{ validator: weak, level: 'warning' }`) reports to `$warnings` / `field.warnings`
-  and never blocks `submit` / `canSubmit`.
+  and never blocks `submit` / `canSubmit` (async warnings may publish after submit finishes; `validate()` still awaits them). Sync and async `validator` return contracts match: non-empty string or `string[]` fails with those messages, `false` fails with fallback message, `true` / `null` / `undefined` / `''` passes, and other values throw `ShikiUsageError` in dev (fail with fallback in prod). `min`/`max` reject `NaN`; stateful `pattern` (`g`/`y`) always tests from index 0 without mutating `lastIndex`.
 - Built-in messages default to Chinese. Override per form with `messages` (partial; functions get params:
   `minLength: ({ minLength }) => …`), app-wide with `setDefaultMessages(enUS)`. A rule's own `message` wins. The same `messages` cover tree-move refusal reasons (`useTreeField().move`)
   and default button labels (`Submit` / `Reset`). Custom components read them with `form.message('submit')` (or `useFormContext().message`).

@@ -102,3 +102,7 @@ export default function App() {
 - [快速开始](https://shikiform.pages.dev/guide/quick-start)
 - [互动教程](https://shikiform.pages.dev/tutorial/)
 - [API 参考](https://shikiform.pages.dev/api)
+
+## 许可证
+
+[MIT](./LICENSE)

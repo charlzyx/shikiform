@@ -5,7 +5,7 @@ description: 为同一个字段挂载多个独立控件（如输入框 + 滑块/
 
 以下两类需求适合使用命名 UI 节点，而非普通 `<Field>`：
 
-- 同一字段挂载多个独立控件：例如输入框旁加一个字数超限时变红的回显，或预算金额同时绑定数字框和滑块且只禁用滑块。若直接渲染两个 `<Field name="amount">`，两者会共用同一份 `$componentProps`、`$disabled`、`$readOnly` 并生成重复的 DOM `id`。
+- 同一字段挂载多个独立控件：例如输入框旁加一个字数超限时变红的回显，或预算金额同时绑定数字框和滑块且只禁用滑块。若直接渲染两个不带 `ui` 的 `<Field name="amount">`，两者会共用同一份 `$componentProps`、`$disabled`、`$readOnly` 并生成重复的 DOM `id`；开发环境会在重复挂载时输出一次告警，提示给第二个 `<Field>` 加上 `ui` 名称。
 - 不绑定数据的 UI 节点：例如「报销金额 ≥ 50000 需主管审批」的提示条，或包裹一组字段的卡片容器。这类节点随表单状态显隐或改属性，但不进入表单值和校验。
 
 两种节点的写法与联动入口：
@@ -15,7 +15,7 @@ description: 为同一个字段挂载多个独立控件（如输入框 + 滑块/
 | `<Field name="x" ui="echo" component={[Echo]} />` | `d.x.$ui('echo')` | 字段 `x` 的附加 UI 实例：共享值、错误和校验规则，但拥有独立的 UI 状态 |
 | `<UI name="tip" component={[Alert, props]} />` | `d.$ui('tip')` | 无数据的纯 UI 节点（在数组行或 `<ObjectField>` 内可通过作用域句柄 `row.$ui('tip')` 访问） |
 
-命名 UI 节点只有界面状态（`$visible`、`$disabled`、`$readOnly`、`$title`、`$description`、`$componentProps`、`$decoratorProps`），优先级是 `reaction > JSX > 回退值`。在 `reaction` 中读取它们时也会收集依赖。
+命名 UI 节点只有界面状态（`$visible`、`$disabled`、`$readOnly`、`$title`、`$description`、`$componentProps`、`$decoratorProps`），优先级是 `reaction > JSX > 回退值`。在 `reaction` 中读取它们时也会收集依赖；对 `$componentProps` / `$decoratorProps` 整对象赋值同样仅接受普通对象或 `undefined`（开发环境抛 `ShikiUsageError`，生产环境忽略）。
 
 ## 同一字段的独立 UI 实例
 
