@@ -5,8 +5,8 @@ import { getAt, parentPath, selfAndAncestors } from '../shared/path'
 import type { Notifier } from '../state/notifier'
 import type { Pos } from '../shared/tree-ops'
 import type { TrackedRow, WriteOp } from '../types'
-
 import { valueChangedAt, WriteJournal, type WorkingValues, type WriteBuffer } from './write-buffer'
+
 interface ValueCommit {
   before: unknown
   after: unknown
@@ -122,7 +122,7 @@ export class Scheduler {
   valueCommit?: ValueCommit
   private flushHolds = 0
   private flushRequested = false
-  private readonly afterBatchCallbacks: (() => void)[] = []
+  private readonly afterBatchCallbacks: ((settled: boolean) => void)[] = []
   private seq = 0
   private trace: string[] = []
   /** Development: runner id → where it was declared (`file:line:col`), for error messages. */
@@ -308,7 +308,6 @@ export class Scheduler {
     }
   }
 
-  /** Every dep key some runner currently reads. */
   depKeys(): IterableIterator<string> {
     return this.depIndex.keys()
   }
@@ -355,18 +354,23 @@ export class Scheduler {
     } finally {
       if (--this.flushHolds === 0) {
         const callbacks = this.afterBatchCallbacks.splice(0)
-        if (this.flushRequested) {
-          this.flushRequested = false
-          this.flush()
+        let settled = false
+        try {
+          if (this.flushRequested) {
+            this.flushRequested = false
+            this.flush()
+          }
+          settled = true
+        } finally {
+          for (const callback of callbacks) callback(settled)
         }
-        for (const callback of callbacks) callback()
       }
     }
   }
 
-  afterBatch(callback: () => void): void {
+  afterBatch(callback: (settled: boolean) => void): void {
     if (this.flushHolds) this.afterBatchCallbacks.push(callback)
-    else callback()
+    else callback(true)
   }
 
   /** Two different reactions writing the same key is a dev error. Watches may share keys. */

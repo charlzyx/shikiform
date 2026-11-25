@@ -233,11 +233,12 @@ export class ArrayOps {
     scheduler.markStructure(path, previous, store.values)
     scheduler.markValueChanged(path, { before: previous, after: store.values, moved })
     this.declarations.applyItemTemplates()
+    // A later operation in this batch can install the array's first rule on this model.
+    const field = store.get(path) ?? (commit ? store.ensure(path) : undefined)
     scheduler.enqueueFromDirty()
     scheduler.flush()
     // A shown array-level error is re-checked now, the way a shown field error is re-checked on edit.
     // Only this path: descendants wait for the next submit, so the new row stays quiet.
-    const field = store.get(path)
     if (field) this.validator.queueEdit(field, 'own')
   }
 }

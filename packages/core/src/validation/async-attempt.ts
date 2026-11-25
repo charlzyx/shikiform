@@ -28,10 +28,10 @@ export class AsyncAttempts {
     const pending = this.queued.get(field)
     if (!pending || !own) this.queued.set(field, { own })
     if (pending) return
-    this.host.scheduler.afterBatch(() => {
+    this.host.scheduler.afterBatch((settled) => {
       const check = this.queued.get(field)
       this.queued.delete(field)
-      if (!check || this.host.store.get(field.path) !== field) return
+      if (!settled || !check || this.host.store.get(field.path) !== field) return
       if (check.own) check.own(field.path)
       else this.onEdit(field.path)
     })

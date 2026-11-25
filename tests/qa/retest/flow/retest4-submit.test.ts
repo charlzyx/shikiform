@@ -99,6 +99,37 @@ describe.each(['development', 'production'])('F7 submit acceptance in %s', (mode
     }
   })
 
+  it('QA-70 rechecks an array when its first rule is installed after the structure edit', async () => {
+    const form = createForm({
+      initialValues: { rows: [] as string[] },
+      validateTrigger: ['onChange'],
+    })
+    form.batch((d) => {
+      engineOf(form).pushArray('rows', 'first')
+      d.rows.$rules = [{ validator: (rows) => Array.isArray(rows) && rows.length >= 2 ? undefined : 'two rows required' }]
+    })
+    await setImmediate()
+    expect(form.errors).toEqual([{ path: 'rows', messages: ['two rows required'] }])
+  })
+
+  it('QA-70 can queue a fresh check after a derivation throws during flush', async () => {
+    const form = createForm({
+      initialValues: { fail: false, code: 'initial' },
+      fields: { code: { rules: { required: true, message: 'code required' } } },
+      validateTrigger: ['onChange'],
+      effects: [defineEffects<{ fail: boolean; code: string }>(({ reaction }) => {
+        reaction((d) => { if (d.fail.$value) throw new Error('failed derivation') })
+      })],
+    })
+    expect(() => form.batch((d) => {
+      form.setValue('code', 'temporary')
+      d.fail.$value = true
+    })).toThrow('failed derivation')
+    form.setValue('code', '')
+    await setImmediate()
+    expect(form.errors).toEqual([{ path: 'code', messages: ['code required'] }])
+  })
+
   it('does not spend submit retries on a batch that restores the same rows and values', async () => {
     const initialValues = { rows: [{ id: 'a', code: 'one' }, { id: 'b', code: 'two' }] }
     const validate = vi.fn(() => {
