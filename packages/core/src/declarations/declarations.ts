@@ -60,6 +60,7 @@ export class Declarations {
     store.onReindex = ({ dropped, moved }) => {
       if (dropped.some((model) => model.enumOptions) || moved.some(({ model }) => model.enumOptions)) store.enumVersion += 1
       for (const model of dropped) {
+        this.validator.discardInflight(model)
         this.onDiscardedEnumLoad?.(model)
         if (model.declaration) this.dormantDeclarations.set(model.path, model.declaration)
       }

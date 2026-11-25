@@ -387,7 +387,7 @@ export class Validator {
    * Descendants are not validated, so a new row does not grow
    * `required` errors before the next submit.
    */
-  recheckOwn(path: string): void {
+  private recheckOwn(path: string): void {
     const field = this.store.get(path)
     if (!field) return
     if (!this.triggersFor(path).includes('onChange') && !shownErrors(field).length) return
@@ -411,8 +411,7 @@ export class Validator {
     this.applySchemaMap(next)
   }
 
-  /** A user edit. See {@link AsyncAttempts.onEdit}. */
-  onEdit(path: string): void { this.attempts.onEdit(path) }
+  queueEdit(field: FieldModel, kind?: 'own'): void { this.attempts.queueEdit(field, kind ? (path) => this.recheckOwn(path) : undefined) }
 
   noteReplacement(path: string, before: unknown): void { this.attempts.noteReplacement(path, before) }
   recheckReplacedFields(): void { this.attempts.recheckReplacedFields() }
@@ -448,6 +447,7 @@ export class Validator {
 
   /** Ignore an in-flight field validator. A late `apply` sees the bumped sequence and does not write. */
   discardInflight(field: FieldModel): void {
+    this.attempts.discard(field)
     field.abort?.abort()
     field.abort = undefined
     field.warningValidating = false
@@ -482,7 +482,6 @@ export class Validator {
     const field = this.store.get(path)
     if (!field) return
     this.discardInflight(field)
-    this.attempts.clearTimer(path)
     this.schemaByPath.delete(path)
     this.store.setEnumOptions(field, undefined)
     this.store.fields.delete(path)

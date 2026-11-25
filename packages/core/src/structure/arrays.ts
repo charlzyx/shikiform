@@ -229,7 +229,8 @@ export class ArrayOps {
     scheduler.flush()
     // A shown array-level error is re-checked now, the way a shown field error is re-checked on edit.
     // Only this path: descendants wait for the next submit, so the new row stays quiet.
-    scheduler.afterBatch(() => this.validator.recheckOwn(path))
+    const field = store.get(path)
+    if (field) this.validator.queueEdit(field, 'own')
   }
 }
 

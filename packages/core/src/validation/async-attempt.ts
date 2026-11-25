@@ -17,13 +17,28 @@ import { scopeTest } from './scope'
  * and `submit` calls it before validating the current value now.
  */
 export class AsyncAttempts {
-  private timers = new Map<string, ReturnType<typeof setTimeout>>()
+  private timers = new Map<FieldModel, ReturnType<typeof setTimeout>>()
+  private queued = new Map<FieldModel, { own?: (path: string) => void }>()
   private replacedFields = new Map<FieldModel, unknown>()
 
   constructor(private readonly host: AsyncAttemptHost) {}
 
+  /** Resolve the field's path after the edit and its structural changes have both committed. */
+  queueEdit(field: FieldModel, own?: (path: string) => void): void {
+    const pending = this.queued.get(field)
+    if (!pending || !own) this.queued.set(field, { own })
+    if (pending) return
+    this.host.scheduler.afterBatch(() => {
+      const check = this.queued.get(field)
+      this.queued.delete(field)
+      if (!check || this.host.store.get(field.path) !== field) return
+      if (check.own) check.own(field.path)
+      else this.onEdit(field.path)
+    })
+  }
+
   /** A user edit. Recheck on `onChange`, when an error is showing, or while an async attempt is still pending. */
-  onEdit(path: string): void {
+  private onEdit(path: string): void {
     const field = this.host.store.get(path)
     if (!field) return
     if (!this.host.triggersFor(path).includes('onChange') && !shownErrors(field).length && !this.hasPending(field)) return
@@ -31,7 +46,7 @@ export class AsyncAttempts {
   }
 
   private hasPending(field: FieldModel): boolean {
-    return this.timers.has(field.path) || field.validating || field.warningValidating
+    return this.timers.has(field) || field.validating || field.warningValidating
   }
 
   noteReplacement(path: string, before: unknown): void {
@@ -66,7 +81,7 @@ export class AsyncAttempts {
     const asyncRules = field.rules.filter((rule) => rule.validator || rule.schema)
     const supersede = valueChanged && asyncRules.some((rule) => rule.level !== 'warning') && (field.validating || shownErrors(field).length > 0)
     if (ms > 0 && asyncRules.length) {
-      this.clearTimer(path)
+      this.clearTimer(field)
       field.abort?.abort()
       field.asyncSeq += 1
       const seq = field.asyncSeq
@@ -74,10 +89,10 @@ export class AsyncAttempts {
       // A nested edit (a reaction on the cleared error) scheduled its own check.
       if (field.asyncSeq !== seq) return
       const timer = setTimeout(() => {
-        this.timers.delete(path)
-        this.host.validateDetached(path)
+        this.timers.delete(field)
+        if (this.host.store.get(field.path) === field) this.host.validateDetached(field.path)
       }, ms)
-      this.timers.set(path, timer)
+      this.timers.set(field, timer)
       return
     }
     if (supersede) {
@@ -93,25 +108,33 @@ export class AsyncAttempts {
   /** Attempt `ac` will not write. Keep `validating` when a replacement debounce is already queued. */
   release(field: FieldModel, ac: AbortController): void {
     if (field.abort !== ac || !field.validating) return
-    if (this.timers.has(field.path)) return
+    if (this.timers.has(field)) return
     field.validating = false
     this.host.scheduler.bumpMeta()
     this.host.notifier.bumpPath(field.path)
     if (!this.host.scheduler.flushing) this.host.notifier.emit()
   }
 
-  clearTimer(path: string): void {
-    const timer = this.timers.get(path)
+  private clearTimer(field: FieldModel): void {
+    const timer = this.timers.get(field)
     if (!timer) return
     clearTimeout(timer)
-    this.timers.delete(path)
+    this.timers.delete(field)
+  }
+
+  discard(field: FieldModel): void {
+    this.clearTimer(field)
+    this.queued.delete(field)
   }
 
   /** Cancel queued checks within a reset scope, or all checks before a submit. */
   clearUnder(path?: string): void {
     const inScope = scopeTest(path)
-    for (const key of this.timers.keys()) {
-      if (inScope(key)) this.clearTimer(key)
+    for (const field of this.timers.keys()) {
+      if (inScope(field.path)) this.clearTimer(field)
+    }
+    for (const field of this.queued.keys()) {
+      if (inScope(field.path)) this.queued.delete(field)
     }
   }
 

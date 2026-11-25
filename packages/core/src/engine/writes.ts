@@ -207,7 +207,7 @@ export class StateWriter {
     // An error already on screen is re-checked on every edit, whatever the trigger. An async attempt still in
     // flight (or waiting out its debounce) is aborted too, so a late result cannot land on the new value (#122).
     // `$canSubmit` / the `Submit` button come back when that replacement check passes.
-    scheduler.afterBatch(() => validator.onEdit(path))
+    validator.queueEdit(field)
     return true
   }
 
@@ -249,7 +249,7 @@ export class StateWriter {
   commitPatch(entries: readonly [string, unknown][]): void {
     if (!entries.length) return
     const { store, notifier, scheduler, validator } = this.deps
-    const changed: string[] = []
+    const changed: FieldModel[] = []
     for (const [rawPath, rawValue] of entries) {
       const path = normalizePath(rawPath)
       const value = process.env.NODE_ENV !== 'production' ? unwrapReadonly(rawValue) : rawValue
@@ -258,8 +258,8 @@ export class StateWriter {
         continue
       }
       if (!this.commitValue(path, value, false)) continue
-      changed.push(path)
       const field = store.ensure(path)
+      changed.push(field)
       if (!field.edited) {
         field.edited = true
         scheduler.markDirty(`${path}:edited`)
@@ -273,7 +273,7 @@ export class StateWriter {
     }
     scheduler.enqueueFromDirty()
     scheduler.flush()
-    for (const path of changed) validator.onEdit(path)
+    for (const field of changed) validator.queueEdit(field)
   }
 
   /** Start or hit cache for an `EnumSource` / `EnumBinding` declared via `fields` or an item template. */

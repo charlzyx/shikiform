@@ -45,7 +45,7 @@ describe.each(['development', 'production'])('F7 submit acceptance in %s', (mode
     expect(form.submitting).toBe(false)
   })
 
-  it.fails('BUG: onChange validates the moved field after a batched external write', async () => {
+  it('QA-70 validates the moved field after a batched external write', async () => {
     const form = createForm({
       initialValues: { rows: [{ id: 'a', code: 'one' }, { id: 'b', code: 'two' }] },
       fields: { 'rows.*.code': { rules: { required: true, message: 'required code' } } },
@@ -58,6 +58,45 @@ describe.each(['development', 'production'])('F7 submit acceptance in %s', (mode
     await setImmediate()
     expect(form.getValue('rows.1.code')).toBe('')
     expect(form.errors).toEqual([{ path: 'rows.1.code', messages: ['required code'] }])
+  })
+
+  it('QA-70 skips a removed edit and checks the surviving edit once', async () => {
+    const check = vi.fn((value: string) => value || 'required code')
+    const form = createForm({
+      initialValues: { rows: [{ id: 'a', code: 'one' }, { id: 'b', code: 'two' }] },
+      fields: { 'rows.*.code': { rules: { validator: check } } },
+      validateTrigger: ['onChange'],
+    })
+    form.batch(() => {
+      form.setValue('rows.0.code', 'removed')
+      engineOf(form).removeArray('rows', 0)
+      form.patchValues({ rows: form.getValue('rows') }) // no value differences
+      form.setValue('rows.0.code', 'temporary')
+      form.setValue('rows.0.code', '')
+    })
+    await setImmediate()
+    expect(check.mock.calls).toEqual([['', expect.anything()]])
+    expect(form.errors).toEqual([{ path: 'rows.0.code', messages: ['required code'] }])
+  })
+
+  it('QA-70 resolves the final row path when an existing debounce fires', async () => {
+    vi.useFakeTimers()
+    try {
+      const check = vi.fn(async (value: string) => value ? undefined : 'required code')
+      const form = createForm({
+        initialValues: { rows: [{ id: 'a', code: 'one' }, { id: 'b', code: 'two' }] },
+        fields: { 'rows.*.code': { rules: { validator: check } } },
+        validateTrigger: ['onChange'],
+        asyncDebounceMs: 50,
+      })
+      form.setValue('rows.0.code', '')
+      engineOf(form).moveArray('rows', 0, 1)
+      await vi.advanceTimersByTimeAsync(50)
+      expect(check).toHaveBeenCalledOnce()
+      expect(form.errors).toEqual([{ path: 'rows.1.code', messages: ['required code'] }])
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('does not spend submit retries on a batch that restores the same rows and values', async () => {
