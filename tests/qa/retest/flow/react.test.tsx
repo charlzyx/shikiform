@@ -288,7 +288,7 @@ describe.each(['development', 'production'] as const)('flow React in %s', (mode)
     expect(result.current).toMatchObject({ loadChildren, ensure })
   })
 
-  it.fails('BUG: QA-11 re-enabled echo reuses the stale tree child request', async () => {
+  it('QA-11 re-enabled echo reuses the stale tree child request', async () => {
     const stale = deferred<CascaderOption[]>()
     const fresh = deferred<CascaderOption[]>()
     let roots = 0
@@ -304,6 +304,7 @@ describe.each(['development', 'production'] as const)('flow React in %s', (mode)
     expect(load.mock.calls.map(([path]) => path)).toEqual([[], ['region']])
     rerender({ enabled: false })
     expect(result.current.loading).toBe(false)
+    expect(result.current.options[0]?.loading).toBe(false)
     await act(async () => rerender({ enabled: true }))
     try {
       await act(async () => fresh.resolve([{ label: 'Fresh city', value: 'city' }]))

@@ -34,6 +34,11 @@ export interface LazyCascaderApi {
   labelsOf: (path: ReadonlyArray<string | number>) => string[]
 }
 
+interface CascaderRun {
+  ready: Promise<void>
+  pending: Map<CascaderOption, Promise<void>>
+}
+
 /**
  * Headless lazy cascader (Pro.formily `CascaderPlus`): root on mount, children on demand, a loader shared by
  * every level, and echo of an existing value by loading each ancestor level. A tree known up front is not this
@@ -44,38 +49,45 @@ export function useLazyCascader(options: UseLazyCascaderOptions): LazyCascaderAp
   const loadRef = useRef(options.load)
   loadRef.current = options.load
   const tree = useRef<CascaderOption[]>([])
-  const pending = useRef(new Map<string, Promise<void>>())
+  const active = useRef<CascaderRun | null>(null)
   const [version, setVersion] = useState(0)
   const [loading, setLoading] = useState(false)
   const bump = () => setVersion((v) => v + 1)
 
   const loadChildren = useCallback(async (path: Array<string | number>) => {
+    const run = active.current
+    if (!run) return
+    await run.ready
+    if (active.current !== run) return
+
     const node = find(tree.current, path)
     if (!node || node.isLeaf || node.children) return
-    const id = JSON.stringify(path)
-    const existing = pending.current.get(id)
+    const existing = run.pending.get(node)
     if (existing) return existing
+
     node.loading = true
     bump()
-    const task = Promise.resolve(loadRef.current(path))
+    const task = Promise.resolve()
+      .then(() => loadRef.current(path))
       .then((children) => {
-        node.children = children.map((child) => ({ ...child }))
+        if (active.current !== run) return
+        node.children = children.map(clone)
         if (!children.length) node.isLeaf = true
       })
       .finally(() => {
+        if (active.current !== run) return
         node.loading = false
-        pending.current.delete(id)
+        run.pending.delete(node)
         tree.current = [...tree.current]
         bump()
       })
-    pending.current.set(id, task)
+    run.pending.set(node, task)
     return task
   }, [])
 
-  const rootReady = useRef<Promise<void> | null>(null)
   const ensure = useCallback(
     async (paths: ReadonlyArray<ReadonlyArray<string | number>>) => {
-      if (rootReady.current) await rootReady.current
+      await active.current?.ready
       await Promise.all(
         paths.map(async (path) => {
           for (let depth = 1; depth < path.length; depth++) await loadChildren(path.slice(0, depth))
@@ -93,20 +105,23 @@ export function useLazyCascader(options: UseLazyCascaderOptions): LazyCascaderAp
       setLoading(false)
       return
     }
-    let live = true
     setLoading(true)
-    rootReady.current = Promise.resolve(loadRef.current([])).then((root) => {
-      if (!live) return
-      tree.current = root.map((node) => clone(node))
-      bump()
-    })
-    rootReady.current
-      .then(() => (live && pathsRef.current?.length ? ensure(pathsRef.current) : undefined))
-      .finally(() => {
-        if (live) setLoading(false)
-      })
+    const run: CascaderRun = {
+      pending: new Map(),
+      ready: Promise.resolve(loadRef.current([])).then((root) => {
+        if (active.current !== run) return
+        tree.current = root.map(clone)
+        bump()
+      }),
+    }
+    active.current = run
+    void run.ready
+      .then(() => (active.current === run && pathsRef.current?.length ? ensure(pathsRef.current) : undefined))
+      .finally(() => { if (active.current === run) setLoading(false) })
     return () => {
-      live = false
+      active.current = null
+      for (const node of run.pending.keys()) node.loading = false
+      run.pending.clear()
     }
   }, [enabled])
 
