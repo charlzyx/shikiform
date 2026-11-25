@@ -15,7 +15,7 @@ import type { FieldStore } from '../state/field-store'
 import type { Notifier } from '../state/notifier'
 import type { WriteOp } from '../types'
 import type { FormOptions } from '../types-effects'
-import { assertRuleKeys, isEmpty, optionIncludes, type Rule } from '../validation/rules'
+import { checkDraftRules, isEmpty, optionIncludes, type Rule } from '../validation/rules'
 import type { Validator } from '../validation/validator'
 import { prepareUiWrite, uiKeyOf, type FieldUi } from './field-ui'
 
@@ -405,9 +405,9 @@ export class StateWriter {
       return op
     }
     if (key === '$rules') {
-      const rules = (value as Rule[]) ?? []
-      const op: WriteOp = { key: `${path}:rules`, apply: () => this.setRules(path, rules) }
-      tagPending(op, { kind: 'rules', path, value: rules })
+      if (!checkDraftRules(value, path)) return
+      const op: WriteOp = { key: `${path}:rules`, apply: () => this.setRules(path, value) }
+      tagPending(op, { kind: 'rules', path, value })
       return op
     }
     return { key: `${path}:${key}`, apply: () => false }
@@ -447,7 +447,6 @@ export class StateWriter {
   }
 
   private setRules(path: string, rules: Rule[]): boolean {
-    if (process.env.NODE_ENV !== 'production') assertRuleKeys(rules, `${showDraftPath(path)}.$rules`)
     const field = this.deps.store.ensure(path)
     field.rulesFromEffect = true
     if (deepEqual(field.rules, rules)) return false

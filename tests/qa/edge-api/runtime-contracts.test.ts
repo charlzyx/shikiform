@@ -110,12 +110,14 @@ describe.each(['development', 'production'])('untyped API inputs in %s', (enviro
     await vi.waitFor(() => form.batch((d) => { expect(d.choice.$enum).toEqual(options) }))
   })
 
-  it.fails.each([
+  it.each([
     ['null', null],
     ['null entry', [null]],
     ['function', () => 'missing'],
     ['Promise', Promise.resolve([])],
-  ])('BUG: QA-49 $rules given %s crashes or discards working validation rules', async (_kind, input) => {
+    ['Promise entry', [Promise.resolve({})]],
+    ['sparse array', Array(1)],
+  ])('QA-49 rejects %s assigned as $rules and preserves validation', async (_kind, input) => {
     const form = createForm({
       initialValues: { code: '' },
       fields: { code: { rules: { required: true, message: 'Code required' } } },
@@ -130,6 +132,18 @@ describe.each(['development', 'production'])('untyped API inputs in %s', (enviro
         : undefined,
       verdict: [{ path: 'code', messages: ['Code required'] }],
     })
+  })
+
+  it('keeps valid pending rules after an invalid draft mutation', async () => {
+    const form = createForm({ initialValues: { code: '' } })
+    form.batch((d) => {
+      d.code.$rules = [{ required: true, message: 'Pending rule' }]
+      const mutate = () => d.code.$rules.push(null as never)
+      if (environment === 'development') expect(mutate).toThrow(ShikiUsageError)
+      else expect(mutate).not.toThrow()
+      expect(d.code.$rules).toHaveLength(1)
+    })
+    await expect(form.submit()).rejects.toEqual([{ path: 'code', messages: ['Pending rule'] }])
   })
 
   it.fails.each([

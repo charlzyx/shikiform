@@ -1,7 +1,7 @@
 import type { EnumOption } from '../enum/enum-source'
 import { readonlyValue } from '../draft/readonly'
 import { formatMessage, type FormMessages } from './messages'
-import { ShikiUsageError } from '../errors'
+import { ShikiUsageError, showDraftPath } from '../errors'
 import { nearestName } from '../shared/near'
 import { isStandardSchema, schemaIssuePath, type SchemaIssue, type StandardSchemaV1 } from './schema'
 
@@ -80,6 +80,26 @@ export function normalizeRules(input: RulesInput | undefined, where?: string): R
   const rules = list.map((item) => (isStandardSchema(item) ? { schema: item } : item))
   if (process.env.NODE_ENV !== 'production') assertRuleKeys(rules, where)
   return rules
+}
+
+/** Draft writes take rule objects in a dense array, unlike a declarative RulesInput. */
+export function checkDraftRules(value: unknown, path: string): value is Rule[] {
+  if (isRuleList(value)) {
+    if (process.env.NODE_ENV !== 'production') assertRuleKeys(value, `${showDraftPath(path)}.$rules`)
+    return true
+  }
+  if (process.env.NODE_ENV !== 'production') {
+    throw new ShikiUsageError(`${showDraftPath(path)}.$rules expects an array of rule objects. Use [] to clear the rules.`)
+  }
+  return false
+}
+
+function isRuleList(value: unknown): value is Rule[] {
+  if (!Array.isArray(value)) return false
+  for (const rule of value) {
+    if (Object.prototype.toString.call(rule) !== '[object Object]') return false
+  }
+  return true
 }
 
 const RULE_KEY_MAP: Record<keyof Rule, true> = {
