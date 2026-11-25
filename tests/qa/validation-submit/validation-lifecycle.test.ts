@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { deferred } from './deferred'
 
 describe('scoped validation', () => {
-  it.fails.each(['one path', 'path list'] as const)('BUG QA-16: checks bracket paths for %s', async (scope) => {
+  it.each(['one path', 'path list'] as const)('QA-16: checks bracket paths for %s', async (scope) => {
     const form = createForm<Record<string, unknown>>({
       initialValues: { rows: [{ name: '' }] },
       fields: { 'rows.*.name': { required: true } },
@@ -19,6 +19,19 @@ describe('scoped validation', () => {
       await expect(form.validate(['rows.0.name'])).rejects.toEqual(errors)
       await expect(form.validate(['rows[0].name'])).rejects.toEqual(errors)
     }
+  })
+
+  it('shares server and validation messages across dotted and bracket paths', async () => {
+    const form = createForm<Record<string, unknown>>({ initialValues: { rows: [{ name: 'Ada' }] } })
+    form.setErrors({ 'rows[0].name': 'Already taken', '': 'Save failed' })
+    expect(form.errors).toContainEqual({ path: 'rows.0.name', messages: ['Already taken'] })
+
+    await expect(form.validate(['rows[0]'])).resolves.toEqual({ rows: [{ name: 'Ada' }] })
+    expect(form.errors).toEqual([{ path: '', messages: ['Save failed'] }])
+
+    form.setErrors({ 'rows.0.name': 'Already taken' })
+    form.clearErrors('rows[0]')
+    expect(form.errors).toEqual([{ path: '', messages: ['Save failed'] }])
   })
 
   it('keeps global and unrelated server messages when validating one path', async () => {

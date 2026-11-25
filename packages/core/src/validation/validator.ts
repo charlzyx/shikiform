@@ -105,7 +105,8 @@ export class Validator {
   }
 
   async validate(path?: ValidateScope): Promise<FieldError[]> {
-    return validateScope(path, () => this.run(path), () => this.latest)
+    const scope = typeof path === 'string' ? normalizePath(path) : path?.map(normalizePath)
+    return validateScope(scope, () => this.run(scope), () => this.latest)
   }
 
   /**
@@ -571,7 +572,8 @@ export class Validator {
    * changes, the field validates again, or `reset` / `clearErrors` runs.
    */
   setExternalMany(entries: [string, string[]][]): void {
-    for (const [path, messages] of entries) {
+    for (const [input, messages] of entries) {
+      const path = normalizePath(input)
       const field = this.store.ensure(path)
       if (deepEqual(field.externalErrors, messages)) continue
       field.externalErrors = messages.slice()
@@ -607,6 +609,7 @@ export class Validator {
 
   /** `clearErrors(path?)`: rule, schema and external messages on `path` and descendants. */
   clearAll(path?: string): void {
+    if (path) path = normalizePath(path)
     this.clearExternalUnder(path)
     this.clearSchemaMessages(path)
     for (const [fieldPath] of this.store.fields) {
@@ -664,7 +667,7 @@ function recordToIssues(extra: Partial<Record<string, string>> | void): SchemaIs
   if (!extra) return []
   return Object.entries(extra)
     .filter((entry): entry is [string, string] => !!entry[1])
-    .map(([path, message]) => ({ path, message }))
+    .map(([path, message]) => ({ path: normalizePath(path), message }))
 }
 
 /** Passes {@link Validator.submitVerdict} may run while validation inputs keep changing. */
