@@ -405,6 +405,9 @@ export class Validator {
   /** A user edit. See {@link AsyncAttempts.onEdit}. */
   onEdit(path: string): void { this.attempts.onEdit(path) }
 
+  noteReplacement(path: string, before: unknown): void { this.attempts.noteReplacement(path, before) }
+  recheckReplacedFields(): void { this.attempts.recheckReplacedFields() }
+
   /** Debounce async rules. Sync-only fields validate on the next turn of `validate`. */
   scheduleValidate(path: string): void { this.attempts.schedule(path) }
 

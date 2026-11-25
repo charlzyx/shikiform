@@ -333,6 +333,7 @@ export class StateWriter {
       declarations.applyItemTemplates()
     }
     const replacement = (value != null && typeof value === 'object') || (old != null && typeof old === 'object')
+    if (replacement) this.deps.validator.noteReplacement(path, before)
     scheduler.markValueChanged(path, replacement ? { before, after: store.values, fields: store.fields.keys() } : undefined)
     return true
   }
@@ -598,6 +599,7 @@ export class StateWriter {
     store.values = (parent === null ? next : setAt(store.values, parent, next)) as typeof store.values
     this.deps.carryRowIdentity?.(parent ?? path, before, store.values)
     this.deps.validator.clearExternalAround(path)
+    this.deps.validator.noteReplacement(path, before)
     scheduler.markValueChanged(path, { before, after: store.values, fields: store.fields.keys() })
     return true
   }

@@ -1,4 +1,6 @@
 import type { Scheduler } from '../effects/scheduler'
+import { deepEqual } from '../shared/equal'
+import { getAt } from '../shared/path'
 import { shownErrors, type FieldModel } from '../state/field-model'
 import type { FieldStore } from '../state/field-store'
 import type { Notifier } from '../state/notifier'
@@ -16,6 +18,7 @@ import { scopeTest } from './scope'
  */
 export class AsyncAttempts {
   private timers = new Map<string, ReturnType<typeof setTimeout>>()
+  private replacedFields = new Map<FieldModel, unknown>()
 
   constructor(private readonly host: AsyncAttemptHost) {}
 
@@ -23,9 +26,34 @@ export class AsyncAttempts {
   onEdit(path: string): void {
     const field = this.host.store.get(path)
     if (!field) return
-    const pending = this.timers.has(path) || field.validating || field.warningValidating
-    if (!this.host.triggersFor(path).includes('onChange') && !shownErrors(field).length && !pending) return
+    if (!this.host.triggersFor(path).includes('onChange') && !shownErrors(field).length && !this.hasPending(field)) return
     this.schedule(path, true)
+  }
+
+  private hasPending(field: FieldModel): boolean {
+    return this.timers.has(field.path) || field.validating || field.warningValidating
+  }
+
+  noteReplacement(path: string, before: unknown): void {
+    const { store } = this.host
+    if (path && !store.parents.has(path)) return
+    const prefix = path ? path + '.' : ''
+    for (const field of store.fields.values()) {
+      if (!this.hasPending(field) || field.path === path || !field.path.startsWith(prefix) || this.replacedFields.has(field)) continue
+      this.replacedFields.set(field, getAt(before, field.path))
+    }
+  }
+
+  /** Use the final value after reactions settle, including replacements made inside the same batch. */
+  recheckReplacedFields(): void {
+    const replaced = this.replacedFields
+    if (!replaced.size) return
+    this.replacedFields = new Map()
+    const { store } = this.host
+    for (const [field, before] of replaced) {
+      const { path } = field
+      if (store.get(path) === field && this.hasPending(field) && !deepEqual(before, getAt(store.values, path))) this.onEdit(path)
+    }
   }
 
   /**

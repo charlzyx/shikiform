@@ -22,25 +22,27 @@ describe('validation edge cases', () => {
     await expect(form.submit()).resolves.toEqual({ quantity: Number.NaN })
   })
 
-  it.fails('BUG QA-33: drops a pending child check when replacing the object that holds its value', async () => {
+  it.each(['setValue', 'batch'] as const)('QA-33: replaces a stale child check after a parent write using %s', async (write) => {
     const old = deferred<string>()
     const started = deferred<AbortSignal | undefined>()
+    const validator = vi.fn((value: string, { signal }: ValidateCtx) => {
+      if (value !== 'taken') return null
+      started.resolve(signal)
+      return old.promise
+    })
     const form = createForm({
       initialValues: { profile: { name: 'initial' } },
       fields: {
         'profile.name': {
           trigger: ['onChange'],
-          rules: { validator: (value: string, { signal }: ValidateCtx) => {
-            if (value !== 'taken') return null
-            started.resolve(signal)
-            return old.promise
-          } },
+          rules: { validator },
         },
       },
     })
     form.setValue('profile.name', 'taken')
     const signal = await Promise.race([started.promise, setImmediate(undefined)])
-    form.setValue('profile', { name: 'available' })
+    if (write === 'setValue') form.setValue('profile', { name: 'available' })
+    else form.batch((d) => { d.profile.$value = { name: 'available' } })
     old.resolve('Name already taken')
     await setImmediate()
 
@@ -50,6 +52,27 @@ describe('validation edge cases', () => {
       aborted: true,
       canSubmit: true,
     })
+    expect(validator.mock.calls.map(([value]) => value)).toEqual(['taken', 'available'])
+  })
+
+  it('keeps a pending child check when the parent write leaves its value unchanged', async () => {
+    const entered = deferred<AbortSignal | undefined>()
+    const result = deferred<string>()
+    const form = createForm({
+      initialValues: { profile: { name: 'Ada', city: 'London' } },
+      fields: {
+        'profile.name': { rules: { validator: (_value: string, { signal }: ValidateCtx) => {
+          entered.resolve(signal)
+          return result.promise
+        } } },
+      },
+    })
+    const pending = form.validate('profile.name')
+    const signal = await entered.promise
+    form.setValue('profile', { name: 'Ada', city: 'Paris' })
+    expect(signal?.aborted).toBe(false)
+    result.resolve('Name unavailable')
+    await expect(pending).rejects.toEqual([{ path: 'profile.name', messages: ['Name unavailable'] }])
   })
 
   it('uses the fallback template with the original non-Error rejection', async () => {

@@ -87,7 +87,10 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     this.drafts = new EffectDrafts({ store, scheduler, writer: this.writer, fieldUi: this.fieldUi, trees, declarations })
     this.rootDraft = createHandle(this, '') as Draft<T>
     this.baseline = new Baseline({ store, notifier, scheduler, validator, declarations })
-    scheduler.onSettle = () => this.baseline.sync()
+    scheduler.onSettle = () => {
+      this.baseline.sync()
+      validator.recheckReplacedFields()
+    }
     for (const [path, spec] of Object.entries(options.trees ?? {}) as [string, { childrenKey?: string; rowKey?: string } | undefined][]) {
       if (spec) this.registerTree(path, spec)
     }
@@ -128,13 +131,10 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   /** Sticky: a user edit (`setValue`, `binding().onChange`) happened since `reset`. A reaction write does not count. */
   get edited(): boolean { return this.store.edited }
 
-  /** Incremented once per {@link FormEngine.submit}, including calls that fail validation. */
   get submitCount(): number { return this.store.submitCount }
 
-  /** Effective root `readOnly` flag. */
   get readOnly(): boolean { return this.store.effective('', 'readOnly') }
 
-  /** Effective root `disabled` flag. */
   get disabled(): boolean { return this.store.effective('', 'disabled') }
 
   /** When true, each reaction pass is traced. */
