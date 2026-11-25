@@ -85,12 +85,12 @@ it('creates missing deep containers and pads an out-of-range index without shift
 describe.each(['development', 'production'] as const)('invalid array paths in %s', (mode) => {
   beforeEach(() => vi.stubEnv('NODE_ENV', mode))
 
-  it.fails.each(['items[-1]', 'items[1.5]'] as const)('BUG: QA-36 safely rejects %s without writing a cell', (path) => {
+  it.each(['items[-1]', 'items[1.5]', "items['label']"] as const)('QA-36 safely rejects %s without writing a cell', (path) => {
     const initialValues = { items: ['a', 'b'], keep: 'untouched' }
     const form = createForm({ initialValues })
     const changed = vi.fn()
     const unsubscribe = form.subscribePath('items', changed)
-    const write = () => form.setValue(path, 'wrong cell')
+    const write = () => form.setValue(path as 'items.0', 'wrong cell')
     let error: unknown
     try {
       write()
@@ -110,5 +110,21 @@ describe.each(['development', 'production'] as const)('invalid array paths in %s
     expect.soft(Object.keys(form.getValue('items'))).toEqual(['0', '1'])
     expect.soft(form.getSubmitValues()).toStrictEqual(initialValues)
     expect.soft(changed).not.toHaveBeenCalled()
+  })
+
+  it('checks the array created by a pending draft write before accepting a child path', () => {
+    const form = createForm<{ items: string[] }>({})
+    const write = () => form.batch((d) => {
+      d.items.$value = ['new']
+      d.items[-1].$value = 'wrong'
+    })
+    if (mode === 'development') {
+      expect(write).toThrow(/items\.-1.*non-negative integer/i)
+      expect(form.getSubmitValues()).toEqual({})
+    } else {
+      expect(write).not.toThrow()
+      expect(form.getSubmitValues()).toStrictEqual({ items: ['new'] })
+      expect(Object.keys(form.getValue('items'))).toEqual(['0'])
+    }
   })
 })

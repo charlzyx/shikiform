@@ -2,13 +2,13 @@ import type { Declarations } from '../declarations/declarations'
 import { isReactionId, type Scheduler } from '../effects/scheduler'
 import { asOptions, isEnumBinding, toEnumBinding, type EnumBinding, type EnumOption } from '../enum/enum-source'
 import { cloneExternal, resetExternalCloneTraversal } from '../draft/plain-clone'
-import { pendingOf, tagPending, type CellAnchor, type PendingValue } from '../draft/pending'
+import { pendingOf, projectValue, tagPending, type CellAnchor, type PendingValue } from '../draft/pending'
 import { unwrapDraft } from '../draft/patch'
 import { unwrapReadonly } from '../draft/readonly'
 import { ShikiUsageError, showDraftPath } from '../errors'
 import { arrayIndex } from '../shared/dense-array'
 import { deepEqual } from '../shared/equal'
-import { appendValueKey, assertUnambiguousWritePath, getAt, normalizePath, parentPath, setAt } from '../shared/path'
+import { appendValueKey, assertUnambiguousWritePath, getAt, normalizePath, parentPath, pathSegments, setAt } from '../shared/path'
 import type { FlagName } from '../state/flags'
 import type { FieldModel } from '../state/field-model'
 import type { FieldStore } from '../state/field-store'
@@ -63,8 +63,9 @@ export class StateWriter {
   }
 
   /** Draft write entry point (`DraftHost.writeState`). */
-  writeState(path: string, key: string, value: unknown, anchors?: readonly CellAnchor[]): void {
-    path = writablePath(path)
+  writeState(rawPath: string, key: string, value: unknown, anchors?: readonly CellAnchor[]): void {
+    const path = this.writablePath(rawPath, true)
+    if (path === undefined) return
     this.rejectInstallWrite(path, key)
     value = storedValue(value)
     const op = this.makeOp(path, key, value, anchors)
@@ -89,8 +90,9 @@ export class StateWriter {
    * A draft array mutator on a value path. One op replaces the array; `ArrayOps` reindexes rows when it applies.
    * The op key matches a whole `$value` write so a later `push` in the same pass sees this array.
    */
-  writeArray(path: string, next: unknown[], base?: readonly unknown[]): void {
-    path = writablePath(path)
+  writeArray(rawPath: string, next: unknown[], base?: readonly unknown[]): void {
+    const path = this.writablePath(rawPath, true)
+    if (path === undefined) return
     const value = storedValue(next) as unknown[]
     const scheduler = this.deps.scheduler
     const writes = scheduler.current()?.writes ?? scheduler.batchOps
@@ -106,8 +108,8 @@ export class StateWriter {
   }
 
   /** `delete` of an object key on a value draft. An array index is a hole (`writeArray`), not this. */
-  dropField(path: string): void {
-    path = writablePath(path)
+  dropField(rawPath: string): void {
+    const path = this.writablePath(rawPath, true)
     if (!path) return
     const op: WriteOp = { key: `${path}:value`, apply: () => this.applyDrop(path) }
     tagPending(op, { kind: 'value', path, mode: 'delete' })
@@ -146,8 +148,9 @@ export class StateWriter {
     scheduler.flush()
   }
 
-  commitExternal(path: string, value: unknown): void {
-    path = writablePath(path)
+  commitExternal(rawPath: string, value: unknown): void {
+    const path = this.writablePath(rawPath)
+    if (path === undefined) return
     const { store, notifier, scheduler, validator } = this.deps
     // Clone caller data (`setValue`, `binding().onChange`). Identity is preserved only inside this path's subtree.
     resetExternalCloneTraversal()
@@ -179,11 +182,44 @@ export class StateWriter {
     collectPatchEntries(partial as Record<string, unknown>, values, '', entries)
     // Each leaf is cloned against the subtree it replaces, not the rest of the form.
     resetExternalCloneTraversal()
-    const cloned = entries.map(([rawPath, value]) => {
-      const path = writablePath(rawPath)
-      return [path, cloneExternal(value, getAt(values, path))] as [string, unknown]
+    const cloned = entries.flatMap(([rawPath, value]): [string, unknown][] => {
+      const path = this.writablePath(rawPath)
+      return path === undefined ? [] : [[path, cloneExternal(value, getAt(values, path))]]
     })
     this.commitPatch(cloned)
+  }
+
+  /** Check the original segments before flattening bracket aliases into the dotted index. */
+  private writablePath(path: string, replay = false): string | undefined {
+    const { store, scheduler } = this.deps
+    const pending = replay ? (scheduler.current()?.writes ?? scheduler.batchOps) : []
+    const parts = pathSegments(path)
+    let prefix = ''
+    let parent: unknown = store.values
+    for (const part of parts) {
+      if (arrayIndex(part) === undefined) {
+        const projected = pending.some((op) => {
+          const write = pendingOf(op)
+          return write?.kind === 'value' && (
+            write.path === prefix || !write.path || prefix.startsWith(write.path + '.') ||
+            (parent == null && write.path.startsWith(prefix + '.'))
+          )
+        })
+        const container = projected ? projectValue(parent, prefix, pending, false) : parent
+        if (Array.isArray(container)) {
+          if (process.env.NODE_ENV !== 'production') {
+            throw new ShikiUsageError(`Cannot write ${JSON.stringify(path)}: an array index must be a non-negative integer.`)
+          }
+          return undefined
+        }
+      }
+      parent = parent != null && (typeof parent === 'object' || typeof parent === 'function')
+        ? (parent as Record<string, unknown>)[part]
+        : undefined
+      prefix = appendValueKey(prefix, part)
+    }
+    assertUnambiguousWritePath(path)
+    return path.includes('[') ? parts.join('.') : path
   }
 
   /** Apply multiple external leaf updates in a single reaction/watch flush. */
@@ -604,9 +640,4 @@ function collectPatchEntries(node: Record<string, unknown>, current: unknown, pr
     if (isPlainPatchObject(val)) collectPatchEntries(val, isPlainPatchObject(current) ? current[key] : undefined, path, out)
     else out.push([path, val])
   }
-}
-
-function writablePath(path: string): string {
-  assertUnambiguousWritePath(path)
-  return normalizePath(path)
 }
