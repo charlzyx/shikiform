@@ -2,6 +2,7 @@ import { copyData } from '../draft/plain-clone'
 import { peelReadonly, unwrapReadonly } from '../draft/readonly'
 import type { Declarations } from '../declarations/declarations'
 import type { Scheduler } from '../effects/scheduler'
+import { ShikiUsageError, showDraftPath } from '../errors'
 import { deepEqual } from '../shared/equal'
 import { joinPath, setAt } from '../shared/path'
 import type { FieldStore } from '../state/field-store'
@@ -52,9 +53,19 @@ export class ArrayOps {
     return this.store.arrayOf(path).map((row, index) => ({ key: this.rowIdent(row, index, rowKey ?? this.arrays.get(path)?.rowKey), index }))
   }
 
+  private arrayForEdit(path: string): unknown[] | undefined {
+    const value = this.store.getValue(path)
+    if (Array.isArray(value)) return value
+    if (value == null) return []
+    if (process.env.NODE_ENV !== 'production') {
+      throw new ShikiUsageError(`Cannot edit rows at ${showDraftPath(path)}: the current value is not an array. Restore an array before calling row operations.`)
+    }
+    return undefined
+  }
+
   move(path: string, from: number, to: number): void {
-    const before = this.store.arrayOf(path)
-    if (from === to || from < 0 || from >= before.length) return
+    const before = this.arrayForEdit(path)
+    if (!before || from === to || from < 0 || from >= before.length) return
     const next = before.slice()
     const [row] = next.splice(from, 1)
     const dest = Math.min(Math.max(to, 0), next.length)
@@ -68,8 +79,8 @@ export class ArrayOps {
   }
 
   swap(path: string, indexA: number, indexB: number): void {
-    const before = this.store.arrayOf(path)
-    if (indexA === indexB || indexA < 0 || indexB < 0 || indexA >= before.length || indexB >= before.length) return
+    const before = this.arrayForEdit(path)
+    if (!before || indexA === indexB || indexA < 0 || indexB < 0 || indexA >= before.length || indexB >= before.length) return
     const next = before.slice()
     const tmp = next[indexA]
     next[indexA] = next[indexB]
@@ -78,15 +89,16 @@ export class ArrayOps {
   }
 
   replace(path: string, index: number, row: unknown): void {
-    const before = this.store.arrayOf(path)
-    if (index < 0 || index >= before.length) return
+    const before = this.arrayForEdit(path)
+    if (!before || index < 0 || index >= before.length) return
     const next = before.slice()
     next[index] = copyData(row)
     this.commit(path, before, next, new Set([index]))
   }
 
   insert(path: string, index: number, row: unknown): void {
-    const before = this.store.arrayOf(path)
+    const before = this.arrayForEdit(path)
+    if (!before) return
     const at = Math.min(Math.max(index, 0), before.length)
     const next = before.slice()
     next.splice(at, 0, copyData(row))
@@ -94,8 +106,8 @@ export class ArrayOps {
   }
 
   remove(path: string, index: number): void {
-    const before = this.store.arrayOf(path)
-    if (index < 0 || index >= before.length) return
+    const before = this.arrayForEdit(path)
+    if (!before || index < 0 || index >= before.length) return
     const next = before.slice()
     next.splice(index, 1)
     const dirty = new Set<number>()
@@ -104,7 +116,8 @@ export class ArrayOps {
   }
 
   push(path: string, row: unknown): void {
-    const before = this.store.arrayOf(path)
+    const before = this.arrayForEdit(path)
+    if (!before) return
     this.commit(path, before, [...before, copyData(row)], new Set([before.length]))
   }
 
@@ -115,8 +128,8 @@ export class ArrayOps {
    * Indexes whose occupant changed are the only `dirtyRows`. A no-op (same elements, same holes) writes nothing.
    */
   commitNext(path: string, next: unknown[]): boolean {
-    const before = this.store.arrayOf(path)
-    if (deepEqual(before, next)) return false
+    const before = this.arrayForEdit(path)
+    if (!before || deepEqual(before, next)) return false
     const stored = next.slice()
     const known = new Set<object>()
     for (let i = 0; i < before.length; i++) {

@@ -50,24 +50,30 @@ describe.each(['development', 'production'] as const)('array value shapes in %s'
     expectNonArrayMount({ saved: 'retain' }, mode)
   })
 
-  it.fails('BUG: QA-42 protects non-array data from a previously captured array push', () => {
+  it('QA-42 protects non-array data from previously captured array actions', () => {
     const original = { saved: 'retain this record' }
     const form = createForm<{ rows: string[] | typeof original }>({ initialValues: { rows: ['initial'] } })
-    let push!: ReturnType<typeof useArrayField>['push']
-    function CapturePush() {
-      push = useArrayField('rows').push
+    let actions!: ReturnType<typeof useArrayField>
+    function CaptureActions() {
+      actions = useArrayField('rows')
       return null
     }
-    renderToString(<Form form={form}><CapturePush /></Form>)
+    renderToString(<Form form={form}><CaptureActions /></Form>)
     form.setValue('rows', original)
 
-    if (mode === 'development') {
-      expect.soft(() => push('new row')).toThrow(ShikiUsageError)
-      expect.soft(() => push('new row')).toThrow(/rows.*array/i)
-    } else {
-      expect.soft(() => push('new row')).not.toThrow()
+    const edits = [
+      () => actions.push('new row'), () => actions.insert(0, 'new row'), () => actions.remove(0),
+      () => actions.move(0, 1), () => actions.swap(0, 1), () => actions.replace(0, 'new row'),
+    ]
+    for (const edit of edits) {
+      if (mode === 'development') {
+        expect.soft(edit).toThrow(ShikiUsageError)
+        expect.soft(edit).toThrow(/rows.*array/i)
+      } else {
+        expect.soft(edit).not.toThrow()
+      }
+      expect(form.getSubmitValues()).toEqual({ rows: original })
     }
-    expect(form.getSubmitValues()).toEqual({ rows: original })
   })
 })
 
