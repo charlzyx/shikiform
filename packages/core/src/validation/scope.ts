@@ -13,6 +13,12 @@ export function scopeTest(scope: ValidateScope | undefined): (path: string) => b
   return (path) => list.some((one) => path === one || path.startsWith(one + '.'))
 }
 
+/** A reset and a validation overlap when either one includes the other's root. */
+export function resetOverlaps(scope: ValidateScope | undefined, resetPath?: string): boolean {
+  const roots = typeof scope === 'string' || scope === undefined ? [scope ?? ''] : scope
+  return scopeTest(scope)(resetPath ?? '') || roots.some(scopeTest(resetPath))
+}
+
 /** One pass's outcome. `gen` is its generation (see {@link Validator.validateGen}). */
 export interface RunResult {
   errors: FieldError[]
@@ -28,6 +34,7 @@ export interface ValidationPass {
   gen: number
   scope?: ValidateScope
   promise?: Promise<RunResult>
+  invalidatedByReset?: boolean
 }
 
 /** A superseded pass may have stopped before reaching any of its invalid fields. */

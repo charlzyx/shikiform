@@ -13,7 +13,7 @@ import { formatMessage, type FormMessageKey, type MessageArgs, type MessageParam
 import { fieldSchemaIssues, InvalidValidatorResult, optionIncludes, runRules, type ValidateCtx } from './rules'
 import { publishWarnings, runWarningRules } from './warnings'
 import { collectSchemaIssues, groupSchemaIssues, isStandardSchema, schemaIssuePath, type SchemaIssue, type StandardSchemaV1 } from './schema'
-import { scopeTest, validateScope, type RunResult, type ValidateScope, type ValidationPass } from './scope'
+import { resetOverlaps, scopeTest, validateScope, type RunResult, type ValidateScope, type ValidationPass } from './scope'
 import { AsyncAttempts } from './async-attempt'
 import { ignoreRejection, isPromise, settleUnlessAborted, valueUnlessAborted } from './settle'
 import { clearInactiveErrors, noteFlagChange, type InactiveHost } from './inactive'
@@ -101,21 +101,19 @@ export class Validator {
    */
   run(path?: ValidateScope, signal?: AbortSignal): Promise<RunResult> {
     const record: ValidationPass = { gen: 0, scope: path }
-    // Registered when the pass takes its generation, before it notifies: a pass started from that
-    // notification (re-entry) registers after it and is correctly the newer one.
-    record.promise = this.runPass(path, (gen) => {
-      this.latest = record
-      record.gen = gen
-      if (!path) this.latestFull = record
-    }, signal)
+    record.promise = this.runPass(record, signal)
     return record.promise
   }
 
-  private async runPass(path: ValidateScope | undefined, onStart: (gen: number) => void, signal?: AbortSignal): Promise<RunResult> {
+  private async runPass(record: ValidationPass, signal?: AbortSignal): Promise<RunResult> {
     const { store, scheduler, notifier, options } = this.deps
+    const { scope: path } = record
     this.prepare()
     const gen = ++this.validateGen
-    onStart(gen)
+    // Register before emitting so a pass started by a subscriber is correctly the newer one.
+    record.gen = gen
+    this.latest = record
+    if (!path) this.latestFull = record
     const values = store.values
     const enumVersion = store.enumVersion
     const resetVersion = this.resetVersion
@@ -146,9 +144,9 @@ export class Validator {
       const collected: SchemaIssue[] = []
       const preserve = new Set<string>()
       for (const target of targets) {
-        if (superseded() || resetVersion !== this.resetVersion) return scoped()
+        if (superseded() || record.invalidatedByReset) return scoped()
         const result = await this.validateOne(target, values, signal, warnings)
-        if (superseded() || resetVersion !== this.resetVersion) return scoped()
+        if (superseded() || record.invalidatedByReset) return scoped()
         if (result.stale) preserve.add(target)
         else collected.push(...result.issues)
       }
@@ -168,7 +166,7 @@ export class Validator {
       }
       if (superseded()) return scoped()
       const activeIssues = collected.filter((issue) => issue.message && store.acceptsValidation(issue.path))
-      if (resetVersion !== this.resetVersion) {
+      if (record.invalidatedByReset) {
         const errors = groupSchemaIssues([...ruleIssues, ...activeIssues])
         return scoped([...errors].map(([path, messages]) => ({ path, messages })))
       }
@@ -177,7 +175,7 @@ export class Validator {
       await this.waitInflight()
       return scoped()
     } finally {
-      if (gen === this.validateGen && resetVersion === this.resetVersion) {
+      if (gen === this.validateGen && !record.invalidatedByReset) {
         store.validating = false
         scheduler.bumpMeta()
         notifier.emit()
@@ -495,7 +493,10 @@ export class Validator {
   /** Reset invalidates an in-progress submit verdict even when resetting to the same values. */
   reset(path?: string): void {
     this.resetVersion += 1
-    this.store.validating = false
+    if (this.latest && resetOverlaps(this.latest.scope, path)) {
+      this.latest.invalidatedByReset = true
+      this.store.validating = false
+    }
     this.attempts.clearUnder(path)
     if (!path) this.schemaByPath = new Map()
     else {

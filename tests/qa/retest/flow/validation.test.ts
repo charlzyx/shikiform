@@ -263,24 +263,27 @@ describe.each(['development', 'production'] as const)('flow validation in %s', (
     expect(form.errors).toEqual([{ path: 'city', messages: ['City unavailable'] }])
   })
 
-  it.fails('BUG: QA-20 an unrelated reset bypasses the scoped form-level verdict', async () => {
+  it.each(['single', 'multiple'] as const)('QA-60 in %s scope an unrelated reset bypasses the scoped form-level verdict', async (scope) => {
     const entered = deferred<void>()
     const hold = deferred<null>()
     const validate = vi.fn(() => ({ 'shipping.code': 'Shipping code unavailable' }))
     const form = createForm({
-      initialValues: { shipping: { code: 'A' }, billing: { city: 'Paris' } },
+      initialValues: { address: '', shipping: { code: 'A' }, billing: { city: 'Paris' } },
       fields: { 'shipping.code': { rules: { validator: () => { entered.resolve(); return hold.promise } } } },
       validate,
     })
-    const outcome = form.validate('shipping').catch((error: unknown) => error)
+    const outcome = (scope === 'single' ? form.validate('shipping') : form.validate(['shipping', 'address'])).catch((error: unknown) => error)
     try {
       await entered.promise
+      expect(form.validating).toBe(true)
       form.reset('billing')
+      expect(form.validating).toBe(true)
     } finally {
       hold.resolve(null)
     }
     expect(await outcome).toEqual([{ path: 'shipping.code', messages: ['Shipping code unavailable'] }])
     expect(validate).toHaveBeenCalledOnce()
+    expect(form.validating).toBe(false)
   })
 
   it('QA-44 retries a nested field schema after a same-valued scoped reset', async () => {
