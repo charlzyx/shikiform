@@ -24,7 +24,7 @@ it('preserves signed zero, NaN, Infinity and BigInt through edits and submission
   }
 })
 
-it.fails('BUG: QA-37 starts clean with an Invalid Date and returns to clean after restoring it', () => {
+it('QA-37 starts clean with an Invalid Date and returns to clean after restoring it', () => {
   const form = createForm({ initialValues: { date: new Date(NaN) } })
 
   expect.soft(form.dirty).toBe(false)

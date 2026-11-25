@@ -10,7 +10,7 @@ export function deepEqual(a: unknown, b: unknown): boolean {
   if (Object.is(a, b)) return true
   if (typeof a !== 'object' || typeof b !== 'object' || a == null || b == null) return false
   if (a instanceof Date || b instanceof Date) {
-    return a instanceof Date && b instanceof Date && a.getTime() === b.getTime()
+    return a instanceof Date && b instanceof Date && Object.is(a.getTime(), b.getTime())
   }
   if (Array.isArray(a) || Array.isArray(b)) {
     if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false
