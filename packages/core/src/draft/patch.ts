@@ -20,7 +20,7 @@
  * raw. For UI props the reaction layer stays a sparse patch, so a JSX layer merged only at render time is
  * preserved — a full `produce` of the value read here would replace it.
  *
- * `readStructural`, when passed, is what mutators and `delete` walk. Property reads use `read`. Value drafts use
+ * `readStructural`, when passed, reads the target of mutators and `delete`. Property reads use `read`. Value drafts use
  * that split so a cell write does not copy every row before `push` / `splice` commits through array ops.
  */
 
@@ -136,7 +136,7 @@ export function createPatchDraft(
   read: () => unknown,
   write: (keys: string[], value: unknown, kind: DraftWriteKind, base?: unknown) => void,
   keys: string[] = [],
-  readStructural?: () => unknown,
+  readStructural?: (keys: readonly string[]) => unknown,
 ): any {
   const walk = (source: () => unknown): any => {
     let node: any = source()
@@ -144,7 +144,7 @@ export function createPatchDraft(
     return node
   }
   const current = (): any => walk(read)
-  const structural = (): any => walk(readStructural ?? read)
+  const structural = (): unknown => readStructural ? readStructural(keys) : current()
   const initial = current()
   const target: object = Array.isArray(initial) ? [] : {}
   const proxy = new Proxy(target, {

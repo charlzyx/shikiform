@@ -75,7 +75,7 @@ it('composes nested array mutations while preserving holes and padding new indic
   expect(form.getSubmitValues().rows[0].items).toStrictEqual([, 9, , , 1, undefined, undefined, 8])
 })
 
-it.fails('BUG: QA-17 loses an earlier mutation to an array reached through its parent draft', () => {
+it('QA-17 composes mutations to an array reached through its parent draft', () => {
   const form = createForm({ initialValues: { order: { items: ['a'] } } })
   let projected: string[] = []
 
@@ -89,6 +89,18 @@ it.fails('BUG: QA-17 loses an earlier mutation to an array reached through its p
   expect({ projected, committed: form.getSubmitValues().order.items }).toEqual({
     projected: ['a', 'b', 'c'], committed: ['a', 'b', 'c'],
   })
+})
+
+it('keeps repeated nested array mutations on the same row after the parent moves', () => {
+  const form = createForm({ initialValues: { rows: [{ items: ['a'] }, { items: ['other'] }] } })
+  form.batch((d) => {
+    const rows = d.$value.rows
+    rows[0].items.push('b')
+    rows[0].items.push('c')
+    rows.reverse()
+    expect(rows[1].items.slice()).toEqual(['a', 'b', 'c'])
+  })
+  expect(form.getSubmitValues().rows).toEqual([{ items: ['other'] }, { items: ['a', 'b', 'c'] }])
 })
 
 it('keeps Date, Map and Set reads guarded and separates the submit snapshot', () => {

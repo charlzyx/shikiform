@@ -2,7 +2,7 @@ import type { Declarations } from '../declarations/declarations'
 import { isReactionId, type Scheduler } from '../effects/scheduler'
 import { asOptions, isEnumBinding, toEnumBinding, type EnumBinding, type EnumOption } from '../enum/enum-source'
 import { cloneExternal, resetExternalCloneTraversal } from '../draft/plain-clone'
-import { tagPending, type CellAnchor, type PendingValue } from '../draft/pending'
+import { pendingOf, tagPending, type CellAnchor, type PendingValue } from '../draft/pending'
 import { unwrapDraft } from '../draft/patch'
 import { unwrapReadonly } from '../draft/readonly'
 import { ShikiUsageError, showDraftPath } from '../errors'
@@ -90,6 +90,12 @@ export class StateWriter {
    */
   writeArray(path: string, next: unknown[], base?: readonly unknown[]): void {
     const value = storedValue(next) as unknown[]
+    const scheduler = this.deps.scheduler
+    const writes = scheduler.current()?.writes ?? scheduler.batchOps
+    // A second mutation copies the first one's projection. Keep the reference held by the parent row.
+    const previous = writes.find((op) => op.key === `${path}:value`)
+    const prior = previous && pendingOf(previous)
+    if (prior?.kind === 'value' && prior.mode === 'mutate' && prior.value === base) base = prior.base
     // `pending.path` is retargeted when a parent array op in the same pass moves this array.
     const pending: PendingValue = { kind: 'value', path, mode: 'mutate', value, base }
     const op: WriteOp = { key: `${path}:value`, apply: () => this.deps.commitArray?.(pending.path, value) ?? false }

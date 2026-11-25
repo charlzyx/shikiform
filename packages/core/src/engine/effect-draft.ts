@@ -38,7 +38,10 @@ export class EffectDrafts {
       return process.env.NODE_ENV !== 'production' ? readonlyValue(stored, path) : stored
     }
     const preview = () => projectValue(getAt(this.deps.store.values, path), path, pendingOps(this.deps.scheduler), false)
-    const structural = () => projectValue(getAt(this.deps.store.values, path), path, pendingOps(this.deps.scheduler), true)
+    const structural = (keys: readonly string[]) => {
+      const target = joinKeys(path, keys)
+      return projectValue(getAt(this.deps.store.values, target), target, pendingOps(this.deps.scheduler), true)
+    }
     if (!isPatchable(preview())) return preview()
     return createPatchDraft(preview, (keys, value, kind, base) => this.commitValue(path, keys, value, kind, base), [], structural)
   }
