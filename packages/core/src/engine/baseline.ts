@@ -1,6 +1,6 @@
 import type { Declarations } from '../declarations/declarations'
 import { copyData } from '../draft/plain-clone'
-import { isWatchRunner, type Scheduler } from '../effects/scheduler'
+import { guardReactionAction, isWatchRunner, type Scheduler } from '../effects/scheduler'
 import { deepEqual, differsExcept } from '../shared/equal'
 import { getAt, selfAndAncestors, setAt } from '../shared/path'
 import type { FieldStore } from '../state/field-store'
@@ -39,6 +39,7 @@ export class Baseline {
   /** `form.reset()`, `reset(path)`, `reset(values)` (new baseline first). See `FormEngine.reset`. */
   reset(pathOrValues?: string | object): void {
     const { store, notifier, scheduler, validator, declarations } = this.deps
+    guardReactionAction(scheduler, 'reset')
     let path: string | undefined
     if (pathOrValues != null && typeof pathOrValues === 'object') store.initial = copyData(pathOrValues)
     else if (pathOrValues) path = String(pathOrValues)

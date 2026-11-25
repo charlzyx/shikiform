@@ -1,5 +1,5 @@
 import type { Declarations } from '../declarations/declarations'
-import { isReactionId, type Scheduler } from '../effects/scheduler'
+import { guardReactionAction, isReactionId, type Scheduler } from '../effects/scheduler'
 import { asOptions, isEnumBinding, toEnumBinding, type EnumBinding, type EnumOption } from '../enum/enum-source'
 import { cloneExternal, resetExternalCloneTraversal } from '../draft/plain-clone'
 import { pendingOf, projectValue, tagPending, type CellAnchor, type PendingValue } from '../draft/pending'
@@ -149,13 +149,26 @@ export class StateWriter {
   }
 
   commitExternal(rawPath: string, value: unknown): void {
-    const path = this.writablePath(rawPath)
+    const { store, scheduler } = this.deps
+    const buffered = guardReactionAction(scheduler, 'setValue')
+    const path = this.writablePath(rawPath, buffered)
     if (path === undefined) return
-    const { store, notifier, scheduler, validator } = this.deps
     // Clone caller data (`setValue`, `binding().onChange`). Identity is preserved only inside this path's subtree.
     resetExternalCloneTraversal()
     value = cloneExternal(value, getAt(store.values, path))
-    if (!this.commitValue(path, value, false)) return
+    if (!buffered) {
+      this.applyExternal(path, value)
+      return
+    }
+    const pending: PendingValue = { kind: 'value', path, mode: 'set', value }
+    const op: WriteOp = { key: `${path}:value`, apply: () => this.applyExternal(pending.path, pending.value) }
+    tagPending(op, pending)
+    this.enqueue(op, false)
+  }
+
+  private applyExternal(path: string, value: unknown): boolean {
+    const { store, notifier, scheduler, validator } = this.deps
+    if (!this.commitValue(path, value, false)) return false
     const field = store.ensure(path)
     if (!field.edited) {
       field.edited = true
@@ -172,6 +185,7 @@ export class StateWriter {
     // flight (or waiting out its debounce) is aborted too, so a late result cannot land on the new value (#122).
     // `$canSubmit` / the `Submit` button come back when that replacement check passes.
     validator.onEdit(path)
+    return true
   }
 
   /** Apply a deep partial object update in a single reaction/watch flush (`form.patchValues`). */

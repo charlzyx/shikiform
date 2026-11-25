@@ -96,7 +96,7 @@ describe.each(['development', 'production'])('effect callbacks in %s', (environm
   const calls = ['setValue', 'reset', 'submit'] as const
 
   for (const call of calls) {
-    it.fails(`BUG: QA-47 form.${call} escapes a reaction that aborts`, async () => {
+    it(`QA-47 handles form.${call} from a reaction that aborts`, async () => {
       type Values = { start: boolean; saved: string }
       let form: FormInstance<Values>
       let submission: Promise<unknown> | undefined
@@ -109,25 +109,56 @@ describe.each(['development', 'production'])('effect callbacks in %s', (environm
             if (!d.start.$value) return
             if (call === 'setValue') form.setValue('saved', 'from failed reaction')
             if (call === 'reset') form.reset({ start: false, saved: 'new baseline' })
-            if (call === 'submit') submission = form.submit(onValid).catch(() => undefined)
+            if (call === 'submit') submission = form.submit(onValid).catch((error: unknown) => error)
             throw aborted
           })
         })],
       })
       form.setValue('saved', 'edited before reaction')
 
-      try {
-        form.setValue('start', true)
-      } catch (error) {
-        if (error !== aborted) {
-          expect(error).toBeInstanceOf(ShikiUsageError)
-          if (environment === 'development') expect(String(error)).toMatch(/draft|batch|watch/)
+      const trigger = () => form.setValue('start', true)
+      if (environment === 'development') {
+        const diagnostic = expect.objectContaining({
+          name: 'ShikiUsageError',
+          message: expect.stringMatching(/draft.*watch/),
+        })
+        if (call === 'submit') {
+          expect(trigger).toThrow(aborted)
+          expect(await submission).toEqual(diagnostic)
+          expect(form.submitCount).toBe(0)
+        } else {
+          expect(trigger).toThrow(diagnostic)
         }
+        expect(form.getValue('saved')).toBe('edited before reaction')
+        expect(onValid).not.toHaveBeenCalled()
+        return
       }
+
+      expect(trigger).toThrow(aborted)
       await submission
-      expect({ saved: form.getValue('saved'), deliveries: onValid.mock.calls.length }).toEqual({
-        saved: 'edited before reaction', deliveries: 0,
+      expect(form.getValue('saved')).toBe(call === 'reset' ? 'new baseline' : 'edited before reaction')
+      expect(onValid).toHaveBeenCalledTimes(call === 'submit' ? 1 : 0)
+    })
+  }
+
+  if (environment === 'production') {
+    it('projects a buffered setValue through the draft before committing a successful reaction', () => {
+      type Values = { start: boolean; saved: string }
+      let form: FormInstance<Values>
+      const seen = vi.fn()
+      form = createForm({
+        initialValues: { start: false, saved: 'initial' },
+        effects: [defineEffects<Values>(({ reaction }) => {
+          reaction((d) => {
+            if (!d.start.$value) return
+            form.setValue('saved', 'updated')
+            seen(form.getValue('saved'), d.saved.$value)
+          })
+        })],
       })
+      form.setValue('start', true)
+      expect(seen).toHaveBeenNthCalledWith(1, 'initial', 'updated')
+      expect(form.getValue('saved')).toBe('updated')
     })
   }
 

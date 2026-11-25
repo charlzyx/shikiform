@@ -530,6 +530,18 @@ export function assertNotWritten(scheduler: Scheduler, path: string, draftKey: s
   )
 }
 
+/** Direct form actions escape a reaction's write buffer. Development reports the supported alternatives. */
+export function guardReactionAction(scheduler: Scheduler, action: 'setValue' | 'reset' | 'submit'): boolean {
+  const tracker = scheduler.current()
+  if (!tracker?.recordWrites || !isReactionId(tracker.id)) return false
+  if (process.env.NODE_ENV !== 'production') {
+    throw new ShikiUsageError(
+      `form.${action}() runs inside a reaction. Write field values through the draft or move the action to a watch.`,
+    )
+  }
+  return true
+}
+
 function isObjectEntry(id: string): boolean {
   return /^each:\d+@/.test(id)
 }

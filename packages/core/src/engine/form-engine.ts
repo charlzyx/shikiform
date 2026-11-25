@@ -2,7 +2,7 @@ import { Declarations, type RegisterSpec } from '../declarations/declarations'
 import { createHandle, handlePath } from '../draft/handle'
 import type { DraftHost } from '../draft/host'
 import { readonlyValue } from '../draft/readonly'
-import { assertNotWritten, Scheduler, type EachDirty, type EachRec } from '../effects/scheduler'
+import { assertNotWritten, guardReactionAction, Scheduler, type EachDirty, type EachRec } from '../effects/scheduler'
 import { getAt, normalizePath } from '../shared/path'
 import { submitValueAt, validateResult } from './submit-values'
 import { shownErrors } from '../state/field-model'
@@ -215,6 +215,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   submit<R>(onValid: (values: TSubmit) => R | Promise<R>): Promise<SubmitResolved<TSubmit, R>>
   async submit<R>(onValid?: (values: TSubmit) => R | Promise<R>): Promise<TSubmit | SubmitResolved<TSubmit, R>> {
     const { store, scheduler, notifier, validator } = this
+    guardReactionAction(scheduler, 'submit')
     const serial = ++this.submitSerial
     store.submitCount += 1
     this.pendingSubmits += 1
