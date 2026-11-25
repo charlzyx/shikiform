@@ -138,9 +138,10 @@ describe('reset during asynchronous validation', () => {
 })
 
 describe('submit ownership', () => {
-  it.fails('BUG QA-22: releases the superseded submit when its form-level check is still pending', async () => {
+  it('QA-22: releases the superseded submit while both form-level checks are pending', async () => {
     const entered = deferred<void>()
     const held = deferred<void>()
+    const next = deferred<void>()
     const staleCallback = vi.fn()
     const latestCallback = vi.fn(() => 0)
     const form = createForm({
@@ -149,7 +150,7 @@ describe('submit ownership', () => {
         if (values.name === 'old') {
           entered.resolve()
           await held.promise
-        }
+        } else await next.promise
       },
     })
 
@@ -157,14 +158,18 @@ describe('submit ownership', () => {
     try {
       await entered.promise
       form.setValue('name', 'new')
-      await expect(form.submit(latestCallback)).resolves.toBe(0)
-      expect(latestCallback).toHaveBeenCalledExactlyOnceWith({ name: 'new' })
+      const second = form.submit(latestCallback)
       const outcome = await Promise.race([first, setImmediate('old submit is still pending')])
       expect(outcome).toBeInstanceOf(SubmitSupersededError)
+      expect(form.submitting).toBe(true)
+      next.resolve()
+      await expect(second).resolves.toBe(0)
+      expect(latestCallback).toHaveBeenCalledExactlyOnceWith({ name: 'new' })
       expect(form.submitting).toBe(false)
       expect(form.canSubmit).toBe(true)
     } finally {
-      held.resolve()
+      next.resolve()
+      held.reject(new Error('Abandoned validation rejected'))
       await first
       expect(staleCallback).not.toHaveBeenCalled()
     }
@@ -191,6 +196,24 @@ describe('submit ownership', () => {
     await expect(pending).rejects.toBe(callbackError)
     expect([form.submitting, form.validating, form.canSubmit]).toEqual([false, false, true])
     await expect(form.submit(async () => {})).resolves.toEqual({ revision: 3 })
+  })
+
+  it('aborts a field check owned by a superseded submit so the replacement can validate', async () => {
+    const entered = deferred<AbortSignal | undefined>()
+    const held = deferred<string>()
+    const check = vi.fn<(_value: string, ctx: ValidateCtx) => Promise<string | null>>().mockImplementationOnce((_value, { signal }) => {
+      entered.resolve(signal)
+      return held.promise
+    }).mockResolvedValue(null)
+    const form = createForm({ initialValues: { name: 'Ada' }, fields: { name: { rules: { validator: check } } } })
+
+    const first = form.submit().catch((error: unknown) => error)
+    const signal = await entered.promise
+    const second = form.submit()
+    await expect(first).resolves.toBeInstanceOf(SubmitSupersededError)
+    await expect(second).resolves.toEqual({ name: 'Ada' })
+    expect(signal?.aborted).toBe(true)
+    held.reject(new Error('Abandoned field check rejected'))
   })
 })
 

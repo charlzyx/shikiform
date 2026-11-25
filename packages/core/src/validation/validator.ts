@@ -15,7 +15,7 @@ import { runWarningRules } from './warnings'
 import { collectSchemaIssues, groupSchemaIssues, isStandardSchema, schemaIssuePath, type SchemaIssue, type StandardSchemaV1 } from './schema'
 import { scopeTest, validateScope, type RunResult, type ValidateScope, type ValidationPass } from './scope'
 import { AsyncAttempts } from './async-attempt'
-import { ignoreRejection, isPromise, settleUnlessAborted } from './settle'
+import { ignoreRejection, isPromise, settleUnlessAborted, valueUnlessAborted } from './settle'
 import { clearInactiveErrors, noteFlagChange, type InactiveHost } from './inactive'
 
 export interface ValidatorDeps {
@@ -114,7 +114,7 @@ export class Validator {
    * started meanwhile (the errors are then whatever is shown, not this pass's verdict).
    * `submit` compares `values` with the live values to know whether what it would submit was validated (#6).
    */
-  run(path?: ValidateScope): Promise<RunResult> {
+  run(path?: ValidateScope, signal?: AbortSignal): Promise<RunResult> {
     const record: ValidationPass = { gen: 0, scope: path }
     // Registered when the pass takes its generation, before it notifies: a pass started from that
     // notification (re-entry) registers after it and is correctly the newer one.
@@ -122,11 +122,11 @@ export class Validator {
       this.latest = record
       record.gen = gen
       if (!path) this.latestFull = record
-    })
+    }, signal)
     return record.promise
   }
 
-  private async runPass(path: ValidateScope | undefined, onStart: (gen: number) => void): Promise<RunResult> {
+  private async runPass(path: ValidateScope | undefined, onStart: (gen: number) => void, signal?: AbortSignal): Promise<RunResult> {
     const { store, scheduler, notifier, options } = this.deps
     this.prepare()
     const gen = ++this.validateGen
@@ -134,6 +134,7 @@ export class Validator {
     const values = store.values
     const enumVersion = store.enumVersion
     const resetVersion = this.resetVersion
+    const superseded = () => signal?.aborted || gen !== this.validateGen
     const inScope = scopeTest(path)
     // Validating a field again replaces what the server said about it.
     if (typeof path === 'string' || path === undefined) this.clearExternalUnder(path)
@@ -154,9 +155,9 @@ export class Validator {
       const collected: SchemaIssue[] = []
       const preserve = new Set<string>()
       for (const target of targets) {
-        if (gen !== this.validateGen || resetVersion !== this.resetVersion) return scoped()
-        const result = await this.validateOne(target, values)
-        if (gen !== this.validateGen || resetVersion !== this.resetVersion) return scoped()
+        if (superseded() || resetVersion !== this.resetVersion) return scoped()
+        const result = await this.validateOne(target, values, signal)
+        if (superseded() || resetVersion !== this.resetVersion) return scoped()
         if (result.stale) preserve.add(target)
         else collected.push(...result.issues)
       }
@@ -169,14 +170,12 @@ export class Validator {
         const issues = await collectSchemaIssues(validate, values, (error, issuePath) =>
           this.message('fallback', { path: issuePath, value: getAt(values, issuePath), error }),
         )
-        if (gen !== this.validateGen) return scoped()
         collected.push(...issues)
       } else if (typeof validate === 'function') {
         const extra = await validate(process.env.NODE_ENV !== 'production' ? readonlyValue(values, '') : values)
-        if (gen !== this.validateGen) return scoped()
         collected.push(...recordToIssues(extra))
       }
-      if (gen !== this.validateGen) return scoped()
+      if (superseded()) return scoped()
       const activeIssues = collected.filter((issue) => issue.message && store.acceptsValidation(issue.path))
       if (resetVersion !== this.resetVersion) {
         const errors = groupSchemaIssues([...ruleIssues, ...activeIssues])
@@ -196,13 +195,14 @@ export class Validator {
   }
 
   /** Wait for in-flight rules, then deliver the verdict in the same turn as the final snapshot check. */
-  async submitVerdict<R>(finish: (errors: FieldError[] | null) => R): Promise<R> {
-    await this.waitAsync()
-    for (let pass = 0; pass < SETTLE_PASSES; pass++) {
-      let result = await this.run()
-      while (!result.current && this.latestFull?.promise && this.latestFull.gen > result.gen) {
-        result = await this.latestFull.promise
+  async submitVerdict<R>(signal: AbortSignal, finish: (errors: FieldError[] | null) => R): Promise<R> {
+    if (!signal.aborted) await this.waitAsync(signal)
+    for (let pass = 0; pass < SETTLE_PASSES && !signal.aborted; pass++) {
+      let result = await valueUnlessAborted(this.run(undefined, signal), signal)
+      while (result && !result.current && this.latestFull?.promise && this.latestFull.gen > result.gen) {
+        result = await valueUnlessAborted(this.latestFull.promise, signal)
       }
+      if (!result || signal.aborted) break
       if (!sameValues(result.values, this.store.values)) continue
       if (result.resetVersion !== this.resetVersion) continue
       if (this.deps.options.enumPolicy === 'error' && result.enumVersion !== this.store.enumVersion) continue
@@ -240,7 +240,7 @@ export class Validator {
     return ctx
   }
 
-  private async validateOne(path: string, values: unknown): Promise<{ stale: boolean; issues: SchemaIssue[] }> {
+  private async validateOne(path: string, values: unknown, submitSignal?: AbortSignal): Promise<{ stale: boolean; issues: SchemaIssue[] }> {
     const { store, notifier, scheduler, options } = this.deps
     const field = store.get(path)
     if (!field) return { stale: false, issues: [] }
@@ -356,7 +356,7 @@ export class Validator {
       }
       return apply(extra, extraWarnings)
     })()
-    this.trackInflight(task, ac.signal)
+    this.trackInflight(task, ac, submitSignal)
     return task
   }
 
@@ -364,17 +364,23 @@ export class Validator {
    * `waitAsync` waits on this set. Abort drops the attempt before its promise settles, so a validator
    * that never resolves after `signal` aborts cannot pin `submit`.
    */
-  private trackInflight(task: Promise<unknown>, signal: AbortSignal): void {
+  private trackInflight(task: Promise<unknown>, ac: AbortController, submitSignal?: AbortSignal): void {
+    const { signal } = ac
+    if (submitSignal?.aborted) ac.abort()
     if (signal.aborted) return
+    const cancel = () => ac.abort()
+    submitSignal?.addEventListener('abort', cancel, { once: true })
     this.inflight.add(task)
     const drop = () => {
       this.inflight.delete(task)
     }
     signal.addEventListener('abort', drop, { once: true })
-    void task.finally(() => {
+    const cleanup = () => {
+      submitSignal?.removeEventListener('abort', cancel)
       signal.removeEventListener('abort', drop)
       this.inflight.delete(task)
-    })
+    }
+    void task.then(cleanup, cleanup)
   }
 
   /**
@@ -425,8 +431,12 @@ export class Validator {
   }
 
   /** Wait until no field validator is in flight. Does not cancel a debounce a newer edit just scheduled. */
-  private async waitInflight(): Promise<void> {
-    while (this.inflight.size) await Promise.allSettled([...this.inflight])
+  private async waitInflight(signal?: AbortSignal): Promise<void> {
+    while (this.inflight.size && !signal?.aborted) {
+      const pending = Promise.allSettled([...this.inflight])
+      if (signal) await settleUnlessAborted(pending, signal)
+      else await pending
+    }
   }
 
   /**
@@ -434,9 +444,9 @@ export class Validator {
    * `submit` uses this so it validates the current value now. A validation pass must not: clearing the timer
    * would drop the check that replaced it (#122).
    */
-  async waitAsync(): Promise<void> {
+  async waitAsync(signal?: AbortSignal): Promise<void> {
     this.attempts.clearUnder()
-    await this.waitInflight()
+    await this.waitInflight(signal)
   }
 
   /** Ignore an in-flight field validator. A late `apply` sees the bumped sequence and does not write. */

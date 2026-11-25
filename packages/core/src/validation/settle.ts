@@ -3,7 +3,10 @@
  * The promise's rejection is always observed, so dropping it cannot become an unhandled rejection.
  */
 export function settleUnlessAborted<T>(promise: Promise<T>, signal: AbortSignal): Promise<Settled<T>> {
-  if (signal.aborted) return Promise.resolve({ status: 'aborted' })
+  if (signal.aborted) {
+    ignoreRejection(promise)
+    return Promise.resolve({ status: 'aborted' })
+  }
   return new Promise((resolve) => {
     let settled = false
     const onAbort = () => {
@@ -28,6 +31,14 @@ export function settleUnlessAborted<T>(promise: Promise<T>, signal: AbortSignal)
       },
     )
   })
+}
+
+/** The value to deliver to a caller still waiting on this work. */
+export async function valueUnlessAborted<T>(promise: Promise<T>, signal: AbortSignal): Promise<T | undefined> {
+  const result = await settleUnlessAborted(promise, signal)
+  if (signal.aborted || result.status === 'aborted') return undefined
+  if (result.status === 'rejected') throw result.reason
+  return result.value
 }
 
 /** Observe a rejection and drop the reason. Used for attempts abandoned before they are awaited. */

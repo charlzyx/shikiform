@@ -63,7 +63,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   private readonly uiNodes: UiNodes
   private readonly drafts: EffectDrafts
   private pendingSubmits = 0
-  private submitSerial = 0
+  private submitValidation?: AbortController
   private readonly baseline: Baseline
 
   constructor(options: FormOptions<T> = {}) {
@@ -117,7 +117,6 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   /** Baseline `reset()` restores and `dirty` compares against. Cloned on create; replaced by `reset(values)` / `setInitialValues`. */
   get initial(): T { return this.store.initial }
 
-  /** True for the duration of {@link FormEngine.submit}, including the validation it waits for. */
   get submitting(): boolean { return this.store.submitting }
 
   /** True while a validate pass is running, including the async rules it waits for. */
@@ -205,26 +204,27 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     return [...this.store.fields.keys()].filter(path => path && this.store.effective(path, 'omit'))
   }
 
-  /** Remove omitted paths deepest first so an omitted ancestor always wins. */
   getSubmitValues(): TSubmit {
     return submitValueAt(this.store.values, this.store) as TSubmit
   }
 
-  /** Validate, then call `onValid` with {@link FormEngine.getSubmitValues}. Rejects `FieldError[]` on validation failure. */
   submit(): Promise<TSubmit>
   submit<R>(onValid: (values: TSubmit) => R | Promise<R>): Promise<SubmitResolved<TSubmit, R>>
   async submit<R>(onValid?: (values: TSubmit) => R | Promise<R>): Promise<TSubmit | SubmitResolved<TSubmit, R>> {
     const { store, scheduler, notifier, validator } = this
     guardReactionAction(scheduler, 'submit')
-    const serial = ++this.submitSerial
+    const previous = this.submitValidation
+    const check = this.submitValidation = new AbortController()
     store.submitCount += 1
     this.pendingSubmits += 1
     store.submitting = true
     scheduler.bumpMeta()
-    notifier.emit()
     try {
-      return await validator.submitVerdict(async (errors) => {
-        if (serial !== this.submitSerial) throw new SubmitSupersededError(this.message('superseded', { path: '', value: store.values }))
+      previous?.abort()
+      notifier.emit()
+      return await validator.submitVerdict(check.signal, async (errors) => {
+        if (check.signal.aborted) throw new SubmitSupersededError(this.message('superseded', { path: '', value: store.values }))
+        this.submitValidation = undefined
         if (errors === null) throw new SubmitUnstableError(this.message('superseded', { path: '', value: store.values }))
         if (errors.length) {
           notifier.validateFailed(errors)
@@ -236,6 +236,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
         return (returned === undefined ? values : returned) as TSubmit | SubmitResolved<TSubmit, R>
       })
     } finally {
+      if (this.submitValidation === check) this.submitValidation = undefined
       this.pendingSubmits -= 1
       store.submitting = this.pendingSubmits > 0
       scheduler.bumpMeta()
@@ -275,7 +276,6 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     return formatMessage(this.options.messages, key, ...params)
   }
 
-  /** Validate one scope. Resolves the submit-shaped clone; rejects `FieldError[]`. A form-level throw rejects as-is. */
   validate(path?: undefined): Promise<TSubmit>
   validate<P extends FieldPath<T>>(path: P): Promise<PathValue<T, P>>
   validate<const Paths extends readonly FieldPath<T>[]>(paths: Paths): Promise<ValidatePick<T, Paths>>
