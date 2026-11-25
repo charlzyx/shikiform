@@ -4,6 +4,20 @@ import { getAt, parentPath } from '../shared/path'
 import { acceptsValidation as pathAcceptsValidation, effectiveFlag, ownFlag, type FlagName } from './flags'
 import { createFieldModel, type FieldModel } from './field-model'
 
+/** Compare the values accepted by optionIncludes. An absent list imposes no restriction. */
+function sameEnumMembership(before: EnumOption[] | undefined, after: EnumOption[] | undefined): boolean {
+  if (!before || !after) return before === after
+  const enabled = new Set<unknown>()
+  before.forEach(({ value, disabled }) => {
+    if (!disabled && !Number.isNaN(value)) enabled.add(value)
+  })
+  const next = new Set<unknown>()
+  after.forEach(({ value, disabled }) => {
+    if (!disabled && !Number.isNaN(value)) next.add(value)
+  })
+  return enabled.size === next.size && [...next].every((value) => enabled.has(value))
+}
+
 /** Models an array / tree change dropped, and the ones it re-keyed (with their previous path). */
 export interface ReindexResult {
   dropped: FieldModel[]
@@ -47,18 +61,8 @@ export class FieldStore<T = any> {
 
   setEnumOptions(field: FieldModel, options: EnumOption[] | undefined): void {
     const prev = field.enumOptions
-    // Only membership and disabled options affect the verdict. Match values by identity, like optionIncludes.
     field.enumOptions = options
-    if (prev?.length !== options?.length) {
-      this.enumVersion += 1
-      return
-    }
-    for (const [index, option] of options?.entries() ?? []) {
-      const old = prev?.[index]
-      if (Boolean(old) === Boolean(option) && Object.is(old?.value, option?.value) && Boolean(old?.disabled) === Boolean(option?.disabled)) continue
-      this.enumVersion += 1
-      break
-    }
+    if (!sameEnumMembership(prev, options)) this.enumVersion += 1
   }
 
   /** The model at `path`, created on first touch. */

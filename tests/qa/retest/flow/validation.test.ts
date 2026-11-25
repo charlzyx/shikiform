@@ -104,7 +104,7 @@ describe.each(['development', 'production'] as const)('flow validation in %s', (
     form.batch((d) => { expect(d.profile.plan.$enum[0].label).toBe('Team plan') })
   })
 
-  it.fails('BUG: QA-14 option order alone can exhaust submit retries', async () => {
+  it('QA-59 option order alone can exhaust submit retries', async () => {
     let options = ['first', 'second']
     const form = createForm({
       initialValues: { code: 'first' },
@@ -118,6 +118,26 @@ describe.each(['development', 'production'] as const)('flow validation in %s', (
     const save = vi.fn()
     await expect(form.submit(save)).resolves.toEqual({ code: 'first' })
     expect(save).toHaveBeenCalledExactlyOnceWith({ code: 'first' })
+    expect(options).toEqual(['second', 'first'])
+  })
+
+  it('QA-59 does not repeat a submit when enabled membership survives duplicate and disabled entries', async () => {
+    const validate = vi.fn((): void => form.batch((d) => {
+      d.code.$enum = [
+        { value: 'first', label: 'First' },
+        { value: 'first', label: 'Duplicate' },
+        { value: 'second', label: 'Second' },
+        { value: 'third', label: 'Disabled', disabled: true },
+      ]
+    }))
+    const form = createForm({
+      initialValues: { code: 'first' },
+      fields: { code: { enum: ['first', 'second'] } },
+      enumPolicy: 'error',
+      validate,
+    })
+    await expect(form.submit()).resolves.toEqual({ code: 'first' })
+    expect(validate).toHaveBeenCalledOnce()
   })
 
   it('QA-16 matches nested bracket and quoted segments without validating a sibling row', async () => {
