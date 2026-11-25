@@ -89,7 +89,10 @@ export function useLazyCascader(options: UseLazyCascaderOptions): LazyCascaderAp
   pathsRef.current = options.paths
   const enabled = options.enabled !== false
   useEffect(() => {
-    if (!enabled) return
+    if (!enabled) {
+      setLoading(false)
+      return
+    }
     let live = true
     setLoading(true)
     rootReady.current = Promise.resolve(loadRef.current([])).then((root) => {
@@ -110,7 +113,7 @@ export function useLazyCascader(options: UseLazyCascaderOptions): LazyCascaderAp
   void version
   return {
     options: tree.current,
-    loading,
+    loading: enabled && loading,
     loadChildren,
     ensure,
     labelsOf: (path) => {

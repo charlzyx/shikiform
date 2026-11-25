@@ -124,16 +124,24 @@ it('QA-10 useColumnSettings updates titles and keeps user settings and actions',
   expect(result.current.items[0].title).toBe(title)
 })
 
-it.fails('BUG: QA-11 useLazyCascader stays loading after being disabled', async () => {
+it('QA-11 useLazyCascader clears loading when disabled and ignores stale root results', async () => {
   const root = deferred<CascaderOption[]>()
-  const load = vi.fn(() => root.promise)
+  const freshRoot = deferred<CascaderOption[]>()
+  const load = vi.fn(() => freshRoot.promise).mockImplementationOnce(() => root.promise)
   const { result, rerender } = renderHook(({ enabled }) => useLazyCascader({ enabled, load }), {
     initialProps: { enabled: true },
   })
   expect(load).toHaveBeenCalledExactlyOnceWith([])
   expect(result.current.loading).toBe(true)
   rerender({ enabled: false })
+  expect(result.current.loading).toBe(false)
+  rerender({ enabled: true })
+  expect(result.current.loading).toBe(true)
   await act(async () => root.resolve([{ label: 'Stale root', value: 'old' }]))
   expect(result.current.options).toEqual([])
+  expect(result.current.loading).toBe(true)
+  const freshOptions = [{ label: 'Fresh root', value: 'new' }]
+  await act(async () => freshRoot.resolve(freshOptions))
+  expect(result.current.options).toEqual(freshOptions)
   expect(result.current.loading).toBe(false)
 })
