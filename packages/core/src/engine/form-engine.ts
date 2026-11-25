@@ -82,6 +82,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
       commitArray: (path, next) => this.arrays.commitNext(path, next),
     }, deferEnumLoads)
     declarations.onDeclaredEnum = (path, binding) => this.writer.loadDeclaredEnum(path, binding)
+    declarations.onDiscardedEnumLoad = (field) => this.writer.cancelEnumLoad(field)
     this.fieldUi = this.writer.attachUi(new FieldUi(store, notifier, scheduler, (path, key, value) => this.writeState(path, key, value)))
     this.uiNodes = new UiNodes(store, notifier, scheduler, this.writer, this.fieldUi)
     this.drafts = new EffectDrafts({ store, scheduler, writer: this.writer, fieldUi: this.fieldUi, trees, declarations })
@@ -134,7 +135,6 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
   get submitCount(): number { return this.store.submitCount }
 
   get readOnly(): boolean { return this.store.effective('', 'readOnly') }
-
   get disabled(): boolean { return this.store.effective('', 'disabled') }
 
   /** When true, each reaction pass is traced. */

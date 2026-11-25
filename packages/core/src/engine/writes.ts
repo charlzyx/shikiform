@@ -502,7 +502,7 @@ export class StateWriter {
   }
 
   /** Supersede a pending or in-flight load and reset loading. */
-  private cancelEnumLoad(field: FieldModel): void {
+  cancelEnumLoad(field: FieldModel): void {
     const load = this.enumLoads.get(field)
     this.enumLoads.delete(field)
     clearTimeout(load?.timer)
@@ -578,7 +578,7 @@ export class StateWriter {
     this.enumLoads.set(field, load)
     if (this.enumLoadsPaused) return
 
-    const isCurrent = () => this.enumLoads.get(field) === load
+    const isCurrent = () => this.enumLoads.get(field) === load && store.get(field.path) === field
     const start = () => {
       if (!isCurrent()) return
       load.timer = undefined

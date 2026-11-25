@@ -74,7 +74,7 @@ it('an old unsubscribe handle cannot cancel a later subscription to the same key
   keep()
 })
 
-it.fails('BUG: QA-29 keeps an in-flight enum request after deleting its row', async () => {
+it('QA-29 aborts an in-flight enum request when deleting its row', async () => {
   vi.useFakeTimers()
   type Values = { rows: { id: string; sku: string }[] }
   let oldSignal: AbortSignal | undefined
@@ -101,7 +101,7 @@ it.fails('BUG: QA-29 keeps an in-flight enum request after deleting its row', as
   expect(abortedOnRemoval).toBe(true)
 })
 
-it.fails('BUG: QA-29 starts a debounced enum request after deleting its row', async () => {
+it('QA-29 clears a debounced enum request when deleting its row', async () => {
   vi.useFakeTimers()
   type Values = { rows: { sku: string }[] }
   const load = vi.fn(() => [{ label: 'Pen', value: 'pen' }])
@@ -118,4 +118,28 @@ it.fails('BUG: QA-29 starts a debounced enum request after deleting its row', as
   await vi.advanceTimersByTimeAsync(50)
 
   expect(load).not.toHaveBeenCalled()
+})
+
+it('lets the surviving row finish its shared enum load after it moves into the deleted row’s path', async () => {
+  const items = [{ label: 'Kept', value: 'kept' }]
+  let resolve!: (options: typeof items) => void
+  const pending = new Promise<typeof items>((done) => { resolve = done })
+  let signal: AbortSignal | undefined
+  const load = vi.fn((_: void, context: { signal: AbortSignal }) => {
+    signal = context.signal
+    return pending
+  })
+  const form = createEngine({
+    initialValues: { rows: [{ id: 'drop', sku: 'drop' }, { id: 'keep', sku: 'kept' }] },
+    fields: { 'rows.*.sku': { enum: EnumSource.from(load) } },
+    enumPolicy: 'clear',
+  })
+  expect(load).toHaveBeenCalledOnce()
+  form.removeArray('rows', 0)
+  expect(signal?.aborted).toBe(false)
+  resolve(items)
+  await vi.waitFor(() => {
+    expect(form.binding('rows.0.sku')).toMatchObject({ options: items, loading: false, value: 'kept' })
+  })
+  expect(load).toHaveBeenCalledOnce()
 })

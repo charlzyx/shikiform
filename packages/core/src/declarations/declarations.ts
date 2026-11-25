@@ -39,6 +39,7 @@ export class Declarations {
   private strippedPaths = new Set<string>()
   /** Hooked by FormEngine so `fields.x.enum: EnumSource | EnumBinding` triggers async loading. */
   onDeclaredEnum?: (path: string, binding: EnumBinding) => void
+  onDiscardedEnumLoad?: (field: FieldModel) => void
 
   constructor(
     private readonly store: FieldStore<any>,
@@ -59,6 +60,7 @@ export class Declarations {
     store.onReindex = ({ dropped, moved }) => {
       if (dropped.some((model) => model.enumOptions) || moved.some(({ model }) => model.enumOptions)) store.enumVersion += 1
       for (const model of dropped) {
+        this.onDiscardedEnumLoad?.(model)
         if (model.declaration) this.dormantDeclarations.set(model.path, model.declaration)
       }
       for (const { from, model } of moved) {
@@ -91,7 +93,10 @@ export class Declarations {
     if (cleared.length) this.validator.noteFlags(field.path, cleared)
     if ((spec as RegisterSpec).trigger) field.triggers = undefined
     if (spec.asyncDebounceMs !== undefined) field.asyncDebounceMs = undefined
-    if (spec.enum && !field.enumFromEffect && field.jsxEnum === undefined) this.store.setEnumOptions(field, undefined)
+    if (spec.enum && !field.enumFromEffect && field.jsxEnum === undefined) {
+      this.onDiscardedEnumLoad?.(field)
+      this.store.setEnumOptions(field, undefined)
+    }
     if (field.uiDeclared) {
       const next = { ...field.uiDeclared }
       for (const key of Object.keys(normalizeUiSpec(spec))) delete next[key as keyof typeof next]
