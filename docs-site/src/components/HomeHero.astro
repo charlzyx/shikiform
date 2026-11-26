@@ -20,7 +20,7 @@ const english = language === "en";
         </h1>
 
         <p class="sf-hero__desc">
-          {english ? <> Define how fields respond to each other in TypeScript. Bind the resulting values, errors and options to the controls you already use. </> : <> 《说文》有云：「<strong>式，法也，从工。</strong>」专为前端工程师打造的表单法度——用极简的 <code>draft</code> 与 <code>$</code> 驯服复杂状态，让 UI 回归纯粹。 </>}
+          {english ? <> Define how fields respond to each other in TypeScript. Bind the resulting values, errors and options to the controls you already use. </> : <> 用 TypeScript 写清表单联动和校验，再把值、报错和选项接到你手头正在用的任何 UI 组件库。 </>}
         </p>
 
         <div class="sf-hero__actions">
@@ -81,24 +81,24 @@ const english = language === "en";
     <!-- Bottom: 无框三列卖点 -->
     <div class="sf-hero__pillars">
       <div class="sf-hero__pillar">
-        <div class="sf-hero__pillar-num">{english ? "Effects" : "壹 · 联动"}</div>
-        <div class="sf-hero__pillar-title">{english ? "Derive state as data changes" : "式盘推演 · 集中响应"}</div>
+        <div class="sf-hero__pillar-num">{english ? "Effects" : "01 · 联动"}</div>
+        <div class="sf-hero__pillar-title">{english ? "Derive state as data changes" : "数据一变，状态自动跟着变"}</div>
         <p class="sf-hero__pillar-body">
-          {english ? <> Use <code>reaction</code> for derived values, <code>watch</code> for actions after a change and <code>reaction.each</code> to update one row at a time. </> : <> <code>reaction</code> 自动追踪依赖派生状态，<code>watch</code> 处理一次性副作用，<code>reaction.each</code> 按行独立重算，彻底告别满屏 <code>useEffect</code>。 </>}
+          {english ? <> Use <code>reaction</code> for derived values, <code>watch</code> for actions after a change and <code>reaction.each</code> to update one row at a time. </> : <> 算出来的值用 <code>reaction</code>，改完做一次请求或清空用 <code>watch</code>，列表里每行独立联动用 <code>reaction.each</code>，不用写满屏 <code>useEffect</code>。 </>}
         </p>
       </div>
       <div class="sf-hero__pillar">
-        <div class="sf-hero__pillar-num">{english ? "Field state" : "贰 · 四态"}</div>
-        <div class="sf-hero__pillar-title">{english ? "Control what users see and submit" : "正交清晰 · 沿径继承"}</div>
+        <div class="sf-hero__pillar-num">{english ? "Field state" : "02 · 状态"}</div>
+        <div class="sf-hero__pillar-title">{english ? "Control what users see and submit" : "显示、禁用、只读、提交各管各的"}</div>
         <p class="sf-hero__pillar-body">
-          {english ? <> Configure <code>visible</code>, <code>disabled</code>, <code>readOnly</code> and <code>omit</code> independently for each field or subtree. </> : <> <code>visible</code>、<code>disabled</code>、<code>readOnly</code>、<code>omit</code> 四个独立布尔各司其职，渲染、校验与提交裁剪所见即所得。 </>}
+          {english ? <> Configure <code>visible</code>, <code>disabled</code>, <code>readOnly</code> and <code>omit</code> independently for each field or subtree. </> : <> <code>visible</code> 管显示，<code>disabled</code> 管禁用，<code>readOnly</code> 管只读预览，<code>omit</code> 管提交时要不要带上——互不打架，设在父级自动传给子字段。 </>}
         </p>
       </div>
       <div class="sf-hero__pillar">
-        <div class="sf-hero__pillar-num">{english ? "Headless controls" : "叁 · 无头"}</div>
-        <div class="sf-hero__pillar-title">{english ? "Bring your own components" : "式形分离 · 接任意 UI"}</div>
+        <div class="sf-hero__pillar-num">{english ? "Headless controls" : "03 · 组件"}</div>
+        <div class="sf-hero__pillar-title">{english ? "Bring your own components" : "不绑组件库，接你手头的 UI"}</div>
         <p class="sf-hero__pillar-body">
-          {english ? <> The engine runs without React. In React, use <code>connect</code> and <code>useFieldDecorator</code> to bind native inputs or your component library. </> : <> 核心零 React 与 UI 依赖，在 React 中用 <code>connect</code> 与 <code>useFieldDecorator</code> 轻松接入 Antd、shadcn、UI SDK 或原生 HTML。 </>}
+          {english ? <> The engine runs without React. In React, use <code>connect</code> and <code>useFieldDecorator</code> to bind native inputs or your component library. </> : <> 引擎本身不依赖 React 或任何样式库。在 React 里用 <code>connect</code> 和 <code>useFieldDecorator</code>，几行就能接上 Antd、shadcn、UI SDK 或原生 HTML。 </>}
         </p>
       </div>
     </div>
