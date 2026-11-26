@@ -44,7 +44,7 @@ export class FieldStore<T = any> {
   /** Called once after a model is created. Declarations use it to revive a dormant declaration. */
   onCreate?: (path: string) => void
   /** Called with the models an array / tree change dropped or moved, before the new value is written. */
-  onReindex?: (result: ReindexResult) => void
+  onReindex?: (result: ReindexResult, oldIds: ReadonlyMap<string, string>, newIds: ReadonlyMap<string, string>) => void
   /** Called with the row id → path maps of an array / tree change (named UI nodes follow their rows). */
   onReindexIds?: (oldIds: ReadonlyMap<string, string>, newIds: ReadonlyMap<string, string>) => void
   /** Called after an array / tree change wrote its new value. */

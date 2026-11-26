@@ -151,7 +151,7 @@ export class TreeOps {
     if (scheduler.valueCommit) scheduler.enqueueFromDirty()
     const reindexed = reindexById(store.fields, oldIds, newIds)
     const moved = movedFieldPaths(reindexed)
-    store.onReindex?.(reindexed)
+    store.onReindex?.(reindexed, oldIds, newIds)
     scheduler.reindexRows(oldIds, newIds)
     store.onReindexIds?.(oldIds, newIds)
     const previous = store.values

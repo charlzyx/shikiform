@@ -1,5 +1,6 @@
 import type { FieldModel } from '../state/field-model'
 import { parentPath } from '../shared/path'
+import { indexPaths, locateRowPath, type RowIds } from '../shared/row-paths'
 
 /**
  * Move field models with their row / node identity.
@@ -14,7 +15,6 @@ export interface Reindexed {
   moved: { from: string; model: FieldModel }[]
 }
 
-type RowIds = ReadonlyMap<string, string>
 export type RowTransition = () => readonly [before: RowIds, after: RowIds]
 
 /** Resolve the previous coordinate of a field on the current row or node. */
@@ -66,24 +66,16 @@ export function reindexKeyed<M extends { path: string }>(
   const moves: { to: string; model: M }[] = []
   const moved: { from: string; model: M }[] = []
   if (!models.size || !oldIds.size) return { dropped, moved }
-  const idsByPath = indexPaths(oldIds)
+  const locate = locateRowPath(oldIds, newIds)
   for (const [key, model] of models) {
-    const fieldPath = model.path
-    let owner: string | null = fieldPath
-    let id: string | undefined
-    while (owner) {
-      id = idsByPath.get(owner)
-      if (id !== undefined) break
-      owner = parentPath(owner)
-    }
-    if (!owner || id === undefined) continue
+    const target = locate(model.path)
+    if (target === undefined) continue
     owned.push(key)
-    const target = newIds.get(id)
-    if (!target) {
+    if (target === null) {
       dropped.push(model)
       continue
     }
-    moves.push({ to: target + fieldPath.slice(owner.length), model })
+    moves.push({ to: target, model })
   }
   for (const key of owned) models.delete(key)
   for (const move of moves) {
@@ -92,12 +84,4 @@ export function reindexKeyed<M extends { path: string }>(
     models.set(keyOf(move.model), move.model)
   }
   return { dropped, moved }
-}
-
-function indexPaths(ids: RowIds): Map<string, string> {
-  const byPath = new Map<string, string>()
-  for (const [id, path] of ids) {
-    if (!byPath.has(path)) byPath.set(path, id)
-  }
-  return byPath
 }

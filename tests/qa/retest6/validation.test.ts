@@ -45,7 +45,7 @@ describe.each(['development', 'production'])('F9 validation publication in %s', 
     expect(form.errors).toEqual([...globalErrors, expectedRowError])
   })
 
-  it.fails('BUG: pending form schema should locate row issues after move and removal', async () => {
+  it('QA-78 locates pending form schema issues after move and removal', async () => {
     const result = deferred<StandardSchemaV1.Result<typeof initialValues>>()
     const validate = vi.fn(() => result.promise)
     const form = createForm<typeof initialValues>({
@@ -66,6 +66,56 @@ describe.each(['development', 'production'])('F9 validation publication in %s', 
     await expect(form.validate('other')).resolves.toBe('ok')
     expect(form.errors).toEqual([...globalErrors, expectedRowError])
     expect(rejected).toEqual(form.errors)
+  })
+
+  it.each(['function', 'schema'] as const)('QA-78 projects pending %s errors across tree moves and removal', async (kind) => {
+    const entered = deferred<void>()
+    const finish = deferred<void>()
+    const initialValues = {
+      tree: [
+        { id: 'left', children: [{ id: 'a', code: 'A' }, { id: 'b', code: 'B' }] },
+        { id: 'right', children: [{ id: 'c', code: 'C' }] },
+      ],
+    }
+    const check = async () => { entered.resolve(); await finish.promise }
+    const form = createForm({
+      initialValues,
+      trees: { tree: {} },
+      validate: kind === 'function' ? async () => {
+        await check()
+        return { 'tree[0].children[0].code': 'invalid A', 'tree[0].children[1].code': 'invalid B' }
+      } : { '~standard': { version: 1, vendor: 'qa', async validate() {
+        await check()
+        return { issues: [
+          { path: ['tree', 0, 'children', 0, 'code'], message: 'invalid A' },
+          { path: ['tree', 0, 'children', 1, 'code'], message: 'invalid B' },
+        ] }
+      } } },
+    })
+    const verdict = form.validate().catch((errors: unknown) => errors)
+    await entered.promise
+    const engine = engineOf(form)
+    expect(engine.moveTree('tree', [0, 0], [1, 0]).ok).toBe(true)
+    engine.removeTree('tree', [0, 0])
+    finish.resolve()
+    const expected = [{ path: 'tree.1.children.0.code', messages: ['invalid A'] }]
+    expect(await verdict).toEqual(expected)
+    expect(form.errors).toEqual(expected)
+  })
+
+  it.each(['publish', 'reset'] as const)('QA-78 drops replaced rows from an async function verdict (%s)', async (mode) => {
+    const entered = deferred<void>()
+    const finish = deferred<Record<string, string>>()
+    const form = createForm({ initialValues, async validate() { entered.resolve(); return finish.promise } })
+    const verdict = form.validate().catch((errors: unknown) => errors)
+    await entered.promise
+    const [a] = form.getValue('rows')
+    form.setValue('rows', [{ id: 'new', code: 'new' }, a])
+    if (mode === 'reset') form.reset('other')
+    finish.resolve({ '': 'form issue', 'virtual.summary': 'unmodeled issue', 'rows.0.code': 'invalid A', 'rows.1.code': 'invalid B' })
+    const expected = [...globalErrors, expectedRowError]
+    expect(await verdict).toEqual(expected)
+    expect(form.errors).toEqual(mode === 'publish' ? expected : [])
   })
 
   it.each(['array', 'tree'] as const)('QA-77 publishes errors and later warnings at live %s coordinates', async (kind) => {

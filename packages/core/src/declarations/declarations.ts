@@ -57,8 +57,8 @@ export class Declarations {
     // An array / tree change drops models under rows that disappeared and re-keys models under rows that moved.
     // An exact declaration is path-keyed configuration, not row state: park it on its old path, strip it from a
     // moved model, and re-register it when the path is occupied again (#8, path-scoped since 2026-10-30).
-    store.onReindex = (result) => {
-      this.validator.reindexSchema(result)
+    store.onReindex = (result, oldIds, newIds) => {
+      this.validator.reindexSchema(oldIds, newIds)
       const { dropped, moved } = result
       if (dropped.some((model) => model.enumOptions) || moved.some(({ model }) => model.enumOptions)) store.enumVersion += 1
       for (const model of dropped) {

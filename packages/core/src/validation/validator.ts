@@ -2,9 +2,10 @@ import type { Scheduler } from '../effects/scheduler'
 import { peelReadonly, readonlyValue } from '../draft/readonly'
 import { deepEqual } from '../shared/equal'
 import { getAt, normalizePath, parentPath } from '../shared/path'
+import { rowPathAfter, rowPathAfterReplacement } from '../shared/row-paths'
 import type { FlagName } from '../state/flags'
 import { shownErrors, type FieldModel } from '../state/field-model'
-import type { FieldStore, ReindexResult } from '../state/field-store'
+import type { FieldStore } from '../state/field-store'
 import type { Notifier } from '../state/notifier'
 import { scopeOf, type Pos } from '../shared/tree-ops'
 import type { FieldError, ValidateTrigger } from '../types'
@@ -17,6 +18,8 @@ import { mergeSchemaScope, resetOverlaps, scopeTest, validateScope, type RunResu
 import { AsyncAttempts } from './async-attempt'
 import { ignoreRejection, isPromise, settleUnlessAborted, valueUnlessAborted } from './settle'
 import { clearInactiveErrors, noteFlagChange, type InactiveHost } from './inactive'
+import { reindexSchemaPaths, SnapshotRows } from './row-paths'
+import { syncSchemaMessages } from './publish-schema'
 
 export interface ValidatorDeps {
   store: FieldStore<any>
@@ -49,6 +52,7 @@ export class Validator {
   /** The newest whole-form pass. A superseded `runSettled` adopts its verdict instead of failing (#41). */
   private latestFull?: ValidationPass
   private latest!: ValidationPass
+  private snapshotRows?: SnapshotRows
 
   constructor(private readonly deps: ValidatorDeps) {
     const self = this
@@ -121,6 +125,7 @@ export class Validator {
     this.latest = record
     if (!path) this.latestFull = record
     const values = store.values
+    const rows = this.snapshotRows = new SnapshotRows()
     const enumVersion = store.enumVersion
     const resetVersion = this.resetVersion
     const superseded = () => signal?.aborted || gen !== this.validateGen
@@ -156,7 +161,7 @@ export class Validator {
       const validate = options.validate
       // Reset can clear the field messages while a form-level check still owes its caller a verdict.
       const ruleIssues = validate ? targets.flatMap(([target, field]) =>
-        field.errors.map((message) => ({ path: target, message })),
+        store.get(field.path) === field ? field.errors.map((message) => ({ path: target, message })) : [],
       ) : []
       if (isStandardSchema(validate)) {
         const issues = await collectSchemaIssues(validate, values, (error, issuePath) =>
@@ -188,9 +193,11 @@ export class Validator {
         if (target !== field.path) moved.push(field.path)
         fieldIssues.push(...fieldSchemaIssues(field.path, result.issues))
       }
-      const activeIssues = [...fieldIssues, ...collected].filter((issue) => issue.message && store.acceptsValidation(issue.path))
+      const activeIssues = [...(record.invalidatedByReset ? rows.issues(fieldIssues) : fieldIssues),
+        ...rows.issues(collected.filter((issue) => inScope(issue.path))),
+      ].filter((issue) => issue.message && store.acceptsValidation(issue.path))
       if (record.invalidatedByReset) {
-        const errors = groupSchemaIssues([...ruleIssues, ...activeIssues])
+        const errors = groupSchemaIssues([...rows.issues(ruleIssues), ...activeIssues])
         return scoped([...errors].map(([path, messages]) => ({ path, messages })))
       }
       const inSchemaScope = path && reindexed ? this.reindexedScope(inScope, targets, moved) : inScope
@@ -199,6 +206,7 @@ export class Validator {
       await this.waitInflight()
       return scoped()
     } finally {
+      if (this.snapshotRows === rows) this.snapshotRows = undefined
       if (gen === this.validateGen && !record.invalidatedByReset) {
         store.validating = false
         scheduler.bumpMeta()
@@ -422,7 +430,10 @@ export class Validator {
 
   queueEdit(field: FieldModel, kind?: 'own'): void { this.attempts.queueEdit(field, kind ? (path) => this.recheckOwn(path) : undefined) }
 
-  noteReplacement(path: string, before: unknown): void { this.attempts.noteReplacement(path, before) }
+  noteReplacement(path: string, before: unknown): void {
+    this.snapshotRows?.add(rowPathAfterReplacement(path, before, this.store.values))
+    this.attempts.noteReplacement(path, before)
+  }
   recheckReplacedFields(): void { this.attempts.recheckReplacedFields() }
 
   /** Debounce async rules. Sync-only fields validate on the next turn of `validate`. */
@@ -467,10 +478,11 @@ export class Validator {
     }
   }
 
-  reindexSchema({ dropped, moved }: ReindexResult): void {
-    for (const field of dropped) this.schemaByPath.delete(field.path)
-    for (const { from } of moved) this.schemaByPath.delete(from)
-    for (const { model } of moved) if (model.schemaErrors.length) this.schemaByPath.set(model.path, model.schemaErrors)
+  reindexSchema(oldIds: ReadonlyMap<string, string>, newIds: ReadonlyMap<string, string>): void {
+    if (!oldIds.size || (!this.snapshotRows && !this.schemaByPath.size)) return
+    const project = rowPathAfter(oldIds, newIds)
+    this.snapshotRows?.add(project)
+    this.schemaByPath = reindexSchemaPaths(this.schemaByPath, project)
   }
 
   /** Recompute built-in messages only. Custom callbacks run in the managed validation pass, never in this preview. */
@@ -531,25 +543,9 @@ export class Validator {
   }
 
   private applySchemaMap(next: Map<string, string[]>): void {
-    const { notifier, scheduler } = this.deps
-    const paths = new Set([...this.schemaByPath.keys(), ...next.keys()])
+    const previous = this.schemaByPath
     this.schemaByPath = next
-    let changed = false
-    for (const path of paths) {
-      const field = this.store.ensure(path)
-      const messages = next.get(path) ?? []
-      if (deepEqual(field.schemaErrors, messages)) continue
-      field.schemaErrors = messages.slice()
-      notifier.bumpPath(path)
-      this.markChain(path, 'errors')
-      changed = true
-    }
-    if (!changed) return
-    scheduler.bumpMeta()
-    if (!scheduler.flushing) {
-      scheduler.enqueueFromDirty()
-      scheduler.flush()
-    }
+    syncSchemaMessages(this.deps, previous, next, (path) => this.markChain(path, 'errors'))
   }
 
   /** Clear messages on `path` and descendants that no longer validate. */
