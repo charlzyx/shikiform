@@ -12,8 +12,8 @@ import type { FormOptions } from '../types-effects'
 import { formatMessage, type FormMessageKey, type MessageArgs, type MessageParams } from './messages'
 import { fieldSchemaIssues, InvalidValidatorResult, optionIncludes, runRules, type ValidateCtx } from './rules'
 import { publishWarnings, runWarningRules } from './warnings'
-import { collectSchemaIssues, groupSchemaIssues, isStandardSchema, recordToIssues, schemaIssuePath, type SchemaIssue, type StandardSchemaV1 } from './schema'
-import { resetOverlaps, scopeTest, validateScope, type RunResult, type ValidateScope, type ValidationPass } from './scope'
+import { collectSchemaIssues, groupSchemaIssues, isStandardSchema, recordToIssues, schemaIssues, type SchemaIssue, type StandardSchemaV1 } from './schema'
+import { mergeSchemaScope, resetOverlaps, scopeTest, validateScope, type RunResult, type ValidateScope, type ValidationPass } from './scope'
 import { AsyncAttempts } from './async-attempt'
 import { ignoreRejection, isPromise, settleUnlessAborted, valueUnlessAborted } from './settle'
 import { clearInactiveErrors, noteFlagChange, type InactiveHost } from './inactive'
@@ -25,6 +25,12 @@ export interface ValidatorDeps {
   options: FormOptions<any>
   /** Tree position of `path` (the running `walk` instance first, then the registered tree). */
   readPos: (path: string) => Pos | undefined
+}
+
+interface FieldCheck {
+  current: () => boolean
+  /** Paths relative to the checked field's snapshot coordinate. */
+  issues: SchemaIssue[]
 }
 
 /** Run field and form rules over one value snapshot and discard superseded results. */
@@ -119,16 +125,14 @@ export class Validator {
     const resetVersion = this.resetVersion
     const superseded = () => signal?.aborted || gen !== this.validateGen
     const inScope = scopeTest(path)
-    const targets = [...store.fields.keys()].filter(inScope)
+    const targets = [...store.fields].filter(([target]) => inScope(target))
     const warnings: Promise<void>[] = []
     // Validating a field again replaces what the server said about it.
     if (typeof path === 'string' || path === undefined) this.clearExternalUnder(path)
     else for (const one of path) this.clearExternalUnder(one)
-    store.validating = !!options.validate || targets.some((target) => {
-      const field = store.get(target)!
-      return store.acceptsValidation(target) && (field.required || field.rules.some((rule) => rule.level !== 'warning') ||
-        (options.enumPolicy === 'error' && field.enumOptions !== undefined))
-    })
+    store.validating = !!options.validate || targets.some(([target, field]) =>
+      store.acceptsValidation(target) && (field.required || field.rules.some((rule) => rule.level !== 'warning') ||
+        (options.enumPolicy === 'error' && field.enumOptions !== undefined)))
     scheduler.bumpMeta()
     notifier.emit()
     const scoped = (errors = this.errors()): RunResult => ({
@@ -142,18 +146,17 @@ export class Validator {
     })
     try {
       const collected: SchemaIssue[] = []
-      const preserve = new Set<string>()
-      for (const target of targets) {
+      const checked = new Map<FieldModel, FieldCheck>()
+      for (const [target, field] of targets) {
         if (superseded() || record.invalidatedByReset) return scoped()
-        const result = await this.validateOne(target, values, signal, warnings)
-        if (superseded() || record.invalidatedByReset) return scoped()
-        if (result.stale) preserve.add(target)
-        else collected.push(...result.issues)
+        const result = await this.validateOne(target, field, values, signal, warnings)
+        if (result) checked.set(field, result)
       }
+      if (superseded() || record.invalidatedByReset) return scoped()
       const validate = options.validate
       // Reset can clear the field messages while a form-level check still owes its caller a verdict.
-      const ruleIssues = validate ? targets.flatMap((target) =>
-        (store.get(target)?.errors ?? []).map((message) => ({ path: target, message })),
+      const ruleIssues = validate ? targets.flatMap(([target, field]) =>
+        field.errors.map((message) => ({ path: target, message })),
       ) : []
       if (isStandardSchema(validate)) {
         const issues = await collectSchemaIssues(validate, values, (error, issuePath) =>
@@ -165,12 +168,33 @@ export class Validator {
         collected.push(...recordToIssues(extra))
       }
       if (superseded()) return scoped()
-      const activeIssues = collected.filter((issue) => issue.message && store.acceptsValidation(issue.path))
+      const preserve = new Set<string>()
+      const moved: string[] = []
+      let reindexed = false
+      const fieldIssues: SchemaIssue[] = []
+      for (const [target, field] of targets) {
+        const result = checked.get(field)
+        if (record.invalidatedByReset) {
+          if (result) fieldIssues.push(...fieldSchemaIssues(target, result.issues))
+          continue
+        }
+        const live = store.get(field.path) === field
+        reindexed ||= !live || target !== field.path
+        if (!live) continue
+        if (!result?.current()) {
+          preserve.add(field.path)
+          continue
+        }
+        if (target !== field.path) moved.push(field.path)
+        fieldIssues.push(...fieldSchemaIssues(field.path, result.issues))
+      }
+      const activeIssues = [...fieldIssues, ...collected].filter((issue) => issue.message && store.acceptsValidation(issue.path))
       if (record.invalidatedByReset) {
         const errors = groupSchemaIssues([...ruleIssues, ...activeIssues])
         return scoped([...errors].map(([path, messages]) => ({ path, messages })))
       }
-      this.commitSchemaIssues(path, groupSchemaIssues(activeIssues), preserve)
+      const inSchemaScope = path && reindexed ? this.reindexedScope(inScope, targets, moved) : inScope
+      this.applySchemaMap(mergeSchemaScope(this.schemaByPath, groupSchemaIssues(activeIssues), inSchemaScope, preserve))
       // Not `waitAsync`: that would cancel the debounce an edit during this pass just scheduled (#122).
       await this.waitInflight()
       return scoped()
@@ -229,28 +253,31 @@ export class Validator {
     return ctx
   }
 
-  private async validateOne(path: string, values: unknown, submitSignal?: AbortSignal, warnings?: Promise<void>[]): Promise<{ stale: boolean; issues: SchemaIssue[] }> {
+  private async validateOne(path: string, field: FieldModel, values: unknown, submitSignal?: AbortSignal, warnings?: Promise<void>[]): Promise<FieldCheck | undefined> {
     const { store, notifier, scheduler, options } = this.deps
-    const field = store.get(path)
-    if (!field) return { stale: false, issues: [] }
-    if (!store.acceptsValidation(path)) {
+    const live = () => store.get(field.path) === field
+    if (!live()) return
+    if (!store.acceptsValidation(field.path)) {
       field.abort?.abort()
-      this.setErrors(path, [])
-      this.setWarnings(path, [])
+      this.setErrors(field.path, [])
+      if (!live()) return
+      this.setWarnings(field.path, [])
+      if (!live()) return
       field.schemaErrors = []
-      this.schemaByPath.delete(path)
+      this.schemaByPath.delete(field.path)
       if (field.externalErrors.length) field.externalErrors = []
       if (field.validating) {
         field.validating = false
         scheduler.bumpMeta()
       }
-      return { stale: false, issues: [] }
+      return { current: live, issues: [] }
     }
     field.abort?.abort()
     field.warningValidating = false
     const ac = new AbortController()
     field.abort = ac
     const seq = ++field.asyncSeq
+    const current = () => live() && field.asyncSeq === seq && !ac.signal.aborted
     const value = getAt(values, path)
     const ctx = this.buildCtx(path, value, this.deps.readPos(path) ?? undefined, values, ac.signal)
     // `level: 'warning'` rules report to `$warnings` / `binding.warnings`: shown, never blocking submit.
@@ -280,56 +307,36 @@ export class Validator {
       try {
         result = rule.schema['~standard'].validate(value)
       } catch (err) {
-        issues.push({ path, message: this.errorMessage(err, path, value) })
+        issues.push({ path: '', message: this.errorMessage(err, path, value) })
         continue
       }
       if (isPromise(result)) {
-        schemaPending.push(
-          Promise.resolve(result).then((resolved) => {
-            if (!resolved.issues?.length) return []
-            return fieldSchemaIssues(
-              path,
-              resolved.issues.map((issue) => {
-                const issuePath = schemaIssuePath(issue.path)
-                return { path: issuePath, message: issue.message || fallback(issuePath) }
-              }),
-            )
-          }),
-        )
-      } else if (result.issues?.length) {
-        issues.push(
-          ...fieldSchemaIssues(
-            path,
-            result.issues.map((issue) => {
-              const issuePath = schemaIssuePath(issue.path)
-              return { path: issuePath, message: issue.message || fallback(issuePath) }
-            }),
-          ),
-        )
-      }
+        schemaPending.push(Promise.resolve(result).then((resolved) => schemaIssues(resolved, fallback)))
+      } else issues.push(...schemaIssues(result, fallback))
     }
     const warning = publishWarnings(field, ac, warned, (messages) => {
-      if (store.get(path) === field && store.acceptsValidation(path)) this.setWarnings(path, messages)
+      if (current() && store.acceptsValidation(field.path)) this.setWarnings(field.path, messages)
     })
     if (warning) warnings?.push(warning)
-    const apply = (extra: string[]) => {
-      if (field.asyncSeq !== seq || ac.signal.aborted) {
-        this.attempts.release(field, ac)
-        return { stale: true as const, issues: [] as SchemaIssue[] }
-      }
-      const was = field.validating
-      field.validating = false
-      this.setErrors(path, [...messages, ...extra])
-      if (was) scheduler.bumpMeta()
-      return { stale: false as const, issues }
-    }
-    if (!pending.length && !schemaPending.length) return apply([])
-    field.validating = true
-    notifier.bumpPath(path)
-    scheduler.bumpMeta()
     const stale = () => {
       this.attempts.release(field, ac)
-      return { stale: true as const, issues: [] as SchemaIssue[] }
+      return undefined
+    }
+    const apply = (extra: string[]): FieldCheck | undefined => {
+      if (!current()) return stale()
+      if (field.validating) {
+        field.validating = false
+        scheduler.bumpMeta()
+        notifier.bumpPath(field.path)
+      }
+      this.setErrors(field.path, store.acceptsValidation(field.path) ? [...messages, ...extra] : [])
+      return { current, issues }
+    }
+    if (!pending.length && !schemaPending.length) return apply([])
+    if (current()) {
+      field.validating = true
+      notifier.bumpPath(field.path)
+      scheduler.bumpMeta()
     }
     const task = (async () => {
       // A validator we stop awaiting (abort mid-list) must not reject unhandled.
@@ -337,7 +344,7 @@ export class Validator {
       const extra: string[] = []
       for (const item of pending) {
         const outcome = await settleUnlessAborted(item, ac.signal)
-        if (outcome.status === 'aborted' || field.asyncSeq !== seq || ac.signal.aborted) return stale()
+        if (outcome.status === 'aborted' || !current()) return stale()
         if (outcome.status === 'rejected') {
           if (outcome.reason instanceof InvalidValidatorResult) {
             this.attempts.release(field, ac)
@@ -348,8 +355,8 @@ export class Validator {
       }
       for (const item of schemaPending) {
         const outcome = await settleUnlessAborted(item, ac.signal)
-        if (outcome.status === 'aborted' || field.asyncSeq !== seq || ac.signal.aborted) return stale()
-        if (outcome.status === 'rejected') issues.push({ path, message: this.errorMessage(outcome.reason, path, value) })
+        if (outcome.status === 'aborted' || !current()) return stale()
+        if (outcome.status === 'rejected') issues.push({ path: '', message: this.errorMessage(outcome.reason, path, value) })
         else issues.push(...outcome.value)
       }
       return apply(extra)
@@ -399,11 +406,13 @@ export class Validator {
 
   /** Field-schema messages for `path` only. A schema that reports child paths waits for the next full pass. */
   private async applyOwn(path: string): Promise<void> {
-    const result = await this.validateOne(path, this.store.values)
-    if (result.stale) return
     const field = this.store.get(path)
-    if (!field?.rules.some((rule) => rule.schema)) return
-    if (result.issues.some((issue) => issue.path !== path)) return
+    if (!field) return
+    const result = await this.validateOne(path, field, this.store.values)
+    if (!result?.current() || !this.store.acceptsValidation(field.path)) return
+    if (!field.rules.some((rule) => rule.schema)) return
+    if (result.issues.some((issue) => issue.path)) return
+    path = field.path
     const next = new Map(this.schemaByPath)
     const messages = result.issues.flatMap((issue) => (issue.message ? [issue.message] : []))
     if (messages.length) next.set(path, messages)
@@ -511,25 +520,14 @@ export class Validator {
     }
   }
 
-  private commitSchemaIssues(scope: ValidateScope | undefined, grouped: Map<string, string[]>, preserve: Set<string>): void {
-    const replaceAll = (scope === undefined || scope === '') && preserve.size === 0
-    const inScope = scopeTest(scope)
-    const next = replaceAll ? new Map<string, string[]>() : new Map(this.schemaByPath)
-    const replaceable = (key: string) => {
-      if (preserve.has(key)) return false
-      for (const kept of preserve) {
-        if (key.startsWith(kept + '.') || kept.startsWith(key + '.')) return false
-      }
-      return inScope(key)
+  private reindexedScope(inScope: (path: string) => boolean, targets: [string, FieldModel][], moved: string[]): (path: string) => boolean {
+    const models = new Set(targets.map(([, field]) => field))
+    const inMovedScope = scopeTest(moved)
+    // A new occupant of a requested coordinate has not been checked by this pass.
+    return (path) => {
+      const model = this.store.get(path)
+      return inMovedScope(path) || (inScope(path) && (!model || models.has(model)))
     }
-    if (!replaceAll) {
-      for (const key of [...next.keys()]) if (replaceable(key)) next.delete(key)
-    }
-    for (const [key, messages] of grouped) {
-      if (!replaceable(key)) continue
-      next.set(key, messages)
-    }
-    this.applySchemaMap(next)
   }
 
   private applySchemaMap(next: Map<string, string[]>): void {

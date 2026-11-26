@@ -78,15 +78,17 @@ export async function collectSchemaIssues(
 ): Promise<SchemaIssue[]> {
   const fill = (error: unknown, path: string) => (typeof fallback === 'function' ? fallback(error, path) : fallback)
   try {
-    const result = await schema['~standard'].validate(value)
-    if (!result.issues?.length) return []
-    return result.issues.map((issue) => {
-      const path = schemaIssuePath(issue.path)
-      return { path, message: issue.message || fill(undefined, path) }
-    })
+    return schemaIssues(await schema['~standard'].validate(value), (path) => fill(undefined, path))
   } catch (err) {
     return [{ path: '', message: err instanceof Error && err.message ? err.message : fill(err, '') }]
   }
+}
+
+export function schemaIssues(result: StandardSchemaV1.Result<unknown>, fallback: (path: string) => string): SchemaIssue[] {
+  return result.issues?.map((issue) => {
+    const path = schemaIssuePath(issue.path)
+    return { path, message: issue.message || fallback(path) }
+  }) ?? []
 }
 
 /** Group issues by path. Later messages for the same path are kept, duplicates dropped. */

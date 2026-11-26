@@ -106,7 +106,7 @@ describe.each(['development', 'production'])('F8 journal audit in %s', (mode) =>
     expect(form.errors).toEqual([error])
   })
 
-  it.fails('BUG: publishes a check that was already in flight on the surviving moved model', async () => {
+  it('QA-77 publishes a check that was already in flight on the surviving moved model', async () => {
     let finish!: (result: string) => void
     const check = vi.fn(() => new Promise<string>((resolve) => { finish = resolve }))
     const form = createForm({
@@ -117,8 +117,15 @@ describe.each(['development', 'production'])('F8 journal audit in %s', (mode) =>
     form.setValue('rows.0.code', 'invalid A')
     expect(check).toHaveBeenCalledOnce()
     form.batch(() => { engineOf(form).moveArray('rows', 0, 1) })
+    const oldPath = vi.fn()
+    const newPath = vi.fn()
+    form.subscribePath('rows.0.code', oldPath)
+    form.subscribePath('rows.1.code', newPath)
     finish('invalid A')
     await setImmediate()
     expect(form.errors).toEqual([{ path: 'rows.1.code', messages: ['invalid A'] }])
+    expect(form.validating).toBe(false)
+    expect(oldPath).not.toHaveBeenCalled()
+    expect(newPath).toHaveBeenCalledOnce()
   })
 })

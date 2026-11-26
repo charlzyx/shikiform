@@ -13,6 +13,23 @@ export function scopeTest(scope: ValidateScope | undefined): (path: string) => b
   return (path) => list.some((one) => path === one || path.startsWith(one + '.'))
 }
 
+/** Replace messages in the checked scope, leaving stale fields and their related paths alone. */
+export function mergeSchemaScope(
+  previous: Map<string, string[]>, grouped: Map<string, string[]>, inScope: (path: string) => boolean, preserve: Set<string>,
+): Map<string, string[]> {
+  const replaceable = (key: string) => {
+    if (!inScope(key) || preserve.has(key)) return false
+    for (const kept of preserve) {
+      if (key.startsWith(kept + '.') || kept.startsWith(key + '.')) return false
+    }
+    return true
+  }
+  const next = new Map<string, string[]>()
+  for (const [key, messages] of previous) if (!replaceable(key)) next.set(key, messages)
+  for (const [key, messages] of grouped) if (replaceable(key)) next.set(key, messages)
+  return next
+}
+
 /** A reset and a validation overlap when either one includes the other's root. */
 export function resetOverlaps(scope: ValidateScope | undefined, resetPath?: string): boolean {
   const roots = typeof scope === 'string' || scope === undefined ? [scope ?? ''] : scope

@@ -2,6 +2,7 @@ import { setImmediate } from 'node:timers/promises'
 import { createForm, defineEffects, EnumSource } from '@shikiform/core'
 import { engineOf } from '@shikiform/core/internal'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { deferred } from '../../validation-submit/deferred'
 
 afterEach(() => {
   vi.useRealTimers()
@@ -120,6 +121,51 @@ describe.each(['development', 'production'])('F8 validation and enum retest in %
     engine.removeTree('tree', [1, 0])
     await expect(form.validate('other')).resolves.toBe('valid')
     expect(form.errors).toEqual([{ ...errorB, path: errorA.path }])
+  })
+
+  it.each(['move', 'remove'])('QA-77 resolves async rule, schema and warning results after tree %s', async (edit) => {
+    const error = deferred<string>()
+    const warning = deferred<string>()
+    const schema = deferred<{ issues: { message: string }[] }>()
+    type Node = { id: string; code?: string; children?: Node[] }
+    const form = createForm({
+      initialValues: { tree: [
+        { id: 'left', children: [{ id: 'a', code: 'initial' }, { id: 'b', code: 'sibling' }] },
+        { id: 'right', children: [] },
+      ] as Node[] },
+      trees: { tree: {} },
+      validateTrigger: ['onChange'],
+      fields: { 'tree.*.children.*.code': { rules: [
+        { validator: (value: unknown) => value === 'edited' ? error.promise : undefined },
+        { level: 'warning', validator: (value: unknown) => value === 'edited' ? warning.promise : undefined },
+        { schema: { '~standard': {
+          version: 1,
+          vendor: 'qa',
+          validate: (value: unknown) => value === 'edited' ? schema.promise : { issues: [{ message: 'sibling schema' }] },
+        } } },
+      ] } },
+    })
+    const engine = engineOf(form)
+    const from = 'tree.0.children.0.code'
+    const to = 'tree.1.children.0.code'
+    await expect(form.validate('tree.0.children.1.code')).rejects.toEqual([
+      { path: 'tree.0.children.1.code', messages: ['sibling schema'] },
+    ])
+    form.setValue(from, 'edited')
+    expect(engine.binding(from).validating).toBe(true)
+    if (edit === 'move') engine.moveTree('tree', [0, 0], [1, 0])
+    else engine.removeTree('tree', [0, 0])
+
+    warning.resolve('check tree code')
+    await setImmediate()
+    expect(engine.binding(from).warnings).toEqual([])
+    expect(engine.binding(to).warnings).toEqual(edit === 'move' ? ['check tree code'] : [])
+    error.resolve('invalid code')
+    schema.resolve({ issues: [{ message: 'invalid schema' }] })
+    await setImmediate()
+    expect(engine.binding(from).errors).toEqual(['sibling schema'])
+    expect(engine.binding(to).errors).toEqual(edit === 'move' ? ['invalid code', 'invalid schema'] : [])
+    expect(form.validating).toBe(false)
   })
 
   it('QA-68 resolves a moved tree JSX cache over a declaration after a nested rollback', async () => {
