@@ -1,7 +1,7 @@
 # ShikiForm for coding agents
 
-ShikiForm is a headless TypeScript form library: a React-free engine (`@shikiform/core`), headless React hooks and fields
-(`@shikiform/react`), and headless pro hooks (`@shikiform/react`). Zero UI-library dependencies — connect native HTML or any React UI library via `useField`, `useFieldDecorator`, `connect`, and `mapProps`.
+ShikiForm is a headless TypeScript form library with two publishable packages: a React-free engine (`@shikiform/core`),
+and headless React hooks, fields, and pro hooks (`@shikiform/react`, supporting React 16.8+ / 17 / 18 / 19). Zero UI-library dependencies — connect native HTML or any React UI library via `useField`, `useFieldDecorator`, `connect`, and `mapProps`.
 State lives in one engine per form; linkage is written as `reaction` / `watch` over a **draft**.
 This page is the one-screen mental model plus the mistakes worth avoiding. Repo layout and module rules:
 `design/ARCHITECTURE.md`. Docs: `docs-site/src/content/docs/` (Nimbus / Astro MDX; `tsx preview` fences are type-checked
@@ -189,7 +189,7 @@ const form = createForm({
 
 - Named UI nodes (`/guide/ui`): a second UI of the **same field** is `<Field name="x" ui="echo" component={[Echo]} />`
   (shared value / errors / rules / options; its own visible, disabled, readOnly, title, componentProps, decoratorProps; DOM id
-  `<form id>-x--echo`, or a `useId()` prefix when `<Form>` has no `id`); in effects `d.x.$ui('echo').$disabled = true`. Inside it `useField()` returns the shared field with
+  `<form id>-x--echo`, or a `useId()` prefix on React 18+ when `<Form>` has no `id` — pass an explicit `<Form id>` for React 16.8/17 SSR); in effects `d.x.$ui('echo').$disabled = true`. Inside it `useField()` returns the shared field with
   the instance's UI state (`field.ui === 'echo'`). Put `rules` / `required` / `enum` / `omit` on the `<Field>`
   without `ui` (an instance ignores them, dev warning). A UI with **no value** (a tip, a group box) is
   `<UI name="tip" component={[Alert, props]}>children</UI>` → `d.$ui('tip')` (in a row: `row.$ui('tip')`); never in

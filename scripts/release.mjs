@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Dry-run the public npm publish for all three packages.
+ * Dry-run the public npm publish for both packages (`@shikiform/core` and `@shikiform/react`).
  * This never publishes. With an npm token for the shikiform org, publish for real with:
  *   npm publish --access public
  * in each `packages/<name>` directory (dist/ must already exist; `npm run build:lib`).

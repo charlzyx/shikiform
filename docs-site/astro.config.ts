@@ -14,17 +14,11 @@ import {
 } from "./src/mdx/shikiform-vite.mjs";
 
 const nimbusConfig = defineNimbusConfig({
-  // CHANGE_ME: your site's canonical origin (no trailing slash). Drives
-  // canonical URLs, absolute OG image URLs, robots.txt, sitemap, and the
-  // links in /llms.txt — leaving the placeholder breaks all of them.
   site: "https://shikiform.pages.dev",
-  // CHANGE_ME: your project's name — used for <title>, the home H1, and OG.
   title: "ShikiForm",
-  // CHANGE_ME: a one-line description of your docs — used for meta + OG.
   description: "一个无 UI 的表单引擎：draft + $ 状态写联动，Headless React Hooks 接任意 UI 组件库。",
   locale: "zh-CN",
-  // The repository is still private. A header link would 404 for visitors, so the icon stays off.
-  socialImageAlt: "Nimbus documentation preview",
+  socialImageAlt: "ShikiForm documentation preview",
   // The home page leads the sidebar; every other page joins it automatically.
   sidebar: {
     items: [
