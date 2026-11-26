@@ -11,17 +11,19 @@ const effects = defineEffects<Values>(({ reaction, watch, draft }) => {
 })
 ```
 
-`draft` is the same root handle the callbacks receive as `d`. Use it to name a path at registration. Walking `draft.a.b` does not read a value. A `$` read in the factory body returns the current value and is not a dependency; in development, objects and arrays are read-only views. A `$` write there throws in development. Write inside `reaction` or `watch`.
+`draft` is the same root proxy passed to callbacks as `d`, letting you name paths when registering effects (e.g. `draft.province`). Walking `draft.a.b` never reads data. Reading `$` directly in the factory body returns the current value once without subscribing (objects and arrays are read-only in development), and writing `$` there throws in development — keep all writes inside `reaction` or `watch`.
 
 ## Derive state and respond to changes
 
 A `reaction` runs immediately and tracks every `$` state it reads. A `watch` skips its first pass and ignores reads inside its `effect` callback. Passing `draft.city` or `[draft.a, draft.b]` watches those `$value` paths; passing a function `watch(fn, effect)` triggers whenever **any `$` state read by `fn` changes** (it does **not** compare or deduplicate by `fn`'s return value — for example, `d.amount.$value > 100` still triggers when `amount` changes from `10` to `20`), and re-tracks `fn`'s reads on each trigger so changing keys (`d.extra[d.activeKey.$value].$value`) are followed. To act only when a threshold crosses, check the condition inside `effect` or derive a boolean field in `reaction` and watch that field.
 
-Keep reactions synchronous and side-effect free:
-- During a `reaction`, `watch`, or `batch`, `form.setValue`, `form.patchValues`, and `form.getValue` share the same working tree as the draft: writes commit or roll back together with the active pass or batch, and reads (both `getValue` and draft reads) immediately reflect all value and structural edits made so far in call order. Array/tree handles and draft array mutators apply sequentially: edited cell values as well as `$rules`, `$enum`, and UI state (including `$componentProps`, `$decoratorProps`, `$title`, and `$ui(name)`) move with their row or node, reading them back at the new position in the same batch returns the moved state, removed rows do not reappear, plain arrays with duplicate values follow call order, and `reverse()` reverses the already-edited array. Reading `$rules` and UI state returns the latest value, while boolean flags (`$visible`, `$required`, etc.) should be kept in a local variable.
-- If one `reaction` throws, sibling derivations in the same wave still settle before the first error is rethrown, preventing half-computed state.
-- A draft handle from a rejected async `reaction` expires as soon as the pass ends (writing through it after `await` throws `ShikiUsageError` in development and is ignored in production). Calling `form.setValue` or `form.patchValues` inside a `reaction` writes to the active pass's working tree and commits or rolls back with that pass (writing through the draft handle `d.x.$value = …` is still recommended for derivations). Do not call `form.reset` or `form.submit` synchronously inside a `reaction` (throws `ShikiUsageError` in development). Move `reset`, `submit`, and async work to `watch`, then write async results back with `form.setValue` or `form.batch`.
-- `$enum` accepts an option array, an `EnumSource` binding, or `undefined`. Invalid shapes throw `ShikiUsageError` in development and are ignored in production (preserving existing options, selected value, and in-flight load). Reading `$enum` back in the same pass returns normalized `{ label, value }[]` options; clearing an override with `$enum = undefined` immediately reads the fallback layer's options (including a cached `EnumSource`), or `[]` when no fallback options are available. After moving a row (including within the same batch), clearing its `$enum` override restores the JSX layer's enum and cached `EnumSource` with the moved row, whereas exact-path declarations (`fields: { 'rows.0.x': … }`) continue to apply by current position.
+Keep reactions synchronous and predictable:
+- **Edits commit together when the callback returns**: During a `reaction`, `watch`, or `batch`, `form.setValue`, `form.patchValues`, and `form.getValue` edit the same pending draft as `d`. Reads immediately reflect every edit made so far in call order, and if an error is thrown, the whole batch rolls back cleanly.
+- **Row edits move with their row**: Mixing cell edits with array/tree operations (`push`, `move`, `remove`, `reverse`, etc.) in one batch applies them in call order — edited cell values, `$rules`, `$enum`, `$componentProps`, `$decoratorProps`, `$title`, and `$ui(name)` all move with their row or node, reading at the new index returns the moved state, removed rows stay gone, and plain arrays with duplicates or `reverse()` work on the latest values.
+- **Reading back in the same callback**: `$value`, `$enum` (normalized to `{ label, value }[]`), `$rules`, and UI props immediately reflect new writes in the same callback. Boolean flags (`$visible`, `$required`, etc.) do not — store the new value in a local variable if you need it again.
+- **Error isolation**: If one `reaction` throws, other independent reactions in the same flush still finish before the first error is rethrown, so the form is not left half-updated.
+- **Keep `reaction` synchronous**: Do not make a `reaction` `async` or call `form.reset` / `form.submit` inside it (throws `ShikiUsageError` in development). The draft expires as soon as the callback returns, so writing to it after `await` throws in development (ignored in production). Put fetches, `reset`, and `submit` in `watch`, then write results back with `form.setValue` or `form.batch`.
+- **Setting and clearing `$enum`**: `$enum` accepts an option array, an `EnumSource` binding, or `undefined` (other values throw `ShikiUsageError` in development and are ignored in production without dropping existing options or active loads). Assigning `$enum = undefined` drops the reaction override and immediately restores options from JSX `enum`, `fields`, or a row template (including cached `EnumSource` data, or `[]` if none). After moving a row, clearing `$enum` restores JSX options and caches that moved with the row, whereas fixed-index declarations (`fields: { 'rows.0.x': … }`) continue to apply by position.
 
 For dependent dropdowns, derive the available cities in a `reaction` and reset the selected city in a `watch` only after the province changes.
 
@@ -119,7 +121,7 @@ reaction.each(draft.items, (row, ctx) => { … })
 
 ### Dynamic object fields
 
-For an `extra: Record<string, number | null>` field, select the object handle to create one reaction per own enumerable string key. Use nonempty field names without path delimiters (`.` or `[`). The callback receives the property's field handle. Its context includes the property name (`key`), full field path (`path`), root draft (`d`) and `depth: 0`.
+For a dynamic object such as `extra: Record<string, number | null>`, pass the object handle to `reaction.each(draft.extra, …)` to create one independent reaction per string property (use non-empty keys without `.` or `[`). The callback receives that property's field handle, with `key` (property name), `path` (full path), `d` (root draft), and `depth: 0`.
 
 Try adding two fees, editing one amount and removing one field.
 
@@ -196,7 +198,7 @@ reaction.each(draft.orders, (node, ctx) => {
 })
 ```
 
-Use `watch.each` to reset a row's quantity when its selected product changes, while `reaction.each` keeps prices, subtotals, and row-level `required` state in sync. `watch.each` refreshes a row's dependencies whenever that row's callback runs and migrates row subscriptions across array moves, inserts, and removals:
+Use `watch.each` to reset a row's quantity when its selected product changes, while `reaction.each` keeps prices, subtotals, and row-level `required` state in sync. `watch.each` updates a row's tracked fields whenever that row runs and keeps subscriptions attached to each row as items move, insert, or get removed:
 
 ```tsx preview play=sku
 import { useState, type ReactNode } from 'react';

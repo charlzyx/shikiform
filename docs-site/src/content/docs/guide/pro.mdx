@@ -8,7 +8,7 @@ description: "@shikiform/react 中的草稿表单、查询列表、数组表格�
 | Hook | 职责 |
 |---|---|
 | `useShadowForm` | 在独立临时表单中编辑副本，确认并校验通过后再写回宿主表单 |
-| `useQueryTable` | 统一管理查询条件、分页状态、表头排序、列筛选、请求竞态与跨页勾选 |
+| `useQueryTable` | 统一管理查询条件、分页、表头排序、列筛选、自动忽略过期响应与跨页勾选 |
 | `useArrayTable` | 数组字段的分页切片、勾选、展开与行操作（`add` / `copy` / `remove` / `move`） |
 | `useColumnSettings` | 无 UI 表格列显隐、拖拽排序、列宽与密度管理 |
 | `enumItems` / `useSuggestion` / `useLazyCascader` | 枚举标签与颜色解析、防抖远程联想、按需懒加载级联 |
@@ -107,7 +107,7 @@ export default function App() {
 
 ## 查询列表
 
-`useQueryTable` 统一管理查询条件、分页状态、表头排序、列筛选、请求竞态以及跨页勾选。请求返回的每页列表会直接写入 `rows` 指定的数组字段，因此表格单元格可以直接通过 `<ArrayField.Row>` 进行行内编辑。
+`useQueryTable` 统一管理查询条件、分页、表头排序、列筛选、自动忽略过期响应以及跨页勾选。接口返回的当前页列表会直接写入 `rows` 指定的数组字段，因此表格单元格可以直接通过 `<ArrayField.Row>` 做行内编辑。
 
 ```tsx
 const table = useQueryTable({

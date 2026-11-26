@@ -12,7 +12,7 @@ const effects = defineEffects<Values>(({ reaction, watch, draft }) => {
 })
 ```
 
-`draft` 与回调参数 `d` 是同一个根 handle，用来在注册时点名路径。顺着 `draft.a.b` 往下走不会读值。工厂函数体里读取 `$` 拿到的是当前值，不会成为依赖；开发环境里对象和数组是只读视图。在这里写 `$` 会在开发环境抛错，写入应放进 `reaction` 或 `watch`。
+`draft` 和回调参数 `d` 是同一个根代理，专门用来在注册时指明字段路径（比如 `draft.province`）。顺着 `draft.a.b` 往下写不会真的取值。工厂函数体里读 `$` 拿到的只是当下瞬时值，不会订阅变化（对象和数组在开发环境是只读的）；直接写 `$` 会在开发环境抛错，所有写入都应放进 `reaction` 或 `watch` 回调里。
 
 ## reaction 与 watch
 
@@ -105,12 +105,14 @@ export default function App() {
 | **依赖追踪** | 自动收集 `effect` 内读取的所有 `$` 状态 | handle 登记该字段的 `$value`（`watch([draft.a, draft.b])` 登记每一个）。函数 `fn` 登记里面读取的 `$` 状态，只要其中任意状态变化就触发（**不按 `fn` 返回值比较去重**，例如 `d.amount.$value > 100` 在 `amount` 从 `10` 变 `20` 时仍触发），且每次触发会重新追踪 `fn` 的读取。忽略 `effect` 中的读取 |
 | **写入 `$value`** | 目标字段成为[计算字段](/guide/concepts#四个布尔)（仍可编辑、仍提交、不计入 dirty；预览再写 `readOnly`，不提交再写 `omit`） | 作为普通用户数据写入 |
 
-编写联动时需遵守几条规则：
-- 写入在回调结束时提交。在 `reaction` / `watch` / `batch` 进行中，直接调用 `form.setValue`、`form.patchValues` 与 `form.getValue` 会与 draft 共用同一工作树：写入按调用顺序随当前 pass 或批一起提交或回滚，读取（包括 `getValue` 与 draft 回读）立即反映本批所有值与结构编辑。数组/树句柄与 draft 数组方法按调用顺序生效（已编辑的单元格值以及规则 `$rules`、枚举 `$enum` 和 UI 状态——含 `$componentProps`、`$decoratorProps`、`$title`、`$ui(name)` 等——随行或节点移动，同批移行后在新坐标回读即得到移动后的值，删除的行不会复活；含重复值的普通数组同样按调用顺序，`reverse()` 作用于已编辑的数组）。读取 `$enum`（规范化为 `{ label, value }[]`）、`$rules` 和 UI 状态同样能拿到最新值；写入 `$visible`、`$required` 等旗标后若还需要新值，请用局部变量。
-- 同一个 `$` 状态只能由一个 `reaction` 负责写入；如果多个 `reaction` 同时写入同一个状态，引擎会在开发阶段报错提示。若某个 `reaction` 抛出异常，同波次其余无依赖冲突的派生仍会结算完毕，随后再抛出第一个错误，避免留下半成品派生状态。
-- `reaction` 必须保持同步执行：返回的 Promise 会被拒绝，其草稿句柄在当前 pass 结束后即失效（跨 `await` 继续写入草稿在开发环境抛 `ShikiUsageError`，生产环境忽略）。在 `reaction` 内同步调用 `form.setValue` / `form.patchValues` 会并入当前 pass 的工作树，随该 pass 一起提交或回滚（派生写入仍推荐通过草稿 handle `d.x.$value = …`）；不要在 `reaction` 内同步调用 `form.reset` 或 `form.submit`（开发环境抛 `ShikiUsageError`）。异步请求、`reset` / `submit` 等副作用请放到 `watch` 中，拿到响应后再通过 `form.setValue` / `form.batch` 写回。
-- 只有读取过的状态确实发生改变时，`reaction` 才会重新触发；如果写入的值与当前值相等，不会唤醒下游依赖。若 `watch((d) => cond(d), effect)` 只想在条件跨过临界点时执行，请在 `effect` 内判断，或把条件派生到辅助字段再 `watch` 该字段。
-- `$enum` 只接受选项数组、`EnumSource` 绑定或 `undefined`：传入 `null`、函数或 Promise 等无效值时，开发环境抛 `ShikiUsageError`，生产环境忽略该次写入，保留原有选项、选中值与在途加载。写 `$enum = undefined` 清除枚举覆盖时，批内会立即读到回退层（JSX / `fields` / 模板，含已缓存的 `EnumSource`）的选项，无回退层或尚未缓存时读到 `[]`。同批或跨批移动行后清除枚举覆盖时，JSX 层枚举及其已缓存的 `EnumSource` 随行迁移，而精确路径声明（如 `fields: { 'rows.0.x': … }`）仍按当前位置生效。
+编写联动时记住这几条：
+- **一次回调里的修改打包提交**：所有写入会在回调结束时一次性生效。在 `reaction` / `watch` / `batch` 里直接调用 `form.setValue`、`form.patchValues` 或 `form.getValue`，操作的都是同一份草稿：按调用顺序生效、立刻能读到刚改的值，出异常就一起回滚。
+- **同批改单元格和移行会跟着走**：在一次批处理里连续修改字段和调用数组/树方法（如 `push`、`move`、`remove`、`reverse`）时，改过的单元格值、`$rules`、`$enum`、`$componentProps`、`$decoratorProps`、`$title` 和 `$ui(name)` 都会跟着这行一起移动到新位置；移动后再按新下标读取就是移过去的值，删掉的行不会复活，含重复值的普通数组和 `reverse()` 也按调用顺序作用在最新数据上。
+- **同轮回读规则**：写完 `$value`、`$enum`（自动整理为 `{ label, value }[]`）、`$rules` 和 UI 状态后，同一回调里紧接着就能读到刚写的新值；但写入 `$visible`、`$required` 这类布尔开关后，后面还要用新值请先存到局部变量。
+- **单写原则与异常隔离**：同一个 `$` 状态只能由一个 `reaction` 负责写入，多个 `reaction` 写同一个状态会在开发环境报错。如果某个 `reaction` 抛了异常，同一轮里其他互不冲突的 `reaction` 仍会算完，再把第一个错误抛出来，不会留下算了一半的状态。
+- **`reaction` 必须保持同步**：不要写成 `async` 函数，也不要在里面直接调用 `form.reset` 或 `form.submit`（开发环境抛 `ShikiUsageError`）。回调结束后草稿 `d` 就会失效，跨 `await` 再写会报错（生产环境忽略）。发请求、`reset` / `submit` 等副作用请放在 `watch` 里，拿到结果后再用 `form.setValue` 或 `form.batch` 写回。
+- **值没变就不重跑**：只有读取过的 `$` 状态真的变了，`reaction` 才会重新执行；写入和当前相等的值不会唤醒下游。如果 `watch((d) => 条件, effect)` 只想在条件跨过阈值时触发，在 `effect` 里判断，或者先把布尔结果派生到一个字段再 `watch` 该字段。
+- **`$enum` 赋值与恢复**：`$enum` 只接受选项数组、`EnumSource` 绑定或 `undefined`（传 `null`、函数或 Promise 在开发环境抛 `ShikiUsageError`，生产环境忽略并保留原有选项与进行中的加载）。写 `$enum = undefined` 会撤销联动里设的选项，立刻恢复成组件 JSX `enum`、字段 `fields` 或行模板配的默认选项（含已缓存的 `EnumSource`，都没配时为 `[]`）。行移动后再撤销覆盖，JSX 里配的选项和缓存会跟着这行走，而按固定下标写的声明（如 `fields: { 'rows.0.x': … }`）仍按位置生效。
 
 ## reaction.each：每一行一个实例
 
@@ -138,7 +140,7 @@ reaction.each(draft.items, (row, ctx) => { … })
 
 ### 动态对象字段
 
-当 `extra` 的类型是 `Record<string, number | null>`，键名可以在运行时决定。选中对象 handle 后，每个自有可枚举字符串键对应一个实例。键名需要能作为单个字段路径段使用，请使用非空且不含 `.`、`[` 的名称。回调拿到该属性的字段 handle，`key` 是属性名，`path` 是完整字段路径，`depth` 为 0。
+当 `extra` 的类型是 `Record<string, number | null>`、键名在运行时才确定时，可以直接把对象传给 `reaction.each(draft.extra, …)`，引擎会为每个普通字符串属性建一个独立联动（键名需非空且不含 `.` 或 `[`）。回调拿到该属性的字段 handle，`key` 是属性名，`path` 是完整字段路径，`depth` 为 0。
 
 试着添加两项费用，改其中一项的金额，再删除一个字段。
 
@@ -221,7 +223,7 @@ reaction.each(draft.orders, (node, ctx) => {
 
 单层列表无需上述过滤；递归树结构（`children?: Node[]`）过滤掉非 `children` 的其他对象数组后即可读写 `node` 上的字段。
 
-`watch.each` 采用相同的遍历规则，具备 `watch` 的触发时机：初始化时不执行，仅当某一行回调内读取的 `$` 状态变化时对该行运行一次（兄弟行增删或移动不会触发）。每次该行回调实际执行时会在同一遍重新收集依赖（支持动态分支依赖），行发生移动、插入或删除时依赖索引也会随行身份自动迁移。可用于「某行切换商品后将该行数量重置为 1」等动作：
+`watch.each` 的遍历方式和 `reaction.each` 相同，但遵循 `watch` 的时机：初始化时不执行，只有某一行回调里读取的 `$` 状态变化时，才单独对这一行跑一次（其他行增删或移动不会误触发）。每次执行都会自动更新这一行的依赖（支持条件分支），行移动、插入或删除时订阅也会跟着这行一起走，适合「某行切换商品后把数量重置为 1」这类动作：
 
 ```tsx preview play=sku
 import { useState, type ReactNode } from 'react';

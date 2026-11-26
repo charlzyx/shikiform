@@ -86,7 +86,7 @@ export default function App() {
 2. JSX 中 `<Field>` 上的属性及元组里的 `props`；
 3. 联动函数 `reaction` 中写入的 `$title`、`$componentProps` 等状态。
 
-其中 `componentProps` 和 `decoratorProps` 采用对象深合并策略：普通对象会递归合并各自的键，而数组、函数、React 元素或类实例则整体取最高层级的值。因此，如果需要根据其他字段动态调整控件属性，应当写在 `reaction` 中，而不是在 JSX 渲染期间计算后传入：
+其中 `componentProps` 和 `decoratorProps` 会按属性名逐层合并：普通对象合并各自的键，数组、函数、React 元素或类实例则直接取优先级最高的那一份。所以要根据其他字段动态改控件属性时，写在 `reaction` 里即可，不要在 JSX 渲染期间临时计算后传入：
 
 ```tsx preview
 import type { ReactNode } from 'react';
@@ -153,14 +153,14 @@ export default function App() {
 
 | 写法 | 合并效果 |
 |---|---|
-| `d.x.$componentProps.placeholder = '…'` | 仅覆盖 `placeholder`，其余来自下层的属性继续保留 |
-| `d.x.$componentProps.style.color = 'red'` | 仅补充 `style.color`，保留下层 `style` 中的其他样式；由于中间层对象不会自动初始化，需先写 `style ??= {}` |
-| `d.x.$componentProps.style ??= {}` | 初始化一个空补丁层，不会清空下层已有的 `style` |
-| `d.x.$componentProps.style = { color: 'red' }` | 整键替换：下层的 `style` 不再生效 |
-| `delete d.x.$componentProps.style` | 移除该键，下层的 `style` 同样不再生效 |
-| `delete` 数组 draft 的下标（`$componentProps` 里的数组，或 `$value`） | 跟 JavaScript 一样在该下标留空洞，`length` 不变。要删除并让后面的元素前移，用 `splice`；表单行用 `useArrayField().remove` |
-| `d.x.$componentProps = { … }` | 整体替换掉整个对象，`fields` 和 JSX 两层的 props 全部失效。整对象赋值仅接受普通对象或 `undefined`，传入 `null`、数组或原始值在开发环境抛 `ShikiUsageError`，生产环境忽略 |
-| `d.x.$componentProps = undefined` | 撤销 `reaction` 这一层的覆盖，恢复下层属性 |
+| `d.x.$componentProps.placeholder = '…'` | 只覆盖 `placeholder`，JSX 和 `fields` 里配的其他属性继续保留 |
+| `d.x.$componentProps.style.color = 'red'` | 只补充 `style.color`，保留下层 `style` 里的其他样式；如果 `style` 还没初始化，先写 `style ??= {}` |
+| `d.x.$componentProps.style ??= {}` | 准备一个空的 `style` 补丁对象，不会清掉下层已有的 `style` |
+| `d.x.$componentProps.style = { color: 'red' }` | 直接替换整个 `style`，下层的 `style` 不再生效 |
+| `delete d.x.$componentProps.style` | 删除 `style`，下层的 `style` 同样不再生效 |
+| `delete` 数组 draft 的下标（`$componentProps` 里的数组，或 `$value`） | 跟 JavaScript 一样在该下标留空位，`length` 不变。要删除并让后面的元素前移，用 `splice`；表单行用 `useArrayField().remove` |
+| `d.x.$componentProps = { … }` | 整体替换整个 props 对象，`fields` 和 JSX 两层配的属性全部失效（只接受普通对象或 `undefined`，传 `null`、数组或原始值在开发环境抛 `ShikiUsageError`，生产环境忽略） |
+| `d.x.$componentProps = undefined` | 撤销 `reaction` 这一层的覆盖，恢复成 JSX 和 `fields` 的配置 |
 
 在 `reaction` 内部读取 `$componentProps` 时，只能读到「`fields` 声明 + `reaction`」两层合并后的结果，JSX 层属性仅在渲染阶段合并。UI 状态、`$value`、`$enum` 和 `$rules` 都能在同一轮读回刚写的值。
 
@@ -269,8 +269,8 @@ export default function App() {
 
 JSX `enum` 的行为规则：
 
-- 优先级：`reaction` 的 `$enum` > JSX `enum` > `fields.x.enum` > 行模板（`rows.*.x`）。JSX `enum` 仅在组件挂载期间生效，卸载或改为 `undefined` 后回退到声明层。
-- 在 `reaction` 中赋值 `$enum = undefined` 会撤销联动层覆盖并回退到下层（同时中止未完成的异步枚举请求并复位 `loading`）；赋值 `$enum = []` 则将选项置为空列表。
+- 优先级：`reaction` 的 `$enum` > JSX `enum` > `fields.x.enum` > 行模板（`rows.*.x`）。JSX `enum` 只在组件挂载期间有效，卸载或改成 `undefined` 后恢复成 `fields` / 行模板里的配置。
+- 在 `reaction` 里写 `$enum = undefined` 会撤销联动设置的选项，恢复成组件或字段默认配的选项（同时取消还没返回的异步请求并重置 `loading`）；要显式清空选项请写 `$enum = []`。
 - JSX `enum` 按深比较判断变化，渲染期间传入内联数组字面量不会重复触发更新；选项变更后按 `enumPolicy` 处理当前值（例如 `'clear'` 清掉不在新选项中的旧值，首次挂载保留初始值）。
 - 支持直接传入异步源 `enum={Cities.with(province)}`；若参数依赖其他字段，放在 `reaction` 中写 `d.city.$enum = …`。
 - 在 `typed(form)` 或 `row.Field` 上，选项的 `value` 类型按字段值类型校验（数组字段按元素类型校验）。

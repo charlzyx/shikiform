@@ -91,7 +91,11 @@ export default function App() {
 
 ## Four independent flags
 
-A hidden, disabled or read-only field skips validation and clears existing errors. Each can still submit. `omit` alone removes a subtree from submission; setting `$omit = true` on the root makes submission return `{}` and keeps `form.dirty` `false` (explicit `validate(path)` still validates and returns that path). [Compare the four states](/en/basics/state).
+Four independent switches control display and submission: `visible`, `disabled`, `readOnly`, and `omit`.
+
+- A hidden (`visible: false`), `disabled`, or `readOnly` field skips validation and clears existing errors, while still submitting its value.
+- `omit` alone controls whether a field is excluded from submission. Setting `$omit = true` on the root submits `{}` and keeps `form.dirty` `false` (explicit `validate(path)` still validates and returns that path).
+- All four inherit from parent paths: `visible`, `disabled`, and `readOnly` can be overridden per child, while an omitted ancestor always removes its whole subtree from submission. [Compare the four states](/en/basics/state).
 
 ## Declare fields before they mount
 

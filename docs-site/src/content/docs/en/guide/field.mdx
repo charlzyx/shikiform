@@ -67,7 +67,11 @@ export default function App() {
 
 ## UI layers
 
-An effect takes precedence over JSX, followed by the `fields` declaration. Patch a leaf of `$componentProps` or `$decoratorProps` to keep sibling keys. Assigning the entire object replaces lower layers and accepts only a plain object or `undefined` (other values throw `ShikiUsageError` in development and are ignored in production). Assign `undefined` to restore lower layers. Inside an effect, object and array `$` reads share that draft: `d.user.$value.name = 'x'` writes the child path, and `d.items.$value.push(row)` is the array-field operation. `delete arr[i]` leaves a hole and does not change `length`. `splice`, or `useArrayField().remove(index)` for a form row, is what shifts later items.
+UI props merge across three layers: `reaction` overrides JSX, which overrides `fields`.
+
+- Patch individual keys on `$componentProps` or `$decoratorProps` (e.g. `d.code.$componentProps.placeholder = '...'`) to keep sibling props from JSX and `fields`.
+- Assigning the whole object replaces lower layers (accepts only a plain object or `undefined`; other values throw `ShikiUsageError` in development and are ignored in production). Assign `undefined` to drop the reaction override and restore JSX/`fields`.
+- Inside an effect or batch, editing a nested object or array through `$value` writes directly to that field: `d.user.$value.name = 'x'` updates `user.name`, and `d.items.$value.push(row)` appends a row like `useArrayField().push`. `delete arr[i]` leaves a hole without changing `length` — use `splice` or `useArrayField().remove(index)` to remove a row and shift later items.
 
 ```tsx preview
 import type { ReactNode } from 'react';

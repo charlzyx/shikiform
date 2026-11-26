@@ -15,9 +15,9 @@ description: 使用内置规则、Standard Schema（如 Zod）进行同步与异
 | `pattern` | 正则表达式匹配；带 `g` / `y` 标志的正则每次都从索引 `0` 匹配，并保留调用方正则的 `lastIndex` |
 | `format: 'email' \| 'url'` | 内置格式校验 |
 | `isTrue` | 值必须为 `true`（常用于勾选同意协议） |
-| `validator(value, ctx)` | 自定义校验函数（同步与异步采用同一运行时返回值契约）：非空字符串或字符串数组 `string[]` → 错误文案；`false` → 失败并使用规则 `message` 或默认 `fallback` 文案；`true` / `null` / `undefined` / `''` → 通过；返回其它值时开发环境抛 `ShikiUsageError`，生产环境按失败处理并使用默认文案。`ctx.record` 在路径含数组下标时是最后一个下标对应的那一行，否则是包住该字段的对象；`parent` 跳过数组层的上级对象；另有 `root`、`get(path)` 与 `signal`（读到的是本轮校验开始时的快照）。函数抛错或 reject 时，异常的 `message` 会作为报错文案 |
+| `validator(value, ctx)` | 自定义校验函数（同步、异步写法一致）：返回非空字符串或 `string[]` 表示报错文案；返回 `false` 表示不通过（用规则 `message` 或默认提示）；返回 `true` / `null` / `undefined` / `''` 表示通过；返回其他值在开发环境抛 `ShikiUsageError`，生产环境按失败处理。`ctx.record` 在数组行内是当前行，否则是父对象；`ctx.parent` 跳过数组层指向上级对象；另提供 `root`、`get(path)` 和 `signal`（读到的是本次校验开始时的值快照）。抛错或 reject 时取异常的 `message` 作为报错文案 |
 | `message` | 自定义该条规则的错误提示文案 |
-| `level: 'warning'` | 设为警告级别：提示信息写入 `$warnings` / `field.warnings` 并以警告色展示，但**不会阻止提交**，也不会影响 `canSubmit`（异步警告可在提交完成后发布；显式调用 `form.validate()` 仍等待警告结果），适合「密码强度偏弱」等软提醒 |
+| `level: 'warning'` | 设为警告级别：提示写入 `$warnings` / `field.warnings` 并以警告色展示，但**不会阻止提交**，也不会让 `canSubmit` 变 `false`（异步警告不阻塞提交，结果返回后再显示；主动调用 `form.validate()` 仍会等它完成），适合「密码强度偏弱」等软提醒 |
 
 与 Ant Design 和 Formily 一致，ShikiForm 的内置规则中，空值（`''`、`null`、`undefined`）统一只由 `required` 判定；`minLength`、`pattern`、`min`、`format` 等规则遇到空值会直接放行。这样既能保证选填项留空时不报错，也能避免必填项在留空时同时冒出多条错误。对于 Zod 等外部 Schema，空值是否放行取决于 Schema 自身定义（例如 `z.string().min(3)` 会拦截空串，若字段可留空需写 `.optional()` 或 `.or(z.literal(''))`）。
 
@@ -110,15 +110,24 @@ export default function App() {
 
 尝试只输入纯数字密码时，字段会展示黄色警告提示，但依然可以正常提交；在用户名中输入 `admin`，异步校验会在停顿 300ms 后发起，如果在这期间继续输入，引擎会通过 `signal` 中止前一次请求并丢弃过期结果，被中止的请求也不会阻塞后续提交。
 
-除了字段级规则，你还可以直接给 `useForm({ validate: z.object({ … }) })` 传入整表 Schema，报错路径（如 `['items', 0, 'name']`）会自动映射到对应的字段（`items.0.name`）；若将 Schema 写在具体字段的 `rules` 上，报错路径则会相对于该字段解析。表单级校验与字段 Schema 错误（含在途异步返回）会跟随存活的行或树节点迁移，行或节点被删除或替换时自动丢弃。
+除了字段级规则，你还可以直接给 `useForm({ validate: z.object({ … }) })` 传入整表 Schema，报错路径（如 `['items', 0, 'name']`）会自动落到对应字段（`items.0.name`）；把 Schema 写在单个字段的 `rules` 上时，报错路径相对于该字段解析。异步校验还没返回时，如果所在的行或树节点被移动了，结果会自动跟到新位置；如果这行被删掉或换掉了，旧报错会自动丢弃，不会错报到别的行上。
 
 ## 校验时机与竞态处理
 
-- 默认在失焦（`onBlur`）和提交（`onSubmit`）时触发校验，可通过 `validateTrigger: ['onChange', 'onBlur', 'onSubmit']` 调整。已报错的字段在后续每次值变更时都会立即重验，合法后即时消除错误。
-- `await form.validate()` 校验全表，传入路径前缀（如 `form.validate('items')`）或路径数组则只校验对应范围（运行时统一规范化方括号与点号路径）。通过时 resolve 调用结束时的当前值：无 path 是 `getSubmitValues()`（`TSubmit`，根层 `$omit: true` 时为 `{}`）；一个 path 是该处的值（`PathValue`；path 自身即使 `omit` 或处于根层 `omit` 下也仍校验并返回，只因它而被 omit 的子孙仍在，子孙自己的 `omit` 才去掉）；路径数组是只含这些 path 的嵌套对象（`ValidatePick`）。这份值是副本：普通对象、数组、`Date`、`Map`、`Set` 会复制，类实例、函数和 React 元素仍是原来的引用，原地修改不会写回表单。规则读的是开跑时的快照；这段时间里值又变了，`validate()` 不会重跑。失败时 reject `FieldError[]`（`{ path, messages }[]`）；表单级 `validate` 抛错原样 reject。局部 `validate(path)` / `validate(paths)` 在途期间若受检行移动，校验失败时按受检行的当前坐标 reject，全部通过时按调用传入的路径读取当前值返回；跨父移出的带键树节点仍属于原局部校验范围。
-- `submit()` 会等待在途异步规则完成后再做最终判定（不等待异步 `warning` 规则）。若校验期间表单值变化，或 `enumPolicy: 'error'` 下影响校验的**启用选项值集合**发生变化（仅重排顺序或修改 `label` 不触发重试），引擎会重跑校验（最多 3 轮），通过后 resolve 的是刚校验过的那份提交值。新的 `submit()` 会立即拒绝仍在等待校验的旧调用（reject `SubmitSupersededError`），只有最新一次触发 `onValid`；已经进入 `onValid` 的调用继续计入 `submitting`。防止重复点击可根据 `$submitting` 禁用按钮。
-- 局部 `reset(path)` 只取消该子树范围内排队的防抖校验，并只使范围相交的在途校验失效（无关子树的 `reset` 不会中断或跳过表单级校验）；全表 `reset` 前发起的表单级校验仍会向原调用返回判定，但不再把旧结果写回重置后的表单状态；等待异步 `warning` 期间若发生 `reset`，有键行的原调用判定映射到恢复后的坐标；仅重置行内某个字段（如 `reset('rows.0.note')`）时，同行其他未重置字段保留在途校验判定，原始值数组元素按下标槽位保留在途校验判定，局部 `reset` 范围之外的未触碰槽位（即使共享对象引用或含嵌套数组）也始终在原坐标保留在途校验判定；整行、整数组或整表重置克隆匿名行导致无法唯一匹配时，仍按既有规则丢弃旧判定。局部树 `reset` 按整棵已注册树的作用域匹配跨父移动过的带键节点；当出现重复 `rowKey` 时，原校验判定只跟随仍保留原引用的存活对象，无法唯一匹配时丢弃。被 `reset` 中止的校验视为无结论，即使重置到相同值，下一次 `submit()` 也会重跑校验。整体替换父对象时，仅重跑值确实变化且有待处理校验的子字段。
-- 在 `reaction` / `batch` 中写 `$rules` 时需传入规则对象数组（清空用 `[]`）；传入非数组或非规则对象时，开发环境抛 `ShikiUsageError`，生产环境忽略该次写入并保留原有规则。
+- **触发时机**：默认在失焦（`onBlur`）和提交（`onSubmit`）时校验，可通过 `validateTrigger: ['onChange', 'onBlur', 'onSubmit']` 调整。已经报错的字段在后续每次改动时都会立刻重验，改对后马上消错。
+- **手动调用 `form.validate(...)`**：
+  - 无参 `validate()` 校验全表，通过时返回提交数据（`TSubmit`，根部 `$omit: true` 时为 `{}`）；传一个路径（如 `'items'`）只校验该范围并返回对应值（即使这个路径设了 `omit` 也会校验并返回，子字段自己设了 `omit` 才去掉）；传路径数组（如 `['name', 'user.city']`）则返回只含这些字段的嵌套对象（路径写点号或方括号等价）。
+  - 返回值是一份副本（普通对象、数组、`Date`、`Map`、`Set` 会复制，类实例、函数和 React 元素保持原引用），直接改它不会写回表单。
+  - 规则读的是开始校验时的快照，期间值又变了 `validate()` 不会重跑；失败时 reject `FieldError[]`（表单级 `validate` 抛出的异常原样 reject）。局部校验还没返回时如果行被移动了，报错会落在移动后的新位置，全部通过则按传入路径返回当前值；跨父级移出的带 `rowKey` 树节点仍算在原局部校验范围内。
+- **提交与防连点（`form.submit`）**：
+  - 提交前会等所有进行中的异步校验跑完（不等异步 `warning`）。等待期间如果表单值变了，或在 `enumPolicy: 'error'` 下可用选项集合变了（只调换顺序或改 `label` 不算），会自动重跑校验（最多 3 轮），确保提交出去的正是刚刚通过校验的数据。
+  - 连续发起新的 `submit()` 时，还在等校验的旧调用会立刻失败（reject `SubmitSupersededError`），只有最新一次会执行 `onValid`；已经进入 `onValid` 的调用仍会让 `$submitting` 保持 `true`。按钮防重复点击直接根据 `$submitting` 禁用即可。
+- **局部 `reset(path)` 与异步校验**：
+  - 局部 `reset(path)` 只取消该字段或子树下还没跑完的防抖和异步校验，不会打断无关字段或全表校验。
+  - 整表 `reset()` 之前发起的校验仍会给原调用返回结果，但不会把过时的报错写回重置后的表单；等异步 `warning` 期间发生 `reset()` 时，带 `rowKey` 的行会把结果对应回恢复后的位置。
+  - 只重置行里某一个字段（如 `reset('rows.0.note')`）时，同行其他未重置字段、原始值数组槽位以及 `reset` 范围外没动到的行（即使共享引用或含嵌套数组），其进行中的校验结果都会保留；整行、整数组或整表重置时，若无主键的行被重新克隆而无法确定对应关系，旧结果会被丢弃。树结构局部重置按整棵已注册树范围匹配跨父级移出的带 `rowKey` 节点（`rowKey` 重复时只跟随原引用存活的对象，无法唯一匹配时丢弃）。
+  - 被 `reset()` 中断的校验不算通过，即使重置后值没变，下次 `submit()` 也会重新校验。整体替换父对象时，只重跑值确实变化且有待校验的子字段。
+- **动态修改 `$rules`**：在 `reaction` / `batch` 中写 `$rules` 时需传入规则对象数组（清空用 `[]`）；传入非数组或非规则对象时，开发环境抛 `ShikiUsageError`，生产环境忽略并保留原有规则。
 
 ```ts
 const values = await form.validate()
@@ -216,7 +225,7 @@ await form.submit(async (values) => {
 })
 ```
 
-`setErrors` 接收 `{ path: 文案 | 文案[] }` 或 `FieldError[]`，传入 `null` 或空数组可清除单条错误。挂载后的服务端错误会与规则错误一同显示，并使 `canSubmit` 变为 `false`；只要对应字段（或其祖先/子孙字段）的值发生变更、触发重新校验，或调用 `reset()` / `clearErrors(path?)`，服务端错误会自动清除。在 `batch` / `watch` 内调用 `setErrors` / `clearErrors` 时，按调用顺序和当时工作树坐标定位字段（移行后命中当前位于该坐标的行），内层 `batch` 抛错时回滚；批内读取 `form.errors` / `$errors` 仍返回已提交状态，批结束时统一落地。
+`setErrors` 接收 `{ path: 文案 | 文案[] }` 或 `FieldError[]`，传入 `null` 或空数组可清除单条错误。挂载后的服务端错误会与规则错误一同显示，并使 `canSubmit` 变为 `false`；只要对应字段（或其祖先/子孙字段）的值发生变更、触发重新校验，或调用 `reset()` / `clearErrors(path?)`，服务端错误会自动清除。在 `batch` 或 `watch` 里调用 `setErrors` / `clearErrors` 时，会按代码顺序落到当前所指的字段位置上（比如先移动了行再设错，会落到新位置那一行），内层 `batch` 抛错也会跟着回滚；批内读取 `form.errors` / `$errors` 看到的仍是上一次已提交的状态，批结束后统一生效。
 
 ## 规则写在哪决定「卸载后是否还校验」
 

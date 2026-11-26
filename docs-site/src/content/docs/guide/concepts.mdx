@@ -3,20 +3,20 @@ title: 核心概念
 description: 理解 ShikiForm 的统一表单引擎、draft 与 handle、$ 状态、显隐与提交机制、fields 声明及数据流转过程。
 ---
 
-ShikiForm 将表单值、字段状态（显隐、禁用、只读、校验规则、错误提示、UI 属性）和联动逻辑放在一个独立于视图层的引擎中维护。React 组件与任意 UI 适配层都不持有自己的表单状态，仅按路径订阅引擎状态并映射为组件属性。
+ShikiForm 把表单值、字段状态（显隐、禁用、只读、校验规则、错误提示、UI 属性）和联动逻辑统一放在 React 之外的引擎里。组件只负责按路径订阅状态并渲染界面，自己不存表单数据。
 
 ## 术语速览
 
 | 术语 | 说明 |
 |---|---|
-| **表单实例** | `useForm` 或 `createForm` 返回的 `FormInstance`，持有表单值树与各路径的字段状态 |
-| **draft** | `reaction`、`watch` 和 `form.batch` 回调的参数 `d`，用于追踪依赖与读写状态 |
-| **handle** | draft 上的路径代理（如 `d.user.name`）；普通属性访问只定位路径，不读取值 |
-| **`$` 状态** | handle 上以 `$` 开头的成员（如 `$value`、`$required`、`$visible`），用于读写具体状态 |
-| **`decorator` / `component`** | `<Field>` 渲染的两层结构：`decorator`（如 `FormItem`）展示标签和错误，`component`（如 `Input`）负责输入 |
-| **`reaction` / `watch`** | `reaction` 计算派生状态，初始化即运行并自动追踪依赖；`watch` 执行变化后的动作，首次不运行 |
-| **`each`** | `reaction.each` 与 `watch.each` 接收 `(select, fn)` 两个参数，为数组每行建立独立实例并递归进入嵌套对象数组（跳过对象上的基本类型数组；直接对基本类型数组本身调用 `each` 时在 `depth === 0` 触发），可在回调内按 `ctx.key` / `ctx.depth` 过滤 |
-| **四个布尔** | `visible`、`disabled`、`readOnly`、`omit`，均沿字段路径继承；`omit` 控制是否提交，父级为 `true` 时子级 `false` 不能单独提交 |
+| **表单实例** | `useForm` 或 `createForm` 返回的 `FormInstance`，存放整张表的数据和每个字段的状态 |
+| **draft** | `reaction`、`watch` 和 `form.batch` 回调里的参数 `d`，用来读写字段状态并自动记录依赖 |
+| **handle** | `draft` 上的字段路径代理（如 `d.user.name`）；写普通属性只定位路径，不会读取数据 |
+| **`$` 状态** | handle 上以 `$` 开头的成员（如 `$value`、`$required`、`$visible`），用来读写具体状态 |
+| **`decorator` / `component`** | `<Field>` 的两层结构：`decorator`（如 `FormItem`）画标签和报错，`component`（如 `Input`）负责输入 |
+| **`reaction` / `watch`** | `reaction` 用来算派生结果，初始化就跑并自动追踪依赖；`watch` 在值变化后执行一次性动作，首次不跑 |
+| **`each`** | `reaction.each(draft.items, fn)` 与 `watch.each(draft.items, fn)` 为数组每行建独立联动，并自动进入嵌套对象数组（跳过对象上的字符串/数字等基本类型数组；直接对基本类型数组调用时在 `depth === 0` 生效），可在回调里用 `ctx.key` / `ctx.depth` 过滤 |
+| **四个独立开关** | `visible`、`disabled`、`readOnly`、`omit` 互不干扰，都会从父级传给子级；是否提交只看 `omit`，父级为 `true` 时子级写 `false` 也不能单独提交 |
 
 ## handle 与 value 的区别
 
@@ -97,9 +97,9 @@ export default function App() {
 | `$enum` | 枚举选项（支持静态数组或 `EnumSource.with(params)`），优先级高于 JSX `enum` 与 `fields` 声明；赋 `undefined` 撤销 reaction 层覆盖，赋 `[]` 清空选项 |
 | `$title` / `$description` | 字段标题与辅助说明（经 `useFieldDecorator()` 映射为 `label` 与 `description`） |
 | `$component` / `$decorator` | 动态替换 `<Field>` 渲染的控件或装饰器 |
-| `$componentProps` / `$decoratorProps` | 控件与装饰器的透传属性，支持按键打补丁，详见 [UI 状态三层叠加](/guide/field#ui-状态三层叠加) |
-| `$errors` / `$warnings` / `$validating` / `$touched` | 只读状态，分别表示错误列表、警告列表、异步校验中状态及失焦触碰标记 |
-| `$dirty` / `$edited` | 只读状态。`$dirty` 通过深比较判断当前值是否偏离初始值（改回原值即恢复 `false`；表单根上的 `d.$dirty` 不计入 `omit`（含被祖先 omit 的子孙）与计算字段；`visible: false` 仍计入）。被 omit 的字段自身在没有更上层 omit 时仍可能为 `true`。`$edited` 记录用户是否手动编辑过，直到 `reset` 才重置 |
+| `$componentProps` / `$decoratorProps` | 传给控件与装饰器的属性，支持只改其中某几个键，详见 [UI 状态三层叠加](/guide/field#ui-状态三层叠加) |
+| `$errors` / `$warnings` / `$validating` / `$touched` | 只读状态，分别表示报错列表、警告列表、是否正在异步校验、是否失焦过 |
+| `$dirty` / `$edited` | 只读状态。`$dirty` 对比当前值和初始值是否不同（改回原值变回 `false`；表单级的 `d.$dirty` 不把 `omit` 字段和计算字段算进去，`visible: false` 仍算在内；被 omit 的字段自身在没有更上层 omit 时仍可能为 `true`）。`$edited` 记录用户是否手动改过，直到 `reset()` 才清空 |
 | `d.$canSubmit` / `d.$submitting` / `d.$submitCount` | 表单级只读状态，只能在根 draft `d` 上读取 |
 
 ## 四个布尔
@@ -115,11 +115,14 @@ export default function App() {
 | `omit: true` | 不影响渲染 | 不影响校验 | 剔除该字段及其子孙。表单级不计入 dirty |
 | `reaction` 写过 `$value` | 仍可编辑（要预览就再写 `readOnly`） | 按上面三个开关 | 提交，除非 `omit` |
 
-四个布尔都沿字段路径继承。`visible` / `disabled` / `readOnly` 从根走到自己：这一层写了 `true` 或 `false` 就用这一层，没写就保持上一层。所以父级 `disabled: true`、子级 `disabled: false` 时，子级可以编辑。`omit` 是任一祖先为 `true` 则子孙为 `true`（`$omit` 和 binding 上的 `omit` 都一样）。子级写 `omit: false` 不能把自己捞回来：提交时被 omit 的对象整棵删掉，嵌套的键跟着离开，子字段没有可以单独提交的值。父级 `omit` 取消后，子级回到自己的值（没写就是 `false`）。
+这四个开关都会从父路径传给子路径：
 
-被 omit 的祖先自己的 `$dirty` 仍按深比较计算，值变了时可以为 `true`，但表单级 `dirty` 不计这个字段及其子孙；子孙字段的 `$dirty` 则是 `false`。在根层设置 `d.$omit = true` 时，整表提交返回 `{}` 且表单级 `dirty` 为 `false`（显式调用 `form.validate(path)` 仍可校验并取回该路径的值）。
+- **`visible` / `disabled` / `readOnly`**：子级没写就听父级的，子级自己写了 `true` 或 `false` 就按自己的来。比如整组设了 `disabled: true`，里面某一个字段写 `disabled: false` 仍然可以编辑。
+- **`omit`**：只要任意一层父级设了 `omit: true`，提交时这整个对象和里面的子字段都会一起去掉，子级写 `omit: false` 也无法单独提交；等父级取消 `omit` 后，子级再恢复成自己的设置（默认 `false`）。
 
-`$flag = undefined` 丢掉 reaction 这一层，回到 JSX / `fields` / 继承。详情页用 `useForm({ readOnly: true })`。
+被 omit 的父级如果值变了，它自己的 `$dirty` 仍可能为 `true`，但整张表单的 `form.dirty` 不会把 `omit` 字段及其子孙算进去（子孙自己的 `$dirty` 为 `false`）。把根设成 `d.$omit = true` 时，提交返回 `{}` 且 `form.dirty` 为 `false`（主动调用 `form.validate(path)` 仍会校验并取回该路径的值）。
+
+在联动里给开关赋 `undefined` 会撤销联动层的设置，恢复成 JSX、`fields` 或父级继承的值。做详情页直接传 `useForm({ readOnly: true })` 即可。
 
 ## 用 `fields` 预声明字段
 
@@ -197,6 +200,6 @@ export default function App() {
 2. 引擎标记脏状态，重跑依赖这些状态的 `reaction` 直至收敛；监听源发生变化的 `watch` 随后执行一次。
 3. 订阅了变更路径的 React 组件收到通知并局部重渲染。
 4. 按 `validateTrigger`（默认 `onBlur` 与 `onSubmit`，可加入 `onChange`）执行同步与异步校验。
-5. 提交时等待在途异步规则并执行全表校验，通过后剔除 `omit` 字段（`visible: false` 的值仍保留），将结果传给 `onSubmit`。
+5. 提交时等异步校验全部跑完并校验全表，通过后去掉 `omit` 字段（`visible: false` 的值照常保留），把结果交给 `onSubmit`。
 
 继续阅读：[表单与字段](/guide/field)。

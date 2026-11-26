@@ -93,7 +93,11 @@ export default function App() {
 }
 ```
 
-`typed(form).ArrayField` supplies a `row.Field` typed to one contact. Inside a row, `useIndex()` reads the position and `useRecord<Contact>()` reads its value. Object rows without IDs use object identity, so moving a row preserves its state and input focus. Inside a batch, array handle edits and draft array mutators (`push`, `splice`, `sort`, `reverse`, etc.) apply in call order: edited cell values move with their row and removed rows do not reappear; plain arrays with duplicate values also apply in call order, and `reverse()` reverses the already-edited array. Pass `rowKey` when your data supplies a stable ID. Dropping a row invokes `move` within the same array. In `virtualScroll` mode, virtual rows reconcile with stable row keys so reordering rows inside the visible window preserves row component state. Calling row operations (`push`, `insert`, `remove`, `move`, `swap`, `replace`) on a stale array handle whose current value is no longer an array initializes `null`/`undefined` to `[]`, and for any other non-array value throws `ShikiUsageError` in development and is ignored in production to protect the existing value.
+- `typed(form).ArrayField` gives you a `row.Field` typed to one contact; inside a row, use `useIndex()` for the row position and `useRecord<Contact>()` for its data.
+- Object rows without IDs track identity by object reference, so moving a row keeps its errors, touched state, and input focus intact; pass `rowKey` when your data already has a stable ID. Dropping a row calls `move` within the same array.
+- In a single batch, array handle operations (`move`, `swap`, `remove`, etc.) and draft array methods (`push`, `splice`, `sort`, `reverse`) run in call order: edited cells move with their row, deleted rows stay deleted, and plain arrays with duplicate values or `reverse()` work on the latest data.
+- With `virtualScroll`, visible rows reuse stable row keys so reordering rows inside the viewport preserves local component state.
+- **Non-array guard**: calling row edits (`push`, `insert`, `remove`, `move`, `swap`, `replace`) on an array handle whose value is no longer an array initializes `null` / `undefined` to `[]`; for any other non-array value it throws `ShikiUsageError` in development and does nothing in production so existing data isn't overwritten.
 
 ## Read-only and disabled arrays
 

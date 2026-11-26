@@ -159,7 +159,7 @@ connect(Picker, mapProps({ onBlur: false }))
 
 ### UI SDK
 
-[UI SDK](https://ui-sdk.dev) (`@ui-sdk/react` + `@ui-sdk/core`) ships unstyled, accessible primitives imported from per-component subpaths and styled via `data-slot` attributes:
+[UI SDK](https://ui-sdk.dev) (`@ui-sdk/react` + `@ui-sdk/core`) ships unstyled, accessible UI components imported per component and styled via `data-slot` attributes:
 
 - `Select` (`@ui-sdk/react/select`): controlled with `value` (`string | null`) and `onValueChange`. Because the root has no `onBlur`, configure `blurOn: 'onOpenChange'` so closing the popup triggers blur validation. Passing `items` on the root keeps labels available during SSR and while closed.
 - `Checkbox` (`@ui-sdk/react/checkbox`): accepts `onBlur` directly; map `value: 'checked'`, `onChange: 'onCheckedChange'`, and `parse: (c) => c === true`.

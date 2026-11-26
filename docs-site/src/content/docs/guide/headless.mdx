@@ -112,7 +112,7 @@ function NodeRow() {
 
 接入任何 React UI 库（如 Ant Design、Arco Design、Radix / shadcn/ui、Mantine、MUI）通常只需要三步：
 
-1. **用 `connect(Comp, mapProps(...))` 包装输入控件**：自动将 `value`、`onChange`、`onBlur`、`disabled`、`id`、`options` 映射到组件属性；`connect` 生成的事件回调（`onChange`、`onBlur` 与 `blurOn`）在控件挂载期间保持引用稳定，其他函数 prop 原样透传；需要 `status`（如 Ant Design / Arco 的 `'error' | 'warning'`）或自定义 `preview` 阅读态时，在 `mapProps` 第二个回调里按 `field.errors` / `field.warnings` 补充即可：
+1. **用 `connect(Comp, mapProps(...))` 包装输入控件**：自动把 `value`、`onChange`、`onBlur`、`disabled`、`id`、`options` 接到组件上；`connect` 生成的 `onChange`、`onBlur` 与 `blurOn` 回调在挂载期间引用稳定，你额外传的其他函数 prop 会原样保留；需要 `status`（如 Ant Design / Arco 的 `'error' | 'warning'`）或自定义 `preview` 阅读态时，在 `mapProps` 第二个回调里按 `field.errors` / `field.warnings` 补充即可：
 
 ```ts
 // 适配 Ant Design / Arco Design 等带 status 属性的组件库示例：
@@ -175,7 +175,7 @@ const Input = connect(ShadcnInput)
 
 | 写法 | 触发 `field.onBlur()` 的时机 |
 |---|---|
-| `mapProps({ blurOn: 'onOpenChange' })` | 弹层关闭时（回调首个参数为 `false`），且不再向下透传 `onBlur` |
+| `mapProps({ blurOn: 'onOpenChange' })` | 弹层关闭时（回调首个参数为 `false`），且不再把 `onBlur` 传给组件 |
 | `mapProps({ blurOn: 'onChange' })` | 每次值变更写入后立即触发 |
 | `mapProps({ blurOn: { prop, when? } })` | 指定的 `prop` 回调触发且 `when(...args)` 不返回 `false` 时（适用于如 MUI DatePicker 的 `onClose`） |
 | `mapProps({ onBlur: false })` | 显式声明不处理失焦校验 |
@@ -189,7 +189,7 @@ connect(Picker, mapProps({ onBlur: false }))
 
 ### 接入 UI SDK
 
-[UI SDK](https://ui-sdk.dev)（`@ui-sdk/react` + `@ui-sdk/core`）是一套无样式的交互原语库，按组件子路径导入并通过 `data-slot` 与状态属性编写样式。接入 ShikiForm 只需几行 `connect` + `mapProps`：
+[UI SDK](https://ui-sdk.dev)（`@ui-sdk/react` + `@ui-sdk/core`）是一套无样式的交互组件库，按组件子路径导入并通过 `data-slot` 与状态属性编写样式。接入 ShikiForm 只需几行 `connect` + `mapProps`：
 
 - `Select`（`@ui-sdk/react/select`）：受控值为 `string | null`，通过 `onValueChange` 回调新值；根组件没有 `onBlur`，用 `blurOn: 'onOpenChange'` 在弹层关闭时触发失焦校验。把 `items` 同时传给根组件可确保服务端渲染与折叠态都能正确显示标签。
 - `Checkbox`（`@ui-sdk/react/checkbox`）：本身支持 `onBlur`，将 `value` 映射到 `checked`、`onChange` 映射到 `onCheckedChange`，并用 `parse` 把 `boolean | 'indeterminate'` 收敛为 `boolean`。

@@ -9,7 +9,7 @@ AI 编程工具生成 ShikiForm 代码时，常见错误集中在把 draft handl
 
 1. **通过 handle 读写字段**。联动和批量写入中，`d.user.$value.name = 'Ada'` 写入子路径，`d.items.$value.push(row)` 追加一行。外部使用 `form.setValue` 或 `form.patchValues`。开发环境下 `getValue` 和 `form.values` 返回只读视图，需要普通数据副本时用 `snapshot(value)`。
 2. **`reaction` 计算派生状态，`watch` 执行变化后的动作**：`reaction` 在初始化时立即运行，自动追踪内部读取的所有 `$` 状态；`watch` 首次不运行，仅追踪第一个参数读取的状态。派生值不要写进 `watch`。
-3. **同轮回读**。写入在回调结束时提交。`$value`、`$enum`、`$rules` 和 UI 状态可以读回本轮刚写的值。写入 `$visible`、`$required` 等旗标后，需要复用新值时请用局部变量。
+3. **同轮回读**。写入在回调结束时统一提交。`$value`、`$enum`、`$rules` 和 UI 状态可以直接读回本轮刚写的新值；写入 `$visible`、`$required` 这类布尔开关后，需要复用新值时请存到局部变量。
 4. **按行或按键联动**。`defineEffects` 提供 `draft`。数组用 `reaction.each(draft.items, …)` / `watch.each(draft.rows, …)`，进入嵌套对象数组。普通对象用 `reaction.each(draft.extra, …)` 逐键订阅。selector `(d) => d.items` 仍可用。`watch(draft.city, …)` 监听该字段的 `$value`，`watch([draft.a, draft.b], …)` 监听多个。
 5. **表单值按路径写入，对象型 UI 属性支持按键合并**：`d.city.$componentProps.placeholder = '…'` 仅覆盖 `placeholder`，保留下层其他属性；对 `$componentProps` 整体赋值则会替换整包下层属性。
 6. **`<Field>` 绑定路径，`FormItem` 只做装饰器**：统一写作 `<Field name title required decorator={[FormItem]} component={[Input]} />`，`FormItem` 不接收 `name`。
@@ -30,7 +30,7 @@ reaction.each(draft.items, (row) => {                  // ✓ 为每一行建立
 d.total.$value = d.price.$value * d.qty.$value
 d.tax.$value = d.total.$value * 0.1  // ✓ 读到刚写的总额
 d.tax.$visible = false
-void d.tax.$visible                  // ✗ 同一轮回读该旗标会在开发环境抛错
+void d.tax.$visible                  // ✗ 同一轮不能回读刚写的开关（开发环境会报错）
 
 reaction.each(draft.rows, (row) => {}, { childrenKey: 'children' }) // ✗ 没有第三个参数
 reaction.each(draft.rows, (row, { depth }) => { if (depth !== 0) return }) // ✓ 在回调内自行过滤
