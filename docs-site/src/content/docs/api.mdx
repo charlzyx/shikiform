@@ -71,7 +71,7 @@ validate<P extends FieldPath<T>>(path: P): Promise<PathValue<T, P>>
 validate<const Paths extends readonly FieldPath<T>[]>(paths: Paths): Promise<ValidatePick<T, Paths>>
 ```
 
-返回的是这次调用结束时表单里的当前值，按上面的范围去掉 `omit` 之后的副本。普通对象、数组、`Date`、`Map`、`Set` 会复制；类实例、函数和 React 元素仍是原来的引用。这份副本可以原地改，改动留在副本上，不会写回表单。开发环境里 `getValue` / `form.values` 的只读视图则相反：原地改会抛 `ShikiUsageError`。规则读的是开跑时的快照；这段时间里值又变了，`validate()` 不会重跑，返回的是结束时的当前值。`submit()` 才会重跑到稳定，再 resolve 刚校验过的那份提交值。路径上没有值时 resolve `undefined`。失败仍 reject `FieldError[]`；表单级 `validate` 抛错原样 reject。
+返回的是这次调用结束时表单里的当前值，按上面的范围去掉 `omit` 之后的副本。普通对象、数组、`Date`、`Map`、`Set` 会复制；类实例、函数和 React 元素仍是原来的引用。这份副本可以原地改，改动留在副本上，不会写回表单。开发环境里 `getValue` / `form.values` 的只读视图则相反：原地改会抛 `ShikiUsageError`。规则读的是开跑时的快照；这段时间里值又变了，`validate()` 不会重跑，返回的是结束时的当前值。`submit()` 才会重跑到稳定，再 resolve 刚校验过的那份提交值。路径上没有值时 resolve `undefined`。失败仍 reject `FieldError[]`；表单级 `validate` 抛错原样 reject。表单级校验与字段 Schema 错误（含在途异步返回）会跟随存活的行或树节点迁移，行或节点被删除或替换时丢弃；局部 `validate(path)` / `validate(paths)` 在途期间若受检行移动，校验失败时按受检行的当前坐标 reject，全部通过时按调用传入的路径读取当前值返回。
 
 ```ts
 const values = await form.validate()
