@@ -2,7 +2,7 @@ import type { Scheduler } from '../effects/scheduler'
 import { peelReadonly, readonlyValue } from '../draft/readonly'
 import { deepEqual } from '../shared/equal'
 import { getAt, normalizePath, parentPath } from '../shared/path'
-import { rowPathAfter, rowPathAfterReplacement } from '../shared/row-paths'
+import { rowPathAfter, rowPathAfterReplacement, type RowPathMap } from '../shared/row-paths'
 import type { FlagName } from '../state/flags'
 import { shownErrors, type FieldModel } from '../state/field-model'
 import type { FieldStore } from '../state/field-store'
@@ -14,7 +14,7 @@ import { formatMessage, type FormMessageKey, type MessageArgs, type MessageParam
 import { fieldSchemaIssues, InvalidValidatorResult, optionIncludes, runRules, type ValidateCtx } from './rules'
 import { publishWarnings, runWarningRules } from './warnings'
 import { collectSchemaIssues, groupSchemaIssues, isStandardSchema, recordToIssues, schemaIssues, type SchemaIssue, type StandardSchemaV1 } from './schema'
-import { mergeSchemaScope, resetOverlaps, scopeTest, validateScope, type RunResult, type ValidateScope, type ValidationPass } from './scope'
+import { liveScope, mergeSchemaScope, resetOverlaps, scopeTest, validateScope, type RunResult, type ValidateScope, type ValidationPass } from './scope'
 import { AsyncAttempts } from './async-attempt'
 import { ignoreRejection, isPromise, settleUnlessAborted, valueUnlessAborted } from './settle'
 import { clearInactiveErrors, noteFlagChange, type InactiveHost } from './inactive'
@@ -53,6 +53,7 @@ export class Validator {
   private latestFull?: ValidationPass
   private latest!: ValidationPass
   private snapshotRows?: SnapshotRows
+  private readonly requestedRows = new Set<SnapshotRows>()
 
   constructor(private readonly deps: ValidatorDeps) {
     const self = this
@@ -101,7 +102,14 @@ export class Validator {
 
   async validate(path?: ValidateScope): Promise<FieldError[]> {
     const scope = typeof path === 'string' ? normalizePath(path) : path?.map(normalizePath)
-    return validateScope(scope, () => this.run(scope), () => this.latest)
+    const rows = new SnapshotRows()
+    this.requestedRows.add(rows)
+    try {
+      return await validateScope(this.start(scope, undefined, rows),
+        (scope, includes) => this.start(scope, undefined, undefined, includes).promise!, () => this.latest)
+    } finally {
+      this.requestedRows.delete(rows)
+    }
   }
 
   /**
@@ -110,12 +118,16 @@ export class Validator {
    * `submit` compares `values` with the live values to know whether what it would submit was validated (#6).
    */
   run(path?: ValidateScope, signal?: AbortSignal): Promise<RunResult> {
-    const record: ValidationPass = { gen: 0, scope: path }
-    record.promise = this.runPass(record, signal)
-    return record.promise
+    return this.start(path, signal).promise!
   }
 
-  private async runPass(record: ValidationPass, signal?: AbortSignal): Promise<RunResult> {
+  private start(path?: ValidateScope, signal?: AbortSignal, rows = new SnapshotRows(), includes = scopeTest(path)): ValidationPass {
+    const record: ValidationPass = { gen: 0, scope: path }
+    record.promise = this.runPass(record, rows, includes, signal)
+    return record
+  }
+
+  private async runPass(record: ValidationPass, rows: SnapshotRows, inScope: (path: string) => boolean, signal?: AbortSignal): Promise<RunResult> {
     const { store, scheduler, notifier, options } = this.deps
     const { scope: path } = record
     this.prepare()
@@ -125,30 +137,26 @@ export class Validator {
     this.latest = record
     if (!path) this.latestFull = record
     const values = store.values
-    const rows = this.snapshotRows = new SnapshotRows()
+    this.snapshotRows = rows
     const enumVersion = store.enumVersion
     const resetVersion = this.resetVersion
     const superseded = () => signal?.aborted || gen !== this.validateGen
-    const inScope = scopeTest(path)
     const targets = [...store.fields].filter(([target]) => inScope(target))
+    const live = record.live = liveScope(path, inScope, rows, () => targets.flatMap(([from, field]) =>
+      from !== field.path && store.get(field.path) === field ? [field.path] : []))
     const warnings: Promise<void>[] = []
     // Validating a field again replaces what the server said about it.
-    if (typeof path === 'string' || path === undefined) this.clearExternalUnder(path)
-    else for (const one of path) this.clearExternalUnder(one)
+    this.clearExternalWhere(inScope)
     store.validating = !!options.validate || targets.some(([target, field]) =>
       store.acceptsValidation(target) && (field.required || field.rules.some((rule) => rule.level !== 'warning') ||
         (options.enumPolicy === 'error' && field.enumOptions !== undefined)))
     scheduler.bumpMeta()
     notifier.emit()
-    const scoped = (errors = this.errors()): RunResult => ({
-      errors: errors.filter((e) => inScope(e.path)),
-      values,
-      enumVersion,
-      resetVersion,
-      warnings,
-      current: gen === this.validateGen,
-      gen,
-    })
+    const scoped = (errors = this.errors()): RunResult => {
+      const includes = live.filter()
+      return { errors: errors.filter(({ path }) => includes(path)), values, enumVersion, resetVersion, warnings,
+        current: gen === this.validateGen, gen }
+    }
     try {
       const collected: SchemaIssue[] = []
       const checked = new Map<FieldModel, FieldCheck>()
@@ -174,8 +182,6 @@ export class Validator {
       }
       if (superseded()) return scoped()
       const preserve = new Set<string>()
-      const moved: string[] = []
-      let reindexed = false
       const fieldIssues: SchemaIssue[] = []
       for (const [target, field] of targets) {
         const result = checked.get(field)
@@ -183,14 +189,11 @@ export class Validator {
           if (result) fieldIssues.push(...fieldSchemaIssues(target, result.issues))
           continue
         }
-        const live = store.get(field.path) === field
-        reindexed ||= !live || target !== field.path
-        if (!live) continue
+        if (store.get(field.path) !== field) continue
         if (!result?.current()) {
           preserve.add(field.path)
           continue
         }
-        if (target !== field.path) moved.push(field.path)
         fieldIssues.push(...fieldSchemaIssues(field.path, result.issues))
       }
       const activeIssues = [...(record.invalidatedByReset ? rows.issues(fieldIssues) : fieldIssues),
@@ -200,8 +203,7 @@ export class Validator {
         const errors = groupSchemaIssues([...rows.issues(ruleIssues), ...activeIssues])
         return scoped([...errors].map(([path, messages]) => ({ path, messages })))
       }
-      const inSchemaScope = path && reindexed ? this.reindexedScope(inScope, targets, moved) : inScope
-      this.applySchemaMap(mergeSchemaScope(this.schemaByPath, groupSchemaIssues(activeIssues), inSchemaScope, preserve))
+      this.applySchemaMap(mergeSchemaScope(this.schemaByPath, groupSchemaIssues(activeIssues), live.filter(), preserve))
       // Not `waitAsync`: that would cancel the debounce an edit during this pass just scheduled (#122).
       await this.waitInflight()
       return scoped()
@@ -431,7 +433,9 @@ export class Validator {
   queueEdit(field: FieldModel, kind?: 'own'): void { this.attempts.queueEdit(field, kind ? (path) => this.recheckOwn(path) : undefined) }
 
   noteReplacement(path: string, before: unknown): void {
-    this.snapshotRows?.add(rowPathAfterReplacement(path, before, this.store.values))
+    const after = this.store.values
+    if (this.snapshotRows || this.requestedRows.size) this.trackRows(rowPathAfterReplacement(path, before, after),
+      () => rowPathAfterReplacement(path, after, before))
     this.attempts.noteReplacement(path, before)
   }
   recheckReplacedFields(): void { this.attempts.recheckReplacedFields() }
@@ -479,10 +483,15 @@ export class Validator {
   }
 
   reindexSchema(oldIds: ReadonlyMap<string, string>, newIds: ReadonlyMap<string, string>): void {
-    if (!oldIds.size || (!this.snapshotRows && !this.schemaByPath.size)) return
+    if (!this.snapshotRows && !this.requestedRows.size && !this.schemaByPath.size) return
     const project = rowPathAfter(oldIds, newIds)
-    this.snapshotRows?.add(project)
+    this.trackRows(project, () => rowPathAfter(newIds, oldIds))
     this.schemaByPath = reindexSchemaPaths(this.schemaByPath, project)
+  }
+
+  private trackRows(forward: RowPathMap, reverse: () => RowPathMap): void {
+    this.snapshotRows?.add(forward, reverse)
+    for (const rows of this.requestedRows) if (rows !== this.snapshotRows) rows.add(forward, reverse)
   }
 
   /** Recompute built-in messages only. Custom callbacks run in the managed validation pass, never in this preview. */
@@ -519,7 +528,7 @@ export class Validator {
   /** Reset invalidates an in-progress submit verdict even when resetting to the same values. */
   reset(path?: string): void {
     this.resetVersion += 1
-    if (this.latest && resetOverlaps(this.latest.scope, path)) {
+    if (this.latest && resetOverlaps(this.latest.live?.paths(), path)) {
       this.latest.invalidatedByReset = true
       this.store.validating = false
     }
@@ -529,16 +538,6 @@ export class Validator {
       for (const key of [...this.schemaByPath.keys()]) {
         if (key === path || key.startsWith(path + '.')) this.schemaByPath.delete(key)
       }
-    }
-  }
-
-  private reindexedScope(inScope: (path: string) => boolean, targets: [string, FieldModel][], moved: string[]): (path: string) => boolean {
-    const models = new Set(targets.map(([, field]) => field))
-    const inMovedScope = scopeTest(moved)
-    // A new occupant of a requested coordinate has not been checked by this pass.
-    return (path) => {
-      const model = this.store.get(path)
-      return inMovedScope(path) || (inScope(path) && (!model || models.has(model)))
     }
   }
 
@@ -614,9 +613,13 @@ export class Validator {
 
   /** Drop external messages on `path` and descendants (every field for no path). */
   clearExternalUnder(path?: string): void {
+    this.clearExternalWhere(scopeTest(path))
+  }
+
+  private clearExternalWhere(inScope: (path: string) => boolean): void {
     for (const [fieldPath, field] of this.store.fields) {
       if (!field.externalErrors.length) continue
-      if (path && fieldPath !== path && !fieldPath.startsWith(path + '.')) continue
+      if (!inScope(fieldPath)) continue
       field.externalErrors = []
       this.afterErrorChange(fieldPath, false)
     }

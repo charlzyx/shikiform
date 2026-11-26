@@ -3,19 +3,32 @@ import type { SchemaIssue } from './schema'
 
 /** Replay committed structural edits from a validation snapshot to the live form. */
 export class SnapshotRows {
-  private readonly maps: RowPathMap[] = []
+  private readonly maps: { forward: RowPathMap; backward: RowPathMap }[] = []
 
-  add(project: RowPathMap): void {
-    this.maps.push(project)
+  add(forward: RowPathMap, reverse: () => RowPathMap): void {
+    let backward: RowPathMap | undefined
+    this.maps.push({ forward, backward: (path) => (backward ??= reverse())(path) })
   }
 
   path(path: string): string | undefined {
-    for (const project of this.maps) {
-      const next = project(path)
+    for (const { forward } of this.maps) {
+      const next = forward(path)
       if (next === undefined) return
       path = next
     }
     return path
+  }
+
+  snapshot(): RowPathMap {
+    const count = this.maps.length
+    return (path) => {
+      for (let i = count - 1; i >= 0; i--) {
+        const previous = this.maps[i]!.backward(path)
+        if (previous === undefined) return
+        path = previous
+      }
+      return path
+    }
   }
 
   issues(issues: readonly SchemaIssue[]): SchemaIssue[] {

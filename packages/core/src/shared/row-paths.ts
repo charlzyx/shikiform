@@ -6,19 +6,23 @@ export type RowPathMap = (path: string) => string | undefined
 
 /** Resolve a snapshot path using the deepest row or tree node that owns it. */
 export function rowPathAfter(oldIds: RowIds, newIds: RowIds): RowPathMap {
-  const locate = locateRowPath(oldIds, newIds)
+  const next = new Set(newIds.values())
+  const locate = locateRowPath(oldIds, newIds, next)
   return (path) => {
     const to = locate(path)
     return to === undefined ? path : to ?? undefined
   }
 }
 
-export function locateRowPath(oldIds: RowIds, newIds: RowIds): (path: string) => string | null | undefined {
+export function locateRowPath(oldIds: RowIds, newIds: RowIds, next?: ReadonlySet<string>): (path: string) => string | null | undefined {
   const byPath = indexPaths(oldIds)
   return (path) => {
     for (let owner: string | null = path; owner; owner = parentPath(owner)) {
       const id = byPath.get(owner)
-      if (id === undefined) continue
+      if (id === undefined) {
+        if (next?.has(owner)) return null
+        continue
+      }
       const to = newIds.get(id)
       return to === undefined ? null : to + path.slice(owner.length)
     }

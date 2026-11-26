@@ -1,4 +1,5 @@
 import type { FieldError } from '../types'
+import type { SnapshotRows } from './row-paths'
 
 /**
  * What one pass validates: the whole form (`undefined`), one path and its descendants, or several paths
@@ -51,29 +52,60 @@ export interface ValidationPass {
   gen: number
   scope?: ValidateScope
   promise?: Promise<RunResult>
+  live?: LiveScope
   invalidatedByReset?: boolean
+}
+
+interface LiveScope {
+  paths(): ValidateScope | undefined
+  filter(): (path: string) => boolean
+}
+
+/** Keep a scope tied to its snapshot rows, including descendants moved out of a tree branch. */
+export function liveScope(scope: ValidateScope | undefined, includes: (path: string) => boolean, rows: SnapshotRows,
+  liveTargets: () => string[],
+): LiveScope {
+  if (!scope || (typeof scope !== 'string' && scope.includes(''))) return { paths: () => scope, filter: () => includes }
+  return {
+    paths() {
+      const roots = typeof scope === 'string' ? [scope] : scope
+      const paths = roots.map((path) => rows.path(path)).filter((path) => path !== undefined)
+      const covered = scopeTest(paths)
+      return [...paths, ...liveTargets().filter((path) => !covered(path))]
+    },
+    filter() {
+      const original = rows.snapshot()
+      return (path) => {
+        const from = original(path)
+        return from !== undefined && includes(from)
+      }
+    },
+  }
 }
 
 /** A superseded pass may have stopped before reaching any of its invalid fields. */
 export async function validateScope(
-  scope: ValidateScope | undefined,
-  run: () => Promise<RunResult>,
+  first: ValidationPass,
+  retry: (scope: ValidateScope | undefined, includes: (path: string) => boolean) => Promise<RunResult>,
   latest: () => ValidationPass,
 ): Promise<FieldError[]> {
-  const includes = scopeTest(scope)
-  const requested = scope === undefined ? [''] : typeof scope === 'string' ? [scope] : scope
-  let result = await run()
+  const live = first.live!
+  let result = await first.promise!
   while (!result.current) {
     const next = latest()
-    const covers = scopeTest(next.scope)
+    const scope = live.paths()
+    const requested = scope === undefined ? [''] : typeof scope === 'string' ? [scope] : scope
+    const covers = next.live!.filter()
     if (requested.every(covers)) {
       result = await next.promise!
     } else {
       // Let the other scope finish before retrying. Its verdict belongs to its caller.
       await next.promise!.catch(() => {})
-      result = await run()
+      result = await retry(live.paths(), live.filter())
     }
   }
+  const includes = live.filter()
+  const errors = result.errors.filter(({ path }) => includes(path))
   if (result.warnings.length) await Promise.all(result.warnings)
-  return result.errors.filter(error => includes(error.path))
+  return errors
 }

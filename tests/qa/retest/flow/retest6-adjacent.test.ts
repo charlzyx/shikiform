@@ -88,7 +88,7 @@ describe.each(['development', 'production'])('F9 adjacent retest in %s', (mode) 
     ])
   })
 
-  it.fails.each(['field', 'step'])('BUG: explicit scoped validation should reject when its checked row moves and fails (%s)', async (scope) => {
+  it.each(['field', 'step'])('QA-79 explicit scoped validation rejects when its checked row moves and fails (%s)', async (scope) => {
     const error = deferred<string>()
     const validator = vi.fn(() => error.promise)
     const form = createForm({
@@ -107,5 +107,60 @@ describe.each(['development', 'production'])('F9 adjacent retest in %s', (mode) 
     const result = await verdict
     expect(form.errors).toEqual(expected)
     expect(result).toEqual({ status: 'rejected', errors: expected })
+  })
+
+  it.each(['field', 'step'] as const)('QA-79 a passing moved row excludes the new occupant’s old errors (%s)', async (scope) => {
+    const finish = deferred<null>()
+    const form = createForm({
+      initialValues: { rows: [{ id: 'a', code: 'A' }, { id: 'b', code: 'B' }] },
+      fields: { 'rows.*.code': { rules: { validator: (code: string) => code === 'A' ? finish.promise : 'invalid B' } } },
+    })
+    await expect(form.validate('rows.1.code')).rejects.toEqual([{ path: 'rows.1.code', messages: ['invalid B'] }])
+    const pending = scope === 'field' ? form.validate('rows.0.code') : form.validate(['rows.0.code'])
+    engineOf(form).swapArray('rows', 0, 1)
+    finish.resolve(null)
+    await expect(pending).resolves.toEqual(scope === 'field' ? 'B' : { rows: [{ code: 'B' }] })
+    expect(form.errors).toEqual([{ path: 'rows.0.code', messages: ['invalid B'] }])
+  })
+
+  it.each(['field', 'step'] as const)('QA-79 discards the deleted target without picking up its replacement’s error (%s)', async (scope) => {
+    const finish = deferred<string>()
+    const form = createForm({
+      initialValues: { rows: [{ id: 'a', code: 'A' }, { id: 'b', code: 'B' }] },
+      fields: { 'rows.*.code': { rules: { validator: (code: string) => code === 'A' ? finish.promise : 'invalid B' } } },
+    })
+    await expect(form.validate('rows.1.code')).rejects.toEqual([{ path: 'rows.1.code', messages: ['invalid B'] }])
+    const pending = scope === 'field' ? form.validate('rows.0.code') : form.validate(['rows.0.code'])
+    engineOf(form).removeArray('rows', 0)
+    finish.resolve('deleted A')
+    await expect(pending).resolves.toEqual(scope === 'field' ? 'B' : { rows: [{ code: 'B' }] })
+    expect(form.errors).toEqual([{ path: 'rows.0.code', messages: ['invalid B'] }])
+  })
+
+  it.each([
+    ['field', 'full'], ['step', 'full'], ['field', 'other'], ['step', 'other'],
+  ] as const)('QA-79 uses the live target after a %s request is superseded by %s validation', async (scope, superseding) => {
+    const finish = deferred<string>()
+    const check = vi.fn((code: string): string | Promise<string> => code === 'A' ? 'current A' : 'invalid B')
+      .mockImplementationOnce(() => finish.promise)
+    const form = createForm({
+      initialValues: { rows: [{ id: 'a', code: 'A' }, { id: 'b', code: 'B' }], other: 'ok' },
+      fields: { 'rows.*.code': { rules: { validator: check } } },
+    })
+    const pending = scope === 'field' ? form.validate('rows.0.code') : form.validate(['rows.0.code'])
+    const outcome = pending.catch((errors: unknown) => errors)
+    engineOf(form).swapArray('rows', 0, 1)
+    const next = superseding === 'full' ? form.validate() : form.validate('other')
+    const expected = [{ path: 'rows.1.code', messages: ['current A'] }]
+    const nextOutcome = next.catch((errors: unknown) => errors)
+    finish.resolve('obsolete A')
+    expect(await outcome).toEqual(expected)
+    if (superseding === 'full') {
+      expect(await nextOutcome).toEqual(expect.arrayContaining([...expected, { path: 'rows.0.code', messages: ['invalid B'] }]))
+      expect(check.mock.calls.map(([code]) => code)).toEqual(['A', 'A', 'B'])
+    } else {
+      expect(await nextOutcome).toBe('ok')
+      expect(check.mock.calls.map(([code]) => code)).toEqual(['A', 'A'])
+    }
   })
 })
