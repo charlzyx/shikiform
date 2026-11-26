@@ -1,4 +1,5 @@
 import { arrayIndex } from './dense-array'
+import { hasOwn } from './has-own'
 import { getAt, joinPath, parentPath } from './path'
 
 export type RowIds = ReadonlyMap<string, string>
@@ -46,12 +47,12 @@ export function rowPathAfterReplacement(written: string, before: unknown, after:
       const key = parts[i]!
       const index = arrayIndex(key)
       const oldObject = oldNode != null && typeof oldNode === 'object'
-      if (index !== undefined && Array.isArray(newNode) && Object.hasOwn(newNode, index) &&
-          (!oldObject || !Object.hasOwn(oldNode as object, index))) return
-      if (Array.isArray(oldNode) && index !== undefined && Object.hasOwn(oldNode, index)) {
+      if (index !== undefined && Array.isArray(newNode) && hasOwn(newNode, index) &&
+          (!oldObject || !hasOwn(oldNode, index))) return
+      if (Array.isArray(oldNode) && index !== undefined && hasOwn(oldNode, index)) {
         if (!Array.isArray(newNode)) return
         const row = oldNode[index]
-        if (!Object.hasOwn(newNode, index) || !Object.is(newNode[index], row)) {
+        if (!hasOwn(newNode, index) || !Object.is(newNode[index], row)) {
           let byValue = indexes.get(newNode)
           if (!byValue) {
             byValue = new Map()

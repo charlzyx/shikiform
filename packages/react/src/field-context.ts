@@ -1,4 +1,4 @@
-import { useContext } from 'react'
+import { useContext } from './compat/react-compat'
 import { FieldContext, type FieldBinding } from './hooks/use-field'
 
 /** Internal: the field context `<Field>` provides. Not exported from any package entry. */

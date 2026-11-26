@@ -452,7 +452,7 @@ export class Validator {
   /** Wait until no field validator is in flight. Does not cancel a debounce a newer edit just scheduled. */
   private async waitInflight(signal?: AbortSignal): Promise<void> {
     while (this.inflight.size && !signal?.aborted) {
-      const pending = Promise.allSettled([...this.inflight])
+      const pending = Promise.all([...this.inflight].map((p) => p.then(() => undefined, () => undefined)))
       if (signal) await settleUnlessAborted(pending, signal)
       else await pending
     }

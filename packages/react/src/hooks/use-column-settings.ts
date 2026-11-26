@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from '../compat/react-compat'
 
 /** What {@link useColumnSettings} needs to know about a column. */
 export interface ColumnSettingInput {

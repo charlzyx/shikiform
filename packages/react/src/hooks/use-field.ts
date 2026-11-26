@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useSyncExternalStore, type ComponentProps, type ComponentType, type ReactNode } from 'react'
+import type { ComponentProps, ComponentType, ReactNode } from 'react'
 import type { FormEngine } from '@shikiform/core/internal'
 import type { EnumOption } from '@shikiform/core/internal'
 import { normalizeUiSpec } from '@shikiform/core/internal'
@@ -6,6 +6,7 @@ import type { FieldEnum, FieldPath, FieldUiSpec, PathValue, UiName } from '@shik
 import { uiId } from '@shikiform/core/internal'
 import type { RulesInput } from '@shikiform/core/internal'
 import { ShikiUsageError } from '@shikiform/core/internal'
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from '../compat/react-compat'
 import { useRequiredForm, useScope } from '../context'
 import { useFieldGroupRegistration } from '../field-group'
 import { applyJsxField, claimPrimaryField } from './field-lifecycle'

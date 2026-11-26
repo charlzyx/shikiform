@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from '../compat/react-compat'
 import type { EnumOption } from '@shikiform/core/internal'
 
 /** Remote search for a suggestion box. `signal` aborts when a newer keyword supersedes this call. */

@@ -1,4 +1,6 @@
-import { memo, useContext, useEffect, useMemo, useRef, type ComponentProps, type ComponentType, type FormEvent, type FormHTMLAttributes, type ReactNode } from 'react'
+import React from 'react'
+import type { ComponentProps, ComponentType, FormEvent, FormHTMLAttributes, ReactNode } from 'react'
+import { memo, useContext, useEffect, useMemo, useRef } from '../compat/react-compat'
 import { isFieldErrors, SubmitSupersededError } from '@shikiform/core'
 import { engineOf } from '@shikiform/core/internal'
 import type { ArrayPath, Draft, FieldEnum, FieldError, FieldPath, FormInstance, PathValue, UiName } from '@shikiform/core/internal'
@@ -325,7 +327,7 @@ export function ObjectField<TScope = any>({
  * `@shikiform/antd`): `component={[ArrayItems, { addition: <ArrayItems.Addition /> }]}` renders
  * `<ArrayItems …>{rows}</ArrayItems>` inside the array's scope, so its buttons reach the array through {@link useArrayField}.
  * A container that renders its own cells (`ArrayTable` with `columns`) needs no `children`.
- * `virtualScroll` windows the plain rows (TanStack Virtual); it does not combine with a container `component`.
+ * `virtualScroll` windows the plain rows; it does not combine with a container `component`.
  * `<ArrayField<Values> name="items">` checks the name; `typed(form).ArrayField` also types the row's fields.
  */
 /**

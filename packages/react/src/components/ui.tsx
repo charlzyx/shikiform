@@ -1,4 +1,6 @@
-import { createContext, useContext, type ComponentType, type ReactNode } from 'react'
+import React from 'react'
+import type { ComponentType, ReactNode } from 'react'
+import { createContext, useContext } from '../compat/react-compat'
 import type { FieldUiSpec, UiName } from '@shikiform/core/internal'
 import { useRequiredForm, useScope } from '../context'
 import { useFieldKit, withResolvedSlots } from '../field-kit'

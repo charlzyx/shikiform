@@ -2,14 +2,19 @@ import { defineConfig } from 'tsup'
 
 export default defineConfig({
   entry: ['src/index.ts', 'src/internal.ts'],
-  format: ['esm'],
+  format: ['esm', 'cjs'],
   dts: true,
   clean: true,
   outDir: 'dist',
   sourcemap: true,
   splitting: true,
   treeshake: true,
-  external: [/^@shikiform\//, 'react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime', '@tanstack/react-virtual'],
-  target: 'es2022',
+  external: [/^@shikiform\//, 'react', 'react-dom'],
+  target: 'es2019',
   tsconfig: 'tsconfig.json',
+  esbuildOptions(options) {
+    options.jsx = 'transform'
+    options.jsxFactory = 'React.createElement'
+    options.jsxFragment = 'React.Fragment'
+  },
 })

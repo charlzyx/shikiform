@@ -1,4 +1,4 @@
-import type { ComponentType, ReactNode } from 'react'
+import React, { type ComponentType, type ReactNode } from 'react'
 import { createForm, type DefaultSubmit, type FieldsInput, type FormInstance, type FormOptions, type ResolveSubmit } from '@shikiform/core/internal'
 import type { ArrayItemOf, ArrayPath, Draft, FieldPath, PathValue } from '@shikiform/core/internal'
 import { useForm, type UseFormOptions } from '../hooks/use-form'

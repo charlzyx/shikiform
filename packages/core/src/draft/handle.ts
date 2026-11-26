@@ -1,4 +1,5 @@
 import { ShikiUsageError, showDraftPath } from '../errors'
+import { hasOwn } from '../shared/has-own'
 import { nearestName } from '../shared/near'
 import { appendValueKey } from '../shared/path'
 import { isDraftActive, type DraftHost } from './host'
@@ -134,7 +135,7 @@ export function createHandle(host: DraftHost, path: string, scope = host.draftSc
         const near = key.startsWith('$') && key.length >= 5 ? nearestState(key) : undefined
         if (near) {
           const owner = host.peekValue?.(path)
-          if (owner == null || !Object.hasOwn(owner, key)) {
+          if (owner == null || !hasOwn(owner, key)) {
             if (process.env.NODE_ENV !== 'production') {
               throw new ShikiUsageError(`${showDraftPath(path)}.${key} is not a draft state. Did you mean ${showDraftPath(path)}.${near}?`)
             }

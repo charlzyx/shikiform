@@ -1,4 +1,5 @@
 import { deepEqual } from '../shared/equal'
+import { hasOwn } from '../shared/has-own'
 import { getAt, parentPath } from '../shared/path'
 import type { WriteOp } from '../types'
 
@@ -6,7 +7,7 @@ export function valueChangedAt(before: unknown, from: string, after: unknown, to
   if (!deepEqual(getAt(before, from), getAt(after, to))) return true
   const has = (root: unknown, path: string) => {
     const parent = parentPath(path) ?? ''
-    return Object.hasOwn(getAt(root, parent) ?? {}, path.slice(parent ? parent.length + 1 : 0))
+    return hasOwn(getAt(root, parent) ?? {}, path.slice(parent ? parent.length + 1 : 0))
   }
   return !!to && has(before, from) !== has(after, to)
 }
@@ -33,7 +34,7 @@ export class WriteJournal {
   constructor(private readonly stack: readonly Recording[]) {}
 
   private get active(): WriteBuffer | undefined {
-    const tracker = this.stack.at(-1)
+    const tracker = this.stack[this.stack.length - 1]
     if (tracker) return tracker.recordWrites ? tracker : undefined
     return this.depth ? this.batch : undefined
   }
@@ -56,7 +57,7 @@ export class WriteJournal {
   }
 
   batchLayer(fn: () => void): void {
-    const tracker = this.stack.at(-1)
+    const tracker = this.stack[this.stack.length - 1]
     const source = tracker ?? this.batch
     const parent = { writes: source.writes, working: source.working }
     const child = { writes: source.writes.slice(), working: source.working }
@@ -79,7 +80,7 @@ export class WriteJournal {
     if (!buffer) return false
     buffer.working = { values, hasStructure: !!structure || !!buffer.working?.hasStructure }
     if (structure) this.projections.set(op, structure.priorPath)
-    if (structure?.previous && buffer.writes.at(-1) === structure.previous) buffer.writes.pop()
+    if (structure?.previous && buffer.writes[buffer.writes.length - 1] === structure.previous) buffer.writes.pop()
     buffer.writes.push(op)
     return true
   }

@@ -68,3 +68,45 @@ it('QA-8 both publishable packages declare MIT and ship the repository license',
     expect.soft(readFileSync(new URL(`../../../packages/${name}/LICENSE`, import.meta.url), 'utf8')).toBe(license)
   }
 })
+
+it('QA-9 both packages publish dual ESM/CJS exports and @shikiform/react supports React 16.8–19 with zero shim deps', () => {
+  for (const name of ['core', 'react']) {
+    const manifest = JSON.parse(
+      readFileSync(new URL(`../../../packages/${name}/package.json`, import.meta.url), 'utf8'),
+    ) as {
+      type?: string
+      sideEffects?: boolean
+      files?: string[]
+      main?: string
+      module?: string
+      types?: string
+      exports?: Record<string, { import?: { types?: string; default?: string }; require?: { types?: string; default?: string } }>
+      dependencies?: Record<string, string>
+      peerDependencies?: Record<string, string>
+    }
+    expect(manifest.type).toBe('module')
+    expect(manifest.sideEffects).toBe(false)
+    expect(manifest.main).toBe('./dist/index.cjs')
+    expect(manifest.module).toBe('./dist/index.js')
+    expect(manifest.types).toBe('./dist/index.d.ts')
+    expect(manifest.files).toContain('internal')
+    const internalProxy = JSON.parse(
+      readFileSync(new URL(`../../../packages/${name}/internal/package.json`, import.meta.url), 'utf8'),
+    ) as { main?: string; module?: string; types?: string }
+    expect(internalProxy.main).toBe('../dist/internal.cjs')
+    expect(internalProxy.module).toBe('../dist/internal.js')
+    expect(internalProxy.types).toBe('../dist/internal.d.ts')
+    expect(manifest.exports?.['.']?.import?.default).toBe('./dist/index.js')
+    expect(manifest.exports?.['.']?.require?.default).toBe('./dist/index.cjs')
+    expect(manifest.exports?.['.']?.import?.types).toBe('./dist/index.d.ts')
+    expect(manifest.exports?.['.']?.require?.types).toBe('./dist/index.d.cts')
+    expect(manifest.exports?.['./internal']?.import?.default).toBe('./dist/internal.js')
+    expect(manifest.exports?.['./internal']?.require?.default).toBe('./dist/internal.cjs')
+    if (name === 'react') {
+      expect(manifest.peerDependencies?.react).toBe('^16.8.0 || ^17 || ^18 || ^19')
+      expect(manifest.peerDependencies?.['react-dom']).toBe('^16.8.0 || ^17 || ^18 || ^19')
+      expect(manifest.dependencies?.['use-sync-external-store']).toBeUndefined()
+      expect(manifest.dependencies?.['@tanstack/react-virtual']).toBeUndefined()
+    }
+  }
+})

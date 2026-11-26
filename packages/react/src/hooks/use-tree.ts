@@ -1,6 +1,6 @@
-import { useCallback, useContext, useMemo, useRef, useSyncExternalStore } from 'react'
 import type { Draft, MoveResult, Pos } from '@shikiform/core/internal'
 import { deepEqual, ShikiUsageError } from '@shikiform/core/internal'
+import { useCallback, useContext, useMemo, useRef, useSyncExternalStore } from '../compat/react-compat'
 import { TreeContext, useRequiredForm, useScope } from '../context'
 import { useFieldGroupRegistration } from '../field-group'
 import { resolveName } from './resolve-name'

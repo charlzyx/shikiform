@@ -1,6 +1,6 @@
 /**
  * Form engine without React: values, draft effects, validation, and tree coordinates (`moveNode` / `pathOf` / `posOf`).
- * React bindings are `@shikiform/react`. Ant Design is `@shikiform/antd`.
+ * React bindings and headless hooks live in `@shikiform/react`.
  * `enumItems` / `ENUM_COLORS` live here (no React); `@shikiform/react` re-exports them.
  *
  * @packageDocumentation

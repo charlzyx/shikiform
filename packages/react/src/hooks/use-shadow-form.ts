@@ -1,9 +1,9 @@
-import { useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { isFieldErrors } from '@shikiform/core'
 import { createForm, engineOf, normalizePath, parentPath, ShikiUsageError } from '@shikiform/core/internal'
 import type { FieldError, FormEngine, FormInstance, FormOptions } from '@shikiform/core/internal'
 import { isPlainObject, linkShadowRows, mergeShadowValues } from './shadow-writeback'
 import { ArrayContext, FormContext, useScope } from '../context'
+import { safeClone, useCallback, useContext, useEffect, useRef, useState } from '../compat/react-compat'
 import { resolveName } from './resolve-name'
 
 /** Where a shadow form's values come from when it opens: a value, or a (possibly async) loader. */
@@ -419,10 +419,5 @@ function mergeFields(
 }
 
 function clonePlain<T>(value: T): T {
-  if (value === undefined || value === null) return value
-  try {
-    return structuredClone(value)
-  } catch {
-    return JSON.parse(JSON.stringify(value)) as T
-  }
+  return safeClone(value)
 }

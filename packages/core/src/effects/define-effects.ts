@@ -1,4 +1,5 @@
 import { isPatchable } from '../draft/patch'
+import { hasOwn } from '../shared/has-own'
 import { joinPath, parentPath } from '../shared/path'
 import { callSite, ShikiUsageError } from '../errors'
 import type { Draft, EffectDef, EffectsAPI, EffectsRuntime, RowContext, TrackedRow } from '../types'
@@ -243,7 +244,7 @@ function runObjectEach(runtime: EachRuntime, rec: EachRec, id: string, keys: str
     runtime.registerReaction(inst, () => {
       // A delete can queue this instance before its parent reconciles the keys.
       const value = runtime.getValue(owner)
-      if (!isPatchable(value) || Array.isArray(value) || !Object.hasOwn(value, key)) return
+      if (!isPatchable(value) || Array.isArray(value) || !hasOwn(value, key)) return
       const result = runtime.runWith({ id: inst, deps: true, writes: true }, () =>
         rec.effect(runtime.handle(path), { d: runtime.draft, key, path, depth: 0 }),
       )

@@ -1,4 +1,5 @@
 import { ShikiUsageError, showDraftPath } from '../errors'
+import { hasOwn } from '../shared/has-own'
 
 /**
  * Development guard for live store values.
@@ -70,7 +71,7 @@ export function readonlyValue<V>(value: V, path: string): V {
   let view!: object
   view = new Proxy(value, {
     get(target, prop, receiver) {
-      if ((prop === '__proto__' || prop === 'constructor') && !Object.hasOwn(target, prop)) {
+      if ((prop === '__proto__' || prop === 'constructor') && !hasOwn(target, prop)) {
         return Reflect.get(target, prop, target)
       }
       if (target instanceof Map || target instanceof Set || target instanceof Date) return readCollection(target, prop, path, view)

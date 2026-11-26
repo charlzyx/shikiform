@@ -1,4 +1,4 @@
-import { useContext } from 'react'
+import { useContext } from '../compat/react-compat'
 import { formatMessage, type FormMessageKey, type MessageArgs } from '@shikiform/core/internal'
 import { FormContext } from '../context'
 

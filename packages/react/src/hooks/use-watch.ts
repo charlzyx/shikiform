@@ -1,6 +1,6 @@
-import { useContext, useEffect, useMemo, useRef, useSyncExternalStore } from 'react'
 import { deepEqual, engineOf } from '@shikiform/core/internal'
 import type { Draft, FormInstance } from '@shikiform/core/internal'
+import { useContext, useEffect, useMemo, useRef, useSyncExternalStore } from '../compat/react-compat'
 import { FormContext } from '../context'
 
 /**

@@ -1,6 +1,8 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
+import React from 'react'
+import type { ReactNode } from 'react'
 import type { FieldError } from '@shikiform/core/internal'
 import type { FormEngine } from '@shikiform/core/internal'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore } from './compat/react-compat'
 import { useRequiredForm } from './context'
 import { useWatch } from './hooks/use-watch'
 

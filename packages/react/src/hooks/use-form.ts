@@ -1,6 +1,6 @@
-import { useEffect, useLayoutEffect, useRef } from 'react'
 import { createEngine, deepEqual, engineOf } from '@shikiform/core/internal'
 import type { DefaultSubmit, FieldsInput, FormInstance, FormOptions, ResolveSubmit } from '@shikiform/core/internal'
+import { safeClone, useEffect, useLayoutEffect, useRef } from '../compat/react-compat'
 
 const useIsoLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 
@@ -44,12 +44,7 @@ export interface UseFormOptions<T> extends FormOptions<T> {
 type UseFormArg<T, F> = Omit<UseFormOptions<T>, 'fields'> & { fields?: F & FieldsInput<T> }
 
 function cloneValues<T>(value: T): T {
-  if (value === undefined || value === null || typeof value !== 'object') return value
-  try {
-    return structuredClone(value)
-  } catch {
-    return value
-  }
+  return safeClone(value)
 }
 
 export function useForm<T = any, TSubmit = DefaultSubmit, const F extends FieldsInput<T> = {}>(

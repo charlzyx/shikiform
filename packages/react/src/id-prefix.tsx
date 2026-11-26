@@ -1,5 +1,7 @@
-import { createContext, useContext, useId, type ReactNode } from 'react'
+import React from 'react'
+import type { ReactNode } from 'react'
 import { pathDomId } from '@shikiform/core/internal'
+import { createContext, useContext, useId } from './compat/react-compat'
 
 const IdPrefixContext = createContext('')
 

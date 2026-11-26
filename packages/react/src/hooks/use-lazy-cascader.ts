@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from '../compat/react-compat'
 
 /** A cascader node. `isLeaf: false` without `children` means "load on expand". */
 export interface CascaderOption {

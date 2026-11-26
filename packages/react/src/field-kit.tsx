@@ -1,4 +1,6 @@
-import { useContext, createContext, type ComponentType, type ReactNode } from 'react'
+import React from 'react'
+import type { ComponentType, ReactNode } from 'react'
+import { createContext, useContext } from './compat/react-compat'
 import { ShikiUsageError } from '@shikiform/core/internal'
 import { nearestName } from '@shikiform/core/internal'
 

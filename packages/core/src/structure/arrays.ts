@@ -3,6 +3,7 @@ import { peelReadonly } from '../draft/readonly'
 import type { Declarations } from '../declarations/declarations'
 import type { Scheduler } from '../effects/scheduler'
 import { ShikiUsageError, showDraftPath } from '../errors'
+import { hasOwn } from '../shared/has-own'
 import { getAt, joinPath, setAt } from '../shared/path'
 import type { FieldStore } from '../state/field-store'
 import type { WriteOp } from '../types'
@@ -129,7 +130,8 @@ export class ArrayOps {
   commitNext(path: string, next: unknown[]): boolean {
     const before = this.arrayForEdit(path)
     if (!before || sameSlots(before, next)) return false
-    const previous = this.scheduler.writes.pending.at(-1)
+    const pending = this.scheduler.writes.pending
+    const previous = pending[pending.length - 1]
     const priorMutation = previous && this.mutators.get(previous)
     const first = priorMutation?.path === path ? priorMutation.before : before
     const stored = next.slice()
@@ -171,7 +173,7 @@ export class ArrayOps {
     const rowKey = this.arrays.get(path)?.rowKey
     const dirty = new Set<number>()
     for (let i = 0; i < after.length; i++) {
-      if (Object.hasOwn(before, i) !== Object.hasOwn(after, i)) dirty.add(i)
+      if (hasOwn(before, i) !== hasOwn(after, i)) dirty.add(i)
       else if (!Object.is(before[i], after[i])) {
         const row = after[i]
         if (!row || typeof row !== 'object' || this.rowIdent(before[i], i, rowKey) !== this.rowIdent(row, i, rowKey)) dirty.add(i)
@@ -250,7 +252,7 @@ export class ArrayOps {
 function sameSlots(before: readonly unknown[], after: readonly unknown[]): boolean {
   if (before.length !== after.length) return false
   for (let i = 0; i < before.length; i++) {
-    if (Object.hasOwn(before, i) !== Object.hasOwn(after, i) || !Object.is(before[i], after[i])) return false
+    if (hasOwn(before, i) !== hasOwn(after, i) || !Object.is(before[i], after[i])) return false
   }
   return true
 }

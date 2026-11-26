@@ -157,7 +157,7 @@ export class Scheduler {
   }
 
   current(): Tracker | undefined {
-    return this.stack.at(-1)
+    return this.stack[this.stack.length - 1]
   }
 
   reactionScope(): DraftScope | undefined {
@@ -200,7 +200,7 @@ export class Scheduler {
 
   /** Record a read of `path:state` on the running tracker. */
   track(path: string, state: string): void {
-    const tracker = this.stack.at(-1)
+    const tracker = this.stack[this.stack.length - 1]
     if (!tracker?.recordDeps) return
     const deps = tracker.readingRow ? (tracker.rowDeps ??= new Set()) : tracker.deps
     deps.add(`${path}:${state}`)

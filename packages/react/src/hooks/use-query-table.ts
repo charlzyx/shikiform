@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { engineOf } from '@shikiform/core/internal'
 import { setAt } from '@shikiform/core/internal'
 import type { EffectDef, FieldPath, FormInstance, FormOptions, PathValue } from '@shikiform/core/internal'
+import { safeClone, useCallback, useEffect, useRef, useState, useSyncExternalStore } from '../compat/react-compat'
 import { useForm } from './use-form'
 
 /**
@@ -303,10 +303,10 @@ export function useQueryTable<TValues, TParams = TValues, TRow = unknown, TExtra
       ? queried.data.data.slice(Math.max(0, pageRef.current - 1) * sizeRef.current, Math.max(0, pageRef.current - 1) * sizeRef.current + sizeRef.current)
       : queried.data.data
     form.batch(() => {
-      form.query(rowsPath).$value = structuredClone(pageRows)
+      form.query(rowsPath).$value = safeClone(pageRows)
     })
     // Loaded rows are the baseline: `dirty` means the user changed this page, and `reset()` returns to it.
-    form.setInitialValues(setAt(form.initial, rowsPath, structuredClone(pageRows)))
+    form.setInitialValues(setAt(form.initial, rowsPath, safeClone(pageRows)))
   }, [rowsPath, queried.data, mode === 'client' ? `${page}:${pageSize}` : ''])
   const data = mode === 'client' ? full.slice(Math.max(0, page - 1) * pageSize, Math.max(0, page - 1) * pageSize + pageSize) : full
   const total = mode === 'client' ? full.length : (queried.data?.total ?? 0)

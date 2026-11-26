@@ -1,4 +1,5 @@
 import { peelReadonly, unwrapReadonly } from '../draft/readonly'
+import { hasOwn } from './has-own'
 
 /** Structural equality for form data. */
 export function deepEqual(a: unknown, b: unknown): boolean {
@@ -38,8 +39,8 @@ function equalObjects(a: object, b: object, active: ActiveComparisons): boolean 
   if (Array.isArray(a) || Array.isArray(b)) {
     if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false
     for (let i = 0; i < a.length; i++) {
-      const present = Object.hasOwn(a, i)
-      if (present !== Object.hasOwn(b, i) || (present && !equal(a[i], b[i], active))) return false
+      const present = hasOwn(a, i)
+      if (present !== hasOwn(b, i) || (present && !equal(a[i], b[i], active))) return false
     }
     return true
   }
@@ -138,7 +139,7 @@ export function differsExcept(a: unknown, b: unknown, path: string, skip: readon
     for (const key of keys) {
       const child = at ? at + '.' + key : key
       if (excluded.has(child)) continue
-      if (Array.isArray(left) && Object.hasOwn(left, key) !== Object.hasOwn(right, key)) return true
+      if (Array.isArray(left) && hasOwn(left, key) !== hasOwn(right, key)) return true
       if (differs((left as Record<string, unknown>)[key], (right as Record<string, unknown>)[key], child)) return true
     }
     return false

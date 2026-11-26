@@ -1,5 +1,6 @@
 import { ShikiUsageError } from '../errors'
 import { arrayIndex, removeArrayIndex, writeArrayIndex } from './dense-array'
+import { hasOwn } from './has-own'
 
 /** Parent path, or `null` for a root field. */
 export function parentPath(path: string): string | null {
@@ -38,7 +39,8 @@ export function assertUnambiguousWritePath(path: string): void {
 
 function hasAmbiguousQuotedKey(path: string): boolean {
   const quoted = /\[\s*(?:"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)')\s*\]/g
-  for (const match of path.matchAll(quoted)) {
+  let match: RegExpExecArray | null
+  while ((match = quoted.exec(path)) !== null) {
     if (/[.\[\]]/.test(match[1] ?? match[2] ?? '')) return true
   }
   return false
@@ -125,7 +127,7 @@ export function setAt<T>(root: T, path: string, value: unknown): T {
       return copy
     }
     const obj = node && typeof node === 'object' ? node as Record<string, unknown> : {}
-    const current = Object.hasOwn(obj, key) ? obj[key] : undefined
+    const current = hasOwn(obj, key) ? obj[key] : undefined
     const next = last ? value : write(current ?? (nextIsIndex ? [] : {}), index + 1)
     return { ...obj, [key]: next }
   }

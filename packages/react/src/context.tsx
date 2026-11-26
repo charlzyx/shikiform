@@ -1,4 +1,5 @@
-import { createContext, useContext, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
+import { createContext, useContext } from './compat/react-compat'
 import type { FormEngine } from '@shikiform/core/internal'
 import type { FormInstance } from '@shikiform/core/internal'
 

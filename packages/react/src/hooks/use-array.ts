@@ -1,6 +1,6 @@
-import { useContext, useMemo, useRef, useSyncExternalStore } from 'react'
 import type { ArrayItemOf, ArrayPath } from '@shikiform/core/internal'
 import { deepEqual, ShikiUsageError, showDraftPath } from '@shikiform/core/internal'
+import { useContext, useMemo, useRef, useSyncExternalStore } from '../compat/react-compat'
 import { ArrayContext, useRequiredForm, useScope } from '../context'
 import { useFieldGroupRegistration } from '../field-group'
 import { resolveName } from './resolve-name'

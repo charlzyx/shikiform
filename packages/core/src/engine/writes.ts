@@ -8,6 +8,7 @@ import { unwrapReadonly } from '../draft/readonly'
 import { ShikiUsageError, showDraftPath } from '../errors'
 import { arrayIndex } from '../shared/dense-array'
 import { deepEqual } from '../shared/equal'
+import { hasOwn } from '../shared/has-own'
 import { appendValueKey, assertUnambiguousWritePath, deleteAt, getAt, normalizePath, parentPath, pathSegments, setAt } from '../shared/path'
 import type { FlagName } from '../state/flags'
 import type { FieldModel } from '../state/field-model'
@@ -304,7 +305,7 @@ export class StateWriter {
         const ancestor = parentPath(child) ?? ''
         const seg = child.slice(ancestor ? ancestor.length + 1 : 0)
         const container = getAt(before, ancestor)
-        if (container != null && Object.hasOwn(container, seg)) break
+        if (container != null && hasOwn(container, seg)) break
         noteCreated(ancestor, seg)
         child = ancestor
       }
@@ -611,7 +612,7 @@ function newValue(path: string, value: unknown, before: unknown): ValueChange | 
   const owner = getAt(before, parent)
   const key = path.slice(parent ? parent.length + 1 : 0)
   const old = getAt(before, path)
-  const missing = !!path && (owner == null || !Object.hasOwn(owner, key))
+  const missing = !!path && (owner == null || !hasOwn(owner, key))
   const createsOwnKey = missing && owner && typeof owner === 'object' && (!Array.isArray(owner) || arrayIndex(key) !== undefined)
   if (deepEqual(old, value) && !createsOwnKey) return undefined
   return { before, after: setAt(before, path, value), old, parent, key, missing }

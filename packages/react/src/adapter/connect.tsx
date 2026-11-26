@@ -1,14 +1,14 @@
-import {
-  forwardRef,
-  useRef,
-  type ComponentClass,
-  type ComponentProps,
-  type ComponentType,
-  type ForwardRefExoticComponent,
-  type FunctionComponent,
-  type ReactElement,
-  type Ref,
+import React from 'react'
+import type {
+  ComponentClass,
+  ComponentProps,
+  ComponentType,
+  ForwardRefExoticComponent,
+  FunctionComponent,
+  ReactElement,
+  Ref,
 } from 'react'
+import { forwardRef, useRef } from '../compat/react-compat'
 import type { EnumOption } from '@shikiform/core/internal'
 import { useFieldContextOrNull } from '../field-context'
 import { useField, type FieldBinding } from '../hooks/use-field'

@@ -10,7 +10,7 @@ export interface MessageBase {
 }
 
 /**
- * Every built-in text: validation messages, tree-move refusals and the `@shikiform/antd` component labels.
+ * Every built-in text: validation messages, tree-move refusals, and default UI component labels.
  * Override them per form with {@link FormOptions.messages}, or for the whole app with {@link setDefaultMessages}.
  * A rule's own `message` and a component's own prop (`title`, `okText` …) always win.
  * Defaults are {@link zhCN}; {@link enUS} ships too.
@@ -54,32 +54,32 @@ export interface FormMessages {
   /** No parent list at `to`. */
   treeTargetMissing: MessageTemplate<TreeMoveParams>
 
-  // Component labels (`@shikiform/antd`), read through `useFormMessage()` from the nearest form.
-  /** Submit button (`Submit` in `@shikiform/antd`). */
+  // Component labels, read through `form.message(key)` or `useFormMessage()` from the nearest form.
+  /** Submit button (`<Submit>`). */
   submit: MessageTemplate<NoParams>
-  /** Reset button (`Reset`, QueryList, column settings). */
+  /** Reset button (`<Reset>`, query tables, column settings). */
   reset: MessageTemplate<NoParams>
-  /** After an optional field's label with `requiredMark: 'optional'` (`FormItem` / `FormLayout`). */
+  /** After an optional field's label when showing optional markers. */
   optional: MessageTemplate<NoParams>
-  /** Search button (QueryList). */
+  /** Search button (query tables). */
   search: MessageTemplate<NoParams>
-  /** Refresh button (QueryList). */
+  /** Refresh button (query tables). */
   refresh: MessageTemplate<NoParams>
-  /** QueryList toggle while collapsed. */
+  /** Query bar toggle while collapsed. */
   expand: MessageTemplate<NoParams>
-  /** QueryList toggle while expanded. */
+  /** Query bar toggle while expanded. */
   collapse: MessageTemplate<NoParams>
-  /** Append a row (`ArrayItems.Addition` / `ArrayTable.Addition` / `ShadowAddition`). */
+  /** Append a row (array lists / tables / shadow additions). */
   add: MessageTemplate<NoParams>
-  /** Remove a row (`ArrayTable.Remove`). */
+  /** Remove a row. */
   remove: MessageTemplate<NoParams>
-  /** `ArrayTable.Remove confirm` without its own text. */
+  /** Row removal confirmation prompt without custom text. */
   removeConfirm: MessageTemplate<NoParams>
   /** Move a row or column up. */
   moveUp: MessageTemplate<NoParams>
   /** Move a row or column down. */
   moveDown: MessageTemplate<NoParams>
-  /** Copy a row (`ArrayTable.Copy`). */
+  /** Copy a row. */
   copy: MessageTemplate<NoParams>
   /** Drag handle tooltip. */
   dragSort: MessageTemplate<NoParams>
@@ -97,17 +97,17 @@ export interface FormMessages {
   columnSettings: MessageTemplate<NoParams>
   /** Shadow trigger default text. */
   edit: MessageTemplate<NoParams>
-  /** Shadow drawer confirm. */
+  /** Shadow modal / drawer confirm. */
   ok: MessageTemplate<NoParams>
-  /** Shadow drawer cancel. */
+  /** Shadow modal / drawer cancel. */
   cancel: MessageTemplate<NoParams>
   /** Shadow modal / drawer / popconfirm close when the form is `readOnly`. */
   close: MessageTemplate<NoParams>
-  /** `PreviewText` for `true`. */
+  /** Read-only boolean preview for `true`. */
   yes: MessageTemplate<NoParams>
-  /** `PreviewText` for `false`. */
+  /** Read-only boolean preview for `false`. */
   no: MessageTemplate<NoParams>
-  /** Preview views (`PreviewText.*`, every control's `readOnly` view) for an empty value. Default `-`. */
+  /** Read-only preview for an empty value. Default `-`. */
   empty: MessageTemplate<NoParams>
 }
 

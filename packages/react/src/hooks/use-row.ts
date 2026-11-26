@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback } from '../compat/react-compat'
 import type { Draft } from '@shikiform/core/internal'
 import { useRequiredForm, useScope } from '../context'
 import { useWatch } from './use-watch'

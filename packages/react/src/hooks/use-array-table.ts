@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from '../compat/react-compat'
 import { snapshot } from '@shikiform/core'
 import { joinPath } from '@shikiform/core/internal'
 import { useRequiredForm, useScope } from '../context'

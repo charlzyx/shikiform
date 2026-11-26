@@ -1,4 +1,5 @@
-import { useCallback, useRef, type DragEvent } from 'react'
+import type { DragEvent } from 'react'
+import { useCallback, useRef } from '../compat/react-compat'
 
 /** HTML5 drag-and-drop props for one row / node: the same object serves as drag source and drop target. */
 export interface DragProps {

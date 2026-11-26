@@ -1,4 +1,6 @@
-import { Children, cloneElement, isValidElement, type ComponentProps, type MouseEvent, type ReactElement, type ReactNode } from 'react'
+import React from 'react'
+import type { ComponentProps, MouseEvent, ReactElement, ReactNode } from 'react'
+import { cloneElement, isValidElement } from '../compat/react-compat'
 import { ShikiUsageError } from '@shikiform/core/internal'
 import { useFormMessage } from '../hooks/use-form-message'
 import { useReset, useSubmit, type ResetState, type SubmitState, type UseResetOptions, type UseSubmitOptions } from '../hooks/use-submit'
