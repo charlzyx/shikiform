@@ -586,6 +586,8 @@ export class Validator {
    * changes, the field validates again, or `reset` / `clearErrors` runs.
    */
   setExternalMany(entries: [string, string[]][]): void {
+    const { scheduler } = this.deps
+    if (scheduler.writes.stageAction(() => this.setExternalMany(entries))) return
     for (const [input, messages] of entries) {
       const path = normalizePath(input)
       const field = this.store.ensure(path)
@@ -593,7 +595,6 @@ export class Validator {
       field.externalErrors = messages.slice()
       this.afterErrorChange(path, false)
     }
-    const { scheduler } = this.deps
     if (!scheduler.flushing) {
       scheduler.enqueueFromDirty()
       scheduler.flush()
@@ -623,6 +624,8 @@ export class Validator {
 
   /** `clearErrors(path?)`: rule, schema and external messages on `path` and descendants. */
   clearAll(path?: string): void {
+    const { scheduler } = this.deps
+    if (scheduler.writes.stageAction(() => this.clearAll(path))) return
     if (path) path = normalizePath(path)
     this.clearExternalUnder(path)
     this.clearSchemaMessages(path)
@@ -631,7 +634,6 @@ export class Validator {
       this.setWarnings(fieldPath, [])
       this.setErrors(fieldPath, [])
     }
-    const { scheduler } = this.deps
     if (!scheduler.flushing) {
       scheduler.enqueueFromDirty()
       scheduler.flush()

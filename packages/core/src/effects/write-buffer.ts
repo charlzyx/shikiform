@@ -104,6 +104,17 @@ export class WriteJournal {
     return true
   }
 
+  /** Actions apply in call order without claiming ownership of a derived state. */
+  stageAction(apply: () => void): boolean {
+    const buffer = this.active
+    if (!buffer) return false
+    buffer.writes.push({ key: '', apply: () => {
+      apply()
+      return true
+    } })
+    return true
+  }
+
   /** Trace the current row/node back through the journal, visiting its coordinate at each write. */
   project(path: string, visit?: (op: WriteOp, at: string) => void): string | undefined {
     const ops = this.pending

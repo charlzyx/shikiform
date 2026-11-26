@@ -10,7 +10,7 @@ describe.each(['development', 'production'])('F8 journal audit in %s', (mode) =>
 
   const initialValues = { rows: [{ id: 'a', code: 'A' }, { id: 'b', code: 'B' }] }
 
-  it.fails('BUG: publishes an external error on the row at the working coordinate', () => {
+  it('QA-74 publishes an external error on the row at the working coordinate', () => {
     const form = createForm({ initialValues })
     form.batch(() => {
       engineOf(form).moveArray('rows', 1, 0)
@@ -21,7 +21,7 @@ describe.each(['development', 'production'])('F8 journal audit in %s', (mode) =>
     expect(form.errors).toEqual([{ path: 'rows.0.code', messages: ['B is already taken'] }])
   })
 
-  it.fails('BUG: isolates a scoped clearErrors when a nested move rolls back', () => {
+  it('QA-74 isolates a scoped clearErrors when a nested move rolls back', () => {
     const form = createForm({ initialValues })
     form.setErrors({ 'rows.0.code': 'error A', 'rows.1.code': 'error B' })
     form.batch(() => {
@@ -36,6 +36,21 @@ describe.each(['development', 'production'])('F8 journal audit in %s', (mode) =>
       { path: 'rows.0.code', messages: ['error A'] },
       { path: 'rows.1.code', messages: ['error B'] },
     ])
+  })
+
+  it('QA-74 applies error actions in order to the rows occupying their scopes', () => {
+    const form = createForm({ initialValues })
+    const snapshots = vi.fn(() => form.errors)
+    form.subscribeMeta(snapshots)
+    form.batch(() => {
+      form.setErrors({ 'rows.0.code': 'error A', 'rows.1.code': 'old error B' })
+      engineOf(form).moveArray('rows', 1, 0)
+      form.clearErrors('rows.0.code')
+      form.setErrors({ 'rows.0.code': 'new error B' })
+      form.clearErrors('rows.1.code')
+    })
+    expect(form.errors).toEqual([{ path: 'rows.0.code', messages: ['new error B'] }])
+    expect(snapshots.mock.results).toEqual([{ type: 'return', value: form.errors }])
   })
 
   it.fails('BUG: orders a new reset baseline before a later setInitialValues in the same batch', () => {

@@ -329,10 +329,10 @@ export class Scheduler {
       }
       this.valueCommit = commit
       try {
-        if (id && process.env.NODE_ENV !== 'production' && isReactionId(id)) this.lastWrites.set(id, writes.map((op) => op.key))
+        if (id && process.env.NODE_ENV !== 'production' && isReactionId(id)) this.lastWrites.set(id, writes.map((op) => op.key).filter(Boolean))
         for (const op of writes) {
           op.apply()
-          if (id) this.claimOwner(id, op.key)
+          if (id && op.key) this.claimOwner(id, op.key)
         }
         this.enqueueFromDirty()
         if (commit?.hasStructure) this.queueChangedRows(commit)
