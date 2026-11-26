@@ -171,6 +171,60 @@ describe.each(['development', 'production'])('F9 validation publication in %s', 
   })
 
   it.each([
+    ['field', 'move'], ['step', 'move'], ['field', 'remove'], ['step', 'remove'],
+  ] as const)('QA-77 updates the %s verdict when its row changes during the warning wait (%s)', async (scope, edit) => {
+    const warning = deferred<string>()
+    const form = createForm({
+      initialValues,
+      fields: { 'rows.*.code': { rules: [
+        { validator: (code: string) => code === 'A' ? 'invalid A' : undefined },
+        { level: 'warning', validator: (code: string) => code === 'A' ? warning.promise : undefined },
+      ] } },
+    })
+    const pending = scope === 'field' ? form.validate('rows.0.code') : form.validate(['rows.0.code'])
+    const verdict = pending.catch((errors: unknown) => errors)
+    await setImmediate()
+    expect(form.errors).toEqual([{ path: 'rows.0.code', messages: ['invalid A'] }])
+    const engine = engineOf(form)
+    if (edit === 'move') engine.swapArray('rows', 0, 1)
+    else engine.removeArray('rows', 0)
+    warning.resolve('review A')
+
+    expect(engine.binding('rows.0.code').warnings).toEqual([])
+    if (edit === 'move') {
+      expect(await verdict).toEqual([expectedRowError])
+      expect(engine.binding('rows.1.code').warnings).toEqual(['review A'])
+      expect(form.errors).toEqual([expectedRowError])
+    } else {
+      expect(await verdict).toEqual(scope === 'field' ? 'B' : { rows: [{ code: 'B' }] })
+      expect(engine.binding('rows.1.code').warnings).toEqual([])
+      expect(form.errors).toEqual([])
+    }
+  })
+
+  it('QA-77 adopts a full validation that supersedes a moved row during its warning wait', async () => {
+    const warning = deferred<string>()
+    const check = vi.fn((code: string): string | undefined => code === 'B' ? 'invalid B' : undefined)
+      .mockImplementationOnce(() => 'invalid A')
+    const form = createForm({
+      initialValues,
+      fields: { 'rows.*.code': { rules: [
+        { validator: check },
+        { level: 'warning', validator: (code: string) => code === 'A' ? warning.promise : undefined },
+      ] } },
+    })
+    const verdict = form.validate('rows.0.code').catch((errors: unknown) => errors)
+    await setImmediate()
+    expect(form.errors).toEqual([{ path: 'rows.0.code', messages: ['invalid A'] }])
+    engineOf(form).swapArray('rows', 0, 1)
+    const full = form.validate().catch((errors: unknown) => errors)
+    warning.resolve('review A')
+    expect(await verdict).toBe('B')
+    expect(await full).toEqual([{ path: 'rows.0.code', messages: ['invalid B'] }])
+    expect(engineOf(form).binding('rows.1.code').warnings).toEqual(['review A'])
+  })
+
+  it.each([
     ['array removal', 'rows'],
     ['tree removal', 'tree'],
     ['array parent replacement', 'rows'],

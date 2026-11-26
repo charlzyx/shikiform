@@ -1,17 +1,17 @@
 import type { RowPathMap } from '../shared/row-paths'
-import type { SchemaIssue } from './schema'
 
 /** Replay committed structural edits from a validation snapshot to the live form. */
 export class SnapshotRows {
-  private readonly maps: { forward: RowPathMap; backward: RowPathMap }[] = []
+  private readonly maps: { version: number; forward: RowPathMap; backward: RowPathMap }[] = []
 
-  add(forward: RowPathMap, reverse: () => RowPathMap): void {
+  add(version: number, forward: RowPathMap, reverse: () => RowPathMap): void {
     let backward: RowPathMap | undefined
-    this.maps.push({ forward, backward: (path) => (backward ??= reverse())(path) })
+    this.maps.push({ version, forward, backward: (path) => (backward ??= reverse())(path) })
   }
 
-  path(path: string): string | undefined {
-    for (const { forward } of this.maps) {
+  path(path: string, since = 0): string | undefined {
+    for (const { version, forward } of this.maps) {
+      if (version <= since) continue
       const next = forward(path)
       if (next === undefined) return
       path = next
@@ -31,9 +31,9 @@ export class SnapshotRows {
     }
   }
 
-  issues(issues: readonly SchemaIssue[]): SchemaIssue[] {
+  project<T extends { path: string }>(issues: readonly T[], since = 0): T[] {
     return issues.flatMap((issue) => {
-      const path = this.path(issue.path)
+      const path = this.path(issue.path, since)
       return path === undefined ? [] : [{ ...issue, path }]
     })
   }

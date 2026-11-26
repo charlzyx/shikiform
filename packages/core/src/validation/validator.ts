@@ -54,6 +54,7 @@ export class Validator {
   private latest!: ValidationPass
   private snapshotRows?: SnapshotRows
   private readonly requestedRows = new Set<SnapshotRows>()
+  private rowVersion = 0
 
   constructor(private readonly deps: ValidatorDeps) {
     const self = this
@@ -105,7 +106,7 @@ export class Validator {
     const rows = new SnapshotRows()
     this.requestedRows.add(rows)
     try {
-      return await validateScope(this.start(scope, undefined, rows),
+      return await validateScope(this.start(scope, undefined, rows), rows,
         (scope, includes) => this.start(scope, undefined, undefined, includes).promise!, () => this.latest)
     } finally {
       this.requestedRows.delete(rows)
@@ -155,7 +156,7 @@ export class Validator {
     const scoped = (errors = this.errors()): RunResult => {
       const includes = live.filter()
       return { errors: errors.filter(({ path }) => includes(path)), values, enumVersion, resetVersion, warnings,
-        current: gen === this.validateGen, gen }
+        rowVersion: this.rowVersion, current: gen === this.validateGen, gen }
     }
     try {
       const collected: SchemaIssue[] = []
@@ -195,10 +196,10 @@ export class Validator {
         // Relative issues can refer to nested rows that moved independently of this field.
         if (result) fieldIssues.push(...fieldSchemaIssues(target, result.issues))
       }
-      const activeIssues = rows.issues([...fieldIssues, ...collected.filter((issue) => inScope(issue.path))])
+      const activeIssues = rows.project([...fieldIssues, ...collected.filter((issue) => inScope(issue.path))])
         .filter((issue) => issue.message && store.acceptsValidation(issue.path))
       if (record.invalidatedByReset) {
-        const errors = groupSchemaIssues([...rows.issues(ruleIssues), ...activeIssues])
+        const errors = groupSchemaIssues([...rows.project(ruleIssues), ...activeIssues])
         return scoped([...errors].map(([path, messages]) => ({ path, messages })))
       }
       this.applySchemaMap(mergeSchemaScope(this.schemaByPath, groupSchemaIssues(activeIssues), live.filter(), preserve))
@@ -488,8 +489,9 @@ export class Validator {
   }
 
   private trackRows(forward: RowPathMap, reverse: () => RowPathMap): void {
-    this.snapshotRows?.add(forward, reverse)
-    for (const rows of this.requestedRows) if (rows !== this.snapshotRows) rows.add(forward, reverse)
+    const version = ++this.rowVersion
+    this.snapshotRows?.add(version, forward, reverse)
+    for (const rows of this.requestedRows) if (rows !== this.snapshotRows) rows.add(version, forward, reverse)
   }
 
   /** Recompute built-in messages only. Custom callbacks run in the managed validation pass, never in this preview. */

@@ -43,6 +43,7 @@ export interface RunResult {
   values: unknown
   enumVersion: number
   resetVersion: number
+  rowVersion: number
   warnings: Promise<void>[]
   current: boolean
   gen: number
@@ -86,18 +87,23 @@ export function liveScope(scope: ValidateScope | undefined, includes: (path: str
 /** A superseded pass may have stopped before reaching any of its invalid fields. */
 export async function validateScope(
   first: ValidationPass,
+  rows: SnapshotRows,
   retry: (scope: ValidateScope | undefined, includes: (path: string) => boolean) => Promise<RunResult>,
   latest: () => ValidationPass,
 ): Promise<FieldError[]> {
   const live = first.live!
   let result = await first.promise!
-  while (!result.current) {
+  for (;;) {
+    if (result.current && result.warnings.length) await Promise.all(result.warnings)
     const next = latest()
+    if (result.current && (!result.warnings.length || result.gen === next.gen)) break
     const scope = live.paths()
     const requested = scope === undefined ? [''] : typeof scope === 'string' ? [scope] : scope
     const covers = next.live!.filter()
     if (requested.every(covers)) {
       result = await next.promise!
+    } else if (result.current) {
+      break
     } else {
       // Let the other scope finish before retrying. Its verdict belongs to its caller.
       await next.promise!.catch(() => {})
@@ -105,7 +111,5 @@ export async function validateScope(
     }
   }
   const includes = live.filter()
-  const errors = result.errors.filter(({ path }) => includes(path))
-  if (result.warnings.length) await Promise.all(result.warnings)
-  return errors
+  return rows.project(result.errors, result.rowVersion).filter(({ path }) => includes(path))
 }
