@@ -5,7 +5,7 @@ description: "Render multiple controls for a field or control a presentation-onl
 
 ## A second control for one field
 
-Set `ui` on an additional field control. It shares the value, rules, options and errors, while keeping its own DOM ID and presentation state. Put validation and options on the primary field. Mounting two unnamed `<Field>` components for the same form and path warns once in development, prompting you to add a distinct `ui` name to the second `<Field>`. Whole-object assignments to `$componentProps` or `$decoratorProps` on `$ui(name)` accept only a plain object or `undefined` (other values throw `ShikiUsageError` in development and are ignored in production).
+Set `ui` on an additional field control. It shares the value, rules, options and errors, while keeping its own DOM ID (`<form id>-<path>--<ui>`; on React 18+, omitting `<Form id>` uses `useId()` for a hydration-safe prefix, while React 16.8/17 SSR apps should pass an explicit `<Form id="…">`) and presentation state. Put validation and options on the primary field. Mounting two unnamed `<Field>` components for the same form and path warns once in development, prompting you to add a distinct `ui` name to the second `<Field>`. Whole-object assignments to `$componentProps` or `$decoratorProps` on `$ui(name)` accept only a plain object or `undefined` (other values throw `ShikiUsageError` in development and are ignored in production).
 
 ```tsx preview
 import type { CSSProperties, ReactNode } from 'react';

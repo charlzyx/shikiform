@@ -172,6 +172,6 @@ Rules in `fields` or effects survive component unmounting. JSX declarations last
 
 ### Exercise
 
-Move the rule into the form's `fields` declaration, leave the input unmounted and submit. Compare the result with the rule on the mounted field alone.
+Move the invite code rule into `defineEffects` (`d.code.$rules = [...]`), pass `effects` to `useForm`, and remove `rules` from the `code` `<Field>` while keeping the JSX rule on `nickname`. Leave the toggle unchecked and submit: `code` still validates while unmounted, whereas `nickname`'s JSX rule unmounts with its field.
 
 <TutorialPlay id="10-declared" />

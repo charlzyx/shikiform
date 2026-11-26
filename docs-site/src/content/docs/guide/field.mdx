@@ -166,7 +166,7 @@ export default function App() {
 
 ## 选项写在 JSX 里
 
-下拉框、单选框、多选框组等选择类字段，可以直接在 `<Field>` 上通过 `enum` 传入选项数据，无需提前在 `fields` 中声明。适配后的 `Select`、`Radio`、`Checkbox.Group` 会自动将其作为 `options`，阅读态下也会自动将其反显为对应的标签文案。
+下拉框、单选框、多选框组等选择类字段，可以直接在 `<Field>` 上通过 `enum` 传入选项数据，无需提前在 `fields` 中声明。使用 `connect` 或 `useField()` 适配的选择控件会通过 `field.options` 读取这些选项，阅读态下也可据此反显为对应的标签文案。
 
 ```tsx preview
 import type { ReactNode } from 'react';

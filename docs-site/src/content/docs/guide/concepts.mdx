@@ -95,7 +95,7 @@ export default function App() {
 | `$visible` / `$disabled` / `$readOnly` / `$omit` | 四个独立布尔，详见下方 [四个布尔](#四个布尔) |
 | `$required` / `$rules` | 控制必填与校验规则；由 `reaction` 写入的规则不受组件卸载影响 |
 | `$enum` | 枚举选项（支持静态数组或 `EnumSource.with(params)`），优先级高于 JSX `enum` 与 `fields` 声明；赋 `undefined` 撤销 reaction 层覆盖，赋 `[]` 清空选项 |
-| `$title` / `$description` | 字段标题与辅助说明（映射至 `FormItem` 的 `label` 与 `extra`） |
+| `$title` / `$description` | 字段标题与辅助说明（经 `useFieldDecorator()` 映射为 `label` 与 `description`） |
 | `$component` / `$decorator` | 动态替换 `<Field>` 渲染的控件或装饰器 |
 | `$componentProps` / `$decoratorProps` | 控件与装饰器的透传属性，支持按键打补丁，详见 [UI 状态三层叠加](/guide/field#ui-状态三层叠加) |
 | `$errors` / `$warnings` / `$validating` / `$touched` | 只读状态，分别表示错误列表、警告列表、异步校验中状态及失焦触碰标记 |

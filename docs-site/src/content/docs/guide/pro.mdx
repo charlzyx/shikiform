@@ -5,7 +5,7 @@ description: "@shikiform/react 中的草稿表单、查询列表、数组表格�
 
 `@shikiform/react` 提供零 UI 依赖的业务表单与表格 Hooks，可自由搭配原生 HTML 或任意 React UI 组件库。
 
-| Hook（`@shikiform/react`） | 职责 |
+| Hook | 职责 |
 |---|---|
 | `useShadowForm` | 在独立临时表单中编辑副本，确认并校验通过后再写回宿主表单 |
 | `useQueryTable` | 统一管理查询条件、分页状态、表头排序、列筛选、请求竞态与跨页勾选 |
@@ -22,8 +22,7 @@ description: "@shikiform/react 中的草稿表单、查询列表、数组表格�
 ```tsx preview play=shadow-form
 import { Dialog, DialogBackdrop, DialogContent, DialogTitle } from '@ui-sdk/react/dialog';
 import { Select, SelectContent, SelectItem, SelectItemIndicator, SelectTrigger, SelectValue } from '@ui-sdk/react/select';
-import { Field, Form, Watch, useField, useForm, type Draft } from '@shikiform/react';
-import { useShadowForm } from '@shikiform/react';
+import { Field, Form, Watch, useField, useForm, useShadowForm, type Draft } from '@shikiform/react';
 
 type Info = { domain: string; owner: string; env: string };
 type Values = { info: Info };

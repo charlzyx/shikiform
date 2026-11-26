@@ -96,7 +96,7 @@ function FormItem({ tooltip, children }: { tooltip?: string; children?: ReactNod
         {d.label}
       </label>
       {children}
-      {tooltip && <small style={{ marginLeft: 8, opacity: 0.7 }}>（{tooltip}）</small>}
+      {tooltip && <small style={{ marginLeft: 8, opacity: 0.7 }}>({tooltip})</small>}
     </div>
   );
 }

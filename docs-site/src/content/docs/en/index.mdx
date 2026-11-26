@@ -153,12 +153,19 @@ A form instance owns the values, rules, validation results and UI state. Control
 
 ## Installation
 
+Install `@shikiform/react` for React projects — it bundles the core engine, headless React bindings, and pro hooks for query tables, draft editors, and editable array tables:
+
 ```bash
-npm i @shikiform/react
-# Headless query tables, draft editors and array tables
 npm i @shikiform/react
 ```
 
-Use `@shikiform/core` without React, `@shikiform/react` for fields and hooks, and `@shikiform/react` for tables, suggestions and draft editors. Start with the [first form](/en/guide/quick-start), work through the [interactive tutorial](/en/tutorial), or explore the [examples](/en/examples).
+| Package | Role |
+|---|---|
+| `@shikiform/react` | Headless React bindings (`Form`, `Field`, `useField`, `connect`, `useFieldDecorator`), pro hooks (`useQueryTable`, `useShadowForm`, `useArrayTable`, `useColumnSettings`), and common `@shikiform/core` re-exports |
+| `@shikiform/core` | React-free TypeScript form engine: state store, drafts, `reaction` / `watch`, and validation (install directly only without React) |
+
+See the [API overview](/en/api) for the full export list, or pass [/llms.txt](/llms.txt) to AI coding assistants.
+
+Start with the [quick start](/en/guide/quick-start), work through the [interactive tutorial](/en/tutorial), or explore the [examples](/en/examples).
 
 </div>

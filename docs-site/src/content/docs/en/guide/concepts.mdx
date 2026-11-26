@@ -154,7 +154,7 @@ export default function App() {
       <Field name="city" />
       <Field name="note" />
       <button type="button" onClick={() => { void form.validate().catch(() => {}) }}>Validate unmounted items</button>
-      <Watch select={(d: Draft<Values>) => d.items.$errors}>{(errors) => <small> Errors:{errors.join('；') || "None"}</small>}</Watch>
+      <Watch select={(d: Draft<Values>) => d.items.$errors}>{(errors) => <small> Errors: {errors.join('; ') || "None"}</small>}</Watch>
     </Form>
   );
 }

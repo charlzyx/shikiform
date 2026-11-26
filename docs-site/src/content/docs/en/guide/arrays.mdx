@@ -183,8 +183,7 @@ Submit the form with an empty list, then add a phone. Once a structural error is
 Use `useArrayTable` for pagination, selection, expansion and row operations. `<ArrayField.Row>` establishes the correct scope for each visible row. Table presentation state stays outside submitted values.
 
 ```tsx preview play=array-table
-import { enUS, ArrayField, Field, Form, useField, useForm, useRecord } from '@shikiform/react';
-import { useArrayTable } from '@shikiform/react';
+import { enUS, ArrayField, Field, Form, useArrayTable, useField, useForm, useRecord } from '@shikiform/react';
 
 type Row = { id: string; name: string; price: number; qty: number };
 let nextId = 4;

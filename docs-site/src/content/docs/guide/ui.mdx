@@ -69,7 +69,7 @@ export default function App() {
 }
 ```
 
-- 在这个例子中，主输入框的 DOM `id` 为 `echo-nickname`，回显节点的 `id` 自动生成为 `echo-nickname--echo`，两者的 `label` 互不冲突（若 `<Form>` 未传 `id`，引擎会自动使用 React `useId()` 生成唯一前缀以隔离同页面多张表单）。
+- 在这个例子中，主输入框的 DOM `id` 为 `echo-nickname`，回显节点的 `id` 自动生成为 `echo-nickname--echo`，两者的 `label` 互不冲突（若 `<Form>` 未传 `id`，React 18+ 会自动用 `useId()` 生成水合安全的唯一前缀；React 16.8 / 17 的 SSR 应用请显式传入 `<Form id="…">` 以避免水合不一致）。
 - `$componentProps` 和 `$decoratorProps` 仅作用于当前实例本身；而 `title` 和 `description` 若未单独指定，则会自动回退继承主字段的标题与说明。
 - 不带 `ui` 属性的主 `<Field>` 依然对应字段自身（通过 `d.nickname.$componentProps` 控制）。
 

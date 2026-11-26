@@ -9,11 +9,9 @@ description: "Build a typed form, connect an input, and reuse a group of fields.
 npm i @shikiform/react
 ```
 
-For query tables, editable arrays and temporary draft editors, also install the headless hooks.
+`@shikiform/react` includes the core engine (`@shikiform/core`), headless React bindings, and pro hooks for query tables, editable arrays, column settings, and temporary draft editors. Install `@shikiform/core` directly only when using the engine without React.
 
-```bash
-npm i @shikiform/react
-```
+Requires `react` and `react-dom` (`^16.8.0 || ^17 || ^18 || ^19`). On React 18+, omitting `<Form id>` auto-generates hydration-safe field IDs via `useId()`; React 16.8/17 SSR apps should pass an explicit `<Form id="…">` to avoid hydration mismatches. ShikiForm has zero UI-library dependencies and works with native HTML or any React UI library.
 
 ## Your first form
 

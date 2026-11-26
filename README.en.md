@@ -43,7 +43,7 @@ Pass `effects` to `useForm`. The full interactive example includes adding/removi
 npm i @shikiform/react
 ```
 
-Install `@shikiform/react` as well if you need query tables, shadow forms or editable array tables.
+`@shikiform/react` includes the core engine (`@shikiform/core`), headless React bindings, and pro hooks for query tables, shadow forms, editable array tables, and column settings (requires `react` and `react-dom` `^16.8.0 || ^17 || ^18 || ^19`). Install `@shikiform/core` directly only when using the engine without React.
 
 ## Quick example
 

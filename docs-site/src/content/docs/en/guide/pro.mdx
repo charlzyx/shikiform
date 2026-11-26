@@ -11,8 +11,7 @@ Open an independent form to edit a copy. Cancel discards it, and confirm validat
 ```tsx preview play=shadow-form
 import { Dialog, DialogBackdrop, DialogContent, DialogTitle } from '@ui-sdk/react/dialog';
 import { Select, SelectContent, SelectItem, SelectItemIndicator, SelectTrigger, SelectValue } from '@ui-sdk/react/select';
-import { enUS, Field, Form, Watch, useField, useForm, type Draft } from '@shikiform/react';
-import { useShadowForm } from '@shikiform/react';
+import { enUS, Field, Form, Watch, useField, useForm, useShadowForm, type Draft } from '@shikiform/react';
 
 type Info = { domain: string; owner: string; env: string };
 type Values = { info: Info };

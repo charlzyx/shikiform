@@ -5,19 +5,13 @@ description: 安装依赖，使用 Field、useFieldDecorator 和 Submit 构建�
 
 ## 安装
 
-安装 React 绑定包：
-
 ```bash
 npm i @shikiform/react
 ```
 
-按需安装无 UI 业务 Hooks 包（查询表格、草稿表单、列设置等）：
+`@shikiform/react` 已内置核心表单引擎（`@shikiform/core`）、Headless React 绑定，以及查询列表、草稿表单、数组表格、列配置等无 UI 业务 Hooks。仅在非 React 环境使用表单引擎时，可单独安装 `@shikiform/core`。
 
-```bash
-npm i @shikiform/react
-```
-
-版本要求：`react` 与 `react-dom` 为 `^18 || ^19`。ShikiForm 零 UI 库依赖，可搭配原生 HTML 控件或任意 React UI 组件库使用。
+版本要求：`react` 与 `react-dom` 为 `^16.8.0 || ^17 || ^18 || ^19`（支持 React 16.8+、17、18、19）。React 18+ 下未传 `<Form id>` 时自动通过 `useId()` 生成水合安全的字段 ID；React 16.8 / 17 的 SSR 应用请显式传入 `<Form id="…">` 以避免水合不一致。ShikiForm 零 UI 库依赖，可搭配原生 HTML 控件或任意 React UI 组件库使用。
 
 ## 第一张表单
 

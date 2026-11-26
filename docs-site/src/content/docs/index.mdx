@@ -151,19 +151,16 @@ export default function App() {
 
 ## 安装与模块划分
 
-React 项目默认安装 `@shikiform/react`，再按需安装无 UI 业务 Hooks 包：
+React 项目安装 `@shikiform/react` 即可，已包含表单引擎、Headless React 绑定以及查询列表、草稿表单、数组表格等无 UI 业务 Hooks：
 
 ```bash
-npm i @shikiform/react
-# 查询列表、草稿表单、数组表格等无 UI Hooks
 npm i @shikiform/react
 ```
 
 | 包名 | 职责 |
 |---|---|
-| `@shikiform/core` | 纯 TypeScript 表单引擎：状态存储、draft、`reaction` / `watch` 与校验，不依赖 React |
-| `@shikiform/react` | `Form`、`Field`、`useField`、`connect`、`useFieldDecorator` 等 React 绑定，并重导出 `@shikiform/core` |
-| `@shikiform/react` | `useQueryTable`、`useShadowForm`、`useArrayTable`、`useColumnSettings` 等无 UI 业务 Hooks |
+| `@shikiform/react` | `Form`、`Field`、`useField`、`connect`、`useFieldDecorator` 等 React 绑定，以及 `useQueryTable`、`useShadowForm`、`useArrayTable`、`useColumnSettings` 等无 UI 业务 Hooks，并重导出 `@shikiform/core` 常用 API |
+| `@shikiform/core` | 纯 TypeScript 表单引擎：状态存储、draft、`reaction` / `watch` 与校验，不依赖 React（仅非 React 环境单独安装） |
 
 完整导出清单见 [API 总览](/api)。使用 AI 编程工具时可将 [/llms.txt](/llms.txt) 作为上下文传入。
 
