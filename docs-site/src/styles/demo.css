@@ -281,7 +281,7 @@
   gap: 12px;
 }
 
-.sf-demo__preview [data-slot='radio'] {
+.sf-demo__preview [data-slot='radio']:not(.sf-ui-radio-btn):not(.sf-ui-radio-card) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -295,10 +295,10 @@
   flex-shrink: 0;
   transition: border-color 0.15s ease;
 }
-.sf-demo__preview [data-slot='radio'][data-checked] {
+.sf-demo__preview [data-slot='radio']:not(.sf-ui-radio-btn):not(.sf-ui-radio-card)[data-checked] {
   border-color: var(--nb-brand);
 }
-.sf-demo__preview [data-slot='radio']:disabled {
+.sf-demo__preview [data-slot='radio']:not(.sf-ui-radio-btn):not(.sf-ui-radio-card):disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
