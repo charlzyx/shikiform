@@ -11,7 +11,7 @@ interface ResetRowKeys {
   treeAt(path: string): TreeKeys | undefined
 }
 
-/** Resolve reset rows by key or surviving reference, and primitive entries by slot. */
+/** Resolve reset rows by key or surviving reference, and fixed entries by slot. */
 export function resetRowIds(written: string, before: unknown, after: unknown, keys: ResetRowKeys): readonly [RowIds, RowIds] {
   const parent = parentPath(written) ?? ''
   const index = arrayIndex(written.slice(parent ? parent.length + 1 : 0))
@@ -20,11 +20,14 @@ export function resetRowIds(written: string, before: unknown, after: unknown, ke
   const base = keys.treeRoot ?? resetTarget
   const references = new WeakMap<object, number>()
   const duplicateKeys = new Set<string>()
+  const fixedSlots = new Set<string>()
+  const outsideReset = (path: string) => written !== '' && path !== written && !path.startsWith(written + '.')
   let serial = 0
 
-  const collect = (values: unknown, matchDuplicatesByReference = false): RowIds => {
+  const collect = (values: unknown, matchDuplicatesByReference: boolean, ambiguousSlots?: ReadonlySet<string>) => {
     const ids = new Map<string, string>()
     const ambiguous = new Set<string>()
+    const collisions = new Set<string>()
     const seenKeys = new Set<string>()
     const visit = (value: unknown, path: string, scope: RowScope, tree?: TreeKeys & { scope: RowScope }): void => {
       // Outside the reset, only nodes of the same tree can affect row matching.
@@ -58,14 +61,20 @@ export function resetRowIds(written: string, before: unknown, after: unknown, ke
             if (key == null) scopePart = identityPart
           }
           // Keep key scopes stable across both passes even when a parent falls back to a reference.
-          const rowId = owner.identity + identityPart
+          let rowId = owner.identity + identityPart
+          if (fixedSlots.has(rowPath)) rowId = `=@${JSON.stringify(rowPath)}`
+          else if (ambiguousSlots?.has(rowPath)) rowId = `!${++serial}`
           const existing = ids.get(rowId)
           if (existing !== undefined) {
             ids.delete(rowId)
             ids.set(`!${++serial}`, existing)
             ambiguous.add(rowId)
+            collisions.add(existing)
           }
-          ids.set(ambiguous.has(rowId) ? `!${++serial}` : rowId, rowPath)
+          if (ambiguous.has(rowId)) {
+            collisions.add(rowPath)
+            ids.set(`!${++serial}`, rowPath)
+          } else ids.set(rowId, rowPath)
           visit(row, rowPath, { identity: rowId, keys: owner.keys + scopePart }, tree)
         })
       } else if (isPatchable(value)) {
@@ -77,11 +86,23 @@ export function resetRowIds(written: string, before: unknown, after: unknown, ke
       }
     }
     visit(getAt(values, base), base, { identity: '', keys: '' })
-    return ids
+    return { ids, collisions }
   }
-  const previous = collect(before)
-  const next = collect(after)
+  let previous = collect(before, false)
+  let next = collect(after, false)
   // A reset can clone a row or node while another entry with the same key survives.
-  if (duplicateKeys.size) return [collect(before, true), collect(after, true)]
-  return [previous, next]
+  const matchDuplicatesByReference = duplicateKeys.size > 0
+  if (matchDuplicatesByReference) {
+    previous = collect(before, true)
+    next = collect(after, true)
+  }
+  // A collision may exist in only one snapshot. Pin the slot on both sides before visiting its children.
+  for (const { collisions } of [previous, next]) {
+    for (const path of collisions) if (outsideReset(path)) fixedSlots.add(path)
+  }
+  if (fixedSlots.size) {
+    previous = collect(before, matchDuplicatesByReference, previous.collisions)
+    next = collect(after, matchDuplicatesByReference, next.collisions)
+  }
+  return [previous.ids, next.ids]
 }

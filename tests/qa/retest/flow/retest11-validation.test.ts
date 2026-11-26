@@ -77,7 +77,7 @@ describe.each(['development', 'production'])('F14 object rows in %s', (environme
     expect(engine.binding(last).warnings).toEqual(['review'])
   })
 
-  it.fails('BUG: resetting a third slot drops the verdict for an untouched object shared by two slots', async () => {
+  it('QA-86 retains the verdict for an object shared by two untouched slots', async () => {
     const shared = { code: 'bad' }
     const warning = deferred<string>()
     const path = 'rows.0.code'
@@ -102,5 +102,48 @@ describe.each(['development', 'production'])('F14 object rows in %s', (environme
     expect(form.errors).toEqual([failure(path)])
     expect(engine.binding(path).warnings).toEqual(['review'])
     expect(result).toEqual([failure(path)])
+  })
+
+  it('QA-86 retains verdicts in nested arrays beneath both untouched slots', async () => {
+    const shared = { items: [{ code: 'bad' }] }
+    const warning = deferred<string>()
+    const paths = ['rows.0.items.0.code', 'rows.2.items.0.code'] as const
+    const form = createForm({
+      initialValues: { rows: [shared, { items: [{ code: 'valid' }] }, shared] },
+      fields: { 'rows.*.items.*.code': { rules: rules(warning.promise) } },
+    })
+    const verdict = expect(form.validate([...paths])).rejects.toEqual(paths.map(failure))
+    await setImmediate()
+    expect(form.errors).toEqual(paths.map(failure))
+
+    form.reset('rows.1')
+    warning.resolve('review')
+    await verdict
+
+    for (const path of paths) expect(engineOf(form).binding(path).warnings).toEqual(['review'])
+  })
+
+  it('QA-86 discards the verdict when resetting the whole array clones the shared object', async () => {
+    const shared = { code: 'bad' }
+    const warning = deferred<string>()
+    const path = 'rows.0.code'
+    const form = createForm({
+      initialValues: { rows: [shared, { code: 'valid' }, shared] },
+      fields: { [path]: { rules: rules(warning.promise) } },
+    })
+    const row = toRaw(form.getValue('rows.0'))
+    const verdict = expect(form.validate(path)).resolves.toBe('bad')
+    await setImmediate()
+    expect(form.errors).toEqual([failure(path)])
+
+    form.reset('rows')
+    warning.resolve('review')
+    await verdict
+
+    const restored = toRaw(form.getValue('rows.0'))
+    expect(restored).not.toBe(row)
+    expect(toRaw(form.getValue('rows.2'))).toBe(restored)
+    expect(form.errors).toEqual([])
+    expect(engineOf(form).binding(path).warnings).toEqual([])
   })
 })
