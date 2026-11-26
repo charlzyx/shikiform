@@ -53,7 +53,7 @@ describe.each(['development', 'production'])('F8 journal audit in %s', (mode) =>
     expect(snapshots.mock.results).toEqual([{ type: 'return', value: form.errors }])
   })
 
-  it.fails('BUG: orders a new reset baseline before a later setInitialValues in the same batch', () => {
+  it('QA-75 orders a new reset baseline before a later setInitialValues in the same batch', () => {
     const form = createForm({ initialValues: { label: 'initial', qty: 1 } })
     form.batch(() => {
       form.reset({ label: 'reset', qty: 2 })
@@ -64,6 +64,27 @@ describe.each(['development', 'production'])('F8 journal audit in %s', (mode) =>
     expect(form.getSubmitValues()).toEqual({ label: 'reset', qty: 3 })
     form.reset()
     expect(form.getSubmitValues()).toEqual({ label: 'final', qty: 3 })
+  })
+
+  it('QA-75 restores the outer working baseline after a nested batch rolls back', () => {
+    const form = createForm({ initialValues: { qty: 1 } })
+    form.setValue('qty', 9)
+    form.batch(() => {
+      form.setInitialValues({ qty: 2 })
+      expect(() => form.batch(() => {
+        form.setInitialValues({ qty: 3 })
+        form.reset('qty')
+        expect(form.getValue('qty')).toBe(3)
+        throw new Error('undo baseline and reset')
+      })).toThrow('undo baseline and reset')
+      expect(form.getValue('qty')).toBe(9)
+      form.reset('qty')
+      expect(form.getValue('qty')).toBe(2)
+    })
+    expect(form.dirty).toBe(false)
+    form.setValue('qty', 4)
+    form.reset()
+    expect(form.getSubmitValues()).toEqual({ qty: 2 })
   })
 
   it.fails('BUG: preserves the moved schema message when a different field validates', async () => {

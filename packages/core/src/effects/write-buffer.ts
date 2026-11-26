@@ -105,14 +105,15 @@ export class WriteJournal {
   }
 
   /** Actions apply in call order without claiming ownership of a derived state. */
-  stageAction(apply: () => void): boolean {
+  stageAction(apply: () => void): WriteOp | undefined {
     const buffer = this.active
-    if (!buffer) return false
-    buffer.writes.push({ key: '', apply: () => {
+    if (!buffer) return
+    const op = { key: '', apply: () => {
       apply()
       return true
-    } })
-    return true
+    } }
+    buffer.writes.push(op)
+    return op
   }
 
   /** Trace the current row/node back through the journal, visiting its coordinate at each write. */

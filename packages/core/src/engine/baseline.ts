@@ -19,7 +19,7 @@ export class Baseline {
   /** Last derived form-level `dirty`, with the inputs it was derived from (values / initial are replaced, never mutated). */
   private cache?: { values: unknown; initial: unknown; skip: string; dirty: boolean }
   private notified = false
-  private readonly resetBaselines = new WeakMap<WriteOp, { values: unknown }>()
+  private readonly baselines = new WeakMap<WriteOp, { values: unknown }>()
 
   private readonly store: FieldStore<any>
   private readonly notifier: Notifier
@@ -48,7 +48,7 @@ export class Baseline {
       let initial = baseline?.values ?? store.initial
       if (!baseline) {
         for (let i = ops.length - 1; i >= 0; i--) {
-          const prior = this.resetBaselines.get(ops[i])
+          const prior = this.baselines.get(ops[i])
           if (!prior) continue
           initial = prior.values
           break
@@ -64,7 +64,7 @@ export class Baseline {
           return true
         },
       }
-      if (baseline) this.resetBaselines.set(op, baseline)
+      if (baseline) this.baselines.set(op, baseline)
       scheduler.writes.stageValue(after, op)
       return
     }
@@ -106,8 +106,15 @@ export class Baseline {
 
   /** `form.setInitialValues(values)`: replace the baseline, keep the values. */
   setInitial(values: unknown): void {
+    const baseline = { values: copyData(values) }
+    const op = this.scheduler.writes.stageAction(() => this.applyInitial(baseline.values))
+    if (op) this.baselines.set(op, baseline)
+    else this.applyInitial(baseline.values)
+  }
+
+  private applyInitial(values: unknown): void {
     const { store, scheduler } = this
-    store.initial = copyData(values)
+    store.initial = values
     this.notifyValueReaders('')
     scheduler.bumpMeta()
     scheduler.enqueueFromDirty()
