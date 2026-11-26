@@ -84,6 +84,7 @@ export class Baseline {
     const before = store.values
     store.values = values
     validator.reset(path, () => resetRowIds(path ?? '', before, values, {
+      treeRoot: trees.root(path ?? ''),
       rowKey: (path) => trees.childRowKey(path) ?? arrays.rowKey(path),
       treeAt: (path) => trees.root(path) === path ? trees.config(path) : undefined,
     }))

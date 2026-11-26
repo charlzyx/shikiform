@@ -187,7 +187,7 @@ describe.each(['development', 'production'])('F11 final validation in %s', (envi
     expect(form.validating).toBe(false)
   })
 
-  it.fails('BUG: QA-83 loses a moved keyed descendant verdict on partial tree reset', async () => {
+  it.each(['tree.0.nodes', 'tree.0'] as const)('QA-83 restores a moved keyed descendant verdict after reset(%s)', async (resetPath) => {
     const warning = deferred<string>()
     const form = createForm({
       initialValues: { tree: [
@@ -211,12 +211,43 @@ describe.each(['development', 'production'])('F11 final validation in %s', (envi
     })
     expect(form.getValue('tree.0.nodes.2.nodes.0.code')).toBe('A')
     expect(form.errors).toEqual([failure('tree.0.nodes.2.nodes.0.code')])
-    form.reset('tree.0.nodes')
+    form.reset(resetPath)
     warning.resolve('stale warning')
 
     expect(form.getValue(path)).toBe('A')
     expect(form.errors).toEqual([])
     expect(engine.binding(path).warnings).toEqual([])
     expect(await original).toEqual([failure(path)])
+  })
+
+  it.each(['tree.0.nodes.0', 'tree.0'] as const)('QA-83 keeps the surviving node verdict when reset(%s) restores a duplicate key', async (resetPath) => {
+    const warning = deferred<string>()
+    const form = createForm({
+      initialValues: { tree: [
+        { key: 'left', nodes: [{ key: 'a', code: 'baseline A' }] },
+        { key: 'right', nodes: [{ key: 'b', code: 'B' }] },
+      ] },
+      trees: { tree: { rowKey: 'key', childrenKey: 'nodes' } },
+      fields: { 'tree.*.nodes.*.code': { rules: blockingAndWarning(warning.promise) } },
+    })
+    const engine = engineOf(form)
+    const originalPath = 'tree.0.nodes.0'
+    const movedPath = 'tree.1.nodes.0'
+    form.setValue(`${originalPath}.code`, 'A')
+    const original = form.validate(originalPath).catch((errors: unknown) => errors)
+    await setImmediate()
+    expect(form.errors).toEqual([failure(`${originalPath}.code`)])
+    const node = toRaw(form.getValue(originalPath))
+    expect(engine.moveTree('tree', [0, 0], [1, 0]).ok).toBe(true)
+    form.reset(resetPath)
+    warning.resolve('warning for A')
+
+    expect(form.getValue(originalPath)).toEqual({ key: 'a', code: 'baseline A' })
+    expect(toRaw(form.getValue(movedPath))).toBe(node)
+    const expected = [failure(`${movedPath}.code`)]
+    expect(await original).toEqual(expected)
+    expect(form.errors).toEqual(expected)
+    expect(engine.binding(`${originalPath}.code`).warnings).toEqual([])
+    expect(engine.binding(`${movedPath}.code`).warnings).toEqual(['warning for A'])
   })
 })
