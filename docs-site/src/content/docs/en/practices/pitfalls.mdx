@@ -3,7 +3,13 @@ title: "Common pitfalls"
 description: "Recognize incorrect draft reads, path writes, scope names and field bindings."
 ---
 
+Some mistakes throw `ShikiUsageError` in development; others quietly subscribe an effect to a wider path than you intended.
+
 ## Destructure child handles
+
+Destructuring is only for picking child field handles; always read or assign `$` state directly on a handle.
+
+### Do not reassign a destructured `$value`
 
 Reassigning a local variable only changes that variable. Write through the handle to update the field.
 
@@ -53,14 +59,23 @@ reaction.each(draft.items, (row) => {
 
 ## Mutating stored values
 
-Inside `reaction`, `watch`, and `batch`, an object or array `$value` is a writable draft. `d.user.$value.name = 'Ada'` is the path write `d.user.name.$value = 'Ada'`. `d.items.$value.push(row)` uses the same row operation as `useArrayField().push`.
+Inside `reaction`, `watch`, and `batch`, an object or array `$value` is a writable draft. `d.user.$value.name = 'Ada'` is the path write `d.user.name.$value = 'Ada'`. `d.items.$value.push(row)` uses the same row operation as `useArrayField().push`. `getValue`, `form.values`, and a validator's `value` are not that draft:
+
+```ts
+// ✗ Throws ShikiUsageError in development; does not notify subscribers
+form.getValue('user').name = 'Ada'
+form.values.tags.push('x')
+```
+
+In development, those reads return read-only views: mutating them (including `value`, `ctx.root`, or `ctx.get()` inside a validator, as well as `Map.set/delete/clear`, `Set.add/delete/clear`, `Date.set*`, or `Object.setPrototypeOf`) throws `ShikiUsageError`. In production, reads outside effects return the raw stored object. Update values outside effects with `form.setValue` or `useArrayField().push(row)`:
 
 ```ts
 d.user.$value.name = 'Ada'
 d.items.$value.push(row)
+form.setValue('user.name', 'Ada')
 ```
 
-`getValue`, `form.values`, and a validator's `value` are not that draft. In development those reads are read-only views. The view is not `===` to the stored object (it is, in production, outside an effect). `indexOf` / `includes` and `deepEqual` peel the view, so `rows.indexOf(rawRow)` still matches. Do not pass `binding().value` to a table that `push`es or `sort`s it; the error names the field path.
+The development view is not `===` to the stored object (it is, in production, outside an effect). `indexOf` / `includes` and `deepEqual` peel the view, so `rows.indexOf(rawRow)` still matches. Do not pass `useField().value` (or `form.binding(path).value`) to a table library that `push`es or `sort`s in place; the error names the field path.
 
 `structuredClone(form.values)`, `postMessage`, and IndexedDB throw `DataCloneError` on that view in development only. `snapshot(form.values)` from `@shikiform/core` is a plain copy, including omitted fields. `getSubmitValues()` is the submit payload. `toRaw(value)` is the live stored object.
 
@@ -129,6 +144,8 @@ d.taxId.$omit = true       // Render and validate, exclude from submission.
 d.taxId.$visible = false   // Together these flags skip rendering, validation and submission.
 d.taxId.$omit = true
 ```
+
+There is no "hidden yet still validated" flag. Keep fields mounted if they should still validate (for example, hiding inactive tabs with CSS or declaring rules in `useForm({ fields })`; see [Tabs and unmounted fields](/en/examples/forms#tabs-and-unmounted-fields)).
 
 ## Using decorator props as a value binding
 

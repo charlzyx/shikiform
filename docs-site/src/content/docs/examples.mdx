@@ -1,6 +1,6 @@
 ---
 title: 示例库
-description: 五个基础场景与查询表、数组、树、业务表格及 Pro 组件的在线可编辑示例。
+description: 五个基础场景与查询表、数组、树、业务表格及 Pro Hooks 的在线可编辑示例。
 ---
 
 先看五个高频基础场景（已按主题聚合到对应专题页，每个示例均可在线编辑代码并提交验证）：
@@ -20,7 +20,7 @@ description: 五个基础场景与查询表、数组、树、业务表格及 Pro
 | 完整页面 | 场景说明 | 代码与讲解 |
 |---|---|---|
 | <a href="/play/schema" target="_self">Schema 校验</a> | 注册表单：整表 Zod 校验，以及隐藏仍提交、omit 不提交 | [基础表单 · 注册：整表 schema](/examples/forms#注册整表-schema) |
-| <a href="/play/display" target="_self">显隐对照</a> | `visible` / `hidden` / `omit` / `readOnly` 对渲染、校验与提交的对照 | [基础表单 · 显隐对照](/examples/forms#显隐对照) |
+| <a href="/play/display" target="_self">显隐对照</a> | `visible`（显/隐）/ `omit` / `readOnly` 对渲染、校验与提交的对照 | [基础表单 · 显隐对照](/examples/forms#显隐对照) |
 | <a href="/play/tabs" target="_self">标签页</a> | 在 `fields` 中声明的规则跨标签页生效，未挂载字段同样参与校验 | [基础表单 · 标签页与未挂载字段](/examples/forms#标签页与未挂载字段) |
 
 ## 联动
@@ -60,10 +60,10 @@ description: 五个基础场景与查询表、数组、树、业务表格及 Pro
 | 完整页面 | 场景说明 | 代码与讲解 |
 |---|---|---|
 | <a href="/play/array-table" target="_self">useArrayTable</a> | 行内编辑、展开子表、分页、选择、异步删除 | [Pro Hooks · useArrayTable](/examples/pro#usearraytable分页勾选排序与展开) |
-| <a href="/play/array-table-shadow" target="_self">ArrayTable + 草稿表单</a> | `useArrayTable` + `useShadowForm`：行编辑与新增，确认才写回 | [Pro Hooks · 用草稿表单编辑与新增行](/examples/pro#用草稿表单编辑与新增行) |
+| <a href="/play/array-table-shadow" target="_self">useArrayTable + 草稿表单</a> | `useArrayTable` + `useShadowForm`：行编辑与新增，确认才写回 | [Pro Hooks · 用草稿表单编辑与新增行](/examples/pro#用草稿表单编辑与新增行) |
 | <a href="/play/shadow-form" target="_self">草稿表单（useShadowForm）</a> | 独立临时表单编辑副本，确认写回、取消丢弃 | [Pro Hooks · 草稿表单（useShadowForm）](/examples/pro#草稿表单useshadowform) |
-| <a href="/play/query-list" target="_self">QueryList</a> | 折叠条件、服务端分页、刷新、列显隐 | [Pro Hooks · useQueryTable](/examples/pro#usequerytable服务端分页排序与行内编辑) |
-| <a href="/play/query-list-add" target="_self">QueryList 添加与编辑</a> | 在查询结果上打开行草稿和添加条目 | [Pro Hooks · useQueryTable](/examples/pro#usequerytable服务端分页排序与行内编辑) |
+| <a href="/play/query-list" target="_self">useQueryTable 查询列表</a> | 折叠条件、服务端分页、刷新、列显隐 | [Pro Hooks · useQueryTable](/examples/pro#usequerytable服务端分页排序与行内编辑) |
+| <a href="/play/query-list-add" target="_self">useQueryTable 添加与编辑</a> | 在查询结果上打开行草稿和添加条目 | [Pro Hooks · useQueryTable](/examples/pro#usequerytable服务端分页排序与行内编辑) |
 | <a href="/play/pro-enum" target="_self">枚举展示</a> | 静态 / 异步枚举，文字、徽标、标签三种阅读态 | [Pro Hooks · 枚举与 enumItems](/examples/pro#枚举静态懒加载与-enumitems) |
 | <a href="/play/suggestion" target="_self">远程联想</a> | 防抖联想、作废过期结果、记住已选项 | [Pro Hooks · useSuggestion](/examples/pro#usesuggestion远程联想) |
 | <a href="/play/cascader-plus" target="_self">懒加载级联</a> | 全量与懒加载、`ensure` 回显路径标签 | [Pro Hooks · useLazyCascader](/examples/pro#uselazycascader懒加载级联) |

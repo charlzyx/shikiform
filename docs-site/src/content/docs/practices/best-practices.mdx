@@ -396,7 +396,7 @@ const badCheck = async (value: string) => {
 
 ```ts
 // 推荐：声明 EnumSource 并在 loader 中透传 signal
-const Cities = new EnumSource<string>(async (province, { signal }) => {
+const Cities = EnumSource.from<string>(async (province, { signal }) => {
   const res = await fetch(`/api/cities?p=${province}`, { signal })
   return res.json()
 })
@@ -418,12 +418,13 @@ useEffect(() => {
 
 当动态数组达到数百至数千行时：
 - 使用 `<ArrayField name="rows" rowKey="id" virtualScroll={{ height: 420 }}>` 仅挂载视口可见行；虚拟窗口内重排行时会用稳定行 key 对账并保留行组件状态。
-- 行内校验规则与联动写在 `fields['rows.*.xxx']` 和 `reaction.each(draft.rows, ...)` 中，这样屏幕外未挂载的行依然会被校验和计算，且修改某一行单元格只重跑该行实例（引擎按行身份建索引，数千行移动/插入保持流畅）。
+- 行内校验规则与联动写在 `fields['rows.*.xxx']` 和 `reaction.each(draft.rows, ...)` 中，这样屏幕外未挂载的行依然会被校验和计算，且修改某一行单元格只重跑该行实例（引擎按行身份建索引，O(n) 迁移订阅，5,000 行移动/插入约 28ms）。
 - 不要在父级 `useWatch((d) => d.rows.$value)` 后再手工 `.map`，避免每次输入整表重渲染。
 
 ### 5. SSR 注意事项
 
 - `reaction` 必须保持纯同步，不要访问 `window`、`document` 或发起网络请求；浏览器端副作用放在 `watch` 或 `useEffect`。
+- React 18+ 通过 `useId()` 自动生成水合安全的字段 ID；在 React 16.8 / 17 的 SSR 应用中，请显式传入 `<Form id="...">` 以避免水合不匹配。
 - `useForm` 拥有的 `EnumSource` 在组件提交挂载后才启动加载，因此在服务端渲染时不会泄漏悬空请求。
 - 不要在渲染期间调用 `onChange` / `form.setValue`，避免 SSR 阶段产生意外写入。
 - 更多细节见 [测试、性能与 SSR](/practices/testing-performance)。

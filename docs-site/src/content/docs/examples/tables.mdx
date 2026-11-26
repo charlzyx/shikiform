@@ -9,8 +9,7 @@ description: 演示带条件联动的查询列表、轻量级原生查询实现�
 
 ```tsx preview play=query
 import { useState } from 'react';
-import { Field, Form, defineEffects, useField } from '@shikiform/react';
-import { useQueryTable } from '@shikiform/react';
+import { Field, Form, defineEffects, useField, useQueryTable } from '@shikiform/react';
 
 type Log = { id: string; keyword: string; provider: string; model: string; status: string };
 type Query = { keyword: string; provider: string; model: string; user: string };
@@ -158,8 +157,7 @@ export default function App() {
 **场景**：直接将同一个 `useQueryTable` Hook 接入最精简的原生 HTML 表单和表格。
 
 ```tsx preview play=query-native
-import { Field, Form } from '@shikiform/react';
-import { useQueryTable } from '@shikiform/react';
+import { Field, Form, useQueryTable } from '@shikiform/react';
 
 type Log = { id: string; keyword: string };
 const LOGS: Log[] = Array.from({ length: 12 }, (_, i) => ({ id: String(i + 1), keyword: `${i % 2 ? 'beta' : 'alpha'}-${i + 1}` }));

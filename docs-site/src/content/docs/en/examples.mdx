@@ -1,42 +1,71 @@
 ---
 title: "Examples"
-description: "Browse runnable forms and open the source for each example."
+description: "Browse runnable forms, query tables, arrays, trees, business forms, and Pro hooks examples."
 ---
-Each topic includes editable source and a live preview. Open the [playground directory](/en/play) for full-page demos. Requests in these examples use local data.
 
-| Topic | Try |
+Start with five common form patterns (each opens an editable live preview):
+
+| Scenario | Highlights |
 |---|---|
-| [Forms and validation](/en/examples/forms) | Login, cross-field checks, async rules, visibility and unmounted fields. |
-| [Effects and visibility](/en/examples/linkage) | Totals, conditional fields, SKU choices and per-field renders. |
-| [Arrays and trees](/en/examples/arrays) | Dynamic rows, nested objects, tree moves and virtual lists. |
-| [Tables and queries](/en/examples/tables) | Filtering, server pagination and row drafts. |
-| [Business forms](/en/examples/business) | SKU prices, grouped supplies and order details. |
-| [Pro hooks in practice](/en/examples/pro) | Table settings, modal editors, suggestions and lazy options. |
+| [Login validation](/en/examples/forms#login-validation) | Combining `required`, `format`, and `minLength` rules |
+| [Cross-field and asynchronous validation](/en/examples/forms#cross-field-and-asynchronous-validation) | Comparing sibling fields via `ctx.record` and aborting stale async requests with `AbortSignal` |
+| [Calculated values](/en/examples/linkage#calculated-values) | Deriving computed field values with `reaction` |
+| [Conditional visibility](/en/examples/linkage#conditional-visibility) | `$visible = false` skips validation; add `$omit` to exclude from submit |
+| [Calculate each row](/en/examples/arrays#calculate-each-row) | Per-row subtotals with `reaction.each` |
 
-## Full-page demos
+Full-page demos are grouped by topic below (also listed in the [playground directory](/en/play); all async requests use local mock data).
 
-| Demo | What to try |
-|---|---|
-| [Schema validation](/en/play/schema) | Submit a registration form with field and whole-form rules. |
-| [Visibility](/en/play/display) | Compare visible, disabled, read-only and omitted fields. |
-| [Tabs](/en/play/tabs) | Validate a field after switching away from its tab. |
-| [SKU picker](/en/play/sku-picker) | Choose dimensions in any order and inspect available stock. |
-| [Generate SKU rows](/en/play/sku) | Change the combinations and keep previously edited prices. |
-| [Large form](/en/play/large) | Compare render counts before and after a cell edit. |
-| [Nested fields](/en/play/nested) | Edit an address and inspect a read-only shipped order. |
-| [Arrays and trees](/en/play/headless) | Drag rows and move tree nodes across parents. |
-| [Virtual rows](/en/play/virtual) | Validate a required field outside the viewport. |
-| [Query table](/en/play/query) | Collapse filters, run a search and retain selection across pages. |
-| [Native query table](/en/play/query-native) | Bind the query hook to native controls. |
-| [Row editor](/en/play/row-edit) | Cancel or confirm changes to a single record. |
-| [SKU price matrix](/en/play/sku-editor) | Edit a price and change the visible dimensions. |
-| [Suppliers and products](/en/play/merged) | Edit nested data in a table with merged cells. |
-| [Order details](/en/play/orders) | Expand an order and recalculate line amounts. |
-| [Array table](/en/play/array-table) | Reorder rows, resize columns and confirm deletion. |
-| [Array table with a draft editor](/en/play/array-table-shadow) | Add or edit a record in a modal or drawer. |
-| [Draft containers](/en/play/shadow-form) | Compare modal, drawer, popover and inline editors. |
-| [Query list](/en/play/query-list) | Refresh server-paginated results and reveal hidden columns. |
-| [Add and edit query results](/en/play/query-list-add) | Open a draft from a result row. |
-| [Enum display](/en/play/pro-enum) | Compare static and async labels, badges and tags. |
-| [Remote suggestions](/en/play/suggestion) | Type to replace a pending suggestion request. |
-| [Lazy cascader](/en/play/cascader-plus) | Expand branches and resolve the labels of saved codes. |
+## Forms
+
+| Full-page demo | Scenario | Code & walkthrough |
+|---|---|---|
+| [Schema validation](/en/play/schema) | Registration form with whole-form Zod validation, hidden vs. omitted fields | [Forms · Registration with a schema](/en/examples/forms#registration-with-a-schema) |
+| [Visibility](/en/play/display) | Compare `visible` (shown/hidden), `omit`, and `readOnly` across render, validation, and submit | [Forms · Visibility and submission](/en/examples/forms#visibility-and-submission) |
+| [Tabs](/en/play/tabs) | Rules declared in `fields` validate unmounted tabs on submit | [Forms · Tabs and unmounted fields](/en/examples/forms#tabs-and-unmounted-fields) |
+
+## Effects
+
+| Full-page demo | Scenario | Code & walkthrough |
+|---|---|---|
+| [SKU picker](/en/play/sku-picker) | Pick dimensions in any order with conflict cleanup, out-of-stock disabling, price range, and stock cap | [Effects · SKU picker](/en/examples/linkage#sku-picker) |
+| [Generate SKU rows](/en/play/sku) | Generate array rows from checkboxes and compute each row with `reaction.each` | [Effects · Generate rows from selections](/en/examples/linkage#generate-rows-from-selections) |
+| [Large form](/en/play/large) | Per-cell updates and render counts across thousands of fields | [Effects · Thousands of fields](/en/examples/linkage#thousands-of-fields) |
+
+## Arrays and trees
+
+| Full-page demo | Scenario | Code & walkthrough |
+|---|---|---|
+| [Nested fields](/en/play/nested) | Nested objects, inherited `readOnly`, drawer editing, and read-only shipped rows | [Arrays & trees · Nested objects and read-only rows](/en/examples/arrays#nested-objects-and-read-only-rows) |
+| [Arrays and trees](/en/play/headless) | Headless drag-and-drop sorting and cross-parent tree moves | [Arrays & trees · Move nodes across parents](/en/examples/arrays#move-nodes-across-parents) |
+| [Virtual rows](/en/play/virtual) | Mount only visible rows while offscreen required rules still validate | [Arrays & trees · Virtual rows](/en/examples/arrays#virtual-rows) |
+
+## Tables and queries
+
+| Full-page demo | Scenario | Code & walkthrough |
+|---|---|---|
+| [Query table](/en/play/query) | Dependent filters, collapsible filter preservation, page reset, and column filters | [Tables & queries · Query table](/en/examples/tables#query-table) |
+| [Native query table](/en/play/query-native) | Bind the same `useQueryTable` hook to plain native HTML controls | [Tables & queries · Native query table](/en/examples/tables#native-query-table) |
+| [Row editor](/en/play/row-edit) | Edit a single record in a panel: cancel discards, confirm writes back by ID | [Tables & queries · Edit a row in a panel](/en/examples/tables#edit-a-row-in-a-panel) |
+
+## Business forms
+
+| Full-page demo | Scenario | Code & walkthrough |
+|---|---|---|
+| [SKU price matrix](/en/play/sku-editor) | Preserve edited prices by stable `skuId` and merge adjacent color cells | [Business forms · SKU price matrix](/en/examples/business#sku-price-matrix) |
+| [Suppliers and products](/en/play/merged) | Nested data with merged cells and cross-level validation via `ctx.parent` | [Business forms · Suppliers and products](/en/examples/business#suppliers-and-products) |
+| [Order details](/en/play/orders) | Expandable order line items, live totals, and read-only shipped orders | [Business forms · Orders and line items](/en/examples/business#orders-and-line-items) |
+
+## Pro hooks and advanced patterns
+
+| Full-page demo | Scenario | Code & walkthrough |
+|---|---|---|
+| [Array table](/en/play/array-table) | Inline editing, expandable sub-tables, pagination, selection, and async delete | [Pro hooks · Array tables](/en/examples/pro#array-tables) |
+| [Array table with a draft editor](/en/play/array-table-shadow) | `useArrayTable` + `useShadowForm` for adding and editing rows on confirm | [Pro hooks · Add and edit with a draft](/en/examples/pro#add-and-edit-with-a-draft) |
+| [Draft containers](/en/play/shadow-form) | Isolated draft form that writes back on confirm and discards on cancel | [Pro hooks · Draft containers](/en/examples/pro#draft-containers) |
+| [Query list](/en/play/query-list) | Collapsible filters, server pagination, refresh, and column settings | [Pro hooks · Server pagination and inline editing](/en/examples/pro#server-pagination-and-inline-editing) |
+| [Add and edit query results](/en/play/query-list-add) | Open a draft editor from a query table row or add a new entry | [Pro hooks · Server pagination and inline editing](/en/examples/pro#server-pagination-and-inline-editing) |
+| [Enum display](/en/play/pro-enum) | Static and lazy enums rendered as text, badges, and tags | [Pro hooks · Enum labels and colors](/en/examples/pro#enum-labels-and-colors) |
+| [Remote suggestions](/en/play/suggestion) | Debounced suggestions, stale-request cancellation, and remembered labels | [Pro hooks · Remote suggestions](/en/examples/pro#remote-suggestions) |
+| [Lazy cascader](/en/play/cascader-plus) | Lazy branch loading and resolving ancestor labels for saved codes | [Pro hooks · Lazy cascaders](/en/examples/pro#lazy-cascaders) |
+
+Related guides: [Effects and derivations](/en/guide/linkage), [Paths and structures](/en/guide/structures), [Query tables and Pro hooks](/en/guide/pro), and [Validation](/en/guide/validation).

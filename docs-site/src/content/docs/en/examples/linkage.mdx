@@ -24,7 +24,7 @@ function NumberInput({ min }: { min?: number }) {
   const f = useField<number | null>();
   return (
     <p>
-      <label htmlFor={f.id}>{f.title}：</label>
+      <label htmlFor={f.id}>{f.title}: </label>
       <input
         id={f.id}
         type="number"
@@ -59,7 +59,7 @@ export default function App() {
 
 ## Conditional visibility
 
-Show the fields for the selected account type. Set `$omit` separately when the hidden data should stay out of the payload.
+Toggle the invoice checkbox to show and require the tax ID field. Setting `$omit = !need` alongside `$visible = need` keeps hidden data out of the submit payload.
 
 ```tsx preview
 import { useState } from 'react';
@@ -102,7 +102,7 @@ export default function App() {
       <F.Field name="taxId" title="Tax ID">
         {(f) => (
           <p>
-            <label htmlFor={f.id}>{f.title}：</label>
+            <label htmlFor={f.id}>{f.title}: </label>
             <input
               id={f.id}
               value={f.value ?? ''}
@@ -193,7 +193,7 @@ function RadioRow() {
   const f = useField<string>();
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-      <span style={{ width: 48 }}>{f.title}：</span>
+      <span style={{ width: 48 }}>{f.title}: </span>
       <RadioGroup value={f.value || null} onValueChange={(v) => f.onChange(v ?? '')}>
         {f.options.map((opt) => (
           <label
@@ -215,7 +215,7 @@ function ReadOnlyText() {
   const f = useField<string>();
   return (
     <p style={{ margin: '4px 0' }}>
-      <span>{f.title}：</span>
+      <span>{f.title}: </span>
       <strong>{f.value || '—'}</strong>
     </p>
   );
@@ -239,7 +239,7 @@ export default function App() {
       <Field<Values, 'qty'> name="qty" title="Quantity">
         {(f) => (
           <p style={{ margin: '8px 0 0' }}>
-            <label htmlFor={f.id}>{f.title}：</label>
+            <label htmlFor={f.id}>{f.title}: </label>
             <input
               id={f.id}
               type="number"
@@ -325,7 +325,7 @@ export default function App() {
       <Field<Values, 'picked'> name="picked" title="Combination" enum={PICKS}>
         {(f) => (
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-            <span>{f.title}：</span>
+            <span>{f.title}: </span>
             <CheckboxGroup value={f.value ?? []} onValueChange={(next) => f.onChange(next)}>
               {f.options.map((opt) => {
                 const val = String(opt.value);

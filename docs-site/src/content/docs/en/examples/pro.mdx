@@ -3,14 +3,15 @@ title: "Pro hooks in practice"
 description: "Use headless hooks for row actions, drafts, remote options and query results."
 ---
 
+This page demonstrates the headless Pro hooks built into `@shikiform/react`. For complete API details, see [Pro hooks](/en/reference/pro-hooks) and [query hooks](/en/reference/query-hooks).
+
 ## Array tables
 
 Page, select, expand and move rows. Try changing columns or deleting a row with an asynchronous confirmation.
 
 ```tsx preview play=array-table
 import { Fragment, useState } from 'react';
-import { enUS, Field, Form, ObjectField, useForm } from '@shikiform/react';
-import { useArrayTable } from '@shikiform/react';
+import { enUS, Field, Form, ObjectField, useArrayTable, useForm } from '@shikiform/react';
 
 type Item = { a1: string; a2: string };
 type Row = Item & { id: string; subitems?: Item[] };
@@ -108,7 +109,7 @@ function TableDemo() {
                   <tr>
                     <td colSpan={6} style={{ paddingLeft: 32 }}>
                       {record.subitems.map((sub, i) => (
-                        <div key={i}><small>Child #{i + 1}：{sub.a1} / {sub.a2}</small></div>
+                        <div key={i}><small>Child #{i + 1}: {sub.a1} / {sub.a2}</small></div>
                       ))}
                     </td>
                   </tr>
@@ -142,8 +143,7 @@ export default function App() {
 Open a separate form for a new entry or an existing row, then confirm to apply it. Cancel leaves the original record intact.
 
 ```tsx preview play=array-table-shadow
-import { enUS, Field, Form, useField, useForm, useFormContext } from '@shikiform/react';
-import { useArrayTable, useShadowForm } from '@shikiform/react';
+import { enUS, Field, Form, useArrayTable, useField, useForm, useFormContext, useShadowForm } from '@shikiform/react';
 
 type Row = { id: string; domain: string; desc: string };
 
@@ -151,7 +151,7 @@ function TextInput() {
   const f = useField<string>();
   return (
     <p>
-      <label htmlFor={f.id}>{f.title}：</label>
+      <label htmlFor={f.id}>{f.title}: </label>
       <input id={f.id} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} onBlur={f.onBlur} />
       {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
     </p>
@@ -259,8 +259,7 @@ Render a temporary form inside a modal, a drawer, a popover or inline. The draft
 
 ```tsx preview play=shadow-form
 import { useState } from 'react';
-import { enUS, Field, Form, Watch, useField, useForm, type Draft } from '@shikiform/react';
-import { useShadowForm } from '@shikiform/react';
+import { enUS, Field, Form, Watch, useField, useForm, useShadowForm, type Draft } from '@shikiform/react';
 
 type Info = { domain: string; desc: string };
 
@@ -268,7 +267,7 @@ function TextInput() {
   const f = useField<string>();
   return (
     <p>
-      <label htmlFor={f.id}>{f.title}：</label>
+      <label htmlFor={f.id}>{f.title}: </label>
       <input id={f.id} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} onBlur={f.onBlur} />
       {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
     </p>
@@ -286,7 +285,7 @@ export default function App() {
   return (
     <Form form={form}>
       <Watch select={(d: Draft<{ info: Info }>) => d.info.$value}>
-        {(info) => <p>Host value:{info.domain} · {info.desc}</p>}
+        {(info) => <p>Host value: {info.domain} · {info.desc}</p>}
       </Watch>
       <div style={{ display: 'flex', gap: 8 }}>
         <button type="button" onClick={() => void shadow.open()}>Open draft</button>
@@ -313,8 +312,7 @@ export default function App() {
 Map filters and sorting into the request. Bind the returned rows to an array field to edit the current page.
 
 ```tsx preview play=query-list
-import { Field, Form } from '@shikiform/react';
-import { enumItems, useQueryTable } from '@shikiform/react';
+import { Field, Form, enumItems, useQueryTable } from '@shikiform/react';
 
 type Row = { id: number; status: number; domain: string; classify: number[] };
 type Query = { domain?: string; status?: number };
@@ -433,8 +431,7 @@ export default function App() {
 Try static options and a lazily loaded enum. `enumItems` resolves selected values into labels and optional badge colors.
 
 ```tsx preview play=pro-enum
-import { enUS, EnumSource, Field, Form, ObjectField, useField, useForm } from '@shikiform/react';
-import { enumItems } from '@shikiform/react';
+import { enUS, EnumSource, Field, Form, ObjectField, enumItems, useField, useForm } from '@shikiform/react';
 
 const LIST = [
   { label: "Alpha", value: 'a', color: 'blue' },
@@ -456,7 +453,7 @@ function SingleSelect() {
   const items = enumItems(f.value, f.options);
   return (
     <p>
-      <label htmlFor={f.id}>{f.title}：</label>
+      <label htmlFor={f.id}>{f.title}: </label>
       {f.readOnly ? (
         items.map((item) => <span key={String(item.value)} style={{ color: item.color || undefined }}>● {item.label}</span>)
       ) : (
@@ -473,7 +470,7 @@ function MultiChecks() {
   const items = enumItems(f.value, f.options, { colorful: true });
   return (
     <p>
-      <span>{f.title}：</span>
+      <span>{f.title}: </span>
       {f.loading ? (
         <small>Loading…</small>
       ) : f.readOnly ? (
@@ -533,8 +530,7 @@ export default function App() {
 Type a keyword to start a debounced request. Later searches supersede earlier results. Remember selected options to preserve their labels.
 
 ```tsx preview play=suggestion
-import { enUS, Field, Form, Watch, useField, useForm, type Draft } from '@shikiform/react';
-import { useSuggestion } from '@shikiform/react';
+import { enUS, Field, Form, Watch, useField, useForm, useSuggestion, type Draft } from '@shikiform/react';
 
 const WORDS = ["Phone case", "Phone stand", "Watch", "Backpack", "Mouse", "Mouse pad", "Cup", "Headphones", "Coffee maker", "Coffee beans"];
 
@@ -552,7 +548,7 @@ function SuggestInput() {
   const sug = useSuggestion({ fetch: suggest, debounce: 250 });
   return (
     <div>
-      <label htmlFor={f.id}>{f.title}：</label>
+      <label htmlFor={f.id}>{f.title}: </label>
       <input
         id={f.id}
         placeholder="Type “phone” or “mouse”"
@@ -603,8 +599,7 @@ export default function App() {
 Expand a branch to load its children. For existing selections, load the ancestor path to display the corresponding labels.
 
 ```tsx preview play=cascader-plus
-import { enUS, Field, Form, Watch, useField, useForm, type Draft } from '@shikiform/react';
-import { useLazyCascader, type CascaderOption } from '@shikiform/react';
+import { enUS, Field, Form, Watch, useField, useForm, useLazyCascader, type CascaderOption, type Draft } from '@shikiform/react';
 
 type Area = { code: string; name: string; children?: Area[] };
 const AREA: Area[] = [
@@ -640,7 +635,7 @@ function AreaCascader() {
   return (
     <div>
       <p>
-        <span>{f.title}：</span>
+        <span>{f.title}: </span>
         {cascader.loading ? <small>Loading…</small> : <strong>{cascader.labelsOf(path).join(' / ') || "No selection"}</strong>}
       </p>
       <div style={{ display: 'flex', gap: 8 }}>

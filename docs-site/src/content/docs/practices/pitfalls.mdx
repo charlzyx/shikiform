@@ -76,7 +76,7 @@ d.items.$value.push(row)
 form.setValue('user.name', 'Ada')
 ```
 
-开发环境的视图和底层对象不是同一个引用（`getValue('user') === toRaw(getValue('user'))` 为 false），生产环境则是。`indexOf` / `includes` 会先剥掉视图再比较，所以 `rows.indexOf(rawRow)` 仍然找得到。`deepEqual` 也把视图和原对象看成相等。不要把 `binding().value` 交给会原地 `push` / `sort` 的表格库；错误信息里有字段路径，改用 `useArrayField().push` 或 `form.setValue`。
+开发环境的视图和底层对象不是同一个引用（`getValue('user') === toRaw(getValue('user'))` 为 false），生产环境则是。`indexOf` / `includes` 会先剥掉视图再比较，所以 `rows.indexOf(rawRow)` 仍然找得到。`deepEqual` 也把视图和原对象看成相等。不要把 `useField().value`（或 `form.binding(path).value`）交给会原地 `push` / `sort` 的表格库；错误信息里有字段路径，改用 `useArrayField().push` 或 `form.setValue`。
 
 `structuredClone(form.values)`、`postMessage` 和 IndexedDB 在开发环境会抛 `DataCloneError`（视图是 Proxy），生产环境不会。纯数据副本是 `snapshot(form.values)`（含 `omit` 字段，来自 `@shikiform/core`）。只要提交结果时用 `getSubmitValues()`。`toRaw(value)` 是底层对象本身，改它不会通知订阅者。
 
@@ -162,7 +162,7 @@ d.taxId.$visible = false   // 两个一起：不渲染、不校验、不提交
 d.taxId.$omit = true
 ```
 
-没有「藏起来但继续校验」的开关。还要校验的字段保持挂载（`FormTab` 的非当前页就是这样）。
+没有「藏起来但继续校验」的开关。仍需校验的字段应保持挂载（例如多标签页表单中仅用 CSS 隐藏非激活页签，或把规则声明在 `useForm({ fields })` 中，见 [标签页与未挂载字段](/examples/forms#标签页与未挂载字段)）。
 
 ## 把 `useFieldDecorator().control` 当成数据绑定传给控件
 

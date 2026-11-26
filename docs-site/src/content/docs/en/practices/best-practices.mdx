@@ -392,7 +392,7 @@ Model async dropdown options with `EnumSource` instead of manual `useEffect` + `
 
 ```ts
 // Recommended: EnumSource with AbortSignal
-const Cities = new EnumSource<string>(async (province, { signal }) => {
+const Cities = EnumSource.from<string>(async (province, { signal }) => {
   const res = await fetch(`/api/cities?p=${province}`, { signal })
   return res.json()
 })
@@ -412,11 +412,13 @@ useEffect(() => {
 ### 4. Large lists and virtual scrolling
 
 - Enable `<ArrayField name="rows" rowKey="id" virtualScroll={{ height: 420 }}>` for long lists so only visible rows mount; stable row keys preserve component state when reordering within the window.
-- Put validation rules in `fields['rows.*.xxx']` and row derivations in `reaction.each(draft.rows, ...)` so offscreen rows still validate and compute, while single-cell edits re-run only that row's instance.
+- Put validation rules in `fields['rows.*.xxx']` and row derivations in `reaction.each(draft.rows, ...)` so offscreen rows still validate and compute, while single-cell edits re-run only that row's instance (the engine indexes subscriptions by row identity and migrates them in O(n) time—~28 ms for 5,000 rows).
+- Do not `useWatch((d) => d.rows.$value)` in the parent and `.map` manually, which re-renders the entire table on every keystroke.
 
 ### 5. SSR considerations
 
 - Keep `reaction` strictly synchronous and free of browser globals (`window`, `document`); move browser side effects to `watch` or `useEffect`.
+- React 18+ auto-generates hydration-safe field IDs via `useId()`. In React 16.8 / 17 SSR apps, pass an explicit `<Form id="...">` to avoid hydration mismatches.
 - `useForm`-owned `EnumSource` loads wait until commit, avoiding leaked requests during SSR.
 - Never call `onChange` / `form.setValue` during render.
 - See [Testing, performance and SSR](/en/practices/testing-performance) for more details.

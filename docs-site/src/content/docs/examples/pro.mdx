@@ -3,7 +3,7 @@ title: Pro Hooks 与高阶场景
 description: useArrayTable、草稿表单（useShadowForm）、useQueryTable、枚举阅读态、远程联想与懒加载级联示例。
 ---
 
-本页展示 `@shikiform/react` 中无 UI Pro Hooks 与 `@shikiform/react` 结合的在线示例，完整 API 说明见 [Pro Hooks](/reference/pro-hooks) 与 [查询 Hooks](/reference/query-hooks)。
+本页展示 `@shikiform/react` 内置的无 UI Pro Hooks 在线示例，完整 API 说明见 [Pro Hooks](/reference/pro-hooks) 与 [查询 Hooks](/reference/query-hooks)。
 
 ## useArrayTable：分页、勾选、排序与展开
 
@@ -11,8 +11,7 @@ description: useArrayTable、草稿表单（useShadowForm）、useQueryTable、�
 
 ```tsx preview play=array-table
 import { Fragment, useState } from 'react';
-import { Field, Form, ObjectField, useForm } from '@shikiform/react';
-import { useArrayTable } from '@shikiform/react';
+import { Field, Form, ObjectField, useArrayTable, useForm } from '@shikiform/react';
 
 type Item = { a1: string; a2: string };
 type Row = Item & { id: string; subitems?: Item[] };
@@ -148,8 +147,7 @@ export default function App() {
 **场景**：表格本身设为只读，点击每行的「编辑」或顶部「添加」时打开草稿表单，确认校验通过后才写回列表，取消则保持原数据不变。
 
 ```tsx preview play=array-table-shadow
-import { Field, Form, useField, useForm, useFormContext } from '@shikiform/react';
-import { useArrayTable, useShadowForm } from '@shikiform/react';
+import { Field, Form, useArrayTable, useField, useForm, useFormContext, useShadowForm } from '@shikiform/react';
 
 type Row = { id: string; domain: string; desc: string };
 
@@ -259,7 +257,7 @@ export default function App() {
 ```
 
 - `useShadowForm({ name: 'list', add: template })` 会继承宿主 `list.*` 的字段配置（如 `title`、`required`），确认通过后自动向数组追加新行。
-- 传入 `rowKey: 'id'` 后，编辑草稿在确认时会按 `id` 定位并写回原行，即使编辑期间列表顺序变化也能准确写回。
+- 编辑草稿在 `open(record, record.id)` 时传入行 `id` 作为上下文，确认回调 `onOk` 按 `id` 定位并写回原行，即使编辑期间列表顺序变化也能准确更新。
 - 由于草稿内部是独立的表单引擎，其中的 `<Field>` 路径从草稿根路径解析，不会污染宿主表单的 `dirty` 与错误状态。
 
 ## 草稿表单（useShadowForm）
@@ -268,8 +266,7 @@ export default function App() {
 
 ```tsx preview play=shadow-form
 import { useState } from 'react';
-import { Field, Form, Watch, useField, useForm, type Draft } from '@shikiform/react';
-import { useShadowForm } from '@shikiform/react';
+import { Field, Form, Watch, useField, useForm, useShadowForm, type Draft } from '@shikiform/react';
 
 type Info = { domain: string; desc: string };
 
@@ -325,8 +322,7 @@ export default function App() {
 **场景**：域名管理列表页。支持服务端分页与按 ID 排序、状态徽标展示，以及在表格内直接编辑域名字段。
 
 ```tsx preview play=query-list
-import { Field, Form } from '@shikiform/react';
-import { enumItems, useQueryTable } from '@shikiform/react';
+import { Field, Form, enumItems, useQueryTable } from '@shikiform/react';
 
 type Row = { id: number; status: number; domain: string; classify: number[] };
 type Query = { domain?: string; status?: number };
@@ -448,8 +444,7 @@ export default function App() {
 **场景**：演示静态枚举与远程懒加载枚举（多个字段共享同一次接口请求）的声明方式，以及使用 `enumItems` 在阅读态下翻译为标签与颜色。
 
 ```tsx preview play=pro-enum
-import { EnumSource, Field, Form, ObjectField, useField, useForm } from '@shikiform/react';
-import { enumItems } from '@shikiform/react';
+import { EnumSource, Field, Form, ObjectField, enumItems, useField, useForm } from '@shikiform/react';
 
 const LIST = [
   { label: '啊', value: 'a', color: 'blue' },
@@ -550,8 +545,7 @@ export default function App() {
 **场景**：输入关键字实时联想商品名称，内置防抖、中止过期请求，并记住已选项的显示文案。
 
 ```tsx preview play=suggestion
-import { Field, Form, Watch, useField, useForm, type Draft } from '@shikiform/react';
-import { useSuggestion } from '@shikiform/react';
+import { Field, Form, Watch, useField, useForm, useSuggestion, type Draft } from '@shikiform/react';
 
 const WORDS = ['手机壳', '手机支架', '手表', '书包', '鼠标', '鼠标垫', '水杯', '耳机', '咖啡机', '咖啡豆'];
 
@@ -622,8 +616,7 @@ export default function App() {
 **场景**：省 / 市 / 区三级地址按需逐级加载，并在打开已有编码数据时自动逐级反显完整路径标签。
 
 ```tsx preview play=cascader-plus
-import { Field, Form, Watch, useField, useForm, type Draft } from '@shikiform/react';
-import { useLazyCascader, type CascaderOption } from '@shikiform/react';
+import { Field, Form, Watch, useField, useForm, useLazyCascader, type CascaderOption, type Draft } from '@shikiform/react';
 
 type Area = { code: string; name: string; children?: Area[] };
 const AREA: Area[] = [

@@ -114,7 +114,7 @@ function TextField() {
   const f = useField<string>();
   return (
     <p>
-      <label htmlFor={f.id}>{f.title}：</label>
+      <label htmlFor={f.id}>{f.title}: </label>
       {f.readOnly ? (
         <span>{f.value || '-'}</span>
       ) : (
@@ -327,7 +327,7 @@ export default function App() {
         )}
       </ArrayField>
       <button type="button" onClick={validate}>Validate all 2,000 rows</button>
-      <p>Errors:{errors}</p>
+      <p>Errors: {errors}</p>
     </Form>
   );
 }

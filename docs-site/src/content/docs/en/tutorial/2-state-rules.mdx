@@ -9,7 +9,16 @@ tableOfContents: false
 
 ## 2.1 Inherit field state
 
-A handle's `$value` reads data and `$visible` controls rendering. A hidden, disabled or read-only field skips validation. Read-only wins if combined with disabled. Omission independently removes a field or subtree from the payload.
+A handle's `$` properties address field state (`$value`, `$visible`, `$required`), while bare property names navigate to child fields:
+
+| Flag | UI | Validation | Submit |
+|---|---|---|---|
+| `visible: false` | Not rendered | Skipped | Included |
+| `disabled: true` | Disabled | Skipped | Included |
+| `readOnly: true` | Preview (wins over `disabled`) | Skipped | Included |
+| `omit: true` | Unchanged | Unchanged | Excluded |
+
+All four booleans inherit along the field path: an explicit `true` or `false` overrides `visible` / `disabled` / `readOnly` for that subtree, whereas any ancestor `omit: true` excludes the whole subtree from submit. Validation runs only when `visible && !disabled && !readOnly`.
 
 **Try it.** In the reaction, set `d.email.$visible = d.contact.$value`. Turn contact off. To remove the hidden email from the JSON as well, set `d.email.$omit = !d.contact.$value`.
 

@@ -5,40 +5,57 @@ description: "Map older display settings, Formily reactions and React Hook Form 
 
 ## Migrate display and pattern settings
 
+`display`, `pattern`, `readPretty`, `virtual`, `$hidden`, `$display`, and `$pattern` have been removed with no compatibility aliases.
+
 | Previous setting | Current setting |
 |---|---|
-| `display: 'visible'` | Default visibility |
-| `display: 'hidden'` | `visible: false` skips rendering and validation |
-| `display: 'none'` | Combine `visible: false` and `omit: true` to exclude data too |
-| `display: 'virtual'` | `omit: true` keeps rendering and validation |
-| `pattern: 'disabled'` | `disabled: true` |
-| `pattern: 'readOnly'` or `'readPretty'` | `readOnly: true` |
+| `display: 'visible'` | Default. `visible` defaults to `true` |
+| `display: 'hidden'` / `$hidden = true` | `visible: false` skips rendering and validation; the value still submits |
+| `display: 'none'` | Combine `visible: false` and `omit: true` to exclude data from submit too |
+| `display: 'virtual'` | `omit: true` keeps rendering and validation, excludes from submit and `dirty` |
+| `pattern: 'disabled'` | `disabled: true` (grays out the control, still submits) |
+| `pattern: 'readOnly'` or `'readPretty'` | `readOnly: true` (renders the preview directly) |
 | `mapProps({ readPretty })` | `mapProps({ preview })` |
+| Computed fields defaulted to `readPretty` | No longer automatically read-only; set `readOnly` for preview and `omit` to exclude from submit |
 
 ## Migrate from Formily or React Hook Form
 
-Use `defineEffects` and `reaction` for Formily reactions, `watch` for a dependent reset and `reaction.each` for per-row effects. Replace RHF's component watch with `useWatch`. Outside effects, use `form.setValue`. Pass a Standard Schema validator to `validate` for whole-form checks.
+| Concept | ShikiForm equivalent |
+|---|---|
+| Formily `reactions` / `x-reactions` | Write `reaction((d) => ...)` in `defineEffects` and assign `$` state directly |
+| Formily `onFieldValueChange` dependent reset | Use `watch(source, effect)` to run a one-time reset when dependencies change |
+| Formily per-row array linkage | Use `reaction.each(draft.items, fn)` (two arguments; a selector function also works) |
+| RHF `watch('email')` | Use `useWatch((d) => d.email.$value)` in components, or read `d.email.$value` in effects |
+| RHF `setValue('city', '')` | Call `form.setValue('city', '')` outside effects, or assign `d.city.$value = ''` inside effects |
+| RHF `resolver` (e.g. Zod) | Pass any Standard Schema validator directly to `useForm({ validate: schema })` |
 
-## Are computed fields read-only?
+## FAQ
 
-They remain editable and submit by default. Set `readOnly` to show the preview and `omit` to exclude them.
+### Are computed fields read-only?
 
-## Do hidden fields submit?
+No. Writing `$value` in a `reaction` marks a field as computed: it remains editable and still submits by default, without marking the form `dirty`. Set `readOnly` to render a preview and `omit: true` to exclude it from submission.
 
-Yes. Hiding a field skips rendering and validation. Use `omit` to exclude a confirmation password or local paging state.
+### Do hidden fields submit?
 
-## Can the engine run without React?
+Yes. `$visible = false` skips rendering and validation (clearing existing errors), while the value still submits and stays in the engine when shown again. Set `$omit = true` to exclude it from submission. `disabled` fields also submit by default (unlike React Hook Form).
 
-Use `createForm` from `@shikiform/core`.
+### How do I exclude helper fields like confirm password?
 
-## How do I check field names?
+Set `omit: true` on the helper field: it renders and validates normally (`$visible` stays `true`), and is automatically omitted from `getSubmitValues()` and `onSubmit`.
 
-Use `typed(form)` and names relative to the current scope. A row receives components typed to its record.
+### Can the engine run without React?
 
-## How do I connect custom controls?
+Yes. Install `@shikiform/core` and call `createForm` directly—effects, validation, path access, and array operations have no React dependency. In React apps, install `@shikiform/react` alone; it already re-exports the core APIs.
 
-Read values with `useField` and label/error props with `useFieldDecorator`. Use `connect` and `mapProps` for reusable adapters.
+### How do I check field names with TypeScript?
 
-## Where are the table and draft hooks?
+Wrap the form with `const F = typed(form)` to use `<F.Field name="..." />` and `F.useWatch(...)` with compile-time path checking. Inside `ArrayField` / `ObjectField`, use relative names via the scoped components (`row.Field`, `obj.Field`). Keep plain `<Field>` for dynamically constructed paths.
 
-Import `useQueryTable` and `useShadowForm` from `@shikiform/react`. See [query tables and draft editors](/en/guide/pro).
+### How do I connect custom controls?
+
+- For reusable input adapters, wrap the control with `connect(Control, mapProps({ ... }))` and pair it with `decorator={[FormItem]}`.
+- For inline or custom components, call `useField()` to bind `value`, `onChange`, and `onBlur`. Note that `useFieldDecorator().control` provides label, accessibility, and error props only—it does **not** include `value` or `onChange`.
+
+### Where are the table and draft hooks?
+
+All headless Pro and query hooks (`useQueryTable`, `useShadowForm`, `useArrayTable`, `useColumnSettings`, `useSuggestion`, `useLazyCascader`) are built directly into `@shikiform/react`—no separate package is needed. Render them with native HTML or any UI library. See [query tables and Pro hooks](/en/guide/pro).

@@ -8,7 +8,7 @@ description: "Test a form through its controls and use scoped subscriptions for 
 Use the engine directly to test calculations, validation and submit values. For a React integration, render the form and drive its controls as a user would.
 
 ```tsx
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { expect, test, vi } from 'vitest'
 import { Form, Submit, typed, useField, useForm } from '@shikiform/react'
 
@@ -46,14 +46,30 @@ test("Submit after validating email", async () => {
   fireEvent.change(email, { target: { value: 'ada@example.com' } })
   fireEvent.blur(email)
   fireEvent.click(screen.getByRole('button', { name: "Submit" }))
-  expect(onSubmit).toHaveBeenCalledWith({ email: 'ada@example.com' })
+  await waitFor(() => {
+    expect(onSubmit).toHaveBeenCalledWith({ email: 'ada@example.com' })
+  })
 })
 ```
 
+<Aside type="tip" title="Blur validation and submission timing">
+Fields validate on `onBlur` and on submit by default. Trigger `fireEvent.blur` or submit before asserting error messages, and await `waitFor` because `form.submit()` resolves asynchronously. Remember that `omit: true` fields are excluded from `onSubmit`, while `$visible = false` fields still submit.
+</Aside>
+
 ## Large lists
 
-Subscribe to the specific state the view needs. Use `reaction.each` for row calculations, preserve stable row keys and use `virtualScroll` when mounting every row is expensive. Declare rules in `fields` so offscreen rows still validate. The [large form example](/en/play/large) exposes render counts.
+Dependency tracking is granular to each field state key: editing one input re-runs only the reactions that read it and re-renders only components subscribed to that field.
+
+- **Avoid subscribing to whole arrays**: reading `d.items.$value` in a `reaction` subscribes to the entire array. Use `reaction.each` for per-row derivations—the engine indexes subscriptions by row identity and migrates them in O(n) time on moves, inserts, and removals (~28 ms for 5,000 rows), so editing row 3 re-runs only row 3.
+- **Do not `useWatch` an entire array and `.map` in the parent**: `<ArrayField>` subscribes only to array structure and row keys while each cell updates through its own `<Field>`. The [large form example](/en/play/large) exposes per-cell render counts.
+- **Virtual scrolling for long lists**: enable `virtualScroll={{ height: 400 }}` on `<ArrayField>` to mount only visible rows. Rules declared in `fields` and `reaction.each` effects still run for offscreen rows.
 
 ## Server rendering
 
-Create one engine per form or request. Keep the initial state deterministic so hydration matches the server output. Start browser-dependent requests in client effects.
+`useForm` runs directly during SSR (every live preview on this site is server-rendered before hydration). Keep SSR forms safe by following five rules:
+
+- **One engine per form or request**: keep initial state deterministic so hydration matches server HTML, and never call `onChange` / `form.setValue` during render.
+- **Pass an explicit `<Form id>` on React 16.8 / 17**: React 18+ auto-generates hydration-safe field IDs via `useId()`. In React 16.8 or 17 SSR apps, pass a deterministic `<Form id="...">` to avoid hydration mismatches.
+- **Keep `reaction` synchronous**: do not read browser globals (`window`, `document`) or start fetches inside `reaction`. Run async work in `watch` and write responses back with `form.batch`. `useForm`-owned `EnumSource` loaders wait until client mount commit, avoiding leaked requests during SSR.
+- **Honor abort signals in async validators**: when superseded (`signal.aborted`), clean up timers and resolve `undefined`; see [cross-field and async validation](/en/examples/forms#cross-field-and-asynchronous-validation).
+- **Keep form values serializable**: store plain JSON data in the engine and convert rich widget objects inside `mapProps({ format, parse })`.

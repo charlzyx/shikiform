@@ -17,7 +17,7 @@ function TextInput({ type = 'text' }: { type?: string }) {
   const f = useField<string>();
   return (
     <p>
-      <label htmlFor={f.id}>{f.title}：</label>
+      <label htmlFor={f.id}>{f.title}: </label>
       <input
         id={f.id}
         type={type}
@@ -88,7 +88,7 @@ function TextInput({ type = 'text' }: { type?: string }) {
   const f = useField<string>();
   return (
     <p>
-      <label htmlFor={f.id}>{f.title}：</label>
+      <label htmlFor={f.id}>{f.title}: </label>
       <input
         id={f.id}
         type={type}
@@ -169,7 +169,7 @@ function TextInput({ type = 'text' }: { type?: string }) {
   const f = useField<string>();
   return (
     <p>
-      <label htmlFor={f.id}>{f.title}：</label>
+      <label htmlFor={f.id}>{f.title}: </label>
       <input
         id={f.id}
         type={type}
@@ -250,7 +250,7 @@ function TextInput() {
   const f = useField<string>();
   return (
     <p>
-      <label htmlFor={f.id}>{f.title}：</label>
+      <label htmlFor={f.id}>{f.title}: </label>
       {f.readOnly ? (
         <span>{f.value || '-'}</span>
       ) : (
@@ -283,7 +283,7 @@ export default function App() {
       <Field<Values, 'mode'> name="mode" title="contact" omit enum={['visible', 'hidden', 'omit', 'readOnly']}>
         {(f) => (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-            <span>{f.title}：</span>
+            <span>{f.title}: </span>
             <RadioGroup value={f.value ?? null} onValueChange={(v) => { if (v) f.onChange(v as Mode); }}>
               {f.options.map((opt) => (
                 <label key={String(opt.value)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
@@ -324,7 +324,7 @@ function TextInput() {
   const f = useField<string>();
   return (
     <p>
-      <label htmlFor={f.id}>{f.title}：</label>
+      <label htmlFor={f.id}>{f.title}: </label>
       <input id={f.id} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} onBlur={f.onBlur} />
       {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
     </p>
