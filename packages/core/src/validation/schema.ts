@@ -1,3 +1,4 @@
+import { normalizePath } from '../shared/path'
 import { formatMessage } from './messages'
 
 /**
@@ -97,4 +98,11 @@ export function groupSchemaIssues(issues: readonly SchemaIssue[]): Map<string, s
     map.set(issue.path, list)
   }
   return map
+}
+
+export function recordToIssues(extra: Partial<Record<string, string>> | void): SchemaIssue[] {
+  if (!extra) return []
+  return Object.entries(extra)
+    .filter((entry): entry is [string, string] => !!entry[1])
+    .map(([path, message]) => ({ path: normalizePath(path), message }))
 }

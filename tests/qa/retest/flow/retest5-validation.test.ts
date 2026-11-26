@@ -96,6 +96,32 @@ describe.each(['development', 'production'])('F8 validation and enum retest in %
     expect(form.errors).toEqual([{ path: 'code', messages: ['missing code'] }])
   })
 
+  it('QA-76 retains only live tree schema messages across moves and scoped validation', async () => {
+    const form = createForm({
+      initialValues: { tree: [
+        { id: 'left', children: [{ id: 'a', code: 'invalid A' }] },
+        { id: 'right', children: [{ id: 'b', code: 'invalid B' }] },
+      ], other: 'valid' },
+      trees: { tree: {} },
+      fields: { 'tree.*.children.*.code': { rules: { schema: { '~standard': {
+        version: 1,
+        vendor: 'qa',
+        validate: (value: unknown) => ({ issues: [{ message: String(value) }] }),
+      } } } } },
+    })
+    const errorA = { path: 'tree.1.children.0.code', messages: ['invalid A'] }
+    const errorB = { path: 'tree.1.children.1.code', messages: ['invalid B'] }
+    await expect(form.validate()).rejects.toHaveLength(2)
+    const engine = engineOf(form)
+    engine.moveTree('tree', [0, 0], [1, 0])
+    await expect(form.validate('other')).resolves.toBe('valid')
+    expect(form.errors).toEqual([errorA, errorB])
+
+    engine.removeTree('tree', [1, 0])
+    await expect(form.validate('other')).resolves.toBe('valid')
+    expect(form.errors).toEqual([{ ...errorB, path: errorA.path }])
+  })
+
   it('QA-68 resolves a moved tree JSX cache over a declaration after a nested rollback', async () => {
     type Node = { id: string; choice: string; children: Node[] }
     const load = vi.fn(async (key: string) => [{ label: key, value: key }])

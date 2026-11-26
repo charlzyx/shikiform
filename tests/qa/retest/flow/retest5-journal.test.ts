@@ -87,7 +87,7 @@ describe.each(['development', 'production'])('F8 journal audit in %s', (mode) =>
     expect(form.getSubmitValues()).toEqual({ qty: 2 })
   })
 
-  it.fails('BUG: preserves the moved schema message when a different field validates', async () => {
+  it('QA-76 preserves the moved schema message when a different field validates', async () => {
     const form = createForm({
       initialValues: { ...initialValues, other: 'valid' },
       fields: {

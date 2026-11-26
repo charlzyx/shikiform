@@ -4,7 +4,7 @@ import { deepEqual } from '../shared/equal'
 import { getAt, normalizePath, parentPath } from '../shared/path'
 import type { FlagName } from '../state/flags'
 import { shownErrors, type FieldModel } from '../state/field-model'
-import type { FieldStore } from '../state/field-store'
+import type { FieldStore, ReindexResult } from '../state/field-store'
 import type { Notifier } from '../state/notifier'
 import { scopeOf, type Pos } from '../shared/tree-ops'
 import type { FieldError, ValidateTrigger } from '../types'
@@ -12,7 +12,7 @@ import type { FormOptions } from '../types-effects'
 import { formatMessage, type FormMessageKey, type MessageArgs, type MessageParams } from './messages'
 import { fieldSchemaIssues, InvalidValidatorResult, optionIncludes, runRules, type ValidateCtx } from './rules'
 import { publishWarnings, runWarningRules } from './warnings'
-import { collectSchemaIssues, groupSchemaIssues, isStandardSchema, schemaIssuePath, type SchemaIssue, type StandardSchemaV1 } from './schema'
+import { collectSchemaIssues, groupSchemaIssues, isStandardSchema, recordToIssues, schemaIssuePath, type SchemaIssue, type StandardSchemaV1 } from './schema'
 import { resetOverlaps, scopeTest, validateScope, type RunResult, type ValidateScope, type ValidationPass } from './scope'
 import { AsyncAttempts } from './async-attempt'
 import { ignoreRejection, isPromise, settleUnlessAborted, valueUnlessAborted } from './settle'
@@ -458,6 +458,12 @@ export class Validator {
     }
   }
 
+  reindexSchema({ dropped, moved }: ReindexResult): void {
+    for (const field of dropped) this.schemaByPath.delete(field.path)
+    for (const { from } of moved) this.schemaByPath.delete(from)
+    for (const { model } of moved) if (model.schemaErrors.length) this.schemaByPath.set(model.path, model.schemaErrors)
+  }
+
   /** Recompute built-in messages only. Custom callbacks run in the managed validation pass, never in this preview. */
   syncRuleMessages(path: string): void {
     const field = this.store.get(path)
@@ -676,13 +682,6 @@ export class Validator {
     for (let cursor: string | null = path; cursor; cursor = parentPath(cursor)) scheduler.markDirty(`${cursor}:${kind}`)
     scheduler.markDirty(`:${kind}`)
   }
-}
-
-function recordToIssues(extra: Partial<Record<string, string>> | void): SchemaIssue[] {
-  if (!extra) return []
-  return Object.entries(extra)
-    .filter((entry): entry is [string, string] => !!entry[1])
-    .map(([path, message]) => ({ path: normalizePath(path), message }))
 }
 
 /** Passes {@link Validator.submitVerdict} may run while validation inputs keep changing. */
