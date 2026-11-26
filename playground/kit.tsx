@@ -9,12 +9,38 @@ import {
   useEffect,
   useMemo,
   useState,
+  type ButtonHTMLAttributes,
   type CSSProperties,
   type ComponentProps,
   type HTMLAttributes,
+  type InputHTMLAttributes,
   type ReactElement,
   type ReactNode,
+  type TextareaHTMLAttributes,
 } from 'react'
+import {
+  Button as UiButton,
+  Checkbox as UiCheckbox,
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  ChevronsUpDownIcon,
+  ChevronUpIcon,
+  DialogBackdrop,
+  DialogClose,
+  DialogContent,
+  DialogRoot,
+  DialogTitle,
+  GripVerticalIcon,
+  Input as UiInput,
+  LoaderIcon,
+  MinusIcon,
+  PlusIcon,
+  RadioGroup as UiRadioGroup,
+  Switch as UiSwitch,
+  Textarea as UiTextarea,
+  XIcon,
+} from '../docs-site/src/ui'
 import {
   ArrayField,
   Form,
@@ -48,10 +74,10 @@ import {
 } from '@shikiform/react'
 
 // ---------------------------------------------------------------------------
-// Basic UI primitives (native HTML, zero external UI library)
+// Basic UI primitives (powered by @site/ui + @ui-sdk/react in Inkstone theme)
 // ---------------------------------------------------------------------------
 
-export interface ButtonProps extends Omit<ComponentProps<'button'>, 'type'> {
+export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'type'> {
   variant?: 'primary' | 'default' | 'link' | 'danger'
   size?: 'sm' | 'md'
   htmlType?: 'button' | 'submit' | 'reset'
@@ -77,19 +103,26 @@ export function Button({
     .filter(Boolean)
     .join(' ')
   return (
-    <button {...rest} type={htmlType} disabled={disabled || loading} className={cls}>
-      {loading ? '…' : null}
+    <UiButton
+      {...rest}
+      variant={variant === 'default' ? 'outline' : variant}
+      size={size}
+      htmlType={htmlType}
+      loading={loading}
+      disabled={disabled}
+      className={cls}
+    >
       {children}
-    </button>
+    </UiButton>
   )
 }
 
 export function Submit<T = any>({ className, ...props }: SubmitProps<T>) {
-  return <HeadlessSubmit {...props} className={['sk-btn sk-btn--primary', className].filter(Boolean).join(' ')} />
+  return <HeadlessSubmit {...props} className={['sf-ui-btn sf-ui-btn--primary sk-btn sk-btn--primary', className].filter(Boolean).join(' ')} />
 }
 
 export function Reset<T = any>({ className, ...props }: ResetProps<T>) {
-  return <HeadlessReset {...props} className={['sk-btn', className].filter(Boolean).join(' ')} />
+  return <HeadlessReset {...props} className={['sf-ui-btn sf-ui-btn--outline sk-btn', className].filter(Boolean).join(' ')} />
 }
 
 export function Space({
@@ -132,8 +165,9 @@ export function Divider({ children }: { children?: ReactNode }) {
 
 export function Spin({ 'data-testid': testId }: { 'data-testid'?: string }) {
   return (
-    <div data-testid={testId} style={{ padding: 12, color: 'var(--sk-muted)', fontSize: 13 }}>
-      {localize("加载中…", "Loading…")}
+    <div data-testid={testId} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: 12, color: 'var(--sk-muted)', fontSize: 13 }}>
+      <LoaderIcon size={14} />
+      <span>{localize("加载中…", "Loading…")}</span>
     </div>
   )
 }
@@ -151,20 +185,20 @@ export function Modal({
   footer?: ReactNode
   children?: ReactNode
 }) {
-  if (!open) return null
   return (
-    <div className="sk-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
-      <div className="sk-modal" onClick={(e) => e.stopPropagation()}>
+    <DialogRoot open={open} onOpenChange={(next) => { if (!next) onClose() }}>
+      <DialogBackdrop className="sk-backdrop" />
+      <DialogContent className="sk-modal">
         <div className="sk-dialog-head">
-          <span>{title}</span>
-          <button type="button" className="sk-btn sk-btn--link sk-btn--sm" onClick={onClose} aria-label={localize("关闭", "Close")}>
-            ✕
-          </button>
+          <DialogTitle style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{title}</DialogTitle>
+          <DialogClose className="sf-ui-dialog-x" aria-label={localize("关闭", "Close")}>
+            <XIcon size={15} />
+          </DialogClose>
         </div>
         <div className="sk-dialog-body">{children}</div>
         {footer !== undefined ? <div className="sk-dialog-foot">{footer}</div> : null}
-      </div>
-    </div>
+      </DialogContent>
+    </DialogRoot>
   )
 }
 
@@ -181,20 +215,20 @@ export function Drawer({
   footer?: ReactNode
   children?: ReactNode
 }) {
-  if (!open) return null
   return (
-    <div className="sk-drawer-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
-      <div className="sk-drawer" onClick={(e) => e.stopPropagation()}>
+    <DialogRoot open={open} onOpenChange={(next) => { if (!next) onClose() }}>
+      <DialogBackdrop className="sk-backdrop" />
+      <DialogContent className="sk-drawer">
         <div className="sk-dialog-head">
-          <span>{title}</span>
-          <button type="button" className="sk-btn sk-btn--link sk-btn--sm" onClick={onClose} aria-label={localize("关闭", "Close")}>
-            ✕
-          </button>
+          <DialogTitle style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{title}</DialogTitle>
+          <DialogClose className="sf-ui-dialog-x" aria-label={localize("关闭", "Close")}>
+            <XIcon size={15} />
+          </DialogClose>
         </div>
         <div className="sk-dialog-body">{children}</div>
         {footer !== undefined ? <div className="sk-dialog-foot">{footer}</div> : null}
-      </div>
-    </div>
+      </DialogContent>
+    </DialogRoot>
   )
 }
 
@@ -368,12 +402,12 @@ function RawInput({
   onChange,
   className,
   ...rest
-}: Omit<ComponentProps<'input'>, 'value' | 'onChange'> & {
+}: Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'defaultValue' | 'onChange' | 'size'> & {
   value?: string | number
   onChange?: (value: string) => void
 }) {
   return (
-    <input
+    <UiInput
       {...rest}
       className={['sk-input', className].filter(Boolean).join(' ')}
       value={value ?? ''}
@@ -391,12 +425,12 @@ function RawTextArea({
   onChange,
   className,
   ...rest
-}: Omit<ComponentProps<'textarea'>, 'value' | 'onChange'> & {
+}: Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'value' | 'defaultValue' | 'onChange' | 'onSubmit'> & {
   value?: string
   onChange?: (value: string) => void
 }) {
   return (
-    <textarea
+    <UiTextarea
       {...rest}
       className={['sk-textarea', className].filter(Boolean).join(' ')}
       value={value ?? ''}
@@ -549,47 +583,16 @@ interface RawRadioProps {
 
 function RawRadio({ id, value, onChange, onBlur, disabled, options = [], optionType = 'default', 'data-testid': testId }: RawRadioProps) {
   return (
-    <div id={id} data-testid={testId} role="radiogroup" className="sk-group">
-      {options.map((opt) => {
-        const checked = value === opt.value
-        const isDisabled = disabled || opt.disabled
-        if (optionType === 'button') {
-          return (
-            <button
-              key={String(opt.value)}
-              type="button"
-              role="radio"
-              aria-checked={checked}
-              disabled={isDisabled}
-              className={[
-                'sk-radio-btn',
-                checked ? 'sk-radio-btn--active' : '',
-                isDisabled ? 'sk-radio-btn--disabled' : '',
-              ]
-                .filter(Boolean)
-                .join(' ')}
-              onBlur={onBlur}
-              onClick={() => onChange?.(opt.value)}
-            >
-              {opt.label}
-            </button>
-          )
-        }
-        return (
-          <label key={String(opt.value)} className={`sk-choice ${isDisabled ? 'sk-choice--disabled' : ''}`}>
-            <input
-              type="radio"
-              name={id}
-              checked={checked}
-              disabled={isDisabled}
-              onBlur={onBlur}
-              onChange={() => onChange?.(opt.value)}
-            />
-            <span>{opt.label}</span>
-          </label>
-        )
-      })}
-    </div>
+    <UiRadioGroup
+      id={id}
+      data-testid={testId}
+      value={value ?? null}
+      disabled={disabled}
+      options={options}
+      variant={optionType === 'button' ? 'button' : 'default'}
+      onBlur={onBlur}
+      onChange={(next) => onChange?.(next)}
+    />
   )
 }
 
@@ -611,14 +614,13 @@ function RawCheckbox({
   'data-testid'?: string
 }) {
   return (
-    <input
+    <UiCheckbox
       id={id}
-      type="checkbox"
       data-testid={testId}
       checked={!!checked}
       disabled={disabled}
       onBlur={onBlur}
-      onChange={(e) => onChange?.(e.target.checked)}
+      onChange={(next) => onChange?.(next)}
     />
   )
 }
@@ -647,21 +649,20 @@ function RawCheckboxGroup({
         const checked = selected.some((v) => v === opt.value)
         const isDisabled = disabled || opt.disabled
         return (
-          <label key={String(opt.value)} className={`sk-choice ${isDisabled ? 'sk-choice--disabled' : ''}`}>
-            <input
-              type="checkbox"
-              checked={checked}
-              disabled={isDisabled}
-              onBlur={onBlur}
-              onChange={(e) => {
-                const next = e.target.checked
-                  ? [...selected, opt.value]
-                  : selected.filter((v) => v !== opt.value)
-                onChange?.(next)
-              }}
-            />
-            <span>{opt.label}</span>
-          </label>
+          <UiCheckbox
+            key={String(opt.value)}
+            checked={checked}
+            disabled={isDisabled}
+            onBlur={onBlur}
+            onChange={(nextChecked) => {
+              const next = nextChecked
+                ? [...selected, opt.value]
+                : selected.filter((v) => v !== opt.value)
+              onChange?.(next)
+            }}
+          >
+            {opt.label}
+          </UiCheckbox>
         )
       })}
     </div>
@@ -696,19 +697,14 @@ function RawSwitch({
   'data-testid'?: string
 }) {
   return (
-    <button
+    <UiSwitch
       id={id}
-      type="button"
-      role="switch"
-      aria-checked={!!checked}
       data-testid={testId}
+      checked={!!checked}
       disabled={disabled}
-      className={`sk-switch ${checked ? 'sk-switch--checked' : ''}`}
       onBlur={onBlur}
-      onClick={() => onChange?.(!checked)}
-    >
-      <span className="sk-switch-thumb" />
-    </button>
+      onChange={(next) => onChange?.(next)}
+    />
   )
 }
 
@@ -867,10 +863,11 @@ export function SuggestionView({
               {!disabled ? (
                 <button
                   type="button"
-                  style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 0, color: 'inherit' }}
+                  style={{ display: 'inline-flex', alignItems: 'center', border: 'none', background: 'none', cursor: 'pointer', padding: 0, color: 'inherit' }}
+                  aria-label={localize("移除", "Remove")}
                   onClick={() => remove(item.value)}
                 >
-                  ×
+                  <XIcon size={11} />
                 </button>
               ) : null}
             </span>
@@ -912,7 +909,7 @@ export function SuggestionView({
                 }}
               >
                 <span>{opt.label}</span>
-                {active ? <span>✓</span> : null}
+                {active ? <CheckIcon size={14} /> : null}
               </div>
             )
           })}
@@ -1090,7 +1087,9 @@ export function CascaderPlusView({
                       onClick={() => onSelectOption(depth, opt)}
                     >
                       <span>{opt.label}</span>
-                      <span>{opt.loading ? '…' : opt.isLeaf ? (isSelected ? '✓' : '') : '›'}</span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                        {opt.loading ? <LoaderIcon size={12} /> : opt.isLeaf ? (isSelected ? <CheckIcon size={13} /> : null) : <ChevronRightIcon size={13} />}
+                      </span>
                     </li>
                   )
                 })}
@@ -1544,7 +1543,8 @@ function ArrayTableImpl<TRow = any>({
                           style={{ padding: 0, fontWeight: 600, color: 'inherit' }}
                           onClick={() => onSort(col.key)}
                         >
-                          {col.title} {dir === 'ascend' ? '▲' : dir === 'descend' ? '▼' : '⇅'}
+                          <span>{col.title}</span>
+                          {dir === 'ascend' ? <ChevronUpIcon size={13} /> : dir === 'descend' ? <ChevronDownIcon size={13} /> : <ChevronsUpDownIcon size={13} />}
                         </button>
                       ) : (
                         col.title
@@ -1596,7 +1596,7 @@ function ArrayTableImpl<TRow = any>({
                                 aria-label={expanded ? localize("收起行", "Collapse row") : localize("展开行", "Expand row")}
                                 onClick={() => table.toggleExpanded(row.key)}
                               >
-                                {expanded ? '−' : '+'}
+                                {expanded ? <MinusIcon size={13} /> : <PlusIcon size={13} />}
                               </button>
                             ) : null}
                           </td>
@@ -1652,8 +1652,8 @@ function ArrayTableIndex() {
 
 function ArrayTableSortHandle() {
   return (
-    <span style={{ cursor: 'grab', userSelect: 'none', color: 'var(--sk-muted)' }} title={localize("拖拽排序", "Drag to reorder")}>
-      ⋮⋮
+    <span style={{ display: 'inline-flex', alignItems: 'center', cursor: 'grab', userSelect: 'none', color: 'var(--sk-muted)' }} title={localize("拖拽排序", "Drag to reorder")}>
+      <GripVerticalIcon size={14} />
     </span>
   )
 }

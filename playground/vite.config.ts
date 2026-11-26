@@ -4,6 +4,9 @@ import path from 'node:path'
 import { defineConfig, type Plugin } from 'vite'
 import { PLAY_ROUTES } from './routes'
 
+const SITE_PKG = path.resolve(__dirname, '../docs-site/package.json')
+const SITE_UI_ENTRY = path.resolve(__dirname, '../docs-site/src/ui/index.ts')
+
 /** Static hosts have no SPA fallback. Copy the shell to each demo path so `/play/tabs` serves the app. */
 function copyPlayRoutes(): Plugin {
   return {
@@ -24,6 +27,18 @@ function copyPlayRoutes(): Plugin {
   }
 }
 
+/** Resolve `@ui-sdk/*` from `docs-site/node_modules` while sharing Playground's single React instance. */
+function resolveSiteUiSdk(): Plugin {
+  return {
+    name: 'resolve-site-ui-sdk',
+    async resolveId(source) {
+      if (source.startsWith('@ui-sdk/')) {
+        return this.resolve(source, SITE_PKG, { skipSelf: true })
+      }
+    },
+  }
+}
+
 export default defineConfig({
   root: path.resolve(__dirname),
   base: '/play/',
@@ -32,9 +47,14 @@ export default defineConfig({
     outDir: path.resolve(__dirname, '../dist/play'),
     emptyOutDir: true,
   },
-  plugins: [react(), copyPlayRoutes()],
+  plugins: [react(), resolveSiteUiSdk(), copyPlayRoutes()],
   resolve: {
+    dedupe: ['react', 'react-dom'],
     alias: [
+      { find: /^react-dom/, replacement: path.resolve(__dirname, '../node_modules/react-dom') },
+      { find: /^react$/, replacement: path.resolve(__dirname, '../node_modules/react') },
+      { find: /^react\/jsx-runtime$/, replacement: path.resolve(__dirname, '../node_modules/react/jsx-runtime') },
+      { find: /^@site\/ui$/, replacement: SITE_UI_ENTRY },
       // `/internal` must resolve to the same source as the public entry. Otherwise Vite
       // loads the built package for sibling imports and duplicates FormContext.
       { find: /^@shikiform\/core\/internal$/, replacement: path.resolve(__dirname, '../packages/core/src/internal.ts') },

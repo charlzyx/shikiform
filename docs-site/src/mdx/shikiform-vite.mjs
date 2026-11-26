@@ -8,6 +8,7 @@ import path from 'node:path'
 import { transformWithEsbuild } from 'vite'
 
 const DOCS = path.resolve(import.meta.dirname, '../content/docs')
+const SITE_UI = path.resolve(import.meta.dirname, '../ui/index.ts')
 
 
 /** 扫描教程练习文件：01-start → { starter, solution }。 */
@@ -52,10 +53,15 @@ export function shikiformTutorials() {
 const DEMO_IMPORTS = [
   'react', 'react/jsx-runtime',
   '@shikiform/react', '@shikiform/core',
+  '@site/ui',
   'zod',
-  '@ui-sdk/react/select', '@ui-sdk/react/checkbox', '@ui-sdk/react/radio',
+  '@ui-sdk/react/button', '@ui-sdk/react/input', '@ui-sdk/react/number-input',
+  '@ui-sdk/react/textarea', '@ui-sdk/react/select', '@ui-sdk/react/combobox',
+  '@ui-sdk/react/checkbox', '@ui-sdk/react/radio', '@ui-sdk/react/switch',
   '@ui-sdk/react/slider', '@ui-sdk/react/date-picker', '@ui-sdk/react/dialog',
-  '@ui-sdk/react/tabs',
+  '@ui-sdk/react/drawer', '@ui-sdk/react/popover', '@ui-sdk/react/tabs',
+  '@ui-sdk/react/tooltip', '@ui-sdk/react/pagination', '@ui-sdk/react/separator',
+  '@ui-sdk/react/toolbar', '@ui-sdk/react/field', '@ui-sdk/react/label',
 ]
 
 /** 递归列出 docs 下的 .mdx 文件（相对路径）。 */
@@ -117,6 +123,7 @@ export function shikiformDemoImports() {
     name: 'shikiform-demo-imports',
     resolveId(source) {
       if (source === virtualId) return resolved
+      if (source === '@site/ui') return SITE_UI
     },
     load(source) {
       if (source !== resolved) return

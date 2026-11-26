@@ -2,7 +2,7 @@
 /** Check the exact editable docs against an unpacked npm package, never TS paths or a docs alias. */
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -151,9 +151,26 @@ try {
   const siteModules = path.join(root, 'docs-site', 'node_modules')
   if (existsSync(siteModules)) {
     for (const entry of readdirSync(siteModules)) {
-      if (entry.startsWith('.') || entry === '@shikiform' || existsSync(path.join(modules, entry))) continue
+      if (entry.startsWith('.') || entry === '@shikiform' || entry === '@site' || existsSync(path.join(modules, entry))) continue
       symlinkSync(realpathSync(path.join(siteModules, entry)), path.join(modules, entry), 'junction')
     }
+  }
+  // Copy docs-site/src/ui physically into consumer/node_modules/@site/ui so @site/ui
+  // resolves @shikiform/react against the unpacked tarball in consumer/node_modules,
+  // never escaping back to workspace packages or docs-site/node_modules/@shikiform.
+  const siteUiSrc = path.join(root, 'docs-site', 'src', 'ui')
+  if (existsSync(siteUiSrc)) {
+    const siteUiDest = path.join(modules, '@site', 'ui')
+    mkdirSync(siteUiDest, { recursive: true })
+    cpSync(siteUiSrc, siteUiDest, { recursive: true })
+    writeFileSync(path.join(siteUiDest, 'package.json'), JSON.stringify({
+      name: '@site/ui',
+      private: true,
+      type: 'module',
+      main: './index.ts',
+      types: './index.ts',
+      exports: { '.': { types: './index.ts', import: './index.ts' } },
+    }, null, 2))
   }
   writeFileSync(path.join(consumer, 'package.json'), JSON.stringify({ name: 'shikiform-docs-consumer', private: true, type: 'module' }, null, 2))
   for (const source of sources) {
@@ -197,7 +214,7 @@ try {
     "process.stdout.write(`${JSON.stringify({ results, packageContexts: verifyPackageContexts() })}\\n`)",
   ].join('\n'))
   writeFileSync(path.join(consumer, 'index.html'), '<!doctype html><html><head><meta charset="utf-8"></head><body><div id="root"></div><script type="module" src="/entry.tsx"></script></body></html>')
-  writeFileSync(path.join(consumer, 'vite.config.mjs'), "export default { esbuild: { jsx: 'automatic' }, resolve: { dedupe: ['react', 'react-dom'] }, ssr: { noExternal: ['@ui-sdk/react', '@ui-sdk/core'] }, build: { outDir: 'dist', emptyOutDir: true } }\n")
+  writeFileSync(path.join(consumer, 'vite.config.mjs'), "export default { esbuild: { jsx: 'automatic' }, resolve: { dedupe: ['react', 'react-dom'] }, ssr: { noExternal: ['@ui-sdk/react', '@ui-sdk/core', '@site/ui'] }, build: { outDir: 'dist', emptyOutDir: true } }\n")
   summary.packageResolution = JSON.parse(run(process.execPath, ['--input-type=module', '-e',
     "console.log(JSON.stringify(Object.fromEntries(['@shikiform/react','@shikiform/core'].map(name => [name,import.meta.resolve(name)]))))"], consumer, 'resolution.log'))
   for (const [name, resolved] of Object.entries(summary.packageResolution)) {
