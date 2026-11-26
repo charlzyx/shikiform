@@ -115,11 +115,33 @@ try {
     packedDirs[pkg.name] = packageDirReal
     const exportKeys = Object.keys(pkg.exports ?? {})
     if (!exportKeys.includes('.')) throw new Error(`${pkg.name} is missing the "." export`)
+    const resolveExportTarget = (entry, condition) => {
+      const value = entry?.[condition]
+      if (typeof value === 'string') return value
+      if (value && typeof value === 'object') return value.default ?? value.import ?? value.require
+      return undefined
+    }
+    const resolveExportTypes = (entry) => {
+      if (typeof entry?.types === 'string') return entry.types
+      if (typeof entry?.import?.types === 'string') return entry.import.types
+      if (typeof entry?.require?.types === 'string') return entry.require.types
+      return undefined
+    }
     for (const key of exportKeys) {
-      for (const condition of ['types', 'import']) {
-        const target = pkg.exports?.[key]?.[condition]
+      const entry = pkg.exports?.[key]
+      const targets = [
+        ['types', resolveExportTypes(entry)],
+        ['import', resolveExportTarget(entry, 'import')],
+        ['require', resolveExportTarget(entry, 'require')],
+      ]
+      for (const [condition, target] of targets) {
+        if (condition === 'require' && target === undefined) continue
         if (typeof target !== 'string') throw new Error(`Missing public ${pkg.name} ${key} ${condition} export`)
         const actual = realpathSync(path.resolve(packageDir, target))
+        if (!actual.startsWith(`${packageDirReal}${path.sep}`)) throw new Error(`Export escapes the package: ${pkg.name} ${key}`)
+      }
+      if (typeof entry?.require?.types === 'string') {
+        const actual = realpathSync(path.resolve(packageDir, entry.require.types))
         if (!actual.startsWith(`${packageDirReal}${path.sep}`)) throw new Error(`Export escapes the package: ${pkg.name} ${key}`)
       }
     }
@@ -138,7 +160,7 @@ try {
           if (dependency.startsWith('.')) visitModule(path.resolve(path.dirname(actual), dependency))
         }
       }
-      visitModule(path.resolve(packageDir, pkg.exports[entry].import))
+      visitModule(path.resolve(packageDir, resolveExportTarget(pkg.exports[entry], 'import')))
     }
   }
   summary.dependencyIsolation = 'passed'
