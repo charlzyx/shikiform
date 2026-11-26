@@ -6,7 +6,6 @@ import type { Notifier } from '../state/notifier'
 import type { Pos } from '../shared/tree-ops'
 import type { TrackedRow, WriteOp } from '../types'
 import { valueChangedAt, WriteJournal, type WorkingValues, type WriteBuffer } from './write-buffer'
-
 interface ValueCommit {
   before: unknown
   after: unknown
@@ -352,27 +351,18 @@ export class Scheduler {
     try {
       fn()
     } finally {
-      if (--this.flushHolds === 0) {
-        const callbacks = this.afterBatchCallbacks.splice(0)
-        let settled = false
-        try {
-          if (this.flushRequested) {
-            this.flushRequested = false
-            this.flush()
-          }
-          settled = true
-        } finally {
-          for (const callback of callbacks) callback(settled)
-        }
+      if (--this.flushHolds === 0 && !this.flushing) {
+        if (this.flushRequested) this.flush()
+        else for (const callback of this.afterBatchCallbacks.splice(0)) callback(true)
       }
     }
   }
 
   afterBatch(callback: (settled: boolean) => void): void {
-    if (this.flushHolds) this.afterBatchCallbacks.push(callback)
+    // A pass applied during a flush leaves its callbacks for the remaining derivation waves.
+    if (this.flushHolds || this.flushing) this.afterBatchCallbacks.push(callback)
     else callback(true)
   }
-
   /** Two different reactions writing the same key is a dev error. Watches may share keys. */
   private claimOwner(id: string, key: string): void {
     if (process.env.NODE_ENV === 'production' || !isReactionId(id)) return
@@ -612,8 +602,10 @@ export class Scheduler {
       this.flushRequested = true
       return
     }
+    this.flushRequested = false
     this.flushing = true
     this.trace = []
+    let settled = false
     try {
       let wave = 0
       let failure: { error: unknown } | undefined
@@ -647,6 +639,7 @@ export class Scheduler {
         }
       }
       if (failure) throw failure.error
+      settled = true
     } finally {
       this.queued.clear()
       this.dirtyDeps.clear()
@@ -655,9 +648,16 @@ export class Scheduler {
       this.consumedDirtyRows.clear()
       for (const path of this.consumedDirtyPos) this.dirtyPos.delete(path)
       this.consumedDirtyPos.clear()
+      const callbacks = this.afterBatchCallbacks.splice(0)
       this.flushing = false
-      this.onSettle?.()
-      this.notifier.emit()
+      let notified = false
+      try {
+        this.onSettle?.()
+        this.notifier.emit()
+        notified = true
+      } finally {
+        for (const callback of callbacks) callback(settled && notified)
+      }
     }
   }
 }

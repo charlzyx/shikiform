@@ -52,7 +52,7 @@ describe.each(['development', 'production'])('F8 validation and enum retest in %
     expect(form.errors).toEqual([{ path: 'rows.0.code', messages: ['missing code'] }])
   })
 
-  it.fails('BUG: QA-70 validates the settled derived value when a watch edits and moves a row', async () => {
+  it('QA-70 validates the settled derived value when a watch edits and moves a row', async () => {
     type Values = { run: boolean; rows: { id: string; qty: number; total: number }[] }
     const check = vi.fn((qty: number, ctx: { get: (path: string) => unknown; path: string }) =>
       ctx.get(ctx.path.replace(/\.qty$/, '.total')) === qty * 2 ? undefined : 'stale total',
@@ -74,6 +74,26 @@ describe.each(['development', 'production'])('F8 validation and enum retest in %
     expect(form.getValue('rows.1')).toEqual({ id: 'a', qty: 5, total: 10 })
     expect(check.mock.calls.map(([qty, ctx]) => [qty, ctx.path, ctx.get('rows.1.total')])).toEqual([[5, 'rows.1.qty', 10]])
     expect(form.errors).toEqual([])
+  })
+
+  it('QA-70 drops a watch edit check if a downstream derivation fails', async () => {
+    type Values = { run: boolean; code: string }
+    const check = vi.fn((code: string) => code ? undefined : 'missing code')
+    const form = createForm<Values>({
+      initialValues: { run: false, code: 'initial' },
+      fields: { code: { rules: { validator: check } } },
+      validateTrigger: ['onChange'],
+      effects: [defineEffects<Values>(({ draft, reaction, watch }) => {
+        reaction((d) => { if (d.code.$value === 'temporary') throw new Error('failed derivation') })
+        watch(draft.run, () => { form.setValue('code', 'temporary') })
+      })],
+    })
+    expect(() => form.setValue('run', true)).toThrow('failed derivation')
+    expect(check).not.toHaveBeenCalled()
+    form.setValue('code', '')
+    await setImmediate()
+    expect(check.mock.calls.map(([code]) => code)).toEqual([''])
+    expect(form.errors).toEqual([{ path: 'code', messages: ['missing code'] }])
   })
 
   it('QA-68 resolves a moved tree JSX cache over a declaration after a nested rollback', async () => {
