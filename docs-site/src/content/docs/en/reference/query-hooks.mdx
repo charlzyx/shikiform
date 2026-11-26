@@ -63,7 +63,9 @@ Return current-page data and the unpaginated total in server mode. Return all fi
 
 ### Results and actions
 
-Read `data`, `total`, `extra`, `page`, `pageSize` and `selectedKeys`. `loading` indicates an initial load and `fetching` includes background refresh. `isPlaceholderData` identifies retained results from a compatible query hook. Use `submit` for a new query, `reset` for the initial filters, `refresh` for the current query, `setPage` (aliased as `onPageChange` for pager `onChange` props) for pagination and `setSelectedKeys` for selection. `submit(): Promise<void>` is the query action. It calls `form.validate` on the filter (one path, several paths, or the whole form) unless `validateOnSubmit` is false. That `form.validate` resolves submit-shaped values, and this method does not return them. A failed validation skips the request.
+- **Data & status**: Read `data`, `total`, `extra`, `page`, `pageSize`, and `selectedKeys`. `loading` is `true` only on the first load (no previous data yet); `fetching` is `true` during any request including background refreshes; `isPlaceholderData` reports retained data from a custom `useQuery` hook.
+- **Actions**: Call `submit()` to run a new search, `reset()` to restore initial filters and refetch, `refresh()` to refetch the current page, `setPage` (also aliased as `onPageChange` for pager components) to paginate, and `setSelectedKeys` to update selection.
+- **Validation on `submit()`**: `submit(): Promise<void>` is a query action, not a whole-form `form.submit()`. Unless `validateOnSubmit` is `false`, it validates the filter scope first and skips the request if validation fails.
 
 Action methods (`submit`, `reset`, `refresh`, `setPage` / `onPageChange`, `setSelectedKeys`, `setSorter`, `setFilters`, `onTableChange`) keep one identity across renders and are safe in `useEffect` deps. Depend on `table.refresh`, never on `table`. See [Reference stability](/en/reference/react-hooks#reference-stability).
 

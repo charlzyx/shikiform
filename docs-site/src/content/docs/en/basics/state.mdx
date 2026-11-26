@@ -86,6 +86,10 @@ export default function App() {
 }
 ```
 
-## Inheritance
+## Inheritance and defaults
 
-Fields inherit visibility, disabled and read-only state from ancestors, with explicit field overrides. Read-only takes precedence when combined with disabled. An omitted ancestor excludes its entire subtree. Assigning `undefined` in a reaction restores the lower layer. Set `readOnly` or `disabled` in form options to initialize the root.
+- **`visible`, `disabled`, `readOnly`**: Inherit from parent fields, and any child can override with an explicit `true` or `false` (for example, a child with `disabled: false` stays editable inside a disabled parent). If both `disabled` and `readOnly` are `true`, `readOnly` wins.
+- **`omit`**: If any ancestor has `omit: true`, the entire subtree is excluded from submit—a child's `omit: false` cannot opt back in.
+- **Clearing errors & keeping values**: Hiding a field keeps its value when shown again. Turning off validation (`visible: false`, `disabled: true`, or `readOnly: true`) clears existing errors immediately; re-enabling does not re-run validation until the next blur, `validate`, or `submit`.
+- **Disabled still submits**: Unlike react-hook-form, disabled fields are included in submit values unless you also set `omit: true`.
+- **Resetting overrides**: Assign `undefined` in a `reaction` (e.g. `d.nick.$disabled = undefined`) to remove the reaction override and fall back to the field's default. For a whole read-only detail page, pass `useForm({ readOnly: true })` or call `form.setReadOnly(true)`.

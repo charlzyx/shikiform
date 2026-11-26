@@ -54,8 +54,8 @@ useShadowForm<TValues = Record<string, any>, TContext = unknown>(options?: {
 草稿表单：在独立的临时表单实例中编辑副本，确认且校验通过后写回宿主路径或调用 `onOk`，取消则丢弃草稿，不修改宿主表单。每次 `open()` 创建新的表单实例，`reset`、`dirty`、错误状态与联动均从该次基线开始。`open` 可传入对象或异步加载函数（连续调用时，后一次 `open` 会作废在途加载）；传入 `scopeKey` 时，作用域键变化会自动取消当前草稿与在途异步加载。`confirm` 校验失败时返回 `{ ok: false, errors }` 并保持草稿打开。
 
 - 路径绑定（`name` / `form`）：传入 `name`（或在 `<Form>` / 数组行 / 对象作用域内省略 `name` 或传相对路径）时，草稿绑定到宿主对应路径：
-  - 继承：打开时从宿主复制当前路径值作为 `initialValues`，剥离路径前缀后继承 `fields` / `trees` 声明（含 `list.*` 行模板；如需额外覆盖 `trees` 可放在 `formOptions` 中），并继承宿主的 `messages`、`validateTrigger`、`asyncDebounceMs`、`enumPolicy` 与该路径当前的有效 `readOnly` / `disabled`。
-  - 写回：确认并校验通过后写回宿主路径。默认保留宿主对象及嵌套行内被 `omit` 省略的字段；数组沿用草稿的顺序和长度，可通过 `merge` 自定义写回；绑定数组且 `add: true` 或 `add: template` 时以空对象或模板副本打开并追加到末尾；绑定数组行时按 `rowKey`（或对象引用）定位原行写回。`onOk` 收到过滤后的提交值，返回 `false` 时跳过默认写回。取消或重新打开后，旧的异步确认停止后续回调和写回，返回 `{ ok: false, errors: [] }`。
+  - 继承：打开时从宿主复制当前路径值作为 `initialValues`，自动继承该路径下的 `fields` / `trees` 配置（含 `list.*` 行模板；如需额外覆盖 `trees` 可放在 `formOptions` 里），以及宿主的 `messages`、`validateTrigger`、`asyncDebounceMs`、`enumPolicy` 和当前生效的 `readOnly` / `disabled`。
+  - 写回：确认并校验通过后写回宿主路径。默认保留宿主对象及嵌套行里被 `omit` 省略的字段；数组沿用草稿的顺序和长度，可通过 `merge` 自定义写回；绑定数组且 `add: true` 或 `add: template` 时以空对象或模板副本打开并追加到末尾；绑定数组行时按 `rowKey`（或对象引用）找到原行写回。`onOk` 收到过滤后的提交值，返回 `false` 时跳过默认写回。取消或重新打开后，旧的异步确认会自动中止，不再执行后续回调或写回，返回 `{ ok: false, errors: [] }`。
 
 ## useSuggestion
 
@@ -73,7 +73,7 @@ useLazyCascader({ load: (path: (string | number)[]) => Promise<CascaderOption[]>
 // { options, loading, loadChildren(path), ensure(paths), labelsOf(path) }
 ```
 
-懒加载级联：挂载时 `load([])` 取根，展开时 `load(path)` 取子级；同一路径并发只请求一次。`paths` 是已有值，打开时逐级加载每一层祖先，标签就能反显。已带 `children` 的节点不再加载（`load([])` 直接返回整棵树也可以）。`enabled: false` 时停止加载并将 `loading` 复位为 `false`，在禁用前发起的过期根请求与子请求结果都会被忽略；重新启用后会开启新的启用周期，只接受新周期的子请求与回显结果，旧回显任务结束后停止加载并确保新树保留正确子级标签。自绘阅读态时，对裸路径用 `labelsOf` 解析成「省 / 市 / 区」，`labelInValue` 的值直接读每一级的 `label`。
+懒加载级联：挂载时调用 `load([])` 加载根节点，展开节点时调用 `load(path)` 加载子级，同一路径并发只会发一次请求。传了已有值 `paths` 时，会自动逐级把祖先节点拉下来，方便反显标签；已经带 `children` 的节点不会重复加载（`load([])` 直接返回整棵树也可以）。设置 `enabled: false` 会停止加载并把 `loading` 重置为 `false`，禁用前发出的旧请求结果都会被自动忽略；重新启用后只接受新发出的请求，不会让旧数据串进新树。自绘只读展示时，裸路径值用 `labelsOf` 解析成「省 / 市 / 区」，`labelInValue` 的值直接读每一级的 `label`。
 
 ## useColumnSettings
 

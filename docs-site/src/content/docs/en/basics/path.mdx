@@ -5,7 +5,11 @@ description: "Read and write individual values inside and outside an effect."
 
 ## Read and write a nested field
 
-Use `form.getValue` and `form.setValue` outside an effect. Inside a reaction, watch or batch, follow the draft to the target path. Numeric segments can be written as `items.0.qty` or `items[0].qty`. Bracket paths are also equivalent to canonical dot paths at runtime (`a[0].b` ≡ `a.0.b`) in `fields` / `trees` declarations and `query(path)`; in TypeScript, `fields` (`FieldPath<T> | TemplatePath<T>`) and `trees` (`ArrayPath<T>`) constrain keys to canonical dot paths (`a.0.b`, `a.*.b`), while `query(path)` takes an untyped string.
+Use `form.getValue` and `form.setValue` outside effects, or walk the `d` draft inside `reaction`, `watch`, or `batch`:
+
+- Array indices can use dots (`items.0.qty`) or brackets (`items[0].qty`). Both refer to the exact same field at runtime (including in `fields`, `trees`, and `query(path)`).
+- In TypeScript, prefer dot paths (`a.0.b`, `a.*.b`) in `fields` and `trees` so path types check cleanly. `query(path)` accepts any untyped string.
+- If a middle segment is missing, `getValue` returns `undefined` and `setValue` creates the missing objects or arrays automatically.
 
 ```ts
 // Inside reaction, watch, or batch, walk a draft handle. Indexes and runtime keys are handles too.
@@ -23,7 +27,9 @@ form.setValue('orders[0].lines[2].qty', 4)
 form.getValue('orders.0.lines.2.qty')
 ```
 
-Updating `d.user.name.$value` notifies readers of that field. Inside an effect, `d.user.$value.name = 'x'` is that same write. Replacing `d.user.$value` replaces the whole record. A path you can spell on the draft stays a handle, including `d.items[i].qty` and `d.extra[key]`. `query(path)` is untyped and is the escape hatch for a string, for example `query(pathOf('menus', pos)).$disabled = true` inside an effect. `getValue` and `form.values` stay read-only in development.
+Writing `d.user.name.$value = 'x'` (or `d.user.$value.name = 'x'` inside an effect) only updates `user.name` and only notifies readers of that field. Replacing the whole object (`d.user.$value = { ... }`) notifies every reader under `user`.
+
+Whenever you can spell a path on `d`—including `d.items[i].qty` and `d.extra[key]`—prefer `d` for type safety; keep `query(path)` for paths that already arrive as strings (such as `pathOf('menus', pos)`). In development, objects returned by `getValue` and `form.values` are read-only so accidental direct mutation throws immediately.
 
 ```tsx preview
 import { enUS, Field, Form, useForm } from '@shikiform/react';

@@ -91,7 +91,7 @@ Form values must be acyclic: passing cyclic references to `createForm` or write 
 
 ## EnumSource
 
-Use a static option list or bind a reusable source with `source.with(params)` (a parameterless `EnumSource<void>` can also be passed directly without `.with()`). The engine manages loading, cancels obsolete requests and exposes the effective options on `$enum` (`[]` before loading finishes). Shared loads for the same source and params key are reference-counted across consumers: removing an array row or tree node cancels its consumer without interrupting other active consumers, while surviving nodes moved to a new position keep reusing the in-flight load for the same key.
+Use a static option list or bind a reusable source with `source.with(params)` (a parameterless `EnumSource<void>` can also be passed directly without `.with()`). The engine manages loading, cancels outdated requests, and exposes loaded options on `$enum` (`[]` while loading). When multiple fields share the same source and params, they share one network request: removing an array row or tree node only cancels the request when no other field still needs it, and moving a row or node reuses the ongoing load as long as its params stay the same.
 
 ## Errors
 

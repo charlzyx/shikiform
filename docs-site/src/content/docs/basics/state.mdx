@@ -16,9 +16,14 @@ description: $value 与 visible、disabled、readOnly、omit 四个独立布尔�
 | `readOnly` | `false` | 渲染预览。与 `disabled` 同时为真时预览优先 | 跳过并清错 | 提交 |
 | `omit` | `false` | 不影响 | 不影响 | 剔除该字段及其子孙，表单级不计入 dirty |
 
-四个布尔都沿字段路径继承。`visible` / `disabled` / `readOnly`：这一层写了 `true` 或 `false` 就用这一层，没写就保持上一层。所以父级 `disabled: true`、子级 `disabled: false` 时，子级可以编辑。`omit`：任一祖先为 `true`，子孙读到的 `$omit` 就是 `true`；子级写 `omit: false` 不能单独提交，因为父级被删掉时整棵子树一起离开提交结果。父级取消 `omit` 后，子级回到自己的值（没写就是提交）。纯布局容器不是字段路径上的父级。赋 `undefined` 丢掉 reaction 层。隐藏后再显示，值还在。关掉校验门会清掉已有错误；再打开时不会自动重跑，要等下一次 blur、`validate` 或 `submit`。`disabled` 的字段照常提交，这和 react-hook-form 相反。
+四个开关的继承和交互规则很简单：
+- **显隐、禁用、只读**：父级设置后，子字段默认跟着生效；子字段显式写 `true` 或 `false` 就能覆盖父级（例如父级 `disabled: true`，子字段写 `disabled: false` 依然可以编辑）。纯布局组件不算父字段。
+- **不提交（`omit`）**：只要任意一层父字段设了 `omit: true`，整棵子树都会从提交结果中剔除，子字段写 `omit: false` 也无法单独保留；父级取消 `omit` 后，子字段恢复各自的配置。
+- **隐藏与跳过校验**：把字段隐藏（`visible: false`）后再显示，原先填的值还在。变成隐藏、禁用或只读时，已有的报错会立刻清空；恢复可编辑后不会自动重跑校验，要等下次失焦、`validate` 或 `submit`。
+- **撤销联动覆盖**：在 `reaction` 里赋 `undefined`（如 `d.nick.$disabled = undefined`），就会撤销联动里的设置，恢复成组件或字段默认配的状态。
+- **禁用也会提交**：`disabled` 字段照常提交（这与 react-hook-form 相反）；不想提交时再配 `omit: true`。
 
-被 omit 的祖先自己的 `$dirty` 仍按深比较计算，值变了时可以为 `true`，但表单级 `dirty` 不计这个字段及其子孙；子孙字段的 `$dirty` 则是 `false`。
+如果一个父字段自己设了 `omit: true`，改它的值时它自己的 `$dirty` 仍可能为 `true`，但整张表的 `form.dirty` 不会把它和它的子字段算进去（子字段的 `$dirty` 则是 `false`）。
 
 ```tsx preview
 import { useState } from 'react';
@@ -102,6 +107,6 @@ export default function App() {
 
 ## 禁用和只读
 
-`disabled` 把控件置灰。`readOnly` 换成预览组件。两个都是 `true` 时渲染预览。
+`disabled` 把控件置灰，`readOnly` 换成纯文本预览。两个同时为 `true` 时，以只读预览为准。
 
-它们和 `visible` 一样沿字段路径继承：这一层写了 `true` 或 `false` 就用这一层，没写就保持上一层。赋 `undefined` 丢掉 reaction 层。详情页：`useForm({ readOnly: true })`，或运行时 `form.batch((d) => { d.$readOnly = true })`。
+它们和 `visible` 一样从父级向下继承，子字段可以单独写 `true` / `false` 覆盖，在 `reaction` 里赋 `undefined` 可撤销联动覆盖。整页详情只读可以写 `useForm({ readOnly: true })`，或者运行时调用 `form.setReadOnly(true)`（等价于 `form.batch((d) => { d.$readOnly = true })`）。

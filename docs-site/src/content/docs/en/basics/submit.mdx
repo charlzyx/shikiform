@@ -68,4 +68,4 @@ export default function App() {
 }
 ```
 
-For an edit screen, `form.reset(record)` replaces both the values and baseline. After saving, call `form.setInitialValues(form.values)` to move the baseline to the saved values. Inside `batch` or `watch`, `reset` and `setInitialValues` update and share the batch's working baseline in call order so a subsequent `reset(path)` reads the latest baseline; if a nested `batch` throws, baseline and value changes roll back together.
+For an edit screen, `form.reset(record)` replaces both the current values and the initial baseline. After saving, call `form.setInitialValues(form.values)` to clear `dirty` without touching current values. Inside `batch` or `watch`, `reset` and `setInitialValues` apply in order so a later `reset(path)` restores from the updated baseline; if a nested `batch` throws, both value and baseline changes roll back together.

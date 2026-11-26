@@ -38,7 +38,7 @@ form.submit(async (values) => {
 
 直接调用 `form.submit()` 时要 `await`，或者接上 `.catch`。没有接住的失败会变成未处理的 rejection（unhandled rejection）。
 
-`<Form>` 和 `<Submit>` 会在内部 catch 这次 rejection：校验失败走 `onInvalid(errors)`，`onSubmit` 抛错和 `SubmitUnstableError` 走 `onSubmitError`（不传则 `console.error`），被取代的那次提交被吞掉，不会变成未处理的 rejection。
+`<Form>` 和 `<Submit>` 会在内部接住提交失败：校验不通过时调用 `onInvalid(errors)`，`onSubmit` 抛错或 `SubmitUnstableError` 交给 `onSubmitError`（没传就打印到 `console.error`）；如果前一次提交被新的提交取代，旧调用会被自动忽略，不会触发未处理的 Promise 报错。
 
 校验失败时，`<Form>` 按文档顺序自动聚焦第一个出错字段，无需在 `onInvalid` 中手动定位。
 
@@ -92,7 +92,7 @@ export default function App() {
 清空姓名后点击提交，页面焦点会自动回到姓名输入框，同时下方显示「没有通过校验」；接着点击重置按钮，姓名会恢复为 `Ada`，日志同步更新为重置后的表单值。
 
 <Aside type="tip" title="保存成功后更新初始基线">
-保存成功后若要保留当前值并清掉 `dirty` 标记，调用 `form.setInitialValues(form.values)`；加载另一条记录并替换基线则调用 `form.reset(record)`。在 `batch` / `watch` 内调用 `reset` 与 `setInitialValues` 按调用顺序更新并共用本批工作基线，后续局部 `reset(path)` 读取最新基线；内层 `batch` 抛错时基线与值的修改一起回滚。
+保存成功后想保留当前值并把 `dirty` 清回 `false`，调用 `form.setInitialValues(form.values)`；加载另一条记录并替换初始值，调用 `form.reset(record)`。在 `batch` 或 `watch` 里连续调用 `reset` 和 `setInitialValues` 时，它们按顺序生效，后面的局部 `reset(path)` 会读到最新初始值；如果嵌套的 `batch` 抛错，初始值和当前值的改动会一起回滚。
 </Aside>
 
 服务端返回字段错误（如用户名冲突）时，调用 `form.setErrors({ username: '已存在' })` 写回对应路径，详见 [服务端错误](/guide/validation#服务端错误)。
