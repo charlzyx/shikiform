@@ -33,6 +33,7 @@ Whenever you can spell a path on `d`—including `d.items[i].qty` and `d.extra[k
 
 ```tsx preview
 import { enUS, Field, Form, useForm } from '@shikiform/react';
+import { Button, FieldNumber, PlusIcon, siteKit } from '@site/ui';
 
 type Values = { orders: { lines: { sku: string; qty: number }[] }[] };
 
@@ -42,30 +43,25 @@ export default function App() {
     initialValues: { orders: [{ lines: [{ sku: 'pen', qty: 1 }, { sku: 'book', qty: 2 }] }] },
   });
   return (
-    <Form form={form}>
-      <Field<Values, 'orders.0.lines.0.qty'> name="orders.0.lines.0.qty" title="First row quantity">
-        {(f) => (
-          <p>
-            <label htmlFor={f.id}>{f.title}: </label>
-            <input
-              id={f.id}
-              type="number"
-              value={f.value ?? 0}
-              onChange={(e) => f.onChange(Number(e.target.value))}
-              onBlur={f.onBlur}
-            />
-          </p>
-        )}
-      </Field>
-      <button
-        type="button"
-        onClick={() => {
-          const qty = form.getValue('orders[0].lines[0].qty');
-          form.setValue('orders[0].lines[0].qty', (qty ?? 0) + 1);
-        }}
-      >
-        Increment by path
-      </button>
+    <Form form={form} kit={siteKit} style={{ maxWidth: 320 }}>
+      <Field<Values, 'orders.0.lines.0.qty'>
+        name="orders.0.lines.0.qty"
+        title="First row quantity"
+        component={[FieldNumber, { min: 0 }]}
+      />
+      <div>
+        <Button
+          variant="outline"
+          size="sm"
+          icon={<PlusIcon size={13} />}
+          onClick={() => {
+            const qty = form.getValue('orders[0].lines[0].qty');
+            form.setValue('orders[0].lines[0].qty', (qty ?? 0) + 1);
+          }}
+        >
+          Increment by path
+        </Button>
+      </div>
     </Form>
   );
 }

@@ -15,60 +15,35 @@ Requires `react` and `react-dom` (`^16.8.0 || ^17 || ^18 || ^19`). On React 18+,
 
 ## Your first form
 
-Create one engine with `useForm`. `<Form>` provides it to descendants and handles native submit events. A field binds a path, a decorator renders its label and errors, and a component renders the control. Fill in the fields and submit to see the resulting values.
+Create one engine with `useForm`. `<Form>` provides it to descendants and handles native submit events. Pass `kit={siteKit}` once to supply the default `FormItem` decorator so each field only needs its path, rules, and control. Fill in the fields and submit to see the resulting values.
+
+> `@site/ui` is the docs' demo kit built on `@ui-sdk/react`. To plug in your own UI library or native controls, see [connecting a UI library](/en/guide/headless).
 
 ```tsx preview
-import { useState, type ReactNode } from 'react';
-import { enUS, Form, Reset, Submit, typed, useField, useFieldDecorator, useForm } from '@shikiform/react';
+import { useState } from 'react';
+import { enUS, Form, Reset, Submit, typed, useForm } from '@shikiform/react';
+import { Button, FieldInput, FieldNumber, siteKit } from '@site/ui';
 
 type Values = { name: string; email: string; age: number | null };
-
-function FieldItem({ children }: { children?: ReactNode }) {
-  const d = useFieldDecorator();
-  return (
-    <div style={{ marginBottom: 10 }}>
-      <label {...d.labelProps} style={{ display: 'inline-block', width: 64 }}>
-        {d.required && <span style={{ color: 'crimson' }}>* </span>}
-        {d.label}
-      </label>
-      {children}
-      {d.errorProps && <small {...d.errorProps} style={{ color: 'crimson', marginLeft: 8 }}>{d.errors[0]}</small>}
-    </div>
-  );
-}
-
-function TextInput({ placeholder }: { placeholder?: string }) {
-  const field = useField<string>();
-  return (
-    <input id={field.id} value={field.value ?? ''} placeholder={placeholder}
-      disabled={field.disabled} readOnly={field.readOnly}
-      onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />
-  );
-}
-
-function NumberInput() {
-  const field = useField<number | null>();
-  return (
-    <input id={field.id} type="number" value={field.value ?? ''}
-      disabled={field.disabled} readOnly={field.readOnly}
-      onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
-      onBlur={field.onBlur} />
-  );
-}
 
 export default function App() {
   const [result, setResult] = useState("No submission yet");
   const form = useForm<Values>({ messages: enUS, initialValues: { name: '', email: '', age: 18 } });
   const F = typed(form);
   return (
-    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
-      <F.Field name="name" title="Name" required decorator={[FieldItem]} component={[TextInput, { placeholder: 'Ada' }]} />
-      <F.Field name="email" title="Email" required rules={{ format: 'email', message: "Invalid email address" }}
-        decorator={[FieldItem]} component={[TextInput]} />
-      <F.Field name="age" title="Age" rules={{ min: 0, max: 150 }} decorator={[FieldItem]} component={[NumberInput]} />
-      <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-        <Submit>Submit</Submit>
-        <Reset afterReset={() => setResult("No submission yet")}>Reset</Reset>
+    <Form form={form} kit={siteKit} onSubmit={(values) => setResult(JSON.stringify(values))} style={{ maxWidth: 420 }}>
+      <F.Field name="name" title="Name" required component={[FieldInput, { placeholder: 'Ada' }]} />
+      <F.Field
+        name="email"
+        title="Email"
+        required
+        rules={{ format: 'email', message: "Invalid email address" }}
+        component={[FieldInput, { placeholder: 'ada@example.com' }]}
+      />
+      <F.Field name="age" title="Age" rules={{ min: 0, max: 150 }} component={[FieldNumber, { min: 0, max: 150 }]} />
+      <div style={{ display: 'flex', gap: 8 }}>
+        <Submit asChild><Button variant="primary">Submit</Button></Submit>
+        <Reset asChild afterReset={() => setResult("No submission yet")}><Button variant="outline">Reset</Button></Reset>
       </div>
       <pre aria-live="polite">{result}</pre>
     </Form>
@@ -83,15 +58,22 @@ Inside `<Field>`, `useField()` returns its binding. Pass the input value to `onC
 ```tsx preview
 import { useState } from 'react';
 import { enUS, Field, Form, useField, useForm } from '@shikiform/react';
+import { Button, Input } from '@site/ui';
 
 function TextInput({ label }: { label: string }) {
   const field = useField<string>();
   return (
-    <p>
-      <label htmlFor={field.id}>{label} </label>
-      <input id={field.id} value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} />
-      {field.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {field.errors[0]}</small>}
-    </p>
+    <div className="sf-ui-form-item">
+      <label htmlFor={field.id} className="sf-ui-form-label">{label}</label>
+      <Input
+        id={field.id}
+        value={field.value ?? ''}
+        invalid={field.errors.length > 0}
+        onChange={(event) => field.onChange(event.target.value)}
+        onBlur={field.onBlur}
+      />
+      {field.errors[0] && <p role="alert" className="sf-ui-form-error">{field.errors[0]}</p>}
+    </div>
   );
 }
 
@@ -99,9 +81,9 @@ export default function App() {
   const [result, setResult] = useState("No submission yet");
   const form = useForm({ messages: enUS, initialValues: { username: '' } });
   return (
-    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
+    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))} style={{ maxWidth: 360 }}>
       <Field name="username" required component={[TextInput, { label: "Name" }]} />
-      <button type="submit">Submit</button>
+      <div><Button variant="primary" type="submit">Submit</Button></div>
       <pre aria-live="polite">{result}</pre>
     </Form>
   );
@@ -113,36 +95,36 @@ export default function App() {
 Define an address fragment once with `typed<Address>()`. Mount it inside each `ObjectField` and use names relative to that object.
 
 ```tsx preview
-import { enUS, Form, ObjectField, typed, useField, useForm } from '@shikiform/react';
+import { enUS, Form, ObjectField, typed, useForm } from '@shikiform/react';
+import { Card, FieldInput, siteKit } from '@site/ui';
 
 type Address = { city: string; street: string };
 const A = typed<Address>();
 
-function LabeledInput() {
-  const field = useField<string>();
+function AddressFields() {
   return (
-    <div style={{ marginBottom: 6 }}>
-      <label htmlFor={field.id} style={{ display: 'inline-block', width: 56 }}>{field.title}</label>
-      <input id={field.id} value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />
+    <div style={{ display: 'grid', gap: 12 }}>
+      <A.Field name="city" title="City" component={FieldInput} />
+      <A.Field name="street" title="Street" component={[FieldInput, { placeholder: 'Street & building' }]} />
     </div>
   );
 }
 
-function AddressFields() {
-  return (
-    <>
-      <A.Field name="city" title="City" component={[LabeledInput]} />
-      <A.Field name="street" title="Street" component={[LabeledInput]} />
-    </>
-  );
-}
-
 export default function App() {
-  const form = useForm({ messages: enUS, initialValues: { home: { city: "Hangzhou", street: '' }, office: { city: "Shanghai", street: '' } } });
+  const form = useForm({
+    messages: enUS,
+    initialValues: { home: { city: "Hangzhou", street: '' }, office: { city: "Shanghai", street: '' } },
+  });
   return (
-    <Form form={form}>
-      <fieldset><legend>Home address</legend><ObjectField name="home"><AddressFields /></ObjectField></fieldset>
-      <fieldset><legend>Office address</legend><ObjectField name="office"><AddressFields /></ObjectField></fieldset>
+    <Form form={form} kit={siteKit}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+        <Card title="Home address" padding="sm">
+          <ObjectField name="home"><AddressFields /></ObjectField>
+        </Card>
+        <Card title="Office address" padding="sm">
+          <ObjectField name="office"><AddressFields /></ObjectField>
+        </Card>
+      </div>
     </Form>
   );
 }

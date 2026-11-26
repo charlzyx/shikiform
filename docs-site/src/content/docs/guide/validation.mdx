@@ -22,50 +22,13 @@ description: 使用内置规则、Standard Schema（如 Zod）进行同步与异
 与 Ant Design 和 Formily 一致，ShikiForm 的内置规则中，空值（`''`、`null`、`undefined`）统一只由 `required` 判定；`minLength`、`pattern`、`min`、`format` 等规则遇到空值会直接放行。这样既能保证选填项留空时不报错，也能避免必填项在留空时同时冒出多条错误。对于 Zod 等外部 Schema，空值是否放行取决于 Schema 自身定义（例如 `z.string().min(3)` 会拦截空串，若字段可留空需写 `.optional()` 或 `.or(z.literal(''))`）。
 
 ```tsx preview play=schema
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { z } from 'zod';
-import { Checkbox, CheckboxIndicator } from '@ui-sdk/react/checkbox';
-import { Field, Form, Watch, useField, useFieldDecorator, useForm, type Draft } from '@shikiform/react';
+import { Field, Form, Watch, useForm, type Draft } from '@shikiform/react';
+import { Button, FieldCheckbox, FieldInput, siteKit } from '@site/ui';
 
 type Values = { username: string; email: string; password: string; confirm: string; agree: boolean };
 const TAKEN = ['admin', 'root'];
-
-function FieldItem({ children }: { children?: ReactNode }) {
-  const d = useFieldDecorator();
-  return (
-    <div style={{ marginBottom: 8 }}>
-      {d.label && (
-        <label {...d.labelProps} style={{ display: 'inline-block', width: 72 }}>
-          {d.required && <span style={{ color: 'crimson' }}>* </span>}
-          {d.label}
-        </label>
-      )}
-      {children}
-      {d.errorProps && <small {...d.errorProps} style={{ color: 'crimson', marginLeft: 8 }}>{d.errors[0]}</small>}
-      {!d.errorProps && d.warningProps && <small {...d.warningProps} style={{ color: '#b45309', marginLeft: 8 }}>{d.warnings[0]}</small>}
-    </div>
-  );
-}
-
-function TextInput({ type = 'text' }: { type?: string }) {
-  const field = useField<string>();
-  return (
-    <input id={field.id} type={type} value={field.value ?? ''}
-      onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />
-  );
-}
-
-function AgreeCheckbox({ children }: { children?: ReactNode }) {
-  const field = useField<boolean>();
-  return (
-    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-      <Checkbox id={field.id} checked={Boolean(field.value)} onCheckedChange={(checked) => field.onChange(checked === true)}>
-        <CheckboxIndicator>✓</CheckboxIndicator>
-      </Checkbox>
-      {children}
-    </label>
-  );
-}
 
 export default function App() {
   const [result, setResult] = useState('');
@@ -79,30 +42,54 @@ export default function App() {
     validate: (values) => (values.confirm && values.confirm !== values.password ? { confirm: '两次密码不一致' } : undefined),
   });
   return (
-    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
-      <Field name="username" title="用户名" required decorator={[FieldItem]} component={[TextInput]}
+    <Form form={form} kit={siteKit} onSubmit={(values) => setResult(JSON.stringify(values))} style={{ maxWidth: 420 }}>
+      <Field
+        name="username"
+        title="用户名"
+        required
+        component={[FieldInput, { placeholder: '试试输入 admin' }]}
         rules={[
           { minLength: 3, message: '至少 3 个字符' },
-          { validator: (value, { signal }) => new Promise<string | null>((resolve) => {
-            const timer = setTimeout(() => resolve(TAKEN.includes(String(value)) ? '用户名已被占用' : null), 400);
-            signal?.addEventListener('abort', () => clearTimeout(timer));
-          }) },
-        ]} />
-      <Field name="email" title="邮箱" required rules={z.string().email('邮箱格式不对').or(z.literal(''))} decorator={[FieldItem]} component={[TextInput]} />
-      <Field name="password" title="密码" required decorator={[FieldItem]} component={[TextInput, { type: 'password' }]}
+          {
+            validator: (value, { signal }) => new Promise<string | null>((resolve) => {
+              const timer = setTimeout(() => resolve(TAKEN.includes(String(value)) ? '用户名已被占用' : null), 400);
+              signal?.addEventListener('abort', () => clearTimeout(timer));
+            }),
+          },
+        ]}
+      />
+      <Field
+        name="email"
+        title="邮箱"
+        required
+        rules={z.string().email('邮箱格式不对').or(z.literal(''))}
+        component={[FieldInput, { placeholder: 'ada@example.com' }]}
+      />
+      <Field
+        name="password"
+        title="密码"
+        required
+        component={[FieldInput, { type: 'password', placeholder: '至少 6 位' }]}
         rules={[
           { minLength: 6, message: '至少 6 位' },
           // 警告：提示但不挡提交
           { validator: (value) => (/\d/.test(String(value)) && /[a-z]/i.test(String(value)) ? null : '建议同时包含字母和数字'), level: 'warning' },
-        ]} />
-      <Field name="confirm" title="确认密码" required decorator={[FieldItem]} component={[TextInput, { type: 'password' }]} />
-      <Field name="agree" rules={{ isTrue: true, message: '请先同意条款' }} decorator={[FieldItem]}>
-        <AgreeCheckbox>我已阅读并同意条款</AgreeCheckbox>
+        ]}
+      />
+      <Field name="confirm" title="确认密码" required component={[FieldInput, { type: 'password' }]} />
+      <Field name="agree" rules={{ isTrue: true, message: '请先同意条款' }}>
+        <FieldCheckbox>我已阅读并同意条款</FieldCheckbox>
       </Field>
-      <Watch select={(d: Draft<Values>) => d.$submitting}>
-        {(submitting) => <button type="submit" disabled={submitting}>{submitting ? '提交中…' : '注册'}</button>}
-      </Watch>
-      <pre aria-live="polite">{result}</pre>
+      <div>
+        <Watch select={(d: Draft<Values>) => d.$submitting}>
+          {(submitting) => (
+            <Button variant="primary" type="submit" loading={submitting}>
+              {submitting ? '提交中…' : '注册'}
+            </Button>
+          )}
+        </Watch>
+      </div>
+      {result && <pre aria-live="polite">{result}</pre>}
     </Form>
   );
 }

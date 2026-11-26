@@ -8,31 +8,16 @@ description: "Render multiple controls for a field or control a presentation-onl
 Set `ui` on an additional field control. It shares the value, rules, options and errors, while keeping its own DOM ID (`<form id>-<path>--<ui>`; on React 18+, omitting `<Form id>` uses `useId()` for a hydration-safe prefix, while React 16.8/17 SSR apps should pass an explicit `<Form id="…">`) and presentation state. Put validation and options on the primary field. Mounting two unnamed `<Field>` components for the same form and path warns once in development, prompting you to add a distinct `ui` name to the second `<Field>`. Whole-object assignments to `$componentProps` or `$decoratorProps` on `$ui(name)` accept only a plain object or `undefined` (other values throw `ShikiUsageError` in development and are ignored in production).
 
 ```tsx preview
-import type { CSSProperties, ReactNode } from 'react';
-import { enUS, defineEffects, Form, typed, useField, useFieldDecorator, useForm } from '@shikiform/react';
+import type { CSSProperties } from 'react';
+import { enUS, defineEffects, Form, typed, useField, useForm } from '@shikiform/react';
+import { FieldInput, FormItem, siteKit } from '@site/ui';
 
 type Values = { nickname: string };
-
-function FieldItem({ children }: { children?: ReactNode }) {
-  const d = useFieldDecorator();
-  return (
-    <div style={{ marginBottom: 8 }}>
-      <label {...d.labelProps} style={{ display: 'inline-block', width: 56 }}>{d.label}</label>
-      {children}
-    </div>
-  );
-}
-
-function TextInput({ placeholder }: { placeholder?: string }) {
-  const field = useField<string>();
-  return <input id={field.id} value={field.value ?? ''} placeholder={placeholder}
-    onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />;
-}
 
 // A secondary UI receives the shared binding and its own presentation state.
 function Echo({ style }: { style?: CSSProperties }) {
   const field = useField<string>();
-  return <span id={field.id} data-echo="" style={style}>{field.value || "(empty)"}</span>;
+  return <span id={field.id} data-echo="" className="sf-ui-readonly" style={style}>{field.value || "(empty)"}</span>;
 }
 
 export default function App() {
@@ -50,9 +35,9 @@ export default function App() {
   });
   const F = typed(form);
   return (
-    <Form form={form} id="echo" data-ui-echo-demo="">
-      <F.Field name="nickname" title="Nickname" decorator={[FieldItem]} component={[TextInput, { placeholder: "The echo turns red after eight characters" }]} />
-      <F.Field name="nickname" ui="echo" title="Echo" decorator={[FieldItem]} component={[Echo]} />
+    <Form form={form} kit={siteKit} id="echo" data-ui-echo-demo="" style={{ maxWidth: 420 }}>
+      <F.Field name="nickname" title="Nickname" decorator={[FormItem, { layout: 'horizontal' }]} component={[FieldInput, { placeholder: "The echo turns red after eight characters" }]} />
+      <F.Field name="nickname" ui="echo" title="Echo" decorator={[FormItem, { layout: 'horizontal' }]} component={Echo} />
     </Form>
   );
 }
@@ -63,52 +48,10 @@ export default function App() {
 Use `d.x.$ui('name')` to change one instance's title, props, visibility, disabled or read-only state. Inside it, `useField()` returns the shared value and that instance's UI state.
 
 ```tsx preview
-import type { ReactNode } from 'react';
-import { Checkbox, CheckboxIndicator } from '@ui-sdk/react/checkbox';
-import { Slider, SliderControl, SliderIndicator, SliderThumb, SliderTrack } from '@ui-sdk/react/slider';
-import { enUS, defineEffects, Form, typed, useField, useFieldDecorator, useForm } from '@shikiform/react';
+import { enUS, defineEffects, Form, typed, useForm } from '@shikiform/react';
+import { FieldNumber, FieldSlider, FieldSwitch, FormItem, siteKit } from '@site/ui';
 
 type Values = { budget: number; locked: boolean };
-
-function FieldItem({ children }: { children?: ReactNode }) {
-  const d = useFieldDecorator();
-  return (
-    <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
-      <label {...d.labelProps} style={{ display: 'inline-block', width: 72 }}>{d.label}</label>
-      {children}
-    </div>
-  );
-}
-
-function Toggle() {
-  const field = useField<boolean>();
-  return (
-    <Checkbox id={field.id} checked={Boolean(field.value)} onCheckedChange={(checked) => field.onChange(checked === true)}>
-      <CheckboxIndicator>✓</CheckboxIndicator>
-    </Checkbox>
-  );
-}
-
-function NumberInput({ min, max }: { min?: number; max?: number }) {
-  const field = useField<number>();
-  return <input id={field.id} type="number" min={min} max={max} value={field.value ?? 0}
-    disabled={field.disabled} onChange={(e) => field.onChange(Number(e.target.value))} />;
-}
-
-function RangeSlider({ min = 0, max = 100 }: { min?: number; max?: number }) {
-  const field = useField<number>();
-  return (
-    <Slider min={min} max={max} value={field.value ?? 0} disabled={field.disabled}
-      onValueChange={(value) => field.onChange(value)}>
-      <SliderControl>
-        <SliderTrack>
-          <SliderIndicator />
-          <SliderThumb id={field.id} aria-label="Budget slider" />
-        </SliderTrack>
-      </SliderControl>
-    </Slider>
-  );
-}
 
 export default function App() {
   const form = useForm<Values>({
@@ -124,10 +67,10 @@ export default function App() {
   });
   const F = typed(form);
   return (
-    <Form form={form} data-ui-slider-demo="">
-      <F.Field name="locked" title="Lock slider" decorator={[FieldItem]} component={[Toggle]} />
-      <F.Field name="budget" title="Budget" required decorator={[FieldItem]} component={[NumberInput, { min: 0, max: 100 }]} />
-      <F.Field name="budget" ui="slider" title=" " decorator={[FieldItem]} component={[RangeSlider]} />
+    <Form form={form} kit={siteKit} data-ui-slider-demo="" style={{ maxWidth: 420 }}>
+      <F.Field name="locked" title="Lock slider" decorator={[FormItem, { layout: 'horizontal' }]} component={FieldSwitch} />
+      <F.Field name="budget" title="Budget" required decorator={[FormItem, { layout: 'horizontal' }]} component={[FieldNumber, { min: 0, max: 100 }]} />
+      <F.Field name="budget" ui="slider" title="Slider" decorator={[FormItem, { layout: 'horizontal' }]} component={[FieldSlider, { min: 0, max: 100 }]} />
     </Form>
   );
 }
@@ -140,25 +83,22 @@ Use `<UI>` for a tip or group box and address it as `d.$ui('name')`. It has no e
 ```tsx preview
 import { useState } from 'react';
 import { enUS, defineEffects, Form, Submit, typed, UI, useField, useForm } from '@shikiform/react';
+import { Alert, Button, Input, siteKit } from '@site/ui';
 
 type Values = { amount: number | null };
 
-function NumberInput() {
+function AmountInput() {
   const field = useField<number | null>();
   return (
-    <div style={{ marginBottom: 8 }}>
-      <label htmlFor={field.id} style={{ display: 'inline-block', width: 72 }}>{field.title}</label>
-      <input id={field.id} type="number" value={field.value ?? ''}
-        onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))} />
-    </div>
-  );
-}
-
-function WarningBanner({ message }: { message: string }) {
-  return (
-    <div role="status" style={{ padding: '6px 10px', marginBottom: 8, background: '#fffbeb', border: '1px solid #f59e0b', color: '#92400e' }}>
-      ⚠ {message}
-    </div>
+    <Input
+      id={field.id}
+      type="number"
+      prefix="¥"
+      placeholder="Try entering 50000 or more"
+      value={field.value ?? ''}
+      onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
+      onBlur={field.onBlur}
+    />
   );
 }
 
@@ -177,10 +117,10 @@ export default function App() {
   const F = typed(form);
   const [saved, setSaved] = useState<Values>();
   return (
-    <Form form={form} onSubmit={setSaved} data-ui-alert-demo="">
-      <F.Field name="amount" title="Expense amount" component={[NumberInput]} />
-      <UI name="approvalTip" component={[WarningBanner, { message: "Amounts of 50000 or more need manager approval" }]} />
-      <Submit>Submit</Submit>
+    <Form form={form} kit={siteKit} onSubmit={setSaved} data-ui-alert-demo="" style={{ maxWidth: 420 }}>
+      <F.Field name="amount" title="Expense amount" component={AmountInput} />
+      <UI name="approvalTip" component={[Alert, { variant: 'warning', children: "Amounts of 50000 or more need manager approval" }]} />
+      <div><Submit asChild><Button variant="primary">Submit</Button></Submit></div>
       {saved && <pre>{JSON.stringify(saved)}</pre>}
     </Form>
   );
@@ -192,45 +132,11 @@ export default function App() {
 Hiding a UI container unmounts its children. Their field-level visibility, validation and submit settings still apply. Set the field's own flags when those should change too.
 
 ```tsx preview
-import { useState, type ReactNode } from 'react';
-import { Checkbox, CheckboxIndicator } from '@ui-sdk/react/checkbox';
-import { enUS, defineEffects, Form, Submit, typed, UI, useField, useForm } from '@shikiform/react';
+import { useState } from 'react';
+import { enUS, defineEffects, Form, Submit, typed, UI, useForm } from '@shikiform/react';
+import { Button, Card, FieldInput, FieldSwitch, siteKit } from '@site/ui';
 
 type Values = { needInvoice: boolean; invoiceTitle: string; remark: string };
-
-function Toggle() {
-  const field = useField<boolean>();
-  return (
-    <div style={{ marginBottom: 8 }}>
-      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-        <Checkbox id={field.id} checked={Boolean(field.value)} onCheckedChange={(checked) => field.onChange(checked === true)}>
-          <CheckboxIndicator>✓</CheckboxIndicator>
-        </Checkbox>
-        {field.title}
-      </label>
-    </div>
-  );
-}
-
-function TextInput() {
-  const field = useField<string>();
-  return (
-    <div style={{ marginBottom: 6 }}>
-      <label htmlFor={field.id} style={{ display: 'inline-block', width: 56 }}>{field.title}</label>
-      <input id={field.id} value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />
-      {field.errors[0] && <small role="alert" style={{ color: 'crimson', marginLeft: 6 }}>{field.errors[0]}</small>}
-    </div>
-  );
-}
-
-function GroupBox({ title, children }: { title: string; children?: ReactNode }) {
-  return (
-    <fieldset style={{ border: '1px solid #ccc', padding: 10, marginBottom: 10 }}>
-      <legend>{title}</legend>
-      {children}
-    </fieldset>
-  );
-}
 
 export default function App() {
   const form = useForm<Values>({
@@ -250,13 +156,15 @@ export default function App() {
   const F = typed(form);
   const [saved, setSaved] = useState<Values>();
   return (
-    <Form form={form} onSubmit={setSaved} data-ui-box-demo="">
-      <F.Field name="needInvoice" title="Request invoice" component={[Toggle]} />
-      <UI name="invoiceBox" component={[GroupBox, { title: "Invoice details" }]}>
-        <F.Field name="invoiceTitle" title="Bill to" required component={[TextInput]} />
-        <F.Field name="remark" title="Notes" component={[TextInput]} />
+    <Form form={form} kit={siteKit} onSubmit={setSaved} data-ui-box-demo="" style={{ maxWidth: 420 }}>
+      <F.Field name="needInvoice" title="Request invoice" component={FieldSwitch} />
+      <UI name="invoiceBox" component={[Card, { title: "Invoice details", padding: 'sm' }]}>
+        <div style={{ display: 'grid', gap: 12 }}>
+          <F.Field name="invoiceTitle" title="Bill to" required component={FieldInput} />
+          <F.Field name="remark" title="Notes" component={FieldInput} />
+        </div>
       </UI>
-      <Submit>Submit</Submit>
+      <div><Submit asChild><Button variant="primary">Submit</Button></Submit></div>
       {saved && <pre>{JSON.stringify(saved)}</pre>}
     </Form>
   );

@@ -28,9 +28,9 @@ Keep reactions synchronous and predictable:
 For dependent dropdowns, derive the available cities in a `reaction` and reset the selected city in a `watch` only after the province changes.
 
 ```tsx preview
-import { useState, type ReactNode } from 'react';
-import { Select, SelectContent, SelectItem, SelectItemIndicator, SelectTrigger, SelectValue } from '@ui-sdk/react/select';
-import { enUS, Field, Form, defineEffects, useField, useFieldDecorator, useForm } from '@shikiform/react';
+import { useState } from 'react';
+import { enUS, Field, Form, Submit, defineEffects, useForm } from '@shikiform/react';
+import { Button, FieldNumber, FieldSelect, siteKit } from '@site/ui';
 
 type Values = { price: number; qty: number; amount: number; province: string; city: string };
 
@@ -42,7 +42,7 @@ const CITIES: Record<string, { label: string; value: string }[]> = {
 const effects = defineEffects<Values>(({ reaction, watch, draft }) => {
   // Run immediately and recalculate when price or quantity changes.
   reaction((d) => {
-    d.amount.$value = d.price.$value * d.qty.$value;
+    d.amount.$value = (d.price.$value ?? 0) * (d.qty.$value ?? 0);
   });
   // City options depend on province.
   reaction((d) => {
@@ -56,39 +56,6 @@ const effects = defineEffects<Values>(({ reaction, watch, draft }) => {
   });
 });
 
-function FieldItem({ children }: { children?: ReactNode }) {
-  const d = useFieldDecorator();
-  return (
-    <div style={{ marginBottom: 8 }}>
-      <label {...d.labelProps} style={{ display: 'inline-block', width: 56 }}>{d.label}</label>
-      {children}
-    </div>
-  );
-}
-
-function NumberInput() {
-  const field = useField<number>();
-  return (
-    <input id={field.id} type="number" value={field.value ?? 0} disabled={field.disabled}
-      onChange={(e) => field.onChange(Number(e.target.value))} onBlur={field.onBlur} />
-  );
-}
-
-function SelectInput() {
-  const field = useField<string>();
-  const items = field.options.map((o) => ({ value: String(o.value), label: o.label }));
-  return (
-    <Select items={items} value={field.value || null} disabled={field.disabled} onValueChange={(next) => field.onChange(next ?? '')} onOpenChange={(open) => { if (!open) field.onBlur(); }}>
-      <SelectTrigger id={field.id}><SelectValue placeholder="Choose an option" /></SelectTrigger>
-      <SelectContent>
-        {items.map((o) => (
-          <SelectItem key={o.value} value={o.value}>{o.label}<SelectItemIndicator aria-hidden="true">✓</SelectItemIndicator></SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}
-
 export default function App() {
   const [result, setResult] = useState('');
   const form = useForm<Values>({
@@ -97,14 +64,25 @@ export default function App() {
     effects: [effects],
   });
   return (
-    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
-      <Field name="price" title="Unit price" decorator={[FieldItem]} component={[NumberInput]} />
-      <Field name="qty" title="Quantity" decorator={[FieldItem]} component={[NumberInput]} />
-      <Field name="amount" title="Amount" decorator={[FieldItem]} component={[NumberInput]} />
-      <Field name="province" title="Province" enum={[{ label: "Zhejiang", value: 'zj' }, { label: "Jiangsu", value: 'js' }]}
-        decorator={[FieldItem]} component={[SelectInput]} />
-      <Field name="city" title="City" decorator={[FieldItem]} component={[SelectInput]} />
-      <pre>{result}</pre>
+    <Form form={form} kit={siteKit} onSubmit={(values) => setResult(JSON.stringify(values))} style={{ maxWidth: 520 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
+        <Field name="price" title="Unit price" component={[FieldNumber, { min: 0, prefix: '¥' }]} />
+        <Field name="qty" title="Quantity" component={[FieldNumber, { min: 0 }]} />
+        <Field name="amount" title="Amount" component={[FieldNumber, { prefix: '¥', showControls: false }]} />
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+        <Field
+          name="province"
+          title="Province"
+          enum={[{ label: "Zhejiang", value: 'zj' }, { label: "Jiangsu", value: 'js' }]}
+          component={[FieldSelect, { placeholder: "Choose province" }]}
+        />
+        <Field name="city" title="City" component={[FieldSelect, { placeholder: "Choose city" }]} />
+      </div>
+      <div>
+        <Submit asChild><Button variant="primary" size="sm">Submit</Button></Submit>
+      </div>
+      {result && <pre>{result}</pre>}
     </Form>
   );
 }
@@ -126,46 +104,69 @@ For a dynamic object such as `extra: Record<string, number | null>`, pass the ob
 Try adding two fees, editing one amount and removing one field.
 
 ```tsx preview
-import { useRef } from 'react'
-import { Form, defineEffects, typed, useForm } from '@shikiform/react'
+import { useRef } from 'react';
+import { Form, defineEffects, typed, useForm } from '@shikiform/react';
+import { Badge, Button, Input, PlusIcon, TrashIcon } from '@site/ui';
 
-type Values = { extra: Record<string, number | null> }
+type Values = { extra: Record<string, number | null> };
 const effects = defineEffects<Values>(({ reaction, draft }) => {
   reaction.each(draft.extra, (fee) => {
-    fee.$description = fee.$value === 0 ? 'Free' : undefined
-  })
-})
+    fee.$description = fee.$value === 0 ? 'Free' : undefined;
+  });
+});
 
 export default function App() {
-  const form = useForm<Values>({ initialValues: { extra: { fee1: 0 } }, effects: [effects] })
-  const F = typed(form)
-  const nextId = useRef(2)
+  const form = useForm<Values>({ initialValues: { extra: { fee1: 0 } }, effects: [effects] });
+  const F = typed(form);
+  const nextId = useRef(2);
   return (
-    <Form form={form} aria-label="Extra fees">
-      <button type="button" onClick={() => {
-        const key = `fee${nextId.current++}`
-        form.batch((d) => { d.extra[key].$value = 0 })
-      }}>Add fee</button>
+    <Form form={form} aria-label="Extra fees" style={{ maxWidth: 440 }}>
+      <div>
+        <Button
+          variant="outline"
+          size="sm"
+          icon={<PlusIcon size={13} />}
+          onClick={() => {
+            const key = `fee${nextId.current++}`;
+            form.batch((d) => { d.extra[key].$value = 0; });
+          }}
+        >
+          Add fee
+        </Button>
+      </div>
       <F.Watch select={(d) => Object.keys(d.extra.$value)}>
         {(keys) => keys.map((key) => (
           <F.Field key={key} name={`extra.${key}`}>
             {(field) => (
-              <div>
-                <label htmlFor={field.id}>{key}</label>
-                <input id={field.id} type="number" value={field.value ?? ''}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <label htmlFor={field.id} className="sf-ui-form-label" style={{ width: 52, flexShrink: 0 }}>{key}</label>
+                <Input
+                  id={field.id}
+                  type="number"
+                  size="sm"
+                  style={{ width: 120 }}
+                  value={field.value ?? ''}
                   onChange={(e) => field.onChange(e.target.value === '' ? null : e.target.valueAsNumber)}
-                  onBlur={field.onBlur} aria-describedby={field.description ? `${field.id}-hint` : undefined} />
-                {field.description && <span id={`${field.id}-hint`}>{field.description}</span>}
-                <button type="button" onClick={() => form.batch((d) => { delete d.extra.$value[key] })}>
+                  onBlur={field.onBlur}
+                  aria-describedby={field.description ? `${field.id}-hint` : undefined}
+                />
+                {field.description && <Badge id={`${field.id}-hint`} variant="success">{field.description}</Badge>}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={<TrashIcon size={13} />}
+                  style={{ marginInlineStart: 'auto' }}
+                  onClick={() => form.batch((d) => { delete d.extra.$value[key]; })}
+                >
                   Remove {key}
-                </button>
+                </Button>
               </div>
             )}
           </F.Field>
         ))}
       </F.Watch>
     </Form>
-  )
+  );
 }
 ```
 
@@ -202,8 +203,21 @@ Use `watch.each` to reset a row's quantity when its selected product changes, wh
 
 ```tsx preview play=sku
 import { useState, type ReactNode } from 'react';
-import { Select, SelectContent, SelectItem, SelectItemIndicator, SelectTrigger, SelectValue } from '@ui-sdk/react/select';
-import { enUS, ArrayField, Field, Form, defineEffects, useArrayField, useField, useForm, useIndex } from '@shikiform/react';
+import { enUS, ArrayField, Field, Form, Submit, defineEffects, useArrayField, useForm, useIndex } from '@shikiform/react';
+import {
+  Button,
+  FieldNumber,
+  FieldSelect,
+  FormItem,
+  PlusIcon,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  TrashIcon,
+} from '@site/ui';
 
 type Item = { id: number; sku: string; price: number; qty: number; total: number };
 type Values = { discount: number; items: Item[] };
@@ -215,7 +229,7 @@ const effects = defineEffects<Values>(({ reaction, watch, draft }) => {
   reaction.each(draft.items, (row, { d, index }) => {
     const price = PRICES[row.sku.$value] ?? 0;
     row.price.$value = price;
-    row.total.$value = price * row.qty.$value * (1 - d.discount.$value / 100);
+    row.total.$value = Math.round(price * (row.qty.$value ?? 0) * (1 - (d.discount.$value ?? 0) / 100) * 100) / 100;
     row.sku.$required = index === 0; // The first row requires a product.
   });
   // Reset quantity when the product changes.
@@ -224,48 +238,42 @@ const effects = defineEffects<Values>(({ reaction, watch, draft }) => {
   });
 });
 
-function InlineNumber({ min, max, width = 72 }: { min?: number; max?: number; width?: number }) {
-  const field = useField<number>();
-  return (
-    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-      <span>{field.title}</span>
-      <input id={field.id} type="number" min={min} max={max} style={{ width }}
-        value={field.value ?? 0} onChange={(e) => field.onChange(Number(e.target.value))} onBlur={field.onBlur} />
-    </label>
-  );
-}
-
-function InlineSelect() {
-  const field = useField<string>();
-  const items = field.options.map((o) => ({ value: String(o.value), label: o.label }));
-  return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-      <label htmlFor={field.id}>{field.title}</label>
-      <Select items={items} value={field.value || null} onValueChange={(next) => field.onChange(next ?? '')} onOpenChange={(open) => { if (!open) field.onBlur(); }}>
-        <SelectTrigger id={field.id}><SelectValue placeholder="Choose an option" /></SelectTrigger>
-        <SelectContent>
-          {items.map((o) => (
-            <SelectItem key={o.value} value={o.value}>{o.label}<SelectItemIndicator aria-hidden="true">✓</SelectItemIndicator></SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </span>
-  );
-}
-
 function RemoveButton() {
   const array = useArrayField<Item>();
   const index = useIndex();
-  return <button type="button" onClick={() => array.remove(index)}>Delete</button>;
+  return (
+    <Button variant="ghost" size="sm" icon={<TrashIcon size={13} />} onClick={() => array.remove(index)}>
+      Delete
+    </Button>
+  );
 }
 
-function ItemList({ children }: { children?: ReactNode }) {
+function ItemTable({ children }: { children?: ReactNode }) {
   const array = useArrayField<Item>();
   return (
-    <div>
-      {children}
-      <button type="button" style={{ marginTop: 10 }}
-        onClick={() => array.push({ id: nextId++, sku: '', price: 0, qty: 1, total: 0 })}>Add row</button>
+    <div style={{ display: 'grid', gap: 10 }}>
+      <Table compact>
+        <TableHead>
+          <TableRow>
+            <TableHeader style={{ width: 150 }}>Product</TableHeader>
+            <TableHeader style={{ width: 110 }}>Unit price</TableHeader>
+            <TableHeader style={{ width: 120 }}>Quantity</TableHeader>
+            <TableHeader style={{ width: 110 }}>Subtotal</TableHeader>
+            <TableHeader style={{ width: 92 }}>Actions</TableHeader>
+          </TableRow>
+        </TableHead>
+        <TableBody>{children}</TableBody>
+      </Table>
+      <div>
+        <Button
+          variant="outline"
+          size="sm"
+          icon={<PlusIcon size={13} />}
+          onClick={() => array.push({ id: nextId++, sku: '', price: 0, qty: 1, total: 0 })}
+        >
+          Add row
+        </Button>
+      </div>
     </div>
   );
 }
@@ -280,22 +288,22 @@ export default function App() {
   });
   return (
     <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
-      <div style={{ marginBottom: 10 }}>
-        <Field name="discount" title="Discount (%)" component={[InlineNumber, { min: 0, max: 100 }]} />
+      <div style={{ maxWidth: 240 }}>
+        <Field name="discount" title="Discount (%)" decorator={[FormItem, { layout: 'inline' }]} component={[FieldNumber, { min: 0, max: 100, size: 'sm' }]} />
       </div>
-      <ArrayField name="items" rowKey="id" component={ItemList}>
+      <ArrayField name="items" rowKey="id" component={ItemTable}>
         {() => (
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
-            <Field name="sku" title="Product" component={[InlineSelect]} />
-            <Field name="price" title="Unit price" component={[InlineNumber]} />
-            <Field name="qty" title="Quantity" component={[InlineNumber, { min: 1 }]} />
-            <Field name="total" title="Subtotal" component={[InlineNumber]} />
-            <RemoveButton />
-          </div>
+          <TableRow>
+            <TableCell><Field name="sku" component={[FieldSelect, { size: 'sm', placeholder: 'Choose' }]} /></TableCell>
+            <TableCell><Field name="price" component={[FieldNumber, { size: 'sm', showControls: false, prefix: '¥' }]} /></TableCell>
+            <TableCell><Field name="qty" component={[FieldNumber, { size: 'sm', min: 1 }]} /></TableCell>
+            <TableCell><Field name="total" component={[FieldNumber, { size: 'sm', showControls: false, prefix: '¥' }]} /></TableCell>
+            <TableCell><RemoveButton /></TableCell>
+          </TableRow>
         )}
       </ArrayField>
-      <button style={{ marginTop: 10 }} type="submit">Submit</button>
-      <pre>{result}</pre>
+      <div><Submit asChild><Button variant="primary">Submit</Button></Submit></div>
+      {result && <pre>{result}</pre>}
     </Form>
   );
 }
@@ -306,7 +314,8 @@ export default function App() {
 `each` also visits descendants in a tree. Nested primitive arrays are skipped during object traversal. Selecting a primitive array itself visits its elements at depth zero.
 
 ```tsx preview
-import { enUS, Field, Form, TreeField, defineEffects, useField, useForm, useTreeField } from '@shikiform/react';
+import { enUS, Field, Form, TreeField, defineEffects, useForm, useTreeField } from '@shikiform/react';
+import { Button, FieldInput } from '@site/ui';
 
 type Node = { id: string; code: string; name: string; children?: Node[] };
 type Values = { nodes: Node[] };
@@ -319,34 +328,30 @@ const effects = defineEffects<Values>(({ reaction, draft }) => {
   });
 });
 
-function TextBox({ width }: { width?: number }) {
-  const field = useField<string>();
-  return (
-    <input style={width ? { width } : undefined} value={field.value ?? ''}
-      onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />
-  );
-}
-
 function NodeTree() {
   const tree = useTreeField('nodes', { rowKey: 'id' });
   return (
     <>
-      <ul style={{ paddingLeft: 0, listStyle: 'none' }}>
+      <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none', display: 'grid', gap: 6 }}>
         <TreeField name="nodes" rowKey="id">
           {(node) => (
-            <li style={{ margin: '6px 0' }}>
-              <span style={{ display: 'inline-flex', gap: 6 }}>
-                <Field name="code" component={[TextBox, { width: 56 }]} />
-                <Field name="name" component={[TextBox, { width: 180 }]} />
-              </span>
-              {node.children && <ul style={{ paddingLeft: 24, listStyle: 'none' }}>{node.children}</ul>}
+            <li>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                <Field name="code" component={[FieldInput, { size: 'sm', style: { width: 64, textAlign: 'center', fontFamily: 'var(--sf-ui-mono)' } }]} />
+                <Field name="name" component={[FieldInput, { size: 'sm', style: { width: 180 } }]} />
+              </div>
+              {node.children && (
+                <ul style={{ margin: '6px 0 0', paddingLeft: 26, listStyle: 'none', display: 'grid', gap: 6 }}>
+                  {node.children}
+                </ul>
+              )}
             </li>
           )}
         </TreeField>
       </ul>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button type="button" onClick={() => tree.move([0, 1], [0, 0])}>Move Wash to the top</button>
-        <button type="button" onClick={() => tree.move([0, 0], [1, 0])}>Move the first child under Cook</button>
+        <Button size="sm" onClick={() => tree.move([0, 1], [0, 0])}>Move Wash to the top</Button>
+        <Button size="sm" onClick={() => tree.move([0, 0], [1, 0])}>Move the first child under Cook</Button>
       </div>
     </>
   );

@@ -13,8 +13,30 @@ Change a category to see each row adapt. Add an expense to see the total and app
 
 ```tsx preview
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Select, SelectContent, SelectItem, SelectItemIndicator, SelectTrigger, SelectValue } from '@ui-sdk/react/select';
-import { enUS, defineEffects, Form, Submit, typed, useArrayField, useField, useFieldDecorator, useForm, useIndex, useWatch, type Draft } from '@shikiform/react';
+import {
+  enUS,
+  defineEffects,
+  Form,
+  Submit,
+  typed,
+  useArrayField,
+  useForm,
+  useIndex,
+  useWatch,
+  type Draft,
+} from '@shikiform/react';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  FieldInput,
+  FieldNumber,
+  FieldSelect,
+  PlusIcon,
+  siteKit,
+  TrashIcon,
+} from '@site/ui';
 
 type Expense = { category: 'travel' | 'meal'; amount: number | null; city: string; attendees: string };
 type Values = { expenses: Expense[]; summary: { total: number; approval: 'standard' | 'manager' } };
@@ -37,65 +59,68 @@ const effects = defineEffects<Values>(({ reaction, draft }) => {
   });
 });
 
-function FieldItem({ children }: { children?: ReactNode }) {
-  const d = useFieldDecorator();
-  return <div className="claim-field">
-    <label {...d.labelProps}>{d.label}{d.required && <span aria-hidden="true"> *</span>}</label>
-    {children}
-    {d.errorProps && <small {...d.errorProps} className="claim-error">{d.errors[0]}</small>}
-  </div>;
-}
-function TextInput() {
-  const field = useField<string>();
-  const d = useFieldDecorator();
-  return <input aria-required={field.required} aria-invalid={d.invalid || undefined} aria-describedby={d.describedBy} id={field.id} value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />;
-}
-function AmountInput() {
-  const field = useField<number | null>();
-  const d = useFieldDecorator();
-  return <input aria-required={field.required} aria-invalid={d.invalid || undefined} aria-describedby={d.describedBy} id={field.id} type="number" min="0.01" step="0.01" inputMode="decimal" value={field.value ?? ''}
-    onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))} onBlur={field.onBlur} />;
-}
-function CategorySelect() {
-  const field = useField<string>();
-  const d = useFieldDecorator();
-  const items = field.options.map((o) => ({ value: String(o.value), label: o.label, disabled: o.disabled }));
-  return (
-    <Select items={items} value={field.value || null} disabled={field.disabled} onValueChange={(next) => next && field.onChange(next)} onOpenChange={(open) => { if (!open) field.onBlur(); }}>
-      <SelectTrigger id={field.id} aria-required={field.required} aria-invalid={d.invalid || undefined} aria-describedby={d.describedBy}>
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {items.map((option) => (
-          <SelectItem key={option.value} value={option.value} disabled={option.disabled}>
-            {option.label}
-            <SelectItemIndicator aria-hidden="true">✓</SelectItemIndicator>
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}
 function Expenses({ children }: { children?: ReactNode }) {
   const expenses = useArrayField<Expense>();
-  return <div className="claim-lines">{children}
-    <button className="claim-add" type="button" onClick={() => expenses.push({ category: 'travel', amount: null, city: '', attendees: '' })}>+ Add expense</button>
-  </div>;
+  return (
+    <div className="claim-lines">
+      {children}
+      <Button
+        variant="outline"
+        block
+        icon={<PlusIcon size={14} />}
+        style={{ borderStyle: 'dashed' }}
+        onClick={() => expenses.push({ category: 'travel', amount: null, city: '', attendees: '' })}
+      >
+        Add expense
+      </Button>
+    </div>
+  );
 }
-function RowHeader() {
+
+function RowCard({ children }: { children?: ReactNode }) {
   const expenses = useArrayField<Expense>();
   const index = useIndex();
-  return <div className="claim-row-head"><span>ITEM {String(index + 1).padStart(2, '0')}</span>
-    <button type="button" aria-label={`Remove ${index + 1}`} disabled={expenses.keys.length <= 1} onClick={() => expenses.remove(index)}>Remove</button>
-  </div>;
+  return (
+    <Card
+      padding="sm"
+      title={`ITEM ${String(index + 1).padStart(2, '0')}`}
+      style={{ borderInlineStart: '3px solid var(--sf-cinnabar, var(--sf-ui-brand))' }}
+      extra={
+        <Button
+          variant="ghost"
+          size="sm"
+          icon={<TrashIcon size={13} />}
+          aria-label={`Remove ${index + 1}`}
+          disabled={expenses.keys.length <= 1}
+          onClick={() => expenses.remove(index)}
+        >
+          Remove
+        </Button>
+      }
+    >
+      <div className="claim-fields">{children}</div>
+    </Card>
+  );
 }
+
 function Summary() {
   const { total, approval } = useWatch((d: Draft<Values>) => d.summary.$value);
-  return <div className="claim-summary" aria-live="polite">
-    <div><span>Claim total</span><strong>¥ {total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-    <div className="claim-approval"><b>{approval === 'manager' ? 'Manager approval' : 'Standard approval'}</b><small>Over ¥1,000 → manager review</small></div>
-  </div>;
+  return (
+    <div className="claim-summary" aria-live="polite">
+      <div>
+        <span>Claim total</span>
+        <strong>¥ {total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+      </div>
+      <div style={{ display: 'grid', gap: 6, justifyItems: 'end' }}>
+        <Badge variant={approval === 'manager' ? 'warning' : 'success'} dot>
+          {approval === 'manager' ? 'Manager approval' : 'Standard approval'}
+        </Badge>
+        <small>Over ¥1,000 → manager review</small>
+      </div>
+    </div>
+  );
 }
+
 function ForgetResult({ clear }: { clear: () => void }) {
   const values = useWatch((d: Draft<Values>) => d.$value);
   const clearRef = useRef(clear);
@@ -118,26 +143,57 @@ export default function App() {
     effects: [effects],
   });
   const F = typed(form);
-  return <section className="claim-demo">
-    <div className="claim-heading"><span className="claim-seal" aria-hidden="true">支</span><div><small>EXPENSE CLAIM · LIVE</small><h3>One trip. Two expenses.</h3></div><span className="claim-local">Local demo</span></div>
-    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values, null, 2))} onInvalid={() => setResult('')}>
-      <ForgetResult clear={() => setResult('')} />
-      <F.ArrayField name="expenses" component={Expenses}>
-        {(row) => <div className="claim-row">
-          <RowHeader />
-          <div className="claim-fields">
-            <row.Field name="category" title="Category" enum={[{ label: 'Business travel', value: 'travel' }, { label: 'Team meal', value: 'meal' }]} decorator={[FieldItem]} component={[CategorySelect]} />
-            <row.Field name="amount" title="Amount (CNY)" required rules={{ min: 0.01 }} decorator={[FieldItem]} component={[AmountInput]} />
-            <row.Field name="city" title="Destination city" decorator={[FieldItem]} component={[TextInput]} />
-            <row.Field name="attendees" title="Attendees" decorator={[FieldItem]} component={[TextInput]} />
-          </div>
-        </div>}
-      </F.ArrayField>
-      <Summary />
-      <div className="claim-actions"><span>Try changing a category or increasing the total.</span><Submit>Validate & preview JSON →</Submit></div>
-      {result && <div className="claim-result"><strong>Submission payload · nothing sent</strong><pre aria-live="polite">{result}</pre></div>}
-    </Form>
-  </section>;
+  return (
+    <section style={{ maxWidth: 880, marginInline: 'auto' }}>
+      <div className="claim-heading">
+        <span className="claim-seal" aria-hidden="true">支</span>
+        <div>
+          <small>EXPENSE CLAIM · LIVE</small>
+          <h3>One trip. Two expenses.</h3>
+        </div>
+        <Badge variant="outline" style={{ marginInlineStart: 'auto' }}>Local demo</Badge>
+      </div>
+      <Form
+        form={form}
+        kit={siteKit}
+        onSubmit={(values) => setResult(JSON.stringify(values, null, 2))}
+        onInvalid={() => setResult('')}
+      >
+        <ForgetResult clear={() => setResult('')} />
+        <F.ArrayField name="expenses" component={Expenses}>
+          {(row) => (
+            <RowCard>
+              <row.Field
+                name="category"
+                title="Category"
+                enum={[{ label: 'Business travel', value: 'travel' }, { label: 'Team meal', value: 'meal' }]}
+                component={FieldSelect}
+              />
+              <row.Field
+                name="amount"
+                title="Amount (CNY)"
+                required
+                rules={{ min: 0.01 }}
+                component={[FieldNumber, { min: 0.01, step: 10, prefix: '¥' }]}
+              />
+              <row.Field name="city" title="Destination city" component={[FieldInput, { placeholder: 'e.g. Shanghai' }]} />
+              <row.Field name="attendees" title="Attendees" component={[FieldInput, { placeholder: 'e.g. Product team · 3' }]} />
+            </RowCard>
+          )}
+        </F.ArrayField>
+        <Summary />
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <span style={{ fontSize: 12.5, color: 'var(--sf-ui-fg-muted)' }}>Try changing a category or increasing the total.</span>
+          <Submit asChild><Button variant="primary">Validate & preview JSON →</Button></Submit>
+        </div>
+        {result && (
+          <Alert variant="success" title="Submission payload · nothing sent">
+            <pre aria-live="polite" style={{ marginTop: 6 }}>{result}</pre>
+          </Alert>
+        )}
+      </Form>
+    </section>
+  );
 }
 ```
 

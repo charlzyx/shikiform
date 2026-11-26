@@ -46,38 +46,21 @@ name.$value = 'Ada'
 在开发模式下，对象展开（`{ ...d.user }`）、rest 剩余属性、`Object.keys(d.user)` 以及数组解构（`const [first] = d.items`）都会触发 `ShikiUsageError`，错误信息中会提示改用 `d.items[0]` 或 `d.user.$value` 等正确写法。更多案例见 [常见的坑](/practices/pitfalls#解构-handle)。
 
 ```tsx preview
-import { Field, Form, Watch, useField, useForm, type Draft } from '@shikiform/react';
+import { Field, Form, Watch, useForm, type Draft } from '@shikiform/react';
+import { Button, FieldInput, siteKit } from '@site/ui';
 
 type Values = { user: { name: string; email: string } };
-
-function TextField() {
-  const field = useField<string>();
-  return (
-    <div style={{ marginBottom: 8 }}>
-      <label htmlFor={field.id} style={{ display: 'inline-block', width: 64 }}>
-        {field.required && <span style={{ color: 'crimson' }}>* </span>}
-        {field.title}
-      </label>
-      {field.readOnly ? (
-        <span>{field.value || '-'}</span>
-      ) : (
-        <input id={field.id} value={field.value ?? ''} disabled={field.disabled}
-          onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />
-      )}
-    </div>
-  );
-}
 
 export default function App() {
   const form = useForm<Values>({ initialValues: { user: { name: 'Ada', email: '' } } });
   return (
-    <Form form={form}>
-      <Field name="user.name" title="姓名" component={[TextField]} />
-      <Field name="user.email" title="邮箱" component={[TextField]} />
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
-        <button type="button" onClick={() => form.batch((d) => { d.user.name.$value = 'Grace'; })}>写 user.name</button>
-        <button type="button" onClick={() => form.batch((d) => { d.user.email.$required = !d.user.email.$required; })}>切换邮箱必填</button>
-        <button type="button" onClick={() => form.batch((d) => { d.user.email.$readOnly = !d.user.email.$readOnly; })}>切换阅读态</button>
+    <Form form={form} kit={siteKit} style={{ maxWidth: 420 }}>
+      <Field name="user.name" title="姓名" component={FieldInput} />
+      <Field name="user.email" title="邮箱" component={[FieldInput, { placeholder: 'ada@example.com' }]} />
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <Button size="sm" onClick={() => form.batch((d) => { d.user.name.$value = 'Grace'; })}>写 user.name</Button>
+        <Button size="sm" onClick={() => form.batch((d) => { d.user.email.$required = !d.user.email.$required; })}>切换邮箱必填</Button>
+        <Button size="sm" onClick={() => form.batch((d) => { d.user.email.$readOnly = !d.user.email.$readOnly; })}>切换阅读态</Button>
       </div>
       <Watch select={(d: Draft<Values>) => d.user.$value}>{(user) => <pre>{JSON.stringify(user)}</pre>}</Watch>
     </Form>
@@ -129,62 +112,47 @@ export default function App() {
 在 `useForm({ fields })` 中声明的字段在表单创建时即已生效，即使对应的 `<Field>` 组件尚未挂载（例如位于未打开的标签页、折叠面板或虚拟列表视口之外），其校验规则和联动依然有效。你也可以把 `title`、`decorator`、`component` 等 UI 配置一并声明在 `fields` 中，JSX 里只需写 `<Field name="city" />` 即可渲染：
 
 ```tsx preview play=tabs
-import type { ReactNode } from 'react';
-import { Select, SelectContent, SelectItem, SelectItemIndicator, SelectTrigger, SelectValue } from '@ui-sdk/react/select';
-import { Field, Form, Watch, useField, useFieldDecorator, useForm, type Draft } from '@shikiform/react';
+import { Field, Form, Watch, useForm, type Draft } from '@shikiform/react';
+import { Badge, Button, FieldSelect, FieldTextarea, FormItem } from '@site/ui';
 
 type Values = { city: string; note: string; items: { name: string }[] };
-
-function FieldItem({ children }: { children?: ReactNode }) {
-  const d = useFieldDecorator();
-  return (
-    <div style={{ marginBottom: 8 }}>
-      <label {...d.labelProps} style={{ display: 'inline-block', width: 56 }}>{d.label}</label>
-      {children}
-      {d.descriptionProps && <small {...d.descriptionProps} style={{ marginLeft: 8, opacity: 0.7 }}>{d.description}</small>}
-    </div>
-  );
-}
-
-function SelectInput() {
-  const field = useField<string>();
-  const items = field.options.map((o) => ({ value: String(o.value), label: o.label }));
-  return (
-    <Select items={items} value={field.value || null} onValueChange={(next) => field.onChange(next ?? '')} onOpenChange={(open) => { if (!open) field.onBlur(); }}>
-      <SelectTrigger id={field.id}><SelectValue /></SelectTrigger>
-      <SelectContent>
-        {items.map((o) => (
-          <SelectItem key={o.value} value={o.value}>{o.label}<SelectItemIndicator aria-hidden="true">✓</SelectItemIndicator></SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}
-
-function TextArea() {
-  const field = useField<string>();
-  return <textarea id={field.id} rows={2} value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />;
-}
 
 export default function App() {
   const form = useForm<Values>({
     initialValues: { city: 'sh', note: '', items: [{ name: '' }, { name: '' }] },
     fields: {
       city: {
-        title: '城市', decorator: [FieldItem], component: [SelectInput],
+        title: '城市',
+        decorator: [FormItem],
+        component: [FieldSelect],
         enum: [{ label: '上海', value: 'sh' }, { label: '北京', value: 'bj' }],
       },
-      note: { title: '备注', description: '声明在 fields 里的说明', decorator: [FieldItem], component: [TextArea] },
+      note: {
+        title: '备注',
+        description: '声明在 fields 里的说明',
+        decorator: [FormItem],
+        component: [FieldTextarea, { rows: 2, placeholder: '选填备注…' }],
+      },
       // 行模板：作用于 items 的每一行（包括之后新增的行）
       'items.*.name': { required: true },
     },
   });
   return (
-    <Form form={form}>
+    <Form form={form} style={{ maxWidth: 420 }}>
       <Field name="city" />
       <Field name="note" />
-      <button type="button" onClick={() => { void form.validate().catch(() => {}) }}>校验（items 没有渲染）</button>
-      <Watch select={(d: Draft<Values>) => d.items.$errors}>{(errors) => <small> 错误：{errors.join('；') || '无'}</small>}</Watch>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <Button variant="outline" onClick={() => { void form.validate().catch(() => {}); }}>
+          校验（items 没有渲染）
+        </Button>
+        <Watch select={(d: Draft<Values>) => d.items.$errors}>
+          {(errors) => (
+            <Badge variant={errors.length ? 'danger' : 'default'}>
+              错误：{errors.join('；') || '无'}
+            </Badge>
+          )}
+        </Watch>
+      </div>
     </Form>
   );
 }

@@ -10,23 +10,20 @@ Drag a contact or use the move buttons. `ContactRow` and `ContactList` both call
 
 ```tsx preview
 import type { ReactNode } from 'react';
-import { Checkbox, CheckboxIndicator } from '@ui-sdk/react/checkbox';
-import { enUS, Form, typed, useArrayField, useField, useForm, useIndex, useWatch, type Draft } from '@shikiform/react';
+import { enUS, Form, typed, useArrayField, useForm, useIndex, useWatch, type Draft } from '@shikiform/react';
+import {
+  Badge,
+  Button,
+  Checkbox,
+  FieldInput,
+  FormItem,
+  GripVerticalIcon,
+  PlusIcon,
+  TrashIcon,
+} from '@site/ui';
 
 type Contact = { name: string; phone: string };
 type Values = { contacts: Contact[] };
-
-function TextInput({ placeholder }: { placeholder?: string }) {
-  const field = useField<string>();
-  if (field.readOnly) return <span>{field.value || '-'}</span>;
-  return (
-    <span>
-      <input id={field.id} value={field.value ?? ''} placeholder={placeholder}
-        disabled={field.disabled} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />
-      {field.errors[0] && <small role="alert" style={{ color: 'crimson', marginLeft: 4 }}>{field.errors[0]}</small>}
-    </span>
-  );
-}
 
 const selectContactsEditable = (d: Draft<Values>) => !d.contacts.$readOnly && !d.contacts.$disabled;
 
@@ -35,17 +32,32 @@ function ContactRow({ children }: { children?: ReactNode }) {
   const index = useIndex();
   const editable = useWatch(selectContactsEditable);
   return (
-    <div {...(editable ? array.dragProps(index) : {})}
-      style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-      {editable && <span style={{ cursor: 'grab' }} title="Drag to reorder">⋮⋮</span>}
-      <span>#{index + 1}</span>
+    <div
+      {...(editable ? array.dragProps(index) : {})}
+      style={{
+        display: 'flex',
+        gap: 8,
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        padding: '8px 10px',
+        border: '1px solid var(--sf-ui-border)',
+        borderRadius: 'var(--sf-ui-radius)',
+        background: 'var(--sf-ui-surface)',
+      }}
+    >
+      {editable && (
+        <span style={{ cursor: 'grab', color: 'var(--sf-ui-fg-muted)', display: 'inline-flex' }} title="Drag to reorder">
+          <GripVerticalIcon size={14} />
+        </span>
+      )}
+      <Badge variant="outline">#{index + 1}</Badge>
       {children}
       {editable && (
-        <>
-          <button type="button" disabled={index === 0} onClick={() => array.move(index, index - 1)}>Move up</button>
-          <button type="button" disabled={index === array.keys.length - 1} onClick={() => array.move(index, index + 1)}>Move down</button>
-          <button type="button" onClick={() => array.remove(index)}>Delete</button>
-        </>
+        <span style={{ display: 'inline-flex', gap: 4, marginInlineStart: 'auto' }}>
+          <Button variant="ghost" size="sm" disabled={index === 0} onClick={() => array.move(index, index - 1)}>Move up</Button>
+          <Button variant="ghost" size="sm" disabled={index === array.keys.length - 1} onClick={() => array.move(index, index + 1)}>Move down</Button>
+          <Button variant="danger" size="sm" icon={<TrashIcon size={13} />} onClick={() => array.remove(index)}>Delete</Button>
+        </span>
       )}
     </div>
   );
@@ -55,9 +67,15 @@ function ContactList({ children }: { children?: ReactNode }) {
   const array = useArrayField<Contact>();
   const editable = useWatch(selectContactsEditable);
   return (
-    <div>
+    <div style={{ display: 'grid', gap: 8 }}>
       {children}
-      {editable && <button type="button" onClick={() => array.push({ name: '', phone: '' })}>Add contact</button>}
+      {editable && (
+        <div>
+          <Button variant="outline" size="sm" icon={<PlusIcon size={13} />} onClick={() => array.push({ name: '', phone: '' })}>
+            Add contact
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -71,19 +89,16 @@ export default function App() {
   const F = typed(form);
   return (
     <Form form={form}>
-      <p>
-        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-          <Checkbox onCheckedChange={(checked) => form.batch((d) => { d.$readOnly = checked ? true : undefined; })}>
-            <CheckboxIndicator>✓</CheckboxIndicator>
-          </Checkbox>
+      <div>
+        <Checkbox onCheckedChange={(checked) => form.batch((d) => { d.$readOnly = checked ? true : undefined; })}>
           Read only
-        </label>
-      </p>
+        </Checkbox>
+      </div>
       <F.ArrayField name="contacts" component={ContactList}>
         {(row) => (
           <ContactRow>
-            <row.Field name="name" component={[TextInput, { placeholder: "Name" }]} />
-            <row.Field name="phone" component={[TextInput, { placeholder: "Phone" }]} />
+            <row.Field name="name" decorator={[FormItem, { compact: true }]} component={[FieldInput, { size: 'sm', placeholder: "Name", style: { width: 140 } }]} />
+            <row.Field name="phone" decorator={[FormItem, { compact: true }]} component={[FieldInput, { size: 'sm', placeholder: "Phone", style: { width: 140 } }]} />
           </ContactRow>
         )}
       </F.ArrayField>
@@ -115,25 +130,24 @@ A rule declared on `members.*.phones` validates each phone list as a whole. Rend
 
 ```tsx preview
 import type { ReactNode } from 'react';
-import { enUS, Form, Submit, typed, useArrayField, useField, useForm, useIndex } from '@shikiform/react';
+import { enUS, Form, Submit, typed, useArrayField, useForm, useIndex } from '@shikiform/react';
+import { Alert, Button, Card, FieldInput, PlusIcon, TrashIcon } from '@site/ui';
 
 type Phone = { no: string };
 type Member = { name: string; phones: Phone[] };
 type Values = { members: Member[] };
 
-function TextInput({ placeholder }: { placeholder?: string }) {
-  const field = useField<string>();
-  return <input value={field.value ?? ''} placeholder={placeholder}
-    onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />;
-}
-
 function PhoneList({ children }: { children?: ReactNode }) {
   const array = useArrayField<Phone>();
   return (
-    <div>
+    <div style={{ display: 'grid', gap: 8 }}>
       {children}
-      {array.errors.length > 0 && <p role="alert" style={{ color: 'crimson', margin: '4px 0' }}>{array.errors.join(', ')}</p>}
-      <button type="button" onClick={() => array.push({ no: '' })}>Add phone</button>
+      {array.errors.length > 0 && <Alert variant="danger">{array.errors.join(', ')}</Alert>}
+      <div>
+        <Button variant="outline" size="sm" icon={<PlusIcon size={13} />} onClick={() => array.push({ no: '' })}>
+          Add phone
+        </Button>
+      </div>
     </div>
   );
 }
@@ -141,7 +155,11 @@ function PhoneList({ children }: { children?: ReactNode }) {
 function RemovePhone() {
   const array = useArrayField<Phone>();
   const index = useIndex();
-  return <button type="button" onClick={() => array.remove(index)}>Delete</button>;
+  return (
+    <Button variant="ghost" size="sm" icon={<TrashIcon size={13} />} onClick={() => array.remove(index)}>
+      Delete
+    </Button>
+  );
 }
 
 export default function App() {
@@ -156,25 +174,25 @@ export default function App() {
   });
   const F = typed(form);
   return (
-    <Form form={form}>
+    <Form form={form} style={{ maxWidth: 420 }}>
       <F.ArrayField name="members">
         {(member) => (
-          <div style={{ border: '1px solid #ddd', padding: 10, marginBottom: 10 }}>
-            <div style={{ marginBottom: 8 }}>
-              <member.Field name="name" component={[TextInput, { placeholder: "Name" }]} />
+          <Card padding="sm">
+            <div style={{ display: 'grid', gap: 10 }}>
+              <member.Field name="name" component={[FieldInput, { size: 'sm', placeholder: "Name" }]} />
+              <member.ArrayField name="phones" component={PhoneList}>
+                {(phone) => (
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <phone.Field name="no" component={[FieldInput, { size: 'sm', placeholder: "Phone" }]} />
+                    <RemovePhone />
+                  </div>
+                )}
+              </member.ArrayField>
             </div>
-            <member.ArrayField name="phones" component={PhoneList}>
-              {(phone) => (
-                <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
-                  <phone.Field name="no" component={[TextInput, { placeholder: "Phone" }]} />
-                  <RemovePhone />
-                </div>
-              )}
-            </member.ArrayField>
-          </div>
+          </Card>
         )}
       </F.ArrayField>
-      <Submit>Submit</Submit>
+      <div><Submit asChild><Button variant="primary">Submit</Button></Submit></div>
     </Form>
   );
 }
@@ -187,26 +205,30 @@ Submit the form with an empty list, then add a phone. Once a structural error is
 Use `useArrayTable` for pagination, selection, expansion and row operations. `<ArrayField.Row>` establishes the correct scope for each visible row. Table presentation state stays outside submitted values.
 
 ```tsx preview play=array-table
-import { enUS, ArrayField, Field, Form, useArrayTable, useField, useForm, useRecord } from '@shikiform/react';
+import { enUS, ArrayField, Field, Form, useArrayTable, useForm, useRecord } from '@shikiform/react';
+import {
+  Badge,
+  Button,
+  FieldInput,
+  FieldNumber,
+  PlusIcon,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Toolbar,
+  TrashIcon,
+} from '@site/ui';
 
 type Row = { id: string; name: string; price: number; qty: number };
 let nextId = 4;
 const createRow = (): Row => ({ id: String(nextId++), name: '', price: 0, qty: 1 });
 
-function CellText() {
-  const field = useField<string>();
-  return <input value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />;
-}
-
-function CellNumber() {
-  const field = useField<number>();
-  return <input type="number" style={{ width: 72 }} value={field.value ?? 0}
-    onChange={(e) => field.onChange(Number(e.target.value))} onBlur={field.onBlur} />;
-}
-
 function Subtotal() {
   const row = useRecord<Row>();
-  return <span>{((row.price ?? 0) * (row.qty ?? 0)).toFixed(2)}</span>;
+  return <span style={{ fontWeight: 500 }}>¥ {((row.price ?? 0) * (row.qty ?? 0)).toFixed(2)}</span>;
 }
 
 function PurchaseTable() {
@@ -216,32 +238,44 @@ function PurchaseTable() {
     pagination: { pageSize: 5 },
   });
   return (
-    <div>
-      <div style={{ marginBottom: 8 }}>
-        <button type="button" onClick={() => table.add(createRow())}>Add row</button>
-      </div>
-      <table>
-        <thead>
-          <tr><th>#</th><th>Name</th><th>Unit price</th><th>Quantity</th><th>Subtotal</th><th>Actions</th></tr>
-        </thead>
-        <tbody>
+    <div style={{ display: 'grid', gap: 10 }}>
+      <Toolbar ariaLabel="Table toolbar">
+        <Button variant="primary" size="sm" icon={<PlusIcon size={13} />} onClick={() => table.add(createRow())}>
+          Add row
+        </Button>
+        <Badge variant="outline" style={{ marginInlineStart: 'auto' }}>{table.total} rows</Badge>
+      </Toolbar>
+      <Table compact>
+        <TableHead>
+          <TableRow>
+            <TableHeader style={{ width: 44 }}>#</TableHeader>
+            <TableHeader>Name</TableHeader>
+            <TableHeader style={{ width: 120 }}>Unit price</TableHeader>
+            <TableHeader style={{ width: 110 }}>Quantity</TableHeader>
+            <TableHeader style={{ width: 96 }}>Subtotal</TableHeader>
+            <TableHeader style={{ width: 140 }}>Actions</TableHeader>
+          </TableRow>
+        </TableHead>
+        <TableBody>
           {table.pageRows.map(({ key, index, position }) => (
             <ArrayField.Row key={key} path={`list.${index}`} index={index} itemKey={key}>
-              <tr>
-                <td>{position}</td>
-                <td><Field name="name" required component={[CellText]} /></td>
-                <td><Field name="price" component={[CellNumber]} /></td>
-                <td><Field name="qty" component={[CellNumber]} /></td>
-                <td><Subtotal /></td>
-                <td>
-                  <button type="button" onClick={() => table.copy(index)}>Copy</button>{' '}
-                  <button type="button" onClick={() => void table.remove(index)}>Delete</button>
-                </td>
-              </tr>
+              <TableRow>
+                <TableCell>{position}</TableCell>
+                <TableCell><Field name="name" required component={[FieldInput, { size: 'sm', placeholder: 'Item name' }]} /></TableCell>
+                <TableCell><Field name="price" component={[FieldNumber, { size: 'sm', min: 0, step: 0.5, prefix: '¥', showControls: false }]} /></TableCell>
+                <TableCell><Field name="qty" component={[FieldNumber, { size: 'sm', min: 1 }]} /></TableCell>
+                <TableCell><Subtotal /></TableCell>
+                <TableCell>
+                  <span style={{ display: 'inline-flex', gap: 4 }}>
+                    <Button variant="ghost" size="sm" onClick={() => table.copy(index)}>Copy</Button>
+                    <Button variant="danger" size="sm" icon={<TrashIcon size={13} />} onClick={() => void table.remove(index)}>Delete</Button>
+                  </span>
+                </TableCell>
+              </TableRow>
             </ArrayField.Row>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }
@@ -249,11 +283,13 @@ function PurchaseTable() {
 export default function App() {
   const form = useForm<{ list: Row[] }>({
     messages: enUS,
-    initialValues: { list: [
-      { id: '1', name: "Pen", price: 12, qty: 2 },
-      { id: '2', name: "Notebook", price: 8.5, qty: 3 },
-      { id: '3', name: "Ink", price: 20, qty: 1 },
-    ] },
+    initialValues: {
+      list: [
+        { id: '1', name: "Pen", price: 12, qty: 2 },
+        { id: '2', name: "Notebook", price: 8.5, qty: 3 },
+        { id: '3', name: "Ink", price: 20, qty: 1 },
+      ],
+    },
   });
   return <Form form={form}><PurchaseTable /></Form>;
 }

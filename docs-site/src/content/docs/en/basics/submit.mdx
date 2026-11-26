@@ -31,6 +31,7 @@ form.submit(async (values) => {
 ```tsx preview
 import { useState } from 'react';
 import { enUS, Form, Reset, Submit, typed, useForm } from '@shikiform/react';
+import { Button, FieldInput, siteKit } from '@site/ui';
 
 type Values = { name: string };
 
@@ -41,28 +42,19 @@ export default function App() {
   return (
     <Form
       form={form}
+      kit={siteKit}
       onSubmit={(values) => setLog(`Submitted ${JSON.stringify(values)}`)}
       onInvalid={() => setLog("Validation failed")}
+      style={{ maxWidth: 380 }}
     >
-      <F.Field name="name" title="Name" required>
-        {(f) => (
-          <p>
-            <label htmlFor={f.id}>{f.title}: </label>
-            <input
-              id={f.id}
-              value={f.value ?? ''}
-              onChange={(e) => f.onChange(e.target.value)}
-              onBlur={f.onBlur}
-            />
-            {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
-          </p>
-        )}
-      </F.Field>
+      <F.Field name="name" title="Name" required component={FieldInput} />
       <div style={{ display: 'flex', gap: 8 }}>
-        <Submit>Submit</Submit>
-        <Reset afterReset={(values) => setLog(`Reset ${JSON.stringify(values)}`)} />
+        <Submit asChild><Button variant="primary">Submit</Button></Submit>
+        <Reset asChild afterReset={(values) => setLog(`Reset ${JSON.stringify(values)}`)}>
+          <Button variant="outline">Reset</Button>
+        </Reset>
       </div>
-      <pre aria-live="polite">{log}</pre>
+      {log && <pre aria-live="polite">{log}</pre>}
     </Form>
   );
 }

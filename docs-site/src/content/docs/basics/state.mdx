@@ -27,8 +27,8 @@ description: $value 与 visible、disabled、readOnly、omit 四个独立布尔�
 
 ```tsx preview
 import { useState } from 'react';
-import { Select, SelectContent, SelectItem, SelectItemIndicator, SelectTrigger, SelectValue } from '@ui-sdk/react/select';
 import { defineEffects, Form, Submit, typed, useForm, Watch, type Draft } from '@shikiform/react';
+import { Badge, Button, FieldInput, FieldRadioGroup, siteKit } from '@site/ui';
 
 type Mode = 'visible' | 'hidden' | 'omit' | 'readOnly';
 type Values = { mode: Mode; nick: string };
@@ -47,50 +47,24 @@ export default function App() {
   const form = useForm<Values>({ initialValues: { mode: 'visible', nick: 'ada' }, effects: [effects] });
   const F = typed(form);
   return (
-    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
-      <F.Field name="mode" title="状态" enum={['visible', 'hidden', 'omit', 'readOnly']}>
-        {(f) => {
-          const items = f.options.map((opt) => ({ value: String(opt.value), label: opt.label }));
-          return (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <label htmlFor={f.id}>{f.title}：</label>
-              <Select items={items} value={f.value} onValueChange={(next) => next && f.onChange(next as Mode)}>
-                <SelectTrigger id={f.id}><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {items.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                      <SelectItemIndicator aria-hidden="true">✓</SelectItemIndicator>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          );
-        }}
-      </F.Field>
-      <F.Field name="nick" title="昵称" required>
-        {(f) => (
-          <p>
-            <label htmlFor={f.id}>{f.title}：</label>
-            {f.readOnly ? (
-              <span>{f.value || '-'}</span>
-            ) : (
-              <input
-                id={f.id}
-                value={f.value ?? ''}
-                disabled={f.disabled}
-                onChange={(e) => f.onChange(e.target.value)}
-                onBlur={f.onBlur}
-              />
-            )}
-            {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
-          </p>
+    <Form form={form} kit={siteKit} onSubmit={(values) => setResult(JSON.stringify(values))} style={{ maxWidth: 440 }}>
+      <F.Field
+        name="mode"
+        title="状态"
+        enum={['visible', 'hidden', 'omit', 'readOnly']}
+        component={[FieldRadioGroup, { variant: 'button' }]}
+      />
+      <F.Field name="nick" title="昵称" required component={FieldInput} />
+      <Watch select={(d: Draft<Values>) => d.nick.$visible}>
+        {(shown) => (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 13, color: 'var(--sf-ui-fg-muted)' }}>读 $visible</span>
+            <Badge variant={shown ? 'success' : 'warning'} dot>{String(shown)}</Badge>
+          </div>
         )}
-      </F.Field>
-      <Watch select={(d: Draft<Values>) => d.nick.$visible}>{(shown) => <p>读 $visible：{String(shown)}</p>}</Watch>
-      <Submit>提交</Submit>
-      <pre>{result}</pre>
+      </Watch>
+      <div><Submit asChild><Button variant="primary">提交</Button></Submit></div>
+      {result && <pre>{result}</pre>}
     </Form>
   );
 }

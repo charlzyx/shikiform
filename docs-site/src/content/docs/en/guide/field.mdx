@@ -20,46 +20,32 @@ A field owns its path and renders a control inside an optional decorator. Both c
 Use a registered component name, a component reference, a tuple with props, or children including a render function. A kit can supply the default decorator. Pass `decorator={false}` to opt out.
 
 ```tsx preview
-import type { ReactNode } from 'react';
-import { enUS, Field, Form, useField, useFieldDecorator, useForm } from '@shikiform/react';
-
-function FormItem({ children }: { children?: ReactNode }) {
-  const d = useFieldDecorator();
-  return (
-    <div style={{ marginBottom: 8 }}>
-      <label {...d.labelProps} style={{ display: 'inline-block', width: 150 }}>{d.label}</label>
-      {children}
-    </div>
-  );
-}
-
-function TextInput({ placeholder, prefix }: { placeholder?: string; prefix?: string }) {
-  const field = useField<string>();
-  return (
-    <span>
-      {prefix && <span style={{ marginRight: 4 }}>{prefix}</span>}
-      <input id={field.id} value={field.value ?? ''} placeholder={placeholder}
-        onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />
-    </span>
-  );
-}
+import { enUS, Field, Form, useForm } from '@shikiform/react';
+import { FieldInput, FormItem, Input } from '@site/ui';
 
 export default function App() {
   const form = useForm({ messages: enUS, initialValues: { a: "Tuple", b: "Child element", c: 'render prop', d: "No decorator" } });
   return (
-    <Form form={form}>
+    <Form form={form} style={{ maxWidth: 420 }}>
       {/* 1. Component slot */}
-      <Field name="a" title="decorator + component" decorator={[FormItem]} component={[TextInput, { placeholder: "Type a value" }]} />
+      <Field name="a" title="decorator + component" decorator={[FormItem]} component={[FieldInput, { placeholder: "Type a value" }]} />
       {/* 2. A child reads the field from context */}
       <Field name="b" title="Child element" decorator={[FormItem]}>
-        <TextInput prefix="@" />
+        <FieldInput prefix="@" />
       </Field>
       {/* 3. Connect a render prop explicitly */}
       <Field name="c" title="render prop" decorator={[FormItem]}>
-        {(field) => <input id={field.id} value={field.value} onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} />}
+        {(field) => (
+          <Input
+            id={field.id}
+            value={field.value}
+            onChange={(event) => field.onChange(event.target.value)}
+            onBlur={field.onBlur}
+          />
+        )}
       </Field>
       {/* 4. Skip the decorator for a table cell */}
-      <Field name="d" component={[TextInput]} />
+      <Field name="d" component={[FieldInput]} />
     </Form>
   );
 }
@@ -74,9 +60,8 @@ UI props merge across three layers: `reaction` overrides JSX, which overrides `f
 - Inside an effect or batch, editing a nested object or array through `$value` writes directly to that field: `d.user.$value.name = 'x'` updates `user.name`, and `d.items.$value.push(row)` appends a row like `useArrayField().push`. `delete arr[i]` leaves a hole without changing `length` — use `splice` or `useArrayField().remove(index)` to remove a row and shift later items.
 
 ```tsx preview
-import type { ReactNode } from 'react';
-import { Checkbox, CheckboxIndicator } from '@ui-sdk/react/checkbox';
-import { enUS, Field, Form, defineEffects, useField, useFieldDecorator, useForm } from '@shikiform/react';
+import { enUS, Field, Form, defineEffects, useForm } from '@shikiform/react';
+import { FieldInput, FieldSwitch, siteKit } from '@site/ui';
 
 type Values = { vip: boolean; code: string };
 
@@ -86,49 +71,18 @@ const effects = defineEffects<Values>(({ reaction }) => {
     d.code.$title = vip ? "Membership code" : "Invite code";
     d.code.$componentProps.placeholder = vip ? 'VIP-0000' : "Optional";
     d.code.$componentProps.disabled = !vip;
-    d.code.$decoratorProps.tooltip = vip ? "Required for members" : undefined;
+    d.code.$decoratorProps.extra = vip ? "Required for members" : undefined;
     d.code.$required = vip;
   });
 });
 
-function FormItem({ tooltip, children }: { tooltip?: string; children?: ReactNode }) {
-  const d = useFieldDecorator();
-  return (
-    <div style={{ marginBottom: 8 }}>
-      <label {...d.labelProps} style={{ display: 'inline-block', width: 80 }}>
-        {d.required && <span style={{ color: 'crimson' }}>* </span>}
-        {d.label}
-      </label>
-      {children}
-      {tooltip && <small style={{ marginLeft: 8, opacity: 0.7 }}>({tooltip})</small>}
-    </div>
-  );
-}
-
-function Toggle() {
-  const field = useField<boolean>();
-  return (
-    <Checkbox id={field.id} checked={Boolean(field.value)} onCheckedChange={(checked) => field.onChange(checked === true)} onBlur={field.onBlur}>
-      <CheckboxIndicator aria-hidden="true">✓</CheckboxIndicator>
-    </Checkbox>
-  );
-}
-
-function TextInput({ placeholder, maxLength, disabled }: { placeholder?: string; maxLength?: number; disabled?: boolean }) {
-  const field = useField<string>();
-  return (
-    <input id={field.id} value={field.value ?? ''} placeholder={placeholder} maxLength={maxLength}
-      disabled={disabled ?? field.disabled} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} />
-  );
-}
-
 export default function App() {
   const form = useForm<Values>({ messages: enUS, initialValues: { vip: false, code: '' }, effects: [effects] });
   return (
-    <Form form={form}>
-      <Field name="vip" title="Member" decorator={[FormItem]} component={[Toggle]} />
+    <Form form={form} kit={siteKit} style={{ maxWidth: 420 }}>
+      <Field name="vip" title="Member" component={FieldSwitch} />
       {/* The JSX maxLength survives the reaction's patch. */}
-      <Field name="code" title="(overridden by the reaction)" decorator={[FormItem]} component={[TextInput, { maxLength: 16 }]} />
+      <Field name="code" title="(overridden by the reaction)" component={[FieldInput, { maxLength: 16 }]} />
     </Form>
   );
 }
@@ -139,29 +93,14 @@ export default function App() {
 Pass primitive values, label/value objects or an `EnumSource` binding to `enum`. JSX options apply while the field is mounted. A reaction may override them or restore them with `$enum = undefined`. Use `$enum = []` for an explicitly empty list.
 
 ```tsx preview
-import type { ReactNode } from 'react';
-import { Checkbox, CheckboxGroup as UiCheckboxGroup, CheckboxIndicator } from '@ui-sdk/react/checkbox';
-import { Radio, RadioGroup as UiRadioGroup, RadioIndicator } from '@ui-sdk/react/radio';
-import { enUS, Form, typed, useField, useFieldDecorator, useForm } from '@shikiform/react';
+import { enUS, Form, typed, useField, useForm } from '@shikiform/react';
+import { Checkbox, FieldCheckboxGroup, FieldRadioGroup, FormItem, ReadOnlyEnum } from '@site/ui';
 
 type Values = { level: 'gold' | 'silver'; tags: string[]; size: number };
 
-function FormItem({ children }: { children?: ReactNode }) {
-  const d = useFieldDecorator();
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-      <label {...d.labelProps} style={{ display: 'inline-block', width: 64 }}>{d.label}</label>
-      {children}
-    </div>
-  );
-}
-
-function SelectInput() {
+function NativeSelect() {
   const field = useField<string>();
-  if (field.readOnly) {
-    const label = field.options.find((o) => o.value === field.value)?.label ?? field.value;
-    return <span>{String(label ?? '-')}</span>;
-  }
+  if (field.readOnly) return <ReadOnlyEnum value={field.value} options={field.options} />;
   return (
     <select id={field.id} value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur}>
       {field.options.map((o) => <option key={String(o.value)} value={String(o.value)}>{o.label}</option>)}
@@ -169,69 +108,40 @@ function SelectInput() {
   );
 }
 
-function CheckboxGroup() {
-  const field = useField<string[]>();
-  const current = field.value ?? [];
-  if (field.readOnly) {
-    return <span>{current.map((v) => field.options.find((o) => o.value === v)?.label ?? v).join(', ') || '-'}</span>;
-  }
-  return (
-    <UiCheckboxGroup aria-label={String(field.title ?? '')} value={current} onValueChange={(next) => field.onChange(next)}>
-      {field.options.map((o) => {
-        const val = String(o.value);
-        return (
-          <label key={val}>
-            <Checkbox value={val}>
-              <CheckboxIndicator aria-hidden="true">✓</CheckboxIndicator>
-            </Checkbox>
-            {o.label}
-          </label>
-        );
-      })}
-    </UiCheckboxGroup>
-  );
-}
-
-function RadioGroup() {
-  const field = useField<number>();
-  if (field.readOnly) {
-    return <span>{String(field.options.find((o) => o.value === field.value)?.label ?? field.value)}</span>;
-  }
-  return (
-    <UiRadioGroup aria-label={String(field.title ?? '')} value={String(field.value)} onValueChange={(next) => field.onChange(Number(next))}>
-      {field.options.map((o) => (
-        <label key={String(o.value)}>
-          <Radio value={String(o.value)}>
-            <RadioIndicator />
-          </Radio>
-          {o.label}
-        </label>
-      ))}
-    </UiRadioGroup>
-  );
-}
-
 export default function App() {
   const form = useForm<Values>({ messages: enUS, initialValues: { level: 'gold', tags: ['math'], size: 2 } });
   const F = typed(form);
   return (
-    <Form form={form}>
-      <div style={{ marginBottom: 8 }}>
-        <label>
-          <Checkbox onCheckedChange={(checked) => form.batch((d) => { d.$readOnly = checked === true ? true : undefined; })}>
-            <CheckboxIndicator aria-hidden="true">✓</CheckboxIndicator>
-          </Checkbox>
+    <Form form={form} style={{ maxWidth: 440 }}>
+      <div>
+        <Checkbox onCheckedChange={(checked) => form.batch((d) => { d.$readOnly = checked ? true : undefined; })}>
           Read only
-        </label>
+        </Checkbox>
       </div>
       {/* An option such as 'bronze' must match the field type. */}
-      <F.Field name="level" title="Level" enum={[{ label: "Gold", value: 'gold' }, { label: "Silver", value: 'silver' }]}
-        decorator={[FormItem]} component={[SelectInput]} />
+      <F.Field
+        name="level"
+        title="Level"
+        enum={[{ label: "Gold", value: 'gold' }, { label: "Silver", value: 'silver' }]}
+        decorator={[FormItem, { layout: 'horizontal' }]}
+        component={NativeSelect}
+      />
       {/* Check options against the array's element type. */}
-      <F.Field name="tags" title="Interests" enum={[{ label: "Math", value: 'math' }, { label: "Poetry", value: 'poetry' }]}
-        decorator={[FormItem]} component={[CheckboxGroup]} />
+      <F.Field
+        name="tags"
+        title="Interests"
+        enum={[{ label: "Math", value: 'math' }, { label: "Poetry", value: 'poetry' }]}
+        decorator={[FormItem, { layout: 'horizontal' }]}
+        component={FieldCheckboxGroup}
+      />
       {/* Primitive option labels use String(value). */}
-      <F.Field name="size" title="Size" enum={[1, 2, 3]} decorator={[FormItem]} component={[RadioGroup]} />
+      <F.Field
+        name="size"
+        title="Size"
+        enum={[1, 2, 3]}
+        decorator={[FormItem, { layout: 'horizontal' }]}
+        component={FieldRadioGroup}
+      />
     </Form>
   );
 }
