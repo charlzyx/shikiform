@@ -169,11 +169,14 @@ describe.each(['development', 'production'])('F12 tree resets in %s', (environme
     expect(result).toEqual(expect.arrayContaining(expected))
   })
 
-  it.fails('BUG: local tree reset drops a verdict from an untouched ordinary array with duplicate ids', async () => {
+  it.each([
+    ['tree.1.nodes', 'tree.1.nodes.0.code'],
+    ['tree.0.items.1', 'tree.0.items.1.code'],
+  ] as const)('QA-84 retains an ordinary row verdict with duplicate ids after reset(%s)', async (resetPath, restoredPath) => {
     const warning = deferred<string>()
     const form = createForm({
       initialValues: { tree: [
-        { key: 'left', items: [{ id: 'duplicate', code: 'A' }, { id: 'duplicate', code: 'B' }] },
+        { key: 'left', items: [{ id: 'duplicate', code: 'A' }, { id: 'duplicate', code: 'saved' }] },
         { key: 'right', nodes: [{ key: 'b', code: 'saved' }] },
       ] as Node[] },
       trees,
@@ -181,15 +184,15 @@ describe.each(['development', 'production'])('F12 tree resets in %s', (environme
     })
     const engine = engineOf(form)
     const path = 'tree.0.items.0.code'
-    form.setValue('tree.1.nodes.0.code', 'edited')
+    form.setValue(restoredPath, 'edited')
     const unchanged = toRaw(form.getValue('tree.0.items.0'))
     const validation = form.validate(path).catch((errors: unknown) => errors)
     await setImmediate()
     expect(form.errors).toEqual([failure(path)])
-    form.reset('tree.1.nodes')
+    form.reset(resetPath)
     warning.resolve('review A')
 
-    expect(form.getValue('tree.1.nodes.0.code')).toBe('saved')
+    expect(form.getValue(restoredPath)).toBe('saved')
     expect(toRaw(form.getValue('tree.0.items.0'))).toBe(unchanged)
     expect(form.errors).toEqual([failure(path)])
     await setImmediate()
@@ -197,7 +200,7 @@ describe.each(['development', 'production'])('F12 tree resets in %s', (environme
     expect(await validation).toEqual([failure(path)])
   })
 
-  it.fails('BUG: local tree reset drops an anonymous ordinary row verdict when only its note resets', async () => {
+  it('QA-84 retains an anonymous ordinary row verdict when only its note resets', async () => {
     const warning = deferred<string>()
     const form = createForm({
       initialValues: { tree: [{ key: 'branch', items: [{ code: 'A', note: 'saved' }] }] as Node[] },
@@ -217,5 +220,44 @@ describe.each(['development', 'production'])('F12 tree resets in %s', (environme
     await setImmediate()
     expect(engineOf(form).binding(path).warnings).toEqual(['review A'])
     expect(await validation).toEqual([failure(path)])
+  })
+
+  it('QA-84 keeps the anonymous row verdict when resetting a nested field outside a tree', async () => {
+    const warning = deferred<string>()
+    const form = createForm({
+      initialValues: { group: { rows: [{ code: 'A', profile: { note: 'saved' } }] } },
+      fields: { 'group.rows.*.code': { rules: rules(warning.promise) } },
+    })
+    const path = 'group.rows.0.code'
+    form.setValue('group.rows.0.profile.note', 'edited')
+    const validation = form.validate(path).catch((errors: unknown) => errors)
+    await setImmediate()
+    expect(form.errors).toEqual([failure(path)])
+    form.reset('group.rows.0.profile.note')
+    warning.resolve('review A')
+
+    expect(form.getValue('group.rows.0.profile.note')).toBe('saved')
+    expect(await validation).toEqual([failure(path)])
+    expect(form.errors).toEqual([failure(path)])
+  })
+
+  it('QA-84 discards an anonymous row verdict when resetting the whole row inside a tree', async () => {
+    const warning = deferred<string>()
+    const form = createForm({
+      initialValues: { tree: [{ key: 'branch', items: [{ code: 'saved' }] }] },
+      trees,
+      fields: { 'tree.*.items.*.code': { rules: rules(warning.promise) } },
+    })
+    const path = 'tree.0.items.0.code'
+    form.setValue(path, 'A')
+    const validation = form.validate(path).catch((errors: unknown) => errors)
+    await setImmediate()
+    expect(form.errors).toEqual([failure(path)])
+    form.reset('tree.0.items.0')
+    warning.resolve('stale warning')
+
+    expect(await validation).toBe('saved')
+    expect(form.errors).toEqual([])
+    expect(engineOf(form).binding(path).warnings).toEqual([])
   })
 })
