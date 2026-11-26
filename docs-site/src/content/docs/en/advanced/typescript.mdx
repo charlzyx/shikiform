@@ -40,7 +40,7 @@ declare module '@shikiform/react' {
 
 ## Infer submitted values
 
-With inferred options or `typed<Values>().useForm({ fields })`, paths declared `omit: true` become optional. `useForm<Values>(options)` fixes the submit type to `Values`. Dynamic JSX and reaction overrides are invisible to inference. List the paths explicitly with `SubmitValues` when needed.
+With inferred options or `typed<Values>().useForm({ fields })`, paths declared `omit: true` become optional. `useForm<Values>(options)` fixes the submit type to `Values`. Dynamic JSX and reaction overrides are invisible to inference. List the paths explicitly with `SubmitValues` when needed. Calling `createForm()` / `useForm()` with no arguments or `undefined` is equivalent to `{}`.
 
 ```ts
 import { createForm, type SubmitValues } from '@shikiform/react'

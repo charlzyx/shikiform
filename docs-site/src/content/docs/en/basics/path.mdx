@@ -40,7 +40,7 @@ export default function App() {
       <Field<Values, 'orders.0.lines.0.qty'> name="orders.0.lines.0.qty" title="First row quantity">
         {(f) => (
           <p>
-            <label htmlFor={f.id}>{f.title}：</label>
+            <label htmlFor={f.id}>{f.title}: </label>
             <input
               id={f.id}
               type="number"

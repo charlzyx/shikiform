@@ -209,7 +209,7 @@ type FieldSlot<C extends ComponentType<any> = ComponentType<any>> =
 
 | 属性 | 类型与用途 |
 |---|---|
-| `path` / `id` | `string`；完整数据路径 / 给 label 的 DOM id。在 `<Form>` 里 id 带表单前缀（`<Form id>`，没传则 React `useId()`）加净化路径：`user.name` → `<前缀>-user-name`。引擎 `binding().id` 不含前缀 |
+| `path` / `id` | `string`；完整数据路径 / 给 label 的 DOM id。在 `<Form>` 里 id 带表单前缀（`<Form id>`，没传时 React 18+ 用 `useId()` 生成可水合前缀；React 16.8/17 在 SSR 下请显式传入 `<Form id="…">` 避免水合不一致）加净化路径：`user.name` → `<前缀>-user-name`。引擎 `binding().id` 不含前缀 |
 | `value` | 当前路径值，类型由上述泛型决定 |
 | `onChange(value)` | `(value: TValue) => void`；写入值，不接收 DOM event |
 | `onBlur()` | `() => void`；标记 touched，并按配置触发校验 |
@@ -290,6 +290,7 @@ reaction((d) => { d.$ui('approvalTip').$visible = d.amount.$value >= 50000 })
 ## useWatch
 
 ```ts
+useWatch<T>(): <S>(select: (draft: Draft<T>) => S) => S
 useWatch<T = any, S = unknown>(select: (draft: Draft<T>) => S): S
 useWatch<T, S>(form: FormInstance<T>, select: (draft: Draft<T>) => S): S
 ```
@@ -365,7 +366,7 @@ useArrayField<TScope, N extends ArrayPath<TScope>>(
 | `name` | 省略 = 最近一层数组。传入时是相对当前 scope 的数组路径 |
 | `opts.rowKey` | 可选行标识属性名；省略时使用行的 `id`，没有 ID 的对象行使用对象身份。业务数据建议明确提供唯一稳定 ID |
 
-返回 `{ path, keys, push, insert, remove, move, swap, replace, dragProps }`：
+返回 `{ path, keys, errors, warnings, push, insert, remove, move, swap, replace, dragProps }`：
 
 | 成员 | 签名 / 含义 |
 |---|---|
@@ -445,7 +446,7 @@ function RemoveButton() {
 }
 ```
 
-## 数组句柄上的 errors
+### 数组句柄上的 errors
 
 `errors` / `warnings` 是这一层数组**自己**的校验消息：写在这条数组路径上的规则、字段 schema、`form.setErrors`。子字段的消息不在里面（那些在行内 `FormItem` / `useField().errors` 上）。`d.items.$errors` 会把子孙字段的消息算进去，句柄不会。
 
@@ -625,7 +626,7 @@ export default function TreeHookExample() {
 ### 不传 name：当前节点
 
 ```ts
-useTreeField<TNode = any>(): {
+useTreeField<TNode = unknown>(): {
   path: string          // 当前节点
   treePath: string      // 树根
   errors: readonly string[]

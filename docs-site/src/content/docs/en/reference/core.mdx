@@ -91,11 +91,11 @@ Form values must be acyclic: passing cyclic references to `createForm` or write 
 
 ## EnumSource
 
-Use a static option list or bind a reusable source with `source.with(params)`. The engine manages loading, cancels obsolete requests and exposes the effective options on `$enum`. Shared loads for the same source and params key are reference-counted across consumers: removing an array row or tree node cancels its consumer without interrupting other active consumers, while surviving nodes moved to a new position keep reusing the in-flight load for the same key.
+Use a static option list or bind a reusable source with `source.with(params)` (a parameterless `EnumSource<void>` can also be passed directly without `.with()`). The engine manages loading, cancels obsolete requests and exposes the effective options on `$enum` (`[]` before loading finishes). Shared loads for the same source and params key are reference-counted across consumers: removing an array row or tree node cancels its consumer without interrupting other active consumers, while surviving nodes moved to a new position keep reusing the in-flight load for the same key.
 
 ## Errors
 
-`ShikiUsageError` reports invalid draft operations. `ShikiConflictError` and `ShikiCycleError` identify conflicting or cyclic reactions. `isFieldErrors` recognizes validation failures. Superseded and unstable submits have distinct error classes.
+`ShikiUsageError` reports invalid draft operations. `ShikiConflictError` and `ShikiCycleError` identify conflicting or cyclic reactions. `isFieldErrors` recognizes validation failures (`FieldError[]`). `SubmitSupersededError` (`code: 'superseded'`) and `SubmitUnstableError` (`code: 'unstable'`) report superseded and non-converging submits.
 
 ## Messages
 

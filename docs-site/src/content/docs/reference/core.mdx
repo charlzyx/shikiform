@@ -100,7 +100,7 @@ const effects = defineEffects<{ qty: number; total: number }>(({ reaction }) => 
 
 ## 错误类
 
-引擎会导出 `ShikiUsageError`、`ShikiConflictError` 和 `ShikiCycleError`，均可使用 `instanceof` 捕获判断。其中用法误用和反应式写冲突仅在开发环境校验，而循环依赖错误在生产环境也会抛出。
+引擎导出 `ShikiUsageError`、`ShikiConflictError`、`ShikiCycleError`、`SubmitSupersededError`、`SubmitUnstableError` 与类型守卫 `isFieldErrors`（用于识别校验失败 reject 的 `FieldError[]`），错误类均可使用 `instanceof` 判断。用法误用和反应式写冲突仅在开发环境校验，循环依赖与提交状态错误在生产环境也会抛出。
 
 ## 文案
 
@@ -108,4 +108,4 @@ const effects = defineEffects<{ qty: number; total: number }>(({ reaction }) => 
 
 ## 树坐标
 
-提供 `moveNode`、`pathOf` 和 `posOf` 工具函数用于操作树形节点的坐标路径（`pos` 为下标数组，如 `[0, 2]`）。`moveNode` 只改数据、不迁移字段状态。表单里移动数组或树节点用句柄：`useArrayField().move` / `useTreeField().move`（或 `useArrayField` / `useTreeField`）。
+提供 `moveNode`、`pathOf` 和 `posOf` 工具函数用于操作树形节点的坐标路径（`pos` 为下标数组，如 `[0, 2]`）。`moveNode` 只改数据、不迁移字段状态。在表单里移动数组或树节点请使用 `useArrayField().move` 或 `useTreeField().move`。

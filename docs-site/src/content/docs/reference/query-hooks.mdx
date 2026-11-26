@@ -26,7 +26,7 @@ useQueryTable<TValues, TRow = unknown>(
 ): QueryTableApi<TValues, TValues, TRow>
 ```
 
-`UseQueryTableOptions`、`QueryTableApi`、`QueryRequestArgs/Result`、`QueryHookArgs/Result` 都是本模块的类型导出；`FieldPath`、`PathValue` 从 `@shikiform/core` 导入。通常直接让 `initialValues`、`params` 和 `request` 推断，不需要手写三组泛型。空数组、空对象或联合字面量推断不准时，写成 `useQueryTable<Values>()({ initialValues, … })`：`Values` 检查 `initialValues`，行类型和 `params` 仍从参数推断。`useQueryTable<Values>(options)` 不会推断其余类型参数。
+`UseQueryTableOptions`、`QueryTableApi`、`QueryRequestArgs/Result`、`QueryHookArgs/Result` 均由 `@shikiform/react` 导出；`FieldPath`、`PathValue` 同时由 `@shikiform/react` 与 `@shikiform/core` 导出。通常直接让 `initialValues`、`params` 和 `request` 推断，不需要手写三组泛型。空数组、空对象或联合字面量推断不准时，写成 `useQueryTable<Values>()({ initialValues, … })`：`Values` 检查 `initialValues`，行类型和 `params` 仍从参数推断。`useQueryTable<Values>(options)` 不会推断其余类型参数。
 
 ### 参数与默认
 
@@ -118,8 +118,7 @@ const table = useQueryTable({
 这个例子不访问服务器。输入名称后点查询；client 模式每次筛选取完整数据，再在浏览器分页。移动页码不会再次运行 request。
 
 ```tsx preview
-import { Field, Form } from '@shikiform/react';
-import { useQueryTable } from '@shikiform/react';
+import { Field, Form, useQueryTable } from '@shikiform/react';
 
 type Row = { id: string; name: string };
 type Values = { filters: { name: string }; list: Row[]; page: number; pageSize: number; selectedKeys: string[] };
@@ -186,4 +185,4 @@ export default function App() {
 
 ## 实现位置
 
-`packages/hooks/src/use-query-table.ts` 定义 `useQueryTable` 和默认请求。公开导出在 `packages/hooks/src/index.ts`。
+`packages/react/src/hooks/use-query-table.ts` 定义 `useQueryTable` 和默认请求，公开导出在 `packages/react/src/index.ts`。

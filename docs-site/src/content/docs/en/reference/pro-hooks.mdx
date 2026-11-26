@@ -32,18 +32,19 @@ table.copy(0, (row, source) => ({ ...row, sku: `${source.sku} (copy)` }))
 useShadowForm<TValues = Record<string, any>, TContext = unknown>(options?: {
   name?: string
   form?: FormInstance<any>
-  add?: boolean
-  rowKey?: string | ((row: any) => string | number)
+  add?: boolean | Partial<TValues>
+  rowKey?: string
   merge?: (current: TValues, values: TValues) => TValues
   initialValues?: TValues
-  fields?, trees?, effects?, formOptions?,
+  fields?, effects?, formOptions?,
+  scopeKey?: string | number
   onOk?: (values: TValues, context?: TContext) => void | false | Promise<void | false>,
   onCancel?: (context?: TContext) => void,
 }): ShadowFormApi<TValues, TContext>
 // { form, visible, loading, submitting, context, open(init?, context?), confirm(onOk?), cancel() }
 ```
 
-Each `open` creates a fresh draft with its own baseline, errors and effects. Opening again supersedes an outstanding load. A bound draft inherits path rules and effective read-only or disabled state. `confirm` validates before writing back or invoking `onOk`. A validation failure returns its errors and keeps the editor open. `cancel` discards the copy.
+Each `open` creates a fresh draft with its own baseline, errors and effects. Opening again supersedes an outstanding load, and changing `scopeKey` automatically cancels any open draft or in-flight loader. A bound draft inherits path rules and effective read-only or disabled state (pass `add: true` or a template object to append to an array). `confirm` validates before writing back or invoking `onOk`. A validation failure returns its errors and keeps the editor open. `cancel` discards the copy.
 
 ## useSuggestion
 

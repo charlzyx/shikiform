@@ -18,7 +18,7 @@ d.orders[0].lines[2].qty.$value = 4
 d.items[i].qty.$value
 d.extra[key].$value
 
-// 路径只以字符串存在时（pathOf、配置、组件 props，例如 useQueryTable 的 rowsPath）才用 query
+// 路径只以字符串存在时（pathOf、配置、组件 props，例如 rowsPath）才用 query
 query(pathOf('menus', pos)).$disabled = true
 
 // 组件或普通逻辑里直接读写表单实例

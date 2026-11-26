@@ -11,7 +11,7 @@ description: "Package entry points, form options, submission methods, React comp
 
 ## Package entry points
 
-`@shikiform/core` is independent of React. `@shikiform/react` re-exports common engine APIs and supplies field components, hooks and adapters. `@shikiform/react` supplies higher-level headless hooks.
+`@shikiform/core` is independent of React (engine, effects, enum sources, tree coordinates, `snapshot`, `toRaw`). `@shikiform/react` is the zero-UI-dependency React entry point: it re-exports the common engine APIs and supplies field components, adapters (`connect` / `mapProps`), React hooks, query hooks, and headless pro hooks.
 
 ## Create a form
 
@@ -39,6 +39,7 @@ createForm<T, TSubmit = T>(options?: FormOptions<T>): FormInstance<T, TSubmit>  
 |---|---|
 | `getValue`, `setValue` | Read or update a single dot or bracket path. During a `reaction`, `watch`, or `batch`, `getValue`, `setValue`, and `patchValues` share the active working tree with the draft: writes commit or roll back with that pass or batch, and reads immediately see edits made in it. Path writes reject quoted keys containing `.`, `[`, or `]` in both development and production (replace the parent object instead); invalid array indices throw `ShikiUsageError` in development and are ignored in production. In development an object result is a read-only view (not `===` to the stored value; production returns the stored value). `indexOf` / `includes` still find a raw row. Copy with `snapshot(value)` for `structuredClone`, `postMessage`, or IndexedDB. `getSubmitValues()` is the submit payload. |
 | `patchValues` | Deep-merge partial plain objects in one flush; arrays and primitives replace whole. During a `reaction`, `watch`, or `batch`, shares the active working tree with the draft (committing or rolling back together). |
+| `setReadOnly`, `setDisabled` | Set or clear (`undefined`) root-level `$readOnly` / `$disabled` in a single batch. |
 | `batch(fn)` | Write multiple paths on one draft with one reaction pass and one notification. In-batch `setValue`, `patchValues`, and `getValue` share the same working tree as the draft, so `getValue` and draft reads immediately reflect all value and structural edits made in that batch. A nested `batch` merges into the outer batch on success and rolls back only its own value, structural, baseline, and error changes if `fn` throws. |
 | `validate()` / `validate(path)` / `validate([paths])` | Validate the whole form, one subtree, or several paths in one pass (what a step validates; bracket and dot path aliases normalize identically at runtime). On success, resolves a clone: no path is `getSubmitValues()` (`TSubmit`; root `$omit: true` yields `{}`); one path is that value (`PathValue`; the path itself is returned even when omitted or under a root omit, and descendants omitted only because of that path stay — a descendant's own `omit` is removed); an array is a nested object of only those paths (`ValidatePick`). A literal list keeps each value. An array index is a numeric key (`{ rows: { 0: { name } } }`). The array returned at runtime is dense, and an index that was not selected is `undefined`, so `result.rows[0]` reads that property. Rejects `FieldError[]`. A form-level `validate` throw rejects as-is. |
 | `submit(onValid?)` | Validate and return the callback result or submit values. A later attempt immediately rejects an earlier call still in validation with `SubmitSupersededError`, while an already-started `onValid` continues counting toward `submitting`. |
@@ -80,6 +81,8 @@ useTreeField(name, opts?: { childrenKey?: string; rowKey?: string }): TreeHandle
 interface ArrayHandle<TRow> {
   path: string
   keys: { key: string; index: number }[]
+  errors: readonly string[]     // Messages for the array path itself, excluding descendants.
+  warnings: readonly string[]
   push(row: TRow): void
   insert(index: number, row: TRow): void
   remove(index: number): void
@@ -92,7 +95,7 @@ interface ArrayHandle<TRow> {
 interface TreeHandle<TNode> {
   path: string            // The root handle targets the tree. A node handle targets its node.
   treePath: string        // Always points to the root. Equals path on the root handle.
-  errors: readonly string[]     // Messages for the array itself, excluding descendants.
+  errors: readonly string[]     // Messages for this path itself, excluding descendants.
   warnings: readonly string[]
   value: TNode[]
   push(node: TNode, parentPos?: Pos): void  // Append to the root or as the last child of parentPos.
@@ -135,7 +138,7 @@ await form.submit((values) => {
 
 | Component | Behavior |
 |---|---|
-| `<Form form onSubmit onInvalid onSubmitError …>` | Provides engine context and renders a native `<form>`. Calls `form.submit(onSubmit)`, routes validation errors to `onInvalid(errors)`, and sends `onSubmit` / `SubmitUnstableError` errors to `onSubmitError` (defaults to `console.error`). Focuses the first invalid field in document order on submit or `validate()` failure. Control `id` is `<prefix>-<sanitized-path>`. |
+| `<Form form onSubmit onInvalid onSubmitError …>` | Provides engine context and renders a native `<form>`. Calls `form.submit(onSubmit)`, routes validation errors to `onInvalid(errors)`, and sends `onSubmit` / `SubmitUnstableError` errors to `onSubmitError` (defaults to `console.error`). Focuses the first invalid field in document order on submit or `validate()` failure. Control `id` is `<prefix>-<sanitized-path>` (using `<Form id>`, or React 18+ `useId()` when omitted; pass an explicit `<Form id="...">` in React 16.8/17 SSR apps to avoid hydration mismatches). |
 | `<Field name …>` | Owns a path and renders its decorator and control. See the [field guide](/en/guide/field). |
 | `<ObjectField name visible? disabled? readOnly? omit?>` | Object scope. `visible`, `disabled`, and `readOnly` inherit unless overridden (`false` exits). `omit` removes the whole subtree from submit (`omit: false` on a child cannot opt back in). |
 | `<ArrayField name rowKey? component? virtualScroll?>{({ index, key }) => …}` | Per-row scope; parent subscribes only to array structure. `component` wraps rows; `virtualScroll={{ height }}` mounts visible plain rows only. |
@@ -201,4 +204,4 @@ getDefaultMessages(): FormMessages       // Current application defaults after s
 
 ## Type index
 
-`@shikiform/core` exports form, field, enum, rule, draft and path types. `@shikiform/react` adds typed components, bindings, scopes, array handles and form props. `@shikiform/react` exports option, result and handle types alongside its hooks. See the [TypeScript guide](/en/advanced/typescript).
+`@shikiform/core` exports form, field, enum, rule, draft and path types. `@shikiform/react` re-exports the common core types and adds typed components, bindings, scopes, adapters, array and tree handles, form props, and option/result/handle types for query and pro hooks. See the [TypeScript guide](/en/advanced/typescript).

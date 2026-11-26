@@ -86,8 +86,7 @@ const table = useQueryTable({
 ### Runnable local request
 
 ```tsx preview
-import { Field, Form } from '@shikiform/react';
-import { useQueryTable } from '@shikiform/react';
+import { Field, Form, useQueryTable } from '@shikiform/react';
 
 type Row = { id: string; name: string };
 type Values = { filters: { name: string }; list: Row[]; page: number; pageSize: number; selectedKeys: string[] };

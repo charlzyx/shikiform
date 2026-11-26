@@ -146,7 +146,7 @@ Named fields resolve a relative path, register the binding and subscribe to its 
 
 | Members | Purpose |
 |---|---|
-| `path`, `id` | Full data path and accessible DOM ID. A form's ID or React-generated prefix scopes field IDs. |
+| `path`, `id` | Full data path and accessible DOM ID. Scoped by `<Form id>` or React 18+ `useId()` when omitted (pass an explicit `<Form id="...">` in React 16.8/17 SSR apps to avoid hydration mismatches). |
 | `value`, `onChange(value)`, `onBlur()` | Read data, write the control value and mark blur. Adapt native events before calling `onChange`. |
 | `visible`, `disabled`, `readOnly`, `omit` | Effective rendering, interaction and submission flags. |
 | `required`, `errors`, `warnings`, `validating` | Validation rules and results exposed to the view. |
@@ -188,7 +188,7 @@ Use a value-free UI node for a tip or container. Target it with `$ui(name)` on i
 interface UIProps<C, D> {
   name: UiName
   component?: FieldSlot<C>        // [Alert, { type: 'warning' }] renders children inside Alert and checks its props.
-  decorator?: FieldSlot<D>        // [FormItem]：title → label，description → extra
+  decorator?: FieldSlot<D>        // [FormItem]: title → label, description → extra
   title?: ReactNode
   description?: ReactNode
   visible?: boolean               // False hides the UI. The scope supplies the fallback.
@@ -203,6 +203,7 @@ reaction((d) => { d.$ui('approvalTip').$visible = d.amount.$value >= 50000 })
 ## useWatch
 
 ```ts
+useWatch<T>(): <S>(select: (draft: Draft<T>) => S) => S
 useWatch<T = any, S = unknown>(select: (draft: Draft<T>) => S): S
 useWatch<T, S>(form: FormInstance<T>, select: (draft: Draft<T>) => S): S
 ```
@@ -459,7 +460,7 @@ export default function TreeHookExample() {
 Inside a `TreeField` node, `path`, `pos`, `index` and `record` describe that node and `treePath` points to the root. `dragProps()` targets the current node.
 
 ```ts
-useTreeField<TNode = any>(): {
+useTreeField<TNode = unknown>(): {
   path: string          // Current node.
   treePath: string      // Tree root.
   errors: readonly string[]

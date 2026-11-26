@@ -2,7 +2,7 @@
 title: "Submit and reset"
 description: "Validate a form, handle submission failures and restore the baseline."
 ---
-`form.submit()` returns a promise. It validates before calling `onValid` and resolves to the callback result, or the submitted values when that result is undefined. Validation failures reject with `FieldError[]`. A later submit supersedes an earlier one. Other callback errors propagate.
+`form.submit()` returns a promise. It validates before calling `onValid` and resolves to the callback result, or the submitted values when that result is undefined. Validation failures reject with `FieldError[]`. A later submit supersedes an earlier one (`SubmitSupersededError`), values that fail to settle after 3 passes reject with `SubmitUnstableError`, and other callback errors propagate.
 
 ```ts
 try {
@@ -47,7 +47,7 @@ export default function App() {
       <F.Field name="name" title="Name" required>
         {(f) => (
           <p>
-            <label htmlFor={f.id}>{f.title}：</label>
+            <label htmlFor={f.id}>{f.title}: </label>
             <input
               id={f.id}
               value={f.value ?? ''}
