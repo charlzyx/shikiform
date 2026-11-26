@@ -147,7 +147,7 @@ export default function App() {
 }
 ```
 
-- `useQueryTable`（`@shikiform/react`）统一托管查询条件、分页、勾选、表头筛选和请求竞态；由于底层仍是标准 ShikiForm 引擎，条件之间可以照常编写 `reaction` 和 `watch`。
+- `useQueryTable`（`@shikiform/react`）统一管理查询条件、分页、勾选、表头筛选，并自动防止旧请求覆盖新结果；底层仍是标准 ShikiForm 表单，条件之间可以照常写 `reaction` 和 `watch`。
 - 配置 `rows: 'list'` 后，接口返回的每一页数据会写入表单的 `list` 数组字段，因此表格单元格也可以直接放置 `<Field>` 进行行内编辑。
 - 收起额外筛选条件时通过 `display: none` 隐藏而不卸载节点，已输入的值不会丢失。
 - 调用 `table.setFilters` 切换筛选条件时，参数会传给 `request` 的 `filters`，同时回到第 1 页并清空勾选项；单纯翻页时勾选项会保留。详见 [查询 Hooks](/reference/query-hooks)。
@@ -300,7 +300,7 @@ export default function App() {
 }
 ```
 
-- 编辑区使用同一个表单中声明为 `omit: true` 的 `editor` 子对象：`form.validate('editor')` 单独校验该子树，通过时 resolve 这块的值（自身 `omit` 仍返回），且不会进入整表提交结果。
+- 编辑区放在同一个表单的 `editor` 对象里并标了 `omit: true`：调用 `form.validate('editor')` 只校验这一块，通过后直接返回它的数据（虽然它标了 `omit`，单独校验它时仍会返回，只是整表提交时会被排除）。
 - 写回时用 `form.batch` 同时更新原行字段并关闭编辑面板，合并为一轮联动与一次渲染通知。
 - 需要弹窗或面板使用独立的表单实例时，见 [草稿表单（useShadowForm）](/examples/pro#草稿表单useshadowform)。
 

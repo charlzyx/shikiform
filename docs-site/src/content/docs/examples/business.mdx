@@ -634,12 +634,12 @@ export default function App() {
 }
 ```
 
-- 用 `SHOW_MAP` 集中管理各模式区块显隐并同步设置 `$omit`，切换类型后未激活区块既不参与校验，也不会被提交进 `toApi` 载荷。
+- 用 `SHOW_MAP` 集中控制各模式区块的显隐并同步设置 `$omit`，切换类型后未激活区块既不参与校验，也不会被传进 `toApi` 的提交数据。
 - 单位换算（元 ↔ 分）与字段命名转换完全收敛在 `fromApi / toApi`，表单内部只面对干净的前端模型。
 
 ## 多租户共享单抽屉与实时属性面板（`scopeKey` + `onValuesChange`）
 
-**场景**：中后台常见的「列表页共享 1 个编辑浮层 + 右侧草稿属性面板」。表格所有行共用同一个 `useShadowForm({ scopeKey })` 实例（避免 N 行挂 N 个弹窗），切换工作空间 `scopeKey` 时自动取消正在打开的编辑态并作废在途加载；下方属性面板使用 `useForm({ values, onValuesChange })` 实现无需点提交的实时草稿同步。
+**场景**：中后台常见的「列表页共享 1 个编辑浮层 + 右侧草稿属性面板」。表格所有行共用同一个 `useShadowForm({ scopeKey })` 实例（避免 N 行挂 N 个弹窗），切换工作空间 `scopeKey` 时会自动关掉正在打开的编辑浮层，并取消还没返回的加载请求；下方属性面板使用 `useForm({ values, onValuesChange })` 实现无需点提交的实时草稿同步。
 
 ```tsx preview
 import { useState } from 'react';

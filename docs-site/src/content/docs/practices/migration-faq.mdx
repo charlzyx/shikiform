@@ -22,9 +22,9 @@ description: 从 Formily / react-hook-form 迁移对照，以及计算字段、�
 
 | 常见概念 | ShikiForm 对应写法 |
 |---|---|
-| Formily `reactions` / `x-reactions` | 在 `defineEffects` 中编写 `reaction((d) => ...)`，直接给 `$` 状态赋值 |
-| Formily `onFieldValueChange` 清空关联字段 | 使用 `watch(source, effect)` 监听变化后执行一次性重置 |
-| Formily 数组行内 `map` 联动 | 使用 `reaction.each(draft.items, fn)`（只接收两个参数；selector 仍可用） |
+| Formily `reactions` / `x-reactions` | 在 `defineEffects` 中写 `reaction((d) => ...)`，直接给带 `$` 的状态赋值（如 `d.x.$visible = false`） |
+| Formily `onFieldValueChange` 清空关联字段 | 用 `watch(source, effect)` 在字段变化后做一次重置 |
+| Formily 数组行内 `map` 联动 | 用 `reaction.each(draft.items, fn)`，改一行只重算这一行 |
 | RHF `watch('email')` | 组件中用 `useWatch((d) => d.email.$value)`，联动中直接读 `d.email.$value` |
 | RHF `setValue('city', '')` | 外部调用 `form.setValue('city', '')`，联动中赋值 `d.city.$value = ''` |
 | RHF `resolver`（如 Zod） | 直接传给 `useForm({ validate: schema })`（支持 Standard Schema） |

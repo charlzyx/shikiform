@@ -11,7 +11,7 @@ tableOfContents: false
 
 第一段练习中，单价和数量已有初始值，金额不会随输入自动重算。
 
-派生值使用 `reaction`：初始化时立即运行一次，自动追踪内部读取的所有 `$` 状态，依赖变化时重算。同一轮里，后续计算可以直接读取刚赋值的 `d.amount.$value`。
+要让一个字段始终根据其他字段自动算出来，用 `reaction`：表单初始化时会先算一次，之后只要你读过的任意字段一变，它就自动重算。同一轮里，后面的计算可以直接读到刚赋值的 `d.amount.$value`。
 
 **这一步：** 用 `defineEffects` 注册一条 `reaction`：
 
@@ -61,7 +61,7 @@ watch(
 
 `<ArrayField>` 接收渲染函数作为子元素，函数内的字段名相对于当前行解析。指定 `rowKey="id"` 后，增删或排序时字段状态跟随行 `id` 移动；结构变更通过 `useArrayField()` 的 `push` / `remove` / `move` 完成。
 
-数组每行的派生计算使用 `reaction.each(draft.items, callback)`（`draft` 来自 `defineEffects`），引擎为每一行维护独立实例，修改某一行时只重算该行。selector `(d) => d.items` 仍然可用。
+按行计算使用 `reaction.each(draft.items, callback)`（`draft` 来自 `defineEffects`）。每一行各自独立计算，改第 2 行时不会连累其他行重算；传函数 `(d) => d.items` 也同样可用。
 
 **这一步：** 在 `effects` 中补充按行计算：
 

@@ -214,7 +214,7 @@ export default function App() {
 
 - `$readOnly` 沿字段路径向下走：写 `d.profile` 和 `d.orders`，里面的字段跟着变。赋 `undefined` 丢掉这一层，回到上一级。
 - 已发货行单独写了 `row.qty.$readOnly = true`，整表可编辑时这一格仍是预览。
-- 弹出面板中的 `<ObjectField name="address">` 通过 React 上下文保持在 `profile` 作用域内，收起面板后字段的值和状态依然保留在表单引擎中。
+- 弹出面板里的 `<ObjectField name="address">` 仍然在 `profile` 下面，可以直接写相对路径；收起面板后，填过的值和状态照常保存在表单里。
 
 ## 树：跨层移动
 
@@ -280,7 +280,7 @@ export default function App() {
 
 - 先点击「校验」让空名称节点报错，再将其拖拽到其他分组下：错误提示会跟随业务 `id` 一同迁移，同时节点的 `pos` 与 `path` 自动更新为新位置。
 - `move(from, to)`（`useTreeField(name)` 或节点上的 `useTreeField()`）返回 `{ ok, reason? }`，移入自身子孙时拒绝并给出原因。节点里的 `useTreeField()` 给出当前 `path`、`pos` 和兄弟 `index`。
-- `<TreeField>` 为每个节点自动建立作用域并传入 `node.children`，子组件内部调用 `useTreeField()` 即可获取当前节点的坐标、记录与 `dragProps()`，无需硬编码整棵树的字段路径，详见 [Headless Hooks](/guide/headless)。
+- `<TreeField>` 会自动记住每个节点的位置并把子节点传给 `node.children`，子组件里直接调用 `useTreeField()` 就能拿到当前节点的坐标、数据和 `dragProps()`，不用手拼整棵树的路径，详见 [Headless Hooks](/guide/headless)。
 
 ## 长列表：只挂载可见行
 

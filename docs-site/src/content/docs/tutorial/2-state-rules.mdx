@@ -20,7 +20,7 @@ tableOfContents: false
 | `readOnly: true` | 预览（同时 `disabled` 时预览优先） | 跳过 | 提交 |
 | `omit: true` | 不影响 | 不影响 | 不提交 |
 
-四个布尔都沿字段路径继承。`visible` / `disabled` / `readOnly` 本层写了 `true` 或 `false` 就用本层；`omit` 则是任一祖先为 `true` 时整棵子树不提交。校验只在 `visible && !disabled && !readOnly` 时运行。
+这四个开关互不干扰，而且会自动往下传给子字段：`visible` / `disabled` / `readOnly` 只要在子字段上明确写了 `true` 或 `false`，就按子字段自己的来；`omit` 则不同——只要上层对象设了 `omit: true`，里面的所有子字段都不会提交。校验只在「显示、未禁用、非只读」时才跑。
 
 **这一步：** 在 `reaction` 中补充 `d.email.$visible = d.contact.$value`。关闭开关即可隐藏邮箱且跳过校验；若同时不希望进入提交 JSON，再写 `d.email.$omit = !d.contact.$value`。
 

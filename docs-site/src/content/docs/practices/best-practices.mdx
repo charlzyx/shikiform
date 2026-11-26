@@ -3,7 +3,7 @@ title: 工程最佳实践
 description: 面向业务开发者的 ShikiForm 架构与编码指南：代码组织、Hooks 用法、Store 数据流与生产环境保障。
 ---
 
-本页总结在真实业务项目中使用 ShikiForm 的推荐做法。每条实践均基于 `@shikiform/core` 与 `@shikiform/react` 的公开契约，给出「推荐 / 避免」短代码对照，帮助团队在开发期早发现误用、在生产环境保持稳定与高性能。
+这里总结在真实业务项目里使用 ShikiForm 最顺手的写法。每条实践都给出「推荐 / 避免」对照，帮你把常见误用拦在开发阶段，也让线上大表单保持流畅。
 
 ## 代码组织
 
@@ -142,7 +142,7 @@ src/
 
 ### 1. 用无参 `useField()` 编写自定义控件
 
-在 `<Field>` 渲染的自定义控件、装饰器或表格单元格内，调用无参 `useField<T>()` 读取当前字段绑定，不要把 `name` 一层层透传；重复组件优先用 `connect` + `mapProps` 适配。同一字段若要挂第二个独立控件（如输入框 + 滑块），务必给第二个 `<Field>` 加上 `ui` 名称（重复挂载无 `ui` 的 `<Field>` 开发期会输出告警）。
+在 `<Field>` 渲染的自定义控件、装饰器或表格单元格内，直接调用无参 `useField<T>()` 拿到当前字段的值和状态，不用把 `name` 一层层透传；重复使用的组件优先用 `connect` + `mapProps` 包装。如果同一个字段要挂第二个独立控件（比如数字框旁边再配一个滑块），记得给第二个 `<Field>` 加上 `ui` 名称（同一个路径挂两个不带 `ui` 的 `<Field>` 时，开发期会发出警告）。
 
 ```tsx
 // 推荐：自定义控件通过 useField() 消费当前绑定，零 name 耦合
@@ -188,7 +188,7 @@ const country = allValues.address.country
 
 ### 3. 利用稳定的 action 引用，不要把整个 Hook 返回对象放进依赖
 
-所有 ShikiForm Hook 返回的操作方法（`onChange`、`onBlur`、`push`、`remove`、`refresh`、`setPage`、`open` 等）在组件或 `form + path` 存活期间保持引用稳定，但**返回的容器对象本身每次渲染都是新对象**。`useEffect` / `useCallback` 依赖数组应只放具体方法；渲染期 getter（`labelOf`、`positionOf` 等）不要放进依赖。
+所有 ShikiForm Hook 返回的操作方法（`onChange`、`onBlur`、`push`、`remove`、`refresh`、`setPage`、`open` 等）在组件存活期间引用始终不变，但**外层返回对象本身每次渲染都会新建**。写 `useEffect` / `useCallback` 依赖数组时只放具体方法；渲染期查询函数（`labelOf`、`positionOf` 等）不要放进依赖。
 
 ```tsx
 // 推荐：只依赖稳定的 action 方法
@@ -259,7 +259,7 @@ function BadList() {
 
 ### 1. 一个表单一个引擎，派生用 `reaction`、动作与异步用 `watch`
 
-不要用额外 `useState` 镜像表单字段或自己同步派生值。凡是「B 始终由 A 算出」用 `reaction`；「A 变化后执行一次重置或异步请求」用 `watch`，异步结果返回后再用 `form.setValue` / `form.batch` 写回。在 `reaction` / `watch` / `batch` 进行中调用 `form.setValue`、`form.patchValues` 或 `form.getValue` 会与 draft 共用同一工作树（随当前 pass 或批一起提交/回滚，读取立即看到本批编辑），不过派生写入仍推荐走 draft handle。**不要把 `reaction` 写成 `async`，也不要在 `reaction` 里同步调用 `form.reset` / `form.submit`**（开发期均会抛 `ShikiUsageError`）。
+不要用额外的 `useState` 同步表单字段或手算联动值。记住一条分工：**「B 始终由 A 算出来」写 `reaction`**；**「A 变了以后做一次重置或发请求」写 `watch`**，接口返回后再用 `form.setValue` / `form.batch` 写回。在 `reaction` / `watch` / `batch` 里调用 `form.setValue`、`form.patchValues` 或 `form.getValue` 时，它们和草稿 `d` 读写同一份临时数据（立刻能读到刚改的值，整轮结束时一起生效，中途报错一起撤销）；不过在 `reaction` 里直接给 `d.x.$value` 赋值最直观。**不要把 `reaction` 写成 `async`，也不要在 `reaction` 里同步调用 `form.reset` / `form.submit`**（开发期会抛 `ShikiUsageError`）。
 
 ```ts
 // 推荐：同步派生用 reaction，异步请求用 watch + form.setValue / form.batch
@@ -289,7 +289,7 @@ reaction(async (d) => {
 
 ### 2. 写自己的路径，用 `form.batch` 合并多次写入
 
-在事件回调或异步回调里要同时改多个字段或组合数组/树结构编辑时，用 `form.batch` 包成一次事务：只跑一轮联动、只通知订阅者一次；批内调用 `form.setValue` / `form.patchValues` / `form.getValue` 与 draft 共用同一工作树，通过 `getValue` 与 draft 回读会立即反映本批所有值与结构编辑，数组/树句柄与 draft 数组方法按调用顺序生效（已编辑的单元格值以及规则、枚举和 UI 状态随行或节点移动，删除的行不会复活；含重复值的普通数组同样按调用顺序，`reverse()` 作用于已编辑的数组）。嵌套 `batch` 成功时并入外层，抛错时仅撤销本层的值与结构编辑，不影响外层。字段写入优先写精确路径（`d.user.name.$value = 'Ada'` 或 `d.user.$value.name = 'Ada'`），避免整对象展开覆盖唤醒无关依赖。
+在事件回调或接口回调里要同时改多个字段，或者一边改单元格一边增删移动行时，包进 `form.batch`：联动只跑一轮，组件只重渲染一次。在 `batch` 里混用草稿 `d`、`form.setValue`、`form.patchValues`、`form.getValue` 和数组/树操作时，完全按你的调用顺序生效——先改某一行的值、规则、选项或 UI 状态再移动它，这些改动会跟着那一行一起走，删掉的行也不会重新冒出来；批里随时能读到前面刚改过的新值（包括普通数组和 `reverse()`）。嵌套 `batch` 成功时并入外层，抛错时只撤销里层改动，不影响外层。改字段时直接写到具体路径（`d.user.name.$value = 'Ada'` 或 `d.user.$value.name = 'Ada'`），别用整对象展开覆盖以免误唤醒兄弟字段的联动。
 
 ```ts
 // 推荐：一次 batch 合并写入，原子提交
@@ -309,7 +309,7 @@ form.setValue('district', 'xh')
 
 ### 3. 不要修改 `getValue` / `form.values` 返回值（序列化用 `snapshot`）
 
-在 `reaction` / `watch` / `batch` 外读取的 `getValue`、`form.values` 与校验器 `value` 在开发环境都是只读视图，原地修改会抛 `ShikiUsageError`；把它们直接交给 `structuredClone` / `postMessage` / IndexedDB 在开发环境会抛 `DataCloneError`。要传给外部序列化通道用 `snapshot(value)`，要拿提交数据用 `getSubmitValues()`，仅需原始引用（且绝不修改）时用 `toRaw(value)`。
+在 `reaction` / `watch` / `batch` 外面读到的 `getValue`、`form.values` 和校验器 `value`，在开发环境都是只读的：直接原地改属性会抛 `ShikiUsageError`，直接传给 `structuredClone` / `postMessage` / IndexedDB 也会抛 `DataCloneError`。需要纯数据副本做缓存或通信时用 `snapshot(value)`，要拿最终提交数据用 `getSubmitValues()`，只需原始引用（且绝不修改）时用 `toRaw(value)`。
 
 ```ts
 // 推荐：使用 snapshot 获取纯数据副本，或通过 setValue / batch 更新
@@ -352,7 +352,7 @@ reaction((d) => {
 
 ### 1. 理解 Dev 严格报错 vs Prod 静默防护
 
-ShikiForm 在开发与生产环境的契约分工明确（不要依赖开发期异常做业务分支，也不要忽视开发期警告）：
+开发期会严格报错帮你尽早发现误用，生产期则尽量兜底避免页面白屏（别依赖开发期异常写业务逻辑，也别忽略开发期控制台警告）：
 
 | 场景 | 开发环境（`NODE_ENV !== 'production'`） | 生产环境（`NODE_ENV === 'production'`） |
 |---|---|---|
@@ -368,11 +368,11 @@ ShikiForm 在开发与生产环境的契约分工明确（不要依赖开发期�
 
 ### 2. 遵守统一的 `validator` 返回值契约
 
-同步与异步自定义校验器共用一套运行时返回值契约：
+同步和异步自定义校验器返回值规则一致：
 - **通过**：返回 `undefined`、`null`、`''` 或 `true`。
-- **失败**：返回非空字符串、字符串数组 `string[]`，或返回 `false`（使用规则 `message` 或默认 `fallback` 文案）。
-- **非法返回值**（如数字、普通对象）：开发环境抛 `ShikiUsageError`，生产环境按失败处理并展示默认文案。
-- 异步校验器务必监听 `ctx.signal`，在中止时清理定时器或透传给 `fetch`，且被中止时也应正常 `resolve(undefined)`。
+- **失败**：返回非空错误文案、文案数组 `string[]`，或返回 `false`（显示规则上的 `message` 或默认提示）。
+- **其他返回值**（如数字、普通对象）：开发环境抛 `ShikiUsageError`，生产环境一律按校验失败处理并显示默认提示。
+- 异步校验器记得把 `ctx.signal` 传给 `fetch` 或用来清理定时器，被取消时正常 `resolve(undefined)`。
 
 ```ts
 // 推荐：显式返回 string | null，并响应 signal 取消
@@ -392,7 +392,7 @@ const badCheck = async (value: string) => {
 
 ### 3. `EnumSource` 共享与自动取消
 
-异步下拉选项优先使用 `EnumSource` 定义，而不是在 `useEffect` 里手写 `fetch` + `useState`。`EnumSource` 会按参数键共享请求、自动防抖并取消过期加载；`useForm` 卸载（含 React `StrictMode` 重放）或删除数组行 / 树节点时，引擎会自动释放对应消费者并在无剩余消费者时中止请求，而移动保留节点则会复用同键在途加载。
+异步下拉选项优先用 `EnumSource` 定义，不要在 `useEffect` 里手写 `fetch` + `useState`。同一参数的并发请求会自动合并、防抖并取消过期请求；组件卸载（含 React `StrictMode` 重放）或删除数组行 / 树节点时，如果没有别的字段再用这批选项，正在发出的请求会自动取消；只是移动行位置则会直接复用还没返回的请求。
 
 ```ts
 // 推荐：声明 EnumSource 并在 loader 中透传 signal
@@ -417,15 +417,15 @@ useEffect(() => {
 ### 4. 大列表与虚拟滚动
 
 当动态数组达到数百至数千行时：
-- 使用 `<ArrayField name="rows" rowKey="id" virtualScroll={{ height: 420 }}>` 仅挂载视口可见行；虚拟窗口内重排行时会用稳定行 key 对账并保留行组件状态。
-- 行内校验规则与联动写在 `fields['rows.*.xxx']` 和 `reaction.each(draft.rows, ...)` 中，这样屏幕外未挂载的行依然会被校验和计算，且修改某一行单元格只重跑该行实例（引擎按行身份建索引，O(n) 迁移订阅，5,000 行移动/插入约 28ms）。
+- 使用 `<ArrayField name="rows" rowKey="id" virtualScroll={{ height: 420 }}>` 只挂载屏幕内可见的行；在列表里拖动或排序时，会按 `rowKey` 保留每一行的组件状态。
+- 行内校验规则与联动写在 `fields['rows.*.xxx']` 和 `reaction.each(draft.rows, ...)` 中，这样滚出屏幕的行依然会被校验和计算，改一个单元格只重跑这一行（增删或移动行时，每行监听跟着行线性迁移，O(n)，5,000 行约 28ms）。
 - 不要在父级 `useWatch((d) => d.rows.$value)` 后再手工 `.map`，避免每次输入整表重渲染。
 
 ### 5. SSR 注意事项
 
-- `reaction` 必须保持纯同步，不要访问 `window`、`document` 或发起网络请求；浏览器端副作用放在 `watch` 或 `useEffect`。
-- React 18+ 通过 `useId()` 自动生成水合安全的字段 ID；在 React 16.8 / 17 的 SSR 应用中，请显式传入 `<Form id="...">` 以避免水合不匹配。
-- `useForm` 拥有的 `EnumSource` 在组件提交挂载后才启动加载，因此在服务端渲染时不会泄漏悬空请求。
+- `reaction` 必须保持纯同步，不要访问 `window`、`document` 或发网络请求；浏览器端副作用放在 `watch` 或 `useEffect`。
+- React 18+ 会用 `useId()` 自动生成两端一致的字段 ID；在 React 16.8 / 17 的 SSR 应用中，请显式传入 `<Form id="...">` 以避免水合 ID 不一致。
+- `useForm` 里的 `EnumSource` 会在组件挂载到浏览器之后才开始加载，服务端渲染时不会白发请求。
 - 不要在渲染期间调用 `onChange` / `form.setValue`，避免 SSR 阶段产生意外写入。
 - 更多细节见 [测试、性能与 SSR](/practices/testing-performance)。
 
@@ -450,7 +450,7 @@ await form.submit(async (values) => {
 // 避免：在表单值中塞入含循环引用的对象（开发与生产均抛 ShikiUsageError）
 const node: any = { name: 'root' }
 node.self = node
-form.setValue('meta', node) // ShikiUsageError: 表单值必须是无环数据
+form.setValue('meta', node) // ShikiUsageError: 表单值不能包含循环引用
 ```
 
 继续阅读：[常见的坑](/practices/pitfalls) · [测试、性能与 SSR](/practices/testing-performance)。

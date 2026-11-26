@@ -256,7 +256,7 @@ function BadList() {
 
 ### 1. One engine per form: derive with `reaction`, act and fetch with `watch`
 
-Keep form state inside the form engine rather than mirroring fields in `useState`. Use `reaction` for synchronous derivations and `watch` for one-time side effects or async requests (writing async responses back with `form.setValue` or `form.batch`). Calling `form.setValue`, `form.patchValues`, or `form.getValue` during a `reaction`, `watch`, or `batch` shares the active working tree with the draft (writes commit or roll back with that pass/batch, and reads immediately see edits made in it), though draft handle assignments remain idiomatic inside `reaction`. Never make a `reaction` `async` or call `form.reset` / `form.submit` synchronously inside a `reaction` (`ShikiUsageError` in development).
+Keep form state inside the form engine instead of mirroring fields in `useState`. Follow one simple rule: **use `reaction` when B is always computed from A**, and **use `watch` when changing A should trigger a one-time reset or fetch** (then write the response back with `form.setValue` or `form.batch`). If you call `form.setValue`, `form.patchValues`, or `form.getValue` inside a `reaction`, `watch`, or `batch`, they read and write the same temporary state as the draft `d`—reads immediately see edits made so far, and writes apply or roll back together when the batch finishes. Direct draft assignments (`d.x.$value = ...`) remain the cleanest style inside `reaction`. Never make a `reaction` `async` or call `form.reset` / `form.submit` synchronously inside a `reaction` (`ShikiUsageError` in development).
 
 ```ts
 // Recommended: synchronous derivation in reaction, async request in watch + form.batch
@@ -285,7 +285,7 @@ reaction(async (d) => {
 
 ### 2. Write exact paths and group writes with `form.batch`
 
-Group multi-field updates or combined value and array/tree structural edits inside `form.batch` so reactions and notifications flush once. Calling `form.setValue`, `form.patchValues`, or `form.getValue` inside a batch shares the same working tree as the draft: in-batch `getValue` and draft reads immediately reflect all value and structural edits made so far, and array/tree handles and draft array mutators apply in call order (edited cell values along with rules, enums, and UI state move with their row or node, removed rows do not reappear, plain arrays with duplicate values follow call order, and `reverse()` reverses the already-edited array). A nested `batch` merges into the outer batch on success and rolls back only its own value and structural edits if it throws. Write to the leaf path (`d.user.name.$value = 'Ada'` or `d.user.$value.name = 'Ada'`) instead of replacing parent objects unnecessarily.
+Wrap multi-field updates or mixed value-and-row edits inside `form.batch` so reactions run once and components re-render once. Inside a batch, draft writes, `form.setValue`, `form.patchValues`, `form.getValue`, and array/tree edits all apply in call order—if you edit a row's values, rules, options, or UI state and then move that row, all of those edits move with it, removed rows stay gone, and reads inside the batch immediately see earlier edits (including plain arrays and `reverse()`). If a nested `batch` throws, only that inner batch rolls back while the outer batch stays intact. Always write to the exact field (`d.user.name.$value = 'Ada'` or `d.user.$value.name = 'Ada'`) rather than spreading and replacing the parent object.
 
 ```ts
 // Recommended: atomic batch flush
@@ -305,7 +305,7 @@ form.setValue('district', 'xh')
 
 ### 3. Never mutate `getValue` / `form.values` (use `snapshot` or `toRaw`)
 
-Outside `reaction` / `watch` / `batch`, `getValue`, `form.values`, and validator `value` return read-only views in development (mutation throws `ShikiUsageError`; `structuredClone` throws `DataCloneError`). Use `snapshot(value)` from `@shikiform/core` for plain serializable copies, `getSubmitValues()` for submit payloads, and `toRaw(value)` only when you need the raw reference without mutating it.
+Outside `reaction`, `watch`, and `batch`, values returned by `getValue`, `form.values`, and validator `value` are read-only in development (mutating them throws `ShikiUsageError`, and `structuredClone` throws `DataCloneError`). Use `snapshot(value)` from `@shikiform/core` when you need a plain copy to save or send, `getSubmitValues()` for final submitted data, and `toRaw(value)` only when you need the original reference without changing it.
 
 ```ts
 // Recommended: snapshot for cloning/serialization, setValue for updates
@@ -388,7 +388,7 @@ const badCheck = async (value: string) => {
 
 ### 3. Share and auto-cancel async options with `EnumSource`
 
-Model async dropdown options with `EnumSource` instead of manual `useEffect` + `fetch`. `EnumSource` deduplicates concurrent requests per key, debounces, and cancels obsolete loads. `useForm` starts enum loads after commit and releases consumers on unmount (StrictMode-safe); removing array rows or tree nodes cancels their consumers while moving surviving nodes reuses the in-flight load for the same key.
+Use `EnumSource` for async dropdown options instead of hand-written `useEffect` + `fetch`. Concurrent requests for the same parameters share one request, debounce automatically, and cancel stale loads. `useForm` starts loading after the component mounts in the browser and cleans up on unmount (StrictMode-safe). If you remove a row or tree node and no other field needs those options, the pending request is cancelled automatically; simply moving a row reuses the pending request.
 
 ```ts
 // Recommended: EnumSource with AbortSignal
@@ -411,15 +411,15 @@ useEffect(() => {
 
 ### 4. Large lists and virtual scrolling
 
-- Enable `<ArrayField name="rows" rowKey="id" virtualScroll={{ height: 420 }}>` for long lists so only visible rows mount; stable row keys preserve component state when reordering within the window.
-- Put validation rules in `fields['rows.*.xxx']` and row derivations in `reaction.each(draft.rows, ...)` so offscreen rows still validate and compute, while single-cell edits re-run only that row's instance (the engine indexes subscriptions by row identity and migrates them in O(n) time—~28 ms for 5,000 rows).
+- Enable `<ArrayField name="rows" rowKey="id" virtualScroll={{ height: 420 }}>` for long lists so only visible rows mount; `rowKey` keeps each row's component state attached when rows are reordered.
+- Put validation rules in `fields['rows.*.xxx']` and row calculations in `reaction.each(draft.rows, ...)` so offscreen rows still validate and compute, while editing one cell re-runs only that row (moving, inserting, or deleting rows shifts row listeners in linear O(n) time—about 28 ms for 5,000 rows).
 - Do not `useWatch((d) => d.rows.$value)` in the parent and `.map` manually, which re-renders the entire table on every keystroke.
 
 ### 5. SSR considerations
 
 - Keep `reaction` strictly synchronous and free of browser globals (`window`, `document`); move browser side effects to `watch` or `useEffect`.
-- React 18+ auto-generates hydration-safe field IDs via `useId()`. In React 16.8 / 17 SSR apps, pass an explicit `<Form id="...">` to avoid hydration mismatches.
-- `useForm`-owned `EnumSource` loads wait until commit, avoiding leaked requests during SSR.
+- React 18+ auto-generates matching server/client field IDs via `useId()`. In React 16.8 / 17 SSR apps, pass an explicit `<Form id="...">` to avoid hydration mismatches.
+- `useForm`-owned `EnumSource` loads wait until client mount, avoiding leaked requests during SSR.
 - Never call `onChange` / `form.setValue` during render.
 - See [Testing, performance and SSR](/en/practices/testing-performance) for more details.
 

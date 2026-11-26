@@ -9,11 +9,11 @@ tableOfContents: false
 
 ## 1.1 最小表单与字段绑定
 
-`useForm` 创建表单引擎实例，`<Form>` 提供上下文并处理原生提交事件，`<Field>` 将字段路径绑定到 UI 控件。
+`useForm` 创建一份表单状态，`<Form>` 把状态传给子组件并接管原生提交事件，`<Field>` 把一个字段连到你的输入框。
 
-`<Field>` 的 `children` 渲染函数直接接收字段绑定对象（含 `id`、`title`、`value`、`onChange`、`onBlur`、`errors`），也可以将基于 `useField()` 封装的组件传给 `component`。`Submit` 来自 `@shikiform/react`，自动订阅表单的提交与校验状态。
+`<Field>` 的 `children` 函数直接给你当前字段的值和状态（`id`、`title`、`value`、`onChange`、`onBlur`、`errors`），也可以传一个用 `useField()` 封装好的组件给 `component`。`Submit` 来自 `@shikiform/react`，会自动根据校验和提交状态启用或禁用按钮。
 
-按数据形状选用字段组件：单值用 `Field`，嵌套对象用 `ObjectField`，数组用 `ArrayField`，树形数据用 `TreeField`；标题、提示文案和提交按钮不对应数据路径，无需声明为字段。
+按数据形状选组件：单个值用 `Field`，嵌套对象用 `ObjectField`，数组用 `ArrayField`，树形数据用 `TreeField`；标题、提示文案和提交按钮不存数据，不用声明为字段。
 
 **这一步：** 在 `initialValues` 中增加 `email: ''`，并添加一个 `name="email"` 的 `Field`。点击提交，确认输出 JSON 同时包含 `name` 和 `email`。
 
@@ -30,7 +30,7 @@ tableOfContents: false
 
 当前表单中，`name` 是顶层字段，`address` 是嵌套对象（目前仅含 `city`）。点击提交可看到输出中包含 `name` 与 `address.city`。
 
-`<ObjectField name="address">` 为子组件提供一层路径作用域。作用域内的字段名按相对路径解析，写 `name="city"` 即对应 `address.city`；若再写 `address.city`，运行时会拼成 `address.address.city`。
+`<ObjectField name="address">` 会把里面的字段都归到 `address` 下面。在它内部写 `name="city"` 就自动对应 `address.city`；如果再写 `address.city`，运行时会拼成 `address.address.city`。
 
 **这一步：** 在 `initialValues.address` 与 `<ObjectField name="address">` 内补上 `street` 字段。提交后确认 `address` 对象同时包含 `city` 和 `street`。
 

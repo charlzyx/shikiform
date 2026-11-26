@@ -58,18 +58,18 @@ Fields validate on `onBlur` and on submit by default. Trigger `fireEvent.blur` o
 
 ## Large lists
 
-Dependency tracking is granular to each field state key: editing one input re-runs only the reactions that read it and re-renders only components subscribed to that field.
+Each field state is tracked individually: editing one input re-runs only the reactions that read it and re-renders only components subscribed to that field.
 
-- **Avoid subscribing to whole arrays**: reading `d.items.$value` in a `reaction` subscribes to the entire array. Use `reaction.each` for per-row derivations—the engine indexes subscriptions by row identity and migrates them in O(n) time on moves, inserts, and removals (~28 ms for 5,000 rows), so editing row 3 re-runs only row 3.
-- **Do not `useWatch` an entire array and `.map` in the parent**: `<ArrayField>` subscribes only to array structure and row keys while each cell updates through its own `<Field>`. The [large form example](/en/play/large) exposes per-cell render counts.
-- **Virtual scrolling for long lists**: enable `virtualScroll={{ height: 400 }}` on `<ArrayField>` to mount only visible rows. Rules declared in `fields` and `reaction.each` effects still run for offscreen rows.
+- **Avoid watching whole arrays**: reading `d.items.$value` in a `reaction` subscribes to the whole array. Use `reaction.each` for per-row calculations—when rows move, insert, or get removed, row listeners follow their rows in linear O(n) time (~28 ms for 5,000 rows), and editing row 3 re-runs only row 3.
+- **Do not `useWatch` an entire array and `.map` in the parent**: `<ArrayField>` subscribes only to row count, order, and keys while each cell updates through its own `<Field>`. The [large form example](/en/play/large) exposes per-cell render counts.
+- **Virtual scrolling for long lists**: enable `virtualScroll={{ height: 400 }}` on `<ArrayField>` to mount only visible rows. Rules declared in `fields` and `reaction.each` calculations still run for offscreen rows.
 
 ## Server rendering
 
 `useForm` runs directly during SSR (every live preview on this site is server-rendered before hydration). Keep SSR forms safe by following five rules:
 
-- **One engine per form or request**: keep initial state deterministic so hydration matches server HTML, and never call `onChange` / `form.setValue` during render.
-- **Pass an explicit `<Form id>` on React 16.8 / 17**: React 18+ auto-generates hydration-safe field IDs via `useId()`. In React 16.8 or 17 SSR apps, pass a deterministic `<Form id="...">` to avoid hydration mismatches.
-- **Keep `reaction` synchronous**: do not read browser globals (`window`, `document`) or start fetches inside `reaction`. Run async work in `watch` and write responses back with `form.batch`. `useForm`-owned `EnumSource` loaders wait until client mount commit, avoiding leaked requests during SSR.
+- **One engine per form or request**: keep initial values deterministic so server HTML matches the browser, and never call `onChange` / `form.setValue` during render.
+- **Pass an explicit `<Form id>` on React 16.8 / 17**: React 18+ auto-generates matching server/client field IDs via `useId()`. In React 16.8 or 17 SSR apps, pass a fixed `<Form id="...">` to avoid hydration mismatches.
+- **Keep `reaction` synchronous**: do not read browser globals (`window`, `document`) or start fetches inside `reaction`. Run async work in `watch` and write responses back with `form.batch`. `useForm`-owned `EnumSource` loaders wait until client mount, avoiding leaked requests during SSR.
 - **Honor abort signals in async validators**: when superseded (`signal.aborted`), clean up timers and resolve `undefined`; see [cross-field and async validation](/en/examples/forms#cross-field-and-asynchronous-validation).
 - **Keep form values serializable**: store plain JSON data in the engine and convert rich widget objects inside `mapProps({ format, parse })`.

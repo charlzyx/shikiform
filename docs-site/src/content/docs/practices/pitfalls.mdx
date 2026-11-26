@@ -32,7 +32,7 @@ const copy = { ...d.user }
 Object.keys(d.user)
 ```
 
-draft handle 是路径代理而不是普通数据对象，因此不支持枚举属性键或展开。在开发环境下执行以上操作会直接抛出 `ShikiUsageError`。要列出对象的键，请对 `d.user.$value` 调用 `Object.keys`：
+`d.user` 只是指向字段位置的句柄，不是普通数据对象，因此不能展开或列出它的属性键。在开发环境执行以上写法会直接抛 `ShikiUsageError`。要列出对象的键，对 `d.user.$value` 调用 `Object.keys`：
 
 ```ts
 const { name } = d.user
@@ -68,7 +68,7 @@ form.getValue('user').name = 'Ada'
 form.values.tags.push('x')
 ```
 
-这些读在开发环境返回只读视图：原地修改（包括校验器里改 `value` / `ctx.root` / `ctx.get()`）会抛 `ShikiUsageError`，不会通知订阅者。`Map` 的 `set` / `delete` / `clear`、`Set` 的 `add` / `delete` / `clear`、`Date` 的 `set*`、`Object.setPrototypeOf` 同样抛错。其它类实例不包装。生产环境 effect 外返回原值。表单外改值用 `form.setValue`；组件里追加行用 `useArrayField().push(row)`。
+这些读在开发环境都是只读保护（Proxy）：直接原地改属性（包括在校验器里改 `value` / `ctx.root` / `ctx.get()`）会抛 `ShikiUsageError`，也不会通知组件更新。`Map` 的 `set` / `delete` / `clear`、`Set` 的 `add` / `delete` / `clear`、`Date` 的 `set*`、`Object.setPrototypeOf` 同样会抛错；其他类实例不包装。生产环境在联动外直接返回原始对象。要在联动外改值，用 `form.setValue`；在组件里追加行，用 `useArrayField().push(row)`。
 
 ```ts
 d.user.$value.name = 'Ada'
@@ -76,11 +76,11 @@ d.items.$value.push(row)
 form.setValue('user.name', 'Ada')
 ```
 
-开发环境的视图和底层对象不是同一个引用（`getValue('user') === toRaw(getValue('user'))` 为 false），生产环境则是。`indexOf` / `includes` 会先剥掉视图再比较，所以 `rows.indexOf(rawRow)` 仍然找得到。`deepEqual` 也把视图和原对象看成相等。不要把 `useField().value`（或 `form.binding(path).value`）交给会原地 `push` / `sort` 的表格库；错误信息里有字段路径，改用 `useArrayField().push` 或 `form.setValue`。
+注意：开发环境返回的只读代理和底层原对象不是同一个引用（`getValue('user') === toRaw(getValue('user'))` 为 `false`），生产环境则是同一个。`indexOf` / `includes` 和 `deepEqual` 都会自动解包比较，所以 `rows.indexOf(rawRow)` 照常能找到。不要把 `useField().value`（或 `form.binding(path).value`）直接交给会原地 `push` / `sort` 的表格库；报错信息会指明是哪个字段，改用 `useArrayField().push` 或 `form.setValue` 即可。
 
-`structuredClone(form.values)`、`postMessage` 和 IndexedDB 在开发环境会抛 `DataCloneError`（视图是 Proxy），生产环境不会。纯数据副本是 `snapshot(form.values)`（含 `omit` 字段，来自 `@shikiform/core`）。只要提交结果时用 `getSubmitValues()`。`toRaw(value)` 是底层对象本身，改它不会通知订阅者。
+在开发环境把 `form.values` 直接传给 `structuredClone`、`postMessage` 或 IndexedDB 会抛 `DataCloneError`（因为带了只读 Proxy），生产环境不会。要拿纯数据副本用 `snapshot(form.values)`（含 `omit` 字段，从 `@shikiform/core` 导入）；要拿提交结果用 `getSubmitValues()`；`toRaw(value)` 返回底层原对象，直接改它不会触发更新。
 
-被 `Object.freeze` 深冻结的数据（immer / Redux）读出来不会因为 Proxy 不变量抛 `TypeError`。不可配置且不可写的子属性按原对象返回，它本身已经不能改。
+被 `Object.freeze` 冻结的数据（如 Immer / Redux 里的对象）也能正常读取，不会触发浏览器 Proxy 报错。不可改写的属性会按原对象返回。
 
 ## 动态键写入时，留意读了哪一级
 
@@ -93,13 +93,13 @@ watch.each(draft.rows, (row, { d }) => {
 })
 ```
 
-`watch.each` 遇到新行时会先执行一次回调，收集读取的状态，并丢弃这次对字段的赋值；之后每当该行实际触发执行时，会在同一遍重新收集依赖，并在数组行移动、增删时按行身份迁移依赖索引。上例只订阅该行的 ID 和价格。回调里的目标字段用 handle 赋值；在首次收集期间，对读出的 `$value` 对象改属性或对数组调用 `push`，开发环境可能抛出只读错误。
+数组新增一行时，`watch.each` 会先试跑一次回调来记下你读了哪些字段（这次试跑里的赋值不会生效）；之后每当这行真正触发时都会更新它盯着的字段，就算行被移动或增删，监听也会跟着那一行走。上例里每行只盯着自己的 `id` 和 `price`。回调里写目标字段时直接走 handle 赋值（如 `d.overrides[id].$value = ...`）；首次试跑期间如果直接改读出的 `$value` 对象或调用数组 `push`，开发环境会报只读错误。
 
 如果要在来源变化时追加一次行，把 `d.items.$value.push(row)` 放在 `watch(source, action)` 的动作回调里。在 `reaction` 中无条件 `push` 会反复读取并改变同一个数组，可能形成循环。按对象键派生状态、渲染动态输入框的完整示例见[动态对象字段](/guide/linkage#动态对象字段)。
 
 ## 在同一轮联动中读回刚写入的旗标
 
-`$value`、`$enum`、`$rules` 和 UI 状态会重放本轮还没落地的写入，所以第二次读到的是新值：
+同一轮联动里，写完 `$value`、`$enum`、`$rules` 或 UI 状态后立刻再读，能直接拿到刚写进去的新值：
 
 ```ts
 d.total.$value = d.price.$value * d.qty.$value
@@ -108,7 +108,7 @@ d.rows.$value.push(row)
 d.rows.$value.push(row2)
 ```
 
-`$visible` / `$disabled` / `$readOnly` / `$omit` / `$required` 不重放。同一轮再读会看到旧值，开发模式抛 `ShikiUsageError`。先放进局部变量：
+但布尔开关（`$visible` / `$disabled` / `$readOnly` / `$omit` / `$required`）在当前轮不会立刻回显，马上再读只会看到旧值，开发期会直接抛 `ShikiUsageError`。把算好的布尔先存进局部变量再用：
 
 ```ts
 const shown = d.price.$value > 0
@@ -237,12 +237,12 @@ function GoodInput() {
 
 ## 在 `reaction` 中跨 `await` 写草稿，或直接调用 `form.reset` / `submit`
 
-`reaction` 必须是同步派生函数：
+`reaction` 必须是同步函数：
 
-- 返回 Promise 的 `reaction` 会被拒绝，其草稿 handle 在当前 pass 结束后即失效。跨 `await` 继续写入草稿在开发环境会抛出 `ShikiUsageError`，生产环境则静默忽略。
-- 在 `reaction` 同步执行期间直接调用 `form.reset` 或 `form.submit` 会脱离当前 pass 的写缓冲，开发环境会抛出 `ShikiUsageError`（该诊断仅限开发环境）。在 `reaction` / `watch` / `batch` 中调用 `form.setValue`、`form.patchValues` 与 `form.getValue` 会与 draft 共用同一工作树，随当前 pass 或批一起提交或回滚，读取也会立即看到本批编辑。
+- 不能把 `reaction` 写成 `async` 函数，回调一返回，草稿 `d` 就会失效。在 `await` 之后再给 `d` 赋值，开发环境会抛 `ShikiUsageError`，生产环境直接忽略。
+- 在 `reaction` 里同步调用 `form.reset` 或 `form.submit` 会打断当前这一轮联动更新，开发环境会抛 `ShikiUsageError`（仅开发期检查）。而在 `reaction` / `watch` / `batch` 里调用 `form.setValue`、`form.patchValues`、`form.getValue` 时，它们和草稿 `d` 读写同一份临时数据：立刻能读到刚改的值，整轮结束时一起生效，中途报错一起撤销。
 
-派生写入仍推荐统一走草稿 handle（`d.x.$value = …`）；异步请求或 `reset` / `submit` 等动作请移到 `watch` 中，异步返回后再调用 `form.setValue` 或 `form.batch`。
+联动赋值推荐统一直接写草稿（`d.x.$value = …`）；异步请求或 `reset` / `submit` 等动作请放进 `watch`，接口返回后再调用 `form.setValue` 或 `form.batch`。
 
 ## 漏写 `$` 或拼错 `$` 状态名
 
@@ -255,5 +255,5 @@ d.user.name.$valeu = 'Ada'
 const v = d.user.name.$valeu
 ```
 
-- 直接给 handle 的非 `$` 普通属性赋值时，开发环境抛 `ShikiUsageError`，生产环境忽略该次写入（不会抛出原生 `TypeError`）。
-- 拼错近似保留状态名（如 `$valeu`、`$requird`）且数据对象上不存在该自有键时，开发环境抛 `ShikiUsageError` 并提示正确拼写；生产环境读取返回 `undefined`（不会误返回 truthy 的子路径 handle），写入则被忽略。若数据对象本身确有非保留 `$` 前缀自有键（如 `$values`），引擎会正常将其解析为子字段路径。
+- 直接给 handle 的普通属性（没带 `$`）赋值时，开发环境抛 `ShikiUsageError`，生产环境直接忽略，不会抛原生 `TypeError`。
+- 拼错带 `$` 的状态名（如 `$valeu`、`$requird`）且数据里本来就没有这个字段名时，开发环境抛 `ShikiUsageError` 并提示正确拼写；生产环境读取返回 `undefined`，写入被忽略。如果业务数据本身确有 `$` 开头的普通字段名（如 `$values`），照常按子字段处理。

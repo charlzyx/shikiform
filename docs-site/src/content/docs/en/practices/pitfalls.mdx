@@ -67,7 +67,7 @@ form.getValue('user').name = 'Ada'
 form.values.tags.push('x')
 ```
 
-In development, those reads return read-only views: mutating them (including `value`, `ctx.root`, or `ctx.get()` inside a validator, as well as `Map.set/delete/clear`, `Set.add/delete/clear`, `Date.set*`, or `Object.setPrototypeOf`) throws `ShikiUsageError`. In production, reads outside effects return the raw stored object. Update values outside effects with `form.setValue` or `useArrayField().push(row)`:
+In development, those reads are read-only proxies: mutating them (including `value`, `ctx.root`, or `ctx.get()` inside a validator, as well as `Map.set/delete/clear`, `Set.add/delete/clear`, `Date.set*`, or `Object.setPrototypeOf`) throws `ShikiUsageError` and never notifies subscribers. In production, reads outside effects return the raw stored object. Update values outside effects with `form.setValue` or `useArrayField().push(row)`:
 
 ```ts
 d.user.$value.name = 'Ada'
@@ -75,11 +75,11 @@ d.items.$value.push(row)
 form.setValue('user.name', 'Ada')
 ```
 
-The development view is not `===` to the stored object (it is, in production, outside an effect). `indexOf` / `includes` and `deepEqual` peel the view, so `rows.indexOf(rawRow)` still matches. Do not pass `useField().value` (or `form.binding(path).value`) to a table library that `push`es or `sort`s in place; the error names the field path.
+The development read-only proxy is not `===` to the stored object (in production, outside an effect, it is). `indexOf`, `includes`, and `deepEqual` unwrap it automatically, so `rows.indexOf(rawRow)` still finds the row. Do not pass `useField().value` (or `form.binding(path).value`) to a table library that `push`es or `sort`s in place; the error names the field path.
 
-`structuredClone(form.values)`, `postMessage`, and IndexedDB throw `DataCloneError` on that view in development only. `snapshot(form.values)` from `@shikiform/core` is a plain copy, including omitted fields. `getSubmitValues()` is the submit payload. `toRaw(value)` is the live stored object.
+`structuredClone(form.values)`, `postMessage`, and IndexedDB throw `DataCloneError` on that proxy in development only. Use `snapshot(form.values)` from `@shikiform/core` for a plain copy (including omitted fields), `getSubmitValues()` for final submitted data, and `toRaw(value)` for the live stored object.
 
-A deep-frozen tree (immer / Redux) can be read. A non-configurable, non-writable child is returned raw because wrapping it would throw a proxy `TypeError`.
+Deep-frozen objects (such as Immer or Redux state) can still be read safely without triggering browser Proxy errors. Non-configurable, non-writable properties are returned as-is.
 
 ## Writing dynamic keys without subscribing to the whole record
 
@@ -92,15 +92,15 @@ watch.each(draft.rows, (row, { d }) => {
 })
 ```
 
-For each new array row, `watch.each` calls the callback once to collect reads and discards field writes; on each subsequent run it refreshes dependencies in the same pass and migrates row subscriptions when rows move, insert, or get removed. Here it records the row's ID and price. Use a field assignment for the destination in this callback. Calling `push` or mutating an object obtained from `$value` during that initial read-only pass can throw in development.
+When a new row appears, `watch.each` does one dry run to record which fields you read (ignoring field writes during that dry run). Whenever that row actually triggers later, its tracked fields refresh and follow the row if rows move, insert, or get removed. Here each row watches only its own ID and price. Assign target fields through a handle (`d.overrides[id].$value = ...`); mutating an object read from `$value` or calling `push` during that first dry run throws in development.
 
 For a one-time append when a source changes, call `d.items.$value.push(row)` in the action of `watch(source, action)`. An unconditional `push` inside a `reaction` reads and changes the same array on every pass and can cause a cycle. The [dynamic fields example](/en/guide/linkage#dynamic-object-fields) shows how to derive state per object key and render the current fields.
 
 ## Reading a buffered write
 
-`$value`, `$enum`, `$rules`, and UI state replay pending writes, so a second read in the same pass sees the new value. `d.total.$value = price * qty` then `d.tax.$value = d.total.$value * 0.1` uses that total. `d.rows.$value.push(a)` then `d.rows.$value.push(b)` appends both.
+Within the same pass, reading `$value`, `$enum`, `$rules`, or UI state immediately reflects what you just wrote: `d.total.$value = price * qty` followed by `d.tax.$value = d.total.$value * 0.1` uses the new total, and two `d.rows.$value.push(...)` calls append both rows.
 
-Flags (`$visible`, `$disabled`, `$readOnly`, `$omit`, `$required`) do not replay. Reading one after writing it in the same pass sees the old value and throws `ShikiUsageError` in development. Keep the new flag in a local.
+Boolean flags (`$visible`, `$disabled`, `$readOnly`, `$omit`, `$required`) do not immediately reflect earlier writes in the same pass—reading one back sees the old value and throws `ShikiUsageError` in development. Store the new flag in a local variable first.
 
 ## Do not mutate a Date, Map, Set, or class instance inside `$componentProps`
 
@@ -220,10 +220,10 @@ function GoodInput() {
 
 Keep `reaction` synchronous:
 
-- A `reaction` that returns a thenable is rejected and its draft handle expires when the pass ends. Writing through it after `await` throws `ShikiUsageError` in development and is ignored in production.
-- Calling `form.reset` or `form.submit` synchronously inside a `reaction` escapes the active write buffer and throws `ShikiUsageError` in development (this diagnostic is development-only). Calling `form.setValue`, `form.patchValues`, or `form.getValue` during a `reaction`, `watch`, or `batch` shares the same working tree as the draft: writes commit or roll back with that pass/batch, and reads immediately see edits made in it.
+- Do not make `reaction` `async`—its draft handle expires as soon as the function returns. Writing through `d` after `await` throws `ShikiUsageError` in development and is ignored in production.
+- Calling `form.reset` or `form.submit` synchronously inside a `reaction` interrupts the active update pass and throws `ShikiUsageError` in development (development-only check). Calling `form.setValue`, `form.patchValues`, or `form.getValue` during a `reaction`, `watch`, or `batch` reads and writes the same temporary state as the draft: reads immediately see edits made so far, and writes apply or roll back together when the batch finishes.
 
-Prefer writing through the draft handle (`d.x.$value = …`) inside `reaction`, and move async requests or `reset` / `submit` actions to `watch` (writing async results back with `form.setValue` or `form.batch`).
+Prefer direct draft assignments (`d.x.$value = …`) inside `reaction`, and move async requests or `reset` / `submit` actions into `watch` (writing async results back with `form.setValue` or `form.batch`).
 
 ## Bare property writes and misspelled `$` states
 

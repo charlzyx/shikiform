@@ -9,7 +9,7 @@ tableOfContents: false
 
 ## 1.1 Bind your first field
 
-`useForm` creates the engine. `<Form>` supplies its context and handles native submit events, while `<Field>` binds a control to a path. A field render function receives `id`, `title`, `value`, `onChange`, `onBlur` and `errors` (or you can pass a `useField()`-based component to `component`). `<Submit>` from `@shikiform/react` subscribes to the form's submitting and validation state automatically. Use `ObjectField` for an object, `ArrayField` for repeated records and `TreeField` for a tree.
+`useForm` creates the form state. `<Form>` shares it with child components and handles submit events, while `<Field>` connects a field to your input. A field render function gives you `id`, `title`, `value`, `onChange`, `onBlur`, and `errors` (or you can pass a `useField()` component via `component`). `<Submit>` from `@shikiform/react` disables itself automatically while submitting or when errors exist. Use `ObjectField` for nested objects, `ArrayField` for repeated rows, and `TreeField` for trees.
 
 **Try it.** Add `email: ''` to `initialValues` and render a field named `email`. Submit and check that the JSON contains both `name` and `email`.
 

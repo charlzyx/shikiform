@@ -435,7 +435,7 @@ export default function App() {
 ```
 
 - 修改第 3 行成本时，只有第 3 行的 `cost` 和 `suggested` 上标计数加 1，其余 999 行不重渲染。`<ArrayField>` 只订阅数组结构变更，不订阅单元格值变化。
-- `<ArrayField virtualScroll>` 仅挂载视口内的行组件，未挂载行的 `reaction.each` 实例仍在引擎内运行，初始化时全表建议价已完成计算。
+- `<ArrayField virtualScroll>` 只把屏幕内可见的行渲染成 DOM，滚出屏幕的行依然会按 `reaction.each` 正常算出建议价。
 - 独立演示页提供 200 行与 1000 行切换，用于对比局部渲染次数。
 
 下一组：[数组与树](/examples/arrays)。

@@ -18,7 +18,7 @@ A handle's `$` properties address field state (`$value`, `$visible`, `$required`
 | `readOnly: true` | Preview (wins over `disabled`) | Skipped | Included |
 | `omit: true` | Unchanged | Unchanged | Excluded |
 
-All four booleans inherit along the field path: an explicit `true` or `false` overrides `visible` / `disabled` / `readOnly` for that subtree, whereas any ancestor `omit: true` excludes the whole subtree from submit. Validation runs only when `visible && !disabled && !readOnly`.
+All four switches are independent and automatically flow down to child fields. For `visible`, `disabled`, and `readOnly`, setting `true` or `false` on a child overrides its parent; for `omit`, setting `omit: true` on any parent excludes all nested fields inside it from submit. Validation runs only when a field is visible, enabled, and editable (`visible && !disabled && !readOnly`).
 
 **Try it.** In the reaction, set `d.email.$visible = d.contact.$value`. Turn contact off. To remove the hidden email from the JSON as well, set `d.email.$omit = !d.contact.$value`.
 
