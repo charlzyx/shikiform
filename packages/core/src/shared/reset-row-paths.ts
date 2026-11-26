@@ -11,14 +11,14 @@ interface ResetRowKeys {
   treeAt(path: string): TreeKeys | undefined
 }
 
-/** Reset clones the baseline. Resolve cloned rows by key and unkeyed rows by surviving reference. */
+/** Resolve reset rows by key or surviving reference, and primitive entries by slot. */
 export function resetRowIds(written: string, before: unknown, after: unknown, keys: ResetRowKeys): readonly [RowIds, RowIds] {
   const parent = parentPath(written) ?? ''
   const index = arrayIndex(written.slice(parent ? parent.length + 1 : 0))
   const rowReset = index !== undefined && (Array.isArray(getAt(before, parent)) || Array.isArray(getAt(after, parent)))
   const resetTarget = rowReset ? parent : written
   const base = keys.treeRoot ?? resetTarget
-  const references = new Map<unknown, number>()
+  const references = new WeakMap<object, number>()
   const duplicateKeys = new Set<string>()
   let serial = 0
 
@@ -47,12 +47,14 @@ export function resetRowIds(written: string, before: unknown, after: unknown, ke
           }
           let identityPart = keyPart
           let scopePart = keyPart
-          if (record && resetTarget.startsWith(rowPath + '.')) {
+          if (!record) {
+            identityPart = scopePart = `[#${i}]`
+          } else if (resetTarget.startsWith(rowPath + '.')) {
             // setAt shallow-copies ancestor rows along the path to the reset.
             identityPart = scopePart = `[@${JSON.stringify(rowPath)}]`
           } else if (key == null || (matchDuplicatesByReference && duplicateKeys.has(scopedKey))) {
-            if (!references.has(row)) references.set(row, ++serial)
-            identityPart = `[@${references.get(row)}]`
+            if (!references.has(record)) references.set(record, ++serial)
+            identityPart = `[@${references.get(record)}]`
             if (key == null) scopePart = identityPart
           }
           // Keep key scopes stable across both passes even when a parent falls back to a reference.
