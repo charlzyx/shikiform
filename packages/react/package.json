@@ -1,6 +1,6 @@
 {
   "name": "@shikiform/react",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "license": "MIT",
   "description": "Headless React bindings for ShikiForm. Re-exports @shikiform/core.",
   "type": "module",
@@ -41,7 +41,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@shikiform/core": "0.7.1"
+    "@shikiform/core": "0.8.0"
   },
   "peerDependencies": {
     "react": "^16.8.0 || ^17 || ^18 || ^19",

@@ -1,6 +1,6 @@
 {
   "name": "@shikiform/core",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "license": "MIT",
   "description": "ShikiForm engine: values, draft effects, validation, and tree moves. No React.",
   "type": "module",
