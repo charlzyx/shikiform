@@ -83,7 +83,9 @@ export function UI<C extends ComponentType<any> = ComponentType<any>, D extends 
   const Component = ui.component
   const Decorator = ui.decorator
   const inner = typeof children === 'function' ? children(ui) : children
-  const content = Component ? <Component {...ui.componentProps}>{inner}</Component> : inner
+  const content = Component
+    ? (inner === undefined ? <Component {...ui.componentProps} /> : <Component {...ui.componentProps}>{inner}</Component>)
+    : inner
   if (!Decorator) return content
   // Only the decorator sees the node (FormItem label / extra); a pure-layout FormItem inside does not.
   return (

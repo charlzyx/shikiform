@@ -119,7 +119,7 @@ export default function App() {
   return (
     <Form form={form} kit={siteKit} onSubmit={setSaved} data-ui-alert-demo="" style={{ maxWidth: 420 }}>
       <F.Field name="amount" title="Expense amount" component={AmountInput} />
-      <UI name="approvalTip" component={[Alert, { variant: 'warning', children: "Amounts of 50000 or more need manager approval" }]} />
+      <UI name="approvalTip" component={[Alert, { variant: 'warning' }]}>Amounts of 50000 or more need manager approval</UI>
       <div><Submit asChild><Button variant="primary">Submit</Button></Submit></div>
       {saved && <pre>{JSON.stringify(saved)}</pre>}
     </Form>
