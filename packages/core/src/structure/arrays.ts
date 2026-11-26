@@ -32,6 +32,10 @@ export class ArrayOps {
     this.arrays.set(path, { rowKey })
   }
 
+  rowKey(path: string): string | undefined {
+    return this.arrays.get(path)?.rowKey
+  }
+
   /**
    * Immutable writes rebuild ancestors. Carry an observed row's identity to its copy along this path.
    */

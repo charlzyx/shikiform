@@ -1,6 +1,6 @@
 import { copyData } from '../draft/plain-clone'
 import type { Scheduler } from '../effects/scheduler'
-import { getAt, normalizePath, setAt } from '../shared/path'
+import { getAt, joinPath, normalizePath, parentPath, setAt } from '../shared/path'
 import type { FieldStore } from '../state/field-store'
 import type { MoveResult } from '../types'
 import type { FormMessages } from '../validation/messages'
@@ -59,6 +59,14 @@ export class TreeOps {
 
   config(path: string): TreeConfig {
     return this.trees.get(path) ?? this.trees.get(this.root(path) ?? '') ?? { childrenKey: 'children', rowKey: 'id' }
+  }
+
+  childRowKey(path: string): string | undefined {
+    const root = this.root(path)
+    const parent = parentPath(path)
+    if (root === undefined || parent === null) return
+    const { childrenKey, rowKey } = this.config(root)
+    if (path === joinPath(parent, childrenKey) && posOf(root, parent, childrenKey)?.length) return rowKey
   }
 
   /** The running `walk` instance's pos for its own node, else the pos inside the registered tree. */

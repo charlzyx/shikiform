@@ -86,7 +86,7 @@ export class FormEngine<T = any, TSubmit = T> implements FormInstance<T, TSubmit
     this.drafts = new EffectDrafts({ store, scheduler, writer: this.writer, fieldUi: this.fieldUi, trees, declarations })
     this.uiNodes = new UiNodes(store, notifier, scheduler, this.writer, this.fieldUi, (path, flag) => this.drafts.readFlag(path, flag))
     this.rootDraft = createHandle(this, '') as Draft<T>
-    this.baseline = new Baseline({ store, notifier, scheduler, validator, declarations })
+    this.baseline = new Baseline({ store, notifier, scheduler, validator, declarations, arrays: this.arrays, trees })
     scheduler.onSettle = () => {
       this.baseline.sync()
       validator.recheckReplacedFields()

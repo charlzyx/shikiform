@@ -2,7 +2,7 @@ import type { Scheduler } from '../effects/scheduler'
 import { peelReadonly, readonlyValue } from '../draft/readonly'
 import { deepEqual } from '../shared/equal'
 import { getAt, normalizePath, parentPath } from '../shared/path'
-import { rowPathAfter, rowPathAfterReplacement, type RowPathMap } from '../shared/row-paths'
+import { rowPathAfter, rowPathAfterReplacement, type RowIds, type RowPathMap } from '../shared/row-paths'
 import type { FlagName } from '../state/flags'
 import { shownErrors, type FieldModel } from '../state/field-model'
 import type { FieldStore } from '../state/field-store'
@@ -527,7 +527,7 @@ export class Validator {
   }
 
   /** Reset invalidates an in-progress submit verdict even when resetting to the same values. */
-  reset(path?: string): void {
+  reset(path: string | undefined, rowIds: () => readonly [RowIds, RowIds]): void {
     this.resetVersion += 1
     if (this.latest && resetOverlaps(this.latest.live?.paths(), path)) {
       this.latest.invalidatedByReset = true
@@ -535,10 +535,12 @@ export class Validator {
     }
     this.attempts.clearUnder(path)
     if (!path) this.schemaByPath = new Map()
-    else {
-      for (const key of [...this.schemaByPath.keys()]) {
-        if (key === path || key.startsWith(path + '.')) this.schemaByPath.delete(key)
-      }
+    else for (const key of this.schemaByPath.keys()) {
+      if (key === path || key.startsWith(path + '.')) this.schemaByPath.delete(key)
+    }
+    if (this.snapshotRows || this.requestedRows.size) {
+      const [before, after] = rowIds()
+      if (before.size || after.size) this.trackRows(rowPathAfter(before, after), () => rowPathAfter(after, before), movedRowPaths(before, after))
     }
   }
 

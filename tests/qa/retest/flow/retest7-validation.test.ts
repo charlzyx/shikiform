@@ -194,19 +194,23 @@ describe.each(['development', 'production'])('F10 adjacent validation in %s', (m
     expect(engineOf(form).binding('rows.1.code').warnings).toEqual(['review A'])
   })
 
-  it.fails('BUG: scoped validation rejects at the pre-reset row coordinate during a warning wait (QA-77)', async () => {
+  it.each(['id', 'key', 'anonymous'])('QA-82 tracks a reset during the warning wait for %s rows', async (identity) => {
     const warning = deferred<string>()
+    const row = (key: string, code: string) => ({ ...(identity === 'anonymous' ? {} : { [identity]: key }), code })
+    const first = row('a', 'A')
     const form = createForm({
-      initialValues: { rows: [{ id: 'a', code: 'A' }, { id: 'b', code: 'B' }] },
+      initialValues: { rows: [first, row('b', 'B')] },
       fields: { 'rows.*.code': { rules: [
         { validator: (code: string) => code === 'A' ? 'invalid A' : undefined },
         { level: 'warning', validator: (code: string) => code === 'A' ? warning.promise : undefined },
       ] } },
     })
+    const engine = engineOf(form)
+    if (identity === 'key') engine.registerArray('rows', 'key')
     const verdict = form.validate('rows.0').catch((errors: unknown) => errors)
     await setImmediate()
     expect(form.errors).toEqual([{ path: 'rows.0.code', messages: ['invalid A'] }])
-    engineOf(form).swapArray('rows', 0, 1)
+    engine.swapArray('rows', 0, 1)
     expect(form.getValue('rows.1.code')).toBe('A')
     form.reset('rows')
     expect(form.getValue('rows.0.code')).toBe('A')
@@ -215,9 +219,36 @@ describe.each(['development', 'production'])('F10 adjacent validation in %s', (m
     warning.resolve('aborted warning')
     const outcome = await verdict
     expect(form.errors).toEqual([])
-    expect(engineOf(form).binding('rows.0.code').warnings).toEqual([])
-    expect(engineOf(form).binding('rows.1.code').warnings).toEqual([])
-    expect(outcome).toEqual([{ path: 'rows.0.code', messages: ['invalid A'] }])
+    expect(engine.binding('rows.0.code').warnings).toEqual([])
+    expect(engine.binding('rows.1.code').warnings).toEqual([])
+    expect(outcome).toEqual(identity === 'anonymous' ? first : [{ path: 'rows.0.code', messages: ['invalid A'] }])
+  })
+
+  it('QA-82 tracks a keyed tree node back to its original parent on full reset', async () => {
+    const warning = deferred<string>()
+    const form = createForm({
+      initialValues: { tree: [
+        { key: 'left', nodes: [{ key: 'a', code: 'A' }] },
+        { key: 'right', nodes: [{ key: 'b', code: 'B' }] },
+      ] },
+      trees: { tree: { rowKey: 'key', childrenKey: 'nodes' } },
+      fields: { 'tree.*.nodes.*.code': { rules: [
+        { validator: (code: string) => code === 'A' ? 'invalid A' : undefined },
+        { level: 'warning', validator: (code: string) => code === 'A' ? warning.promise : undefined },
+      ] } },
+    })
+    const engine = engineOf(form)
+    const errors = [{ path: 'tree.0.nodes.0.code', messages: ['invalid A'] }]
+    const verdict = form.validate('tree.0.nodes.0').catch((errors: unknown) => errors)
+    await setImmediate()
+    expect(form.errors).toEqual(errors)
+    expect(engine.moveTree('tree', [0, 0], [1, 0]).ok).toBe(true)
+    expect(form.getValue('tree.1.nodes.0.code')).toBe('A')
+    form.reset()
+    warning.resolve('aborted warning')
+    expect(await verdict).toEqual(errors)
+    expect(form.errors).toEqual([])
+    expect(engine.binding('tree.0.nodes.0.code').warnings).toEqual([])
   })
 
   it('QA-78 discards the old issue when a replacement row reuses its id', async () => {

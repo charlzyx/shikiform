@@ -3,8 +3,11 @@ import { copyData } from '../draft/plain-clone'
 import { guardReactionAction, isWatchRunner, type Scheduler } from '../effects/scheduler'
 import { deepEqual, differsExcept } from '../shared/equal'
 import { getAt, normalizePath, selfAndAncestors, setAt } from '../shared/path'
+import { resetRowIds } from '../shared/reset-row-paths'
 import type { FieldStore } from '../state/field-store'
 import type { Notifier } from '../state/notifier'
+import type { ArrayOps } from '../structure/arrays'
+import type { TreeOps } from '../structure/trees'
 import type { FieldError, WriteOp } from '../types'
 import type { Validator } from '../validation/validator'
 
@@ -31,6 +34,8 @@ export class Baseline {
     scheduler: Scheduler
     validator: Validator
     declarations: Declarations
+    arrays: ArrayOps
+    trees: TreeOps
   }) {
     this.store = deps.store
     this.notifier = deps.notifier
@@ -74,10 +79,14 @@ export class Baseline {
   }
 
   private applyReset(path: string | undefined, baseline: { values: unknown } | undefined, values: unknown): void {
-    const { store, notifier, scheduler, validator, declarations } = this.deps
+    const { store, notifier, scheduler, validator, declarations, arrays, trees } = this.deps
     if (baseline) store.initial = baseline.values
+    const before = store.values
     store.values = values
-    validator.reset(path)
+    validator.reset(path, () => resetRowIds(path ?? '', before, values, {
+      rowKey: (path) => trees.childRowKey(path) ?? arrays.rowKey(path),
+      treeAt: (path) => trees.root(path) === path ? trees.config(path) : undefined,
+    }))
     if (!path) store.edited = false
     for (const field of store.fields.values()) {
       if (path && field.path !== path && !field.path.startsWith(path + '.')) continue
