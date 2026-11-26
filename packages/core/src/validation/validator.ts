@@ -185,20 +185,18 @@ export class Validator {
       const fieldIssues: SchemaIssue[] = []
       for (const [target, field] of targets) {
         const result = checked.get(field)
-        if (record.invalidatedByReset) {
-          if (result) fieldIssues.push(...fieldSchemaIssues(target, result.issues))
-          continue
+        if (!record.invalidatedByReset) {
+          if (store.get(field.path) !== field) continue
+          if (!result?.current()) {
+            preserve.add(field.path)
+            continue
+          }
         }
-        if (store.get(field.path) !== field) continue
-        if (!result?.current()) {
-          preserve.add(field.path)
-          continue
-        }
-        fieldIssues.push(...fieldSchemaIssues(field.path, result.issues))
+        // Relative issues can refer to nested rows that moved independently of this field.
+        if (result) fieldIssues.push(...fieldSchemaIssues(target, result.issues))
       }
-      const activeIssues = [...(record.invalidatedByReset ? rows.issues(fieldIssues) : fieldIssues),
-        ...rows.issues(collected.filter((issue) => inScope(issue.path))),
-      ].filter((issue) => issue.message && store.acceptsValidation(issue.path))
+      const activeIssues = rows.issues([...fieldIssues, ...collected.filter((issue) => inScope(issue.path))])
+        .filter((issue) => issue.message && store.acceptsValidation(issue.path))
       if (record.invalidatedByReset) {
         const errors = groupSchemaIssues([...rows.issues(ruleIssues), ...activeIssues])
         return scoped([...errors].map(([path, messages]) => ({ path, messages })))
@@ -486,7 +484,7 @@ export class Validator {
     if (!this.snapshotRows && !this.requestedRows.size && !this.schemaByPath.size) return
     const project = rowPathAfter(oldIds, newIds)
     this.trackRows(project, () => rowPathAfter(newIds, oldIds))
-    this.schemaByPath = reindexSchemaPaths(this.schemaByPath, project)
+    if (this.schemaByPath.size) this.applySchemaMap(reindexSchemaPaths(this.schemaByPath, project), true)
   }
 
   private trackRows(forward: RowPathMap, reverse: () => RowPathMap): void {
@@ -541,10 +539,10 @@ export class Validator {
     }
   }
 
-  private applySchemaMap(next: Map<string, string[]>): void {
+  private applySchemaMap(next: Map<string, string[]>, reindex = false): void {
     const previous = this.schemaByPath
     this.schemaByPath = next
-    syncSchemaMessages(this.deps, previous, next, (path) => this.markChain(path, 'errors'))
+    syncSchemaMessages(this.deps, previous, next, (path) => this.markChain(path, 'errors'), reindex)
   }
 
   /** Clear messages on `path` and descendants that no longer validate. */

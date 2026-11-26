@@ -88,6 +88,51 @@ describe.each(['development', 'production'])('F9 adjacent retest in %s', (mode) 
     ])
   })
 
+  it('QA-76 maps in-flight field-schema child issues through both parent and nested row moves', async () => {
+    const entered = deferred<void>()
+    const finish = deferred<void>()
+    const form = createForm({
+      initialValues: { groups: [
+        { id: 'one', rows: [{ id: 'a', code: 'A' }, { id: 'b', code: 'B' }, { id: 'c', code: 'C' }] },
+        { id: 'two', rows: [{ id: 'd', code: 'D' }] },
+      ], other: 'ok' },
+      fields: { 'groups.*': { rules: { schema: { '~standard': {
+        version: 1,
+        vendor: 'qa',
+        async validate() {
+          entered.resolve()
+          await finish.promise
+          return { issues: [{ path: ['rows', 0, 'code'], message: 'invalid A' }, { path: ['rows', 1, 'code'], message: 'invalid B' }] }
+        },
+      } } } } },
+    })
+    const verdict = form.validate('groups.0').catch((errors: unknown) => errors)
+    await entered.promise
+    const engine = engineOf(form)
+    form.batch(() => {
+      engine.swapArray('groups', 0, 1)
+      engine.moveArray('groups.1.rows', 0, 2)
+      engine.removeArray('groups.1.rows', 0)
+    })
+    finish.resolve()
+    const expected = [{ path: 'groups.1.rows.1.code', messages: ['invalid A'] }]
+    expect(await verdict).toEqual(expected)
+    await expect(form.validate('other')).resolves.toBe('ok')
+    expect(form.errors).toEqual(expected)
+  })
+
+  it('QA-76 clears the published issue for an empty coordinate when a new row fills it', async () => {
+    const form = createForm({
+      initialValues: { rows: [] as { id: string; code: string }[], other: 'ok' },
+      validate: (values) => values.rows.length ? undefined : { 'rows.0.code': 'missing first row' },
+    })
+    await expect(form.validate()).rejects.toEqual([{ path: 'rows.0.code', messages: ['missing first row'] }])
+    engineOf(form).pushArray('rows', { id: 'a', code: 'A' })
+    expect(form.errors).toEqual([])
+    await expect(form.validate('other')).resolves.toBe('ok')
+    expect(form.errors).toEqual([])
+  })
+
   it.each(['field', 'step'])('QA-79 explicit scoped validation rejects when its checked row moves and fails (%s)', async (scope) => {
     const error = deferred<string>()
     const validator = vi.fn(() => error.promise)

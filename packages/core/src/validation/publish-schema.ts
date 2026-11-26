@@ -9,13 +9,15 @@ export function syncSchemaMessages(
   previous: Map<string, string[]>,
   next: Map<string, string[]>,
   markErrors: (path: string) => void,
+  reindex: boolean,
 ): void {
   const paths = new Set([...previous.keys(), ...next.keys()])
   let changed = false
   for (const path of paths) {
-    const field = store.ensure(path)
     const messages = next.get(path) ?? []
-    if (deepEqual(field.schemaErrors, messages)) continue
+    // The structure op still owns the flush and may re-create declarations after writing the new values.
+    const field = messages.length && !reindex ? store.ensure(path) : store.get(path)
+    if (!field || deepEqual(field.schemaErrors, messages)) continue
     field.schemaErrors = messages.slice()
     notifier.bumpPath(path)
     markErrors(path)
@@ -23,7 +25,7 @@ export function syncSchemaMessages(
   }
   if (!changed) return
   scheduler.bumpMeta()
-  if (!scheduler.flushing) {
+  if (!reindex && !scheduler.flushing) {
     scheduler.enqueueFromDirty()
     scheduler.flush()
   }
