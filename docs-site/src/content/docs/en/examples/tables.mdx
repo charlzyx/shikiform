@@ -10,6 +10,27 @@ Choose a supplier to change the available models. Collapsing the filters preserv
 ```tsx preview play=query
 import { useState } from 'react';
 import { Field, Form, defineEffects, useField, useQueryTable } from '@shikiform/react';
+import {
+  Badge,
+  Button,
+  Card,
+  Checkbox,
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ChevronUpIcon,
+  Empty,
+  Input,
+  SearchIcon,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Tag,
+  Toolbar,
+} from '@site/ui';
 
 type Log = { id: string; keyword: string; provider: string; model: string; status: string };
 type Query = { keyword: string; provider: string; model: string; user: string };
@@ -37,9 +58,9 @@ const effects = defineEffects<Values>(({ reaction, watch }) => {
 function TextFilter() {
   const f = useField<string>();
   return (
-    <label htmlFor={f.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-      {f.title}
-      <input id={f.id} style={{ width: 100 }} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} />
+    <label htmlFor={f.id} className="sf-ui-form-label" style={{ gap: 6 }}>
+      <span>{f.title}</span>
+      <Input id={f.id} size="sm" style={{ width: 112 }} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} />
     </label>
   );
 }
@@ -47,9 +68,14 @@ function TextFilter() {
 function SelectFilter() {
   const f = useField<string>();
   return (
-    <label htmlFor={f.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-      {f.title}
-      <select id={f.id} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)}>
+    <label htmlFor={f.id} className="sf-ui-form-label" style={{ gap: 6 }}>
+      <span>{f.title}</span>
+      <select
+        id={f.id}
+        style={{ minWidth: 112, minHeight: 30, padding: '3px 28px 3px 10px' }}
+        value={f.value ?? ''}
+        onChange={(e) => f.onChange(e.target.value)}
+      >
         <option value="">All</option>
         {f.options.map((opt) => (
           <option key={String(opt.value)} value={String(opt.value)}>{opt.label}</option>
@@ -83,76 +109,129 @@ export default function App() {
   const toggleSelect = (id: string, checked: boolean) =>
     table.setSelectedKeys(checked ? [...table.selectedKeys, id] : table.selectedKeys.filter((k) => k !== id));
   return (
-    <Form form={table.form} onSubmit={() => table.submit()}>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-        <Field name="query.keyword" title="Keyword" component={[TextFilter]} />
-        <Field name="query.provider" title="Supplier" component={[SelectFilter]} />
-        <Field name="query.model" title="Model" component={[SelectFilter]} />
-        <span style={{ display: expanded ? 'inline-flex' : 'none' }}>
-          <Field name="query.user" title="User ID" component={[TextFilter]} />
-        </span>
-        <button type="submit">Search</button>
-        <button type="button" onClick={table.reset}>Reset</button>
-        <button type="button" onClick={() => setExpanded((v) => !v)}>{expanded ? "Collapse" : "Expand"}</button>
-      </div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-        <span>Status filter:</span>
-        {(['', 'ok', 'error'] as const).map((status) => (
-          <button
-            key={status || 'all'}
-            type="button"
-            style={{ fontWeight: statusFilter === status ? 700 : 400 }}
-            onClick={() => table.setFilters(status ? { status: [status] } : {})}
-          >
-            {status === '' ? "All" : status === 'ok' ? "Success" : "Failed"}
-          </button>
-        ))}
-      </div>
-      <table>
-        <thead>
-          <tr>
-            <th />
-            <th>Keyword</th>
-            <th>Supplier</th>
-            <th>Model</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {table.data.map((row) => (
-            <tr key={row.id}>
-              <td>
-                <input
-                  type="checkbox"
-                  aria-label={`Select ${row.id}`}
-                  checked={table.selectedKeys.includes(row.id)}
-                  onChange={(e) => toggleSelect(row.id, e.target.checked)}
-                />
-              </td>
-              <td>{row.keyword}</td>
-              <td>{row.provider}</td>
-              <td>{row.model}</td>
-              <td>{row.status}</td>
-            </tr>
+    <Card title="Log query" description="Linked supplier/model filters, collapsible inputs and persistent paging selection">
+      <Form form={table.form} onSubmit={() => table.submit()}>
+        <Card variant="muted" padding="sm">
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+            <Field name="query.keyword" title="Keyword" component={[TextFilter]} />
+            <Field name="query.provider" title="Supplier" component={[SelectFilter]} />
+            <Field name="query.model" title="Model" component={[SelectFilter]} />
+            <span style={{ display: expanded ? 'inline-flex' : 'none' }}>
+              <Field name="query.user" title="User ID" component={[TextFilter]} />
+            </span>
+            <Button type="submit" variant="primary" size="sm" icon={<SearchIcon size={13} />}>Search</Button>
+            <Button variant="outline" size="sm" onClick={table.reset}>Reset</Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={expanded ? <ChevronUpIcon size={13} /> : <ChevronDownIcon size={13} />}
+              onClick={() => setExpanded((v) => !v)}
+            >
+              {expanded ? 'Collapse' : 'Expand'}
+            </Button>
+          </div>
+        </Card>
+        <Toolbar>
+          <span style={{ fontSize: 12, color: 'var(--sf-ui-fg-muted)' }}>Status filter:</span>
+          {(['', 'ok', 'error'] as const).map((status) => (
+            <Button
+              key={status || 'all'}
+              size="sm"
+              variant={statusFilter === status ? 'primary' : 'outline'}
+              onClick={() => table.setFilters(status ? { status: [status] } : {})}
+            >
+              {status === '' ? 'All' : status === 'ok' ? 'Success' : 'Failed'}
+            </Button>
           ))}
-        </tbody>
-      </table>
-      <div style={{ marginTop: 8 }}>
-        <button type="button" disabled={table.page <= 1} onClick={() => table.onPageChange(table.page - 1)}>Previous</button>
-        <span> Page {table.page} / {pages} of {table.total} rows · selected {table.selectedKeys.length} </span>
-        <button type="button" disabled={table.page >= pages} onClick={() => table.onPageChange(table.page + 1)}>Next</button>
-      </div>
-    </Form>
+        </Toolbar>
+        <Table compact striped>
+          <TableHead>
+            <TableRow>
+              <TableHeader style={{ width: 38 }} />
+              <TableHeader>Keyword</TableHeader>
+              <TableHeader>Supplier</TableHeader>
+              <TableHeader>Model</TableHeader>
+              <TableHeader>Status</TableHeader>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {table.data.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5}><Empty compact title="No matching logs" /></TableCell>
+              </TableRow>
+            ) : (
+              table.data.map((row) => (
+                <TableRow key={row.id}>
+                  <TableCell>
+                    <Checkbox
+                      aria-label={`Select ${row.id}`}
+                      checked={table.selectedKeys.includes(row.id)}
+                      onCheckedChange={(checked) => toggleSelect(row.id, checked)}
+                    />
+                  </TableCell>
+                  <TableCell><code>{row.keyword}</code></TableCell>
+                  <TableCell><Tag variant="outline">{row.provider}</Tag></TableCell>
+                  <TableCell>{row.model}</TableCell>
+                  <TableCell>
+                    <Badge variant={row.status === 'ok' ? 'success' : 'danger'} dot>{row.status}</Badge>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <span style={{ fontSize: 12, color: 'var(--sf-ui-fg-muted)' }}>
+            Page {table.page} / {pages} of {table.total} rows · selected {table.selectedKeys.length}
+          </span>
+          <div style={{ display: 'inline-flex', gap: 6 }}>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={table.page <= 1}
+              icon={<ChevronLeftIcon size={13} />}
+              onClick={() => table.onPageChange(table.page - 1)}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={table.page >= pages}
+              onClick={() => table.onPageChange(table.page + 1)}
+            >
+              Next
+              <ChevronRightIcon size={13} />
+            </Button>
+          </div>
+        </div>
+      </Form>
+    </Card>
   );
 }
 ```
 
 ## Native query table
 
-Use the same `useQueryTable` hook with native HTML form controls and a table.
+Use the same `useQueryTable` hook with minimal controls and a table.
 
 ```tsx preview play=query-native
 import { Field, Form, useQueryTable } from '@shikiform/react';
+import {
+  Badge,
+  Button,
+  Card,
+  Checkbox,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  Input,
+  SearchIcon,
+  Table,
+  TableBody,
+  TableCell,
+  TableRow,
+  Toolbar,
+} from '@site/ui';
 
 type Log = { id: string; keyword: string };
 const LOGS: Log[] = Array.from({ length: 12 }, (_, i) => ({ id: String(i + 1), keyword: `${i % 2 ? 'beta' : 'alpha'}-${i + 1}` }));
@@ -171,26 +250,68 @@ export default function App() {
   const toggle = (id: string, on: boolean) =>
     table.setSelectedKeys(on ? [...table.selectedKeys, id] : table.selectedKeys.filter((key) => key !== id));
   return (
-    <Form form={table.form} onSubmit={() => table.submit()}>
-      <Field name="keyword">
-        {(field) => <input aria-label="Keyword" placeholder="alpha" value={field.value} onChange={(event) => field.onChange(event.target.value)} />}
-      </Field>{' '}
-      <button type="submit">Search</button> <button type="button" onClick={table.reset}>Reset</button>{' '}
-      <button type="button" onClick={table.refresh}>Refresh</button>
-      <table>
-        <tbody>
-          {table.data.map((row) => (
-            <tr key={row.id}>
-              <td><input type="checkbox" aria-label={`Select ${row.id}`} checked={table.selectedKeys.includes(row.id)} onChange={(event) => toggle(row.id, event.target.checked)} /></td>
-              <td>{row.keyword}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <button type="button" disabled={table.page <= 1} onClick={() => table.onPageChange(table.page - 1)}>Previous</button>
-      <span> {table.page} / {pages} · selected {table.selectedKeys.length} {table.loading ? "· Loading" : ''} </span>
-      <button type="button" disabled={table.page >= pages} onClick={() => table.onPageChange(table.page + 1)}>Next</button>
-    </Form>
+    <Card title="Minimal query table" description="Headless useQueryTable state wired to clean controls and Enter-to-search">
+      <Form form={table.form} onSubmit={() => table.submit()}>
+        <Toolbar>
+          <Field name="keyword">
+            {(field) => (
+              <Input
+                size="sm"
+                aria-label="Keyword"
+                placeholder="alpha"
+                style={{ width: 160 }}
+                value={field.value}
+                onChange={(event) => field.onChange(event.target.value)}
+              />
+            )}
+          </Field>
+          <Button type="submit" variant="primary" size="sm" icon={<SearchIcon size={13} />}>Search</Button>
+          <Button variant="outline" size="sm" onClick={table.reset}>Reset</Button>
+          <Button variant="ghost" size="sm" onClick={table.refresh}>Refresh</Button>
+        </Toolbar>
+        <Table compact striped>
+          <TableBody>
+            {table.data.map((row) => (
+              <TableRow key={row.id}>
+                <TableCell style={{ width: 38 }}>
+                  <Checkbox
+                    aria-label={`Select ${row.id}`}
+                    checked={table.selectedKeys.includes(row.id)}
+                    onCheckedChange={(checked) => toggle(row.id, checked)}
+                  />
+                </TableCell>
+                <TableCell><code>{row.keyword}</code></TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <Badge variant="default">
+            {table.page} / {pages} · selected {table.selectedKeys.length}{table.loading ? ' · Loading' : ''}
+          </Badge>
+          <div style={{ display: 'inline-flex', gap: 6 }}>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={table.page <= 1}
+              icon={<ChevronLeftIcon size={13} />}
+              onClick={() => table.onPageChange(table.page - 1)}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={table.page >= pages}
+              onClick={() => table.onPageChange(table.page + 1)}
+            >
+              Next
+              <ChevronRightIcon size={13} />
+            </Button>
+          </div>
+        </div>
+      </Form>
+    </Card>
   );
 }
 ```
@@ -200,18 +321,46 @@ export default function App() {
 Open a draft for one row. Cancel discards edits. Confirm validates and writes back to the record with the same ID.
 
 ```tsx preview play=row-edit
-import { useState } from 'react';
-import { enUS, Field, Form, ObjectField, Watch, useForm, type Draft } from '@shikiform/react';
+import { useState, type ReactNode } from 'react';
+import { enUS, Field, Form, ObjectField, Watch, useFieldDecorator, useForm, type Draft } from '@shikiform/react';
+import {
+  Badge,
+  Button,
+  Card,
+  FieldInput,
+  Input,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Toolbar,
+} from '@site/ui';
 
 type Row = { id: string; name: string; price: number };
 type Values = { rows: Row[]; editor: Row & { open: boolean } };
+
+function FieldRow({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
+  return (
+    <p className="sf-ui-form-item" style={{ margin: 0 }}>
+      <span className="sf-ui-form-label">
+        <label {...d.labelProps}>{d.label}: </label>
+        {d.required && <span className="sf-ui-form-required" aria-hidden="true">*</span>}
+      </span>
+      {children}
+      {d.errorProps && <small {...d.errorProps} className="sf-ui-form-error">{d.errors[0]}</small>}
+    </p>
+  );
+}
 
 export default function App() {
   const [result, setResult] = useState('');
   const form = useForm<Values>({
     messages: enUS,
     initialValues: {
-      rows: [{ id: 'a', name: "Pen", price: 12 }, { id: 'b', name: "Ink", price: 8 }],
+      rows: [{ id: 'a', name: 'Pen', price: 12 }, { id: 'b', name: 'Ink', price: 8 }],
       editor: { open: false, id: '', name: '', price: 0 },
     },
     fields: { editor: { omit: true } }, // Exclude the editor from submitted data.
@@ -230,65 +379,73 @@ export default function App() {
     });
   };
   return (
-    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
-      <Watch select={(d: Draft<Values>) => d.rows.$value}>
-        {(rows) => (
-          <table>
-            <thead>
-              <tr><th>Name</th><th>Price</th><th>Actions</th></tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.id}>
-                  <td>{row.name}</td>
-                  <td>{row.price}</td>
-                  <td><button type="button" onClick={() => open(row)}>Edit</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </Watch>
-      <Watch select={(d: Draft<Values>) => d.editor.open.$value}>
-        {(visible) => visible ? (
-          <fieldset style={{ marginTop: 12 }}>
-            <legend>Edit row</legend>
-            <ObjectField name="editor">
-              <Field<Row, 'name'> name="name" title="Name" required>
-                {(f) => (
-                  <p>
-                    <label htmlFor={f.id}>{f.title}: </label>
-                    <input id={f.id} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} onBlur={f.onBlur} />
-                    {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
-                  </p>
-                )}
-              </Field>
-              <Field<Row, 'price'> name="price" title="Price">
-                {(f) => (
-                  <p>
-                    <label htmlFor={f.id}>{f.title}: </label>
-                    <input
-                      id={f.id}
-                      type="number"
-                      min={0}
-                      value={f.value ?? 0}
-                      onChange={(e) => f.onChange(Number(e.target.value))}
-                      onBlur={f.onBlur}
-                    />
-                  </p>
-                )}
-              </Field>
-            </ObjectField>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button type="button" onClick={close}>Cancel</button>
-              <button type="button" onClick={() => void save()}>Confirm</button>
-            </div>
-          </fieldset>
-        ) : null}
-      </Watch>
-      <button type="submit" style={{ marginTop: 12 }}>Submit without the editor</button>
-      <pre>{result}</pre>
-    </Form>
+    <Card title="Read-only table + panel editor" description="editor is marked omit and written back by ID in one form.batch">
+      <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
+        <Watch select={(d: Draft<Values>) => d.rows.$value}>
+          {(rows) => (
+            <Table compact striped>
+              <TableHead>
+                <TableRow>
+                  <TableHeader>Name</TableHeader>
+                  <TableHeader>Price</TableHeader>
+                  <TableHeader style={{ width: 96 }}>Actions</TableHeader>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {rows.map((row) => (
+                  <TableRow key={row.id}>
+                    <TableCell>{row.name}</TableCell>
+                    <TableCell><Badge variant="outline">${row.price}</Badge></TableCell>
+                    <TableCell>
+                      <Button variant="outline" size="sm" onClick={() => open(row)}>Edit</Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </Watch>
+        <Watch select={(d: Draft<Values>) => d.editor.open.$value}>
+          {(visible) => visible ? (
+            <fieldset className="sf-ui-card sf-ui-card--muted" style={{ padding: 16, margin: 0 }}>
+              <legend style={{ padding: '0 6px', fontSize: 12, fontWeight: 600, color: 'var(--sf-ui-fg-muted)' }}>
+                Edit row
+              </legend>
+              <div style={{ display: 'grid', gap: 12 }}>
+                <ObjectField name="editor">
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+                    <Field<Row, 'name'> name="name" title="Name" required decorator={[FieldRow]} component={[FieldInput]} />
+                    <Field<Row, 'price'> name="price" title="Price">
+                      {(f) => (
+                        <p className="sf-ui-form-item" style={{ margin: 0 }}>
+                          <label htmlFor={f.id} className="sf-ui-form-label">{f.title}: </label>
+                          <Input
+                            id={f.id}
+                            type="number"
+                            min={0}
+                            value={f.value ?? 0}
+                            onChange={(e) => f.onChange(Number(e.target.value))}
+                            onBlur={f.onBlur}
+                          />
+                        </p>
+                      )}
+                    </Field>
+                  </div>
+                </ObjectField>
+                <Toolbar>
+                  <Button variant="primary" size="sm" onClick={() => void save()}>Confirm</Button>
+                  <Button variant="outline" size="sm" onClick={close}>Cancel</Button>
+                </Toolbar>
+              </div>
+            </fieldset>
+          ) : null}
+        </Watch>
+        <div>
+          <Button type="submit" variant="primary">Submit without the editor</Button>
+        </div>
+        <pre>{result}</pre>
+      </Form>
+    </Card>
   );
 }
 ```

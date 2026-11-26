@@ -9,7 +9,8 @@ Use `reaction.each` to calculate each line's subtotal from its own price and qua
 
 ```tsx preview
 import { useState, type ReactNode } from 'react';
-import { enUS, defineEffects, Form, Submit, typed, useArrayField, useField, useForm } from '@shikiform/react';
+import { enUS, defineEffects, Form, Submit, typed, useArrayField, useField, useForm, useIndex } from '@shikiform/react';
+import { Button, Card, Input, PlusIcon, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Toolbar, TrashIcon } from '@site/ui';
 
 type Line = { sku: string; price: number | null; qty: number | null; total: number };
 type Values = { lines: Line[] };
@@ -26,28 +27,48 @@ const blank = (): Line => ({ sku: '', price: 0, qty: 1, total: 0 });
 function TextCell() {
   const f = useField<string>();
   return (
-    <label htmlFor={f.id}>
-      {f.title}
-      <input id={f.id} style={{ width: 96 }} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} onBlur={f.onBlur} />
-    </label>
+    <Input
+      id={f.id}
+      size="sm"
+      aria-label={String(f.title ?? '')}
+      placeholder="Item name"
+      style={{ width: 120 }}
+      value={f.value ?? ''}
+      onChange={(e) => f.onChange(e.target.value)}
+      onBlur={f.onBlur}
+    />
   );
 }
 
 function NumberCell({ min }: { min?: number }) {
   const f = useField<number | null>();
   return (
-    <label htmlFor={f.id}>
-      {f.title}
-      <input
-        id={f.id}
-        type="number"
-        min={min}
-        style={{ width: 72 }}
-        value={f.value ?? ''}
-        onChange={(e) => f.onChange(e.target.value === '' ? null : Number(e.target.value))}
-        onBlur={f.onBlur}
-      />
-    </label>
+    <Input
+      id={f.id}
+      size="sm"
+      type="number"
+      min={min}
+      aria-label={String(f.title ?? '')}
+      style={{ width: 88 }}
+      value={f.value ?? ''}
+      onChange={(e) => f.onChange(e.target.value === '' ? null : Number(e.target.value))}
+      onBlur={f.onBlur}
+    />
+  );
+}
+
+function RemoveRow() {
+  const lines = useArrayField<Line>();
+  const index = useIndex();
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      aria-label="Remove row"
+      disabled={lines.keys.length <= 1}
+      onClick={() => lines.remove(index)}
+      icon={<TrashIcon size={13} />}
+    />
   );
 }
 
@@ -55,8 +76,26 @@ function Lines({ children }: { children?: ReactNode }) {
   const lines = useArrayField<Line>();
   return (
     <>
-      {children}
-      <button type="button" onClick={() => lines.push(blank())}>Add row</button>
+      <Table compact>
+        <TableHead>
+          <TableRow>
+            <TableHeader>Product</TableHeader>
+            <TableHeader>Unit price</TableHeader>
+            <TableHeader>Quantity</TableHeader>
+            <TableHeader>Subtotal</TableHeader>
+            <TableHeader style={{ width: 48 }} />
+          </TableRow>
+        </TableHead>
+        <TableBody>{children}</TableBody>
+      </Table>
+      <Toolbar>
+        <Button variant="outline" size="sm" icon={<PlusIcon size={13} />} onClick={() => lines.push(blank())}>
+          Add row
+        </Button>
+        <Submit>
+          {(s) => <Button type="submit" variant="primary" size="sm" disabled={s.disabled}>Submit</Button>}
+        </Submit>
+      </Toolbar>
     </>
   );
 }
@@ -65,25 +104,27 @@ export default function App() {
   const [result, setResult] = useState('');
   const form = useForm<Values>({
     messages: enUS,
-    initialValues: { lines: [{ sku: "Sticker", price: 2, qty: 4, total: 0 }] },
+    initialValues: { lines: [{ sku: 'Sticker', price: 2, qty: 4, total: 0 }] },
     effects: [effects],
   });
   const F = typed(form);
   return (
-    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
-      <F.ArrayField name="lines" component={Lines}>
-        {(row) => (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-            <row.Field name="sku" title="Product" component={[TextCell]} />
-            <row.Field name="price" title="Unit price" component={[NumberCell, { min: 0 }]} />
-            <row.Field name="qty" title="Quantity" component={[NumberCell, { min: 0 }]} />
-            <row.Field name="total" title="Subtotal" component={[NumberCell]} />
-          </div>
-        )}
-      </F.ArrayField>
-      <Submit style={{ marginLeft: 8 }}>Submit</Submit>
-      <pre aria-live="polite">{result}</pre>
-    </Form>
+    <Card title="Order line items" description="reaction.each creates an isolated derivation per row">
+      <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
+        <F.ArrayField name="lines" component={Lines}>
+          {(row) => (
+            <TableRow>
+              <TableCell><row.Field name="sku" title="Product" component={[TextCell]} /></TableCell>
+              <TableCell><row.Field name="price" title="Unit price" component={[NumberCell, { min: 0 }]} /></TableCell>
+              <TableCell><row.Field name="qty" title="Quantity" component={[NumberCell, { min: 0 }]} /></TableCell>
+              <TableCell><row.Field name="total" title="Subtotal" component={[NumberCell]} /></TableCell>
+              <TableCell><RemoveRow /></TableCell>
+            </TableRow>
+          )}
+        </F.ArrayField>
+        <pre aria-live="polite">{result}</pre>
+      </Form>
+    </Card>
   );
 }
 ```
@@ -93,8 +134,9 @@ export default function App() {
 Open the address editor, switch the form into read-only mode, and compare an editable order with a shipped order.
 
 ```tsx preview play=nested
-import { useState } from 'react';
-import { enUS, ArrayField, Field, Form, ObjectField, Watch, defineEffects, useField, useForm, type Draft } from '@shikiform/react';
+import { useState, type ReactNode } from 'react';
+import { enUS, ArrayField, Field, Form, ObjectField, Watch, defineEffects, useField, useFieldDecorator, useForm, type Draft } from '@shikiform/react';
+import { Badge, Button, Card, Checkbox, Divider, FieldInput, Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@site/ui';
 
 type Order = { id: string; title: string; qty: number; shipped: boolean };
 type Values = { editable: boolean; profile: { name: string; address: { city: string; street: string } }; orders: Order[] };
@@ -110,16 +152,14 @@ const effects = defineEffects<Values>(({ reaction, draft }) => {
   });
 });
 
-function TextField() {
-  const f = useField<string>();
+function FieldRow({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
   return (
-    <p>
-      <label htmlFor={f.id}>{f.title}: </label>
-      {f.readOnly ? (
-        <span>{f.value || '-'}</span>
-      ) : (
-        <input id={f.id} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} onBlur={f.onBlur} />
-      )}
+    <p className="sf-ui-form-item" style={{ margin: 0 }}>
+      <label {...d.labelProps} className="sf-ui-form-label">
+        <span>{d.label}: </span>
+      </label>
+      {children}
     </p>
   );
 }
@@ -127,16 +167,17 @@ function TextField() {
 function NumberInline({ min }: { min?: number }) {
   const f = useField<number>();
   return (
-    <label htmlFor={f.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-      {f.title}
+    <label htmlFor={f.id} className="sf-ui-form-label" style={{ gap: 6 }}>
+      <span>{f.title}</span>
       {f.readOnly ? (
-        <span>{f.value}</span>
+        <Badge variant="outline">{f.value}</Badge>
       ) : (
-        <input
+        <Input
           id={f.id}
           type="number"
+          size="sm"
           min={min}
-          style={{ width: 64 }}
+          style={{ width: 72 }}
           value={f.value ?? 0}
           onChange={(e) => f.onChange(Number(e.target.value))}
           onBlur={f.onBlur}
@@ -149,16 +190,14 @@ function NumberInline({ min }: { min?: number }) {
 function ToggleInline() {
   const f = useField<boolean>();
   return (
-    <label htmlFor={f.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-      <input
-        id={f.id}
-        type="checkbox"
-        checked={Boolean(f.value)}
-        disabled={f.readOnly || f.disabled}
-        onChange={(e) => f.onChange(e.target.checked)}
-      />
+    <Checkbox
+      id={f.id}
+      checked={Boolean(f.value)}
+      disabled={f.readOnly || f.disabled}
+      onCheckedChange={(checked) => f.onChange(checked)}
+    >
       {f.title}
-    </label>
+    </Checkbox>
   );
 }
 
@@ -168,47 +207,76 @@ export default function App() {
     messages: enUS,
     initialValues: {
       editable: true,
-      profile: { name: 'Ada', address: { city: "London", street: "221B Baker Street" } },
-      orders: [{ id: 'o1', title: "Not shipped", qty: 1, shipped: false }, { id: 'o2', title: "Shipped", qty: 2, shipped: true }],
+      profile: { name: 'Ada', address: { city: 'London', street: '221B Baker Street' } },
+      orders: [{ id: 'o1', title: 'Not shipped', qty: 1, shipped: false }, { id: 'o2', title: 'Shipped', qty: 2, shipped: true }],
     },
     fields: { editable: { omit: true } },
     effects: [effects],
   });
   return (
     <Form form={form}>
-      <p>
-        <Field name="editable" title="Editable" component={[ToggleInline]} />
-      </p>
-      <ObjectField name="profile">
-        <Field name="name" title="Name" component={[TextField]} />
-        <p>
-          <span>Address:</span>
-          <Watch select={(d: Draft<Values>) => d.profile.address.$value}>
-            {(address) => <span>{address.city} · {address.street} </span>}
-          </Watch>
-          <button type="button" onClick={() => setOpen((prev) => !prev)}>
-            {open ? "Collapse" : "Edit"}
-          </button>
-        </p>
-        {open && (
-          <fieldset style={{ marginBottom: 12 }}>
-            <legend>Address</legend>
-            <ObjectField name="address">
-              <Field name="city" title="City" component={[TextField]} />
-              <Field name="street" title="Street" component={[TextField]} />
-            </ObjectField>
-          </fieldset>
-        )}
-      </ObjectField>
-      <ArrayField name="orders" rowKey="id">
-        {() => (
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 8 }}>
-            <Field name="title" readOnly>{(f) => <strong>{String(f.value ?? '')}</strong>}</Field>
-            <Field name="qty" title="Quantity" component={[NumberInline, { min: 1 }]} />
-            <Field name="shipped" title="Shipped" component={[ToggleInline]} />
-          </div>
-        )}
-      </ArrayField>
+      <Card
+        title="Customer profile & orders"
+        description="Read-only inherits down paths while shipped rows stay locked individually"
+        extra={<Field name="editable" title="Editable" component={[ToggleInline]} />}
+      >
+        <div style={{ display: 'grid', gap: 14 }}>
+          <ObjectField name="profile">
+            <div style={{ display: 'grid', gap: 10, maxWidth: 420 }}>
+              <Field name="name" title="Name" decorator={[FieldRow]} component={[FieldInput]} />
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+                <span className="sf-ui-form-label">Address:</span>
+                <Watch select={(d: Draft<Values>) => d.profile.address.$value}>
+                  {(address) => <Badge variant="outline">{address.city} · {address.street}</Badge>}
+                </Watch>
+                <Button variant="outline" size="sm" onClick={() => setOpen((prev) => !prev)}>
+                  {open ? 'Collapse' : 'Edit'}
+                </Button>
+              </div>
+              {open && (
+                <fieldset className="sf-ui-card sf-ui-card--muted" style={{ padding: 14, margin: 0 }}>
+                  <legend style={{ padding: '0 6px', fontSize: 12, fontWeight: 600, color: 'var(--sf-ui-fg-muted)' }}>
+                    Address
+                  </legend>
+                  <ObjectField name="address">
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 }}>
+                      <Field name="city" title="City" decorator={[FieldRow]} component={[FieldInput]} />
+                      <Field name="street" title="Street" decorator={[FieldRow]} component={[FieldInput]} />
+                    </div>
+                  </ObjectField>
+                </fieldset>
+              )}
+            </div>
+          </ObjectField>
+          <Divider />
+          <Table compact>
+            <TableHead>
+              <TableRow>
+                <TableHeader>Order</TableHeader>
+                <TableHeader>Quantity</TableHeader>
+                <TableHeader>Shipment</TableHeader>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              <ArrayField name="orders" rowKey="id">
+                {() => (
+                  <TableRow>
+                    <TableCell>
+                      <Field name="title" readOnly>{(f) => <strong>{String(f.value ?? '')}</strong>}</Field>
+                    </TableCell>
+                    <TableCell>
+                      <Field name="qty" title="Quantity" component={[NumberInline, { min: 1 }]} />
+                    </TableCell>
+                    <TableCell>
+                      <Field name="shipped" title="Shipped" component={[ToggleInline]} />
+                    </TableCell>
+                  </TableRow>
+                )}
+              </ArrayField>
+            </TableBody>
+          </Table>
+        </div>
+      </Card>
     </Form>
   );
 }
@@ -221,6 +289,7 @@ Drag a menu item to another parent. Its key and field state follow the node whil
 ```tsx preview play=headless
 import { useState } from 'react';
 import { enUS, Form, TreeField, useField, useForm, useTreeField } from '@shikiform/react';
+import { Button, Card, GripVerticalIcon, Input, Toolbar } from '@site/ui';
 
 type Node = { id: string; name: string; children: Node[] };
 
@@ -228,15 +297,38 @@ function NodeRow() {
   const { pos, path, record, dragProps } = useTreeField<Node>();
   const name = useField<Node, 'name'>('name', { required: true });
   return (
-    <div {...dragProps()} style={{ cursor: 'grab', padding: '2px 0' }}>
-      ⠿ <input aria-label="Name" value={name.value} onChange={(event) => name.onChange(event.target.value)} onBlur={name.onBlur} />
-      <small> id {record.id} · pos [{pos.join(',')}] · {path}</small>
-      {name.errors[0] && <small style={{ color: 'crimson' }}> {name.errors[0]}</small>}
+    <div
+      {...dragProps()}
+      style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: 8,
+        cursor: 'grab',
+        padding: '6px 10px',
+        marginBottom: 6,
+        borderRadius: 6,
+        border: '1px solid var(--sf-ui-border)',
+        background: 'var(--sf-ui-surface)',
+      }}
+    >
+      <GripVerticalIcon size={14} style={{ color: 'var(--sf-ui-fg-muted)', flexShrink: 0 }} />
+      <Input
+        size="sm"
+        aria-label="Name"
+        style={{ width: 136 }}
+        invalid={Boolean(name.errors[0])}
+        value={name.value}
+        onChange={(event) => name.onChange(event.target.value)}
+        onBlur={name.onBlur}
+      />
+      <small className="sf-ui-badge sf-ui-badge--default">id {record.id} · pos [{pos.join(',')}] · {path}</small>
+      {name.errors[0] && <small role="alert" className="sf-ui-form-error">{name.errors[0]}</small>}
     </div>
   );
 }
 
-function Menu() {
+function Menu({ onValidate }: { onValidate: () => void }) {
   const tree = useTreeField('menu', { rowKey: 'id' });
   const [result, setResult] = useState('');
   return (
@@ -246,13 +338,24 @@ function Menu() {
           {(node) => (
             <li>
               <NodeRow />
-              {node.children && <ul style={{ paddingLeft: 20, listStyle: 'none', margin: 0 }}>{node.children}</ul>}
+              {node.children && (
+                <ul style={{ paddingLeft: 24, listStyle: 'none', margin: 0, borderLeft: '1px dashed var(--sf-ui-border)' }}>
+                  {node.children}
+                </ul>
+              )}
             </li>
           )}
         </TreeField>
       </ul>
-      <button type="button" onClick={() => setResult(JSON.stringify(tree.move([1, 0], [0, 0])))}>Move Undo to the start of File</button>{' '}
-      <button type="button" onClick={() => setResult(JSON.stringify(tree.move([0], [0, 0])))}>Move File into its own child</button>
+      <Toolbar>
+        <Button variant="primary" size="sm" onClick={onValidate}>Validate</Button>
+        <Button variant="outline" size="sm" onClick={() => setResult(JSON.stringify(tree.move([1, 0], [0, 0])))}>
+          Move Undo to the start of File
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => setResult(JSON.stringify(tree.move([0], [0, 0])))}>
+          Move File into its own child
+        </Button>
+      </Toolbar>
       <pre>{result}</pre>
     </>
   );
@@ -263,16 +366,17 @@ export default function App() {
     messages: enUS,
     initialValues: {
       menu: [
-        { id: 'file', name: "File", children: [{ id: 'new', name: '', children: [] }, { id: 'open', name: "Open", children: [] }] },
-        { id: 'edit', name: "Edit", children: [{ id: 'undo', name: "Undo", children: [] }] },
+        { id: 'file', name: 'File', children: [{ id: 'new', name: '', children: [] }, { id: 'open', name: 'Open', children: [] }] },
+        { id: 'edit', name: 'Edit', children: [{ id: 'undo', name: 'Undo', children: [] }] },
       ] as Node[],
     },
   });
   return (
-    <Form form={form}>
-      <Menu />
-      <button type="button" onClick={() => { void form.validate().catch(() => {}) }}>Validate</button>
-    </Form>
+    <Card title="Menu tree editor" description="Validate first, then move nodes across parents — errors follow the node ID">
+      <Form form={form}>
+        <Menu onValidate={() => { void form.validate().catch(() => {}); }} />
+      </Form>
+    </Card>
   );
 }
 ```
@@ -284,6 +388,7 @@ Only the visible part of a 2,000-row list is mounted. Declared required rules st
 ```tsx preview play=virtual
 import { useState } from 'react';
 import { enUS, ArrayField, Field, Form, useForm } from '@shikiform/react';
+import { Badge, Button, Card, Input } from '@site/ui';
 
 type Row = { id: string; name: string };
 
@@ -300,35 +405,45 @@ export default function App() {
       setErrors(`None (${values.rows.length} rows)`);
     } catch (error) {
       const errors = Array.isArray(error) ? error as { path: string }[] : [];
-      setErrors(errors.map((item) => item.path).join(', ') || "None");
+      setErrors(errors.map((item) => item.path).join(', ') || 'None');
     }
   };
   return (
-    <Form form={form}>
-      <ArrayField name="rows" rowKey="id" virtualScroll={{ height: 240, rowHeight: 40, overscan: 4 }}>
-        {({ index }) => (
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', height: 40 }}>
-            <code style={{ width: 48 }}>#{index}</code>
-            <Field<Row, 'name'> name="name">
-              {(f) => (
-                <>
-                  <input
-                    aria-label={`Row ${index} name`}
-                    style={{ width: 200 }}
-                    value={f.value ?? ''}
-                    onChange={(e) => f.onChange(e.target.value)}
-                    onBlur={f.onBlur}
-                  />
-                  {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}>{f.errors[0]}</small>}
-                </>
-              )}
-            </Field>
-          </div>
-        )}
-      </ArrayField>
-      <button type="button" onClick={validate}>Validate all 2,000 rows</button>
-      <p>Errors: {errors}</p>
-    </Form>
+    <Card
+      title="2,000-row virtual list"
+      description="Row template rows.*.name validates even offscreen rows that are not mounted"
+      extra={<Badge variant="brand">virtualScroll</Badge>}
+    >
+      <Form form={form}>
+        <ArrayField name="rows" rowKey="id" virtualScroll={{ height: 240, rowHeight: 42, overscan: 4 }}>
+          {({ index }) => (
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', height: 42, borderBottom: '1px solid var(--sf-ui-border)' }}>
+              <Badge variant="outline" style={{ width: 58, justifyContent: 'center' }}>#{index}</Badge>
+              <Field<Row, 'name'> name="name">
+                {(f) => (
+                  <>
+                    <Input
+                      size="sm"
+                      aria-label={`Row ${index} name`}
+                      style={{ width: 210 }}
+                      invalid={Boolean(f.errors[0])}
+                      value={f.value ?? ''}
+                      onChange={(e) => f.onChange(e.target.value)}
+                      onBlur={f.onBlur}
+                    />
+                    {f.errors[0] && <small role="alert" className="sf-ui-form-error">{f.errors[0]}</small>}
+                  </>
+                )}
+              </Field>
+            </div>
+          )}
+        </ArrayField>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
+          <Button variant="primary" size="sm" onClick={validate}>Validate all 2,000 rows</Button>
+          <p style={{ margin: 0, fontSize: 13 }}>Errors: {errors}</p>
+        </div>
+      </Form>
+    </Card>
   );
 }
 ```

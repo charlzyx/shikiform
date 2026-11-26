@@ -8,24 +8,22 @@ description: 登录校验、跨字段与异步校验、整表 Standard Schema（
 登录表单通常需要拦截空账号、非法邮箱格式和过短的密码。将这些规则声明在字段上后，只有全部校验通过，提交事件才会进入 `onSubmit`。
 
 ```tsx preview
-import { useState } from 'react';
-import { Form, Submit, typed, useField, useForm } from '@shikiform/react';
+import { useState, type ReactNode } from 'react';
+import { Form, Submit, typed, useFieldDecorator, useForm } from '@shikiform/react';
+import { Button, Card, FieldInput } from '@site/ui';
 
 type Values = { account: string; email: string; password: string };
 
-function TextInput({ type = 'text' }: { type?: string }) {
-  const f = useField<string>();
+function FieldRow({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
   return (
-    <p>
-      <label htmlFor={f.id}>{f.title}：</label>
-      <input
-        id={f.id}
-        type={type}
-        value={f.value ?? ''}
-        onChange={(e) => f.onChange(e.target.value)}
-        onBlur={f.onBlur}
-      />
-      {f.errors[0] && <small role="alert"> {f.errors[0]}</small>}
+    <p className="sf-ui-form-item" style={{ margin: 0 }}>
+      <span className="sf-ui-form-label">
+        <label {...d.labelProps}>{d.label}：</label>
+        {d.required && <span className="sf-ui-form-required" aria-hidden="true">*</span>}
+      </span>
+      {children}
+      {d.errorProps && <small {...d.errorProps} className="sf-ui-form-error">{d.errors[0]}</small>}
     </p>
   );
 }
@@ -35,25 +33,43 @@ export default function App() {
   const form = useForm<Values>({ initialValues: { account: '', email: '', password: '' } });
   const F = typed(form);
   return (
-    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
-      <F.Field name="account" title="账号" required component={[TextInput]} />
-      <F.Field
-        name="email"
-        title="邮箱"
-        required
-        rules={{ format: 'email', message: '邮箱格式不对' }}
-        component={[TextInput]}
-      />
-      <F.Field
-        name="password"
-        title="密码"
-        required
-        rules={{ minLength: 8, message: '至少 8 位' }}
-        component={[TextInput, { type: 'password' }]}
-      />
-      <Submit>登录</Submit>
-      <pre aria-live="polite">{result}</pre>
-    </Form>
+    <Card title="账号登录" description="字段规则与失焦校验全部通过后才进入提交回调" style={{ maxWidth: 440 }}>
+      <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
+        <F.Field
+          name="account"
+          title="账号"
+          required
+          decorator={[FieldRow]}
+          component={[FieldInput, { placeholder: '请输入账号，如 alice' }]}
+        />
+        <F.Field
+          name="email"
+          title="邮箱"
+          required
+          rules={{ format: 'email', message: '邮箱格式不对' }}
+          decorator={[FieldRow]}
+          component={[FieldInput, { placeholder: 'alice@example.com' }]}
+        />
+        <F.Field
+          name="password"
+          title="密码"
+          required
+          rules={{ minLength: 8, message: '至少 8 位' }}
+          decorator={[FieldRow]}
+          component={[FieldInput, { type: 'password', placeholder: '至少 8 位字符' }]}
+        />
+        <div>
+          <Submit>
+            {(s) => (
+              <Button type="submit" variant="primary" disabled={s.disabled} loading={s.submitting}>
+                登录
+              </Button>
+            )}
+          </Submit>
+        </div>
+        <pre aria-live="polite">{result}</pre>
+      </Form>
+    </Card>
   );
 }
 ```
@@ -67,8 +83,9 @@ export default function App() {
 校验函数的第二个参数 `ctx.record` 提供同一对象上的其他字段值（适用于确认密码比对）。请求接口的异步校验在新输入到来时会自动触发 `ctx.signal` 中止旧请求并丢弃过期结果，校验函数内监听 `signal` 结束 Promise 即可。
 
 ```tsx preview
-import { useState } from 'react';
-import { Form, Submit, typed, useField, useForm } from '@shikiform/react';
+import { useState, type ReactNode } from 'react';
+import { Form, Submit, typed, useField, useFieldDecorator, useForm } from '@shikiform/react';
+import { Button, Card, FieldInput, LoaderIcon } from '@site/ui';
 
 type Values = { username: string; password: string; confirm: string };
 
@@ -88,20 +105,22 @@ function lookupName(username: string, signal?: AbortSignal): Promise<string | un
   });
 }
 
-function TextInput({ type = 'text' }: { type?: string }) {
-  const f = useField<string>();
+function FieldRow({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
+  const f = useField();
   return (
-    <p>
-      <label htmlFor={f.id}>{f.title}：</label>
-      <input
-        id={f.id}
-        type={type}
-        value={f.value ?? ''}
-        onChange={(e) => f.onChange(e.target.value)}
-        onBlur={f.onBlur}
-      />
-      {f.validating && <small style={{ marginLeft: 6, opacity: 0.7 }}>校验中…</small>}
-      {f.errors[0] && <small role="alert"> {f.errors[0]}</small>}
+    <p className="sf-ui-form-item" style={{ margin: 0 }}>
+      <span className="sf-ui-form-label">
+        <label {...d.labelProps}>{d.label}：</label>
+        {d.required && <span className="sf-ui-form-required" aria-hidden="true">*</span>}
+      </span>
+      {children}
+      {f.validating && (
+        <small className="sf-ui-form-desc" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <LoaderIcon size={12} /> 校验中…
+        </small>
+      )}
+      {d.errorProps && <small {...d.errorProps} className="sf-ui-form-error">{d.errors[0]}</small>}
     </p>
   );
 }
@@ -114,34 +133,47 @@ export default function App() {
   });
   const F = typed(form);
   return (
-    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
-      <F.Field
-        name="username"
-        title="用户名"
-        required
-        rules={{ validator: (value, ctx) => lookupName(String(value ?? ''), ctx.signal) }}
-        component={[TextInput]}
-      />
-      <F.Field
-        name="password"
-        title="密码"
-        required
-        rules={{ minLength: 8, message: '至少 8 位' }}
-        component={[TextInput, { type: 'password' }]}
-      />
-      <F.Field
-        name="confirm"
-        title="确认密码"
-        required
-        omit
-        rules={{
-          validator: (value, ctx) => (value && value !== ctx.record?.password ? '两次密码不一致' : undefined),
-        }}
-        component={[TextInput, { type: 'password' }]}
-      />
-      <Submit>注册</Submit>
-      <pre aria-live="polite">{result}</pre>
-    </Form>
+    <Card title="账号注册" description="输入 admin 触发异步查重；确认密码标记 omit，不随表单提交" style={{ maxWidth: 440 }}>
+      <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
+        <F.Field
+          name="username"
+          title="用户名"
+          required
+          rules={{ validator: (value, ctx) => lookupName(String(value ?? ''), ctx.signal) }}
+          decorator={[FieldRow]}
+          component={[FieldInput, { placeholder: '试试输入 admin 或 alice' }]}
+        />
+        <F.Field
+          name="password"
+          title="密码"
+          required
+          rules={{ minLength: 8, message: '至少 8 位' }}
+          decorator={[FieldRow]}
+          component={[FieldInput, { type: 'password', placeholder: '至少 8 位字符' }]}
+        />
+        <F.Field
+          name="confirm"
+          title="确认密码"
+          required
+          omit
+          rules={{
+            validator: (value, ctx) => (value && value !== ctx.record?.password ? '两次密码不一致' : undefined),
+          }}
+          decorator={[FieldRow]}
+          component={[FieldInput, { type: 'password', placeholder: '再次输入密码' }]}
+        />
+        <div>
+          <Submit>
+            {(s) => (
+              <Button type="submit" variant="primary" disabled={s.disabled} loading={s.submitting}>
+                注册
+              </Button>
+            )}
+          </Submit>
+        </div>
+        <pre aria-live="polite">{result}</pre>
+      </Form>
+    </Card>
   );
 }
 ```
@@ -155,10 +187,11 @@ export default function App() {
 **场景**：注册表单的校验逻辑已经用 Zod 写成了一整份 Schema，希望直接拿来校验包含嵌套对象和跨字段比对在内的整个表单。
 
 ```tsx preview play=schema
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { z } from 'zod';
 import { isFieldErrors } from '@shikiform/core';
-import { Field, Form, ObjectField, useField, useForm } from '@shikiform/react';
+import { Field, Form, ObjectField, useFieldDecorator, useForm } from '@shikiform/react';
+import { Badge, Button, Card, FieldInput, Toolbar } from '@site/ui';
 
 const schema = z
   .object({
@@ -172,19 +205,15 @@ const schema = z
 
 type Values = z.infer<typeof schema>;
 
-function TextInput({ type = 'text' }: { type?: string }) {
-  const f = useField<string>();
+function FieldRow({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
   return (
-    <p>
-      <label htmlFor={f.id}>{f.title}：</label>
-      <input
-        id={f.id}
-        type={type}
-        value={f.value ?? ''}
-        onChange={(e) => f.onChange(e.target.value)}
-        onBlur={f.onBlur}
-      />
-      {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
+    <p className="sf-ui-form-item" style={{ margin: 0 }}>
+      <label {...d.labelProps} className="sf-ui-form-label">
+        <span>{d.label}：</span>
+      </label>
+      {children}
+      {d.errorProps && <small {...d.errorProps} className="sf-ui-form-error">{d.errors[0]}</small>}
     </p>
   );
 }
@@ -209,23 +238,36 @@ export default function App() {
     d.nick.$omit = mode === 'omit';
   });
   return (
-    <Form form={form}>
-      <Field name="email" title="邮箱" component={[TextInput]} />
-      <Field name="password" title="密码" component={[TextInput, { type: 'password' }]} />
-      <Field name="confirm" title="确认密码" component={[TextInput, { type: 'password' }]} />
-      <Field name="nick" title="昵称" component={[TextInput]} />
-      <ObjectField name="address">
-        <Field name="city" title="城市" component={[TextInput]} />
-        <Field name="street" title="街道" component={[TextInput]} />
-      </ObjectField>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-        <button type="button" onClick={submit}>提交</button>
-        <button type="button" onClick={() => setNick('hidden')}>昵称 hidden</button>
-        <button type="button" onClick={() => setNick('omit')}>昵称 omit</button>
-        <button type="button" onClick={() => setNick('visible')}>昵称 visible</button>
-      </div>
-      <pre aria-live="polite">{out}</pre>
-    </Form>
+    <Card
+      title="注册信息"
+      description="整表 Standard Schema（Zod）校验与嵌套地址映射"
+      extra={<Badge variant="brand">Zod</Badge>}
+      style={{ maxWidth: 520 }}
+    >
+      <Form form={form}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12 }}>
+          <Field name="email" title="邮箱" decorator={[FieldRow]} component={[FieldInput, { placeholder: 'a@b.co' }]} />
+          <Field name="nick" title="昵称" decorator={[FieldRow]} component={[FieldInput, { placeholder: 'ada' }]} />
+          <Field name="password" title="密码" decorator={[FieldRow]} component={[FieldInput, { type: 'password', placeholder: '至少 6 位' }]} />
+          <Field name="confirm" title="确认密码" decorator={[FieldRow]} component={[FieldInput, { type: 'password', placeholder: '再次输入密码' }]} />
+        </div>
+        <Card variant="muted" padding="sm" title="收货地址">
+          <ObjectField name="address">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+              <Field name="city" title="城市" decorator={[FieldRow]} component={[FieldInput, { placeholder: '杭州' }]} />
+              <Field name="street" title="街道" decorator={[FieldRow]} component={[FieldInput, { placeholder: '文一西路（选填）' }]} />
+            </div>
+          </ObjectField>
+        </Card>
+        <Toolbar>
+          <Button variant="primary" size="sm" onClick={submit}>提交</Button>
+          <Button variant="outline" size="sm" onClick={() => setNick('hidden')}>昵称 hidden</Button>
+          <Button variant="outline" size="sm" onClick={() => setNick('omit')}>昵称 omit</Button>
+          <Button variant="outline" size="sm" onClick={() => setNick('visible')}>昵称 visible</Button>
+        </Toolbar>
+        <pre aria-live="polite">{out}</pre>
+      </Form>
+    </Card>
   );
 }
 ```
@@ -239,10 +281,10 @@ export default function App() {
 **场景**：联系方式分组随顶部开关切换 `visible` / `omit` / `readOnly`，对照渲染、校验和提交。
 
 ```tsx preview play=display
-import { useState } from 'react';
-import { Radio, RadioGroup, RadioIndicator } from '@ui-sdk/react/radio';
+import { useState, type ReactNode } from 'react';
 import { isFieldErrors } from '@shikiform/core';
-import { Field, Form, ObjectField, defineEffects, useField, useForm } from '@shikiform/react';
+import { Field, Form, ObjectField, defineEffects, useFieldDecorator, useForm } from '@shikiform/react';
+import { Button, Card, FieldInput, FieldRadioGroup, FormItem } from '@site/ui';
 
 type Mode = 'visible' | 'hidden' | 'omit' | 'readOnly';
 type Values = { mode: Mode; contact: { email: string; phone: string } };
@@ -256,17 +298,16 @@ const effects = defineEffects<Values>(({ reaction }) => {
   });
 });
 
-function TextInput() {
-  const f = useField<string>();
+function FieldRow({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
   return (
-    <p>
-      <label htmlFor={f.id}>{f.title}：</label>
-      {f.readOnly ? (
-        <span>{f.value || '-'}</span>
-      ) : (
-        <input id={f.id} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} onBlur={f.onBlur} />
-      )}
-      {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
+    <p className="sf-ui-form-item" style={{ margin: 0 }}>
+      <span className="sf-ui-form-label">
+        <label {...d.labelProps}>{d.label}：</label>
+        {d.required && <span className="sf-ui-form-required" aria-hidden="true">*</span>}
+      </span>
+      {children}
+      {d.errorProps && <small {...d.errorProps} className="sf-ui-form-error">{d.errors[0]}</small>}
     </p>
   );
 }
@@ -288,31 +329,30 @@ export default function App() {
     }
   };
   return (
-    <Form form={form}>
-      <Field<Values, 'mode'> name="mode" title="contact" omit enum={['visible', 'hidden', 'omit', 'readOnly']}>
-        {(f) => (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-            <span>{f.title}：</span>
-            <RadioGroup value={f.value ?? null} onValueChange={(v) => { if (v) f.onChange(v as Mode); }}>
-              {f.options.map((opt) => (
-                <label key={String(opt.value)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                  <Radio value={String(opt.value)}>
-                    <RadioIndicator />
-                  </Radio>
-                  {opt.label}
-                </label>
-              ))}
-            </RadioGroup>
-          </div>
-        )}
-      </Field>
-      <ObjectField name="contact">
-        <Field name="email" title="邮箱" component={[TextInput]} />
-        <Field name="phone" title="电话" component={[TextInput]} />
-      </ObjectField>
-      <button type="button" onClick={submit}>提交</button>
-      <pre aria-live="polite">{out}</pre>
-    </Form>
+    <Card title="显隐模式对照" description="切换 contact 分组的四种状态，观察渲染、校验与提交载荷变化" style={{ maxWidth: 520 }}>
+      <Form form={form}>
+        <Field<Values, 'mode'>
+          name="mode"
+          title="contact"
+          omit
+          enum={['visible', 'hidden', 'omit', 'readOnly']}
+          decorator={[FormItem, { layout: 'inline' }]}
+          component={[FieldRadioGroup]}
+        />
+        <Card variant="muted" padding="sm" title="联系方式">
+          <ObjectField name="contact">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+              <Field name="email" title="邮箱" decorator={[FieldRow]} component={[FieldInput, { placeholder: 'a@b.co' }]} />
+              <Field name="phone" title="电话" decorator={[FieldRow]} component={[FieldInput]} />
+            </div>
+          </ObjectField>
+        </Card>
+        <div>
+          <Button variant="primary" onClick={submit}>提交</Button>
+        </div>
+        <pre aria-live="polite">{out}</pre>
+      </Form>
+    </Card>
   );
 }
 ```
@@ -332,20 +372,23 @@ export default function App() {
 **场景**：表单拆分成多个标签页，切换标签时未激活的页签组件会被条件卸载，但其中的必填项在提交时依然需要拦截表单。
 
 ```tsx preview play=tabs
-import { useState } from 'react';
-import { Tabs, TabsList, TabsTab } from '@ui-sdk/react/tabs';
+import { useState, type ReactNode } from 'react';
 import { isFieldErrors } from '@shikiform/core';
-import { Field, Form, Watch, useField, useForm, type Draft } from '@shikiform/react';
+import { Field, Form, Watch, useFieldDecorator, useForm, type Draft } from '@shikiform/react';
+import { Button, Card, FieldInput, Tabs, TabsList, TabsTab } from '@site/ui';
 
 type Values = { tab: 'base' | 'extra'; name: string; code: string; note: string };
 
-function TextInput() {
-  const f = useField<string>();
+function FieldRow({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
   return (
-    <p>
-      <label htmlFor={f.id}>{f.title}：</label>
-      <input id={f.id} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} onBlur={f.onBlur} />
-      {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
+    <p className="sf-ui-form-item" style={{ margin: 0 }}>
+      <span className="sf-ui-form-label">
+        <label {...d.labelProps}>{d.label}：</label>
+        {d.required && <span className="sf-ui-form-required" aria-hidden="true">*</span>}
+      </span>
+      {children}
+      {d.errorProps && <small {...d.errorProps} className="sf-ui-form-error">{d.errors[0]}</small>}
     </p>
   );
 }
@@ -369,34 +412,38 @@ export default function App() {
     }
   };
   return (
-    <Form form={form}>
-      <Field<Values, 'tab'> name="tab" omit enum={[{ label: '基本', value: 'base' }, { label: '附加', value: 'extra' }]}>
-        {(f) => (
-          <Tabs value={f.value ?? 'base'} onValueChange={(v) => { if (v) f.onChange(v as Values['tab']); }}>
-            <TabsList>
-              {f.options.map((opt) => (
-                <TabsTab key={String(opt.value)} value={String(opt.value)}>
-                  {opt.label}
-                </TabsTab>
-              ))}
-            </TabsList>
-          </Tabs>
-        )}
-      </Field>
-      <Watch select={(d: Draft<Values>) => d.tab.$value}>
-        {(tab) => tab === 'base' ? (
-          <Field name="name" title="名称" component={[TextInput]} />
-        ) : (
-          <>
-            <Field name="code" title="编码" component={[TextInput]} />
-            {/* JSX 上的规则仅在组件挂载期间生效 */}
-            <Field name="note" title="备注" required component={[TextInput]} />
-          </>
-        )}
-      </Watch>
-      <button type="button" onClick={submit}>提交</button>
-      <pre aria-live="polite">{out}</pre>
-    </Form>
+    <Card title="多标签页校验" description="引擎级 fields 规则在页签卸载时仍会拦截，JSX 规则仅在挂载期生效" style={{ maxWidth: 460 }}>
+      <Form form={form}>
+        <Field<Values, 'tab'> name="tab" omit enum={[{ label: '基本', value: 'base' }, { label: '附加', value: 'extra' }]}>
+          {(f) => (
+            <Tabs value={f.value ?? 'base'} onValueChange={(v) => f.onChange(v as Values['tab'])} variant="segmented">
+              <TabsList className="sf-ui-tabs-list">
+                {f.options.map((opt) => (
+                  <TabsTab key={String(opt.value)} value={String(opt.value)} className="sf-ui-tabs-tab">
+                    {opt.label}
+                  </TabsTab>
+                ))}
+              </TabsList>
+            </Tabs>
+          )}
+        </Field>
+        <Watch select={(d: Draft<Values>) => d.tab.$value}>
+          {(tab) => tab === 'base' ? (
+            <Field name="name" title="名称" decorator={[FieldRow]} component={[FieldInput, { placeholder: '必填（fields 声明）' }]} />
+          ) : (
+            <div style={{ display: 'grid', gap: 12 }}>
+              <Field name="code" title="编码" decorator={[FieldRow]} component={[FieldInput, { placeholder: '必填（fields 声明）' }]} />
+              {/* JSX 上的规则仅在组件挂载期间生效 */}
+              <Field name="note" title="备注" required decorator={[FieldRow]} component={[FieldInput, { placeholder: '必填（仅 JSX 挂载期）' }]} />
+            </div>
+          )}
+        </Watch>
+        <div>
+          <Button variant="primary" onClick={submit}>提交</Button>
+        </div>
+        <pre aria-live="polite">{out}</pre>
+      </Form>
+    </Card>
   );
 }
 ```

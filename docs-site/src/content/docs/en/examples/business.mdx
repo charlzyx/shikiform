@@ -10,15 +10,28 @@ Edit a merged color cell to update every row in that group, and toggle the optio
 ```tsx preview play=sku-editor
 import { useState } from 'react';
 import { enUS, Field, Form, useForm, useFormContext, useWatch, type Draft } from '@shikiform/react';
+import {
+  Badge,
+  Button,
+  Card,
+  Checkbox,
+  Input,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@site/ui';
 
 type Sku = { skuId: string; color: string; storage: string; price: number; stock: number; channel: string };
 type Values = { rows: Sku[]; channel: boolean };
 
 const SKUS: Sku[] = [
-  { skuId: 'B-128', color: "Black", storage: '128G', price: 999, stock: 12, channel: '' },
-  { skuId: 'B-256', color: "Black", storage: '256G', price: 1499, stock: 3, channel: '' },
-  { skuId: 'W-128', color: "White", storage: '128G', price: 999, stock: 0, channel: '' },
-  { skuId: 'W-256', color: "White", storage: '256G', price: 1499, stock: 8, channel: '' },
+  { skuId: 'B-128', color: 'Black', storage: '128G', price: 999, stock: 12, channel: '' },
+  { skuId: 'B-256', color: 'Black', storage: '256G', price: 1499, stock: 3, channel: '' },
+  { skuId: 'W-128', color: 'White', storage: '128G', price: 999, stock: 0, channel: '' },
+  { skuId: 'W-256', color: 'White', storage: '256G', price: 1499, stock: 8, channel: '' },
 ];
 
 function computeRowSpans<T>(rows: T[], groupOf: (row: T) => string): number[] {
@@ -42,39 +55,59 @@ function SkuTable() {
   const paint = (from: string, to: string) =>
     form.setValue('rows', rows.map((row) => (row.color === from ? { ...row, color: to } : row)));
   return (
-    <>
-      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-        <input type="checkbox" checked={channel} onChange={(e) => form.setValue('channel', e.target.checked)} />
-        Show channel column
-      </label>
-      <table>
-        <thead>
-          <tr>
-            <th>Color</th>
-            <th>Storage</th>
-            <th>Price</th>
-            <th>Stock</th>
-            {channel && <th>Channel</th>}
-          </tr>
-        </thead>
-        <tbody>
+    <Card
+      title="SKU price matrix"
+      description="Merged color cells update the whole group while toggling optional columns preserves edits"
+      extra={
+        <Checkbox checked={channel} onCheckedChange={(checked) => form.setValue('channel', checked)}>
+          Show channel column
+        </Checkbox>
+      }
+    >
+      <Table compact bordered>
+        <TableHead>
+          <TableRow>
+            <TableHeader>Color</TableHeader>
+            <TableHeader>Storage</TableHeader>
+            <TableHeader>Price</TableHeader>
+            <TableHeader>Stock</TableHeader>
+            {channel && <TableHeader>Channel</TableHeader>}
+          </TableRow>
+        </TableHead>
+        <TableBody>
           {rows.map((row, index) => (
-            <tr key={row.skuId}>
+            <TableRow key={row.skuId}>
               {spans[index]! > 0 && (
-                <td rowSpan={spans[index]}>
-                  <input
+                <TableCell rowSpan={spans[index]}>
+                  <Input
+                    size="sm"
                     aria-label="Color"
-                    style={{ width: 72 }}
+                    style={{ width: 88 }}
                     value={row.color}
                     onChange={(e) => paint(row.color, e.target.value)}
                   />
-                </td>
+                </TableCell>
               )}
-              <td>{row.storage}</td>
-              <td>
+              <TableCell><Badge variant="outline">{row.storage}</Badge></TableCell>
+              <TableCell>
                 <Field name={`rows.${index}.price`}>
                   {(f) => (
-                    <input
+                    <Input
+                      size="sm"
+                      type="number"
+                      min={0}
+                      style={{ width: 84 }}
+                      value={Number(f.value ?? 0)}
+                      onChange={(e) => f.onChange(Number(e.target.value))}
+                    />
+                  )}
+                </Field>
+              </TableCell>
+              <TableCell>
+                <Field name={`rows.${index}.stock`}>
+                  {(f) => (
+                    <Input
+                      size="sm"
                       type="number"
                       min={0}
                       style={{ width: 72 }}
@@ -83,38 +116,27 @@ function SkuTable() {
                     />
                   )}
                 </Field>
-              </td>
-              <td>
-                <Field name={`rows.${index}.stock`}>
-                  {(f) => (
-                    <input
-                      type="number"
-                      min={0}
-                      style={{ width: 64 }}
-                      value={Number(f.value ?? 0)}
-                      onChange={(e) => f.onChange(Number(e.target.value))}
-                    />
-                  )}
-                </Field>
-              </td>
+              </TableCell>
               {channel && (
-                <td>
+                <TableCell>
                   <Field name={`rows.${index}.channel`}>
                     {(f) => (
-                      <input
-                        style={{ width: 88 }}
+                      <Input
+                        size="sm"
+                        placeholder="Channel code"
+                        style={{ width: 96 }}
                         value={String(f.value ?? '')}
                         onChange={(e) => f.onChange(e.target.value)}
                       />
                     )}
                   </Field>
-                </td>
+                </TableCell>
               )}
-            </tr>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
-    </>
+        </TableBody>
+      </Table>
+    </Card>
   );
 }
 
@@ -124,7 +146,9 @@ export default function App() {
   return (
     <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
       <SkuTable />
-      <button type="submit" style={{ marginTop: 8 }}>Submit</button>
+      <div>
+        <Button type="submit" variant="primary">Submit</Button>
+      </div>
       <pre>{result}</pre>
     </Form>
   );
@@ -137,12 +161,31 @@ Keep products nested under their supplier and merge cells for display. A product
 
 ```tsx preview play=merged
 import { enUS, Field, Form, useArrayField, useField, useForm, useFormContext, useWatch, type Draft } from '@shikiform/react';
+import {
+  Button,
+  Card,
+  Input,
+  PlusIcon,
+  Select,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@site/ui';
 
 type Product = { id: string; name: string; price: number };
 type Supplier = { id: string; name: string; level: 'A' | 'B' | 'C'; products: Product[] };
 type Values = { suppliers: Supplier[] };
 /** One product per table row. Keep its location in the nested data. */
 type Line = { id: string; s: number; p: number };
+
+const LEVELS = [
+  { label: 'A grade', value: 'A' },
+  { label: 'B grade', value: 'B' },
+  { label: 'C grade', value: 'C' },
+];
 
 let nextProductId = 4;
 
@@ -162,9 +205,16 @@ function computeRowSpans<T>(rows: T[], groupOf: (row: T) => string): number[] {
 function TextCell() {
   const f = useField<string>();
   return (
-    <div>
-      <input style={{ width: 96 }} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} onBlur={f.onBlur} />
-      {f.errors[0] && <div><small role="alert" style={{ color: 'crimson' }}>{f.errors[0]}</small></div>}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <Input
+        size="sm"
+        style={{ width: 120 }}
+        invalid={Boolean(f.errors[0])}
+        value={f.value ?? ''}
+        onChange={(e) => f.onChange(e.target.value)}
+        onBlur={f.onBlur}
+      />
+      {f.errors[0] && <small role="alert" className="sf-ui-form-error">{f.errors[0]}</small>}
     </div>
   );
 }
@@ -172,9 +222,17 @@ function TextCell() {
 function NumberCell() {
   const f = useField<number>();
   return (
-    <div>
-      <input type="number" style={{ width: 80 }} value={f.value ?? 0} onChange={(e) => f.onChange(Number(e.target.value))} onBlur={f.onBlur} />
-      {f.errors[0] && <div><small role="alert" style={{ color: 'crimson' }}>{f.errors[0]}</small></div>}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <Input
+        size="sm"
+        type="number"
+        style={{ width: 96 }}
+        invalid={Boolean(f.errors[0])}
+        value={f.value ?? 0}
+        onChange={(e) => f.onChange(Number(e.target.value))}
+        onBlur={f.onBlur}
+      />
+      {f.errors[0] && <small role="alert" className="sf-ui-form-error">{f.errors[0]}</small>}
     </div>
   );
 }
@@ -182,9 +240,14 @@ function NumberCell() {
 function AddProduct({ supplierIndex }: { supplierIndex: number }) {
   const products = useArrayField(`suppliers.${supplierIndex}.products`);
   return (
-    <button type="button" onClick={() => products.push({ id: `p${nextProductId++}`, name: "New product", price: 1 })}>
+    <Button
+      variant="outline"
+      size="sm"
+      icon={<PlusIcon size={12} />}
+      onClick={() => products.push({ id: `p${nextProductId++}`, name: 'New product', price: 1 })}
+    >
       Add product
-    </button>
+    </Button>
   );
 }
 
@@ -194,62 +257,71 @@ function Suppliers() {
   const lines: Line[] = suppliers.flatMap((supplier, s) => supplier.products.map((product, p) => ({ id: product.id, s, p })));
   const spans = computeRowSpans(lines, (line) => suppliers[line.s]!.id);
   return (
-    <>
-      <table>
-        <thead>
-          <tr>
-            <th>Supplier</th>
-            <th>Product</th>
-            <th>Unit price</th>
-          </tr>
-        </thead>
-        <tbody>
-          {lines.map((line, index) => (
-            <tr key={line.id}>
-              {spans[index]! > 0 && (
-                <td rowSpan={spans[index]} style={{ verticalAlign: 'top' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <Field
-                      name={`suppliers.${line.s}.name`}
-                      component={[TextCell]}
-                      rules={[
-                        { required: true },
-                        { validator: (value, ctx) => ((ctx.array as Supplier[] | undefined)?.filter((item) => item.name === value).length ?? 0) > 1 ? "Duplicate supplier name" : null },
-                      ]}
-                    />
-                    <Field name={`suppliers.${line.s}.level`}>
-                      {(f) => (
-                        <select value={String(f.value ?? 'A')} onChange={(e) => f.onChange(e.target.value)}>
-                          {(['A', 'B', 'C'] as const).map((level) => (
-                            <option key={level} value={level}>{level} grade</option>
-                          ))}
-                        </select>
-                      )}
-                    </Field>
-                    <AddProduct supplierIndex={line.s} />
-                  </div>
-                </td>
-              )}
-              <td>
-                <Field name={`suppliers.${line.s}.products.${line.p}.name`} component={[TextCell]} />
-              </td>
-              <td>
-                <Field
-                  name={`suppliers.${line.s}.products.${line.p}.price`}
-                  component={[NumberCell]}
-                  rules={{
-                    validator: (value, ctx) => (ctx.parent?.level === 'C' && Number(value) > 1000 ? "Grade C unit prices cannot exceed 1000" : null),
-                  }}
-                />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <button type="button" style={{ marginTop: 8 }} onClick={() => { void form.validate().catch(() => {}); }}>
-        Validate
-      </button>
-    </>
+    <Card
+      title="Suppliers & products"
+      description="Nested data with merged cells — validate duplicates via ctx.array and grade caps via ctx.parent"
+    >
+      <div style={{ display: 'grid', gap: 12 }}>
+        <Table compact bordered>
+          <TableHead>
+            <TableRow>
+              <TableHeader>Supplier</TableHeader>
+              <TableHeader>Product</TableHeader>
+              <TableHeader>Unit price</TableHeader>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {lines.map((line, index) => (
+              <TableRow key={line.id}>
+                {spans[index]! > 0 && (
+                  <TableCell rowSpan={spans[index]} style={{ verticalAlign: 'top' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <Field
+                        name={`suppliers.${line.s}.name`}
+                        component={[TextCell]}
+                        rules={[
+                          { required: true },
+                          { validator: (value, ctx) => ((ctx.array as Supplier[] | undefined)?.filter((item) => item.name === value).length ?? 0) > 1 ? 'Duplicate supplier name' : null },
+                        ]}
+                      />
+                      <Field name={`suppliers.${line.s}.level`}>
+                        {(f) => (
+                          <Select
+                            size="sm"
+                            style={{ width: 120 }}
+                            options={LEVELS}
+                            value={String(f.value ?? 'A')}
+                            onChange={(next) => f.onChange(next)}
+                          />
+                        )}
+                      </Field>
+                      <AddProduct supplierIndex={line.s} />
+                    </div>
+                  </TableCell>
+                )}
+                <TableCell>
+                  <Field name={`suppliers.${line.s}.products.${line.p}.name`} component={[TextCell]} />
+                </TableCell>
+                <TableCell>
+                  <Field
+                    name={`suppliers.${line.s}.products.${line.p}.price`}
+                    component={[NumberCell]}
+                    rules={{
+                      validator: (value, ctx) => (ctx.parent?.level === 'C' && Number(value) > 1000 ? 'Grade C unit prices cannot exceed 1000' : null),
+                    }}
+                  />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        <div>
+          <Button variant="primary" size="sm" onClick={() => { void form.validate().catch(() => {}); }}>
+            Validate
+          </Button>
+        </div>
+      </div>
+    </Card>
   );
 }
 
@@ -258,8 +330,8 @@ export default function App() {
     messages: enUS,
     initialValues: {
       suppliers: [
-        { id: 'a', name: "Supplier A", level: 'C', products: [{ id: 'p1', name: "Screw", price: 1200 }, { id: 'p2', name: "Nut", price: 20 }] },
-        { id: 'b', name: "Supplier A", level: 'A', products: [{ id: 'p3', name: "Washer", price: 5000 }] },
+        { id: 'a', name: 'Supplier A', level: 'C', products: [{ id: 'p1', name: 'Screw', price: 1200 }, { id: 'p2', name: 'Nut', price: 20 }] },
+        { id: 'b', name: 'Supplier A', level: 'A', products: [{ id: 'p3', name: 'Washer', price: 5000 }] },
       ],
     },
   });
@@ -276,16 +348,30 @@ Expand an order to edit its line items. Recalculate each line amount and the ord
 ```tsx preview play=orders
 import { Fragment, useState } from 'react';
 import { enUS, ArrayField, Field, Form, defineEffects, useField, useForm, useRecord } from '@shikiform/react';
+import {
+  Badge,
+  Button,
+  Card,
+  Checkbox,
+  Input,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@site/ui';
 
 type Item = { id: string; sku: string; qty: number; price: number; line: number };
 type Order = { id: string; no: string; status: string; amount: number; items: Item[] };
 type Values = { editable: boolean; orders: Order[] };
 
 const STATUS = [
-  { label: "Pending", value: 'pending' },
-  { label: "Paid", value: 'paid' },
-  { label: "Shipped", value: 'shipped' },
+  { label: 'Pending', value: 'pending' },
+  { label: 'Paid', value: 'paid' },
+  { label: 'Shipped', value: 'shipped' },
 ];
+const STATUS_VARIANT = { pending: 'warning', paid: 'brand', shipped: 'success' } as const;
 
 const effects = defineEffects<Values>(({ reaction, draft }) => {
   reaction((d) => {
@@ -308,20 +394,22 @@ const effects = defineEffects<Values>(({ reaction, draft }) => {
 function NumberCell({ min }: { min?: number }) {
   const f = useField<number>();
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       {f.readOnly ? (
-        <span>{f.value}</span>
+        <span style={{ fontWeight: 500 }}>{f.value}</span>
       ) : (
-        <input
+        <Input
+          size="sm"
           type="number"
           min={min}
-          style={{ width: 68 }}
+          style={{ width: 76 }}
+          invalid={Boolean(f.errors[0])}
           value={f.value ?? 0}
           onChange={(e) => f.onChange(Number(e.target.value))}
           onBlur={f.onBlur}
         />
       )}
-      {f.errors[0] && <div><small role="alert" style={{ color: 'crimson' }}>{f.errors[0]}</small></div>}
+      {f.errors[0] && <small role="alert" className="sf-ui-form-error">{f.errors[0]}</small>}
     </div>
   );
 }
@@ -329,20 +417,20 @@ function NumberCell({ min }: { min?: number }) {
 function ItemRow() {
   const item = useRecord<Item>();
   return (
-    <tr>
-      <td><code>{item.sku}</code></td>
-      <td>
+    <TableRow>
+      <TableCell><code>{item.sku}</code></TableCell>
+      <TableCell>
         <Field
           name="qty"
           component={[NumberCell, { min: 1 }]}
           rules={{
-            validator: (value, ctx) => (ctx.parent?.status === 'pending' && Number(value) > 99 ? "A pending line cannot exceed 99 units" : null),
+            validator: (value, ctx) => (ctx.parent?.status === 'pending' && Number(value) > 99 ? 'A pending line cannot exceed 99 units' : null),
           }}
         />
-      </td>
-      <td><Field name="price" component={[NumberCell, { min: 0 }]} /></td>
-      <td><Field name="line" readOnly component={[NumberCell]} /></td>
-    </tr>
+      </TableCell>
+      <TableCell><Field name="price" component={[NumberCell, { min: 0 }]} /></TableCell>
+      <TableCell><Field name="line" readOnly component={[NumberCell]} /></TableCell>
+    </TableRow>
   );
 }
 
@@ -350,43 +438,56 @@ function OrderRow({ expanded, onToggle }: { expanded: boolean; onToggle: () => v
   const record = useRecord<Order>();
   return (
     <Fragment>
-      <tr>
-        <td>
-          <button type="button" onClick={onToggle}>{expanded ? '▾' : '▸'}</button>
-        </td>
-        <td>{record.no}</td>
-        <td>
+      <TableRow>
+        <TableCell style={{ width: 42 }}>
+          <Button variant="ghost" size="sm" onClick={onToggle}>{expanded ? '▾' : '▸'}</Button>
+        </TableCell>
+        <TableCell><strong>{record.no}</strong></TableCell>
+        <TableCell>
           <Field name="status" enum={STATUS}>
             {(f) => f.readOnly ? (
-              <span>{f.options.find((o) => o.value === f.value)?.label ?? String(f.value)}</span>
+              <Badge variant={STATUS_VARIANT[String(f.value) as keyof typeof STATUS_VARIANT] ?? 'default'} dot>
+                {f.options.find((o) => o.value === f.value)?.label ?? String(f.value)}
+              </Badge>
             ) : (
-              <select value={String(f.value ?? '')} onChange={(e) => f.onChange(e.target.value)}>
+              <select
+                style={{ minWidth: 112, minHeight: 30, padding: '3px 28px 3px 10px' }}
+                value={String(f.value ?? '')}
+                onChange={(e) => f.onChange(e.target.value)}
+              >
                 {f.options.map((opt) => (
                   <option key={String(opt.value)} value={String(opt.value)}>{opt.label}</option>
                 ))}
               </select>
             )}
           </Field>
-        </td>
-        <td>
-          <Field name="amount" readOnly component={[NumberCell]} />
-        </td>
-      </tr>
+        </TableCell>
+        <TableCell>
+          <Badge variant="brand">
+            <Field name="amount" readOnly component={[NumberCell]} />
+          </Badge>
+        </TableCell>
+      </TableRow>
       {expanded && (
-        <tr>
-          <td colSpan={4} style={{ paddingLeft: 24 }}>
-            <table>
-              <thead>
-                <tr><th>Product</th><th>Quantity</th><th>Unit price</th><th>Line total</th></tr>
-              </thead>
-              <tbody>
+        <TableRow style={{ background: 'var(--sf-ui-muted)' }}>
+          <TableCell colSpan={4} style={{ padding: '10px 14px 10px 36px' }}>
+            <Table compact>
+              <TableHead>
+                <TableRow>
+                  <TableHeader>Product</TableHeader>
+                  <TableHeader>Quantity</TableHeader>
+                  <TableHeader>Unit price</TableHeader>
+                  <TableHeader>Line total</TableHeader>
+                </TableRow>
+              </TableHead>
+              <TableBody>
                 <ArrayField name="items" rowKey="id">
                   {() => <ItemRow />}
                 </ArrayField>
-              </tbody>
-            </table>
-          </td>
-        </tr>
+              </TableBody>
+            </Table>
+          </TableCell>
+        </TableRow>
       )}
     </Fragment>
   );
@@ -409,26 +510,35 @@ export default function App() {
   const toggle = (id: string) => setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
   return (
     <Form form={form}>
-      <Field<Values, 'editable'> name="editable" title="Editable">
-        {(f) => (
-          <p>
-            <label htmlFor={f.id}>
-              <input id={f.id} type="checkbox" checked={Boolean(f.value)} onChange={(e) => f.onChange(e.target.checked)} />{' '}
-              {f.title}
-            </label>
-          </p>
-        )}
-      </Field>
-      <table>
-        <thead>
-          <tr><th /><th>Order number</th><th>Status</th><th>Total</th></tr>
-        </thead>
-        <tbody>
-          <ArrayField name="orders" rowKey="id">
-            {({ key }) => <OrderRow expanded={Boolean(expanded[key])} onToggle={() => toggle(key)} />}
-          </ArrayField>
-        </tbody>
-      </table>
+      <Card
+        title="Orders & line items"
+        description="Derives per-order totals; shipped orders inherit read-only while status stays switchable"
+        extra={
+          <Field<Values, 'editable'> name="editable" title="Editable">
+            {(f) => (
+              <Checkbox id={f.id} checked={Boolean(f.value)} onCheckedChange={(checked) => f.onChange(checked)}>
+                {f.title}
+              </Checkbox>
+            )}
+          </Field>
+        }
+      >
+        <Table compact>
+          <TableHead>
+            <TableRow>
+              <TableHeader style={{ width: 42 }} />
+              <TableHeader>Order number</TableHeader>
+              <TableHeader>Status</TableHeader>
+              <TableHeader>Total</TableHeader>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            <ArrayField name="orders" rowKey="id">
+              {({ key }) => <OrderRow expanded={Boolean(expanded[key])} onToggle={() => toggle(key)} />}
+            </ArrayField>
+          </TableBody>
+        </Table>
+      </Card>
     </Form>
   );
 }
@@ -441,6 +551,17 @@ export default function App() {
 ```tsx preview
 import { useState } from 'react';
 import { defineEffects, enUS, Field, Form, Submit, useForm, useWatch, type Draft } from '@shikiform/react';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  Dialog,
+  FieldInput,
+  FieldNumber,
+  FieldRadioGroup,
+  siteKit,
+} from '@site/ui';
 
 type PolicyType = 'flash' | 'bundle' | 'referral';
 type PolicyDto = {
@@ -500,11 +621,11 @@ const policyEffects = defineEffects<PolicyValues>(({ reaction }) => {
 
 function RiskBanner() {
   const budget = useWatch((d: Draft<PolicyValues>) => d.budget.$value);
-  if (budget < 50000) return null;
+  if ((budget ?? 0) < 50000) return null;
   return (
-    <p style={{ margin: '6px 0', padding: '6px 10px', border: '1px solid #f59e0b', borderRadius: 4, fontSize: 12 }}>
-      High-budget policy (≥ $50,000): submitting requires an extra confirmation step.
-    </p>
+    <Alert variant="warning" title="High-budget risk gate">
+      Budget is ≥ $50,000 — submitting opens an extra confirmation dialog.
+    </Alert>
   );
 }
 
@@ -543,83 +664,69 @@ export default function App() {
   });
 
   return (
-    <Form
-      form={form}
-      onSubmit={(values) => {
-        const dto = toApi(values, INITIAL_DTO.policy_id);
-        if (dto.budget_cents >= 5000000) {
-          setPendingDto(dto);
-          return;
-        }
-        setSavedDto(dto);
-      }}
+    <Card
+      title="Campaign policy"
+      description="Visibility matrix + fromApi / toApi adapter + high-budget confirmation gate"
+      extra={<Badge variant="outline">{INITIAL_DTO.policy_id}</Badge>}
+      style={{ maxWidth: 520 }}
     >
-      <div style={{ display: 'grid', gap: 8, maxWidth: 420 }}>
-        <Field<PolicyValues, 'type'> name="type">
-          {(f) => (
-            <label>
-              {f.title}:{' '}
-              <select value={f.value} onChange={(e) => f.onChange(e.target.value as PolicyType)}>
-                {f.options.map((opt) => (
-                  <option key={String(opt.value)} value={String(opt.value)}>{opt.label}</option>
-                ))}
-              </select>
-            </label>
-          )}
-        </Field>
-        <Field<PolicyValues, 'title'> name="title">
-          {(f) => (
-            <label>
-              {f.title}:{' '}
-              <input value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} />
-              {f.errors[0] && <span style={{ color: '#dc2626', marginLeft: 6 }}>{f.errors[0]}</span>}
-            </label>
-          )}
-        </Field>
-        <Field<PolicyValues, 'budget'> name="budget">
-          {(f) => (
-            <label>
-              {f.title}:{' '}
-              <input type="number" value={f.value ?? 0} onChange={(e) => f.onChange(Number(e.target.value))} />
-            </label>
-          )}
-        </Field>
+      <Form
+        form={form}
+        kit={siteKit}
+        onSubmit={(values) => {
+          const dto = toApi(values, INITIAL_DTO.policy_id);
+          if (dto.budget_cents >= 5000000) {
+            setPendingDto(dto);
+            return;
+          }
+          setSavedDto(dto);
+        }}
+      >
+        <Field<PolicyValues, 'type'> name="type" component={[FieldRadioGroup]} />
+        <Field<PolicyValues, 'title'> name="title" component={[FieldInput]} />
+        <Field<PolicyValues, 'budget'> name="budget" component={[FieldNumber, { min: 100, step: 1000, prefix: '$' }]} />
         <RiskBanner />
-        <Field<PolicyValues, 'flashCap'> name="flashCap">
-          {(f) => (
-            <label>
-              {f.title}:{' '}
-              <input type="number" value={f.value ?? 1} onChange={(e) => f.onChange(Number(e.target.value))} />
-            </label>
-          )}
-        </Field>
-        <Field<PolicyValues, 'bundleMinItems'> name="bundleMinItems">
-          {(f) => (
-            <label>
-              {f.title}:{' '}
-              <input type="number" value={f.value ?? 2} onChange={(e) => f.onChange(Number(e.target.value))} />
-            </label>
-          )}
-        </Field>
-        <Field<PolicyValues, 'referralBonus'> name="referralBonus">
-          {(f) => (
-            <label>
-              {f.title}:{' '}
-              <input type="number" value={f.value ?? 1} onChange={(e) => f.onChange(Number(e.target.value))} />
-            </label>
-          )}
-        </Field>
-        <Submit>{(s) => <button type="submit" disabled={s.disabled}>Publish policy</button>}</Submit>
-      </div>
-      {pendingDto && (
-        <div style={{ marginTop: 8, padding: 8, border: '1px solid #f59e0b', borderRadius: 4 }}>
-          <p style={{ margin: '0 0 6px' }}>Confirm publishing a ${pendingDto.budget_cents / 100} budget?</p>
-          <button type="button" onClick={() => { setSavedDto(pendingDto); setPendingDto(null); }}>Confirm</button>{' '}
-          <button type="button" onClick={() => setPendingDto(null)}>Cancel</button>
+        <Field<PolicyValues, 'flashCap'> name="flashCap" component={[FieldNumber, { min: 1 }]} />
+        <Field<PolicyValues, 'bundleMinItems'> name="bundleMinItems" component={[FieldNumber, { min: 2 }]} />
+        <Field<PolicyValues, 'referralBonus'> name="referralBonus" component={[FieldNumber, { min: 1, prefix: '$' }]} />
+        <div>
+          <Submit>
+            {(s) => <Button type="submit" variant="primary" disabled={s.disabled}>Publish policy</Button>}
+          </Submit>
         </div>
-      )}
-      {savedDto && <pre style={{ marginTop: 8, fontSize: 12 }}>{JSON.stringify(savedDto, null, 2)}</pre>}
-    </Form>
+        <Dialog
+          open={Boolean(pendingDto)}
+          onOpenChange={(open) => { if (!open) setPendingDto(null); }}
+          title="Confirm high-budget publish"
+          description={pendingDto ? `Confirm publishing a $${(pendingDto.budget_cents / 100).toLocaleString()} campaign budget?` : undefined}
+          size="sm"
+          footer={
+            <>
+              <Button variant="outline" size="sm" onClick={() => setPendingDto(null)}>Cancel</Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => {
+                  if (pendingDto) setSavedDto(pendingDto);
+                  setPendingDto(null);
+                }}
+              >
+                Confirm
+              </Button>
+            </>
+          }
+        >
+          {pendingDto && (
+            <pre style={{ margin: 0 }}>{JSON.stringify(pendingDto, null, 2)}</pre>
+          )}
+        </Dialog>
+        {savedDto && (
+          <Card variant="muted" padding="sm" title="Submitted DTO payload">
+            <pre style={{ margin: 0 }}>{JSON.stringify(savedDto, null, 2)}</pre>
+          </Card>
+        )}
+      </Form>
+    </Card>
   );
 }
 ```
@@ -631,6 +738,25 @@ export default function App() {
 ```tsx preview
 import { useState } from 'react';
 import { enUS, Field, Form, useForm, useShadowForm } from '@shikiform/react';
+import {
+  Badge,
+  Button,
+  Card,
+  Drawer,
+  FieldInput,
+  FieldNumber,
+  FieldSwitch,
+  siteKit,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Tabs,
+  TabsList,
+  TabsTab,
+} from '@site/ui';
 
 type Rule = { id: string; name: string; weight: number; enabled: boolean };
 
@@ -657,6 +783,7 @@ export default function App() {
     fields: {
       name: { title: 'Rule name', required: true },
       weight: { title: 'Priority weight', required: true, rules: { min: 1, max: 100 } },
+      enabled: { title: 'Enabled' },
     },
     onOk: (values, ctx) => {
       if (!ctx) return;
@@ -680,68 +807,104 @@ export default function App() {
   });
 
   return (
-    <div style={{ display: 'grid', gap: 12 }}>
-      <div>
-        Workspace:{' '}
-        <button type="button" onClick={() => { setWorkspace('ws-east'); setSelectedId('R-01'); }}>
-          East ({workspace === 'ws-east' ? 'active' : 'switch'})
-        </button>{' '}
-        <button type="button" onClick={() => { setWorkspace('ws-west'); setSelectedId('R-09'); }}>
-          West ({workspace === 'ws-west' ? 'active' : 'switch'})
-        </button>
+    <Card
+      title="Multi-tenant rules"
+      description="Single shared drawer draft (auto-cancelled by scopeKey) + instant live inspector"
+      extra={
+        <Tabs
+          variant="segmented"
+          value={workspace}
+          onValueChange={(next) => {
+            const ws = next as 'ws-east' | 'ws-west';
+            setWorkspace(ws);
+            setSelectedId(ws === 'ws-east' ? 'R-01' : 'R-09');
+          }}
+        >
+          <TabsList className="sf-ui-tabs-list" style={{ marginBottom: 0 }}>
+            <TabsTab value="ws-east" className="sf-ui-tabs-tab">East</TabsTab>
+            <TabsTab value="ws-west" className="sf-ui-tabs-tab">West</TabsTab>
+          </TabsList>
+        </Tabs>
+      }
+    >
+      <div style={{ display: 'grid', gap: 14 }}>
+        <Table compact striped>
+          <TableHead>
+            <TableRow>
+              <TableHeader style={{ width: 76 }}>ID</TableHeader>
+              <TableHeader>Rule name</TableHeader>
+              <TableHeader style={{ width: 76 }}>Weight</TableHeader>
+              <TableHeader style={{ width: 96 }}>Status</TableHeader>
+              <TableHeader style={{ width: 196 }}>Actions</TableHeader>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {rows.map((row) => (
+              <TableRow key={row.id}>
+                <TableCell><code>{row.id}</code></TableCell>
+                <TableCell>{row.name}</TableCell>
+                <TableCell><Badge variant="outline">{row.weight}</Badge></TableCell>
+                <TableCell>
+                  <Badge variant={row.enabled ? 'success' : 'default'} dot>
+                    {row.enabled ? 'Active' : 'Paused'}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <div style={{ display: 'inline-flex', gap: 6 }}>
+                    <Button
+                      variant={activeRow?.id === row.id ? 'secondary' : 'ghost'}
+                      size="sm"
+                      onClick={() => setSelectedId(row.id)}
+                    >
+                      Inspect
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => void editor.open(row, { id: row.id })}>
+                      Edit in drawer
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+
+        <Drawer
+          open={editor.visible}
+          onOpenChange={(open) => { if (!open) editor.cancel(); }}
+          title={`Shared drawer · ${editor.context?.id ?? ''}`}
+          description="Switching workspace closes and discards this draft via scopeKey"
+          footer={
+            <>
+              <Button variant="outline" size="sm" onClick={() => editor.cancel()}>Cancel</Button>
+              <Button variant="primary" size="sm" onClick={() => void editor.confirm()}>Save</Button>
+            </>
+          }
+        >
+          <Form form={editor.form} kit={siteKit}>
+            <Field<Rule, 'name'> name="name" component={[FieldInput]} />
+            <Field<Rule, 'weight'> name="weight" component={[FieldNumber, { min: 1, max: 100 }]} />
+            <Field<Rule, 'enabled'> name="enabled" component={[FieldSwitch]} />
+          </Form>
+        </Drawer>
+
+        {activeRow && (
+          <Card
+            variant="muted"
+            padding="sm"
+            title={`Live inspector · ${activeRow.id}`}
+            description="Syncs changes immediately via values + onValuesChange without a submit button"
+          >
+            <Form form={inspector} kit={siteKit}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12, alignItems: 'end' }}>
+                <Field<Rule, 'name'> name="name" title="Rule name" component={[FieldInput]} />
+                <Field<Rule, 'weight'> name="weight" title="Priority weight" component={[FieldNumber, { min: 1, max: 100 }]} />
+                <Field<Rule, 'enabled'> name="enabled" title="Enabled" component={[FieldSwitch]} />
+              </div>
+            </Form>
+          </Card>
+        )}
       </div>
-
-      <table>
-        <thead>
-          <tr><th>ID</th><th>Rule name</th><th>Weight</th><th>Actions</th></tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.id}>
-              <td>{row.id}</td>
-              <td>{row.name}</td>
-              <td>{row.weight}</td>
-              <td>
-                <button type="button" onClick={() => setSelectedId(row.id)}>Inspect</button>{' '}
-                <button type="button" onClick={() => void editor.open(row, { id: row.id })}>Edit in drawer</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      {editor.visible && (
-        <div style={{ padding: 10, border: '1px solid #3b82f6', borderRadius: 4 }}>
-          <p style={{ margin: '0 0 8px', fontWeight: 600 }}>Shared editor · {editor.context?.id}</p>
-          <Form form={editor.form}>
-            <Field<Rule, 'name'> name="name">
-              {(f) => <label>Name: <input value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} /></label>}
-            </Field>{' '}
-            <Field<Rule, 'weight'> name="weight">
-              {(f) => <label>Weight: <input type="number" style={{ width: 64 }} value={f.value ?? 1} onChange={(e) => f.onChange(Number(e.target.value))} /></label>}
-            </Field>
-          </Form>
-          <div style={{ marginTop: 8 }}>
-            <button type="button" onClick={() => void editor.confirm()}>Save</button>{' '}
-            <button type="button" onClick={() => editor.cancel()}>Cancel</button>
-          </div>
-        </div>
-      )}
-
-      {activeRow && (
-        <div style={{ padding: 10, border: '1px dashed #94a3b8', borderRadius: 4 }}>
-          <p style={{ margin: '0 0 6px', fontSize: 12 }}>Live inspector (onValuesChange · {activeRow.id}):</p>
-          <Form form={inspector}>
-            <Field<Rule, 'name'> name="name">
-              {(f) => <label>Name: <input value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} /></label>}
-            </Field>{' '}
-            <Field<Rule, 'weight'> name="weight">
-              {(f) => <label>Weight: <input type="number" style={{ width: 64 }} value={f.value ?? 1} onChange={(e) => f.onChange(Number(e.target.value))} /></label>}
-            </Field>
-          </Form>
-        </div>
-      )}
-    </div>
+    </Card>
   );
 }
 ```

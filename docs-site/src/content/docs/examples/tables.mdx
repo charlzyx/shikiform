@@ -10,6 +10,27 @@ description: 演示带条件联动的查询列表、轻量级原生查询实现�
 ```tsx preview play=query
 import { useState } from 'react';
 import { Field, Form, defineEffects, useField, useQueryTable } from '@shikiform/react';
+import {
+  Badge,
+  Button,
+  Card,
+  Checkbox,
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ChevronUpIcon,
+  Empty,
+  Input,
+  SearchIcon,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Tag,
+  Toolbar,
+} from '@site/ui';
 
 type Log = { id: string; keyword: string; provider: string; model: string; status: string };
 type Query = { keyword: string; provider: string; model: string; user: string };
@@ -37,9 +58,9 @@ const effects = defineEffects<Values>(({ reaction, watch }) => {
 function TextFilter() {
   const f = useField<string>();
   return (
-    <label htmlFor={f.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-      {f.title}
-      <input id={f.id} style={{ width: 100 }} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} />
+    <label htmlFor={f.id} className="sf-ui-form-label" style={{ gap: 6 }}>
+      <span>{f.title}</span>
+      <Input id={f.id} size="sm" style={{ width: 112 }} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} />
     </label>
   );
 }
@@ -47,9 +68,14 @@ function TextFilter() {
 function SelectFilter() {
   const f = useField<string>();
   return (
-    <label htmlFor={f.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-      {f.title}
-      <select id={f.id} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)}>
+    <label htmlFor={f.id} className="sf-ui-form-label" style={{ gap: 6 }}>
+      <span>{f.title}</span>
+      <select
+        id={f.id}
+        style={{ minWidth: 112, minHeight: 30, padding: '3px 28px 3px 10px' }}
+        value={f.value ?? ''}
+        onChange={(e) => f.onChange(e.target.value)}
+      >
         <option value="">全部</option>
         {f.options.map((opt) => (
           <option key={String(opt.value)} value={String(opt.value)}>{opt.label}</option>
@@ -83,66 +109,104 @@ export default function App() {
   const toggleSelect = (id: string, checked: boolean) =>
     table.setSelectedKeys(checked ? [...table.selectedKeys, id] : table.selectedKeys.filter((k) => k !== id));
   return (
-    <Form form={table.form} onSubmit={() => table.submit()}>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-        <Field name="query.keyword" title="关键字" component={[TextFilter]} />
-        <Field name="query.provider" title="供应商" component={[SelectFilter]} />
-        <Field name="query.model" title="模型" component={[SelectFilter]} />
-        <span style={{ display: expanded ? 'inline-flex' : 'none' }}>
-          <Field name="query.user" title="用户 ID" component={[TextFilter]} />
-        </span>
-        <button type="submit">查询</button>
-        <button type="button" onClick={table.reset}>重置</button>
-        <button type="button" onClick={() => setExpanded((v) => !v)}>{expanded ? '收起' : '展开'}</button>
-      </div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-        <span>状态筛选：</span>
-        {(['', 'ok', 'error'] as const).map((status) => (
-          <button
-            key={status || 'all'}
-            type="button"
-            style={{ fontWeight: statusFilter === status ? 700 : 400 }}
-            onClick={() => table.setFilters(status ? { status: [status] } : {})}
-          >
-            {status === '' ? '全部' : status === 'ok' ? '成功' : '失败'}
-          </button>
-        ))}
-      </div>
-      <table>
-        <thead>
-          <tr>
-            <th />
-            <th>关键字</th>
-            <th>供应商</th>
-            <th>模型</th>
-            <th>状态</th>
-          </tr>
-        </thead>
-        <tbody>
-          {table.data.map((row) => (
-            <tr key={row.id}>
-              <td>
-                <input
-                  type="checkbox"
-                  aria-label={`选择 ${row.id}`}
-                  checked={table.selectedKeys.includes(row.id)}
-                  onChange={(e) => toggleSelect(row.id, e.target.checked)}
-                />
-              </td>
-              <td>{row.keyword}</td>
-              <td>{row.provider}</td>
-              <td>{row.model}</td>
-              <td>{row.status}</td>
-            </tr>
+    <Card title="日志查询" description="供应商与模型联动筛选，折叠筛选区保留已输入条件，翻页保留已勾选项">
+      <Form form={table.form} onSubmit={() => table.submit()}>
+        <Card variant="muted" padding="sm">
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+            <Field name="query.keyword" title="关键字" component={[TextFilter]} />
+            <Field name="query.provider" title="供应商" component={[SelectFilter]} />
+            <Field name="query.model" title="模型" component={[SelectFilter]} />
+            <span style={{ display: expanded ? 'inline-flex' : 'none' }}>
+              <Field name="query.user" title="用户 ID" component={[TextFilter]} />
+            </span>
+            <Button type="submit" variant="primary" size="sm" icon={<SearchIcon size={13} />}>查询</Button>
+            <Button variant="outline" size="sm" onClick={table.reset}>重置</Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={expanded ? <ChevronUpIcon size={13} /> : <ChevronDownIcon size={13} />}
+              onClick={() => setExpanded((v) => !v)}
+            >
+              {expanded ? '收起' : '展开'}
+            </Button>
+          </div>
+        </Card>
+        <Toolbar>
+          <span style={{ fontSize: 12, color: 'var(--sf-ui-fg-muted)' }}>状态筛选：</span>
+          {(['', 'ok', 'error'] as const).map((status) => (
+            <Button
+              key={status || 'all'}
+              size="sm"
+              variant={statusFilter === status ? 'primary' : 'outline'}
+              onClick={() => table.setFilters(status ? { status: [status] } : {})}
+            >
+              {status === '' ? '全部' : status === 'ok' ? '成功' : '失败'}
+            </Button>
           ))}
-        </tbody>
-      </table>
-      <div style={{ marginTop: 8 }}>
-        <button type="button" disabled={table.page <= 1} onClick={() => table.onPageChange(table.page - 1)}>上一页</button>
-        <span> 第 {table.page} / {pages} 页 · 共 {table.total} 条 · 已选 {table.selectedKeys.length} </span>
-        <button type="button" disabled={table.page >= pages} onClick={() => table.onPageChange(table.page + 1)}>下一页</button>
-      </div>
-    </Form>
+        </Toolbar>
+        <Table compact striped>
+          <TableHead>
+            <TableRow>
+              <TableHeader style={{ width: 38 }} />
+              <TableHeader>关键字</TableHeader>
+              <TableHeader>供应商</TableHeader>
+              <TableHeader>模型</TableHeader>
+              <TableHeader>状态</TableHeader>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {table.data.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5}><Empty compact title="没有匹配的日志" /></TableCell>
+              </TableRow>
+            ) : (
+              table.data.map((row) => (
+                <TableRow key={row.id}>
+                  <TableCell>
+                    <Checkbox
+                      aria-label={`选择 ${row.id}`}
+                      checked={table.selectedKeys.includes(row.id)}
+                      onCheckedChange={(checked) => toggleSelect(row.id, checked)}
+                    />
+                  </TableCell>
+                  <TableCell><code>{row.keyword}</code></TableCell>
+                  <TableCell><Tag variant="outline">{row.provider}</Tag></TableCell>
+                  <TableCell>{row.model}</TableCell>
+                  <TableCell>
+                    <Badge variant={row.status === 'ok' ? 'success' : 'danger'} dot>{row.status}</Badge>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <span style={{ fontSize: 12, color: 'var(--sf-ui-fg-muted)' }}>
+            第 {table.page} / {pages} 页 · 共 {table.total} 条 · 已选 {table.selectedKeys.length}
+          </span>
+          <div style={{ display: 'inline-flex', gap: 6 }}>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={table.page <= 1}
+              icon={<ChevronLeftIcon size={13} />}
+              onClick={() => table.onPageChange(table.page - 1)}
+            >
+              上一页
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={table.page >= pages}
+              onClick={() => table.onPageChange(table.page + 1)}
+            >
+              下一页
+              <ChevronRightIcon size={13} />
+            </Button>
+          </div>
+        </div>
+      </Form>
+    </Card>
   );
 }
 ```
@@ -154,10 +218,25 @@ export default function App() {
 
 ## 极简查询表
 
-**场景**：直接将同一个 `useQueryTable` Hook 接入最精简的原生 HTML 表单和表格。
+**场景**：直接将同一个 `useQueryTable` Hook 接入最精简的表单和表格。
 
 ```tsx preview play=query-native
 import { Field, Form, useQueryTable } from '@shikiform/react';
+import {
+  Badge,
+  Button,
+  Card,
+  Checkbox,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  Input,
+  SearchIcon,
+  Table,
+  TableBody,
+  TableCell,
+  TableRow,
+  Toolbar,
+} from '@site/ui';
 
 type Log = { id: string; keyword: string };
 const LOGS: Log[] = Array.from({ length: 12 }, (_, i) => ({ id: String(i + 1), keyword: `${i % 2 ? 'beta' : 'alpha'}-${i + 1}` }));
@@ -176,26 +255,68 @@ export default function App() {
   const toggle = (id: string, on: boolean) =>
     table.setSelectedKeys(on ? [...table.selectedKeys, id] : table.selectedKeys.filter((key) => key !== id));
   return (
-    <Form form={table.form} onSubmit={() => table.submit()}>
-      <Field name="keyword">
-        {(field) => <input aria-label="关键字" placeholder="alpha" value={field.value} onChange={(event) => field.onChange(event.target.value)} />}
-      </Field>{' '}
-      <button type="submit">查询</button> <button type="button" onClick={table.reset}>重置</button>{' '}
-      <button type="button" onClick={table.refresh}>刷新</button>
-      <table>
-        <tbody>
-          {table.data.map((row) => (
-            <tr key={row.id}>
-              <td><input type="checkbox" aria-label={`选择 ${row.id}`} checked={table.selectedKeys.includes(row.id)} onChange={(event) => toggle(row.id, event.target.checked)} /></td>
-              <td>{row.keyword}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <button type="button" disabled={table.page <= 1} onClick={() => table.onPageChange(table.page - 1)}>上一页</button>
-      <span> {table.page} / {pages} · 已选 {table.selectedKeys.length} {table.loading ? '· 加载中' : ''} </span>
-      <button type="button" disabled={table.page >= pages} onClick={() => table.onPageChange(table.page + 1)}>下一页</button>
-    </Form>
+    <Card title="极简查询表" description="直接接入 useQueryTable 返回的纯状态与操作函数，支持回车触发查询">
+      <Form form={table.form} onSubmit={() => table.submit()}>
+        <Toolbar>
+          <Field name="keyword">
+            {(field) => (
+              <Input
+                size="sm"
+                aria-label="关键字"
+                placeholder="alpha"
+                style={{ width: 160 }}
+                value={field.value}
+                onChange={(event) => field.onChange(event.target.value)}
+              />
+            )}
+          </Field>
+          <Button type="submit" variant="primary" size="sm" icon={<SearchIcon size={13} />}>查询</Button>
+          <Button variant="outline" size="sm" onClick={table.reset}>重置</Button>
+          <Button variant="ghost" size="sm" onClick={table.refresh}>刷新</Button>
+        </Toolbar>
+        <Table compact striped>
+          <TableBody>
+            {table.data.map((row) => (
+              <TableRow key={row.id}>
+                <TableCell style={{ width: 38 }}>
+                  <Checkbox
+                    aria-label={`选择 ${row.id}`}
+                    checked={table.selectedKeys.includes(row.id)}
+                    onCheckedChange={(checked) => toggle(row.id, checked)}
+                  />
+                </TableCell>
+                <TableCell><code>{row.keyword}</code></TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <Badge variant="default">
+            {table.page} / {pages} · 已选 {table.selectedKeys.length}{table.loading ? ' · 加载中' : ''}
+          </Badge>
+          <div style={{ display: 'inline-flex', gap: 6 }}>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={table.page <= 1}
+              icon={<ChevronLeftIcon size={13} />}
+              onClick={() => table.onPageChange(table.page - 1)}
+            >
+              上一页
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={table.page >= pages}
+              onClick={() => table.onPageChange(table.page + 1)}
+            >
+              下一页
+              <ChevronRightIcon size={13} />
+            </Button>
+          </div>
+        </div>
+      </Form>
+    </Card>
   );
 }
 ```
@@ -208,11 +329,39 @@ export default function App() {
 **场景**：表格本身只读展示，点击某行的「编辑」在编辑面板中修改数据；点击取消放弃修改，点击确定校验通过后按 `id` 写回原行。
 
 ```tsx preview play=row-edit
-import { useState } from 'react';
-import { Field, Form, ObjectField, Watch, useForm, type Draft } from '@shikiform/react';
+import { useState, type ReactNode } from 'react';
+import { Field, Form, ObjectField, Watch, useFieldDecorator, useForm, type Draft } from '@shikiform/react';
+import {
+  Badge,
+  Button,
+  Card,
+  FieldInput,
+  Input,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Toolbar,
+} from '@site/ui';
 
 type Row = { id: string; name: string; price: number };
 type Values = { rows: Row[]; editor: Row & { open: boolean } };
+
+function FieldRow({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
+  return (
+    <p className="sf-ui-form-item" style={{ margin: 0 }}>
+      <span className="sf-ui-form-label">
+        <label {...d.labelProps}>{d.label}：</label>
+        {d.required && <span className="sf-ui-form-required" aria-hidden="true">*</span>}
+      </span>
+      {children}
+      {d.errorProps && <small {...d.errorProps} className="sf-ui-form-error">{d.errors[0]}</small>}
+    </p>
+  );
+}
 
 export default function App() {
   const [result, setResult] = useState('');
@@ -237,65 +386,73 @@ export default function App() {
     });
   };
   return (
-    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
-      <Watch select={(d: Draft<Values>) => d.rows.$value}>
-        {(rows) => (
-          <table>
-            <thead>
-              <tr><th>名称</th><th>价格</th><th>操作</th></tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.id}>
-                  <td>{row.name}</td>
-                  <td>{row.price}</td>
-                  <td><button type="button" onClick={() => open(row)}>编辑</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </Watch>
-      <Watch select={(d: Draft<Values>) => d.editor.open.$value}>
-        {(visible) => visible ? (
-          <fieldset style={{ marginTop: 12 }}>
-            <legend>编辑行</legend>
-            <ObjectField name="editor">
-              <Field<Row, 'name'> name="name" title="名称" required>
-                {(f) => (
-                  <p>
-                    <label htmlFor={f.id}>{f.title}：</label>
-                    <input id={f.id} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} onBlur={f.onBlur} />
-                    {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
-                  </p>
-                )}
-              </Field>
-              <Field<Row, 'price'> name="price" title="价格">
-                {(f) => (
-                  <p>
-                    <label htmlFor={f.id}>{f.title}：</label>
-                    <input
-                      id={f.id}
-                      type="number"
-                      min={0}
-                      value={f.value ?? 0}
-                      onChange={(e) => f.onChange(Number(e.target.value))}
-                      onBlur={f.onBlur}
-                    />
-                  </p>
-                )}
-              </Field>
-            </ObjectField>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button type="button" onClick={close}>取消</button>
-              <button type="button" onClick={() => void save()}>确定</button>
-            </div>
-          </fieldset>
-        ) : null}
-      </Watch>
-      <button type="submit" style={{ marginTop: 12 }}>提交（看 editor 不在结果里）</button>
-      <pre>{result}</pre>
-    </Form>
+    <Card title="只读表 + 面板编辑" description="editor 对象标记 omit，校验通过后通过 form.batch 按 id 写回原行">
+      <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
+        <Watch select={(d: Draft<Values>) => d.rows.$value}>
+          {(rows) => (
+            <Table compact striped>
+              <TableHead>
+                <TableRow>
+                  <TableHeader>名称</TableHeader>
+                  <TableHeader>价格</TableHeader>
+                  <TableHeader style={{ width: 96 }}>操作</TableHeader>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {rows.map((row) => (
+                  <TableRow key={row.id}>
+                    <TableCell>{row.name}</TableCell>
+                    <TableCell><Badge variant="outline">¥{row.price}</Badge></TableCell>
+                    <TableCell>
+                      <Button variant="outline" size="sm" onClick={() => open(row)}>编辑</Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </Watch>
+        <Watch select={(d: Draft<Values>) => d.editor.open.$value}>
+          {(visible) => visible ? (
+            <fieldset className="sf-ui-card sf-ui-card--muted" style={{ padding: 16, margin: 0 }}>
+              <legend style={{ padding: '0 6px', fontSize: 12, fontWeight: 600, color: 'var(--sf-ui-fg-muted)' }}>
+                编辑行
+              </legend>
+              <div style={{ display: 'grid', gap: 12 }}>
+                <ObjectField name="editor">
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+                    <Field<Row, 'name'> name="name" title="名称" required decorator={[FieldRow]} component={[FieldInput]} />
+                    <Field<Row, 'price'> name="price" title="价格">
+                      {(f) => (
+                        <p className="sf-ui-form-item" style={{ margin: 0 }}>
+                          <label htmlFor={f.id} className="sf-ui-form-label">{f.title}：</label>
+                          <Input
+                            id={f.id}
+                            type="number"
+                            min={0}
+                            value={f.value ?? 0}
+                            onChange={(e) => f.onChange(Number(e.target.value))}
+                            onBlur={f.onBlur}
+                          />
+                        </p>
+                      )}
+                    </Field>
+                  </div>
+                </ObjectField>
+                <Toolbar>
+                  <Button variant="primary" size="sm" onClick={() => void save()}>确定</Button>
+                  <Button variant="outline" size="sm" onClick={close}>取消</Button>
+                </Toolbar>
+              </div>
+            </fieldset>
+          ) : null}
+        </Watch>
+        <div>
+          <Button type="submit" variant="primary">提交（看 editor 不在结果里）</Button>
+        </div>
+        <pre>{result}</pre>
+      </Form>
+    </Card>
   );
 }
 ```

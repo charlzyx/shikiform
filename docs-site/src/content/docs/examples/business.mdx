@@ -12,6 +12,19 @@ description: SKU 价格表、供应商与产品合并单元格表格，以及可
 ```tsx preview play=sku-editor
 import { useState } from 'react';
 import { Field, Form, useForm, useFormContext, useWatch, type Draft } from '@shikiform/react';
+import {
+  Badge,
+  Button,
+  Card,
+  Checkbox,
+  Input,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@site/ui';
 
 type Sku = { skuId: string; color: string; storage: string; price: number; stock: number; channel: string };
 type Values = { rows: Sku[]; channel: boolean };
@@ -44,39 +57,59 @@ function SkuTable() {
   const paint = (from: string, to: string) =>
     form.setValue('rows', rows.map((row) => (row.color === from ? { ...row, color: to } : row)));
   return (
-    <>
-      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-        <input type="checkbox" checked={channel} onChange={(e) => form.setValue('channel', e.target.checked)} />
-        显示渠道列
-      </label>
-      <table>
-        <thead>
-          <tr>
-            <th>颜色</th>
-            <th>容量</th>
-            <th>价格</th>
-            <th>库存</th>
-            {channel && <th>渠道</th>}
-          </tr>
-        </thead>
-        <tbody>
+    <Card
+      title="SKU 价格矩阵"
+      description="按颜色合并单元格，动态切换渠道列时保留已填价格与库存"
+      extra={
+        <Checkbox checked={channel} onCheckedChange={(checked) => form.setValue('channel', checked)}>
+          显示渠道列
+        </Checkbox>
+      }
+    >
+      <Table compact bordered>
+        <TableHead>
+          <TableRow>
+            <TableHeader>颜色</TableHeader>
+            <TableHeader>容量</TableHeader>
+            <TableHeader>价格</TableHeader>
+            <TableHeader>库存</TableHeader>
+            {channel && <TableHeader>渠道</TableHeader>}
+          </TableRow>
+        </TableHead>
+        <TableBody>
           {rows.map((row, index) => (
-            <tr key={row.skuId}>
+            <TableRow key={row.skuId}>
               {spans[index]! > 0 && (
-                <td rowSpan={spans[index]}>
-                  <input
+                <TableCell rowSpan={spans[index]}>
+                  <Input
+                    size="sm"
                     aria-label="颜色"
-                    style={{ width: 72 }}
+                    style={{ width: 88 }}
                     value={row.color}
                     onChange={(e) => paint(row.color, e.target.value)}
                   />
-                </td>
+                </TableCell>
               )}
-              <td>{row.storage}</td>
-              <td>
+              <TableCell><Badge variant="outline">{row.storage}</Badge></TableCell>
+              <TableCell>
                 <Field name={`rows.${index}.price`}>
                   {(f) => (
-                    <input
+                    <Input
+                      size="sm"
+                      type="number"
+                      min={0}
+                      style={{ width: 84 }}
+                      value={Number(f.value ?? 0)}
+                      onChange={(e) => f.onChange(Number(e.target.value))}
+                    />
+                  )}
+                </Field>
+              </TableCell>
+              <TableCell>
+                <Field name={`rows.${index}.stock`}>
+                  {(f) => (
+                    <Input
+                      size="sm"
                       type="number"
                       min={0}
                       style={{ width: 72 }}
@@ -85,38 +118,27 @@ function SkuTable() {
                     />
                   )}
                 </Field>
-              </td>
-              <td>
-                <Field name={`rows.${index}.stock`}>
-                  {(f) => (
-                    <input
-                      type="number"
-                      min={0}
-                      style={{ width: 64 }}
-                      value={Number(f.value ?? 0)}
-                      onChange={(e) => f.onChange(Number(e.target.value))}
-                    />
-                  )}
-                </Field>
-              </td>
+              </TableCell>
               {channel && (
-                <td>
+                <TableCell>
                   <Field name={`rows.${index}.channel`}>
                     {(f) => (
-                      <input
-                        style={{ width: 88 }}
+                      <Input
+                        size="sm"
+                        placeholder="渠道编码"
+                        style={{ width: 96 }}
                         value={String(f.value ?? '')}
                         onChange={(e) => f.onChange(e.target.value)}
                       />
                     )}
                   </Field>
-                </td>
+                </TableCell>
               )}
-            </tr>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
-    </>
+        </TableBody>
+      </Table>
+    </Card>
   );
 }
 
@@ -126,7 +148,9 @@ export default function App() {
   return (
     <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
       <SkuTable />
-      <button type="submit" style={{ marginTop: 8 }}>提交</button>
+      <div>
+        <Button type="submit" variant="primary">提交</Button>
+      </div>
       <pre>{result}</pre>
     </Form>
   );
@@ -143,12 +167,31 @@ export default function App() {
 
 ```tsx preview play=merged
 import { Field, Form, useArrayField, useField, useForm, useFormContext, useWatch, type Draft } from '@shikiform/react';
+import {
+  Button,
+  Card,
+  Input,
+  PlusIcon,
+  Select,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@site/ui';
 
 type Product = { id: string; name: string; price: number };
 type Supplier = { id: string; name: string; level: 'A' | 'B' | 'C'; products: Product[] };
 type Values = { suppliers: Supplier[] };
 /** 表格的一行 = 一个产品；记下它在嵌套数据里的位置。 */
 type Line = { id: string; s: number; p: number };
+
+const LEVELS = [
+  { label: 'A 级', value: 'A' },
+  { label: 'B 级', value: 'B' },
+  { label: 'C 级', value: 'C' },
+];
 
 let nextProductId = 4;
 
@@ -168,9 +211,16 @@ function computeRowSpans<T>(rows: T[], groupOf: (row: T) => string): number[] {
 function TextCell() {
   const f = useField<string>();
   return (
-    <div>
-      <input style={{ width: 96 }} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} onBlur={f.onBlur} />
-      {f.errors[0] && <div><small role="alert" style={{ color: 'crimson' }}>{f.errors[0]}</small></div>}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <Input
+        size="sm"
+        style={{ width: 120 }}
+        invalid={Boolean(f.errors[0])}
+        value={f.value ?? ''}
+        onChange={(e) => f.onChange(e.target.value)}
+        onBlur={f.onBlur}
+      />
+      {f.errors[0] && <small role="alert" className="sf-ui-form-error">{f.errors[0]}</small>}
     </div>
   );
 }
@@ -178,9 +228,17 @@ function TextCell() {
 function NumberCell() {
   const f = useField<number>();
   return (
-    <div>
-      <input type="number" style={{ width: 80 }} value={f.value ?? 0} onChange={(e) => f.onChange(Number(e.target.value))} onBlur={f.onBlur} />
-      {f.errors[0] && <div><small role="alert" style={{ color: 'crimson' }}>{f.errors[0]}</small></div>}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <Input
+        size="sm"
+        type="number"
+        style={{ width: 96 }}
+        invalid={Boolean(f.errors[0])}
+        value={f.value ?? 0}
+        onChange={(e) => f.onChange(Number(e.target.value))}
+        onBlur={f.onBlur}
+      />
+      {f.errors[0] && <small role="alert" className="sf-ui-form-error">{f.errors[0]}</small>}
     </div>
   );
 }
@@ -188,9 +246,14 @@ function NumberCell() {
 function AddProduct({ supplierIndex }: { supplierIndex: number }) {
   const products = useArrayField(`suppliers.${supplierIndex}.products`);
   return (
-    <button type="button" onClick={() => products.push({ id: `p${nextProductId++}`, name: '新产品', price: 1 })}>
+    <Button
+      variant="outline"
+      size="sm"
+      icon={<PlusIcon size={12} />}
+      onClick={() => products.push({ id: `p${nextProductId++}`, name: '新产品', price: 1 })}
+    >
       加产品
-    </button>
+    </Button>
   );
 }
 
@@ -200,62 +263,71 @@ function Suppliers() {
   const lines: Line[] = suppliers.flatMap((supplier, s) => supplier.products.map((product, p) => ({ id: product.id, s, p })));
   const spans = computeRowSpans(lines, (line) => suppliers[line.s]!.id);
   return (
-    <>
-      <table>
-        <thead>
-          <tr>
-            <th>供应商</th>
-            <th>产品</th>
-            <th>单价</th>
-          </tr>
-        </thead>
-        <tbody>
-          {lines.map((line, index) => (
-            <tr key={line.id}>
-              {spans[index]! > 0 && (
-                <td rowSpan={spans[index]} style={{ verticalAlign: 'top' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <Field
-                      name={`suppliers.${line.s}.name`}
-                      component={[TextCell]}
-                      rules={[
-                        { required: true },
-                        { validator: (value, ctx) => ((ctx.array as Supplier[] | undefined)?.filter((item) => item.name === value).length ?? 0) > 1 ? '供应商重名' : null },
-                      ]}
-                    />
-                    <Field name={`suppliers.${line.s}.level`}>
-                      {(f) => (
-                        <select value={String(f.value ?? 'A')} onChange={(e) => f.onChange(e.target.value)}>
-                          {(['A', 'B', 'C'] as const).map((level) => (
-                            <option key={level} value={level}>{level} 级</option>
-                          ))}
-                        </select>
-                      )}
-                    </Field>
-                    <AddProduct supplierIndex={line.s} />
-                  </div>
-                </td>
-              )}
-              <td>
-                <Field name={`suppliers.${line.s}.products.${line.p}.name`} component={[TextCell]} />
-              </td>
-              <td>
-                <Field
-                  name={`suppliers.${line.s}.products.${line.p}.price`}
-                  component={[NumberCell]}
-                  rules={{
-                    validator: (value, ctx) => (ctx.parent?.level === 'C' && Number(value) > 1000 ? 'C 级供应商单价不能超过 1000' : null),
-                  }}
-                />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <button type="button" style={{ marginTop: 8 }} onClick={() => { void form.validate().catch(() => {}); }}>
-        校验
-      </button>
-    </>
+    <Card
+      title="供应商与产品报价"
+      description="保留嵌套数据结构，通过 ctx.array 与 ctx.parent 完成跨行重名和等级限价校验"
+    >
+      <div style={{ display: 'grid', gap: 12 }}>
+        <Table compact bordered>
+          <TableHead>
+            <TableRow>
+              <TableHeader>供应商</TableHeader>
+              <TableHeader>产品</TableHeader>
+              <TableHeader>单价</TableHeader>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {lines.map((line, index) => (
+              <TableRow key={line.id}>
+                {spans[index]! > 0 && (
+                  <TableCell rowSpan={spans[index]} style={{ verticalAlign: 'top' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <Field
+                        name={`suppliers.${line.s}.name`}
+                        component={[TextCell]}
+                        rules={[
+                          { required: true },
+                          { validator: (value, ctx) => ((ctx.array as Supplier[] | undefined)?.filter((item) => item.name === value).length ?? 0) > 1 ? '供应商重名' : null },
+                        ]}
+                      />
+                      <Field name={`suppliers.${line.s}.level`}>
+                        {(f) => (
+                          <Select
+                            size="sm"
+                            style={{ width: 120 }}
+                            options={LEVELS}
+                            value={String(f.value ?? 'A')}
+                            onChange={(next) => f.onChange(next)}
+                          />
+                        )}
+                      </Field>
+                      <AddProduct supplierIndex={line.s} />
+                    </div>
+                  </TableCell>
+                )}
+                <TableCell>
+                  <Field name={`suppliers.${line.s}.products.${line.p}.name`} component={[TextCell]} />
+                </TableCell>
+                <TableCell>
+                  <Field
+                    name={`suppliers.${line.s}.products.${line.p}.price`}
+                    component={[NumberCell]}
+                    rules={{
+                      validator: (value, ctx) => (ctx.parent?.level === 'C' && Number(value) > 1000 ? 'C 级供应商单价不能超过 1000' : null),
+                    }}
+                  />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        <div>
+          <Button variant="primary" size="sm" onClick={() => { void form.validate().catch(() => {}); }}>
+            校验
+          </Button>
+        </div>
+      </div>
+    </Card>
   );
 }
 
@@ -283,6 +355,19 @@ export default function App() {
 ```tsx preview play=orders
 import { Fragment, useState } from 'react';
 import { ArrayField, Field, Form, defineEffects, useField, useForm, useRecord } from '@shikiform/react';
+import {
+  Badge,
+  Button,
+  Card,
+  Checkbox,
+  Input,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@site/ui';
 
 type Item = { id: string; sku: string; qty: number; price: number; line: number };
 type Order = { id: string; no: string; status: string; amount: number; items: Item[] };
@@ -293,6 +378,7 @@ const STATUS = [
   { label: '已付款', value: 'paid' },
   { label: '已发货', value: 'shipped' },
 ];
+const STATUS_VARIANT = { pending: 'warning', paid: 'brand', shipped: 'success' } as const;
 
 const effects = defineEffects<Values>(({ reaction, draft }) => {
   reaction((d) => {
@@ -315,20 +401,22 @@ const effects = defineEffects<Values>(({ reaction, draft }) => {
 function NumberCell({ min }: { min?: number }) {
   const f = useField<number>();
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       {f.readOnly ? (
-        <span>{f.value}</span>
+        <span style={{ fontWeight: 500 }}>{f.value}</span>
       ) : (
-        <input
+        <Input
+          size="sm"
           type="number"
           min={min}
-          style={{ width: 68 }}
+          style={{ width: 76 }}
+          invalid={Boolean(f.errors[0])}
           value={f.value ?? 0}
           onChange={(e) => f.onChange(Number(e.target.value))}
           onBlur={f.onBlur}
         />
       )}
-      {f.errors[0] && <div><small role="alert" style={{ color: 'crimson' }}>{f.errors[0]}</small></div>}
+      {f.errors[0] && <small role="alert" className="sf-ui-form-error">{f.errors[0]}</small>}
     </div>
   );
 }
@@ -336,9 +424,9 @@ function NumberCell({ min }: { min?: number }) {
 function ItemRow() {
   const item = useRecord<Item>();
   return (
-    <tr>
-      <td><code>{item.sku}</code></td>
-      <td>
+    <TableRow>
+      <TableCell><code>{item.sku}</code></TableCell>
+      <TableCell>
         <Field
           name="qty"
           component={[NumberCell, { min: 1 }]}
@@ -346,10 +434,10 @@ function ItemRow() {
             validator: (value, ctx) => (ctx.parent?.status === 'pending' && Number(value) > 99 ? '待付款单行不能超过 99' : null),
           }}
         />
-      </td>
-      <td><Field name="price" component={[NumberCell, { min: 0 }]} /></td>
-      <td><Field name="line" readOnly component={[NumberCell]} /></td>
-    </tr>
+      </TableCell>
+      <TableCell><Field name="price" component={[NumberCell, { min: 0 }]} /></TableCell>
+      <TableCell><Field name="line" readOnly component={[NumberCell]} /></TableCell>
+    </TableRow>
   );
 }
 
@@ -357,43 +445,56 @@ function OrderRow({ expanded, onToggle }: { expanded: boolean; onToggle: () => v
   const record = useRecord<Order>();
   return (
     <Fragment>
-      <tr>
-        <td>
-          <button type="button" onClick={onToggle}>{expanded ? '▾' : '▸'}</button>
-        </td>
-        <td>{record.no}</td>
-        <td>
+      <TableRow>
+        <TableCell style={{ width: 42 }}>
+          <Button variant="ghost" size="sm" onClick={onToggle}>{expanded ? '▾' : '▸'}</Button>
+        </TableCell>
+        <TableCell><strong>{record.no}</strong></TableCell>
+        <TableCell>
           <Field name="status" enum={STATUS}>
             {(f) => f.readOnly ? (
-              <span>{f.options.find((o) => o.value === f.value)?.label ?? String(f.value)}</span>
+              <Badge variant={STATUS_VARIANT[String(f.value) as keyof typeof STATUS_VARIANT] ?? 'default'} dot>
+                {f.options.find((o) => o.value === f.value)?.label ?? String(f.value)}
+              </Badge>
             ) : (
-              <select value={String(f.value ?? '')} onChange={(e) => f.onChange(e.target.value)}>
+              <select
+                style={{ minWidth: 112, minHeight: 30, padding: '3px 28px 3px 10px' }}
+                value={String(f.value ?? '')}
+                onChange={(e) => f.onChange(e.target.value)}
+              >
                 {f.options.map((opt) => (
                   <option key={String(opt.value)} value={String(opt.value)}>{opt.label}</option>
                 ))}
               </select>
             )}
           </Field>
-        </td>
-        <td>
-          <Field name="amount" readOnly component={[NumberCell]} />
-        </td>
-      </tr>
+        </TableCell>
+        <TableCell>
+          <Badge variant="brand">
+            <Field name="amount" readOnly component={[NumberCell]} />
+          </Badge>
+        </TableCell>
+      </TableRow>
       {expanded && (
-        <tr>
-          <td colSpan={4} style={{ paddingLeft: 24 }}>
-            <table>
-              <thead>
-                <tr><th>商品</th><th>数量</th><th>单价</th><th>行金额</th></tr>
-              </thead>
-              <tbody>
+        <TableRow style={{ background: 'var(--sf-ui-muted)' }}>
+          <TableCell colSpan={4} style={{ padding: '10px 14px 10px 36px' }}>
+            <Table compact>
+              <TableHead>
+                <TableRow>
+                  <TableHeader>商品</TableHeader>
+                  <TableHeader>数量</TableHeader>
+                  <TableHeader>单价</TableHeader>
+                  <TableHeader>行金额</TableHeader>
+                </TableRow>
+              </TableHead>
+              <TableBody>
                 <ArrayField name="items" rowKey="id">
                   {() => <ItemRow />}
                 </ArrayField>
-              </tbody>
-            </table>
-          </td>
-        </tr>
+              </TableBody>
+            </Table>
+          </TableCell>
+        </TableRow>
       )}
     </Fragment>
   );
@@ -415,26 +516,35 @@ export default function App() {
   const toggle = (id: string) => setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
   return (
     <Form form={form}>
-      <Field<Values, 'editable'> name="editable" title="可编辑">
-        {(f) => (
-          <p>
-            <label htmlFor={f.id}>
-              <input id={f.id} type="checkbox" checked={Boolean(f.value)} onChange={(e) => f.onChange(e.target.checked)} />{' '}
-              {f.title}
-            </label>
-          </p>
-        )}
-      </Field>
-      <table>
-        <thead>
-          <tr><th /><th>订单号</th><th>状态</th><th>合计</th></tr>
-        </thead>
-        <tbody>
-          <ArrayField name="orders" rowKey="id">
-            {({ key }) => <OrderRow expanded={Boolean(expanded[key])} onToggle={() => toggle(key)} />}
-          </ArrayField>
-        </tbody>
-      </table>
+      <Card
+        title="订单与明细表"
+        description="按订单实时派生总计，已发货整单只读但状态列可切回已付款"
+        extra={
+          <Field<Values, 'editable'> name="editable" title="可编辑">
+            {(f) => (
+              <Checkbox id={f.id} checked={Boolean(f.value)} onCheckedChange={(checked) => f.onChange(checked)}>
+                {f.title}
+              </Checkbox>
+            )}
+          </Field>
+        }
+      >
+        <Table compact>
+          <TableHead>
+            <TableRow>
+              <TableHeader style={{ width: 42 }} />
+              <TableHeader>订单号</TableHeader>
+              <TableHeader>状态</TableHeader>
+              <TableHeader>合计</TableHeader>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            <ArrayField name="orders" rowKey="id">
+              {({ key }) => <OrderRow expanded={Boolean(expanded[key])} onToggle={() => toggle(key)} />}
+            </ArrayField>
+          </TableBody>
+        </Table>
+      </Card>
     </Form>
   );
 }
@@ -452,6 +562,17 @@ export default function App() {
 ```tsx preview
 import { useState } from 'react';
 import { defineEffects, Field, Form, Submit, useForm, useWatch, type Draft } from '@shikiform/react';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  Dialog,
+  FieldInput,
+  FieldNumber,
+  FieldRadioGroup,
+  siteKit,
+} from '@site/ui';
 
 type PolicyType = 'flash' | 'bundle' | 'referral';
 type PolicyDto = {
@@ -511,11 +632,11 @@ const policyEffects = defineEffects<PolicyValues>(({ reaction }) => {
 
 function RiskBanner() {
   const budget = useWatch((d: Draft<PolicyValues>) => d.budget.$value);
-  if (budget < 50000) return null;
+  if ((budget ?? 0) < 50000) return null;
   return (
-    <p style={{ margin: '6px 0', padding: '6px 10px', border: '1px solid #f59e0b', borderRadius: 4, fontSize: 12 }}>
-      高预算策略（≥ ¥50,000）：提交时将触发二次风控确认。
-    </p>
+    <Alert variant="warning" title="高预算风控提示">
+      当前预算 ≥ ¥50,000，提交时将触发二次风控确认弹窗。
+    </Alert>
   );
 }
 
@@ -553,83 +674,69 @@ export default function App() {
   });
 
   return (
-    <Form
-      form={form}
-      onSubmit={(values) => {
-        const dto = toApi(values, INITIAL_DTO.policy_id);
-        if (dto.budget_cents >= 5000000) {
-          setPendingDto(dto);
-          return;
-        }
-        setSavedDto(dto);
-      }}
+    <Card
+      title="促销策略配置"
+      description="显隐矩阵 + fromApi / toApi 双向适配器 + 高预算二次确认门禁"
+      extra={<Badge variant="outline">{INITIAL_DTO.policy_id}</Badge>}
+      style={{ maxWidth: 520 }}
     >
-      <div style={{ display: 'grid', gap: 8, maxWidth: 420 }}>
-        <Field<PolicyValues, 'type'> name="type">
-          {(f) => (
-            <label>
-              {f.title}：
-              <select value={f.value} onChange={(e) => f.onChange(e.target.value as PolicyType)}>
-                {f.options.map((opt) => (
-                  <option key={String(opt.value)} value={String(opt.value)}>{opt.label}</option>
-                ))}
-              </select>
-            </label>
-          )}
-        </Field>
-        <Field<PolicyValues, 'title'> name="title">
-          {(f) => (
-            <label>
-              {f.title}：
-              <input value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} />
-              {f.errors[0] && <span style={{ color: '#dc2626', marginLeft: 6 }}>{f.errors[0]}</span>}
-            </label>
-          )}
-        </Field>
-        <Field<PolicyValues, 'budget'> name="budget">
-          {(f) => (
-            <label>
-              {f.title}：
-              <input type="number" value={f.value ?? 0} onChange={(e) => f.onChange(Number(e.target.value))} />
-            </label>
-          )}
-        </Field>
+      <Form
+        form={form}
+        kit={siteKit}
+        onSubmit={(values) => {
+          const dto = toApi(values, INITIAL_DTO.policy_id);
+          if (dto.budget_cents >= 5000000) {
+            setPendingDto(dto);
+            return;
+          }
+          setSavedDto(dto);
+        }}
+      >
+        <Field<PolicyValues, 'type'> name="type" component={[FieldRadioGroup]} />
+        <Field<PolicyValues, 'title'> name="title" component={[FieldInput]} />
+        <Field<PolicyValues, 'budget'> name="budget" component={[FieldNumber, { min: 100, step: 1000, prefix: '¥' }]} />
         <RiskBanner />
-        <Field<PolicyValues, 'flashCap'> name="flashCap">
-          {(f) => (
-            <label>
-              {f.title}：
-              <input type="number" value={f.value ?? 1} onChange={(e) => f.onChange(Number(e.target.value))} />
-            </label>
-          )}
-        </Field>
-        <Field<PolicyValues, 'bundleMinItems'> name="bundleMinItems">
-          {(f) => (
-            <label>
-              {f.title}：
-              <input type="number" value={f.value ?? 2} onChange={(e) => f.onChange(Number(e.target.value))} />
-            </label>
-          )}
-        </Field>
-        <Field<PolicyValues, 'referralBonus'> name="referralBonus">
-          {(f) => (
-            <label>
-              {f.title}：
-              <input type="number" value={f.value ?? 1} onChange={(e) => f.onChange(Number(e.target.value))} />
-            </label>
-          )}
-        </Field>
-        <Submit>{(s) => <button type="submit" disabled={s.disabled}>提交策略</button>}</Submit>
-      </div>
-      {pendingDto && (
-        <div style={{ marginTop: 8, padding: 8, border: '1px solid #f59e0b', borderRadius: 4 }}>
-          <p style={{ margin: '0 0 6px' }}>预算达到 ¥{pendingDto.budget_cents / 100}，确认发布？</p>
-          <button type="button" onClick={() => { setSavedDto(pendingDto); setPendingDto(null); }}>确认发布</button>{' '}
-          <button type="button" onClick={() => setPendingDto(null)}>取消</button>
+        <Field<PolicyValues, 'flashCap'> name="flashCap" component={[FieldNumber, { min: 1 }]} />
+        <Field<PolicyValues, 'bundleMinItems'> name="bundleMinItems" component={[FieldNumber, { min: 2 }]} />
+        <Field<PolicyValues, 'referralBonus'> name="referralBonus" component={[FieldNumber, { min: 1, prefix: '¥' }]} />
+        <div>
+          <Submit>
+            {(s) => <Button type="submit" variant="primary" disabled={s.disabled}>提交策略</Button>}
+          </Submit>
         </div>
-      )}
-      {savedDto && <pre style={{ marginTop: 8, fontSize: 12 }}>{JSON.stringify(savedDto, null, 2)}</pre>}
-    </Form>
+        <Dialog
+          open={Boolean(pendingDto)}
+          onOpenChange={(open) => { if (!open) setPendingDto(null); }}
+          title="高预算风控确认"
+          description={pendingDto ? `当前策略预算达到 ¥${(pendingDto.budget_cents / 100).toLocaleString()}，确认立即发布？` : undefined}
+          size="sm"
+          footer={
+            <>
+              <Button variant="outline" size="sm" onClick={() => setPendingDto(null)}>取消</Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => {
+                  if (pendingDto) setSavedDto(pendingDto);
+                  setPendingDto(null);
+                }}
+              >
+                确认发布
+              </Button>
+            </>
+          }
+        >
+          {pendingDto && (
+            <pre style={{ margin: 0 }}>{JSON.stringify(pendingDto, null, 2)}</pre>
+          )}
+        </Dialog>
+        {savedDto && (
+          <Card variant="muted" padding="sm" title="已提交至接口的 DTO">
+            <pre style={{ margin: 0 }}>{JSON.stringify(savedDto, null, 2)}</pre>
+          </Card>
+        )}
+      </Form>
+    </Card>
   );
 }
 ```
@@ -644,6 +751,25 @@ export default function App() {
 ```tsx preview
 import { useState } from 'react';
 import { Field, Form, useForm, useShadowForm } from '@shikiform/react';
+import {
+  Badge,
+  Button,
+  Card,
+  Drawer,
+  FieldInput,
+  FieldNumber,
+  FieldSwitch,
+  siteKit,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Tabs,
+  TabsList,
+  TabsTab,
+} from '@site/ui';
 
 type Rule = { id: string; name: string; weight: number; enabled: boolean };
 
@@ -670,6 +796,7 @@ export default function App() {
     fields: {
       name: { title: '规则名称', required: true },
       weight: { title: '优先级权重', required: true, rules: { min: 1, max: 100 } },
+      enabled: { title: '启用状态' },
     },
     onOk: (values, ctx) => {
       if (!ctx) return;
@@ -693,73 +820,109 @@ export default function App() {
   });
 
   return (
-    <div style={{ display: 'grid', gap: 12 }}>
-      <div>
-        工作空间：
-        <button type="button" onClick={() => { setWorkspace('ws-east'); setSelectedId('R-01'); }}>
-          华东 ({workspace === 'ws-east' ? '当前' : '切换'})
-        </button>{' '}
-        <button type="button" onClick={() => { setWorkspace('ws-west'); setSelectedId('R-09'); }}>
-          华西 ({workspace === 'ws-west' ? '当前' : '切换'})
-        </button>
+    <Card
+      title="多租户规则管理"
+      description="整表共享唯一抽屉草稿实例（切换工作空间自动取消），下方属性面板实时同步"
+      extra={
+        <Tabs
+          variant="segmented"
+          value={workspace}
+          onValueChange={(next) => {
+            const ws = next as 'ws-east' | 'ws-west';
+            setWorkspace(ws);
+            setSelectedId(ws === 'ws-east' ? 'R-01' : 'R-09');
+          }}
+        >
+          <TabsList className="sf-ui-tabs-list" style={{ marginBottom: 0 }}>
+            <TabsTab value="ws-east" className="sf-ui-tabs-tab">华东</TabsTab>
+            <TabsTab value="ws-west" className="sf-ui-tabs-tab">华西</TabsTab>
+          </TabsList>
+        </Tabs>
+      }
+    >
+      <div style={{ display: 'grid', gap: 14 }}>
+        <Table compact striped>
+          <TableHead>
+            <TableRow>
+              <TableHeader style={{ width: 76 }}>编号</TableHeader>
+              <TableHeader>规则名称</TableHeader>
+              <TableHeader style={{ width: 76 }}>权重</TableHeader>
+              <TableHeader style={{ width: 88 }}>状态</TableHeader>
+              <TableHeader style={{ width: 184 }}>操作</TableHeader>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {rows.map((row) => (
+              <TableRow key={row.id}>
+                <TableCell><code>{row.id}</code></TableCell>
+                <TableCell>{row.name}</TableCell>
+                <TableCell><Badge variant="outline">{row.weight}</Badge></TableCell>
+                <TableCell>
+                  <Badge variant={row.enabled ? 'success' : 'default'} dot>
+                    {row.enabled ? '已启用' : '已停用'}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <div style={{ display: 'inline-flex', gap: 6 }}>
+                    <Button
+                      variant={activeRow?.id === row.id ? 'secondary' : 'ghost'}
+                      size="sm"
+                      onClick={() => setSelectedId(row.id)}
+                    >
+                      选中实时改
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => void editor.open(row, { id: row.id })}>
+                      共享抽屉改
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+
+        <Drawer
+          open={editor.visible}
+          onOpenChange={(open) => { if (!open) editor.cancel(); }}
+          title={`共享抽屉编辑 · ${editor.context?.id ?? ''}`}
+          description="切换工作空间时 scopeKey 会自动关闭并丢弃未保存的草稿"
+          footer={
+            <>
+              <Button variant="outline" size="sm" onClick={() => editor.cancel()}>取消</Button>
+              <Button variant="primary" size="sm" onClick={() => void editor.confirm()}>确认写回</Button>
+            </>
+          }
+        >
+          <Form form={editor.form} kit={siteKit}>
+            <Field<Rule, 'name'> name="name" component={[FieldInput]} />
+            <Field<Rule, 'weight'> name="weight" component={[FieldNumber, { min: 1, max: 100 }]} />
+            <Field<Rule, 'enabled'> name="enabled" component={[FieldSwitch]} />
+          </Form>
+        </Drawer>
+
+        {activeRow && (
+          <Card
+            variant="muted"
+            padding="sm"
+            title={`实时属性面板 · ${activeRow.id}`}
+            description="使用 values + onValuesChange 即时写回选中行，无需点击提交"
+          >
+            <Form form={inspector} kit={siteKit}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12, alignItems: 'end' }}>
+                <Field<Rule, 'name'> name="name" title="规则名称" component={[FieldInput]} />
+                <Field<Rule, 'weight'> name="weight" title="优先级权重" component={[FieldNumber, { min: 1, max: 100 }]} />
+                <Field<Rule, 'enabled'> name="enabled" title="启用状态" component={[FieldSwitch]} />
+              </div>
+            </Form>
+          </Card>
+        )}
       </div>
-
-      <table>
-        <thead>
-          <tr><th>编号</th><th>规则名称</th><th>权重</th><th>操作</th></tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.id}>
-              <td>{row.id}</td>
-              <td>{row.name}</td>
-              <td>{row.weight}</td>
-              <td>
-                <button type="button" onClick={() => setSelectedId(row.id)}>选中实时改</button>{' '}
-                <button type="button" onClick={() => void editor.open(row, { id: row.id })}>共享浮层改</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      {editor.visible && (
-        <div style={{ padding: 10, border: '1px solid #3b82f6', borderRadius: 4 }}>
-          <p style={{ margin: '0 0 8px', fontWeight: 600 }}>共享浮层编辑 · {editor.context?.id}</p>
-          <Form form={editor.form}>
-            <Field<Rule, 'name'> name="name">
-              {(f) => <label>名称：<input value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} /></label>}
-            </Field>{' '}
-            <Field<Rule, 'weight'> name="weight">
-              {(f) => <label>权重：<input type="number" style={{ width: 64 }} value={f.value ?? 1} onChange={(e) => f.onChange(Number(e.target.value))} /></label>}
-            </Field>
-          </Form>
-          <div style={{ marginTop: 8 }}>
-            <button type="button" onClick={() => void editor.confirm()}>确认写回</button>{' '}
-            <button type="button" onClick={() => editor.cancel()}>取消</button>
-          </div>
-        </div>
-      )}
-
-      {activeRow && (
-        <div style={{ padding: 10, border: '1px dashed #94a3b8', borderRadius: 4 }}>
-          <p style={{ margin: '0 0 6px', fontSize: 12 }}>实时属性面板（onValuesChange 即时同步 · {activeRow.id}）：</p>
-          <Form form={inspector}>
-            <Field<Rule, 'name'> name="name">
-              {(f) => <label>名称：<input value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} /></label>}
-            </Field>{' '}
-            <Field<Rule, 'weight'> name="weight">
-              {(f) => <label>权重：<input type="number" style={{ width: 64 }} value={f.value ?? 1} onChange={(e) => f.onChange(Number(e.target.value))} /></label>}
-            </Field>
-          </Form>
-        </div>
-      )}
-    </div>
+    </Card>
   );
 }
 ```
 
-- 打开任意一行的「共享浮层改」后，点击顶部切换工作空间，`scopeKey` 会立即关闭旧租户浮层，避免把旧租户草稿误提交到新租户。
+- 打开任意一行的「共享抽屉改」后，点击顶部切换工作空间，`scopeKey` 会立即关闭旧租户浮层，避免把旧租户草稿误提交到新租户。
 - 下方属性面板结合 `values`（切换选中行自动重置）与 `onValuesChange`（仅用户编辑触发，外部重置不回弹），适合菜单编辑器、节点属性面板等即时生效场景。
 
 回到 [示例库](/examples)。

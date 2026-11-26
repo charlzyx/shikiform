@@ -12,6 +12,23 @@ Page, select, expand and move rows. Try changing columns or deleting a row with 
 ```tsx preview play=array-table
 import { Fragment, useState } from 'react';
 import { enUS, Field, Form, ObjectField, useArrayTable, useForm } from '@shikiform/react';
+import {
+  Badge,
+  Button,
+  Card,
+  Checkbox,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  Input,
+  PlusIcon,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Toolbar,
+} from '@site/ui';
 
 type Item = { a1: string; a2: string };
 type Row = Item & { id: string; subitems?: Item[] };
@@ -34,97 +51,119 @@ function TableDemo() {
     onRemove: () => new Promise<void>((resolve) => setTimeout(resolve, 400)),
   });
   return (
-    <>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-        <button type="button" onClick={() => setNotice(`Selected: ${table.selectedKeys.join(', ') || 'none'}`)}>
-          Show selection
-        </button>
-        <button type="button" onClick={() => table.add({ id: String(nextId++), a1: '', a2: '' })}>
-          Add row
-        </button>
-        {notice && <small>{notice}</small>}
-      </div>
-      <table>
-        <thead>
-          <tr>
-            <th />
-            <th />
-            <th>#</th>
-            <th>A1</th>
-            <th>A2</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {table.pageRows.map((row) => {
-            const expanded = table.expandedKeys.includes(row.key);
-            const expandable = table.isExpandable(row.index);
-            const removing = table.removing.includes(row.key);
-            const record = table.record(row.index);
-            return (
-              <Fragment key={row.key}>
-                <ObjectField name={`list.${row.index}`}>
-                  <tr>
-                    <td>
-                      <input
-                        type="checkbox"
-                        aria-label={`Select ${row.key}`}
-                        checked={table.selectedKeys.includes(row.key)}
-                        onChange={() => table.toggleSelected(row.key)}
-                      />
-                    </td>
-                    <td>
-                      {expandable && (
-                        <button type="button" onClick={() => table.toggleExpanded(row.key)}>
-                          {expanded ? '▾' : '▸'}
-                        </button>
-                      )}
-                    </td>
-                    <td>{row.position}</td>
-                    <td>
-                      <Field<Row, 'a1'> name="a1" required>
-                        {(f) => (
-                          <>
-                            <input style={{ width: 96 }} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} onBlur={f.onBlur} />
-                            {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
-                          </>
+    <Card title="Editable array table" description="Paging, selection, row reordering, async removal and expandable sub-rows">
+      <div style={{ display: 'grid', gap: 12 }}>
+        <Toolbar>
+          <Button variant="primary" size="sm" icon={<PlusIcon size={13} />} onClick={() => table.add({ id: String(nextId++), a1: '', a2: '' })}>
+            Add row
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setNotice(`Selected: ${table.selectedKeys.join(', ') || 'none'}`)}>
+            Show selection
+          </Button>
+          {notice && <Badge variant="brand">{notice}</Badge>}
+        </Toolbar>
+        <Table compact>
+          <TableHead>
+            <TableRow>
+              <TableHeader style={{ width: 36 }} />
+              <TableHeader style={{ width: 38 }} />
+              <TableHeader style={{ width: 44 }}>#</TableHeader>
+              <TableHeader>A1</TableHeader>
+              <TableHeader>A2</TableHeader>
+              <TableHeader>Actions</TableHeader>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {table.pageRows.map((row) => {
+              const expanded = table.expandedKeys.includes(row.key);
+              const expandable = table.isExpandable(row.index);
+              const removing = table.removing.includes(row.key);
+              const record = table.record(row.index);
+              return (
+                <Fragment key={row.key}>
+                  <ObjectField name={`list.${row.index}`}>
+                    <TableRow>
+                      <TableCell>
+                        <Checkbox
+                          aria-label={`Select ${row.key}`}
+                          checked={table.selectedKeys.includes(row.key)}
+                          onCheckedChange={() => table.toggleSelected(row.key)}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        {expandable && (
+                          <Button variant="ghost" size="sm" onClick={() => table.toggleExpanded(row.key)}>
+                            {expanded ? '▾' : '▸'}
+                          </Button>
                         )}
-                      </Field>
-                    </td>
-                    <td>
-                      <Field<Row, 'a2'> name="a2">
-                        {(f) => <input style={{ width: 96 }} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} />}
-                      </Field>
-                    </td>
-                    <td>
-                      <button type="button" disabled={row.index === 0} onClick={() => table.moveUp(row.index)}>Move up</button>{' '}
-                      <button type="button" disabled={row.index >= table.total - 1} onClick={() => table.moveDown(row.index)}>Move down</button>{' '}
-                      <button type="button" disabled={removing} onClick={() => void table.remove(row.index)}>
-                        {removing ? "Deleting…" : "Delete"}
-                      </button>
-                    </td>
-                  </tr>
-                </ObjectField>
-                {expanded && record.subitems && (
-                  <tr>
-                    <td colSpan={6} style={{ paddingLeft: 32 }}>
-                      {record.subitems.map((sub, i) => (
-                        <div key={i}><small>Child #{i + 1}: {sub.a1} / {sub.a2}</small></div>
-                      ))}
-                    </td>
-                  </tr>
-                )}
-              </Fragment>
-            );
-          })}
-        </tbody>
-      </table>
-      <div style={{ marginTop: 8 }}>
-        <button type="button" disabled={table.page <= 1} onClick={() => table.setPage(table.page - 1)}>Previous</button>
-        <span> Page {table.page}/{table.pageCount} of {table.total} rows </span>
-        <button type="button" disabled={table.page >= table.pageCount} onClick={() => table.setPage(table.page + 1)}>Next</button>
+                      </TableCell>
+                      <TableCell><Badge variant="outline">{row.position}</Badge></TableCell>
+                      <TableCell>
+                        <Field<Row, 'a1'> name="a1" required>
+                          {(f) => (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                              <Input
+                                size="sm"
+                                style={{ width: 104 }}
+                                invalid={Boolean(f.errors[0])}
+                                value={f.value ?? ''}
+                                onChange={(e) => f.onChange(e.target.value)}
+                                onBlur={f.onBlur}
+                              />
+                              {f.errors[0] && <small role="alert" className="sf-ui-form-error">{f.errors[0]}</small>}
+                            </div>
+                          )}
+                        </Field>
+                      </TableCell>
+                      <TableCell>
+                        <Field<Row, 'a2'> name="a2">
+                          {(f) => <Input size="sm" style={{ width: 104 }} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} />}
+                        </Field>
+                      </TableCell>
+                      <TableCell>
+                        <div style={{ display: 'inline-flex', gap: 4 }}>
+                          <Button variant="ghost" size="sm" disabled={row.index === 0} onClick={() => table.moveUp(row.index)}>Move up</Button>
+                          <Button variant="ghost" size="sm" disabled={row.index >= table.total - 1} onClick={() => table.moveDown(row.index)}>Move down</Button>
+                          <Button variant="danger" size="sm" loading={removing} onClick={() => void table.remove(row.index)}>
+                            {removing ? 'Deleting…' : 'Delete'}
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  </ObjectField>
+                  {expanded && record.subitems && (
+                    <TableRow style={{ background: 'var(--sf-ui-muted)' }}>
+                      <TableCell colSpan={6} style={{ paddingLeft: 44 }}>
+                        {record.subitems.map((sub, i) => (
+                          <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                            <Badge variant="outline">Child #{i + 1}</Badge>
+                            <small>{sub.a1} / {sub.a2}</small>
+                          </div>
+                        ))}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </Fragment>
+              );
+            })}
+          </TableBody>
+        </Table>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <span style={{ fontSize: 12, color: 'var(--sf-ui-fg-muted)' }}>
+            Page {table.page}/{table.pageCount} of {table.total} rows
+          </span>
+          <div style={{ display: 'inline-flex', gap: 6 }}>
+            <Button variant="outline" size="sm" disabled={table.page <= 1} icon={<ChevronLeftIcon size={13} />} onClick={() => table.setPage(table.page - 1)}>
+              Previous
+            </Button>
+            <Button variant="outline" size="sm" disabled={table.page >= table.pageCount} onClick={() => table.setPage(table.page + 1)}>
+              Next
+              <ChevronRightIcon size={13} />
+            </Button>
+          </div>
+        </div>
       </div>
-    </>
+    </Card>
   );
 }
 
@@ -143,28 +182,46 @@ export default function App() {
 Open a separate form for a new entry or an existing row, then confirm to apply it. Cancel leaves the original record intact.
 
 ```tsx preview play=array-table-shadow
-import { enUS, Field, Form, useArrayTable, useField, useForm, useFormContext, useShadowForm } from '@shikiform/react';
+import type { ReactNode } from 'react';
+import { enUS, Field, Form, useArrayTable, useFieldDecorator, useForm, useFormContext, useShadowForm } from '@shikiform/react';
+import {
+  Badge,
+  Button,
+  Card,
+  FieldInput,
+  PlusIcon,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Toolbar,
+} from '@site/ui';
 
 type Row = { id: string; domain: string; desc: string };
 
-function TextInput() {
-  const f = useField<string>();
+function FieldRow({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
   return (
-    <p>
-      <label htmlFor={f.id}>{f.title}: </label>
-      <input id={f.id} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} onBlur={f.onBlur} />
-      {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
+    <p className="sf-ui-form-item" style={{ margin: 0 }}>
+      <span className="sf-ui-form-label">
+        <label {...d.labelProps}>{d.label}: </label>
+        {d.required && <span className="sf-ui-form-required" aria-hidden="true">*</span>}
+      </span>
+      {children}
+      {d.errorProps && <small {...d.errorProps} className="sf-ui-form-error">{d.errors[0]}</small>}
     </p>
   );
 }
 
 function RowFields() {
   return (
-    <>
-      <Field name="id" component={[TextInput]} />
-      <Field name="domain" component={[TextInput]} />
-      <Field name="desc" component={[TextInput]} />
-    </>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
+      <Field name="id" decorator={[FieldRow]} component={[FieldInput]} />
+      <Field name="domain" decorator={[FieldRow]} component={[FieldInput]} />
+      <Field name="desc" decorator={[FieldRow]} component={[FieldInput]} />
+    </div>
   );
 }
 
@@ -173,10 +230,11 @@ function EditableTable() {
   const table = useArrayTable<Row>('list', { rowKey: 'id', pagination: { pageSize: 5 } });
   const adder = useShadowForm<Row>({ name: 'list', add: { id: '', domain: '', desc: '' } });
   const editor = useShadowForm<Row, string>({
+    formOptions: { messages: enUS },
     fields: {
       id: { title: 'ID', required: true },
-      domain: { title: "Domain", required: true },
-      desc: { title: "Description" },
+      domain: { title: 'Domain', required: true },
+      desc: { title: 'Description' },
     },
     onOk: (values, rowId) => {
       const list = form.getValue('list');
@@ -185,53 +243,67 @@ function EditableTable() {
     },
   });
   return (
-    <>
-      <button type="button" onClick={() => void adder.open()}>Add row</button>
-      <table style={{ marginTop: 8 }}>
-        <thead>
-          <tr><th>ID</th><th>Domain</th><th>Description</th><th>Actions</th></tr>
-        </thead>
-        <tbody>
-          {table.pageRows.map((row) => {
-            const record = table.record(row.index);
-            return (
-              <tr key={row.key}>
-                <td>{record.id}</td>
-                <td>{record.domain}</td>
-                <td>{record.desc || '—'}</td>
-                <td>
-                  <button type="button" onClick={() => void editor.open(record, record.id)}>Edit</button>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      {adder.visible && (
-        <fieldset style={{ marginTop: 12 }}>
-          <legend>Add row</legend>
-          <Form form={adder.form}>
-            <RowFields />
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button type="button" onClick={() => void adder.confirm()}>Confirm</button>
-              <button type="button" onClick={adder.cancel}>Cancel</button>
-            </div>
-          </Form>
-        </fieldset>
-      )}
-      {editor.visible && (
-        <fieldset style={{ marginTop: 12 }}>
-          <legend>Edit row</legend>
-          <Form form={editor.form}>
-            <RowFields />
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button type="button" onClick={() => void editor.confirm()}>Confirm</button>
-              <button type="button" onClick={editor.cancel}>Cancel</button>
-            </div>
-          </Form>
-        </fieldset>
-      )}
-    </>
+    <Card
+      title="Domain list (shadow drafts)"
+      description="Additions and edits run in isolated draft engines before committing to the host list"
+      extra={
+        <Button variant="primary" size="sm" icon={<PlusIcon size={13} />} onClick={() => void adder.open()}>
+          Add row
+        </Button>
+      }
+    >
+      <div style={{ display: 'grid', gap: 14 }}>
+        <Table compact striped>
+          <TableHead>
+            <TableRow>
+              <TableHeader style={{ width: 64 }}>ID</TableHeader>
+              <TableHeader>Domain</TableHeader>
+              <TableHeader>Description</TableHeader>
+              <TableHeader style={{ width: 92 }}>Actions</TableHeader>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {table.pageRows.map((row) => {
+              const record = table.record(row.index);
+              return (
+                <TableRow key={row.key}>
+                  <TableCell><Badge variant="outline">{record.id}</Badge></TableCell>
+                  <TableCell><code>{record.domain}</code></TableCell>
+                  <TableCell>{record.desc || '—'}</TableCell>
+                  <TableCell>
+                    <Button variant="outline" size="sm" onClick={() => void editor.open(record, record.id)}>Edit</Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+        {adder.visible && (
+          <fieldset className="sf-ui-card sf-ui-card--muted" style={{ padding: 16, margin: 0 }}>
+            <legend style={{ padding: '0 6px', fontSize: 12, fontWeight: 600, color: 'var(--sf-ui-fg-muted)' }}>Add row</legend>
+            <Form form={adder.form}>
+              <RowFields />
+              <Toolbar>
+                <Button variant="primary" size="sm" onClick={() => void adder.confirm()}>Confirm</Button>
+                <Button variant="outline" size="sm" onClick={adder.cancel}>Cancel</Button>
+              </Toolbar>
+            </Form>
+          </fieldset>
+        )}
+        {editor.visible && (
+          <fieldset className="sf-ui-card sf-ui-card--muted" style={{ padding: 16, margin: 0 }}>
+            <legend style={{ padding: '0 6px', fontSize: 12, fontWeight: 600, color: 'var(--sf-ui-fg-muted)' }}>Edit row</legend>
+            <Form form={editor.form}>
+              <RowFields />
+              <Toolbar>
+                <Button variant="primary" size="sm" onClick={() => void editor.confirm()}>Confirm</Button>
+                <Button variant="outline" size="sm" onClick={editor.cancel}>Cancel</Button>
+              </Toolbar>
+            </Form>
+          </fieldset>
+        )}
+      </div>
+    </Card>
   );
 }
 
@@ -241,8 +313,8 @@ export default function App() {
     initialValues: { list: [{ id: '1', domain: 'shikiform.dev', desc: 'ping' }, { id: '2', domain: 'example.com', desc: '' }] },
     fields: {
       'list.*.id': { title: 'ID', required: true },
-      'list.*.domain': { title: "Domain", required: true },
-      'list.*.desc': { title: "Description" },
+      'list.*.domain': { title: 'Domain', required: true },
+      'list.*.desc': { title: 'Description' },
     },
   });
   return (
@@ -258,18 +330,22 @@ export default function App() {
 Render a temporary form inside a modal, a drawer, a popover or inline. The draft lifecycle is independent of the container.
 
 ```tsx preview play=shadow-form
-import { useState } from 'react';
-import { enUS, Field, Form, Watch, useField, useForm, useShadowForm, type Draft } from '@shikiform/react';
+import { useState, type ReactNode } from 'react';
+import { enUS, Field, Form, Watch, useFieldDecorator, useForm, useShadowForm, type Draft } from '@shikiform/react';
+import { Alert, Button, Card, FieldInput, Toolbar } from '@site/ui';
 
 type Info = { domain: string; desc: string };
 
-function TextInput() {
-  const f = useField<string>();
+function FieldRow({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
   return (
-    <p>
-      <label htmlFor={f.id}>{f.title}: </label>
-      <input id={f.id} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} onBlur={f.onBlur} />
-      {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
+    <p className="sf-ui-form-item" style={{ margin: 0 }}>
+      <span className="sf-ui-form-label">
+        <label {...d.labelProps}>{d.label}: </label>
+        {d.required && <span className="sf-ui-form-required" aria-hidden="true">*</span>}
+      </span>
+      {children}
+      {d.errorProps && <small {...d.errorProps} className="sf-ui-form-error">{d.errors[0]}</small>}
     </p>
   );
 }
@@ -283,26 +359,32 @@ export default function App() {
     onOk: (values) => setLog(`Saved: ${JSON.stringify(values)}`),
   });
   return (
-    <Form form={form}>
-      <Watch select={(d: Draft<{ info: Info }>) => d.info.$value}>
-        {(info) => <p>Host value: {info.domain} · {info.desc}</p>}
-      </Watch>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button type="button" onClick={() => void shadow.open()}>Open draft</button>
-        <button type="button" disabled={!shadow.visible} onClick={() => void shadow.confirm()}>Save</button>
-        <button type="button" disabled={!shadow.visible} onClick={shadow.cancel}>Discard</button>
-      </div>
-      {shadow.visible && (
-        <fieldset style={{ marginTop: 12 }}>
-          <legend>Shadow form</legend>
-          <Form form={shadow.form}>
-            <Field name="domain" title="Domain" required component={[TextInput]} />
-            <Field name="desc" title="Description" component={[TextInput]} />
-          </Form>
-        </fieldset>
-      )}
-      <pre aria-live="polite">{log}</pre>
-    </Form>
+    <Card title="Shadow draft form" description="Isolated engine lifecycle — discard drops edits, save writes back on valid" style={{ maxWidth: 520 }}>
+      <Form form={form}>
+        <Alert variant="info">
+          <Watch select={(d: Draft<{ info: Info }>) => d.info.$value}>
+            {(info) => <p style={{ margin: 0 }}>Host value: {info.domain} · {info.desc}</p>}
+          </Watch>
+        </Alert>
+        <Toolbar>
+          <Button variant="outline" size="sm" onClick={() => void shadow.open()}>Open draft</Button>
+          <Button variant="primary" size="sm" disabled={!shadow.visible} onClick={() => void shadow.confirm()}>Save</Button>
+          <Button variant="ghost" size="sm" disabled={!shadow.visible} onClick={shadow.cancel}>Discard</Button>
+        </Toolbar>
+        {shadow.visible && (
+          <fieldset className="sf-ui-card sf-ui-card--muted" style={{ padding: 16, margin: 0 }}>
+            <legend style={{ padding: '0 6px', fontSize: 12, fontWeight: 600, color: 'var(--sf-ui-fg-muted)' }}>Shadow form</legend>
+            <Form form={shadow.form}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+                <Field name="domain" title="Domain" required decorator={[FieldRow]} component={[FieldInput]} />
+                <Field name="desc" title="Description" decorator={[FieldRow]} component={[FieldInput]} />
+              </div>
+            </Form>
+          </fieldset>
+        )}
+        <pre aria-live="polite">{log}</pre>
+      </Form>
+    </Card>
   );
 }
 ```
@@ -313,18 +395,38 @@ Map filters and sorting into the request. Bind the returned rows to an array fie
 
 ```tsx preview play=query-list
 import { Field, Form, enumItems, useQueryTable } from '@shikiform/react';
+import {
+  Badge,
+  Button,
+  Card,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ChevronsUpDownIcon,
+  Input,
+  SearchIcon,
+  Select,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Tag,
+  Toolbar,
+} from '@site/ui';
 
 type Row = { id: number; status: number; domain: string; classify: number[] };
 type Query = { domain?: string; status?: number };
 type Values = { query: Query; list: Row[] };
 
 const STATUS = [
-  { label: "Pending review", value: 0, color: 'default' },
-  { label: "Running", value: 1, color: 'processing' },
-  { label: "Live", value: 2, color: 'success' },
-  { label: "Error", value: 3, color: 'error' },
+  { label: 'Pending review', value: 0, color: 'default' },
+  { label: 'Running', value: 1, color: 'processing' },
+  { label: 'Live', value: 2, color: 'success' },
+  { label: 'Error', value: 3, color: 'error' },
 ];
-const CLASSIFY = [{ label: "Website", value: 0 }, { label: "Documentation", value: 1 }, { label: "API", value: 2 }];
+const STATUS_VARIANT = { 0: 'default', 1: 'brand', 2: 'success', 3: 'danger' } as const;
+const CLASSIFY = [{ label: 'Website', value: 0 }, { label: 'Documentation', value: 1 }, { label: 'API', value: 2 }];
 
 /** Local service with 25 records, server pagination and ID sorting. */
 async function service(query: Query, page: number, pageSize: number, desc: boolean) {
@@ -356,72 +458,109 @@ export default function App() {
   const desc = table.sortOrderOf('id') === 'descend';
   const pages = Math.max(1, Math.ceil(table.total / table.pageSize));
   return (
-    <Form form={table.form} onSubmit={() => table.submit()}>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-        <Field name="query.domain">
-          {(f) => <input placeholder="Domain keyword" value={String(f.value ?? '')} onChange={(e) => f.onChange(e.target.value)} />}
-        </Field>
-        <Field name="query.status">
-          {(f) => (
-            <select
-              value={f.value === undefined ? '' : String(f.value)}
-              onChange={(e) => f.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
-            >
-              <option value="">All statuses</option>
-              {f.options.map((opt) => (
-                <option key={String(opt.value)} value={String(opt.value)}>{opt.label}</option>
-              ))}
-            </select>
-          )}
-        </Field>
-        <button type="submit">Search</button>
-        <button type="button" onClick={table.reset}>Reset</button>
-        <button type="button" onClick={() => table.setSorter([{ field: 'id', order: desc ? 'ascend' : 'descend' }])}>
-          ID {desc ? "Descending ↓" : "Ascending ↑"}
-        </button>
-      </div>
-      <table>
-        <thead>
-          <tr><th>ID</th><th>Status</th><th>Domain (editable)</th><th>Category</th></tr>
-        </thead>
-        <tbody>
-          {table.data.map((row, index) => {
-            const statusItem = enumItems(row.status, STATUS)[0];
-            const tags = enumItems(row.classify, CLASSIFY, { colorful: true });
-            return (
-              <tr key={row.id}>
-                <td>{row.id}</td>
-                <td>
-                  <span style={{ color: statusItem?.color || undefined }}>● {statusItem?.label}</span>
-                </td>
-                <td>
-                  <Field name={`list.${index}.domain`} required>
-                    {(f) => (
-                      <>
-                        <input value={String(f.value ?? '')} onChange={(e) => f.onChange(e.target.value)} onBlur={f.onBlur} />
-                        {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
-                      </>
-                    )}
-                  </Field>
-                </td>
-                <td>
-                  {tags.map((tag) => (
-                    <span key={String(tag.value)} style={{ border: `1px solid ${tag.color || '#ccc'}`, padding: '0 4px', borderRadius: 3 }}>
-                      {tag.label}
-                    </span>
-                  ))}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      <div style={{ marginTop: 8 }}>
-        <button type="button" disabled={table.page <= 1} onClick={() => table.onPageChange(table.page - 1)}>Previous</button>
-        <span> Page {table.page}/{pages} of {table.total} rows {table.loading ? "· Loading" : ''} </span>
-        <button type="button" disabled={table.page >= pages} onClick={() => table.onPageChange(table.page + 1)}>Next</button>
-      </div>
-    </Form>
+    <Card title="Domain directory" description="Server-side paging, ID sorting, status badges and inline editable fields">
+      <Form form={table.form} onSubmit={() => table.submit()}>
+        <Toolbar>
+          <Field name="query.domain">
+            {(f) => (
+              <Input
+                size="sm"
+                placeholder="Domain keyword"
+                style={{ width: 160 }}
+                value={String(f.value ?? '')}
+                onChange={(e) => f.onChange(e.target.value)}
+              />
+            )}
+          </Field>
+          <Field name="query.status">
+            {(f) => (
+              <Select
+                size="sm"
+                allowClear
+                placeholder="All statuses"
+                style={{ width: 150 }}
+                options={f.options}
+                value={f.value ?? null}
+                onChange={(next) => f.onChange(next)}
+              />
+            )}
+          </Field>
+          <Button type="submit" variant="primary" size="sm" icon={<SearchIcon size={13} />}>Search</Button>
+          <Button variant="outline" size="sm" onClick={table.reset}>Reset</Button>
+          <Button
+            variant="outline"
+            size="sm"
+            icon={<ChevronsUpDownIcon size={13} />}
+            onClick={() => table.setSorter([{ field: 'id', order: desc ? 'ascend' : 'descend' }])}
+          >
+            ID {desc ? 'Descending ↓' : 'Ascending ↑'}
+          </Button>
+        </Toolbar>
+        <Table compact striped>
+          <TableHead>
+            <TableRow>
+              <TableHeader style={{ width: 56 }}>ID</TableHeader>
+              <TableHeader style={{ width: 132 }}>Status</TableHeader>
+              <TableHeader>Domain (editable)</TableHeader>
+              <TableHeader style={{ width: 120 }}>Category</TableHeader>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {table.data.map((row, index) => {
+              const statusItem = enumItems(row.status, STATUS)[0];
+              const tags = enumItems(row.classify, CLASSIFY, { colorful: true });
+              const badgeVariant = STATUS_VARIANT[row.status as keyof typeof STATUS_VARIANT] ?? 'default';
+              return (
+                <TableRow key={row.id}>
+                  <TableCell>{row.id}</TableCell>
+                  <TableCell>
+                    <Badge variant={badgeVariant} dot>{statusItem?.label}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Field name={`list.${index}.domain`} required>
+                      {(f) => (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          <Input
+                            size="sm"
+                            style={{ width: 170 }}
+                            invalid={Boolean(f.errors[0])}
+                            value={String(f.value ?? '')}
+                            onChange={(e) => f.onChange(e.target.value)}
+                            onBlur={f.onBlur}
+                          />
+                          {f.errors[0] && <small role="alert" className="sf-ui-form-error">{f.errors[0]}</small>}
+                        </div>
+                      )}
+                    </Field>
+                  </TableCell>
+                  <TableCell>
+                    {tags.map((tag) => (
+                      <Tag key={String(tag.value)} variant="outline" color={tag.color}>
+                        {tag.label}
+                      </Tag>
+                    ))}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <span style={{ fontSize: 12, color: 'var(--sf-ui-fg-muted)' }}>
+            Page {table.page}/{pages} of {table.total} rows {table.loading ? '· Loading' : ''}
+          </span>
+          <div style={{ display: 'inline-flex', gap: 6 }}>
+            <Button variant="outline" size="sm" disabled={table.page <= 1} icon={<ChevronLeftIcon size={13} />} onClick={() => table.onPageChange(table.page - 1)}>
+              Previous
+            </Button>
+            <Button variant="outline" size="sm" disabled={table.page >= pages} onClick={() => table.onPageChange(table.page + 1)}>
+              Next
+              <ChevronRightIcon size={13} />
+            </Button>
+          </div>
+        </div>
+      </Form>
+    </Card>
   );
 }
 ```
@@ -432,11 +571,12 @@ Try static options and a lazily loaded enum. `enumItems` resolves selected value
 
 ```tsx preview play=pro-enum
 import { enUS, EnumSource, Field, Form, ObjectField, enumItems, useField, useForm } from '@shikiform/react';
+import { Badge, Button, Card, Checkbox, LoaderIcon, Tag } from '@site/ui';
 
 const LIST = [
-  { label: "Alpha", value: 'a', color: 'blue' },
-  { label: "Beta", value: 'o', color: 'green' },
-  { label: "Gamma", value: 'e' },
+  { label: 'Alpha', value: 'a', color: '#0f59a4' },
+  { label: 'Beta', value: 'o', color: '#1a6840' },
+  { label: 'Gamma', value: 'e' },
 ];
 
 /** Load once and share options across consumers. */
@@ -452,10 +592,16 @@ function SingleSelect() {
   const f = useField<string>();
   const items = enumItems(f.value, f.options);
   return (
-    <p>
-      <label htmlFor={f.id}>{f.title}: </label>
+    <p className="sf-ui-form-item sf-ui-form-item--inline" style={{ margin: 0 }}>
+      <label htmlFor={f.id} className="sf-ui-form-label" style={{ minWidth: 152 }}>{f.title}: </label>
       {f.readOnly ? (
-        items.map((item) => <span key={String(item.value)} style={{ color: item.color || undefined }}>● {item.label}</span>)
+        <span className="sf-ui-readonly-group">
+          {items.map((item) => (
+            <Badge key={String(item.value)} dot color={item.color}>
+              {item.label}
+            </Badge>
+          ))}
+        </span>
       ) : (
         <select id={f.id} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)}>
           {f.options.map((opt) => <option key={String(opt.value)} value={String(opt.value)}>{opt.label}</option>)}
@@ -469,32 +615,31 @@ function MultiChecks() {
   const f = useField<string[]>();
   const items = enumItems(f.value, f.options, { colorful: true });
   return (
-    <p>
-      <span>{f.title}: </span>
+    <p className="sf-ui-form-item sf-ui-form-item--inline" style={{ margin: 0 }}>
+      <span className="sf-ui-form-label" style={{ minWidth: 152 }}>{f.title}: </span>
       {f.loading ? (
-        <small>Loading…</small>
+        <Badge variant="outline"><LoaderIcon size={12} /> Loading…</Badge>
       ) : f.readOnly ? (
-        <span style={{ display: 'inline-flex', gap: 6 }}>
+        <span className="sf-ui-readonly-group">
           {items.map((item) => (
-            <span key={String(item.value)} style={{ border: `1px solid ${item.color || '#ccc'}`, padding: '0 4px', borderRadius: 3 }}>
+            <Tag key={String(item.value)} variant="outline" color={item.color}>
               {item.label}
-            </span>
+            </Tag>
           ))}
         </span>
       ) : (
-        <span style={{ display: 'inline-flex', gap: 8 }}>
+        <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 12 }}>
           {f.options.map((opt) => {
             const val = String(opt.value);
             const checked = (f.value ?? []).includes(val);
             return (
-              <label key={val}>
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={(e) => f.onChange(e.target.checked ? [...(f.value ?? []), val] : (f.value ?? []).filter((v) => v !== val))}
-                />{' '}
+              <Checkbox
+                key={val}
+                checked={checked}
+                onCheckedChange={(on) => f.onChange(on ? [...(f.value ?? []), val] : (f.value ?? []).filter((v) => v !== val))}
+              >
                 {opt.label}
-              </label>
+              </Checkbox>
             );
           })}
         </span>
@@ -510,17 +655,27 @@ export default function App() {
   });
   const setReadOnly = (readOnly?: true) => form.batch((d) => { d.demo.$readOnly = readOnly; });
   return (
-    <Form form={form}>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-        <button type="button" onClick={() => setReadOnly(true)}>Read only</button>
-        <button type="button" onClick={() => setReadOnly()}>Editable</button>
-      </div>
-      <ObjectField name="demo">
-        <Field name="select" title="Static enum" enum={LIST} component={[SingleSelect]} />
-        <Field name="lazySelect" title="Lazy multiple selection" enum={remote.with(null)} component={[MultiChecks]} />
-        <Field name="radio" title="Shared lazy source" enum={remote.with(null)} component={[SingleSelect]} />
-      </ObjectField>
-    </Form>
+    <Card
+      title="Enum sources & read-only labels"
+      description="Shared lazy EnumSource across fields, rendered as badges and tags in read-only mode"
+      extra={
+        <div style={{ display: 'inline-flex', gap: 6 }}>
+          <Button variant="outline" size="sm" onClick={() => setReadOnly(true)}>Read only</Button>
+          <Button variant="primary" size="sm" onClick={() => setReadOnly()}>Editable</Button>
+        </div>
+      }
+      style={{ maxWidth: 540 }}
+    >
+      <Form form={form}>
+        <ObjectField name="demo">
+          <div style={{ display: 'grid', gap: 12 }}>
+            <Field name="select" title="Static enum" enum={LIST} component={[SingleSelect]} />
+            <Field name="lazySelect" title="Lazy multiple selection" enum={remote.with(null)} component={[MultiChecks]} />
+            <Field name="radio" title="Shared lazy source" enum={remote.with(null)} component={[SingleSelect]} />
+          </div>
+        </ObjectField>
+      </Form>
+    </Card>
   );
 }
 ```
@@ -531,8 +686,9 @@ Type a keyword to start a debounced request. Later searches supersede earlier re
 
 ```tsx preview play=suggestion
 import { enUS, Field, Form, Watch, useField, useForm, useSuggestion, type Draft } from '@shikiform/react';
+import { Badge, Button, Card, FormItem, Input, LoaderIcon, SearchIcon } from '@site/ui';
 
-const WORDS = ["Phone case", "Phone stand", "Watch", "Backpack", "Mouse", "Mouse pad", "Cup", "Headphones", "Coffee maker", "Coffee beans"];
+const WORDS = ['Phone case', 'Phone stand', 'Watch', 'Backpack', 'Mouse', 'Mouse pad', 'Cup', 'Headphones', 'Coffee maker', 'Coffee beans'];
 
 /** Return matching options after 250 ms. New input aborts an older request. */
 async function suggest(keyword: string, ctx: { signal: AbortSignal }) {
@@ -547,24 +703,26 @@ function SuggestInput() {
   const f = useField<string>();
   const sug = useSuggestion({ fetch: suggest, debounce: 250 });
   return (
-    <div>
-      <label htmlFor={f.id}>{f.title}: </label>
-      <input
+    <div style={{ display: 'grid', gap: 8 }}>
+      <Input
         id={f.id}
-        placeholder="Type “phone” or “mouse”"
+        prefix={<SearchIcon size={14} />}
+        suffix={sug.loading ? <LoaderIcon size={13} /> : undefined}
+        placeholder='Type "phone" or "mouse"'
         value={sug.keyword || f.value || ''}
         onChange={(e) => {
           sug.search(e.target.value);
           if (!e.target.value) f.onChange('');
         }}
       />
-      {sug.loading && <small style={{ marginLeft: 8 }}>Searching…</small>}
+      {sug.loading && <Badge variant="outline" style={{ justifySelf: 'start' }}>Searching…</Badge>}
       {sug.options.length > 0 && (
-        <ul style={{ listStyle: 'none', padding: 0, margin: '6px 0', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {sug.options.map((opt) => (
             <li key={String(opt.value)}>
-              <button
-                type="button"
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => {
                   sug.remember([opt]);
                   f.onChange(String(opt.value));
@@ -572,7 +730,7 @@ function SuggestInput() {
                 }}
               >
                 {opt.label}
-              </button>
+              </Button>
             </li>
           ))}
         </ul>
@@ -584,12 +742,14 @@ function SuggestInput() {
 export default function App() {
   const form = useForm<Values>({ messages: enUS, initialValues: { product: '' } });
   return (
-    <Form form={form}>
-      <Field name="product" title="Product suggestions" component={[SuggestInput]} />
-      <Watch select={(d: Draft<Values>) => d.$value}>
-        {(values) => <pre>{JSON.stringify(values, null, 2)}</pre>}
-      </Watch>
-    </Form>
+    <Card title="Remote suggestions" description="Debounced search with abortable requests and label memory" style={{ maxWidth: 480 }}>
+      <Form form={form}>
+        <Field name="product" title="Product suggestions" decorator={[FormItem]} component={[SuggestInput]} />
+        <Watch select={(d: Draft<Values>) => d.$value}>
+          {(values) => <pre>{JSON.stringify(values, null, 2)}</pre>}
+        </Watch>
+      </Form>
+    </Card>
   );
 }
 ```
@@ -600,11 +760,12 @@ Expand a branch to load its children. For existing selections, load the ancestor
 
 ```tsx preview play=cascader-plus
 import { enUS, Field, Form, Watch, useField, useForm, useLazyCascader, type CascaderOption, type Draft } from '@shikiform/react';
+import { Badge, Card, LoaderIcon } from '@site/ui';
 
 type Area = { code: string; name: string; children?: Area[] };
 const AREA: Area[] = [
-  { code: '110000', name: "Beijing", children: [{ code: '11000000', name: "Beijing", children: [{ code: '110105', name: "Chaoyang" }, { code: '110108', name: "Haidian" }] }] },
-  { code: '330000', name: "Zhejiang", children: [{ code: '330100', name: "Hangzhou", children: [{ code: '330106', name: "West Lake" }, { code: '330108', name: "Binjiang" }] }] },
+  { code: '110000', name: 'Beijing', children: [{ code: '11000000', name: 'Beijing', children: [{ code: '110105', name: 'Chaoyang' }, { code: '110108', name: 'Haidian' }] }] },
+  { code: '330000', name: 'Zhejiang', children: [{ code: '330100', name: 'Hangzhou', children: [{ code: '330106', name: 'West Lake' }, { code: '330108', name: 'Binjiang' }] }] },
 ];
 
 /** Use the selected path to load children at any depth. */
@@ -633,12 +794,20 @@ function AreaCascader() {
   };
 
   return (
-    <div>
-      <p>
-        <span>{f.title}: </span>
-        {cascader.loading ? <small>Loading…</small> : <strong>{cascader.labelsOf(path).join(' / ') || "No selection"}</strong>}
-      </p>
-      <div style={{ display: 'flex', gap: 8 }}>
+    <div style={{ display: 'grid', gap: 12 }}>
+      <Card variant="muted" padding="sm">
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+          <Badge variant="outline">{f.title}</Badge>
+          {cascader.loading ? (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--sf-ui-fg-muted)' }}>
+              <LoaderIcon size={13} /> Loading…
+            </span>
+          ) : (
+            <strong style={{ fontSize: 14 }}>{cascader.labelsOf(path).join(' / ') || 'No selection'}</strong>
+          )}
+        </div>
+      </Card>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8 }}>
         <select aria-label="Province" value={path[0] ?? ''} onChange={(e) => pick(0, e.target.value)}>
           <option value="">Select a province</option>
           {level0.map((opt) => <option key={String(opt.value)} value={String(opt.value)}>{opt.label}</option>)}
@@ -662,12 +831,14 @@ export default function App() {
     initialValues: { area: ['110000', '11000000', '110105'] }, // Load ancestor labels from the saved codes.
   });
   return (
-    <Form form={form}>
-      <Field name="area" title="Address" component={[AreaCascader]} />
-      <Watch select={(d: Draft<Values>) => d.$value}>
-        {(values) => <pre>{JSON.stringify(values)}</pre>}
-      </Watch>
-    </Form>
+    <Card title="Lazy address cascader" description="Resolves saved codes into full ancestor labels automatically" style={{ maxWidth: 540 }}>
+      <Form form={form}>
+        <Field name="area" title="Address" component={[AreaCascader]} />
+        <Watch select={(d: Draft<Values>) => d.$value}>
+          {(values) => <pre>{JSON.stringify(values)}</pre>}
+        </Watch>
+      </Form>
+    </Card>
   );
 }
 ```

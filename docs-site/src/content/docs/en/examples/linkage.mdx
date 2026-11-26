@@ -10,6 +10,7 @@ Change the quantity or unit price. A reaction reads both inputs and writes the t
 ```tsx preview
 import { useState } from 'react';
 import { enUS, defineEffects, Form, Submit, typed, useField, useForm } from '@shikiform/react';
+import { Button, Card, FormItem, Input } from '@site/ui';
 
 type Values = { price: number | null; qty: number | null; amount: number };
 
@@ -20,20 +21,17 @@ const effects = defineEffects<Values>(({ reaction }) => {
   });
 });
 
-function NumberInput({ min }: { min?: number }) {
+function NumericInput({ min }: { min?: number }) {
   const f = useField<number | null>();
   return (
-    <p>
-      <label htmlFor={f.id}>{f.title}: </label>
-      <input
-        id={f.id}
-        type="number"
-        min={min}
-        value={f.value ?? ''}
-        onChange={(e) => f.onChange(e.target.value === '' ? null : Number(e.target.value))}
-        onBlur={f.onBlur}
-      />
-    </p>
+    <Input
+      id={f.id}
+      type="number"
+      min={min}
+      value={f.value ?? ''}
+      onChange={(e) => f.onChange(e.target.value === '' ? null : Number(e.target.value))}
+      onBlur={f.onBlur}
+    />
   );
 }
 
@@ -46,13 +44,21 @@ export default function App() {
   });
   const F = typed(form);
   return (
-    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
-      <F.Field name="price" title="Unit price" component={[NumberInput, { min: 0 }]} />
-      <F.Field name="qty" title="Quantity" component={[NumberInput, { min: 0 }]} />
-      <F.Field name="amount" title="Amount" component={[NumberInput]} />
-      <Submit>Submit</Submit>
-      <pre aria-live="polite">{result}</pre>
-    </Form>
+    <Card title="Derived amount" description="Amount recalculates via reaction and submits with the form" style={{ maxWidth: 480 }}>
+      <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
+          <F.Field name="price" title="Unit price" decorator={[FormItem]} component={[NumericInput, { min: 0 }]} />
+          <F.Field name="qty" title="Quantity" decorator={[FormItem]} component={[NumericInput, { min: 0 }]} />
+          <F.Field name="amount" title="Amount" decorator={[FormItem]} component={[NumericInput]} />
+        </div>
+        <div>
+          <Submit>
+            {(s) => <Button type="submit" variant="primary" disabled={s.disabled}>Submit</Button>}
+          </Submit>
+        </div>
+        <pre aria-live="polite">{result}</pre>
+      </Form>
+    </Card>
   );
 }
 ```
@@ -62,9 +68,9 @@ export default function App() {
 Toggle the invoice checkbox to show and require the tax ID field. Setting `$omit = !need` alongside `$visible = need` keeps hidden data out of the submit payload.
 
 ```tsx preview
-import { useState } from 'react';
-import { Checkbox, CheckboxIndicator } from '@ui-sdk/react/checkbox';
-import { enUS, defineEffects, Form, Submit, typed, useForm } from '@shikiform/react';
+import { useState, type ReactNode } from 'react';
+import { enUS, defineEffects, Form, Submit, typed, useFieldDecorator, useForm } from '@shikiform/react';
+import { Button, Card, Checkbox, FieldInput } from '@site/ui';
 
 type Values = { invoice: boolean; taxId: string };
 
@@ -77,6 +83,20 @@ const effects = defineEffects<Values>(({ reaction }) => {
   });
 });
 
+function FieldRow({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
+  return (
+    <p className="sf-ui-form-item" style={{ margin: 0 }}>
+      <span className="sf-ui-form-label">
+        <label {...d.labelProps}>{d.label}: </label>
+        {d.required && <span className="sf-ui-form-required" aria-hidden="true">*</span>}
+      </span>
+      {children}
+      {d.errorProps && <small {...d.errorProps} className="sf-ui-form-error">{d.errors[0]}</small>}
+    </p>
+  );
+}
+
 export default function App() {
   const [result, setResult] = useState('');
   const form = useForm<Values>({
@@ -86,36 +106,29 @@ export default function App() {
   });
   const F = typed(form);
   return (
-    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
-      <F.Field name="invoice" title="Invoice required">
-        {(f) => (
-          <p>
-            <label htmlFor={f.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-              <Checkbox id={f.id} checked={Boolean(f.value)} onCheckedChange={(checked) => f.onChange(checked === true)}>
-                <CheckboxIndicator>✓</CheckboxIndicator>
-              </Checkbox>
+    <Card title="Invoice details" description="Toggle to show and require tax ID; turning off omits it from submit" style={{ maxWidth: 440 }}>
+      <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
+        <F.Field name="invoice" title="Invoice required">
+          {(f) => (
+            <Checkbox id={f.id} checked={Boolean(f.value)} onCheckedChange={(checked) => f.onChange(checked)}>
               {f.title}
-            </label>
-          </p>
-        )}
-      </F.Field>
-      <F.Field name="taxId" title="Tax ID">
-        {(f) => (
-          <p>
-            <label htmlFor={f.id}>{f.title}: </label>
-            <input
-              id={f.id}
-              value={f.value ?? ''}
-              onChange={(e) => f.onChange(e.target.value)}
-              onBlur={f.onBlur}
-            />
-            {f.errors[0] && <small role="alert"> {f.errors[0]}</small>}
-          </p>
-        )}
-      </F.Field>
-      <Submit>Submit</Submit>
-      <pre aria-live="polite">{result}</pre>
-    </Form>
+            </Checkbox>
+          )}
+        </F.Field>
+        <F.Field
+          name="taxId"
+          title="Tax ID"
+          decorator={[FieldRow]}
+          component={[FieldInput, { placeholder: 'Enter tax identification number' }]}
+        />
+        <div>
+          <Submit>
+            {(s) => <Button type="submit" variant="primary" disabled={s.disabled}>Submit</Button>}
+          </Submit>
+        </div>
+        <pre aria-live="polite">{result}</pre>
+      </Form>
+    </Card>
   );
 }
 ```
@@ -125,16 +138,16 @@ export default function App() {
 Select dimensions in any order. A change clears incompatible selections, disables unavailable choices and updates the price range and available stock.
 
 ```tsx preview play=sku-picker
-import { Radio, RadioGroup, RadioIndicator } from '@ui-sdk/react/radio';
 import { enUS, Field, Form, defineEffects, useField, useForm, type Draft } from '@shikiform/react';
 import { comboMatch, comboOptions } from '@shikiform/core';
+import { Badge, Card, Divider, FieldRadioGroup, FormItem, Input } from '@site/ui';
 
 const SKUS = [
-  { skuId: 'B-128-STD', color: "Black", storage: '128G', edition: "Standard", price: 999, stock: 12 },
-  { skuId: 'B-256-PRO', color: "Black", storage: '256G', edition: 'Pro', price: 1499, stock: 3 },
-  { skuId: 'W-256-PRO', color: "White", storage: '256G', edition: 'Pro', price: 1499, stock: 8 },
-  { skuId: 'W-128-STD', color: "White", storage: '128G', edition: "Standard", price: 999, stock: 0 },
-  { skuId: 'R-512-MAX', color: "Red", storage: '512G', edition: 'Max', price: 1999, stock: 5 },
+  { skuId: 'B-128-STD', color: 'Black', storage: '128G', edition: 'Standard', price: 999, stock: 12 },
+  { skuId: 'B-256-PRO', color: 'Black', storage: '256G', edition: 'Pro', price: 1499, stock: 3 },
+  { skuId: 'W-256-PRO', color: 'White', storage: '256G', edition: 'Pro', price: 1499, stock: 8 },
+  { skuId: 'W-128-STD', color: 'White', storage: '128G', edition: 'Standard', price: 999, stock: 0 },
+  { skuId: 'R-512-MAX', color: 'Red', storage: '512G', edition: 'Max', price: 1999, stock: 5 },
 ];
 const DIMS = ['color', 'storage', 'edition'] as const;
 type Dim = (typeof DIMS)[number];
@@ -189,34 +202,12 @@ const effects = defineEffects<Values>(({ reaction, watch }) => {
   });
 });
 
-function RadioRow() {
+function StatRow({ tone = 'default' }: { tone?: 'default' | 'brand' | 'outline' }) {
   const f = useField<string>();
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-      <span style={{ width: 48 }}>{f.title}: </span>
-      <RadioGroup value={f.value || null} onValueChange={(v) => f.onChange(v ?? '')}>
-        {f.options.map((opt) => (
-          <label
-            key={String(opt.value)}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, opacity: opt.disabled ? 0.45 : 1, cursor: opt.disabled ? 'not-allowed' : 'pointer' }}
-          >
-            <Radio value={String(opt.value)} disabled={opt.disabled}>
-              <RadioIndicator />
-            </Radio>
-            {opt.label}
-          </label>
-        ))}
-      </RadioGroup>
-    </div>
-  );
-}
-
-function ReadOnlyText() {
-  const f = useField<string>();
-  return (
-    <p style={{ margin: '4px 0' }}>
-      <span>{f.title}: </span>
-      <strong>{f.value || '—'}</strong>
+    <p className="sf-ui-form-item sf-ui-form-item--inline" style={{ margin: 0 }}>
+      <span className="sf-ui-form-label">{f.title}: </span>
+      <Badge variant={tone}>{f.value || '—'}</Badge>
     </p>
   );
 }
@@ -229,32 +220,40 @@ export default function App() {
     effects: [effects],
   });
   return (
-    <Form form={form}>
-      <Field name="color" title="Color" component={[RadioRow]} />
-      <Field name="storage" title="Storage" component={[RadioRow]} />
-      <Field name="edition" title="Edition" component={[RadioRow]} />
-      <Field name="price" title="Price" readOnly component={[ReadOnlyText]} />
-      <Field name="stock" title="Stock" readOnly component={[ReadOnlyText]} />
-      <Field name="skuId" title="SKU" readOnly component={[ReadOnlyText]} />
-      <Field<Values, 'qty'> name="qty" title="Quantity">
-        {(f) => (
-          <p style={{ margin: '8px 0 0' }}>
-            <label htmlFor={f.id}>{f.title}: </label>
-            <input
-              id={f.id}
-              type="number"
-              min={1}
-              style={{ width: 80 }}
-              disabled={f.disabled}
-              value={f.value ?? 1}
-              onChange={(e) => f.onChange(Number(e.target.value))}
-              onBlur={f.onBlur}
-            />
-            {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
-          </p>
-        )}
-      </Field>
-    </Form>
+    <Card title="SKU selector" description="Pick options in any order; out-of-stock combinations disable automatically" style={{ maxWidth: 520 }}>
+      <Form form={form}>
+        <Field name="color" title="Color" decorator={[FormItem, { layout: 'horizontal' }]} component={[FieldRadioGroup]} />
+        <Field name="storage" title="Storage" decorator={[FormItem, { layout: 'horizontal' }]} component={[FieldRadioGroup]} />
+        <Field name="edition" title="Edition" decorator={[FormItem, { layout: 'horizontal' }]} component={[FieldRadioGroup]} />
+        <Divider />
+        <Card variant="muted" padding="sm">
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center' }}>
+            <Field name="price" title="Price" readOnly component={[StatRow, { tone: 'brand' }]} />
+            <Field name="stock" title="Stock" readOnly component={[StatRow, { tone: 'default' }]} />
+            <Field name="skuId" title="SKU" readOnly component={[StatRow, { tone: 'outline' }]} />
+          </div>
+        </Card>
+        <Field<Values, 'qty'> name="qty" title="Quantity">
+          {(f) => (
+            <p className="sf-ui-form-item" style={{ margin: 0, maxWidth: 180 }}>
+              <label htmlFor={f.id} className="sf-ui-form-label">{f.title}: </label>
+              <Input
+                id={f.id}
+                type="number"
+                size="sm"
+                min={1}
+                disabled={f.disabled}
+                invalid={Boolean(f.errors[0])}
+                value={f.value ?? 1}
+                onChange={(e) => f.onChange(Number(e.target.value))}
+                onBlur={f.onBlur}
+              />
+              {f.errors[0] && <small role="alert" className="sf-ui-form-error">{f.errors[0]}</small>}
+            </p>
+          )}
+        </Field>
+      </Form>
+    </Card>
   );
 }
 ```
@@ -265,14 +264,14 @@ Use a watch to synchronize the set of rows when combinations change. Keep existi
 
 ```tsx preview play=sku
 import { useState } from 'react';
-import { Checkbox, CheckboxGroup, CheckboxIndicator } from '@ui-sdk/react/checkbox';
 import { enUS, ArrayField, Field, Form, defineEffects, useField, useForm } from '@shikiform/react';
+import { Badge, Button, Card, FieldCheckboxGroup, FormItem, Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@site/ui';
 
 const CATALOG = [
-  { id: "White/128G", price: 10, stock: 0 },
-  { id: "White/256G", price: 20, stock: 2 },
-  { id: "Black/128G", price: 12, stock: 3 },
-  { id: "Black/256G", price: 22, stock: 9 },
+  { id: 'White/128G', price: 10, stock: 0 },
+  { id: 'White/256G', price: 20, stock: 2 },
+  { id: 'Black/128G', price: 12, stock: 3 },
+  { id: 'Black/256G', price: 22, stock: 9 },
 ];
 const PICKS = CATALOG.map((item) => ({ label: item.id, value: item.id, disabled: item.stock === 0 }));
 type Row = { id: string; price: number; qty: number; total: number };
@@ -294,16 +293,17 @@ const effects = defineEffects<Values>(({ reaction, watch, draft }) => {
 function NumberInline({ min }: { min?: number }) {
   const f = useField<number>();
   return (
-    <label htmlFor={f.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-      {f.title}
+    <label htmlFor={f.id} className="sf-ui-form-label" style={{ gap: 6 }}>
+      <span>{f.title}</span>
       {f.readOnly ? (
-        <strong>{f.value}</strong>
+        <Badge variant="brand">{f.value}</Badge>
       ) : (
-        <input
+        <Input
           id={f.id}
           type="number"
+          size="sm"
           min={min}
-          style={{ width: 64 }}
+          style={{ width: 78 }}
           value={f.value ?? 0}
           onChange={(e) => f.onChange(Number(e.target.value))}
           onBlur={f.onBlur}
@@ -321,43 +321,51 @@ export default function App() {
     effects: [effects],
   });
   return (
-    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values.rows))}>
-      <Field<Values, 'picked'> name="picked" title="Combination" enum={PICKS}>
-        {(f) => (
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-            <span>{f.title}: </span>
-            <CheckboxGroup value={f.value ?? []} onValueChange={(next) => f.onChange(next)}>
-              {f.options.map((opt) => {
-                const val = String(opt.value);
-                return (
-                  <label
-                    key={val}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, opacity: opt.disabled ? 0.45 : 1, cursor: opt.disabled ? 'not-allowed' : 'pointer' }}
-                  >
-                    <Checkbox value={val} disabled={opt.disabled}>
-                      <CheckboxIndicator>✓</CheckboxIndicator>
-                    </Checkbox>
-                    {opt.label}
-                  </label>
-                );
-              })}
-            </CheckboxGroup>
-          </div>
-        )}
-      </Field>
-      <ArrayField name="rows" rowKey="id">
-        {() => (
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 8 }}>
-            <Field name="id" readOnly>{(f) => <code style={{ width: 88 }}>{String(f.value ?? '')}</code>}</Field>
-            <Field name="price" title="Unit price" component={[NumberInline, { min: 0 }]} />
-            <Field name="qty" title="Quantity" component={[NumberInline, { min: 1 }]} />
-            <Field name="total" title="Subtotal" readOnly component={[NumberInline]} />
-          </div>
-        )}
-      </ArrayField>
-      <button type="submit">Submit</button>
-      <pre>{result}</pre>
-    </Form>
+    <Card title="Generate price rows" description="watch syncs rows without resetting edited prices; reaction.each derives subtotals">
+      <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values.rows))}>
+        <Field<Values, 'picked'>
+          name="picked"
+          title="Combination"
+          enum={PICKS}
+          decorator={[FormItem]}
+          component={[FieldCheckboxGroup]}
+        />
+        <Table compact>
+          <TableHead>
+            <TableRow>
+              <TableHeader>SKU</TableHeader>
+              <TableHeader>Unit price</TableHeader>
+              <TableHeader>Quantity</TableHeader>
+              <TableHeader>Subtotal</TableHeader>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            <ArrayField name="rows" rowKey="id">
+              {() => (
+                <TableRow>
+                  <TableCell>
+                    <Field name="id" readOnly>{(f) => <Badge variant="outline"><code>{String(f.value ?? '')}</code></Badge>}</Field>
+                  </TableCell>
+                  <TableCell>
+                    <Field name="price" title="Unit price" component={[NumberInline, { min: 0 }]} />
+                  </TableCell>
+                  <TableCell>
+                    <Field name="qty" title="Quantity" component={[NumberInline, { min: 1 }]} />
+                  </TableCell>
+                  <TableCell>
+                    <Field name="total" title="Subtotal" readOnly component={[NumberInline]} />
+                  </TableCell>
+                </TableRow>
+              )}
+            </ArrayField>
+          </TableBody>
+        </Table>
+        <div>
+          <Button type="submit" variant="primary">Submit</Button>
+        </div>
+        <pre>{result}</pre>
+      </Form>
+    </Card>
   );
 }
 ```
@@ -369,6 +377,7 @@ Edit one cell and inspect its render counter. This example illustrates subscript
 ```tsx preview play=large
 import { memo, useRef } from 'react';
 import { enUS, ArrayField, Form, defineEffects, useField, useForm } from '@shikiform/react';
+import { Badge, Card, Input } from '@site/ui';
 
 type Row = { id: string; cost: number; markup: number; suggested: number };
 type Values = { rows: Row[] };
@@ -385,26 +394,34 @@ function Cell({ name }: { name: keyof Row }) {
   const renders = useRef(0);
   renders.current += 1;
   return (
-    <label style={{ marginRight: 8 }}>
-      <input style={{ width: 72 }} aria-label={name} value={String(field.value ?? '')} readOnly={name === 'suggested'}
-        onChange={(event) => field.onChange(Number(event.target.value))} />
-      <sup>{renders.current}</sup>
+    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginRight: 10 }}>
+      <Input
+        size="sm"
+        style={{ width: 76 }}
+        aria-label={name}
+        value={String(field.value ?? '')}
+        readOnly={name === 'suggested'}
+        onChange={(event) => field.onChange(Number(event.target.value))}
+      />
+      <sup className="sf-ui-badge sf-ui-badge--brand" style={{ minWidth: 18, height: 18, padding: '0 4px', fontSize: 10 }}>
+        {renders.current}
+      </sup>
     </label>
   );
 }
 
 const Line = memo(function Line({ index }: { index: number }) {
   return (
-    <div style={{ height: 36 }}>
-      <code style={{ display: 'inline-block', width: 48 }}>#{index}</code>
+    <div style={{ display: 'flex', alignItems: 'center', height: 40, borderBottom: '1px solid var(--sf-ui-border)' }}>
+      <code style={{ display: 'inline-block', width: 52, fontSize: 12, color: 'var(--sf-ui-fg-muted)' }}>#{index}</code>
       <Cell name="cost" /><Cell name="markup" /><Cell name="suggested" />
     </div>
   );
 });
 
-function Table() {
+function PriceTable() {
   return (
-    <ArrayField name="rows" virtualScroll={{ height: 300, rowHeight: 36, overscan: 4 }}>
+    <ArrayField name="rows" virtualScroll={{ height: 300, rowHeight: 40, overscan: 4 }}>
       {({ index }) => <Line index={index} />}
     </ArrayField>
   );
@@ -417,10 +434,15 @@ export default function App() {
     effects: [effects],
   });
   return (
-    <Form form={form}>
-      <p>Cost / markup (%) / suggested price (superscripts count renders)</p>
-      <Table />
-    </Form>
+    <Card
+      title="Virtual price grid"
+      description="Cost / markup (%) / suggested price (superscripts show per-cell render counts)"
+      extra={<Badge variant="brand">1,000 rows · 4,000 fields</Badge>}
+    >
+      <Form form={form}>
+        <PriceTable />
+      </Form>
+    </Card>
   );
 }
 ```

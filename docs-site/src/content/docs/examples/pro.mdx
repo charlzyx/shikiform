@@ -12,6 +12,23 @@ description: useArrayTable、草稿表单（useShadowForm）、useQueryTable、�
 ```tsx preview play=array-table
 import { Fragment, useState } from 'react';
 import { Field, Form, ObjectField, useArrayTable, useForm } from '@shikiform/react';
+import {
+  Badge,
+  Button,
+  Card,
+  Checkbox,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  Input,
+  PlusIcon,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Toolbar,
+} from '@site/ui';
 
 type Item = { a1: string; a2: string };
 type Row = Item & { id: string; subitems?: Item[] };
@@ -34,97 +51,119 @@ function TableDemo() {
     onRemove: () => new Promise<void>((resolve) => setTimeout(resolve, 400)),
   });
   return (
-    <>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-        <button type="button" onClick={() => setNotice(`已选 ${table.selectedKeys.join(', ') || '无'}`)}>
-          看看勾选了谁
-        </button>
-        <button type="button" onClick={() => table.add({ id: String(nextId++), a1: '', a2: '' })}>
-          添加一行
-        </button>
-        {notice && <small>{notice}</small>}
-      </div>
-      <table>
-        <thead>
-          <tr>
-            <th />
-            <th />
-            <th>#</th>
-            <th>A1</th>
-            <th>A2</th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          {table.pageRows.map((row) => {
-            const expanded = table.expandedKeys.includes(row.key);
-            const expandable = table.isExpandable(row.index);
-            const removing = table.removing.includes(row.key);
-            const record = table.record(row.index);
-            return (
-              <Fragment key={row.key}>
-                <ObjectField name={`list.${row.index}`}>
-                  <tr>
-                    <td>
-                      <input
-                        type="checkbox"
-                        aria-label={`选择 ${row.key}`}
-                        checked={table.selectedKeys.includes(row.key)}
-                        onChange={() => table.toggleSelected(row.key)}
-                      />
-                    </td>
-                    <td>
-                      {expandable && (
-                        <button type="button" onClick={() => table.toggleExpanded(row.key)}>
-                          {expanded ? '▾' : '▸'}
-                        </button>
-                      )}
-                    </td>
-                    <td>{row.position}</td>
-                    <td>
-                      <Field<Row, 'a1'> name="a1" required>
-                        {(f) => (
-                          <>
-                            <input style={{ width: 96 }} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} onBlur={f.onBlur} />
-                            {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
-                          </>
+    <Card title="可编辑明细表" description="支持分页、行勾选、上下排序、异步删除与只读子表展开">
+      <div style={{ display: 'grid', gap: 12 }}>
+        <Toolbar>
+          <Button variant="primary" size="sm" icon={<PlusIcon size={13} />} onClick={() => table.add({ id: String(nextId++), a1: '', a2: '' })}>
+            添加一行
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setNotice(`已选 ${table.selectedKeys.join(', ') || '无'}`)}>
+            看看勾选了谁
+          </Button>
+          {notice && <Badge variant="brand">{notice}</Badge>}
+        </Toolbar>
+        <Table compact>
+          <TableHead>
+            <TableRow>
+              <TableHeader style={{ width: 36 }} />
+              <TableHeader style={{ width: 38 }} />
+              <TableHeader style={{ width: 44 }}>#</TableHeader>
+              <TableHeader>A1</TableHeader>
+              <TableHeader>A2</TableHeader>
+              <TableHeader>操作</TableHeader>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {table.pageRows.map((row) => {
+              const expanded = table.expandedKeys.includes(row.key);
+              const expandable = table.isExpandable(row.index);
+              const removing = table.removing.includes(row.key);
+              const record = table.record(row.index);
+              return (
+                <Fragment key={row.key}>
+                  <ObjectField name={`list.${row.index}`}>
+                    <TableRow>
+                      <TableCell>
+                        <Checkbox
+                          aria-label={`选择 ${row.key}`}
+                          checked={table.selectedKeys.includes(row.key)}
+                          onCheckedChange={() => table.toggleSelected(row.key)}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        {expandable && (
+                          <Button variant="ghost" size="sm" onClick={() => table.toggleExpanded(row.key)}>
+                            {expanded ? '▾' : '▸'}
+                          </Button>
                         )}
-                      </Field>
-                    </td>
-                    <td>
-                      <Field<Row, 'a2'> name="a2">
-                        {(f) => <input style={{ width: 96 }} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} />}
-                      </Field>
-                    </td>
-                    <td>
-                      <button type="button" disabled={row.index === 0} onClick={() => table.moveUp(row.index)}>上移</button>{' '}
-                      <button type="button" disabled={row.index >= table.total - 1} onClick={() => table.moveDown(row.index)}>下移</button>{' '}
-                      <button type="button" disabled={removing} onClick={() => void table.remove(row.index)}>
-                        {removing ? '删除中…' : '删除'}
-                      </button>
-                    </td>
-                  </tr>
-                </ObjectField>
-                {expanded && record.subitems && (
-                  <tr>
-                    <td colSpan={6} style={{ paddingLeft: 32 }}>
-                      {record.subitems.map((sub, i) => (
-                        <div key={i}><small>子项 #{i + 1}：{sub.a1} / {sub.a2}</small></div>
-                      ))}
-                    </td>
-                  </tr>
-                )}
-              </Fragment>
-            );
-          })}
-        </tbody>
-      </table>
-      <div style={{ marginTop: 8 }}>
-        <button type="button" disabled={table.page <= 1} onClick={() => table.setPage(table.page - 1)}>上一页</button>
-        <span> 第 {table.page}/{table.pageCount} 页，共 {table.total} 条 </span>
-        <button type="button" disabled={table.page >= table.pageCount} onClick={() => table.setPage(table.page + 1)}>下一页</button>
+                      </TableCell>
+                      <TableCell><Badge variant="outline">{row.position}</Badge></TableCell>
+                      <TableCell>
+                        <Field<Row, 'a1'> name="a1" required>
+                          {(f) => (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                              <Input
+                                size="sm"
+                                style={{ width: 104 }}
+                                invalid={Boolean(f.errors[0])}
+                                value={f.value ?? ''}
+                                onChange={(e) => f.onChange(e.target.value)}
+                                onBlur={f.onBlur}
+                              />
+                              {f.errors[0] && <small role="alert" className="sf-ui-form-error">{f.errors[0]}</small>}
+                            </div>
+                          )}
+                        </Field>
+                      </TableCell>
+                      <TableCell>
+                        <Field<Row, 'a2'> name="a2">
+                          {(f) => <Input size="sm" style={{ width: 104 }} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} />}
+                        </Field>
+                      </TableCell>
+                      <TableCell>
+                        <div style={{ display: 'inline-flex', gap: 4 }}>
+                          <Button variant="ghost" size="sm" disabled={row.index === 0} onClick={() => table.moveUp(row.index)}>上移</Button>
+                          <Button variant="ghost" size="sm" disabled={row.index >= table.total - 1} onClick={() => table.moveDown(row.index)}>下移</Button>
+                          <Button variant="danger" size="sm" loading={removing} onClick={() => void table.remove(row.index)}>
+                            {removing ? '删除中…' : '删除'}
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  </ObjectField>
+                  {expanded && record.subitems && (
+                    <TableRow style={{ background: 'var(--sf-ui-muted)' }}>
+                      <TableCell colSpan={6} style={{ paddingLeft: 44 }}>
+                        {record.subitems.map((sub, i) => (
+                          <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                            <Badge variant="outline">子项 #{i + 1}</Badge>
+                            <small>{sub.a1} / {sub.a2}</small>
+                          </div>
+                        ))}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </Fragment>
+              );
+            })}
+          </TableBody>
+        </Table>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <span style={{ fontSize: 12, color: 'var(--sf-ui-fg-muted)' }}>
+            第 {table.page}/{table.pageCount} 页，共 {table.total} 条
+          </span>
+          <div style={{ display: 'inline-flex', gap: 6 }}>
+            <Button variant="outline" size="sm" disabled={table.page <= 1} icon={<ChevronLeftIcon size={13} />} onClick={() => table.setPage(table.page - 1)}>
+              上一页
+            </Button>
+            <Button variant="outline" size="sm" disabled={table.page >= table.pageCount} onClick={() => table.setPage(table.page + 1)}>
+              下一页
+              <ChevronRightIcon size={13} />
+            </Button>
+          </div>
+        </div>
       </div>
-    </>
+    </Card>
   );
 }
 
@@ -147,28 +186,46 @@ export default function App() {
 **场景**：表格本身设为只读，点击每行的「编辑」或顶部「添加」时打开草稿表单，确认校验通过后才写回列表，取消则保持原数据不变。
 
 ```tsx preview play=array-table-shadow
-import { Field, Form, useArrayTable, useField, useForm, useFormContext, useShadowForm } from '@shikiform/react';
+import type { ReactNode } from 'react';
+import { Field, Form, useArrayTable, useFieldDecorator, useForm, useFormContext, useShadowForm } from '@shikiform/react';
+import {
+  Badge,
+  Button,
+  Card,
+  FieldInput,
+  PlusIcon,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Toolbar,
+} from '@site/ui';
 
 type Row = { id: string; domain: string; desc: string };
 
-function TextInput() {
-  const f = useField<string>();
+function FieldRow({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
   return (
-    <p>
-      <label htmlFor={f.id}>{f.title}：</label>
-      <input id={f.id} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} onBlur={f.onBlur} />
-      {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
+    <p className="sf-ui-form-item" style={{ margin: 0 }}>
+      <span className="sf-ui-form-label">
+        <label {...d.labelProps}>{d.label}：</label>
+        {d.required && <span className="sf-ui-form-required" aria-hidden="true">*</span>}
+      </span>
+      {children}
+      {d.errorProps && <small {...d.errorProps} className="sf-ui-form-error">{d.errors[0]}</small>}
     </p>
   );
 }
 
 function RowFields() {
   return (
-    <>
-      <Field name="id" component={[TextInput]} />
-      <Field name="domain" component={[TextInput]} />
-      <Field name="desc" component={[TextInput]} />
-    </>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
+      <Field name="id" decorator={[FieldRow]} component={[FieldInput]} />
+      <Field name="domain" decorator={[FieldRow]} component={[FieldInput]} />
+      <Field name="desc" decorator={[FieldRow]} component={[FieldInput]} />
+    </div>
   );
 }
 
@@ -189,53 +246,67 @@ function EditableTable() {
     },
   });
   return (
-    <>
-      <button type="button" onClick={() => void adder.open()}>添加一行</button>
-      <table style={{ marginTop: 8 }}>
-        <thead>
-          <tr><th>ID</th><th>域名</th><th>描述</th><th>操作</th></tr>
-        </thead>
-        <tbody>
-          {table.pageRows.map((row) => {
-            const record = table.record(row.index);
-            return (
-              <tr key={row.key}>
-                <td>{record.id}</td>
-                <td>{record.domain}</td>
-                <td>{record.desc || '—'}</td>
-                <td>
-                  <button type="button" onClick={() => void editor.open(record, record.id)}>编辑</button>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      {adder.visible && (
-        <fieldset style={{ marginTop: 12 }}>
-          <legend>新增行</legend>
-          <Form form={adder.form}>
-            <RowFields />
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button type="button" onClick={() => void adder.confirm()}>确定</button>
-              <button type="button" onClick={adder.cancel}>取消</button>
-            </div>
-          </Form>
-        </fieldset>
-      )}
-      {editor.visible && (
-        <fieldset style={{ marginTop: 12 }}>
-          <legend>编辑行</legend>
-          <Form form={editor.form}>
-            <RowFields />
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button type="button" onClick={() => void editor.confirm()}>确定</button>
-              <button type="button" onClick={editor.cancel}>取消</button>
-            </div>
-          </Form>
-        </fieldset>
-      )}
-    </>
+    <Card
+      title="域名列表（草稿表单编辑）"
+      description="新增与编辑都在独立草稿引擎里完成，确认校验通过才写回宿主"
+      extra={
+        <Button variant="primary" size="sm" icon={<PlusIcon size={13} />} onClick={() => void adder.open()}>
+          添加一行
+        </Button>
+      }
+    >
+      <div style={{ display: 'grid', gap: 14 }}>
+        <Table compact striped>
+          <TableHead>
+            <TableRow>
+              <TableHeader style={{ width: 64 }}>ID</TableHeader>
+              <TableHeader>域名</TableHeader>
+              <TableHeader>描述</TableHeader>
+              <TableHeader style={{ width: 92 }}>操作</TableHeader>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {table.pageRows.map((row) => {
+              const record = table.record(row.index);
+              return (
+                <TableRow key={row.key}>
+                  <TableCell><Badge variant="outline">{record.id}</Badge></TableCell>
+                  <TableCell><code>{record.domain}</code></TableCell>
+                  <TableCell>{record.desc || '—'}</TableCell>
+                  <TableCell>
+                    <Button variant="outline" size="sm" onClick={() => void editor.open(record, record.id)}>编辑</Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+        {adder.visible && (
+          <fieldset className="sf-ui-card sf-ui-card--muted" style={{ padding: 16, margin: 0 }}>
+            <legend style={{ padding: '0 6px', fontSize: 12, fontWeight: 600, color: 'var(--sf-ui-fg-muted)' }}>新增行</legend>
+            <Form form={adder.form}>
+              <RowFields />
+              <Toolbar>
+                <Button variant="primary" size="sm" onClick={() => void adder.confirm()}>确定</Button>
+                <Button variant="outline" size="sm" onClick={adder.cancel}>取消</Button>
+              </Toolbar>
+            </Form>
+          </fieldset>
+        )}
+        {editor.visible && (
+          <fieldset className="sf-ui-card sf-ui-card--muted" style={{ padding: 16, margin: 0 }}>
+            <legend style={{ padding: '0 6px', fontSize: 12, fontWeight: 600, color: 'var(--sf-ui-fg-muted)' }}>编辑行</legend>
+            <Form form={editor.form}>
+              <RowFields />
+              <Toolbar>
+                <Button variant="primary" size="sm" onClick={() => void editor.confirm()}>确定</Button>
+                <Button variant="outline" size="sm" onClick={editor.cancel}>取消</Button>
+              </Toolbar>
+            </Form>
+          </fieldset>
+        )}
+      </div>
+    </Card>
   );
 }
 
@@ -265,18 +336,22 @@ export default function App() {
 **场景**：对宿主表单的 `info` 对象开启一份独立草稿：打开时拷贝数据到新引擎，确认校验通过后写回宿主，放弃则直接丢弃。
 
 ```tsx preview play=shadow-form
-import { useState } from 'react';
-import { Field, Form, Watch, useField, useForm, useShadowForm, type Draft } from '@shikiform/react';
+import { useState, type ReactNode } from 'react';
+import { Field, Form, Watch, useFieldDecorator, useForm, useShadowForm, type Draft } from '@shikiform/react';
+import { Alert, Button, Card, FieldInput, Toolbar } from '@site/ui';
 
 type Info = { domain: string; desc: string };
 
-function TextInput() {
-  const f = useField<string>();
+function FieldRow({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
   return (
-    <p>
-      <label htmlFor={f.id}>{f.title}：</label>
-      <input id={f.id} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} onBlur={f.onBlur} />
-      {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
+    <p className="sf-ui-form-item" style={{ margin: 0 }}>
+      <span className="sf-ui-form-label">
+        <label {...d.labelProps}>{d.label}：</label>
+        {d.required && <span className="sf-ui-form-required" aria-hidden="true">*</span>}
+      </span>
+      {children}
+      {d.errorProps && <small {...d.errorProps} className="sf-ui-form-error">{d.errors[0]}</small>}
     </p>
   );
 }
@@ -290,26 +365,32 @@ export default function App() {
     onOk: (values) => setLog(`已保存：${JSON.stringify(values)}`),
   });
   return (
-    <Form form={form}>
-      <Watch select={(d: Draft<{ info: Info }>) => d.info.$value}>
-        {(info) => <p>当前宿主值：{info.domain} · {info.desc}</p>}
-      </Watch>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button type="button" onClick={() => void shadow.open()}>打开草稿</button>
-        <button type="button" disabled={!shadow.visible} onClick={() => void shadow.confirm()}>保存</button>
-        <button type="button" disabled={!shadow.visible} onClick={shadow.cancel}>放弃</button>
-      </div>
-      {shadow.visible && (
-        <fieldset style={{ marginTop: 12 }}>
-          <legend>草稿表单</legend>
-          <Form form={shadow.form}>
-            <Field name="domain" title="域名" required component={[TextInput]} />
-            <Field name="desc" title="描述" component={[TextInput]} />
-          </Form>
-        </fieldset>
-      )}
-      <pre aria-live="polite">{log}</pre>
-    </Form>
+    <Card title="独立草稿表单" description="草稿拥有独立引擎，放弃即丢弃、保存校验通过后写回宿主对象" style={{ maxWidth: 520 }}>
+      <Form form={form}>
+        <Alert variant="info">
+          <Watch select={(d: Draft<{ info: Info }>) => d.info.$value}>
+            {(info) => <p style={{ margin: 0 }}>当前宿主值：{info.domain} · {info.desc}</p>}
+          </Watch>
+        </Alert>
+        <Toolbar>
+          <Button variant="outline" size="sm" onClick={() => void shadow.open()}>打开草稿</Button>
+          <Button variant="primary" size="sm" disabled={!shadow.visible} onClick={() => void shadow.confirm()}>保存</Button>
+          <Button variant="ghost" size="sm" disabled={!shadow.visible} onClick={shadow.cancel}>放弃</Button>
+        </Toolbar>
+        {shadow.visible && (
+          <fieldset className="sf-ui-card sf-ui-card--muted" style={{ padding: 16, margin: 0 }}>
+            <legend style={{ padding: '0 6px', fontSize: 12, fontWeight: 600, color: 'var(--sf-ui-fg-muted)' }}>草稿表单</legend>
+            <Form form={shadow.form}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+                <Field name="domain" title="域名" required decorator={[FieldRow]} component={[FieldInput]} />
+                <Field name="desc" title="描述" decorator={[FieldRow]} component={[FieldInput]} />
+              </div>
+            </Form>
+          </fieldset>
+        )}
+        <pre aria-live="polite">{log}</pre>
+      </Form>
+    </Card>
   );
 }
 ```
@@ -323,6 +404,25 @@ export default function App() {
 
 ```tsx preview play=query-list
 import { Field, Form, enumItems, useQueryTable } from '@shikiform/react';
+import {
+  Badge,
+  Button,
+  Card,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ChevronsUpDownIcon,
+  Input,
+  SearchIcon,
+  Select,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Tag,
+  Toolbar,
+} from '@site/ui';
 
 type Row = { id: number; status: number; domain: string; classify: number[] };
 type Query = { domain?: string; status?: number };
@@ -334,6 +434,7 @@ const STATUS = [
   { label: '已上线', value: 2, color: 'success' },
   { label: '异常', value: 3, color: 'error' },
 ];
+const STATUS_VARIANT = { 0: 'default', 1: 'brand', 2: 'success', 3: 'danger' } as const;
 const CLASSIFY = [{ label: '官网', value: 0 }, { label: '文档', value: 1 }, { label: '接口', value: 2 }];
 
 /** 模拟服务：共 25 条，服务端分页和按 id 排序。 */
@@ -366,72 +467,109 @@ export default function App() {
   const desc = table.sortOrderOf('id') === 'descend';
   const pages = Math.max(1, Math.ceil(table.total / table.pageSize));
   return (
-    <Form form={table.form} onSubmit={() => table.submit()}>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-        <Field name="query.domain">
-          {(f) => <input placeholder="域名关键字" value={String(f.value ?? '')} onChange={(e) => f.onChange(e.target.value)} />}
-        </Field>
-        <Field name="query.status">
-          {(f) => (
-            <select
-              value={f.value === undefined ? '' : String(f.value)}
-              onChange={(e) => f.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
-            >
-              <option value="">全部状态</option>
-              {f.options.map((opt) => (
-                <option key={String(opt.value)} value={String(opt.value)}>{opt.label}</option>
-              ))}
-            </select>
-          )}
-        </Field>
-        <button type="submit">查询</button>
-        <button type="button" onClick={table.reset}>重置</button>
-        <button type="button" onClick={() => table.setSorter([{ field: 'id', order: desc ? 'ascend' : 'descend' }])}>
-          ID {desc ? '降序 ↓' : '升序 ↑'}
-        </button>
-      </div>
-      <table>
-        <thead>
-          <tr><th>ID</th><th>状态</th><th>域名（可编辑）</th><th>分类</th></tr>
-        </thead>
-        <tbody>
-          {table.data.map((row, index) => {
-            const statusItem = enumItems(row.status, STATUS)[0];
-            const tags = enumItems(row.classify, CLASSIFY, { colorful: true });
-            return (
-              <tr key={row.id}>
-                <td>{row.id}</td>
-                <td>
-                  <span style={{ color: statusItem?.color || undefined }}>● {statusItem?.label}</span>
-                </td>
-                <td>
-                  <Field name={`list.${index}.domain`} required>
-                    {(f) => (
-                      <>
-                        <input value={String(f.value ?? '')} onChange={(e) => f.onChange(e.target.value)} onBlur={f.onBlur} />
-                        {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
-                      </>
-                    )}
-                  </Field>
-                </td>
-                <td>
-                  {tags.map((tag) => (
-                    <span key={String(tag.value)} style={{ border: `1px solid ${tag.color || '#ccc'}`, padding: '0 4px', borderRadius: 3 }}>
-                      {tag.label}
-                    </span>
-                  ))}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      <div style={{ marginTop: 8 }}>
-        <button type="button" disabled={table.page <= 1} onClick={() => table.onPageChange(table.page - 1)}>上一页</button>
-        <span> 第 {table.page}/{pages} 页 · 共 {table.total} 条 {table.loading ? '· 加载中' : ''} </span>
-        <button type="button" disabled={table.page >= pages} onClick={() => table.onPageChange(table.page + 1)}>下一页</button>
-      </div>
-    </Form>
+    <Card title="域名管理列表" description="服务端分页、按 ID 排序、状态徽标与行内直接编辑">
+      <Form form={table.form} onSubmit={() => table.submit()}>
+        <Toolbar>
+          <Field name="query.domain">
+            {(f) => (
+              <Input
+                size="sm"
+                placeholder="域名关键字"
+                style={{ width: 160 }}
+                value={String(f.value ?? '')}
+                onChange={(e) => f.onChange(e.target.value)}
+              />
+            )}
+          </Field>
+          <Field name="query.status">
+            {(f) => (
+              <Select
+                size="sm"
+                allowClear
+                placeholder="全部状态"
+                style={{ width: 140 }}
+                options={f.options}
+                value={f.value ?? null}
+                onChange={(next) => f.onChange(next)}
+              />
+            )}
+          </Field>
+          <Button type="submit" variant="primary" size="sm" icon={<SearchIcon size={13} />}>查询</Button>
+          <Button variant="outline" size="sm" onClick={table.reset}>重置</Button>
+          <Button
+            variant="outline"
+            size="sm"
+            icon={<ChevronsUpDownIcon size={13} />}
+            onClick={() => table.setSorter([{ field: 'id', order: desc ? 'ascend' : 'descend' }])}
+          >
+            ID {desc ? '降序 ↓' : '升序 ↑'}
+          </Button>
+        </Toolbar>
+        <Table compact striped>
+          <TableHead>
+            <TableRow>
+              <TableHeader style={{ width: 56 }}>ID</TableHeader>
+              <TableHeader style={{ width: 108 }}>状态</TableHeader>
+              <TableHeader>域名（可编辑）</TableHeader>
+              <TableHeader style={{ width: 96 }}>分类</TableHeader>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {table.data.map((row, index) => {
+              const statusItem = enumItems(row.status, STATUS)[0];
+              const tags = enumItems(row.classify, CLASSIFY, { colorful: true });
+              const badgeVariant = STATUS_VARIANT[row.status as keyof typeof STATUS_VARIANT] ?? 'default';
+              return (
+                <TableRow key={row.id}>
+                  <TableCell>{row.id}</TableCell>
+                  <TableCell>
+                    <Badge variant={badgeVariant} dot>{statusItem?.label}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Field name={`list.${index}.domain`} required>
+                      {(f) => (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          <Input
+                            size="sm"
+                            style={{ width: 170 }}
+                            invalid={Boolean(f.errors[0])}
+                            value={String(f.value ?? '')}
+                            onChange={(e) => f.onChange(e.target.value)}
+                            onBlur={f.onBlur}
+                          />
+                          {f.errors[0] && <small role="alert" className="sf-ui-form-error">{f.errors[0]}</small>}
+                        </div>
+                      )}
+                    </Field>
+                  </TableCell>
+                  <TableCell>
+                    {tags.map((tag) => (
+                      <Tag key={String(tag.value)} variant="outline" color={tag.color}>
+                        {tag.label}
+                      </Tag>
+                    ))}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <span style={{ fontSize: 12, color: 'var(--sf-ui-fg-muted)' }}>
+            第 {table.page}/{pages} 页 · 共 {table.total} 条 {table.loading ? '· 加载中' : ''}
+          </span>
+          <div style={{ display: 'inline-flex', gap: 6 }}>
+            <Button variant="outline" size="sm" disabled={table.page <= 1} icon={<ChevronLeftIcon size={13} />} onClick={() => table.onPageChange(table.page - 1)}>
+              上一页
+            </Button>
+            <Button variant="outline" size="sm" disabled={table.page >= pages} onClick={() => table.onPageChange(table.page + 1)}>
+              下一页
+              <ChevronRightIcon size={13} />
+            </Button>
+          </div>
+        </div>
+      </Form>
+    </Card>
   );
 }
 ```
@@ -445,10 +583,11 @@ export default function App() {
 
 ```tsx preview play=pro-enum
 import { EnumSource, Field, Form, ObjectField, enumItems, useField, useForm } from '@shikiform/react';
+import { Badge, Button, Card, Checkbox, LoaderIcon, Tag } from '@site/ui';
 
 const LIST = [
-  { label: '啊', value: 'a', color: 'blue' },
-  { label: '哦', value: 'o', color: 'green' },
+  { label: '啊', value: 'a', color: '#0f59a4' },
+  { label: '哦', value: 'o', color: '#1a6840' },
   { label: '呃', value: 'e' },
 ];
 
@@ -465,10 +604,16 @@ function SingleSelect() {
   const f = useField<string>();
   const items = enumItems(f.value, f.options);
   return (
-    <p>
-      <label htmlFor={f.id}>{f.title}：</label>
+    <p className="sf-ui-form-item sf-ui-form-item--inline" style={{ margin: 0 }}>
+      <label htmlFor={f.id} className="sf-ui-form-label" style={{ minWidth: 88 }}>{f.title}：</label>
       {f.readOnly ? (
-        items.map((item) => <span key={String(item.value)} style={{ color: item.color || undefined }}>● {item.label}</span>)
+        <span className="sf-ui-readonly-group">
+          {items.map((item) => (
+            <Badge key={String(item.value)} dot color={item.color}>
+              {item.label}
+            </Badge>
+          ))}
+        </span>
       ) : (
         <select id={f.id} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)}>
           {f.options.map((opt) => <option key={String(opt.value)} value={String(opt.value)}>{opt.label}</option>)}
@@ -482,32 +627,31 @@ function MultiChecks() {
   const f = useField<string[]>();
   const items = enumItems(f.value, f.options, { colorful: true });
   return (
-    <p>
-      <span>{f.title}：</span>
+    <p className="sf-ui-form-item sf-ui-form-item--inline" style={{ margin: 0 }}>
+      <span className="sf-ui-form-label" style={{ minWidth: 88 }}>{f.title}：</span>
       {f.loading ? (
-        <small>加载中…</small>
+        <Badge variant="outline"><LoaderIcon size={12} /> 加载中…</Badge>
       ) : f.readOnly ? (
-        <span style={{ display: 'inline-flex', gap: 6 }}>
+        <span className="sf-ui-readonly-group">
           {items.map((item) => (
-            <span key={String(item.value)} style={{ border: `1px solid ${item.color || '#ccc'}`, padding: '0 4px', borderRadius: 3 }}>
+            <Tag key={String(item.value)} variant="outline" color={item.color}>
               {item.label}
-            </span>
+            </Tag>
           ))}
         </span>
       ) : (
-        <span style={{ display: 'inline-flex', gap: 8 }}>
+        <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 12 }}>
           {f.options.map((opt) => {
             const val = String(opt.value);
             const checked = (f.value ?? []).includes(val);
             return (
-              <label key={val}>
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={(e) => f.onChange(e.target.checked ? [...(f.value ?? []), val] : (f.value ?? []).filter((v) => v !== val))}
-                />{' '}
+              <Checkbox
+                key={val}
+                checked={checked}
+                onCheckedChange={(on) => f.onChange(on ? [...(f.value ?? []), val] : (f.value ?? []).filter((v) => v !== val))}
+              >
                 {opt.label}
-              </label>
+              </Checkbox>
             );
           })}
         </span>
@@ -522,17 +666,27 @@ export default function App() {
   });
   const setReadOnly = (readOnly?: true) => form.batch((d) => { d.demo.$readOnly = readOnly; });
   return (
-    <Form form={form}>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-        <button type="button" onClick={() => setReadOnly(true)}>阅读态</button>
-        <button type="button" onClick={() => setReadOnly()}>编辑态</button>
-      </div>
-      <ObjectField name="demo">
-        <Field name="select" title="静态枚举" enum={LIST} component={[SingleSelect]} />
-        <Field name="lazySelect" title="懒加载多选" enum={remote.with(null)} component={[MultiChecks]} />
-        <Field name="radio" title="共享懒加载" enum={remote.with(null)} component={[SingleSelect]} />
-      </ObjectField>
-    </Form>
+    <Card
+      title="枚举源与阅读态翻译"
+      description="多个字段共享同一个 EnumSource，切至阅读态后通过 enumItems 自动翻译为徽标与标签"
+      extra={
+        <div style={{ display: 'inline-flex', gap: 6 }}>
+          <Button variant="outline" size="sm" onClick={() => setReadOnly(true)}>阅读态</Button>
+          <Button variant="primary" size="sm" onClick={() => setReadOnly()}>编辑态</Button>
+        </div>
+      }
+      style={{ maxWidth: 520 }}
+    >
+      <Form form={form}>
+        <ObjectField name="demo">
+          <div style={{ display: 'grid', gap: 12 }}>
+            <Field name="select" title="静态枚举" enum={LIST} component={[SingleSelect]} />
+            <Field name="lazySelect" title="懒加载多选" enum={remote.with(null)} component={[MultiChecks]} />
+            <Field name="radio" title="共享懒加载" enum={remote.with(null)} component={[SingleSelect]} />
+          </div>
+        </ObjectField>
+      </Form>
+    </Card>
   );
 }
 ```
@@ -546,6 +700,7 @@ export default function App() {
 
 ```tsx preview play=suggestion
 import { Field, Form, Watch, useField, useForm, useSuggestion, type Draft } from '@shikiform/react';
+import { Badge, Button, Card, FormItem, Input, LoaderIcon, SearchIcon } from '@site/ui';
 
 const WORDS = ['手机壳', '手机支架', '手表', '书包', '鼠标', '鼠标垫', '水杯', '耳机', '咖啡机', '咖啡豆'];
 
@@ -562,10 +717,11 @@ function SuggestInput() {
   const f = useField<string>();
   const sug = useSuggestion({ fetch: suggest, debounce: 250 });
   return (
-    <div>
-      <label htmlFor={f.id}>{f.title}：</label>
-      <input
+    <div style={{ display: 'grid', gap: 8 }}>
+      <Input
         id={f.id}
+        prefix={<SearchIcon size={14} />}
+        suffix={sug.loading ? <LoaderIcon size={13} /> : undefined}
         placeholder="输入「手」或「鼠」"
         value={sug.keyword || f.value || ''}
         onChange={(e) => {
@@ -573,13 +729,14 @@ function SuggestInput() {
           if (!e.target.value) f.onChange('');
         }}
       />
-      {sug.loading && <small style={{ marginLeft: 8 }}>搜索中…</small>}
+      {sug.loading && <Badge variant="outline" style={{ justifySelf: 'start' }}>搜索中…</Badge>}
       {sug.options.length > 0 && (
-        <ul style={{ listStyle: 'none', padding: 0, margin: '6px 0', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {sug.options.map((opt) => (
             <li key={String(opt.value)}>
-              <button
-                type="button"
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => {
                   sug.remember([opt]);
                   f.onChange(String(opt.value));
@@ -587,7 +744,7 @@ function SuggestInput() {
                 }}
               >
                 {opt.label}
-              </button>
+              </Button>
             </li>
           ))}
         </ul>
@@ -599,12 +756,14 @@ function SuggestInput() {
 export default function App() {
   const form = useForm<Values>({ initialValues: { product: '' } });
   return (
-    <Form form={form}>
-      <Field name="product" title="商品联想" component={[SuggestInput]} />
-      <Watch select={(d: Draft<Values>) => d.$value}>
-        {(values) => <pre>{JSON.stringify(values, null, 2)}</pre>}
-      </Watch>
-    </Form>
+    <Card title="远程商品联想" description="内置防抖与旧请求中止，点击候选项写回表单值" style={{ maxWidth: 480 }}>
+      <Form form={form}>
+        <Field name="product" title="商品联想" decorator={[FormItem]} component={[SuggestInput]} />
+        <Watch select={(d: Draft<Values>) => d.$value}>
+          {(values) => <pre>{JSON.stringify(values, null, 2)}</pre>}
+        </Watch>
+      </Form>
+    </Card>
   );
 }
 ```
@@ -617,6 +776,7 @@ export default function App() {
 
 ```tsx preview play=cascader-plus
 import { Field, Form, Watch, useField, useForm, useLazyCascader, type CascaderOption, type Draft } from '@shikiform/react';
+import { Badge, Card, LoaderIcon } from '@site/ui';
 
 type Area = { code: string; name: string; children?: Area[] };
 const AREA: Area[] = [
@@ -650,12 +810,20 @@ function AreaCascader() {
   };
 
   return (
-    <div>
-      <p>
-        <span>{f.title}：</span>
-        {cascader.loading ? <small>加载中…</small> : <strong>{cascader.labelsOf(path).join(' / ') || '未选择'}</strong>}
-      </p>
-      <div style={{ display: 'flex', gap: 8 }}>
+    <div style={{ display: 'grid', gap: 12 }}>
+      <Card variant="muted" padding="sm">
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+          <Badge variant="outline">{f.title}</Badge>
+          {cascader.loading ? (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--sf-ui-fg-muted)' }}>
+              <LoaderIcon size={13} /> 加载中…
+            </span>
+          ) : (
+            <strong style={{ fontSize: 14 }}>{cascader.labelsOf(path).join(' / ') || '未选择'}</strong>
+          )}
+        </div>
+      </Card>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8 }}>
         <select aria-label="省" value={path[0] ?? ''} onChange={(e) => pick(0, e.target.value)}>
           <option value="">请选择省</option>
           {level0.map((opt) => <option key={String(opt.value)} value={String(opt.value)}>{opt.label}</option>)}
@@ -678,12 +846,14 @@ export default function App() {
     initialValues: { area: ['110000', '11000000', '110105'] }, // 只有编码：打开时逐级加载出标签
   });
   return (
-    <Form form={form}>
-      <Field name="area" title="地址" component={[AreaCascader]} />
-      <Watch select={(d: Draft<Values>) => d.$value}>
-        {(values) => <pre>{JSON.stringify(values)}</pre>}
-      </Watch>
-    </Form>
+    <Card title="省市区懒加载级联" description="初始仅有区域编码，按需逐级加载并自动回显完整路径标签" style={{ maxWidth: 540 }}>
+      <Form form={form}>
+        <Field name="area" title="地址" component={[AreaCascader]} />
+        <Watch select={(d: Draft<Values>) => d.$value}>
+          {(values) => <pre>{JSON.stringify(values)}</pre>}
+        </Watch>
+      </Form>
+    </Card>
   );
 }
 ```

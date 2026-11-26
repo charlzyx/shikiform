@@ -8,24 +8,22 @@ description: "Try login rules, asynchronous checks, schemas and fields on unmoun
 Submit an empty form, an invalid email and a short password. The submit handler runs only when the field rules pass.
 
 ```tsx preview
-import { useState } from 'react';
-import { enUS, Form, Submit, typed, useField, useForm } from '@shikiform/react';
+import { useState, type ReactNode } from 'react';
+import { enUS, Form, Submit, typed, useFieldDecorator, useForm } from '@shikiform/react';
+import { Button, Card, FieldInput } from '@site/ui';
 
 type Values = { account: string; email: string; password: string };
 
-function TextInput({ type = 'text' }: { type?: string }) {
-  const f = useField<string>();
+function FieldRow({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
   return (
-    <p>
-      <label htmlFor={f.id}>{f.title}: </label>
-      <input
-        id={f.id}
-        type={type}
-        value={f.value ?? ''}
-        onChange={(e) => f.onChange(e.target.value)}
-        onBlur={f.onBlur}
-      />
-      {f.errors[0] && <small role="alert"> {f.errors[0]}</small>}
+    <p className="sf-ui-form-item" style={{ margin: 0 }}>
+      <span className="sf-ui-form-label">
+        <label {...d.labelProps}>{d.label}: </label>
+        {d.required && <span className="sf-ui-form-required" aria-hidden="true">*</span>}
+      </span>
+      {children}
+      {d.errorProps && <small {...d.errorProps} className="sf-ui-form-error">{d.errors[0]}</small>}
     </p>
   );
 }
@@ -35,25 +33,43 @@ export default function App() {
   const form = useForm<Values>({ messages: enUS, initialValues: { account: '', email: '', password: '' } });
   const F = typed(form);
   return (
-    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
-      <F.Field name="account" title="Account" required component={[TextInput]} />
-      <F.Field
-        name="email"
-        title="Email"
-        required
-        rules={{ format: 'email', message: "Invalid email address" }}
-        component={[TextInput]}
-      />
-      <F.Field
-        name="password"
-        title="Password"
-        required
-        rules={{ minLength: 8, message: "At least 8 characters" }}
-        component={[TextInput, { type: 'password' }]}
-      />
-      <Submit>Log in</Submit>
-      <pre aria-live="polite">{result}</pre>
-    </Form>
+    <Card title="Sign in" description="onSubmit runs only when all field rules pass" style={{ maxWidth: 440 }}>
+      <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
+        <F.Field
+          name="account"
+          title="Account"
+          required
+          decorator={[FieldRow]}
+          component={[FieldInput, { placeholder: 'e.g. alice' }]}
+        />
+        <F.Field
+          name="email"
+          title="Email"
+          required
+          rules={{ format: 'email', message: 'Invalid email address' }}
+          decorator={[FieldRow]}
+          component={[FieldInput, { placeholder: 'alice@example.com' }]}
+        />
+        <F.Field
+          name="password"
+          title="Password"
+          required
+          rules={{ minLength: 8, message: 'At least 8 characters' }}
+          decorator={[FieldRow]}
+          component={[FieldInput, { type: 'password', placeholder: 'At least 8 characters' }]}
+        />
+        <div>
+          <Submit>
+            {(s) => (
+              <Button type="submit" variant="primary" disabled={s.disabled} loading={s.submitting}>
+                Log in
+              </Button>
+            )}
+          </Submit>
+        </div>
+        <pre aria-live="polite">{result}</pre>
+      </Form>
+    </Card>
   );
 }
 ```
@@ -63,15 +79,16 @@ export default function App() {
 Compare passwords with `ctx.record`. Pass `ctx.signal` to a request so typing a new value cancels obsolete work. When simulating a request with a timer, clean it up and settle the promise on abort.
 
 ```tsx preview
-import { useState } from 'react';
-import { enUS, Form, Submit, typed, useField, useForm } from '@shikiform/react';
+import { useState, type ReactNode } from 'react';
+import { enUS, Form, Submit, typed, useField, useFieldDecorator, useForm } from '@shikiform/react';
+import { Button, Card, FieldInput, LoaderIcon } from '@site/ui';
 
 type Values = { username: string; password: string; confirm: string };
 
 function lookupName(username: string, signal?: AbortSignal): Promise<string | undefined> {
   return new Promise((resolve) => {
     const timer = setTimeout(() => {
-      resolve(username.trim().toLowerCase() === 'admin' ? "Already taken" : undefined);
+      resolve(username.trim().toLowerCase() === 'admin' ? 'Already taken' : undefined);
     }, 400);
     signal?.addEventListener(
       'abort',
@@ -84,20 +101,22 @@ function lookupName(username: string, signal?: AbortSignal): Promise<string | un
   });
 }
 
-function TextInput({ type = 'text' }: { type?: string }) {
-  const f = useField<string>();
+function FieldRow({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
+  const f = useField();
   return (
-    <p>
-      <label htmlFor={f.id}>{f.title}: </label>
-      <input
-        id={f.id}
-        type={type}
-        value={f.value ?? ''}
-        onChange={(e) => f.onChange(e.target.value)}
-        onBlur={f.onBlur}
-      />
-      {f.validating && <small style={{ marginLeft: 6, opacity: 0.7 }}>Validating…</small>}
-      {f.errors[0] && <small role="alert"> {f.errors[0]}</small>}
+    <p className="sf-ui-form-item" style={{ margin: 0 }}>
+      <span className="sf-ui-form-label">
+        <label {...d.labelProps}>{d.label}: </label>
+        {d.required && <span className="sf-ui-form-required" aria-hidden="true">*</span>}
+      </span>
+      {children}
+      {f.validating && (
+        <small className="sf-ui-form-desc" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <LoaderIcon size={12} /> Validating…
+        </small>
+      )}
+      {d.errorProps && <small {...d.errorProps} className="sf-ui-form-error">{d.errors[0]}</small>}
     </p>
   );
 }
@@ -111,34 +130,47 @@ export default function App() {
   });
   const F = typed(form);
   return (
-    <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
-      <F.Field
-        name="username"
-        title="Username"
-        required
-        rules={{ validator: (value, ctx) => lookupName(String(value ?? ''), ctx.signal) }}
-        component={[TextInput]}
-      />
-      <F.Field
-        name="password"
-        title="Password"
-        required
-        rules={{ minLength: 8, message: "At least 8 characters" }}
-        component={[TextInput, { type: 'password' }]}
-      />
-      <F.Field
-        name="confirm"
-        title="Confirm password"
-        required
-        omit
-        rules={{
-          validator: (value, ctx) => (value && value !== ctx.record?.password ? "Passwords do not match" : undefined),
-        }}
-        component={[TextInput, { type: 'password' }]}
-      />
-      <Submit>Register</Submit>
-      <pre aria-live="polite">{result}</pre>
-    </Form>
+    <Card title="Create account" description='Try "admin" for async conflict; confirm password is omitted on submit' style={{ maxWidth: 440 }}>
+      <Form form={form} onSubmit={(values) => setResult(JSON.stringify(values))}>
+        <F.Field
+          name="username"
+          title="Username"
+          required
+          rules={{ validator: (value, ctx) => lookupName(String(value ?? ''), ctx.signal) }}
+          decorator={[FieldRow]}
+          component={[FieldInput, { placeholder: 'Try admin or alice' }]}
+        />
+        <F.Field
+          name="password"
+          title="Password"
+          required
+          rules={{ minLength: 8, message: 'At least 8 characters' }}
+          decorator={[FieldRow]}
+          component={[FieldInput, { type: 'password', placeholder: 'At least 8 characters' }]}
+        />
+        <F.Field
+          name="confirm"
+          title="Confirm password"
+          required
+          omit
+          rules={{
+            validator: (value, ctx) => (value && value !== ctx.record?.password ? 'Passwords do not match' : undefined),
+          }}
+          decorator={[FieldRow]}
+          component={[FieldInput, { type: 'password', placeholder: 'Re-enter password' }]}
+        />
+        <div>
+          <Submit>
+            {(s) => (
+              <Button type="submit" variant="primary" disabled={s.disabled} loading={s.submitting}>
+                Register
+              </Button>
+            )}
+          </Submit>
+        </div>
+        <pre aria-live="polite">{result}</pre>
+      </Form>
+    </Card>
   );
 }
 ```
@@ -148,36 +180,33 @@ export default function App() {
 Pass a Zod schema to `validate` to check nested records and compare fields across the form.
 
 ```tsx preview play=schema
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { z } from 'zod';
 import { isFieldErrors } from '@shikiform/core';
-import { enUS, Field, Form, ObjectField, useField, useForm } from '@shikiform/react';
+import { enUS, Field, Form, ObjectField, useFieldDecorator, useForm } from '@shikiform/react';
+import { Badge, Button, Card, FieldInput, Toolbar } from '@site/ui';
 
 const schema = z
   .object({
-    email: z.string().email("Invalid email address"),
-    password: z.string().min(6, "At least 6 characters"),
+    email: z.string().email('Invalid email address'),
+    password: z.string().min(6, 'At least 6 characters'),
     confirm: z.string(),
-    nick: z.string().min(1, "Nickname is required"),
-    address: z.object({ city: z.string().min(1, "City is required"), street: z.string() }),
+    nick: z.string().min(1, 'Nickname is required'),
+    address: z.object({ city: z.string().min(1, 'City is required'), street: z.string() }),
   })
-  .refine((values) => values.password === values.confirm, { path: ['confirm'], message: "Passwords do not match" });
+  .refine((values) => values.password === values.confirm, { path: ['confirm'], message: 'Passwords do not match' });
 
 type Values = z.infer<typeof schema>;
 
-function TextInput({ type = 'text' }: { type?: string }) {
-  const f = useField<string>();
+function FieldRow({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
   return (
-    <p>
-      <label htmlFor={f.id}>{f.title}: </label>
-      <input
-        id={f.id}
-        type={type}
-        value={f.value ?? ''}
-        onChange={(e) => f.onChange(e.target.value)}
-        onBlur={f.onBlur}
-      />
-      {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
+    <p className="sf-ui-form-item" style={{ margin: 0 }}>
+      <label {...d.labelProps} className="sf-ui-form-label">
+        <span>{d.label}: </span>
+      </label>
+      {children}
+      {d.errorProps && <small {...d.errorProps} className="sf-ui-form-error">{d.errors[0]}</small>}
     </p>
   );
 }
@@ -203,23 +232,36 @@ export default function App() {
     d.nick.$omit = mode === 'omit';
   });
   return (
-    <Form form={form}>
-      <Field name="email" title="Email" component={[TextInput]} />
-      <Field name="password" title="Password" component={[TextInput, { type: 'password' }]} />
-      <Field name="confirm" title="Confirm password" component={[TextInput, { type: 'password' }]} />
-      <Field name="nick" title="Nickname" component={[TextInput]} />
-      <ObjectField name="address">
-        <Field name="city" title="City" component={[TextInput]} />
-        <Field name="street" title="Street" component={[TextInput]} />
-      </ObjectField>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-        <button type="button" onClick={submit}>Submit</button>
-        <button type="button" onClick={() => setNick('hidden')}>Hide nickname</button>
-        <button type="button" onClick={() => setNick('omit')}>Omit nickname</button>
-        <button type="button" onClick={() => setNick('visible')}>Show nickname</button>
-      </div>
-      <pre aria-live="polite">{out}</pre>
-    </Form>
+    <Card
+      title="Registration"
+      description="Whole-form Standard Schema (Zod) validation with nested address paths"
+      extra={<Badge variant="brand">Zod</Badge>}
+      style={{ maxWidth: 520 }}
+    >
+      <Form form={form}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12 }}>
+          <Field name="email" title="Email" decorator={[FieldRow]} component={[FieldInput, { placeholder: 'a@b.co' }]} />
+          <Field name="nick" title="Nickname" decorator={[FieldRow]} component={[FieldInput, { placeholder: 'ada' }]} />
+          <Field name="password" title="Password" decorator={[FieldRow]} component={[FieldInput, { type: 'password', placeholder: 'At least 6 characters' }]} />
+          <Field name="confirm" title="Confirm password" decorator={[FieldRow]} component={[FieldInput, { type: 'password', placeholder: 'Re-enter password' }]} />
+        </div>
+        <Card variant="muted" padding="sm" title="Shipping address">
+          <ObjectField name="address">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+              <Field name="city" title="City" decorator={[FieldRow]} component={[FieldInput, { placeholder: 'Hangzhou' }]} />
+              <Field name="street" title="Street" decorator={[FieldRow]} component={[FieldInput, { placeholder: 'Optional' }]} />
+            </div>
+          </ObjectField>
+        </Card>
+        <Toolbar>
+          <Button variant="primary" size="sm" onClick={submit}>Submit</Button>
+          <Button variant="outline" size="sm" onClick={() => setNick('hidden')}>Hide nickname</Button>
+          <Button variant="outline" size="sm" onClick={() => setNick('omit')}>Omit nickname</Button>
+          <Button variant="outline" size="sm" onClick={() => setNick('visible')}>Show nickname</Button>
+        </Toolbar>
+        <pre aria-live="polite">{out}</pre>
+      </Form>
+    </Card>
   );
 }
 ```
@@ -229,10 +271,10 @@ export default function App() {
 Toggle the contact group's flags and compare what renders, what validates and what reaches the submit callback.
 
 ```tsx preview play=display
-import { useState } from 'react';
-import { Radio, RadioGroup, RadioIndicator } from '@ui-sdk/react/radio';
+import { useState, type ReactNode } from 'react';
 import { isFieldErrors } from '@shikiform/core';
-import { enUS, Field, Form, ObjectField, defineEffects, useField, useForm } from '@shikiform/react';
+import { enUS, Field, Form, ObjectField, defineEffects, useFieldDecorator, useForm } from '@shikiform/react';
+import { Button, Card, FieldInput, FieldRadioGroup, FormItem } from '@site/ui';
 
 type Mode = 'visible' | 'hidden' | 'omit' | 'readOnly';
 type Values = { mode: Mode; contact: { email: string; phone: string } };
@@ -246,17 +288,16 @@ const effects = defineEffects<Values>(({ reaction }) => {
   });
 });
 
-function TextInput() {
-  const f = useField<string>();
+function FieldRow({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
   return (
-    <p>
-      <label htmlFor={f.id}>{f.title}: </label>
-      {f.readOnly ? (
-        <span>{f.value || '-'}</span>
-      ) : (
-        <input id={f.id} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} onBlur={f.onBlur} />
-      )}
-      {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
+    <p className="sf-ui-form-item" style={{ margin: 0 }}>
+      <span className="sf-ui-form-label">
+        <label {...d.labelProps}>{d.label}: </label>
+        {d.required && <span className="sf-ui-form-required" aria-hidden="true">*</span>}
+      </span>
+      {children}
+      {d.errorProps && <small {...d.errorProps} className="sf-ui-form-error">{d.errors[0]}</small>}
     </p>
   );
 }
@@ -279,31 +320,30 @@ export default function App() {
     }
   };
   return (
-    <Form form={form}>
-      <Field<Values, 'mode'> name="mode" title="contact" omit enum={['visible', 'hidden', 'omit', 'readOnly']}>
-        {(f) => (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-            <span>{f.title}: </span>
-            <RadioGroup value={f.value ?? null} onValueChange={(v) => { if (v) f.onChange(v as Mode); }}>
-              {f.options.map((opt) => (
-                <label key={String(opt.value)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                  <Radio value={String(opt.value)}>
-                    <RadioIndicator />
-                  </Radio>
-                  {opt.label}
-                </label>
-              ))}
-            </RadioGroup>
-          </div>
-        )}
-      </Field>
-      <ObjectField name="contact">
-        <Field name="email" title="Email" component={[TextInput]} />
-        <Field name="phone" title="Phone" component={[TextInput]} />
-      </ObjectField>
-      <button type="button" onClick={submit}>Submit</button>
-      <pre aria-live="polite">{out}</pre>
-    </Form>
+    <Card title="Visibility modes" description="Switch the contact group flags to compare rendering, validation and submit payloads" style={{ maxWidth: 520 }}>
+      <Form form={form}>
+        <Field<Values, 'mode'>
+          name="mode"
+          title="contact"
+          omit
+          enum={['visible', 'hidden', 'omit', 'readOnly']}
+          decorator={[FormItem, { layout: 'inline' }]}
+          component={[FieldRadioGroup]}
+        />
+        <Card variant="muted" padding="sm" title="Contact details">
+          <ObjectField name="contact">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+              <Field name="email" title="Email" decorator={[FieldRow]} component={[FieldInput, { placeholder: 'a@b.co' }]} />
+              <Field name="phone" title="Phone" decorator={[FieldRow]} component={[FieldInput]} />
+            </div>
+          </ObjectField>
+        </Card>
+        <div>
+          <Button variant="primary" onClick={submit}>Submit</Button>
+        </div>
+        <pre aria-live="polite">{out}</pre>
+      </Form>
+    </Card>
   );
 }
 ```
@@ -313,20 +353,23 @@ export default function App() {
 Declare required fields in the engine so submitting still checks inputs on a tab that has unmounted.
 
 ```tsx preview play=tabs
-import { useState } from 'react';
-import { Tabs, TabsList, TabsTab } from '@ui-sdk/react/tabs';
+import { useState, type ReactNode } from 'react';
 import { isFieldErrors } from '@shikiform/core';
-import { enUS, Field, Form, Watch, useField, useForm, type Draft } from '@shikiform/react';
+import { enUS, Field, Form, Watch, useFieldDecorator, useForm, type Draft } from '@shikiform/react';
+import { Button, Card, FieldInput, Tabs, TabsList, TabsTab } from '@site/ui';
 
 type Values = { tab: 'base' | 'extra'; name: string; code: string; note: string };
 
-function TextInput() {
-  const f = useField<string>();
+function FieldRow({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator();
   return (
-    <p>
-      <label htmlFor={f.id}>{f.title}: </label>
-      <input id={f.id} value={f.value ?? ''} onChange={(e) => f.onChange(e.target.value)} onBlur={f.onBlur} />
-      {f.errors[0] && <small role="alert" style={{ color: 'crimson' }}> {f.errors[0]}</small>}
+    <p className="sf-ui-form-item" style={{ margin: 0 }}>
+      <span className="sf-ui-form-label">
+        <label {...d.labelProps}>{d.label}: </label>
+        {d.required && <span className="sf-ui-form-required" aria-hidden="true">*</span>}
+      </span>
+      {children}
+      {d.errorProps && <small {...d.errorProps} className="sf-ui-form-error">{d.errors[0]}</small>}
     </p>
   );
 }
@@ -344,41 +387,45 @@ export default function App() {
   const submit = async () => {
     try {
       await form.submit();
-      setOut("Passed");
+      setOut('Passed');
     } catch (error) {
       const errors = isFieldErrors(error) ? error : [];
       setOut(`Blocked: ${errors.map((item) => item.path).join(', ')}`);
     }
   };
   return (
-    <Form form={form}>
-      <Field<Values, 'tab'> name="tab" omit enum={[{ label: "Basic", value: 'base' }, { label: "Extra", value: 'extra' }]}>
-        {(f) => (
-          <Tabs value={f.value ?? 'base'} onValueChange={(v) => { if (v) f.onChange(v as Values['tab']); }}>
-            <TabsList>
-              {f.options.map((opt) => (
-                <TabsTab key={String(opt.value)} value={String(opt.value)}>
-                  {opt.label}
-                </TabsTab>
-              ))}
-            </TabsList>
-          </Tabs>
-        )}
-      </Field>
-      <Watch select={(d: Draft<Values>) => d.tab.$value}>
-        {(tab) => tab === 'base' ? (
-          <Field name="name" title="Name" component={[TextInput]} />
-        ) : (
-          <>
-            <Field name="code" title="Code" component={[TextInput]} />
-            {/* JSX rules apply while mounted. */}
-            <Field name="note" title="Notes" required component={[TextInput]} />
-          </>
-        )}
-      </Watch>
-      <button type="button" onClick={submit}>Submit</button>
-      <pre aria-live="polite">{out}</pre>
-    </Form>
+    <Card title="Tabbed validation" description="Engine-declared fields validate while unmounted; JSX rules apply only while mounted" style={{ maxWidth: 460 }}>
+      <Form form={form}>
+        <Field<Values, 'tab'> name="tab" omit enum={[{ label: 'Basic', value: 'base' }, { label: 'Extra', value: 'extra' }]}>
+          {(f) => (
+            <Tabs value={f.value ?? 'base'} onValueChange={(v) => f.onChange(v as Values['tab'])} variant="segmented">
+              <TabsList className="sf-ui-tabs-list">
+                {f.options.map((opt) => (
+                  <TabsTab key={String(opt.value)} value={String(opt.value)} className="sf-ui-tabs-tab">
+                    {opt.label}
+                  </TabsTab>
+                ))}
+              </TabsList>
+            </Tabs>
+          )}
+        </Field>
+        <Watch select={(d: Draft<Values>) => d.tab.$value}>
+          {(tab) => tab === 'base' ? (
+            <Field name="name" title="Name" decorator={[FieldRow]} component={[FieldInput, { placeholder: 'Required (in fields)' }]} />
+          ) : (
+            <div style={{ display: 'grid', gap: 12 }}>
+              <Field name="code" title="Code" decorator={[FieldRow]} component={[FieldInput, { placeholder: 'Required (in fields)' }]} />
+              {/* JSX rules apply while mounted. */}
+              <Field name="note" title="Notes" required decorator={[FieldRow]} component={[FieldInput, { placeholder: 'Required (while mounted)' }]} />
+            </div>
+          )}
+        </Watch>
+        <div>
+          <Button variant="primary" onClick={submit}>Submit</Button>
+        </div>
+        <pre aria-live="polite">{out}</pre>
+      </Form>
+    </Card>
   );
 }
 ```
