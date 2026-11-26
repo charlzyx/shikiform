@@ -143,12 +143,13 @@ describe.each(['development', 'production'])('F10 adjacent validation in %s', (m
     expect(form.errors).toEqual(expected)
   })
 
-  it.fails('BUG: scoped validation adopts a verdict that omits an unmodeled moved descendant (QA-79)', async () => {
+  it.each(['id', 'key'])('QA-81 keeps a moved unmodeled node with row key %s in the original scope', async (rowKey) => {
     const entered = deferred<void>()
     const oldPass = deferred<void>()
+    const id = (value: string) => ({ [rowKey]: value })
     const initialValues = { tree: [
-      { id: 'left', children: [{ id: 'a', code: 'A' }] },
-      { id: 'right', children: [{ id: 'b', code: 'B' }] },
+      { ...id('left'), children: [{ ...id('a'), code: 'A' }] },
+      { ...id('right'), children: [{ ...id('b'), code: 'B' }] },
     ] }
     const issuesFor = (values: typeof initialValues) => Object.fromEntries(values.tree.flatMap((branch, i) =>
       branch.children.flatMap(({ code }, j) => code === 'A' ? [[`tree.${i}.children.${j}.code`, 'invalid A']] : [])))
@@ -157,13 +158,15 @@ describe.each(['development', 'production'])('F10 adjacent validation in %s', (m
       await oldPass.promise
       return issuesFor(values)
     })
-    const form = createForm({ initialValues, validate, trees: { tree: {} } })
+    const form = createForm({ initialValues, validate, trees: { tree: { rowKey } } })
     const verdict = form.validate('tree.0').catch((errors: unknown) => errors)
     await entered.promise
     expect(engineOf(form).moveTree('tree', [0, 0], [1, 0]).ok).toBe(true)
-    await expect(form.validate('tree.0')).resolves.toEqual({ id: 'left', children: [] })
+    await expect(form.validate('tree.0')).resolves.toEqual({ ...id('left'), children: [] })
     oldPass.resolve()
-    expect(await verdict).toEqual([{ path: 'tree.1.children.0.code', messages: ['invalid A'] }])
+    const errors = [{ path: 'tree.1.children.0.code', messages: ['invalid A'] }]
+    expect(await verdict).toEqual(errors)
+    expect(form.errors).toEqual(errors)
   })
 
   it('QA-77 keeps the moved verdict when only an unrelated field is reset during the warning wait', async () => {

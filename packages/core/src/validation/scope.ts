@@ -72,7 +72,8 @@ export function liveScope(scope: ValidateScope | undefined, includes: (path: str
       const roots = typeof scope === 'string' ? [scope] : scope
       const paths = roots.map((path) => rows.path(path)).filter((path) => path !== undefined)
       const covered = scopeTest(paths)
-      return [...paths, ...liveTargets().filter((path) => !covered(path))]
+      const extra = new Set([...liveTargets(), ...rows.movedPaths(includes)])
+      return [...paths, ...[...extra].filter((path) => !covered(path))]
     },
     filter() {
       const original = rows.snapshot()

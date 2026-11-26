@@ -18,7 +18,7 @@ import { liveScope, mergeSchemaScope, resetOverlaps, scopeTest, validateScope, t
 import { AsyncAttempts } from './async-attempt'
 import { ignoreRejection, isPromise, settleUnlessAborted, valueUnlessAborted } from './settle'
 import { clearInactiveErrors, noteFlagChange, type InactiveHost } from './inactive'
-import { reindexSchemaPaths, SnapshotRows } from './row-paths'
+import { movedRowPaths, reindexSchemaPaths, SnapshotRows } from './row-paths'
 import { syncSchemaMessages } from './publish-schema'
 
 export interface ValidatorDeps {
@@ -484,14 +484,15 @@ export class Validator {
   reindexSchema(oldIds: ReadonlyMap<string, string>, newIds: ReadonlyMap<string, string>): void {
     if (!this.snapshotRows && !this.requestedRows.size && !this.schemaByPath.size) return
     const project = rowPathAfter(oldIds, newIds)
-    this.trackRows(project, () => rowPathAfter(newIds, oldIds))
+    const moved = this.snapshotRows || this.requestedRows.size ? movedRowPaths(oldIds, newIds) : []
+    this.trackRows(project, () => rowPathAfter(newIds, oldIds), moved)
     if (this.schemaByPath.size) this.applySchemaMap(reindexSchemaPaths(this.schemaByPath, project), true)
   }
 
-  private trackRows(forward: RowPathMap, reverse: () => RowPathMap): void {
+  private trackRows(forward: RowPathMap, reverse: () => RowPathMap, moved: readonly string[] = []): void {
     const version = ++this.rowVersion
-    this.snapshotRows?.add(version, forward, reverse)
-    for (const rows of this.requestedRows) if (rows !== this.snapshotRows) rows.add(version, forward, reverse)
+    this.snapshotRows?.add(version, forward, reverse, moved)
+    for (const rows of this.requestedRows) if (rows !== this.snapshotRows) rows.add(version, forward, reverse, moved)
   }
 
   /** Recompute built-in messages only. Custom callbacks run in the managed validation pass, never in this preview. */
