@@ -202,3 +202,36 @@ export function shikiformPreviews() {
     },
   }
 }
+
+/**
+ * Workaround for @astrojs/react + React 19 + Astro ClientRouter:
+ * @astrojs/react hydrates inside startTransition and calls r.unmount() synchronously on
+ * astro:unmount. If the user navigates away before hydration finishes, React 19 reports
+ * recoverable error #424 ("early update before anything was able hydrate") for that
+ * already-unmounting island. Suppress only #424 on an island that is actively unmounting;
+ * every genuine hydration error still surfaces via reportError().
+ */
+export function astroReactUnmountGuard() {
+  const target = /const r = hydrateRoot\(element, componentEl, renderOptions\);\s*element\.addEventListener\("astro:unmount", \(\) => r\.unmount\(\), \{ once: true \}\);/
+  return {
+    name: 'astro-react-unmount-guard',
+    transform(code, id) {
+      const cleanId = id.split('?')[0]
+      if (!/[\\/]@astrojs[\\/]react[\\/]dist[\\/]client\.js$/.test(cleanId)) return
+      if (!target.test(code)) return
+      return code.replace(
+        target,
+        `let unmounting = false;
+			const r = hydrateRoot(element, componentEl, {
+				...renderOptions,
+				onRecoverableError(error) {
+					if (unmounting && error instanceof Error && (error.message.includes("424") || error.message.includes("early update"))) return;
+					if (typeof reportError === "function") reportError(error);
+					else console.error(error);
+				},
+			});
+			element.addEventListener("astro:unmount", () => { unmounting = true; r.unmount(); }, { once: true });`,
+      )
+    },
+  }
+}

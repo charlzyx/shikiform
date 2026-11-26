@@ -7,6 +7,7 @@ import nimbus, {
 import { tableScroll } from "@cloudflare/nimbus-docs/markdown";
 import { shikiformDemoPlugin } from "./src/mdx/shikiform-demo-satteri.mjs";
 import {
+  astroReactUnmountGuard,
   shikiformDemoImports,
   shikiformDemoComponentMap,
   shikiformPreviews,
@@ -109,8 +110,8 @@ export default defineConfig({
   // Tailwind v4 — replaces the PostCSS plugin, which doesn't build under
   // Astro 7's Vite 8 bundler).
   vite: {
-    plugins: [tailwindcss(), shikiformDemoImports(), shikiformDemoComponentMap(), shikiformPreviews(), shikiformTutorials()],
-    resolve: { dedupe: ['react', 'react-dom', '@tanstack/react-virtual'] },
+    plugins: [tailwindcss(), astroReactUnmountGuard(), shikiformDemoImports(), shikiformDemoComponentMap(), shikiformPreviews(), shikiformTutorials()],
+    resolve: { dedupe: ['react', 'react-dom'] },
   },
   // Hover-prefetch link targets so full-page navigations feel instant without
   // a client-side router.
