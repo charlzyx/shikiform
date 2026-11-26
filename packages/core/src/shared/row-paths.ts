@@ -32,7 +32,7 @@ export function locateRowPath(oldIds: RowIds, newIds: RowIds, next?: ReadonlySet
 /** Whole-value writes retain existing rows only when they reuse the stored entries. */
 export function rowPathAfterReplacement(written: string, before: unknown, after: unknown): RowPathMap {
   const parent = parentPath(written) ?? ''
-  const base = Array.isArray(getAt(before, parent)) ? parent : written
+  const base = Array.isArray(getAt(before, parent)) || Array.isArray(getAt(after, parent)) ? parent : written
   const oldRoot = getAt(before, base)
   const newRoot = getAt(after, base)
   const indexes = new WeakMap<unknown[], Map<unknown, number>>()
@@ -42,9 +42,12 @@ export function rowPathAfterReplacement(written: string, before: unknown, after:
     let oldNode = oldRoot
     let newNode = newRoot
     for (let i = 0; i < parts.length; i++) {
-      if (oldNode === newNode || oldNode == null || typeof oldNode !== 'object') break
+      if (oldNode === newNode) break
       const key = parts[i]!
       const index = arrayIndex(key)
+      const oldObject = oldNode != null && typeof oldNode === 'object'
+      if (index !== undefined && Array.isArray(newNode) && Object.hasOwn(newNode, index) &&
+          (!oldObject || !Object.hasOwn(oldNode as object, index))) return
       if (Array.isArray(oldNode) && index !== undefined && Object.hasOwn(oldNode, index)) {
         if (!Array.isArray(newNode)) return
         const row = oldNode[index]
@@ -60,7 +63,7 @@ export function rowPathAfterReplacement(written: string, before: unknown, after:
           parts[i] = String(to)
         }
       }
-      oldNode = (oldNode as Record<string, unknown>)[key]
+      oldNode = oldObject ? (oldNode as Record<string, unknown>)[key] : undefined
       newNode = newNode != null && typeof newNode === 'object' ? (newNode as Record<string, unknown>)[parts[i]!] : undefined
     }
     return joinPath(base, parts.join('.'))

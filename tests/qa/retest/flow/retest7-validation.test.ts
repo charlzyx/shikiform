@@ -55,24 +55,27 @@ describe.each(['development', 'production'])('F10 adjacent validation in %s', (m
     expect(form.errors).toEqual([])
   })
 
-  it.fails('BUG: whole-parent replacement fills an empty coordinate but publishes its old missing-row issue (QA-78)', async () => {
+  it.each([
+    { before: { rows: [] }, after: { rows: [{ code: 'new' }] }, occupied: true },
+    { before: { rows: new Array<{ code: string }>(1) }, after: { rows: [{ code: 'new' }] }, occupied: true },
+    { before: {}, after: { rows: [{ code: 'new' }] }, occupied: true },
+    { before: {}, after: { rows: [] }, occupied: false },
+  ])('QA-80 projects a missing-row issue after replacing its parent (case %#)', async ({ before, after, occupied }) => {
     const result = deferred<StandardSchemaV1.FailureResult>()
     const validate = vi.fn(() => result.promise)
     const form = createForm({
-      initialValues: { group: { rows: [] as { code: string }[] } },
+      initialValues: { group: before },
       validate: { '~standard': { version: 1, vendor: 'qa', validate } },
     })
     const verdict = form.validate().catch((errors: unknown) => errors)
     await setImmediate()
     expect(validate).toHaveBeenCalledOnce()
-    form.setValue('group', { rows: [{ code: 'new' }] })
-    expect(form.getValue('group.rows.0.code')).toBe('new')
+    form.setValue('group', after)
+    expect(form.getValue('group')).toEqual(after)
     result.resolve({ issues: [{ path: ['group', 'rows', 0, 'code'], message: 'missing row in old snapshot' }] })
-    const outcome = await verdict
-    expect({ outcome, errors: form.errors }).toEqual({
-      outcome: { group: { rows: [{ code: 'new' }] } },
-      errors: [],
-    })
+    const errors = occupied ? [] : [{ path: 'group.rows.0.code', messages: ['missing row in old snapshot'] }]
+    expect(await verdict).toEqual(occupied ? { group: after } : errors)
+    expect(form.errors).toEqual(errors)
   })
 
   it('QA-76 keeps published nested field-schema errors attached through deletion and index reuse', async () => {
