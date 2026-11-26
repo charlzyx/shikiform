@@ -216,7 +216,7 @@ await form.submit(async (values) => {
 })
 ```
 
-`setErrors` 接收 `{ path: 文案 | 文案[] }` 或 `FieldError[]`，传入 `null` 或空数组可清除单条错误。挂载后的服务端错误会与规则错误一同显示，并使 `canSubmit` 变为 `false`；只要对应字段（或其祖先/子孙字段）的值发生变更、触发重新校验，或调用 `reset()` / `clearErrors(path?)`，服务端错误会自动清除。
+`setErrors` 接收 `{ path: 文案 | 文案[] }` 或 `FieldError[]`，传入 `null` 或空数组可清除单条错误。挂载后的服务端错误会与规则错误一同显示，并使 `canSubmit` 变为 `false`；只要对应字段（或其祖先/子孙字段）的值发生变更、触发重新校验，或调用 `reset()` / `clearErrors(path?)`，服务端错误会自动清除。在 `batch` / `watch` 内调用 `setErrors` / `clearErrors` 时，按调用顺序和当时工作树坐标定位字段（移行后命中当前位于该坐标的行），内层 `batch` 抛错时回滚；批内读取 `form.errors` / `$errors` 仍返回已提交状态，批结束时统一落地。
 
 ## 规则写在哪决定「卸载后是否还校验」
 

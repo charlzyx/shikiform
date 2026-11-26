@@ -155,7 +155,7 @@ setDefaultMessages(enUS)                              // Set the application def
 
 ## Server errors
 
-Map server errors to field paths with `setErrors`. Use the empty path for a form-wide message and `null` to clear one field. Changing a related value, validating again or resetting can clear an external error.
+Map server errors to field paths with `setErrors`. Use the empty path for a form-wide message and `null` to clear one field. Changing a related value, validating again or resetting can clear an external error. Inside `batch` or `watch`, `setErrors` and `clearErrors` target fields in call order using the working tree coordinates at that point (after a row move, hitting the row currently at that coordinate) and roll back if a nested `batch` throws; reading `form.errors` or `$errors` inside the batch still returns the committed state, and changes settle together when the batch finishes.
 
 ```ts
 await form.submit(async (values) => {
