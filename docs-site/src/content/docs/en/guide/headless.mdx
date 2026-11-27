@@ -1,6 +1,6 @@
 ---
 title: "Connecting a UI library"
-description: "Connect native inputs and third-party controls, including date pickers and popup widgets."
+description: "Connect Ant Design, TDesign React, UI SDK, shadcn/ui, Mantine, MUI, and native inputs to ShikiForm with connect, mapProps, and useFieldDecorator."
 ---
 
 ## Array rows
@@ -98,23 +98,289 @@ function NodeRow() {
 
 ## Adapt a control
 
-`connect` forwards field state. `mapProps` adapts prop names and converts values using `format` and `parse`. Keep the stored value serializable. The read-only preview receives the original value.
+`connect` and `mapProps` are exported directly from `@shikiform/react` with zero UI-library dependencies. Labels, required marks, and validation messages come from [`useFieldDecorator`](/en/reference/react-hooks#usefielddecorator), while submit and reset actions use headless [`Submit` / `Reset`](/en/reference/react-hooks#submit).
+
+Every UI library integration follows one boundary: **the UI library renders controls and layout only, while ShikiForm owns field values, validation, effects, and submission**. Render one ShikiForm `<Form form={form}>` and skip the UI library's own `<Form>` / `Form.useForm()` so two form stores never compete for control state.
+
+> `@site/ui` in this site's interactive demos is an internal docs-only kit built on `@ui-sdk/react`. In your application, install a public UI library package and adapt it with the patterns below.
+
+Connecting a library takes three steps:
+
+1. **Wrap controls with `connect(Comp, mapProps(...))`**: forwards `value`, `onChange`, `onBlur`, `disabled`, `readOnly`, and `id` with stable generated event handlers while mounted. The built-in `valueFromEvent` handles both DOM events (`e.target.value` / `e.target.checked`) and direct values (passing the first argument through). Use `mapProps` to opt into `options`, `loading`, `status`, `format` / `parse`, `blurOn`, or a read-only `preview`.
+2. **Build a `FormItem` decorator with `useFieldDecorator()`**: map `d.label`, `d.required`, `d.error`, `d.warnings`, and `d.description` onto the UI library's form-item layout without passing the UI library's own `name` or `rules`.
+3. **Register once with `<Form kit={{ decorator, components }}>` or `<FieldKit>`**: write `<Field name="email" title="Email" component="Input" />` across your screens.
+
+Start with the complete **Ant Design** and **TDesign React** guides below, followed by general adapter patterns and recipes for UI SDK, shadcn/ui, Mantine, and MUI.
+
+### Ant Design
+
+**Install & stylesheet**:
+
+```bash
+npm i @shikiform/react antd
+```
+
+Import Ant Design's reset stylesheet once in your app entry (`antd` v5 and v6 inject component CSS via CSS-in-JS):
 
 ```ts
-// Example adapter for components accepting a status prop.
-import { connect, mapProps } from '@shikiform/react'
+import 'antd/dist/reset.css'
+```
 
-const withStatus = mapProps(
-  { options: 'options', loading: 'loading' },
-  (props, field) => ({
-    ...props,
-    status: field.errors.length ? 'error' : field.warnings.length ? 'warning' : undefined,
-  }),
+- Supported versions: `npm i @shikiform/react antd` installs `antd` v6 by default (verified on `6.7.2`, requires `react >= 18`, native React 19 support). Projects on React 16.8 / 17 can install `antd@5` (`npm i @shikiform/react antd@5`, verified on `5.29.3`); when using `antd` v5 with React 19, install and import `@ant-design/v5-patch-for-react-19` per Ant Design's docs.
+- Single form store: render ShikiForm's `<Form form={form}>` without `antd`'s `<AntForm>` or `AntForm.useForm()`. When `<AntForm.Item>` receives no `name`, `rules`, or `dependencies`, it skips internal form-field registration and renders layout chrome only.
+
+Copy-pasteable minimal form covering `Input`, `Select`, `Switch`, validation messages, reset, and submit:
+
+```tsx
+import { useState, type ReactNode } from 'react'
+import { Form as AntForm, Button, Input as AntInput, Select as AntSelect, Space, Switch as AntSwitch } from 'antd'
+import { enUS, Form, Reset, Submit, connect, mapProps, typed, useFieldDecorator, useForm } from '@shikiform/react'
+// Import reset CSS once in your app entry:
+// import 'antd/dist/reset.css'
+
+// Input emits a DOM ChangeEvent; connect's default valueFromEvent extracts e.target.value. Supports native readOnly.
+const Input = connect(
+  AntInput,
+  mapProps(
+    { status: 'status', required: 'aria-required' },
+    (props, field) => ({
+      ...props,
+      'aria-invalid': field.errors.length > 0 || undefined,
+    }),
+  ),
 )
 
-// const Input = connect(UiInput, withStatus)
-// const Select = connect(UiSelect, withStatus)
-// const Switch = connect(UiSwitch, mapProps({ value: 'checked', onChange: 'onChange' }))
+// Select emits (value, option) directly; unset or allowClear values are undefined.
+// AntSelect has no readOnly prop, so map readOnly -> disabled for UI rendering only.
+const Select = connect(
+  AntSelect,
+  mapProps(
+    { options: 'options', loading: 'loading', status: 'status', readOnly: 'disabled', required: 'aria-required' },
+    (props, field) => ({
+      ...props,
+      'aria-invalid': field.errors.length > 0 || undefined,
+    }),
+  ),
+)
+
+// Switch uses checked, omits onBlur, and has no readOnly prop.
+const Switch = connect(AntSwitch, mapProps({ value: 'checked', readOnly: 'disabled', blurOn: 'onChange' }))
+
+// Layout-only AntForm.Item: omit name and rules so Ant Design does not create a second store.
+function FormItem({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator()
+  return (
+    <AntForm.Item
+      layout="vertical"
+      label={d.label}
+      htmlFor={d.labelProps.htmlFor}
+      required={d.required}
+      validateStatus={d.invalid ? 'error' : d.warnings.length ? 'warning' : d.validating ? 'validating' : undefined}
+      help={d.error ?? d.warnings[0]}
+      extra={d.description}
+    >
+      {children}
+    </AntForm.Item>
+  )
+}
+
+type Values = { name: string; city: string | undefined; notify: boolean }
+
+export default function App() {
+  const [saved, setSaved] = useState('')
+  const form = useForm<Values>({ messages: enUS, initialValues: { name: '', city: undefined, notify: false } })
+  const F = typed(form)
+
+  return (
+    <Form form={form} kit={{ decorator: FormItem }} onSubmit={(values) => setSaved(JSON.stringify(values))}>
+      <F.Field
+        name="name"
+        title="Name"
+        description="Public display name"
+        required
+        rules={{ minLength: 2, message: 'Enter at least 2 characters' }}
+        component={[Input, { placeholder: 'Enter your name', allowClear: true }]}
+      />
+      <F.Field
+        name="city"
+        title="City"
+        required
+        enum={[
+          { label: 'Hangzhou', value: 'hz' },
+          { label: 'Nanjing', value: 'nj' },
+        ]}
+        component={[Select, { placeholder: 'Choose a city', allowClear: true }]}
+      />
+      <F.Field name="notify" title="Notifications" component={Switch} />
+      <Space>
+        {/* Ant Design Button uses htmlType for the native button type; forward it with a render prop. */}
+        <Submit>
+          {(s) => (
+            <Button type="primary" htmlType={s.type} loading={s.loading} disabled={s.disabled} onClick={s.onClick}>
+              Submit
+            </Button>
+          )}
+        </Submit>
+        <Reset afterReset={() => setSaved('')}>
+          {(s) => (
+            <Button htmlType="button" disabled={s.disabled} onClick={s.onClick}>
+              Reset
+            </Button>
+          )}
+        </Reset>
+      </Space>
+      {saved && <pre aria-live="polite">{saved}</pre>}
+    </Form>
+  )
+}
+```
+
+Key Ant Design details:
+
+- **`Input` vs `Select` callbacks & clearing**: `AntInput` fires `onChange(ChangeEvent)` (`allowClear` emits `''`); `AntSelect` fires `onChange(value, option)` directly (`allowClear` emits `undefined`, and `placeholder` only displays when `value === undefined`). Store empty single-select values as `undefined` (`string | undefined`).
+- **`onBlur`, readOnly & accessibility**: `AntInput` and `AntSelect` support `onBlur`, `disabled`, `id`, `aria-required`, and `aria-invalid`, while `htmlFor={d.labelProps.htmlFor}` links the label; `AntSwitch` omits `onBlur`, so configure `blurOn: 'onChange'`. For read-only mode, `AntInput` supports native `readOnly`, whereas `AntSelect` and `AntSwitch` do not—`mapProps({ readOnly: 'disabled' })` maps `readOnly` to `disabled` on those controls strictly for UI rendering while the ShikiForm field remains `readOnly` (hiding required asterisks and skipping validation). To render plain text in read-only mode, pass a `preview` component in `mapProps` (see the `preview` usage in [Runnable adapter](#runnable-adapter)).
+- **Submit & reset buttons**: Ant Design `<Button>` uses `type` for visual styling (`'primary' | 'default'`) and `htmlType` for the native form action. Use `<Submit>` / `<Reset>` render props to pass `htmlType`, `loading`, `disabled`, and `onClick`.
+- **More Ant Design controls**: the optional `DatePicker` snippet imports `dayjs` directly—in projects with strict dependency resolution (such as pnpm), install it explicitly with `npm i dayjs`:
+
+```tsx
+import dayjs, { type Dayjs } from 'dayjs'
+import { Checkbox as AntCheckbox, DatePicker as AntDatePicker, InputNumber as AntInputNumber } from 'antd'
+import { connect, mapProps } from '@shikiform/react'
+
+// InputNumber supports readOnly; emits null when cleared, so type the field as number | null.
+const InputNumber = connect(AntInputNumber, mapProps({ status: 'status' }))
+// Checkbox supports onBlur (valueFromEvent reads e.target.checked); map readOnly to disabled for UI rendering.
+const Checkbox = connect(AntCheckbox, mapProps({ value: 'checked', readOnly: 'disabled' }))
+// Store YYYY-MM-DD strings and convert to/from Dayjs at the control boundary; map readOnly to disabled.
+const DatePicker = connect(
+  AntDatePicker,
+  mapProps({
+    status: 'status',
+    readOnly: 'disabled',
+    format: (value: string | undefined) => (value ? dayjs(value) : null),
+    parse: (date: Dayjs | null) => (date?.isValid() ? date.format('YYYY-MM-DD') : undefined),
+  }),
+)
+```
+
+### TDesign React
+
+**Install & stylesheet**:
+
+```bash
+npm i @shikiform/react tdesign-react
+```
+
+Components imported from `tdesign-react`'s default ESM entry (`es/index.js`) pull in their own component CSS automatically. Import the base stylesheet once in your app entry (`tdesign-react/dist/tdesign.css` is also available for the full stylesheet bundle):
+
+```ts
+import 'tdesign-react/es/style/index.css'
+```
+
+- Supported versions: `tdesign-react` 1.x (`peerDependencies`: `react >= 16.13.1`, verified on `1.19.0`). On React 19, import `tdesign-react/es/_util/react-19-adapter` in your entry when using TDesign imperative/portal overlays.
+- Single form store: render ShikiForm's `<Form form={form}>` without TDesign's `<TForm>` or `TForm.useForm()`. Because `<TForm.FormItem>` clones any direct custom-component child to inject its own `value` / `onChange`, wrap `{children}` in a plain `<div style={{ width: '100%' }}>` so TDesign never touches controlled props, and pass `showErrorMessage` explicitly (its default outside `<TForm>` is `undefined`) so `t-is-error` classes render.
+
+Copy-pasteable minimal form covering `Input`, `Select`, `Switch`, validation messages, reset, and submit:
+
+```tsx
+import { useState, type ReactNode } from 'react'
+import { Button, Form as TForm, Input as TInput, Select as TSelect, Space, Switch as TSwitch } from 'tdesign-react'
+import { enUS, Form, Reset, Submit, connect, mapProps, typed, useFieldDecorator, useForm } from '@shikiform/react'
+// Import base CSS once in your app entry:
+// import 'tdesign-react/es/style/index.css'
+
+// Both TDesign Input and Select pass the next value directly as the first onChange argument: (value, context).
+// TInput forwards unknown props to its outer wrapper div rather than the inner <input>, so set id: false.
+const Input = connect(TInput, mapProps({ id: false, status: 'status' }))
+
+// Single-select TSelect emits null when cleared via clearable; type the field as string | null.
+const Select = connect(TSelect, mapProps({ id: false, options: 'options', loading: 'loading', status: 'status' }))
+
+// TSwitch has no onBlur prop; blurOn: 'onChange' triggers blur validation on toggle.
+const Switch = connect(TSwitch, mapProps({ id: false, blurOn: 'onChange' }))
+
+// Layout-only TForm.FormItem: omit name / rules, enable showErrorMessage, and wrap children in a div
+// to stop TForm.FormItem from cloning its own value / onChange onto the connected control.
+function FormItem({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator()
+  return (
+    <TForm.FormItem
+      labelAlign="top"
+      label={d.label}
+      requiredMark={d.required}
+      showErrorMessage
+      status={d.invalid ? 'error' : d.warnings.length ? 'warning' : d.validating ? 'validating' : undefined}
+      tips={d.error ?? d.warnings[0]}
+      help={d.description}
+    >
+      <div style={{ width: '100%' }}>{children}</div>
+    </TForm.FormItem>
+  )
+}
+
+type Values = { name: string; city: string | null; notify: boolean }
+
+export default function App() {
+  const [saved, setSaved] = useState('')
+  const form = useForm<Values>({ messages: enUS, initialValues: { name: '', city: null, notify: false } })
+  const F = typed(form)
+
+  return (
+    <Form form={form} kit={{ decorator: FormItem }} onSubmit={(values) => setSaved(JSON.stringify(values))}>
+      <F.Field
+        name="name"
+        title="Name"
+        description="Public display name"
+        required
+        rules={{ minLength: 2, message: 'Enter at least 2 characters' }}
+        component={[Input, { placeholder: 'Enter your name', clearable: true }]}
+      />
+      <F.Field
+        name="city"
+        title="City"
+        required
+        enum={[
+          { label: 'Hangzhou', value: 'hz' },
+          { label: 'Nanjing', value: 'nj' },
+        ]}
+        component={[Select, { placeholder: 'Choose a city', clearable: true }]}
+      />
+      <F.Field name="notify" title="Notifications" component={Switch} />
+      <Space>
+        {/* TDesign Button uses type for native HTML button type and theme for visual style. */}
+        <Submit>
+          {(s) => (
+            <Button theme="primary" type={s.type} loading={s.loading} disabled={s.disabled}>
+              Submit
+            </Button>
+          )}
+        </Submit>
+        <Reset afterReset={() => setSaved('')} asChild>
+          <Button variant="outline">Reset</Button>
+        </Reset>
+      </Space>
+      {saved && <pre aria-live="polite">{saved}</pre>}
+    </Form>
+  )
+}
+```
+
+Key TDesign React details:
+
+- **Direct-value callbacks & clearing**: both `TInput` and `TSelect` call `onChange(value, context)` with the new value first, so `connect` forwards it unchanged. Clearing differs by control: `TInput` emits `''`, single-select `TSelect` emits `null` (multi-select emits `[]`). Typing the field as `string | null` stores the cleared value directly; add `parse: (v) => (v == null ? undefined : v)` if you prefer `undefined`.
+- **`onBlur`, disabled & `id` / accessibility**: `TInput` and `TSelect` accept `onBlur`, `disabled`, `readOnly`, and `status`; `TSwitch` and `TCheckbox` omit `onBlur`, so pass `blurOn: 'onChange'`. Because `TInput` spreads extra props onto `.t-input__wrap` and `TSelect` does not forward `id` to its input, `id: false` avoids placing an unreachable `id` on wrapper divs, while `status`, `tips`, and `help` render the error state and message.
+- **Submit & reset buttons**: TDesign `<Button>` uses native `type` (`'submit' | 'reset' | 'button'`) and `theme="primary"` for styling. Pass `type={s.type}`, `loading={s.loading}`, and `disabled={s.disabled}` in `<Submit>`'s render prop so clicks and Enter trigger `<Form onSubmit>`; `<Reset asChild>` merges directly onto `<Button variant="outline">`.
+- **More TDesign React controls**:
+
+```tsx
+import { Checkbox as TCheckbox, DatePicker as TDatePicker, InputNumber as TInputNumber } from 'tdesign-react'
+import { connect, mapProps } from '@shikiform/react'
+
+const InputNumber = connect(TInputNumber, mapProps({ id: false, status: 'status' }))
+// TCheckbox uses checked and omits onBlur.
+const Checkbox = connect(TCheckbox, mapProps({ id: false, value: 'checked', blurOn: 'onChange' }))
+// TDatePicker stores formatted date strings (e.g. YYYY-MM-DD) directly.
+const DatePicker = connect(TDatePicker, mapProps({ id: false, status: 'status' }))
 ```
 
 ### Labels and input bindings

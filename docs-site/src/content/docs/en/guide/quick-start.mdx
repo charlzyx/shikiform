@@ -17,7 +17,7 @@ Requires `react` and `react-dom` (`^16.8.0 || ^17 || ^18 || ^19`). On React 18+,
 
 Create one engine with `useForm`. `<Form>` provides it to descendants and handles native submit events. Pass `kit={siteKit}` once to supply the default `FormItem` decorator so each field only needs its path, rules, and control. Fill in the fields and submit to see the resulting values.
 
-> `@site/ui` is the docs' demo kit built on `@ui-sdk/react`. To plug in your own UI library or native controls, see [connecting a UI library](/en/guide/headless).
+> `@site/ui` is an internal docs-only demo kit built on `@ui-sdk/react`. To connect a public UI library in your app, see [Ant Design](/en/guide/headless#ant-design), [TDesign React](/en/guide/headless#tdesign-react), or [connecting a UI library](/en/guide/headless#adapt-a-control).
 
 ```tsx preview
 import { useState } from 'react';
@@ -130,4 +130,4 @@ export default function App() {
 }
 ```
 
-Continue with [core concepts](/en/guide/concepts) or the [interactive tutorial](/en/tutorial/1-start).
+Continue with [connecting a UI library](/en/guide/headless#adapt-a-control) ([Ant Design](/en/guide/headless#ant-design) / [TDesign React](/en/guide/headless#tdesign-react)), [core concepts](/en/guide/concepts), or the [interactive tutorial](/en/tutorial/1-start).

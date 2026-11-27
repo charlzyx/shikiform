@@ -19,7 +19,7 @@ npm i @shikiform/react
 
 在 `<Field>` 上，`decorator`（如 `FormItem`）展示标签、必填标记与错误信息，`component`（如 `FieldInput`）渲染输入控件；通过 `<Form kit={siteKit}>` 传入默认装饰器后，不必在每个 `<Field>` 上重复书写 `decorator`。`typed(form)` 返回的 `F.Field` 与 `<Field>` 运行时相同，额外按表单值类型校验 `name`。
 
-> 示例中的 `@site/ui` 是本文档站基于 `@ui-sdk/react` 封装的演示组件包；接入你自己的组件库或原生控件见 [接入组件库](/guide/headless)。
+> 示例中的 `@site/ui` 是本文档站基于 `@ui-sdk/react` 封装的内部演示包（不对外发布）。业务项目接入公开组件库见 [接入 Ant Design](/guide/headless#接入-ant-design)、[接入 TDesign React](/guide/headless#接入-tdesign-react) 或 [接入组件库](/guide/headless#接自己的组件库)。
 
 ```tsx preview
 import { useState } from 'react';
@@ -100,7 +100,7 @@ export default function App() {
 }
 ```
 
-无参 `useField()` 只能在 `<Field>` 渲染的 `component`、`decorator` 或 `children` 内调用。封装第三方组件库（如 Ant Design / Arco / Radix）可使用 `@shikiform/react` 导出的 `connect` 与 `useFieldDecorator`，见 [接入组件库](/guide/headless#接自己的组件库)。
+无参 `useField()` 只能在 `<Field>` 渲染的 `component`、`decorator` 或 `children` 内调用。封装第三方组件库（如 [Ant Design](/guide/headless#接入-ant-design) / [TDesign React](/guide/headless#接入-tdesign-react) / shadcn/ui）可使用 `@shikiform/react` 导出的 `connect` 与 `useFieldDecorator`，见 [接入组件库](/guide/headless#接自己的组件库)。
 
 ## 复用一段字段
 

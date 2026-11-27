@@ -1,6 +1,6 @@
 ---
 title: Headless Hooks 与接入组件库
-description: 不依赖 UI 库直接使用 useField、useWatch、数组/树上下文 Hooks，以及如何接入 shadcn/ui、Mantine、MUI 等第三方组件库。
+description: 不依赖 UI 库直接使用 useField、useWatch、数组/树上下文 Hooks，以及接入 Ant Design、TDesign React、UI SDK、shadcn/ui、Mantine、MUI 等组件库。
 ---
 
 ShikiForm 本身零 UI 库依赖。需要自定义表格、树编辑器或接入自己的组件库时，直接使用 `@shikiform/react` 导出的无 UI Hooks（`<Field>` 与 `<ArrayField>` 均基于这些 Hook 实现）：
@@ -108,33 +108,290 @@ function NodeRow() {
 
 ## 接自己的组件库
 
-`connect` 和 `mapProps` 均直接由 `@shikiform/react` 导出，零 UI 依赖。标签与错误提示使用 [`useFieldDecorator`](/reference/react-hooks#usefielddecorator)，提交和重置按钮可使用 headless 的 [`Submit` / `Reset`](/reference/react-hooks#submit)（支持 `asChild` 或 render prop，其中 `Reset` 通过 `afterReset` 接收重置后的值）。
+`connect` 和 `mapProps` 均直接由 `@shikiform/react` 导出，零 UI 依赖。标签、必填标记与错误提示通过 [`useFieldDecorator`](/reference/react-hooks#usefielddecorator) 接入，提交和重置按钮通过 headless 的 [`Submit` / `Reset`](/reference/react-hooks#submit) 接入（支持 render prop 与 `asChild`，其中 `Reset` 通过 `afterReset` 接收重置后的值）。
 
-接入任何 React UI 库（如 Ant Design、Arco Design、Radix / shadcn/ui、Mantine、MUI）通常只需要三步：
+接入任何 React UI 库遵循同一职责边界：**UI 库只负责渲染控件与表单项外观，ShikiForm 统一管理字段值、校验规则、联动状态与提交流程**。页面中只保留 ShikiForm 的 `<Form form={form}>`，不要嵌套 UI 库自带的 `<Form>` 或调用 `Form.useForm()`，避免两套 Form store 争抢受控状态。
 
-1. **用 `connect(Comp, mapProps(...))` 包装输入控件**：自动把 `value`、`onChange`、`onBlur`、`disabled`、`id`、`options` 接到组件上；`connect` 生成的 `onChange`、`onBlur` 与 `blurOn` 回调在挂载期间引用稳定，你额外传的其他函数 prop 会原样保留；需要 `status`（如 Ant Design / Arco 的 `'error' | 'warning'`）或自定义 `preview` 阅读态时，在 `mapProps` 第二个回调里按 `field.errors` / `field.warnings` 补充即可：
+> 本文档站交互演示中出现的 `@site/ui` 是本站基于 `@ui-sdk/react` 封装的内部示例包，不对外发布。实际项目直接安装对应的公开 UI 库 npm 包，按下方模板接入即可。
 
-```ts
-// 适配 Ant Design / Arco Design 等带 status 属性的组件库示例：
-import { connect, mapProps } from '@shikiform/react'
+通用接入只需三步：
 
-const withStatus = mapProps(
-  { options: 'options', loading: 'loading' },
-  (props, field) => ({
-    ...props,
-    status: field.errors.length ? 'error' : field.warnings.length ? 'warning' : undefined,
-  }),
-)
+1. **用 `connect(Comp, mapProps(...))` 包装输入控件**：自动将 `value`、`onChange`、`onBlur`、`disabled`、`readOnly`、`id` 绑定到控件，并在挂载期保持生成的事件回调引用稳定。内置的 `valueFromEvent` 会自动兼容 DOM 事件（提取 `e.target.value` / `e.target.checked`）与直接传值（原样取首参）。需要透传选项、加载态、校验态或自定义转换时，在 `mapProps` 中声明 `options`、`loading`、`status`、`format`、`parse`、`blurOn`、`preview` 等映射。
+2. **用 `useFieldDecorator()` 封装 `FormItem` 装饰器**：把 `d.label`、`d.required`、`d.error`、`d.warnings`、`d.description` 映射到 UI 库的表单项布局组件（仅用布局样式，不传 UI 库表单的 `name` 与 `rules`）。
+3. **用 `<Form kit={{ decorator, components }}>` 或 `<FieldKit>` 集中注册**：业务页面即可直接编写 `<Field name="email" title="邮箱" component="Input" />`。
 
-// const Input = connect(UiInput, withStatus)
-// const Select = connect(UiSelect, withStatus)
-// const Switch = connect(UiSwitch, mapProps({ value: 'checked', onChange: 'onChange' }))
+下面首先给出最常用的 **Ant Design** 与 **TDesign React** 完整接入示例，随后补充通用适配细节及 UI SDK、shadcn/ui、Mantine、MUI 的接法；原生 HTML 最小起步见 [快速开始](/guide/quick-start)。
+
+### 接入 Ant Design
+
+**安装与样式入口**：
+
+```bash
+npm i @shikiform/react antd
 ```
 
-2. **用 `useFieldDecorator()` 封装一个 `FormItem` 装饰器**：把 `d.label`、`d.required`、`d.errors`、`d.warnings`、`d.description` 映射到 UI 库的表单项布局（如 `validateStatus` / `help` / `extra`）。
-3. **用 `<FieldKit>` 或 `<Form kit={{ decorator, components }}>` 集中注册**：业务页面即可直接写 `<Field name="email" title="邮箱" component="Input" />`。
+在应用入口引入 Ant Design 重置样式（`antd` v5 / v6 均内置 CSS-in-JS，无需引入全量组件样式）：
 
-下面以 UI SDK、shadcn/ui、Mantine 和 MUI 为例展示具体接入代码，原生 HTML 最小起步见 [快速开始](/guide/quick-start)。
+```ts
+import 'antd/dist/reset.css'
+```
+
+- 适用版本：`npm i @shikiform/react antd` 默认安装 `antd` v6（已实测 `6.7.2`，要求 `react >= 18`，原生支持 React 19）。React 16.8 / 17 项目可安装 `antd@5`（`npm i @shikiform/react antd@5`，已实测 `5.29.3`）；若在 React 19 下使用 `antd` v5，按官方说明额外安装并引入 `@ant-design/v5-patch-for-react-19`。
+- 避免重复 store：表单容器使用 ShikiForm 的 `<Form form={form}>`，省略 `antd` 的 `<AntForm>` 与 `AntForm.useForm()`。`<AntForm.Item>` 在不传 `name`、`rules` 和 `dependencies` 时跳过内部表单字段注册，只渲染标签、必填标记、错误与说明样式。
+
+下面是一份可直接复制运行的最小完整表单（覆盖 `Input`、`Select`、`Switch`、校验提示、重置与提交）：
+
+```tsx
+import { useState, type ReactNode } from 'react'
+import { Form as AntForm, Button, Input as AntInput, Select as AntSelect, Space, Switch as AntSwitch } from 'antd'
+import { Form, Reset, Submit, connect, mapProps, typed, useFieldDecorator, useForm } from '@shikiform/react'
+// 应用入口引入重置样式：
+// import 'antd/dist/reset.css'
+
+// Input：onChange 回调 DOM ChangeEvent，connect 默认的 valueFromEvent 自动取 e.target.value；原生支持 readOnly
+const Input = connect(
+  AntInput,
+  mapProps(
+    { status: 'status', required: 'aria-required' },
+    (props, field) => ({
+      ...props,
+      'aria-invalid': field.errors.length > 0 || undefined,
+    }),
+  ),
+)
+
+// Select：onChange(value, option) 直接传新值，connect 原样取首参；未选或 allowClear 清空时为 undefined
+// AntSelect 不支持 readOnly，通过 readOnly: 'disabled' 仅在 UI 层映射为禁用态
+const Select = connect(
+  AntSelect,
+  mapProps(
+    { options: 'options', loading: 'loading', status: 'status', readOnly: 'disabled', required: 'aria-required' },
+    (props, field) => ({
+      ...props,
+      'aria-invalid': field.errors.length > 0 || undefined,
+    }),
+  ),
+)
+
+// Switch：受控属性为 checked，无 onBlur 且不支持 readOnly
+const Switch = connect(AntSwitch, mapProps({ value: 'checked', readOnly: 'disabled', blurOn: 'onChange' }))
+
+// 仅复用 AntForm.Item 的布局与提示样式，不传 name / rules，不创建 Ant Design Form store
+function FormItem({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator()
+  return (
+    <AntForm.Item
+      layout="vertical"
+      label={d.label}
+      htmlFor={d.labelProps.htmlFor}
+      required={d.required}
+      validateStatus={d.invalid ? 'error' : d.warnings.length ? 'warning' : d.validating ? 'validating' : undefined}
+      help={d.error ?? d.warnings[0]}
+      extra={d.description}
+    >
+      {children}
+    </AntForm.Item>
+  )
+}
+
+type Values = { name: string; city: string | undefined; notify: boolean }
+
+export default function App() {
+  const [saved, setSaved] = useState('')
+  const form = useForm<Values>({ initialValues: { name: '', city: undefined, notify: false } })
+  const F = typed(form)
+
+  return (
+    <Form form={form} kit={{ decorator: FormItem }} onSubmit={(values) => setSaved(JSON.stringify(values))}>
+      <F.Field
+        name="name"
+        title="姓名"
+        description="对外展示昵称"
+        required
+        rules={{ minLength: 2, message: '至少输入 2 个字符' }}
+        component={[Input, { placeholder: '请输入姓名', allowClear: true }]}
+      />
+      <F.Field
+        name="city"
+        title="城市"
+        required
+        enum={[
+          { label: '杭州', value: 'hz' },
+          { label: '南京', value: 'nj' },
+        ]}
+        component={[Select, { placeholder: '请选择城市', allowClear: true }]}
+      />
+      <F.Field name="notify" title="接收通知" component={Switch} />
+      <Space>
+        {/* Ant Design Button 的原生表单类型叫 htmlType，通过 render prop 透传 */}
+        <Submit>
+          {(s) => (
+            <Button type="primary" htmlType={s.type} loading={s.loading} disabled={s.disabled} onClick={s.onClick}>
+              提交
+            </Button>
+          )}
+        </Submit>
+        <Reset afterReset={() => setSaved('')}>
+          {(s) => (
+            <Button htmlType="button" disabled={s.disabled} onClick={s.onClick}>
+              重置
+            </Button>
+          )}
+        </Reset>
+      </Space>
+      {saved && <pre aria-live="polite">{saved}</pre>}
+    </Form>
+  )
+}
+```
+
+Ant Design 接入要点：
+
+- **`Input` 与 `Select` 的回调及清空差异**：`AntInput` 的 `onChange` 传入 `ChangeEvent<HTMLInputElement>`，`allowClear` 清空时回调 `''`；`AntSelect` 的 `onChange(value, option)` 直接传入新值，`allowClear` 清空时回调 `undefined`，且仅在 `value === undefined` 时显示 `placeholder`。未选态推荐直接存 `undefined`（如 `city: string | undefined`）。
+- **`onBlur`、只读与无障碍**：`AntInput` 和 `AntSelect` 均支持原生 `onBlur`、`disabled`、`id`、`aria-required` 与 `aria-invalid`，在 `FormItem` 上透传 `htmlFor={d.labelProps.htmlFor}` 即可与标签关联；`AntSwitch` 无 `onBlur`，配置 `blurOn: 'onChange'`。只读方面，`AntInput` 原生支持 `readOnly`，而 `AntSelect` 与 `AntSwitch` 不支持 `readOnly`，因此通过 `mapProps({ readOnly: 'disabled' })` 将只读态在控件层映射为禁用态；ShikiForm 字段自身仍保持 `readOnly` 状态（如隐藏必填星号、跳过校验），控件层禁用仅是 UI 呈现映射。若希望只读时渲染纯文本视图，可在 `mapProps` 中配置 `preview`（见下方 [在线最小可运行示例](#在线最小可运行示例) 中的 `preview` 用法）。
+- **提交 / 重置按钮**：Ant Design `<Button>` 的 `type` 表示按钮样式（`'primary' | 'default'`），原生 HTML 按钮类型为 `htmlType`，使用 `<Submit>` / `<Reset>` 的 render prop 显式传入 `htmlType`、`loading`、`disabled` 与 `onClick`。
+- **其他常用控件适配**：以下可选 `DatePicker` 片段直接 `import dayjs`，使用 pnpm 等严格依赖管理工程请额外执行 `npm i dayjs`：
+
+```tsx
+import dayjs, { type Dayjs } from 'dayjs'
+import { Checkbox as AntCheckbox, DatePicker as AntDatePicker, InputNumber as AntInputNumber } from 'antd'
+import { connect, mapProps } from '@shikiform/react'
+
+// InputNumber 支持 readOnly；清空时回调 null，字段类型声明为 number | null
+const InputNumber = connect(AntInputNumber, mapProps({ status: 'status' }))
+// Checkbox 支持 onBlur，valueFromEvent 自动取 e.target.checked；不支持 readOnly，UI 层映射为 disabled
+const Checkbox = connect(AntCheckbox, mapProps({ value: 'checked', readOnly: 'disabled' }))
+// DatePicker 字段存 YYYY-MM-DD 字符串，在控件层与 Dayjs 双向转换；只读态映射为 disabled
+const DatePicker = connect(
+  AntDatePicker,
+  mapProps({
+    status: 'status',
+    readOnly: 'disabled',
+    format: (value: string | undefined) => (value ? dayjs(value) : null),
+    parse: (date: Dayjs | null) => (date?.isValid() ? date.format('YYYY-MM-DD') : undefined),
+  }),
+)
+```
+
+### 接入 TDesign React
+
+**安装与样式入口**：
+
+```bash
+npm i @shikiform/react tdesign-react
+```
+
+`tdesign-react` 默认 ESM 入口（`es/index.js`）中各组件已按需引入自身组件 CSS，在应用入口引入基础样式文件即可（全量样式入口为 `tdesign-react/dist/tdesign.css`）：
+
+```ts
+import 'tdesign-react/es/style/index.css'
+```
+
+- 适用版本：`tdesign-react` 1.x（`peerDependencies` 为 `react >= 16.13.1`，已实测 `1.19.0`）；在 React 19 中使用 TDesign 浮层或命令式 API 时，按需在应用入口引入 `tdesign-react/es/_util/react-19-adapter`。
+- 避免重复 store：表单容器使用 ShikiForm 的 `<Form form={form}>`，省略 TDesign 的 `<TForm>` 与 `TForm.useForm()`。`<TForm.FormItem>` 在直接子元素为自定义组件时会克隆注入自身的 `value` / `onChange`，因此用原生 `<div style={{ width: '100%' }}>{children}</div>` 包裹子控件即可彻底隔离 TDesign 内部表单状态；同时显式传入 `showErrorMessage`（脱离 `<TForm>` 时默认为 `undefined`）以启用 `t-is-error` 错误态样式。
+
+下面是一份可直接复制运行的最小完整表单（覆盖 `Input`、`Select`、`Switch`、校验提示、重置与提交）：
+
+```tsx
+import { useState, type ReactNode } from 'react'
+import { Button, Form as TForm, Input as TInput, Select as TSelect, Space, Switch as TSwitch } from 'tdesign-react'
+import { Form, Reset, Submit, connect, mapProps, typed, useFieldDecorator, useForm } from '@shikiform/react'
+// 应用入口引入基础样式：
+// import 'tdesign-react/es/style/index.css'
+
+// TDesign 的 Input 与 Select 的 onChange(value, context) 均直接把新值作为首参传入
+// TInput 的多余属性落在外层 div 而非内部 <input>，关闭 id 透传
+const Input = connect(TInput, mapProps({ id: false, status: 'status' }))
+
+// TSelect 单选点击 clearable 清空时回调 onChange(null, context)，字段类型声明为 string | null
+const Select = connect(TSelect, mapProps({ id: false, options: 'options', loading: 'loading', status: 'status' }))
+
+// TSwitch 无 onBlur，通过 blurOn: 'onChange' 触发失焦校验
+const Switch = connect(TSwitch, mapProps({ id: false, blurOn: 'onChange' }))
+
+// 仅复用 TForm.FormItem 的布局与校验提示样式，不传 name / rules，不创建 TDesign Form store
+// 外层用 div 包裹 children，隔离 TForm.FormItem 对直接子组件的 value / onChange 克隆注入
+function FormItem({ children }: { children?: ReactNode }) {
+  const d = useFieldDecorator()
+  return (
+    <TForm.FormItem
+      labelAlign="top"
+      label={d.label}
+      requiredMark={d.required}
+      showErrorMessage
+      status={d.invalid ? 'error' : d.warnings.length ? 'warning' : d.validating ? 'validating' : undefined}
+      tips={d.error ?? d.warnings[0]}
+      help={d.description}
+    >
+      <div style={{ width: '100%' }}>{children}</div>
+    </TForm.FormItem>
+  )
+}
+
+type Values = { name: string; city: string | null; notify: boolean }
+
+export default function App() {
+  const [saved, setSaved] = useState('')
+  const form = useForm<Values>({ initialValues: { name: '', city: null, notify: false } })
+  const F = typed(form)
+
+  return (
+    <Form form={form} kit={{ decorator: FormItem }} onSubmit={(values) => setSaved(JSON.stringify(values))}>
+      <F.Field
+        name="name"
+        title="姓名"
+        description="对外展示昵称"
+        required
+        rules={{ minLength: 2, message: '至少输入 2 个字符' }}
+        component={[Input, { placeholder: '请输入姓名', clearable: true }]}
+      />
+      <F.Field
+        name="city"
+        title="城市"
+        required
+        enum={[
+          { label: '杭州', value: 'hz' },
+          { label: '南京', value: 'nj' },
+        ]}
+        component={[Select, { placeholder: '请选择城市', clearable: true }]}
+      />
+      <F.Field name="notify" title="接收通知" component={Switch} />
+      <Space>
+        {/* TDesign Button 的 type 即原生 HTML 按钮类型，视觉风格通过 theme 设置 */}
+        <Submit>
+          {(s) => (
+            <Button theme="primary" type={s.type} loading={s.loading} disabled={s.disabled}>
+              提交
+            </Button>
+          )}
+        </Submit>
+        <Reset afterReset={() => setSaved('')} asChild>
+          <Button variant="outline">重置</Button>
+        </Reset>
+      </Space>
+      {saved && <pre aria-live="polite">{saved}</pre>}
+    </Form>
+  )
+}
+```
+
+TDesign React 接入要点：
+
+- **`Input` 与 `Select` 统一首参传值及清空差异**：TDesign 的 `Input` 与 `Select` 的 `onChange(value, context)` 都把新值直接作为第一个参数传入，`connect` 默认原样取首参。清空时两者不同：`TInput` 点击 `clearable` 回调 `''`，单选 `TSelect` 点击 `clearable` 回调 `null`（多选回调 `[]`）。单选字段声明为 `string | null` 可直接承接；若希望清空后存 `undefined`，在 `mapProps` 中补充 `parse: (v) => (v == null ? undefined : v)`。
+- **`onBlur`、禁用与 `id` / 无障碍**：`TInput` 与 `TSelect` 原生支持 `onBlur`、`disabled`、`readOnly` 与 `status`；`TSwitch` 与 `TCheckbox` 的类型定义不含 `onBlur`，通过 `blurOn: 'onChange'` 触发失焦校验。`TInput` 把未消费属性展开在外层 `.t-input__wrap` `div` 上、`TSelect` 同样不透传原生 `<input id>`，在 `mapProps` 中设置 `id: false` 避免无效 `id` 落到容器节点，并通过 `FormItem` 的 `status`、`tips` 与 `help` 输出视觉与文本反馈。
+- **提交 / 重置按钮**：TDesign `<Button>` 的 `type` 就是原生 `'submit' | 'reset' | 'button'`（视觉样式用 `theme="primary"`）。在 `<Form onSubmit>` 内使用 `<Submit>` 的 render prop 透传 `type={s.type}`、`loading={s.loading}` 与 `disabled={s.disabled}` 即可触发原生提交与回车提交；`<Reset asChild>` 可直接包裹 `<Button variant="outline">`。
+- **其他常用控件适配**：
+
+```tsx
+import { Checkbox as TCheckbox, DatePicker as TDatePicker, InputNumber as TInputNumber } from 'tdesign-react'
+import { connect, mapProps } from '@shikiform/react'
+
+const InputNumber = connect(TInputNumber, mapProps({ id: false, status: 'status' }))
+// TCheckbox 受控属性为 checked 且不含 onBlur
+const Checkbox = connect(TCheckbox, mapProps({ id: false, value: 'checked', blurOn: 'onChange' }))
+// TDatePicker 默认以日期字符串（如 YYYY-MM-DD）作为 value，直接接入即可
+const DatePicker = connect(TDatePicker, mapProps({ id: false, status: 'status' }))
+```
 
 ### 区分 `useFieldDecorator().control` 与 `connect`
 
